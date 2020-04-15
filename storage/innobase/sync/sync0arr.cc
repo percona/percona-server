@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -123,8 +123,9 @@ struct sync_cell_t {
                             has not been signalled in the
                             period between the reset and
                             wait call. */
-  time_t reservation_time;  /*!< time when the thread reserved
-                           the wait cell */
+
+  /** Time when the thread reserved the wait cell. */
+  ib_time_monotonic_t reservation_time;
 };
 
 /* NOTE: It is allowed for a thread to wait for an event allocated for
@@ -279,15 +280,15 @@ static os_event_t sync_cell_get_event(
   if (type == SYNC_MUTEX) {
     return (cell->latch.mutex->event());
 
-  } else if (type == SYNC_BUF_BLOCK) {
+  } else if (type == SYNC_BUF_BLOCK || type == SYNC_DICT_AUTOINC_MUTEX) {
     return (cell->latch.bpmutex->event());
 
   } else if (type == RW_LOCK_X_WAIT) {
-    return (&cell->latch.lock->wait_ex_event);
+    return (cell->latch.lock->wait_ex_event);
 
   } else { /* RW_LOCK_S and RW_LOCK_X wait on the same event */
 
-    return (&cell->latch.lock->event);
+    return (cell->latch.lock->event);
   }
 }
 
@@ -336,7 +337,8 @@ sync_cell_t *sync_array_reserve_cell(
 
   if (cell->request_type == SYNC_MUTEX) {
     cell->latch.mutex = reinterpret_cast<WaitMutex *>(object);
-  } else if (cell->request_type == SYNC_BUF_BLOCK) {
+  } else if (cell->request_type == SYNC_BUF_BLOCK ||
+             type == SYNC_DICT_AUTOINC_MUTEX) {
     cell->latch.bpmutex = reinterpret_cast<BlockWaitMutex *>(object);
   } else {
     cell->latch.lock = reinterpret_cast<rw_lock_t *>(object);
@@ -351,7 +353,7 @@ sync_cell_t *sync_array_reserve_cell(
 
   cell->thread_id = os_thread_get_curr_id();
 
-  cell->reservation_time = ut_time();
+  cell->reservation_time = ut_time_monotonic();
 
   /* Make sure the event is reset and also store the value of
   signal_count at which the event was reset. */
@@ -459,9 +461,9 @@ static void sync_array_cell_print(FILE *file, /*!< in: file where to print */
 
   fprintf(file,
           "--Thread " UINT64PF " has waited at %s line " ULINTPF
-          " for %.2f seconds the semaphore:\n",
+          " for " UINT64PF " seconds the semaphore:\n",
           (uint64_t)(cell->thread_id), innobase_basename(cell->file),
-          cell->line, difftime(time(NULL), cell->reservation_time));
+          cell->line, (uint64_t)(ut_time_monotonic() - cell->reservation_time));
 
   if (type == SYNC_MUTEX) {
     WaitMutex *mutex = cell->latch.mutex;
@@ -486,7 +488,7 @@ static void sync_array_cell_print(FILE *file, /*!< in: file where to print */
             name, (ulong)policy.get_enter_line()
 #endif /* UNIV_DEBUG */
     );
-  } else if (type == SYNC_BUF_BLOCK) {
+  } else if (type == SYNC_BUF_BLOCK || type == SYNC_DICT_AUTOINC_MUTEX) {
     BlockWaitMutex *mutex = cell->latch.bpmutex;
 
     const BlockWaitMutex::MutexPolicy &policy = mutex->policy();
@@ -707,7 +709,8 @@ static bool sync_array_detect_deadlock(
       return (false);
     }
 
-    case SYNC_BUF_BLOCK: {
+    case SYNC_BUF_BLOCK:
+    case SYNC_DICT_AUTOINC_MUTEX: {
       BlockWaitMutex *mutex = cell->latch.bpmutex;
 
       const BlockWaitMutex::MutexPolicy &policy = mutex->policy();
@@ -862,8 +865,118 @@ static bool sync_array_detect_deadlock(
 }
 #endif /* UNIV_DEBUG */
 
+/** Determines if we can wake up the thread waiting for a sempahore. */
+static bool sync_arr_cell_can_wake_up(
+    sync_cell_t *cell) /*!< in: cell to search */
+{
+  rw_lock_t *lock;
+
+  switch (cell->request_type) {
+    WaitMutex *mutex;
+    BlockWaitMutex *bpmutex;
+    case SYNC_MUTEX:
+      mutex = cell->latch.mutex;
+
+      os_rmb;
+      if (mutex->state() == MUTEX_STATE_UNLOCKED) {
+        return (true);
+      }
+
+      break;
+
+    case SYNC_BUF_BLOCK:
+    case SYNC_DICT_AUTOINC_MUTEX:
+      bpmutex = cell->latch.bpmutex;
+
+      os_rmb;
+      if (bpmutex->state() == MUTEX_STATE_UNLOCKED) {
+        return (true);
+      }
+
+      break;
+
+    case RW_LOCK_X:
+    case RW_LOCK_SX:
+      lock = cell->latch.lock;
+
+      os_rmb;
+      if (lock->lock_word > X_LOCK_HALF_DECR) {
+        /* Either unlocked or only read locked. */
+
+        return (true);
+      }
+
+      break;
+
+    case RW_LOCK_X_WAIT:
+
+      lock = cell->latch.lock;
+
+      /* lock_word == 0 means all readers or sx have left */
+      os_rmb;
+      if (lock->lock_word == 0) {
+        return (true);
+      }
+      break;
+
+    case RW_LOCK_S:
+
+      lock = cell->latch.lock;
+
+      /* lock_word > 0 means no writer or reserved writer */
+      os_rmb;
+      if (lock->lock_word > 0) {
+        return (true);
+      }
+  }
+
+  return (false);
+}
+
 /** Increments the signalled count. */
 void sync_array_object_signalled() { ++sg_count; }
+
+/** If the wakeup algorithm does not work perfectly at semaphore relases,
+ this function will do the waking (see the comment in mutex_exit). This
+ function should be called about every 1 second in the server.
+
+ Note that there's a race condition between this thread and mutex_exit
+ changing the lock_word and calling signal_object, so sometimes this finds
+ threads to wake up even when nothing has gone wrong. */
+static void sync_array_wake_threads_if_sema_free_low(
+    sync_array_t *arr) /* in/out: wait array */
+{
+  sync_array_enter(arr);
+
+  for (ulint i = 0; i < arr->next_free_slot; ++i) {
+    sync_cell_t *cell;
+
+    cell = sync_array_get_nth_cell(arr, i);
+
+    if (cell->latch.mutex != 0 && sync_arr_cell_can_wake_up(cell)) {
+      os_event_t event;
+
+      event = sync_cell_get_event(cell);
+
+      os_event_set(event);
+    }
+  }
+
+  sync_array_exit(arr);
+}
+
+/** If the wakeup algorithm does not work perfectly at semaphore relases,
+ this function will do the waking (see the comment in mutex_exit). This
+ function should be called about every 1 second in the server.
+
+ Note that there's a race condition between this thread and mutex_exit
+ changing the lock_word and calling signal_object, so sometimes this finds
+ threads to wake up even when nothing has gone wrong. */
+void sync_arr_wake_threads_if_sema_free(void) {
+  for (ulint i = 0; i < sync_array_size; ++i) {
+    sync_array_wake_threads_if_sema_free_low(sync_wait_array[i]);
+  }
+}
 
 /** Prints warnings of long semaphore waits to stderr.
  @return true if fatal semaphore wait threshold was exceeded */
@@ -883,11 +996,11 @@ static bool sync_array_print_long_waits_low(
   }
 
 #ifdef UNIV_DEBUG_VALGRIND
-    /* Increase the timeouts if running under valgrind because it executes
-    extremely slowly. UNIV_DEBUG_VALGRIND does not necessary mean that
-    we are running under valgrind but we have no better way to tell.
-    See Bug#58432 innodb.innodb_bug56143 fails under valgrind
-    for an example */
+  /* Increase the timeouts if running under valgrind because it executes
+  extremely slowly. UNIV_DEBUG_VALGRIND does not necessary mean that
+  we are running under valgrind but we have no better way to tell.
+  See Bug#58432 innodb.innodb_bug56143 fails under valgrind
+  for an example */
 #define SYNC_ARRAY_TIMEOUT 2400
   fatal_timeout *= 10;
 #else
@@ -906,7 +1019,9 @@ static bool sync_array_print_long_waits_low(
       continue;
     }
 
-    double diff = difftime(time(NULL), cell->reservation_time);
+    const auto time_diff = ut_time_monotonic() - cell->reservation_time;
+
+    const uint64_t diff = time_diff > 0 ? (uint64_t)time_diff : 0;
 
     if (diff > SYNC_ARRAY_TIMEOUT) {
 #ifdef UNIV_NO_ERR_MSGS
@@ -979,7 +1094,7 @@ ibool sync_array_print_long_waits(
     srv_print_innodb_monitor = TRUE;
 
 #ifndef UNIV_NO_ERR_MSGS
-    os_event_set(srv_monitor_event);
+    lock_set_timeout_event();
 #endif /* !UNIV_NO_ERR_MSGS */
 
     os_thread_sleep(30000000);

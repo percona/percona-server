@@ -1,4 +1,3 @@
---skip
 # Testing table with row_format=compressed
 let $t1_table_type=row_format=compressed;
 let $is_t1_compressed=1;

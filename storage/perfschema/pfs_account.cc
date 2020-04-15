@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -557,7 +557,7 @@ void PFS_account::aggregate_status(PFS_user *safe_user, PFS_host *safe_host) {
       - GLOBAL_STATUS
     */
     safe_user->m_status_stats.aggregate(&m_status_stats);
-    m_status_stats.aggregate_to(&global_status_var, false);
+    m_status_stats.aggregate_to(&global_status_var);
     m_status_stats.reset();
     return;
   }
@@ -576,7 +576,7 @@ void PFS_account::aggregate_status(PFS_user *safe_user, PFS_host *safe_host) {
     Aggregate STATUS_BY_ACCOUNT to:
     - GLOBAL_STATUS
   */
-  m_status_stats.aggregate_to(&global_status_var, false);
+  m_status_stats.aggregate_to(&global_status_var);
   m_status_stats.reset();
   return;
 }

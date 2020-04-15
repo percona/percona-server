@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -68,6 +68,6 @@ void inline_mysql_data_lock_unregister(
 #endif /* HAVE_PSI_DATA_LOCK_INTERFACE */
 }
 
-  /** @} (end of group psi_api_data_lock) */
+/** @} (end of group psi_api_data_lock) */
 
 #endif

@@ -1,0 +1,44 @@
+INSTALL PLUGIN authentication_ldap_sasl SONAME 'authentication_ldap_sasl.so';
+SELECT PLUGIN_NAME, PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME LIKE 'authentication_ldap_sasl%';
+PLUGIN_NAME	PLUGIN_STATUS
+authentication_ldap_sasl	ACTIVE
+SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_sasl%';
+Variable_name	Value
+authentication_ldap_sasl_auth_method_name	SIMPLE
+authentication_ldap_sasl_bind_base_dn	
+authentication_ldap_sasl_bind_root_dn	
+authentication_ldap_sasl_bind_root_pwd	
+authentication_ldap_sasl_ca_path	
+authentication_ldap_sasl_group_search_attr	cn
+authentication_ldap_sasl_group_search_filter	(|(&(objectClass=posixGroup)(memberUid={UA}))(&(objectClass=group)(member={UD})))
+authentication_ldap_sasl_init_pool_size	10
+authentication_ldap_sasl_log_status	1
+authentication_ldap_sasl_max_pool_size	1000
+authentication_ldap_sasl_server_host	
+authentication_ldap_sasl_server_port	389
+authentication_ldap_sasl_ssl	OFF
+authentication_ldap_sasl_tls	OFF
+authentication_ldap_sasl_user_search_attr	uid
+SET GLOBAL authentication_ldap_sasl_bind_base_dn = 'cn=users,cn=accounts,dc=example,dc=test';
+SET GLOBAL authentication_ldap_sasl_server_host = 'freeipa';
+SET GLOBAL authentication_ldap_sasl_server_port = 636;
+SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_sasl%';
+Variable_name	Value
+authentication_ldap_sasl_auth_method_name	SIMPLE
+authentication_ldap_sasl_bind_base_dn	cn=users,cn=accounts,dc=example,dc=test
+authentication_ldap_sasl_bind_root_dn	
+authentication_ldap_sasl_bind_root_pwd	
+authentication_ldap_sasl_ca_path	
+authentication_ldap_sasl_group_search_attr	cn
+authentication_ldap_sasl_group_search_filter	(|(&(objectClass=posixGroup)(memberUid={UA}))(&(objectClass=group)(member={UD})))
+authentication_ldap_sasl_init_pool_size	10
+authentication_ldap_sasl_log_status	1
+authentication_ldap_sasl_max_pool_size	1000
+authentication_ldap_sasl_server_host	freeipa
+authentication_ldap_sasl_server_port	636
+authentication_ldap_sasl_ssl	OFF
+authentication_ldap_sasl_tls	OFF
+authentication_ldap_sasl_user_search_attr	uid
+CREATE USER user1 IDENTIFIED WITH authentication_ldap_sasl BY 'uid=user1,cn=users,cn=accounts,dc=example,dc=test';
+DROP USER user1;
+UNINSTALL PLUGIN authentication_ldap_sasl;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,17 +23,15 @@
 #include "sql/table_function.h"
 
 #include <string.h>
-#include <algorithm>
 #include <memory>
 #include <new>
+#include <utility>
 
-#include "binary_log_types.h"
+#include "field_types.h"
 #include "m_string.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysql_time.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "sql/field.h"
@@ -42,9 +40,9 @@
 #include "sql/item_json_func.h"
 #include "sql/json_dom.h"
 #include "sql/json_path.h"
-#include "sql/my_decimal.h"
 #include "sql/psi_memory_key.h"
-#include "sql/sql_class.h"  // THD
+#include "sql/rpl_utility.h"  // read_field_metadata
+#include "sql/sql_class.h"    // THD
 #include "sql/sql_exception_handler.h"
 #include "sql/sql_list.h"
 #include "sql/sql_show.h"
@@ -52,8 +50,8 @@
 #include "sql/sql_tmp_table.h"  // create_tmp_table_from_fields
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql_string.h"
-#include "template_utils.h"
 
 /******************************************************************************
   Implementation of Table_function
@@ -73,8 +71,7 @@ bool Table_function::write_row() {
 
   if ((error = table->file->ha_write_row(table->record[0]))) {
     if (!table->file->is_ignorable_error(error) &&
-        create_ondisk_from_heap(thd, table, nullptr, nullptr, error, true,
-                                nullptr))
+        create_ondisk_from_heap(thd, table, error, true, nullptr))
       return true;  // Not a table_is_full error
   }
   return false;
@@ -105,6 +102,12 @@ Table_function_json::Table_function_json(THD *thd_arg, const char *alias,
       is_source_parsed(false),
       source(a) {}
 
+bool Table_function_json::walk(Item_processor processor, enum_walk walk,
+                               uchar *arg) {
+  // Only 'source' may reference columns of other tables; rest is literals.
+  return source->walk(processor, walk, arg);
+}
+
 List<Create_field> *Table_function_json::get_field_list() {
   // It's safe as Json_table_column is derived from Create_field
   return reinterpret_cast<List<Create_field> *>(&m_vt_list);
@@ -125,137 +128,14 @@ List<Create_field> *Table_function_json::get_field_list() {
     false The JSON value can not be stored without encoding it, or it is not a
           JSON OPAQUE value.
 */
-static bool can_store_json_value_unencoded(const Field *field_to_store_in,
-                                           const Json_wrapper *json_data) {
+bool can_store_json_value_unencoded(const Field *field_to_store_in,
+                                    const Json_wrapper *json_data) {
   return (field_to_store_in->type() == MYSQL_TYPE_VARCHAR ||
           field_to_store_in->type() == MYSQL_TYPE_BLOB ||
           field_to_store_in->type() == MYSQL_TYPE_STRING) &&
          json_data->type() == enum_json_type::J_OPAQUE &&
          (json_data->field_type() == MYSQL_TYPE_STRING ||
           json_data->field_type() == MYSQL_TYPE_VARCHAR);
-}
-
-/**
-  Save JSON to a JSON_TABLE's column
-
-  Value is saved in type-aware manner. Into a JSON-typed column any JSON
-  data could be saved. Into an SQL scalar field only a scalar could be
-  saved. If data being saved isn't scalar or can't be coerced to the target
-  type, an error is returned.
-
-  @param  thd   thread handler
-  @param  field Column's field to save data to
-  @param  col   Column to save data from
-  @param  w     JSON data to save
-  @param  warn  level of warning for truncation handling
-
-  @returns
-    false ok
-    true  coercion error occur
-*/
-
-static bool save_json_to_column(THD *thd, Field *field, Json_table_column *col,
-                                Json_wrapper *w, enum_check_fields warn) {
-  bool err = false;
-  if (field->type() == MYSQL_TYPE_JSON) {
-    Field_json *fld = down_cast<Field_json *>(field);
-    return (fld->store_json(w) != TYPE_OK);
-  }
-
-  const enum_coercion_error cr_error =
-      (warn == CHECK_FIELD_ERROR_FOR_NULL) ? CE_ERROR : CE_WARNING;
-  if (w->type() == enum_json_type::J_ARRAY ||
-      w->type() == enum_json_type::J_OBJECT) {
-    if (col->m_on_error == enum_jtc_on::JTO_ERROR)
-      my_error(ER_WRONG_JSON_TABLE_VALUE, MYF(0), col->field_name);
-    return true;
-  }
-  thd->check_for_truncated_fields = warn;
-  switch (field->result_type()) {
-    case INT_RESULT: {
-      longlong value = w->coerce_int(col->field_name, &err, cr_error);
-
-      // If the Json_wrapper holds a numeric value, grab the signedness from it.
-      // If not, grab the signedness from the column where we are storing the
-      // value.
-      bool value_unsigned;
-      if (w->type() == enum_json_type::J_INT) {
-        value_unsigned = false;
-      } else if (w->type() == enum_json_type::J_UINT) {
-        value_unsigned = true;
-      } else {
-        value_unsigned = col->is_unsigned;
-      }
-
-      if (!err &&
-          (field->store(value, value_unsigned) >= TYPE_WARN_OUT_OF_RANGE))
-        err = true;
-      break;
-    }
-    case STRING_RESULT: {
-      MYSQL_TIME ltime;
-      bool date_time_handled = false;
-      /*
-        Here we explicitly check for DATE/TIME to reduce overhead by
-        avoiding encoding data into string in JSON code and decoding it
-        back from string in Field code.
-
-        Ensure that date is saved to a date column, and time into time
-        column. Don't mix.
-      */
-      if (field->is_temporal_with_date()) {
-        switch (w->type()) {
-          case enum_json_type::J_DATE:
-          case enum_json_type::J_DATETIME:
-          case enum_json_type::J_TIMESTAMP:
-            date_time_handled = true;
-            err = w->coerce_date(&ltime, "JSON_TABLE", cr_error);
-            break;
-          default:
-            break;
-        }
-      } else if (real_type_to_type(field->type()) == MYSQL_TYPE_TIME &&
-                 w->type() == enum_json_type::J_TIME) {
-        date_time_handled = true;
-        err = w->coerce_time(&ltime, "JSON_TABLE", cr_error);
-      }
-      if (date_time_handled) {
-        err = err || field->store_time(&ltime);
-        break;
-      }
-      String str;
-      if (can_store_json_value_unencoded(field, w)) {
-        str.set(w->get_data(), w->get_data_length(), field->charset());
-      } else {
-        err = w->to_string(&str, false, "JSON_TABLE");
-      }
-
-      if (!err && (field->store(str.ptr(), str.length(), str.charset()) >=
-                   TYPE_WARN_OUT_OF_RANGE))
-        err = true;
-      break;
-    }
-    case REAL_RESULT: {
-      double value = w->coerce_real(col->field_name, &err, cr_error);
-      if (!err && (field->store(value) >= TYPE_WARN_OUT_OF_RANGE)) err = true;
-      break;
-    }
-    case DECIMAL_RESULT: {
-      my_decimal value;
-      w->coerce_decimal(&value, col->field_name, &err, cr_error);
-      if (!err && (field->store_decimal(&value) >= TYPE_WARN_OUT_OF_RANGE))
-        err = true;
-      break;
-    }
-    case ROW_RESULT:
-    default:
-      // Shouldn't happen
-      DBUG_ASSERT(0);
-  }
-  if (err && cr_error == CE_ERROR)
-    my_error(ER_JT_VALUE_OUT_OF_RANGE, MYF(0), col->field_name);
-
-  return err;
 }
 
 /**
@@ -270,7 +150,6 @@ static bool save_json_to_column(THD *thd, Field *field, Json_table_column *col,
   The function goes recursively, starting from the top NESTED PATH clause
   and going in the depth-first way, traverses the tree of columns.
 
-  @param thd       thread handler
   @param nest_idx  index of parent's element in the nesting data array
   @param parent    Parent of the NESTED PATH clause being initialized
 
@@ -279,7 +158,7 @@ static bool save_json_to_column(THD *thd, Field *field, Json_table_column *col,
     true   an error occurred
 */
 
-bool Table_function_json::init_json_table_col_lists(THD *thd, uint *nest_idx,
+bool Table_function_json::init_json_table_col_lists(uint *nest_idx,
                                                     Json_table_column *parent) {
   List_iterator<Json_table_column> li(*parent->m_nested_columns);
   Json_table_column *col;
@@ -293,7 +172,7 @@ bool Table_function_json::init_json_table_col_lists(THD *thd, uint *nest_idx,
   Prepared_stmt_arena_holder ps_arena_holder(thd);
 
   while ((col = li++)) {
-    String path;
+    String buffer;
     col->is_unsigned = (col->flags & UNSIGNED_FLAG);
     col->m_jds_elt = &m_jds[current_nest_idx];
     if (col->m_jtc_type != enum_jt_column::JTC_NESTED_PATH) {
@@ -316,16 +195,17 @@ bool Table_function_json::init_json_table_col_lists(THD *thd, uint *nest_idx,
         break;
       }
       case enum_jt_column::JTC_PATH: {
-        path.set(col->m_path_str.str, col->m_path_str.length,
-                 thd->variables.character_set_client);
-        if (parse_path(&path, false, &col->m_path_json)) return true;
+        const String *path = col->m_path_string->val_str(&buffer);
+        DBUG_ASSERT(path != nullptr);
+        if (parse_path(*path, false, &col->m_path_json)) return true;
         if (col->m_on_empty == enum_jtc_on::JTO_DEFAULT) {
-          String src(col->m_default_empty_str.str,
-                     col->m_default_empty_str.length,
-                     thd->variables.character_set_client);
+          const String *default_string =
+              col->m_default_empty_string->val_str(&buffer);
+          DBUG_ASSERT(default_string != nullptr);
           Json_dom_ptr dom;  //@< we'll receive a DOM here
           bool parse_error;
-          if (parse_json(src, 0, "JSON_TABLE", &dom, true, &parse_error) ||
+          if (parse_json(*default_string, 0, "JSON_TABLE", &dom, true,
+                         &parse_error) ||
               (col->sql_type != MYSQL_TYPE_JSON && !dom->is_scalar())) {
             my_error(ER_INVALID_DEFAULT, MYF(0), col->field_name);
             return true;
@@ -333,12 +213,13 @@ bool Table_function_json::init_json_table_col_lists(THD *thd, uint *nest_idx,
           col->m_default_empty_json = Json_wrapper(std::move(dom));
         }
         if (col->m_on_error == enum_jtc_on::JTO_DEFAULT) {
-          String src(col->m_default_error_str.str,
-                     col->m_default_error_str.length,
-                     thd->variables.character_set_client);
+          const String *default_string =
+              col->m_default_error_string->val_str(&buffer);
+          DBUG_ASSERT(default_string != nullptr);
           Json_dom_ptr dom;  //@< we'll receive a DOM here
           bool parse_error;
-          if (parse_json(src, 0, "JSON_TABLE", &dom, true, &parse_error) ||
+          if (parse_json(*default_string, 0, "JSON_TABLE", &dom, true,
+                         &parse_error) ||
               (col->sql_type != MYSQL_TYPE_JSON && !dom->is_scalar())) {
             my_error(ER_INVALID_DEFAULT, MYF(0), col->field_name);
             return true;
@@ -348,9 +229,9 @@ bool Table_function_json::init_json_table_col_lists(THD *thd, uint *nest_idx,
         break;
       }
       case enum_jt_column::JTC_EXISTS: {
-        path.set(col->m_path_str.str, col->m_path_str.length,
-                 thd->variables.character_set_client);
-        if (parse_path(&path, false, &col->m_path_json)) return true;
+        const String *path = col->m_path_string->val_str(&buffer);
+        DBUG_ASSERT(path != nullptr);
+        if (parse_path(*path, false, &col->m_path_json)) return true;
         break;
       }
       case enum_jt_column::JTC_NESTED_PATH: {
@@ -362,16 +243,16 @@ bool Table_function_json::init_json_table_col_lists(THD *thd, uint *nest_idx,
         }
         col->m_child_jds_elt = &m_jds[*nest_idx];
 
-        path.set(col->m_path_str.str, col->m_path_str.length,
-                 thd->variables.character_set_client);
+        const String *path = col->m_path_string->val_str(&buffer);
+        DBUG_ASSERT(path != nullptr);
         if (nested) {
           nested->m_next_nested = col;
           col->m_prev_nested = nested;
         }
         nested = col;
 
-        if (parse_path(&path, false, &col->m_path_json) ||
-            init_json_table_col_lists(thd, nest_idx, col))
+        if (parse_path(*path, false, &col->m_path_json) ||
+            init_json_table_col_lists(nest_idx, col))
           return true;
         break;
       }
@@ -391,6 +272,8 @@ bool Table_function_json::init_json_table_col_lists(THD *thd, uint *nest_idx,
 */
 
 bool Table_function_json::do_init_args() {
+  DBUG_ASSERT(!is_source_parsed);
+
   Item *dummy = source;
   if (source->fix_fields(thd, &dummy)) return true;
 
@@ -424,15 +307,15 @@ bool Table_function_json::do_init_args() {
     if (col->m_jtc_type != enum_jt_column::JTC_PATH) continue;
     DBUG_ASSERT(col->m_field_idx >= 0);
     if (col->m_on_empty == enum_jtc_on::JTO_DEFAULT) {
-      if (save_json_to_column(thd, get_field(col->m_field_idx), col,
-                              &col->m_default_empty_json, CHECK_FIELD_WARN)) {
+      if (save_json_to_field(thd, get_field(col->m_field_idx), col->m_on_error,
+                             &col->m_default_empty_json, CHECK_FIELD_WARN)) {
         my_error(ER_INVALID_DEFAULT, MYF(0), col->field_name);
         return true;
       }
     }
     if (col->m_on_error == enum_jtc_on::JTO_DEFAULT) {
-      if (save_json_to_column(thd, get_field(col->m_field_idx), col,
-                              &col->m_default_error_json, CHECK_FIELD_WARN)) {
+      if (save_json_to_field(thd, get_field(col->m_field_idx), col->m_on_error,
+                             &col->m_default_error_json, CHECK_FIELD_WARN)) {
         my_error(ER_INVALID_DEFAULT, MYF(0), col->field_name);
         return true;
       }
@@ -442,10 +325,10 @@ bool Table_function_json::do_init_args() {
 }
 
 bool Table_function_json::init() {
-  Json_table_column top({nullptr, 0}, m_columns);
+  Json_table_column top(nullptr, m_columns);
   if (m_vt_list.elements == 0) {
     uint nest_idx = 0;
-    if (init_json_table_col_lists(thd, &nest_idx, &top)) return true;
+    if (init_json_table_col_lists(&nest_idx, &top)) return true;
     List_iterator<Json_table_column> li(m_vt_list);
 
     /*
@@ -565,21 +448,22 @@ bool Json_table_column::fill_column(Field *fld, jt_skip_reason *skip) {
             buf = Json_wrapper(a);
           } else {
             is_error = true;
-            // Thrown an error when save_json_to_column() isn't called
+            // Thrown an error when save_json_to_field() isn't called
             if (m_on_error == enum_jtc_on::JTO_ERROR)
               my_error(ER_WRONG_JSON_TABLE_VALUE, MYF(0), field_name);
           }
         } else
           buf = std::move(data_v[0]);
-        is_error = is_error || save_json_to_column(thd, fld, this, &buf, warn);
+        is_error =
+            is_error || save_json_to_field(thd, fld, m_on_error, &buf, warn);
         if (is_error) switch (m_on_error) {
             case enum_jtc_on::JTO_ERROR: {
               return true;
               break;
             }
             case enum_jtc_on::JTO_DEFAULT: {
-              save_json_to_column(thd, fld, this, &m_default_error_json,
-                                  CHECK_FIELD_IGNORE);
+              save_json_to_field(thd, fld, m_on_error, &m_default_error_json,
+                                 CHECK_FIELD_IGNORE);
               break;
             }
             case enum_jtc_on::JTO_NULL:
@@ -595,8 +479,8 @@ bool Json_table_column::fill_column(Field *fld, jt_skip_reason *skip) {
             return true;
           }
           case enum_jtc_on::JTO_DEFAULT: {
-            save_json_to_column(thd, fld, this, &m_default_empty_json,
-                                CHECK_FIELD_IGNORE);
+            save_json_to_field(thd, fld, m_on_error, &m_default_empty_json,
+                               CHECK_FIELD_IGNORE);
             break;
           }
           case enum_jtc_on::JTO_NULL:
@@ -722,7 +606,7 @@ void Json_table_column::cleanup() {
 
   @returns
     false table filled
-    true  error occured
+    true  error occurred
 */
 
 bool Table_function_json::fill_json_table() {
@@ -805,7 +689,7 @@ bool Table_function_json::fill_result_table() {
          get_json_wrapper(args, 0, &buf, func_name(), &m_jds[0].jdata)) ||
         args[0]->null_value)
       // No need to set null_value as it's not used by table functions
-      return 0;
+      return false;
     is_source_parsed = true;
     return fill_json_table();
   } catch (...) {
@@ -814,32 +698,32 @@ bool Table_function_json::fill_result_table() {
     return true;
     /* purecov: end */
   }
-  return 0;
+  return false;
 }
 
-static bool print_on_empty_error(String *str, enum_jtc_on jto,
-                                 LEX_STRING *default_str) {
+static bool print_on_empty_error(const THD *thd, String *str,
+                                 enum_query_type query_type, enum_jtc_on jto,
+                                 const Item *default_string) {
   switch (jto) {
     case enum_jtc_on::JTO_ERROR:
-      return str->append(STRING_WITH_LEN(" error on "));
+      return str->append(STRING_WITH_LEN(" error on"));
     case enum_jtc_on::JTO_NULL:
-      return str->append(STRING_WITH_LEN(" null on "));
-    case enum_jtc_on::JTO_DEFAULT: {
-      return (str->append(STRING_WITH_LEN(" default '")) ||
-              str->append(default_str) || str->append(STRING_WITH_LEN("' on")));
+      return str->append(STRING_WITH_LEN(" null on"));
+    case enum_jtc_on::JTO_DEFAULT:
+      if (str->append(STRING_WITH_LEN(" default "))) return true;
+      default_string->print(thd, str, query_type);
+      return str->append(STRING_WITH_LEN(" on"));
+    case enum_jtc_on::JTO_IMPLICIT:
       break;
-    }
-    default:
-      DBUG_ASSERT(0);
   };
-  return false;
+  DBUG_ASSERT(false);
+  return true;
 }
 
 bool Table_function_json::print_nested_path(Json_table_column *col, String *str,
                                             enum_query_type query_type) {
-  if (str->append('\'') || str->append(col->m_path_str) ||
-      str->append(STRING_WITH_LEN("' columns (")))
-    return true;
+  col->m_path_string->print(thd, str, query_type);
+  if (str->append(STRING_WITH_LEN(" columns ("))) return true;
   Json_table_column *jtc;
   List_iterator<Json_table_column> li(*col->m_nested_columns);
   bool first = true;
@@ -862,42 +746,30 @@ bool Table_function_json::print_nested_path(Json_table_column *col, String *str,
         if (str->append(jtc->field_name, strlen(jtc->field_name)) ||
             str->append(' '))
           return true;
-        uint16 data = 0;
+        uint data = 0;
         Field *fld = get_field(jtc->m_field_idx);
-        /*
-          save_field_metadata + show_sql_type is broken for types below.
-          I.e. the former produces data which the latter doesn't print
-          properly.
-        */
-        switch (jtc->sql_type) {
-          case MYSQL_TYPE_STRING:
-            // Encode field's length so show_sql_type() prints it correctly
-            data = (((fld->field_length & 0x300) ^ 0x300) << 4) +
-                   (fld->field_length & 0xff);
-            break;
-          case MYSQL_TYPE_VAR_STRING:
-          case MYSQL_TYPE_VARCHAR:
-            data = fld->field_length;
-            break;
-          default:
-            fld->save_field_metadata((uchar *)&data);
-        }
-        show_sql_type(jtc->sql_type, data, &type, fld->charset());
+        fld->save_field_metadata((uchar *)&data);
+        std::pair<my_off_t, std::pair<uint, bool>> pack = read_field_metadata(
+            reinterpret_cast<const uchar *>(&data), fld->binlog_type());
+        data = pack.second.first;
+        DBUG_ASSERT(fld->binlog_type() != MYSQL_TYPE_TYPED_ARRAY);
+        show_sql_type(jtc->sql_type, false, data, &type, fld->charset());
         str->append(type);
         if (jtc->m_jtc_type == enum_jt_column::JTC_EXISTS) {
           if (str->append(STRING_WITH_LEN(" exists"))) return true;
         }
-        if (str->append(STRING_WITH_LEN(" path '")) ||
-            str->append(jtc->m_path_str) || str->append('\''))
-          return true;
+        if (str->append(STRING_WITH_LEN(" path "))) return true;
+        jtc->m_path_string->print(thd, str, query_type);
         if (jtc->m_jtc_type == enum_jt_column::JTC_EXISTS) break;
         if (jtc->m_on_empty != enum_jtc_on::JTO_IMPLICIT) {
-          print_on_empty_error(str, jtc->m_on_empty, &jtc->m_default_empty_str);
-          if (str->append(STRING_WITH_LEN(" empty"))) return true;
+          if (print_on_empty_error(thd, str, query_type, jtc->m_on_empty,
+                                   jtc->m_default_empty_string) ||
+              str->append(STRING_WITH_LEN(" empty")))
+            return true;
         }
         if (jtc->m_on_error != enum_jtc_on::JTO_IMPLICIT) {
-          if (print_on_empty_error(str, jtc->m_on_error,
-                                   &jtc->m_default_error_str) ||
+          if (print_on_empty_error(thd, str, query_type, jtc->m_on_error,
+                                   jtc->m_default_error_string) ||
               str->append(STRING_WITH_LEN(" error")))
             return true;
         }
@@ -916,7 +788,7 @@ bool Table_function_json::print_nested_path(Json_table_column *col, String *str,
 
 bool Table_function_json::print(String *str, enum_query_type query_type) {
   if (str->append(STRING_WITH_LEN("json_table("))) return true;
-  source->print(str, query_type);
+  source->print(thd, str, query_type);
   return (thd->is_error() || str->append(STRING_WITH_LEN(", ")) ||
           print_nested_path(m_columns->head(), str, query_type) ||
           str->append(')'));
@@ -926,6 +798,7 @@ table_map Table_function_json::used_tables() { return source->used_tables(); }
 
 void Table_function_json::do_cleanup() {
   source->cleanup();
+  is_source_parsed = false;
   for (uint i = 0; i < MAX_NESTED_PATH; i++) m_jds[i].cleanup();
   for (uint i = 0; i < m_all_columns.size(); i++) m_all_columns[i]->cleanup();
   m_all_columns.clear();

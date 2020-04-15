@@ -12,16 +12,16 @@ INSERT INTO t4(cc) SELECT * FROM t3;
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `pkey` int(11) NOT NULL AUTO_INCREMENT,
-  `cc` int(11) DEFAULT NULL,
+  `pkey` int NOT NULL AUTO_INCREMENT,
+  `cc` int DEFAULT NULL,
   PRIMARY KEY (`pkey`)
 ) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t4(cc) SELECT * FROM t3;
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `pkey` int(11) NOT NULL AUTO_INCREMENT,
-  `cc` int(11) DEFAULT NULL,
+  `pkey` int NOT NULL AUTO_INCREMENT,
+  `cc` int DEFAULT NULL,
   PRIMARY KEY (`pkey`)
 ) ENGINE=InnoDB AUTO_INCREMENT=31 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
@@ -101,6 +101,9 @@ INSERT INTO t1(cc) VALUES(i);
 SET i=i+1;
 END WHILE;
 END //
+Warnings:
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
 CALL POP2(1);
 CALL POP2(120);
 SELECT COUNT(*) FROM t1;
@@ -320,6 +323,9 @@ INSERT INTO t1(cc) VALUES(i);
 SET i=i+1;
 END WHILE;
 END //
+Warnings:
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
 START TRANSACTION;
 CALL POP2(1);
 CALL POP2(60);
@@ -548,16 +554,16 @@ INSERT INTO t4(cc) SELECT * FROM t3;
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `pkey` int(11) NOT NULL AUTO_INCREMENT,
-  `cc` int(11) DEFAULT NULL,
+  `pkey` int NOT NULL AUTO_INCREMENT,
+  `cc` int DEFAULT NULL,
   PRIMARY KEY (`pkey`)
 ) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t4(cc) SELECT * FROM t3;
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `pkey` int(11) NOT NULL AUTO_INCREMENT,
-  `cc` int(11) DEFAULT NULL,
+  `pkey` int NOT NULL AUTO_INCREMENT,
+  `cc` int DEFAULT NULL,
   PRIMARY KEY (`pkey`)
 ) ENGINE=InnoDB AUTO_INCREMENT=31 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
@@ -637,6 +643,9 @@ INSERT INTO t1(cc) VALUES(i);
 SET i=i+1;
 END WHILE;
 END //
+Warnings:
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
 CALL POP2(1);
 CALL POP2(70);
 SELECT COUNT(*) FROM t1;
@@ -861,6 +870,9 @@ INSERT INTO t1(cc) VALUES(i);
 SET i=i+1;
 END WHILE;
 END //
+Warnings:
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
 START TRANSACTION;
 CALL POP2(1);
 CALL POP2(51);
@@ -1239,16 +1251,16 @@ INSERT INTO t4(cc) SELECT * FROM t3;
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `pkey` int(11) NOT NULL AUTO_INCREMENT,
-  `cc` int(11) DEFAULT NULL,
+  `pkey` int NOT NULL AUTO_INCREMENT,
+  `cc` int DEFAULT NULL,
   PRIMARY KEY (`pkey`)
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t4(cc) SELECT * FROM t3;
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `pkey` int(11) NOT NULL AUTO_INCREMENT,
-  `cc` int(11) DEFAULT NULL,
+  `pkey` int NOT NULL AUTO_INCREMENT,
+  `cc` int DEFAULT NULL,
   PRIMARY KEY (`pkey`)
 ) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t4;
@@ -1346,6 +1358,9 @@ INSERT INTO t1(cc) VALUES(i);
 SET i=i+1;
 END WHILE;
 END //
+Warnings:
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
 CALL POP2(1);
 CALL POP2(50);
 SELECT COUNT(*) FROM t1;
@@ -1565,6 +1580,9 @@ INSERT INTO t1(cc) VALUES(i);
 SET i=i+1;
 END WHILE;
 END //
+Warnings:
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
 START TRANSACTION;
 CALL POP2(1);
 CALL POP2(120);

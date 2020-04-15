@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -90,7 +90,14 @@ ulint z_read(ReadContext *ctx, lob::ref_t ref, ulint offset, ulint len,
     return (reader.length());
   }
 
-  ut_ad(page_type == FIL_PAGE_TYPE_ZLOB_FIRST);
+  if (page_type != FIL_PAGE_TYPE_ZLOB_FIRST) {
+    /* Assume that the BLOB has been freed and return without taking further
+    action.  This condition is hit when there are stale LOB references in the
+    clustered index record, especially when there are server crashes during
+    updation of delete-marked clustered index record with external fields. */
+    mtr_commit(&mtr);
+    return (0);
+  }
 
   flst_base_node_t *flst = first.index_list();
 
@@ -161,6 +168,9 @@ ulint z_read(ReadContext *ctx, lob::ref_t ref, ulint offset, ulint len,
     }
 
     cur_entry.reset(nullptr);
+    mtr_commit(&mtr);
+    mtr_start(&mtr);
+    first.load_x(first_page_no);
   }
 
   const ulint total_read = len - remain;
@@ -290,13 +300,8 @@ ulint z_read_strm(dict_index_t *index, z_index_entry_t &entry, byte *zbuf,
 }
 
 #ifdef UNIV_DEBUG
-/** Validate one zlib stream, given its index entry.
-@param[in]	index      the index dictionary object.
-@param[in]	entry      the index entry (memory copy).
-@param[in]	mtr        mini-transaction.
-@return true if validation passed.
-@return does not return if validation failed.*/
-bool z_validate_strm(dict_index_t *index, z_index_entry_t &entry, mtr_t *mtr) {
+static bool z_validate_strm_low(dict_index_t *index, z_index_entry_t &entry,
+                                mtr_t *mtr) {
   /* Expected length of compressed data. */
   const ulint exp_zlen = entry.get_zdata_len();
   page_no_t page_no = entry.get_z_page_no();
@@ -330,6 +335,16 @@ bool z_validate_strm(dict_index_t *index, z_index_entry_t &entry, mtr_t *mtr) {
 
   ut_ad(remain == 0);
   return (true);
+}
+
+bool z_validate_strm(dict_index_t *index, z_index_entry_t &entry, mtr_t *mtr) {
+  static const uint32_t FREQ = 50;
+  static std::atomic<uint32_t> n{0};
+  bool ret = true;
+  if (++n % FREQ == 0) {
+    ret = z_validate_strm_low(index, entry, mtr);
+  }
+  return (ret);
 }
 #endif /* UNIV_DEBUG */
 

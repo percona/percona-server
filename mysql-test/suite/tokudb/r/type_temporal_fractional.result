@@ -786,11 +786,11 @@ a	FROM_UNIXTIME(a)
 2147483647.9999992	2038-01-19 03:14:07.999999
 2147483647.9999993	2038-01-19 03:14:07.999999
 2147483647.9999994	2038-01-19 03:14:07.999999
-2147483647.9999995	2038-01-19 03:14:08.000000
-2147483647.9999996	2038-01-19 03:14:08.000000
-2147483647.9999997	2038-01-19 03:14:08.000000
-2147483647.9999998	2038-01-19 03:14:08.000000
-2147483647.9999999	2038-01-19 03:14:08.000000
+2147483647.9999995	NULL
+2147483647.9999996	NULL
+2147483647.9999997	NULL
+2147483647.9999998	NULL
+2147483647.9999999	NULL
 DROP TABLE t1;
 SET time_zone=DEFAULT;
 #
@@ -2661,9 +2661,9 @@ a
 -838:59:59.000000
 EXPLAIN SELECT * FROM t1 WHERE a='01:02:03.456700';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a	a	6	const	1	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	ref	a	a	6	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = '01:02:03.456700')
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = TIME'01:02:03.4567')
 SELECT * FROM t1 WHERE a='01:02:03.456700';
 a
 01:02:03.456700
@@ -3008,7 +3008,7 @@ INSERT INTO t1 VALUES ('00:01:02.123');
 INSERT INTO t1 VALUES ('00:01:02.1234');
 INSERT INTO t1 VALUES ('00:01:02.12345');
 INSERT INTO t1 VALUES ('00:01:02.12345');
-ERROR 23000: Duplicate entry '00:01:02.123450' for key 'a'
+ERROR 23000: Duplicate entry '00:01:02.123450' for key 't1.a'
 DROP TABLE t1;
 #
 # Testing GROUP BY
@@ -3078,7 +3078,7 @@ MAX(t4) + 1, MAX(t5) + 1, MAX(t6) + 1
 FROM t1;
 SHOW COLUMNS FROM t2;
 Field	Type	Null	Key	Default	Extra
-MAX(t0) + 1	int(9)	YES		NULL	
+MAX(t0) + 1	int	YES		NULL	
 MAX(t1) + 1	decimal(9,1)	YES		NULL	
 MAX(t2) + 1	decimal(10,2)	YES		NULL	
 MAX(t3) + 1	decimal(11,3)	YES		NULL	
@@ -3517,25 +3517,25 @@ FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `t0 + 1` int(9) DEFAULT NULL,
+  `t0 + 1` int DEFAULT NULL,
   `t3 + 1` decimal(11,3) DEFAULT NULL,
   `t6 + 1` decimal(14,6) DEFAULT NULL,
-  `t0 - 1` int(9) DEFAULT NULL,
+  `t0 - 1` int DEFAULT NULL,
   `t3 - 1` decimal(11,3) DEFAULT NULL,
   `t6 - 1` decimal(14,6) DEFAULT NULL,
-  `t0 * 1` int(9) DEFAULT NULL,
+  `t0 * 1` int DEFAULT NULL,
   `t3 * 1` decimal(11,3) DEFAULT NULL,
   `t6 * 1` decimal(14,6) DEFAULT NULL,
   `t0 / 1` decimal(11,4) DEFAULT NULL,
   `t3 / 1` decimal(14,7) DEFAULT NULL,
   `t6 / 1` decimal(17,10) DEFAULT NULL,
-  `TIME'10:10:10' + 1` int(9) NOT NULL DEFAULT '0',
+  `TIME'10:10:10' + 1` int NOT NULL DEFAULT '0',
   `TIME'10:10:10.123' + 1` decimal(11,3) NOT NULL DEFAULT '0.000',
   `TIME'10:10:10.123456' + 1` decimal(14,6) NOT NULL DEFAULT '0.000000',
-  `TIME'10:10:10' - 1` int(9) NOT NULL DEFAULT '0',
+  `TIME'10:10:10' - 1` int NOT NULL DEFAULT '0',
   `TIME'10:10:10.123' - 1` decimal(11,3) NOT NULL DEFAULT '0.000',
   `TIME'10:10:10.123456' - 1` decimal(14,6) NOT NULL DEFAULT '0.000000',
-  `TIME'10:10:10' * 1` int(9) NOT NULL DEFAULT '0',
+  `TIME'10:10:10' * 1` int NOT NULL DEFAULT '0',
   `TIME'10:10:10.123' * 1` decimal(11,3) NOT NULL DEFAULT '0.000',
   `TIME'10:10:10.123456' * 1` decimal(14,6) NOT NULL DEFAULT '0.000000',
   `TIME'10:10:10' / 1` decimal(11,4) DEFAULT NULL,
@@ -7050,7 +7050,7 @@ EXPLAIN SELECT * FROM t1 WHERE a='2000-01-01 01:02:03.456700';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a	a	8	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = '2000-01-01 01:02:03.456700')
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = TIMESTAMP'2000-01-01 01:02:03.4567')
 SELECT * FROM t1 WHERE a='2000-01-01 01:02:03.456700';
 a
 2000-01-01 01:02:03.456700
@@ -7810,7 +7810,7 @@ INSERT INTO t1 VALUES ('2000-01-01 00:01:02.123');
 INSERT INTO t1 VALUES ('2000-01-01 00:01:02.1234');
 INSERT INTO t1 VALUES ('2000-01-01 00:01:02.12345');
 INSERT INTO t1 VALUES ('2000-01-01 00:01:02.12345');
-ERROR 23000: Duplicate entry '2000-01-01 00:01:02.123450' for key 'a'
+ERROR 23000: Duplicate entry '2000-01-01 00:01:02.123450' for key 't1.a'
 DROP TABLE t1;
 #
 # Testing GROUP BY
@@ -7871,7 +7871,7 @@ MAX(t4) + 1, MAX(t5) + 1, MAX(t6) + 1
 FROM t1;
 SHOW COLUMNS FROM t2;
 Field	Type	Null	Key	Default	Extra
-MAX(t0) + 1	bigint(16)	YES		NULL	
+MAX(t0) + 1	bigint	YES		NULL	
 MAX(t1) + 1	decimal(16,1)	YES		NULL	
 MAX(t2) + 1	decimal(17,2)	YES		NULL	
 MAX(t3) + 1	decimal(18,3)	YES		NULL	
@@ -8301,25 +8301,25 @@ FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `t0 + 1` bigint(16) DEFAULT NULL,
+  `t0 + 1` bigint DEFAULT NULL,
   `t3 + 1` decimal(18,3) DEFAULT NULL,
   `t6 + 1` decimal(21,6) DEFAULT NULL,
-  `t0 - 1` bigint(16) DEFAULT NULL,
+  `t0 - 1` bigint DEFAULT NULL,
   `t3 - 1` decimal(18,3) DEFAULT NULL,
   `t6 - 1` decimal(21,6) DEFAULT NULL,
-  `t0 * 1` bigint(16) DEFAULT NULL,
+  `t0 * 1` bigint DEFAULT NULL,
   `t3 * 1` decimal(18,3) DEFAULT NULL,
   `t6 * 1` decimal(21,6) DEFAULT NULL,
   `t0 / 1` decimal(18,4) DEFAULT NULL,
   `t3 / 1` decimal(21,7) DEFAULT NULL,
   `t6 / 1` decimal(24,10) DEFAULT NULL,
-  `TIMESTAMP'2001-01-01 10:10:10' + 1` bigint(16) NOT NULL DEFAULT '0',
+  `TIMESTAMP'2001-01-01 10:10:10' + 1` bigint NOT NULL DEFAULT '0',
   `TIMESTAMP'2001-01-01 10:10:10.123' + 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `TIMESTAMP'2001-01-01 10:10:10.123456' + 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
-  `TIMESTAMP'2001-01-01 10:10:10' - 1` bigint(16) NOT NULL DEFAULT '0',
+  `TIMESTAMP'2001-01-01 10:10:10' - 1` bigint NOT NULL DEFAULT '0',
   `TIMESTAMP'2001-01-01 10:10:10.123' - 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `TIMESTAMP'2001-01-01 10:10:10.123456' - 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
-  `TIMESTAMP'2001-01-01 10:10:10' * 1` bigint(16) NOT NULL DEFAULT '0',
+  `TIMESTAMP'2001-01-01 10:10:10' * 1` bigint NOT NULL DEFAULT '0',
   `TIMESTAMP'2001-01-01 10:10:10.123' * 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `TIMESTAMP'2001-01-01 10:10:10.123456' * 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
   `TIMESTAMP'2001-01-01 10:10:10' / 1` decimal(18,4) DEFAULT NULL,
@@ -12027,7 +12027,7 @@ EXPLAIN SELECT * FROM t1 WHERE a='2000-01-01 01:02:03.456700';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a	a	7	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = '2000-01-01 01:02:03.456700')
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = TIMESTAMP'2000-01-01 01:02:03.4567')
 SELECT * FROM t1 WHERE a='2000-01-01 01:02:03.456700';
 a
 2000-01-01 01:02:03.456700
@@ -12388,7 +12388,7 @@ INSERT INTO t1 VALUES ('2000-01-01 00:01:02.123');
 INSERT INTO t1 VALUES ('2000-01-01 00:01:02.1234');
 INSERT INTO t1 VALUES ('2000-01-01 00:01:02.12345');
 INSERT INTO t1 VALUES ('2000-01-01 00:01:02.12345');
-ERROR 23000: Duplicate entry '2000-01-01 00:01:02.123450' for key 'a'
+ERROR 23000: Duplicate entry '2000-01-01 00:01:02.123450' for key 't1.a'
 DROP TABLE t1;
 #
 # Testing GROUP BY
@@ -12820,25 +12820,25 @@ FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `t0 + 1` bigint(16) NOT NULL DEFAULT '0',
+  `t0 + 1` bigint NOT NULL DEFAULT '0',
   `t3 + 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `t6 + 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
-  `t0 - 1` bigint(16) NOT NULL DEFAULT '0',
+  `t0 - 1` bigint NOT NULL DEFAULT '0',
   `t3 - 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `t6 - 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
-  `t0 * 1` bigint(16) NOT NULL DEFAULT '0',
+  `t0 * 1` bigint NOT NULL DEFAULT '0',
   `t3 * 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `t6 * 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
   `t0 / 1` decimal(18,4) DEFAULT NULL,
   `t3 / 1` decimal(21,7) DEFAULT NULL,
   `t6 / 1` decimal(24,10) DEFAULT NULL,
-  `TIMESTAMP'2001-01-01 10:10:10' + 1` bigint(16) NOT NULL DEFAULT '0',
+  `TIMESTAMP'2001-01-01 10:10:10' + 1` bigint NOT NULL DEFAULT '0',
   `TIMESTAMP'2001-01-01 10:10:10.123' + 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `TIMESTAMP'2001-01-01 10:10:10.123456' + 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
-  `TIMESTAMP'2001-01-01 10:10:10' - 1` bigint(16) NOT NULL DEFAULT '0',
+  `TIMESTAMP'2001-01-01 10:10:10' - 1` bigint NOT NULL DEFAULT '0',
   `TIMESTAMP'2001-01-01 10:10:10.123' - 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `TIMESTAMP'2001-01-01 10:10:10.123456' - 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
-  `TIMESTAMP'2001-01-01 10:10:10' * 1` bigint(16) NOT NULL DEFAULT '0',
+  `TIMESTAMP'2001-01-01 10:10:10' * 1` bigint NOT NULL DEFAULT '0',
   `TIMESTAMP'2001-01-01 10:10:10.123' * 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `TIMESTAMP'2001-01-01 10:10:10.123456' * 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
   `TIMESTAMP'2001-01-01 10:10:10' / 1` decimal(18,4) DEFAULT NULL,
@@ -13244,14 +13244,10 @@ CAST(CAST('10:10:20' AS TIME(6)) + INTERVAL 10 HOUR AS DATETIME)
 2001-01-01 20:10:20
 SELECT CAST(STR_TO_DATE('23:59:01','%H:%i:%s') AS DATETIME);
 CAST(STR_TO_DATE('23:59:01','%H:%i:%s') AS DATETIME)
-NULL
-Warnings:
-Warning	1411	Incorrect datetime value: '23:59:01' for function str_to_date
+2001-01-01 23:59:01
 SELECT CAST(STR_TO_DATE('23:59:01.123','%H:%i:%s.%f') AS DATETIME(6));
 CAST(STR_TO_DATE('23:59:01.123','%H:%i:%s.%f') AS DATETIME(6))
-NULL
-Warnings:
-Warning	1411	Incorrect datetime value: '23:59:01.123' for function str_to_date
+2001-01-01 23:59:01.123000
 SELECT CAST(ADDTIME('40:10:10', 10) as DATETIME);
 CAST(ADDTIME('40:10:10', 10) as DATETIME)
 2001-01-02 16:10:20
@@ -14611,13 +14607,13 @@ INSERT INTO t1 VALUES (STR_TO_DATE('2000 10 000000', '%Y %h %f'));
 ERROR HY000: Incorrect datetime value: '2000 10 000000' for function str_to_date
 INSERT INTO t1 VALUES (STR_TO_DATE('2000 10 123456', '%Y %h %f'));
 ERROR HY000: Incorrect datetime value: '2000 10 123456' for function str_to_date
-INSERT INTO t1 VALUES (STR_TO_DATE('2000 10 000000', '2000 %h 000000'));
+INSERT INTO t1 VALUES (STR_TO_DATE('2000 10 000000', '2001 %h 000000'));
 ERROR HY000: Incorrect datetime value: '2000 10 000000' for function str_to_date
-INSERT INTO t1 VALUES (STR_TO_DATE('2000 10 123456', '2000 %h 123456'));
+INSERT INTO t1 VALUES (STR_TO_DATE('2000 10 123456', '2001 %h 123456'));
 ERROR HY000: Incorrect datetime value: '2000 10 123456' for function str_to_date
-INSERT INTO t1 VALUES (STR_TO_DATE('2000 10 000000', '2000 %h %f'));
+INSERT INTO t1 VALUES (STR_TO_DATE('2000 10 000000', '2001 %h %f'));
 ERROR HY000: Incorrect datetime value: '2000 10 000000' for function str_to_date
-INSERT INTO t1 VALUES (STR_TO_DATE('2000 10 123456', '2000 %h %f'));
+INSERT INTO t1 VALUES (STR_TO_DATE('2000 10 123456', '2001 %h %f'));
 ERROR HY000: Incorrect datetime value: '2000 10 123456' for function str_to_date
 SELECT * FROM t1;
 a
@@ -14760,6 +14756,8 @@ SELECT @@timestamp;
 @@timestamp
 1308300674.000000
 CREATE TABLE t1 AS SELECT @@timestamp;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
 @@timestamp	double(22,6)	YES		NULL	
@@ -14789,6 +14787,8 @@ DROP TABLE t1;
 #
 CREATE TABLE t1
 (first_usage DATE, last_recharge DATETIME, life_time SMALLINT(4) UNSIGNED);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES ('2011-04-27', null, 900);
 SELECT
 DATE_ADD(GREATEST(first_usage, IFNULL(last_recharge, first_usage)), INTERVAL life_time DAY ) as dt,
@@ -16122,6 +16122,7 @@ c1
 Warnings:
 Warning	1292	Truncated incorrect time value: '1971-01-01'
 Warning	1292	Truncated incorrect time value: '1971-01-01'
+Warning	1292	Truncated incorrect time value: '1971-01-01'
 DROP VIEW v1;
 DROP TABLE t1;
 #
@@ -16169,6 +16170,7 @@ Warnings:
 Warning	1411	Incorrect datetime value: '00-0' for function str_to_date
 Warning	1411	Incorrect datetime value: '00-0' for function str_to_date
 Warning	1292	Incorrect date value: '31525200' for column 'col_date' at row 1
+Warning	1292	Incorrect datetime value: '00:00:00.000000'
 Warning	1292	Incorrect datetime value: '00:00:00.000000'
 DROP TABLE t1;
 #

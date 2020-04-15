@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -867,11 +867,20 @@ NdbEventOperationImpl::execSUB_TABLE_DATA(const NdbApiSignal * signal,
   const SubTableData * const sdata=
     CAST_CONSTPTR(SubTableData, signal->getDataPtr());
 
-  if(signal->isFirstFragment()){
+  if (signal->isFirstFragment())
+  {
+    /*
+      Only one buffer for fragmented signal assembly.
+      Buffer must be empty for first fragment.
+     */
+    require(m_buffer.empty());
     m_fragmentId = signal->getFragmentId();
     m_buffer.grow(4 * sdata->totalLen);
-  } else {
-    if(m_fragmentId != signal->getFragmentId()){
+  }
+  else
+  {
+    if (m_fragmentId != signal->getFragmentId())
+    {
       abort();
     }
   }
@@ -2673,7 +2682,7 @@ NdbEventBuffer::complete_outof_order_gcis()
 void
 NdbEventBuffer::insert_event(NdbEventOperationImpl* impl,
                              SubTableData &data,
-                             LinearSectionPtr *ptr,
+                             const LinearSectionPtr *ptr,
                              Uint32 &oid_ref)
 {
   DBUG_PRINT("info", ("gci{hi/lo}: %u/%u 0x%x %s",
@@ -3115,7 +3124,7 @@ int
 NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
 			    const SubTableData * const sdata, 
                             Uint32 len,
-			    LinearSectionPtr ptr[3])
+                            const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER_EVENT("NdbEventBuffer::insertDataL");
   const Uint32 ri = sdata->requestInfo;
@@ -3194,6 +3203,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
        * Already completed GCI...
        *   Possible in case of resend during NF handling
        */
+      DBUG_EXECUTE_IF("ndb_crash_on_drop_SUB_TABLE_DATA", DBUG_SUICIDE(););
       DBUG_RETURN_EVENT(0);
     }
     
@@ -3321,6 +3331,7 @@ NdbEventBuffer::crashMemAllocError(const char *error_text)
 	  m_ndb->getNdbObjectName());
   g_eventLogger->error("Ndb Event Buffer : %s", error_text);
   g_eventLogger->error("Ndb Event Buffer : Fatal error.");
+abort();
   exit(-1);
 }
 
@@ -3339,7 +3350,7 @@ NdbEventBuffer::alloc_data()
 // meta EventBufData. Takes sizes from given ptr and sets up data->ptr
 int
 NdbEventBuffer::alloc_mem(EventBufData* data,
-                          LinearSectionPtr ptr[3])
+                          const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER("NdbEventBuffer::alloc_mem");
   DBUG_PRINT("info", ("ptr sz %u + %u + %u 0x%x %s",
@@ -3582,7 +3593,7 @@ void NdbEventBuffer::remove_consumed_memory(MonotonicEpoch consumed_epoch)  //Ne
 
 int 
 NdbEventBuffer::copy_data(const SubTableData * const sdata, Uint32 len,
-                          LinearSectionPtr ptr[3],
+                          const LinearSectionPtr ptr[3],
                           EventBufData* data)
 {
   DBUG_ENTER_EVENT("NdbEventBuffer::copy_data");
@@ -3673,7 +3684,7 @@ copy_attr(AttributeHeader ah,
 
 int 
 NdbEventBuffer::merge_data(const SubTableData * const sdata, Uint32 len,
-                           LinearSectionPtr ptr2[3],
+                           const LinearSectionPtr ptr2[3],
                            EventBufData* data)
 {
   DBUG_ENTER_EVENT("NdbEventBuffer::merge_data");
@@ -4448,7 +4459,7 @@ EpochDataList::count_event_data() const
 // could optimize the all-fixed case
 Uint32
 EventBufData_hash::getpkhash(NdbEventOperationImpl* op,
-                             LinearSectionPtr ptr[3])
+                             const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER_EVENT("EventBufData_hash::getpkhash");
   DBUG_DUMP_EVENT("ah", (char*)ptr[0].p, ptr[0].sz << 2);
@@ -4464,8 +4475,8 @@ EventBufData_hash::getpkhash(NdbEventOperationImpl* op,
   const uchar* dptr = (uchar*)ptr[1].p;
 
   // hash registers
-  ulong nr1 = 0;
-  ulong nr2 = 0;
+  uint64 nr1 = 0;
+  uint64 nr2 = 0;
   while (nkey-- != 0)
   {
     AttributeHeader ah(*hptr++);
@@ -4482,6 +4493,9 @@ EventBufData_hash::getpkhash(NdbEventOperationImpl* op,
 
     CHARSET_INFO* cs = col->m_cs ? col->m_cs : &my_charset_bin;
     (*cs->coll->hash_sort)(cs, dptr + lb, len, &nr1, &nr2);
+    // TODO: Do we need hash stability here?
+    nr1 = static_cast<ulong>(nr1);
+    nr2 = static_cast<ulong>(nr2);
     dptr += ((bytesize + 3) / 4) * 4;
   }
   DBUG_PRINT_EVENT("info", ("hash result=%08x", nr1));
@@ -4490,8 +4504,8 @@ EventBufData_hash::getpkhash(NdbEventOperationImpl* op,
 
 bool
 EventBufData_hash::getpkequal(NdbEventOperationImpl* op,
-                              LinearSectionPtr ptr1[3],
-                              LinearSectionPtr ptr2[3])
+                              const LinearSectionPtr ptr1[3],
+                              const LinearSectionPtr ptr2[3])
 {
   DBUG_ENTER_EVENT("EventBufData_hash::getpkequal");
   DBUG_DUMP_EVENT("ah1", (char*)ptr1[0].p, ptr1[0].sz << 2);
@@ -4549,7 +4563,7 @@ EventBufData_hash::getpkequal(NdbEventOperationImpl* op,
 void
 EventBufData_hash::search(Pos& hpos,
                           NdbEventOperationImpl* op,
-                          LinearSectionPtr ptr[3])
+                          const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER_EVENT("EventBufData_hash::search");
   Uint32 pkhash = getpkhash(op, ptr);

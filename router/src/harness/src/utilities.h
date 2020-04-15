@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 #include "my_compiler.h"
 
 #include "harness_export.h"
+#include "mysql/harness/utility/string.h"
 #include "router_config.h"
 
 namespace mysql_harness {
@@ -183,11 +184,10 @@ void strip(std::string *str, const char *chars = " \t\n\r\f\v");
 HARNESS_EXPORT
 std::string strip_copy(std::string str, const char *chars = " \t\n\r\f\v");
 
+HARNESS_EXPORT
 MY_ATTRIBUTE((format(printf, 1, 2)))
 std::string string_format(const char *format, ...);
 
-std::vector<std::string> wrap_string(const std::string &to_wrap, size_t width,
-                                     size_t indent_size);
 bool matches_glob(const std::string &word, const std::string &pattern);
 std::string get_message_error(int errcode);
 

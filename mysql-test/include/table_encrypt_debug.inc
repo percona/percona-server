@@ -1,7 +1,7 @@
 
 #------------------------------------------------------------------------------
 ## InnoDB transparent tablespace data encryption
-## This test case will test basic recovery from know DBUG_SUICIDE point .
+## This test case will test basic recovery from known DBUG_SUICIDE point .
 ##  - ib_crash_during_rotation_for_encryption (assert during key rotation)
 ##  - ib_crash_during_create_for_encryption (assert during create)
 ##  - ib_crash_during_decrypt_page (assert during page decryption)
@@ -23,6 +23,9 @@ call mtr.add_suppression("Cannot open table tde_db/.* from the internal data dic
 call mtr.add_suppression("\\[Warning\\] .* Tablespace for table `tde_db`.`t1` is set as discarded");
 call mtr.add_suppression("\\[Warning\\] .* Database page corruption or a failed file read of page");
 call mtr.add_suppression("\\[Warning\\] .* Cannot calculate statistics for table .* because the \.ibd file is missing");
+call mtr.add_suppression("\\[Warning\\] .* Cannot calculate statistics for table .* because file .*\.ibd cannot be decrypted");
+call mtr.add_suppression("\\[Warning\\] .* Trying to access missing tablespace [0-9]+");
+call mtr.add_suppression("\\[Warning\\] .* Cannot save statistics for table .* because the \.ibd file is missing");
 call mtr.add_suppression("\\[ERROR\\] .* The table .* doesn't have a corresponding tablespace, it was discarded.");
 call mtr.add_suppression("\\[ERROR\\] .* Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[ERROR\\] .* Encryption algorithm support missing:");
@@ -150,14 +153,18 @@ DROP TABLE tde_db.t1;
 
 CREATE TABLE tde_db.test_tbl(c1 int) ENCRYPTION="Y" ENGINE=InnoDB;
 
-# Crash the server while executing ALTER INSTANCE ROTATE
-SET SESSION debug="+d,keyring_file_backup_fail";
---error CR_SERVER_LOST
-ALTER INSTANCE ROTATE INNODB MASTER KEY;
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-SET SESSION debug="-d,keyring_file_backup_fail";
+# keyring_file specific
+if ($keyring_file_test)
+{
+  # Crash the server while executing ALTER INSTANCE ROTATE
+  SET SESSION debug="+d,keyring_file_backup_fail";
+  --error CR_SERVER_LOST
+  ALTER INSTANCE ROTATE INNODB MASTER KEY;
+  --enable_reconnect
+  --source include/wait_until_connected_again.inc
+  --disable_reconnect
+  SET SESSION debug="-d,keyring_file_backup_fail";
+}
 #--echo # Restart the server
 #--source include/start_mysqld.inc
 

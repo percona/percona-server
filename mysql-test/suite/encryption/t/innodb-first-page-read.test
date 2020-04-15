@@ -1,11 +1,8 @@
---skip
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 
 --disable_warnings
-SET GLOBAL innodb_file_format = `Barracuda`;
 SET GLOBAL innodb_file_per_table = ON;
 --enable_warnings
-
-FLUSH STATUS;
 
 create database innodb_test;
 use innodb_test;
@@ -30,14 +27,16 @@ create table innodb_pagecomp7(c1 bigint not null, b char(200)) engine=innodb COM
 create table innodb_pagecomp8(c1 bigint not null, b char(200)) engine=innodb COMPRESSION="zlib";
 create table innodb_pagecomp9(c1 bigint not null, b char(200)) engine=innodb COMPRESSION="zlib";
 
-let $number_of_tables_that_could_be_opened=`SELECT COUNT(DISTINCT TABLE_NAME) FROM information_schema.tables WHERE table_schema='mysql' OR table_schema='innodb_test'`;
-
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval create table innodb_datadir1(c1 bigint not null, b char(200)) engine=innodb DATA DIRECTORY='$MYSQL_TMP_DIR';
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval create table innodb_datadir2(c1 bigint not null, b char(200)) engine=innodb row_format=compressed DATA DIRECTORY='$MYSQL_TMP_DIR';
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval create table innodb_datadir3(c1 bigint not null, b char(200)) engine=innodb COMPRESSION="zlib" DATA DIRECTORY='$MYSQL_TMP_DIR';
+
+# For all the tables the first page can be read twice - first when it is validate and the second time when space
+# is created in fil_system
+let $number_of_tables_that_could_be_opened=`SELECT COUNT(DISTINCT TABLE_NAME)*2 FROM information_schema.tables WHERE table_schema='mysql' OR table_schema='innodb_test'`;
 
 begin;
 insert into innodb_normal values (1,'secret');
@@ -65,55 +64,56 @@ insert into innodb_datadir2 select * from innodb_normal;
 insert into innodb_datadir3 select * from innodb_normal;
 commit;
 
-FLUSH STATUS;
-
---echo # Restart server and see how many page 0's are read
+--echo # Restart server and see how many pages 0 are read
 --source include/restart_mysqld.inc
 
---echo # result should be less than number of tables in both innodb_test and mysql databases
+--let $assert_text= number of page 0 should be greater than 0
+--let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = \\'innodb_pages0_read\\']" > 0
+--source include/assert.inc
 
-eval SELECT VARIABLE_VALUE <= $number_of_tables_that_could_be_opened FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'innodb_pages0_read';
+--let $assert_text= number of page 0 read should be less than number of tables in both innodb_test and mysql databases
+--let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = \\'innodb_pages0_read\\']" <= $number_of_tables_that_could_be_opened
+--source include/assert.inc
 
-SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'innodb_pages0_read';
-
-set global innodb_encrypt_tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+set global default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 
 --echo # wait until tables are decrypted
+--let $wait_timeout= 600
 --let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
 --source include/wait_condition.inc
 
-#--sleep 20
-#SELECT * FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0;
+--let $assert_text= number of page 0 read should be less than number of tables in both innodb_test and mysql databases
+--let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = \\'innodb_pages0_read\\']" <= $number_of_tables_that_could_be_opened
+--source include/assert.inc
 
-eval SELECT VARIABLE_VALUE <= $number_of_tables_that_could_be_opened FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'innodb_pages0_read';
-#use innodb_test;
-#SELECT VARIABLE_VALUE <= 29  FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'innodb_pages0_read';
-#use test;
-#SELECT VARIABLE_VALUE <= 29  FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'innodb_pages0_read';
-
-#SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'innodb_pages0_read';
-#use innodb_test;
-#SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'innodb_pages0_read';
-#use test;
-#SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'innodb_pages0_read';
-
-FLUSH STATUS;
-
---echo # restart and see number read page 0
--- source include/restart_mysqld.inc
+--echo # restart and see number of pages 0 read
+--let $restart_parameters=restart:--innodb-encryption-threads=0
+--source include/restart_mysqld.inc
 
 --echo # Since we have restarted the server with encryption threads disabled - the tables from innodb_test database
 --echo # should not have been accessed on server startup - thus selecting from any of those tables should increase
 --echo # innodb_pages0_read only by one
 
 --let $number_of_tables_in_mysql_db=`SELECT COUNT(DISTINCT TABLE_NAME) FROM information_schema.tables WHERE table_schema='mysql'`
-eval SELECT VARIABLE_VALUE <= $number_of_tables_in_mysql_db FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'innodb_pages0_read';
+--let $assert_text= number of pages 0 read should be less than number of tables in mysql databases
+--let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = \\'innodb_pages0_read\\']" <= $number_of_tables_in_mysql_db
+--source include/assert.inc
 
---let $number_of_pages0_read=`SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'innodb_pages0_read'`
+--let $number_of_pages0_read=`SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'innodb_pages0_read'`
 
 select * from innodb_test.innodb_compact;
 
-eval SELECT VARIABLE_VALUE= $number_of_pages0_read + 1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'innodb_pages0_read';
+--let $assert_text= innodb_pages0_read should be increased only by one
+--let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = \\'innodb_pages0_read\\']" = $number_of_pages0_read + 1
+--source include/assert.inc
 
+# cleanup
 drop database innodb_test;
-FLUSH STATUS;
+--rmdir $MYSQL_TMP_DIR/innodb_test
+
+--let $assert_text= All the tables should to be unencrypted
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0]" = 0
+--source include/assert.inc
+
+SET GLOBAL default_table_encryption=OFF;
+SET GLOBAL innodb_encryption_threads=4;

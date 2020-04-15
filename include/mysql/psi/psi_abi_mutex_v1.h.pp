@@ -2,20 +2,18 @@
 #include "my_inttypes.h"
 #include "my_config.h"
 typedef unsigned char uchar;
-typedef signed char int8;
-typedef unsigned char uint8;
-typedef short int16;
-typedef unsigned short uint16;
-typedef int int32;
-typedef unsigned int uint32;
-typedef unsigned long long int ulonglong;
 typedef long long int longlong;
-typedef longlong int64;
-typedef ulonglong uint64;
-typedef unsigned long long my_ulonglong;
+typedef unsigned long long int ulonglong;
+typedef int8_t int8;
+typedef uint8_t uint8;
+typedef int16_t int16;
+typedef uint16_t uint16;
+typedef int32_t int32;
+typedef uint32_t uint32;
+typedef int64_t int64;
+typedef uint64_t uint64;
 typedef intptr_t intptr;
 typedef ulonglong my_off_t;
-typedef ptrdiff_t my_ptrdiff_t;
 typedef int myf;
 #include "my_macros.h"
 #include "my_psi_config.h"
@@ -43,9 +41,9 @@ struct PSI_mutex_locker_state_v1 {
   enum PSI_mutex_operation m_operation;
   struct PSI_mutex *m_mutex;
   struct PSI_thread *m_thread;
-  unsigned long long m_timer_start;
+  unsigned long long m_timer_start{0};
   unsigned long long (*m_timer)(void);
-  void *m_wait;
+  void *m_wait{nullptr};
 };
 typedef struct PSI_mutex_locker_state_v1 PSI_mutex_locker_state_v1;
 typedef void (*register_mutex_v1_t)(const char *category,

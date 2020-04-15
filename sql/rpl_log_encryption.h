@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,12 +24,15 @@
 #define RPL_LOG_ENCRYPTION_INCLUDED
 
 #include <openssl/evp.h>
-#include <sql/basic_istream.h>
-#include <sql/basic_ostream.h>
-#include <sql/rpl_cipher.h>
-#include <sql/sql_class.h>
+#include <sql/stream_cipher.h>
+#include <stdint.h>
 #include <map>
 #include <string>
+#include "my_inttypes.h"
+
+class Basic_istream;
+class Basic_ostream;
+class THD;
 
 /**
   @file rpl_log_encryption.h
@@ -142,8 +145,10 @@ class Rpl_encryption {
     START,
     DETERMINE_NEXT_SEQNO,
     GENERATE_NEW_MASTER_KEY,
+    REMOVE_MASTER_KEY_INDEX,
     STORE_MASTER_KEY_INDEX,
     ROTATE_LOGS,
+    PURGE_UNUSED_ENCRYPTION_KEYS,
     REMOVE_KEY_ROTATION_TAG
   };
 
@@ -161,18 +166,13 @@ class Rpl_encryption {
   */
   bool initialize();
   /**
-    Remove the information about the master key index from keyring. This would
-    allow a key rotation at server startup when binlog_encryption is ON.
-
-    It shall also remove new master key index in order to cleanup any previous
+    Remove remaining old/new master key index in order to cleanup any previous
     master key rotation.
-
-    Only index keys shall be removed!!!
 
     @retval false Success.
     @retval true Error.
   */
-  bool remove_seqnos_from_keyring();
+  bool remove_remaining_seqnos_from_keyring();
   /**
     Recover the replication encryption master key from keyring.
 
@@ -254,6 +254,24 @@ class Rpl_encryption {
   bool is_enabled();
   const bool &get_enabled_var();
   const bool &get_master_key_rotation_at_startup_var();
+  /**
+    Purge unused master keys from Keyring.
+
+    @retval false Success.
+    @retval true Error.
+  */
+  bool purge_unused_keys();
+  /**
+    Rotate the master key.
+
+    @param step Step to start the process (it might be recovering).
+    @param new_master_key_seqno When recovering, this is the new master key
+                                sequence number detected by recovery process.
+    @retval false Success.
+    @retval true Error.
+  */
+  bool rotate_master_key(Key_rotation_step step = Key_rotation_step::START,
+                         uint32_t new_master_key_seqno = 0);
 
  private:
   /* Define the keyring key type for keys storing sequence numbers */
@@ -311,29 +329,6 @@ class Rpl_encryption {
   static std::tuple<Keyring_status, void *, size_t> fetch_key_from_keyring(
       const std::string &key_id, const std::string &key_type);
 
-  /**
-    Generate server's first replication master key.
-
-    @param step Step to start the process (it might be recovering).
-    @param new_master_key_seqno When recovering, this is the new master key
-                                sequence number detected by recovery process.
-
-    @retval false Success.
-    @retval true Error.
-  */
-  bool first_time_enable(Key_rotation_step step,
-                         uint32_t new_master_key_seqno = 0);
-  /**
-    Rotate the master key.
-
-    @param step Step to start the process (it might be recovering).
-    @param new_master_key_seqno When recovering, this is the new master key
-                                sequence number detected by recovery process.
-    @retval false Success.
-    @retval true Error.
-  */
-  bool rotate_master_key(Key_rotation_step step = Key_rotation_step::START,
-                         uint32_t new_master_key_seqno = 0);
   /**
     Rotate replication logs excluding relay logs of group replication channels.
     If error happens, it will either report a warning to session user.
@@ -410,6 +405,20 @@ class Rpl_encryption {
   */
   std::string get_new_master_key_seqno_key_id();
   /**
+    Returns the key ID of the keyring key that stores the "last_purged"
+    master key sequence number.
+
+    @return The key ID.
+  */
+  std::string get_last_purged_master_key_seqno_key_id();
+  /**
+    Returns the key ID of the keyring key that stores the "old" master key
+    sequence number.
+
+    @return The key ID.
+  */
+  std::string get_old_master_key_seqno_key_id();
+  /**
     Get the "new" master key sequence number from keyring.
 
     @return A pair containing the status of the operation (Keyring_status) and
@@ -417,6 +426,22 @@ class Rpl_encryption {
   */
   std::pair<Rpl_encryption::Keyring_status, uint32_t>
   get_new_master_key_seqno_from_keyring();
+  /**
+    Get the "old" master key sequence number from keyring.
+
+    @return A pair containing the status of the operation (Keyring_status) and
+            a sequence number. Errors shall be checked by consulting the status.
+  */
+  std::pair<Rpl_encryption::Keyring_status, uint32_t>
+  get_old_master_key_seqno_from_keyring();
+  /**
+    Get the "last_purged" master key sequence number from keyring.
+
+    @return A pair containing the status of the operation (Keyring_status) and
+            a sequence number. Errors shall be checked by consulting the status.
+  */
+  std::pair<Rpl_encryption::Keyring_status, uint32_t>
+  get_last_purged_master_key_seqno_from_keyring();
   /**
     Set the "new" master key sequence number into a key and store it into
     keyring.
@@ -426,12 +451,42 @@ class Rpl_encryption {
   */
   bool set_new_master_key_seqno_on_keyring(uint32 seqno);
   /**
+    Set the "last_purged" master key sequence number into a key and store it
+    into keyring.
+
+    @retval false Success.
+    @retval true Error.
+  */
+  bool set_last_purged_master_key_seqno_on_keyring(uint32 seqno);
+  /**
+    Set the "old" master key sequence number into a key and store it into
+    keyring.
+
+    @retval false Success.
+    @retval true Error.
+  */
+  bool set_old_master_key_seqno_on_keyring(uint32 seqno);
+  /**
     Remove the "new" master key sequence number key from the keyring.
 
     @retval false Success.
     @retval true Error.
   */
   bool remove_new_master_key_seqno_from_keyring();
+  /**
+    Remove the "last_purged" master key sequence number key from the keyring.
+
+    @retval false Success.
+    @retval true Error.
+  */
+  bool remove_last_purged_master_key_seqno_from_keyring();
+  /**
+    Remove the "old" master key sequence number key from the keyring.
+
+    @retval false Success.
+    @retval true Error.
+  */
+  bool remove_old_master_key_seqno_from_keyring();
   /**
     Generate a new replication master key on keyring and retrieve it.
 
@@ -574,22 +629,34 @@ class Rpl_encryption_header {
   /**
     Factory to generate ciphers to encrypt streams based on current header.
 
-    @return A Rpl_cipher for this header version or nullptr on failure.
+    @return A Stream_cipher for this header version or nullptr on failure.
   */
-  virtual std::unique_ptr<Rpl_cipher> get_encryptor() = 0;
+  virtual std::unique_ptr<Stream_cipher> get_encryptor() = 0;
   /**
     Factory to generate ciphers to decrypt streams based on current header.
 
-    @return A Rpl_cipher for this header version or nullptr on failure.
+    @return A Stream_cipher for this header version or nullptr on failure.
   */
-  virtual std::unique_ptr<Rpl_cipher> get_decryptor() = 0;
+  virtual std::unique_ptr<Stream_cipher> get_decryptor() = 0;
   /**
     Setup the header with current master key and generates a new random file
-    password. This file shall be called when creating new replication log files.
+    password. This function shall be called when creating new replication
+    log files.
 
-    @return The new file password.
+    @return The new file password, or an empty password if error happens.
   */
   virtual Key_string generate_new_file_password() = 0;
+#ifdef MYSQL_SERVER
+  /**
+    Encrypt a file password using current replication encryption master key.
+
+    @param[in] password_str The plain file password.
+
+    @retval false Success.
+    @retval true Error.
+  */
+  virtual bool encrypt_file_password(Key_string password_str) = 0;
+#endif
   /**
     Build a key id prefix using default header version.
 
@@ -712,9 +779,12 @@ class Rpl_encryption_header_v1 : public Rpl_encryption_header {
   char get_version() const override;
   int get_header_size() override;
   Key_string decrypt_file_password() override;
-  std::unique_ptr<Rpl_cipher> get_encryptor() override;
-  std::unique_ptr<Rpl_cipher> get_decryptor() override;
+  std::unique_ptr<Stream_cipher> get_encryptor() override;
+  std::unique_ptr<Stream_cipher> get_decryptor() override;
   Key_string generate_new_file_password() override;
+#ifdef MYSQL_SERVER
+  bool encrypt_file_password(Key_string password_str) override;
+#endif
 
   /**
     Build a key id prefix.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,16 +60,12 @@ enum Extra_tag {
   ET_USING_INDEX_CONDITION,
   ET_USING,
   ET_RANGE_CHECKED_FOR_EACH_RECORD,
-  ET_USING_WHERE_WITH_PUSHED_CONDITION,
+  ET_USING_PUSHED_CONDITION,
   ET_USING_WHERE,
   ET_NOT_EXISTS,
   ET_USING_MRR,
   ET_USING_INDEX,
   ET_FULL_SCAN_ON_NULL_KEY,
-  ET_SKIP_OPEN_TABLE,
-  ET_OPEN_FRM_ONLY,
-  ET_OPEN_FULL_TABLE,
-  ET_SCANNED_DATABASES,
   ET_USING_INDEX_FOR_GROUP_BY,
   ET_USING_INDEX_FOR_SKIP_SCAN,
   ET_DISTINCT,
@@ -250,7 +246,7 @@ class qep_row {
       if (str[len - 1] == 0)
         return static_cast<char *>(memdup_root(root, str, len));
 
-      char *ret = static_cast<char *>(alloc_root(root, len + 1));
+      char *ret = static_cast<char *>(root->Alloc(len + 1));
       if (ret != NULL) {
         memcpy(ret, str, len);
         ret[len] = 0;
@@ -522,6 +518,8 @@ class Explain_format {
     @retval false       Traditional explain
   */
   virtual bool is_hierarchical() const = 0;
+
+  virtual bool is_tree() const { return false; }
 
   /**
     Send EXPLAIN header item(s) to output stream

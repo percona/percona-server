@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -122,9 +122,17 @@ SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
 
   BaseString msg;
   bool close_with_reset = true;
-  if (!m_transporter_registry->connect_server(sockfd, msg, close_with_reset))
+  bool log_failure = false;
+  if (!m_transporter_registry->connect_server(sockfd,
+                                              msg,
+                                              close_with_reset,
+                                              log_failure))
   {
     ndb_socket_close_with_reset(sockfd, close_with_reset);
+    if (log_failure)
+    {
+      g_eventLogger->warning("TR : %s", msg.c_str());
+    }
     DBUG_RETURN(0);
   }
 
@@ -284,6 +292,7 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
   peerUpIndicators    = new bool              [maxTransporters];
   connectingTime      = new Uint32            [maxTransporters];
   m_disconnect_errnum = new int               [maxTransporters];
+  m_disconnect_enomem_error = new Uint32      [maxTransporters];
   m_error_states      = new ErrorState        [maxTransporters];
 
   m_has_extra_wakeup_socket = false;
@@ -309,6 +318,7 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
                                   // cleared at first connect attempt
     connectingTime[i]     = 0;
     m_disconnect_errnum[i]= 0;
+    m_disconnect_enomem_error[i] = 0;
     m_error_states[i]     = default_error_state;
   }
   DBUG_VOID_RETURN;
@@ -353,6 +363,7 @@ TransporterRegistry::~TransporterRegistry()
   delete[] peerUpIndicators;
   delete[] connectingTime;
   delete[] m_disconnect_errnum;
+  delete[] m_disconnect_enomem_error;
   delete[] m_error_states;
 
   if (m_mgm_handle)
@@ -413,47 +424,67 @@ TransporterRegistry::init(TransporterReceiveHandle& recvhandle)
 bool
 TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
                                     BaseString & msg,
-                                    bool& close_with_reset) const
+                                    bool& close_with_reset,
+                                    bool& log_failure) const
 {
   DBUG_ENTER("TransporterRegistry::connect_server(sockfd)");
 
-  // Read "hello" that consists of node id and transporter
-  // type from client
+  log_failure = true;
+
+  // Read "hello" that consists of node id and other info
+  // from client
   SocketInputStream s_input(sockfd);
-  char buf[11+1+11+1]; // <int> <int>
+  char buf[256]; // <int> <int> <int> <..expansion..>
   if (s_input.gets(buf, sizeof(buf)) == 0) {
-    msg.assfmt("line: %u : Failed to get nodeid from client", __LINE__);
-    DBUG_PRINT("error", ("Failed to read 'hello' from client"));
+    /* Could be spurious connection, need not log */
+    log_failure = false;
+    msg.assfmt("Ignored connection attempt as failed to "
+               "read 'hello' from client");
+    DBUG_PRINT("error", ("%s", msg.c_str()));
     DBUG_RETURN(false);
   }
 
   int nodeId, remote_transporter_type= -1;
-  int r= sscanf(buf, "%d %d", &nodeId, &remote_transporter_type);
+  int serverNodeId = -1;
+  int r= sscanf(buf, "%d %d %d",
+                &nodeId,
+                &remote_transporter_type,
+                &serverNodeId);
   switch (r) {
+  case 3:
+    /* Latest version client */
+    break;
   case 2:
+    /* Older client, sending just nodeid and transporter type */
     break;
   case 1:
     // we're running version prior to 4.1.9
     // ok, but with no checks on transporter configuration compatability
     break;
   default:
-    msg.assfmt("line: %u : Incorrect reply from client: >%s<", __LINE__, buf);
-    DBUG_PRINT("error", ("Failed to parse 'hello' from client, buf: '%.*s'",
-                         (int)sizeof(buf), buf));
+    /* Could be spurious connection, need not log */
+    log_failure = false;
+    msg.assfmt("Ignored connection attempt as failed to "
+               "parse 'hello' from client.  >%s<", buf);
+    DBUG_PRINT("error", ("%s", msg.c_str()));
     DBUG_RETURN(false);
   }
 
-  DBUG_PRINT("info", ("Client hello, nodeId: %d transporter type: %d",
-		      nodeId, remote_transporter_type));
+  DBUG_PRINT("info", ("Client hello, nodeId: %d transporter type: %d "
+                      "server nodeid %d",
+                      nodeId,
+                      remote_transporter_type,
+                      serverNodeId));
 
 
   // Check that nodeid is in range before accessing the arrays
   if (nodeId < 0 ||
       nodeId >= (int)maxTransporters)
   {
-    msg.assfmt("line: %u : Incorrect reply from client: >%s<", __LINE__, buf);
-    DBUG_PRINT("error", ("Out of range nodeId: %d from client",
-                         nodeId));
+    /* Strange, log it */
+    msg.assfmt("Ignored connection attempt as client "
+               "nodeid %u out of range", nodeId);
+    DBUG_PRINT("error", ("%s", msg.c_str()));
     DBUG_RETURN(false);
   }
 
@@ -461,22 +492,60 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
   Transporter *t= theTransporters[nodeId];
   if (t == 0)
   {
-    msg.assfmt("line: %u : Incorrect reply from client: >%s<, node: %u",
-               __LINE__, buf, nodeId);
-    DBUG_PRINT("error", ("No transporter available for node id %d", nodeId));
+    /* Strange, log it */
+    msg.assfmt("Ignored connection attempt as client "
+               "nodeid %u is undefined.",
+               nodeId);
+    DBUG_PRINT("error", ("%s", msg.c_str()));
     DBUG_RETURN(false);
+  }
+
+  // Check transporter type
+  if (remote_transporter_type != -1 &&
+      remote_transporter_type != t->m_type)
+  {
+    msg.assfmt("Connection attempt from client node %u failed as transporter "
+               "type %u is not as expected %u.",
+               nodeId,
+               remote_transporter_type,
+               t->m_type);
+    DBUG_RETURN(false);
+  }
+
+  // Check that the serverNodeId is correct
+  if (serverNodeId != -1)
+  {
+    /* Check that incoming connection was meant for us */
+    if (serverNodeId != t->getLocalNodeId())
+    {
+      /* Strange, log it */
+      msg.assfmt("Ignored connection attempt as client "
+                 "node %u attempting to connect to node %u, "
+                 "but this is node %u.",
+                 nodeId,
+                 serverNodeId,
+                 t->getLocalNodeId());
+      DBUG_PRINT("error", ("%s", msg.c_str()));
+      DBUG_RETURN(false);
+    }
   }
 
   // Check that the transporter should be connecting
   if (performStates[nodeId] != TransporterRegistry::CONNECTING)
   {
-    msg.assfmt("line: %u : Incorrect state for node %u state: %s (%u)",
-               __LINE__, nodeId,
-               getPerformStateString(nodeId),
+    msg.assfmt("Ignored connection attempt as this node "
+               "is not expecting a connection from node %u. "
+               "State %u",
+               nodeId,
                performStates[nodeId]);
 
-    DBUG_PRINT("error", ("Transporter for node id %d in wrong state",
-                         nodeId));
+    DBUG_PRINT("error", ("%s", msg.c_str()));
+
+    /**
+     * This is expected if the transporter state is DISCONNECTED,
+     * otherwise it's a bit strange
+     */
+    log_failure = (performStates[nodeId] != TransporterRegistry::DISCONNECTED);
 
     // Avoid TIME_WAIT on server by requesting client to close connection
     SocketOutputStream s_output(sockfd);
@@ -501,23 +570,17 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
     DBUG_RETURN(false);
   }
 
-  // Check transporter type
-  if (remote_transporter_type != -1 &&
-      remote_transporter_type != t->m_type)
-  {
-    g_eventLogger->error("Connection from node: %d uses different transporter "
-                         "type: %d, expected type: %d",
-                         nodeId, remote_transporter_type, t->m_type);
-    DBUG_RETURN(false);
-  }
+
 
   // Send reply to client
   SocketOutputStream s_output(sockfd);
   if (s_output.println("%d %d", t->getLocalNodeId(), t->m_type) < 0)
   {
-    msg.assfmt("line: %u : Failed to reply to connecting socket (node: %u)",
-               __LINE__, nodeId);
-    DBUG_PRINT("error", ("Send of reply failed"));
+    /* Strange, log it */
+    msg.assfmt("Connection attempt failed due to error sending "
+               "reply to client node %u",
+               nodeId);
+    DBUG_PRINT("error", ("%s", msg.c_str()));
     DBUG_RETURN(false);
   }
 
@@ -760,14 +823,23 @@ TransporterRegistry::prepareSendTemplate(
       const Uint32 lenBytes = t->m_packer.getMessageLength(signalHeader, section.m_ptr);
       if (likely(lenBytes <= MAX_SEND_MESSAGE_BYTESIZE))
       {
-	Uint32 *insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
-	if (likely(insertPtr != NULL))
+        SendStatus error = SEND_OK;
+        Uint32 *insertPtr = getWritePtr(sendHandle,
+                                        nodeId,
+                                        lenBytes,
+                                        prio,
+                                        &error);
+        if (likely(insertPtr != nullptr))
 	{
 	  t->m_packer.pack(insertPtr, prio, signalHeader, signalData, section);
 	  updateWritePtr(sendHandle, nodeId, lenBytes, prio);
 	  return SEND_OK;
 	}
-
+        if (unlikely(error == SEND_MESSAGE_TOO_BIG))
+        {
+          g_eventLogger->info("Send message too big");
+	  return SEND_MESSAGE_TOO_BIG;
+        }
         set_status_overloaded(nodeId, true);
         const int sleepTime = 2;
 
@@ -779,8 +851,8 @@ TransporterRegistry::prepareSendTemplate(
 	{
 	  NdbSleep_MilliSleep(sleepTime);
           /* FC : Consider counting sleeps here */
-	  insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
-	  if (insertPtr != NULL)
+	  insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio, &error);
+	  if (likely(insertPtr != nullptr))
 	  {
 	    t->m_packer.pack(insertPtr, prio, signalHeader, signalData, section);
 	    updateWritePtr(sendHandle, nodeId, lenBytes, prio);
@@ -791,8 +863,13 @@ TransporterRegistry::prepareSendTemplate(
 	    report_error(nodeId, TE_SEND_BUFFER_FULL);
 	    return SEND_OK;
 	  }
+          if (unlikely(error == SEND_MESSAGE_TOO_BIG))
+          {
+            g_eventLogger->info("Send message too big");
+	    return SEND_MESSAGE_TOO_BIG;
+          }
 	}
-	
+
 	WARNING("Signal to " << nodeId << " lost(buffer)");
 	DEBUG_FPRINTF((stderr, "TE_SIGNAL_LOST_SEND_BUFFER_FULL\n"));
 	report_error(nodeId, TE_SIGNAL_LOST_SEND_BUFFER_FULL);
@@ -800,7 +877,7 @@ TransporterRegistry::prepareSendTemplate(
       }
       else
       {
-        g_eventLogger->info("Send message too big");
+        g_eventLogger->info("Send message too big: length %u", lenBytes);
 	return SEND_MESSAGE_TOO_BIG;
       }
     }
@@ -1934,17 +2011,23 @@ TransporterRegistry::do_connect(NodeId node_id)
  *
  * This works asynchronously, similar to do_connect().
  */
-void
-TransporterRegistry::do_disconnect(NodeId node_id, int errnum)
+bool
+TransporterRegistry::do_disconnect(NodeId node_id,
+                                   int errnum,
+                                   bool send_source)
 {
   DEBUG_FPRINTF((stderr, "(%u)REG:do_disconnect(%u, %d)\n",
                          localNodeId, node_id, errnum));
   PerformState &curr_state = performStates[node_id];
   switch(curr_state){
   case DISCONNECTED:
-    return;
+  {
+    return true;
+  }
   case CONNECTED:
+  {
     break;
+  }
   case CONNECTING:
     /**
      * This is a correct transition. But it should only occur for nodes
@@ -1955,13 +2038,40 @@ TransporterRegistry::do_disconnect(NodeId node_id, int errnum)
     //DBUG_ASSERT(false);
     break;
   case DISCONNECTING:
-    return;
+  {
+    return true;
+  }
+  }
+  if (errnum == ENOENT)
+  {
+    m_disconnect_enomem_error[node_id]++;
+    if (m_disconnect_enomem_error[node_id] < 10)
+    {
+      NdbSleep_MilliSleep(40);
+      g_eventLogger->info("Socket error %d on nodeId: %u in state: %u",
+                          errnum, node_id, (Uint32)curr_state);
+      return false;
+    }
+  }
+  if (errnum == 0)
+  {
+    g_eventLogger->info("Node %u disconnected in state: %d",
+                        node_id, (int)curr_state);
+  }
+  else
+  {
+    g_eventLogger->info("Node %u disconnected in %s with errnum: %d"
+                        " in state: %d",
+                        node_id,
+                        send_source ? "send" : "recv",
+                        errnum,
+                        (int)curr_state);
   }
   DBUG_ENTER("TransporterRegistry::do_disconnect");
   DBUG_PRINT("info",("performStates[%d]=DISCONNECTING",node_id));
   curr_state= DISCONNECTING;
   m_disconnect_errnum[node_id] = errnum;
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(false);
 }
 
 /**
@@ -2626,13 +2736,20 @@ TransporterRegistry::connect_ndb_mgmd(const char* server_name,
 
 Uint32 *
 TransporterRegistry::getWritePtr(TransporterSendBufferHandle *handle,
-                                 NodeId node, Uint32 lenBytes, Uint32 prio)
+                                 NodeId node,
+                                 Uint32 lenBytes,
+                                 Uint32 prio,
+                                 SendStatus *error)
 {
   Transporter *t = theTransporters[node];
-  Uint32 *insertPtr = handle->getWritePtr(node, lenBytes, prio,
-                                          t->get_max_send_buffer());
+  Uint32 *insertPtr = handle->getWritePtr(node,
+                                          lenBytes,
+                                          prio,
+                                          t->get_max_send_buffer(),
+                                          error);
 
-  if (insertPtr == 0) {
+  if (unlikely(insertPtr == nullptr && *error != SEND_MESSAGE_TOO_BIG))
+  {
     //-------------------------------------------------
     // Buffer was completely full. We have severe problems.
     // We will attempt to wait for a small time
@@ -2648,8 +2765,11 @@ TransporterRegistry::getWritePtr(TransporterSendBufferHandle *handle,
 	// Since send was successful we will make a renewed
 	// attempt at inserting the signal into the buffer.
 	//-------------------------------------------------
-        insertPtr = handle->getWritePtr(node, lenBytes, prio,
-                                        t->get_max_send_buffer());
+        insertPtr = handle->getWritePtr(node,
+                                        lenBytes,
+                                        prio,
+                                        t->get_max_send_buffer(),
+                                        error);
       }//if
     } else {
       return 0;

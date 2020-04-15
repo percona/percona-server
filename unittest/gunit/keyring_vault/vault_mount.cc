@@ -38,6 +38,8 @@ bool Vault_mount::mount_secret_backend() {
           CURLE_OK ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L)) !=
           CURLE_OK ||
+      (curl_res = curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L)) !=
+          CURLE_OK ||
       (!vault_ca.empty() &&
        (curl_res = curl_easy_setopt(curl, CURLOPT_CAINFO, vault_ca.c_str())) !=
            CURLE_OK) ||
@@ -78,6 +80,8 @@ bool Vault_mount::unmount_secret_backend() {
           CURLE_OK ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L)) !=
           CURLE_OK ||
+      (curl_res = curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L)) !=
+          CURLE_OK ||
       (!vault_ca.empty() &&
        (curl_res = curl_easy_setopt(curl, CURLOPT_CAINFO, vault_ca.c_str())) !=
            CURLE_OK) ||
@@ -92,7 +96,7 @@ bool Vault_mount::unmount_secret_backend() {
                                     &http_code)) != CURLE_OK ||
       http_code / 100 != 2 /* 2** are success return codes*/
   ) {
-    std::cout << "Could not create secret mount point";
+    std::cout << "Could not delete secret mount point";
     std::cout << get_error_from_curl(curl_res).c_str();
     curl_slist_free_all(list);
     return true;

@@ -489,11 +489,11 @@ When this variable is set to ``ON`` log file will be closed and reopened. This c
 
 .. variable:: audit_log_buffer_size
 
-   :cli: Yes
-   :scope: Global
-   :dyn: No
-   :vartype: Numeric
-   :default: 4096
+     :cli: Yes
+     :scope: Global
+     :dyn: No
+     :vartype: Numeric
+     :default: 1 Mb
 
 This variable can be used to specify the size of memory buffer used for logging, used when :variable:`audit_log_strategy` variable is set to ``ASYNCHRONOUS`` or ``PERFORMANCE`` values. This variable has effect only when :variable:`audit_log_handler` is set to ``FILE``.
 
@@ -680,9 +680,24 @@ This variable is used to specify the ``priority`` value for syslog. This
 variable has the same meaning as the appropriate parameter described in the
 `syslog(3) manual <http://linux.die.net/man/3/syslog>`_.
 
+Status Variables
+================
+
+.. variable:: Audit_log_buffer_size_overflow
+
+    :vartype: Numeric
+    :scope: Global
+
+The number of times an audit log entry was either
+dropped or written directly to the file due to its size being bigger
+than :variable:`audit_log_buffer_size` variable.
+
 Version Specific Information
 ============================
 
   * :rn:`8.0.12-1`
     Feature ported from |Percona Server| 5.7
+
+  * :rn:`8.0.15-6`
+    :variable:`Audit_log_buffer_size_overflow` variable implemented
 

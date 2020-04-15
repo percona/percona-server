@@ -1,19 +1,10 @@
---skip # Test unstable on Jenkins centos6
-
-#let $innodb_compression_algorithm_orig=`SELECT @@innodb_compression_algorithm`;
-
-# zlib
-#set global innodb_compression_algorithm = 1;
-
---disable_warnings # Disabling warnings as punch hole get generate ones when compression is enabled and
-                   # filesystem is not supporting them
+# Disabling warnings as punch hole get generate ones when compression is enabled
+# and filesystem is not supporting them
+--disable_warnings
 create table innodb_normal(c1 bigint not null, b char(200)) engine=innodb COMPRESSION="zlib";
-show warnings;
 create table innodb_compact(c1 bigint not null, b char(200)) engine=innodb row_format=compact ENCRYPTION='KEYRING' encryption_key_id=1 COMPRESSION="zlib";
-#show warnings;
 create table innodb_dynamic(c1 bigint not null, b char(200)) engine=innodb row_format=dynamic ENCRYPTION='KEYRING' encryption_key_id=2 COMPRESSION="zlib";
 --enable_warnings
-#show warnings;
 
 show create table innodb_normal;
 show create table innodb_compact;
@@ -41,7 +32,7 @@ commit;
 #let $wait_condition= select variable_value > 0 from information_schema.global_status where variable_name = 'INNODB_NUM_PAGES_PAGE_COMPRESSED';
 #--source include/wait_condition.inc
 
---let $restart_parameters=restart:--innodb-encrypt-tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED
+--let $restart_parameters=restart:--default-table-encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED
 --source include/restart_mysqld.inc
 
 select * from innodb_compact;
@@ -51,8 +42,9 @@ select * from innodb_dynamic;
 #set global innodb_compression_algorithm = 1;
 set innodb_default_encryption_key_id = DEFAULT;
 
---disable_warnings # Disabling warnings as punch hole get generate ones when compression is enabled and
-                   # filesystem is not supporting them
+# Disabling warnings as punch hole get generate ones when compression is enabled
+# and filesystem is not supporting them
+--disable_warnings
 alter table innodb_normal engine=innodb COMPRESSION="zlib";
 show create table innodb_normal;
 alter table innodb_compact engine=innodb encryption='KEYRING' COMPRESSION="zlib";

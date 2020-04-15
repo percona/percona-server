@@ -1,0 +1,64 @@
+CREATE TABLE t1 (pk INT PRIMARY KEY AUTO_INCREMENT,
+c VARCHAR(256), coordinate POINT NOT NULL, SPATIAL index(coordinate)) ENGINE=INNODB
+ENCRYPTION='KEYRING';
+ERROR HY000: InnoDB: ENCRYPTED='KEYRING' not supported for table because it contains spatial index.
+CREATE TABLE t2 (pk INT PRIMARY KEY AUTO_INCREMENT,
+c VARCHAR(256), coordinate POINT NOT NULL, SPATIAL index(coordinate)) ENGINE=INNODB;
+Warnings:
+Warning	3674	The spatial index on column 'coordinate' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+ALTER TABLE t2 ENCRYPTION='KEYRING';
+ERROR HY000: InnoDB: ENCRYPTED='KEYRING' not supported for table because it contains spatial index.
+DROP TABLE t2;
+CREATE TABLE t1 (pk INT PRIMARY KEY AUTO_INCREMENT,
+c VARCHAR(256), coordinate POINT NOT NULL) ENCRYPTION='KEYRING' ENGINE=INNODB;
+ALTER TABLE t1 ADD SPATIAL INDEX b(coordinate), ALGORITHM=COPY;
+ERROR HY000: InnoDB: ENCRYPTED='KEYRING' not supported for table because it contains spatial index.
+ALTER TABLE t1 ADD SPATIAL INDEX b(coordinate), FORCE, ALGORITHM=INPLACE;
+ERROR HY000: InnoDB: ENCRYPTED='KEYRING' not supported for table because it contains spatial index.
+CREATE SPATIAL INDEX b on t1(coordinate);
+ERROR HY000: InnoDB: ENCRYPTED='KEYRING' not supported for table because it contains spatial index.
+ALTER TABLE t1 ADD SPATIAL INDEX(coordinate);
+ERROR HY000: InnoDB: ENCRYPTED='KEYRING' not supported for table because it contains spatial index.
+DROP TABLE t1;
+CREATE TABLE t1 (pk INT PRIMARY KEY AUTO_INCREMENT,
+c VARCHAR(256), coordinate POINT NOT NULL) ENGINE=INNODB;
+CREATE SPATIAL INDEX b on t1(coordinate);
+Warnings:
+Warning	3674	The spatial index on column 'coordinate' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+INSERT INTO t1 values(1, 'secret', ST_GeomFromText('POINT(903994614 180726515)'));
+ALTER TABLE t1 DROP INDEX b;
+INSERT INTO t1 values(2, 'secret', ST_GeomFromText('POINT(903994614 180726515)'));
+ALTER TABLE t1 ADD SPATIAL INDEX b(coordinate);
+Warnings:
+Warning	3674	The spatial index on column 'coordinate' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+INSERT INTO t1 values(3, 'secret', ST_GeomFromText('POINT(903994614 180726515)'));
+DROP TABLE t1;
+CREATE TABLE t1 (pk INT PRIMARY KEY AUTO_INCREMENT,
+c VARCHAR(256), coordinate POINT NOT NULL, SPATIAL index(coordinate)) ENGINE=INNODB;
+Warnings:
+Warning	3674	The spatial index on column 'coordinate' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+CREATE TABLE t2 (pk INT PRIMARY KEY AUTO_INCREMENT,
+c VARCHAR(256), coordinate POINT NOT NULL, SPATIAL index(coordinate)) ENGINE=INNODB COMPRESSION="zlib";
+Warnings:
+Warning	3674	The spatial index on column 'coordinate' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+INSERT INTO t1 values(1, 'secret', ST_GeomFromText('POINT(903994614 180726515)'));
+INSERT INTO t2 values(1, 'secret', ST_GeomFromText('POINT(903994614 180726515)'));
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+#Wait for all tables to get encrypted (apart from temporary)
+# Success!
+SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION > 0;
+NAME
+innodb_system
+innodb_undo_001
+innodb_undo_002
+mtr/global_suppressions
+mtr/test_suppressions
+mysql
+sys/sys_config
+test/t1
+test/t2
+SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0;
+NAME
+DROP TABLE t1, t2;
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption=OFF;

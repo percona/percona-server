@@ -268,5 +268,5 @@ mysql_declare_plugin(keyring_vault){
     nullptr,                        /*   status variables                */
     keyring_vault_system_variables, /*   system variables                */
     nullptr,
-    0,
+    PLUGIN_OPT_ALLOW_EARLY,
 } mysql_declare_plugin_end;

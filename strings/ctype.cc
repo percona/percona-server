@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -402,7 +402,8 @@ static size_t scan_one_character(const char *s, const char *e, my_wc_t *wc) {
     return 1;
   } else /* Non-escaped character */
   {
-    int rc = cs->cset->mb_wc(cs, wc, (uchar *)s, (uchar *)e);
+    int rc = cs->cset->mb_wc(cs, wc, pointer_cast<const uchar *>(s),
+                             pointer_cast<const uchar *>(e));
     if (rc > 0) return (size_t)rc;
   }
   return 0;
@@ -771,8 +772,8 @@ uint my_string_repertoire(const CHARSET_INFO *cs, const char *str,
   } else {
     my_wc_t wc;
     int chlen;
-    for (;
-         (chlen = cs->cset->mb_wc(cs, &wc, (uchar *)str, (uchar *)strend)) > 0;
+    for (; (chlen = cs->cset->mb_wc(cs, &wc, pointer_cast<const uchar *>(str),
+                                    pointer_cast<const uchar *>(strend))) > 0;
          str += chlen) {
       if (wc > 0x7F) return MY_REPERTOIRE_UNICODE30;
     }
@@ -829,11 +830,11 @@ bool my_charset_is_ascii_based(const CHARSET_INFO *cs) {
 */
 bool my_charset_is_8bit_pure_ascii(const CHARSET_INFO *cs) {
   size_t code;
-  if (!cs->tab_to_uni) return 0;
+  if (!cs->tab_to_uni) return false;
   for (code = 0; code < 256; code++) {
-    if (cs->tab_to_uni[code] > 0x7F) return 0;
+    if (cs->tab_to_uni[code] > 0x7F) return false;
   }
-  return 1;
+  return true;
 }
 
 /*
@@ -843,11 +844,11 @@ bool my_charset_is_8bit_pure_ascii(const CHARSET_INFO *cs) {
 */
 bool my_charset_is_ascii_compatible(const CHARSET_INFO *cs) {
   uint i;
-  if (!cs->tab_to_uni) return 1;
+  if (!cs->tab_to_uni) return true;
   for (i = 0; i < 128; i++) {
-    if (cs->tab_to_uni[i] != i) return 0;
+    if (cs->tab_to_uni[i] != i) return false;
   }
-  return 1;
+  return true;
 }
 
 /**
@@ -878,8 +879,9 @@ static size_t my_convert_internal(char *to, size_t to_length,
   my_charset_conv_wc_mb wc_mb = to_cs->cset->wc_mb;
   uint error_count = 0;
 
-  while (1) {
-    if ((cnvres = (*mb_wc)(from_cs, &wc, (uchar *)from, from_end)) > 0)
+  while (true) {
+    if ((cnvres = (*mb_wc)(from_cs, &wc, pointer_cast<const uchar *>(from),
+                           from_end)) > 0)
       from += cnvres;
     else if (cnvres == MY_CS_ILSEQ) {
       error_count++;
@@ -959,7 +961,7 @@ size_t my_convert(char *to, size_t to_length, const CHARSET_INFO *to_cs,
       *errors = 0;
       return length2;
     }
-    if (*((unsigned char *)from) > 0x7F) /* A non-ASCII character */
+    if ((static_cast<uchar>(*from)) > 0x7F) /* A non-ASCII character */
     {
       size_t copied_length = length2 - length;
       to_length -= copied_length;
@@ -1020,8 +1022,8 @@ bool my_is_prefixidx_cand(const CHARSET_INFO *cs, const char *wildstr,
   /* Find first occurrence of w_many pattern. */
   while (wildstr < wildend) {
     int res;
-    if ((res = cs->cset->mb_wc(cs, &wc, (uchar *)wildstr, (uchar *)wildend)) <=
-        0) {
+    if ((res = cs->cset->mb_wc(cs, &wc, pointer_cast<const uchar *>(wildstr),
+                               pointer_cast<const uchar *>(wildend))) <= 0) {
       if (res == MY_CS_ILSEQ) /* Bad sequence */
         return false;
       return true; /* End of the string */
@@ -1031,8 +1033,8 @@ bool my_is_prefixidx_cand(const CHARSET_INFO *cs, const char *wildstr,
     if (wc == (my_wc_t)w_many) break;
 
     if (wc == (my_wc_t)escape) {
-      if ((res = cs->cset->mb_wc(cs, &wc, (uchar *)wildstr,
-                                 (uchar *)wildend)) <= 0) {
+      if ((res = cs->cset->mb_wc(cs, &wc, pointer_cast<const uchar *>(wildstr),
+                                 pointer_cast<const uchar *>(wildend))) <= 0) {
         if (res == MY_CS_ILSEQ) /* Bad sequence */
           return false;
         (*prefix_len)++;
@@ -1046,8 +1048,8 @@ bool my_is_prefixidx_cand(const CHARSET_INFO *cs, const char *wildstr,
   /* If further char is not w_many then not a candidate prefix sequence. */
   while (wildstr < wildend) {
     int res;
-    if ((res = cs->cset->mb_wc(cs, &wc, (uchar *)wildstr, (uchar *)wildend)) <=
-        0) {
+    if ((res = cs->cset->mb_wc(cs, &wc, pointer_cast<const uchar *>(wildstr),
+                               pointer_cast<const uchar *>(wildend))) <= 0) {
       if (res == MY_CS_ILSEQ) /* Bad sequence */
         return false;
       return true; /* End of the string */

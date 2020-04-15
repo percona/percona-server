@@ -29,6 +29,7 @@
 #include "sql/sql_connect.h"
 #include "sql/sql_plist.h"
 #include "sql/threadpool.h"
+#include "sql/protocol_classic.h"
 #include "violite.h"
 #ifdef __linux__
 #include <sys/epoll.h>
@@ -123,7 +124,7 @@ typedef I_P_List<connection_t,
                  I_P_List_null_counter, I_P_List_fast_push_back<connection_t>>
     connection_queue_t;
 
-struct thread_group_t {
+struct alignas(128) thread_group_t {
   mysql_mutex_t mutex;
   connection_queue_t queue;
   connection_queue_t high_prio_queue;
@@ -142,8 +143,11 @@ struct thread_group_t {
   int shutdown_pipe[2];
   bool shutdown;
   bool stalled;
+  char padding[328];
+};
 
-} MY_ALIGNED(512);
+static_assert(sizeof(thread_group_t) == 512,
+              "sizeof(thread_group_t) must be 512 to avoid false sharing");
 
 static thread_group_t all_groups[MAX_THREAD_GROUPS];
 static uint group_count;
@@ -169,8 +173,10 @@ static pool_timer_t pool_timer;
 static void queue_put(thread_group_t *thread_group, connection_t *connection);
 static int wake_thread(thread_group_t *thread_group) noexcept;
 static void handle_event(connection_t *connection);
-static int wake_or_create_thread(thread_group_t *thread_group);
-static int create_worker(thread_group_t *thread_group) noexcept;
+static int wake_or_create_thread(thread_group_t *thread_group,
+                                 bool admin_connection = false);
+static int create_worker(thread_group_t *thread_group,
+                         bool admin_connection = false) noexcept;
 static void *worker_main(void *param);
 static void check_stall(thread_group_t *thread_group);
 static void connection_abort(connection_t *connection);
@@ -767,13 +773,15 @@ static void add_thread_count(thread_group_t *thread_group,
   per group to prevent deadlocks (one listener + one worker)
 */
 
-static int create_worker(thread_group_t *thread_group) noexcept {
+static int create_worker(thread_group_t *thread_group,
+                         bool admin_connection) noexcept {
   my_thread_handle thread_id;
   bool max_threads_reached = false;
   int err;
 
   DBUG_ENTER("create_worker");
-  if (tp_stats.num_worker_threads.load(std::memory_order_relaxed) >=
+  if (!admin_connection &&
+      tp_stats.num_worker_threads.load(std::memory_order_relaxed) >=
           (int)threadpool_max_threads &&
       thread_group->thread_count >= 2) {
     err = 1;
@@ -831,8 +839,12 @@ static ulonglong microsecond_throttling_interval(
 
   Worker creation is throttled, so we avoid too many threads
   to be created during the short time.
+
+  If admin_connection is true, a new thread is created regardless of any other
+  limits.
 */
-static int wake_or_create_thread(thread_group_t *thread_group) {
+static int wake_or_create_thread(thread_group_t *thread_group,
+                                 bool admin_connection) {
   DBUG_ENTER("wake_or_create_thread");
 
   if (thread_group->shutdown) DBUG_RETURN(0);
@@ -842,14 +854,14 @@ static int wake_or_create_thread(thread_group_t *thread_group) {
   if (thread_group->thread_count > thread_group->connection_count)
     DBUG_RETURN(-1);
 
-  if (thread_group->active_thread_count == 0) {
+  if (thread_group->active_thread_count == 0 || admin_connection) {
     /*
      We're better off creating a new thread here  with no delay, either there
      are no workers at all, or they all are all blocking and there was no
      idle  thread to wakeup. Smells like a potential deadlock or very slowly
      executing requests, e.g sleeps or user locks.
     */
-    DBUG_RETURN(create_worker(thread_group));
+    DBUG_RETURN(create_worker(thread_group, admin_connection));
   }
 
   const ulonglong now = my_microsecond_getsystime();
@@ -907,11 +919,7 @@ static int wake_thread(thread_group_t *thread_group) noexcept {
 }
 
 /**
-  Initiate shutdown for thread group.
-
-  The shutdown is asynchronous, we only care to  wake all threads in here, so
-  they can finish. We do not wait here until threads terminate. Final cleanup
-  of the group (thread_group_destroy) will be done by the last exiting threads.
+  Shutdown for thread group
 */
 
 static void thread_group_close(thread_group_t *thread_group) noexcept {
@@ -950,6 +958,16 @@ static void thread_group_close(thread_group_t *thread_group) noexcept {
 
   mysql_mutex_unlock(&thread_group->mutex);
 
+  mysql_mutex_lock(&thread_group->mutex);
+  while (thread_group->thread_count > 0) {
+    mysql_mutex_unlock(&thread_group->mutex);
+    my_sleep(10000);
+    mysql_mutex_lock(&thread_group->mutex);
+  }
+  mysql_mutex_unlock(&thread_group->mutex);
+
+  thread_group_destroy(thread_group);
+
   DBUG_VOID_RETURN;
 }
 
@@ -969,7 +987,7 @@ static void queue_put(thread_group_t *thread_group, connection_t *connection) {
   thread_group->queue.push_back(connection);
 
   if (thread_group->active_thread_count == 0)
-    wake_or_create_thread(thread_group);
+    wake_or_create_thread(thread_group, connection->thd->is_admin_connection());
 
   mysql_mutex_unlock(&thread_group->mutex);
 
@@ -1286,7 +1304,7 @@ void tp_wait_end(THD *thd) {
 static void set_next_timeout_check(ulonglong abstime) {
   DBUG_ENTER("set_next_timeout_check");
   while (abstime < pool_timer.next_timeout_check.load()) {
-    ulonglong old = pool_timer.next_timeout_check.load();
+    uint64 old = pool_timer.next_timeout_check.load();
     pool_timer.next_timeout_check.compare_exchange_weak(old, abstime);
   }
   DBUG_VOID_RETURN;
@@ -1440,13 +1458,7 @@ static void *worker_main(void *param) {
 
   mysql_mutex_lock(&thread_group->mutex);
   add_thread_count(thread_group, -1);
-  /* last thread in group exits */
-  const bool last_thread =
-      ((thread_group->thread_count == 0) && thread_group->shutdown);
   mysql_mutex_unlock(&thread_group->mutex);
-
-  /* Last thread in group exits and pool is terminating, destroy group.*/
-  if (last_thread) thread_group_destroy(thread_group);
 
   my_thread_end();
   return nullptr;

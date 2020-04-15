@@ -44,8 +44,8 @@
 
 using mysql_harness::ARCHITECTURE_DESCRIPTOR;
 using mysql_harness::ConfigSection;
-using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::Plugin;
+using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::PluginFuncEnv;
 using mysql_harness::logging::log_info;
 
@@ -66,14 +66,14 @@ static void start(PluginFuncEnv *env) {
   try {
     interval = std::stoi(section->get("interval"));
   } catch (...) {
-    // Anything in valid will result in using the default.
+    // Anything invalid will result in using the default.
   }
 
   int runs = kRuns;
   try {
     runs = std::stoi(section->get("runs"));
   } catch (...) {
-    // Anything in valid will result in using the default.
+    // Anything invalid will result in using the default.
   }
 
   std::string name = section->name;

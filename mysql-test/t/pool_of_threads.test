@@ -4,6 +4,14 @@
 -- source include/have_pool_of_threads.inc
 -- source include/common-tests.inc
 
+# Calculate value for admin port
+--let $PORT_OFFSET = 1
+--expr $ADMIN_PORT = $MASTER_MYPORT + $PORT_OFFSET
+
+--let $restart_parameters=restart:--thread-handling=pool-of-threads --thread-pool-size=2 --thread-pool-max-threads=2 --admin-address=127.0.0.1 --admin-port=$ADMIN_PORT --loose-skip-mysqlx
+--replace_result $ADMIN_PORT ADMIN_PORT
+--source include/restart_mysqld.inc
+
 # Test that we cannot have more simultaneous connections than
 # --thread-pool-size on the standard port, but _can_ have additional
 # connections on the extra port.
@@ -41,7 +49,7 @@ if ($error)
 
 # This time use the extra port to successfully connect.
 
-connect(extracon,127.0.0.1,root,,test,$MASTER_EXTRA_PORT,);
+connect(extracon,127.0.0.1,root,,test,$ADMIN_PORT,);
 connection extracon;
 SELECT 'Connection on extra port ok';
 
@@ -51,31 +59,19 @@ KILL QUERY @id;
 let @ignore = `select @id := $con2_id`;
 KILL QUERY @id;
 
-connect(extracon2,127.0.0.1,root,,test,$MASTER_EXTRA_PORT,);
+connect(extracon2,127.0.0.1,root,,test,$ADMIN_PORT,);
 connection extracon2;
 SELECT 'Connection on extra port 2 ok';
 
---disable_query_log
-call mtr.add_suppression("Too many connections");
---enable_query_log
---disable_abort_on_error
---disable_result_log
---disable_query_log
-connect(extracon3,127.0.0.1,root,,test,$MASTER_EXTRA_PORT,);
---enable_query_log
---enable_result_log
---enable_abort_on_error
-let $error = $mysql_errno;
-if (!$error)
-{
-  --echo # -- Error: managed to establish more than --extra-max-connections + 1 connections
-}
-if ($error)
-{
-  --echo # -- Success: more than --extra-max-connections + 1 normal connections not possible
-}
+connect(extracon3,127.0.0.1,root,,test,$ADMIN_PORT,);
+connection extracon3;
+SELECT 'Connection on extra port 3 ok';
+
+disconnect extracon2;
+disconnect extracon3;
 
 connection default;
 --reap
 connection con2;
 --reap
+# MTR will restart the server with default args for us

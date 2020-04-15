@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 
 #include <float.h>
 #include <stdio.h>
+#include <algorithm>  // std::min
 #include <new>
 
 #include "lex_string.h"
@@ -336,7 +337,12 @@ Opt_trace_struct &Opt_trace_struct::do_add(const char *key, ulonglong val) {
 Opt_trace_struct &Opt_trace_struct::do_add(const char *key, double val) {
   DBUG_ASSERT(started);
   char buf[32];  // 32 is enough for digits of a double
-  my_gcvt(val, MY_GCVT_ARG_DOUBLE, FLT_DIG, buf, nullptr);
+  /*
+    To fit in FLT_DIG digits, my_gcvt rounds DBL_MAX (1.7976931...e308), or
+    anything >=1.5e308, to 2e308. But JSON parsers refuse to read 2e308. So,
+    lower the number.
+  */
+  my_gcvt(std::min(1e308, val), MY_GCVT_ARG_DOUBLE, FLT_DIG, buf, nullptr);
   DBUG_PRINT("opt", ("%s: %s", key, buf));
   stmt->add(key, buf, strlen(buf), false, false);
   return *this;
@@ -355,7 +361,7 @@ Opt_trace_struct &Opt_trace_struct::do_add(const char *key, Item *item) {
   str.length(0);
   if (item != NULL) {
     // QT_TO_SYSTEM_CHARSET because trace must be in UTF8
-    item->print(&str,
+    item->print(current_thd, &str,
                 enum_query_type(QT_TO_SYSTEM_CHARSET | QT_SHOW_SELECT_NUMBER |
                                 QT_NO_DEFAULT_DB));
     /* needs escaping */
@@ -366,11 +372,7 @@ Opt_trace_struct &Opt_trace_struct::do_add(const char *key, Item *item) {
 
 Opt_trace_struct &Opt_trace_struct::do_add(const char *key,
                                            const Cost_estimate &value) {
-  char buf[32];  // 32 is enough for digits of a double
-  my_gcvt(value.total_cost(), MY_GCVT_ARG_DOUBLE, FLT_DIG, buf, nullptr);
-  DBUG_PRINT("opt", ("%s: %s", key, buf));
-  stmt->add(key, buf, strlen(buf), false, false);
-  return *this;
+  return do_add(key, value.total_cost());
 }
 
 Opt_trace_struct &Opt_trace_struct::do_add_hex(const char *key, uint64 val) {
@@ -852,7 +854,7 @@ bool Opt_trace_context::start(bool support_I_S_arg,
                               bool end_marker_arg, bool one_line_arg,
                               long offset_arg, long limit_arg,
                               ulong max_mem_size_arg, ulonglong features_arg) {
-  DBUG_ENTER("Opt_trace_context::start");
+  DBUG_TRACE;
 
   if (I_S_disabled != 0) {
     DBUG_PRINT("opt", ("opt_trace is already disabled"));
@@ -874,7 +876,7 @@ bool Opt_trace_context::start(bool support_I_S_arg,
         It's thus important that it's optimized: we can short-cut the creation
         and starting of Opt_trace_stmt, unlike in the next "else" branch.
       */
-      DBUG_RETURN(false);
+      return false;
     }
     /*
       If we come here, there is a parent statement which has a trace.
@@ -894,7 +896,7 @@ bool Opt_trace_context::start(bool support_I_S_arg,
 
   if (pimpl == NULL &&
       ((pimpl = new_nothrow_w_my_error<Opt_trace_context_impl>()) == NULL))
-    DBUG_RETURN(true);
+    return true;
 
   /*
     If tracing is disabled by some caller, then don't change settings (offset
@@ -965,11 +967,11 @@ bool Opt_trace_context::start(bool support_I_S_arg,
     purge_stmts(false);
     // This purge may have freed space, compute max allowed size:
     stmt->set_allowed_mem_size(allowed_mem_size_for_current_stmt());
-    DBUG_RETURN(false);
+    return false;
   err:
     delete stmt;
     DBUG_ASSERT(0);
-    DBUG_RETURN(true);
+    return true;
   }
 }
 
@@ -1021,10 +1023,10 @@ bool Opt_trace_context::support_I_S() const {
 }
 
 void Opt_trace_context::purge_stmts(bool purge_all) {
-  DBUG_ENTER("Opt_trace_context::purge_stmts");
+  DBUG_TRACE;
   if (!purge_all && pimpl->offset >= 0) {
     /* This case is managed in @c Opt_trace_context::start() */
-    DBUG_VOID_RETURN;
+    return;
   }
   long idx;
   static_assert(
@@ -1102,7 +1104,6 @@ void Opt_trace_context::purge_stmts(bool purge_all) {
       delete stmt;
     }
   }
-  DBUG_VOID_RETURN;
 }
 
 size_t Opt_trace_context::allowed_mem_size_for_current_stmt() const {

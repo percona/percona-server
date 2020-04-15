@@ -1,0 +1,11 @@
+--echo #
+--echo # PS-5206 - [PS8QA] handle_fatal_signal (sig=11) in handler::get_ha_share_ptr
+--echo #
+
+source include/have_tokudb.inc;
+
+CREATE TABLE t1 (a smallint, b VARCHAR(20), c smallINT, KEY a (a), KEY b (b) ) ENGINE=TokuDB PARTITION BY HASH(c) PARTITIONS 3;
+INSERT INTO t1  VALUES (1,'Bozo', NULL),(2,'Ronald', NULL),(3,'Kinko', NULL),(4,'Mr. Floppy', NULL);
+INSERT INTO t1  VALUES (5,'Bozo', NULL),(6,'Ronald', NULL),(7,'Kinko', NULL),(8,'Mr. Floppy', NULL);
+SELECT * FROM t1 WHERE b IS NULL or a IS NULL;
+DROP TABLE t1;

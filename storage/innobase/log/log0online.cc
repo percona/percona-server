@@ -636,9 +636,10 @@ static bool log_online_read_bitmap_page(
   ut_a(bitmap_file->offset <= bitmap_file->size - MODIFIED_PAGE_BLOCK_SIZE);
   ut_a(bitmap_file->offset % MODIFIED_PAGE_BLOCK_SIZE == 0);
 
-  IORequest io_request(IORequest::LOG | IORequest::READ);
+  IORequest io_request(IORequest::LOG | IORequest::READ |
+                       IORequest::NO_ENCRYPTION);
   const bool success =
-      os_file_read(io_request, bitmap_file->file, page, bitmap_file->offset,
+      os_file_read(io_request, bitmap_file->name, bitmap_file->file, page, bitmap_file->offset,
                    MODIFIED_PAGE_BLOCK_SIZE);
 
   if (UNIV_UNLIKELY(!success)) {
@@ -761,7 +762,7 @@ static void log_online_track_missing_on_startup(
     ib::info() << "Reading the log to advance the last tracked LSN.";
 
     log_bmp_sys->start_at(std::max(last_tracked_lsn, MIN_TRACKED_LSN));
-    if (!log_online_follow_redo_log()) {
+    if (!log_online_follow_redo_log_one_pass()) {
       exit(1);
     }
     ut_ad(log_bmp_sys->end_lsn == tracking_start_lsn);
@@ -1043,8 +1044,6 @@ void log_online_read_shutdown(void) noexcept {
   log_bmp_sys = nullptr;
   log_bmp_sys_unaligned = nullptr;
 
-  srv_redo_log_thread_started = false;
-
   UT_DELETE(log_online_metadata_recover);
   log_online_metadata_recover = nullptr;
 
@@ -1070,8 +1069,15 @@ static void log_online_parse_redo_log(void) {
         log_bmp_sys->parse_buf.parse_next_record(&type, &space, &page_no);
     ut_ad(log_bmp_sys->parse_buf.get_current_lsn() <=
           log_bmp_sys->read_buf.get_current_lsn() + LOG_BLOCK_BOUNDARY_LSN_PAD);
-    if (rec_parsed && log_online_rec_has_page(type))
+    if (rec_parsed && log_online_rec_has_page(type)) {
       log_online_set_page_bit(space, page_no);
+      if (type == MLOG_INDEX_LOAD) {
+        const auto space_size = fil_space_get_size(space);
+        for (page_no_t i = 0; i < space_size; i++) {
+          log_online_set_page_bit(space, i);
+        }
+      }
+    }
   }
   ut_ad(log_bmp_sys->parse_buf.buffer_used_up());
 }
@@ -1293,11 +1299,12 @@ static bool log_online_write_bitmap(void) {
     bmp_tree_node =
         (ib_rbt_node_t *)rbt_next(log_bmp_sys->modified_pages, bmp_tree_node);
 
-    DBUG_EXECUTE_IF("bitmap_page_2_write_error",
-                    if (bmp_tree_node && fsp_is_ibd_tablespace(space_id)) {
-                      DBUG_SET("+d,bitmap_page_write_error");
-                      DBUG_SET("-d,bitmap_page_2_write_error");
-                    });
+    DBUG_EXECUTE_IF(
+        "bitmap_page_2_write_error",
+        if (bmp_tree_node && fsp_is_ibd_tablespace(space_id)) {
+          DBUG_SET("+d,bitmap_page_write_error");
+          DBUG_SET("-d,bitmap_page_2_write_error");
+        });
   }
 
   rbt_reset(log_bmp_sys->modified_pages);
@@ -1317,12 +1324,10 @@ static void log_online_parse_complete_recs_past_previous_checkpoint() noexcept {
 page bitmap which is then written to disk.
 
 @return true if log tracking succeeded, false if bitmap write I/O error */
-bool log_online_follow_redo_log(void) {
+bool log_online_follow_redo_log_one_pass(void) {
   ut_ad(!srv_read_only_mode);
 
   if (!srv_track_changed_pages) return true;
-
-  DEBUG_SYNC_C("log_online_follow_redo_log");
 
   mutex_enter(&log_bmp_sys_mutex);
 
@@ -1350,10 +1355,31 @@ bool log_online_follow_redo_log(void) {
   if (result) {
     result = log_online_write_bitmap();
     log_bmp_sys->start_lsn = log_bmp_sys->end_lsn;
-    log_sys->tracked_lsn.store(log_bmp_sys->start_lsn);
+    log_sys->tracked_lsn.store(log_bmp_sys->parse_buf.get_current_lsn());
   }
 
   mutex_exit(&log_bmp_sys_mutex);
+  return result;
+}
+
+/** Read and parse redo log for thr FLUSH CHANGED_PAGE_BITMAPS command.
+Make sure that the checkpoint LSN measured at the beginning of the command
+is tracked.
+
+@return true if log tracking succeeded, false if bitmap write I/O error */
+bool log_online_follow_redo_log(void) {
+  ut_ad(!srv_read_only_mode);
+
+  const auto last_checkpoint_lsn = log_get_checkpoint_lsn(*log_sys);
+  bool result = true;
+
+  DEBUG_SYNC_C("log_online_follow_redo_log");
+
+  while (result && srv_track_changed_pages &&
+         last_checkpoint_lsn > log_sys->tracked_lsn.load()) {
+    result = log_online_follow_redo_log_one_pass();
+  }
+
   return result;
 }
 
@@ -1489,7 +1515,7 @@ static bool log_online_setup_bitmap_file_range(
     if (file_seq_num > bitmap_files->files[array_pos].seq_num) {
       bitmap_files->files[array_pos].seq_num = file_seq_num;
       strncpy(bitmap_files->files[array_pos].name,
-              bitmap_dir->dir_entry[i].name, FN_REFLEN);
+              bitmap_dir->dir_entry[i].name, FN_REFLEN - 1);
       bitmap_files->files[array_pos].name[FN_REFLEN - 1] = '\0';
       bitmap_files->files[array_pos].start_lsn = file_start_lsn;
     }
@@ -1790,12 +1816,12 @@ bool log_online_purge_changed_page_bitmaps(
   }
 
   bool log_bmp_sys_inited = false;
-  if (srv_redo_log_thread_started) {
+  if (srv_thread_is_active(srv_threads.m_changed_page_tracker)) {
     /* User requests might happen with both enabled and disabled
     tracking */
     log_bmp_sys_inited = true;
     mutex_enter(&log_bmp_sys_mutex);
-    if (!srv_redo_log_thread_started) {
+    if (!srv_thread_is_active(srv_threads.m_changed_page_tracker)) {
       log_bmp_sys_inited = false;
       mutex_exit(&log_bmp_sys_mutex);
     }
@@ -1809,7 +1835,8 @@ bool log_online_purge_changed_page_bitmaps(
     return true;
   }
 
-  if (srv_redo_log_thread_started && lsn > log_bmp_sys->end_lsn) {
+  if (srv_thread_is_active(srv_threads.m_changed_page_tracker) &&
+      lsn > log_bmp_sys->end_lsn) {
     ut_ad(log_bmp_sys->end_lsn > 0);
     /* If we have to delete the current output file, close it
     first. */

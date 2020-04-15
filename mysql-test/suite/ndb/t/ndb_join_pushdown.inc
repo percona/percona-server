@@ -8,14 +8,8 @@ connect (ddl,localhost,root,,test);
 
 select @@session.optimizer_switch;
 
---disable_warnings
-connection ddl;
-drop table if exists t1,t2,t3,t4;
---enable_warnings
-
 connection spj;
 # Save old mysqld counter values.
---disable_warnings ONCE
 create temporary table server_counts_at_startup
        select * from performance_schema.global_status 
        where variable_name in 
@@ -412,6 +406,27 @@ from t1_myisam as t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 where t1.a=2 and t1.b=2;
+
+## Bug#28898811 INCORRECTLY REJECT JOIN TO BE PUSHED DOWN
+##
+## .. also served to detect (also see ndb_endian.test):
+## Bug#29010641 FAILS TO HANDLE DIFFERENT ENDIANNESS FORMATS IN PUSHED JOIN KEYS
+##
+## Tables not beings considered in the join pushdown analysis,
+## e.g. a table not being a ndb table, where also incorrectly
+## excluded as a table which could be referred in the join conditions
+## from a pushed child table (on .. t3.b = t1.b <-, below)
+##
+explain
+select *
+from t1_myisam as t1
+join t1 as t2 on t2.a = t1.c
+join t1 as t3 on t3.a = t2.b and t3.b = t1.b;
+--sorted_result
+select *
+from t1_myisam as t1
+join t1 as t2 on t2.a = t1.c
+join t1 as t3 on t3.a = t2.b and t3.b = t1.b;
 
 connection ddl;
 drop table t1_myisam;
@@ -2952,7 +2967,6 @@ select * from t1 t1, t1 t2
 
 # Save old counter values.
 # Save old mysqld counter values.
---disable_warnings ONCE
 create temporary table server_counts
        select * from performance_schema.global_status 
        where variable_name in 
@@ -2981,7 +2995,6 @@ select count(*) from t1 t1, t1 t2
        	     t2.a = t1.c and t2.b = t1.c; 
 
 # Calculate the change in mysqld counters.
---disable_warnings ONCE
 select new.variable_name, new.variable_value - old.variable_value
        from server_counts as old,
          performance_schema.global_status as new
@@ -4523,7 +4536,7 @@ echo;
 # This will hit the actuall limit of 64K and will be
 # detected by API which will drop this pushed condition.
 #   'Warning 4294 Scan filter is too large, discarded'
-# (Evaluated by mysql instead)
+# (Pushed condition evaluated by ha_ndbcluster handler instead)
 #
 let $query = select * from t1 x, t1 y where y.k1=x.i and x.name in ('foo';
 let $values = 0;
@@ -4715,7 +4728,6 @@ insert into t1 values (1,NULL,1,1);
 explain select * from t1 as x1 left join (t1 as x2 join t1 as x3 on x2.d=x3.c) on x1.b=x3.b;
 
 # Record value before query.
---disable_warnings ONCE
 create temporary table scan_count
        select * from performance_schema.global_status 
        where variable_name = 'Ndb_scan_count';
@@ -4725,7 +4737,6 @@ create temporary table scan_count
 select * from t1 as x1 left join (t1 as x2 join t1 as x3 on x2.d=x3.c) on x1.b=x3.b; 
 
 # Bug causes value to increase by 3 rather than 2.
---disable_warnings ONCE
 select scan_count.VARIABLE_NAME,
        old.VARIABLE_VALUE - scan_count.VARIABLE_VALUE  
        from scan_count, performance_schema.global_status as old 
@@ -4883,6 +4894,43 @@ select count(*) from t1 where
   t1.c in (select subq1.c from t1 as subq1 straight_join t1 as subq2 on subq1.a = subq2.c);
 
 set optimizer_switch=@save_optimizer_switch;
+
+--error 0,1193
+set global debug=@save_debug;
+
+####################################
+--echo #
+--echo # Bug#29860378
+--echo #   RESULTS NOT SORTED AS SPECIFIED WHEN QUERY IS A 'PUSHED JOIN'
+--echo #
+
+# Force a small batch size in order to reproduce bug without needing
+# a large test table.
+--error 0,1193
+set global debug='+d,max_4rows_in_spj_batches';
+
+explain
+select straight_join t1.* from
+  t1 join t1 as t2 on t2.d = t1.a
+  where t1.a > 0
+  order by t1.a,t1.b;
+
+select straight_join t1.* from
+  t1 join t1 as t2 on t2.d = t1.a
+  where t1.a > 0
+  order by t1.a,t1.b;
+
+explain
+select straight_join t1.a,t1.b,count(*) from
+  t1 join t1 as t2 on t2.d = t1.a
+  where t1.a > 0
+  group by t1.a,t1.b;
+
+--sorted_result
+select straight_join t1.a,t1.b,count(*) from
+  t1 join t1 as t2 on t2.d = t1.a
+  where t1.a > 0
+  group by t1.a,t1.b;
 
 --error 0,1193
 set global debug=@save_debug;
@@ -5244,6 +5292,41 @@ SELECT *
 connection ddl;
 DROP TABLE ndb_order_test, ndb_user_test;
 
+
+--echo ##################
+--echo #
+--echo # Bug #29501263 CRASH IN SPJ BLOCK, ILLEGAL ACCESS
+--echo #               TO ARRAYPOOL<T>::GETPTR
+--echo #
+--echo ##################
+
+create table t1 (
+  pk int primary key,
+  i1 int
+) engine = ndb;
+
+insert into t1 values (1,1),(2,2),(3,3);
+
+alter table t1 add column (i2 int, i3 int, i4 int, i5 int);
+update t1 set i2=i1, i3=i1, i4=i1, i5=i1;
+
+alter table t1 add index ix1(i1);
+alter table t1 add index ix2(i2);
+alter table t1 add index ix3(i3);
+alter table t1 add index ix4(i4);
+alter table t1 add index ix5(i5);
+alter table t1 add unique index uix(i4,i5);
+
+--sorted_result
+select straight_join * from
+  t1
+    join t1 as t2 on t2.i1 = t1.i1
+      join t1 as t3 on t3.pk = t2.i2
+        left join t1 as t4 on t4.pk = t3.i3
+        left join t1 as t5 on t5.i4 = t2.i4 and t5.i5 = t1.i5;
+
+drop table t1;
+
 ########################################
 # Verify counters for entire test:
 # Note: These tables are 'temporary' withing 'connection spj'
@@ -5251,7 +5334,6 @@ DROP TABLE ndb_order_test, ndb_user_test;
 connection spj;
 
 # Calculate the change in mysqld counters.
---disable_warnings ONCE
 select new.variable_name, new.variable_value - old.variable_value
        from server_counts_at_startup as old,
          performance_schema.global_status as new

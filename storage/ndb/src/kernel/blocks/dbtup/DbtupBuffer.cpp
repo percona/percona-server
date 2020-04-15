@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -264,7 +264,6 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
   bool connectedToNode= getNodeInfo(nodeId).m_connected;
   const Uint32 type= getNodeInfo(nodeId).m_type;
   const bool is_api= (type >= NodeInfo::API && type <= NodeInfo::MGM);
-  //const bool old_dest= (getNodeInfo(nodeId).m_version < MAKE_VERSION(6,4,0));
 
   if (ERROR_INSERTED(4006) && (nodeId != getOwnNodeId())){
     // Use error insert to turn routing on
@@ -327,10 +326,6 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
     if(nodeId != getOwnNodeId())
     {
       jamDebug();
-    
-      //Assume no prehistoric versions not supporting long TRANSID_AI signals anymore
-      ndbassert(getNodeInfo(nodeId).m_version >= MAKE_VERSION(6,4,0));
-
       if (is_api)
       {
         sendAPI_TRANSID_AI(signal, recBlockref,
@@ -385,6 +380,10 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
          blockNumber == DBLQH ||
          blockNumber == SUMA))
     {
+      static_assert(MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE <=
+                      NDB_ARRAY_SIZE(signal->theData) - TransIdAI::HeaderLength,
+                    "");
+      ndbrequire(TransIdAI::HeaderLength + ToutBufIndex <= NDB_ARRAY_SIZE(signal->theData));
       EXECUTE_DIRECT(blockNumber, GSN_TRANSID_AI, signal,
                      TransIdAI::HeaderLength + ToutBufIndex);
       jamEntryDebug();

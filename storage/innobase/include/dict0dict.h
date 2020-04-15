@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -49,6 +49,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "rem0types.h"
 #include "row0types.h"
 #include "sql/dd/object_id.h"
+#include "sql/dd/types/init_mode.h"  // dict_init_mode_t
 #include "sync0rw.h"
 #include "trx0types.h"
 #include "univ.i"
@@ -73,18 +74,6 @@ ulint dict_get_db_name_len(const char *name) /*!< in: table name in the form
                                              dbname '/' tablename */
     MY_ATTRIBUTE((warn_unused_result));
 #ifndef UNIV_HOTBACKUP
-/** Open a table from its database and table name, this is currently used by
- foreign constraint parser to get the referenced table.
- @return complete table name with database and table name, allocated from
- heap memory passed in */
-char *dict_get_referenced_table(
-    const char *name,          /*!< in: foreign key table name */
-    const char *database_name, /*!< in: table db name */
-    ulint database_name_len,   /*!< in: db name length */
-    const char *table_name,    /*!< in: table name */
-    ulint table_name_len,      /*!< in: table name length */
-    dict_table_t **table,      /*!< out: table object or NULL */
-    mem_heap_t *heap);         /*!< in: heap memory */
 /** Frees a foreign key struct. */
 void dict_foreign_free(
     dict_foreign_t *foreign); /*!< in, own: foreign key struct */
@@ -98,9 +87,8 @@ ulint dict_table_get_highest_foreign_id(
 #endif                    /* !UNIV_HOTBACKUP */
 /** Return the end of table name where we have removed dbname and '/'.
  @return table name */
-const char *dict_remove_db_name(
-    const char *name) /*!< in: table name in the form
-                      dbname '/' tablename */
+const char *dict_remove_db_name(const char *name) /*!< in: table name in the
+                                                  form dbname '/' tablename */
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Operation to perform when opening a table */
@@ -136,6 +124,9 @@ dict_table_t *dict_table_open_on_index_id(
     space_index_t table_id, /*!< in: table id */
     bool dict_locked)       /*!< in: TRUE=data dictionary locked */
     __attribute__((warn_unused_result));
+
+/** Closes the data dictionary module. */
+void dict_close(void);
 
 /** Inits the structure for persisting dynamic metadata */
 void dict_persist_init(void);
@@ -339,43 +330,6 @@ bool dict_foreign_replace_index(
     to use table->col_names */
     const dict_index_t *index) /*!< in: index to be replaced */
     MY_ATTRIBUTE((warn_unused_result));
-/** Scans a table create SQL string and adds to the data dictionary
-the foreign key constraints declared in the string. This function
-should be called after the indexes for a table have been created.
-Each foreign key constraint must be accompanied with indexes in
-bot participating tables. The indexes are allowed to contain more
-fields than mentioned in the constraint.
-
-@param[in]	trx		transaction
-@param[in]	sql_string	table create statement where
-                                foreign keys are declared like:
-                                FOREIGN KEY (a, b) REFERENCES table2(c, d),
-                                table2 can be written also with the database
-                                name before it: test.table2; the default
-                                database id the database of parameter name
-@param[in]	sql_length	length of sql_string
-@param[in]	name		table full name in normalized form
-@param[in]	reject_fks	if TRUE, fail with error code
-                                DB_CANNOT_ADD_CONSTRAINT if any
-                                foreign keys are found.
-@return error code or DB_SUCCESS */
-dberr_t dict_create_foreign_constraints(trx_t *trx, const char *sql_string,
-                                        size_t sql_length, const char *name,
-                                        ibool reject_fks)
-    MY_ATTRIBUTE((warn_unused_result));
-/** Parses the CONSTRAINT id's to be dropped in an ALTER TABLE statement.
- @return DB_SUCCESS or DB_CANNOT_DROP_CONSTRAINT if syntax error or the
- constraint id does not match */
-dberr_t dict_foreign_parse_drop_constraints(
-    mem_heap_t *heap,                  /*!< in: heap from which we can
-                                       allocate memory */
-    trx_t *trx,                        /*!< in: transaction */
-    dict_table_t *table,               /*!< in: table */
-    ulint *n,                          /*!< out: number of constraints
-                                       to drop */
-    const char ***constraints_to_drop) /*!< out: id's of the
-                                       constraints to drop */
-    MY_ATTRIBUTE((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 /** Returns a table object and increments its open handle count.
  NOTE! This is a high-level function to be used mainly from outside the
@@ -432,15 +386,6 @@ otherwise table->n_def */
 ulint dict_table_has_column(const dict_table_t *table, const char *col_name,
                             ulint col_nr = 0);
 
-/** Outputs info on foreign keys of a table. */
-void dict_print_info_on_foreign_keys(
-    ibool create_table_format, /*!< in: if TRUE then print in
-                  a format suitable to be inserted into
-                  a CREATE TABLE, otherwise in the format
-                  of SHOW TABLE STATUS */
-    FILE *file,                /*!< in: file where to print */
-    trx_t *trx,                /*!< in: transaction */
-    dict_table_t *table);      /*!< in: table */
 /** Outputs info on a foreign key of a table in a format suitable for
  CREATE TABLE. */
 void dict_print_info_on_foreign_key_in_create_format(
@@ -611,7 +556,7 @@ bool dict_table_has_atomic_blobs(const dict_table_t *table)
 @param[in]	use_data_dir	Table uses DATA DIRECTORY
 @param[in]	shared_space	Table uses a General Shared Tablespace */
 UNIV_INLINE
-void dict_tf_set(ulint *flags, rec_format_t format, ulint zip_ssize,
+void dict_tf_set(uint32_t *flags, rec_format_t format, ulint zip_ssize,
                  bool use_data_dir, bool shared_space);
 
 /** Initialize a dict_table_t::flags pointer.
@@ -621,8 +566,8 @@ void dict_tf_set(ulint *flags, rec_format_t format, ulint zip_ssize,
 @param[in]	data_dir	Table uses DATA DIRECTORY
 @param[in]	shared_space	Table uses a General Shared Tablespace */
 UNIV_INLINE
-ulint dict_tf_init(bool compact, ulint zip_ssize, bool atomic_blobs,
-                   bool data_dir, bool shared_space);
+uint32_t dict_tf_init(bool compact, ulint zip_ssize, bool atomic_blobs,
+                      bool data_dir, bool shared_space);
 
 /** Convert a 32 bit integer table flags to the 32 bit FSP Flags.
 Fsp Flags are written into the tablespace header at the offset
@@ -636,13 +581,13 @@ fil_space_t::flags  |     0     |    0    |     1      |    1
 ==================================================================
 @param[in]	table_flags	dict_table_t::flags
 @return tablespace flags (fil_space_t::flags) */
-ulint dict_tf_to_fsp_flags(ulint table_flags) MY_ATTRIBUTE((const));
+uint32_t dict_tf_to_fsp_flags(uint32_t table_flags) MY_ATTRIBUTE((const));
 
 /** Extract the page size from table flags.
 @param[in]	flags	flags
 @return compressed page size, or 0 if not compressed */
 UNIV_INLINE
-const page_size_t dict_tf_get_page_size(ulint flags) MY_ATTRIBUTE((const));
+const page_size_t dict_tf_get_page_size(uint32_t flags) MY_ATTRIBUTE((const));
 #endif /* !UNIV_HOTBACKUP */
 
 /** Determine the extent size (in pages) for the given table
@@ -875,16 +820,15 @@ inline bool dict_table_is_compressed_temporary(const dict_table_t *table);
 #endif /* UNIV_DEBUG */
 /** Builds a node pointer out of a physical record and a page number.
  @return own: node pointer */
-dtuple_t *dict_index_build_node_ptr(
-    const dict_index_t *index, /*!< in: index */
-    const rec_t *rec,          /*!< in: record for which to build node
-                               pointer */
-    page_no_t page_no,         /*!< in: page number to put in node
-                               pointer */
-    mem_heap_t *heap,          /*!< in: memory heap where pointer
-                               created */
-    ulint level)               /*!< in: level of rec in tree:
-                               0 means leaf level */
+dtuple_t *dict_index_build_node_ptr(const dict_index_t *index, /*!< in: index */
+                                    const rec_t *rec,  /*!< in: record for which
+                                                       to build node  pointer */
+                                    page_no_t page_no, /*!< in: page number to
+                                                       put in node pointer */
+                                    mem_heap_t *heap, /*!< in: memory heap where
+                                                      pointer created */
+                                    ulint level) /*!< in: level of rec in tree:
+                                                 0 means leaf level */
     MY_ATTRIBUTE((warn_unused_result));
 /** Copies an initial segment of a physical record, long enough to specify an
  index entry uniquely.
@@ -995,11 +939,10 @@ void dict_table_stats_unlock(dict_table_t *table, ulint latch_mode);
 
 /** Checks if the database name in two table names is the same.
  @return true if same db name */
-ibool dict_tables_have_same_db(
-    const char *name1, /*!< in: table name in the form
-                       dbname '/' tablename */
-    const char *name2) /*!< in: table name in the form
-                       dbname '/' tablename */
+ibool dict_tables_have_same_db(const char *name1, /*!< in: table name in the
+                                                  form dbname '/' tablename */
+                               const char *name2) /*!< in: table name in the
+                                                  form dbname '/' tablename */
     MY_ATTRIBUTE((warn_unused_result));
 /** Get an index by name.
 @param[in]	table		the table where to look for the index
@@ -1308,9 +1251,6 @@ void dict_fs2utf8(const char *db_and_table, char *db_utf8, size_t db_utf8_size,
 /** Resize the hash tables besed on the current buffer pool size. */
 void dict_resize();
 
-/** Closes the data dictionary module. */
-void dict_close(void);
-
 /** Wrapper for the mysql.innodb_dynamic_metadata used to buffer the persistent
 dynamic metadata.
 This should be a table with only clustered index, no delete-marked records,
@@ -1488,7 +1428,7 @@ void dict_set_merge_threshold_all_debug(uint merge_threshold_all);
 @param[in]	flags	Table flags
 @return true if valid. */
 UNIV_INLINE
-bool dict_tf_is_valid(ulint flags);
+bool dict_tf_is_valid(uint32_t flags);
 
 /** Validate both table flags and table flags2 and make sure they
 are compatible.
@@ -1496,7 +1436,7 @@ are compatible.
 @param[in]	flags2	Table flags2
 @return true if valid. */
 UNIV_INLINE
-bool dict_tf2_is_valid(ulint flags, ulint flags2);
+bool dict_tf2_is_valid(uint32_t flags, uint32_t flags2);
 
 /** Check if the tablespace for the table has been discarded.
  @return true if the tablespace has been discarded. */
@@ -1600,7 +1540,8 @@ ulint dict_table_encode_n_col(ulint n_col, ulint n_v_col);
 @param[in,out]	n_col	number of non-virtual column
 @param[in,out]	n_v_col	number of virtual column */
 UNIV_INLINE
-void dict_table_decode_n_col(ulint encoded, ulint *n_col, ulint *n_v_col);
+void dict_table_decode_n_col(uint32_t encoded, uint32_t *n_col,
+                             uint32_t *n_v_col);
 
 /** Free the virtual column template
 @param[in,out]	vc_templ	virtual column template */
@@ -1773,7 +1714,7 @@ extern bool dict_upgrade_zip_dict_missing;
 @retval	DB_SUCCESS		if OK
 @retval	DB_RECORD_NOT_FOUND	if not found */
 MY_NODISCARD
-dberr_t dict_get_dictionary_id_by_key(ulint table_id, ulint column_pos,
+dberr_t dict_get_dictionary_id_by_key(table_id_t table_id, ulint column_pos,
                                       ulint *dict_id);
 
 /** Get compression dictionary info (name and data) for the given id.
@@ -1795,12 +1736,16 @@ dberr_t dict_get_dictionary_info_by_id(ulint dict_id, char **name,
 This can happen if Percona Server is bootstrapped with
 --innodb-encrypt-tables=ON If yes or if srv_encrypt_tables is ON/FORCE, during
 upgrade, mysql.ibd should be encrpted.
-@param[in]  is_upgrade          true in upgrade mode
+In no upgrade scenario it fetches encryption flag from first page of mysql.ibd
+to check whether it is encrypted.
+@param[in]  dict_init_mode      initalization mode
 @param[in]  mysql_plugin_space  space_id of mysql/plugin table. Used only
                                 during upgrade
-@return true if encrypted, false if not encrypted */
-bool dict_detect_encryption(bool is_upgrade, space_id_t mysql_plugin_space);
-
+@param[out] do_encrypt          true if encrypted, false if not encrypted
+@return true if success, false if failure */
+bool dict_detect_encryption_of_mysql_ibd(dict_init_mode_t dict_init_mode,
+                                         space_id_t mysql_plugin_space,
+                                         bool &encrypt_mysql);
 #include "dict0dict.ic"
 
 #endif

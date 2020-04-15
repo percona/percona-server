@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,7 @@ typedef Prealloced_array<FILEINFO, 100> Entries_array;
 /* We need this because program don't know with malloc we used */
 
 void my_dirend(MY_DIR *buffer) {
-  DBUG_ENTER("my_dirend");
+  DBUG_TRACE;
   if (buffer) {
     Entries_array *array = pointer_cast<Entries_array *>(
         (char *)buffer + ALIGN_SIZE(sizeof(MY_DIR)));
@@ -76,7 +76,6 @@ void my_dirend(MY_DIR *buffer) {
               MYF(0));
     my_free(buffer);
   }
-  DBUG_VOID_RETURN;
 } /* my_dirend */
 
 #if !defined(_WIN32)
@@ -93,10 +92,10 @@ MY_DIR *my_dir(const char *path, myf MyFlags) {
   char tmp_path[FN_REFLEN + 2], *tmp_file;
   void *rawmem = NULL;
 
-  DBUG_ENTER("my_dir");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("path: '%s' MyFlags: %d", path, MyFlags));
 
-  dirp = opendir(directory_file_name(tmp_path, (char *)path));
+  dirp = opendir(directory_file_name(tmp_path, path));
   if (dirp == NULL ||
       !(buffer = static_cast<char *>(
             my_malloc(key_memory_MY_DIR,
@@ -122,8 +121,7 @@ MY_DIR *my_dir(const char *path, myf MyFlags) {
     if (!(finfo.name = strdup_root(names_storage, dp->d_name))) goto error;
 
     if (MyFlags & MY_WANT_STAT) {
-      if (!(finfo.mystat =
-                (MY_STAT *)alloc_root(names_storage, sizeof(MY_STAT))))
+      if (!(finfo.mystat = (MY_STAT *)names_storage->Alloc(sizeof(MY_STAT))))
         goto error;
 
       memset(finfo.mystat, 0, sizeof(MY_STAT));
@@ -146,19 +144,17 @@ MY_DIR *my_dir(const char *path, myf MyFlags) {
               [](const fileinfo &a, const fileinfo &b) {
                 return strcmp(a.name, b.name) < 0;
               });
-  DBUG_RETURN(result);
+  return result;
 
 error:
   set_my_errno(errno);
   if (dirp) (void)closedir(dirp);
   my_dirend(result);
   if (MyFlags & (MY_FAE | MY_WME)) {
-    char errbuf[MYSYS_STRERROR_SIZE];
-    my_error(EE_DIR, MYF(0), path, my_errno(),
-             my_strerror(errbuf, sizeof(errbuf), my_errno()));
+    MyOsError(my_errno(), EE_DIR, MYF(0), path);
   }
-  DBUG_RETURN((MY_DIR *)NULL);
-} /* my_dir */
+  return nullptr;
+}
 
 /*
  * Convert from directory name to filename.
@@ -172,7 +168,7 @@ static char *directory_file_name(char *dst, const char *src) {
   char *end;
   DBUG_ASSERT(strlen(src) < (FN_REFLEN + 1));
 
-  if (src[0] == 0) src = (char *)"."; /* Use empty as current */
+  if (src[0] == 0) src = "."; /* Use empty as current */
   end = my_stpnmov(dst, src, FN_REFLEN + 1);
   if (end[-1] != FN_LIBCHAR) {
     end[0] = FN_LIBCHAR; /* Add last '/' */
@@ -201,7 +197,7 @@ MY_DIR *my_dir(const char *path, myf MyFlags) {
   __int64 handle;
   void *rawmem = NULL;
 
-  DBUG_ENTER("my_dir");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("path: '%s' stat: %d  MyFlags: %d", path, MyFlags));
 
   /* Put LIB-CHAR as last path-character if not there */
@@ -252,8 +248,7 @@ MY_DIR *my_dir(const char *path, myf MyFlags) {
       if (attrib & (_A_HIDDEN | _A_SYSTEM)) continue;
       if (!(finfo.name = strdup_root(names_storage, find.name))) goto error;
       if (MyFlags & MY_WANT_STAT) {
-        if (!(finfo.mystat =
-                  (MY_STAT *)alloc_root(names_storage, sizeof(MY_STAT))))
+        if (!(finfo.mystat = (MY_STAT *)names_storage->Alloc(sizeof(MY_STAT))))
           goto error;
 
         memset(finfo.mystat, 0, sizeof(MY_STAT));
@@ -281,18 +276,16 @@ MY_DIR *my_dir(const char *path, myf MyFlags) {
                 return strcmp(a.name, b.name) < 0;
               });
   DBUG_PRINT("exit", ("found %d files", result->number_off_files));
-  DBUG_RETURN(result);
+  return result;
 error:
   set_my_errno(errno);
   if (handle != -1) _findclose(handle);
   my_dirend(result);
-  if (MyFlags & MY_FAE + MY_WME) {
-    char errbuf[MYSYS_STRERROR_SIZE];
-    my_error(EE_DIR, MYF(0), path, errno,
-             my_strerror(errbuf, sizeof(errbuf), errno));
+  if (MyFlags & (MY_FAE | MY_WME)) {
+    MyOsError(my_errno(), EE_DIR, MYF(0), path);
   }
-  DBUG_RETURN((MY_DIR *)NULL);
-} /* my_dir */
+  return nullptr;
+}
 
 #endif /* _WIN32 */
 
@@ -302,34 +295,32 @@ error:
 ****************************************************************************/
 
 int my_fstat(File Filedes, MY_STAT *stat_area) {
-  DBUG_ENTER("my_fstat");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("fd: %d", Filedes));
 #ifdef _WIN32
-  DBUG_RETURN(my_win_fstat(Filedes, stat_area));
+  return my_win_fstat(Filedes, stat_area);
 #else
-  DBUG_RETURN(fstat(Filedes, stat_area));
+  return fstat(Filedes, stat_area);
 #endif
 }
 
-MY_STAT *my_stat(const char *path, MY_STAT *stat_area, myf my_flags) {
-  DBUG_ENTER("my_stat");
+MY_STAT *my_stat(const char *path, MY_STAT *stat_area, myf MyFlags) {
+  DBUG_TRACE;
   DBUG_ASSERT(stat_area != nullptr);
   DBUG_PRINT("my", ("path: '%s'  stat_area: %p  MyFlags: %d", path, stat_area,
-                    my_flags));
+                    MyFlags));
 
 #ifndef _WIN32
-  if (!stat(path, stat_area)) DBUG_RETURN(stat_area);
+  if (!stat(path, stat_area)) return stat_area;
 #else
-  if (!my_win_stat(path, stat_area)) DBUG_RETURN(stat_area);
+  if (!my_win_stat(path, stat_area)) return stat_area;
 #endif
 
   DBUG_PRINT("error", ("Got errno: %d from stat", errno));
   set_my_errno(errno);
 
-  if (my_flags & (MY_FAE + MY_WME)) {
-    char errbuf[MYSYS_STRERROR_SIZE];
-    my_error(EE_STAT, MYF(0), path, my_errno(),
-             my_strerror(errbuf, sizeof(errbuf), my_errno()));
+  if (MyFlags & (MY_FAE | MY_WME)) {
+    MyOsError(my_errno(), EE_STAT, MYF(0), path);
   }
-  DBUG_RETURN(nullptr);
-} /* my_stat */
+  return nullptr;
+}

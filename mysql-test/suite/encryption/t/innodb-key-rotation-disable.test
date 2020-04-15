@@ -1,20 +1,20 @@
 SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0;
 SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0;
 
+SET GLOBAL innodb_encryption_threads=4;
+
 --disable_query_log
 --disable_warnings
-let $encryption = `SELECT @@innodb_encrypt_tables`;
-SET GLOBAL innodb_file_format = `Barracuda`;
+let $encryption = `SELECT @@default_table_encryption`;
 SET GLOBAL innodb_file_per_table = ON;
-# zlib
-#set global innodb_compression_algorithm = 1;
 --enable_warnings
 --enable_query_log
 
 create database enctests;
 use enctests;
---disable_warnings # Disabling warnings as punch hole get generate ones when compression is enabled and
-                   # filesystem is not supporting them
+# Disabling warnings as punch hole get generate ones when compression is enabled
+# and filesystem is not supporting them
+--disable_warnings
 create table t1(a int not null primary key, b char(200)) engine=innodb;
 create table t2(a int not null primary key, b char(200)) engine=innodb row_format=compressed;
 create table t3(a int not null primary key, b char(200)) engine=innodb COMPRESSION="zlib";
@@ -43,8 +43,8 @@ SELECT NAME,ENCRYPTION_SCHEME,CURRENT_KEY_ID FROM INFORMATION_SCHEMA.INNODB_TABL
 
 # Check if changing encrypt variable is still possible even though key rotation is disabled
 SET GLOBAL innodb_encryption_threads=0;
-SET GLOBAL innodb_encrypt_tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
-SET GLOBAL innodb_encrypt_tables=ONLINE_TO_KEYRING;
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 
 --let $MYSQLD_DATADIR=`select @@datadir`
 
@@ -86,4 +86,16 @@ SET GLOBAL innodb_encrypt_tables=ONLINE_TO_KEYRING;
 
 --source include/start_mysqld.inc
 
+# cleanup
 drop database enctests;
+
+--echo # Decrypt all tables
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
+
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
+--source include/wait_condition.inc
+
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=0;

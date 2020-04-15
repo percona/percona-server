@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,10 @@
 #include <utility>
 #include <vector> /* std::vector */
 
+#include "include/compression.h"
+
 #include <mysql/components/my_service.h>
+#include <sql/ssl_acceptor_context.h>
 #include "crypt_genhash_impl.h"  // generate_user_salt
 #include "m_string.h"
 #include "map_helpers.h"
@@ -65,15 +68,16 @@
 #include "prealloced_array.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"
-#include "sql/auth/auth_internal.h"   // optimize_plugin_compare_by_pointer
+#include "sql/auth/auth_internal.h"  // optimize_plugin_compare_by_pointer
+#include "sql/auth/partial_revokes.h"
 #include "sql/auth/sql_auth_cache.h"  // acl_cache
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/conn_handler/connection_handler_manager.h"  // Connection_handler_manager
 #include "sql/current_thd.h"                              // current_thd
 #include "sql/derror.h"                                   // ER_THD
-#include "sql/hostname.h"  // Host_errors, inc_host_errors
-#include "sql/log.h"       // query_logger
-#include "sql/mysqld.h"    // global_system_variables
+#include "sql/hostname_cache.h"  // Host_errors, inc_host_errors
+#include "sql/log.h"             // query_logger
+#include "sql/mysqld.h"          // global_system_variables
 #include "sql/protocol.h"
 #include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"  // key_memory_MPVIO_EXT_auth_info
@@ -90,6 +94,7 @@
 #include "sql/tztime.h"  // Time_zone
 #include "sql_common.h"  // mpvio_info
 #include "sql_string.h"
+#include "template_utils.h"
 #include "violite.h"
 
 struct MEM_ROOT;
@@ -562,7 +567,7 @@ struct MEM_ROOT;
 
   @startuml
   Client -> Server: COM_CHANGE_USER
-  Server -> Client: Auth Switch Requset Packet
+  Server -> Client: Auth Switch Request Packet
   == packets exchanged depending on the authentication method ==
   Server -> Client: ERR packet or OK packet
   @enduml
@@ -620,6 +625,7 @@ struct MEM_ROOT;
   @enduml
 
   @sa group_cs_capabilities_flags
+  @sa unknown_accounts
   @subpage page_protocol_connection_phase_packets
   @subpage page_protocol_connection_phase_authentication_methods
 */
@@ -661,7 +667,7 @@ struct MEM_ROOT;
 
 
 /**
-   @page page_protocol_connection_phase_authentication_methods Authenticatrion Methods
+   @page page_protocol_connection_phase_authentication_methods Authentication Methods
 
    To authenticate a user against the server the client server protocol employs one of
    several authentication methods.
@@ -780,15 +786,38 @@ struct MEM_ROOT;
 */
 /* clang-format on */
 
+const uint MAX_UNKNOWN_ACCOUNTS = 1000;
+/**
+  Hash to map unknown accounts to an authentication plugin.
+
+  If unknown accounts always map to default authentication plugin,
+  server's reply to switch authentication plugin would indicate that
+  user in question is indeed a valid user.
+
+  To counter this, one of the built-in authentication plugins is chosen
+  at random. Thus, a request to switch authentication plugin is not and
+  indicator of a valid user account.
+
+  For same unknown account, if different plugin is chosen everytime,
+  that again is an indicator. To resolve this, a hashmap is  used to
+  store information about unknown account => authentication plugin.
+  This way, if same unknown account appears again, same authentication
+  plugin is chosen again.
+
+  However, size of such a hash has to be kept under control. Hence,
+  once MAX_UNKNOWN_ACCOUNTS lim
+*/
+Map_with_rw_lock<Auth_id, uint> *unknown_accounts = nullptr;
+
 LEX_CSTRING validate_password_plugin_name = {
-    C_STRING_WITH_LEN("validate_password")};
+    STRING_WITH_LEN("validate_password")};
 
 LEX_CSTRING default_auth_plugin_name;
 
 const LEX_CSTRING Cached_authentication_plugins::cached_plugins_names[(
-    uint)PLUGIN_LAST] = {{C_STRING_WITH_LEN("caching_sha2_password")},
-                         {C_STRING_WITH_LEN("mysql_native_password")},
-                         {C_STRING_WITH_LEN("sha256_password")}};
+    uint)PLUGIN_LAST] = {{STRING_WITH_LEN("caching_sha2_password")},
+                         {STRING_WITH_LEN("mysql_native_password")},
+                         {STRING_WITH_LEN("sha256_password")}};
 
 /**
   Use known pointers for cached plugins to improve comparison time
@@ -797,17 +826,15 @@ const LEX_CSTRING Cached_authentication_plugins::cached_plugins_names[(
 */
 void Cached_authentication_plugins::optimize_plugin_compare_by_pointer(
     LEX_CSTRING *plugin) {
-  DBUG_ENTER(
-      "Cached_authentication_plugins::optimize_plugin_compare_by_pointer");
+  DBUG_TRACE;
   for (uint i = 0; i < (uint)PLUGIN_LAST; ++i) {
     if (my_strcasecmp(system_charset_info, cached_plugins_names[i].str,
                       plugin->str) == 0) {
       plugin->str = cached_plugins_names[i].str;
       plugin->length = cached_plugins_names[i].length;
-      DBUG_VOID_RETURN;
+      return;
     }
   }
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -816,7 +843,7 @@ void Cached_authentication_plugins::optimize_plugin_compare_by_pointer(
   Cache plugin_ref for each plugin in cached_plugins_names list
 */
 Cached_authentication_plugins::Cached_authentication_plugins() {
-  DBUG_ENTER("Cached_authentication_plugins::Cached_authentication_plugins");
+  DBUG_TRACE;
   m_valid = true;
   for (uint i = 0; i < (uint)PLUGIN_LAST; ++i) {
     if (cached_plugins_names[i].str[0]) {
@@ -826,7 +853,6 @@ Cached_authentication_plugins::Cached_authentication_plugins() {
     } else
       cached_plugins[i] = 0;
   }
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -835,11 +861,10 @@ Cached_authentication_plugins::Cached_authentication_plugins() {
   Releases all plugin_refs
 */
 Cached_authentication_plugins::~Cached_authentication_plugins() {
-  DBUG_ENTER("Cached_authentication_plugins::~Cached_authentication_plugins");
+  DBUG_TRACE;
   for (uint i = 0; i < (uint)PLUGIN_LAST; ++i) {
     if (cached_plugins[i]) plugin_unlock(0, cached_plugins[i]);
   }
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -853,8 +878,8 @@ plugin_ref Cached_authentication_plugins::get_cached_plugin_ref(
     const LEX_CSTRING *plugin) {
   plugin_ref cached_plugin = 0;
   LEX_CSTRING plugin_cstring;
-  DBUG_ENTER("Cached_authentication_plugins::get_cached_plugin_ref");
-  if (!plugin || !plugin->str || !this->is_valid()) DBUG_RETURN(cached_plugin);
+  DBUG_TRACE;
+  if (!plugin || !plugin->str || !this->is_valid()) return cached_plugin;
 
   plugin_cstring.str = plugin->str;
   plugin_cstring.length = plugin->length;
@@ -863,10 +888,10 @@ plugin_ref Cached_authentication_plugins::get_cached_plugin_ref(
   for (uint i = 0; i < (uint)PLUGIN_LAST; ++i) {
     if (plugin_cstring.str == cached_plugins_names[i].str) {
       cached_plugin = cached_plugins[i];
-      DBUG_RETURN(cached_plugin);
+      return cached_plugin;
     }
   }
-  DBUG_RETURN(cached_plugin);
+  return cached_plugin;
 }
 
 Cached_authentication_plugins *g_cached_authentication_plugins = 0;
@@ -883,7 +908,6 @@ extern bool initialized;
 #define MAX_CIPHER_LENGTH 1024
 #define SHA256_PASSWORD_MAX_PASSWORD_LENGTH MAX_PLAINTEXT_LENGTH
 
-#if !defined(HAVE_WOLFSSL)
 #define DEFAULT_SSL_CLIENT_CERT "client-cert.pem"
 #define DEFAULT_SSL_CLIENT_KEY "client-key.pem"
 
@@ -898,7 +922,6 @@ static bool do_auto_rsa_keys_generation();
 char *auth_rsa_private_key_path;
 char *auth_rsa_public_key_path;
 Rsa_authentication_keys *g_sha256_rsa_keys = 0;
-#endif /* HAVE_WOLFSSL */
 #endif /* HAVE_OPENSSL */
 
 bool Thd_charset_adapter::init_client_charset(uint cs_number) {
@@ -987,9 +1010,7 @@ bool Rsa_authentication_keys::read_key_file(RSA **key_ptr, bool is_priv_key,
         Call ERR_clear_error() just in case there are more than 1 entry in the
         OpenSSL thread's error queue.
       */
-#ifndef HAVE_WOLFSSL
       ERR_clear_error();
-#endif
 
       return true;
     }
@@ -1144,7 +1165,7 @@ std::string get_default_autnetication_plugin_name() {
 }
 
 bool auth_plugin_is_built_in(const char *plugin_name) {
-  LEX_CSTRING plugin = {C_STRING_WITH_LEN(plugin_name)};
+  LEX_CSTRING plugin = {STRING_WITH_LEN(plugin_name)};
   return g_cached_authentication_plugins->auth_plugin_is_built_in(&plugin);
 }
 
@@ -1162,12 +1183,6 @@ bool auth_plugin_supports_expiration(const char *plugin_name) {
 
   return auth_plugin_is_built_in(plugin_name);
 }
-
-/* few defines to have less ifdef's in the code below */
-#ifndef HAVE_OPENSSL
-#define ssl_acceptor_fd 0
-#define sslaccept(A, B, C) 1
-#endif /* HAVE_OPENSSL */
 
 /**
   a helper function to report an access denied error in all the proper places
@@ -1334,7 +1349,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
   char scramble_buf[SCRAMBLE_LENGTH];
   char *end = buff;
 
-  DBUG_ENTER("send_server_handshake_packet");
+  DBUG_TRACE;
   *end++ = protocol_version;
 
   protocol->set_client_capabilities(CLIENT_BASIC_FLAGS);
@@ -1344,9 +1359,41 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
 
   protocol->add_client_capability(CAN_CLIENT_COMPRESS);
 
-  if (ssl_acceptor_fd) {
+  if (SslAcceptorContext::have_ssl()) {
     protocol->add_client_capability(CLIENT_SSL);
     protocol->add_client_capability(CLIENT_SSL_VERIFY_SERVER_CERT);
+  }
+
+  if (opt_protocol_compression_algorithms &&
+      opt_protocol_compression_algorithms[0] != 0) {
+    /* turn off the capability flag as the global variable might have changed */
+    protocol->remove_client_capability(CLIENT_COMPRESS);
+    protocol->remove_client_capability(CLIENT_ZSTD_COMPRESSION_ALGORITHM);
+    std::vector<std::string> list;
+    parse_compression_algorithms_list(opt_protocol_compression_algorithms,
+                                      list);
+    auto it = list.begin();
+    NET_SERVER *ext = static_cast<NET_SERVER *>(protocol->get_net()->extension);
+    struct compression_attributes *compression = &(ext->compression);
+    compression->compression_optional = false;
+    while (it != list.end()) {
+      std::string value = *it;
+      switch (get_compression_algorithm(value)) {
+        case enum_compression_algorithm::MYSQL_ZSTD:
+          protocol->add_client_capability(CLIENT_ZSTD_COMPRESSION_ALGORITHM);
+          break;
+        case enum_compression_algorithm::MYSQL_ZLIB:
+          protocol->add_client_capability(CLIENT_COMPRESS);
+          break;
+        case enum_compression_algorithm::MYSQL_UNCOMPRESSED:
+          compression->compression_optional = true;
+          break;
+        case enum_compression_algorithm::MYSQL_INVALID:
+          DBUG_ASSERT(false);
+          break;
+      }
+      it++;
+    }
   }
 
   if (data_len) {
@@ -1402,6 +1449,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
   int2store(end + 5, protocol->get_client_capabilities() >> 16);
   end[7] = data_len;
   DBUG_EXECUTE_IF("poison_srv_handshake_scramble_len", end[7] = -100;);
+  DBUG_EXECUTE_IF("increase_srv_handshake_scramble_len", end[7] = 50;);
   memset(end + 8, 0, 10);
   end += 18;
   /* write scramble tail */
@@ -1413,7 +1461,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
 
   int res = protocol->write((uchar *)buff, (size_t)(end - buff + 1)) ||
             protocol->flush();
-  DBUG_RETURN(res);
+  return res;
 }
 
 /* clang-format off */
@@ -1582,7 +1630,7 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio, const uchar *data,
   DBUG_ASSERT(mpvio->packets_read == 1);
   static uchar switch_plugin_request_buf[] = {254};
 
-  DBUG_ENTER("send_plugin_request_packet");
+  DBUG_TRACE;
 
   /*
     In case of --skip-grant-tables, mpvio->status might already have set to
@@ -1591,11 +1639,18 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio, const uchar *data,
   if (initialized)
     mpvio->status = MPVIO_EXT::FAILURE;  // the status is no longer RESTART
 
-  const char *client_auth_plugin =
-      ((st_mysql_auth *)(plugin_decl(mpvio->plugin)->info))->client_auth_plugin;
+  std::string client_auth_plugin(
+      ((st_mysql_auth *)(plugin_decl(mpvio->plugin)->info))
+          ->client_auth_plugin);
 
-  DBUG_ASSERT(client_auth_plugin);
+  DBUG_ASSERT(client_auth_plugin.c_str());
 
+  DBUG_EXECUTE_IF("invalidate_client_auth_plugin", {
+    client_auth_plugin.clear();
+    client_auth_plugin = std::string("..") + std::string(FN_DIRSEP) +
+                         std::string("..") + std::string(FN_DIRSEP) +
+                         std::string("mysql_native_password");
+  });
   /*
     If we're dealing with an older client we can't just send a change plugin
     packet to re-initiate the authentication handshake, because the client
@@ -1610,32 +1665,33 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio, const uchar *data,
     DBUG_ASSERT(mpvio->cached_client_reply.pkt);
     /* get the status back so the read can process the cached result */
     mpvio->status = MPVIO_EXT::RESTART;
-    DBUG_RETURN(0);
+    return false;
   }
 
-  DBUG_PRINT("info",
-             ("requesting client to use the %s plugin", client_auth_plugin));
-  DBUG_RETURN(net_write_command(
+  DBUG_PRINT("info", ("requesting client to use the %s plugin",
+                      client_auth_plugin.c_str()));
+  return net_write_command(
       mpvio->protocol->get_net(), switch_plugin_request_buf[0],
-      (uchar *)client_auth_plugin, strlen(client_auth_plugin) + 1,
-      (uchar *)data, data_len));
+      pointer_cast<const uchar *>(client_auth_plugin.c_str()),
+      client_auth_plugin.size() + 1, pointer_cast<const uchar *>(data),
+      data_len);
 }
 
 /* Return true if there is no users that can match the given host */
 
 bool acl_check_host(THD *thd, const char *host, const char *ip) {
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
-  if (!acl_cache_lock.lock(false)) return 1;
+  if (!acl_cache_lock.lock(false)) return true;
 
-  if (allow_all_hosts) return 0;
+  if (allow_all_hosts) return false;
 
   if ((host && acl_check_hosts->count(host) != 0) ||
       (ip && acl_check_hosts->count(ip) != 0))
-    return 0;  // Found host
+    return false;  // Found host
 
   for (ACL_HOST_AND_IP *acl = acl_wild_hosts->begin();
        acl != acl_wild_hosts->end(); ++acl) {
-    if (acl->compare_hostname(host, ip)) return 0;  // Host ok
+    if (acl->compare_hostname(host, ip)) return false;  // Host ok
   }
 
   if (ip != NULL) {
@@ -1644,7 +1700,7 @@ bool acl_check_host(THD *thd, const char *host, const char *ip) {
     errors.m_host_acl = 1;
     inc_host_errors(ip, &errors);
   }
-  return 1;  // Host is not allowed
+  return true;  // Host is not allowed
 }
 
 /**
@@ -1656,15 +1712,18 @@ bool acl_check_host(THD *thd, const char *host, const char *ip) {
   This is done to decrease the cost of enumerating user accounts based on
   authentication protocol.
 
-  @param [in] username  A dummy user to be created.
-  @param [in] hostname  Host of the dummy user.
-  @param [in] mem       Memory in which the dummy ACL user will be created.
+  @param [in] username       A dummy user to be created.
+  @param [in] hostname       Host of the dummy user.
+  @param [in] mem            Memory in which the dummy ACL user will be created.
+  @param [in] rand           Seed value to generate random data
+  @param [in] is_initialized State of ACL caches
 
   @retval A dummy ACL USER
 */
-static ACL_USER *decoy_user(const LEX_STRING &username,
-                            const LEX_STRING &hostname, MEM_ROOT *mem) {
-  ACL_USER *user = (ACL_USER *)alloc_root(mem, sizeof(ACL_USER));
+ACL_USER *decoy_user(const LEX_CSTRING &username, const LEX_CSTRING &hostname,
+                     MEM_ROOT *mem, struct rand_struct *rand,
+                     bool is_initialized) {
+  ACL_USER *user = (ACL_USER *)mem->Alloc(sizeof(ACL_USER));
   user->can_authenticate = !initialized;
   user->user = strdup_root(mem, username.str);
   user->user[username.length] = '\0';
@@ -1681,14 +1740,42 @@ static ACL_USER *decoy_user(const LEX_STRING &username,
   user->use_default_password_history = true;
   user->password_history_length = 0;
   user->password_require_current = Lex_acl_attrib_udyn::DEFAULT;
+  user->password_locked_state.set_parameters(0, 0);
 
-  /*
-    For now the common default account is used. Improvements might involve
-    mapping a consistent hash of a username to a range of plugins.
-  */
-  user->plugin = default_auth_plugin_name;
+  if (is_initialized) {
+    Auth_id key(user);
+
+    uint value;
+    if (unknown_accounts->find(key, value)) {
+      user->plugin = Cached_authentication_plugins::cached_plugins_names[value];
+    } else {
+      const int DECIMAL_SHIFT = 1000;
+      const int random_number = static_cast<int>(my_rnd(rand) * DECIMAL_SHIFT);
+      uint plugin_num = (uint)(random_number % ((uint)PLUGIN_LAST));
+      user->plugin =
+          Cached_authentication_plugins::cached_plugins_names[plugin_num];
+      unknown_accounts->clear_if_greater(MAX_UNKNOWN_ACCOUNTS);
+
+      /*
+        If we fail to insert, someone already did it.
+        So try to retrive it. If we fail (e.g. map was cleared),
+        just use the default and move on.
+      */
+      if (!unknown_accounts->insert(key, plugin_num)) {
+        if (!unknown_accounts->find(key, plugin_num))
+          user->plugin = default_auth_plugin_name;
+        else
+          user->plugin =
+              Cached_authentication_plugins::cached_plugins_names[plugin_num];
+      }
+    }
+  } else
+    user->plugin = default_auth_plugin_name;
+
   for (int i = 0; i < NUM_CREDENTIALS; ++i) {
-    user->credentials[i].m_auth_string = empty_lex_str;
+    memset(user->credentials[i].m_salt, 0, SCRAMBLE_LENGTH + 1);
+    user->credentials[i].m_salt_len = 0;
+    user->credentials[i].m_auth_string = EMPTY_CSTR;
   }
   return user;
 }
@@ -1706,12 +1793,12 @@ static ACL_USER *decoy_user(const LEX_STRING &username,
    @retval 1    not found
 */
 static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
-  DBUG_ENTER("find_mpvio_user");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("entry: %s", mpvio->auth_info.user_name));
   DBUG_ASSERT(mpvio->acl_user == 0);
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
-  if (!acl_cache_lock.lock(false)) DBUG_RETURN(true);
+  if (!acl_cache_lock.lock(false)) return true;
 
   Acl_user_ptr_list *list = nullptr;
   if (likely(acl_users)) {
@@ -1725,6 +1812,9 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
            !strcmp(mpvio->auth_info.user_name, acl_user_tmp->user)) &&
           acl_user_tmp->host.compare_hostname(mpvio->host, mpvio->ip)) {
         mpvio->acl_user = acl_user_tmp->copy(mpvio->mem_root);
+        *(mpvio->restrictions) =
+            acl_restrictions->find_restrictions(mpvio->acl_user);
+
         /*
           When setting mpvio->acl_user_plugin we can save memory allocation if
           this is a built in plugin.
@@ -1746,11 +1836,12 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
       Pretend the user exists; let the plugin decide how to handle
       bad credentials.
     */
-    LEX_STRING usr = {mpvio->auth_info.user_name,
-                      mpvio->auth_info.user_name_length};
-    LEX_STRING hst = {mpvio->host ? mpvio->host : mpvio->ip,
-                      mpvio->host ? strlen(mpvio->host) : strlen(mpvio->ip)};
-    mpvio->acl_user = decoy_user(usr, hst, mpvio->mem_root);
+    LEX_CSTRING usr = {mpvio->auth_info.user_name,
+                       mpvio->auth_info.user_name_length};
+    LEX_CSTRING hst = {mpvio->host ? mpvio->host : mpvio->ip,
+                       mpvio->host ? strlen(mpvio->host) : strlen(mpvio->ip)};
+    mpvio->acl_user =
+        decoy_user(usr, hst, mpvio->mem_root, mpvio->rand, initialized);
     mpvio->acl_user_plugin = mpvio->acl_user->plugin;
   }
 
@@ -1763,7 +1854,7 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
     query_logger.general_log_print(thd, COM_CONNECT, "%s",
                                    ER_DEFAULT(ER_NOT_SUPPORTED_AUTH_MODE));
-    DBUG_RETURN(1);
+    return true;
   }
 
   mpvio->auth_info.auth_string =
@@ -1788,10 +1879,11 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
               ", plugin=%s",
               mpvio->auth_info.user_name, mpvio->auth_info.auth_string,
               mpvio->auth_info.authenticated_as, mpvio->acl_user->plugin.str));
-  DBUG_RETURN(0);
+  return false;
 }
 
-static bool read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
+static bool read_client_connect_attrs(THD *thd, char **ptr,
+                                      size_t *max_bytes_available,
                                       MPVIO_EXT *mpvio MY_ATTRIBUTE((unused))) {
   size_t length, length_length;
   char *ptr_save;
@@ -1824,6 +1916,14 @@ static bool read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
            auth_info->host_or_ip, auth_info->authenticated_as,
            mpvio->can_authenticate() ? "yes" : "no");
 #endif /* HAVE_PSI_THREAD_INTERFACE */
+
+  // assign the connection attributes in the current thread
+  thd->m_connection_attributes = std::vector<char>(length);
+  std::copy(*ptr, *ptr + length, thd->m_connection_attributes.begin());
+
+  *max_bytes_available -= length;
+  *ptr = *ptr + length;
+
   return false;
 }
 
@@ -1843,7 +1943,7 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
   switch (acl_user->ssl_type) {
     case SSL_TYPE_NOT_SPECIFIED:  // Impossible
     case SSL_TYPE_NONE:           // SSL is not required
-      return 0;
+      return false;
 #if defined(HAVE_OPENSSL)
     case SSL_TYPE_ANY:  // Any kind of SSL is ok
       return vio_type(vio) != VIO_TYPE_SSL;
@@ -1859,26 +1959,26 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
           SSL_get_verify_result(ssl) == X509_V_OK &&
           (cert = SSL_get_peer_certificate(ssl))) {
         X509_free(cert);
-        return 0;
+        return false;
       }
-      return 1;
+      return true;
     case SSL_TYPE_SPECIFIED: /* Client should have specified attrib */
       /* If a cipher name is specified, we compare it to actual cipher in use.
        */
       if (vio_type(vio) != VIO_TYPE_SSL ||
           SSL_get_verify_result(ssl) != X509_V_OK)
-        return 1;
+        return true;
       if (acl_user->ssl_cipher) {
         DBUG_PRINT("info", ("comparing ciphers: '%s' and '%s'",
                             acl_user->ssl_cipher, SSL_get_cipher(ssl)));
         if (strcmp(acl_user->ssl_cipher, SSL_get_cipher(ssl))) {
           LogErr(INFORMATION_LEVEL, ER_X509_CIPHERS_MISMATCH,
                  acl_user->ssl_cipher, SSL_get_cipher(ssl));
-          return 1;
+          return true;
         }
       }
       /* Prepare certificate (if exists) */
-      if (!(cert = SSL_get_peer_certificate(ssl))) return 1;
+      if (!(cert = SSL_get_peer_certificate(ssl))) return true;
       /* If X509 issuer is specified, we check it... */
       if (acl_user->x509_issuer) {
         char *ptr = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
@@ -1889,7 +1989,7 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
                  acl_user->x509_issuer, ptr);
           OPENSSL_free(ptr);
           X509_free(cert);
-          return 1;
+          return true;
         }
         OPENSSL_free(ptr);
       }
@@ -1903,12 +2003,12 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
                  acl_user->x509_subject, ptr);
           OPENSSL_free(ptr);
           X509_free(cert);
-          return 1;
+          return true;
         }
         OPENSSL_free(ptr);
       }
       X509_free(cert);
-      return 0;
+      return false;
 #else  /* HAVE_OPENSSL */
     default:
       /*
@@ -1918,7 +2018,7 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
       return 1;
 #endif /* HAVE_OPENSSL */
   }
-  return 1;
+  return true;
 }
 
 /**
@@ -1931,12 +2031,12 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
     @retval true RSA support is not available
 */
 bool sha256_rsa_auth_status() {
-#if !defined(HAVE_OPENSSL) || defined(HAVE_WOLFSSL)
+#if !defined(HAVE_OPENSSL)
   return false;
 #else
   return (!g_sha256_rsa_keys->get_private_key() ||
           !g_sha256_rsa_keys->get_public_key());
-#endif /* !HAVE_OPENSSL || HAVE_WOLFSSL */
+#endif /* !HAVE_OPENSSL */
 }
 
 /* clang-format off */
@@ -2037,10 +2137,10 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   char user_buff[USERNAME_LENGTH + 1];  // buffer to store user in utf8
   uint dummy_errors;
 
-  DBUG_ENTER("parse_com_change_user_packet");
+  DBUG_TRACE;
   if (passwd >= end) {
     my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   /*
@@ -2058,7 +2158,7 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   */
   if (db >= end) {
     my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   size_t db_len = strlen(db);
@@ -2067,7 +2167,7 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
 
   if (ptr + 1 < end) {
     if (mpvio->charset_adapter->init_client_charset(uint2korr(ptr)))
-      DBUG_RETURN(true);
+      return true;
   }
 
   /* Convert database and user names to utf8 */
@@ -2084,11 +2184,11 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   /* we should not free mpvio->user here: it's saved by dispatch_command() */
   if (!(mpvio->auth_info.user_name = my_strndup(
             key_memory_MPVIO_EXT_auth_info, user_buff, user_len, MYF(MY_WME))))
-    DBUG_RETURN(true);
+    return true;
   mpvio->auth_info.user_name_length = user_len;
 
   if (lex_string_strmake(mpvio->mem_root, &mpvio->db, db_buff, db_len))
-    DBUG_RETURN(true); /* The error is set by make_lex_string(). */
+    return true; /* The error is set by make_lex_string(). */
 
   if (!initialized) {
     // if mysqld's been started with --skip-grant-tables option
@@ -2096,11 +2196,11 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
             USERNAME_LENGTH);
 
     mpvio->status = MPVIO_EXT::SUCCESS;
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (find_mpvio_user(thd, mpvio)) {
-    DBUG_RETURN(true);
+    return true;
   }
 
   const char *client_plugin;
@@ -2114,7 +2214,7 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
 
     if (client_plugin >= end) {
       my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
-      DBUG_RETURN(true);
+      return true;
     }
   } else
     client_plugin = Cached_authentication_plugins::get_plugin_name(
@@ -2123,8 +2223,8 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   size_t bytes_remaining_in_packet = end - ptr;
 
   if (protocol->has_client_capability(CLIENT_CONNECT_ATTRS) &&
-      read_client_connect_attrs(&ptr, &bytes_remaining_in_packet, mpvio))
-    DBUG_RETURN(packet_error);
+      read_client_connect_attrs(thd, &ptr, &bytes_remaining_in_packet, mpvio))
+    return true;
 
   DBUG_PRINT("info", ("client_plugin=%s, restart", client_plugin));
   /*
@@ -2136,7 +2236,7 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   mpvio->cached_client_reply.plugin = client_plugin;
   mpvio->status = MPVIO_EXT::RESTART;
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /** Get a string according to the protocol of the underlying buffer. */
@@ -2341,6 +2441,11 @@ static size_t parse_client_handshake_packet(THD *thd, MPVIO_EXT *mpvio,
   Protocol_classic *protocol = mpvio->protocol;
   char *end;
   bool packet_has_required_size = false;
+  /* save server capabilities before setting client capabilities */
+  bool is_server_supports_zlib =
+      protocol->has_client_capability(CLIENT_COMPRESS);
+  bool is_server_supports_zstd =
+      protocol->has_client_capability(CLIENT_ZSTD_COMPRESSION_ALGORITHM);
   DBUG_ASSERT(mpvio->status == MPVIO_EXT::FAILURE);
 
   uint charset_code = 0;
@@ -2418,12 +2523,13 @@ skip_to_ssl:
     uint ssl_charset_code = 0;
 #endif
 
+    SslAcceptorContext::AutoLock c;
     /* Do the SSL layering. */
-    if (!ssl_acceptor_fd) return packet_error;
+    if (c.empty()) return packet_error;
 
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    if (sslaccept(ssl_acceptor_fd, protocol->get_vio(),
-                  protocol->get_net()->read_timeout, &errptr)) {
+    if (sslaccept(c, protocol->get_vio(), protocol->get_net()->read_timeout,
+                  &errptr)) {
       DBUG_PRINT("error", ("Failed to accept new SSL connection"));
       return packet_error;
     }
@@ -2548,13 +2654,6 @@ skip_to_ssl:
     if (db == NULL) return packet_error;
   }
 
-  /*
-    Set the default for the password supplied flag for non-existing users
-    as the default plugin (native passsword authentication) would do it
-    for compatibility reasons.
-  */
-  if (passwd_len) mpvio->auth_info.password_used = PASSWORD_USED_YES;
-
   size_t client_plugin_len = 0;
   const char *client_plugin =
       get_string(&end, &bytes_remaining_in_packet, &client_plugin_len);
@@ -2607,8 +2706,47 @@ skip_to_ssl:
   }
 
   if (protocol->has_client_capability(CLIENT_CONNECT_ATTRS) &&
-      read_client_connect_attrs(&end, &bytes_remaining_in_packet, mpvio))
+      read_client_connect_attrs(thd, &end, &bytes_remaining_in_packet, mpvio))
     return packet_error;
+
+  NET_SERVER *ext = static_cast<NET_SERVER *>(protocol->get_net()->extension);
+  struct compression_attributes *compression = &(ext->compression);
+  bool is_client_supports_zlib =
+      protocol->has_client_capability(CLIENT_COMPRESS);
+  bool is_client_supports_zstd =
+      protocol->has_client_capability(CLIENT_ZSTD_COMPRESSION_ALGORITHM);
+
+  if (is_client_supports_zlib && is_server_supports_zlib) {
+    strcpy(compression->compress_algorithm, COMPRESSION_ALGORITHM_ZLIB);
+    /*
+      for zlib compression method client does not send any compression level,
+      set default compression level
+    */
+    compression->compress_level = 6;
+  } else if (is_client_supports_zstd && is_server_supports_zstd) {
+    strcpy(compression->compress_algorithm, COMPRESSION_ALGORITHM_ZSTD);
+    compression->compress_level = (uint) * (end);
+    end += 1;
+    bytes_remaining_in_packet -= 1;
+    if (!is_zstd_compression_level_valid(compression->compress_level)) {
+      my_error(ER_WRONG_COMPRESSION_LEVEL_CLIENT, MYF(0),
+               compression->compress_algorithm);
+      mpvio->status = MPVIO_EXT::FAILURE;
+      return CR_COMPRESSION_WRONGLY_CONFIGURED;
+    }
+  } else if (!compression->compression_optional) {
+    /*
+      if server is configured to only allow connections with compression enabled
+      then check if client has enabled compression else report error
+    */
+    my_error(
+        ER_WRONG_COMPRESSION_ALGORITHM_CLIENT, MYF(0),
+        (compression->compress_algorithm[0] ? compression->compress_algorithm
+                                            : "uncompressed"));
+
+    mpvio->status = MPVIO_EXT::FAILURE;
+    return CR_COMPRESSION_WRONGLY_CONFIGURED;
+  }
 
   if (!(protocol->has_client_capability(CLIENT_PLUGIN_AUTH))) {
     /* An old client is connecting */
@@ -2680,7 +2818,8 @@ skip_to_ssl:
 static inline int wrap_plguin_data_into_proper_command(NET *net,
                                                        const uchar *packet,
                                                        int packet_len) {
-  return net_write_command(net, 1, (uchar *)"", 0, packet, packet_len);
+  return net_write_command(net, 1, pointer_cast<const uchar *>(""), 0, packet,
+                           packet_len);
 }
 
 /*
@@ -2707,7 +2846,7 @@ static int server_mpvio_write_packet(MYSQL_PLUGIN_VIO *param,
   int res;
   Protocol_classic *protocol = mpvio->protocol;
 
-  DBUG_ENTER("server_mpvio_write_packet");
+  DBUG_TRACE;
   /*
     Reset cached_client_reply if not an old client doing mysql_change_user,
     as this is where the password from COM_CHANGE_USER is stored.
@@ -2720,14 +2859,15 @@ static int server_mpvio_write_packet(MYSQL_PLUGIN_VIO *param,
     mpvio->cached_client_reply.pkt = 0;
   /* for the 1st packet we wrap plugin data into the handshake packet */
   if (mpvio->packets_written == 0)
-    res = send_server_handshake_packet(mpvio, (char *)packet, packet_len);
+    res = send_server_handshake_packet(
+        mpvio, pointer_cast<const char *>(packet), packet_len);
   else if (mpvio->status == MPVIO_EXT::RESTART)
     res = send_plugin_request_packet(mpvio, packet, packet_len);
   else
     res = wrap_plguin_data_into_proper_command(protocol->get_net(), packet,
                                                packet_len);
   mpvio->packets_written++;
-  DBUG_RETURN(res);
+  return res;
 }
 
 /**
@@ -2749,7 +2889,7 @@ static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf) {
   Protocol_classic *protocol = mpvio->protocol;
   size_t pkt_len;
 
-  DBUG_ENTER("server_mpvio_read_packet");
+  DBUG_TRACE;
   if (mpvio->packets_written == 0) {
     /*
       plugin wants to read the data without sending anything first.
@@ -2777,10 +2917,11 @@ static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf) {
         my_strcasecmp(system_charset_info, mpvio->cached_client_reply.plugin,
                       client_auth_plugin) == 0) {
       mpvio->status = MPVIO_EXT::FAILURE;
-      *buf = (uchar *)mpvio->cached_client_reply.pkt;
+      *buf = const_cast<uchar *>(
+          pointer_cast<const uchar *>(mpvio->cached_client_reply.pkt));
       mpvio->cached_client_reply.pkt = 0;
       mpvio->packets_read++;
-      DBUG_RETURN((int)mpvio->cached_client_reply.pkt_len);
+      return (int)mpvio->cached_client_reply.pkt_len;
     }
 
     /* older clients don't support change of client plugin request */
@@ -2820,13 +2961,13 @@ static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf) {
   } else
     *buf = protocol->get_net()->read_pos;
 
-  DBUG_RETURN((int)pkt_len);
+  return (int)pkt_len;
 
 err:
   if (mpvio->status == MPVIO_EXT::FAILURE) {
     my_error(ER_HANDSHAKE_ERROR, MYF(0));
   }
-  DBUG_RETURN(-1);
+  return -1;
 }
 
 /**
@@ -2843,7 +2984,7 @@ static void server_mpvio_info(MYSQL_PLUGIN_VIO *vio,
 
 static int do_auth_once(THD *thd, const LEX_CSTRING &auth_plugin_name,
                         MPVIO_EXT *mpvio) {
-  DBUG_ENTER("do_auth_once");
+  DBUG_TRACE;
   int res = CR_OK, old_status = MPVIO_EXT::FAILURE;
   bool unlock_plugin = false;
   plugin_ref plugin =
@@ -2883,7 +3024,7 @@ static int do_auth_once(THD *thd, const LEX_CSTRING &auth_plugin_name,
   if (old_status == MPVIO_EXT::RESTART && mpvio->status == MPVIO_EXT::RESTART)
     mpvio->status = MPVIO_EXT::FAILURE;  // reset to the default
 
-  DBUG_RETURN(res);
+  return res;
 }
 
 static void server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
@@ -2898,6 +3039,7 @@ static void server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
   mpvio->auth_info.user_name_length = 0;
   mpvio->auth_info.host_or_ip = sctx_host_or_ip.str;
   mpvio->auth_info.host_or_ip_length = sctx_host_or_ip.length;
+  mpvio->auth_info.password_used = PASSWORD_USED_NO;
 
 #if defined(HAVE_OPENSSL)
   Vio *vio = thd->get_protocol_classic()->get_vio();
@@ -2913,9 +3055,10 @@ static void server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
   mpvio->thread_id = thd->thread_id();
   mpvio->server_status = &thd->server_status;
   mpvio->protocol = thd->get_protocol_classic();
-  mpvio->ip = (char *)thd->security_context()->ip().str;
-  mpvio->host = (char *)thd->security_context()->host().str;
+  mpvio->ip = thd->security_context()->ip().str;
+  mpvio->host = thd->security_context()->host().str;
   mpvio->charset_adapter = charset_adapter;
+  mpvio->restrictions = new (mpvio->mem_root) Restrictions(mpvio->mem_root);
 }
 
 static void server_mpvio_update_thd(THD *thd, MPVIO_EXT *mpvio) {
@@ -2930,7 +3073,7 @@ static void server_mpvio_update_thd(THD *thd, MPVIO_EXT *mpvio) {
   }
   if (mpvio->auth_info.user_name) my_free(mpvio->auth_info.user_name);
   LEX_CSTRING sctx_user = thd->security_context()->user();
-  mpvio->auth_info.user_name = (char *)sctx_user.str;
+  mpvio->auth_info.user_name = const_cast<char *>(sctx_user.str);
   mpvio->auth_info.user_name_length = sctx_user.length;
   if (thd->get_protocol()->has_client_capability(CLIENT_IGNORE_SPACE))
     thd->variables.sql_mode |= MODE_IGNORE_SPACE;
@@ -2969,9 +3112,10 @@ static bool check_password_lifetime(THD *thd, const ACL_USER *acl_user) {
       interval.day = default_password_lifetime;
     }
     if (interval.day) {
-      if (!date_add_interval(&password_change_by, INTERVAL_DAY, interval))
+      if (!date_add_interval_with_warn(thd, &password_change_by, INTERVAL_DAY,
+                                       interval))
         password_time_expired =
-            my_time_compare(&password_change_by, &cur_time) >= 0 ? false : true;
+            my_time_compare(password_change_by, cur_time) >= 0 ? false : true;
       else {
         DBUG_ASSERT(false);
         /* Make the compiler happy. */
@@ -3010,11 +3154,11 @@ void acl_log_connect(const char *user, const char *host, const char *auth_as,
 
   if (strcmp(auth_as, user) && (PROXY_FLAG != *auth_as)) {
     query_logger.general_log_print(thd, command, "%s@%s as %s on %s using %s",
-                                   user, host, auth_as, db ? db : (char *)"",
+                                   user, host, auth_as, db ? db : "",
                                    vio_name_str);
   } else {
     query_logger.general_log_print(thd, command, "%s@%s on %s using %s", user,
-                                   host, db ? db : (char *)"", vio_name_str);
+                                   host, db ? db : "", vio_name_str);
   }
 }
 
@@ -3078,6 +3222,55 @@ static inline bool check_restrictions_for_com_connect_command(THD *thd) {
   return false;
 }
 
+static void check_and_update_password_lock_state(MPVIO_EXT &mpvio, THD *thd,
+                                                 int &res) {
+  if (mpvio.acl_user && initialized &&
+      mpvio.acl_user->password_locked_state.is_active()) {
+    /* update user lock status and check if the account is locked */
+    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
+
+    acl_cache_lock.lock();
+    const ACL_USER *acl_user = mpvio.acl_user;
+
+    ACL_USER *acl_user_ptr = find_acl_user(
+        acl_user->host.get_host(), acl_user->user ? acl_user->user : "", true);
+    long days_remaining = 0;
+    DBUG_ASSERT(acl_user_ptr != nullptr);
+    if (acl_user_ptr && acl_user_ptr->password_locked_state.update(
+                            thd, res == CR_OK, &days_remaining)) {
+      uint failed_logins =
+          acl_user_ptr->password_locked_state.get_failed_login_attempts();
+      int blocked_for_days =
+          acl_user_ptr->password_locked_state.get_password_lock_time_days();
+      acl_cache_lock.unlock();
+      char str_blocked_for_days[30], str_days_remaining[30];
+      if (blocked_for_days > 0)
+        snprintf(str_blocked_for_days, sizeof(str_blocked_for_days), "%d",
+                 blocked_for_days);
+      else
+        strncpy(str_blocked_for_days, "unlimited",
+                sizeof(str_blocked_for_days));
+      if (days_remaining > 0)
+        snprintf(str_days_remaining, sizeof(str_days_remaining), "%ld",
+                 days_remaining);
+      else
+        strncpy(str_days_remaining, "unlimited", sizeof(str_days_remaining));
+
+      my_error(ER_USER_ACCESS_DENIED_FOR_USER_ACCOUNT_BLOCKED_BY_PASSWORD_LOCK,
+               MYF(0), mpvio.acl_user->user ? mpvio.acl_user->user : "",
+               mpvio.auth_info.host_or_ip ? mpvio.auth_info.host_or_ip : "",
+               str_blocked_for_days, str_days_remaining, failed_logins);
+      LogErr(INFORMATION_LEVEL,
+             ER_ACCESS_DENIED_FOR_USER_ACCOUNT_BLOCKED_BY_PASSWORD_LOCK,
+             mpvio.acl_user->user ? mpvio.acl_user->user : "",
+             mpvio.auth_info.host_or_ip ? mpvio.auth_info.host_or_ip : "",
+             str_blocked_for_days, str_days_remaining, failed_logins);
+      res = CR_ERROR;
+    } else
+      acl_cache_lock.unlock();
+  }
+}
+
 /**
   Perform the handshake, authorize the client and update thd sctx variables.
 
@@ -3091,11 +3284,12 @@ static inline bool check_restrictions_for_com_connect_command(THD *thd) {
 */
 int acl_authenticate(THD *thd, enum_server_command command) {
   int res = CR_OK;
+  int ret = 1;
   MPVIO_EXT mpvio;
   LEX_CSTRING auth_plugin_name = default_auth_plugin_name;
   Thd_charset_adapter charset_adapter(thd);
 
-  DBUG_ENTER("acl_authenticate");
+  DBUG_TRACE;
   static_assert(MYSQL_USERNAME_LENGTH == USERNAME_LENGTH, "");
   DBUG_ASSERT(command == COM_CONNECT || command == COM_CHANGE_USER);
 
@@ -3125,7 +3319,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
                                      mpvio.protocol->get_packet_length())) {
       login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
       server_mpvio_update_thd(thd, &mpvio);
-      DBUG_RETURN(1);
+      goto end;
     }
 
     DBUG_ASSERT(mpvio.status == MPVIO_EXT::RESTART ||
@@ -3158,327 +3352,352 @@ int acl_authenticate(THD *thd, enum_server_command command) {
   }
 
   server_mpvio_update_thd(thd, &mpvio);
+
+  check_and_update_password_lock_state(mpvio, thd, res);
 #ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_THREAD_CALL(set_connection_type)(thd->get_vio_type());
 #endif /* HAVE_PSI_THREAD_INTERFACE */
-
-  Security_context *sctx = thd->security_context();
-  const ACL_USER *acl_user = mpvio.acl_user;
-  bool proxy_check = check_proxy_users && !*mpvio.auth_info.authenticated_as;
-
-  DBUG_PRINT("info", ("proxy_check=%s", proxy_check ? "true" : "false"));
-
-  thd->password = mpvio.auth_info.password_used;  // remember for error messages
-
-  // reset authenticated_as because flag value received, but server
-  // proxy mapping is disabled:
-  if ((!check_proxy_users) && acl_user && !*mpvio.auth_info.authenticated_as) {
-    DBUG_PRINT("info",
-               ("setting authenticated_as to %s as check_proxy_user is OFF.",
-                mpvio.auth_info.user_name));
-    strcpy(mpvio.auth_info.authenticated_as,
-           acl_user->user ? acl_user->user : "");
-  }
-  /*
-    Log the command here so that the user can check the log
-    for the tried logins and also to detect break-in attempts.
-
-    if sctx->user is unset it's protocol failure, bad packet.
-  */
-  if (mpvio.auth_info.user_name && !proxy_check) {
-    acl_log_connect(mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
-                    mpvio.auth_info.authenticated_as, mpvio.db.str, thd,
-                    command);
-  }
-  if (res == CR_OK && (!mpvio.can_authenticate() || thd->is_error())) {
-    res = CR_ERROR;
-  }
-
-  /*
-    Assign account user/host data to the current THD. This information is used
-    when the authentication fails after this point and we call audit api
-    notification event. Client user/host connects to the existing account is
-    easily distinguished from other connects.
-  */
-  if (mpvio.can_authenticate())
-    assign_priv_user_host(sctx, const_cast<ACL_USER *>(acl_user));
-
-  if (res > CR_OK && mpvio.status != MPVIO_EXT::SUCCESS) {
-    Host_errors errors;
-    DBUG_ASSERT(mpvio.status == MPVIO_EXT::FAILURE);
-    switch (res) {
-      case CR_AUTH_PLUGIN_ERROR:
-        errors.m_auth_plugin = 1;
-        break;
-      case CR_AUTH_HANDSHAKE:
-        errors.m_handshake = 1;
-        break;
-      case CR_AUTH_USER_CREDENTIALS:
-        errors.m_authentication = 1;
-        break;
-      case CR_ERROR:
-      default:
-        /* Unknown of unspecified auth plugin error. */
-        errors.m_auth_plugin = 1;
-        break;
-    }
-    inc_host_errors(mpvio.ip, &errors);
-    if (mpvio.auth_info.user_name && proxy_check) {
-      acl_log_connect(mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
-                      mpvio.auth_info.authenticated_as, mpvio.db.str, thd,
-                      command);
-    }
-    login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
-    DBUG_RETURN(1);
-  }
-
-  sctx->assign_proxy_user("", 0);
-
-  if (initialized)  // if not --skip-grant-tables
   {
-    bool is_proxy_user = false;
-    bool password_time_expired = false;
-    const char *auth_user = acl_user->user ? acl_user->user : "";
-    ACL_PROXY_USER *proxy_user;
-    /* check if the user is allowed to proxy as another user */
-    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
-    if (!acl_cache_lock.lock()) DBUG_RETURN(1);
+    Security_context *sctx = thd->security_context();
+    const ACL_USER *acl_user = mpvio.acl_user;
+    bool proxy_check = check_proxy_users && !*mpvio.auth_info.authenticated_as;
 
-    proxy_user =
-        acl_find_proxy_user(auth_user, sctx->host().str, sctx->ip().str,
-                            mpvio.auth_info.authenticated_as, &is_proxy_user);
-    acl_cache_lock.unlock();
-    if (mpvio.auth_info.user_name && proxy_check) {
+    DBUG_PRINT("info", ("proxy_check=%s", proxy_check ? "true" : "false"));
+
+    thd->password =
+        mpvio.auth_info.password_used;  // remember for error messages
+
+    // reset authenticated_as because flag value received, but server
+    // proxy mapping is disabled:
+    if ((!check_proxy_users) && acl_user &&
+        !*mpvio.auth_info.authenticated_as) {
+      DBUG_PRINT("info",
+                 ("setting authenticated_as to %s as check_proxy_user is OFF.",
+                  mpvio.auth_info.user_name));
+      strcpy(mpvio.auth_info.authenticated_as,
+             acl_user->user ? acl_user->user : "");
+    }
+    /*
+      Log the command here so that the user can check the log
+      for the tried logins and also to detect break-in attempts.
+
+      if sctx->user is unset it's protocol failure, bad packet.
+    */
+    if (mpvio.auth_info.user_name && !proxy_check) {
       acl_log_connect(mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
                       mpvio.auth_info.authenticated_as, mpvio.db.str, thd,
                       command);
     }
-
-    if (thd->is_error()) DBUG_RETURN(1);
-
-    if (is_proxy_user) {
-      ACL_USER *acl_proxy_user;
-      char proxy_user_buf[USERNAME_LENGTH + MAX_HOSTNAME + 5];
-
-      /* we need to find the proxy user, but there was none */
-      if (!proxy_user) {
-        Host_errors errors;
-        errors.m_proxy_user = 1;
-        inc_host_errors(mpvio.ip, &errors);
-        login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
-        DBUG_RETURN(1);
-      }
-
-      snprintf(proxy_user_buf, sizeof(proxy_user_buf) - 1, "'%s'@'%s'",
-               auth_user,
-               acl_user->host.get_host() ? acl_user->host.get_host() : "");
-      sctx->assign_proxy_user(proxy_user_buf, strlen(proxy_user_buf));
-
-      /* we're proxying : find the proxy user definition */
-      if (!acl_cache_lock.lock()) DBUG_RETURN(1);
-      acl_proxy_user = find_acl_user(
-          proxy_user->get_proxied_host() ? proxy_user->get_proxied_host() : "",
-          mpvio.auth_info.authenticated_as, true);
-      if (!acl_proxy_user) {
-        Host_errors errors;
-        errors.m_proxy_user_acl = 1;
-        inc_host_errors(mpvio.ip, &errors);
-        login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
-        DBUG_RETURN(1);
-      }
-      acl_user = acl_proxy_user->copy(thd->mem_root);
-      DBUG_PRINT("info", ("User %s is a PROXY and will assume a PROXIED"
-                          " identity %s",
-                          auth_user, acl_user->user));
-      acl_cache_lock.unlock();
+    if (res == CR_OK && (!mpvio.can_authenticate() || thd->is_error())) {
+      res = CR_ERROR;
     }
 
-    sctx->set_master_access(acl_user->access);
-    assign_priv_user_host(sctx, const_cast<ACL_USER *>(acl_user));
-    /* Assign default role */
+    /*
+      Assign account user/host data to the current THD. This information is
+      used when the authentication fails after this point and we call audit
+      api notification event. Client user/host connects to the existing
+      account is easily distinguished from other connects.
+    */
+    if (mpvio.can_authenticate())
+      assign_priv_user_host(sctx, const_cast<ACL_USER *>(acl_user));
+
+    if (res > CR_OK && mpvio.status != MPVIO_EXT::SUCCESS) {
+      Host_errors errors;
+      DBUG_ASSERT(mpvio.status == MPVIO_EXT::FAILURE);
+      switch (res) {
+        case CR_AUTH_PLUGIN_ERROR:
+          errors.m_auth_plugin = 1;
+          break;
+        case CR_AUTH_HANDSHAKE:
+          errors.m_handshake = 1;
+          break;
+        case CR_AUTH_USER_CREDENTIALS:
+          errors.m_authentication = 1;
+          break;
+        case CR_ERROR:
+        default:
+          /* Unknown of unspecified auth plugin error. */
+          errors.m_auth_plugin = 1;
+          break;
+      }
+      inc_host_errors(mpvio.ip, &errors);
+      if (mpvio.auth_info.user_name && proxy_check) {
+        acl_log_connect(mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
+                        mpvio.auth_info.authenticated_as, mpvio.db.str, thd,
+                        command);
+      }
+      login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
+      goto end;
+    }
+
+    sctx->assign_proxy_user("", 0);
+
+    if (initialized)  // if not --skip-grant-tables
     {
-      List_of_auth_id_refs default_roles;
-      if (!acl_cache_lock.lock()) DBUG_RETURN(1);
-      Auth_id_ref authid = create_authid_from(acl_user);
-      if (opt_always_activate_granted_roles) {
-        activate_all_granted_and_mandatory_roles(acl_user, sctx);
-      } else {
-        /* The server policy is to only activate default roles */
-        get_default_roles(authid, default_roles);
-        List_of_auth_id_refs::iterator it = default_roles.begin();
-        for (; it != default_roles.end(); ++it) {
-          if (sctx->activate_role(it->first, it->second, true)) {
-            std::string roleidstr = create_authid_str_from(*it);
-            std::string authidstr = create_authid_str_from(acl_user);
-            LogErr(WARNING_LEVEL, ER_AUTH_CANT_ACTIVATE_ROLE, roleidstr.c_str(),
-                   authidstr.c_str());
+      bool is_proxy_user = false;
+      bool password_time_expired = false;
+      const char *auth_user = acl_user->user ? acl_user->user : "";
+      ACL_PROXY_USER *proxy_user;
+      /* check if the user is allowed to proxy as another user */
+      Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
+      if (!acl_cache_lock.lock()) return 1;
+
+      proxy_user =
+          acl_find_proxy_user(auth_user, sctx->host().str, sctx->ip().str,
+                              mpvio.auth_info.authenticated_as, &is_proxy_user);
+      acl_cache_lock.unlock();
+      if (mpvio.auth_info.user_name && proxy_check) {
+        acl_log_connect(mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
+                        mpvio.auth_info.authenticated_as, mpvio.db.str, thd,
+                        command);
+      }
+
+      if (thd->is_error()) return 1;
+
+      if (is_proxy_user) {
+        ACL_USER *acl_proxy_user;
+        char proxy_user_buf[USERNAME_LENGTH + HOSTNAME_LENGTH + 6];
+
+        /* we need to find the proxy user, but there was none */
+        if (!proxy_user) {
+          Host_errors errors;
+          errors.m_proxy_user = 1;
+          inc_host_errors(mpvio.ip, &errors);
+          login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
+          goto end;
+        }
+
+        snprintf(proxy_user_buf, sizeof(proxy_user_buf) - 1, "'%s'@'%s'",
+                 auth_user,
+                 acl_user->host.get_host() ? acl_user->host.get_host() : "");
+        sctx->assign_proxy_user(proxy_user_buf, strlen(proxy_user_buf));
+
+        /* we're proxying : find the proxy user definition */
+        if (!acl_cache_lock.lock()) return 1;
+        acl_proxy_user = find_acl_user(proxy_user->get_proxied_host()
+                                           ? proxy_user->get_proxied_host()
+                                           : "",
+                                       mpvio.auth_info.authenticated_as, true);
+        if (!acl_proxy_user) {
+          Host_errors errors;
+          errors.m_proxy_user_acl = 1;
+          inc_host_errors(mpvio.ip, &errors);
+          login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
+          goto end;
+        }
+        if (acl_is_utility_user(acl_proxy_user->user,
+                                acl_proxy_user->host.get_host(), nullptr)) {
+          if (!thd->is_error())
+            login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
+          goto end;
+        }
+
+        acl_user = acl_proxy_user->copy(thd->mem_root);
+        *(mpvio.restrictions) = acl_restrictions->find_restrictions(acl_user);
+
+        DBUG_PRINT("info", ("User %s is a PROXY and will assume a PROXIED"
+                            " identity %s",
+                            auth_user, acl_user->user));
+        acl_cache_lock.unlock();
+      }
+      DBUG_ASSERT(mpvio.restrictions);
+      sctx->set_master_access(acl_user->access, *(mpvio.restrictions));
+      assign_priv_user_host(sctx, const_cast<ACL_USER *>(acl_user));
+      /* Assign default role */
+      {
+        List_of_auth_id_refs default_roles;
+        if (!acl_cache_lock.lock()) return 1;
+        Auth_id_ref authid = create_authid_from(acl_user);
+        if (opt_always_activate_granted_roles) {
+          activate_all_granted_and_mandatory_roles(acl_user, sctx);
+        } else {
+          /* The server policy is to only activate default roles */
+          get_default_roles(authid, default_roles);
+          List_of_auth_id_refs::iterator it = default_roles.begin();
+          for (; it != default_roles.end(); ++it) {
+            if (sctx->activate_role(it->first, it->second, true)) {
+              std::string roleidstr = create_authid_str_from(*it);
+              std::string authidstr = create_authid_str_from(acl_user);
+              LogErr(WARNING_LEVEL, ER_AUTH_CANT_ACTIVATE_ROLE,
+                     roleidstr.c_str(), authidstr.c_str());
+            }
           }
+        }
+
+        acl_cache_lock.unlock();
+      }
+      sctx->checkout_access_maps();
+
+      if (!thd->is_error() &&
+          !(sctx->check_access(SUPER_ACL) ||
+            sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first ||
+            acl_is_utility_user(sctx->user().str, sctx->host().str,
+                                sctx->ip().str))) {
+        if (mysqld_offline_mode()) {
+          my_error(ER_SERVER_OFFLINE_MODE, MYF(0));
+          goto end;
         }
       }
 
-      acl_cache_lock.unlock();
-    }
-    sctx->checkout_access_maps();
+      /*
+        OK. Let's check the SSL. Historically it was checked after the
+        password, as an additional layer, not instead of the password (in
+        which case it would've been a plugin too).
+      */
+      if (acl_check_ssl(thd, acl_user)) {
+        Host_errors errors;
+        errors.m_ssl = 1;
+        inc_host_errors(mpvio.ip, &errors);
+        login_failed_error(thd, &mpvio, thd->password);
+        goto end;
+      }
 
-    if (!thd->is_error() &&
-        !(sctx->check_access(SUPER_ACL) ||
-          sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first)) {
-      if (mysqld_offline_mode()) {
-        my_error(ER_SERVER_OFFLINE_MODE, MYF(0));
-        DBUG_RETURN(1);
+      /*
+        Check whether the account has been locked.
+      */
+      if (unlikely(mpvio.acl_user->account_locked)) {
+        locked_account_connection_count++;
+
+        my_error(ER_ACCOUNT_HAS_BEEN_LOCKED, MYF(0), mpvio.acl_user->user,
+                 mpvio.auth_info.host_or_ip);
+        LogErr(INFORMATION_LEVEL, ER_ACCESS_DENIED_FOR_USER_ACCOUNT_LOCKED,
+               mpvio.acl_user->user, mpvio.auth_info.host_or_ip);
+        goto end;
+      }
+
+      if (opt_require_secure_transport &&
+          !is_secure_transport(thd->active_vio->type)) {
+        my_error(ER_SECURE_TRANSPORT_REQUIRED, MYF(0));
+        goto end;
+      }
+
+      /* checking password_time_expire for connecting user */
+      password_time_expired = check_password_lifetime(thd, mpvio.acl_user);
+
+      if (unlikely(
+              mpvio.acl_user &&
+              (mpvio.acl_user->password_expired || password_time_expired) &&
+              !(mpvio.protocol->has_client_capability(
+                  CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS)) &&
+              disconnect_on_expired_password)) {
+        /*
+          Clients that don't signal password expiration support
+          get a connect error.
+        */
+        Host_errors errors;
+
+        my_error(ER_MUST_CHANGE_PASSWORD_LOGIN, MYF(0));
+        query_logger.general_log_print(
+            thd, COM_CONNECT, "%s", ER_DEFAULT(ER_MUST_CHANGE_PASSWORD_LOGIN));
+        LogErr(INFORMATION_LEVEL, ER_MUST_CHANGE_EXPIRED_PASSWORD);
+
+        errors.m_authentication = 1;
+        inc_host_errors(mpvio.ip, &errors);
+        goto end;
+      }
+
+      /* Don't allow the user to connect if he has done too many queries */
+      if ((acl_user->user_resource.questions ||
+           acl_user->user_resource.updates ||
+           acl_user->user_resource.conn_per_hour ||
+           acl_user->user_resource.user_conn ||
+           global_system_variables.max_user_connections) &&
+          get_or_create_user_conn(
+              thd,
+              (opt_old_style_user_limits ? sctx->user().str
+                                         : sctx->priv_user().str),
+              (opt_old_style_user_limits ? sctx->host_or_ip().str
+                                         : sctx->priv_host().str),
+              &acl_user->user_resource))
+        goto end;  // The error is set by get_or_create_user_conn()
+
+      /*
+        We are copying the connected user's password expired flag to the
+        security context. This allows proxy user to execute queries even if
+        proxied user password expires.
+      */
+      sctx->set_password_expired(mpvio.acl_user->password_expired ||
+                                 password_time_expired);
+    } else {
+      sctx->skip_grants();
+      /*
+        In case of --skip-grant-tables, we already would have set the MPVIO
+        as SUCCESS, it means we are not interested in any of the error set
+        in the diagnostic area, clear them.
+      */
+      thd->get_stmt_da()->reset_diagnostics_area();
+    }
+
+    const USER_CONN *uc;
+    if ((uc = thd->get_user_connect()) &&
+        (uc->user_resources.conn_per_hour || uc->user_resources.user_conn ||
+         global_system_variables.max_user_connections) &&
+        check_for_max_user_connections(thd, uc)) {
+      goto end;  // The error is set in check_for_max_user_connections()
+    }
+
+    DBUG_PRINT("info", ("Capabilities: %lu  packet_length: %ld  Host: '%s'  "
+                        "Login user: '%s' Priv_user: '%s'  Using password: %s "
+                        "Access: %lu  db: '%s'",
+                        thd->get_protocol()->get_client_capabilities(),
+                        thd->max_client_packet_length, sctx->host_or_ip().str,
+                        sctx->user().str, sctx->priv_user().str,
+                        thd->password ? "yes" : "no", sctx->master_access(),
+                        mpvio.db.str));
+
+    if (command == COM_CONNECT &&
+        check_restrictions_for_com_connect_command(thd)) {
+      release_user_connection(thd);
+      goto end;
+    }
+
+    /*
+      This is the default access rights for the current database.  It's
+      set to 0 here because we don't have an active database yet (and we
+      may not have an active database to set.
+    */
+    sctx->cache_current_db_access(0);
+
+    /* Change a database if necessary */
+    if (mpvio.db.length) {
+      if (mysql_change_db(thd, to_lex_cstring(mpvio.db), false)) {
+        /* mysql_change_db() has pushed the error message. */
+        release_user_connection(thd);
+        Host_errors errors;
+        errors.m_default_database = 1;
+        inc_host_errors(mpvio.ip, &errors);
+        login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
+        goto end;
       }
     }
 
-    /*
-      OK. Let's check the SSL. Historically it was checked after the password,
-      as an additional layer, not instead of the password
-      (in which case it would've been a plugin too).
-    */
-    if (acl_check_ssl(thd, acl_user)) {
-      Host_errors errors;
-      errors.m_ssl = 1;
-      inc_host_errors(mpvio.ip, &errors);
-      login_failed_error(thd, &mpvio, thd->password);
-      DBUG_RETURN(1);
-    }
+    if (mpvio.auth_info.external_user[0])
+      sctx->assign_external_user(mpvio.auth_info.external_user,
+                                 strlen(mpvio.auth_info.external_user));
 
-    /*
-      Check whether the account has been locked.
-    */
-    if (unlikely(mpvio.acl_user->account_locked)) {
-      locked_account_connection_count++;
-
-      my_error(ER_ACCOUNT_HAS_BEEN_LOCKED, MYF(0), mpvio.acl_user->user,
-               mpvio.auth_info.host_or_ip);
-      LogErr(INFORMATION_LEVEL, ER_ACCESS_DENIED_FOR_USER_ACCOUNT_LOCKED,
-             mpvio.acl_user->user, mpvio.auth_info.host_or_ip);
-      DBUG_RETURN(1);
-    }
-
-    if (opt_require_secure_transport &&
-        !is_secure_transport(thd->active_vio->type)) {
-      my_error(ER_SECURE_TRANSPORT_REQUIRED, MYF(0));
-      DBUG_RETURN(1);
-    }
-
-    /* checking password_time_expire for connecting user */
-    password_time_expired = check_password_lifetime(thd, mpvio.acl_user);
-
-    if (unlikely(mpvio.acl_user &&
-                 (mpvio.acl_user->password_expired || password_time_expired) &&
-                 !(mpvio.protocol->has_client_capability(
-                     CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS)) &&
-                 disconnect_on_expired_password)) {
-      /*
-        Clients that don't signal password expiration support
-        get a connect error.
-      */
-      Host_errors errors;
-
-      my_error(ER_MUST_CHANGE_PASSWORD_LOGIN, MYF(0));
-      query_logger.general_log_print(thd, COM_CONNECT, "%s",
-                                     ER_DEFAULT(ER_MUST_CHANGE_PASSWORD_LOGIN));
-      LogErr(INFORMATION_LEVEL, ER_MUST_CHANGE_EXPIRED_PASSWORD);
-
-      errors.m_authentication = 1;
-      inc_host_errors(mpvio.ip, &errors);
-      DBUG_RETURN(1);
-    }
-
-    /* Don't allow the user to connect if he has done too many queries */
-    if ((acl_user->user_resource.questions || acl_user->user_resource.updates ||
-         acl_user->user_resource.conn_per_hour ||
-         acl_user->user_resource.user_conn ||
-         global_system_variables.max_user_connections) &&
-        get_or_create_user_conn(
-            thd,
-            (opt_old_style_user_limits ? sctx->user().str
-                                       : sctx->priv_user().str),
-            (opt_old_style_user_limits ? sctx->host_or_ip().str
-                                       : sctx->priv_host().str),
-            &acl_user->user_resource))
-      DBUG_RETURN(1);  // The error is set by get_or_create_user_conn()
-
-    /*
-      We are copying the connected user's password expired flag to the security
-      context.
-      This allows proxy user to execute queries even if proxied user password
-      expires.
-    */
-    sctx->set_password_expired(mpvio.acl_user->password_expired ||
-                               password_time_expired);
-  } else {
-    sctx->skip_grants();
-    /*
-      In case of --skip-grant-tables, we already would have set the MPVIO
-      as SUCCESS, it means we are not interested in any of the error set
-      in the diagnostic area, clear them.
-    */
-    thd->get_stmt_da()->reset_diagnostics_area();
-  }
-
-  const USER_CONN *uc;
-  if ((uc = thd->get_user_connect()) &&
-      (uc->user_resources.conn_per_hour || uc->user_resources.user_conn ||
-       global_system_variables.max_user_connections) &&
-      check_for_max_user_connections(thd, uc)) {
-    DBUG_RETURN(1);  // The error is set in check_for_max_user_connections()
-  }
-
-  DBUG_PRINT("info", ("Capabilities: %lu  packet_length: %ld  Host: '%s'  "
-                      "Login user: '%s' Priv_user: '%s'  Using password: %s "
-                      "Access: %lu  db: '%s'",
-                      thd->get_protocol()->get_client_capabilities(),
-                      thd->max_client_packet_length, sctx->host_or_ip().str,
-                      sctx->user().str, sctx->priv_user().str,
-                      thd->password ? "yes" : "no", sctx->master_access(),
-                      mpvio.db.str));
-
-  if (command == COM_CONNECT &&
-      check_restrictions_for_com_connect_command(thd)) {
-    release_user_connection(thd);
-    DBUG_RETURN(1);
-  }
-
-  /*
-    This is the default access rights for the current database.  It's
-    set to 0 here because we don't have an active database yet (and we
-    may not have an active database to set.
-  */
-  sctx->cache_current_db_access(0);
-
-  /* Change a database if necessary */
-  if (mpvio.db.length) {
-    if (mysql_change_db(thd, to_lex_cstring(mpvio.db), false)) {
-      /* mysql_change_db() has pushed the error message. */
-      release_user_connection(thd);
-      Host_errors errors;
-      errors.m_default_database = 1;
-      inc_host_errors(mpvio.ip, &errors);
-      login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
-      DBUG_RETURN(1);
-    }
-  }
-
-  if (mpvio.auth_info.external_user[0])
-    sctx->assign_external_user(mpvio.auth_info.external_user,
-                               strlen(mpvio.auth_info.external_user));
-
-  if (res == CR_OK_HANDSHAKE_COMPLETE)
-    thd->get_stmt_da()->disable_status();
-  else
-    my_ok(thd);
-
+    if (res == CR_OK_HANDSHAKE_COMPLETE)
+      thd->get_stmt_da()->disable_status();
+    else
+      my_ok(thd);
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  LEX_CSTRING main_sctx_user = thd->m_main_security_ctx.user();
-  LEX_CSTRING main_sctx_host_or_ip = thd->m_main_security_ctx.host_or_ip();
-  PSI_THREAD_CALL(set_thread_account)
-  (main_sctx_user.str, main_sctx_user.length, main_sctx_host_or_ip.str,
-   main_sctx_host_or_ip.length);
+    LEX_CSTRING main_sctx_user = thd->m_main_security_ctx.user();
+    LEX_CSTRING main_sctx_host_or_ip = thd->m_main_security_ctx.host_or_ip();
+    PSI_THREAD_CALL(set_thread_account)
+    (main_sctx_user.str, main_sctx_user.length, main_sctx_host_or_ip.str,
+     main_sctx_host_or_ip.length);
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
+    /*
+      Turn ON the flag in THD iff the user is granted SYSTEM_USER privilege.
+      We must set the flag after all required roles are activated.
+    */
+    set_system_user_flag(thd);
+  }
+  ret = 0;
+end:
+  if (mpvio.restrictions) mpvio.restrictions->~Restrictions();
   /* Ready to handle queries */
-  DBUG_RETURN(0);
+  return ret;
 }
 
 bool is_secure_transport(int vio_type) {
@@ -3493,7 +3712,10 @@ bool is_secure_transport(int vio_type) {
 
 static int generate_native_password(char *outbuf, unsigned int *buflen,
                                     const char *inbuf, unsigned int inbuflen) {
-  if (my_validate_password_policy(inbuf, inbuflen)) return 1;
+  THD *thd = current_thd;
+  if (!thd->m_disable_password_validation) {
+    if (my_validate_password_policy(inbuf, inbuflen)) return 1;
+  }
   /* for empty passwords */
   if (inbuflen == 0) {
     *buflen = 0;
@@ -3543,9 +3765,20 @@ static int set_native_salt(const char *password, unsigned int password_len,
 #if defined(HAVE_OPENSSL)
 static int generate_sha256_password(char *outbuf, unsigned int *buflen,
                                     const char *inbuf, unsigned int inbuflen) {
-  if (inbuflen > SHA256_PASSWORD_MAX_PASSWORD_LENGTH ||
-      my_validate_password_policy(inbuf, inbuflen))
-    return 1;
+  /*
+   Deprecate message for SHA-256 authentication plugin.
+  */
+  LogPluginErr(
+      WARNING_LEVEL, ER_SERVER_WARN_DEPRECATED,
+      Cached_authentication_plugins::get_plugin_name(PLUGIN_SHA256_PASSWORD),
+      Cached_authentication_plugins::get_plugin_name(
+          PLUGIN_CACHING_SHA2_PASSWORD));
+  if (inbuflen > SHA256_PASSWORD_MAX_PASSWORD_LENGTH) return 1;
+
+  THD *thd = current_thd;
+  if (!thd->m_disable_password_validation) {
+    if (my_validate_password_policy(inbuf, inbuflen)) return 1;
+  }
   if (inbuflen == 0) {
     *buflen = 0;
     return 0;
@@ -3609,12 +3842,12 @@ static int compare_native_password_with_hash(const char *hash,
                                              const char *cleartext,
                                              unsigned long cleartext_length,
                                              int *is_error) {
-  DBUG_ENTER("compare_native_password_with_hash");
+  DBUG_TRACE;
 
   char buffer[SCRAMBLED_PASSWORD_CHAR_LENGTH + 1];
 
   /** empty password results in an empty hash */
-  if (!hash_length && !cleartext_length) DBUG_RETURN(0);
+  if (!hash_length && !cleartext_length) return 0;
 
   DBUG_ASSERT(hash_length <= SCRAMBLED_PASSWORD_CHAR_LENGTH);
 
@@ -3624,7 +3857,7 @@ static int compare_native_password_with_hash(const char *hash,
   *is_error = 0;
   int result = memcmp(hash, buffer, SCRAMBLED_PASSWORD_CHAR_LENGTH);
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 /* clang-format off */
@@ -3693,7 +3926,7 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   int pkt_len;
   MPVIO_EXT *mpvio = (MPVIO_EXT *)vio;
 
-  DBUG_ENTER("native_password_authenticate");
+  DBUG_TRACE;
 
   /* generate the scramble, or reuse the old one */
   if (mpvio->scramble[SCRAMBLE_LENGTH])
@@ -3701,7 +3934,7 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 
   /* send it to the client */
   if (mpvio->write_packet(mpvio, (uchar *)mpvio->scramble, SCRAMBLE_LENGTH + 1))
-    DBUG_RETURN(CR_AUTH_HANDSHAKE);
+    return CR_AUTH_HANDSHAKE;
 
   /* reply and authenticate */
 
@@ -3741,8 +3974,7 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   */
 
   /* read the reply with the encrypted password */
-  if ((pkt_len = mpvio->read_packet(mpvio, &pkt)) < 0)
-    DBUG_RETURN(CR_AUTH_HANDSHAKE);
+  if ((pkt_len = mpvio->read_packet(mpvio, &pkt)) < 0) return CR_AUTH_HANDSHAKE;
   DBUG_PRINT("info", ("reply read : pkt_len=%d", pkt_len));
 
   DBUG_EXECUTE_IF("native_password_bad_reply", {
@@ -3754,12 +3986,13 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     DBUG_PRINT("info", ("mysql_native_authentication_proxy_users is enabled, "
                         "setting authenticated_as to NULL"));
   }
-  if (pkt_len == 0) /* no password */
-    DBUG_RETURN(mpvio->acl_user->credentials[PRIMARY_CRED].m_salt_len != 0
-                    ? CR_AUTH_USER_CREDENTIALS
-                    : CR_OK);
-
-  info->password_used = PASSWORD_USED_YES;
+  if (pkt_len == 0) {
+    info->password_used = PASSWORD_USED_NO;
+    return mpvio->acl_user->credentials[PRIMARY_CRED].m_salt_len != 0
+               ? CR_AUTH_USER_CREDENTIALS
+               : CR_OK;
+  } else
+    info->password_used = PASSWORD_USED_YES;
   bool second = false;
   if (pkt_len == SCRAMBLE_LENGTH) {
     if (!mpvio->acl_user->credentials[PRIMARY_CRED].m_salt_len ||
@@ -3769,27 +4002,27 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
       if (!mpvio->acl_user->credentials[SECOND_CRED].m_salt_len ||
           check_scramble(pkt, mpvio->scramble,
                          mpvio->acl_user->credentials[SECOND_CRED].m_salt)) {
-        DBUG_RETURN(CR_AUTH_USER_CREDENTIALS);
+        return CR_AUTH_USER_CREDENTIALS;
       } else {
         if (second) {
-          MPVIO_EXT *mpvio = (MPVIO_EXT *)vio;
+          MPVIO_EXT *mpvio_second = pointer_cast<MPVIO_EXT *>(vio);
           const char *username =
               *info->authenticated_as ? info->authenticated_as : "";
-          const char *hostname = mpvio->acl_user->host.get_host();
+          const char *hostname = mpvio_second->acl_user->host.get_host();
           LogPluginErr(
               INFORMATION_LEVEL,
               ER_MYSQL_NATIVE_PASSWORD_SECOND_PASSWORD_USED_INFORMATION,
               username, hostname ? hostname : "");
         }
-        DBUG_RETURN(CR_OK);
+        return CR_OK;
       }
     } else {
-      DBUG_RETURN(CR_OK);
+      return CR_OK;
     }
   }
 
   my_error(ER_HANDSHAKE_ERROR, MYF(0));
-  DBUG_RETURN(CR_AUTH_HANDSHAKE);
+  return CR_AUTH_HANDSHAKE;
 }
 
 #if defined(HAVE_OPENSSL)
@@ -3809,21 +4042,17 @@ static int my_vio_is_encrypted(MYSQL_PLUGIN_VIO *vio) {
   in sql_show.cc.
 */
 int show_rsa_public_key(THD *, SHOW_VAR *var MY_ATTRIBUTE((unused)), char *) {
-#ifndef HAVE_WOLFSSL
   var->type = SHOW_CHAR;
   var->value = const_cast<char *>(g_sha256_rsa_keys->get_public_key_as_pem());
-#endif
   return 0;
 }
 
 void deinit_rsa_keys(void) {
-#ifndef HAVE_WOLFSSL
   if (g_sha256_rsa_keys) {
     g_sha256_rsa_keys->free_memory();
     delete g_sha256_rsa_keys;
     g_sha256_rsa_keys = 0;
   }
-#endif
   if (g_caching_sha2_rsa_keys) {
     g_caching_sha2_rsa_keys->free_memory();
     delete g_caching_sha2_rsa_keys;
@@ -3853,28 +4082,21 @@ class FileCloser {
 */
 
 bool init_rsa_keys(void) {
-#ifndef HAVE_WOLFSSL
   if (!do_auto_rsa_keys_generation()) return true;
 
   if (!(g_sha256_rsa_keys = new Rsa_authentication_keys(
             &auth_rsa_private_key_path, &auth_rsa_public_key_path)))
     return true;
-#endif
   if (!(g_caching_sha2_rsa_keys =
             new Rsa_authentication_keys(&caching_sha2_rsa_private_key_path,
                                         &caching_sha2_rsa_public_key_path))) {
-#ifndef HAVE_WOLFSSL
     delete g_sha256_rsa_keys;
     g_sha256_rsa_keys = 0;
-#endif
     return true;
   }
 
-  return (
-#ifndef HAVE_WOLFSSL
-      g_sha256_rsa_keys->read_rsa_keys() ||
-#endif
-      g_caching_sha2_rsa_keys->read_rsa_keys());
+  return (g_sha256_rsa_keys->read_rsa_keys() ||
+          g_caching_sha2_rsa_keys->read_rsa_keys());
 }
 
 static MYSQL_PLUGIN plugin_info_ptr;
@@ -3925,23 +4147,23 @@ static int compare_sha256_password_with_hash(const char *hash,
                                              unsigned long cleartext_length,
                                              int *is_error) {
   char stage2[CRYPT_MAX_PASSWORD_SIZE + 1];
-  char *user_salt_begin;
-  char *user_salt_end;
+  const char *user_salt_begin;
+  const char *user_salt_end;
 
-  DBUG_ENTER("compare_sha256_password_with_hash");
+  DBUG_TRACE;
   DBUG_ASSERT(cleartext_length <= SHA256_PASSWORD_MAX_PASSWORD_LENGTH);
 
-  if (cleartext_length > SHA256_PASSWORD_MAX_PASSWORD_LENGTH) DBUG_RETURN(-1);
+  if (cleartext_length > SHA256_PASSWORD_MAX_PASSWORD_LENGTH) return -1;
 
   /*
     Fetch user authentication_string and extract the password salt
   */
-  user_salt_begin = (char *)hash;
-  user_salt_end = (char *)(hash + hash_length);
+  user_salt_begin = hash;
+  user_salt_end = hash + hash_length;
   if (extract_user_salt(&user_salt_begin, &user_salt_end) !=
       CRYPT_SALT_LENGTH) {
     *is_error = 1;
-    DBUG_RETURN(-1);
+    return -1;
   }
 
   *is_error = 0;
@@ -3953,7 +4175,7 @@ static int compare_sha256_password_with_hash(const char *hash,
   /* Compare the newly created hash digest with the password record */
   int result = memcmp(hash, stage2, hash_length);
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 #undef LOG_COMPONENT_TAG
@@ -3981,15 +4203,21 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   uchar *pkt;
   int pkt_len;
   String scramble_response_packet;
-#if !defined(HAVE_WOLFSSL)
   int cipher_length = 0;
-  unsigned char plain_text[MAX_CIPHER_LENGTH + 1];
+  unsigned char plain_text[MAX_CIPHER_LENGTH + 1] = "";
   RSA *private_key = NULL;
   RSA *public_key = NULL;
-#endif /* HAVE_WOLFSSL */
 
-  DBUG_ENTER("sha256_password_authenticate");
+  DBUG_TRACE;
 
+  /*
+   Deprecate message for SHA-256 authentication plugin.
+  */
+  LogPluginErr(
+      WARNING_LEVEL, ER_SERVER_WARN_DEPRECATED,
+      Cached_authentication_plugins::get_plugin_name(PLUGIN_SHA256_PASSWORD),
+      Cached_authentication_plugins::get_plugin_name(
+          PLUGIN_CACHING_SHA2_PASSWORD));
   generate_user_salt(scramble, SCRAMBLE_LENGTH + 1);
 
   /*
@@ -4000,7 +4228,7 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     if it is set to operate as a default plugin.
   */
   if (vio->write_packet(vio, (unsigned char *)scramble, SCRAMBLE_LENGTH + 1))
-    DBUG_RETURN(CR_ERROR);
+    return CR_ERROR;
 
   /*
     Save the scramble so it could be used by native plugin in case
@@ -4012,7 +4240,7 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     After the call to read_packet() the user name will appear in
     mpvio->acl_user and info will contain current data.
   */
-  if ((pkt_len = vio->read_packet(vio, &pkt)) == -1) DBUG_RETURN(CR_ERROR);
+  if ((pkt_len = vio->read_packet(vio, &pkt)) == -1) return CR_ERROR;
 
   /*
     If first packet is a 0 byte then the client isn't sending any password
@@ -4034,14 +4262,13 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
         DBUG_PRINT("info", ("sha256_password_proxy_users is enabled \
                              , setting authenticated_as to NULL"));
       }
-      DBUG_RETURN(CR_OK);
+      return CR_OK;
     } else
-      DBUG_RETURN(CR_ERROR);
+      return CR_ERROR;
   } else
     info->password_used = PASSWORD_USED_YES;
 
   if (!my_vio_is_encrypted(vio)) {
-#if !defined(HAVE_WOLFSSL)
     /*
       Since a password is being used it must be encrypted by RSA since no
       other encryption is being active.
@@ -4054,37 +4281,38 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     */
     if (private_key == NULL || public_key == NULL) {
       LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_AUTH_REQUIRES_RSA_OR_SSL);
-      DBUG_RETURN(CR_ERROR);
+      return CR_ERROR;
     }
 
     if ((cipher_length = g_sha256_rsa_keys->get_cipher_length()) >
         MAX_CIPHER_LENGTH) {
       LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_RSA_KEY_TOO_LONG,
                    g_sha256_rsa_keys->get_cipher_length(), MAX_CIPHER_LENGTH);
-      DBUG_RETURN(CR_ERROR);
+      return CR_ERROR;
     }
 
     /*
       Client sent a "public key request"-packet ?
-      If the first packet is 1 then the client will require a public key before
-      encrypting the password.
+      If the first packet is 1 then the client will require a public key
+      before encrypting the password.
     */
     if (pkt_len == 1 && *pkt == 1) {
       uint pem_length =
           static_cast<uint>(strlen(g_sha256_rsa_keys->get_public_key_as_pem()));
-      if (vio->write_packet(
-              vio, (unsigned char *)g_sha256_rsa_keys->get_public_key_as_pem(),
-              pem_length))
-        DBUG_RETURN(CR_ERROR);
+      if (vio->write_packet(vio,
+                            pointer_cast<const uchar *>(
+                                g_sha256_rsa_keys->get_public_key_as_pem()),
+                            pem_length))
+        return CR_ERROR;
       /* Get the encrypted response from the client */
-      if ((pkt_len = vio->read_packet(vio, &pkt)) == -1) DBUG_RETURN(CR_ERROR);
+      if ((pkt_len = vio->read_packet(vio, &pkt)) == -1) return CR_ERROR;
     }
 
     /*
       The packet will contain the cipher used. The length of the packet
       must correspond to the expected cipher length.
     */
-    if (pkt_len != cipher_length) DBUG_RETURN(CR_ERROR);
+    if (pkt_len != cipher_length) return CR_ERROR;
 
     /* Decrypt password */
     RSA_private_decrypt(cipher_length, pkt, plain_text, private_key,
@@ -4100,18 +4328,15 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     pkt = plain_text;
     pkt_len = strlen((char *)plain_text) + 1;  // include \0 intentionally.
 
-    if (pkt_len == 1) DBUG_RETURN(CR_ERROR);
-#else
-    DBUG_RETURN(CR_ERROR);
-#endif /* HAVE_WOLFSSL */
-  }    // if(!my_vio_is_encrypter())
+    if (pkt_len == 1) return CR_ERROR;
+  }  // if(!my_vio_is_encrypted())
 
   /* Don't process the password if it is longer than maximum limit */
-  if (pkt_len > SHA256_PASSWORD_MAX_PASSWORD_LENGTH + 1) DBUG_RETURN(CR_ERROR);
+  if (pkt_len > SHA256_PASSWORD_MAX_PASSWORD_LENGTH + 1) return CR_ERROR;
 
   /* A password was sent to an account without a password */
   if (info->auth_string_length == 0 && info->additional_auth_string_length == 0)
-    DBUG_RETURN(CR_ERROR);
+    return CR_ERROR;
 
   int is_error = 0;
   int result = compare_sha256_password_with_hash(
@@ -4122,7 +4347,7 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     /* User salt is not correct */
     LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_SALT_FOR_USER_CORRUPT,
                  info->user_name);
-    DBUG_RETURN(CR_ERROR);
+    return CR_ERROR;
   }
 
   if (result && info->additional_auth_string_length) {
@@ -4133,7 +4358,7 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
       /* User salt is not correct */
       LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_SALT_FOR_USER_CORRUPT,
                    info->user_name);
-      DBUG_RETURN(CR_ERROR);
+      return CR_ERROR;
     }
     if (result == 0) {
       MPVIO_EXT *mpvio = (MPVIO_EXT *)vio;
@@ -4152,13 +4377,12 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
       DBUG_PRINT("info", ("mysql_native_authentication_proxy_users is enabled \
 						   , setting authenticated_as to NULL"));
     }
-    DBUG_RETURN(CR_OK);
+    return CR_OK;
   }
 
-  DBUG_RETURN(CR_ERROR);
+  return CR_ERROR;
 }
 
-#if !defined(HAVE_WOLFSSL)
 static MYSQL_SYSVAR_STR(
     private_key_path, auth_rsa_private_key_path,
     PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
@@ -4172,7 +4396,7 @@ static MYSQL_SYSVAR_STR(
 static MYSQL_SYSVAR_BOOL(
     auto_generate_rsa_keys, auth_rsa_auto_generate_rsa_keys,
     PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOPERSIST,
-    "Auto generate RSA keys at server startup if correpsonding "
+    "Auto generate RSA keys at server startup if corresponding "
     "system variables are not specified and key files are not present "
     "at the default location.",
     NULL, NULL, true);
@@ -4196,9 +4420,9 @@ typedef std::string Sql_string_t;
 static bool resize_no_exception(Sql_string_t &content, size_t size) {
   try {
     content.resize(size);
-  } catch (const std::length_error &le) {
+  } catch (const std::length_error &) {
     return false;
-  } catch (std::bad_alloc &ba) {
+  } catch (std::bad_alloc &) {
     return false;
   }
   return true;
@@ -4457,7 +4681,7 @@ static Sql_string_t rsa_priv_key_write(RSA *rsa) {
   if (PEM_write_bio_RSAPrivateKey(buf, rsa, NULL, NULL, 0, NULL, NULL)) {
     size_t len = BIO_pending(buf);
     if (resize_no_exception(read_buffer, len + 1) == true) {
-      BIO_read(buf, (void *)read_buffer.c_str(), len);
+      BIO_read(buf, const_cast<char *>(read_buffer.c_str()), len);
       read_buffer[len] = '\0';
     }
   }
@@ -4479,7 +4703,7 @@ static Sql_string_t rsa_pub_key_write(RSA *rsa) {
   if (PEM_write_bio_RSA_PUBKEY(buf, rsa)) {
     size_t len = BIO_pending(buf);
     if (resize_no_exception(read_buffer, len + 1) == true) {
-      BIO_read(buf, (void *)read_buffer.c_str(), len);
+      BIO_read(buf, const_cast<char *>(read_buffer.c_str()), len);
       read_buffer[len] = '\0';
     }
   }
@@ -4543,9 +4767,10 @@ class X509_gen {
     X509V3_set_ctx(&v3ctx, self_sign ? x509 : ca_x509, x509, NULL, NULL, 0);
 
     /** Add CA:TRUE / CA:FALSE inforamation */
-    if (!(ext = X509V3_EXT_conf_nid(NULL, &v3ctx, NID_basic_constraints,
-                                    self_sign ? (char *)"critical,CA:TRUE"
-                                              : (char *)"critical,CA:FALSE")))
+    if (!(ext = X509V3_EXT_conf_nid(
+              NULL, &v3ctx, NID_basic_constraints,
+              self_sign ? const_cast<char *>("critical,CA:TRUE")
+                        : const_cast<char *>("critical,CA:FALSE"))))
       goto err;
     X509_add_ext(x509, ext, -1);
     X509_EXTENSION_free(ext);
@@ -4595,7 +4820,7 @@ static Sql_string_t x509_cert_write(X509 *cert) {
   if (PEM_write_bio_X509(buf, cert)) {
     size_t len = BIO_pending(buf);
     if (resize_no_exception(read_buffer, len + 1) == true) {
-      BIO_read(buf, (void *)read_buffer.c_str(), len);
+      BIO_read(buf, const_cast<char *>(read_buffer.c_str()), len);
       read_buffer[len] = '\0';
     }
   }
@@ -4641,7 +4866,7 @@ static Sql_string_t x509_key_write(EVP_PKEY *pkey) {
   if (PEM_write_bio_RSAPrivateKey(buf, rsa, NULL, NULL, 10, NULL, NULL)) {
     size_t len = BIO_pending(buf);
     if (resize_no_exception(read_buffer, len + 1) == true) {
-      BIO_read(buf, (void *)read_buffer.c_str(), len);
+      BIO_read(buf, const_cast<char *>(read_buffer.c_str()), len);
       read_buffer[len] = '\0';
     }
   }
@@ -4921,12 +5146,17 @@ end:
   do_auto_cert_generation().
 
   @param [in] auto_detection_status Status of SSL artifacts detection process
+  @param [out] ssl_ca  pointer to the generated CA certificate file
+  @param [out] ssl_key pointer to the generated key file
+  @param [out] ssl_cert pointer to the generated certificate file.
 
   @returns
     @retval true i Generation is successful or skipped
     @retval false Generation failed.
 */
-bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status) {
+bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status,
+                             const char **ssl_ca, const char **ssl_key,
+                             const char **ssl_cert) {
   if (opt_auto_generate_certs == true) {
     /*
       Do not generate SSL certificates/RSA keys,
@@ -4988,9 +5218,9 @@ bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status) {
                DEFAULT_SSL_CA_CERT) == false)) {
         return false;
       }
-      opt_ssl_ca = (char *)DEFAULT_SSL_CA_CERT;
-      opt_ssl_cert = (char *)DEFAULT_SSL_SERVER_CERT;
-      opt_ssl_key = (char *)DEFAULT_SSL_SERVER_KEY;
+      *ssl_ca = DEFAULT_SSL_CA_CERT;
+      *ssl_cert = DEFAULT_SSL_SERVER_CERT;
+      *ssl_key = DEFAULT_SSL_SERVER_KEY;
       LogErr(INFORMATION_LEVEL, ER_AUTH_CERTS_SAVED_TO_DATADIR);
     }
     return true;
@@ -5015,19 +5245,19 @@ bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status) {
 
 static bool generate_rsa_keys(bool auto_generate, const char *priv_key_path,
                               const char *pub_key_path, const char *message) {
-  DBUG_ENTER("generate_rsa_keys");
+  DBUG_TRACE;
   if (auto_generate) {
     MY_STAT priv_stat, pub_stat;
     if (strcmp(priv_key_path, AUTH_DEFAULT_RSA_PRIVATE_KEY) ||
         strcmp(pub_key_path, AUTH_DEFAULT_RSA_PUBLIC_KEY)) {
       LogErr(INFORMATION_LEVEL, ER_AUTH_RSA_CONF_PREVENTS_KEY_GENERATION,
              message);
-      DBUG_RETURN(true);
+      return true;
     } else if (my_stat(AUTH_DEFAULT_RSA_PRIVATE_KEY, &priv_stat, MYF(0)) ||
                my_stat(AUTH_DEFAULT_RSA_PUBLIC_KEY, &pub_stat, MYF(0))) {
       LogErr(INFORMATION_LEVEL, ER_AUTH_KEY_GENERATION_SKIPPED_PAIR_PRESENT,
              message);
-      DBUG_RETURN(true);
+      return true;
     } else {
       /* Initialize the key pair generator. */
       RSA_gen rsa_gen;
@@ -5036,14 +5266,14 @@ static bool generate_rsa_keys(bool auto_generate, const char *priv_key_path,
 
       if (create_RSA_key_pair(rsa_gen, "private_key.pem", "public_key.pem",
                               fcr) == false)
-        DBUG_RETURN(false);
+        return false;
 
       LogErr(INFORMATION_LEVEL, ER_AUTH_KEYS_SAVED_TO_DATADIR, message);
-      DBUG_RETURN(true);
+      return true;
     }
   } else {
     LogErr(INFORMATION_LEVEL, ER_AUTH_KEY_GENERATION_DISABLED, message);
-    DBUG_RETURN(true);
+    return true;
   }
 }
 
@@ -5080,7 +5310,6 @@ static bool do_auto_rsa_keys_generation() {
                             caching_sha2_rsa_public_key_path,
                             "--caching_sha2_password_auto_generate_rsa_keys"));
 }
-#endif /* HAVE_WOLFSSL */
 #endif /* HAVE_OPENSSL */
 
 bool MPVIO_EXT::can_authenticate() {
@@ -5142,13 +5371,9 @@ mysql_declare_plugin(mysql_password) {
       NULL,                             /* Deinit function  */
       0x0101,                           /* Version (1.0)    */
       NULL,                             /* status variables */
-#if !defined(HAVE_WOLFSSL)
-      sha256_password_sysvars, /* system variables */
-#else
-      NULL,
-#endif      /* HAVE_WOLFSSL */
-      NULL, /* config options   */
-      0     /* flags            */
+      sha256_password_sysvars,          /* system variables */
+      NULL,                             /* config options   */
+      0                                 /* flags            */
 }
 #endif /* HAVE_OPENSSL */
 mysql_declare_plugin_end;

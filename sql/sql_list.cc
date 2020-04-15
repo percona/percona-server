@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,14 +22,10 @@
 
 #include "sql/sql_list.h"
 
+#include "my_alloc.h"
 #include "my_sys.h"
 
 list_node end_of_list;
-
-void free_list(I_List<i_string_pair> *list) {
-  i_string_pair *tmp;
-  while ((tmp = list->get())) delete tmp;
-}
 
 void free_list(I_List<i_string> *list) {
   i_string *tmp;
@@ -42,7 +38,7 @@ base_list::base_list(const base_list &rhs, MEM_ROOT *mem_root) {
       It's okay to allocate an array of nodes at once: we never
       call a destructor for list_node objects anyway.
     */
-    first = (list_node *)alloc_root(mem_root, sizeof(list_node) * rhs.elements);
+    first = (list_node *)mem_root->Alloc(sizeof(list_node) * rhs.elements);
     if (first) {
       elements = rhs.elements;
       list_node *dst = first;

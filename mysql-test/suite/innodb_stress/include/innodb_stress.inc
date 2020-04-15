@@ -41,7 +41,7 @@ if ($do_checksum)
 {
     # populate the table and store its checksum before any load.
     let $exec =
-python $MYSQL_TEST_DIR/suite/innodb_stress/t/load_generator.py $pid_file $kill_db_after
+python2 $MYSQL_TEST_DIR/suite/innodb_stress/t/load_generator.py $pid_file $kill_db_after
 $num_records 0 0 $user $master_host $MASTER_MYPORT
 $table 0 $max_rows $MYSQL_TMP_DIR/load_generator 0 0 0;
     exec $exec;
@@ -70,14 +70,14 @@ while ($num_crashes)
   if ($use_blob)
   {
     let $exec =
-python $MYSQL_TEST_DIR/suite/innodb_stress/t/load_generator.py $pid_file $kill_db_after
+python2 $MYSQL_TEST_DIR/suite/innodb_stress/t/load_generator.py $pid_file $kill_db_after
 $num_records  $num_workers $num_transactions $user $master_host $MASTER_MYPORT
 $table 1 $max_rows $MYSQL_TMP_DIR/load_generator 0 $checksum $secondary_index_checks;
   }
   if (!$use_blob)
   {
     let $exec =
-python $MYSQL_TEST_DIR/suite/innodb_stress/t/load_generator.py $pid_file $kill_db_after
+python2 $MYSQL_TEST_DIR/suite/innodb_stress/t/load_generator.py $pid_file $kill_db_after
 $num_records  $num_workers $num_transactions $user $master_host $MASTER_MYPORT
 $table 0 $max_rows $MYSQL_TMP_DIR/load_generator 0 $checksum $secondary_index_checks;
   }
@@ -108,7 +108,7 @@ $table 0 $max_rows $MYSQL_TMP_DIR/load_generator 0 $checksum $secondary_index_ch
     --echo applying fake updates to the slave
     let $slave_pid_file = `SELECT @@pid_file`;
     let $slave_exec =
-python $MYSQL_TEST_DIR/suite/innodb_stress/t/load_generator.py $slave_pid_file $kill_db_after
+python2 $MYSQL_TEST_DIR/suite/innodb_stress/t/load_generator.py $slave_pid_file $kill_db_after
 0  $num_workers $num_transactions $user $master_host $SLAVE_MYPORT
 $table 0 $max_rows $MYSQL_TMP_DIR/load_generator_slave 1 $checksum $secondary_index_checks;
     exec $slave_exec;
@@ -185,3 +185,13 @@ eval SET GLOBAL innodb_status_output = $innodb_status_output_save_slave;
 #eval SET GLOBAL innodb_prefix_index_cluster_optimization = $innodb_index_cluster_optimization_save_master;
 eval SET GLOBAL innodb_status_output = $innodb_status_output_save_master;
 --enable_query_log
+
+# Reconnect client in case master had been killed
+if ($kill_db_after)
+{
+  --let $rpl_server_number = 1
+  --source include/rpl_reconnect.inc
+}
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

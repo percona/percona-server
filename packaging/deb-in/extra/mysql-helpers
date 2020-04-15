@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -87,7 +87,6 @@ verify_ready() {
 		MYSQLFILES=$(get_mysql_option ${INSTANCE} secure-file-priv "/var/lib/mysql-files")
 		MYSQLKEYRING=$(dirname $(get_mysql_option ${INSTANCE} keyring-file-data "/var/lib/mysql-keyring/keyring"))
 		MYSQLLOG=$(dirname $(get_mysql_option ${INSTANCE} log-error "/var/log/mysql/error.log"))
-		MYSQLRUN=/var/run/mysqld
 
 		if ! getent group mysql >/dev/null; then
 			addgroup --system mysql >/dev/null
@@ -104,6 +103,11 @@ verify_ready() {
 				echo "Error: Datadir ${MYSQLDATA} does not exist. For security reasons the service will not automatically create directories outside /var/lib.."
 				ERROR_FLAG=1
 			fi
+		fi
+
+		# Ensures that the mysql_upgrade_info file is owned by the database
+		if [ -O "${MYSQLDATA}/mysql_upgrade_info" ]; then
+			chown --reference="${MYSQLDATA}" "${MYSQLDATA}/mysql_upgrade_info"
 		fi
 
 		if [ ! -d ${MYSQLFILES} -a ! -L ${MYSQLFILES} ]; then
@@ -137,10 +141,6 @@ verify_ready() {
 			echo "Errors found. Aborting."
 			exit 1
 		fi
-
-		if [ ! -d ${MYSQLRUN} -a ! -L ${MYSQLRUN} ]; then
-			install -d -m0755 -omysql -gmysql ${MYSQLRUN}
-		fi
 }
 
 # Verify the database exists and is ssl ready
@@ -155,6 +155,7 @@ verify_database() {
 		SQL=$(mktemp -u ${MYSQLFILES}/XXXXXXXXXX)
 		install /dev/null -m0600 -omysql -gmysql "${SQL}"
 		cat << EOF > ${SQL}
+SET @@SESSION.SQL_LOG_BIN=0;
 USE mysql;
 INSTALL PLUGIN auth_socket SONAME 'auth_socket.so';
 ALTER USER 'root'@'localhost' IDENTIFIED WITH 'auth_socket';

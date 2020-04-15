@@ -1,2 +1,4 @@
 --let KEYRING_PARAMS=--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 $KEYRING_PLUGIN_OPT
+--let $redo_log_mode=KEYRING_KEY
+--let wait_for_key_version = 1
 --source include/log_encrypt_2.inc

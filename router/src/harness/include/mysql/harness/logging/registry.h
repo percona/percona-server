@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -41,16 +41,13 @@ namespace mysql_harness {
 
 namespace logging {
 
-// log level is stored in this hacky global variable; see place where it's
-// set for exaplanation
-HARNESS_EXPORT
-extern std::string g_HACK_default_log_level;
-
 class Handler;
 
 class HARNESS_EXPORT Registry {
  public:
   const static std::map<std::string, LogLevel> kLogLevels;
+  const static std::map<std::string, LogTimestampPrecision>
+      kLogTimestampPrecisions;
 
   Registry() = default;
   Registry(const Registry &) = delete;
@@ -142,12 +139,21 @@ class HARNESS_EXPORT Registry {
    *
    * @throws std::logic_error if no handler is registered for given name
    */
-  std::shared_ptr<Handler> get_handler(std::string name) const;
+  std::shared_ptr<Handler> get_handler(const std::string &name) const;
 
   /**
    * Get the handler names from the internal registry
    */
   std::set<std::string> get_handler_names() const;
+
+  /**
+   * Check if a log-level is handled by at least one handler.
+   *
+   * @returns if at least one handler handles the log-level
+   * @retval true at least one handler
+   * @retval false log-level will be ignored.
+   */
+  bool is_handled(LogLevel level) const;
 
   /**
    * Flag that the registry has been initialized
@@ -168,6 +174,11 @@ class HARNESS_EXPORT Registry {
    */
   bool is_ready() const noexcept { return ready_; }
 
+  /**
+   * Force the flush (reopen) on all registered logger handlers
+   */
+  void flush_all_loggers();
+
  private:
   mutable std::mutex mtx_;
   std::map<std::string, Logger> loggers_;  // key = log domain
@@ -182,18 +193,29 @@ class HARNESS_EXPORT Registry {
 // high-level utility functions
 //
 ////////////////////////////////////////////////////////////////////////////////
+/**
+ * Converts string with log level description to LogLevel type
+ *
+ * @param name string with log level description
+ *
+ * @throws std::invalid_argument if log level string is invalid
+ */
+HARNESS_EXPORT
+LogLevel log_level_from_string(std::string name);
 
 /**
  * Get default log level
  *
  * Fetches default log level set in the configuration file
  *
- * @param config Configuration items from configuration file
+ * @param config   Configuration items from configuration file
+ * @param raw_mode true if the default level should be for the raw mode, false
+ * otherwise
  *
  * @throws std::invalid_argument if [logger].level in configuration is invalid
  */
 HARNESS_EXPORT
-LogLevel get_default_log_level(const Config &config);
+LogLevel get_default_log_level(const Config &config, bool raw_mode = false);
 
 /**
  * Attach handler to all loggers
@@ -214,6 +236,37 @@ HARNESS_EXPORT
 void set_log_level_for_all_loggers(Registry &registry, LogLevel level);
 
 /**
+ * Converts string with log timestamp precision description to
+ * LogTimestampPrecision type.
+ *
+ * @param name string with log timestamp precision description
+ *
+ * @throws std::invalid_argument if log timestamp precision string is invalid
+ */
+HARNESS_EXPORT
+LogTimestampPrecision log_timestamp_precision_from_string(std::string name);
+
+/**
+ * Get default timestamp precision
+ *
+ * Fetches default timestamp precision for logfiles
+ *
+ * @param config   Configuration items from configuration file
+ */
+HARNESS_EXPORT
+LogTimestampPrecision get_default_timestamp_precision(const Config &config);
+
+/**
+ * Set timestamp precision for all the loggers
+ *
+ * @param registry Registry object, typically managed by DIM
+ * @param precision Precision of timestamps
+ */
+HARNESS_EXPORT
+void set_timestamp_precision_for_all_loggers(Registry &registry,
+                                             LogTimestampPrecision precision);
+
+/**
  * Clear registry
  *
  * Removes all Loggers and removes all references to Handlers (they're held
@@ -227,65 +280,68 @@ void clear_registry(Registry &registry);
 /**
  * Initialize logging facility
  *
- * Initializes logging facility by registering a logger for each given module.
- * Loggers will have their log level set to default log level ([logger].level)
- * set in the Router configuration .
+ * Initializes logging facility by creating and registering a logger for each
+ * given module. Loggers will have their log level set to the log level passed
+ * as a parameter.
  *
  * @note Loggers will not have any handlers attached, this needs to be done
- *       separately (see `create_main_logfile_handler()`)
+ *       separately (see `create_main_log_handler()`)
  *
  * @param registry Registry object, typically managed by DIM
- * @param config Configuration items from configuration file
+ * @param level The log level of the logger
  * @param modules List of plugin names loaded
  * @param main_app_log_domain Log domain (logger id) to be used as the main
  *                            program logger. This logger must exist, because
  *                            log_*() functions might fail
- *
- * @throws std::invalid_argument (derived from logic_error) on invalid
- *         [logger].level
- * @throws std::logic_error on other error
+ * @throws std::logic_error
  */
 HARNESS_EXPORT
-void init_loggers(Registry &registry, const mysql_harness::Config &config,
-                  const std::list<std::string> &modules,
-                  const std::string &main_app_log_domain);
+void create_module_loggers(Registry &registry, const LogLevel level,
+                           const std::list<std::string> &modules,
+                           const std::string &main_app_log_domain);
 
 /*
- * Initialize a logger and register it in the Registry..
+ * Creates a logger and registers it in the Registry.
  *
  * Register a logger for a given name and given log level.
  *
  * @param registry Registry object, typically managed by DIM
+ * @param log_level The log level of the logger
  * @param logger_name The name under which the logger is registered
- * @param log_level The log level.
  *
  * @throws std::logic_error
  */
 HARNESS_EXPORT
-void init_logger(Registry &registry, const mysql_harness::Config &config,
-                 const std::string &logger_name);
+void create_logger(Registry &registry, const LogLevel level,
+                   const std::string &logger_name);
 
 /**
  * Initialize logfile handler
  *
  * Initializes handler which will handle application's log. This handler
- * will be attached to all currently-registered loggers. If `logging_folder`
- * is empty, handler will log messages to console, otherwise, logfile will be
- * used and its path and filename will be derived from `program` and
- * `logging_folder` parameters.
+ * will be attached to all currently-registered loggers.
+ * If `logging_folder` is provided, handler will log messages to logfile; its
+ * path and filename will be derived from `program` and `logging_folder`
+ * parameters.
+ * If `logging_folder` is empty, handler will log messages to console, unless
+ * `use_os_log` is set to true, in which case it will log to system logger
+ * instead (i.e. Syslog, Windows Eventlog, etc. Currently, only Windows
+ * Eventlog is supported).
  *
  * @param registry Registry object, typically managed by DIM
  * @param program Name of the main program (Router)
  * @param logging_folder logging_folder provided in configuration file
  * @param format_messages If set to true, log messages will be formatted
  *        (prefixed with log level, timestamp, etc) before logging
+ * @param use_os_log If true, use system logger instead of STDERR (currently,
+ *        only Windows Eventlog is supported)
  *
- * @throws std::runtime_error if opening log file fails
+ * @throws std::runtime_error if opening log file or OS log fails
  */
 HARNESS_EXPORT
-void create_main_logfile_handler(Registry &registry, const std::string &program,
-                                 const std::string &logging_folder,
-                                 bool format_messages);
+void create_main_log_handler(Registry &registry, const std::string &program,
+                             const std::string &logging_folder,
+                             bool format_messages, bool use_os_log = false);
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -300,6 +356,10 @@ void create_main_logfile_handler(Registry &registry, const std::string &program,
 /** Set log level for all registered loggers. */
 HARNESS_EXPORT
 void set_log_level_for_all_loggers(LogLevel level);
+
+/** Set timestamp precision for all registered loggers. */
+HARNESS_EXPORT
+void set_timestamp_precison_for_all_loggers(LogTimestampPrecision precision);
 
 /**
  * Register handler for all plugins.

@@ -318,6 +318,7 @@ CALL mtr.add_suppression("Failed to find tablespace");
 CALL mtr.add_suppression("Ignoring tablespace");
 CALL mtr.add_suppression("Cannot rename");
 CALL mtr.add_suppression("Cannot calculate");
+call mtr.add_suppression("\\[Warning\\] .* Trying to access missing tablespace [0-9]+");
 CALL mtr.add_suppression("Cannot open datafile");
 CALL mtr.add_suppression("The error means the system cannot find");
 CALL mtr.add_suppression("File ./s/t_innodb.ibd");
@@ -382,11 +383,6 @@ DROP SCHEMA s;
 CREATE SCHEMA s;
 --rmdir $SCHEMA_DIR
 
-# CREATE TABLE for MyISAM fails.
---replace_result $MYSQL_DATA_DIR MYSQL_DATA_DIR/
---error 1,1
-CREATE TABLE s.t (pk INTEGER PRIMARY KEY) ENGINE= MyISAM;
-
 # CREATE TABLE for InnoDB creates parent directory, and succeeds.
 CREATE TABLE s.t (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
 
@@ -404,8 +400,7 @@ DROP SCHEMA s;
 # CREATE SCHEMA.
 CREATE SCHEMA s;
 
-# CREATE TABLE for MyISAM and InnoDB.
-CREATE TABLE s.t_myisam (pk INTEGER PRIMARY KEY) ENGINE= MyISAM;
+# CREATE TABLE for InnoDB.
 CREATE TABLE s.t_innodb (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
 
 # Shut server down.
@@ -421,10 +416,6 @@ CREATE TABLE s.t_innodb (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
-
-# ALTER TABLE for MyISAM fails.
---error ER_FILE_NOT_FOUND
-ALTER TABLE s.t_myisam ADD COLUMN c INTEGER;
 
 # ALTER TABLE for InnoDB fails differently depending on platform.
 --error ER_GET_ERRNO, ER_TABLESPACE_MISSING
@@ -443,8 +434,7 @@ DROP SCHEMA s;
 # CREATE SCHEMA.
 CREATE SCHEMA s;
 
-# CREATE TABLE for MyISAM and InnoDB.
-CREATE TABLE s.t_myisam (pk INTEGER PRIMARY KEY) ENGINE= MyISAM;
+# CREATE TABLE for InnoDB.
 CREATE TABLE s.t_innodb (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
 
 # Shut server down.
@@ -460,10 +450,6 @@ CREATE TABLE s.t_innodb (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
-
-# SHOW CREATE TABLE for MyISAM fails.
---error ER_FILE_NOT_FOUND
-SHOW CREATE TABLE s.t_myisam;
 
 # SHOW CREATE TABLE for InnoDB succeeds except on Windows.
 # Mute the statement due to platform dependent output.
@@ -485,8 +471,7 @@ DROP SCHEMA s;
 # CREATE SCHEMA.
 CREATE SCHEMA s;
 
-# CREATE TABLE for MyISAM and InnoDB.
-CREATE TABLE s.t_myisam (pk INTEGER PRIMARY KEY) ENGINE= MyISAM;
+# CREATE TABLE for InnoDB.
 CREATE TABLE s.t_innodb (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
 
 # Shut server down.
@@ -502,10 +487,6 @@ CREATE TABLE s.t_innodb (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
-
-# DROP TABLE for MyISAM fails.
---error ER_ENGINE_CANT_DROP_MISSING_TABLE
-DROP TABLE s.t_myisam;
 
 # DROP TABLE for InnoDB succeeds.
 DROP TABLE s.t_innodb;
@@ -710,9 +691,32 @@ DROP SCHEMA broken;
 
 --echo # but drop succeeds (with warning) when adding IF EXISTS
 --echo # Suppress output since it is not stable across platforms
---disable_warnings ONCE
+--disable_warnings ER_SCHEMA_DIR_MISSING ONCE
 DROP SCHEMA IF EXISTS broken;
 
 --echo # Create and drop schema again to make sure nothing is left behind
 CREATE SCHEMA broken;
 DROP SCHEMA broken;
+
+--echo
+--echo Bug#30344462: CHANGING DEFAULT ENCRYPTION FOR A SCHEMA WILL RESET
+--echo               DEFAULT COLLATION
+--echo
+
+CREATE SCHEMA s CHARACTER SET ascii;
+USE s;
+
+SHOW CREATE SCHEMA s;
+SHOW VARIABLES LIKE 'collation_database';
+
+ALTER SCHEMA s ENCRYPTION = 'n';
+
+--echo # Without the patch, altering encryption would also
+--echo # reset the default collation, and if the schema is
+--echo # the currently used schema, the 'collation_database'
+--echo # variable would also be reset.
+
+SHOW CREATE SCHEMA s;
+SHOW VARIABLES LIKE 'collation_database';
+
+DROP SCHEMA s;

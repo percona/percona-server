@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,9 +59,10 @@ static char *find_file_in_path(char *to, const char *name);
    my_path puts result in to and returns to */
 
 char *my_path(char *to, const char *progname, const char *own_pathname_part) {
-  char *start, *end, *prog;
+  char *start, *prog;
+  const char *end;
   size_t to_length;
-  DBUG_ENTER("my_path");
+  DBUG_TRACE;
 
   start = to; /* Return this */
   if (progname &&
@@ -78,9 +79,9 @@ char *my_path(char *to, const char *progname, const char *own_pathname_part) {
     if ((end = getenv("MY_BASEDIR_VERSION")) == 0 &&
         (end = getenv("MY_BASEDIR")) == 0) {
 #ifdef DEFAULT_BASEDIR
-      end = (char *)DEFAULT_BASEDIR;
+      end = DEFAULT_BASEDIR;
 #else
-      end = (char *)"/my/";
+      end = "/my/";
 #endif
     }
     (void)intern_filename(to, end);
@@ -89,11 +90,11 @@ char *my_path(char *to, const char *progname, const char *own_pathname_part) {
     (void)my_stpcpy(to, own_pathname_part);
   }
   DBUG_PRINT("exit", ("to: '%s'", start));
-  DBUG_RETURN(start);
+  return start;
 } /* my_path */
 
-  /* test if file without filename is found in path */
-  /* Returns to if found and to has dirpart if found, else NullS */
+/* test if file without filename is found in path */
+/* Returns to if found and to has dirpart if found, else NullS */
 
 #if defined(_WIN32)
 #define F_OK 0

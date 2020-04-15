@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +27,9 @@
 #include <sys/types.h>
 #include <time.h>
 #include <atomic>
+#include <tuple>
 
-#include "binlog_event.h"
+#include "libbinlogevents/include/binlog_event.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -234,13 +235,13 @@ struct Slave_job_group {
   void reset(my_off_t master_pos, ulonglong seqno) {
     master_log_pos = master_pos;
     group_master_log_pos = group_relay_log_pos = 0;
-    group_master_log_name = NULL;  // todo: remove
-    group_relay_log_name = NULL;
+    group_master_log_name = nullptr;  // todo: remove
+    group_relay_log_name = nullptr;
     worker_id = MTS_WORKER_UNDEF;
     total_seqno = seqno;
-    checkpoint_log_name = NULL;
+    checkpoint_log_name = nullptr;
     checkpoint_log_pos = 0;
-    checkpoint_relay_log_name = NULL;
+    checkpoint_relay_log_name = nullptr;
     checkpoint_relay_log_pos = 0;
     checkpoint_seqno = (uint)-1;
     done = 0;
@@ -250,7 +251,7 @@ struct Slave_job_group {
 #endif
     last_committed = SEQ_UNINIT;
     sequence_number = SEQ_UNINIT;
-    new_fd_event = NULL;
+    new_fd_event = nullptr;
   }
 };
 
@@ -514,9 +515,8 @@ class Slave_jobs_queue : public circular_buffer_queue<Slave_job_item> {
 
 class Slave_worker : public Relay_log_info {
  public:
-  Slave_worker(Relay_log_info *rli
+  Slave_worker(Relay_log_info *rli,
 #ifdef HAVE_PSI_INTERFACE
-               ,
                PSI_mutex_key *param_key_info_run_lock,
                PSI_mutex_key *param_key_info_data_lock,
                PSI_mutex_key *param_key_info_sleep_lock,
@@ -524,9 +524,8 @@ class Slave_worker : public Relay_log_info {
                PSI_mutex_key *param_key_info_data_cond,
                PSI_mutex_key *param_key_info_start_cond,
                PSI_mutex_key *param_key_info_stop_cond,
-               PSI_mutex_key *param_key_info_sleep_cond
+               PSI_mutex_key *param_key_info_sleep_cond,
 #endif
-               ,
                uint param_id, const char *param_channel);
 
   virtual ~Slave_worker();
@@ -644,6 +643,12 @@ class Slave_worker : public Relay_log_info {
   int rli_init_info(bool);
   int flush_info(bool force = false);
   static size_t get_number_worker_fields();
+  /**
+     Sets bits for columns that are allowed to be `NULL`.
+
+     @param nullable_fields the bitmap to hold the nullable fields.
+  */
+  static void set_nullable_fields(MY_BITMAP *nullable_fields);
   void slave_worker_ends_group(Log_event *, int);
   const char *get_master_log_name();
   ulonglong get_master_log_pos() { return master_log_pos; }
@@ -707,7 +712,7 @@ class Slave_worker : public Relay_log_info {
     @return 1 if an error was encountered, 0 otherwise.
   */
   int set_rli_description_event(Format_description_log_event *fdle) {
-    DBUG_ENTER("Slave_worker::set_rli_description_event");
+    DBUG_TRACE;
 
     if (fdle) {
       /*
@@ -789,7 +794,7 @@ class Slave_worker : public Relay_log_info {
         } else if (in_active_multi_stmt) {
           my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
                    "gtid_next");
-          DBUG_RETURN(1);
+          return 1;
         }
       }
       adapt_to_master_version_updown(fdle->get_product_version(),
@@ -808,7 +813,7 @@ class Slave_worker : public Relay_log_info {
     }
     rli_description_event = fdle;
 
-    DBUG_RETURN(0);
+    return 0;
   }
 
   inline void reset_gaq_index() { gaq_index = c_rli->gaq->size; }
@@ -817,6 +822,51 @@ class Slave_worker : public Relay_log_info {
   }
 
   int slave_worker_exec_event(Log_event *ev);
+
+  /**
+    Checks if the transaction can be retried, and if not, reports an error.
+
+    @param[in] thd          The THD object of current thread.
+
+    @return
+      @retval returns std::tuple<bool, bool, uint> where each element has
+              following meaning:
+
+              first element of tuple is function return value and determines:
+                false  if the transaction should be retried
+                true   if the transaction should not be retried
+
+              second element of tuple determines:
+                the function will set the value to true, in case the retry
+                should be "silent". Silent means that the caller should not
+                report it in performance_schema tables, write to the error log,
+                or sleep. Currently, silent is used by NDB only.
+
+              third element of tuple determines:
+                If the caller should report any other error than that stored in
+                thd->get_stmt_da()->mysql_errno(), then this function will store
+                that error in this third element of the tuple.
+
+  */
+  std::tuple<bool, bool, uint> check_and_report_end_of_retries(THD *thd);
+
+  /**
+    It is called after an error happens. It checks if that is an temporary
+    error and if the transaction should be retried. Then it will retry the
+    transaction if it is allowed. Retry policy and logic is similar to
+    single-threaded slave.
+
+    @param[in] start_relay_number The extension number of the relay log which
+                 includes the first event of the transaction.
+    @param[in] start_relay_pos The offset of the transaction's first event.
+
+    @param[in] end_relay_number The extension number of the relay log which
+               includes the last event it should retry.
+    @param[in] end_relay_pos The offset of the last event it should retry.
+
+    @retval false if transaction succeeds (possibly after a number of retries)
+    @retval true  if transaction fails
+  */
   bool retry_transaction(uint start_relay_number, my_off_t start_relay_pos,
                          uint end_relay_number, my_off_t end_relay_pos);
 
@@ -840,8 +890,20 @@ class Slave_worker : public Relay_log_info {
     return ptr_g->sequence_number;
   }
 
-  bool found_order_commit_deadlock() { return m_order_commit_deadlock; }
-  void report_order_commit_deadlock() { m_order_commit_deadlock = true; }
+  /**
+     Return true if slave-preserve-commit-order is enabled and an
+     earlier transaction is waiting for a row-level lock held by this
+     transaction.
+  */
+  bool found_commit_order_deadlock();
+
+  /**
+     Called when slave-preserve-commit-order is enabled, by the worker
+     processing an earlier transaction that waits on a row-level lock
+     held by this worker's transaction.
+  */
+  void report_commit_order_deadlock();
+
   /**
     @return either the master server version as extracted from the last
             installed Format_description_log_event, or when it was not
@@ -869,7 +931,7 @@ class Slave_worker : public Relay_log_info {
   void end_info();
   bool read_info(Rpl_info_handler *from);
   bool write_info(Rpl_info_handler *to);
-  bool m_order_commit_deadlock;
+  std::atomic<bool> m_commit_order_deadlock;
 
   Slave_worker &operator=(const Slave_worker &info);
   Slave_worker(const Slave_worker &info);
@@ -878,7 +940,7 @@ class Slave_worker : public Relay_log_info {
                              uint end_relay_number, my_off_t end_relay_pos);
   void assign_partition_db(Log_event *ev);
 
-  void reset_order_commit_deadlock() { m_order_commit_deadlock = false; }
+  void reset_commit_order_deadlock();
 
  public:
   /**

@@ -4,18 +4,18 @@ have_backup_locks	YES
 #-----------------------------------------------------------------------
 # Setup
 #-----------------------------------------------------------------------
-CREATE TABLE t_innodb(a INT NOT NULL, KEY (a)) ENGINE=InnoDB;
 CREATE TABLE t_myisam(a INT NOT NULL, KEY (a)) ENGINE=MyISAM;
 CREATE TABLE t_memory(a INT NOT NULL, KEY (a)) ENGINE=MEMORY;
 CREATE TABLE t_csv(a INT NOT NULL) ENGINE=CSV;
 CREATE TABLE t_blackhole(a INT NOT NULL, KEY (a)) ENGINE=BLACKHOLE;
 CREATE TABLE t_archive(a INT NOT NULL) ENGINE=ARCHIVE;
-CREATE VIEW v_innodb AS SELECT * FROM t_innodb;
+CREATE TABLE t_innodb(a INT NOT NULL, KEY(a)) ENGINE=innodb;
 CREATE VIEW v_myisam AS SELECT * FROM t_myisam;
 CREATE VIEW v_memory AS SELECT * FROM t_memory;
 CREATE VIEW v_csv AS SELECT * FROM t_csv;
 CREATE VIEW v_blackhole AS SELECT * FROM t_blackhole;
 CREATE VIEW v_archive AS SELECT * FROM t_archive;
+CREATE VIEW v_innodb AS SELECT * FROM t_innodb;
 #-----------------------------------------------------------------------
 # Basic syntax checks
 #-----------------------------------------------------------------------
@@ -56,19 +56,7 @@ SHOW STATUS LIKE 'Com_unlock_tables';
 Variable_name	Value
 Com_unlock_tables	1
 LOCK TABLES FOR BACKUP;
-DELETE FROM t_innodb;
-INSERT INTO t_innodb VALUES(0);
-UPDATE t_innodb SET a = 1;
-REPLACE INTO t_innodb VALUES(1);
-SELECT * FROM t_innodb;
-a
-1
-1
-HANDLER t_innodb OPEN;
-HANDLER t_innodb READ a FIRST;
-a
-1
-HANDLER t_innodb CLOSE;
+myisam
 DELETE FROM t_myisam;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 INSERT INTO t_myisam VALUES(0);
@@ -83,6 +71,7 @@ HANDLER t_myisam OPEN;
 HANDLER t_myisam READ a FIRST;
 a
 HANDLER t_myisam CLOSE;
+memory
 DELETE FROM t_memory;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 INSERT INTO t_memory VALUES(0);
@@ -93,16 +82,7 @@ REPLACE INTO t_memory VALUES(1);
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 SELECT * FROM t_memory;
 a
-DELETE FROM t_archive;
-ERROR HY000: Can't execute the query because you have a conflicting backup lock
-INSERT INTO t_archive VALUES(0);
-ERROR HY000: Can't execute the query because you have a conflicting backup lock
-UPDATE t_archive SET a = 1;
-ERROR HY000: Can't execute the query because you have a conflicting backup lock
-REPLACE INTO t_archive VALUES(1);
-ERROR HY000: Can't execute the query because you have a conflicting backup lock
-SELECT * FROM t_archive;
-a
+csv
 DELETE FROM t_csv;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 INSERT INTO t_csv VALUES(0);
@@ -113,6 +93,7 @@ REPLACE INTO t_csv VALUES(1);
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 SELECT * FROM t_csv;
 a
+blackhole
 DELETE FROM t_blackhole;
 Warnings:
 Warning	1870	Row events are not logged for DELETE statements that modify BLACKHOLE tables in row format. Table(s): 't_blackhole.'
@@ -123,8 +104,31 @@ Warning	1870	Row events are not logged for UPDATE statements that modify BLACKHO
 REPLACE INTO t_blackhole VALUES(1);
 SELECT * FROM t_blackhole;
 a
-CREATE TABLE tt_innodb(a INT NOT NULL) ENGINE=InnoDB;
+archive
+DELETE FROM t_archive;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
+INSERT INTO t_archive VALUES(0);
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
+UPDATE t_archive SET a = 1;
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
+REPLACE INTO t_archive VALUES(1);
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
+SELECT * FROM t_archive;
+a
+innodb
+DELETE FROM t_innodb;
+INSERT INTO t_innodb VALUES(0);
+UPDATE t_innodb SET a = 1;
+REPLACE INTO t_innodb VALUES(1);
+SELECT * FROM t_innodb;
+a
+1
+1
+HANDLER t_innodb OPEN;
+HANDLER t_innodb READ a FIRST;
+a
+1
+HANDLER t_innodb CLOSE;
 CREATE TABLE tt_myisam(a INT NOT NULL) ENGINE=MyISAM;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 CREATE TABLE tt_memory(a INT NOT NULL) ENGINE=MEMORY;
@@ -135,7 +139,7 @@ CREATE TABLE tt_blackhole(a INT NOT NULL) ENGINE=BLACKHOLE;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 CREATE TABLE tt_archive(a INT NOT NULL) ENGINE=ARCHIVE;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
-DROP TABLE t_innodb;
+CREATE TABLE tt_innodb(a INT NOT NULL) ENGINE=innodb;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 DROP TABLE t_myisam;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
@@ -147,9 +151,9 @@ DROP TABLE t_blackhole;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 DROP TABLE t_archive;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
-DROP TABLE non_existing;
+DROP TABLE t_innodb;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
-TRUNCATE TABLE t_innodb;
+DROP TABLE non_existing;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 TRUNCATE TABLE t_myisam;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
@@ -161,7 +165,7 @@ TRUNCATE TABLE t_blackhole;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 TRUNCATE TABLE t_archive;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
-RENAME TABLE t_innodb TO tmp;
+TRUNCATE TABLE t_innodb;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 RENAME TABLE t_myisam TO tmp;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
@@ -173,7 +177,7 @@ RENAME TABLE t_blackhole TO tmp;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 RENAME TABLE t_archive TO tmp;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
-ALTER TABLE t_innodb ADD COLUMN b CHAR(10);
+RENAME TABLE t_innodb TO tmp;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 ALTER TABLE t_myisam ADD COLUMN b CHAR(10);
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
@@ -185,7 +189,7 @@ ALTER TABLE t_blackhole ADD COLUMN b CHAR(10);
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 ALTER TABLE t_archive ADD COLUMN b CHAR(10);
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
-ALTER TABLE t_innodb ADD KEY (a);
+ALTER TABLE t_innodb ADD COLUMN b CHAR(10);
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 ALTER TABLE t_myisam ADD KEY (a);
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
@@ -197,22 +201,24 @@ ALTER TABLE t_blackhole ADD KEY (a);
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 ALTER TABLE t_archive ADD KEY (a);
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
+ALTER TABLE t_innodb ADD KEY (a);
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 DROP DATABASE test;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 CREATE DATABASE test1;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 CREATE VIEW v1 AS SELECT * FROM t_innodb;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
-INSERT INTO v_innodb VALUES(1);
-INSERT INTO v_blackhole VALUES(1);
 INSERT INTO v_myisam VALUES(1);
-ERROR HY000: Can't execute the query because you have a conflicting backup lock
-INSERT INTO v_csv VALUES(1);
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 INSERT INTO v_memory VALUES(1);
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
+INSERT INTO v_csv VALUES(1);
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
+INSERT INTO v_blackhole VALUES(1);
 INSERT INTO v_archive VALUES(1);
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
+INSERT INTO v_innodb VALUES(1);
 UNLOCK TABLES;
 SELECT @@delay_key_write;
 @@delay_key_write
@@ -225,29 +231,29 @@ SELECT @@delay_key_write;
 @@delay_key_write
 ON
 SET GLOBAL read_only=1;
-INSERT INTO t_innodb VALUES(0);
 INSERT INTO t_myisam VALUES(0);
-LOCK TABLES FOR BACKUP;
 INSERT INTO t_innodb VALUES(0);
+LOCK TABLES FOR BACKUP;
 INSERT INTO t_myisam VALUES(0);
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
-UNLOCK TABLES;
 INSERT INTO t_innodb VALUES(0);
+UNLOCK TABLES;
 INSERT INTO t_myisam VALUES(0);
+INSERT INTO t_innodb VALUES(0);
 SET GLOBAL read_only=0;
 LOCK TABLES FOR BACKUP;
-CREATE TEMPORARY TABLE tt_innodb(a INT NOT NULL) ENGINE=InnoDB;
 CREATE TEMPORARY TABLE tt_myisam(a INT NOT NULL) ENGINE=MyISAM;
 CREATE TEMPORARY TABLE tt_memory(a INT NOT NULL) ENGINE=MEMORY;
 CREATE TEMPORARY TABLE tt_csv(a INT NOT NULL) ENGINE=CSV;
 CREATE TEMPORARY TABLE tt_blackhole(a INT NOT NULL) ENGINE=BLACKHOLE;
 CREATE TEMPORARY TABLE tt_archive(a INT NOT NULL) ENGINE=ARCHIVE;
-INSERT INTO tt_innodb VALUES(5);
+CREATE TEMPORARY TABLE tt_innodb(a INT NOT NULL) ENGINE=innodb;
 INSERT INTO tt_myisam VALUES(5);
 INSERT INTO tt_memory VALUES(5);
 INSERT INTO tt_csv VALUES(5);
 INSERT INTO tt_blackhole VALUES(5);
 INSERT INTO tt_archive VALUES(5);
+INSERT INTO tt_innodb VALUES(5);
 UNLOCK TABLES;
 SET @old_general_log = @@general_log;
 SET @old_slow_query_log = @@slow_query_log;
@@ -324,23 +330,62 @@ SET GLOBAL read_only=0;
 # connection default
 LOCK TABLES FOR BACKUP;
 # connection con1
-CREATE TEMPORARY TABLE tt_innodb(a INT NOT NULL) ENGINE=InnoDB;
 CREATE TEMPORARY TABLE tt_myisam(a INT NOT NULL) ENGINE=MyISAM;
 CREATE TEMPORARY TABLE tt_memory(a INT NOT NULL) ENGINE=MEMORY;
 CREATE TEMPORARY TABLE tt_csv(a INT NOT NULL) ENGINE=CSV;
 CREATE TEMPORARY TABLE tt_blackhole(a INT NOT NULL) ENGINE=BLACKHOLE;
 CREATE TEMPORARY TABLE tt_archive(a INT NOT NULL) ENGINE=ARCHIVE;
-INSERT INTO tt_innodb VALUES(5);
+CREATE TEMPORARY TABLE tt_innodb(a INT NOT NULL) ENGINE=innodb;
 INSERT INTO tt_myisam VALUES(5);
 INSERT INTO tt_memory VALUES(5);
 INSERT INTO tt_csv VALUES(5);
 INSERT INTO tt_blackhole VALUES(5);
 INSERT INTO tt_archive VALUES(5);
+INSERT INTO tt_innodb VALUES(5);
 # connection default
 UNLOCK TABLES;
 # connection default
 LOCK TABLES FOR BACKUP;
 # connection con1
+myisam
+INSERT INTO t_myisam VALUES(0);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t_myisam;
+a
+0
+0
+HANDLER t_myisam OPEN;
+HANDLER t_myisam READ a FIRST;
+a
+0
+HANDLER t_myisam CLOSE;
+memory
+INSERT INTO t_memory VALUES(0);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t_memory;
+a
+csv
+INSERT INTO t_csv VALUES(0);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t_csv;
+a
+blackhole
+DELETE FROM t_blackhole;
+Warnings:
+Warning	1870	Row events are not logged for DELETE statements that modify BLACKHOLE tables in row format. Table(s): 't_blackhole.'
+INSERT INTO t_blackhole VALUES(0);
+UPDATE t_blackhole SET a = 1;
+Warnings:
+Warning	1870	Row events are not logged for UPDATE statements that modify BLACKHOLE tables in row format. Table(s): 't_blackhole.'
+REPLACE INTO t_blackhole VALUES(1);
+SELECT * FROM t_blackhole;
+a
+archive
+INSERT INTO t_archive VALUES(0);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t_archive;
+a
+innodb
 DELETE FROM t_innodb;
 INSERT INTO t_innodb VALUES(0);
 UPDATE t_innodb SET a = 1;
@@ -354,40 +399,7 @@ HANDLER t_innodb READ a FIRST;
 a
 1
 HANDLER t_innodb CLOSE;
-INSERT INTO t_myisam VALUES(0);
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-SELECT * FROM t_myisam;
-a
-0
-0
-HANDLER t_myisam OPEN;
-HANDLER t_myisam READ a FIRST;
-a
-0
-HANDLER t_myisam CLOSE;
-INSERT INTO t_memory VALUES(0);
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-SELECT * FROM t_memory;
-a
-INSERT INTO t_archive VALUES(0);
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-SELECT * FROM t_archive;
-a
-INSERT INTO t_csv VALUES(0);
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-SELECT * FROM t_csv;
-a
-DELETE FROM t_blackhole;
-Warnings:
-Warning	1870	Row events are not logged for DELETE statements that modify BLACKHOLE tables in row format. Table(s): 't_blackhole.'
-INSERT INTO t_blackhole VALUES(0);
-UPDATE t_blackhole SET a = 1;
-Warnings:
-Warning	1870	Row events are not logged for UPDATE statements that modify BLACKHOLE tables in row format. Table(s): 't_blackhole.'
-REPLACE INTO t_blackhole VALUES(1);
-SELECT * FROM t_blackhole;
-a
-CREATE TABLE tt_innodb(a INT NOT NULL) ENGINE=InnoDB;
+CREATE TABLE tt_innodb(a INT NOT NULL) ENGINE=innodb;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 DROP TABLE t_innodb;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
@@ -440,7 +452,7 @@ SET GLOBAL general_log = @old_general_log;
 #               TABLES, FLUSH TABLES ... WITH READ LOCK and FLUSH TABLES
 #               ... FOR EXPORT in the same connection
 ########################################################################
-CREATE TABLE t1(a INT) ENGINE=InnoDB;
+CREATE TABLE t1(a INT) ENGINE=innodb;
 LOCK TABLES t1 READ;
 LOCK TABLES FOR BACKUP;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction

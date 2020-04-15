@@ -247,6 +247,27 @@ bool acquire_exclusive_tablespace_mdl(THD *thd, const char *tablespace_name,
     MY_ATTRIBUTE((warn_unused_result));
 
 /**
+  Acquire an exclusive metadata lock on the given tablespace name with
+  transaction duration.
+
+  @param       thd           THD to which lock belongs.
+  @param       tablespace_name  Tablespace name
+  @param       lock_wait_timeout Time to wait.
+  @param       ticket         ticket for request (optional out parameter)
+  @param       for_trx        true if MDL duration is MDL_TRANSACTION
+                              false if MDL duration is MDL_EXPLICIT
+
+  @retval      true           Failure, e.g. a lock wait timeout.
+  @retval      false          Successful lock acquisition.
+*/
+
+bool acquire_exclusive_tablespace_mdl(THD *thd, const char *tablespace_name,
+                                      unsigned long int lock_wait_timeout,
+                                      MDL_ticket **ticket = nullptr,
+                                      bool for_trx = true)
+    MY_ATTRIBUTE((warn_unused_result));
+
+/**
   Acquire a shared metadata lock on the given tablespace name with
   transaction duration.
 
@@ -439,6 +460,7 @@ const Object_table &get_dd_table();
   @param dst ticket for new name
 */
 void rename_tablespace_mdl_hook(THD *thd, MDL_ticket *src, MDL_ticket *dst);
+
 }  // namespace dd
 
 #endif  // DD__DICTIONARY_INCLUDED

@@ -4,11 +4,7 @@
 |feature|
 ================================================================================
 
-:Availability:
-
-   The |feature| feature is not available in |Percona Server| |release|. This
-   feature will be included into a later release.
-
+:Availability: This feature is **Experimental** qualtiy.
 
 Percona has implemented several changes related to |MySQL|'s fast index creation
 feature. Fast index creation was implemented in |MySQL| as a way to speed up the

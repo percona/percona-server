@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -318,9 +318,9 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
 void SysTablespace::shutdown() {
   Tablespace::shutdown();
 
-  m_auto_extend_last_file = 0;
+  m_auto_extend_last_file = false;
   m_last_file_size_max = 0;
-  m_created_new_raw = 0;
+  m_created_new_raw = false;
   m_is_tablespace_full = false;
   m_sanity_checks_done = false;
 }
@@ -392,7 +392,7 @@ dberr_t SysTablespace::set_size(Datafile &file) {
 
   bool success = os_file_set_size(
       file.m_filepath, file.m_handle, 0,
-      static_cast<os_offset_t>(file.m_size << UNIV_PAGE_SIZE_SHIFT),
+      static_cast<os_offset_t>(file.m_size) << UNIV_PAGE_SIZE_SHIFT,
       m_ignore_read_only ? false : srv_read_only_mode, true);
 
   if (success) {
@@ -568,6 +568,18 @@ dberr_t SysTablespace::read_lsn_and_check_flags(lsn_t *flushed_lsn) {
   Update the flags of system tablespace to indicate the presence
   of SDI */
   set_flags(it->flags());
+
+  fil_space_crypt_t *crypt_data =
+      fil_space_read_crypt_data(page_size_t(it->m_flags), it->get_first_page());
+
+  if (crypt_data) {
+    keyring_encryption_info.page0_has_crypt_data = true;
+    keyring_encryption_info.keyring_encryption_min_key_version =
+        crypt_data->min_key_version;
+    keyring_encryption_info.type = crypt_data->type;
+    keyring_encryption_info.private_version = crypt_data->private_version;
+    fil_space_destroy_crypt_data(&crypt_data);
+  }
 
   it->close();
 
@@ -889,10 +901,9 @@ dberr_t SysTablespace::open_or_create(bool is_temp, bool create_new_db,
 
       /* Create the tablespace entry for the multi-file
       tablespace in the tablespace manager. */
-      space =
-          fil_space_create(name(), space_id(), flags(),
-                           is_temp ? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE,
-                           nullptr);
+      space = fil_space_create(
+          name(), space_id(), flags(),
+          is_temp ? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE, nullptr);
     }
 
     ut_ad(fil_validate());

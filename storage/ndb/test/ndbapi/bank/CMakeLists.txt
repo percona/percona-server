@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,16 +22,17 @@
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitest.cmake)
 
-ADD_CONVENIENCE_LIBRARY(ndbbank Bank.cpp BankLoad.cpp)
+ADD_LIBRARY(ndbbank STATIC Bank.cpp BankLoad.cpp)
 
 SET(BINS
-    testBank
-    bankSumAccounts
-    bankValidateAllGLs
-    bankMakeGL
-    bankTransactionMaker
-    bankCreator
-    bankTimer)
+  testBank
+  bankSumAccounts
+  bankValidateAllGLs
+  bankMakeGL
+  bankTransactionMaker
+  bankCreator
+  bankTimer
+  )
 
 FOREACH(B ${BINS})
   NDB_ADD_EXECUTABLE(${B} ${B}.cpp)

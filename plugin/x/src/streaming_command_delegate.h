@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,28 +25,24 @@
 #ifndef PLUGIN_X_SRC_STREAMING_COMMAND_DELEGATE_H_
 #define PLUGIN_X_SRC_STREAMING_COMMAND_DELEGATE_H_
 
-#include <vector>
-
 #include <sys/types.h>
 
-#include "my_inttypes.h"
+#include <cstdint>
+#include <vector>
+
 #include "plugin/x/ngs/include/ngs/command_delegate.h"
-#include "plugin/x/ngs/include/ngs/interface/notice_output_queue_interface.h"
 #include "plugin/x/ngs/include/ngs/protocol/message.h"
 #include "plugin/x/ngs/include/ngs/protocol/metadata_builder.h"
-
-namespace ngs {
-
-class Protocol_encoder_interface;
-
-}  // namespace ngs
+#include "plugin/x/src/interface/notice_output_queue.h"
+#include "plugin/x/src/interface/protocol_encoder.h"
+#include "plugin/x/src/interface/session.h"
+#include "plugin/x/src/notices.h"
 
 namespace xpl {
 
 class Streaming_command_delegate : public ngs::Command_delegate {
  public:
-  Streaming_command_delegate(ngs::Protocol_encoder_interface *proto,
-                             ngs::Notice_output_queue_interface *notice_queue);
+  explicit Streaming_command_delegate(iface::Session *session);
   Streaming_command_delegate(const Streaming_command_delegate &) = default;
   virtual ~Streaming_command_delegate();
 
@@ -56,11 +52,11 @@ class Streaming_command_delegate : public ngs::Command_delegate {
   virtual void reset();
 
  protected:
-  virtual int start_result_metadata(uint num_cols, uint flags,
+  virtual int start_result_metadata(uint32_t num_cols, uint32_t flags,
                                     const CHARSET_INFO *resultcs);
   virtual int field_metadata(struct st_send_field *field,
                              const CHARSET_INFO *charset);
-  virtual int end_result_metadata(uint server_status, uint warn_count);
+  virtual int end_result_metadata(uint32_t server_status, uint32_t warn_count);
 
   virtual int start_row();
   virtual int end_row();
@@ -68,30 +64,51 @@ class Streaming_command_delegate : public ngs::Command_delegate {
   virtual ulong get_client_capabilities();
   virtual int get_null();
   virtual int get_integer(longlong value);
-  virtual int get_longlong(longlong value, uint unsigned_flag);
+  virtual int get_longlong(longlong value, uint32_t unsigned_flag);
   virtual int get_decimal(const decimal_t *value);
-  virtual int get_double(double value, uint32 decimals);
+  virtual int get_double(double value, uint32_t decimals);
   virtual int get_date(const MYSQL_TIME *value);
-  virtual int get_time(const MYSQL_TIME *value, uint decimals);
-  virtual int get_datetime(const MYSQL_TIME *value, uint decimals);
+  virtual int get_time(const MYSQL_TIME *value, uint32_t decimals);
+  virtual int get_datetime(const MYSQL_TIME *value, uint32_t decimals);
   virtual int get_string(const char *const value, size_t length,
                          const CHARSET_INFO *const valuecs);
-  virtual void handle_ok(uint server_status, uint statement_warn_count,
-                         ulonglong affected_rows, ulonglong last_insert_id,
+  virtual void handle_ok(uint32_t server_status, uint32_t statement_warn_count,
+                         uint64_t affected_rows, uint64_t last_insert_id,
                          const char *const message);
-  void handle_error(uint sql_errno, const char *const err_msg,
+  virtual bool try_send_notices(const uint32_t server_status,
+                                const uint32_t statement_warn_count,
+                                const uint64_t affected_rows,
+                                const uint64_t last_insert_id,
+                                const char *const message);
+
+  void handle_error(uint32_t sql_errno, const char *const err_msg,
                     const char *const sqlstate);
 
   virtual enum cs_text_or_binary representation() const {
     return CS_BINARY_REPRESENTATION;
   }
 
-  ngs::Protocol_encoder_interface *m_proto;
+  void handle_fetch_done_more_results(uint32_t server_status);
+  void end_result_metadata_handle_fetch(uint32_t server_status);
+  void handle_out_param_in_handle_ok(uint32_t server_status);
+  void on_destruction();
+  bool defer_on_warning(const uint32_t server_status,
+                        const uint32_t statement_warn_count,
+                        const uint64_t affected_rows,
+                        const uint64_t last_insert_id,
+                        const char *const message);
+
+  iface::Protocol_encoder *m_proto;
+  ngs::Metadata_vector &m_metadata;
   const CHARSET_INFO *m_resultcs = nullptr;
-  ngs::Notice_output_queue_interface *m_notice_queue = nullptr;
+  iface::Notice_output_queue *m_notice_queue = nullptr;
   bool m_sent_result = false;
+  bool m_wait_for_fetch_done = false;
   bool m_compact_metadata = false;
   bool m_handle_ok_received = false;
+  bool m_send_notice_deferred = false;
+  int m_filled_column_counter = 0;
+  iface::Session *m_session;
 };
 
 }  // namespace xpl

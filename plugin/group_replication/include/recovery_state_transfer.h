@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +27,10 @@
 #include <string>
 #include <vector>
 
+#include "compression.h"
 #include "my_io.h"
 #include "plugin/group_replication/include/member_info.h"
+#include "plugin/group_replication/include/plugin_handlers/stage_monitor_handler.h"
 #include "plugin/group_replication/include/plugin_observers/channel_observation_manager.h"
 #include "plugin/group_replication/include/replication_threads_api.h"
 
@@ -87,12 +89,15 @@ class Recovery_state_transfer {
      @param ssl_crl                 SSL revocation list file
      @param ssl_crlpath             path with revocation list files
      @param ssl_verify_server_cert  verify the hostname against the certificate
+     @param tls_version             the list of TLS versions to use
+     @param tls_ciphersuites        the list of TLS ciphersuites to use
   */
   void set_recovery_ssl_options(bool use_ssl, const char *ssl_ca,
                                 const char *ssl_capath, const char *ssl_cert,
                                 const char *ssl_cipher, const char *ssl_key,
                                 const char *ssl_crl, const char *ssl_crlpath,
-                                bool ssl_verify_server_cert) {
+                                bool ssl_verify_server_cert, char *tls_version,
+                                char *tls_ciphersuites) {
     recovery_use_ssl = use_ssl;
     if (ssl_ca != NULL) set_recovery_ssl_ca(ssl_ca);
     if (ssl_capath != NULL) set_recovery_ssl_capath(ssl_capath);
@@ -102,6 +107,8 @@ class Recovery_state_transfer {
     if (ssl_crl != NULL) set_recovery_ssl_crl(ssl_crl);
     if (ssl_crlpath != NULL) set_recovery_ssl_crl(ssl_crlpath);
     recovery_ssl_verify_server_cert = ssl_verify_server_cert;
+    if (tls_version != NULL) set_recovery_tls_version(tls_version);
+    set_recovery_tls_ciphersuites(tls_ciphersuites);
   }
 
   /** Set the option that forces the use of SSL on recovery connections */
@@ -147,6 +154,41 @@ class Recovery_state_transfer {
     this->recovery_ssl_verify_server_cert = ssl_verify_server_cert;
   }
 
+  /** Set a TLS versions to be used */
+  void set_recovery_tls_version(const char *tls_version) {
+    memcpy(recovery_tls_version, tls_version, strlen(tls_version) + 1);
+  }
+
+  /** Set a TLS ciphersuites to be used */
+  void set_recovery_tls_ciphersuites(const char *tls_ciphersuites) {
+    if (nullptr == tls_ciphersuites) {
+      recovery_tls_ciphersuites_null = true;
+    } else {
+      recovery_tls_ciphersuites_null = false;
+      memcpy(recovery_tls_ciphersuites, tls_ciphersuites,
+             strlen(tls_ciphersuites) + 1);
+    }
+  }
+
+  /**
+    @return Is recovery configured to use SSL
+  */
+  bool get_recovery_use_ssl() { return this->recovery_use_ssl; }
+
+  /**
+    Get SSL options configured for recovery
+
+    @param[out]  ssl_ca    the ssl ca
+    @param[out]  ssl_cert  the ssl cert
+    @param[out]  ssl_key   the ssl key
+  */
+  void get_recovery_base_ssl_options(std::string *ssl_ca, std::string *ssl_cert,
+                                     std::string *ssl_key) {
+    ssl_ca->assign(recovery_ssl_ca);
+    ssl_cert->assign(recovery_ssl_cert);
+    ssl_key->assign(recovery_ssl_key);
+  }
+
   /**
     Sets the recovery shutdown timeout.
 
@@ -166,6 +208,16 @@ class Recovery_state_transfer {
 
   /** Get preference to get public key */
   void set_recovery_get_public_key(bool set) { recovery_get_public_key = set; }
+
+  /** Set compression algorithm */
+  void set_recovery_compression_algorithm(const char *name) {
+    memcpy(recovery_compression_algorithm, name, strlen(name) + 1);
+  }
+
+  /** Set compression level */
+  void set_recovery_zstd_compression_level(uint level) {
+    recovery_zstd_compression_level = level;
+  }
 
   // Methods that update the state transfer process
 
@@ -228,13 +280,13 @@ class Recovery_state_transfer {
 
   /**
     Execute state transfer
-    @param recovery_thd  The recovery thread handle to report the status
+    @param stage_handler  Stage handler to update the system tables
 
     @return the operation status
       @retval 0      OK
       @retval !=0    Recovery state transfer failed
    */
-  int state_transfer(THD *recovery_thd);
+  int state_transfer(Plugin_stage_monitor_handler &stage_handler);
 
  private:
   /**
@@ -294,11 +346,13 @@ class Recovery_state_transfer {
   /**
     Terminates the connection to the donor
 
+    @param purge_logs  purge recovery logs
+
     @return the operation status
       @retval 0      OK
       @retval !=0    Error
   */
-  int terminate_recovery_slave_threads();
+  int terminate_recovery_slave_threads(bool purge_logs = true);
 
   /**
     Purges relay logs and the master info object
@@ -320,6 +374,8 @@ class Recovery_state_transfer {
 
   /* The selected donor member*/
   Group_member_info *selected_donor;
+  /* The selected donor member hostname */
+  std::string selected_donor_hostname;
   /* Vector with group members info*/
   std::vector<Group_member_info *> *group_members;
   /* Member with suitable donors for use on recovery*/
@@ -372,6 +428,11 @@ class Recovery_state_transfer {
   bool recovery_ssl_verify_server_cert;
   /** Public key information */
   char recovery_public_key_path[FN_REFLEN];
+  /** Permitted TLS versions. */
+  char recovery_tls_version[FN_REFLEN];
+  /** Permitted TLS 1.3 ciphersuites. */
+  bool recovery_tls_ciphersuites_null;
+  char recovery_tls_ciphersuites[FN_REFLEN];
 
   /* The lock for the recovery wait condition */
   mysql_mutex_t recovery_lock;
@@ -383,5 +444,9 @@ class Recovery_state_transfer {
   long max_connection_attempts_to_donors;
   /* Sleep time between connection attempts to all possible donors*/
   long donor_reconnect_interval;
+  /* compression algorithm to be used for communication */
+  char recovery_compression_algorithm[COMPRESSION_ALGORITHM_NAME_LENGTH_MAX];
+  /* compression level to be used for compression */
+  uint recovery_zstd_compression_level;
 };
 #endif /* RECOVERY_INCLUDE */

@@ -258,14 +258,14 @@ DROP TABLE t1;
 # PS-3940: Engine can be changed to innodb and back
 #
 CREATE TABLE `t1` (
-`id` INT(11) NOT NULL AUTO_INCREMENT,
+`id` INT NOT NULL AUTO_INCREMENT,
 `json_column` TEXT,
 PRIMARY KEY (`id`)
 ) ENGINE=MEMORY;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `json_column` text,
   PRIMARY KEY (`id`)
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -278,7 +278,7 @@ ALTER TABLE t1 MODIFY json_column BLOB;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `json_column` blob,
   PRIMARY KEY (`id`)
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -286,7 +286,7 @@ ALTER TABLE t1 MODIFY json_column TEXT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `json_column` text,
   PRIMARY KEY (`id`)
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -295,7 +295,7 @@ ALTER TABLE t1 MODIFY json_column TEXT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `json_column` text,
   PRIMARY KEY (`id`)
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -304,14 +304,14 @@ DROP TABLE t1;
 # PS-3943: Explicit key_block_size is kept and doesn't change
 #
 CREATE TABLE `t1` (
-`id` INT(11) NOT NULL AUTO_INCREMENT,
+`id` INT NOT NULL AUTO_INCREMENT,
 `json_column` TEXT,
 PRIMARY KEY (`id`)
 ) ENGINE=MEMORY KEY_BLOCK_SIZE=200;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `json_column` text,
   PRIMARY KEY (`id`)
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci KEY_BLOCK_SIZE=200
@@ -321,7 +321,7 @@ ALTER TABLE t1 MODIFY json_column BLOB;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `json_column` blob,
   PRIMARY KEY (`id`)
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -329,7 +329,7 @@ ALTER TABLE t1 MODIFY json_column TEXT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `json_column` text,
   PRIMARY KEY (`id`)
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

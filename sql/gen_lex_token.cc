@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,8 @@
   - [908 .. 999] reserved for sql_yacc.yy new tokens
   - [1000 .. 1017] non terminal tokens from sql_hints.yy
   - [1018 .. 1099] reserved for sql_hints.yy new tokens
-  - [1100 .. 1111] non terminal tokens for digests
+  - [1100 .. 1299] non terminal tokens from sql_yacc.yy_
+  - [1300 .. ] Percona tokens from sql_yacc.yy_
 
   Should gen_lex_token fail when tokens are exhausted
   (maybe you are reading this comment because of a fprintf(stderr) below),
@@ -87,6 +88,9 @@
 
 int start_token_range_for_sql_hints = 1000;
 int start_token_range_for_digests = 1100;
+int start_token_range_for_sql_percona = 1300;
+int percona_tokens = 0;
+
 /*
   This is a tool used during build only,
   so MY_MAX_TOKEN does not need to be exact,
@@ -99,19 +103,21 @@ int start_token_range_for_digests = 1100;
   - DIGEST special tokens.
   See also YYMAXUTOK.
 */
-#define MY_MAX_TOKEN 1200
+#define MY_MAX_TOKEN 1400
 /** Generated token. */
 struct gen_lex_token_string {
   const char *m_token_string;
   int m_token_length;
   bool m_append_space;
   bool m_start_expr;
+  bool m_percona_token;
 };
 
 gen_lex_token_string compiled_token_array[MY_MAX_TOKEN];
 int max_token_seen = 0;
 int max_token_seen_in_sql_yacc = 0;
 int max_token_seen_in_sql_hints = 0;
+int max_token_seen_in_special_tokens = 0;
 
 char char_tokens[256];
 
@@ -136,8 +142,9 @@ int tok_unused = 0;
   of separate parsers may interfere.
 */
 int tok_hint_adjust = 0;
+int tok_percona_adjust = 0;
 
-static void set_token(int tok, const char *str) {
+static void set_token(int tok, const char *str, bool percona_token = false) {
   if (tok <= 0) {
     fprintf(stderr, "Bad token found\n");
     exit(1);
@@ -156,15 +163,36 @@ static void set_token(int tok, const char *str) {
   compiled_token_array[tok].m_token_length = strlen(str);
   compiled_token_array[tok].m_append_space = true;
   compiled_token_array[tok].m_start_expr = false;
+  compiled_token_array[tok].m_percona_token = percona_token;
 }
 
 static void set_start_expr_token(int tok) {
   compiled_token_array[tok].m_start_expr = true;
 }
 
+static void add_percona_tokens() {
+  int tok_percona_min = INT_MAX;
+  for (unsigned int i = 0; i < sizeof(symbols) / sizeof(symbols[0]); i++) {
+    if (!(symbols[i].percona_symbol)) continue;
+    if (!(symbols[i].group & SG_MAIN_PARSER)) continue;
+
+    if (static_cast<int>(symbols[i].tok) < tok_percona_min)
+      tok_percona_min =
+          symbols[i].tok;  // Calculate the minimal Percona token value.
+  }
+
+  tok_percona_adjust = start_token_range_for_sql_percona - tok_percona_min;
+
+  for (unsigned int i = 0; i < sizeof(symbols) / sizeof(symbols[0]); i++) {
+    if (!(symbols[i].percona_symbol)) continue;
+    if (!(symbols[i].group & SG_MAIN_PARSER)) continue;
+    set_token(symbols[i].tok + tok_percona_adjust, symbols[i].name, true);
+    percona_tokens++;
+  }
+}
+
 static void compute_tokens() {
   int tok;
-  unsigned int i;
   char *str;
 
   /*
@@ -175,6 +203,7 @@ static void compute_tokens() {
     compiled_token_array[tok].m_token_length = 9;
     compiled_token_array[tok].m_append_space = true;
     compiled_token_array[tok].m_start_expr = false;
+    compiled_token_array[tok].m_percona_token = false;
   }
 
   /*
@@ -232,18 +261,12 @@ static void compute_tokens() {
   set_token(IDENT_QUOTED, "(id_quoted)");
 
   /*
-    Unused tokens
-  */
-  set_token(LOCATOR_SYM, "LOCATOR");
-  set_token(SERVER_OPTIONS, "SERVER_OPTIONS");
-  set_token(UDF_RETURNS_SYM, "UDF_RETURNS");
-
-  /*
     See symbols[] in sql/lex.h
   */
-  for (i = 0; i < sizeof(symbols) / sizeof(symbols[0]); i++) {
-    if (!(symbols[i].group & SG_MAIN_PARSER)) continue;
-    set_token(symbols[i].tok, symbols[i].name);
+  for (const SYMBOL &sym : symbols) {
+    if (sym.percona_symbol) continue;
+    if (!(sym.group & SG_MAIN_PARSER)) continue;
+    set_token(sym.tok, sym.name);
   }
 
   max_token_seen_in_sql_yacc = max_token_seen;
@@ -332,9 +355,14 @@ static void compute_tokens() {
   tok_in_generic_value_expression = max_token_seen++;
   set_token(tok_in_generic_value_expression, "IN (...)");
 
+  max_token_seen_in_special_tokens = max_token_seen;
+
+  /* Percona tokens */
+  add_percona_tokens();
+
   /* Add new digest tokens here */
 
-  tok_unused = max_token_seen++;
+  tok_unused = start_token_range_for_sql_percona + percona_tokens;
   set_token(tok_unused, "UNUSED");
 
   /*
@@ -407,24 +435,26 @@ static void print_tokens() {
   int tok;
 
   printf("#ifdef LEX_TOKEN_WITH_DEFINITION\n");
-  printf("lex_token_string lex_token_array[]=\n");
+  printf("static lex_token_string lex_token_array[]=\n");
   printf("{\n");
   printf("/* PART 1: character tokens. */\n");
 
   for (tok = 0; tok < 256; tok++) {
-    printf("/* %03d */  { \"\\x%02x\", 1, %s, %s},\n", tok, tok,
+    printf("/* %03d */  { \"\\x%02x\", 1, %s, %s, %d},\n", tok, tok,
            compiled_token_array[tok].m_append_space ? "true" : "false",
-           compiled_token_array[tok].m_start_expr ? "true" : "false");
+           compiled_token_array[tok].m_start_expr ? "true" : "false",
+           compiled_token_array[tok].m_percona_token);
   }
 
   printf("/* PART 2: named tokens from sql/sql_yacc.yy. */\n");
 
   for (tok = 256; tok <= max_token_seen_in_sql_yacc; tok++) {
-    printf("/* %03d */  { \"%s\", %d, %s, %s},\n", tok,
+    printf("/* %03d */  { \"%s\", %d, %s, %s, %d},\n", tok,
            compiled_token_array[tok].m_token_string,
            compiled_token_array[tok].m_token_length,
            compiled_token_array[tok].m_append_space ? "true" : "false",
-           compiled_token_array[tok].m_start_expr ? "true" : "false");
+           compiled_token_array[tok].m_start_expr ? "true" : "false",
+           compiled_token_array[tok].m_percona_token);
   }
 
   printf("/* PART 3: padding reserved for sql/sql_yacc.yy extensions. */\n");
@@ -432,19 +462,21 @@ static void print_tokens() {
   for (tok = max_token_seen_in_sql_yacc + 1;
        tok < start_token_range_for_sql_hints; tok++) {
     printf(
-        "/* reserved %03d for sql/sql_yacc.yy */  { \"\", 0, false, false},\n",
-        tok);
+        "/* reserved %03d for sql/sql_yacc.yy */  { \"\", 0, false, false, "
+        "%d},\n",
+        tok, compiled_token_array[tok].m_percona_token);
   }
 
   printf("/* PART 4: named tokens from sql/sql_hints.yy. */\n");
 
   for (tok = start_token_range_for_sql_hints;
        tok <= max_token_seen_in_sql_hints; tok++) {
-    printf("/* %03d */  { \"%s\", %d, %s, %s},\n", tok,
+    printf("/* %03d */  { \"%s\", %d, %s, %s, %d},\n", tok,
            compiled_token_array[tok].m_token_string,
            compiled_token_array[tok].m_token_length,
            compiled_token_array[tok].m_append_space ? "true" : "false",
-           compiled_token_array[tok].m_start_expr ? "true" : "false");
+           compiled_token_array[tok].m_start_expr ? "true" : "false",
+           compiled_token_array[tok].m_percona_token);
   }
 
   printf("/* PART 5: padding reserved for sql/sql_hints.yy extensions. */\n");
@@ -452,23 +484,56 @@ static void print_tokens() {
   for (tok = max_token_seen_in_sql_hints + 1;
        tok < start_token_range_for_digests; tok++) {
     printf(
-        "/* reserved %03d for sql/sql_hints.yy */  { \"\", 0, false, false},\n",
-        tok);
+        "/* reserved %03d for sql/sql_hints.yy */  { \"\", 0, false, false, "
+        "%d},\n",
+        tok, compiled_token_array[tok].m_percona_token);
   }
 
   printf("/* PART 6: Digest special tokens. */\n");
 
-  for (tok = start_token_range_for_digests; tok < max_token_seen; tok++) {
-    printf("/* %03d */  { \"%s\", %d, %s, %s},\n", tok,
+  for (tok = start_token_range_for_digests;
+       tok < max_token_seen_in_special_tokens; tok++) {
+    printf("/* %03d */  { \"%s\", %d, %s, %s, %d},\n", tok,
            compiled_token_array[tok].m_token_string,
            compiled_token_array[tok].m_token_length,
            compiled_token_array[tok].m_append_space ? "true" : "false",
-           compiled_token_array[tok].m_start_expr ? "true" : "false");
+           compiled_token_array[tok].m_start_expr ? "true" : "false",
+           compiled_token_array[tok].m_percona_token);
   }
 
-  printf("/* PART 7: End of token list. */\n");
+  printf("/* PART 7: padding reserved for digest special tokens. */\n");
 
-  printf("/* DUMMY */ { \"\", 0, false, false}\n");
+  for (tok = max_token_seen_in_special_tokens + 1;
+       tok < start_token_range_for_sql_percona; tok++) {
+    printf(
+        "/* reserved %03d for digest special tokens */  { \"\", 0, false, "
+        "false, %d},\n",
+        tok, compiled_token_array[tok].m_percona_token);
+  }
+
+  printf("/* PART 8: Percona tokens. */\n");
+
+  for (tok = start_token_range_for_sql_percona;
+       tok < start_token_range_for_sql_percona + percona_tokens; tok++) {
+    printf("/* %03d */  { \"%s\", %d, %s, %s, %d},\n", tok,
+           compiled_token_array[tok].m_token_string,
+           compiled_token_array[tok].m_token_length,
+           compiled_token_array[tok].m_append_space ? "true" : "false",
+           compiled_token_array[tok].m_start_expr ? "true" : "false",
+           compiled_token_array[tok].m_percona_token);
+  }
+
+  printf("/* PART 9: UNUSED token. */\n");
+  printf("/* %03d */  { \"%s\", %d, %s, %s, %d},\n", tok_unused,
+         compiled_token_array[tok_unused].m_token_string,
+         compiled_token_array[tok_unused].m_token_length,
+         compiled_token_array[tok_unused].m_append_space ? "true" : "false",
+         compiled_token_array[tok_unused].m_start_expr ? "true" : "false",
+         compiled_token_array[tok_unused].m_percona_token);
+
+  printf("/* PART 10: End of token list. */\n");
+
+  printf("/* DUMMY */ { \"\", 0, false, false, %d}\n", 0);
   printf("};\n");
   printf("#endif /* LEX_TOKEN_WITH_DEFINITION */\n");
 
@@ -487,6 +552,7 @@ static void print_tokens() {
   printf("#define TOK_IN_GENERIC_VALUE_EXPRESSION %d\n",
          tok_in_generic_value_expression);
   printf("#define TOK_HINT_ADJUST(x) ((x) + %d)\n", tok_hint_adjust);
+  printf("#define TOK_PERCONA_ADJUST(x) ((x) + %d)\n", tok_percona_adjust);
   printf("#define TOK_UNUSED %d\n", tok_unused);
 }
 
@@ -525,6 +591,7 @@ int main(int, char **) {
   printf("  int m_token_length;\n");
   printf("  bool m_append_space;\n");
   printf("  bool m_start_expr;\n");
+  printf("  bool m_percona_token;\n");
   printf("};\n");
   printf("typedef struct lex_token_string lex_token_string;\n");
 

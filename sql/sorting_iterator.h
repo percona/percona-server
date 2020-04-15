@@ -1,7 +1,7 @@
 #ifndef SQL_SORTING_ITERATOR_H_
 #define SQL_SORTING_ITERATOR_H_
 
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,10 +24,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <memory>
+#include <string>
+#include <vector>
 
-#include "map_helpers.h"
 #include "my_alloc.h"
-#include "my_inttypes.h"
+#include "my_base.h"
 #include "sql/basic_row_iterators.h"
 #include "sql/row_iterator.h"
 #include "sql/sql_sort.h"
@@ -35,7 +36,6 @@
 class Filesort;
 class QEP_TAB;
 class THD;
-struct TABLE;
 
 /**
   An adapter that takes in another RowIterator and produces the same rows,
@@ -80,7 +80,26 @@ class SortingIterator final : public RowIterator {
 
   int Read() override { return m_result_iterator->Read(); }
 
+  void SetNullRowFlag(bool is_null_row) override {
+    m_result_iterator->SetNullRowFlag(is_null_row);
+  }
+
   void UnlockRow() override { m_result_iterator->UnlockRow(); }
+
+  std::vector<Child> children() const override {
+    return std::vector<Child>{{m_source_iterator.get(), ""}};
+  }
+
+  std::vector<std::string> DebugString() const override;
+
+  /// Optional (when JOIN::destroy() runs, the iterator and its buffers
+  /// will be cleaned up anyway); used to clean up the buffers a little
+  /// bit earlier.
+  ///
+  /// When we get cached JOIN objects (prepare/optimize once) that can
+  /// live for a long time between queries, calling this will become more
+  /// important.
+  void CleanupAfterQuery();
 
  private:
   int DoSort(QEP_TAB *qep_tab);
@@ -100,13 +119,20 @@ class SortingIterator final : public RowIterator {
   // using packed addons, etc..
   unique_ptr_destroy_only<RowIterator> m_result_iterator;
 
+  // Holds the buffers for m_sort_result.
+  Filesort_info m_fs_info;
+
   Sort_result m_sort_result;
 
   ha_rows *m_examined_rows;
 
-  // Similarly to iterator_holder in READ_RECORD, allows us to keep one of
-  // the different forms of result iterators without incurring a heap
-  // allocation.
+  // Holds one out of all RowIterator implementations we need so that it is
+  // possible to initialize a RowIterator without heap allocations.
+  // (m_result_iterator typically points to this union, and is responsible for
+  // running the right destructor.)
+  //
+  // TODO: If we need to add TimingIterator directly on this iterator,
+  // switch to allocating it on the MEM_ROOT.
   union IteratorHolder {
     IteratorHolder() {}
     ~IteratorHolder() {}

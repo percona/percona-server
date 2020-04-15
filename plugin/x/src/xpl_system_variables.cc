@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,8 +26,9 @@
 
 #include <stdlib.h>
 
-#include "my_inttypes.h"
-#include "my_sys.h"
+#include <cstdint>
+
+#include "my_sys.h"  // NOLINT(build/include_subdir)
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 
@@ -44,6 +45,10 @@ unsigned int Plugin_system_variables::port_open_timeout;
 char *Plugin_system_variables::bind_address;
 uint32_t Plugin_system_variables::m_interactive_timeout;
 uint32_t Plugin_system_variables::m_document_id_unique_prefix;
+bool Plugin_system_variables::m_enable_hello_notice;
+
+Set_variable Plugin_system_variables::m_compression_algorithms{
+    {"DEFLATE_STREAM", "LZ4_MESSAGE", "ZSTD_STREAM", nullptr}};
 
 Ssl_config Plugin_system_variables::ssl_config;
 

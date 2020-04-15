@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,12 +30,12 @@
 #include <utility>
 #include <vector>
 
-#include "dd/string_type.h"
-#include "mdl.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
+#include "sql/dd/string_type.h"
+#include "sql/mdl.h"
 
 class Alter_info;
 class Alter_table_ctx;
@@ -81,6 +81,8 @@ static const uint NO_FK_CHECKS = 1 << 2;
 static const uint NO_DD_COMMIT = 1 << 3;
 /** Don't change generated foreign key names while renaming table. */
 static const uint NO_FK_RENAME = 1 << 4;
+/** Don't change generated check constraint names while renaming table. */
+static const uint NO_CC_RENAME = 1 << 5;
 
 size_t filename_to_tablename(const char *from, char *to, size_t to_length,
                              bool stay_quiet = false);
@@ -240,6 +242,7 @@ bool collect_fk_parents_for_new_fks(
   @param          table_name                    Table name.
   @param          alter_info                    Alter_info object with the
                                                 list of FKs to be added.
+  @param          hton                          Table's storage engine.
   @param          fk_max_generated_name_number  Max value of number component
                                                 among existing generated foreign
                                                 key names.
@@ -251,6 +254,7 @@ bool collect_fk_parents_for_new_fks(
 bool collect_fk_names_for_new_fks(THD *thd, const char *db_name,
                                   const char *table_name,
                                   const Alter_info *alter_info,
+                                  handlerton *hton,
                                   uint fk_max_generated_name_number,
                                   MDL_request_list *mdl_requests);
 
@@ -489,13 +493,6 @@ bool mysql_prepare_create_table(
 size_t explain_filename(THD *thd, const char *from, char *to, size_t to_length,
                         enum_explain_filename_mode explain_mode);
 
-void parse_filename(const char *filename, size_t filename_length,
-                    const char **schema_name, size_t *schema_name_length,
-                    const char **table_name, size_t *table_name_length,
-                    const char **partition_name, size_t *partition_name_length,
-                    const char **subpartition_name,
-                    size_t *subpartition_name_length);
-
 extern MYSQL_PLUGIN_IMPORT const char *primary_key_name;
 
 /**
@@ -513,4 +510,54 @@ bool lock_trigger_names(THD *thd, TABLE_LIST *tables);
 struct TYPELIB;
 TYPELIB *create_typelib(MEM_ROOT *mem_root, Create_field *field_def);
 
+/**
+  Method to collect check constraint names for the all the tables and acquire
+  MDL lock on them.
+
+  @param[in]    thd     Thread handle.
+  @param[in]    tables  Check constraints of tables to be locked.
+
+  @retval       false   Success.
+  @retval       true    Failure.
+*/
+bool lock_check_constraint_names(THD *thd, TABLE_LIST *tables);
+
+/**
+  Method to lock check constraint names for rename table operation.
+  Method acquire locks on the constraint names of source table and
+  also on the name of check constraint in the target table.
+
+  @param[in]    thd                 Thread handle.
+  @param[in]    db                  Database name.
+  @param[in]    table_name          Table name.
+  @param[in]    table_def           DD table object of source table.
+  @param[in]    target_db           Target database name.
+  @param[in]    target_table_name   Target table name.
+
+  @retval       false               Success.
+  @retval       true                Failure.
+*/
+bool lock_check_constraint_names_for_rename(THD *thd, const char *db,
+                                            const char *table_name,
+                                            const dd::Table *table_def,
+                                            const char *target_db,
+                                            const char *target_table_name);
+
+/**
+  Method to prepare check constraints for the CREATE operation. If name of the
+  check constraint is not specified then name is generated, check constraint
+  is pre-validated and MDL on check constraint is acquired.
+
+  @param            thd                      Thread handle.
+  @param            db_name                  Database name.
+  @param            table_name               Table name.
+  @param            alter_info               Alter_info object with list of
+                                             check constraints to be created.
+
+  @retval           false                    Success.
+  @retval           true                     Failure.
+*/
+bool prepare_check_constraints_for_create(THD *thd, const char *db_name,
+                                          const char *table_name,
+                                          Alter_info *alter_info);
 #endif /* SQL_TABLE_INCLUDED */

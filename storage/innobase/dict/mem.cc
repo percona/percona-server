@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -44,12 +44,11 @@ external tools. */
 
 /** Append 'name' to 'col_names'.  @see dict_table_t::col_names
  @return new column names array */
-const char *dict_add_col_name(
-    const char *col_names, /*!< in: existing column names, or
-                           NULL */
-    ulint cols,            /*!< in: number of existing columns */
-    const char *name,      /*!< in: new column name */
-    mem_heap_t *heap)      /*!< in: heap */
+const char *dict_add_col_name(const char *col_names, /*!< in: existing column
+                                                     names, or NULL */
+                              ulint cols, /*!< in: number of existing columns */
+                              const char *name, /*!< in: new column name */
+                              mem_heap_t *heap) /*!< in: heap */
 {
   ulint old_len;
   ulint new_len;
@@ -145,6 +144,38 @@ void dict_mem_table_free(dict_table_t *table) /*!< in: table */
   mem_heap_free(table->heap);
 }
 
+/** System databases */
+static std::string innobase_system_databases[] = {
+    "mysql/", "information_schema/", "performance_schema/", ""};
+
+/** Determines if a table is a system table
+@param[in]  name  table_name
+@return true if table is system table */
+static bool dict_mem_table_is_system(const std::string name) {
+  /* Table has the following format: database/table and some system table are
+  of the form SYS_* */
+  if (name.find('/') != std::string::npos) {
+    int table_len = name.length();
+
+    std::string system_db = std::string(innobase_system_databases[0]);
+    int i = 0;
+
+    while (system_db.compare("") != 0) {
+      int len = system_db.length();
+
+      if (table_len > len && name.compare(0, len, system_db) == 0) {
+        return true;
+      }
+
+      system_db = std::string(innobase_system_databases[++i]);
+    }
+
+    return false;
+  } else {
+    return true;
+  }
+}
+
 /** Creates a table memory object.
  @return own: table object */
 dict_table_t *dict_mem_table_create(
@@ -154,8 +185,9 @@ dict_table_t *dict_mem_table_create(
     ulint n_cols,     /*!< in: total number of columns including
                       virtual and non-virtual columns */
     ulint n_v_cols,   /*!< in: number of virtual columns */
-    ulint flags,      /*!< in: table flags */
-    ulint flags2)     /*!< in: table flags2 */
+    ulint n_m_v_cols, /*!< in: number of multi-value virtual columns */
+    uint32_t flags,   /*!< in: table flags */
+    uint32_t flags2)  /*!< in: table flags2 */
 {
   dict_table_t *table;
   mem_heap_t *heap;
@@ -185,10 +217,12 @@ dict_table_t *dict_mem_table_create(
   table->flags = (unsigned int)flags;
   table->flags2 = (unsigned int)flags2;
   table->name.m_name = mem_strdup(name);
+  table->is_system_table = dict_mem_table_is_system(table->name.m_name);
   table->space = (unsigned int)space;
   table->dd_space_id = dd::INVALID_OBJECT_ID;
   table->n_t_cols = (unsigned int)(n_cols + table->get_n_sys_cols());
   table->n_v_cols = (unsigned int)(n_v_cols);
+  table->n_m_v_cols = (unsigned int)(n_m_v_cols);
   table->n_cols = table->n_t_cols - table->n_v_cols;
   table->n_instant_cols = table->n_cols;
 
@@ -331,13 +365,12 @@ void dict_mem_table_add_col(
 
 /** This function populates a dict_col_t memory structure with
  supplied information. */
-void dict_mem_fill_column_struct(
-    dict_col_t *column, /*!< out: column struct to be
-                        filled */
-    ulint col_pos,      /*!< in: column position */
-    ulint mtype,        /*!< in: main data type */
-    ulint prtype,       /*!< in: precise type */
-    ulint col_len)      /*!< in: column length */
+void dict_mem_fill_column_struct(dict_col_t *column, /*!< out: column struct to
+                                                     be filled */
+                                 ulint col_pos,      /*!< in: column position */
+                                 ulint mtype,        /*!< in: main data type */
+                                 ulint prtype,       /*!< in: precise type */
+                                 ulint col_len)      /*!< in: column length */
 {
   column->ind = (unsigned int)col_pos;
   column->ord_part = 0;

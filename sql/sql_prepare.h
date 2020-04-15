@@ -1,6 +1,6 @@
 #ifndef SQL_PREPARE_H
 #define SQL_PREPARE_H
-/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,15 +34,14 @@
 #include "my_psi_config.h"
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql_com.h"
-#include "sql/protocol_classic.h"
-#include "sql/query_result.h"  // Query_result_send
-#include "sql/sql_class.h"     // Query_arena
+#include "sql/sql_class.h"  // Query_arena
 #include "sql/sql_error.h"
 #include "sql/sql_list.h"
 
 class Item;
 class Item_param;
 class Prepared_statement;
+class Query_result_send;
 class String;
 struct LEX;
 struct PS_PARAM;
@@ -313,22 +312,6 @@ class Ed_row final {
   size_t m_column_count; /* TODO: change to point to metadata */
 };
 
-/**
-  A result class used to send cursor rows using the binary protocol.
-*/
-
-class Query_fetch_protocol_binary final : public Query_result_send {
-  Protocol_binary protocol;
-
- public:
-  explicit Query_fetch_protocol_binary(THD *thd)
-      : Query_result_send(), protocol(thd) {}
-  bool send_result_set_metadata(THD *thd, List<Item> &list,
-                                uint flags) override;
-  bool send_data(THD *thd, List<Item> &items) override;
-  bool send_eof(THD *thd) override;
-};
-
 class Server_side_cursor;
 
 /**
@@ -398,8 +381,7 @@ class Prepared_statement final {
   bool is_in_use() const { return flags & (uint)IS_IN_USE; }
   bool is_sql_prepare() const { return flags & (uint)IS_SQL_PREPARE; }
   void set_sql_prepare() { flags |= (uint)IS_SQL_PREPARE; }
-  bool prepare(const char *packet, size_t packet_length,
-               bool force_primary_storage_engine);
+  bool prepare(const char *packet, size_t packet_length);
   bool execute_loop(String *expanded_query, bool open_cursor);
   bool execute_server_runnable(Server_runnable *server_runnable);
 #ifdef HAVE_PSI_PS_INTERFACE
@@ -417,7 +399,7 @@ class Prepared_statement final {
   bool set_db(const LEX_CSTRING &db_length);
 
   bool execute(String *expanded_query, bool open_cursor);
-  bool reprepare(bool force_primary_storage_engine);
+  bool reprepare();
   bool validate_metadata(Prepared_statement *copy);
   void swap_prepared_statement(Prepared_statement *copy);
   bool insert_params_from_vars(List<LEX_STRING> &varnames, String *query);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,8 +50,7 @@ namespace filesort_compare_unittest {
 */
 
 inline int bytes_to_int(const uchar *s) {
-  int val;
-  longget(&val, s);
+  int val = longget(s);
   return val ^ 0x80000000;
 }
 
@@ -164,8 +163,7 @@ inline bool mem_compare_3(const uchar *s1, const uchar *s2, size_t len) {
 // For gcc, __builtin_memcmp is actually *slower* than the library call:
 // http://gcc.gnu.org/bugzilla/show_bug.cgi?id=43052
 
-class Mem_compare_memcmp
-    : public std::binary_function<const uchar *, const uchar *, bool> {
+class Mem_compare_memcmp {
  public:
   Mem_compare_memcmp(size_t n) : m_size(n) {}
   bool operator()(const uchar *s1, const uchar *s2) {
@@ -174,8 +172,7 @@ class Mem_compare_memcmp
   size_t m_size;
 };
 
-class Mem_compare_0
-    : public std::binary_function<const uchar *, const uchar *, bool> {
+class Mem_compare_0 {
  public:
   Mem_compare_0(size_t n) : m_size(n) {}
   bool operator()(const uchar *s1, const uchar *s2) {
@@ -184,8 +181,7 @@ class Mem_compare_0
   size_t m_size;
 };
 
-class Mem_compare_1
-    : public std::binary_function<const uchar *, const uchar *, bool> {
+class Mem_compare_1 {
  public:
   Mem_compare_1(size_t n) : m_size(n) {}
   bool operator()(const uchar *s1, const uchar *s2) {
@@ -194,8 +190,7 @@ class Mem_compare_1
   size_t m_size;
 };
 
-class Mem_compare_2
-    : public std::binary_function<const uchar *, const uchar *, bool> {
+class Mem_compare_2 {
  public:
   Mem_compare_2(size_t n) : m_size(n) {}
   bool operator()(const uchar *s1, const uchar *s2) {
@@ -204,8 +199,7 @@ class Mem_compare_2
   size_t m_size;
 };
 
-class Mem_compare_3
-    : public std::binary_function<const uchar *, const uchar *, bool> {
+class Mem_compare_3 {
  public:
   Mem_compare_3(size_t n) : m_size(n) {}
   bool operator()(const uchar *s1, const uchar *s2) {
@@ -217,8 +211,7 @@ class Mem_compare_3
 #define COMPARE(N) \
   if (s1[N] != s2[N]) return s1[N] < s2[N]
 
-class Mem_compare_4
-    : public std::binary_function<const uchar *, const uchar *, bool> {
+class Mem_compare_4 {
  public:
   Mem_compare_4(size_t n) : m_size(n) {}
   bool operator()(const uchar *s1, const uchar *s2) {
@@ -237,8 +230,7 @@ class Mem_compare_4
   size_t m_size;
 };
 
-class Mem_compare_5
-    : public std::binary_function<const uchar *, const uchar *, bool> {
+class Mem_compare_5 {
  public:
   Mem_compare_5(size_t n) : m_size(n) {}
   bool operator()(const uchar *s1, const uchar *s2) {
@@ -253,8 +245,7 @@ class Mem_compare_5
 
 // This one works for any number of keys.
 // We treat the first key as int, the rest byte-by-byte.
-class Mem_compare_int
-    : public std::binary_function<const uchar *, const uchar *, bool> {
+class Mem_compare_int {
  public:
   Mem_compare_int(size_t n) : m_size(n), rest(n - sizeof(int)) {}
   bool operator()(const uchar *s1, const uchar *s2) {
@@ -269,8 +260,7 @@ class Mem_compare_int
   const size_t rest;
 };
 
-class Mem_compare_int_4
-    : public std::binary_function<const uchar *, const uchar *, bool> {
+class Mem_compare_int_4 {
  public:
   Mem_compare_int_4(size_t) : keyno(1) {}
   bool operator()(const uchar *s1, const uchar *s2) {

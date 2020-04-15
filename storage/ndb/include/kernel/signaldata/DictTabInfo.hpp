@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -124,11 +124,11 @@ public:
     UpdateTriggerId    = 23,
     DeleteTriggerId    = 24,
     CustomTriggerId    = 25,
-
+    FrmLen             = 26,
     FrmData            = 27,
-
     TableTemporaryFlag = 28,  //Default not Temporary
     ForceVarPartFlag   = 29,
+    MysqlDictMetadata  = 30,
 
     PartitionBalance  = 127,
     FragmentCount      = 128, // No of fragments in table (!fragment replicas)
@@ -338,7 +338,7 @@ public:
     StateBuilding = 2,
     StateDropping = 3,
     StateOnline = 4,
-    StateBackup = 5,
+    ObsoleteStateBackup = 5,
     StateBroken = 9
   };
 

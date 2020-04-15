@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -351,7 +351,7 @@ void dict_mem_table_col_rename(dict_table_t *table, /*!< in/out: table */
 dict_foreign_t *dict_mem_foreign_create(void) {
   dict_foreign_t *foreign;
   mem_heap_t *heap;
-  DBUG_ENTER("dict_mem_foreign_create");
+  DBUG_TRACE;
 
   heap = mem_heap_create(100);
 
@@ -364,7 +364,7 @@ dict_foreign_t *dict_mem_foreign_create(void) {
 
   DBUG_PRINT("dict_mem_foreign_create", ("heap: %p", heap));
 
-  DBUG_RETURN(foreign);
+  return foreign;
 }
 
 /** Sets the foreign_table_name_lookup pointer based on the value of
@@ -792,4 +792,8 @@ std::ostream &operator<<(std::ostream &out, const dict_foreign_set &fk_set) {
   std::for_each(fk_set.begin(), fk_set.end(), dict_foreign_print(out));
   out << "]" << std::endl;
   return (out);
+}
+
+page_size_t dict_index_t::get_page_size() const {
+  return (dict_table_page_size(table));
 }

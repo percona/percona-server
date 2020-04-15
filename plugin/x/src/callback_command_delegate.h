@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,9 +26,13 @@
 #define PLUGIN_X_SRC_CALLBACK_COMMAND_DELEGATE_H_
 
 #include <sys/types.h>
+#include <functional>
+
+#include <cstdint>
+#include <string>
+#include <vector>
 
 #include "plugin/x/ngs/include/ngs/command_delegate.h"
-#include "plugin/x/ngs/include/ngs/protocol_encoder.h"
 
 namespace xpl {
 class Callback_command_delegate : public ngs::Command_delegate {
@@ -36,11 +40,11 @@ class Callback_command_delegate : public ngs::Command_delegate {
   struct Field_value {
     Field_value();
     Field_value(const Field_value &other);
-    Field_value(const longlong &num, bool unsign = false);
-    Field_value(const decimal_t &decimal);
-    Field_value(const double num);
-    Field_value(const MYSQL_TIME &time);
-    Field_value(const char *str, size_t length);
+    explicit Field_value(const longlong &num, bool unsign = false);
+    explicit Field_value(const decimal_t &decimal);
+    explicit Field_value(const double num);
+    explicit Field_value(const MYSQL_TIME &time);
+    explicit Field_value(const char *str, size_t length);
     Field_value &operator=(const Field_value &other);
 
     ~Field_value();
@@ -67,8 +71,8 @@ class Callback_command_delegate : public ngs::Command_delegate {
     void clone_fields(const Row_data &other);
   };
 
-  typedef ngs::function<Row_data *()> Start_row_callback;
-  typedef ngs::function<bool(Row_data *)> End_row_callback;
+  typedef std::function<Row_data *()> Start_row_callback;
+  typedef std::function<bool(Row_data *)> End_row_callback;
 
   Callback_command_delegate();
   Callback_command_delegate(Start_row_callback start_row,
@@ -101,17 +105,17 @@ class Callback_command_delegate : public ngs::Command_delegate {
 
   virtual int get_integer(longlong value);
 
-  virtual int get_longlong(longlong value, uint unsigned_flag);
+  virtual int get_longlong(longlong value, uint32_t unsigned_flag);
 
   virtual int get_decimal(const decimal_t *value);
 
-  virtual int get_double(double value, uint32 decimals);
+  virtual int get_double(double value, uint32_t decimals);
 
   virtual int get_date(const MYSQL_TIME *value);
 
-  virtual int get_time(const MYSQL_TIME *value, uint decimals);
+  virtual int get_time(const MYSQL_TIME *value, uint32_t decimals);
 
-  virtual int get_datetime(const MYSQL_TIME *value, uint decimals);
+  virtual int get_datetime(const MYSQL_TIME *value, uint32_t decimals);
 
   virtual int get_string(const char *const value, size_t length,
                          const CHARSET_INFO *const valuecs);

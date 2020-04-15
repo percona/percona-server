@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -61,17 +61,17 @@ this program; if not, write to the Free Software Foundation, Inc.,
  @retval NULL if the externally stored columns in the clustered index record
  are unavailable and ext != NULL, or row is missing some needed columns. */
 dtuple_t *row_build_index_entry_low(
-    const dtuple_t *row,  /*!< in: row which should be
-                          inserted or purged */
-    const row_ext_t *ext, /*!< in: externally stored column
-                          prefixes, or NULL */
-    dict_index_t *index,  /*!< in: index on the table */
-    mem_heap_t *heap,     /*!< in: memory heap from which
-                          the memory for the index entry
-                          is allocated */
-    ulint flag)           /*!< in: ROW_BUILD_NORMAL,
-                          ROW_BUILD_FOR_PURGE
-                          or ROW_BUILD_FOR_UNDO */
+    const dtuple_t *row,       /*!< in: row which should be
+                               inserted or purged */
+    const row_ext_t *ext,      /*!< in: externally stored column
+                               prefixes, or NULL */
+    const dict_index_t *index, /*!< in: index on the table */
+    mem_heap_t *heap,          /*!< in: memory heap from which
+                               the memory for the index entry
+                               is allocated */
+    ulint flag)                /*!< in: ROW_BUILD_NORMAL,
+                               ROW_BUILD_FOR_PURGE
+                               or ROW_BUILD_FOR_UNDO */
 {
   dtuple_t *entry;
   ulint entry_len;
@@ -85,6 +85,13 @@ dtuple_t *row_build_index_entry_low(
     entry = dtuple_create_with_vcol(heap, entry_len, num_v);
   } else {
     entry = dtuple_create(heap, entry_len);
+  }
+
+  if (index->is_corrupted() && dict_index_has_virtual(index) &&
+      dict_index_get_online_status(index) == ONLINE_INDEX_ABORTED_DROPPED) {
+    /* See comments for virtual index in row_merge_drop_indexes().
+    In this case, just return the empty entry object */
+    return (entry);
   }
 
   if (dict_index_is_ibuf(index)) {
@@ -126,7 +133,8 @@ dtuple_t *row_build_index_entry_low(
       ut_ad(v_col->v_pos < dtuple_get_n_v_fields(row));
       dfield2 = dtuple_get_nth_v_field(row, v_col->v_pos);
 
-      ut_ad(dfield_is_null(dfield2) || dfield2->data);
+      ut_ad(dfield_is_null(dfield2) || dfield2->len == UNIV_NO_INDEX_VALUE ||
+            dfield2->data);
     } else {
       dfield2 = dtuple_get_nth_field(row, col_no);
       ut_ad(dfield_get_type(dfield2)->mtype == DATA_MISSING ||
@@ -628,7 +636,10 @@ dtuple_t *row_rec_to_index_entry_low(
   entry = dtuple_create(heap, rec_len);
 
   dtuple_set_n_fields_cmp(entry, dict_index_get_n_unique_in_tree(index));
-  ut_ad(rec_len == dict_index_get_n_fields(index)
+
+  ut_ad(rec_len == dict_index_get_n_fields(index) ||
+        /* non-leaf record which has keys and child page no as record data */
+        rec_len == dict_index_get_n_unique(index) + 1
         /* a record for older SYS_INDEXES table
         (missing merge_threshold column) is acceptable. */
         || (index->table->id == DICT_INDEXES_ID &&
@@ -669,7 +680,7 @@ dtuple_t *row_rec_to_index_entry(
   dtuple_t *entry;
   byte *buf;
   const rec_t *copy_rec;
-  DBUG_ENTER("row_rec_to_index_entry");
+  DBUG_TRACE;
 
   ut_ad(rec != NULL);
   ut_ad(heap != NULL);
@@ -687,27 +698,27 @@ dtuple_t *row_rec_to_index_entry(
 
   dtuple_set_info_bits(entry, rec_get_info_bits(rec, rec_offs_comp(offsets)));
 
-  DBUG_RETURN(entry);
+  return entry;
 }
 
 /** Builds from a secondary index record a row reference with which we can
  search the clustered index record.
  @return own: row reference built; see the NOTE below! */
 dtuple_t *row_build_row_ref(
-    ulint type,          /*!< in: ROW_COPY_DATA, or ROW_COPY_POINTERS:
-                         the former copies also the data fields to
-                         heap, whereas the latter only places pointers
-                         to data fields on the index page */
-    dict_index_t *index, /*!< in: secondary index */
-    const rec_t *rec,    /*!< in: record in the index;
-                         NOTE: in the case ROW_COPY_POINTERS
-                         the data fields in the row will point
-                         directly into this record, therefore,
-                         the buffer page of this record must be
-                         at least s-latched and the latch held
-                         as long as the row reference is used! */
-    mem_heap_t *heap)    /*!< in: memory heap from which the memory
-                         needed is allocated */
+    ulint type,                /*!< in: ROW_COPY_DATA, or ROW_COPY_POINTERS:
+                               the former copies also the data fields to
+                               heap, whereas the latter only places pointers
+                               to data fields on the index page */
+    const dict_index_t *index, /*!< in: secondary index */
+    const rec_t *rec,          /*!< in: record in the index;
+                               NOTE: in the case ROW_COPY_POINTERS
+                               the data fields in the row will point
+                               directly into this record, therefore,
+                               the buffer page of this record must be
+                               at least s-latched and the latch held
+                               as long as the row reference is used! */
+    mem_heap_t *heap)          /*!< in: memory heap from which the memory
+                               needed is allocated */
 {
   dict_table_t *table;
   dict_index_t *clust_index;
@@ -881,13 +892,12 @@ void row_build_row_ref_in_tuple(
 
 /** Searches the clustered index record for a row, if we have the row reference.
  @return true if found */
-ibool row_search_on_row_ref(
-    btr_pcur_t *pcur,    /*!< out: persistent cursor, which must
-                         be closed by the caller */
-    ulint mode,          /*!< in: BTR_MODIFY_LEAF, ... */
-    dict_table_t *table, /*!< in: table */
-    const dtuple_t *ref, /*!< in: row reference */
-    mtr_t *mtr)          /*!< in/out: mtr */
+ibool row_search_on_row_ref(btr_pcur_t *pcur, /*!< out: persistent cursor, which
+                                              must be closed by the caller */
+                            ulint mode,       /*!< in: BTR_MODIFY_LEAF, ... */
+                            dict_table_t *table, /*!< in: table */
+                            const dtuple_t *ref, /*!< in: row reference */
+                            mtr_t *mtr)          /*!< in/out: mtr */
 {
   ulint low_match;
   rec_t *rec;
@@ -922,7 +932,7 @@ ibool row_search_on_row_ref(
 rec_t *row_get_clust_rec(
     ulint mode,                 /*!< in: BTR_MODIFY_LEAF, ... */
     const rec_t *rec,           /*!< in: record in a secondary index */
-    dict_index_t *index,        /*!< in: secondary index */
+    const dict_index_t *index,  /*!< in: secondary index */
     dict_index_t **clust_index, /*!< out: clustered index */
     mtr_t *mtr)                 /*!< in: mtr */
 {
@@ -1053,16 +1063,15 @@ enum row_search_result row_search_index_entry(
  number of bytes that were written to "buf" is returned (including the
  terminating '\0').
  @return number of bytes that were written */
-static ulint row_raw_format_int(
-    const char *data,     /*!< in: raw data */
-    ulint data_len,       /*!< in: raw data length
-                          in bytes */
-    ulint prtype,         /*!< in: precise type */
-    char *buf,            /*!< out: output buffer */
-    ulint buf_size,       /*!< in: output buffer size
-                          in bytes */
-    ibool *format_in_hex) /*!< out: should the data be
-                          formated in hex */
+static ulint row_raw_format_int(const char *data, /*!< in: raw data */
+                                ulint data_len,   /*!< in: raw data length
+                                                  in bytes */
+                                ulint prtype,     /*!< in: precise type */
+                                char *buf,        /*!< out: output buffer */
+                                ulint buf_size,   /*!< in: output buffer size
+                                                  in bytes */
+                                ibool *format_in_hex) /*!< out: should the data
+                                                      be formated in hex */
 {
   ulint ret;
 
@@ -1094,16 +1103,15 @@ static ulint row_raw_format_int(
  number of bytes that were written to "buf" is returned (including the
  terminating '\0').
  @return number of bytes that were written */
-static ulint row_raw_format_str(
-    const char *data,     /*!< in: raw data */
-    ulint data_len,       /*!< in: raw data length
-                          in bytes */
-    ulint prtype,         /*!< in: precise type */
-    char *buf,            /*!< out: output buffer */
-    ulint buf_size,       /*!< in: output buffer size
-                          in bytes */
-    ibool *format_in_hex) /*!< out: should the data be
-                          formated in hex */
+static ulint row_raw_format_str(const char *data, /*!< in: raw data */
+                                ulint data_len,   /*!< in: raw data length
+                                                  in bytes */
+                                ulint prtype,     /*!< in: precise type */
+                                char *buf,        /*!< out: output buffer */
+                                ulint buf_size,   /*!< in: output buffer size
+                                                  in bytes */
+                                ibool *format_in_hex) /*!< out: should the data
+                                                      be formated in hex */
 {
   ulint charset_coll;
 
@@ -1203,6 +1211,23 @@ ulint row_raw_format(const char *data,               /*!< in: raw data */
   }
 
   return (ret);
+}
+
+dfield_t *Multi_value_entry_builder_normal::find_multi_value_field() {
+  uint16_t i = 0;
+  dfield_t *field = nullptr;
+  for (; i < m_row->n_v_fields; ++i) {
+    field = &m_row->v_fields[i];
+    if (!dfield_is_multi_value(field) ||
+        (m_mv_field_no = m_index->has_multi_value_col(
+             dict_table_get_nth_v_col(m_index->table, i))) == 0) {
+      continue;
+    }
+
+    break;
+  }
+
+  return (i == m_row->n_v_fields ? nullptr : field);
 }
 
 #ifdef UNIV_ENABLE_UNIT_TEST_ROW_RAW_FORMAT_INT

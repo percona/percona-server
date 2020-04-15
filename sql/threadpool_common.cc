@@ -26,6 +26,7 @@
 #include "sql/sql_audit.h"
 #include "sql/sql_class.h"
 #include "sql/sql_connect.h"
+#include "sql/protocol_classic.h"
 #include "sql/sql_parse.h"
 #include "sql/threadpool.h"
 #include "violite.h"

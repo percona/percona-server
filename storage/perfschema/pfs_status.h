@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,12 +36,11 @@ struct PFS_status_stats {
 
   void reset();
   void aggregate(const PFS_status_stats *from);
-  void aggregate_from(const System_status_var *from, bool already_aggregated);
-  void aggregate_to(System_status_var *to, bool already_aggregated);
+  void aggregate_from(const System_status_var *from);
+  void aggregate_to(System_status_var *to);
 
   bool m_has_stats;
   ulonglong m_stats[COUNT_GLOBAL_STATUS_VARS];
-  ulonglong m_stats_aggregated_in_global[COUNT_GLOBAL_STATUS_VARS];
 };
 
 void reset_status_by_thread();

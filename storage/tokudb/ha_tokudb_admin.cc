@@ -29,6 +29,9 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #include "my_check_opt.h"
 
+#include "sql/sql_class.h"
+#include "sql/protocol.h"
+
 namespace tokudb {
 namespace analyze {
 
@@ -383,15 +386,15 @@ void standard_t::on_run() {
                          _share->database_name(), _share->table_name(),
                          _share->_key_descriptors[_current_key]._name);
       _thd->get_protocol()->start_row();
-      _thd->get_protocol()->store(name, namelen, system_charset_info);
-      _thd->get_protocol()->store("analyze", 7, system_charset_info);
-      _thd->get_protocol()->store("info", 4, system_charset_info);
+      _thd->get_protocol()->store_string(name, namelen, system_charset_info);
+      _thd->get_protocol()->store_string("analyze", 7, system_charset_info);
+      _thd->get_protocol()->store_string("info", 4, system_charset_info);
       char rowmsg[256];
       int rowmsglen;
       rowmsglen = snprintf(rowmsg, sizeof(rowmsg),
                            "rows processed %llu rows deleted %llu", _rows,
                            _deleted_rows);
-      _thd->get_protocol()->store(rowmsg, rowmsglen, system_charset_info);
+      _thd->get_protocol()->store_string(rowmsg, rowmsglen, system_charset_info);
       _thd->get_protocol()->end_row();
       LogPluginErrMsg(INFORMATION_LEVEL, 0, "Analyze on %.*s %.*s", namelen,
                       name, rowmsglen, rowmsg);
@@ -897,10 +900,10 @@ static void ha_tokudb_check_info(THD *thd, TABLE *table, const char *msg) {
            table->s->db.str, (int)table->s->table_name.length,
            table->s->table_name.str);
   thd->get_protocol()->start_row();
-  thd->get_protocol()->store(tablename, strlen(tablename), system_charset_info);
-  thd->get_protocol()->store("check", 5, system_charset_info);
-  thd->get_protocol()->store("info", 4, system_charset_info);
-  thd->get_protocol()->store(msg, strlen(msg), system_charset_info);
+  thd->get_protocol()->store_string(tablename, strlen(tablename), system_charset_info);
+  thd->get_protocol()->store_string("check", 5, system_charset_info);
+  thd->get_protocol()->store_string("info", 4, system_charset_info);
+  thd->get_protocol()->store_string(msg, strlen(msg), system_charset_info);
   thd->get_protocol()->end_row();
 }
 

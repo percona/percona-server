@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -33,6 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "handler.h"
 #include "my_dbug.h"
 #include "row0pread-adapter.h"
+#include "row0pread-histogram.h"
 #include "trx0trx.h"
 
 /** "GEN_CLUST_INDEX" is the name reserved for InnoDB default
@@ -112,18 +113,6 @@ class ha_innobase : public handler {
   int open(const char *name, int, uint open_flags,
            const dd::Table *table_def) override;
 
-  /** Opens dictionary table object using table name. For partition, we need to
-  try alternative lower/upper case names to support moving data files across
-  platforms.
-  @param[in]	table_name	name of the table/partition
-  @param[in]	norm_name	normalized name of the table/partition
-  @param[in]	is_partition	if this is a partition of a table
-  @param[in]	ignore_err	error to ignore for loading dictionary object
-  @return dictionary table object or NULL if not found */
-  static dict_table_t *open_dict_table(const char *table_name,
-                                       const char *norm_name, bool is_partition,
-                                       dict_err_ignore_t ignore_err);
-
   handler *clone(const char *name, MEM_ROOT *mem_root) override;
 
   int close(void) override;
@@ -172,6 +161,11 @@ class ha_innobase : public handler {
 
   bool has_gap_locks() const noexcept override { return true; }
 
+  int read_range_first(const key_range *start_key, const key_range *end_key,
+                       bool eq_range_arg, bool sorted) override;
+
+  int read_range_next() override;
+
   int rnd_init(bool scan) override;
 
   int rnd_end() override;
@@ -211,6 +205,29 @@ class ha_innobase : public handler {
 
   int external_lock(THD *thd, int lock_type) override;
 
+  /** Initialize sampling.
+  @param[out] scan_ctx  A scan context created by this method that has to be
+  used in sample_next
+  @param[in]  sampling_percentage percentage of records that need to be sampled
+  @param[in]  sampling_seed       random seed that the random generator will use
+  @param[in]  sampling_method     sampling method to be used; currently only
+  SYSTEM sampling is supported
+  @return 0 for success, else one of the HA_xxx values in case of error. */
+  int sample_init(void *&scan_ctx, double sampling_percentage,
+                  int sampling_seed,
+                  enum_sampling_method sampling_method) override;
+
+  /** Get the next record for sampling.
+  @param[in]  scan_ctx  Scan context of the sampling
+  @param[in]  buf       buffer to place the read record
+  @return 0 for success, else one of the HA_xxx values in case of error. */
+  int sample_next(void *scan_ctx, uchar *buf) override;
+
+  /** End sampling.
+  @param[in] scan_ctx  Scan context of the sampling
+  @return 0 for success, else one of the HA_xxx values in case of error. */
+  int sample_end(void *scan_ctx) override;
+
   /** MySQL calls this function at the start of each SQL statement
   inside LOCK TABLES. Inside LOCK TABLES the "::external_lock" method
   does not work to mark SQL statement borders. Note also a special case:
@@ -230,6 +247,11 @@ class ha_innobase : public handler {
 
   int records(ha_rows *num_rows) override;
 
+  int records_from_index(ha_rows *num_rows, uint) override {
+    /* Force use of cluster index until we implement sec index parallel scan. */
+    return ha_innobase::records(num_rows);
+  }
+
   ha_rows records_in_range(uint inx, key_range *min_key,
                            key_range *max_key) override;
 
@@ -240,6 +262,9 @@ class ha_innobase : public handler {
   @param[in,out]  table_def dd::Table object object to be modified.*/
   void adjust_encryption_options(HA_CREATE_INFO *create_info,
                                  dd::Table *table_def) noexcept;
+
+  void adjust_encryption_key_id(HA_CREATE_INFO *create_info,
+                                dd::Properties *options) noexcept;
 
   void update_create_info(HA_CREATE_INFO *create_info) override;
 
@@ -303,21 +328,6 @@ class ha_innobase : public handler {
                    const dd::Table *from_table, dd::Table *to_table) override;
 
   int check(THD *thd, HA_CHECK_OPT *check_opt) override;
-
-  char *get_foreign_key_create_info() override;
-
-  int get_foreign_key_list(THD *thd,
-                           List<FOREIGN_KEY_INFO> *f_key_list) override;
-
-  int get_parent_foreign_key_list(THD *thd,
-                                  List<FOREIGN_KEY_INFO> *f_key_list) override;
-
-  int get_cascade_foreign_key_table_list(
-      THD *thd, List<st_handler_tablename> *fk_table_list) override;
-
-  uint referenced_by_foreign_key() override;
-
-  void free_foreign_key_create_info(char *str) override;
 
   uint lock_count(void) const override;
 
@@ -442,26 +452,38 @@ class ha_innobase : public handler {
   virtual void upgrade_update_field_with_zip_dict_info(
       THD *thd, const char *part_name) override;
 
-  /** Get number of threads that would be spawned for parallel read.
-  @param[in, out]   num_threads     number of threads to be spawned
+  using Reader = Parallel_reader_adapter;
+
+  /** Initializes a parallel scan. It creates a scan_ctx that has to
+  be used across all parallel_scan methods. Also, gets the number of threads
+  that would be spawned for parallel scan.
+  @param[out]   scan_ctx        A scan context created by this method
+                                that has to be used in
+                                parallel_scan
+  @param[out]   num_threads     Number of threads to be spawned
   @return error code
   @retval 0 on success */
-  int pread_adapter_scan_get_num_threads(size_t &num_threads) override;
+  int parallel_scan_init(void *&scan_ctx, size_t &num_threads) override;
 
   /** Start parallel read of InnoDB records.
-  @param[in]      thread_contexts context for each of the spawned threads
-  @param[in]      load_init_fn    callback called by each parallel load
-  thread at the beginning of the parallel load.
-  @param[in]      load_rows_fn    callback called by each parallel load
-  thread when processing of rows is required.
-  @param[in]      load_end_fn     callback called by each parallel load
-  thread when processing of rows has ended.
+  @param[in]  scan_ctx          A scan context created by parallel_scan_init
+  @param[in]  thread_ctxs       Context for each of the spawned threads
+  @param[in]  init_fn           Callback called by each parallel load
+                                thread at the beginning of the parallel load.
+  @param[in]  load_fn           Callback called by each parallel load
+                                thread when processing of rows is required.
+  @param[in]  end_fn            Callback called by each parallel load
+                                thread when processing of rows has ended.
   @return error code
   @retval 0 on success */
-  int pread_adapter_scan_parallel_load(
-      void **thread_contexts, pread_adapter_pload_init_cbk load_init_fn,
-      pread_adapter_pload_row_cbk load_rows_fn,
-      pread_adapter_pload_end_cbk load_end_fn) override;
+  int parallel_scan(void *scan_ctx, void **thread_ctxs, Reader::Init_fn init_fn,
+                    Reader::Load_fn load_fn, Reader::End_fn end_fn) override;
+
+  /** End of the parallel scan.
+  @param[in]      scan_ctx      A scan context created by parallel_scan_init.
+  @return error code
+  @retval 0 on success */
+  int parallel_scan_end(void *scan_ctx) override;
 
   bool check_if_incompatible_data(HA_CREATE_INFO *info,
                                   uint table_changes) override;
@@ -647,6 +669,14 @@ class ha_innobase : public handler {
                                        bool commit, const Table *old_dd_tab,
                                        Table *new_dd_tab);
 
+  /**
+    Return max limits for a single set of multi-valued keys
+
+    @param[out]  num_keys      number of keys to store
+    @param[out]  keys_length   total length of keys, bytes
+  */
+  void mv_key_capacity(uint *num_keys, size_t *keys_length) const override;
+
   /** The multi range read session object */
   DsMrr_impl m_ds_mrr;
 
@@ -675,7 +705,7 @@ class ha_innobase : public handler {
 
   /*!< match mode of the latest search: ROW_SEL_EXACT,
   ROW_SEL_EXACT_PREFIX, or undefined */
-  uint m_last_match_mode;
+  uint m_last_match_mode{0};
 
   /** this field is used to remember the original select_lock_type that
   was decided in ha_innodb.cc,":: store_lock()", "::external_lock()",
@@ -684,9 +714,6 @@ class ha_innobase : public handler {
 
   /** If mysql has locked with external_lock() */
   bool m_mysql_has_locked;
-
-  /** Do a parallel scan of an index. */
-  Parallel_reader_adapter *m_parallel_reader{nullptr};
 };
 
 struct trx_t;
@@ -808,8 +835,8 @@ class create_table_info_t {
   - all but name/path is used, when validating options and using flags. */
   create_table_info_t(THD *thd, TABLE *form, HA_CREATE_INFO *create_info,
                       char *table_name, char *remote_path, char *tablespace,
-                      bool file_per_table, bool skip_strict, ulint old_flags,
-                      ulint old_flags2)
+                      bool file_per_table, bool skip_strict, uint32_t old_flags,
+                      uint32_t old_flags2)
       : m_thd(thd),
         m_trx(thd_to_trx(thd)),
         m_form(form),
@@ -876,10 +903,10 @@ class create_table_info_t {
   void set_remote_path_flags();
 
   /** Get table flags. */
-  ulint flags() const { return (m_flags); }
+  uint32_t flags() const { return (m_flags); }
 
   /** Get table flags2. */
-  ulint flags2() const { return (m_flags2); }
+  uint32_t flags2() const { return (m_flags2); }
 
   /** Reset table flags. */
   void flags_reset() { m_flags = 0; }
@@ -912,15 +939,12 @@ class create_table_info_t {
 
   /** Normalizes a table name string.
   A normalized name consists of the database name catenated to '/' and
-  table name. An example: test/mytable. On Windows normalization puts
-  both the database name and the table name always to lower case if
-  "set_lower_case" is set to true.
+  table name. An example: test/mytable. On case insensitive file system
+  normalization converts name to lower case.
   @param[in,out]	norm_name	Buffer to return the normalized name in.
-  @param[in]	name		Table name string.
-  @param[in]	set_lower_case	True if we want to set name to lower
-                                  case. */
-  static void normalize_table_name_low(char *norm_name, const char *name,
-                                       ibool set_lower_case);
+  @param[in]		name		Table name string.
+  @return true if successful. */
+  static bool normalize_table_name(char *norm_name, const char *name);
 
   /** If master key encryption is requested, check for master key availability
   and set the encryption flag in table flags
@@ -935,9 +959,18 @@ class create_table_info_t {
                  FIL_ENCRYPTION_(ON/DEFAULT/OFF)
   @return on success DB_SUCCESS else DB_UNSPPORTED on failure */
   dberr_t enable_keyring_encryption(
-      dict_table_t *table, fil_encryption_t &rotated_keys_encryption_option);
+      dict_table_t *table, fil_encryption_t &keyring_encryption_option);
 
  private:
+  /** Check if encryption key exists or can be created
+  in keyring
+  @param[in] encryption_key_id key to fetch/create
+  @return DB_UNSUPPORTED error
+          DB_SUCCESS     success */
+
+  MY_NODISCARD dberr_t
+  check_tablespace_key(const EncryptionKeyId encryption_key_id);
+
   /** Parses the table name into normal name and either temp path or
   remote path if needed.*/
   int parse_table_name(const char *name);
@@ -995,10 +1028,10 @@ class create_table_info_t {
   bool m_use_shared_space;
 
   /** Table flags */
-  ulint m_flags;
+  uint32_t m_flags;
 
   /** Table flags2 */
-  ulint m_flags2;
+  uint32_t m_flags2;
 
   /** Skip strict check */
   bool m_skip_strict;
@@ -1211,20 +1244,21 @@ void innodb_base_col_setup(dict_table_t *table, const Field *field,
 void innodb_base_col_setup_for_stored(const dict_table_t *table,
                                       const Field *field, dict_s_col_t *s_col);
 
-/** whether this ia stored column */
+/** whether this is a stored column */
 #define innobase_is_s_fld(field) ((field)->gcol_info && (field)->stored_in_db)
 
 /** whether this is a computed virtual column */
 #define innobase_is_v_fld(field) ((field)->gcol_info && !(field)->stored_in_db)
 
-/** Always normalize table name to lower case on Windows */
-#ifdef _WIN32
+/** Whether this is a computed multi-value virtual column.
+This condition check should be equal to the following one:
+(innobase_is_v_fld(field) && (field)->gcol_info->expr_item &&
+ field->gcol_info->expr_item->returns_array())
+*/
+#define innobase_is_multi_value_fld(field) (field->is_array())
+
 #define normalize_table_name(norm_name, name) \
-  create_table_info_t::normalize_table_name_low(norm_name, name, TRUE)
-#else
-#define normalize_table_name(norm_name, name) \
-  create_table_info_t::normalize_table_name_low(norm_name, name, FALSE)
-#endif /* _WIN32 */
+  create_table_info_t::normalize_table_name(norm_name, name)
 
 /** Note that a transaction has been registered with MySQL.
 @param[in]	trx	Transaction.
@@ -1236,11 +1270,11 @@ inline bool trx_is_registered_for_2pc(const trx_t *trx) {
 /** Converts an InnoDB error code to a MySQL error code.
 Also tells to MySQL about a possible transaction rollback inside InnoDB caused
 by a lock wait timeout or a deadlock.
-@param[in]	error	InnoDB error code.
-@param[in]	flags	InnoDB table flags or 0.
-@param[in]	thd	MySQL thread or NULL.
+@param[in]  error   InnoDB error code.
+@param[in]  flags   InnoDB table flags or 0.
+@param[in]  thd     MySQL thread or NULL.
 @return MySQL error code */
-int convert_error_code_to_mysql(dberr_t error, ulint flags, THD *thd);
+int convert_error_code_to_mysql(dberr_t error, uint32_t flags, THD *thd);
 
 /** Converts a search mode flag understood by MySQL to a flag understood
 by InnoDB.
@@ -1301,5 +1335,8 @@ MY_NODISCARD
 bool innobase_build_index_translation(const TABLE *table,
                                       dict_table_t *ib_table,
                                       INNOBASE_SHARE *share);
+
+uint innodb_force_index_records_in_range(THD *thd);
+uint innodb_records_in_range(THD *thd);
 
 #endif /* ha_innodb_h */

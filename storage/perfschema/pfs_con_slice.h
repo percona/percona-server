@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -226,9 +226,8 @@ struct PFS_connection_slice {
   PFS_error_stat *m_instr_class_errors_stats;
 
  public:
-  void aggregate_status_stats(const System_status_var *status_vars,
-                              bool already_aggregated) {
-    m_status_stats.aggregate_from(status_vars, already_aggregated);
+  void aggregate_status_stats(const System_status_var *status_vars) {
+    m_status_stats.aggregate_from(status_vars);
   }
 
   /**

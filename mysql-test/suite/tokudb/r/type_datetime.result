@@ -111,6 +111,8 @@ PRIMARY KEY  (`numfacture`),
 KEY `date` (`date`),
 KEY `expedition` (`expedition`)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (expedition) VALUES ('1971-01-01 00:00:01');
 SELECT * FROM t1 WHERE expedition='1971-01-01 00:00:01';
 date	numfacture	expedition
@@ -124,7 +126,7 @@ EXPLAIN SELECT * FROM t1 WHERE expedition='1971-01-01 00:00:01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	expedition	expedition	5	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`date` AS `date`,`test`.`t1`.`numfacture` AS `numfacture`,`test`.`t1`.`expedition` AS `expedition` from `test`.`t1` where (`test`.`t1`.`expedition` = '1971-01-01 00:00:01')
+Note	1003	/* select#1 */ select `test`.`t1`.`date` AS `date`,`test`.`t1`.`numfacture` AS `numfacture`,`test`.`t1`.`expedition` AS `expedition` from `test`.`t1` where (`test`.`t1`.`expedition` = TIMESTAMP'1971-01-01 00:00:01')
 drop table t1;
 create table t1 (a datetime not null, b datetime not null);
 insert into t1 values (now(), now());
@@ -326,7 +328,7 @@ f1	f2
 2001-01-01	2001-01-01 00:00:00
 2001-01-01	2001-02-03 12:34:56
 2001-01-01	2002-04-06 11:22:33
-select * from t1,t2 where if(1,'01-02-03 12:34:56','') in (f1, f2);
+select * from t1,t2 where if(1,'01-02-03 12:34:56','') in (f1, f2) order by f1, f2;
 f1	f2
 2001-01-01	2001-02-03 12:34:56
 2001-01-02	2001-02-03 12:34:56
@@ -338,13 +340,13 @@ f2	f3
 2001-01-01 00:00:00	2001-01-01 00:00:00
 2001-02-03 12:34:56	2001-02-03 12:34:56
 2002-04-06 11:22:33	2002-04-06 11:22:33
-select f1,f2,f3 from t1,t2,t3 where (f1,'1') in ((f2,'1'),(f3,'1'));
+select f1,f2,f3 from t1,t2,t3 where (f1,'1') in ((f2,'1'),(f3,'1')) order by f1, f2, f3;
 f1	f2	f3
 2001-01-01	2001-01-01 00:00:00	2001-01-01 00:00:00
-2001-01-01	2001-02-03 12:34:56	2001-01-01 00:00:00
-2001-01-01	2002-04-06 11:22:33	2001-01-01 00:00:00
 2001-01-01	2001-01-01 00:00:00	2001-02-03 12:34:56
 2001-01-01	2001-01-01 00:00:00	2002-04-06 11:22:33
+2001-01-01	2001-02-03 12:34:56	2001-01-01 00:00:00
+2001-01-01	2002-04-06 11:22:33	2001-01-01 00:00:00
 select f1 from t1 where ('1',f1) in (('1','01-01-01'),('1','2001-1-1 0:0:0'),('1','02-02-02'));
 f1
 2001-01-01
@@ -512,7 +514,11 @@ sum(a)
 NULL
 drop table t1;
 create table t1 (id int(10) not null, cur_date datetime not null);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t2 (id int(10) not null, cur_date date not null);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 (id, cur_date) values (1, '2007-04-25 18:30:22');
 insert into t2 (id, cur_date) values (1, '2007-04-25');
 explain
@@ -523,7 +529,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	x1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.cur_date' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`cur_date` AS `cur_date` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`id`,<exists>(/* select#2 */ select 1 from `test`.`t1` `x1` where ((`test`.`t1`.`cur_date` = '0000-00-00 00:00:00') and (<cache>(`test`.`t1`.`id`) = `test`.`x1`.`id`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`cur_date` AS `cur_date` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`id`,<exists>(/* select#2 */ select 1 from `test`.`t1` `x1` where ((`test`.`t1`.`cur_date` = TIMESTAMP'0000-00-00 00:00:00') and (<cache>(`test`.`t1`.`id`) = `test`.`x1`.`id`))))
 select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
 id	cur_date
@@ -535,7 +541,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	x1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t2.cur_date' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`cur_date` AS `cur_date` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`id`,<exists>(/* select#2 */ select 1 from `test`.`t2` `x1` where ((`test`.`t2`.`cur_date` = '0000-00-00') and (<cache>(`test`.`t2`.`id`) = `test`.`x1`.`id`))))
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`cur_date` AS `cur_date` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`id`,<exists>(/* select#2 */ select 1 from `test`.`t2` `x1` where ((`test`.`t2`.`cur_date` = DATE'0000-00-00') and (<cache>(`test`.`t2`.`id`) = `test`.`x1`.`id`))))
 select * from t2
 where id in (select id from t2 as x1 where (t2.cur_date is null));
 id	cur_date
@@ -549,7 +555,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	x1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.cur_date' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`cur_date` AS `cur_date` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`id`,<exists>(/* select#2 */ select 1 from `test`.`t1` `x1` where ((`test`.`t1`.`cur_date` = '0000-00-00 00:00:00') and (<cache>(`test`.`t1`.`id`) = `test`.`x1`.`id`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`cur_date` AS `cur_date` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`id`,<exists>(/* select#2 */ select 1 from `test`.`t1` `x1` where ((`test`.`t1`.`cur_date` = TIMESTAMP'0000-00-00 00:00:00') and (<cache>(`test`.`t1`.`id`) = `test`.`x1`.`id`))))
 select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
 id	cur_date
@@ -561,7 +567,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	x1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t2.cur_date' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`cur_date` AS `cur_date` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`id`,<exists>(/* select#2 */ select 1 from `test`.`t2` `x1` where ((`test`.`t2`.`cur_date` = '0000-00-00') and (<cache>(`test`.`t2`.`id`) = `test`.`x1`.`id`))))
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`cur_date` AS `cur_date` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`id`,<exists>(/* select#2 */ select 1 from `test`.`t2` `x1` where ((`test`.`t2`.`cur_date` = DATE'0000-00-00') and (<cache>(`test`.`t2`.`id`) = `test`.`x1`.`id`))))
 select * from t2
 where id in (select id from t2 as x1 where (t2.cur_date is null));
 id	cur_date
@@ -655,7 +661,7 @@ EXPLAIN SELECT * FROM t1 FORCE INDEX(attime) WHERE AtTime = '2010-02-22 18:40:07
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	AtTime	AtTime	6	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`Id` AS `Id`,`test`.`t1`.`AtTime` AS `AtTime` from `test`.`t1` FORCE INDEX (`attime`) where (`test`.`t1`.`AtTime` = '2010-02-22 18:40:07')
+Note	1003	/* select#1 */ select `test`.`t1`.`Id` AS `Id`,`test`.`t1`.`AtTime` AS `AtTime` from `test`.`t1` FORCE INDEX (`attime`) where (`test`.`t1`.`AtTime` = TIMESTAMP'2010-02-22 18:40:07')
 DROP TABLE t1;
 SET NAMES latin1;
 #
@@ -665,6 +671,9 @@ CREATE TABLE t1 (
 `year` int(4) NOT NULL,
 `month` int(2) NOT NULL
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (2010,3),(2010,4),(2009,8),(2008,9);
 SELECT *
 FROM t1
@@ -683,7 +692,7 @@ explain select * from t2 where f1=STR_TO_DATE('4/1/2010', '%m/%d/%Y');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	const	PRIMARY	PRIMARY	5	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select '2010-04-01 00:00:00' AS `f1` from `test`.`t2` where 1
+Note	1003	/* select#1 */ select '2010-04-01 00:00:00' AS `f1` from `test`.`t2` where true
 DROP TABLE t1,t2;
 #
 # Bug#57095: Wrongly chosen expression cache type led to a wrong

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,8 @@
 
 #include <stddef.h>
 
-#include "control_events.h"  // enum_incidents
 #include "lex_string.h"
+#include "libbinlogevents/include/control_events.h"  // enum_incidents
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "sql/table.h"  // TABLE
@@ -170,15 +170,15 @@ class injector {
       my_off_t m_file_pos;
     };
 
-    transaction() : m_thd(NULL) {}
+    transaction() : m_thd(nullptr) {}
     transaction(transaction const &);
     ~transaction();
 
     /* Clear transaction, i.e., make calls to 'good()' return false. */
-    void clear() { m_thd = NULL; }
+    void clear() { m_thd = nullptr; }
 
     /* Is the transaction in a good state? */
-    bool good() const { return m_thd != NULL; }
+    bool good() const { return m_thd != nullptr; }
 
     /* Default assignment operator: standard implementation */
     transaction &operator=(transaction t) {
@@ -208,7 +208,7 @@ class injector {
       Add a 'write row' entry to the transaction.
     */
     int write_row(server_id_type sid, table tbl, MY_BITMAP const *cols,
-                  record_type record, const uchar *extra_row_info);
+                  record_type record, const unsigned char *extra_row_info);
     int write_row(server_id_type sid, table tbl, MY_BITMAP const *cols,
                   record_type record);
 
@@ -216,7 +216,7 @@ class injector {
       Add a 'delete row' entry to the transaction.
     */
     int delete_row(server_id_type sid, table tbl, MY_BITMAP const *cols,
-                   record_type record, const uchar *extra_row_info);
+                   record_type record, const unsigned char *extra_row_info);
     int delete_row(server_id_type sid, table tbl, MY_BITMAP const *cols,
                    record_type record);
     /*
@@ -224,7 +224,7 @@ class injector {
     */
     int update_row(server_id_type sid, table tbl, MY_BITMAP const *before_cols,
                    MY_BITMAP const *after_cols, record_type before,
-                   record_type after, const uchar *extra_row_info);
+                   record_type after, const unsigned char *extra_row_info);
     int update_row(server_id_type sid, table tbl, MY_BITMAP const *cols,
                    record_type before, record_type after);
 
@@ -374,7 +374,7 @@ class injector {
   void new_trans(THD *, transaction *);
 
   int record_incident(THD *, binary_log::Incident_event::enum_incident incident,
-                      LEX_STRING const message);
+                      LEX_CSTRING const message);
 
  private:
   explicit injector();

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -165,7 +165,7 @@ struct HASH_LINK {
 };
 
 /* simple states of a block */
-#define BLOCK_ERROR 1           /* an error occured when performing file i/o */
+#define BLOCK_ERROR 1           /* an error occurred when performing file i/o */
 #define BLOCK_READ 2            /* file block is in the block buffer         */
 #define BLOCK_IN_SWITCH 4       /* block is preparing to read new page       */
 #define BLOCK_REASSIGNED 8      /* blk does not accept requests for old page */
@@ -274,28 +274,28 @@ int init_key_cache(KEY_CACHE *keycache, ulonglong key_cache_block_size,
   ulong blocks, hash_links;
   size_t length;
   int error;
-  DBUG_ENTER("init_key_cache");
+  DBUG_TRACE;
   DBUG_ASSERT(key_cache_block_size >= 512);
 
   if (keycache->key_cache_inited && keycache->disk_blocks > 0) {
     DBUG_PRINT("warning", ("key cache already in use"));
-    DBUG_RETURN(0);
+    return 0;
   }
 
   keycache->global_cache_w_requests = keycache->global_cache_r_requests = 0;
   keycache->global_cache_read = keycache->global_cache_write = 0;
   keycache->disk_blocks = -1;
   if (!keycache->key_cache_inited) {
-    keycache->key_cache_inited = 1;
+    keycache->key_cache_inited = true;
     /*
       Initialize these variables once only.
       Their value must survive re-initialization during resizing.
     */
-    keycache->in_resize = 0;
-    keycache->resize_in_flush = 0;
+    keycache->in_resize = false;
+    keycache->resize_in_flush = false;
     keycache->cnt_for_resize_op = 0;
     keycache->waiting_for_resize_cnt.last_thread = NULL;
-    keycache->in_init = 0;
+    keycache->in_init = false;
     mysql_mutex_init(key_KEY_CACHE_cache_lock, &keycache->cache_lock,
                      MY_MUTEX_INIT_FAST);
     keycache->resize_queue.last_thread = NULL;
@@ -377,7 +377,7 @@ int init_key_cache(KEY_CACHE *keycache, ulonglong key_cache_block_size,
     keycache->age_threshold =
         (age_threshold ? blocks * age_threshold / 100 : blocks);
 
-    keycache->can_be_used = 1;
+    keycache->can_be_used = true;
 
     keycache->waiting_for_hash_link.last_thread = NULL;
     keycache->waiting_for_block.last_thread = NULL;
@@ -392,11 +392,11 @@ int init_key_cache(KEY_CACHE *keycache, ulonglong key_cache_block_size,
            sizeof(keycache->file_blocks[0]) * CHANGED_BLOCKS_HASH);
   } else {
     /* key_buffer_size is specified too small. Disable the cache. */
-    keycache->can_be_used = 0;
+    keycache->can_be_used = false;
   }
 
   keycache->blocks = keycache->disk_blocks > 0 ? keycache->disk_blocks : 0;
-  DBUG_RETURN((int)keycache->disk_blocks);
+  return (int)keycache->disk_blocks;
 
 err:
   error = my_errno();
@@ -411,8 +411,8 @@ err:
     keycache->block_root = NULL;
   }
   set_my_errno(error);
-  keycache->can_be_used = 0;
-  DBUG_RETURN(0);
+  keycache->can_be_used = false;
+  return 0;
 }
 
 /*
@@ -449,14 +449,14 @@ int resize_key_cache(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
                      ulonglong key_cache_block_size, size_t use_mem,
                      ulonglong division_limit, ulonglong age_threshold) {
   int blocks;
-  DBUG_ENTER("resize_key_cache");
+  DBUG_TRACE;
 
-  if (!keycache->key_cache_inited) DBUG_RETURN(keycache->disk_blocks);
+  if (!keycache->key_cache_inited) return keycache->disk_blocks;
 
   if (key_cache_block_size == keycache->key_cache_block_size &&
       use_mem == keycache->key_cache_mem_size) {
     change_key_cache_param(keycache, division_limit, age_threshold);
-    DBUG_RETURN(keycache->disk_blocks);
+    return keycache->disk_blocks;
   }
 
   mysql_mutex_lock(&keycache->cache_lock);
@@ -478,24 +478,24 @@ int resize_key_cache(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
     a resize in parallel. It prohibits new blocks to enter the cache.
     Read/write requests can bypass the cache during the flush phase.
   */
-  keycache->in_resize = 1;
+  keycache->in_resize = true;
 
   /* Need to flush only if keycache is enabled. */
   if (keycache->can_be_used) {
     /* Start the flush phase. */
-    keycache->resize_in_flush = 1;
+    keycache->resize_in_flush = true;
 
     if (flush_all_key_blocks(keycache, thread_var)) {
       /* TODO: if this happens, we should write a warning in the log file ! */
-      keycache->resize_in_flush = 0;
+      keycache->resize_in_flush = false;
       blocks = 0;
-      keycache->can_be_used = 0;
+      keycache->can_be_used = false;
       goto finish;
     }
     DBUG_ASSERT(cache_empty(keycache));
 
     /* End the flush phase. */
-    keycache->resize_in_flush = 0;
+    keycache->resize_in_flush = false;
   }
 
   /*
@@ -519,7 +519,7 @@ int resize_key_cache(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
     untouched. We do not lose the cache_lock and will release it only at
     the end of this function.
   */
-  end_key_cache(keycache, 0); /* Don't free mutex */
+  end_key_cache(keycache, false); /* Don't free mutex */
   /* The following will work even if use_mem is 0 */
   blocks = init_key_cache(keycache, key_cache_block_size, use_mem,
                           division_limit, age_threshold);
@@ -529,13 +529,13 @@ finish:
     Mark the resize finished. This allows other threads to start a
     resize or to request new cache blocks.
   */
-  keycache->in_resize = 0;
+  keycache->in_resize = false;
 
   /* Signal waiting threads. */
   release_whole_queue(&keycache->resize_queue);
 
   mysql_mutex_unlock(&keycache->cache_lock);
-  DBUG_RETURN(blocks);
+  return blocks;
 }
 
 /*
@@ -575,7 +575,7 @@ static inline void dec_counter_for_resize_op(KEY_CACHE *keycache) {
 static void change_key_cache_param(KEY_CACHE *keycache,
                                    ulonglong division_limit,
                                    ulonglong age_threshold) {
-  DBUG_ENTER("change_key_cache_param");
+  DBUG_TRACE;
 
   mysql_mutex_lock(&keycache->cache_lock);
   if (division_limit)
@@ -584,7 +584,6 @@ static void change_key_cache_param(KEY_CACHE *keycache,
   if (age_threshold)
     keycache->age_threshold = (keycache->disk_blocks * age_threshold / 100);
   mysql_mutex_unlock(&keycache->cache_lock);
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -600,10 +599,10 @@ static void change_key_cache_param(KEY_CACHE *keycache,
 */
 
 void end_key_cache(KEY_CACHE *keycache, bool cleanup) {
-  DBUG_ENTER("end_key_cache");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("key_cache: %p", keycache));
 
-  if (!keycache->key_cache_inited) DBUG_VOID_RETURN;
+  if (!keycache->key_cache_inited) return;
 
   if (keycache->disk_blocks > 0) {
     if (keycache->block_mem) {
@@ -634,9 +633,8 @@ void end_key_cache(KEY_CACHE *keycache, bool cleanup) {
 
   if (cleanup) {
     mysql_mutex_destroy(&keycache->cache_lock);
-    keycache->key_cache_inited = keycache->can_be_used = 0;
+    keycache->key_cache_inited = keycache->can_be_used = false;
   }
-  DBUG_VOID_RETURN;
 } /* end_key_cache */
 
 /**
@@ -1151,7 +1149,7 @@ static void unreg_request(KEY_CACHE *keycache, BLOCK_LINK *block, int at_end) {
     if (block && keycache->keycache_time - block->last_hit_time >
                      keycache->age_threshold) {
       unlink_block(keycache, block);
-      link_block(keycache, block, 0, 0);
+      link_block(keycache, block, false, false);
       if (block->temperature != BLOCK_WARM) {
         keycache->warm_blocks++;
         block->temperature = BLOCK_WARM;
@@ -1362,7 +1360,7 @@ static BLOCK_LINK *find_key_block(KEY_CACHE *keycache,
   int error = 0;
   int page_status;
 
-  DBUG_ENTER("find_key_block");
+  DBUG_TRACE;
   DBUG_PRINT("enter",
              ("fd: %d  pos: %lu  wrmode: %d", file, (ulong)filepos, wrmode));
 
@@ -1371,7 +1369,7 @@ restart:
     If the flush phase of a resize operation fails, the cache is left
     unusable. This will be detected only after "goto restart".
   */
-  if (!keycache->can_be_used) DBUG_RETURN(0);
+  if (!keycache->can_be_used) return 0;
 
   /*
     Find the hash_link for the requested file block (file, filepos). We
@@ -1430,7 +1428,7 @@ restart:
         */
         hash_link->requests--;
         unlink_hash(keycache, hash_link);
-        DBUG_RETURN(0);
+        return 0;
       }
 
       /*
@@ -1523,7 +1521,7 @@ restart:
       DBUG_ASSERT((hash_link->file == file) &&
                   (hash_link->diskpos == filepos) &&
                   (block->hash_link == hash_link));
-      DBUG_RETURN(block);
+      return block;
     }
 
     /*
@@ -1570,7 +1568,7 @@ restart:
       DBUG_ASSERT((hash_link->file == file) &&
                   (hash_link->diskpos == filepos) &&
                   (block->hash_link == hash_link));
-      DBUG_RETURN(block);
+      return block;
     }
 
     /*
@@ -1632,7 +1630,7 @@ restart:
       } while (block->hash_link && (block->hash_link->file == file) &&
                (block->hash_link->diskpos == filepos));
     }
-    DBUG_RETURN(0);
+    return 0;
   }
 
   if (page_status == PAGE_READ &&
@@ -1729,7 +1727,7 @@ restart:
         block->last_hit_time = 0;
         block->hash_link = hash_link;
         hash_link->block = block;
-        link_to_file_list(keycache, block, file, 0);
+        link_to_file_list(keycache, block, file, false);
         page_status = PAGE_TO_BE_READ;
       } else {
         /*
@@ -1876,7 +1874,7 @@ restart:
               correct.
             */
             block->status &= ~(BLOCK_IN_FLUSH | BLOCK_IN_FLUSHWRITE);
-            link_to_file_list(keycache, block, block->hash_link->file, 1);
+            link_to_file_list(keycache, block, block->hash_link->file, true);
             release_whole_queue(&block->wqueue[COND_FOR_SAVED]);
             /*
               The block is still assigned to its old hash_link.
@@ -1910,7 +1908,7 @@ restart:
           block->length = 0;
           block->offset = keycache->key_cache_block_size;
           block->hash_link = hash_link;
-          link_to_file_list(keycache, block, file, 0);
+          link_to_file_list(keycache, block, file, false);
           page_status = PAGE_TO_BE_READ;
 
           DBUG_ASSERT(block->hash_link->block == block);
@@ -1983,7 +1981,7 @@ restart:
               ((block->hash_link->file == file) &&
                (block->hash_link->diskpos == filepos)));
   *page_st = page_status;
-  DBUG_RETURN(block);
+  return block;
 }
 
 /*
@@ -2119,7 +2117,7 @@ uchar *key_cache_read(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
   bool locked_and_incremented = false;
   int error = 0;
   uchar *start = buff;
-  DBUG_ENTER("key_cache_read");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("fd: %u  pos: %lu  length: %u", (uint)file,
                        (ulong)filepos, length));
 
@@ -2167,8 +2165,7 @@ uchar *key_cache_read(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
       /* Start reading at the beginning of the cache block. */
       filepos -= offset;
       /* Do not read beyond the end of the cache block. */
-      read_length = length;
-      set_if_smaller(read_length, keycache->key_cache_block_size - offset);
+      read_length = std::min(length, keycache->key_cache_block_size - offset);
       DBUG_ASSERT(read_length > 0);
 
       if (block_length > keycache->key_cache_block_size || offset)
@@ -2276,7 +2273,7 @@ end:
     mysql_mutex_unlock(&keycache->cache_lock);
   }
   DBUG_PRINT("exit", ("error: %d", error));
-  DBUG_RETURN(error ? (uchar *)0 : start);
+  return error ? (uchar *)0 : start;
 }
 
 /*
@@ -2304,7 +2301,7 @@ int key_cache_insert(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
                      File file, my_off_t filepos, int level, uchar *buff,
                      uint length) {
   int error = 0;
-  DBUG_ENTER("key_cache_insert");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("fd: %u  pos: %lu  length: %u", (uint)file,
                        (ulong)filepos, length));
 
@@ -2340,8 +2337,7 @@ int key_cache_insert(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
       /* Start loading at the beginning of the cache block. */
       filepos -= offset;
       /* Do not load beyond the end of the cache block. */
-      read_length = length;
-      set_if_smaller(read_length, keycache->key_cache_block_size - offset);
+      read_length = std::min(length, keycache->key_cache_block_size - offset);
       DBUG_ASSERT(read_length > 0);
 
       /* The block has been read by the caller already. */
@@ -2495,7 +2491,7 @@ int key_cache_insert(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
     if (locked_and_incremented) dec_counter_for_resize_op(keycache);
     mysql_mutex_unlock(&keycache->cache_lock);
   }
-  DBUG_RETURN(error);
+  return error;
 }
 
 /*
@@ -2534,7 +2530,7 @@ int key_cache_write(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
                     int dont_write) {
   bool locked_and_incremented = false;
   int error = 0;
-  DBUG_ENTER("key_cache_write");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("fd: %u  pos: %lu  length: %u  block_length: %u"
                        "  key_block_length: %u",
                        (uint)file, (ulong)filepos, length, block_length,
@@ -2547,7 +2543,7 @@ int key_cache_write(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
     keycache->global_cache_w_requests++;
     keycache->global_cache_write++;
     if (my_pwrite(file, buff, length, filepos, MYF(MY_NABP | MY_WAIT_IF_FULL)))
-      DBUG_RETURN(1);
+      return 1;
     /* purecov: end */
   }
 
@@ -2595,8 +2591,7 @@ int key_cache_write(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
       /* Start writing at the beginning of the cache block. */
       filepos -= offset;
       /* Do not write beyond the end of the cache block. */
-      read_length = length;
-      set_if_smaller(read_length, keycache->key_cache_block_size - offset);
+      read_length = std::min(length, keycache->key_cache_block_size - offset);
       DBUG_ASSERT(read_length > 0);
 
       /* Request the cache block that matches file/pos. */
@@ -2714,7 +2709,7 @@ int key_cache_write(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
         /* Not used in the server. buff has been written to disk at start. */
         if ((block->status & BLOCK_CHANGED) &&
             (!offset && read_length >= keycache->key_cache_block_size))
-          link_to_file_list(keycache, block, block->hash_link->file, 1);
+          link_to_file_list(keycache, block, block->hash_link->file, true);
       } else if (!(block->status & BLOCK_CHANGED))
         link_to_changed_list(keycache, block);
       block->status |= BLOCK_READ;
@@ -2724,8 +2719,8 @@ int key_cache_write(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
         a flush.
       */
       block->status &= ~BLOCK_FOR_UPDATE;
-      set_if_smaller(block->offset, offset);
-      set_if_bigger(block->length, read_length + offset);
+      block->offset = std::min(block->offset, offset);
+      block->length = std::max(block->length, read_length + offset);
 
       /* Threads may be waiting for the changes to be complete. */
       release_whole_queue(&block->wqueue[COND_FOR_REQUESTED]);
@@ -2787,7 +2782,7 @@ end:
     mysql_mutex_unlock(&keycache->cache_lock);
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 /*
@@ -3003,7 +2998,7 @@ static int flush_cached_blocks(KEY_CACHE *keycache,
         wrong hash. If not freeing the block, we need to have it in the
         right queue anyway.
       */
-      link_to_file_list(keycache, block, file, 1);
+      link_to_file_list(keycache, block, file, true);
     }
     block->status &= ~BLOCK_IN_FLUSH;
     /*
@@ -3064,7 +3059,7 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
   BLOCK_LINK *cache_buff[FLUSH_CACHE], **cache;
   int last_errno = 0;
   int last_errcnt = 0;
-  DBUG_ENTER("flush_key_blocks_int");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("file: %d  blocks_used: %lu  blocks_changed: %lu", file,
                        keycache->blocks_used, keycache->blocks_changed));
 
@@ -3076,7 +3071,7 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
     BLOCK_LINK **pos, **end;
     BLOCK_LINK *first_in_switch = NULL;
     BLOCK_LINK *last_in_flush;
-    BLOCK_LINK *last_for_update;
+    BLOCK_LINK *last_link_for_update;
     BLOCK_LINK *block, *next;
 #ifndef DBUG_OFF
     uint cnt = 0;
@@ -3115,7 +3110,7 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
     /* Retrieve the blocks and write them to a buffer to be flushed */
   restart:
     last_in_flush = NULL;
-    last_for_update = NULL;
+    last_link_for_update = nullptr;
     end = (pos = cache) + count;
     for (block = keycache->changed_blocks[FILE_HASH(file)]; block;
          block = next) {
@@ -3184,7 +3179,7 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
                 link_to_file_list() so that it is always in the correct
                 queue and the *blocks_changed counters are correct.
               */
-              link_to_file_list(keycache, block, file, 1);
+              link_to_file_list(keycache, block, file, true);
               if (!(block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH))) {
                 /* A request has been registered against the block above. */
                 free_block(keycache, thread_var, block);
@@ -3225,7 +3220,7 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
             last_in_flush = block;
           } else {
             /* Remember the last block found to be selected for update. */
-            last_for_update = block;
+            last_link_for_update = block;
           }
         }
       }
@@ -3260,16 +3255,16 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
       /* Be sure not to lose a block. They may be flushed in random order. */
       goto restart;
     }
-    if (last_for_update) {
+    if (last_link_for_update) {
       /*
         There are no blocks to be flushed by this thread, but blocks for
         update by other threads. Wait until one of the blocks is updated.
-        Re-check the condition for last_for_update. We may have unlocked
+        Re-check the condition for last_link_for_update. We may have unlocked
         the cache_lock in flush_cached_blocks(). The state of the block
         could have changed.
       */
-      if (last_for_update->status & BLOCK_FOR_UPDATE)
-        wait_on_queue(&last_for_update->wqueue[COND_FOR_REQUESTED],
+      if (last_link_for_update->status & BLOCK_FOR_UPDATE)
+        wait_on_queue(&last_link_for_update->wqueue[COND_FOR_REQUESTED],
                       &keycache->cache_lock, thread_var);
       /* The block is now changed. Flush it. */
       goto restart;
@@ -3429,7 +3424,7 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
 err:
   if (cache != cache_buff) my_free(cache);
   if (last_errno) errno = last_errno; /* Return first error */
-  DBUG_RETURN(last_errno != 0);
+  return last_errno != 0;
 }
 
 /*
@@ -3451,10 +3446,10 @@ err:
 int flush_key_blocks(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
                      File file, enum flush_type type) {
   int res = 0;
-  DBUG_ENTER("flush_key_blocks");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("keycache: %p", keycache));
 
-  if (!keycache->key_cache_inited) DBUG_RETURN(0);
+  if (!keycache->key_cache_inited) return 0;
 
   mysql_mutex_lock(&keycache->cache_lock);
   /* While waiting for lock, keycache could have been ended. */
@@ -3464,7 +3459,7 @@ int flush_key_blocks(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
     dec_counter_for_resize_op(keycache);
   }
   mysql_mutex_unlock(&keycache->cache_lock);
-  DBUG_RETURN(res);
+  return res;
 }
 
 /*
@@ -3506,7 +3501,7 @@ static int flush_all_key_blocks(KEY_CACHE *keycache,
   uint total_found;
   uint found;
   uint idx;
-  DBUG_ENTER("flush_all_key_blocks");
+  DBUG_TRACE;
 
   do {
     mysql_mutex_assert_owner(&keycache->cache_lock);
@@ -3537,7 +3532,7 @@ static int flush_all_key_blocks(KEY_CACHE *keycache,
           */
           if (flush_key_blocks_int(keycache, thread_var, block->hash_link->file,
                                    FLUSH_FORCE_WRITE))
-            DBUG_RETURN(1);
+            return 1;
         }
       }
 
@@ -3568,7 +3563,7 @@ static int flush_all_key_blocks(KEY_CACHE *keycache,
           found++;
           if (flush_key_blocks_int(keycache, thread_var, block->hash_link->file,
                                    FLUSH_RELEASE))
-            DBUG_RETURN(1);
+            return 1;
         }
       }
 
@@ -3590,7 +3585,7 @@ static int flush_all_key_blocks(KEY_CACHE *keycache,
   }
 #endif
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -3611,10 +3606,10 @@ static int flush_all_key_blocks(KEY_CACHE *keycache,
 
 int reset_key_cache_counters(const char *name MY_ATTRIBUTE((unused)),
                              KEY_CACHE *key_cache) {
-  DBUG_ENTER("reset_key_cache_counters");
+  DBUG_TRACE;
   if (!key_cache->key_cache_inited) {
     DBUG_PRINT("info", ("Key cache %s not initialized.", name));
-    DBUG_RETURN(0);
+    return 0;
   }
   DBUG_PRINT("info", ("Resetting counters for key cache %s.", name));
 
@@ -3623,7 +3618,7 @@ int reset_key_cache_counters(const char *name MY_ATTRIBUTE((unused)),
   key_cache->global_cache_read = 0;       /* Key_reads */
   key_cache->global_cache_w_requests = 0; /* Key_write_requests */
   key_cache->global_cache_write = 0;      /* Key_writes */
-  DBUG_RETURN(0);
+  return 0;
 }
 
 #if !defined(DBUG_OFF)

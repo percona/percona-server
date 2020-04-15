@@ -1,0 +1,38 @@
+SET GLOBAL innodb_file_per_table = ON;
+create table t1 (a varchar(255)) engine=innodb;
+include/assert.inc [Table t1 should be included in INNODB_TABLESPACES_ENCRYPTION yet - since it is not RK]
+insert t1 values (repeat('foobarsecret', 12));
+select * from t1;
+a
+foobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecret
+# 1. Alter from unencrypted to RK
+ALTER TABLE t1 encryption='KEYRING';
+SELECT * FROM t1;
+a
+foobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecret
+include/assert.inc [Table t1 should be the only one appearing in INNODB_TABLESPACES_ENCRYPTION]
+create table t2 (a varchar(255)) engine=innodb encryption='y';
+insert t2 values (repeat('foobarsecret', 12));
+include/assert.inc [Table t2 should be included in INNODB_TABLESPACES_ENCRYPTION yet - since it is not RK]
+# 2. Alter from MK encryption to RK
+ALTER TABLE t2 encryption='KEYRING';
+SELECT * FROM t2;
+a
+foobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecret
+include/assert.inc [Table t2 should be included in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERION 1 (encrypted)]
+# 3. Alter from RK to MK
+ALTER TABLE t1 encryption='Y';
+SELECT * FROM t1;
+a
+foobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecret
+include/assert.inc [Table t1 has been re_encrypted to Master key encryption - should disappear from INNODB_TABLESPACES_ENCRYPTION => thus only t2 should remain]
+# 4. Alter from MK to unencrypted
+ALTER TABLE t1 encryption='n';
+include/assert.inc [t1 should be marked as unencrypted in INNODB_TABLESPACES_ENCRYPTION]
+# 5. Alter from unencrypted to RK
+ALTER TABLE t1 encryption='KEYRING';
+include/assert.inc [Table t1 should be included in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERION marked as ENCRYPTED]
+# 6. Alter from RK to unencrypted
+ALTER TABLE t1 encryption='n';
+include/assert.inc [Table t1 should appear in INNODB_TABLESPACES_ENCRYPTION but with MIN_KEY_VERSION marked as UNENCRYPTED]
+drop table t1,t2;

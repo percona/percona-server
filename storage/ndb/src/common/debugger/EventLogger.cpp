@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,8 +57,6 @@ void getTextConnected(QQQQ) {
 void getTextConnectedApiVersion(QQQQ) {
   char tmp[100];
   Uint32 mysql_version = theData[3];
-  if (theData[2] < NDBD_SPLIT_VERSION)
-  mysql_version = 0;
   BaseString::snprintf(m_text, m_text_len, 
 		       "Node %u: API %s",
 		       theData[1],
@@ -94,8 +92,6 @@ void getTextNDBStartStarted(QQQQ) {
 
   char tmp[100];
   Uint32 mysql_version = theData[2];
-  if (theData[1] < NDBD_SPLIT_VERSION)
-    mysql_version = 0;
   BaseString::snprintf(m_text, m_text_len, 
 		       "Start initiated (%s)", 
 		       ndbGetVersionString(theData[1], mysql_version, 0,
@@ -152,7 +148,7 @@ void getTextNDBStopForced(QQQQ) {
       reason_str.appfmt(" (extra info %d)", extra);
   }
   if (sphase < 255)
-    sphase_str.appfmt(" Occured during startphase %u.", sphase);
+    sphase_str.appfmt(" Occurred during startphase %u.", sphase);
   BaseString::snprintf(m_text, m_text_len,
 		       "Forced node shutdown completed%s.%s%s",
 		       action_str.c_str(), sphase_str.c_str(),
@@ -169,8 +165,6 @@ void getTextNDBStartCompleted(QQQQ) {
 
   char tmp[100];
   Uint32 mysql_version = theData[2];
-  if (theData[1] < NDBD_SPLIT_VERSION)
-    mysql_version = 0;
   BaseString::snprintf(m_text, m_text_len, 
 		       "Started (%s)", 
 		       ndbGetVersionString(theData[1], mysql_version, 0,
@@ -408,7 +402,7 @@ void getTextArbitResult(QQQQ) {
 			   "Network partitioning - no arbitrator configured");
       break;
     case ArbitCode::WinWaitExternal:{
-      char buf[8*4*2+1];
+      char buf[NodeBitmask::TextLength + 1];
       sd->mask.getText(buf);
       BaseString::snprintf(m_text, m_text_len,
 			   "Continuing after wait for external arbitration, "
@@ -940,14 +934,27 @@ void getTextBackupFailedToStart(QQQQ) {
 		       refToNode(theData[1]), theData[2]);
 }
 void getTextBackupCompleted(QQQQ) {
+  // Build 64-bit data bytes and records by assembling 32-bit signal parts
+  const Uint64 bytes_hi = theData[11];
+  const Uint64 records_hi = theData[12];
+  const Uint64 data_bytes = (bytes_hi << 32) | theData[5];
+  const Uint64 data_records = (records_hi << 32) | theData[6];
+
+  // Build 64-bit log bytes and records by assembling 32-bit signal parts
+  const Uint64 bytes_hi_log = theData[13];
+  const Uint64 records_hi_log = theData[14];
+  const Uint64 log_bytes = theData[7] | (bytes_hi_log << 32);
+  const Uint64 log_records = theData[8] | (records_hi_log << 32);
+
   BaseString::snprintf(m_text, m_text_len, 
 		       "Backup %u started from node %u completed." 
 		       " StartGCP: %u StopGCP: %u"
-		       " #Records: %u #LogRecords: %u"
-		       " Data: %u bytes Log: %u bytes",
-		       theData[2], refToNode(theData[1]),
-		       theData[3], theData[4], theData[6], theData[8],
-		       theData[5], theData[7]);
+		       " #Records: %llu #LogRecords: %llu"
+		       " Data: %llu bytes Log: %llu bytes",
+                       theData[2], refToNode(theData[1]),
+                       theData[3], theData[4],
+                       data_records, log_records,
+                       data_bytes, log_bytes);
 }
 void getTextBackupStatus(QQQQ) {
   if (theData[1])
@@ -1171,7 +1178,7 @@ void getTextSubscriptionStatus(QQQQ)
   case(1): // SubscriptionStatus::DISCONNECTED
     BaseString::snprintf(m_text, m_text_len,
                          "Disconnecting node %u because it has "
-                         "exceeded MaxBufferedEpochs (%u > %u), epoch %u/%u",
+                         "exceeded MaxBufferedEpochs (%u >= %u), epoch %u/%u",
                          theData[2],
                          theData[5],
                          theData[6],
@@ -1321,8 +1328,8 @@ void getTextConnectCheckStarted(QQQQ)
   Uint32 reason = theData[2];
   Uint32 causing_node = theData[3];
   Uint32 bitmaskSz = theData[4];
-  char otherNodeMask[100];
-  char suspectNodeMask[100];
+  char otherNodeMask[NodeBitmask::TextLength + 1];
+  char suspectNodeMask[NodeBitmask::TextLength + 1];
   BitmaskImpl::getText(bitmaskSz, theData + 5 + (0 * bitmaskSz), otherNodeMask);
   BitmaskImpl::getText(bitmaskSz, theData + 5 + (1 * bitmaskSz), suspectNodeMask);
   Uint32 suspectCount = BitmaskImpl::count(bitmaskSz, theData + 5 + (1 * bitmaskSz));

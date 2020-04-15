@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,18 +24,21 @@
 
 #include "plugin/x/tests/driver/processor/commands/command.h"
 
+#include <signal.h>
+#include <sys/types.h>
+
+#include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 #include <algorithm>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <set>
 #include <stdexcept>
 
-#include <signal.h>
-#include <sys/types.h>
+#include "mysqld_error.h"  // NOLINT(build/include_subdir)
 
-#include "mysqld_error.h"
-
-#include "plugin/x/ngs/include/ngs_common/to_string.h"
+#include "plugin/x/protocol/stream/compression_output_stream.h"
+#include "plugin/x/src/helper/to_string.h"
 #include "plugin/x/tests/driver/common/message_matcher.h"
 #include "plugin/x/tests/driver/connector/mysqlx_all_msgs.h"
 #include "plugin/x/tests/driver/connector/warning.h"
@@ -91,6 +94,27 @@ std::string bindump_to_data(const std::string &bindump,
   return res;
 }
 
+std::string data_to_bindump(const std::string &bindump) {
+  std::string res;
+
+  for (size_t i = 0; i < bindump.length(); i++) {
+    unsigned char ch = bindump[i];
+
+    if (i >= 5 && ch == '\\') {
+      res.push_back('\\');
+      res.push_back('\\');
+    } else if (i >= 5 && isprint(ch) && !isblank(ch)) {
+      res.push_back(ch);
+    } else {
+      res.append("\\x");
+      res.push_back(aux::ALLOWED_HEX_CHARACTERS[(ch >> 4) & 0xf]);
+      res.push_back(aux::ALLOWED_HEX_CHARACTERS[ch & 0xf]);
+    }
+  }
+
+  return res;
+}
+
 template <typename T>
 class Backup_and_restore {
  public:
@@ -106,9 +130,22 @@ class Backup_and_restore {
   T m_value;
 };
 
+template <typename Operator>
+class Numeric_values {
+ public:
+  bool operator()(const std::string &lhs, const std::string &rhs) const {
+    char *end;
+    const auto lhs_numeric = std::strtoll(lhs.c_str(), &end, 10);
+    const auto rhs_numeric = std::strtoll(rhs.c_str(), &end, 10);
+    return m_operator(lhs_numeric, rhs_numeric);
+  }
+
+  Operator m_operator;
+};
+
 }  // namespace
 
-ngs::chrono::time_point Command::m_start_measure;
+xpl::chrono::Time_point Command::m_start_measure;
 
 Command::Command() {
   m_commands["title"] = &Command::cmd_title;
@@ -131,6 +168,7 @@ Command::Command() {
   m_commands["endrepeat"] = &Command::cmd_endrepeat;
   m_commands["system"] = &Command::cmd_system;
   m_commands["peerdisc"] = &Command::cmd_peerdisc;
+  m_commands["enable_compression"] = &Command::cmd_enable_compression;
   m_commands["recv"] = &Command::cmd_recv;
   m_commands["exit"] = &Command::cmd_exit;
   m_commands["abort"] = &Command::cmd_abort;
@@ -175,12 +213,15 @@ Command::Command() {
   m_commands["noquery_result"] = &Command::cmd_noquery;
   m_commands["wait_for"] = &Command::cmd_wait_for;
   m_commands["received"] = &Command::cmd_received;
+  m_commands["compress_bin"] = &Command::cmd_compress;
+  m_commands["compress_hex"] = &Command::cmd_compress;
   m_commands["clear_received"] = &Command::cmd_clear_received;
   m_commands["recvresult_store_metadata"] =
       &Command::cmd_recvresult_store_metadata;
   m_commands["recv_with_stored_metadata"] =
       &Command::cmd_recv_with_stored_metadata;
   m_commands["clear_stored_metadata"] = &Command::cmd_clear_stored_metadata;
+  m_commands["assert"] = &Command::cmd_assert;
 }
 
 bool Command::is_command_registred(const std::string &command_line,
@@ -217,17 +258,17 @@ Command::Result Command::process(std::istream &input,
     return Result::Stop_with_failure;
   }
 
-  context->print_verbose("Execute ", command_line, "\n");
-
-  context->m_command_name = out_command_name;
-
   const char *arguments = command_line.c_str() + out_command_name.length();
 
   if (out_has_prefix) arguments += CMD_PREFIX.length();
-
   if (' ' == *arguments) arguments++;
 
-  return (this->*m_commands[out_command_name])(input, context, arguments);
+  context->print_verbose("Execute ", command_line, "\n");
+  context->m_command_name = out_command_name;
+  context->m_command_arguments = arguments;
+
+  return (this->*m_commands[out_command_name])(input, context,
+                                               context->m_command_arguments);
 }
 
 Command::Result Command::cmd_echo(std::istream &input,
@@ -244,8 +285,10 @@ Command::Result Command::cmd_title(std::istream &input,
                                    Execution_context *context,
                                    const std::string &args) {
   if (!args.empty()) {
-    context->print("\n", args.substr(1), "\n");
-    std::string sep(args.length() - 1, args[0]);
+    std::string s = args.substr(1);
+    context->m_variables->replace(&s);
+    context->print("\n", s, "\n");
+    std::string sep(s.length(), args[0]);
     context->print(sep, "\n");
   } else {
     context->print("\n\n");
@@ -257,8 +300,11 @@ Command::Result Command::cmd_title(std::istream &input,
 Command::Result Command::cmd_recvtype(std::istream &input,
                                       Execution_context *context,
                                       const std::string &args) {
+  std::string s = args;
+  context->m_variables->replace(&s);
+
   std::vector<std::string> vargs;
-  aux::split(vargs, args, " ", true);
+  aux::split(vargs, s, " ", true);
 
   if (1 != vargs.size() && 2 != vargs.size() && 3 != vargs.size()) {
     std::stringstream error_message;
@@ -269,8 +315,36 @@ Command::Result Command::cmd_recvtype(std::istream &input,
   bool be_quiet = false;
   xcl::XProtocol::Server_message_type_id msgid;
   xcl::XError error;
-  Message_ptr msg(
-      context->session()->get_protocol().recv_single_message(&msgid, &error));
+  const std::string expected_message_name = vargs[0];
+  const bool is_msgid = server_msgs_by_name.count(expected_message_name);
+  const bool is_msgtype = server_msgs_by_full_name.count(expected_message_name);
+
+  if (!is_msgid && !is_msgtype) {
+    context->print_error(
+        "'recvtype' command, invalid message name/id specified as command "
+        "argument:",
+        expected_message_name, "\n");
+    return Result::Stop_with_failure;
+  }
+
+  Message_ptr msg;
+
+  if (is_msgtype) {
+    msg =
+        context->session()->get_protocol().recv_single_message(&msgid, &error);
+  } else {
+    xcl::XProtocol::Header_message_type_id message_type_id;
+    uint8_t *buffer = nullptr;
+    size_t buffer_size;
+
+    error = context->session()->get_protocol().recv(&message_type_id, &buffer,
+                                                    &buffer_size);
+
+    msgid =
+        static_cast<xcl::XProtocol::Server_message_type_id>(message_type_id);
+
+    if (buffer) delete[] buffer;
+  }
 
   int number_of_arguments = static_cast<int>(vargs.size()) - 1;
   if (1 < vargs.size()) {
@@ -280,49 +354,74 @@ Command::Result Command::cmd_recvtype(std::istream &input,
     }
   }
 
-  if (nullptr == msg.get())
+  if (nullptr == msg.get() && is_msgtype) {
     return context->m_options.m_fatal_errors ? Result::Stop_with_failure
                                              : Result::Continue;
+  }
+
+  if (error) {
+    context->print_error("'recvtype' command, failed with I/O error: ", error,
+                         "\n");
+    return context->m_options.m_fatal_errors ? Result::Stop_with_failure
+                                             : Result::Continue;
+  }
 
   try {
-    const std::string expected_message_name = vargs[0];
-    const std::string field_filter = number_of_arguments > 0 ? vargs[1] : "";
-    const std::string expected_field_value =
-        number_of_arguments > 1 ? vargs[2] : "";
-    bool is_ok = msg->GetDescriptor()->full_name() == expected_message_name;
+    std::string command_output;
+    if (is_msgtype) {
+      const std::string field_filter = number_of_arguments > 0 ? vargs[1] : "";
+      const std::string expected_field_value =
+          number_of_arguments > 1 ? vargs[2] : "";
+      bool is_ok = msg->GetDescriptor()->full_name() == expected_message_name;
 
-    if (!expected_field_value.empty()) {
-      const bool k_dont_show_message_name = false;
-      const std::string field_value =
-          context->m_variables->unreplace(formatter::message_to_text(
-              *msg, field_filter, k_dont_show_message_name));
+      if (!expected_field_value.empty()) {
+        const bool k_dont_show_message_name = false;
+        const std::string field_value =
+            context->m_variables->unreplace(formatter::message_to_text(
+                *msg, field_filter, k_dont_show_message_name));
 
-      if (field_value != expected_field_value) {
-        is_ok = false;
+        if (field_value != expected_field_value) {
+          is_ok = false;
+        }
+      }
+
+      if (!is_ok) {
+        const std::string message_in_text = formatter::message_to_text(*msg);
+        std::string expected_message = expected_message_name;
+
+        if (!field_filter.empty()) expected_message += "(" + field_filter + ")";
+        if (!expected_field_value.empty())
+          expected_message += " = " + expected_field_value;
+
+        context->m_variables->clear_unreplace();
+
+        context->print("Received unexpected message type. Was expecting:\n    ",
+                       expected_message, "\nbut got:\n");
+        context->print(message_in_text, "\n");
+
+        return context->m_options.m_fatal_errors ? Result::Stop_with_failure
+                                                 : Result::Continue;
+      }
+
+      command_output = formatter::message_to_text(*msg, field_filter);
+    } else {
+      const auto received_message_id_name = server_msgs_by_id[msgid].second;
+
+      if (received_message_id_name != expected_message_name) {
+        context->m_variables->clear_unreplace();
+
+        context->print("Received unexpected message type. Was expecting:\n    ",
+                       expected_message_name, "\nbut got:\n");
+        context->print(received_message_id_name, "\n");
+
+        return context->m_options.m_fatal_errors ? Result::Stop_with_failure
+                                                 : Result::Continue;
       }
     }
 
-    if (!is_ok) {
-      const std::string message_in_text = formatter::message_to_text(*msg);
-      std::string expected_message = expected_message_name;
-
-      if (!field_filter.empty()) expected_message += "(" + field_filter + ")";
-      if (!expected_field_value.empty())
-        expected_message += " = " + expected_field_value;
-
-      context->m_variables->clear_unreplace();
-
-      context->print("Received unexpected message. Was expecting:\n    ",
-                     expected_message, "\nbut got:\n");
-      context->print(message_in_text, "\n");
-
-      return context->m_options.m_fatal_errors ? Result::Stop_with_failure
-                                               : Result::Continue;
-    }
-
     if (context->m_options.m_show_query_result && !be_quiet) {
-      const std::string message_in_text = context->m_variables->unreplace(
-          formatter::message_to_text(*msg, field_filter));
+      const std::string message_in_text =
+          context->m_variables->unreplace(command_output);
       context->print(message_in_text, "\n");
     }
 
@@ -685,6 +784,11 @@ Command::Result Command::cmd_recvuntil(std::istream &input,
     Message_ptr msg(
         context->session()->get_protocol().recv_single_message(&msgid, &error));
 
+    if (error) {
+      context->print_error_red(context->m_script_stack, error, '\n');
+      return Result::Stop_with_failure;
+    }
+
     if (msg.get()) {
       if (msg->GetDescriptor()->full_name() == argl[0] ||
           msgid == Mysqlx::ServerMessages::ERROR) {
@@ -795,7 +899,7 @@ Command::Result Command::cmd_sleep(std::istream &input,
 
   std::string tmp = args;
   context->m_variables->replace(&tmp);
-  const double delay_in_seconds = ngs::stod(tmp);
+  const double delay_in_seconds = std::stod(tmp);
 #ifdef _WIN32
   const int delay_in_milliseconds = static_cast<int>(delay_in_seconds * 1000);
   Sleep(delay_in_milliseconds);
@@ -889,12 +993,12 @@ Command::Result Command::cmd_repeat(std::istream &input,
   // Allow use of variables as a source of number of iterations
   context->m_variables->replace(&argl[0]);
 
-  Loop_do loop = {input.tellg(), ngs::stoi(argl[0]), 0, variable_name};
+  Loop_do loop = {input.tellg(), std::stoi(argl[0]), 0, variable_name};
 
   m_loop_stack.push_back(loop);
 
   if (variable_name.length())
-    context->m_variables->set(variable_name, ngs::to_string(loop.value));
+    context->m_variables->set(variable_name, xpl::to_string(loop.value));
 
   return Result::Continue;
 }
@@ -909,7 +1013,7 @@ Command::Result Command::cmd_endrepeat(std::istream &input,
     ++ld.value;
 
     if (ld.variable_name.length())
-      context->m_variables->set(ld.variable_name, ngs::to_string(ld.value));
+      context->m_variables->set(ld.variable_name, xpl::to_string(ld.value));
 
     if (1 > ld.iterations) {
       m_loop_stack.pop_back();
@@ -1058,6 +1162,33 @@ Command::Result Command::cmd_recv_all_until_disc(std::istream &input,
   return Result::Continue;
 }
 
+Command::Result Command::cmd_enable_compression(std::istream &input,
+                                                Execution_context *context,
+                                                const std::string &args) {
+  const static std::map<std::string, xcl::Compression_algorithm> algo{
+      {"deflate_stream", xcl::Compression_algorithm::k_deflate},
+      {"lz4_message", xcl::Compression_algorithm::k_lz4},
+      {"zstd_stream", xcl::Compression_algorithm::k_zstd}};
+
+  std::string arg = args;
+  context->m_variables->replace(&arg);
+
+  std::string lower_case_arg;
+  for (const auto c : arg) {
+    lower_case_arg.push_back(tolower(c));
+  }
+
+  if (0 == algo.count(lower_case_arg)) {
+    context->print_error("ERROR: Invalid algorithm used: \"", arg, "\"\n");
+
+    return Result::Stop_with_failure;
+  }
+
+  context->m_connection->active_holder().enable_compression(
+      algo.at(lower_case_arg));
+  return Result::Continue;
+}
+
 Command::Result Command::cmd_peerdisc(std::istream &input,
                                       Execution_context *context,
                                       const std::string &args) {
@@ -1075,7 +1206,7 @@ Command::Result Command::cmd_peerdisc(std::istream &input,
     tolerance = 10 * expected_delta_time / 100;
   }
 
-  ngs::chrono::time_point start_time = ngs::chrono::now();
+  xpl::chrono::Time_point start_time = xpl::chrono::now();
   try {
     xcl::XProtocol::Server_message_type_id msgid;
     context->m_connection->active_xconnection()->set_read_timeout(
@@ -1106,7 +1237,7 @@ Command::Result Command::cmd_peerdisc(std::istream &input,
   }
 
   int execution_delta_time = static_cast<int>(
-      ngs::chrono::to_milliseconds(ngs::chrono::now() - start_time));
+      xpl::chrono::to_milliseconds(xpl::chrono::now() - start_time));
 
   if (abs(execution_delta_time - expected_delta_time) > tolerance) {
     context->print_error(
@@ -1148,9 +1279,9 @@ Command::Result Command::cmd_recv(std::istream &input,
                                                                        &error)};
 
     if (error) {
-      if (!quiet && !context->m_expected_error.check_error(
-                        error))  // TODO(owner) do we need
-                                 // this !quiet ?
+      if (!quiet &&
+          !context->m_expected_error.check_error(error))  // TODO(owner) do we
+                                                          // need this !quiet ?
         return Result::Stop_with_failure;
       return Result::Continue;
     }
@@ -1203,7 +1334,7 @@ Command::Result Command::cmd_shutdown_server(std::istream &input,
                                              const std::string &args) {
   int timeout_seconds = 0;
 
-  if (args.size() > 0) timeout_seconds = ngs::stoi(args);
+  if (args.size() > 0) timeout_seconds = std::stoi(args);
 
   if (0 != timeout_seconds) {
     context->m_console.print_error(
@@ -1231,7 +1362,7 @@ Command::Result Command::cmd_shutdown_server(std::istream &input,
                               }));
     try_result(cmd_varfile(input, context, "__%VAR% " + pid_file));
 
-    const auto pid = ngs::stoi(context->m_variables->get("__%VAR%"));
+    const auto pid = std::stoi(context->m_variables->get("__%VAR%"));
 
     if (0 == pid) {
       context->m_console.print_error("Pid-file doesn't contain valid PID.\n");
@@ -1486,14 +1617,14 @@ Command::Result Command::cmd_expecterror(std::istream &input,
 Command::Result Command::cmd_measure(std::istream &input,
                                      Execution_context *context,
                                      const std::string &args) {
-  m_start_measure = ngs::chrono::now();
+  m_start_measure = xpl::chrono::now();
   return Result::Continue;
 }
 
 Command::Result Command::cmd_endmeasure(std::istream &input,
                                         Execution_context *context,
                                         const std::string &args) {
-  if (!ngs::chrono::is_valid(m_start_measure)) {
+  if (!xpl::chrono::is_valid(m_start_measure)) {
     context->print_error("Time measurement, wasn't initialized", '\n');
     return Result::Stop_with_failure;
   }
@@ -1506,13 +1637,13 @@ Command::Result Command::cmd_endmeasure(std::istream &input,
     return Result::Stop_with_failure;
   }
 
-  const int64_t expected_msec = ngs::stoi(argl[0]);
+  const int64_t expected_msec = std::stoi(argl[0]);
   const int64_t msec =
-      ngs::chrono::to_milliseconds(ngs::chrono::now() - m_start_measure);
+      xpl::chrono::to_milliseconds(xpl::chrono::now() - m_start_measure);
 
   int64_t tolerance = expected_msec * 10 / 100;
 
-  if (2 == argl.size()) tolerance = ngs::stoi(argl[1]);
+  if (2 == argl.size()) tolerance = std::stoi(argl[1]);
 
   if (abs(static_cast<int>(expected_msec - msec)) > tolerance) {
     context->print_error("Timeout should occur after ", expected_msec,
@@ -1520,7 +1651,7 @@ Command::Result Command::cmd_endmeasure(std::istream &input,
     return Result::Stop_with_failure;
   }
 
-  m_start_measure = ngs::chrono::time_point();
+  m_start_measure = xpl::chrono::Time_point();
   return Result::Continue;
 }
 
@@ -1625,7 +1756,7 @@ Command::Result Command::cmd_varinc(std::istream &input,
   int64_t int_val = strtol(val.c_str(), &c, 10);
   int64_t int_n = strtol(inc_by.c_str(), &c, 10);
   int_val += int_n;
-  val = ngs::to_string(int_val);
+  val = xpl::to_string(int_val);
   context->m_variables->set(argl[0], val);
 
   return Result::Continue;
@@ -1640,7 +1771,7 @@ Command::Result Command::cmd_vargen(std::istream &input,
     context->print_error("Invalid number of arguments for command vargen\n");
     return Result::Stop_with_failure;
   }
-  std::string data(ngs::stoi(argl[2]), *argl[1].c_str());
+  std::string data(std::stoi(argl[2]), *argl[1].c_str());
   context->m_variables->set(argl[0], data);
   return Result::Continue;
 }
@@ -1735,7 +1866,7 @@ Command::Result Command::cmd_hexsend(std::istream &input,
   if (0 != args_copy.length() % 2) {
     context->print_error(
         "Size of data should be a multiplication of two, current length:",
-        args_copy.length(), '\n');
+        args_copy.length(), ", data:'", args_copy, "'\n");
     return Result::Stop_with_failure;
   }
 
@@ -1757,12 +1888,12 @@ Command::Result Command::cmd_hexsend(std::istream &input,
 size_t Command::value_to_offset(const std::string &data,
                                 const size_t maximum_value) {
   if ('%' == *data.rbegin()) {
-    size_t percent = ngs::stoi(data);
+    size_t percent = std::stoi(data);
 
     return maximum_value * percent / 100;
   }
 
-  return ngs::stoi(data);
+  return std::stoi(data);
 }
 
 Command::Result Command::cmd_binsendoffset(std::istream &input,
@@ -1856,109 +1987,80 @@ Command::Result Command::cmd_macro_delimiter_compress(
 Command::Result Command::cmd_assert_eq(std::istream &input,
                                        Execution_context *context,
                                        const std::string &args) {
-  std::vector<std::string> vargs;
-
-  aux::split(vargs, args, "\t", true);
-
-  if (2 != vargs.size()) {
-    context->print_error(
-        "Specified invalid number of arguments for command assert_eq:",
-        vargs.size(), " expecting 2\n");
-    return Result::Stop_with_failure;
-  }
-
-  context->m_variables->replace(&vargs[0]);
-  context->m_variables->replace(&vargs[1]);
-
-  if (vargs[0] != vargs[1]) {
-    context->print_error("Execution of '", args, "', resulted in an error:\n");
-    context->print_error("Expecting '", vargs[0], "', but received '", vargs[1],
-                         "'\n");
-    return Result::Stop_with_failure;
-  }
-
-  return Result::Continue;
+  return cmd_assert_generic<std::equal_to<>>(input, context, args);
 }
 
 Command::Result Command::cmd_assert_ne(std::istream &input,
                                        Execution_context *context,
                                        const std::string &args) {
-  std::vector<std::string> vargs;
-
-  aux::split(vargs, args, "\t", true);
-
-  if (2 != vargs.size()) {
-    context->print_error(
-        "Specified invalid number of arguments for command assert_eq:",
-        vargs.size(), " expecting 2\n");
-    return Result::Stop_with_failure;
-  }
-
-  context->m_variables->replace(&vargs[0]);
-  context->m_variables->replace(&vargs[1]);
-
-  if (vargs[0] == vargs[1]) {
-    context->print_error("Expecting '", vargs[0], "', to be different from '",
-                         vargs[1], "'\n");
-    return Result::Stop_with_failure;
-  }
-
-  return Result::Continue;
+  return cmd_assert_generic<std::not_equal_to<>>(input, context, args);
 }
 
 Command::Result Command::cmd_assert_gt(std::istream &input,
                                        Execution_context *context,
                                        const std::string &args) {
-  std::vector<std::string> vargs;
+  return cmd_assert_generic<Numeric_values<std::greater<>>>(input, context,
+                                                            args);
+}
 
-  aux::split(vargs, args, "\t", true);
+Command::Result Command::cmd_assert_le(std::istream &input,
+                                       Execution_context *context,
+                                       const std::string &args) {
+  return cmd_assert_generic<Numeric_values<std::less_equal<>>>(input, context,
+                                                               args);
+}
 
-  if (2 != vargs.size()) {
-    context->print_error(
-        "Specified invalid number of arguments for command assert_gt:",
-        vargs.size(), " expecting 2\n");
-    return Result::Stop_with_failure;
-  }
-
-  context->m_variables->replace(&vargs[0]);
-  context->m_variables->replace(&vargs[1]);
-
-  if (ngs::stoi(vargs[0]) <= ngs::stoi(vargs[1])) {
-    context->print_error("Expecting '", vargs[0], "' to be greater than '",
-                         vargs[1], "'\n");
-    return Result::Stop_with_failure;
-  }
-
-  return Result::Continue;
+Command::Result Command::cmd_assert_lt(std::istream &input,
+                                       Execution_context *context,
+                                       const std::string &args) {
+  return cmd_assert_generic<Numeric_values<std::less<>>>(input, context, args);
 }
 
 Command::Result Command::cmd_assert_ge(std::istream &input,
                                        Execution_context *context,
                                        const std::string &args) {
+  return cmd_assert_generic<Numeric_values<std::greater_equal<>>>(
+      input, context, args);
+}
+
+Command::Result Command::cmd_assert(std::istream &input,
+                                    Execution_context *context,
+                                    const std::string &args) {
   std::vector<std::string> vargs;
-  char *end_string = nullptr;
 
   aux::split(vargs, args, "\t", true);
 
-  if (2 != vargs.size()) {
+  if (3 != vargs.size()) {
     context->print_error(
-        "Specified invalid number of arguments for command assert_gt:",
-        vargs.size(), " expecting 2\n");
+        context->m_script_stack,
+        "Specified invalid number of arguments for command assert:",
+        vargs.size(), " expecting 3\n");
     return Result::Stop_with_failure;
   }
 
-  context->m_variables->replace(&vargs[0]);
-  context->m_variables->replace(&vargs[1]);
+  static std::map<std::string, Command_method> assert_methods{
+      {"!=", &Command::cmd_assert_ne}, {"==", &Command::cmd_assert_eq},
+      {"=", &Command::cmd_assert_eq},  {">", &Command::cmd_assert_gt},
+      {">=", &Command::cmd_assert_ge}, {"<", &Command::cmd_assert_lt},
+      {"<=", &Command::cmd_assert_le}};
 
-  if (strtoll(vargs[0].c_str(), &end_string, 10) <
-      strtoll(vargs[1].c_str(), &end_string, 10)) {
-    context->print_error("assert_gt(", args, ") failed!\n", "Expecting '",
-                         vargs[0], "' to be greater or equal to '", vargs[1],
-                         "'\n");
+  if (0 == assert_methods.count(vargs[1])) {
+    std::string ops;
+    for (const auto &kv : assert_methods) {
+      if (!ops.empty()) ops += ", ";
+
+      ops += kv.first;
+    }
+
+    context->print_error(context->m_script_stack,
+                         "Used invalid operator in second argument:", vargs[1],
+                         " expecting one of: ", ops, "\n");
     return Result::Stop_with_failure;
   }
 
-  return Result::Continue;
+  auto method = assert_methods[vargs[1]];
+
+  return (this->*method)(input, context, vargs[0] + "\t" + vargs[2]);
 }
 
 Command::Result Command::cmd_query(std::istream &input,
@@ -1973,12 +2075,6 @@ Command::Result Command::cmd_noquery(std::istream &input,
                                      const std::string &args) {
   context->m_options.m_show_query_result = false;
   return Result::Continue;
-}
-
-bool Command::put_variable_to(std::string *result, const std::string &value) {
-  *result = value;
-
-  return true;
 }
 
 void Command::try_result(Result result) {
@@ -2016,14 +2112,20 @@ Command::Result Command::cmd_wait_for(std::istream &input,
           &context->m_options.m_show_query_result, false);
       Backup_and_restore<std::string> backup_and_restore_command_name(
           &context->m_command_name, "sql");
+      bool has_row = false;
 
       try_result(cmd_stmtsql(input, context, vargs[1]));
-      try_result(cmd_recvresult(
-          input, context, "",
-          std::bind(&Command::put_variable_to, &value, std::placeholders::_1)));
+      try_result(
+          cmd_recvresult(input, context, "",
+                         [&value, &has_row](const std::string &result_value) {
+                           value = result_value;
+                           has_row = true;
+                           return true;
+                         }));
+
       try_result(cmd_sleep(input, context, "1"));
 
-      match = (value == expected_value);
+      match = has_row && (value == expected_value);
     } while (!match && --countdown_retries);
   } catch (const Result result) {
     context->print_error(
@@ -2066,7 +2168,7 @@ Command::Result Command::cmd_received(std::istream &input,
 
   context->m_variables->set(
       vargs[1],
-      ngs::to_string(
+      xpl::to_string(
           context->m_connection->active_session_messages_received(vargs[0])));
 
   return Result::Continue;
@@ -2126,6 +2228,75 @@ Command::Result Command::cmd_recv_with_stored_metadata(
   }
   return cmd_recvresult(input, context, args, Value_callback(),
                         Metadata_policy::Use_stored);
+}
+
+Command::Result Command::cmd_compress(std::istream &input,
+                                      Execution_context *context,
+                                      const std::string &args) {
+  std::vector<std::string> argl;
+
+  aux::split(argl, args, " ", true);
+
+  const bool is_hex = context->m_command_name.find("hex") != std::string::npos;
+
+  if (argl.size() != 2) {
+    context->print_error("'compress' command requires two arguments.\n");
+    return Result::Stop_with_failure;
+  }
+
+  context->m_variables->replace(&argl[1]);
+
+  std::string raw;
+  std::string compressed;
+
+  if (is_hex) {
+    aux::unhex(argl[1], raw);
+  } else {
+    raw =
+        bindump_to_data(argl[1], &context->m_script_stack, context->m_console);
+  }
+
+  auto algorithm = context->m_connection->active_holder().get_algorithm();
+
+  if (!algorithm) {
+    context->print_error(
+        "Algorithm not selected, please call first 'enable_compression' "
+        "command.\n");
+    return Result::Stop_with_failure;
+  }
+
+  {
+    google::protobuf::io::StringOutputStream sos(&compressed);
+    protocol::Compression_output_stream pos(algorithm, &sos);
+
+    uint8_t *dst;
+    int dst_size;
+    int raw_offset = 0;
+    uint8_t *source = reinterpret_cast<uint8_t *>(&raw[0]);
+    int source_size = raw.length();
+
+    while (source_size &&
+           pos.Next(reinterpret_cast<void **>(&dst), &dst_size)) {
+      int to_copy = std::min(dst_size, source_size);
+      int left_in_next = dst_size - to_copy;
+      memcpy(dst, &raw[raw_offset], to_copy);
+      source_size -= to_copy;
+      source += to_copy;
+
+      if (left_in_next > 0) pos.BackUp(left_in_next);
+    }
+  }
+
+  raw.clear();
+  if (is_hex) {
+    aux::hex(compressed, raw);
+  } else {
+    raw = data_to_bindump(compressed);
+  }
+
+  context->m_variables->set(argl[0], raw);
+
+  return Result::Continue;
 }
 
 Command::Result Command::cmd_clear_stored_metadata(std::istream &input,
@@ -2276,6 +2447,12 @@ void print_help_commands() {
                "executed and results printed (allows variables).\n";
   std::cout << "-->endsql\n";
   std::cout << "  End SQL block. End a block of SQL started by -->sql\n";
+  std::cout << "-->begin_compress\n";
+  std::cout << "  Begins block of protobuf messages to compress and\n"
+               "  encapsulate inside single 'Compressed' message.\n";
+  std::cout << "-->end_compress\n";
+  std::cout << "  End compressed message block. End a block started by "
+               "-->begin_compress\n";
   std::cout << "-->macro <macroname> <argname1> ...\n";
   std::cout << "  Start a block of text to be defined as a macro. Must be "
                "terminated with -->endmacro\n";
@@ -2296,6 +2473,8 @@ void print_help_commands() {
   std::cout << "<protomsg>\n";
   std::cout << "  Encodes the text format protobuf message and sends it to "
                "the server (allows variables).\n";
+  std::cout << "-->enable_compression [deflate|lz4|zstd]\n";
+  std::cout << "  Enable compression\n";
   std::cout << "-->recv [quiet|<FIELD PATH>]\n";
   std::cout << "  quiet        - received message isn't printed\n";
   std::cout
@@ -2317,11 +2496,20 @@ void print_help_commands() {
   std::cout << "-->recverror <errno>\n";
   std::cout << "  Read a message and ensure that it's an error of the "
                "expected type\n";
-  std::cout << "-->recvtype <msgtype> (<msg_fied>|" << CMD_ARG_BE_QUIET
-            << "|<msg_fied> " << CMD_ARG_BE_QUIET
-            << "|<msg_fied> <expected_field_value>|)\n";
-  std::cout << "  Read one message and print it, checking that its type is "
-               "the specified one\n";
+  std::cout << "-->recvtype (<msgtype> [<msg_fied>] [<expected_field_value>] ["
+            << CMD_ARG_BE_QUIET << "])|<msgid>"
+            << "\n";
+  std::cout << "  - In case when user specified <msgtype> - read one message "
+               "and print it,\n"
+               "    checks if its type is <msgtype>, additionally its fields "
+               "may be matched.\n"
+               "    Compressed messages are decompressed, thus user will "
+               "receive inner X Protocol messages.\n";
+  std::cout << "  - In case when user specified <msgid> - read one message and "
+               "print the ID,\n"
+               "    checks the RAW message ID if its match <msgid>.\n"
+               "    Compressed messages are not decompressed, thus their IDs "
+               "may be matched against <msgid>.\n";
   std::cout << "-->recvok\n";
   std::cout << "  Expect to receive 'Mysqlx.Ok' message. Works with "
                "'expecterror' command.\n";
@@ -2413,6 +2601,25 @@ void print_help_commands() {
   std::cout << "-->wait_for <VALUE_EXPECTED>\t<SQL QUERY>\n";
   std::cout << "  Wait until SQL query returns value matches expected value "
                "(time limit 30 second)\n";
+  std::cout << "-->assert <VALUE_EXPECTED>\t<OP>\t<VALUE_TESTED>\n";
+  std::cout << "  Ensure that expression described by argument parameters "
+               "is true\n";
+  std::cout << "  <OP> can take following values:\n"
+               "  \"==\" ensures that expected value and tested value "
+               "are equal\n";
+  std::cout << "  \"!=\" ensures that expected value and tested value "
+               "are not equal\n";
+  std::cout << "  \">=\" ensures that expected value is greater or equal "
+               "to tested value\n";
+  std::cout << "  \"<=\" ensures that expected value is less or equal "
+               "to tested value\n";
+  std::cout << "  \"<\" ensures that expected value is less than"
+               " tested value\n";
+  std::cout << "  \">\" ensures that expected value is grater than"
+               " tested value\n";
+  std::cout << "\n";
+  std::cout << "  For example: -->assert 1 < %SOME_VARIABLE%\n";
+  std::cout << "               -->assert %V1% == %V2%\n";
   std::cout << "-->assert_eq <VALUE_EXPECTED>\t<VALUE_TESTED>\n";
   std::cout << "  Ensure that 'TESTED' value equals 'EXPECTED' by comparing "
                "strings lexicographically\n";
@@ -2441,6 +2648,14 @@ void print_help_commands() {
                "<varname> value.\n";
   std::cout << "-->varescape <varname>\n";
   std::cout << "  Escape end-line and backslash characters.\n";
+  std::cout << "-->compress_bin <VAR> <bindump>\n";
+  std::cout << "  Compress <bindump> using output-compression context\n";
+  std::cout << "  and put the output to <VAR> encoded using bindump\n";
+  std::cout << "  (compatible with protobuf text format).\n";
+  std::cout << "-->compress_hex <VAR> <hexdump>\n";
+  std::cout << "  Compress <hexdump> using output-compression context\n";
+  std::cout
+      << "  and put the output to <VAR> encoded using hexdecimal string.\n";
   std::cout << "-->binsend <bindump>[<bindump>...]\n";
   std::cout << "  Sends one or more binary message dumps to the server "
                "(generate those with --bindump)\n";
@@ -2448,10 +2663,16 @@ void print_help_commands() {
                "[offset-end[percent]]]\n";
   std::cout
       << "  Same as binsend with begin and end offset of data to be send\n";
-  std::cout << "-->binparse MESSAGE.NAME {\n";
+  std::cout << "-->binparse <VAR_NAME> MESSAGE.NAME {\n";
   std::cout << "    MESSAGE.DATA\n";
   std::cout << "}\n";
-  std::cout << "  Dump given message to variable %MESSAGE_DUMP%\n";
+  std::cout << "  Dump given message to variable <VAR_NAME>, encoded as \n";
+  std::cout << "  binary string (compatible with protobuf text format).\n";
+  std::cout << "-->hexparse <VAR_NAME> MESSAGE.NAME {\n";
+  std::cout << "    MESSAGE.DATA\n";
+  std::cout << "}\n";
+  std::cout << "  Dump given message to variable <VAR_NAME>, encoded as \n";
+  std::cout << "  hexdecimal string.\n";
   std::cout << "-->quiet/noquiet\n";
   std::cout << "  Toggle verbose messages\n";
   std::cout << "-->query_result/noquery_result\n";

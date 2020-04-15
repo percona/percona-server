@@ -12,8 +12,8 @@ FLUSH LOGS;
 source include/show_binary_logs.inc;
 
 CREATE TABLE `t1` (
-  `v1` int(11) DEFAULT NULL,
-  `v2` int(11) DEFAULT NULL,
+  `v1` int DEFAULT NULL,
+  `v2` int DEFAULT NULL,
   KEY `v1` (`v1`)
 );
 INSERT INTO t1 VALUES (0,0);

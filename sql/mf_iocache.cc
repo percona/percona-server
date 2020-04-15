@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_rnd.h"
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "sql/current_thd.h"
@@ -61,18 +62,18 @@ int _my_b_net_read(IO_CACHE *info, uchar *Buffer,
                    size_t Count MY_ATTRIBUTE((unused))) {
   ulong read_length;
   NET *net = current_thd->get_protocol_classic()->get_net();
-  DBUG_ENTER("_my_b_net_read");
+  DBUG_TRACE;
 
   if (!info->end_of_file)
-    DBUG_RETURN(1); /* because my_b_get (no _) takes 1 byte at a time */
+    return 1; /* because my_b_get (no _) takes 1 byte at a time */
   read_length = my_net_read(net);
   if (read_length == packet_error) {
     info->error = -1;
-    DBUG_RETURN(1);
+    return 1;
   }
   if (read_length == 0) {
     info->end_of_file = 0; /* End of file from client */
-    DBUG_RETURN(1);
+    return 1;
   }
   /* to set up stuff for my_b_get (no _) */
   info->read_end = (info->read_pos = net->read_pos) + read_length;
@@ -88,5 +89,36 @@ int _my_b_net_read(IO_CACHE *info, uchar *Buffer,
 
   info->read_pos++;
 
-  DBUG_RETURN(0);
+  return 0;
+}
+
+/*
+** A wrapper for 'open_cached_file()' which also initializes encryption
+** subsystem depending on the value of 'encrypted' parameter.
+*/
+bool open_cached_file_encrypted(IO_CACHE *cache, const char *dir,
+                                const char *prefix, size_t cache_size,
+                                myf cache_myflags, bool encrypted) {
+  DBUG_ENTER("open_cached_file_encrypted");
+  bool res = open_cached_file(cache, dir, prefix, cache_size, cache_myflags);
+  if (res) DBUG_RETURN(true);
+  if (!encrypted) DBUG_RETURN(false);
+
+  Key_string password_str;
+  unsigned char password[Aes_ctr::PASSWORD_LENGTH];
+
+  /* Generate password, it is a random string. */
+  if (my_rand_buffer(password, sizeof(password)) != 0) DBUG_RETURN(true);
+  password_str.append(password, sizeof(password));
+
+  auto encryptor = std::make_unique<Aes_ctr_encryptor>();
+  if (encryptor->open(password_str, 0)) DBUG_RETURN(true);
+
+  auto decryptor = std::make_unique<Aes_ctr_decryptor>();
+  if (decryptor->open(password_str, 0)) DBUG_RETURN(true);
+
+  cache->m_encryptor = encryptor.release();
+  cache->m_decryptor = decryptor.release();
+
+  DBUG_RETURN(false);
 }

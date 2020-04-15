@@ -1,7 +1,7 @@
 #ifndef SQL_COMMON_INCLUDED
 #define SQL_COMMON_INCLUDED
 
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,9 @@
 #include "my_inttypes.h"
 #include "my_list.h"
 #include "mysql_com.h"
-
+#ifdef MYSQL_SERVER
+#include "mysql_com_server.h"
+#endif
 struct MEM_ROOT;
 
 #ifdef __cplusplus
@@ -94,12 +96,17 @@ struct st_mysql_trace_info;
 struct MYSQL_EXTENSION {
   struct st_mysql_trace_info *trace_data;
   STATE_INFO state_change;
+  /* Struct to track the state of asynchronous operations */
+  struct MYSQL_ASYNC *mysql_async_context;
+#ifdef MYSQL_SERVER
+  // Used by replication to pass around compression context data.
+  NET_SERVER *server_extn;
+#endif
 };
 
 /* "Constructor/destructor" for MYSQL extension structure. */
 MYSQL_EXTENSION *mysql_extension_init(MYSQL *);
 void mysql_extension_free(MYSQL_EXTENSION *);
-
 /*
   Note: Allocated extension structure is freed in mysql_close_free()
   called by mysql_close().
@@ -108,6 +115,14 @@ void mysql_extension_free(MYSQL_EXTENSION *);
   ((MYSQL_EXTENSION *)((H)->extension       \
                            ? (H)->extension \
                            : ((H)->extension = mysql_extension_init(H))))
+
+#define ASYNC_DATA(M) \
+  (NULL != (M) ? (MYSQL_EXTENSION_PTR(M)->mysql_async_context) : NULL)
+#ifdef MYSQL_SERVER
+inline void mysql_extension_set_server_extn(MYSQL *mysql, NET_SERVER *extn) {
+  MYSQL_EXTENSION_PTR(mysql)->server_extn = extn;
+}
+#endif
 
 struct st_mysql_options_extention {
   char *plugin_dir;
@@ -124,6 +139,11 @@ struct st_mysql_options_extention {
   unsigned int ssl_mode;
   unsigned int retry_count;
   unsigned int ssl_fips_mode; /* SSL fips mode for enforced encryption.*/
+  char *tls_ciphersuites;
+  char *compression_algorithm;
+  unsigned int total_configured_compression_algorithms;
+  unsigned int zstd_compression_level;
+  bool connection_compressed;
 };
 
 struct MYSQL_METHODS {
@@ -139,7 +159,7 @@ struct MYSQL_METHODS {
                         unsigned int field_count);
   void (*flush_use_result)(MYSQL *mysql, bool flush_all_results);
   int (*read_change_user_result)(MYSQL *mysql);
-#if !defined(MYSQL_SERVER)
+#if !defined(MYSQL_SERVER) && !defined(MYSQL_COMPONENT)
   MYSQL_FIELD *(*list_fields)(MYSQL *mysql);
   bool (*read_prepare_result)(MYSQL *mysql, MYSQL_STMT *stmt);
   int (*stmt_execute)(MYSQL_STMT *stmt);
@@ -150,6 +170,21 @@ struct MYSQL_METHODS {
   int (*read_rows_from_cursor)(MYSQL_STMT *stmt);
   void (*free_rows)(MYSQL_DATA *cur);
 #endif
+  enum net_async_status (*read_query_result_nonblocking)(MYSQL *mysql);
+  enum net_async_status (*advanced_command_nonblocking)(
+      MYSQL *mysql, enum enum_server_command command,
+      const unsigned char *header, unsigned long header_length,
+      const unsigned char *arg, unsigned long arg_length, bool skip_check,
+      MYSQL_STMT *stmt, bool *error);
+  enum net_async_status (*read_rows_nonblocking)(MYSQL *mysql,
+                                                 MYSQL_FIELD *mysql_fields,
+                                                 unsigned int fields,
+                                                 MYSQL_DATA **result);
+  enum net_async_status (*flush_use_result_nonblocking)(MYSQL *mysql,
+                                                        bool flush_all_results);
+  enum net_async_status (*next_result_nonblocking)(MYSQL *mysql);
+  enum net_async_status (*read_change_user_result_nonblocking)(MYSQL *mysql,
+                                                               ulong *res);
 };
 
 #define simple_command(mysql, command, arg, length, skip_check)              \
@@ -158,6 +193,11 @@ struct MYSQL_METHODS {
                                                length, skip_check, NULL)     \
        : (set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate), \
           1))
+#define simple_command_nonblocking(mysql, command, arg, length, skip_check, \
+                                   error)                                   \
+  (*(mysql)->methods->advanced_command_nonblocking)(                        \
+      mysql, command, 0, 0, arg, length, skip_check, NULL, error)
+
 #define stmt_command(mysql, command, arg, length, stmt)                      \
   ((mysql)->methods                                                          \
        ? (*(mysql)->methods->advanced_command)(mysql, command, 0, 0, arg,    \
@@ -185,6 +225,9 @@ bool cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
                           const unsigned char *arg, size_t arg_length,
                           bool skip_check, MYSQL_STMT *stmt);
 unsigned long cli_safe_read(MYSQL *mysql, bool *is_data_packet);
+enum net_async_status cli_safe_read_nonblocking(MYSQL *mysql,
+                                                bool *is_data_packet,
+                                                ulong *res);
 unsigned long cli_safe_read_with_ok(MYSQL *mysql, bool parse_ok,
                                     bool *is_data_packet);
 void net_clear_error(NET *net);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -221,12 +221,14 @@ public:
      @param close_with_reset allows the function to indicate to the caller
                              how the socket should be closed when function
                              returns false
+     @param log_failure      whether a failure to connect is log-worthy
 
      @returns false on failure and true on success
   */
   bool connect_server(NDB_SOCKET_TYPE sockfd,
                       BaseString& msg,
-                      bool& close_with_reset) const;
+                      bool& close_with_reset,
+                      bool& log_failure) const;
 
   bool connect_client(NdbMgmHandle *h);
 
@@ -315,7 +317,12 @@ public:
    * Get and set methods for PerformState
    */
   void do_connect(NodeId node_id);
-  void do_disconnect(NodeId node_id, int errnum = 0);
+  /**
+   * do_disconnect can be issued both from send and recv, it is possible to
+   * specify from where it is called in send_source parameter, this enables
+   * us to provide more detailed information for disconnects.
+   */
+  bool do_disconnect(NodeId node_id, int errnum = 0, bool send_source = true);
   bool is_connected(NodeId node_id) const {
     return performStates[node_id] == CONNECTED;
   }
@@ -530,6 +537,7 @@ private:
    */
   PerformState* performStates;
   int*          m_disconnect_errnum;
+  Uint32*       m_disconnect_enomem_error;
   IOState*      ioStates;
   struct ErrorState {
     TransporterError m_code;
@@ -620,7 +628,10 @@ private:
   void consume_extra_sockets();
 
   Uint32 *getWritePtr(TransporterSendBufferHandle *handle,
-                      NodeId node, Uint32 lenBytes, Uint32 prio);
+                      NodeId node,
+                      Uint32 lenBytes,
+                      Uint32 prio,
+                      SendStatus* error);
   void updateWritePtr(TransporterSendBufferHandle *handle,
                       NodeId node, Uint32 lenBytes, Uint32 prio);
 

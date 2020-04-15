@@ -255,11 +255,13 @@ ERROR HY000: Can't initialize function 'version_tokens_show'; version_token plug
 SHOW PRIVILEGES;
 Privilege	Context	Comment
 APPLICATION_PASSWORD_ADMIN	Server Admin	
+AUDIT_ADMIN	Server Admin	
 Alter	Tables	To alter the table
 Alter routine	Functions,Procedures	To alter or drop stored functions/procedures
 BACKUP_ADMIN	Server Admin	
 BINLOG_ADMIN	Server Admin	
 BINLOG_ENCRYPTION_ADMIN	Server Admin	
+CLONE_ADMIN	Server Admin	
 CONNECTION_ADMIN	Server Admin	
 Create	Databases,Tables,Indexes	To create new databases and tables
 Create role	Server Admin	To create new roles
@@ -277,12 +279,14 @@ Execute	Functions,Procedures	To execute stored routines
 File	File access on server	To read and write files on the server
 GROUP_REPLICATION_ADMIN	Server Admin	
 Grant option	Databases,Tables,Functions,Procedures	To give to other users those privileges you possess
+INNODB_REDO_LOG_ARCHIVE	Server Admin	
 Index	Tables	To create or drop indexes
 Insert	Tables	To insert data into tables
 Lock tables	Databases	To use LOCK TABLES (together with SELECT privilege)
 PERSIST_RO_VARIABLES_ADMIN	Server Admin	
 Process	Server Admin	To view the plain text of currently executing queries
 Proxy	Server Admin	To make proxy user possible
+REPLICATION_APPLIER	Server Admin	
 REPLICATION_SLAVE_ADMIN	Server Admin	
 RESOURCE_GROUP_ADMIN	Server Admin	
 RESOURCE_GROUP_USER	Server Admin	
@@ -294,12 +298,14 @@ Replication slave	Server Admin	To read binary log events from the master
 SERVICE_CONNECTION_ADMIN	Server Admin	
 SESSION_VARIABLES_ADMIN	Server Admin	
 SET_USER_ID	Server Admin	
+SYSTEM_USER	Server Admin	
 SYSTEM_VARIABLES_ADMIN	Server Admin	
 Select	Tables	To retrieve rows from table
 Show databases	Server Admin	To see all databases with SHOW DATABASES
 Show view	Tables	To see views with SHOW CREATE VIEW
 Shutdown	Server Admin	To shut down the server
 Super	Server Admin	To use KILL thread, SET GLOBAL, CHANGE MASTER, etc.
+TABLE_ENCRYPTION_ADMIN	Server Admin	
 Trigger	Tables	To use triggers
 Update	Tables	To update existing rows
 Usage	Server Admin	No privileges - allow connect only

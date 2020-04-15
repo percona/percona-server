@@ -41,11 +41,6 @@
 --let $restart_hide_args = 1
 --source include/start_mysqld.inc
 
---echo # Execute mysql_upgrade
---source include/mysql_upgrade_preparation.inc
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
---source include/mysql_upgrade_cleanup.inc
-
 --echo #########
 --echo # Performing test specific validation
 --echo ###

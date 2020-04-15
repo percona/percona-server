@@ -11,6 +11,7 @@ MYSQL_TMP_DIR/bootstrap.log
 # Copy pre 5.0 decimal files to test dir
 # Starting the DB server will fail since the data dir contains
 # tables with non native partitioning.
+Pattern "Unknown storage engine 'partition'" found
 Pattern "Table upgrade required for `test`.`41_decimal`. Please dump/reload table to fix it!" found
 Pattern "Error in creating TABLE_SHARE from p4_hash.frm file." found
 Pattern "Error in fixing SE data for test_mismatch.t1_col_name" found
@@ -23,6 +24,13 @@ Pattern "Error in fixing SE data for test_mismatch.t7_indexes_unique" found
 Pattern "Error in fixing SE data for test_mismatch.t8_col_type_nulls" found
 Pattern "Error in fixing SE data for test_mismatch.t9_index_prefix_len" found
 Pattern "Table mismatch_frms/t1_col_name is not found in InnoDB dictionary" found
+# ------------------------------------------------------------------
+# Check upgrade of tablespaces with a missing tablespace file.
+# ------------------------------------------------------------------
+# Upgrade fails for the case where the general tablespace file is removed.
+Pattern "Error in fixing SE data for tablespace.t3" found
+# Upgrade fails for the case where the file per tablespace is removed.
+Pattern "Got error 197 from SE while migrating tablespaces" found
 # Remove copied files
 # ------------------------------------------------------------------
 # Check upgrade of tables and stored programs using long enum elements.
@@ -39,6 +47,7 @@ Pattern "Table mismatch_frms/t1_col_name is not found in InnoDB dictionary" foun
 # a table and a stored program with a too long enum literals.
 Pattern "Error in Creating DD entry for test.t_long_enum" found
 Pattern "Error in creating stored program 'test.p_long_enum'" found
+Pattern "Error in processing \(possibly deprecated\) expression or function 'des_encrypt\(`b`\)' for generated column test.t_gcol_dep.c" found
 Pattern "Error in processing generated columns for table test.t_gcol_dep" found
 Pattern "No database selected" not found
 Pattern "Incorrect column name 'a123456789012345678901234567890123456789012345678901234567890123456789'" found

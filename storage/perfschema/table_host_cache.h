@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ struct row_host_cache {
   char m_ip[64];
   uint m_ip_length;
   /** Column HOST. */
-  char m_hostname[255];
+  char m_hostname[PSI_HOSTNAME_LENGTH];
   uint m_hostname_length;
   /** Column HOST_VALIDATED. */
   bool m_host_validated;

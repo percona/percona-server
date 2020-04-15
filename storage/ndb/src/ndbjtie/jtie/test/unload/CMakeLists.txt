@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,8 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-FILE(GLOB JAVA_SOURCES
-  ${CMAKE_CURRENT_SOURCE_DIR}/test/*.java)
+SET(JAVA_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/test/MyLoadUnloadTest.java)
 
 SET(CLASSPATH
   ${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/jtie/test/unload/target/classes)
@@ -43,7 +42,7 @@ ENDIF()
 ADD_TEST(
   NAME test_jtie_unload
   COMMAND
-  ${Java_JAVA_EXECUTABLE_PATH} ${Java_JAVA_ARCH_OPT} "-ea" "-Xcheck:jni"
+  ${Java_JAVA_EXECUTABLE_PATH} "-ea" "-Xcheck:jni"
   "-classpath" "${JTIE_TEST_UNLOAD_JAR}${JAVA_SEPERATOR}${JTIE_MYJAPI_JAR}"
   "-Djava.library.path=${JTIE_MYJAPI_DIR}/${JAVA_SUBDIR}"
   "-Dcom.mysql.jtie.test.MyLoadUnloadTest.target_package_prefixes=test.,myjapi."

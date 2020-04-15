@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,18 +24,20 @@
 
 #include "plugin/x/src/io/vio_input_stream.h"
 
-#include "my_dbug.h"
+#include <algorithm>
+
+#include "my_dbug.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/ngs/include/ngs/memory.h"
-#include "plugin/x/ngs/include/ngs_common/operations_factory.h"
+#include "plugin/x/src/operations_factory.h"
 #include "plugin/x/src/xpl_performance_schema.h"
 
 namespace xpl {
 
-const uint32 k_buffer_size = 1024 * 4;
+const uint32_t k_buffer_size = 1024 * 4;
 
 Vio_input_stream::Vio_input_stream(
-    const ngs::shared_ptr<ngs::Vio_interface> &connection)
+    const std::shared_ptr<iface::Vio> &connection)
     : m_connection(connection) {
   ngs::allocate_array(m_buffer, k_buffer_size, KEY_memory_x_recv_buffer);
 }
@@ -58,6 +60,10 @@ void Vio_input_stream::mark_vio_as_active() {
   MYSQL_END_SOCKET_WAIT(locker, m_idle_data);
 }
 
+bool Vio_input_stream::was_io_error() const {
+  return m_last_io_return_value <= 0;
+}
+
 bool Vio_input_stream::was_io_error(int *error_code) const {
   if (0 == m_last_io_return_value) {
     *error_code = 0;
@@ -65,7 +71,7 @@ bool Vio_input_stream::was_io_error(int *error_code) const {
   }
 
   if (m_last_io_return_value < 0) {
-    ngs::Operations_factory operations_factory;
+    Operations_factory operations_factory;
 
     *error_code =
         operations_factory.create_system_interface()->get_socket_errno();
@@ -83,17 +89,15 @@ void Vio_input_stream::lock_data(const int count) {
   m_locked_data_count = count;
 }
 
-void Vio_input_stream::unlock_data() { m_locked_data_count = 0; }
+void Vio_input_stream::unlock_data() { m_locked_data_count = -1; }
 
 bool Vio_input_stream::Next(const void **data, int *size) {
-  if (m_locked_data_count > 0) {
-    if (m_locked_data_count == m_locked_data_pos) {
-      return false;
-    }
+  if (m_locked_data_count == m_locked_data_pos) {
+    return false;
   }
 
   if (peek_data(data, size)) {
-    if (m_locked_data_count > 0) {
+    if (m_locked_data_count >= 0) {
       const int delta = m_locked_data_count - m_locked_data_pos - *size;
 
       if (delta < 0) {

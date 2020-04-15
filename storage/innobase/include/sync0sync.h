@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -118,12 +118,14 @@ extern mysql_pfs_key_t log_writer_mutex_key;
 extern mysql_pfs_key_t log_flusher_mutex_key;
 extern mysql_pfs_key_t log_write_notifier_mutex_key;
 extern mysql_pfs_key_t log_flush_notifier_mutex_key;
+extern mysql_pfs_key_t log_limits_mutex_key;
 extern mysql_pfs_key_t log_bmp_sys_mutex_key;
 extern mysql_pfs_key_t log_cmdq_mutex_key;
 extern mysql_pfs_key_t log_sn_lock_key;
 extern mysql_pfs_key_t log_sys_arch_mutex_key;
 extern mysql_pfs_key_t page_sys_arch_mutex_key;
 extern mysql_pfs_key_t page_sys_arch_oper_mutex_key;
+extern mysql_pfs_key_t page_sys_arch_client_mutex_key;
 extern mysql_pfs_key_t mutex_list_mutex_key;
 extern mysql_pfs_key_t recalc_pool_mutex_key;
 extern mysql_pfs_key_t page_cleaner_mutex_key;
@@ -142,7 +144,6 @@ extern mysql_pfs_key_t rw_lock_debug_mutex_key;
 #endif /* UNIV_DEBUG */
 extern mysql_pfs_key_t rw_lock_list_mutex_key;
 extern mysql_pfs_key_t rw_lock_mutex_key;
-extern mysql_pfs_key_t srv_dict_tmpfile_mutex_key;
 extern mysql_pfs_key_t srv_innodb_monitor_mutex_key;
 extern mysql_pfs_key_t srv_misc_tmpfile_mutex_key;
 extern mysql_pfs_key_t srv_monitor_file_mutex_key;
@@ -169,9 +170,11 @@ extern mysql_pfs_key_t zip_pad_mutex_key;
 extern mysql_pfs_key_t row_drop_list_mutex_key;
 extern mysql_pfs_key_t file_open_mutex_key;
 extern mysql_pfs_key_t master_key_id_mutex_key;
+extern mysql_pfs_key_t scrub_stat_mutex_key;
 extern mysql_pfs_key_t clone_sys_mutex_key;
 extern mysql_pfs_key_t clone_task_mutex_key;
 extern mysql_pfs_key_t clone_snapshot_mutex_key;
+extern mysql_pfs_key_t parallel_read_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 #ifdef UNIV_PFS_RWLOCK

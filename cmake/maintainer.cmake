@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,8 @@ MACRO(MY_ADD_C_WARNING_FLAG WARNING_FLAG)
 ENDMACRO()
 
 MACRO(MY_ADD_CXX_WARNING_FLAG WARNING_FLAG)
-  STRING(REPLACE "c++" "cpp" WARNING_VAR ${WARNING_FLAG})
-  MY_CHECK_CXX_COMPILER_FLAG("-${WARNING_FLAG}" HAVE_${WARNING_VAR})
-  IF(HAVE_${WARNING_VAR})
+  MY_CHECK_CXX_COMPILER_WARNING("-${WARNING_FLAG}" HAS_FLAG)
+  IF(HAS_FLAG)
     STRING_APPEND(MY_CXX_WARNING_FLAGS " -${WARNING_FLAG}")
   ENDIF()
 ENDMACRO()
@@ -48,80 +47,24 @@ IF(SIZEOF_VOIDP EQUAL 8)
   STRING_APPEND(MY_WARNING_FLAGS " -Wmissing-format-attribute")
 ENDIF()
 
+# Clang 6.0 and newer on Windows treat -Wall as -Weverything; use /W4 instead
+IF(WIN32_CLANG)
+  STRING(REPLACE "-Wall -Wextra" "/W4" MY_WARNING_FLAGS "${MY_WARNING_FLAGS}")
+ENDIF()
+
 # Common warning flags for GCC and Clang
 SET(MY_C_WARNING_FLAGS "${MY_WARNING_FLAGS} -Wwrite-strings")
 
 # Common warning flags for G++ and Clang++
-SET(MY_CXX_WARNING_FLAGS "${MY_WARNING_FLAGS} -Woverloaded-virtual")
+SET(MY_CXX_WARNING_FLAGS "${MY_WARNING_FLAGS} -Woverloaded-virtual -Wcast-qual")
 
-# GCC bug #36750 (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=36750)
-# Remove when we require GCC >= 5.1 everywhere.
-if(CMAKE_COMPILER_IS_GNUCXX)
-  MY_ADD_CXX_WARNING_FLAG("Wno-missing-field-initializers")
-ENDIF()
-
-# The default =3 given by -Wextra is a bit too strict for our code.
-IF(CMAKE_COMPILER_IS_GNUCXX)
+IF(MY_COMPILER_IS_GNU)
+  # The default =3 given by -Wextra is a bit too strict for our code.
   MY_ADD_CXX_WARNING_FLAG("Wimplicit-fallthrough=2")
-ENDIF()
-
-# Clang 6.0 and newer on Windows seems to enable -Weverything; turn off some
-# that are way too verbose for us.
-IF(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "Clang")
-  # We don't need C++98 compatibility.
-  MY_ADD_CXX_WARNING_FLAG("Wno-c++98-compat")
-  MY_ADD_CXX_WARNING_FLAG("Wno-c++98-compat-pedantic")
-
-  # Also warns on using NULL.
-  MY_ADD_CXX_WARNING_FLAG("Wno-zero-as-null-pointer-constant")
-
-  # Should be enabled globally, but too noisy right now.
-  MY_ADD_CXX_WARNING_FLAG("Wno-old-style-cast")
-  MY_ADD_CXX_WARNING_FLAG("Wno-reserved-id-macro")
-  MY_ADD_CXX_WARNING_FLAG("Wno-documentation")
-  MY_ADD_CXX_WARNING_FLAG("Wno-documentation-pedantic")
-  MY_ADD_CXX_WARNING_FLAG("Wno-documentation-unknown-command")
-  MY_ADD_CXX_WARNING_FLAG("Wno-missing-variable-declarations")
-  MY_ADD_CXX_WARNING_FLAG("Wno-cast-qual")
-  MY_ADD_CXX_WARNING_FLAG("Wno-language-extension-token")
-  MY_ADD_CXX_WARNING_FLAG("Wno-shorten-64-to-32")
-  MY_ADD_CXX_WARNING_FLAG("Wno-shadow")
-  MY_ADD_CXX_WARNING_FLAG("Wno-c++2a-compat")
-  MY_ADD_CXX_WARNING_FLAG("Wno-macro-redefined")
-  MY_ADD_CXX_WARNING_FLAG("Wno-unused-const-variable")
-  MY_ADD_CXX_WARNING_FLAG("Wno-gnu-anonymous-struct")
-
-  # Various things we don't want to warn about.
-  MY_ADD_CXX_WARNING_FLAG("Wno-global-constructors")
-  MY_ADD_CXX_WARNING_FLAG("Wno-exit-time-destructors")
-  MY_ADD_CXX_WARNING_FLAG("Wno-undefined-func-template")
-  MY_ADD_CXX_WARNING_FLAG("Wno-nonportable-system-include-path")
-  MY_ADD_CXX_WARNING_FLAG("Wno-sign-conversion")
-  MY_ADD_CXX_WARNING_FLAG("Wno-unused-exception-parameter")
-  MY_ADD_CXX_WARNING_FLAG("Wno-missing-prototypes")
-  MY_ADD_CXX_WARNING_FLAG("Wno-shadow-field-in-constructor")
-  MY_ADD_CXX_WARNING_FLAG("Wno-float-equal")
-  MY_ADD_CXX_WARNING_FLAG("Wno-float-conversion")
-  MY_ADD_CXX_WARNING_FLAG("Wno-double-promotion")
-  MY_ADD_CXX_WARNING_FLAG("Wno-covered-switch-default")
-  MY_ADD_CXX_WARNING_FLAG("Wno-used-but-marked-unused")
-  MY_ADD_CXX_WARNING_FLAG("Wno-conversion")
-  MY_ADD_CXX_WARNING_FLAG("Wno-sign-conversion")
-  MY_ADD_CXX_WARNING_FLAG("Wno-microsoft-pure-definition")  # False positives.
-  MY_ADD_CXX_WARNING_FLAG("Wno-format-nonliteral")
-  MY_ADD_CXX_WARNING_FLAG("Wno-format-pedantic")
-  MY_ADD_CXX_WARNING_FLAG("Wno-cast-align")
-  MY_ADD_CXX_WARNING_FLAG("Wno-gnu-zero-variadic-macro-arguments")
-  MY_ADD_CXX_WARNING_FLAG("Wno-comma")
-  MY_ADD_CXX_WARNING_FLAG("Wno-sign-compare")
-  MY_ADD_CXX_WARNING_FLAG("Wno-switch-enum")
-  MY_ADD_CXX_WARNING_FLAG("Wno-implicit-fallthrough")  # Does not take the same signals as GCC.
-  MY_ADD_CXX_WARNING_FLAG("Wno-unused-macros")
-  MY_ADD_CXX_WARNING_FLAG("Wno-disabled-macro-expansion")
-ENDIF()
-
-IF(CMAKE_COMPILER_IS_GNUCC)
   MY_ADD_C_WARNING_FLAG("Wjump-misses-init")
+  # This is included in -Wall on some platforms, enable it explicitly.
+  MY_ADD_C_WARNING_FLAG("Wstringop-truncation")
+  MY_ADD_CXX_WARNING_FLAG("Wstringop-truncation")
 ENDIF()
 
 #
@@ -129,12 +72,12 @@ ENDIF()
 #
 
 # Only for C++ as C code has some macro usage that is difficult to avoid
-IF(CMAKE_COMPILER_IS_GNUCXX)
+IF(MY_COMPILER_IS_GNU)
   MY_ADD_CXX_WARNING_FLAG("Wlogical-op")
 ENDIF()
 
 # Extra warning flags for Clang
-IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
+IF(MY_COMPILER_IS_CLANG)
   STRING_APPEND(MY_C_WARNING_FLAGS " -Wconditional-uninitialized")
   STRING_APPEND(MY_C_WARNING_FLAGS " -Wextra-semi")
   STRING_APPEND(MY_C_WARNING_FLAGS " -Wmissing-noreturn")
@@ -144,9 +87,15 @@ IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
 ENDIF()
   
 # Extra warning flags for Clang++
-IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+IF(MY_COMPILER_IS_CLANG)
   # Disable a few default Clang++ warnings
-  STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wno-null-conversion -Wno-unused-private-field")
+  STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wno-null-conversion")
+  STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wno-unused-private-field")
+
+  # clang-5 or older: disable "suggest braces around initialization of subobject" warnings
+  IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 6)
+    STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wno-missing-braces")
+  ENDIF()
 
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wconditional-uninitialized")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wdeprecated")
@@ -163,7 +112,6 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # -Wc++2a-compat
   # -Wc++98-compat-pedantic
   # -Wcast-align
-  # -Wcast-qual
   # -Wclass-varargs
   # -Wcomma
   # -Wconversion
@@ -220,11 +168,28 @@ IF(MYSQL_MAINTAINER_MODE)
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Werror")
 ENDIF()
 
-# Set warning flags for GCC/Clang
-IF(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
-  STRING_APPEND(CMAKE_C_FLAGS " ${MY_C_WARNING_FLAGS}")
-ENDIF()
-# Set warning flags for G++/Clang++
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+# Set warning flags for gcc/g++/clang/clang++
+IF(MY_COMPILER_IS_GNU_OR_CLANG)
+  STRING_APPEND(CMAKE_C_FLAGS   " ${MY_C_WARNING_FLAGS}")
   STRING_APPEND(CMAKE_CXX_FLAGS " ${MY_CXX_WARNING_FLAGS}")
 ENDIF()
+
+MACRO(ADD_WSHADOW_WARNING)
+  IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7)
+    ADD_COMPILE_OPTIONS("-Wshadow=local")
+  ELSEIF(MY_COMPILER_IS_CLANG)
+    ADD_COMPILE_OPTIONS("-Wshadow-uncaptured-local")
+  ENDIF()
+ENDMACRO()
+
+# When builing with PGO, GCC 9 will report -Wmissing-profile when compiling
+# files for which it cannot find profile data. It is valid to disable
+# this warning for files we are not currently interested in profiling.
+MACRO(DISABLE_MISSING_PROFILE_WARNING)
+  IF(FPROFILE_USE)
+    MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_WARN_FLAG)
+    IF(HAS_WARN_FLAG)
+      STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+    ENDIF()
+  ENDIF()
+ENDMACRO()

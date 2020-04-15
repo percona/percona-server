@@ -28,7 +28,7 @@
 
 namespace keyring {
 
-static const constexpr size_t max_response_size = 32000000;
+static constexpr size_t max_response_size = 32000000;
 static MY_TIMER_INFO curl_timer_info;
 static ulonglong last_ping_time;
 static bool was_thd_wait_started = false;
@@ -105,16 +105,19 @@ int progress_callback(void *clientp MY_ATTRIBUTE((unused)), double dltotal,
   // The calls to threadpool are disabled till bug PS-244 gets resolved.
   /* <--Uncomment when PS-244 gets resolved
   if (!was_thd_wait_started)
-  { 
-    if ((dlnow < dltotal || ulnow < ultotal) && last_ping_time - curr_ping_time > slow_connection_threshold)
-    { 
-      // there is a good chance that connection is slow, thus we can let know the threadpool that there is time
+  {
+    if ((dlnow < dltotal || ulnow < ultotal) && last_ping_time - curr_ping_time
+  > slow_connection_threshold)
+    {
+      // there is a good chance that connection is slow, thus we can let know
+  the threadpool that there is time
       // to start new thread(s)
       thd_wait_begin(current_thd, THD_WAIT_NET);
       was_thd_wait_started = true;
     }
   }
-  else if ((dlnow == dltotal && ulnow == ultotal) || last_ping_time - curr_ping_time <= slow_connection_threshold)
+  else if ((dlnow == dltotal && ulnow == ultotal) || last_ping_time -
+  curr_ping_time <= slow_connection_threshold)
   {
     // connection has speed up or we have finished transfering
     thd_wait_end(current_thd);
@@ -188,13 +191,17 @@ bool Vault_curl::setup_curl_session(CURL *curl) {
            CURLE_OK) ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_USE_SSL, CURLUSESSL_ALL)) !=
           CURLE_OK ||
+      (curl_res = curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L)) !=
+          CURLE_OK ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION,
                                    progress_callback)) != CURLE_OK ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L)) != CURLE_OK ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, timeout)) !=
           CURLE_OK ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout)) !=
-          CURLE_OK) {
+          CURLE_OK ||
+      (curl_res = curl_easy_setopt(curl, CURLOPT_HTTP_VERSION,
+                                   (long)CURL_HTTP_VERSION_1_1)) != CURLE_OK) {
     logger->log(MY_ERROR_LEVEL, get_error_from_curl(curl_res).c_str());
     return true;
   }
@@ -261,7 +268,7 @@ bool Vault_curl::write_key(const Vault_key &key, Secure_string *response) {
   }
   CURLcode curl_res = CURLE_OK;
   Secure_string postdata = "{\"type\":\"";
-  postdata += key.get_key_type()->c_str();
+  postdata += key.get_key_type_as_string()->c_str();
   postdata += "\",\"";
   postdata += "value\":\"" + encoded_key_data + "\"}";
 

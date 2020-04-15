@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,7 +77,8 @@ struct st_opt_hint_info opt_hint_info[] = {
     {"INDEX_MERGE", false, false, false},
     {"RESOURCE_GROUP", false, false, false},
     {"SKIP_SCAN", false, false, false},
-    {0, 0, 0, 0}};
+    {"HASH_JOIN", true, true, false},
+    {0, false, false, false}};
 
 /**
   Prefix for system generated query block name.
@@ -100,7 +101,8 @@ const LEX_CSTRING sys_qb_prefix = {"select#", 7};
 
 static int cmp_lex_string(const LEX_CSTRING *s, const LEX_CSTRING *t,
                           const CHARSET_INFO *cs) {
-  return cs->coll->strnncollsp(cs, (uchar *)s->str, s->length, (uchar *)t->str,
+  return cs->coll->strnncollsp(cs, pointer_cast<const uchar *>(s->str),
+                               s->length, pointer_cast<const uchar *>(t->str),
                                t->length);
 }
 
@@ -122,7 +124,7 @@ Opt_hints *Opt_hints::find_by_name(const LEX_CSTRING *name_arg,
   return NULL;
 }
 
-void Opt_hints::print(THD *thd, String *str, enum_query_type query_type) {
+void Opt_hints::print(const THD *thd, String *str, enum_query_type query_type) {
   for (uint i = 0; i < MAX_HINT_ENUM; i++) {
     if (opt_hint_info[i].irregular_hint) continue;
     opt_hints_enum hint = static_cast<opt_hints_enum>(i);
@@ -187,9 +189,8 @@ PT_hint *Opt_hints_global::get_complex_hints(opt_hints_enum type) {
   return NULL;
 }
 
-void Opt_hints_global::print_irregular_hints(THD *thd MY_ATTRIBUTE((unused)),
-                                             String *str) {
-  if (sys_var_hint) sys_var_hint->print(str);
+void Opt_hints_global::print_irregular_hints(const THD *thd, String *str) {
+  if (sys_var_hint) sys_var_hint->print(thd, str);
 }
 
 Opt_hints_qb::Opt_hints_qb(Opt_hints *opt_hints_arg, MEM_ROOT *mem_root_arg,
@@ -268,7 +269,7 @@ Item_exists_subselect::enum_exec_method Opt_hints_qb::subquery_strategy()
   return Item_exists_subselect::EXEC_UNSPECIFIED;
 }
 
-void Opt_hints_qb::print_irregular_hints(THD *thd, String *str) {
+void Opt_hints_qb::print_irregular_hints(const THD *thd, String *str) {
   /* Print join order hints */
   for (uint i = 0; i < join_order_hints.size(); i++) {
     if (join_order_hints_ignored & (1ULL << i)) continue;
@@ -578,13 +579,14 @@ PT_hint *Opt_hints_table::get_complex_hints(opt_hints_enum type) {
 /**
   Function prints hint using the info from set_var variable.
 
+  @param thd            Thread handle
   @param str            Pointer to string object
   @param var            Pointer to set_var object
 */
 
-static void print_hint_from_var(String *str, set_var *var) {
+static void print_hint_from_var(const THD *thd, String *str, set_var *var) {
   str->append(STRING_WITH_LEN("SET_VAR("));
-  var->print_short(str);
+  var->print_short(thd, str);
   str->append(STRING_WITH_LEN(") "));
 }
 
@@ -630,8 +632,8 @@ bool Sys_var_hint::add_var(THD *thd, sys_var *sys_var, Item *sys_var_value) {
     }
   }
 
-  set_var *var = new (thd->mem_root) set_var(
-      OPT_SESSION, sys_var, (const LEX_STRING *)&sys_var->name, sys_var_value);
+  set_var *var = new (thd->mem_root)
+      set_var(OPT_SESSION, sys_var, sys_var->name, sys_var_value);
   if (!var) return true;
 
   Hint_set_var *hint_var = new (thd->mem_root) Hint_set_var(var);
@@ -684,10 +686,10 @@ void Sys_var_hint::restore_vars(THD *thd) {
   thd->pop_internal_handler();
 }
 
-void Sys_var_hint::print(String *str) {
+void Sys_var_hint::print(const THD *thd, String *str) {
   for (uint i = 0; i < var_list.size(); i++) {
     Hint_set_var *hint_var = var_list[i];
-    if (hint_var->save_value) print_hint_from_var(str, hint_var->var);
+    if (hint_var->save_value) print_hint_from_var(thd, str, hint_var->var);
   }
 }
 
@@ -765,7 +767,7 @@ bool hint_table_state(const THD *thd, const TABLE_LIST *table_list,
   return thd->optimizer_switch_flag(optimizer_switch);
 }
 
-void append_table_name(THD *thd, String *str, const LEX_CSTRING *qb_name,
+void append_table_name(const THD *thd, String *str, const LEX_CSTRING *qb_name,
                        const LEX_CSTRING *table_name) {
   /* Append table name */
   append_identifier(thd, str, table_name->str, table_name->length);

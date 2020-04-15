@@ -1,0 +1,39 @@
+#
+# PS-5447: Changed page tracking is missing pages changed by the in-place DDL
+#
+
+select @@innodb_track_changed_pages;
+
+CREATE TABLE t (a INT);
+
+let $i=0;
+
+disable_query_log;
+while ($i < 1000)
+{
+  eval INSERT INTO t (a) VALUES ($i);
+  inc $i;
+}
+enable_query_log;
+
+# Delete any existing bitmaps
+--source include/restart_mysqld.inc
+RESET CHANGED_PAGE_BITMAPS;
+
+ALTER TABLE t ADD INDEX (a);
+
+FLUSH CHANGED_PAGE_BITMAPS;
+
+--source include/restart_mysqld.inc
+
+let $space_id=`SELECT SPACE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = 'test/t'`;
+let $npages=`SELECT COUNT(DISTINCT page_id) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE SPACE_ID = $space_id`;
+let $file_size=`SELECT FILE_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE SPACE = $space_id`;
+let $tracked_size=`SELECT $npages * 16 * 1024`;
+
+if ($tracked_size != $file_size)
+{
+  echo Number of changed pages $npages does not match the file size $file_size;
+}
+
+DROP TABLE t;

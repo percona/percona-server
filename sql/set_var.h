@@ -1,6 +1,6 @@
 #ifndef SET_VAR_INCLUDED
 #define SET_VAR_INCLUDED
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,9 +37,11 @@
 
 #include "lex_string.h"
 #include "m_ctype.h"
-#include "my_getopt.h"  // get_opt_arg_type
+#include "my_getopt.h"    // get_opt_arg_type
+#include "my_hostname.h"  // HOSTNAME_LENGTH
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "my_systime.h"  // my_micro_time()
 #include "mysql/components/services/system_variable_source_type.h"
 #include "mysql/status_var.h"
 #include "mysql/udf_registration_types.h"
@@ -82,7 +84,7 @@ struct sys_var_chain {
 int mysql_add_sys_var_chain(sys_var *chain);
 int mysql_del_sys_var_chain(sys_var *chain);
 
-enum enum_var_type {
+enum enum_var_type : int {
   OPT_DEFAULT = 0,
   OPT_SESSION,
   OPT_GLOBAL,
@@ -150,9 +152,9 @@ class sys_var {
   const char *const deprecation_substitute;
   bool is_os_charset;  ///< true if the value is in character_set_filesystem
   struct get_opt_arg_source source;
-  char user[USERNAME_CHAR_LENGTH]; /* which user  has set this variable */
-  char host[HOSTNAME_LENGTH];      /* host on which this variable is set */
-  ulonglong timestamp;             /* represents when this variable was set */
+  char user[USERNAME_CHAR_LENGTH + 1]; /* which user  has set this variable */
+  char host[HOSTNAME_LENGTH + 1];      /* host on which this variable is set */
+  ulonglong timestamp; /* represents when this variable was set */
 
  public:
   sys_var(sys_var_chain *chain, const char *name_arg, const char *comment,
@@ -176,14 +178,13 @@ class sys_var {
   virtual sys_var_pluginvar *cast_pluginvar() { return 0; }
 
   bool check(THD *thd, set_var *var);
-  uchar *value_ptr(THD *running_thd, THD *target_thd, enum_var_type type,
-                   LEX_STRING *base);
-  uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+  const uchar *value_ptr(THD *running_thd, THD *target_thd, enum_var_type type,
+                         LEX_STRING *base);
+  const uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
   virtual void update_default(longlong new_def_value) {
     option.def_value = new_def_value;
   }
   longlong get_default() { return option.def_value; }
-  virtual bool is_default(THD *thd, set_var *var);
   virtual longlong get_min_value() { return option.min_value; }
   virtual ulonglong get_max_value() { return option.max_value; }
   /**
@@ -199,13 +200,18 @@ class sys_var {
   void set_source(enum_variable_source src) {
     option.arg_source->m_source = src;
   }
-  void set_source_name(const char *path) {
-    strcpy(option.arg_source->m_path_name, path);
+  bool set_source_name(const char *path) {
+    return set_and_truncate(option.arg_source->m_path_name, path,
+                            sizeof(option.arg_source->m_path_name));
   }
-  void set_user(const char *usr) { strcpy(user, usr); }
+  bool set_user(const char *usr) {
+    return set_and_truncate(user, usr, sizeof(user));
+  }
   const char *get_user() { return user; }
   const char *get_host() { return host; }
-  void set_host(const char *hst) { strcpy(host, hst); }
+  bool set_host(const char *hst) {
+    return set_and_truncate(host, hst, sizeof(host));
+  }
   ulonglong get_timestamp() const { return timestamp; }
   void set_user_host(THD *thd);
   my_option *get_option() { return &option; }
@@ -303,6 +309,14 @@ class sys_var {
   void save_default(THD *thd, set_var *var) { global_save_default(thd, var); }
 
  private:
+  inline static bool set_and_truncate(char *dst, const char *string,
+                                      size_t sizeof_dst) {
+    size_t string_length = strlen(string), length;
+    length = std::min(sizeof_dst - 1, string_length);
+    memcpy(dst, string, length);
+    dst[length] = 0;
+    return length < string_length;  // truncated
+  }
   virtual bool do_check(THD *thd, set_var *var) = 0;
   /**
     save the session default value of the variable in var
@@ -321,9 +335,9 @@ class sys_var {
     It must be of show_val_type type (bool for SHOW_BOOL, int for SHOW_INT,
     longlong for SHOW_LONGLONG, etc).
   */
-  virtual uchar *session_value_ptr(THD *running_thd, THD *target_thd,
-                                   LEX_STRING *base);
-  virtual uchar *global_value_ptr(THD *thd, LEX_STRING *base);
+  virtual const uchar *session_value_ptr(THD *running_thd, THD *target_thd,
+                                         LEX_STRING *base);
+  virtual const uchar *global_value_ptr(THD *thd, LEX_STRING *base);
 
   /**
     A pointer to a storage area of the variable, to the raw data.
@@ -351,7 +365,7 @@ class set_var_base {
   virtual int resolve(THD *thd) = 0;  ///< Check privileges & fix_fields
   virtual int check(THD *thd) = 0;    ///< Evaluate the expression
   virtual int update(THD *thd) = 0;   ///< Set the value
-  virtual void print(THD *thd, String *str) = 0;  ///< To self-print
+  virtual void print(const THD *thd, String *str) = 0;  ///< To self-print
 
   /**
     @returns whether this variable is @@@@optimizer_trace.
@@ -382,11 +396,11 @@ class set_var : public set_var_base {
     LEX_STRING string_value;    ///< for Sys_var_charptr and others
     const void *ptr;            ///< for Sys_var_struct
   } save_result;
-  LEX_STRING
+  LEX_CSTRING
   base; /**< for structured variables, like keycache_name.variable_name */
 
-  set_var(enum_var_type type_arg, sys_var *var_arg,
-          const LEX_STRING *base_name_arg, Item *value_arg);
+  set_var(enum_var_type type_arg, sys_var *var_arg, LEX_CSTRING base_name_arg,
+          Item *value_arg);
 
   int resolve(THD *thd);
   int check(THD *thd);
@@ -396,10 +410,11 @@ class set_var : public set_var_base {
   /**
     Print variable in short form.
 
+    @param thd Thread handle.
     @param str String buffer to append the partial assignment to.
   */
-  void print_short(String *str);
-  void print(THD *, String *str); /* To self-print */
+  void print_short(const THD *thd, String *str);
+  void print(const THD *, String *str); /* To self-print */
   bool is_global_persist() {
     return (type == OPT_GLOBAL || type == OPT_PERSIST ||
             type == OPT_PERSIST_ONLY);
@@ -420,25 +435,30 @@ class set_var_user : public set_var_base {
   int check(THD *thd);
   int update(THD *thd);
   int light_check(THD *thd);
-  void print(THD *thd, String *str); /* To self-print */
+  void print(const THD *thd, String *str); /* To self-print */
 };
-
-/* For SET PASSWORD */
 
 class set_var_password : public set_var_base {
   LEX_USER *user;
   char *password;
-  char *current_password;
+  const char *current_password;
   bool retain_current_password;
+  bool generate_password;
+  char *str_generated_password;
 
  public:
   set_var_password(LEX_USER *user_arg, char *password_arg,
-                   char *current_password_arg, bool retain_current);
+                   char *current_password_arg, bool retain_current,
+                   bool generate_password);
 
+  const LEX_USER *get_user(void) { return user; }
+  bool has_generated_password(void) { return generate_password; }
+  const char *get_generated_password(void) { return str_generated_password; }
   int resolve(THD *) { return 0; }
   int check(THD *thd);
   int update(THD *thd);
-  void print(THD *thd, String *str); /* To self-print */
+  void print(const THD *thd, String *str); /* To self-print */
+  virtual ~set_var_password();
 };
 
 /* For SET NAMES and SET CHARACTER SET */
@@ -466,13 +486,13 @@ class set_var_collation_client : public set_var_base {
   int resolve(THD *) { return 0; }
   int check(THD *thd);
   int update(THD *thd);
-  void print(THD *thd, String *str); /* To self-print */
+  void print(const THD *thd, String *str); /* To self-print */
 };
 
 /* optional things, have_* variables */
 extern SHOW_COMP_OPTION have_profiling;
 
-extern SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen;
+extern SHOW_COMP_OPTION have_symlink, have_dlopen;
 extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_compress;
@@ -529,5 +549,9 @@ bool check_priv(THD *thd, bool static_variable);
 #define PERSIST_ONLY_ADMIN_X509_SUBJECT "persist_only_admin_x509_subject"
 #define PERSISTED_GLOBALS_LOAD "persisted_globals_load"
 extern char *sys_var_persist_only_admin_x509_subject;
+
+extern void init_log_slow_verbosity() noexcept;
+extern void init_slow_query_log_use_global_control() noexcept;
+extern void init_log_slow_sp_statements() noexcept;
 
 #endif

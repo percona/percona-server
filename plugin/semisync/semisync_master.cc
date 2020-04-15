@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,7 @@ unsigned long long rpl_semi_sync_master_net_wait_num = 0;
 unsigned long rpl_semi_sync_master_clients = 0;
 unsigned long long rpl_semi_sync_master_net_wait_time = 0;
 unsigned long long rpl_semi_sync_master_trx_wait_time = 0;
-bool rpl_semi_sync_master_wait_no_slave = 1;
+bool rpl_semi_sync_master_wait_no_slave = true;
 unsigned int rpl_semi_sync_master_wait_for_slave_count = 1;
 
 static int getWaitTime(const struct timespec &start_ts);
@@ -832,7 +832,7 @@ int ReplSemiSyncMaster::commitTrx(const char *trx_wait_binlog_name,
 }
 void ReplSemiSyncMaster::set_wait_no_slave(const void *val) {
   lock();
-  char set_switch = *(char *)val;
+  char set_switch = *static_cast<const char *>(val);
   if (set_switch == 0) {
     if ((rpl_semi_sync_master_clients == 0) && (is_on())) switch_off();
   } else {
@@ -1112,7 +1112,7 @@ int ReplSemiSyncMaster::readSlaveReply(NET *net, const char *event_buf) {
     goto l_end;
   }
 
-  net_clear(net, 0);
+  net_clear(net, false);
   net->pkt_nr++;
   result = 0;
   rpl_semi_sync_master_net_wait_num++;

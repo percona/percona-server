@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -212,6 +212,8 @@ class Gcs_xcom_interface : public Gcs_interface {
 
   Gcs_xcom_node_address *get_node_address();
 
+  void set_node_address(std::string const &address);
+
   /**
    This member function shall return the set of parameters that configure
    the interface at the time its initialization was done. The parameters
@@ -255,6 +257,17 @@ class Gcs_xcom_interface : public Gcs_interface {
     been read.
   */
   void initialize_ssl();
+
+  /**
+   Used to initialize the unique identifier of the XCom instance.
+
+   @param node_information Information about the XCom node
+   @param xcom_proxy XCom proxy
+   @retval true if there was an error initialising the XCom identity
+   @retval false if operation was successful
+   */
+  bool set_xcom_identity(Gcs_xcom_node_information const &node_information,
+                         Gcs_xcom_proxy &xcom_proxy);
 
  private:
   /**

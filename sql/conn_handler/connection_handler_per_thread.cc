@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,6 +67,7 @@
 ulong Per_thread_connection_handler::blocked_pthread_count = 0;
 ulong Per_thread_connection_handler::slow_launch_threads = 0;
 ulong Per_thread_connection_handler::max_blocked_pthreads = 0;
+bool Per_thread_connection_handler::shrink_cache = false;
 std::list<Channel_info *>
     *Per_thread_connection_handler ::waiting_channel_info_list = NULL;
 mysql_mutex_t Per_thread_connection_handler::LOCK_thread_cache;
@@ -87,11 +88,6 @@ static Error_log_throttle create_thd_err_log_throttle(
   Protected by LOCK_thread_cache.
 */
 static uint wake_pthread = 0;
-/*
-  Set if we are trying to kill of pthreads in the thread cache.
-  Protected by LOCK_thread_cache.
-*/
-static uint kill_blocked_pthreads_flag = 0;
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key key_LOCK_thread_cache;
@@ -148,8 +144,7 @@ void Per_thread_connection_handler::destroy() {
 Channel_info *Per_thread_connection_handler::block_until_new_connection() {
   Channel_info *new_conn = NULL;
   mysql_mutex_lock(&LOCK_thread_cache);
-  if (blocked_pthread_count < max_blocked_pthreads &&
-      !kill_blocked_pthreads_flag) {
+  if (blocked_pthread_count < max_blocked_pthreads && !shrink_cache) {
     /* Don't kill the pthread, just block it for reuse */
     DBUG_PRINT("info", ("Blocking pthread for reuse"));
 
@@ -163,12 +158,14 @@ Channel_info *Per_thread_connection_handler::block_until_new_connection() {
 
     // Block pthread
     blocked_pthread_count++;
-    while (!connection_events_loop_aborted() && !wake_pthread &&
-           !kill_blocked_pthreads_flag)
+    while (!connection_events_loop_aborted() && !wake_pthread && !shrink_cache)
       mysql_cond_wait(&COND_thread_cache, &LOCK_thread_cache);
     blocked_pthread_count--;
 
-    if (kill_blocked_pthreads_flag) mysql_cond_signal(&COND_flush_thread_cache);
+    if (shrink_cache && blocked_pthread_count <= max_blocked_pthreads) {
+      mysql_cond_signal(&COND_flush_thread_cache);
+    }
+
     if (wake_pthread) {
       wake_pthread--;
       if (!waiting_channel_info_list->empty()) {
@@ -318,11 +315,9 @@ static void *handle_connection(void *arg) {
     thd->release_resources();
 
     // Clean up errors now, before possibly waiting for a new connection.
-#ifndef HAVE_WOLFSSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-#endif
     thd_manager->remove_thd(thd);
     Connection_handler_manager::dec_connection_count();
 
@@ -358,15 +353,31 @@ static void *handle_connection(void *arg) {
 }
 }  // extern "C"
 
-void Per_thread_connection_handler::kill_blocked_pthreads() {
+void Per_thread_connection_handler::modify_thread_cache_size(
+    const ulong thread_cache_size) {
   mysql_mutex_lock(&LOCK_thread_cache);
-  kill_blocked_pthreads_flag++;
-  while (Per_thread_connection_handler::blocked_pthread_count) {
-    mysql_cond_broadcast(&COND_thread_cache);
-    mysql_cond_wait(&COND_flush_thread_cache, &LOCK_thread_cache);
+  if (thread_cache_size >= blocked_pthread_count) {
+    mysql_mutex_unlock(&LOCK_thread_cache);
+    return;
   }
-  kill_blocked_pthreads_flag--;
+
+  shrink_cache = true;
+  if (thread_cache_size == 0) {
+    mysql_cond_broadcast(&COND_thread_cache);
+  } else {
+    ulong num_threads = blocked_pthread_count - thread_cache_size;
+    for (ulong i = 0; i < num_threads; i++)
+      mysql_cond_signal(&COND_thread_cache);
+  }
+  // Wait until threads have been unblocked from thread cache.
+  while (blocked_pthread_count > thread_cache_size)
+    mysql_cond_wait(&COND_flush_thread_cache, &LOCK_thread_cache);
+  shrink_cache = false;
   mysql_mutex_unlock(&LOCK_thread_cache);
+}
+
+void Per_thread_connection_handler::kill_blocked_pthreads() {
+  modify_thread_cache_size(0);
 }
 
 bool Per_thread_connection_handler::check_idle_thread_and_enqueue_connection(
@@ -390,13 +401,12 @@ bool Per_thread_connection_handler::add_connection(Channel_info *channel_info) {
   int error = 0;
   my_thread_handle id;
 
-  DBUG_ENTER("Per_thread_connection_handler::add_connection");
+  DBUG_TRACE;
 
   // Simulate thread creation for test case before we check thread cache
   DBUG_EXECUTE_IF("fail_thread_create", error = 1; goto handle_error;);
 
-  if (!check_idle_thread_and_enqueue_connection(channel_info))
-    DBUG_RETURN(false);
+  if (!check_idle_thread_and_enqueue_connection(channel_info)) return false;
 
   /*
     There are no idle threads avaliable to take up the new
@@ -417,12 +427,12 @@ handle_error:
     channel_info->send_error_and_close_channel(ER_CANT_CREATE_THREAD, error,
                                                true);
     Connection_handler_manager::dec_connection_count();
-    DBUG_RETURN(true);
+    return true;
   }
 
   Global_THD_manager::get_instance()->inc_thread_created();
   DBUG_PRINT("info", ("Thread created"));
-  DBUG_RETURN(false);
+  return false;
 }
 
 uint Per_thread_connection_handler::get_max_threads() const {

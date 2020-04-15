@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3678,11 +3678,7 @@ NdbDictionary::printFormattedValue(NdbOut& out,
       char decStr[MaxDecimalStrLen];
       assert(decimal_string_size(&tmpDec) <= MaxDecimalStrLen);
       int len= MaxDecimalStrLen;
-      if ((rc= decimal2string(&tmpDec, decStr, 
-                              &len,
-                              0,   // 0 = Var length output length
-                              0,   // 0 = Var length fractional part
-                              0))) // Filler char for fixed length
+      if ((rc= decimal2string(&tmpDec, decStr, &len)))
       {
         out.print("***Error : bad decimal2string conversion %d ***",
                   rc);
@@ -3832,7 +3828,7 @@ NdbDictionary::NdbDataPrintFormat::NdbDataPrintFormat()
   null_string= "[NULL]";
   hex_format= 0;
 }
-NdbDictionary::NdbDataPrintFormat::~NdbDataPrintFormat() {};
+NdbDictionary::NdbDataPrintFormat::~NdbDataPrintFormat() {}
 
 
 NdbOut&

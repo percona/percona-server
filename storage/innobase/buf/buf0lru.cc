@@ -668,9 +668,6 @@ static void buf_flush_dirty_pages(buf_pool_t *buf_pool, space_id_t id,
 
     err = buf_flush_or_remove_pages(buf_pool, id, observer, flush, trx);
 
-    ut_ad(err == DB_INTERRUPTED || err == DB_FAIL ||
-          buf_pool_get_dirty_pages_count(buf_pool, id, observer) == 0);
-
     mutex_exit(&buf_pool->LRU_list_mutex);
 
     ut_ad(buf_flush_validate(buf_pool));
@@ -692,6 +689,9 @@ static void buf_flush_dirty_pages(buf_pool_t *buf_pool, space_id_t id,
     ut_ad(buf_flush_validate(buf_pool));
 
   } while (err == DB_FAIL);
+
+  ut_ad(err == DB_INTERRUPTED || !strict ||
+        buf_pool_get_dirty_pages_count(buf_pool, id, observer) == 0);
 }
 
 /** Remove all pages that belong to a given tablespace inside a specific
@@ -1206,7 +1206,7 @@ static void buf_LRU_check_size_of_non_data_objects(
 the error log if more than two seconds have been spent already.
 @param[in]	n_iterations	how many buf_LRU_get_free_page iterations
 already completed
-@param[in]	started_tm	timestamp of when the attempt to get the
+@param[in]	started_time	timestamp of when the attempt to get the
 free page started
 @param[in]	flush_failures	how many times single-page flush, if allowed,
 has failed
@@ -1214,16 +1214,16 @@ has failed
 @param[out]	started_monitor	whether InnoDB monitor print has been requested
 */
 static void buf_LRU_handle_lack_of_free_blocks(
-    ulint n_iterations, const std::chrono::steady_clock::time_point &started_tm,
+    ulint n_iterations, ib_time_monotonic_ms_t started_time,
     ulint flush_failures, bool *mon_value_was, bool *started_monitor) {
-  static std::chrono::steady_clock::time_point last_printout_tm;
+  static ib_time_monotonic_ms_t last_printout_time;
 
   /* Legacy algorithm started warning after at least 2 seconds, we
-  emulate	this. */
-  const auto current_tm = std::chrono::steady_clock::now();
-  static const constexpr std::chrono::seconds s2(2);
+  emulate this. */
+  const auto current_time = ut_time_monotonic_ms();
 
-  if ((current_tm - started_tm > s2) && (current_tm - last_printout_tm > s2) &&
+  if ((current_time - started_time > 2000) &&
+      (current_time - last_printout_time > 2000) &&
       srv_buf_pool_old_size == srv_buf_pool_size) {
     ib::warn(ER_IB_MSG_134)
         << "Difficult to find free blocks in the buffer pool"
@@ -1244,7 +1244,7 @@ static void buf_LRU_handle_lack_of_free_blocks(
         << " OS fsyncs. Starting InnoDB Monitor to print"
            " further diagnostics to the standard output.";
 
-    last_printout_tm = current_tm;
+    last_printout_time = current_time;
     *mon_value_was = srv_print_innodb_monitor;
     *started_monitor = true;
     srv_print_innodb_monitor = true;
@@ -1292,7 +1292,7 @@ buf_block_t *buf_LRU_get_free_block(buf_pool_t *buf_pool) {
   ulint flush_failures = 0;
   bool mon_value_was = false;
   bool started_monitor = false;
-  std::chrono::steady_clock::time_point started_tm;
+  ib_time_monotonic_ms_t started_time = 0;
 
   ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 
@@ -1330,17 +1330,16 @@ loop:
     return (block);
   }
 
-  if (!started_tm.time_since_epoch().count())
-    started_tm = std::chrono::steady_clock::now();
+  if (!started_time) started_time = ut_time_monotonic_ms();
 
   MONITOR_INC(MONITOR_LRU_GET_FREE_LOOPS);
 
   freed = false;
 
   if (srv_empty_free_list_algorithm == SRV_EMPTY_FREE_LIST_BACKOFF &&
-      buf_page_cleaner_is_active &&
-      (srv_shutdown_state == SRV_SHUTDOWN_NONE ||
-       srv_shutdown_state == SRV_SHUTDOWN_CLEANUP)) {
+      buf_flush_page_cleaner_is_active() &&
+      (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE ||
+       srv_shutdown_state.load() == SRV_SHUTDOWN_CLEANUP)) {
     /* Backoff to minimize the free list mutex contention while the free list
     is empty */
     const auto priority = srv_current_thread_priority;
@@ -1370,8 +1369,9 @@ loop:
                                     : FREE_LIST_BACKOFF_LOW_PRIO_DIVIDER));
     }
 
-    buf_LRU_handle_lack_of_free_blocks(n_iterations, started_tm, flush_failures,
-                                       &mon_value_was, &started_monitor);
+    buf_LRU_handle_lack_of_free_blocks(n_iterations, started_time,
+                                       flush_failures, &mon_value_was,
+                                       &started_monitor);
 
     n_iterations++;
 
@@ -1384,9 +1384,9 @@ loop:
     /* The LRU manager is not running or Oracle MySQL 5.6 algorithm
     was requested, will perform a single page flush  */
     ut_ad((srv_empty_free_list_algorithm == SRV_EMPTY_FREE_LIST_LEGACY) ||
-          !buf_page_cleaner_is_active ||
-          (srv_shutdown_state != SRV_SHUTDOWN_NONE &&
-           srv_shutdown_state != SRV_SHUTDOWN_CLEANUP));
+          !buf_flush_page_cleaner_is_active() ||
+          (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE &&
+           srv_shutdown_state.load() != SRV_SHUTDOWN_CLEANUP));
   }
   if (buf_pool->init_flush[BUF_FLUSH_LRU] && srv_use_doublewrite_buf &&
       buf_dblwr != NULL) {
@@ -1427,7 +1427,7 @@ loop:
     goto loop;
   }
 
-  buf_LRU_handle_lack_of_free_blocks(n_iterations, started_tm, flush_failures,
+  buf_LRU_handle_lack_of_free_blocks(n_iterations, started_time, flush_failures,
                                      &mon_value_was, &started_monitor);
 
   /* If we have scanned the whole LRU and still are unable to

@@ -1,0 +1,141 @@
+call mtr.add_suppression("Plugin keyring_file reported: 'File .*keyring' not found .*");
+call mtr.add_suppression("keyring_file initialization failure. Please check if the keyring_file_data points to readable keyring file or keyring file can be created in the specified location. The keyring_file will stay unusable until correct path to the keyring file gets provided");
+
+--disable_warnings
+SET GLOBAL innodb_file_per_table = ON;
+INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
+--enable_warnings
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval SET GLOBAL keyring_file_data="$MYSQL_TMP_DIR/mysecret_keyring";
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
+
+create table t1 (a varchar(255)) engine=innodb;
+create table t2 (a varchar(255)) engine=innodb;
+create table t3 (a varchar(255)) engine=innodb;
+create table t4 (a varchar(255)) engine=innodb;
+
+insert t1 values (repeat('foobarsecret', 12));
+insert t2 values (repeat('tempsecret', 12));
+insert t3 values (repeat('dummysecret', 12));
+insert t4 values (repeat('verysecret', 12));
+
+# We add system tablespace manualy (+4 - undo_001, undo_002, mysql, temporary - as not all system tablespaces are
+# available at the server start)
+#We do not encrypt temporary tablespace, but we do encrypt innodb_system which is not listed in INNODB_TABLESPACES
+--let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
+--echo # Wait max 10 min for key encryption threads to encrypt all spaces, apart from temp tablespace
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = $tables_count - 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--source include/wait_condition.inc
+
+# Now all the tables are encrypted - need to check if other values of default_table_encryption than
+# ONLINE_FROM_KEYRING_TO_UNENCRYPTED do not start decrypting the tables
+SET GLOBAL default_table_encryption = OFF;
+--sleep 10
+
+--let $assert_text= Make sure all tables stay encrypted, apart from temporary tablespace
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1]" = $tables_count - 1
+--source include/assert.inc
+
+SET GLOBAL default_table_encryption = ON;
+--sleep 10
+
+--let $assert_text= Make sure all tables stay encrypted, apart from temporary tablespace
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1]" = $tables_count - 1
+--source include/assert.inc
+
+SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
+--sleep 10
+
+--let $assert_text= Make sure all tables stay encrypted, apart from temporary tablespace
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1]" = $tables_count - 1
+--source include/assert.inc
+
+# Now check key rotation works with different values of default_table_encryption and encryption
+# threads running
+
+SET GLOBAL default_table_encryption = OFF;
+
+--let $assert_text= Successful rotation of percona_innodb-0 to version 2
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
+--source include/assert.inc
+
+--sleep 10
+
+--let $wait_timeout= 600
+# We should have $tables_count - 1 tables encrypted with version 2 (temp is not encrypted)
+--let $wait_condition=SELECT COUNT(*) = $tables_count - 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 2
+--source include/wait_condition.inc
+
+SET GLOBAL default_table_encryption = ON;
+
+--let $assert_text= Successful rotation of percona_innodb-0 to version 3
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
+--source include/assert.inc
+
+--let $wait_timeout= 600
+# We should have $tables_count - 1 tables encrypted with version 3 (temp is not encrypted)
+--let $wait_condition=SELECT COUNT(*) = $tables_count - 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 3
+--source include/wait_condition.inc
+
+SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
+
+--let $assert_text= Successful rotation of percona_innodb-0 to version 4
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
+--source include/assert.inc
+
+--let $wait_timeout= 600
+# We should have $tables_count - 1 tables encrypted with version 4 (temp is not encrypted)
+--let $wait_condition=SELECT COUNT(*) = $tables_count - 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 4
+--source include/wait_condition.inc
+
+--let $assert_text= Successful rotation of percona_innodb-0 to version 5
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
+--source include/assert.inc
+
+--let $wait_timeout= 600
+# We should have $tables_count - 1 tables encrypted with version 5 (temp is not encrypted)
+--let $wait_condition=SELECT COUNT(*) = $tables_count - 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 5
+--source include/wait_condition.inc
+
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+
+--let $assert_text= Successful rotation of percona_innodb-0 to version 6
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
+--source include/assert.inc
+
+# Even though the key was rotated - all the tables should be decrypted as
+# default_table_encryption is set to ONLINE_FROM_KEYRING_TO_UNENCRYPTED
+
+--echo # Wait max 10 min for key encryption threads to decrypt all spaces
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
+--source include/wait_condition.inc
+
+# Now all the tables are decrypted - need to check if other values than
+# ONLINE_TO_KEYRING do not start encrypting the tables
+SET GLOBAL default_table_encryption = OFF;
+--sleep 10
+
+--let $assert_text= Make sure all tables stay decrypted
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0]" = 0
+--source include/assert.inc
+
+SET GLOBAL default_table_encryption = ON;
+--sleep 10
+
+--let $assert_text= Make sure all tables stay decrypted
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0]" = 0
+--source include/assert.inc
+
+# cleanup
+DROP TABLES t1,t2,t3,t4;
+SET GLOBAL default_table_encryption = OFF;
+SET GLOBAL innodb_encryption_threads=0;
+
+UNINSTALL PLUGIN keyring_file;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--remove_file "$MYSQL_TMP_DIR/mysecret_keyring"
+--remove_file $MYSQL_TMP_DIR/mydummy_key

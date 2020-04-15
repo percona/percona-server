@@ -1,7 +1,7 @@
 #ifndef JSON_BINARY_INCLUDED
 #define JSON_BINARY_INCLUDED
 
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -143,8 +143,8 @@
 #include <stddef.h>
 #include <string>
 
-#include "binary_log_types.h"  // enum_field_types
-#include "my_dbug.h"           // DBUG_ASSERT
+#include "field_types.h"  // enum_field_types
+#include "my_dbug.h"      // DBUG_ASSERT
 #include "my_inttypes.h"
 
 class Field_json;
@@ -330,6 +330,18 @@ class Value {
   /** Is this value an object? */
   bool is_object() const { return m_type == OBJECT; }
 
+  /**
+    Compare two Values
+    @note This function is limited to scalars only, for objects/arrays it
+    asserts. The main purpose is to separate old/new scalar values for updates
+    on multi-valued indexes.
+    @returns
+      -1  this < val
+       0  this == val
+       1  this > val
+  */
+  int eq(const Value &val) const;
+
  private:
   /*
     Instances use only one of m_data, m_int_value and m_double_value,
@@ -435,6 +447,6 @@ bool for_each_node(const Value &value, const Func &func) {
 
   return false;
 }
-}
+}  // namespace json_binary
 
 #endif /* JSON_BINARY_INCLUDED */

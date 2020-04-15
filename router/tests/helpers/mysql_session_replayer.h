@@ -43,11 +43,29 @@ class MySQLSessionReplayer : public mysqlrouter::MySQLSession {
   virtual bool is_connected() noexcept override { return connected_; }
 
   virtual void execute(const std::string &sql) override;
-  virtual void query(const std::string &sql,
-                     const RowProcessor &processor) override;
-  virtual ResultRow *query_one(const std::string &sql) override;
+
+  /**
+   * @note validator is ignored (not implemented) - if you're running a test
+   * that relies on proper emulation of validator, it may not work properly.
+   */
+  virtual void query(
+      const std::string &sql, const RowProcessor &processor,
+      const FieldValidator &validator =
+          null_field_validator  // validator not implemented so far
+      ) override;
+
+  /**
+   * @note validator is ignored (not implemented) - if you're running a test
+   * that relies on proper emulation of validator, it may not work properly.
+   */
+  virtual std::unique_ptr<ResultRow> query_one(
+      const std::string &sql,
+      const FieldValidator &validator =
+          null_field_validator  // validator not implemented so far
+      ) override;
 
   virtual uint64_t last_insert_id() noexcept override;
+  virtual unsigned warning_count() noexcept override;
 
   virtual std::string quote(const std::string &s,
                             char qchar = '\'') noexcept override;
@@ -56,10 +74,10 @@ class MySQLSessionReplayer : public mysqlrouter::MySQLSession {
   virtual unsigned int last_errno() override;
 
  public:
-  class string {
+  class optional_string {
    public:
-    string(const char *s) : s_(s ? s : ""), is_null_(s == nullptr) {}
-    string() : is_null_(true) {}
+    optional_string(const char *s) : s_(s ? s : ""), is_null_(s == nullptr) {}
+    optional_string() : is_null_(true) {}
 
     operator const std::string &() const { return s_; }
     operator bool() const { return !is_null_; }
@@ -69,8 +87,8 @@ class MySQLSessionReplayer : public mysqlrouter::MySQLSession {
     std::string s_;
     bool is_null_;
   };
-  string string_or_null(const char *s) { return string(s); }
-  string string_or_null() { return string(); }
+  optional_string string_or_null(const char *s) { return optional_string(s); }
+  optional_string string_or_null() { return optional_string(); }
 
   MySQLSessionReplayer &expect_connect(const std::string &host, unsigned port,
                                        const std::string &user,
@@ -79,10 +97,10 @@ class MySQLSessionReplayer : public mysqlrouter::MySQLSession {
   MySQLSessionReplayer &expect_execute(const std::string &q);
   MySQLSessionReplayer &expect_query(const std::string &q);
   MySQLSessionReplayer &expect_query_one(const std::string &q);
-  void then_ok(uint64_t the_last_insert_id = 0);
+  void then_ok(uint64_t the_last_insert_id = 0, unsigned warning_count = 0);
   void then_error(const std::string &error, unsigned int code);
   void then_return(unsigned int num_fields,
-                   std::vector<std::vector<string>> rows);
+                   std::vector<std::vector<optional_string>> rows);
   bool print_expected();
 
   bool empty() { return call_info_.empty(); }
@@ -104,8 +122,9 @@ class MySQLSessionReplayer : public mysqlrouter::MySQLSession {
     // SQL fields
     std::string sql;
     uint64_t last_insert_id = 0;
+    unsigned warning_count = 0;
     unsigned int num_fields = 0;
-    std::vector<std::vector<string>> rows;
+    std::vector<std::vector<optional_string>> rows;
 
     // connect fields
     std::string host;
@@ -116,6 +135,7 @@ class MySQLSessionReplayer : public mysqlrouter::MySQLSession {
   };
   std::deque<CallInfo> call_info_;
   uint64_t last_insert_id_;
+  unsigned warning_count_;
   std::string last_error_msg;
   unsigned int last_error_code;
   bool trace_ = false;

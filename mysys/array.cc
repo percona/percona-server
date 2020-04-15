@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,7 @@
 bool my_init_dynamic_array(DYNAMIC_ARRAY *array, PSI_memory_key psi_key,
                            uint element_size, void *init_buffer,
                            uint init_alloc, uint alloc_increment) {
-  DBUG_ENTER("my_init_dynamic_array");
+  DBUG_TRACE;
   if (!alloc_increment) {
     alloc_increment = MY_MAX((8192 - MALLOC_OVERHEAD) / element_size, 16);
     if (init_alloc > 8 && alloc_increment > init_alloc * 2)
@@ -82,7 +82,7 @@ bool my_init_dynamic_array(DYNAMIC_ARRAY *array, PSI_memory_key psi_key,
   array->alloc_increment = alloc_increment;
   array->size_of_element = element_size;
   array->m_psi_key = psi_key;
-  if ((array->buffer = static_cast<uchar *>(init_buffer))) DBUG_RETURN(false);
+  if ((array->buffer = static_cast<uchar *>(init_buffer))) return false;
   /*
     Since the dynamic array is usable even if allocation fails here malloc
     should not throw an error
@@ -90,7 +90,7 @@ bool my_init_dynamic_array(DYNAMIC_ARRAY *array, PSI_memory_key psi_key,
   if (!(array->buffer =
             (uchar *)my_malloc(psi_key, element_size * init_alloc, MYF(0))))
     array->max_element = 0;
-  DBUG_RETURN(false);
+  return false;
 }
 
 /*
@@ -163,33 +163,6 @@ void *alloc_dynamic(DYNAMIC_ARRAY *array) {
 }
 
 /*
-  Pop last element from array.
-
-  SYNOPSIS
-    pop_dynamic()
-      array
-
-  RETURN VALUE
-    pointer	Ok
-    0		Array is empty
-*/
-
-void *pop_dynamic(DYNAMIC_ARRAY *array) {
-  if (array->elements)
-    return array->buffer + (--array->elements * array->size_of_element);
-  return 0;
-}
-
-void claim_dynamic(DYNAMIC_ARRAY *array) {
-  /*
-    Check for a static buffer
-  */
-  if (array->buffer == (uchar *)(array + 1)) return;
-
-  my_claim(array->buffer);
-}
-
-/*
   Empty array by freeing all memory
 
   SYNOPSIS
@@ -207,30 +180,5 @@ void delete_dynamic(DYNAMIC_ARRAY *array) {
     my_free(array->buffer);
     array->buffer = 0;
     array->elements = array->max_element = 0;
-  }
-}
-
-/*
-  Free unused memory
-
-  SYNOPSIS
-    freeze_size()
-      array	Array to be freed
-
-*/
-
-void freeze_size(DYNAMIC_ARRAY *array) {
-  uint elements = MY_MAX(array->elements, 1);
-
-  /*
-    Do nothing if we are using a static buffer
-  */
-  if (array->buffer == (uchar *)(array + 1)) return;
-
-  if (array->buffer && array->max_element != elements) {
-    array->buffer =
-        (uchar *)my_realloc(array->m_psi_key, array->buffer,
-                            elements * array->size_of_element, MYF(MY_WME));
-    array->max_element = elements;
   }
 }

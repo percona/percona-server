@@ -22,7 +22,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) NOT NULL,
-  `b` int(11) NOT NULL,
+  `b` int NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`,`b`),
   KEY `b` (`b`,`a`)
@@ -75,14 +75,6 @@ a	b
 6	6
 7	7
 8	8
-SELECT PARTITION_NAME, TABLE_ROWS > 0
-FROM INFORMATION_SCHEMA.PARTITIONS
-WHERE TABLE_NAME = 't1';
-PARTITION_NAME	TABLE_ROWS > 0
-p0	1
-p1	1
-p2	1
-p3	1
 create temporary table counters_at_startup
 select counter_name, sum(val) as val
 from ndbinfo.counters
@@ -118,8 +110,8 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  `b` int NOT NULL,
+  `c` int /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`,`b`),
   KEY `b` (`b`,`a`)
@@ -167,8 +159,8 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  `b` int NOT NULL,
+  `c` int /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`,`b`),
   KEY `b` (`b`,`a`)
@@ -214,8 +206,8 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  `b` int NOT NULL,
+  `c` int /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`,`b`),
   KEY `b` (`b`,`a`)
@@ -297,8 +289,8 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  `b` int NOT NULL,
+  `c` int /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`,`b`),
   KEY `b` (`b`,`a`)

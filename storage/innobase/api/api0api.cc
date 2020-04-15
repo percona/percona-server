@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -296,8 +296,7 @@ static ib_err_t ib_read_tuple(
   if (cmp_tuple && mode) {
     /* This is a case of "read upto" certain value. Used for
     index scan for "<" or "<=" case */
-    cmp =
-        cmp_dtuple_rec_with_match(cmp_tuple->ptr, rec, index, offsets, &match);
+    cmp = cmp_tuple->ptr->compare(rec, index, offsets, &match);
 
     if ((mode == IB_CUR_LE && cmp < 0) || (mode == IB_CUR_L && cmp <= 0)) {
       return (DB_END_OF_INDEX);
@@ -835,11 +834,10 @@ ib_err_t ib_cursor_open_index_using_name(
 
 /** Open an InnoDB table and return a cursor handle to it.
  @return DB_SUCCESS or err code */
-ib_err_t ib_cursor_open_table(
-    const char *name,   /*!< in: table name */
-    ib_trx_t ib_trx,    /*!< in: Current transaction handle
-                        can be NULL */
-    ib_crsr_t *ib_crsr) /*!< out,own: InnoDB cursor */
+ib_err_t ib_cursor_open_table(const char *name,   /*!< in: table name */
+                              ib_trx_t ib_trx,    /*!< in: Current transaction
+                                                  handle    can be NULL */
+                              ib_crsr_t *ib_crsr) /*!< out,own: InnoDB cursor */
 {
   ib_err_t err;
   dict_table_t *table;
@@ -1065,7 +1063,11 @@ static ib_err_t ib_execute_insert_query_graph(
 
     dict_table_n_rows_inc(table);
 
-    srv_stats.n_rows_inserted.inc();
+    if (table->is_system_table) {
+      srv_stats.n_system_rows_inserted.inc();
+    } else {
+      srv_stats.n_rows_inserted.inc();
+    }
   }
 
   trx->op_info = "";
@@ -1105,6 +1107,8 @@ static void ib_insert_query_graph_create(
         pars_complete_graph_for_exec(node->ins, trx, heap, NULL)));
 
     grph->ins->state = QUE_FORK_ACTIVE;
+  } else {
+    node->ins->ins_multi_val_pos = 0;
   }
 }
 
@@ -1197,6 +1201,9 @@ upd_t *ib_update_vector_create(ib_cursor_t *cursor) /*!< in: current cursor */
   if (node->upd == NULL) {
     node->upd = static_cast<upd_node_t *>(
         row_create_update_node_for_mysql(table, heap));
+  } else {
+    node->upd->del_multi_val_pos = 0;
+    node->upd->upd_multi_val_pos = 0;
   }
 
   ut_ad(!dict_table_have_virtual_index(table));
@@ -1384,9 +1391,17 @@ ib_err_t ib_execute_update_query_graph(
     if (node->is_delete) {
       dict_table_n_rows_dec(table);
 
-      srv_stats.n_rows_deleted.inc();
+      if (table->is_system_table) {
+        srv_stats.n_system_rows_deleted.inc();
+      } else {
+        srv_stats.n_rows_deleted.inc();
+      }
     } else {
-      srv_stats.n_rows_updated.inc();
+      if (table->is_system_table) {
+        srv_stats.n_system_rows_updated.inc();
+      } else {
+        srv_stats.n_rows_updated.inc();
+      }
     }
 
   } else if (err == DB_RECORD_NOT_FOUND) {
@@ -1658,7 +1673,7 @@ ib_err_t ib_cursor_position(
     prebuilt->cursor_heap = cursor->heap;
   }
   buf = static_cast<unsigned char *>(ut_malloc_nokey(UNIV_PAGE_SIZE));
-  dtuple_set_n_fields(prebuilt->search_tuple, 0);
+  prebuilt->clear_search_tuples();
 
   /* We want to position at one of the ends, row_search_for_mysql()
   uses the search_tuple fields to work out what to do. */
@@ -1693,7 +1708,7 @@ ib_err_t ib_cursor_next(ib_crsr_t ib_crsr) /*!< in: InnoDB cursor instance */
     prebuilt->cursor_heap = cursor->heap;
   }
   /* We want to move to the next record */
-  dtuple_set_n_fields(prebuilt->search_tuple, 0);
+  prebuilt->clear_search_tuples();
 
   err = static_cast<ib_err_t>(
       row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, ROW_SEL_NEXT));
@@ -1725,6 +1740,7 @@ ib_err_t ib_cursor_moveto(ib_crsr_t ib_crsr, /*!< in: InnoDB cursor instance */
     n_fields = dtuple_get_n_fields(tuple->ptr);
   }
 
+  dtuple_set_n_fields(prebuilt->m_stop_tuple, 0);
   dtuple_set_n_fields(search_tuple, n_fields);
   dtuple_set_n_fields_cmp(search_tuple, n_fields);
 
@@ -2793,13 +2809,13 @@ static ib_err_t ib_cursor_open_table_using_id(
 @param[in,out]	sdi_key		SDI Key
 @return search tuple */
 static ib_tpl_t ib_sdi_create_search_tuple(ib_crsr_t ib_crsr,
-                                           const dd::sdi_key_t *sdi_key) {
-  ut_ad(ib_crsr->prebuilt->index->get_field(0)->fixed_len == dd::SDI_TYPE_LEN);
-  ut_ad(ib_crsr->prebuilt->index->get_field(1)->fixed_len == dd::SDI_KEY_LEN);
+                                           const sdi_key_t *sdi_key) {
+  ut_ad(ib_crsr->prebuilt->index->get_field(0)->fixed_len == SDI_TYPE_LEN);
+  ut_ad(ib_crsr->prebuilt->index->get_field(1)->fixed_len == SDI_KEY_LEN);
 
   ib_tpl_t key_tpl = ib_clust_search_tuple_create(ib_crsr);
-  ib_col_set_value(key_tpl, 0, &sdi_key->type, dd::SDI_TYPE_LEN, false);
-  ib_col_set_value(key_tpl, 1, &sdi_key->id, dd::SDI_KEY_LEN, false);
+  ib_col_set_value(key_tpl, 0, &sdi_key->type, SDI_TYPE_LEN, false);
+  ib_col_set_value(key_tpl, 1, &sdi_key->id, SDI_KEY_LEN, false);
 
   return (key_tpl);
 }
@@ -2812,15 +2828,15 @@ static ib_tpl_t ib_sdi_create_search_tuple(ib_crsr_t ib_crsr,
 @param[in]	sdi		compressed SDI data
 @return insert tuple */
 static ib_tpl_t ib_sdi_create_insert_tuple(ib_crsr_t ib_crsr,
-                                           const dd::sdi_key_t *sdi_key,
+                                           const sdi_key_t *sdi_key,
                                            uint32_t uncomp_len,
                                            uint32_t comp_len, const void *sdi) {
-  ut_ad(ib_crsr->prebuilt->index->get_field(0)->fixed_len == dd::SDI_TYPE_LEN);
-  ut_ad(ib_crsr->prebuilt->index->get_field(1)->fixed_len == dd::SDI_KEY_LEN);
+  ut_ad(ib_crsr->prebuilt->index->get_field(0)->fixed_len == SDI_TYPE_LEN);
+  ut_ad(ib_crsr->prebuilt->index->get_field(1)->fixed_len == SDI_KEY_LEN);
 
   ib_tpl_t tuple = ib_clust_read_tuple_create(ib_crsr);
-  ib_col_set_value(tuple, 0, &sdi_key->type, dd::SDI_TYPE_LEN, false);
-  ib_col_set_value(tuple, 1, &sdi_key->id, dd::SDI_KEY_LEN, false);
+  ib_col_set_value(tuple, 0, &sdi_key->type, SDI_TYPE_LEN, false);
+  ib_col_set_value(tuple, 1, &sdi_key->id, SDI_KEY_LEN, false);
   ib_col_set_value(tuple, 2, &uncomp_len, 4, false);
   ib_col_set_value(tuple, 3, &comp_len, 4, false);
   ib_col_set_value(tuple, 4, sdi, static_cast<ib_ulint_t>(comp_len), false);
@@ -2841,10 +2857,12 @@ static ib_err_t ib_sdi_open_table(uint32_t tablespace_id, trx_t *trx,
   ib_err_t err = ib_cursor_open_table_using_id(
       dict_sdi_get_table_id(tablespace_id), trx, ib_crsr);
 
-  DBUG_EXECUTE_IF("ib_sdi", if (err != DB_SUCCESS) {
-    ib::warn(ER_IB_MSG_1) << "Unable to open SDI dict table for tablespace: "
-                          << tablespace_id << " error returned is " << err;
-  });
+  DBUG_EXECUTE_IF(
+      "ib_sdi", if (err != DB_SUCCESS) {
+        ib::warn(ER_IB_MSG_1)
+            << "Unable to open SDI dict table for tablespace: " << tablespace_id
+            << " error returned is " << err;
+      });
   return (err);
 }
 
@@ -3001,7 +3019,7 @@ dberr_t ib_sdi_get_keys(uint32_t tablespace_id, ib_sdi_vector_t *ib_sdi_vector,
       break;
     }
 
-    dd::sdi_key_t ts;
+    sdi_key_t ts;
 
     ib_tuple_read_u32(tuple, 0, &ts.type);
     ib_tuple_read_u64(tuple, 1, reinterpret_cast<uint64_t *>(&ts.id));
@@ -3014,7 +3032,7 @@ dberr_t ib_sdi_get_keys(uint32_t tablespace_id, ib_sdi_vector_t *ib_sdi_vector,
   return (err);
 }
 
-/** Retrieve SDI from tablespace
+/** Retrieve SDI from tablespace.
 @param[in]	tablespace_id	tablespace id
 @param[in]	ib_sdi_key	SDI key
 @param[in,out]	comp_sdi	in: buffer to hold the SDI BLOB
@@ -3023,10 +3041,9 @@ dberr_t ib_sdi_get_keys(uint32_t tablespace_id, ib_sdi_vector_t *ib_sdi_vector,
                                 out: compressed length of SDI
 @param[out]	uncomp_sdi_len	out: uncompressed length of SDI
 @param[in,out]	trx		innodb transaction
-@return DB_SUCCESS if SDI retrieval is successful, else error
-in case the passed buffer length is smaller than the actual SDI
-DB_OUT_OF_MEMORY is thrown and uncompressed length is set in
-uncomp_sdi_len */
+@return DB_SUCCESS if SDI retrieval is successful, else error.
+@return DB_OUT_OF_MEMORY if the passed buffer is not sufficient to
+hold the compressed SDI retrieved from tablespace. */
 dberr_t ib_sdi_get(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
                    void *comp_sdi, uint32_t *comp_sdi_len,
                    uint32_t *uncomp_sdi_len, trx_t *trx) {
@@ -3069,9 +3086,9 @@ dberr_t ib_sdi_get(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
       ib_tuple_read_u32(tuple, 2, uncomp_sdi_len);
       ib_tuple_read_u32(tuple, 3, comp_sdi_len);
 
-      /* If the passed memory is not sufficient, we
+      /* If the passed memory is not sufficient to hold the compressed SDI, we
       return failure and the actual length of SDI. */
-      if (buf_len < *uncomp_sdi_len) {
+      if (buf_len < *comp_sdi_len) {
         ib_tuple_delete(tuple);
         ib_tuple_delete(key_tpl);
         ib_cursor_close(ib_crsr);
@@ -3084,19 +3101,19 @@ dberr_t ib_sdi_get(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
 
     ib_tuple_delete(tuple);
   } else {
-    DBUG_EXECUTE_IF("ib_sdi",
-                    if (err == DB_RECORD_NOT_FOUND) {
-                      ib::warn(ER_IB_MSG_8)
-                          << "sdi_get: Record not found:"
-                          << " tablespace " << tablespace_id
-                          << " Key: " << ib_sdi_key->sdi_key->type << " "
-                          << ib_sdi_key->sdi_key->id;
-                    } else if (err != DB_SUCCESS) {
-                      ib::warn(ER_IB_MSG_9)
-                          << "sdi_get: Get Failed: tablespace " << tablespace_id
-                          << " Key: " << ib_sdi_key->sdi_key->type << " "
-                          << ib_sdi_key->sdi_key->id << " error: " << err;
-                    });
+    DBUG_EXECUTE_IF(
+        "ib_sdi",
+        if (err == DB_RECORD_NOT_FOUND) {
+          ib::warn(ER_IB_MSG_8) << "sdi_get: Record not found:"
+                                << " tablespace " << tablespace_id
+                                << " Key: " << ib_sdi_key->sdi_key->type << " "
+                                << ib_sdi_key->sdi_key->id;
+        } else if (err != DB_SUCCESS) {
+          ib::warn(ER_IB_MSG_9)
+              << "sdi_get: Get Failed: tablespace " << tablespace_id
+              << " Key: " << ib_sdi_key->sdi_key->type << " "
+              << ib_sdi_key->sdi_key->id << " error: " << err;
+        });
   }
 
   ib_tuple_delete(key_tpl);
@@ -3144,24 +3161,27 @@ ib_err_t ib_sdi_delete(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
     err = ib_cursor_delete_row(ib_crsr);
   }
 
-#ifdef UNIV_DEBUG
   if (err != DB_SUCCESS && !trx_is_interrupted(trx)) {
     if (err == DB_RECORD_NOT_FOUND) {
       ib::warn(ER_IB_MSG_11) << "sdi_delete failed: Record Doesn't exist:"
                              << " tablespace_id: " << tablespace_id
                              << " Key: " << ib_sdi_key->sdi_key->type << " "
                              << ib_sdi_key->sdi_key->id;
-      bool sdi_delete_record_not_found = true;
-      ut_ad(!sdi_delete_record_not_found);
-
-    } else {
+      // Emit warning, and report missing record error, but do not
+      // assert since this situation can occur when upgrading from a
+      // version where sdis were not stored for subpartitioned tables,
+      // and then attempting an instant alter, e.g. ALTER ... ADD
+      // COLUMN, bug#30360695.
+    }
+#ifdef UNIV_DEBUG
+    else {
       ib::warn(ER_IB_MSG_12)
           << "sdi_delete failed: tablespace_id: " << tablespace_id
           << " Key: " << ib_sdi_key->sdi_key->type << " "
           << ib_sdi_key->sdi_key->id << " Error returned: " << err;
     }
-  }
 #endif /* UNIV_DEBUG */
+  }
 
   ib_tuple_delete(key_tpl);
   ib_cursor_close(ib_crsr);
@@ -3236,7 +3256,7 @@ ib_err_t ib_sdi_drop(space_id_t tablespace_id) {
   /* Remove SDI Flag presence from Page 0 */
   mtr.start();
 
-  ulint flags = space->flags & ~FSP_FLAGS_MASK_SDI;
+  uint32_t flags = space->flags & ~FSP_FLAGS_MASK_SDI;
 
   buf_block_t *block =
       buf_page_get(page_id_t(space->id, 0), page_size, RW_SX_LATCH, &mtr);
@@ -3292,14 +3312,14 @@ static ib_err_t parse_string_to_number(const char *num_str,
 @param[in]	key_str		Memached key
 @param[in,out]	sk		SDI key
 @return DB_SUCCESS if SDI key extraction is successful, else error */
-static ib_err_t parse_mem_key_to_sdi_key(const char *key_str,
-                                         dd::sdi_key_t *sk) {
+static ib_err_t parse_mem_key_to_sdi_key(const char *key_str, sdi_key_t *sk) {
   /* 25 is sufficient here, the prefix will be
   sdi_number:number:number */
-  char key[25];
+  char key[25 + 1];
   char *saveptr1;
 
-  strncpy(key, key_str + strlen("sdi_"), sizeof(key));
+  strncpy(key, key_str + strlen("sdi_"), sizeof(key) - 1);
+  key[sizeof(key) - 1] = '\0';
 
   char *type_str = strtok_r(key, ":", &saveptr1);
   char *id_str = strtok_r(NULL, ":", &saveptr1);
@@ -3336,7 +3356,7 @@ ib_err_t ib_memc_sdi_get(ib_crsr_t crsr, const char *key_str, void *sdi,
   ib_trx_t trx = crsr->prebuilt->trx;
   ib_err_t err;
   ib_sdi_key_t sk;
-  dd::sdi_key_t sdi_key;
+  sdi_key_t sdi_key;
   ut_ad(trx != NULL);
 
   sk.sdi_key = &sdi_key;
@@ -3378,7 +3398,7 @@ ib_err_t ib_memc_sdi_delete(ib_crsr_t crsr, const char *key_str) {
   uint32_t tablespace_id = crsr->prebuilt->table->space;
   ib_trx_t trx = crsr->prebuilt->trx;
   ib_sdi_key_t sk;
-  dd::sdi_key_t sdi_key;
+  sdi_key_t sdi_key;
   ib_err_t err;
   ut_ad(trx != NULL);
 
@@ -3407,7 +3427,7 @@ ib_err_t ib_memc_sdi_set(ib_crsr_t crsr, const char *key_str, const void *sdi,
   uint32_t tablespace_id = crsr->prebuilt->table->space;
   ib_trx_t trx = crsr->prebuilt->trx;
   ib_sdi_key_t sk;
-  dd::sdi_key_t sdi_key;
+  sdi_key_t sdi_key;
   ib_err_t err;
   ut_ad(trx != NULL);
 
@@ -3462,7 +3482,7 @@ ib_err_t ib_memc_sdi_get_keys(ib_crsr_t crsr, const char *key_str, void *sdi,
     /* Pattern matched exactly with "sdi_list_" */
   }
 
-  dd::sdi_vector sdi_vector;
+  sdi_vector_t sdi_vector;
   ib_sdi_vector ib_vector;
   ib_vector.sdi_vector = &sdi_vector;
 
@@ -3471,10 +3491,10 @@ ib_err_t ib_memc_sdi_get_keys(ib_crsr_t crsr, const char *key_str, void *sdi,
   char *ptr = static_cast<char *>(sdi);
   uint64_t cur_len = 0;
   uint64_t bytes_printed;
-  for (dd::sdi_container::iterator it = ib_vector.sdi_vector->m_vec.begin();
+  for (sdi_container::iterator it = ib_vector.sdi_vector->m_vec.begin();
        it != ib_vector.sdi_vector->m_vec.end(); it++) {
-    bytes_printed =
-        snprintf(ptr, list_buf_len - cur_len, "%llu:%u|", it->id, it->type);
+    bytes_printed = snprintf(ptr, list_buf_len - cur_len, "%" PRIu64 ":%u|",
+                             it->id, it->type);
     ptr += bytes_printed;
     cur_len += bytes_printed;
   }

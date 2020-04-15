@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -726,7 +726,6 @@ static void fts_parallel_tokenization_thread(fts_psort_t *psort_info) {
   dberr_t error = DB_SUCCESS;
   THD *thd = psort_info->psort_common->trx->mysql_thd;
 
-  my_thread_init();
   ut_ad(thd != nullptr);
   const char *path = thd_innodb_tmpdir(thd);
 
@@ -995,8 +994,6 @@ func_exit:
   psort_info->child_status = FTS_CHILD_COMPLETE;
   os_event_set(psort_info->psort_common->sort_event);
   psort_info->child_status = FTS_CHILD_EXITING;
-
-  my_thread_end();
 }
 
 /** Start the parallel tokenization and parallel merge sort
@@ -1005,8 +1002,11 @@ void row_fts_start_psort(fts_psort_t *psort_info) {
   for (ulint i = 0; i < fts_sort_pll_degree; i++) {
     psort_info[i].psort_id = i;
 
-    os_thread_create(fts_parallel_tokenization_thread_key,
-                     fts_parallel_tokenization_thread, &psort_info[i]);
+    auto thread =
+        os_thread_create(fts_parallel_tokenization_thread_key,
+                         fts_parallel_tokenization_thread, &psort_info[i]);
+
+    thread.start();
   }
 }
 
@@ -1014,7 +1014,6 @@ void row_fts_start_psort(fts_psort_t *psort_info) {
 @param[in]	psort_info		parallel merge info */
 static void fts_parallel_merge_thread(fts_psort_t *psort_info) {
   ulint id = psort_info->psort_id;
-  my_thread_init();
 
   row_fts_merge_insert(psort_info->psort_common->dup->index,
                        psort_info->psort_common->new_table,
@@ -1023,8 +1022,6 @@ static void fts_parallel_merge_thread(fts_psort_t *psort_info) {
   psort_info->child_status = FTS_CHILD_COMPLETE;
   os_event_set(psort_info->psort_common->merge_event);
   psort_info->child_status = FTS_CHILD_EXITING;
-
-  my_thread_end();
 }
 
 /** Kick off the parallel merge and insert thread
@@ -1035,8 +1032,10 @@ void row_fts_start_parallel_merge(fts_psort_t *merge_info) {
     merge_info[i].psort_id = i;
     merge_info[i].child_status = 0;
 
-    os_thread_create(fts_parallel_merge_thread_key, fts_parallel_merge_thread,
-                     &merge_info[i]);
+    auto thread = os_thread_create(fts_parallel_merge_thread_key,
+                                   fts_parallel_merge_thread, &merge_info[i]);
+
+    thread.start();
   }
 }
 

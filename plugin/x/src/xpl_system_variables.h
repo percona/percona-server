@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,10 +25,16 @@
 #ifndef PLUGIN_X_SRC_XPL_SYSTEM_VARIABLES_H_
 #define PLUGIN_X_SRC_XPL_SYSTEM_VARIABLES_H_
 
+#include <stdint.h>
+
 #include <algorithm>
+#include <functional>
+
+#include <memory>
 #include <vector>
 
-#include "plugin/x/ngs/include/ngs_common/bind.h"
+#include "my_inttypes.h"
+#include "plugin/x/src/set_variable.h"
 
 #ifdef max_allowed_packet
 #undef max_allowed_packet
@@ -71,11 +77,14 @@ class Plugin_system_variables {
   static char *bind_address;
   static uint32_t m_interactive_timeout;
   static uint32_t m_document_id_unique_prefix;
+  static bool m_enable_hello_notice;
+
+  static Set_variable m_compression_algorithms;
 
   static Ssl_config ssl_config;
 
  public:
-  typedef ngs::function<void(THD *)> Value_changed_callback;
+  typedef std::function<void(THD *)> Value_changed_callback;
 
   static void clean_callbacks();
   static void registry_callback(Value_changed_callback callcback);
@@ -97,7 +106,7 @@ class Plugin_system_variables {
 template <typename Copy_type>
 void Plugin_system_variables::update_func(THD *thd, SYS_VAR *, void *tgt,
                                           const void *save) {
-  *(Copy_type *)tgt = *(Copy_type *)save;
+  *static_cast<Copy_type *>(tgt) = *static_cast<const Copy_type *>(save);
 
   std::for_each(
       m_callbacks.begin(), m_callbacks.end(),

@@ -1,7 +1,7 @@
 #ifndef ITEM_JSON_FUNC_INCLUDED
 #define ITEM_JSON_FUNC_INCLUDED
 
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,8 @@
 #include <utility>  // std::forward
 
 #include "m_ctype.h"
+#include "my_alloc.h"
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_time.h"
 #include "mysql/udf_registration_types.h"
@@ -38,6 +40,7 @@
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
 #include "sql/item.h"
+#include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
 #include "sql/item_strfunc.h"    // Item_str_func
 #include "sql/json_path.h"       // Json_path
@@ -45,13 +48,15 @@
 #include "sql/parse_tree_node_base.h"
 #include "sql_string.h"
 
-class Item_func_like;
+class Json_schema_validator;
+class Json_array;
 class Json_dom;
 class Json_scalar_holder;
 class Json_wrapper;
 class PT_item_list;
 class THD;
 class my_decimal;
+struct TABLE;
 
 /** For use by JSON_CONTAINS_PATH() and JSON_SEARCH() */
 enum enum_one_or_all_type {
@@ -150,9 +155,6 @@ class Item_json_func : public Item_func {
   // Cache for constant path expressions
   Json_path_cache m_path_cache;
 
-  type_conversion_status save_in_field_inner(Field *field,
-                                             bool no_conversions) override;
-
   /**
     Target column for partial update, if this function is used in an
     update statement and partial update can be used.
@@ -163,11 +165,12 @@ class Item_json_func : public Item_func {
   /**
     Construct an Item_json_func instance.
     @param thd   THD handle
-    @param args  arguments to forward to Item_func's constructor
+    @param parent_args  arguments to forward to Item_func's constructor
   */
   template <typename... Args>
-  Item_json_func(THD *thd, Args &&... args)
-      : Item_func(std::forward<Args>(args)...), m_path_cache(thd, arg_count) {
+  Item_json_func(THD *thd, Args &&... parent_args)
+      : Item_func(std::forward<Args>(parent_args)...),
+        m_path_cache(thd, arg_count) {
     set_data_type_json();
   }
 
@@ -309,6 +312,58 @@ class Item_func_json_valid final : public Item_int_func {
 };
 
 /**
+  Represents the JSON function JSON_SCHEMA_VALID( <json schema>, <json doc> )
+*/
+class Item_func_json_schema_valid final : public Item_bool_func {
+ public:
+  Item_func_json_schema_valid(const POS &pos, Item *a, Item *b);
+  ~Item_func_json_schema_valid() override;
+
+  const char *func_name() const override { return "json_schema_valid"; }
+
+  bool val_bool() override;
+
+  longlong val_int() override { return val_bool() ? 1 : 0; }
+
+  bool fix_fields(THD *, Item **) override;
+
+  void cleanup() override;
+
+ private:
+  // Wrap the object in a unique_ptr so that the relevant rapidjson destructors
+  // are called.
+  unique_ptr_destroy_only<const Json_schema_validator>
+      m_cached_schema_validator;
+};
+
+/**
+  Represents the JSON function
+  JSON_SCHEMA_VALIDATION_REPORT( <json schema>, <json doc> )
+*/
+class Item_func_json_schema_validation_report final : public Item_json_func {
+ public:
+  Item_func_json_schema_validation_report(THD *thd, const POS &pos,
+                                          PT_item_list *a);
+  ~Item_func_json_schema_validation_report() override;
+
+  const char *func_name() const override {
+    return "json_schema_validation_report";
+  }
+
+  bool val_json(Json_wrapper *wr) override;
+
+  bool fix_fields(THD *, Item **) override;
+
+  void cleanup() override;
+
+ private:
+  // Wrap the object in a unique_ptr so that the relevant rapidjson destructors
+  // are called.
+  unique_ptr_destroy_only<const Json_schema_validator>
+      m_cached_schema_validator;
+};
+
+/**
   Represents the JSON function JSON_CONTAINS()
 */
 class Item_func_json_contains final : public Item_int_func {
@@ -320,6 +375,9 @@ class Item_func_json_contains final : public Item_int_func {
       : Item_int_func(pos, a), m_path_cache(thd, arg_count) {}
 
   const char *func_name() const override { return "json_contains"; }
+  enum Functype functype() const override { return JSON_CONTAINS; }
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_KEY; }
+  bool gc_subst_analyzer(uchar **) override { return true; }
 
   bool is_bool_func() const override { return true; }
 
@@ -332,6 +390,10 @@ class Item_func_json_contains final : public Item_int_func {
 
   /** Cleanup between executions of the statement */
   void cleanup() override;
+
+  enum_const_item_cache can_cache_json_arg(Item *arg) override {
+    return (arg == args[0] || arg == args[1]) ? CACHE_JSON_VALUE : CACHE_NONE;
+  }
 };
 
 /**
@@ -363,6 +425,10 @@ class Item_func_json_contains_path final : public Item_int_func {
 
   /** Cleanup between executions of the statement */
   void cleanup() override;
+
+  enum_const_item_cache can_cache_json_arg(Item *arg) override {
+    return (arg == args[0]) ? CACHE_JSON_VALUE : CACHE_NONE;
+  }
 };
 
 /**
@@ -384,12 +450,13 @@ class Item_func_json_type : public Item_str_func {
 /**
   Represents a "CAST( <value> AS JSON )" coercion.
 */
-class Item_json_typecast final : public Item_json_func {
+class Item_typecast_json final : public Item_json_func {
  public:
-  Item_json_typecast(THD *thd, const POS &pos, Item *a)
+  Item_typecast_json(THD *thd, const POS &pos, Item *a)
       : Item_json_func(thd, pos, a) {}
 
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
   const char *func_name() const override { return "cast_as_json"; }
   const char *cast_type() const { return "json"; }
   bool val_json(Json_wrapper *wr) override;
@@ -532,8 +599,9 @@ class Item_func_json_set_replace : public Item_json_func {
 
  protected:
   template <typename... Args>
-  Item_func_json_set_replace(bool json_set, Args &&... args)
-      : Item_json_func(std::forward<Args>(args)...), m_json_set(json_set) {}
+  Item_func_json_set_replace(bool json_set, Args &&... parent_args)
+      : Item_json_func(std::forward<Args>(parent_args)...),
+        m_json_set(json_set) {}
 
  public:
   bool val_json(Json_wrapper *wr) override;
@@ -545,8 +613,8 @@ class Item_func_json_set_replace : public Item_json_func {
 class Item_func_json_set : public Item_func_json_set_replace {
  public:
   template <typename... Args>
-  Item_func_json_set(Args &&... args)
-      : Item_func_json_set_replace(true, std::forward<Args>(args)...) {}
+  Item_func_json_set(Args &&... parent_args)
+      : Item_func_json_set_replace(true, std::forward<Args>(parent_args)...) {}
 
   const char *func_name() const override { return "json_set"; }
 };
@@ -557,8 +625,8 @@ class Item_func_json_set : public Item_func_json_set_replace {
 class Item_func_json_replace : public Item_func_json_set_replace {
  public:
   template <typename... Args>
-  Item_func_json_replace(Args &&... args)
-      : Item_func_json_set_replace(false, std::forward<Args>(args)...) {}
+  Item_func_json_replace(Args &&... parent_args)
+      : Item_func_json_set_replace(false, std::forward<Args>(parent_args)...) {}
 
   const char *func_name() const override { return "json_replace"; }
 };
@@ -569,8 +637,8 @@ class Item_func_json_replace : public Item_func_json_set_replace {
 class Item_func_json_array : public Item_json_func {
  public:
   template <typename... Args>
-  Item_func_json_array(Args &&... args)
-      : Item_json_func(std::forward<Args>(args)...) {}
+  Item_func_json_array(Args &&... parent_args)
+      : Item_json_func(std::forward<Args>(parent_args)...) {}
 
   const char *func_name() const override { return "json_array"; }
 
@@ -607,11 +675,11 @@ class Item_func_json_search : public Item_json_func {
   /**
     Construct a JSON_SEARCH() node.
 
-    @param args arguments to pass to Item_json_func's constructor
+    @param parent_args arguments to pass to Item_json_func's constructor
   */
   template <typename... Args>
-  Item_func_json_search(Args &&... args)
-      : Item_json_func(std::forward<Args>(args)...),
+  Item_func_json_search(Args &&... parent_args)
+      : Item_json_func(std::forward<Args>(parent_args)...),
         m_cached_ooa(ooa_uninitialized) {}
 
   const char *func_name() const override { return "json_search"; }
@@ -635,8 +703,8 @@ class Item_func_json_remove : public Item_json_func {
 
  public:
   template <typename... Args>
-  Item_func_json_remove(Args &&... args)
-      : Item_json_func(std::forward<Args>(args)...) {}
+  Item_func_json_remove(Args &&... parent_args)
+      : Item_json_func(std::forward<Args>(parent_args)...) {}
 
   const char *func_name() const override { return "json_remove"; }
 
@@ -769,12 +837,118 @@ class Item_func_json_storage_free final : public Item_int_func {
   longlong val_int() override;
 };
 
+enum Cast_target : unsigned char;
+/**
+  Class that represents CAST(<expr> AS <type> ARRAY)
+*/
+
+class Item_func_array_cast final : public Item_func {
+  /// Type to cast to
+  Cast_target cast_type;
+  const CHARSET_INFO *cs;
+  /**
+    Whether use of CAST(.. AS .. ARRAY) is allowed
+
+    Currently use of CAST(.. AS .. ARRAY) is limited only to CREATE
+    TABLE/INDEX. In all other cases an error is thrown. This flag is set to
+    true only for allowed cases to ensure allowed function usage.
+  */
+  bool m_is_allowed{false};
+
+  /**
+    An array used by #save_in_field_inner() to store the result of an array cast
+    operation. It is cached in the Item in order to avoid the need for
+    reallocation on each row.
+  */
+  unique_ptr_destroy_only<Json_array> m_result_array;
+
+ public:
+  Item_func_array_cast(const POS &pos, Item *a, Cast_target type, uint len_arg,
+                       uint dec_arg, const CHARSET_INFO *cs_arg);
+  ~Item_func_array_cast() override;
+  const char *func_name() const override { return "cast"; }
+  enum Functype functype() const override { return TYPECAST_FUNC; }
+  bool returns_array() const override { return true; }
+  bool val_json(Json_wrapper *wr) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
+  enum Item_result result_type() const override;
+  bool resolve_type(THD *) override;
+  Field *tmp_table_field(TABLE *table) override;
+  bool fix_fields(THD *thd, Item **ref) override;
+  void cleanup() override;
+  void allow_array_cast() override { m_is_allowed = true; }
+  type_conversion_status save_in_field_inner(Field *field,
+                                             bool no_conversions) override;
+  // Regular val_x() funcs shouldn't be called
+  /* purecov: begin inspected */
+  longlong val_int() override  // For tests only
+  {
+    DBUG_ASSERT(0);
+    return 0;  // For tests only
+  }
+  String *val_str(String *) override {
+    DBUG_ASSERT(0);
+    return NULL;  // For tests only
+  }
+  my_decimal *val_decimal(my_decimal *) override {
+    DBUG_ASSERT(0);  // For tests only
+    return NULL;
+  }
+  virtual double val_real() override {
+    DBUG_ASSERT(0);
+    return 0;
+  }
+  virtual bool get_date(MYSQL_TIME *, my_time_flags_t) override {
+    DBUG_ASSERT(0);
+    return true;
+  }
+  virtual bool get_time(MYSQL_TIME *) override {
+    DBUG_ASSERT(0);
+    return true;
+  }
+  /* purecov: end */
+};
+
+class Item_func_json_overlaps : public Item_bool_func {
+ public:
+  Item_func_json_overlaps(const POS &pos, Item *a, Item *b)
+      : Item_bool_func(pos, a, b) {}
+  const char *func_name() const override { return "json_overlaps"; }
+  enum Functype functype() const override { return JSON_OVERLAPS; }
+  bool gc_subst_analyzer(uchar **) override { return true; }
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_KEY; }
+  longlong val_int() override;
+  Item *key_item() const override;
+  enum_const_item_cache can_cache_json_arg(Item *arg) override {
+    return (arg == args[0] || arg == args[1]) ? CACHE_JSON_VALUE : CACHE_NONE;
+  }
+};
+
+class Item_func_member_of : public Item_bool_func {
+ public:
+  Item_func_member_of(const POS &pos, Item *a, Item *b)
+      : Item_bool_func(pos, a, b) {}
+  const char *func_name() const override { return "member of"; }
+  enum Functype functype() const override { return MEMBER_OF_FUNC; }
+  bool gc_subst_analyzer(uchar **) override { return true; }
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_KEY; }
+  longlong val_int() override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
+  Item *key_item() const override { return args[1]; }
+  enum_const_item_cache can_cache_json_arg(Item *arg) override {
+    return (arg == args[1]) ? CACHE_JSON_VALUE
+                            : ((arg == args[0]) ? CACHE_JSON_ATOM : CACHE_NONE);
+  }
+};
+
 /**
   Turn a GEOMETRY value into a JSON value per the GeoJSON specification
   revison 1.0. This method is implemented in item_geofunc.cc.
 
   @param[in,out] wr The wrapper to be stuffed with the JSON value.
-  @param[in]     geometry_arg The source GEOMETRY value.
+  @param[in]     swkb The source GEOMETRY value.
   @param[in]     calling_function Name of user-invoked function (for errors)
   @param[in]     max_decimal_digits See the user documentation for ST_AsGeoJSON.
   @param[in]     add_bounding_box See the user documentation for ST_AsGeoJSON.
@@ -785,7 +959,7 @@ class Item_func_json_storage_free final : public Item_int_func {
 
   @return false if the conversion succeeds, true otherwise
 */
-bool geometry_to_json(Json_wrapper *wr, Item *geometry_arg,
+bool geometry_to_json(Json_wrapper *wr, String *swkb,
                       const char *calling_function, int max_decimal_digits,
                       bool add_bounding_box, bool add_short_crs_urn,
                       bool add_long_crs_urn, uint32 *geometry_srid);
@@ -831,4 +1005,11 @@ using Json_dom_ptr = std::unique_ptr<Json_dom>;
 bool parse_json(const String &res, uint arg_idx, const char *func_name,
                 Json_dom_ptr *dom, bool require_str_or_json, bool *parse_error);
 
+typedef Prealloced_array<size_t, 16> Sorted_index_array;
+bool sort_and_remove_dups(const Json_wrapper &orig, Sorted_index_array *v);
+
+enum class enum_jtc_on : uint16;
+bool save_json_to_field(THD *thd, Field *field, enum_jtc_on m_on_error,
+                        const Json_wrapper *w, enum_check_fields warn,
+                        bool set_field_null = false);
 #endif /* ITEM_JSON_FUNC_INCLUDED */

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 #include <string>
 #include <thread>
 
+#include "common.h"
 #include "dim.h"
 #include "keyring/keyring_manager.h"
 #include "metadata_cache.h"
@@ -38,17 +39,15 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysqlrouter/mysql_client_thread_token.h"
 #include "mysqlrouter/mysql_session.h"  // kSslModePreferred
+#include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"
 #include "plugin_config.h"
-#include "tcp_address.h"
 
 using metadata_cache::LookupResult;
-using mysql_harness::TCPAddress;
-using std::string;
 IMPORT_LOG_FUNCTIONS()
 
 static const mysql_harness::AppInfo *g_app_info;
-static const string kSectionName = "metadata_cache";
+static const std::string kSectionName = "metadata_cache";
 static const char *kKeyringAttributePassword = "password";
 
 static void init(mysql_harness::PluginFuncEnv *env) {
@@ -101,18 +100,33 @@ class MetadataServersStateListener
         replicaset_name_, this);
   }
 
-  void notify(const LookupResult &instances,
-              const bool /*md_servers_reachable*/) override {
+  void notify(const LookupResult &instances, const bool md_servers_reachable,
+              const unsigned view_id) override {
+    if (!md_servers_reachable) return;
     auto md_servers = instances.instance_vector;
+
+    if (md_servers.empty()) {
+      // This happens for example when the router could connect to one of the
+      // metadata servers but failed to fetch metadata because the connection
+      // went down while querying metadata
+      log_warning(
+          "Got empty list of metadata servers; refusing to store to the state "
+          "file");
+      return;
+    }
 
     // need to convert from ManagedInstance to uri string
     std::vector<std::string> metadata_servers_str;
     for (auto &md_server : md_servers) {
-      metadata_servers_str.emplace_back(
-          "mysql://" + mysql_harness::TCPAddress(md_server).str());
+      mysqlrouter::URI uri;
+      uri.scheme = "mysql";
+      uri.host = md_server.host;
+      uri.port = md_server.port;
+      metadata_servers_str.emplace_back(uri.str());
     }
 
     dynamic_state_.set_metadata_servers(metadata_servers_str);
+    dynamic_state_.set_view_id(view_id);
     dynamic_state_.save();
   }
 
@@ -128,6 +142,8 @@ class MetadataServersStateListener
  * @param env plugin's environment
  */
 static void start(mysql_harness::PluginFuncEnv *env) {
+  mysql_harness::rename_thread("MDC Main");
+
   mysqlrouter::MySQLClientThreadToken api_token;
 
   const mysql_harness::ConfigSection *section = get_config_section(env);
@@ -136,9 +152,23 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 
   // launch metadata cache
   try {
+    using namespace std::string_literals;
+
     MetadataCachePluginConfig config(section);
+
+    if (config.metadata_servers_addresses.size() == 0 &&
+        (!config.metadata_cache_dynamic_state ||
+         config.metadata_cache_dynamic_state->get_metadata_servers().empty())) {
+      throw std::runtime_error(
+          "list of metadata-servers is empty: 'bootstrap_server_addresses' is the configuration file is empty or not set and "s +
+          (!config.metadata_cache_dynamic_state
+               ? "no known 'dynamic_config'-file"
+               : "list of 'cluster-metadata-servers' in 'dynamic_config'-file "
+                 "is empty, too."));
+    }
+
     std::chrono::milliseconds ttl{config.ttl};
-    string metadata_cluster{config.metadata_cluster};
+    std::string metadata_cluster{config.metadata_cluster};
 
     // Initialize the defaults.
     metadata_cluster = metadata_cluster.empty()
@@ -161,12 +191,17 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     log_info("Starting Metadata Cache");
     // Initialize the metadata cache.
     auto md_cache = metadata_cache::MetadataCacheAPI::instance();
-    const std::string replicaset_id = config.get_group_replication_id();
 
-    md_cache->cache_init(replicaset_id, config.metadata_servers_addresses,
-                         config.user, password, ttl, make_ssl_options(section),
-                         metadata_cluster, config.connect_timeout,
-                         config.read_timeout, config.thread_stack_size);
+    md_cache->instance_name(section->key);
+
+    const std::string replicaset_id = config.get_cluster_type_specific_id();
+
+    md_cache->cache_init(
+        config.cluster_type, config.router_id, replicaset_id,
+        config.metadata_servers_addresses, {config.user, password}, ttl,
+        make_ssl_options(section), metadata_cluster, config.connect_timeout,
+        config.read_timeout, config.thread_stack_size,
+        config.use_gr_notifications, config.get_view_id());
 
     // register callback
     md_cache_dynamic_state = std::move(config.metadata_cache_dynamic_state);

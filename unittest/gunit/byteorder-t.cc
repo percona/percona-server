@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,8 +33,6 @@ namespace byteorder_unittest {
 
 using std::numeric_limits;
 
-#if defined(GTEST_HAS_PARAM_TEST)
-
 /*
   This class is used to instantiate parameterized tests for float and double.
  */
@@ -67,10 +65,10 @@ INSTANTIATE_TEST_CASE_P(Foo, Float4Test,
  */
 TEST_P(Float4Test, PutAndGet) {
   float4store(buf, input);
-  float4get(&output, buf);
+  output = float4get(buf);
   EXPECT_EQ(input, output);
   floatstore(buf, input);
-  floatget(&output, buf);
+  output = floatget(buf);
   EXPECT_EQ(input, output);
 }
 
@@ -95,14 +93,12 @@ INSTANTIATE_TEST_CASE_P(Foo, Float8Test,
  */
 TEST_P(Float8Test, PutAndGet) {
   float8store(buf, input);
-  float8get(&output, buf);
+  output = float8get(buf);
   EXPECT_EQ(input, output);
   doublestore(buf, input);
-  doubleget(&output, buf);
+  output = doubleget(buf);
   EXPECT_EQ(input, output);
 }
-
-#endif  // GTEST_HAS_PARAM_TEST
 
 #if defined(GTEST_HAS_TYPED_TEST)
 
@@ -200,7 +196,7 @@ void put_integral(uchar *buf, short val) {
 }
 template <>
 void get_integral(short &val, uchar *buf) {
-  shortget(&val, buf);
+  val = shortget(buf);
 }
 
 // Hmm, there's no ushortstore...
@@ -210,7 +206,7 @@ void put_integral(uchar *buf, ushort val) {
 }
 template <>
 void get_integral(ushort &val, uchar *buf) {
-  ushortget(&val, buf);
+  val = ushortget(buf);
 }
 
 template <>
@@ -219,7 +215,7 @@ void put_integral(uchar *buf, int val) {
 }
 template <>
 void get_integral(int &val, uchar *buf) {
-  longget(&val, buf);
+  val = longget(buf);
 }
 
 // Hmm, there's no ulongstore...
@@ -229,7 +225,7 @@ void put_integral(uchar *buf, unsigned val) {
 }
 template <>
 void get_integral(unsigned &val, uchar *buf) {
-  ulongget(&val, buf);
+  val = ulongget(buf);
 }
 
 template <>
@@ -238,7 +234,7 @@ void put_integral(uchar *buf, longlong val) {
 }
 template <>
 void get_integral(longlong &val, uchar *buf) {
-  longlongget(&val, buf);
+  val = longlongget(buf);
 }
 
 // Reading ulonglong is different from all the above ....

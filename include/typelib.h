@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,29 +31,15 @@
 
 struct MEM_ROOT;
 
-struct TYPELIB { /* Different types saved here */
-  /*
-    These constructors are no longer needed when we go to C++14, where
-    aggregate initialization is allowed on classes that have default
-    member initializers.
-  */
-  TYPELIB() {}
-
-  TYPELIB(size_t count_arg, const char *name_arg, const char **type_names_arg,
-          unsigned int *type_lengths_arg)
-      : count(count_arg),
-        name(name_arg),
-        type_names(type_names_arg),
-        type_lengths(type_lengths_arg) {}
-
+struct TYPELIB {             /* Different types saved here */
   size_t count{0};           /* How many types */
   const char *name{nullptr}; /* Name of typelib */
   const char **type_names{nullptr};
   unsigned int *type_lengths{nullptr};
 };
 
-extern my_ulonglong find_typeset(char *x, TYPELIB *typelib,
-                                 int *error_position);
+extern uint64_t find_typeset(const char *x, TYPELIB *typelib,
+                             int *error_position);
 extern int find_type_or_exit(const char *x, TYPELIB *typelib,
                              const char *option);
 #define FIND_TYPE_BASIC 0
@@ -67,15 +53,14 @@ extern int find_type_or_exit(const char *x, TYPELIB *typelib,
 #define FIND_TYPE_COMMA_TERM (1 << 3)
 
 extern int find_type(const char *x, const TYPELIB *typelib, unsigned int flags);
-extern void make_type(char *to, unsigned int nr, TYPELIB *typelib);
 extern const char *get_type(TYPELIB *typelib, unsigned int nr);
 extern TYPELIB *copy_typelib(MEM_ROOT *root, TYPELIB *from);
 
 extern TYPELIB sql_protocol_typelib;
 
-my_ulonglong find_set_from_flags(const TYPELIB *lib, size_t default_name,
-                                 my_ulonglong cur_set, my_ulonglong default_set,
-                                 const char *str, unsigned int length,
-                                 char **err_pos, unsigned int *err_len);
+uint64_t find_set_from_flags(const TYPELIB *lib, size_t default_name,
+                             uint64_t cur_set, uint64_t default_set,
+                             const char *str, unsigned int length,
+                             const char **err_pos, unsigned int *err_len);
 
 #endif /* _typelib_h */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -133,7 +133,7 @@ class mysql_persistent_dynamic_loader_imp {
     Stores last group ID used in component table. It is initialized on init()
     on component table scan with maximum group ID used in table.
   */
-  static std::atomic<uint64> group_id;
+  static std::atomic<uint64> s_group_id;
   /**
     Stores mapping of component URNs to their component_id used in component
     table, to ease row deletion.

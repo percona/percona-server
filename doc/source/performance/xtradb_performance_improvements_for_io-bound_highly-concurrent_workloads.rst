@@ -39,9 +39,9 @@ a new system variable :variable:`innodb_empty_free_list_algorithm`.
    :scope: Global
    :dyn: Yes
    :values: legacy, backoff
-   :default: backoff
+   :default: legacy
 
-When ``legacy`` option is set, server will used the upstream algorithm and when
+When ``legacy`` option is set, server will use the upstream algorithm and when
 the ``backoff`` is selected, |Percona| implementation will be used.
 
 .. _lru_manager_threads:

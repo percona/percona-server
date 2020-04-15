@@ -15,6 +15,8 @@ CREATE TABLE t1 (`tinyint` TINYINT,
 `float` FLOAT,
 `real` REAL(30,2),
 `decimal` DECIMAL(30,2)) ENGINE = MyISAM;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 ### insert max unsigned
 ### a) declarative
 INSERT IGNORE INTO t1 VALUES (18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615,18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615);;
@@ -34,8 +36,8 @@ INSERT IGNORE INTO t1 VALUES (@positive,
 @positive,
 @positive,
 @positive);
-## assertion: checks that User_var_log_event::pack_info 
-## correctly displays the binlog content by taking into 
+## assertion: checks that User_var_log_event::pack_info
+## correctly displays the binlog content by taking into
 ## account the unsigned_flag
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -93,8 +95,8 @@ INSERT IGNORE INTO t1 VALUES (@negative,
 @negative,
 @negative,
 @negative);
-## assertion: checks that User_var_log_event::pack_info 
-## correctly displays the binlog content by taking into 
+## assertion: checks that User_var_log_event::pack_info
+## correctly displays the binlog content by taking into
 ## account the unsigned_flag
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +60,7 @@ Plugin_table table_variables_info::m_table_def(
     "  MAX_VALUE varchar(64),\n"
     "  SET_TIME TIMESTAMP(6) default null,\n"
     "  SET_USER CHAR(32) collate utf8mb4_bin default null,\n"
-    "  SET_HOST CHAR(60) collate utf8mb4_bin default null\n",
+    "  SET_HOST CHAR(255) CHARACTER SET ASCII default null\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
     /* Tablespace */

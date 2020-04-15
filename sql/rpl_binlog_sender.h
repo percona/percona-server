@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +25,9 @@
 
 #include <string.h>
 #include <sys/types.h>
-#include <time.h>
+#include <chrono>
 
-#include "binlog_event.h"  // enum_binlog_checksum_alg, Log_event_type
+#include "libbinlogevents/include/binlog_event.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "mysql_com.h"
@@ -84,8 +84,8 @@ class Binlog_sender : Gtid_mode_copy {
 
   binary_log::enum_binlog_checksum_alg m_event_checksum_alg;
   binary_log::enum_binlog_checksum_alg m_slave_checksum_alg;
-  ulonglong m_heartbeat_period;
-  time_t m_last_event_sent_ts;
+  std::chrono::nanoseconds m_heartbeat_period;
+  std::chrono::nanoseconds m_last_event_sent_ts;
   /*
     For mysqlbinlog(server_id is 0), it will stop immediately without waiting
     if it already reads all events.
@@ -290,12 +290,14 @@ class Binlog_sender : Gtid_mode_copy {
      @param[in] reader        File_reader of the binlog file.
      @param[out] event_ptr    The buffer used to store the event.
      @param[out] event_len    Length of the event.
+     @param[in] readahead     Whether this read is to peek but not process the
+                              next event in the stream
 
      @retval 0 Succeed
      @retval 1 Fail
   */
   inline int read_event(File_reader *reader, uchar **event_ptr,
-                        uint32 *event_len);
+                        uint32 *event_len, bool readahead = false);
   /**
     Check if it is allowed to send this event type.
 

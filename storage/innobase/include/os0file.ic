@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -262,6 +262,7 @@ this function!
 This is the performance schema instrumented wrapper function for
 os_file_read() which requests a synchronous read operation.
 @param[in, out]	type		IO request context
+@param[in]  file_name file name
 @param[in]	file		Open file handle
 @param[out]	buf		buffer where to read
 @param[in]	offset		file offset where to read
@@ -270,7 +271,7 @@ os_file_read() which requests a synchronous read operation.
 @param[in]	src_line	line where the func invoked
 @return DB_SUCCESS if request was successful */
 UNIV_INLINE
-dberr_t pfs_os_file_read_func(IORequest &type, pfs_os_file_t file, void *buf,
+dberr_t pfs_os_file_read_func(IORequest &type, const char *file_name, pfs_os_file_t file, void *buf,
                               os_offset_t offset, ulint n, trx_t *trx,
                               const char *src_file, uint src_line) {
   PSI_file_locker_state state;
@@ -283,7 +284,7 @@ dberr_t pfs_os_file_read_func(IORequest &type, pfs_os_file_t file, void *buf,
 
   dberr_t result;
 
-  result = os_file_read_func(type, file.m_file, buf, offset, n, trx);
+  result = os_file_read_func(type, file_name, file.m_file, buf, offset, n, trx);
 
   register_pfs_file_io_end(locker, n);
 
@@ -295,16 +296,19 @@ not directly this function!
 This is the performance schema instrumented wrapper function for
 os_file_read() which requests a synchronous read operation.
 @param[in, out]	type		IO request context
+@param[in]  file_name file name
 @param[in]	file		Open file handle
 @param[out]	buf		buffer where to read
 @param[in]	n		number of bytes to read
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
+@param[in]	exit_on_err	if true then exit on error
 @return DB_SUCCESS if request was successful */
 UNIV_INLINE
-dberr_t pfs_os_file_read_first_page_func(IORequest &type, pfs_os_file_t file,
+dberr_t pfs_os_file_read_first_page_func(IORequest &type, const char* file_name, pfs_os_file_t file,
                                          void *buf, ulint n,
-                                         const char *src_file, uint src_line) {
+                                         const char *src_file, uint src_line,
+                                         bool exit_on_err) {
   PSI_file_locker_state state;
   struct PSI_file_locker *locker = NULL;
 
@@ -315,7 +319,7 @@ dberr_t pfs_os_file_read_first_page_func(IORequest &type, pfs_os_file_t file,
 
   dberr_t result;
 
-  result = os_file_read_first_page_func(type, file.m_file, buf, n);
+  result = os_file_read_first_page_func(type, file_name, file.m_file, buf, n, exit_on_err);
 
   register_pfs_file_io_end(locker, n);
 
@@ -365,6 +369,7 @@ This is the performance schema instrumented wrapper function for
 os_file_read_no_error_handling_func() which requests a synchronous
 read operation.
 @param[in, out]	type		IO request context
+@param[in]  file_name file name
 @param[in]	file		Open file handle
 @param[out]	buf		buffer where to read
 @param[in]	offset		file offset where to read
@@ -375,6 +380,7 @@ read operation.
 @return DB_SUCCESS if request was successful */
 UNIV_INLINE
 dberr_t pfs_os_file_read_no_error_handling_func(IORequest &type,
+                                                const char *file_name,
                                                 pfs_os_file_t file, void *buf,
                                                 os_offset_t offset, ulint n,
                                                 ulint *o, const char *src_file,
@@ -385,8 +391,8 @@ dberr_t pfs_os_file_read_no_error_handling_func(IORequest &type,
   register_pfs_file_io_begin(&state, locker, file, n, PSI_FILE_READ, src_file,
                              src_line);
 
-  dberr_t result =
-      os_file_read_no_error_handling_func(type, file.m_file, buf, offset, n, o);
+  dberr_t result = os_file_read_no_error_handling_func(
+      type, file_name, file.m_file, buf, offset, n, o);
 
   register_pfs_file_io_end(locker, n);
 
@@ -399,6 +405,7 @@ This is the performance schema instrumented wrapper function for
 os_file_read_no_error_handling_int_fd_func() which requests a
 synchronous  read operation.
 @param[in, out] type            IO request context
+@param[in]      file_name       file name
 @param[in]      file            Open file handle
 @param[out]     buf             buffer where to read
 @param[in]      offset          file offset where to read
@@ -410,8 +417,9 @@ synchronous  read operation.
 
 UNIV_INLINE
 dberr_t pfs_os_file_read_no_error_handling_int_fd_func(
-    IORequest &type, int file, void *buf, os_offset_t offset, ulint n, ulint *o,
-    const char *src_file, ulint src_line) {
+    IORequest &type, const char *file_name, int file, void *buf,
+    os_offset_t offset, ulint n, ulint *o, const char *src_file,
+    ulint src_line) {
   PSI_file_locker_state state;
   struct PSI_file_locker *locker = NULL;
 
@@ -421,7 +429,7 @@ dberr_t pfs_os_file_read_no_error_handling_int_fd_func(
     PSI_FILE_CALL(start_file_wait)(locker, n, __FILE__, __LINE__);
   }
   dberr_t result = os_file_read_no_error_handling_func(
-      type, OS_FILE_FROM_FD(file), buf, offset, n, o);
+      type, file_name, OS_FILE_FROM_FD(file), buf, offset, n, o);
 
   if (locker != NULL) {
     PSI_FILE_CALL(end_file_wait)(locker, n);
@@ -546,8 +554,8 @@ bool pfs_os_file_rename_func(mysql_pfs_key_t key, const char *oldpath,
   PSI_file_locker_state state;
   struct PSI_file_locker *locker = NULL;
 
-  register_pfs_file_rename_begin(&state, locker, key, PSI_FILE_RENAME, newpath,
-                                 src_file, src_line);
+  register_pfs_file_rename_begin(&state, locker, key, PSI_FILE_RENAME, oldpath,
+                                 newpath, src_file, src_line);
 
   bool result = os_file_rename_func(oldpath, newpath);
 

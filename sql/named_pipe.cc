@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,6 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "sql/named_pipe.h"
+
 #include <AclAPI.h>
 #include <accctrl.h>
 #include <errno.h>
@@ -28,9 +30,10 @@
 #include "my_config.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
+#include "sql/current_thd.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"
-#include "sql/named_pipe.h"
+#include "sql/sql_error.h"
 
 bool is_existing_windows_group_name(const char *group_name) {
   // First, let's get a SID for the given group name...
@@ -53,19 +56,69 @@ bool is_existing_windows_group_name(const char *group_name) {
   return true;
 }
 
-bool is_valid_named_pipe_full_access_group(const char *group_name) {
-  // Treat the DEFAULT_NAMED_PIPE_FULL_ACCESS_GROUP value
-  // as a special case: we (later) convert it to the "world" SID
+/*
+return false on successfully checking group, true on error.
+*/
+static bool check_windows_group_for_everyone(const char *group_name,
+                                             bool *is_everyone_group) {
+  *is_everyone_group = false;
+  if (!group_name || group_name[0] == '\0') {
+    return false;
+  }
+
   if (strcmp(group_name, DEFAULT_NAMED_PIPE_FULL_ACCESS_GROUP) == 0) {
+    *is_everyone_group = true;
+    return false;
+  } else {
+    TCHAR last_error_msg[256];
+    // First, let's get a SID for the given group name...
+    BYTE soughtSID[SECURITY_MAX_SID_SIZE] = {0};
+    DWORD size_sought_sid = SECURITY_MAX_SID_SIZE;
+    BYTE worldSID[SECURITY_MAX_SID_SIZE] = {0};
+    DWORD size_world_sid = SECURITY_MAX_SID_SIZE;
+    char referencedDomainName[MAX_PATH];
+    DWORD size_referencedDomainName = MAX_PATH;
+    SID_NAME_USE sid_name_use;
+
+    if (!LookupAccountName(NULL, group_name, soughtSID, &size_sought_sid,
+                           referencedDomainName, &size_referencedDomainName,
+                           &sid_name_use)) {
+      return false;
+    }
+
+    if (!CreateWellKnownSid(WinWorldSid, NULL, worldSID, &size_world_sid)) {
+      DWORD last_error_num = GetLastError();
+      FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                    NULL, last_error_num,
+                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), last_error_msg,
+                    sizeof(last_error_msg) / sizeof(TCHAR), NULL);
+      my_printf_error(
+          ER_UNKNOWN_ERROR,
+          "check_windows_group_for_everyone, CreateWellKnownSid failed: %s",
+          MYF(0), last_error_msg);
+      return true;
+    }
+
+    *is_everyone_group = EqualSid(soughtSID, worldSID);
+    return false;
+  }
+}
+
+bool is_valid_named_pipe_full_access_group(const char *group_name) {
+  if (!group_name || group_name[0] == '\0') {
     return true;
   }
 
-  if (!group_name || group_name[0] == '\0' ||
-      is_existing_windows_group_name(group_name)) {
-    return true;
-  } else {
+  bool is_everyone_group = false;
+
+  if (check_windows_group_for_everyone(group_name, &is_everyone_group)) {
     return false;
   }
+
+  if (is_everyone_group || is_existing_windows_group_name(group_name)) {
+    return true;
+  }
+  return false;
 }
 
 // return false on success, true on failure.
@@ -79,6 +132,22 @@ bool my_security_attr_add_rights_to_group(SECURITY_ATTRIBUTES *psa,
   char referencedDomainName[MAX_PATH];
   DWORD size_referencedDomainName = MAX_PATH;
   SID_NAME_USE sid_name_use;
+
+  bool is_everyone_group = false;
+
+  if (check_windows_group_for_everyone(group_name, &is_everyone_group)) {
+    return true;
+  }
+
+  if (is_everyone_group) {
+    sql_print_warning(ER_DEFAULT(WARN_NAMED_PIPE_ACCESS_EVERYONE), group_name);
+    if (current_thd) {
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                          WARN_NAMED_PIPE_ACCESS_EVERYONE,
+                          ER_THD(current_thd, WARN_NAMED_PIPE_ACCESS_EVERYONE),
+                          group_name);
+    }
+  }
 
   // Treat the DEFAULT_NAMED_PIPE_FULL_ACCESS_GROUP value
   // as a special case: we  convert it to the "world" SID
@@ -165,7 +234,7 @@ bool my_security_attr_add_rights_to_group(SECURITY_ATTRIBUTES *psa,
   DWORD dwRes = SetEntriesInAcl(1, &ea, pOldDACL, &pNewDACL);
   if (ERROR_SUCCESS != dwRes) {
     char num_buff[20];
-    int10_to_str(dwRes, num_buff, 10);
+    longlong10_to_str(dwRes, num_buff, 10);
     log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
                 LOG_ITEM_LOG_LOOKUP, ER_NPIPE_CANT_CREATE,
                 "SetEntriesInAcl to add group permissions failed", num_buff);
@@ -246,8 +315,15 @@ HANDLE create_server_named_pipe(SECURITY_ATTRIBUTES **ppsec_attr,
     DWORD last_error_num = GetLastError();
 
     if (last_error_num == ERROR_ACCESS_DENIED) {
-      log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
-                  LOG_ITEM_LOG_LOOKUP, ER_NPIPE_PIPE_ALREADY_IN_USE, name);
+      /*
+        TODO: ER_NPIPE_PIPE_ALREADY_IN_USE is in the error-log range; refactor
+        this to use LogErr() or log_message() instead of my_printf_error() once
+        the logger has been refactored to simplify unit testing of expected
+        errors.
+      */
+      my_printf_error(ER_NPIPE_PIPE_ALREADY_IN_USE,
+                      ER_DEFAULT(ER_NPIPE_PIPE_ALREADY_IN_USE),
+                      MYF(ME_FATALERROR), name);
     } else {
       FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS |
                         FORMAT_MESSAGE_MAX_WIDTH_MASK,
@@ -255,7 +331,7 @@ HANDLE create_server_named_pipe(SECURITY_ATTRIBUTES **ppsec_attr,
                     MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), last_error_msg,
                     sizeof(last_error_msg) / sizeof(TCHAR), NULL);
       char num_buff[20];
-      int10_to_str(last_error_num, num_buff, 10);
+      longlong10_to_str(last_error_num, num_buff, 10);
 
       log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
                   LOG_ITEM_LOG_LOOKUP, ER_NPIPE_CANT_CREATE, last_error_msg,

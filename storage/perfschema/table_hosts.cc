@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@ Plugin_table table_hosts::m_table_def(
     /* Name */
     "hosts",
     /* Definition */
-    "  HOST CHAR(60) collate utf8mb4_bin default null,\n"
+    "  HOST CHAR(255) CHARACTER SET ASCII default null,\n"
     "  CURRENT_CONNECTIONS bigint not null,\n"
     "  TOTAL_CONNECTIONS bigint not null,\n"
     "  UNIQUE KEY (HOST) USING HASH\n",

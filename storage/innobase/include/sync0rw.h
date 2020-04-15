@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -70,6 +70,7 @@ bool rw_lock_own(rw_lock_t *lock, ulint lock_type) { return (lock != nullptr); }
 #define rw_lock_s_lock(L) ((void)0)
 #define rw_lock_s_unlock(L) ((void)0)
 #define rw_lock_x_lock(L) ((void)0)
+#define rw_lock_x_lock_nowait(L) true
 #define rw_lock_x_unlock(L) ((void)0)
 #define rw_lock_sx_lock(L) ((void)0)
 #define rw_lock_sx_unlock(L) ((void)0)
@@ -587,11 +588,11 @@ struct rw_lock_t
   volatile os_thread_id_t writer_thread;
 
   /** Used by sync0arr.cc for thread queueing */
-  struct os_event event;
+  os_event_t event;
 
   /** Event for next-writer to wait on. A thread must decrement
   lock_word before waiting. */
-  struct os_event wait_ex_event;
+  os_event_t wait_ex_event;
 
   /** File name where lock created */
   const char *cfile_name;
@@ -633,30 +634,18 @@ struct rw_lock_t
 #ifdef UNIV_DEBUG
 /** Value of rw_lock_t::magic_n */
 #define RW_LOCK_MAGIC_N 22643
-#endif /* UNIV_DEBUG */
 
   /** Constructor */
-  rw_lock_t() noexcept { ut_d(magic_n = RW_LOCK_MAGIC_N;) }
-
-  /** Copy constructor */
-  rw_lock_t(const rw_lock_t &other) noexcept : rw_lock_t() {
-    recursive = other.recursive;
-    cfile_name = other.cfile_name;
-    cline = other.cline;
-    is_block_lock = other.is_block_lock;
-  }
+  rw_lock_t() { magic_n = RW_LOCK_MAGIC_N; }
 
   rw_lock_t &operator=(const rw_lock_t &) = default;
 
   /** Destructor */
   virtual ~rw_lock_t() {
-#ifdef UNIV_DEBUG
     ut_ad(magic_n == RW_LOCK_MAGIC_N);
     magic_n = 0;
-#endif /* UNIV_DEBUG */
   }
 
-#ifdef UNIV_DEBUG
   virtual std::string to_string() const;
   virtual std::string locked_from() const;
 

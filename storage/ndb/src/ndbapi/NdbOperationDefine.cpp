@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1001,8 +1001,8 @@ insertATTRINFO_error1:
  *                ATTRINFO signal.
  *****************************************************************************/
 int
-NdbOperation::insertATTRINFOloop(register const Uint32* aDataPtr, 
-				 register Uint32 aLength)
+NdbOperation::insertATTRINFOloop(const Uint32* aDataPtr, 
+				 Uint32 aLength)
 {
   NdbApiSignal* tSignal;
   Uint32 tAI_LenInCurrAI = theAI_LenInCurrAI;
@@ -1114,6 +1114,33 @@ NdbOperation::prepareGetLockHandleNdbRecord()
   }
 
   theLockHandle->m_state = NdbLockHandle::PREPARED;
+
+  return 0;
+}
+
+int
+NdbOperation::setNoWait()
+{
+  if (theStatus == UseNdbRecord)
+  {
+    /**
+     * Method not allowed for NdbRecord, use OperationOptions or
+     * ScanOptions structure instead
+     */
+    setErrorCodeAbort(4515);
+    return -1;
+  }
+
+  if ((! ((theOperationType == ReadRequest) ||
+          (theOperationType == ReadExclusive))) ||
+      theDirtyIndicator)
+  {
+    /* Only allowed for locking reads */
+    setErrorCodeAbort(4108); /* Faulty operation type */
+    return -1;
+  }
+
+  m_flags |= OF_NOWAIT;
 
   return 0;
 }
@@ -1374,13 +1401,6 @@ NdbOperation::handleOperationOptions (const OperationType type,
 
   if (opts->optionsPresent & OperationOptions::OO_LOCKHANDLE)
   {
-    if (unlikely(op->theNdb->getMinDbNodeVersion() <
-                 NDBD_UNLOCK_OP_SUPPORTED))
-    {
-      /* Function not implemented yet */
-      return 4003;
-    }
-
     /* Check that this is a pk read with a lock 
      * No need to worry about Blob lock upgrade issues as
      * Blobs have not been handled at this stage
@@ -1420,6 +1440,19 @@ NdbOperation::handleOperationOptions (const OperationType type,
   if (opts->optionsPresent & OperationOptions::OO_DISABLE_FK)
   {
     op->m_flags |= OF_DISABLE_FK;
+  }
+
+  if (opts->optionsPresent & OperationOptions::OO_NOWAIT)
+  {
+    if ((! ((type == ReadRequest) ||
+            (type == ReadExclusive))) ||
+        (op->theLockMode == LM_CommittedRead))
+    {
+      /* Only allowed for locking reads */
+      return 4108; /* Faulty operation type */
+    }
+
+    op->m_flags |= OF_NOWAIT;
   }
 
   return 0;

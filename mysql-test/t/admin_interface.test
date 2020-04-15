@@ -3,6 +3,8 @@
 --echo # WL#12138 -- Add Admin Port
 --echo #
 
+CALL mtr.add_suppression("Too many connections");
+
 --echo # Create the user u1
 CREATE USER u1;
 --echo # Grant the user u1 the privilege SERVICE_CONNECTION_ADMIN
@@ -79,6 +81,7 @@ GRANT SUPER ON *.* TO u3;
 --replace_result $ADMIN_PORT ADMIN_PORT
 --let $restart_parameters=restart: --admin-address=127.0.0.1 --admin-port=$ADMIN_PORT --max-connections=2
 --source include/start_mysqld.inc
+--source include/xplugin_wait_for_interfaces.inc
 
 --enable_connect_log
 --echo # Test case 5
@@ -95,7 +98,7 @@ SELECT CURRENT_USER();
 --exec $MYSQLD_CMD --log-error=$MYSQLD_LOG --datadir=$MYSQL_TMP_DIR/newdd --secure-file-priv="" --admin-address=127.0.0.1 --admin-port=$ADMIN_PORT
 
 --let SEARCH_FILE=$MYSQLD_LOG
---let SEARCH_PATTERN=Can't start server: Bind on TCP/IP port: (Address already in use|Only one usage of each socket address .* normally permitted)
+--let SEARCH_PATTERN=Can't start server: Bind on TCP/IP port: (Address .*in use|Only one usage of each socket address .* normally permitted)
 --source include/search_pattern.inc
 
 --remove_file $MYSQLD_LOG
@@ -143,6 +146,8 @@ SELECT CURRENT_USER();
 --echo # Test case 9
 --echo # Check that the user u2 can't establish connection to admin interface since
 --echo # this user doesn't have the privilege SERVICE_CONNECTION_ADMIN
+--connection default
+--source include/count_sessions.inc
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $ADMIN_PORT ADMIN_PORT
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 --connect(admin_tcp_con_u2,127.0.0.1,u2,,,$ADMIN_PORT,,TCP)
@@ -152,10 +157,10 @@ SELECT CURRENT_USER();
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $ADMIN_PORT ADMIN_PORT
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 --connect(admin_tcp_con_u3,127.0.0.1,u3,,,$ADMIN_PORT,,TCP)
-
 --connection default
---echo # Show how many active connections currently exist
-SHOW STATUS LIKE 'Threads_connected';
+
+--echo # Wait until the failed connections are gone.
+--source include/wait_until_count_sessions.inc
 
 --echo # Test case 10
 --echo # Check that the parameter max_connections does affect to an ordinary

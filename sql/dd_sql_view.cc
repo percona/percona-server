@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
-#include "mysqld.h"  // mysqld_server_started
+#include "mysql/components/services/log_builtins.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_common.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
@@ -103,7 +103,7 @@ class View_metadata_updater_context {
     m_thd->set_open_tables_state(&m_open_tables_state_backup);
 
     // Restore lex.
-    m_thd->lex->unit->cleanup(true);
+    m_thd->lex->unit->cleanup(m_thd, true);
     lex_end(m_thd->lex);
     delete static_cast<st_lex_local *>(m_thd->lex);
     m_thd->lex = m_saved_lex;
@@ -128,8 +128,8 @@ class View_metadata_updater_context {
 };
 
 /**
-  A error handler to convert all the errors except deadlock and lock wait
-  timeout errors to ER_VIEW_INVALID while updating views metadata.
+  A error handler to convert all the errors except deadlock, lock wait
+  timeout and stack overrun to ER_VIEW_INVALID while updating views metadata.
 
   Even a warning ER_NO_SUCH_USER generated for non-existing user is handled with
   the error handler.
@@ -140,11 +140,18 @@ class View_metadata_updater_error_handler final
  public:
   virtual bool handle_condition(THD *, uint sql_errno, const char *,
                                 Sql_condition::enum_severity_level *,
-                                const char *) {
+                                const char *msg) override {
     switch (sql_errno) {
       case ER_LOCK_WAIT_TIMEOUT:
       case ER_LOCK_DEADLOCK:
       case ER_STACK_OVERRUN_NEED_MORE:
+        if (m_log_error)
+          LogEvent()
+              .type(LOG_TYPE_ERROR)
+              .subsys(LOG_SUBSYSTEM_TAG)
+              .prio(ERROR_LEVEL)
+              .errcode(ER_ERROR_INFO_FROM_DA)
+              .verbatim(msg);
         break;
       case ER_NO_SUCH_USER:
         m_sql_errno = ER_NO_SUCH_USER;
@@ -167,8 +174,30 @@ class View_metadata_updater_error_handler final
     return m_sql_errno == ER_NO_SUCH_USER || m_sql_errno == ER_VIEW_INVALID;
   }
 
+ public:
+  View_metadata_updater_error_handler() {
+    m_log_error = (error_handler_hook == my_message_stderr);
+    /*
+      When error_handler_hook is set to my_message_stderr (e.g, during server
+      startup) error handler is not invoked. To invoke this error handler,
+      switching error_handler_hook to my_message_sql() here. my_message_sql()
+      invokes this error handler and flag m_log_error makes sure that errors are
+      logged to error log file.
+    */
+    m_old_error_handler_hook = error_handler_hook;
+    error_handler_hook = my_message_sql;
+  }
+  ~View_metadata_updater_error_handler() override {
+    error_handler_hook = m_old_error_handler_hook;
+  }
+
+ private:
+  void (*m_old_error_handler_hook)(uint, const char *, myf);
+
  private:
   uint m_sql_errno = 0;
+
+  bool m_log_error = false;
 };
 
 Uncommitted_tables_guard::~Uncommitted_tables_guard() {
@@ -198,14 +227,14 @@ template <typename T>
 static bool prepare_view_tables_list(THD *thd, const char *db,
                                      const char *tbl_or_sf_name,
                                      std::vector<TABLE_LIST *> *views) {
-  DBUG_ENTER("prepare_view_tables_list");
+  DBUG_TRACE;
   std::vector<dd::Object_id> view_ids;
   std::set<dd::Object_id> prepared_view_ids;
 
   // Fetch all views using db.tbl_or_sf_name (Base table/ View/ Stored function)
   if (thd->dd_client()->fetch_referencing_views_object_id<T>(db, tbl_or_sf_name,
                                                              &view_ids))
-    DBUG_RETURN(true);
+    return true;
 
   for (uint idx = 0; idx < view_ids.size(); idx++) {
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
@@ -218,13 +247,13 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
       // by the same statement (e.g. RENAME TABLE).
       if (thd->dd_client()->acquire_uncached_uncommitted(view_ids.at(idx),
                                                          &view))
-        DBUG_RETURN(true);
+        return true;
       if (!view) continue;
 
       dd::Schema *schema = nullptr;
       if (thd->dd_client()->acquire_uncached_uncommitted(view->schema_id(),
                                                          &schema))
-        DBUG_RETURN(true);
+        return true;
       if (!schema) continue;
       view_name = view->name();
       schema_name = schema->name();
@@ -233,19 +262,19 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
     // If TABLE_LIST object is already prepared for view name then skip it.
     if (prepared_view_ids.find(view_ids.at(idx)) == prepared_view_ids.end()) {
       // Prepare TABLE_LIST object for the view and push_back
-      TABLE_LIST *vw = new (thd->mem_root) TABLE_LIST;
-      if (vw == nullptr) DBUG_RETURN(true);
 
       const char *db_name = strmake_root(thd->mem_root, schema_name.c_str(),
                                          schema_name.length());
-      if (db_name == nullptr) DBUG_RETURN(true);
+      if (db_name == nullptr) return true;
 
       const char *vw_name =
           strmake_root(thd->mem_root, view_name.c_str(), view_name.length());
-      if (vw_name == nullptr) DBUG_RETURN(true);
+      if (vw_name == nullptr) return true;
 
-      vw->init_one_table(db_name, schema_name.length(), vw_name,
-                         view_name.length(), vw_name, TL_WRITE, MDL_EXCLUSIVE);
+      auto vw = new (thd->mem_root)
+          TABLE_LIST(db_name, schema_name.length(), vw_name, view_name.length(),
+                     TL_IGNORE, MDL_EXCLUSIVE);
+      if (vw == nullptr) return true;
 
       views->push_back(vw);
       prepared_view_ids.insert(view_ids.at(idx));
@@ -253,11 +282,11 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
       // Fetch all views using schema_name.view_name
       if (thd->dd_client()->fetch_referencing_views_object_id<dd::View_table>(
               schema_name.c_str(), view_name.c_str(), &view_ids))
-        DBUG_RETURN(true);
+        return true;
     }
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -287,7 +316,7 @@ static bool mark_all_views_invalid(THD *thd, const char *db,
                                    const char *tbl_or_sf_name,
                                    std::vector<TABLE_LIST *> *views_list,
                                    bool commit_dd_changes) {
-  DBUG_ENTER("mark_all_views_invalid");
+  DBUG_TRACE;
   DBUG_ASSERT(!views_list->empty());
 
   // Acquire lock on all the views.
@@ -302,7 +331,7 @@ static bool mark_all_views_invalid(THD *thd, const char *db,
   }
   if (thd->mdl_context.acquire_locks(&mdl_requests,
                                      thd->variables.lock_wait_timeout))
-    DBUG_RETURN(true);
+    return true;
 
   /*
     In the time gap of listing referencing views and acquiring MDL lock on them
@@ -312,8 +341,8 @@ static bool mark_all_views_invalid(THD *thd, const char *db,
   */
   std::vector<TABLE_LIST *> updated_views_list;
   if (prepare_view_tables_list<T>(thd, db, tbl_or_sf_name, &updated_views_list))
-    DBUG_RETURN(true);
-  if (updated_views_list.empty()) DBUG_RETURN(false);
+    return true;
+  if (updated_views_list.empty()) return false;
 
   // Update state of the views as invalid.
   for (auto view : *views_list) {
@@ -331,10 +360,10 @@ static bool mark_all_views_invalid(THD *thd, const char *db,
     if (update_status &&
         dd::update_view_status(thd, view->get_db_name(), view->get_table_name(),
                                false, commit_dd_changes))
-      DBUG_RETURN(true);
+      return true;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -361,7 +390,7 @@ static bool mark_all_views_invalid(THD *thd, const char *db,
 static bool open_views_and_update_metadata(
     THD *thd, const std::vector<TABLE_LIST *> *views, bool commit_dd_changes,
     Uncommitted_tables_guard *uncommitted_tables) {
-  DBUG_ENTER("open_views_and_update_metadata");
+  DBUG_TRACE;
 
   if (!commit_dd_changes) {
     /*
@@ -377,13 +406,13 @@ static bool open_views_and_update_metadata(
                        MDL_INTENTION_EXCLUSIVE, MDL_STATEMENT);
       if (thd->mdl_context.acquire_lock(&schema_request,
                                         thd->variables.lock_wait_timeout))
-        DBUG_RETURN(true);
+        return true;
 
       MDL_REQUEST_INIT_BY_KEY(&view_request, &view->mdl_request.key,
                               MDL_EXCLUSIVE, MDL_STATEMENT);
       if (thd->mdl_context.acquire_lock(&view_request,
                                         thd->variables.lock_wait_timeout))
-        DBUG_RETURN(true);
+        return true;
     }
   }
 
@@ -415,31 +444,21 @@ static bool open_views_and_update_metadata(
     if (open_tables(thd, &view, &counter, MYSQL_OPEN_NO_NEW_TABLE_IN_SE,
                     &prelocking_strategy)) {
       thd->pop_internal_handler();
-      /*
-        If error is handled by the error handler then update status of the view
-        as "invalid." else report an error.
 
-        During server startup, my_message_stderr is set to the
-        error_handler_hook until all the server components and network are
-        initialized. my_message_stderr does not invoke error handlers pushed.
-        Even there will not be any concurrent operations at this stage to hit
-        deadlock and lock wait timeout situations. So during server startup,
-        view is marked as "invalid" in the error cases.
-      */
-      if (!mysqld_server_started || error_handler.is_view_invalid()) {
+      if (error_handler.is_view_invalid()) {
         if (view->mdl_request.ticket != NULL) {
           // Update view status in tables.options.view_valid.
           if (dd::update_view_status(thd, view->get_db_name(),
                                      view->get_table_name(), false,
                                      commit_dd_changes))
-            DBUG_RETURN(true);
+            return true;
         }
       } else if (error_handler.is_view_error_handled() == false) {
         // ER_STACK_OVERRUN_NEED_MORE, ER_LOCK_DEADLOCK or
         // ER_LOCK_WAIT_TIMEOUT.
         DBUG_EXECUTE_IF("enable_stack_overrun_simulation",
                         { DBUG_SET("-d,simulate_stack_overrun"); });
-        DBUG_RETURN(true);
+        return true;
       }
       continue;
     }
@@ -459,16 +478,16 @@ static bool open_views_and_update_metadata(
       thd->lex = org_lex;
       thd->pop_internal_handler();
       // Please refer comments in the view open error handling block above.
-      if (!mysqld_server_started || error_handler.is_view_invalid()) {
+      if (error_handler.is_view_invalid()) {
         // Update view status in tables.options.view_valid.
         if (dd::update_view_status(thd, view->get_db_name(),
                                    view->get_table_name(), false,
                                    commit_dd_changes))
-          DBUG_RETURN(true);
+          return true;
       } else if (error_handler.is_view_error_handled() == false) {
         // ER_STACK_OVERRUN_NEED_MORE, ER_LOCK_DEADLOCK or
         // ER_LOCK_WAIT_TIMEOUT.
-        DBUG_RETURN(true);
+        return true;
       }
       continue;
     }
@@ -494,22 +513,22 @@ static bool open_views_and_update_metadata(
         order->used_alias = false;  /// @see Item::print_for_order()
     }
     Sql_mode_parse_guard parse_guard(thd);
-    thd->lex->unit->print(&view_query, QT_TO_ARGUMENT_CHARSET);
+    thd->lex->unit->print(thd, &view_query, QT_TO_ARGUMENT_CHARSET);
     if (lex_string_strmake(thd->mem_root, &view->select_stmt, view_query.ptr(),
                            view_query.length()))
-      DBUG_RETURN(true);
+      return true;
 
     // Update view metadata in the data-dictionary tables.
     view->updatable_view = is_updatable_view(thd, view);
     dd::View *new_view = nullptr;
     if (thd->dd_client()->acquire_for_modification(view->db, view->table_name,
                                                    &new_view))
-      DBUG_RETURN(true);
+      return true;
     DBUG_ASSERT(new_view != nullptr);
     bool res = dd::update_view(thd, new_view, view);
 
     if (commit_dd_changes) {
-      Disable_gtid_state_update_guard disabler(thd);
+      Implicit_substatement_state_guard substatement_guard(thd);
       if (res) {
         trans_rollback_stmt(thd);
         // Full rollback in case we have THD::transaction_rollback_request.
@@ -518,21 +537,21 @@ static bool open_views_and_update_metadata(
         res = trans_commit_stmt(thd) || trans_commit(thd);
     }
     if (res) {
-      view_lex->unit->cleanup(true);
+      view_lex->unit->cleanup(thd, true);
       lex_end(view_lex);
       thd->lex = org_lex;
-      DBUG_RETURN(true);
+      return true;
     }
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->get_db_name(),
                      view->get_table_name(), false);
 
-    view_lex->unit->cleanup(true);
+    view_lex->unit->cleanup(thd, true);
     lex_end(view_lex);
     thd->lex = org_lex;
   }
   DEBUG_SYNC(thd, "after_updating_view_metadata");
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -549,26 +568,24 @@ static bool open_views_and_update_metadata(
 
 static bool is_view_metadata_update_needed(THD *thd, const char *db,
                                            const char *name) {
-  DBUG_ENTER("is_view_metadata_update_needed");
+  DBUG_TRACE;
 
-  // Update view metadata for only non temporary user tables.
-  auto is_non_temp_user_table = [](THD *thd, const char *db, const char *name) {
-    LEX_STRING lex_db = {const_cast<char *>(db), strlen(db)};
-    LEX_STRING lex_name = {const_cast<char *>(name), strlen(name)};
-
-    if (dd::get_dictionary()->is_dd_schema_name(db) ||
-        get_table_category(lex_db, lex_name) != TABLE_CATEGORY_USER ||
-        find_temporary_table(thd, db, name))
-      return false;
-
-    return true;
+  /*
+    View metadata update is needed if table is not a temporary or dictionary
+    table.
+  */
+  auto is_non_dictionary_or_temp_table = [=]() {
+    bool is_tmp_table =
+        (thd->lex->sql_command == SQLCOM_CREATE_TABLE)
+            ? (thd->lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)
+            : (find_temporary_table(thd, db, name) != nullptr);
+    return (!is_tmp_table && !dd::get_dictionary()->is_dd_table_name(db, name));
   };
 
   bool retval = false;
   switch (thd->lex->sql_command) {
     case SQLCOM_CREATE_TABLE:
-      retval = is_non_temp_user_table(thd, db, name) &&
-               !(thd->lex->create_info->options & HA_LEX_CREATE_TMP_TABLE);
+      retval = is_non_dictionary_or_temp_table();
       break;
     case SQLCOM_ALTER_TABLE: {
       DBUG_ASSERT(thd->lex->alter_info);
@@ -578,17 +595,17 @@ static bool is_view_metadata_update_needed(THD *thd, const char *db,
           (Alter_info::ALTER_ADD_COLUMN | Alter_info::ALTER_DROP_COLUMN |
            Alter_info::ALTER_CHANGE_COLUMN | Alter_info::ALTER_RENAME |
            Alter_info::ALTER_OPTIONS | Alter_info::ALTER_CHANGE_COLUMN_DEFAULT);
-      retval = is_non_temp_user_table(thd, db, name) &&
+      retval = is_non_dictionary_or_temp_table() &&
                (thd->lex->alter_info->flags & alter_operations);
       break;
     }
     case SQLCOM_DROP_TABLE:
     case SQLCOM_RENAME_TABLE:
+    case SQLCOM_DROP_DB:
+      retval = is_non_dictionary_or_temp_table();
+      break;
     case SQLCOM_CREATE_VIEW:
     case SQLCOM_DROP_VIEW:
-    case SQLCOM_DROP_DB:
-      retval = is_non_temp_user_table(thd, db, name);
-      break;
     case SQLCOM_CREATE_SPFUNCTION:
     case SQLCOM_DROP_FUNCTION:
     case SQLCOM_INSTALL_PLUGIN:
@@ -599,7 +616,7 @@ static bool is_view_metadata_update_needed(THD *thd, const char *db,
       break;
   }
 
-  DBUG_RETURN(retval);
+  return retval;
 }
 
 /**
@@ -671,35 +688,35 @@ static bool update_referencing_views_metadata(
     THD *thd, const char *db, const char *table_name, const char *new_db,
     const char *new_table_name, bool commit_dd_changes,
     Uncommitted_tables_guard *uncommitted_tables) {
-  DBUG_ENTER("update_referencing_views_metadata");
+  DBUG_TRACE;
 
   // Update metadata for view's referencing table.
   if (is_view_metadata_update_needed(thd, db, table_name)) {
     // Prepare list of all views referencing the table.
     if (update_view_metadata<dd::View_table>(
             thd, db, table_name, commit_dd_changes, uncommitted_tables))
-      DBUG_RETURN(true);
+      return true;
 
     // Open views and update views metadata.
     if (new_db != nullptr && new_table_name != nullptr &&
         update_view_metadata<dd::View_table>(
             thd, new_db, new_table_name, commit_dd_changes, uncommitted_tables))
-      DBUG_RETURN(true);
+      return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool update_referencing_views_metadata(
     THD *thd, const TABLE_LIST *table, const char *new_db,
     const char *new_table_name, bool commit_dd_changes,
     Uncommitted_tables_guard *uncommitted_tables) {
-  DBUG_ENTER("update_referencing_views_metadata");
+  DBUG_TRACE;
   DBUG_ASSERT(table != nullptr);
 
   bool error = update_referencing_views_metadata(
       thd, table->get_db_name(), table->get_table_name(), new_db,
       new_table_name, commit_dd_changes, uncommitted_tables);
-  DBUG_RETURN(error);
+  return error;
 }
 
 bool update_referencing_views_metadata(
@@ -712,17 +729,17 @@ bool update_referencing_views_metadata(
 bool update_referencing_views_metadata(
     THD *thd, const char *db_name, const char *table_name,
     bool commit_dd_changes, Uncommitted_tables_guard *uncommitted_tables) {
-  DBUG_ENTER("update_referencing_views_metadata");
+  DBUG_TRACE;
   DBUG_ASSERT(db_name && table_name);
 
   bool error = update_referencing_views_metadata(
       thd, db_name, table_name, nullptr, nullptr, commit_dd_changes,
       uncommitted_tables);
-  DBUG_RETURN(error);
+  return error;
 }
 
 bool update_referencing_views_metadata(THD *thd, const sp_name *spname) {
-  DBUG_ENTER("update_referencing_views_metadata");
+  DBUG_TRACE;
   DBUG_ASSERT(spname);
 
   /*
@@ -733,11 +750,11 @@ bool update_referencing_views_metadata(THD *thd, const sp_name *spname) {
   Uncommitted_tables_guard uncommitted_tables(thd);
   bool error = update_view_metadata<dd::View_routine>(
       thd, spname->m_db.str, spname->m_name.str, false, &uncommitted_tables);
-  DBUG_RETURN(error);
+  return error;
 }
 
-void push_view_warning_or_error(THD *thd, const char *db,
-                                const char *view_name) {
+std::string push_view_warning_or_error(THD *thd, const char *db,
+                                       const char *view_name) {
   // Report error for "SHOW FIELDS/DESCRIBE" operations.
   if (thd->lex->sql_command == SQLCOM_SHOW_FIELDS)
     my_error(ER_VIEW_INVALID, MYF(0), db, view_name);
@@ -745,4 +762,15 @@ void push_view_warning_or_error(THD *thd, const char *db,
     // Push invalid view warning.
     push_warning_printf(thd, Sql_condition::SL_WARNING, ER_VIEW_INVALID,
                         ER_THD(thd, ER_VIEW_INVALID), db, view_name);
+
+  /*
+     We can probably fetch the error message string from DA. The problem
+     is, the DA may not contain the condition if max_error_count is zero.
+     Even if max_error_count is non-zero, we have to fetch the last sql
+     condition from QA. Instead (as this is error handling code) to keep it
+     simple, we just prepare the error/warning string.
+   */
+  char err_message[MYSQL_ERRMSG_SIZE];
+  sprintf(err_message, ER_THD(thd, ER_VIEW_INVALID), db, view_name);
+  return std::string(err_message);
 }

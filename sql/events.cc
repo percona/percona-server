@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -147,15 +147,9 @@ static bool load_events_from_db(THD *thd, Event_queue *event_queue);
     1   s > t
 */
 
-int sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs) {
-  return cs->coll->strnncollsp(cs, (uchar *)s.str, s.length, (uchar *)t.str,
-                               t.length);
-}
-
-void convert_name_lowercase(const char *from, char *to, size_t len) {
-  my_stpncpy(to, from, len - 1);
-  my_casedn_str(&my_charset_utf8_tolower_ci, to);
-  to[len - 1] = '\0';
+int sortcmp_lex_string(LEX_CSTRING s, LEX_CSTRING t, CHARSET_INFO *cs) {
+  return cs->coll->strnncollsp(cs, pointer_cast<const uchar *>(s.str), s.length,
+                               pointer_cast<const uchar *>(t.str), t.length);
 }
 
 /*
@@ -340,30 +334,31 @@ bool Events::create_event(THD *thd, Event_parse_data *parse_data,
   bool event_already_exists;
   bool event_added_to_event_queue = false;
   std::unique_ptr<Event_queue_element> new_element(nullptr);
-  DBUG_ENTER("Events::create_event");
+  DBUG_TRACE;
 
   DBUG_EXECUTE_IF("thd_killed_injection", thd->killed = THD::KILL_QUERY;
-                  DBUG_RETURN(false););
+                  return false;);
 
   /*
     Perform semantic checks outside of Event_db_repository:
     once CREATE EVENT is supported in prepared statements, the
     checks will be moved to PREPARE phase.
   */
-  if (parse_data->check_parse_data(thd)) DBUG_RETURN(true);
+  if (parse_data->check_parse_data(thd)) return true;
 
   /* At create, one of them must be set */
   DBUG_ASSERT(parse_data->expression || parse_data->execute_at);
 
-  if (check_access(thd, EVENT_ACL, parse_data->dbname.str, NULL, NULL, 0, 0))
-    DBUG_RETURN(true);
+  if (check_access(thd, EVENT_ACL, parse_data->dbname.str, NULL, NULL, false,
+                   false))
+    return true;
 
   // Acquire exclusive MDL lock.
   if (lock_object_name(thd, MDL_key::EVENT, parse_data->dbname.str,
                        parse_data->name.str))
-    DBUG_RETURN(true);
+    return true;
 
-  if (parse_data->do_not_create) DBUG_RETURN(false);
+  if (parse_data->do_not_create) return false;
   /*
     Turn off row binlogging of this statement and use statement-based
     so that all supporting tables are updated for CREATE EVENT command.
@@ -427,7 +422,7 @@ bool Events::create_event(THD *thd, Event_parse_data *parse_data,
       trans_commit_stmt(thd) || trans_commit(thd))
     goto err_with_rollback;
 
-  DBUG_RETURN(false);
+  return false;
 
 err_with_rollback:
   DBUG_EXECUTE_IF("simulate_create_event_failure",
@@ -446,7 +441,7 @@ err_with_rollback:
   */
   trans_rollback(thd);
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 /**
@@ -480,20 +475,22 @@ err_with_rollback:
 */
 
 bool Events::update_event(THD *thd, Event_parse_data *parse_data,
-                          LEX_STRING *new_dbname, LEX_STRING *new_name) {
+                          const LEX_CSTRING *new_dbname,
+                          const LEX_CSTRING *new_name) {
   std::unique_ptr<Event_queue_element> new_element(nullptr);
 
-  DBUG_ENTER("Events::update_event");
+  DBUG_TRACE;
 
   if (parse_data->check_parse_data(thd) || parse_data->do_not_create)
-    DBUG_RETURN(true);
+    return true;
 
-  if (check_access(thd, EVENT_ACL, parse_data->dbname.str, NULL, NULL, 0, 0))
-    DBUG_RETURN(true);
+  if (check_access(thd, EVENT_ACL, parse_data->dbname.str, NULL, NULL, false,
+                   false))
+    return true;
 
   if (lock_object_name(thd, MDL_key::EVENT, parse_data->dbname.str,
                        parse_data->name.str))
-    DBUG_RETURN(true);
+    return true;
 
   if (new_dbname != NULL) /* It's a rename */
   {
@@ -502,7 +499,7 @@ bool Events::update_event(THD *thd, Event_parse_data *parse_data,
                             system_charset_info) &&
         !sortcmp_lex_string(parse_data->name, *new_name, system_charset_info)) {
       my_error(ER_EVENT_SAME_NAME, MYF(0));
-      DBUG_RETURN(true);
+      return true;
     }
 
     /*
@@ -511,12 +508,12 @@ bool Events::update_event(THD *thd, Event_parse_data *parse_data,
       to tell the user that a database doesn't exist if they can not
       access it.
     */
-    if (check_access(thd, EVENT_ACL, new_dbname->str, NULL, NULL, 0, 0))
-      DBUG_RETURN(true);
+    if (check_access(thd, EVENT_ACL, new_dbname->str, NULL, NULL, false, false))
+      return true;
 
     //  Acquire mdl exclusive lock on target database name.
     if (lock_object_name(thd, MDL_key::EVENT, new_dbname->str, new_name->str))
-      DBUG_RETURN(true);
+      return true;
   }
 
   /*
@@ -542,8 +539,8 @@ bool Events::update_event(THD *thd, Event_parse_data *parse_data,
       goto err_with_rollback;
     }
 
-    LEX_STRING dbname = new_dbname ? *new_dbname : parse_data->dbname;
-    LEX_STRING name = new_name ? *new_name : parse_data->name;
+    LEX_CSTRING dbname = new_dbname ? *new_dbname : parse_data->dbname;
+    LEX_CSTRING name = new_name ? *new_name : parse_data->name;
     if (Event_db_repository::load_named_event(thd, dbname, name,
                                               new_element.get()))
       goto err_with_rollback;
@@ -577,7 +574,7 @@ bool Events::update_event(THD *thd, Event_parse_data *parse_data,
     new_element.release();
   }
 
-  DBUG_RETURN(false);
+  return false;
 
 err_with_rollback:
   DBUG_EXECUTE_IF("simulate_alter_event_failure",
@@ -591,7 +588,7 @@ err_with_rollback:
   */
   trans_rollback(thd);
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 /**
@@ -629,16 +626,15 @@ err_with_rollback:
   @retval  true   Error (reported)
 */
 
-bool Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
+bool Events::drop_event(THD *thd, LEX_CSTRING dbname, LEX_CSTRING name,
                         bool if_exists) {
-  DBUG_ENTER("Events::drop_event");
+  DBUG_TRACE;
 
-  if (check_access(thd, EVENT_ACL, dbname.str, NULL, NULL, 0, 0))
-    DBUG_RETURN(true);
+  if (check_access(thd, EVENT_ACL, dbname.str, NULL, NULL, false, false))
+    return true;
 
   // Acquire exclusive MDL lock.
-  if (lock_object_name(thd, MDL_key::EVENT, dbname.str, name.str))
-    DBUG_RETURN(true);
+  if (lock_object_name(thd, MDL_key::EVENT, dbname.str, name.str)) return true;
 
   DEBUG_SYNC(thd, "after_acquiring_exclusive_lock_on_the_event");
 
@@ -673,7 +669,7 @@ bool Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
                 name.str, name.length);
 #endif
 
-  DBUG_RETURN(false);
+  return false;
 
 err_with_rollback:
   DBUG_EXECUTE_IF("simulate_drop_event_failure",
@@ -687,7 +683,7 @@ err_with_rollback:
   */
   trans_rollback(thd);
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 /**
@@ -698,12 +694,12 @@ err_with_rollback:
 */
 
 bool Events::lock_schema_events(THD *thd, const dd::Schema &schema) {
-  DBUG_ENTER("Events::lock_schema_events");
+  DBUG_TRACE;
 
   std::vector<dd::String_type> event_names;
   if (thd->dd_client()->fetch_schema_component_names<dd::Event>(&schema,
                                                                 &event_names))
-    DBUG_RETURN(true);
+    return true;
 
   /*
     If lower_case_table_names == 2 then schema names should be lower cased for
@@ -730,8 +726,8 @@ bool Events::lock_schema_events(THD *thd, const dd::Schema &schema) {
     mdl_requests.push_front(mdl_request);
   }
 
-  DBUG_RETURN(thd->mdl_context.acquire_locks(&mdl_requests,
-                                             thd->variables.lock_wait_timeout));
+  return thd->mdl_context.acquire_locks(&mdl_requests,
+                                        thd->variables.lock_wait_timeout);
 }
 
 /**
@@ -748,8 +744,7 @@ bool Events::lock_schema_events(THD *thd, const dd::Schema &schema) {
   @returns false  drop events from database succeeded.
 */
 bool Events::drop_schema_events(THD *thd, const dd::Schema &schema) {
-  LEX_STRING db_lex = {const_cast<char *>(schema.name().c_str()),
-                       schema.name().length()};
+  LEX_CSTRING db_lex = {schema.name().c_str(), schema.name().length()};
 
   if (event_queue) event_queue->drop_schema_events(db_lex);
 
@@ -771,15 +766,15 @@ static bool send_show_create_event(THD *thd, Event_timed *et,
   LEX_STRING sql_mode;
   const String *tz_name;
 
-  DBUG_ENTER("send_show_create_event");
+  DBUG_TRACE;
   show_str.length(0);
 
-  if (et->get_create_event(thd, &show_str)) DBUG_RETURN(true);
+  if (et->get_create_event(thd, &show_str)) return true;
 
   field_list.push_back(new Item_empty_string("Event", NAME_CHAR_LEN));
 
   if (sql_mode_string_representation(thd, et->m_sql_mode, &sql_mode))
-    DBUG_RETURN(true);
+    return true;
 
   field_list.push_back(
       new Item_empty_string("sql_mode", (uint)sql_mode.length));
@@ -802,31 +797,32 @@ static bool send_show_create_event(THD *thd, Event_timed *et,
 
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(true);
+    return true;
 
   protocol->start_row();
 
-  protocol->store(et->m_event_name.str, et->m_event_name.length,
-                  system_charset_info);
-  protocol->store(sql_mode.str, sql_mode.length, system_charset_info);
-  protocol->store(tz_name->ptr(), tz_name->length(), system_charset_info);
-  protocol->store(show_str.c_ptr(), show_str.length(),
-                  et->m_creation_ctx->get_client_cs());
-  protocol->store(et->m_creation_ctx->get_client_cs()->csname,
-                  strlen(et->m_creation_ctx->get_client_cs()->csname),
-                  system_charset_info);
-  protocol->store(et->m_creation_ctx->get_connection_cl()->name,
-                  strlen(et->m_creation_ctx->get_connection_cl()->name),
-                  system_charset_info);
-  protocol->store(et->m_creation_ctx->get_db_cl()->name,
-                  strlen(et->m_creation_ctx->get_db_cl()->name),
-                  system_charset_info);
+  protocol->store_string(et->m_event_name.str, et->m_event_name.length,
+                         system_charset_info);
+  protocol->store_string(sql_mode.str, sql_mode.length, system_charset_info);
+  protocol->store_string(tz_name->ptr(), tz_name->length(),
+                         system_charset_info);
+  protocol->store_string(show_str.c_ptr(), show_str.length(),
+                         et->m_creation_ctx->get_client_cs());
+  protocol->store_string(et->m_creation_ctx->get_client_cs()->csname,
+                         strlen(et->m_creation_ctx->get_client_cs()->csname),
+                         system_charset_info);
+  protocol->store_string(et->m_creation_ctx->get_connection_cl()->name,
+                         strlen(et->m_creation_ctx->get_connection_cl()->name),
+                         system_charset_info);
+  protocol->store_string(et->m_creation_ctx->get_db_cl()->name,
+                         strlen(et->m_creation_ctx->get_db_cl()->name),
+                         system_charset_info);
 
-  if (protocol->end_row()) DBUG_RETURN(true);
+  if (protocol->end_row()) return true;
 
   my_eof(thd);
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -839,21 +835,21 @@ static bool send_show_create_event(THD *thd, Event_timed *et,
   @retval  true   error (reported)
 */
 
-bool Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name) {
+bool Events::show_create_event(THD *thd, LEX_CSTRING dbname, LEX_CSTRING name) {
   Event_timed et;
   bool ret;
 
-  DBUG_ENTER("Events::show_create_event");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("name: %s@%s", dbname.str, name.str));
 
-  if (check_access(thd, EVENT_ACL, dbname.str, NULL, NULL, 0, 0))
-    DBUG_RETURN(true);
+  if (check_access(thd, EVENT_ACL, dbname.str, NULL, NULL, false, false))
+    return true;
 
   // We must make sure the schema is released and unlocked in the right
   // order. Fail if we are unable to get a meta data lock on the schema
   // name.
   dd::Schema_MDL_locker mdl_handler(thd);
-  if (mdl_handler.ensure_locked(dbname.str)) DBUG_RETURN(true);
+  if (mdl_handler.ensure_locked(dbname.str)) return true;
 
   // Grab MDL lock on object in shared mode.
   MDL_key mdl_key;
@@ -863,7 +859,7 @@ bool Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name) {
                           MDL_TRANSACTION);
   if (thd->mdl_context.acquire_lock(&event_mdl_request,
                                     thd->variables.lock_wait_timeout))
-    DBUG_RETURN(true);
+    return true;
 
   DEBUG_SYNC(thd, "after_acquiring_shared_lock_on_the_event");
 
@@ -880,7 +876,7 @@ bool Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name) {
   ret = Event_db_repository::load_named_event(thd, dbname, name, &et);
   if (!ret) ret = send_show_create_event(thd, &et, thd->get_protocol());
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /**
@@ -904,7 +900,18 @@ bool Events::init(bool opt_noacl_or_bootstrap) {
   int err_no;
   bool res = false;
 
-  DBUG_ENTER("Events::init");
+  DBUG_TRACE;
+
+  // If event scheduler was explicitly disabled from command-line, do not
+  // initialize it.
+  if (opt_event_scheduler == Events::EVENTS_DISABLED) return res;
+
+  //  If run with --skip-grant-tables or --initialize, disable the event
+  //  scheduler and return.
+  if (opt_noacl_or_bootstrap) {
+    opt_event_scheduler = Events::EVENTS_DISABLED;
+    return res;
+  }
 
   /*
     We need a temporary THD during boot
@@ -928,13 +935,6 @@ bool Events::init(bool opt_noacl_or_bootstrap) {
   */
   thd->thread_stack = (char *)&thd;
   thd->store_globals();
-
-  //  If run with --skip-grant-tables or --initialize, disable the event
-  //  scheduler.
-  if (opt_noacl_or_bootstrap) {
-    opt_event_scheduler = EVENTS_DISABLED;
-    goto end;
-  }
 
   DBUG_ASSERT(opt_event_scheduler == Events::EVENTS_ON ||
               opt_event_scheduler == Events::EVENTS_OFF);
@@ -961,7 +961,7 @@ end:
   }
   delete thd;
 
-  DBUG_RETURN(res);
+  return res;
 }
 
 /*
@@ -975,7 +975,7 @@ end:
 */
 
 void Events::deinit() {
-  DBUG_ENTER("Events::deinit");
+  DBUG_TRACE;
 
   if (opt_event_scheduler != EVENTS_DISABLED) {
     delete scheduler;
@@ -983,8 +983,6 @@ void Events::deinit() {
     delete event_queue;
     event_queue = NULL; /* safety */
   }
-
-  DBUG_VOID_RETURN;
 }
 
 #ifdef HAVE_PSI_INTERFACE
@@ -1079,7 +1077,7 @@ void Events::init_mutexes() {
 */
 
 void Events::dump_internal_status() {
-  DBUG_ENTER("Events::dump_internal_status");
+  DBUG_TRACE;
   puts("\n\n\nEvents status:");
   puts("LLA = Last Locked At  LUA = Last Unlocked At");
   puts("WOC = Waiting On Condition  DL = Data Locked");
@@ -1097,7 +1095,6 @@ void Events::dump_internal_status() {
   }
 
   mysql_mutex_unlock(&LOCK_global_system_variables);
-  DBUG_VOID_RETURN;
 }
 
 bool Events::start(int *err_no) {
@@ -1131,14 +1128,14 @@ bool Events::stop() {
 */
 
 static bool load_events_from_db(THD *thd, Event_queue *event_queue) {
-  DBUG_ENTER("Events::load_events_from_db");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("thd: %p", thd));
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   // Fetch all Schemas
   std::vector<const dd::Schema *> schemas;
-  if (thd->dd_client()->fetch_global_components(&schemas)) DBUG_RETURN(true);
+  if (thd->dd_client()->fetch_global_components(&schemas)) return true;
 
   std::vector<std::pair<const dd::Schema *, const dd::Event *>>
       drop_events_vector;
@@ -1147,25 +1144,25 @@ static bool load_events_from_db(THD *thd, Event_queue *event_queue) {
     // Fetch all events in a schema
     std::vector<const dd::Event *> events;
     if (thd->dd_client()->fetch_schema_components(schema_obj, &events))
-      DBUG_RETURN(true);
+      return true;
 
     for (const dd::Event *ev_obj : events) {
       std::unique_ptr<Event_queue_element> et(new (std::nothrow)
                                                   Event_queue_element);
       if (et == nullptr) {
         LogErr(ERROR_LEVEL, ER_EVENT_SCHEDULER_ERROR_GETTING_EVENT_OBJECT);
-        DBUG_RETURN(true);
+        return true;
       }
 
       if (et->fill_event_info(thd, *ev_obj, schema_obj->name().c_str())) {
         LogErr(ERROR_LEVEL, ER_EVENT_SCHEDULER_GOT_BAD_DATA_FROM_TABLE);
-        DBUG_RETURN(true);
+        return true;
       }
       bool drop_event = et->m_dropped;  // create_event may free et.
       bool created = false;
       if (event_queue->create_event(thd, et.get(), &created)) {
         /* Out of memory */
-        DBUG_RETURN(true);
+        return true;
       }
       if (created) et.release();
 
@@ -1213,7 +1210,7 @@ static bool load_events_from_db(THD *thd, Event_queue *event_queue) {
   // goes out of scope. This is safe since no cached objects were
   // acquired.
   thd->mdl_context.release_transactional_locks();
-  DBUG_RETURN(error);
+  return error;
 }
 
 /**

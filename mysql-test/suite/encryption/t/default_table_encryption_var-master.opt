@@ -1,0 +1,5 @@
+$KEYRING_PLUGIN_OPT
+--default-table-encryption=OFF
+--innodb-encryption-rotate-key-age=1
+--innodb-encryption-threads=0
+--loose-keyring-file-data=$MYSQL_TMP_DIR/mydummy_key

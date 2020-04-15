@@ -523,13 +523,13 @@ static ulonglong retrieve_auto_increment(uint16 type, uint32 offset,
     /* The remaining two cases should not be used but are included for
        compatibility */
     case HA_KEYTYPE_FLOAT:
-      float4get(&float_tmp, key); /* Note: float4get is a macro */
+      float_tmp = float4get(key); /* Note: float4get is a macro */
       signed_autoinc = (longlong)float_tmp;
       autoinc_type = signed_type;
       break;
 
     case HA_KEYTYPE_DOUBLE:
-      float8get(&double_tmp, key); /* Note: float8get is a macro */
+      double_tmp = float8get(key); /* Note: float8get is a macro */
       signed_autoinc = (longlong)double_tmp;
       autoinc_type = signed_type;
       break;
@@ -885,7 +885,8 @@ static inline int tokudb_generate_row(DB *dest_db, TOKUDB_UNUSED(DB *src_db),
     }
 
     buff = (uchar *)dest_key->data;
-    assert_always(buff != NULL && max_key_len > 0);
+    assert_always(buff != nullptr);
+    assert_always(max_key_len > 0);
   } else {
     assert_unreachable();
   }
@@ -1108,7 +1109,7 @@ int ha_tokudb::open_main_dictionary(const char *name, bool is_read_only,
   share->key_file[primary_key] = share->file;
 
   error = share->file->open(share->file, txn, newname, NULL, DB_BTREE,
-                            open_flags, 0);
+                            open_flags, is_read_only ? 0 : S_IWUSR);
   if (error) {
     goto exit;
   }
@@ -1159,7 +1160,8 @@ int ha_tokudb::open_secondary_dictionary(DB **ptr, KEY *key_info,
     goto cleanup;
   }
 
-  error = (*ptr)->open(*ptr, txn, newname, NULL, DB_BTREE, open_flags, 0);
+  error = (*ptr)->open(*ptr, txn, newname, NULL, DB_BTREE, open_flags,
+                       is_read_only ? 0 : S_IWUSR);
   if (error) {
     set_my_errno(error);
     goto cleanup;
@@ -1210,7 +1212,7 @@ int ha_tokudb::initialize_share(const char *name, int mode) {
   if (table->part_info == NULL) {
     error = verify_frm_data(table->s->path.str, txn);
     if (error) goto exit;
-  } else {
+  } else if (force_recovery == 0 && !read_only && !super_read_only) {
     // remove the frm data for partitions since we are not maintaining it
     error = remove_frm_data(share->status_block, txn);
     if (error) goto exit;
@@ -1616,6 +1618,8 @@ int ha_tokudb::write_frm_data(DB *db, DB_TXN *txn, const char *frm_name) {
   uchar *frm_data = NULL;
   size_t frm_len = 0;
   int error = 0;
+
+  if (force_recovery != 0 || read_only || super_read_only) goto cleanup;
 
   error = readfrm(frm_name, &frm_data, &frm_len);
   if (error) {

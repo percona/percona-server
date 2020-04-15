@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,12 +68,14 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "sql-common/net_ns.h"  // set_network_namespace
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // SUPER_ACL
 #include "sql/auth/sql_security_ctx.h"
-#include "sql/derror.h"     // ER_THD
-#include "sql/hostname.h"   // Host_errors
-#include "sql/item_func.h"  // mqh_used
+#include "sql/debug_sync.h"      // DEBUG_SYNC
+#include "sql/derror.h"          // ER_THD
+#include "sql/hostname_cache.h"  // Host_errors
+#include "sql/item_func.h"       // mqh_used
 #include "sql/log.h"
 #include "sql/mysqld.h"  // LOCK_user_conn
 #include "sql/protocol.h"
@@ -175,7 +177,8 @@ USER_STATS::USER_STATS(const char *priv_user_, uint total_ssl_connections_,
     : total_ssl_connections(total_ssl_connections_),
       priv_user_len(strlen(priv_user_)),
       denied_connections(denied_connections_) {
-  strncpy(priv_user, priv_user_, sizeof(priv_user));
+  strncpy(priv_user, priv_user_, sizeof(priv_user) - 1);
+  priv_user[sizeof(priv_user) - 1] = '\0';
 }
 
 void init_global_user_stats(void) {
@@ -200,7 +203,7 @@ void init_global_thread_stats(void) {
   global_thread_stats =
       new (std::nothrow) thread_stats_t(key_memory_userstat_thread_stats);
   if (unlikely(!global_thread_stats)) {
-    sql_print_error("Initializing global_client_stats failed.");
+    sql_print_error("Initializing global_thread_stats failed.");
     exit(1);
   }
 }
@@ -248,6 +251,11 @@ static void increment_count_by_name(const std::string &name,
                                     const char *role_name,
                                     user_stats_t *users_or_clients,
                                     const THD &thd) {
+  if (acl_is_utility_user(thd.security_context()->user().str,
+                          thd.security_context()->host().str,
+                          thd.security_context()->ip().str))
+    return;
+
   const auto ssl_connections = thd.is_ssl() ? 1 : 0;
   const auto &it = users_or_clients->find(name);
   if (it == users_or_clients->cend()) {
@@ -264,6 +272,11 @@ static void increment_count_by_name(const std::string &name,
 
 static void increment_count_by_id(my_thread_id id, thread_stats_t *thread_stats,
                                   const THD &thd) {
+  if (acl_is_utility_user(thd.security_context()->user().str,
+                          thd.security_context()->host().str,
+                          thd.security_context()->ip().str))
+    return;
+
   const auto ssl_connections = thd.is_ssl() ? 1 : 0;
   const auto &it = thread_stats->find(id);
   if (it == thread_stats->cend()) {
@@ -285,6 +298,11 @@ static void increment_connection_count(const THD &thd, bool use_lock) {
   const char *user_string =
       get_valid_user_string(thd.m_main_security_ctx.user().str);
   const char *client_string = get_client_host(thd);
+
+  if (acl_is_utility_user(thd.security_context()->user().str,
+                          thd.security_context()->host().str,
+                          thd.security_context()->ip().str))
+    return;
 
   if (use_lock) mysql_mutex_lock(&LOCK_global_user_client_stats);
 
@@ -448,7 +466,7 @@ void refresh_concurrent_conn_stats() noexcept {
 int check_for_max_user_connections(THD *thd, const USER_CONN *uc) {
   int error = 0;
   Host_errors errors;
-  DBUG_ENTER("check_for_max_user_connections");
+  DBUG_TRACE;
 
   mysql_mutex_lock(&LOCK_user_conn);
   if (global_system_variables.max_user_connections &&
@@ -495,7 +513,7 @@ end:
   if (error) {
     inc_host_errors(thd->m_main_security_ctx.ip().str, &errors);
   }
-  DBUG_RETURN(error);
+  return error;
 }
 
 /*
@@ -517,7 +535,7 @@ end:
 */
 
 void decrease_user_connections(USER_CONN *uc) {
-  DBUG_ENTER("decrease_user_connections");
+  DBUG_TRACE;
   mysql_mutex_lock(&LOCK_user_conn);
   DBUG_ASSERT(uc->connections);
   if (!--uc->connections && !mqh_used) {
@@ -525,7 +543,6 @@ void decrease_user_connections(USER_CONN *uc) {
     hash_user_connections->erase(std::string(uc->user, uc->len));
   }
   mysql_mutex_unlock(&LOCK_user_conn);
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -538,7 +555,7 @@ void decrease_user_connections(USER_CONN *uc) {
  */
 void release_user_connection(THD *thd) {
   const USER_CONN *uc = thd->get_user_connect();
-  DBUG_ENTER("release_user_connection");
+  DBUG_TRACE;
 
   if (uc) {
     mysql_mutex_lock(&LOCK_user_conn);
@@ -551,8 +568,6 @@ void release_user_connection(THD *thd) {
     mysql_mutex_unlock(&LOCK_user_conn);
     thd->set_user_connect(NULL);
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -561,9 +576,9 @@ void release_user_connection(THD *thd) {
 */
 
 bool check_mqh(THD *thd, uint check_command) {
-  bool error = 0;
+  bool error = false;
   const USER_CONN *uc = thd->get_user_connect();
-  DBUG_ENTER("check_mqh");
+  DBUG_TRACE;
   DBUG_ASSERT(uc != 0);
 
   mysql_mutex_lock(&LOCK_user_conn);
@@ -576,7 +591,7 @@ bool check_mqh(THD *thd, uint check_command) {
     if ((uc->questions - 1) >= uc->user_resources.questions) {
       my_error(ER_USER_LIMIT_REACHED, MYF(0), uc->user, "max_questions",
                (long)uc->user_resources.questions);
-      error = 1;
+      error = true;
       goto end;
     }
   }
@@ -588,14 +603,14 @@ bool check_mqh(THD *thd, uint check_command) {
       if ((uc->updates - 1) >= uc->user_resources.updates) {
         my_error(ER_USER_LIMIT_REACHED, MYF(0), uc->user, "max_updates",
                  (long)uc->user_resources.updates);
-        error = 1;
+        error = true;
         goto end;
       }
     }
   }
 end:
   mysql_mutex_unlock(&LOCK_user_conn);
-  DBUG_RETURN(error);
+  return error;
 }
 
 void init_max_user_conn(void) {
@@ -609,8 +624,9 @@ void free_max_user_conn(void) {
   hash_user_connections = nullptr;
 }
 
-void reset_mqh(THD *thd, LEX_USER *lu, bool get_them = 0) {
+void reset_mqh(THD *thd, LEX_USER *lu, bool get_them = false) {
   mysql_mutex_lock(&LOCK_user_conn);
+  DEBUG_SYNC(thd, "in_reset_mqh_flush_privileges");
   if (lu)  // for GRANT
   {
     size_t temp_len = lu->user.length + lu->host.length + 2;
@@ -712,9 +728,11 @@ static int check_connection(THD *thd) {
   uint connect_errors = 0;
   int auth_rc;
   NET *net = thd->get_protocol_classic()->get_net();
+#ifndef DBUG_OFF
   char desc[VIO_DESCRIPTION_SIZE];
   vio_description(net->vio, desc);
   DBUG_PRINT("info", ("New connection received on %s", desc));
+#endif  // DBUG_OFF
 
   thd->set_active_vio(net->vio);
 
@@ -806,14 +824,44 @@ static int check_connection(THD *thd) {
       char *host;
       LEX_CSTRING main_sctx_host;
 
+#ifdef HAVE_SETNS
+      /*
+        Check whether namespace is specified for a socket being handled.
+        If it is specified then set the namespace as active before resolving
+        ip address to host name. Restore original network namespace after
+        address resolution finished.
+      */
+
+      std::string network_namespace(net->vio->network_namespace);
+      if (!network_namespace.empty() &&
+          set_network_namespace(network_namespace)) {
+        return 1;
+      }
+#endif
       rc = ip_to_hostname(&net->vio->remote, main_sctx_ip.str, &host,
                           &connect_errors);
-
+#ifdef HAVE_SETNS
+      if (!network_namespace.empty() && restore_original_network_namespace()) {
+        if (host && host != my_localhost) {
+          my_free(host);
+        }
+        return 1;
+      }
+#endif
       thd->m_main_security_ctx.assign_host(host, host ? strlen(host) : 0);
+      DBUG_EXECUTE_IF("vio_peer_addr_fake_hostname1", {
+        thd->m_main_security_ctx.assign_host(
+            "host_"
+            "1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij123456"
+            "7890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890ab"
+            "cdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefgh"
+            "ij1234567890abcdefghij1234567890abcdefghij1234567890",
+            255);
+      });
+
       main_sctx_host = thd->m_main_security_ctx.host();
       if (host && host != my_localhost) {
         my_free(host);
-        host = (char *)main_sctx_host.str;
       }
 
       /* Cut very long hostnames to avoid possible overflows */
@@ -927,7 +975,7 @@ static int check_connection(THD *thd) {
 
 static bool login_connection(THD *thd) {
   int error;
-  DBUG_ENTER("login_connection");
+  DBUG_TRACE;
   DBUG_PRINT("info",
              ("login_connection called by thread %u", thd->thread_id()));
 
@@ -943,7 +991,7 @@ static bool login_connection(THD *thd) {
     if (vio_type(thd->get_protocol_classic()->get_vio()) == VIO_TYPE_NAMEDPIPE)
       my_sleep(1000); /* must wait after eof() */
 #endif
-    DBUG_RETURN(1);
+    return true;
   }
   /* Connect completed, set read/write timeouts back to default */
   thd->get_protocol_classic()->set_read_timeout(
@@ -958,7 +1006,7 @@ static bool login_connection(THD *thd) {
     increment_connection_count(*thd, true);
   }
 
-  DBUG_RETURN(0);
+  return false;
 }
 
 /*
@@ -1014,8 +1062,33 @@ static void prepare_new_connection_state(THD *thd) {
   NET *net = thd->get_protocol_classic()->get_net();
   Security_context *sctx = thd->security_context();
 
-  if (thd->get_protocol()->has_client_capability(CLIENT_COMPRESS))
-    net->compress = 1;  // Use compression
+  if (thd->get_protocol()->has_client_capability(CLIENT_COMPRESS) ||
+      thd->get_protocol()->has_client_capability(
+          CLIENT_ZSTD_COMPRESSION_ALGORITHM)) {
+    net->compress = true;  // Use compression
+    enum enum_compression_algorithm algorithm = get_compression_algorithm(
+        thd->get_protocol()->get_compression_algorithm());
+    NET_SERVER *server_extn = static_cast<NET_SERVER *>(net->extension);
+    if (server_extn != nullptr)
+      mysql_compress_context_init(&server_extn->compress_ctx, algorithm,
+                                  thd->get_protocol()->get_compression_level());
+    if (net->extension == nullptr) {
+      LEX_CSTRING sctx_user = sctx->user();
+      Host_errors errors;
+      my_error(ER_NEW_ABORTING_CONNECTION, MYF(0), thd->thread_id(),
+               thd->db().str ? thd->db().str : "unconnected",
+               sctx_user.str ? sctx_user.str : "unauthenticated",
+               sctx->host_or_ip().str,
+               "Unable to allocate memory for compression context: Aborting "
+               "connection.");
+      thd->server_status &= ~SERVER_STATUS_CLEAR_SET;
+      thd->send_statement_status();
+      thd->killed = THD::KILL_CONNECTION;
+      errors.m_init_connect = 1;
+      inc_host_errors(thd->m_main_security_ctx.ip().str, &errors);
+      return;
+    }
+  }
 
   // Initializing session system variables.
   alloc_and_copy_thd_dynamic_variables(thd, true);
@@ -1078,6 +1151,9 @@ static void prepare_new_connection_state(THD *thd) {
       thd->killed = THD::KILL_CONNECTION;
       errors.m_init_connect = 1;
       inc_host_errors(thd->m_main_security_ctx.ip().str, &errors);
+      NET_SERVER *server_extn = static_cast<NET_SERVER *>(net->extension);
+      if (server_extn != nullptr)
+        mysql_compress_context_deinit(&server_extn->compress_ctx);
       return;
     }
 
@@ -1111,9 +1187,9 @@ bool thd_prepare_connection(THD *thd) {
 
 void close_connection(THD *thd, uint sql_errno, bool server_shutdown,
                       bool generate_event) {
-  DBUG_ENTER("close_connection");
+  DBUG_TRACE;
 
-  if (sql_errno) net_send_error(thd, sql_errno, ER_DEFAULT(sql_errno));
+  if (sql_errno) net_send_error(thd, sql_errno, ER_DEFAULT_NONCONST(sql_errno));
   thd->disconnect(server_shutdown);
 
   if (generate_event) {
@@ -1125,7 +1201,6 @@ void close_connection(THD *thd, uint sql_errno, bool server_shutdown,
   }
 
   thd->security_context()->logout();
-  DBUG_VOID_RETURN;
 }
 
 bool thd_connection_alive(THD *thd) {

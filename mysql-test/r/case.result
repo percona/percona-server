@@ -155,7 +155,7 @@ Note	1003	/* select#1 */ select coalesce(1) AS `COALESCE(1)`,coalesce(1.0) AS `C
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `COALESCE(1)` int(1) NOT NULL DEFAULT '0',
+  `COALESCE(1)` int NOT NULL DEFAULT '0',
   `COALESCE(1.0)` decimal(2,1) NOT NULL DEFAULT '0.0',
   `COALESCE('a')` varchar(1) CHARACTER SET latin1 NOT NULL DEFAULT '',
   `COALESCE(1,1.0)` decimal(2,1) NOT NULL DEFAULT '0.0',
@@ -373,10 +373,10 @@ Table	Create Table
 u	CREATE TABLE `u` (
   `HEX(a)` varchar(10) CHARACTER SET latin1 DEFAULT NULL,
   `b` bit(5) DEFAULT NULL,
-  `c` int(6) unsigned DEFAULT NULL,
-  `d` bigint(6) unsigned DEFAULT NULL,
-  `e` bigint(6) unsigned DEFAULT NULL,
-  `f` bigint(6) unsigned DEFAULT NULL
+  `c` int unsigned DEFAULT NULL,
+  `d` bigint unsigned DEFAULT NULL,
+  `e` bigint unsigned DEFAULT NULL,
+  `f` bigint unsigned DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t, u;
 # Bug#26389402: Outer join optimized away with user-defined functions
@@ -444,3 +444,15 @@ nullif_c	if_c	SUM(d1)
 3.33	3.33	6
 3.33	3.33	9
 DROP TABLE t;
+# Bug#29463760 In cases like ifnull(datetime(2), time(3), wrong answer
+SET TIMESTAMP=UNIX_TIMESTAMP('2019-03-11 12:00:00');
+CREATE TABLE t1 (dt2 DATETIME(2), t3 TIME(3), d DATE);
+INSERT INTO t1 VALUES ('2001-01-01 00:00:00.12', '00:00:00.567', '2002-01-01');
+SELECT CONCAT(IFNULL(t3, d)) AS col1 FROM t1;
+col1
+2019-03-11 00:00:00.567
+SELECT CONCAT(IFNULL(t3, d)) AS col1 FROM t1 GROUP BY col1;
+col1
+2019-03-11 00:00:00.567
+SET TIMESTAMP=DEFAULT;
+DROP TABLE t1;

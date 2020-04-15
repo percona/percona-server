@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -345,17 +345,25 @@ NdbColumnImpl::~NdbColumnImpl()
 }
 
 bool
-NdbColumnImpl::equal(const NdbColumnImpl& col) const 
+NdbColumnImpl::equal_skip(const NdbColumnImpl& col, column_change_flags& change_flags) const
 {
-  DBUG_ENTER("NdbColumnImpl::equal");
-  DBUG_PRINT("info", ("this: %p  &col: %p", this, &col));
+  DBUG_ENTER("equal_skip");
+  DBUG_PRINT("info", ("supported change flags %llu", change_flags));
   /* New member comparisons added here should also be
    * handled in the BackupRestore::column_compatible_check()
    * member of tools/restore/consumer_restore.cpp
    */
   if(strcmp(m_name.c_str(), col.m_name.c_str()) != 0){
-    DBUG_RETURN(false);
+    if (! check_change_flag(change_flags, COLUMN_NAME))
+    {
+      DBUG_RETURN(false);
+    }
   }
+  else
+  {
+    remove_change_flag(change_flags, COLUMN_NAME);
+  }
+
   if(m_type != col.m_type){
     DBUG_RETURN(false);
   }
@@ -397,6 +405,33 @@ NdbColumnImpl::equal(const NdbColumnImpl& col) const
   }
 
   DBUG_RETURN(true);
+}
+
+bool
+NdbColumnImpl::equal(const NdbColumnImpl& col) const
+{
+  DBUG_ENTER("NdbColumnImpl::equal");
+  DBUG_PRINT("info", ("this: %p  &col: %p", this, &col));
+
+  column_change_flags change_flags = 0;
+  if (equal_skip(col, change_flags))
+    DBUG_RETURN(true);
+  else
+    DBUG_RETURN(false);
+}
+
+/*
+  Check for any supported changes to a column
+  and add any changes found to the column_change_flags
+ */
+bool
+NdbColumnImpl::alter_supported(const NdbColumnImpl& col,
+                               column_change_flags& change_flags) const
+{
+  DBUG_ENTER("NdbColumnImpl::alter_supported");
+
+  add_change_flag(change_flags, COLUMN_NAME);
+  DBUG_RETURN(equal_skip(col, change_flags));
 }
 
 void
@@ -2915,10 +2950,21 @@ NdbDictInterface::execSignal(void* dictImpl,
     const NodeFailRep *rep = CAST_CONSTPTR(NodeFailRep,
                                            signal->getDataPtr());
     Uint32 len = NodeFailRep::getNodeMaskLength(signal->getLength());
-    assert(len == NodeBitmask::Size); // only full length in ndbapi
-    for (Uint32 i = BitmaskImpl::find_first(len, rep->theAllNodes);
+    const Uint32* nbm;
+    if (signal->m_noOfSections >= 1)
+    {
+      assert (len == 0);
+      nbm = ptr[0].p;
+      len = ptr[0].sz;
+    }
+    else
+    {
+      assert(len == NodeBitmask::Size); // only full length in ndbapi
+      nbm = rep->theAllNodes;
+    }
+    for (Uint32 i = BitmaskImpl::find_first(len, nbm);
          i != BitmaskImpl::NotFound;
-         i = BitmaskImpl::find_next(len, rep->theAllNodes, i + 1))
+         i = BitmaskImpl::find_next(len, nbm, i + 1))
     {
       if (i <= MAX_DATA_NODE_ID)
       {
@@ -3377,7 +3423,7 @@ objectStateMapping[] = {
   { DictTabInfo::StateBuilding,      NdbDictionary::Object::StateBuilding },
   { DictTabInfo::StateDropping,      NdbDictionary::Object::StateDropping },
   { DictTabInfo::StateOnline,        NdbDictionary::Object::StateOnline },
-  { DictTabInfo::StateBackup,        NdbDictionary::Object::StateBackup },
+  { DictTabInfo::ObsoleteStateBackup,NdbDictionary::Object::StateOnline }, // StateBackup no longer used
   { DictTabInfo::StateBroken,        NdbDictionary::Object::StateBroken }, 
   { -1, -1 }
 };
@@ -3403,7 +3449,8 @@ void NdbTableImpl::IndirectReader(SimpleProperties::Reader & it,
   NdbTableImpl * impl = static_cast<NdbTableImpl *>(dest);
   Uint16 key = it.getKey();
 
-  if(key == DictTabInfo::FrmData) {
+  /* Metadata may be stored as FrmData or MysqlDictMetadata */
+  if(key == DictTabInfo::FrmData || key == DictTabInfo::MysqlDictMetadata) {
     /* Expand the UtilBuffer to the required length, then copy data in */
     impl->m_frm.grow(it.getPaddedLength());
     it.getString(static_cast<char *>(impl->m_frm.append(it.getValueLen())));
@@ -3415,7 +3462,8 @@ bool NdbTableImpl::IndirectWriter(SimpleProperties::Writer & it,
                                   const void * src) {
   const NdbTableImpl * impl = static_cast<const NdbTableImpl *>(src);
 
-  if(key == DictTabInfo::FrmData)
+  /* Always store metadata as MysqlDictMetadata */
+  if(key == DictTabInfo::MysqlDictMetadata)
     return it.add(key, impl->m_frm.get_data(), impl->m_frm.length());
 
   return true;
@@ -4357,7 +4405,7 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
   /*
     Check for new columns.
     We can add one or more new columns at the end, with some restrictions:
-     - All existing columns must be unchanged.
+     - All existing column definitions except name must be unchanged
      - The new column must be dynamic.
      - The new column must be nullable.
      - The new column must be memory based.
@@ -4369,11 +4417,17 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
   found_varpart= old_impl.getForceVarPart();
   for(Uint32 i= 0; i<old_sz; i++)
   {
-    const NdbColumnImpl *col= impl.m_columns[i];
-    if(!col->equal(*(old_impl.m_columns[i])))
+    const NdbColumnImpl *col = impl.m_columns[i];
+    NdbColumnImpl::column_change_flags change_flags = 0;
+    if(!col->alter_supported(*(old_impl.m_columns[i]), change_flags))
     {
-      DBUG_PRINT("info", ("Old and new column not equal"));
+      DBUG_PRINT("info", ("Columns are not compatible for alter"));
       goto invalid_alter_table;
+    }
+    if(change_flags != 0)
+    {
+      DBUG_PRINT("info", ("Supported column change found"));
+      AlterTableReq::setModifyAttrFlag(change_mask, true);
     }
     if(col->m_storageType == NDB_STORAGETYPE_MEMORY &&
        (col->m_dynamic || col->m_arrayType != NDB_ARRAYTYPE_FIXED))
@@ -4653,19 +4707,6 @@ loop:
       Uint32 ah;
       const Uint32 byteSize = col->m_defaultValue.length();
       assert(byteSize <= NDB_MAX_TUPLE_SIZE);
-
-      if (byteSize > 0)
-      {
-        if (unlikely(! ndb_native_default_support(ndb.getMinDbNodeVersion())))
-        {
-          /* We can't create a table with native defaults with
-           * this kernel version
-           * Schema feature requires data node upgrade
-           */
-          m_error.code = 794;
-          DBUG_RETURN(-1);
-        }
-      }   
 
       //The AttributeId of a column isn't decided now, so 0 is used.
       AttributeHeader::init(&ah, 0, byteSize);
@@ -5981,7 +6022,7 @@ NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
     ERR_RETURN(getNdbError(), -1);
 
   // Create blob events
-  if (evnt.m_mergeEvents && createBlobEvents(evnt) != 0) {
+  if (table.m_noOfBlobs > 0 && createBlobEvents(evnt) != 0) {
     int save_code = m_error.code;
     (void)dropEvent(evnt.m_name.c_str(), 0);
     m_error.code = save_code;
@@ -6340,6 +6381,85 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
     *new_col = *col;
     ev->m_columns.push_back(new_col);
   }
+
+  /**
+   * Check for related Blob part table events
+   * NdbApi may create events on Blob part tables when an event on
+   * a table with blobs is created with the merge_events flag set.
+   * Here we check that if the table has Blob columns, then it
+   * should have events for either none or all blob columns, which
+   * we can retrieve without errors.
+   * We check this now as the user would probably expect to discover
+   * problems with hidden subtended blob events when retrieving the
+   * main table event, which is the only one visible to them.
+   * Note that we check all blob columns in the table, not just
+   * those mentioned in the event bitmask.
+   */
+  int blob_count = 0;
+  int blob_event_count = 0;
+  for(unsigned id= 0; id < (unsigned) table.getNoOfColumns(); id++)
+  {
+    const NdbColumnImpl* col = table.getColumn(id);
+
+    if (col->getBlobType() && col->getPartSize() > 0)
+    {
+      blob_count++;
+
+      /* Try to read the blob event */
+      NdbEventImpl* blob_event = getBlobEvent(*ev, col->getColumnNo());
+      const bool blob_event_ok = (blob_event != NULL);
+      delete blob_event;
+
+      if (blob_event_ok)
+      {
+        blob_event_count++;
+      }
+      else
+      {
+        if (getNdbError().code != CreateEvntRef::TableNotFound) /* Event not found */
+        {
+          DBUG_PRINT("error", ("Failed to get blob event for column %u",
+                               col->getColumnNo()));
+          delete ev;
+
+          /**
+           * DICT will return error code 723 if the event exists but
+           * refers to a non existent table name.  This can happen
+           * when events have not been dropped with a table.
+           */
+          if (m_error.code == 723)
+          {
+            /*
+             * Remap to less confusing error code
+             */
+            DBUG_PRINT("info", ("Remapping error 723 on Blob sub event fetch to 241"));
+            m_error.code = 241; /* Invalid schema object version */
+          }
+
+          DBUG_RETURN(NULL);
+        }
+        /* Blob event does not exist, ok */
+      }
+    }
+  }
+
+  if (blob_event_count != blob_count)
+  {
+    /**
+     * Event on table with blobs should have either all
+     * Blobs present, or none.
+     * Anything else, suggests failed create or drop
+     * which we map as a schema object version problem.
+     */
+    DBUG_PRINT("error", ("Unexpected number of blob events "
+                         "present Expect : %d Actual : %d",
+                         blob_count,
+                         blob_event_count));
+    m_error.code = 241; /* Invalid schema object version */
+    delete ev;
+    DBUG_RETURN(NULL);
+  }
+
   DBUG_RETURN(ev);
 }
 
@@ -7233,23 +7353,10 @@ NdbDictInterface::listObjects(NdbApiSignal* signal,
       }
       return -1;
     }
-    NodeInfo info = m_impl->getNodeInfo(aNodeId).m_info;
-    if (ndbd_LIST_TABLES_CONF_long_signal(info.m_version))
-    {
-      /*
-        Called node will return a long signal
-       */
-      listTablesLongSignal = true;
-    }
-    else if (listTablesLongSignal)
-    {
-      /*
-        We are requesting info from a table with table id > 4096
-        and older versions don't support that, bug#36044
-      */
-      m_error.code= 4105;
-      return -1;
-    }
+    /*
+      Called node will return a long signal
+     */
+    listTablesLongSignal = true;
 
     if (m_impl->sendSignal(signal, aNodeId) != 0) {
       continue;
@@ -7288,17 +7395,6 @@ void
 NdbDictInterface::execLIST_TABLES_CONF(const NdbApiSignal* signal,
                                        const LinearSectionPtr ptr[3])
 {
-  Uint16 nodeId = refToNode(signal->theSendersBlockRef);
-  NodeInfo info = m_impl->getNodeInfo(nodeId).m_info;
-  if (!ndbd_LIST_TABLES_CONF_long_signal(info.m_version))
-  {
-    /*
-      Sender doesn't support new signal format
-     */
-    NdbDictInterface::execOLD_LIST_TABLES_CONF(signal, ptr);
-    return;
-  }
-
   const ListTablesConf* const conf=
     CAST_CONSTPTR(ListTablesConf, signal->getDataPtr());
   if(!m_tx.checkRequestId(conf->senderData, "LIST_TABLES_CONF"))
@@ -7362,23 +7458,6 @@ NdbDictInterface::execLIST_TABLES_CONF(const NdbApiSignal* signal,
   }
 
   m_impl->theWaiter.signal(NO_WAIT);
-}
-
-
-void
-NdbDictInterface::execOLD_LIST_TABLES_CONF(const NdbApiSignal* signal,
-                                           const LinearSectionPtr ptr[3])
-{
-  const unsigned off = OldListTablesConf::HeaderLength;
-  const unsigned len = (signal->getLength() - off);
-  if (m_buffer.append(signal->getDataPtr() + off, len << 2))
-  {
-    m_error.code= 4000;
-  }
-  if (signal->getLength() < OldListTablesConf::SignalLength) {
-    // last signal has less than full length
-    m_impl->theWaiter.signal(NO_WAIT);
-  }
 }
 
 int
@@ -10368,13 +10447,6 @@ NdbDictionaryImpl::beginSchemaTrans(bool retry711)
   DBUG_ENTER("beginSchemaTrans");
   if (m_tx.m_state == NdbDictInterface::Tx::Started) {
     m_error.code = 4410;
-    DBUG_RETURN(-1);
-  }
-  if (!m_receiver.checkAllNodeVersionsMin(NDBD_SCHEMA_TRANS_VERSION))
-  {
-    /* Upgrade 6.3 -> 7.0 path */
-    /* Schema transaction not possible until upgrade complete */
-    m_error.code = 4411;
     DBUG_RETURN(-1);
   }
   // TODO real transId

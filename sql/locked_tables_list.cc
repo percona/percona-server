@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,8 +98,8 @@ bool Locked_tables_list::init_locked_tables(THD *thd) {
       in reopen_tables(). reopen_tables() is a critical
       path and we don't want to complicate it with extra allocations.
     */
-    m_reopen_array = (TABLE **)alloc_root(
-        &m_locked_tables_root, sizeof(TABLE *) * (m_locked_tables_count + 1));
+    m_reopen_array = (TABLE **)m_locked_tables_root.Alloc(
+        sizeof(TABLE *) * (m_locked_tables_count + 1));
     if (m_reopen_array == NULL) {
       unlock_locked_tables(0);
       return true;
@@ -332,7 +332,7 @@ bool Locked_tables_list::reopen_tables(THD *thd) {
   thd->pop_diagnostics_area();
 
   if (reopen_count) {
-    thd->in_lock_tables = 1;
+    thd->in_lock_tables = true;
     /*
       We re-lock all tables with mysql_lock_tables() at once rather
       than locking one table at a time because of the case
@@ -346,7 +346,7 @@ bool Locked_tables_list::reopen_tables(THD *thd) {
     */
     lock =
         mysql_lock_tables(thd, m_reopen_array, reopen_count, MYSQL_OPEN_REOPEN);
-    thd->in_lock_tables = 0;
+    thd->in_lock_tables = false;
     if (lock == NULL ||
         (merged_lock = mysql_lock_merge(thd->lock, lock)) == NULL) {
       unlink_all_closed_tables(thd, lock, reopen_count);
@@ -435,11 +435,48 @@ void Locked_tables_list::add_rename_tablespace_mdls(MDL_ticket *src,
   m_rename_tablespace_mdls.push_back({src, dst});
 }
 
+namespace {
+/*
+  For purposes of Locked_tables_list::adjust_renamed_tablespace_mdls()
+  we need to treat two tickets belonging to the same lock as equal.
+*/
+struct MDL_ticket_same_lock_hash {
+  size_t operator()(const MDL_ticket *ticket) const {
+    return std::hash<MDL_lock *>()(ticket->get_lock());
+  }
+};
+
+struct MDL_ticket_same_lock_eq {
+  bool operator()(const MDL_ticket *a, const MDL_ticket *b) const {
+    return a->get_lock() == b->get_lock();
+  }
+};
+}  // namespace
+
 void Locked_tables_list::adjust_renamed_tablespace_mdls(MDL_context *mctx) {
+  /*
+    Iterate through MDLs on renamed tablespaces and figure out which
+    should be released and which should be kept.
+    We can't simply release all locks on source and keep locks on destination
+    as it won't work correctly when the same name is used multiple times within
+    the same RENAME TABLES.
+  */
+  std::unordered_set<MDL_ticket *, MDL_ticket_same_lock_hash,
+                     MDL_ticket_same_lock_eq>
+      to_release, to_keep;
+
   for (auto &mp : m_rename_tablespace_mdls) {
-    mctx->release_all_locks_for_name(mp.m_src);
-    mctx->set_lock_duration(mp.m_dst, MDL_EXPLICIT);
-    mp.m_dst->downgrade_lock(MDL_INTENTION_EXCLUSIVE);
+    to_release.insert(mp.m_src);
+    to_keep.erase(mp.m_src);
+    to_keep.insert(mp.m_dst);
+    to_release.erase(mp.m_dst);
   }
   m_rename_tablespace_mdls.clear();
+
+  for (MDL_ticket *t : to_release) mctx->release_all_locks_for_name(t);
+
+  for (MDL_ticket *t : to_keep) {
+    mctx->set_lock_duration(t, MDL_EXPLICIT);
+    t->downgrade_lock(MDL_INTENTION_EXCLUSIVE);
+  }
 }

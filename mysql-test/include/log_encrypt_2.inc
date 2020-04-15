@@ -3,13 +3,17 @@
 
 --source include/no_valgrind_without_big.inc
 
+SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
+
 CREATE TABLE t1(c1 int) ENGINE=InnoDB ENCRYPTION="Y";
 
 DROP TABLE t1;
 
 # Restart the server with keyring loaded
---let restart_parameters="restart:$KEYRING_PARAMS"
+--let restart_parameters="restart:$KEYRING_PARAMS --innodb_redo_log_encrypt=$redo_log_mode"
 --source include/restart_mysqld_no_echo.inc
+
+SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 
@@ -30,25 +34,60 @@ INSERT INTO t1 VALUES(6, "ggggg");
 INSERT INTO t1 VALUES(7, "hhhhh");
 INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
 
 SELECT * FROM t1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
---let restart_parameters="restart:$KEYRING_PARAMS"
+--let restart_parameters="restart:$KEYRING_PARAMS --innodb_redo_log_encrypt=$redo_log_mode"
 --source include/restart_mysqld_no_echo.inc
+
+SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
 
 SELECT * FROM t1 LIMIT 10;
 
-# Key rotation.
+if (`select locate("KEYRING_KEY", "$redo_log_mode") > 0`) {
+
+# KEYRING_KEY related tests
+
+SELECT rotate_system_key("percona_redo");
+
+--let $wait_condition = select variable_value = 2 from performance_schema.global_status where variable_name = 'innodb_encryption_redo_key_version'
+--source include/wait_condition.inc
+
+--let $server_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--let $percona_key_name_v2=percona_redo-$server_uuid:2
+
+# Check that a new key was created inside keyring
+--let SEARCH_PATTERN=$percona_key_name_v2
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$MYSQL_TMP_DIR/mysecret_keyring2
+--source include/search_pattern_in_file.inc
+
+SELECT rotate_system_key("percona_redo");
+
+--let $wait_condition = select variable_value = 3 from performance_schema.global_status where variable_name = 'innodb_encryption_redo_key_version'
+--source include/wait_condition.inc
+
+--let $percona_key_name_v3=percona_redo-$server_uuid:3
+
+# Check that a new key was created inside keyring
+--let SEARCH_PATTERN=$percona_key_name_v3
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$MYSQL_TMP_DIR/mysecret_keyring2
+--source include/search_pattern_in_file.inc
+
+# EOF KEYRING_KEY related tests
+}
+
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 
 DROP TABLE t1;
@@ -66,29 +105,41 @@ INSERT INTO t1 VALUES(6, "ggggg");
 INSERT INTO t1 VALUES(7, "hhhhh");
 INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
 
 # Restart to confirm the encryption info can be retrieved properly.
---let restart_parameters="restart:$KEYRING_PARAMS"
+--let restart_parameters="restart:$KEYRING_PARAMS --innodb_redo_log_encrypt=$redo_log_mode"
 --let $restart_hide_args = 1
 --source include/kill_and_restart_mysqld.inc
 
+SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
+
 SELECT * FROM t1 LIMIT 10;
-DROP TABLE t1;
 
 let $restart_parameters = restart: $KEYRING_PARAMS --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
 --replace_regex /\.dll/.so/
 --source include/restart_mysqld_no_echo.inc
 
+INSERT INTO t1 SELECT * FROM t1;
+DROP TABLE t1;
+
+let $restart_parameters = restart: $KEYRING_PARAMS --general-log --log-output=FILE --innodb_redo_log_encrypt=$redo_log_mode --general_log_file=$MYSQL_TMP_DIR/keyring_query_log;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
+--replace_regex /\.dll/.so/
+--source include/restart_mysqld_no_echo.inc
+
+SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
+
+#
 # Check no effect of block_encryption_mode = 'aes-256-cbc' variable on table encryption
 SET block_encryption_mode = 'aes-256-cbc';
 # Test encryption .

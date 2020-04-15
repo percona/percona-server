@@ -54,11 +54,10 @@ st_mysql_information_schema trx_information_schema = {
     MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION};
 
 ST_FIELD_INFO trx_field_info[] = {
-    {"trx_id", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"trx_mysql_thread_id", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL,
-     SKIP_OPEN_TABLE},
-    {"trx_time", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}};
+    {"trx_id", 0, MYSQL_TYPE_LONGLONG, 0, 0, nullptr, 0},
+    {"trx_mysql_thread_id", 0, MYSQL_TYPE_LONGLONG, 0, 0, nullptr, 0},
+    {"trx_time", 0, MYSQL_TYPE_LONGLONG, 0, 0, nullptr, 0},
+    {nullptr, 0, MYSQL_TYPE_NULL, 0, 0, nullptr, 0}};
 
 struct trx_extra_t {
   THD *thd;
@@ -133,22 +132,17 @@ st_mysql_information_schema lock_waits_information_schema = {
     MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION};
 
 ST_FIELD_INFO lock_waits_field_info[] = {
-    {"requesting_trx_id", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"blocking_trx_id", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"lock_waits_dname", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"lock_waits_key_left", 256, MYSQL_TYPE_STRING, 0, 0, NULL,
-     SKIP_OPEN_TABLE},
-    {"lock_waits_key_right", 256, MYSQL_TYPE_STRING, 0, 0, NULL,
-     SKIP_OPEN_TABLE},
-    {"lock_waits_start_time", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL,
-     SKIP_OPEN_TABLE},
-    {"lock_waits_table_schema", 256, MYSQL_TYPE_STRING, 0, 0, NULL,
-     SKIP_OPEN_TABLE},
-    {"lock_waits_table_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL,
-     SKIP_OPEN_TABLE},
-    {"lock_waits_table_dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL,
-     SKIP_OPEN_TABLE},
-    {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}};
+    {"requesting_trx_id", 0, MYSQL_TYPE_LONGLONG, 0, 0, nullptr, 0},
+    {"blocking_trx_id", 0, MYSQL_TYPE_LONGLONG, 0, 0, nullptr, 0},
+    {"lock_waits_dname", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"lock_waits_key_left", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"lock_waits_key_right", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"lock_waits_start_time", 0, MYSQL_TYPE_LONGLONG, 0, 0, nullptr, 0},
+    {"lock_waits_table_schema", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"lock_waits_table_name", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"lock_waits_table_dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, nullptr,
+     0},
+    {nullptr, 0, MYSQL_TYPE_NULL, 0, 0, nullptr, 0}};
 
 struct lock_waits_extra_t {
   THD *thd;
@@ -243,17 +237,15 @@ st_mysql_information_schema locks_information_schema = {
     MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION};
 
 ST_FIELD_INFO locks_field_info[] = {
-    {"locks_trx_id", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"locks_mysql_thread_id", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL,
-     SKIP_OPEN_TABLE},
-    {"locks_dname", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"locks_key_left", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"locks_key_right", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"locks_table_schema", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"locks_table_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"locks_table_dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL,
-     SKIP_OPEN_TABLE},
-    {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}};
+    {"locks_trx_id", 0, MYSQL_TYPE_LONGLONG, 0, 0, nullptr, 0},
+    {"locks_mysql_thread_id", 0, MYSQL_TYPE_LONGLONG, 0, 0, nullptr, 0},
+    {"locks_dname", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"locks_key_left", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"locks_key_right", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"locks_table_schema", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"locks_table_name", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"locks_table_dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {nullptr, 0, MYSQL_TYPE_NULL, 0, 0, nullptr, 0}};
 
 struct locks_extra_t {
   THD *thd;
@@ -355,13 +347,12 @@ st_mysql_information_schema file_map_information_schema = {
     MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION};
 
 ST_FIELD_INFO file_map_field_info[] = {
-    {"dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"internal_file_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"table_schema", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"table_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"table_dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL,
-     SKIP_OPEN_TABLE},
-    {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}};
+    {"dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"internal_file_name", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"table_schema", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"table_name", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"table_dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {nullptr, 0, MYSQL_TYPE_NULL, 0, 0, nullptr, 0}};
 
 int report_file_map(TABLE *table, THD *thd) {
   int error;
@@ -473,19 +464,16 @@ st_mysql_information_schema fractal_tree_info_information_schema = {
     MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION};
 
 ST_FIELD_INFO fractal_tree_info_field_info[] = {
-    {"dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"internal_file_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"bt_num_blocks_allocated", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL,
-     SKIP_OPEN_TABLE},
-    {"bt_num_blocks_in_use", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL,
-     SKIP_OPEN_TABLE},
-    {"bt_size_allocated", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"bt_size_in_use", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"table_schema", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"table_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"table_dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL,
-     SKIP_OPEN_TABLE},
-    {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}};
+    {"dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"internal_file_name", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"bt_num_blocks_allocated", 0, MYSQL_TYPE_LONGLONG, 0, 0, nullptr, 0},
+    {"bt_num_blocks_in_use", 0, MYSQL_TYPE_LONGLONG, 0, 0, nullptr, 0},
+    {"bt_size_allocated", 0, MYSQL_TYPE_LONGLONG, 0, 0, nullptr, 0},
+    {"bt_size_in_use", 0, MYSQL_TYPE_LONGLONG, 0, 0, nullptr, 0},
+    {"table_schema", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"table_name", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"table_dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {nullptr, 0, MYSQL_TYPE_NULL, 0, 0, nullptr, 0}};
 
 int report_fractal_tree_info_for_db(const DBT *dname, const DBT *iname,
                                     TABLE *table, THD *thd) {
@@ -639,19 +627,16 @@ st_mysql_information_schema fractal_tree_block_map_information_schema = {
     MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION};
 
 ST_FIELD_INFO fractal_tree_block_map_field_info[] = {
-    {"dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"internal_file_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"checkpoint_count", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"blocknum", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"offset", 0, MYSQL_TYPE_LONGLONG, 0, MY_I_S_MAYBE_NULL, NULL,
-     SKIP_OPEN_TABLE},
-    {"size", 0, MYSQL_TYPE_LONGLONG, 0, MY_I_S_MAYBE_NULL, NULL,
-     SKIP_OPEN_TABLE},
-    {"table_schema", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"table_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"table_dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL,
-     SKIP_OPEN_TABLE},
-    {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}};
+    {"dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"internal_file_name", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"checkpoint_count", 0, MYSQL_TYPE_LONGLONG, 0, 0, nullptr, 0},
+    {"blocknum", 0, MYSQL_TYPE_LONGLONG, 0, 0, nullptr, 0},
+    {"offset", 0, MYSQL_TYPE_LONGLONG, 0, MY_I_S_MAYBE_NULL, nullptr, 0},
+    {"size", 0, MYSQL_TYPE_LONGLONG, 0, MY_I_S_MAYBE_NULL, nullptr, 0},
+    {"table_schema", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"table_name", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"table_dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {nullptr, 0, MYSQL_TYPE_NULL, 0, 0, nullptr, 0}};
 
 struct report_fractal_tree_block_map_iterator_extra_t {
   int64_t num_rows;
@@ -886,18 +871,16 @@ st_mysql_information_schema background_job_status_information_schema = {
     MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION};
 
 ST_FIELD_INFO background_job_status_field_info[] = {
-    {"id", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"database_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"table_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"job_type", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"job_params", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"scheduler", 32, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"scheduled_time", 0, MYSQL_TYPE_DATETIME, 0, 0, NULL, SKIP_OPEN_TABLE},
-    {"started_time", 0, MYSQL_TYPE_DATETIME, 0, MY_I_S_MAYBE_NULL, NULL,
-     SKIP_OPEN_TABLE},
-    {"status", 1024, MYSQL_TYPE_STRING, 0, MY_I_S_MAYBE_NULL, NULL,
-     SKIP_OPEN_TABLE},
-    {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}};
+    {"id", 0, MYSQL_TYPE_LONGLONG, 0, 0, nullptr, 0},
+    {"database_name", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"table_name", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"job_type", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"job_params", 256, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"scheduler", 32, MYSQL_TYPE_STRING, 0, 0, nullptr, 0},
+    {"scheduled_time", 0, MYSQL_TYPE_DATETIME, 0, 0, nullptr, 0},
+    {"started_time", 0, MYSQL_TYPE_DATETIME, 0, MY_I_S_MAYBE_NULL, nullptr, 0},
+    {"status", 1024, MYSQL_TYPE_STRING, 0, MY_I_S_MAYBE_NULL, nullptr, 0},
+    {nullptr, 0, MYSQL_TYPE_NULL, 0, 0, nullptr, 0}};
 
 struct background_job_status_extra {
   THD *thd;

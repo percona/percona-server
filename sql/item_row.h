@@ -1,7 +1,7 @@
 #ifndef ITEM_ROW_INCLUDED
 #define ITEM_ROW_INCLUDED
 
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -85,7 +85,7 @@ class Item_row : public Item {
         used_tables_cache(item->used_tables_cache),
         not_null_tables_cache(0),
         arg_count(item->arg_count),
-        with_null(0) {}
+        with_null(false) {}
 
   bool itemize(Parse_context *pc, Item **res) override;
 
@@ -128,7 +128,8 @@ class Item_row : public Item {
   enum Item_result result_type() const override { return ROW_RESULT; }
   void update_used_tables() override;
   table_map not_null_tables() const override { return not_null_tables_cache; }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
 
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
   Item *transform(Item_transformer transformer, uchar *arg) override;

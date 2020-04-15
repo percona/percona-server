@@ -2608,6 +2608,7 @@ Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 INSERT INTO t1 VALUES (FOUND_ROWS());
 Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 INSERT INTO t1 VALUES (GET_LOCK('tmp', 1));
 Warnings:
@@ -2707,7 +2708,7 @@ CREATE TABLE insert_2_keys (a INT UNIQUE KEY, b INT UNIQUE KEY) ENGINE = InnoDB;
 INSERT INTO insert_2_keys values (1, 1);
 INSERT IGNORE INTO insert_table SELECT * FROM filler_table;
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 'insert_table.PRIMARY'
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. INSERT IGNORE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave.
 TRUNCATE TABLE insert_table;
 INSERT INTO insert_table SELECT * FROM filler_table ON DUPLICATE KEY UPDATE a = 1;
@@ -2719,7 +2720,7 @@ Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. REPLACE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave.
 UPDATE IGNORE update_table SET a=2;
 Warnings:
-Warning	1062	Duplicate entry '2' for key 'PRIMARY'
+Warning	1062	Duplicate entry '2' for key 'update_table.PRIMARY'
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. UPDATE IGNORE is unsafe because the order in which rows are updated determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave.
 CREATE TABLE create_ignore_test (a INT, b INT, PRIMARY KEY(b)) IGNORE SELECT * FROM filler_table;
 Warnings:
@@ -2741,4 +2742,20 @@ DROP TABLE replace_table;
 DROP TABLE create_ignore_test;
 DROP TABLE create_replace_test;
 DROP TABLE insert_2_keys;
+#
+# Bug#28297486: WL#9418: ERROR AND WARNING RELATED ISSUES
+#
+CREATE TABLE t(d DOUBLE DEFAULT (RAND()));
+CREATE FUNCTION f() RETURNS INT
+BEGIN
+INSERT INTO t VALUES ();
+RETURN 123;
+END|
+SELECT f();
+f()
+123
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it invokes a trigger or a stored function that modifies a table that has a column with a DEFAULT expression that may return a different value on the slave.
+DROP FUNCTION f;
+DROP TABLE t;
 "End of tests"

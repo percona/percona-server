@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,23 +25,24 @@
 SET(CMAKE_INSTALL_MESSAGE LAZY)
 
 IF(INSTALL_MYSQLTESTDIR)
-INSTALL(
-  DIRECTORY .
-  DESTINATION ${INSTALL_MYSQLTESTDIR}
-  USE_SOURCE_PERMISSIONS
-  COMPONENT Test
-  PATTERN "var" EXCLUDE
-  PATTERN "var/" EXCLUDE
-  PATTERN "lib/My/SafeProcess" EXCLUDE
-  PATTERN "lib/t*" EXCLUDE
-  PATTERN "CPack" EXCLUDE
-  PATTERN "CMake*" EXCLUDE
-  PATTERN "Makefile" EXCLUDE
-  PATTERN "mtr.out*" EXCLUDE
-  PATTERN "*.cmake" EXCLUDE
-  PATTERN "*.in" EXCLUDE
-)
-  IF(NOT INSTALL_LAYOUT MATCHES "RPM")
+  INSTALL(
+    DIRECTORY .
+    DESTINATION ${INSTALL_MYSQLTESTDIR}
+    USE_SOURCE_PERMISSIONS
+    COMPONENT Test
+    PATTERN "var" EXCLUDE
+    PATTERN "var/" EXCLUDE
+    PATTERN "lib/My/SafeProcess" EXCLUDE
+    PATTERN "lib/t*" EXCLUDE
+    PATTERN "CPack" EXCLUDE
+    PATTERN "CMake*" EXCLUDE
+    PATTERN "Makefile" EXCLUDE
+    PATTERN "mtr.out*" EXCLUDE
+    PATTERN "*.cmake" EXCLUDE
+    PATTERN "*.in" EXCLUDE
+    )
+  IF(NOT INSTALL_LAYOUT MATCHES "RPM" AND
+      NOT INSTALL_LAYOUT MATCHES "DEB")
     INSTALL(FILES ${CMAKE_SOURCE_DIR}/LICENSE
       DESTINATION ${INSTALL_DOCREADMEDIR}
       COMPONENT TestReadme
@@ -58,6 +59,13 @@ ENDIF()
 
 IF(NOT ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
   # Enable running mtr from build directory
+  FIND_PROGRAM(PERL_EXECUTABLE perl
+    /usr/bin /usr/local/bin
+    NO_CMAKE_ENVIRONMENT_PATH
+    NO_SYSTEM_ENVIRONMENT_PATH)
+  # If not found in hard-coded list above, look in PATH as well.
+  FIND_PROGRAM(PERL_EXECUTABLE perl)
+
   CONFIGURE_FILE(
     ${CMAKE_CURRENT_SOURCE_DIR}/mtr.out-of-source 
     ${CMAKE_CURRENT_BINARY_DIR}/mysql-test-run.pl
@@ -92,12 +100,11 @@ IF(DEBUG_EXTNAME)
 ENDIF()
 
 IF(CMAKE_BUILD_TYPE)
-  IF(CMAKE_BUILD_TYPE MATCHES "Debug")
+  IF(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
     SET(DEBUG_SERVER "--debug-server")
   ELSE()
     SET(DEBUG_SERVER "")
-    IF(CMAKE_GENERATOR MATCHES "Visual Studio" OR
-       CMAKE_GENERATOR MATCHES "Xcode")
+    IF(NOT BUILD_IS_SINGLE_CONFIG)
       SET(VS_CONFIG "--vs-config=${CMAKE_CFG_INTDIR}")
     ENDIF()
   ENDIF()

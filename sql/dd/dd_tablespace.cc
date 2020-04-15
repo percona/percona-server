@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -115,7 +115,7 @@ bool fill_table_and_parts_tablespace_names(
           return true;
 
       // Iterate through tablespace names used by subpartition/indexes.
-      for (const dd::Partition *sub_part_obj : part_obj->sub_partitions()) {
+      for (const dd::Partition *sub_part_obj : part_obj->subpartitions()) {
         if (get_and_store_tablespace_name(thd, sub_part_obj, tablespace_set))
           return true;
 
@@ -204,6 +204,12 @@ bool get_tablespace_name(THD *thd, const T *obj, const char **tablespace_name,
 
 template bool get_tablespace_name<dd::Partition>(THD *, dd::Partition const *,
                                                  char const **, MEM_ROOT *);
+template bool get_tablespace_name<dd::Partition_index>(
+    THD *, dd::Partition_index const *, char const **, MEM_ROOT *);
+template bool get_tablespace_name<dd::Index>(THD *, dd::Index const *,
+                                             char const **, MEM_ROOT *);
+template bool get_tablespace_name<dd::Table>(THD *, dd::Table const *,
+                                             char const **, MEM_ROOT *);
 
 /**
  @endcond

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 #include "client/dump/column_statistic.h"
 #include "client/dump/event_scheduler_event.h"
 #include "client/dump/mysql_function.h"
+#include "client/dump/mysqldump_tool_chain_maker_options.h"
 #include "client/dump/privilege.h"
 #include "client/dump/stored_procedure.h"
 #include "client/dump/table_deferred_indexes_dump_task.h"
@@ -128,6 +129,9 @@ void Mysql_crawler::enumerate_objects() {
   m_dump_end_task->add_dependency(m_tables_definition_ready_dump_task);
   this->process_dump_task(m_tables_definition_ready_dump_task);
 
+  /* SHOW CREATE USER is introduced in 5.7.6 */
+  if (use_show_create_user) this->enumerate_users();
+
   std::vector<Database *>::iterator it;
   std::vector<Database_end_dump_task *>::iterator it_end;
   for (it = db_list.begin(), it_end = db_end_task_list.begin();
@@ -140,8 +144,6 @@ void Mysql_crawler::enumerate_objects() {
   }
 
   Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&databases);
-
-  this->enumerate_users();
 
   this->process_dump_task(m_dump_end_task);
 
@@ -188,7 +190,8 @@ void Mysql_crawler::enumerate_tables(const Database &db) {
     statistics and avoids getting outdated statistics.
   */
   std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row *> t;
-  runner->run_query_store("SET SESSION information_schema_stats_expiry=0", &t);
+  runner->run_query_store(
+      "/*!80000 SET SESSION information_schema_stats_expiry=0 */", &t);
 
   std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row *> tables;
 
@@ -282,8 +285,8 @@ void Mysql_crawler::enumerate_tables(const Database &db) {
     this->process_dump_task(indexes_task);
   }
   Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&tables);
-  runner->run_query_store("SET SESSION information_schema_stats_expiry=default",
-                          &t);
+  runner->run_query_store(
+      "/*!80000 SET SESSION information_schema_stats_expiry=default */", &t);
   delete runner;
 }
 
@@ -315,14 +318,6 @@ void Mysql_crawler::enumerate_views(const Database &db) {
          view_it != check_view.end(); ++view_it) {
       const Mysql::Tools::Base::Mysql_query_runner::Row &is_view = **view_it;
       if (is_view[0] == "1") {
-        /* Check if view dependent objects exists */
-        if (runner->run_query(
-                std::string("LOCK TABLES ") +
-                this->get_quoted_object_full_name(db.get_name(), table_name) +
-                " READ") != 0)
-          return;
-        else
-          runner->run_query(std::string("UNLOCK TABLES"));
         View *view =
             new View(this->generate_new_object_id(), table_name, db.get_name(),
                      this->get_create_statement(runner, db.get_name(),

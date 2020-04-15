@@ -788,11 +788,11 @@ a	FROM_UNIXTIME(a)
 2147483647.9999992	2038-01-19 03:14:07.999999
 2147483647.9999993	2038-01-19 03:14:07.999999
 2147483647.9999994	2038-01-19 03:14:07.999999
-2147483647.9999995	2038-01-19 03:14:08.000000
-2147483647.9999996	2038-01-19 03:14:08.000000
-2147483647.9999997	2038-01-19 03:14:08.000000
-2147483647.9999998	2038-01-19 03:14:08.000000
-2147483647.9999999	2038-01-19 03:14:08.000000
+2147483647.9999995	NULL
+2147483647.9999996	NULL
+2147483647.9999997	NULL
+2147483647.9999998	NULL
+2147483647.9999999	NULL
 DROP TABLE t1;
 SET time_zone=DEFAULT;
 #
@@ -2666,9 +2666,9 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1 WHERE a='01:02:03.456700';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a	a	6	const	1	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	ref	a	a	6	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = '01:02:03.456700')
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = TIME'01:02:03.4567')
 SELECT * FROM t1 WHERE a='01:02:03.456700';
 a
 01:02:03.456700
@@ -3046,7 +3046,7 @@ INSERT INTO t1 VALUES ('00:01:02.123');
 INSERT INTO t1 VALUES ('00:01:02.1234');
 INSERT INTO t1 VALUES ('00:01:02.12345');
 INSERT INTO t1 VALUES ('00:01:02.12345');
-ERROR 23000: Duplicate entry '00:01:02.123450' for key 'a'
+ERROR 23000: Duplicate entry '00:01:02.123450' for key 't1.a'
 DROP TABLE t1;
 #
 # Testing GROUP BY
@@ -3116,7 +3116,7 @@ MAX(t4) + 1, MAX(t5) + 1, MAX(t6) + 1
 FROM t1;
 SHOW COLUMNS FROM t2;
 Field	Type	Null	Key	Default	Extra
-MAX(t0) + 1	int(9)	YES		NULL	
+MAX(t0) + 1	int	YES		NULL	
 MAX(t1) + 1	decimal(9,1)	YES		NULL	
 MAX(t2) + 1	decimal(10,2)	YES		NULL	
 MAX(t3) + 1	decimal(11,3)	YES		NULL	
@@ -3641,25 +3641,25 @@ FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `t0 + 1` int(9) DEFAULT NULL,
+  `t0 + 1` int DEFAULT NULL,
   `t3 + 1` decimal(11,3) DEFAULT NULL,
   `t6 + 1` decimal(14,6) DEFAULT NULL,
-  `t0 - 1` int(9) DEFAULT NULL,
+  `t0 - 1` int DEFAULT NULL,
   `t3 - 1` decimal(11,3) DEFAULT NULL,
   `t6 - 1` decimal(14,6) DEFAULT NULL,
-  `t0 * 1` int(9) DEFAULT NULL,
+  `t0 * 1` int DEFAULT NULL,
   `t3 * 1` decimal(11,3) DEFAULT NULL,
   `t6 * 1` decimal(14,6) DEFAULT NULL,
   `t0 / 1` decimal(11,4) DEFAULT NULL,
   `t3 / 1` decimal(14,7) DEFAULT NULL,
   `t6 / 1` decimal(17,10) DEFAULT NULL,
-  `TIME'10:10:10' + 1` int(9) NOT NULL DEFAULT '0',
+  `TIME'10:10:10' + 1` int NOT NULL DEFAULT '0',
   `TIME'10:10:10.123' + 1` decimal(11,3) NOT NULL DEFAULT '0.000',
   `TIME'10:10:10.123456' + 1` decimal(14,6) NOT NULL DEFAULT '0.000000',
-  `TIME'10:10:10' - 1` int(9) NOT NULL DEFAULT '0',
+  `TIME'10:10:10' - 1` int NOT NULL DEFAULT '0',
   `TIME'10:10:10.123' - 1` decimal(11,3) NOT NULL DEFAULT '0.000',
   `TIME'10:10:10.123456' - 1` decimal(14,6) NOT NULL DEFAULT '0.000000',
-  `TIME'10:10:10' * 1` int(9) NOT NULL DEFAULT '0',
+  `TIME'10:10:10' * 1` int NOT NULL DEFAULT '0',
   `TIME'10:10:10.123' * 1` decimal(11,3) NOT NULL DEFAULT '0.000',
   `TIME'10:10:10.123456' * 1` decimal(14,6) NOT NULL DEFAULT '0.000000',
   `TIME'10:10:10' / 1` decimal(11,4) DEFAULT NULL,
@@ -5114,7 +5114,7 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 #
-# Testing Item_time_typecast::val_str
+# Testing Item_typecast_time::val_str
 #
 SELECT CONCAT(CAST(a AS TIME(0))), CONCAT(CAST(b AS TIME(0))) FROM t1;
 CONCAT(CAST(a AS TIME(0)))	CONCAT(CAST(b AS TIME(0)))
@@ -5126,7 +5126,7 @@ SELECT CONCAT(CAST(a AS TIME)), CONCAT(CAST(b AS TIME)) FROM t1;
 CONCAT(CAST(a AS TIME))	CONCAT(CAST(b AS TIME))
 11:22:33	11:22:33
 #
-# Testing Item_time_typecast::get_time
+# Testing Item_typecast_time::get_time
 #
 SELECT CAST(a AS TIME(0)), CAST(b AS TIME(0)) FROM t1;
 CAST(a AS TIME(0))	CAST(b AS TIME(0))
@@ -5139,13 +5139,13 @@ CAST(a AS TIME)	CAST(b AS TIME)
 11:22:33	11:22:33
 DROP TABLE t1;
 #
-# Testing Item_time_typecast::val_int
+# Testing Item_typecast_time::val_int
 #
 SELECT CAST('10:11:12' AS TIME(0)) + 1;
 CAST('10:11:12' AS TIME(0)) + 1
 101113
 #
-# Testing Item_time_typecast::val_decimal
+# Testing Item_typecast_time::val_decimal
 #
 SELECT CAST('10:11:12' AS TIME(6)) + 1;
 CAST('10:11:12' AS TIME(6)) + 1
@@ -5257,7 +5257,7 @@ SELECT CAST(101112.123e0 AS TIME(0)) = 101112;
 CAST(101112.123e0 AS TIME(0)) = 101112
 1
 #
-# Testing Item_time_typecast::val_int_packed()
+# Testing Item_typecast_time::val_int_packed()
 #
 CREATE TABLE t1 (a TIME, b TIME(6));
 INSERT INTO t1 VALUES ('24:00:00', '24:00:00.123456');
@@ -7192,7 +7192,7 @@ EXPLAIN SELECT * FROM t1 WHERE a='2000-01-01 01:02:03.456700';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a	a	8	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = '2000-01-01 01:02:03.456700')
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = TIMESTAMP'2000-01-01 01:02:03.4567')
 SELECT * FROM t1 WHERE a='2000-01-01 01:02:03.456700';
 a
 2000-01-01 01:02:03.456700
@@ -8013,7 +8013,7 @@ INSERT INTO t1 VALUES ('2000-01-01 00:01:02.123');
 INSERT INTO t1 VALUES ('2000-01-01 00:01:02.1234');
 INSERT INTO t1 VALUES ('2000-01-01 00:01:02.12345');
 INSERT INTO t1 VALUES ('2000-01-01 00:01:02.12345');
-ERROR 23000: Duplicate entry '2000-01-01 00:01:02.123450' for key 'a'
+ERROR 23000: Duplicate entry '2000-01-01 00:01:02.123450' for key 't1.a'
 DROP TABLE t1;
 #
 # Testing GROUP BY
@@ -8074,7 +8074,7 @@ MAX(t4) + 1, MAX(t5) + 1, MAX(t6) + 1
 FROM t1;
 SHOW COLUMNS FROM t2;
 Field	Type	Null	Key	Default	Extra
-MAX(t0) + 1	bigint(16)	YES		NULL	
+MAX(t0) + 1	bigint	YES		NULL	
 MAX(t1) + 1	decimal(16,1)	YES		NULL	
 MAX(t2) + 1	decimal(17,2)	YES		NULL	
 MAX(t3) + 1	decimal(18,3)	YES		NULL	
@@ -8533,25 +8533,25 @@ FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `t0 + 1` bigint(16) DEFAULT NULL,
+  `t0 + 1` bigint DEFAULT NULL,
   `t3 + 1` decimal(18,3) DEFAULT NULL,
   `t6 + 1` decimal(21,6) DEFAULT NULL,
-  `t0 - 1` bigint(16) DEFAULT NULL,
+  `t0 - 1` bigint DEFAULT NULL,
   `t3 - 1` decimal(18,3) DEFAULT NULL,
   `t6 - 1` decimal(21,6) DEFAULT NULL,
-  `t0 * 1` bigint(16) DEFAULT NULL,
+  `t0 * 1` bigint DEFAULT NULL,
   `t3 * 1` decimal(18,3) DEFAULT NULL,
   `t6 * 1` decimal(21,6) DEFAULT NULL,
   `t0 / 1` decimal(18,4) DEFAULT NULL,
   `t3 / 1` decimal(21,7) DEFAULT NULL,
   `t6 / 1` decimal(24,10) DEFAULT NULL,
-  `TIMESTAMP'2001-01-01 10:10:10' + 1` bigint(16) NOT NULL DEFAULT '0',
+  `TIMESTAMP'2001-01-01 10:10:10' + 1` bigint NOT NULL DEFAULT '0',
   `TIMESTAMP'2001-01-01 10:10:10.123' + 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `TIMESTAMP'2001-01-01 10:10:10.123456' + 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
-  `TIMESTAMP'2001-01-01 10:10:10' - 1` bigint(16) NOT NULL DEFAULT '0',
+  `TIMESTAMP'2001-01-01 10:10:10' - 1` bigint NOT NULL DEFAULT '0',
   `TIMESTAMP'2001-01-01 10:10:10.123' - 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `TIMESTAMP'2001-01-01 10:10:10.123456' - 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
-  `TIMESTAMP'2001-01-01 10:10:10' * 1` bigint(16) NOT NULL DEFAULT '0',
+  `TIMESTAMP'2001-01-01 10:10:10' * 1` bigint NOT NULL DEFAULT '0',
   `TIMESTAMP'2001-01-01 10:10:10.123' * 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `TIMESTAMP'2001-01-01 10:10:10.123456' * 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
   `TIMESTAMP'2001-01-01 10:10:10' / 1` decimal(18,4) DEFAULT NULL,
@@ -10084,7 +10084,7 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 #
-# Testing Item_datetime_typecast::val_str
+# Testing Item_typecast_datetime::val_str
 #
 SELECT CONCAT(CAST(a AS DATETIME(0))), CONCAT(CAST(b AS DATETIME(0))) FROM t1;
 CONCAT(CAST(a AS DATETIME(0)))	CONCAT(CAST(b AS DATETIME(0)))
@@ -10096,7 +10096,7 @@ SELECT CONCAT(CAST(a AS DATETIME)), CONCAT(CAST(b AS DATETIME)) FROM t1;
 CONCAT(CAST(a AS DATETIME))	CONCAT(CAST(b AS DATETIME))
 2001-01-01 11:22:33	2001-01-01 11:22:33
 #
-# Testing Item_datetime_typecast::get_time
+# Testing Item_typecast_datetime::get_time
 #
 SELECT CAST(a AS DATETIME(0)), CAST(b AS DATETIME(0)) FROM t1;
 CAST(a AS DATETIME(0))	CAST(b AS DATETIME(0))
@@ -10109,13 +10109,13 @@ CAST(a AS DATETIME)	CAST(b AS DATETIME)
 2001-01-01 11:22:33	2001-01-01 11:22:33
 DROP TABLE t1;
 #
-# Testing Item_datetime_typecast::val_int
+# Testing Item_typecast_datetime::val_int
 #
 SELECT CAST('2001-01-01 10:11:12' AS DATETIME(0)) + 1;
 CAST('2001-01-01 10:11:12' AS DATETIME(0)) + 1
 20010101101113
 #
-# Testing Item_time_typecast::val_decimal
+# Testing Item_typecast_time::val_decimal
 #
 SELECT CAST('2001-01-01 10:11:12' AS DATETIME(6)) + 1;
 CAST('2001-01-01 10:11:12' AS DATETIME(6)) + 1
@@ -10193,7 +10193,7 @@ SELECT CAST(00010101101112.123e0 AS DATETIME(0))      = 20010101101112;
 CAST(00010101101112.123e0 AS DATETIME(0))      = 20010101101112
 1
 #
-# Testing Item_time_typecast::val_int_packed()
+# Testing Item_typecast_time::val_int_packed()
 #
 CREATE TABLE t1 (a DATETIME, b DATETIME(6));
 INSERT INTO t1 VALUES ('2001-01-01 23:00:00', '2001-01-01 23:00:00.123456');
@@ -12326,7 +12326,7 @@ EXPLAIN SELECT * FROM t1 WHERE a='2000-01-01 01:02:03.456700';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a	a	7	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = '2000-01-01 01:02:03.456700')
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = TIMESTAMP'2000-01-01 01:02:03.4567')
 SELECT * FROM t1 WHERE a='2000-01-01 01:02:03.456700';
 a
 2000-01-01 01:02:03.456700
@@ -12735,7 +12735,7 @@ INSERT INTO t1 VALUES ('2000-01-01 00:01:02.123');
 INSERT INTO t1 VALUES ('2000-01-01 00:01:02.1234');
 INSERT INTO t1 VALUES ('2000-01-01 00:01:02.12345');
 INSERT INTO t1 VALUES ('2000-01-01 00:01:02.12345');
-ERROR 23000: Duplicate entry '2000-01-01 00:01:02.123450' for key 'a'
+ERROR 23000: Duplicate entry '2000-01-01 00:01:02.123450' for key 't1.a'
 DROP TABLE t1;
 #
 # Testing GROUP BY
@@ -13233,25 +13233,25 @@ FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `t0 + 1` bigint(16) NOT NULL DEFAULT '0',
+  `t0 + 1` bigint NOT NULL DEFAULT '0',
   `t3 + 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `t6 + 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
-  `t0 - 1` bigint(16) NOT NULL DEFAULT '0',
+  `t0 - 1` bigint NOT NULL DEFAULT '0',
   `t3 - 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `t6 - 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
-  `t0 * 1` bigint(16) NOT NULL DEFAULT '0',
+  `t0 * 1` bigint NOT NULL DEFAULT '0',
   `t3 * 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `t6 * 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
   `t0 / 1` decimal(18,4) DEFAULT NULL,
   `t3 / 1` decimal(21,7) DEFAULT NULL,
   `t6 / 1` decimal(24,10) DEFAULT NULL,
-  `TIMESTAMP'2001-01-01 10:10:10' + 1` bigint(16) NOT NULL DEFAULT '0',
+  `TIMESTAMP'2001-01-01 10:10:10' + 1` bigint NOT NULL DEFAULT '0',
   `TIMESTAMP'2001-01-01 10:10:10.123' + 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `TIMESTAMP'2001-01-01 10:10:10.123456' + 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
-  `TIMESTAMP'2001-01-01 10:10:10' - 1` bigint(16) NOT NULL DEFAULT '0',
+  `TIMESTAMP'2001-01-01 10:10:10' - 1` bigint NOT NULL DEFAULT '0',
   `TIMESTAMP'2001-01-01 10:10:10.123' - 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `TIMESTAMP'2001-01-01 10:10:10.123456' - 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
-  `TIMESTAMP'2001-01-01 10:10:10' * 1` bigint(16) NOT NULL DEFAULT '0',
+  `TIMESTAMP'2001-01-01 10:10:10' * 1` bigint NOT NULL DEFAULT '0',
   `TIMESTAMP'2001-01-01 10:10:10.123' * 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `TIMESTAMP'2001-01-01 10:10:10.123456' * 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
   `TIMESTAMP'2001-01-01 10:10:10' / 1` decimal(18,4) DEFAULT NULL,
@@ -15500,6 +15500,8 @@ SELECT @@timestamp;
 @@timestamp
 1308300674.000000
 CREATE TABLE t1 AS SELECT @@timestamp;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
 @@timestamp	double(22,6)	YES		NULL	
@@ -15529,6 +15531,8 @@ DROP TABLE t1;
 #
 CREATE TABLE t1
 (first_usage DATE, last_recharge DATETIME, life_time SMALLINT(4) UNSIGNED);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES ('2011-04-27', null, 900);
 SELECT
 DATE_ADD(GREATEST(first_usage, IFNULL(last_recharge, first_usage)), INTERVAL life_time DAY ) as dt,
@@ -15589,6 +15593,8 @@ SYSDATE(6) LIKE '____-__-__ __:__:__.______'
 SELECT SYSDATE(6) NOT LIKE '%.000000' || SYSDATE(6) NOT LIKE '%.000000';
 SYSDATE(6) NOT LIKE '%.000000' || SYSDATE(6) NOT LIKE '%.000000'
 1
+Warnings:
+Warning	1287	'|| as a synonym for OR' is deprecated and will be removed in a future release. Please use OR instead
 CREATE TABLE t1 (s1 DATETIME(2));
 INSERT INTO t1 VALUES ('1970-01-01 11:11:11.1234');
 SELECT * FROM t1;
@@ -16472,7 +16478,6 @@ c1
 Warnings:
 Warning	1292	Truncated incorrect time value: '2006-07-16'
 Warning	1292	Truncated incorrect time value: '2006-07-16'
-Warning	1292	Truncated incorrect time value: '2006-07-16'
 DROP TABLE t1;
 CREATE TABLE t1 (
 col_timestamp_3_not_null_key timestamp(3) NULL DEFAULT '0000-00-00 00:00:00.000',
@@ -16900,6 +16905,8 @@ OR col_datetime_6_not_null_key < TIMEDIFF('0000-00-00','2002-11-24' )
 AND col_timestamp_6_not_null_key IS NULL;
 c1
 Warnings:
+Warning	1292	Truncated incorrect time value: '0000-00-00'
+Warning	1292	Truncated incorrect time value: '2002-11-24'
 Warning	1292	Truncated incorrect time value: '0000-00-00'
 Warning	1292	Truncated incorrect time value: '2002-11-24'
 Warning	1292	Truncated incorrect time value: '0000-00-00'
@@ -17611,3 +17618,139 @@ Warnings:
 Warning	1441	Datetime function: add_time field overflow
 SET @@session.sql_buffer_result=default;
 DROP TABLE t1;
+#
+# Bug #28671811 FROM_UNIXTIME ACCEPTS AN OUT OF RANGE PARAMETER
+#               THROUGH ROUNDING
+#
+SET time_zone='+00:00';
+SELECT
+FROM_UNIXTIME(2147483647) AS c1,
+FROM_UNIXTIME(2147483648) AS c2,
+FROM_UNIXTIME(2147483647.9999999) AS c3;
+c1	c2	c3
+2038-01-19 03:14:07	NULL	NULL
+SET time_zone=default;
+SELECT
+FROM_UNIXTIME(2147483647) AS c1,
+FROM_UNIXTIME(2147483648) AS c2,
+FROM_UNIXTIME(2147483647.9999999) AS c3;
+c1	c2	c3
+2038-01-19 06:14:07	NULL	NULL
+SET sql_mode=time_truncate_fractional;
+SET time_zone='+00:00';
+SELECT
+FROM_UNIXTIME(2147483647) AS c1,
+FROM_UNIXTIME(2147483648) AS c2,
+FROM_UNIXTIME(2147483647.9999999) AS c3;
+c1	c2	c3
+2038-01-19 03:14:07	NULL	2038-01-19 03:14:07.999999
+SET time_zone=default;
+SELECT
+FROM_UNIXTIME(2147483647) AS c1,
+FROM_UNIXTIME(2147483648) AS c2,
+FROM_UNIXTIME(2147483647.9999999) AS c3;
+c1	c2	c3
+2038-01-19 06:14:07	NULL	2038-01-19 06:14:07.999999
+SET sql_mode=default;
+#
+# Bug#29120569 SETTING OUT OF RANGE FRACTIONAL PART PRODUCES
+#              INCORRECT TIMESTAMPS
+#
+SET time_zone='+00:00';
+SET SESSION TIMESTAMP=1.9999996;
+SELECT CURRENT_TIMESTAMP(6);
+CURRENT_TIMESTAMP(6)
+1970-01-01 00:00:01.999999
+CREATE TABLE t0( ts TIMESTAMP(0) not null, dt DATETIME(0) not null);
+CREATE TABLE t1( ts TIMESTAMP(1) not null, dt DATETIME(1) not null);
+CREATE TABLE t2( ts TIMESTAMP(2) not null, dt DATETIME(2) not null);
+CREATE TABLE t3( ts TIMESTAMP(3) not null, dt DATETIME(3) not null);
+CREATE TABLE t4( ts TIMESTAMP(4) not null, dt DATETIME(4) not null);
+CREATE TABLE t5( ts TIMESTAMP(5) not null, dt DATETIME(5) not null);
+CREATE TABLE t6( ts TIMESTAMP(6) not null, dt DATETIME(6) not null);
+INSERT INTO t0 values (CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6));
+INSERT INTO t1 values (CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6));
+INSERT INTO t2 values (CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6));
+INSERT INTO t3 values (CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6));
+INSERT INTO t4 values (CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6));
+INSERT INTO t5 values (CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6));
+INSERT INTO t6 values (CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6));
+SELECT * FROM t0;
+ts	dt
+1970-01-01 00:00:02	1970-01-01 00:00:02
+SELECT * FROM t1;
+ts	dt
+1970-01-01 00:00:02.0	1970-01-01 00:00:02.0
+SELECT * FROM t2;
+ts	dt
+1970-01-01 00:00:02.00	1970-01-01 00:00:02.00
+SELECT * FROM t3;
+ts	dt
+1970-01-01 00:00:02.000	1970-01-01 00:00:02.000
+SELECT * FROM t4;
+ts	dt
+1970-01-01 00:00:02.0000	1970-01-01 00:00:02.0000
+SELECT * FROM t5;
+ts	dt
+1970-01-01 00:00:02.00000	1970-01-01 00:00:02.00000
+SELECT * FROM t6;
+ts	dt
+1970-01-01 00:00:01.999999	1970-01-01 00:00:01.999999
+DROP TABLE t0, t1, t2, t3, t4, t5, t6;
+SET sql_mode=time_truncate_fractional;
+SET SESSION TIMESTAMP=1.9999996;
+CREATE TABLE t0( ts TIMESTAMP(0) not null, dt DATETIME(0) not null);
+CREATE TABLE t1( ts TIMESTAMP(1) not null, dt DATETIME(1) not null);
+CREATE TABLE t2( ts TIMESTAMP(2) not null, dt DATETIME(2) not null);
+CREATE TABLE t3( ts TIMESTAMP(3) not null, dt DATETIME(3) not null);
+CREATE TABLE t4( ts TIMESTAMP(4) not null, dt DATETIME(4) not null);
+CREATE TABLE t5( ts TIMESTAMP(5) not null, dt DATETIME(5) not null);
+CREATE TABLE t6( ts TIMESTAMP(6) not null, dt DATETIME(6) not null);
+INSERT INTO t0 values (CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6));
+INSERT INTO t1 values (CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6));
+INSERT INTO t2 values (CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6));
+INSERT INTO t3 values (CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6));
+INSERT INTO t4 values (CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6));
+INSERT INTO t5 values (CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6));
+INSERT INTO t6 values (CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6));
+SELECT * FROM t0;
+ts	dt
+1970-01-01 00:00:01	1970-01-01 00:00:01
+SELECT * FROM t1;
+ts	dt
+1970-01-01 00:00:01.9	1970-01-01 00:00:01.9
+SELECT * FROM t2;
+ts	dt
+1970-01-01 00:00:01.99	1970-01-01 00:00:01.99
+SELECT * FROM t3;
+ts	dt
+1970-01-01 00:00:01.999	1970-01-01 00:00:01.999
+SELECT * FROM t4;
+ts	dt
+1970-01-01 00:00:01.9999	1970-01-01 00:00:01.9999
+SELECT * FROM t5;
+ts	dt
+1970-01-01 00:00:01.99999	1970-01-01 00:00:01.99999
+SELECT * FROM t6;
+ts	dt
+1970-01-01 00:00:01.999999	1970-01-01 00:00:01.999999
+DROP TABLE t0, t1, t2, t3, t4, t5, t6;
+SET sql_mode=default;
+SET SESSION TIMESTAMP=default;
+SET time_zone=default;
+#
+# Bug#29594951 DECIMAL2LLDIV_T REFERS TO UNINITIALIZED VALUES!
+#
+CREATE TABLE t1 (c1 LONGTEXT);
+INSERT INTO t1 VALUES('2018-10-15 01:29:55');
+SELECT * FROM t1 WHERE
+'2018-10-15 01:29:55'=(c1 + INTERVAL(json_keys(0xceedc36e,'$$')) SECOND);
+ERROR 22032: Cannot create a JSON value from a string with CHARACTER SET 'binary'.
+DROP TABLE t1;
+#
+# Bug#29587536 UBSAN: SIGNED INTEGER OVERFLOW IN
+#              ITEM_DATE_ADD_INTERVAL::GET_TIME_INTERNAL
+#
+do date_add(utc_time(), interval(oct(-11779)) microsecond);
+Warnings:
+Warning	1441	Datetime function: time field overflow

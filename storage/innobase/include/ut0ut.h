@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -46,7 +46,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <string.h>
 #include <algorithm>
-#include <chrono>
+#include <cmath>
+#include <iomanip>
 #include <iterator>
 #include <ostream>
 #include <sstream>
@@ -83,6 +84,18 @@ const char *srv_get_server_errmsgs(int errcode);
 /** Time stamp */
 typedef time_t ib_time_t;
 
+/** Time stamp read from the monotonic clock (returned by ut_time_monotonic()).
+ */
+typedef int64_t ib_time_monotonic_t;
+
+/** Number of milliseconds read from the monotonic clock (returned by
+ * ut_time_monotonic_ms()). */
+typedef int64_t ib_time_monotonic_ms_t;
+
+/** Number of microseconds read from the monotonic clock (returned by
+ * ut_time_monotonic_us()). */
+typedef int64_t ib_time_monotonic_us_t;
+
 #ifndef UNIV_HOTBACKUP
 #if defined(HAVE_PAUSE_INSTRUCTION)
 /* According to the gcc info page, asm volatile means that the
@@ -118,13 +131,17 @@ independent way by using YieldProcessor. */
  if cond becomes true.
  @param cond in: condition to wait for; evaluated every 2 ms
  @param max_wait_us in: maximum delay to wait, in microseconds */
-#define UT_WAIT_FOR(cond, max_wait_us)                               \
-  do {                                                               \
-    uintmax_t start_us;                                              \
-    start_us = ut_time_us(NULL);                                     \
-    while (!(cond) && ut_time_us(NULL) - start_us < (max_wait_us)) { \
-      os_thread_sleep(2000 /* 2 ms */);                              \
-    }                                                                \
+#define UT_WAIT_FOR(cond, max_wait_us)                                        \
+  do {                                                                        \
+    const auto start_us = ut_time_monotonic_us();                             \
+    while (!(cond)) {                                                         \
+      const auto diff = ut_time_monotonic_us() - start_us;                    \
+      const auto limit = max_wait_us;                                         \
+      if (limit <= 0 || (diff > 0 && ((uint64_t)diff) > ((uint64_t)limit))) { \
+        break;                                                                \
+      }                                                                       \
+      os_thread_sleep(2000 /* 2 ms */);                                       \
+    }                                                                         \
   } while (0)
 #else                  /* !UNIV_HOTBACKUP */
 #define UT_RELAX_CPU() /* No op */
@@ -213,37 +230,18 @@ store the given number of bits.
  the only way to manipulate it is to use the function ut_difftime.
  @return system time */
 ib_time_t ut_time(void);
-/** Returns system time.
- Upon successful completion, the value 0 is returned; otherwise the
- value -1 is returned and the global variable errno is set to indicate the
- error.
- @return 0 on success, -1 otherwise */
-int ut_usectime(ulint *sec, /*!< out: seconds since the Epoch */
-                ulint *ms); /*!< out: microseconds since the Epoch+*sec */
 
-/** Returns the number of microseconds since epoch. Similar to
- time(3), the return value is also stored in *tloc, provided
- that tloc is non-NULL.
- @return us since epoch */
-uintmax_t ut_time_us(uintmax_t *tloc); /*!< out: us since epoch, if non-NULL */
-/** Returns the number of milliseconds since some epoch.  The
- value may wrap around.  It should only be used for heuristic
- purposes.
+/** Returns the number of microseconds since epoch. Uses the monotonic clock.
+ @return us since epoch or 0 if failed to retrieve */
+ib_time_monotonic_us_t ut_time_monotonic_us(void);
+
+/** Returns the number of milliseconds since epoch. Uses the monotonic clock.
  @return ms since epoch */
-ulint ut_time_ms(void);
+ib_time_monotonic_ms_t ut_time_monotonic_ms(void);
 
-#ifdef _WIN32
-/** Initialise highest available time resolution API on Windows
- @return false if all OK else true */
-bool ut_win_init_time();
-
-#endif /* _WIN32 */
-
-/** Returns the number of milliseconds since some epoch.  The
- value may wrap around.  It should only be used for heuristic
- purposes.
- @return ms since epoch */
-ulint ut_time_ms(void);
+/** Returns the number of seconds since epoch. Uses the monotonic clock.
+ @return us since epoch or 0 if failed to retrieve */
+ib_time_monotonic_t ut_time_monotonic(void);
 
 /** Returns the difference of two times in seconds.
  @return time2 - time1 expressed in seconds */
@@ -263,11 +261,25 @@ struct ut_strcmp_functor {
   }
 };
 
+namespace ut {
+/** The current value of @@innodb_spin_wait_pause_multiplier. Determines
+how many PAUSE instructions to emit for each requested unit of delay
+when calling `ut_delay(delay)`. The default value of 50 causes `delay*50` PAUSES
+which was equivalent to `delay` microseconds on 100 MHz Pentium + Visual C++.
+Useful on processors which have "non-standard" duration of a single PAUSE
+instruction - one can compensate for longer PAUSES by setting the
+spin_wait_pause_multiplier to a smaller value on such machine */
+extern ulong spin_wait_pause_multiplier;
+}  // namespace ut
+
 /** Runs an idle loop on CPU. The argument gives the desired delay
  in microseconds on 100 MHz Pentium + Visual C++.
+ The actual duration depends on a product of `delay` and the current value of
+ @@innodb_spin_wait_pause_multiplier.
+ @param[in]   delay   delay in microseconds on 100 MHz Pentium, assuming
+                      spin_wait_pause_multiplier is 50 (default).
  @return dummy value */
-ulint ut_delay(
-    ulint delay); /*!< in: delay in microseconds on 100 MHz Pentium */
+ulint ut_delay(ulint delay);
 
 /* Forward declaration of transaction handle */
 struct trx_t;
@@ -304,6 +316,11 @@ char *ut_format_name(const char *name, char *formatted, ulint formatted_size);
 /** Catenate files. */
 void ut_copy_file(FILE *dest, /*!< in: output file */
                   FILE *src); /*!< in: input file to be appended to output */
+
+/** Convert byte value to string with unit
+@param[in]      data_bytes      byte value
+@param[out]     data_str        formatted string */
+void ut_format_byte_value(uint64_t data_bytes, std::string &data_str);
 
 #ifdef _WIN32
 /** A substitute for vsnprintf(3), formatted output conversion into
@@ -565,6 +582,11 @@ class logger {
   }
 
  protected:
+  /** Uses LogEvent to report the log entry, using provided message
+  @param[in]    msg    message to be logged
+  */
+  void log_event(std::string msg);
+
   /** Constructor.
   @param[in]	level		Logging level
   @param[in]	err		Error message code. */
@@ -678,24 +700,14 @@ class fatal : public logger {
  public:
 #ifndef UNIV_NO_ERR_MSGS
   /** Default constructor uses ER_IB_MSG_0 */
-  fatal() : logger(ERROR_LEVEL) { m_oss << "[FATAL] "; }
-
-  /** Default constructor uses ER_IB_MSG_0 */
-  explicit fatal(int err) : logger(ERROR_LEVEL) {
-    m_oss << "[FATAL] ";
-
-    m_oss << msg(err, "");
-  }
+  fatal() : logger(ERROR_LEVEL) {}
 
   /** Constructor.
   @param[in]	err		Error code from errmsg-*.txt.
   @param[in]	args		Variable length argument list */
   template <class... Args>
-  explicit fatal(int err, Args &&... args) : logger(ERROR_LEVEL, err) {
-    m_oss << "[FATAL] ";
-
-    m_oss << msg(err, std::forward<Args>(args)...);
-  }
+  explicit fatal(int err, Args &&... args)
+      : logger(ERROR_LEVEL, err, std::forward<Args>(args)...) {}
 
   /** Destructor. */
   virtual ~fatal();
@@ -734,24 +746,7 @@ class fatal_or_error : public logger {
 #ifndef UNIV_NO_ERR_MSGS
   /** Default constructor uses ER_IB_MSG_0
   @param[in]	fatal		true if it's a fatal message */
-  fatal_or_error(bool fatal) : logger(ERROR_LEVEL), m_fatal(fatal) {
-    if (m_fatal) {
-      m_oss << "[fatal]";
-    }
-  }
-
-  /** Constructor.
-  @param[in]	fatal		true if it's a fatal message
-  @param[in]	err		Error code from errmsg-*.txt. */
-  template <class... Args>
-  explicit fatal_or_error(bool fatal, int err)
-      : logger(ERROR_LEVEL, err), m_fatal(fatal) {
-    if (m_fatal) {
-      m_oss << "[fatal]";
-    }
-
-    m_oss << msg(err, "");
-  }
+  fatal_or_error(bool fatal) : logger(ERROR_LEVEL), m_fatal(fatal) {}
 
   /** Constructor.
   @param[in]	fatal		true if it's a fatal message
@@ -759,13 +754,7 @@ class fatal_or_error : public logger {
   @param[in]	args		Variable length argument list */
   template <class... Args>
   explicit fatal_or_error(bool fatal, int err, Args &&... args)
-      : logger(ERROR_LEVEL, err), m_fatal(fatal) {
-    if (m_fatal) {
-      m_oss << "[fatal]";
-    }
-
-    m_oss << msg(err, std::forward<Args>(args)...);
-  }
+      : logger(ERROR_LEVEL, err, std::forward<Args>(args)...), m_fatal(fatal) {}
 
   /** Destructor */
   virtual ~fatal_or_error();
@@ -857,6 +846,7 @@ class trace_3 : public logger {
 #endif /* !UNIV_NO_ERR_MSGS */
 };
 #endif /* UNIV_HOTBACKUP */
+
 }  // namespace ib
 
 #ifdef UNIV_HOTBACKUP

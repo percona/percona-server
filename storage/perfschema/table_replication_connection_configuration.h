@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 
 #include <sys/types.h>
 
+#include "compression.h"  // COMPRESSION_ALGORITHM_NAME_BUFFER_SIZE
 #include "my_base.h"
 #include "my_io.h"
 #include "mysql_com.h"
@@ -100,6 +101,19 @@ struct st_row_connect_config {
   char public_key_path[FN_REFLEN];
   uint public_key_path_length;
   enum_rpl_yes_no get_public_key;
+  char network_namespace[NAME_LEN];
+  uint network_namespace_length;
+  char compression_algorithm[COMPRESSION_ALGORITHM_NAME_BUFFER_SIZE];
+  uint compression_algorithm_length;
+  uint zstd_compression_level;
+  /*
+    tls_ciphersuites = NULL means that TLS 1.3 default ciphersuites
+    are enabled. To allow a value that can either be NULL or a string,
+    it is represented by the pair:
+      first:  true if tls_ciphersuites is set to NULL
+      second: the string value when first is false
+  */
+  std::pair<bool, std::string> tls_ciphersuites = {true, ""};
 };
 
 class PFS_index_rpl_connection_config : public PFS_engine_index {

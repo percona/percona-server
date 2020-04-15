@@ -23,6 +23,9 @@ id2 tinyint(3) NOT NULL,
 PRIMARY KEY (id),
 KEY index2 (id2)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t6 (`x"z"` INT, xyz VARCHAR(20), notes TEXT);
 ALTER TABLE t6 ADD INDEX t6_index (`x"z"`, xyz, notes(3));
 CREATE TABLE t7 (
@@ -32,6 +35,10 @@ PS_AVAILQTY int(11) NOT NULL,
 PS_SUPPLYCOST float NOT NULL,
 PS_COMMENT varchar(199) NOT NULL
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t7 ADD PRIMARY KEY (PS_PARTKEY,PS_SUPPKEY);
 CREATE TABLE t8 (
 c_id INT(11) NOT NULL AUTO_INCREMENT,
@@ -39,11 +46,15 @@ c_name VARCHAR(255) NOT NULL,
 c_description text,
 PRIMARY KEY (c_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t9 (
 v_id INT(11) NOT NULL AUTO_INCREMENT,
 v_name VARCHAR(255) DEFAULT NULL,
 PRIMARY KEY (v_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t10 (
 p_id INT(11) NOT NULL AUTO_INCREMENT,
 p_name VARCHAR(355) NOT NULL,
@@ -53,6 +64,9 @@ PRIMARY KEY (p_id),
 KEY fk_t8 (c_id),
 CONSTRAINT t10_ibfk_1 FOREIGN KEY (c_id) REFERENCES t8 (c_id) ON UPDATE CASCADE
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t11 (
 num int PRIMARY KEY,
 FOREIGN KEY (num) REFERENCES t9 (v_id)
@@ -463,6 +477,9 @@ CREATE TABLE `part1_hash` (
 KEY `id` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 PARTITION BY HASH (MONTH(hired)) PARTITIONS 2;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE `part2_hash` (
 `firstname` VARCHAR(25) NOT NULL,
 `lastname` VARCHAR(25) NOT NULL,
@@ -602,13 +619,46 @@ CREATE TABLE `test`.`t1` (a integer) TABLESPACE `mytbsp`;
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) /*!50100 TABLESPACE `mytbsp` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE `test`.`t1`;
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) /*!50100 TABLESPACE `mytbsp` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE `test`.`t1`;
 DROP TABLESPACE `mytbsp`;
+#
+# Bug#29023216: MYSQLPUMP SHOULD WRITE USERS AND GRANTS BEFORE VIEWS AND STORED PROGRAMS
+#
+CREATE DATABASE DB29023216;
+CREATE USER 'VIEWUSER'@'LOCALHOST';
+GRANT ALL ON *.* TO 'VIEWUSER'@'LOCALHOST';
+USE DB29023216;
+CREATE TABLE T1 (ID INT UNSIGNED NOT NULL PRIMARY KEY, VAL VARCHAR(10));
+CREATE DEFINER=VIEWUSER@LOCALHOST SQL SECURITY INVOKER VIEW V_T1_A AS SELECT * FROM T1;
+CREATE DEFINER=VIEWUSER@LOCALHOST SQL SECURITY DEFINER VIEW V_T1_B AS SELECT * FROM T1;
+CREATE SQL SECURITY DEFINER VIEW V_T1_A2 AS SELECT * FROM V_T1_A;
+CREATE SQL SECURITY DEFINER VIEW V_T1_B2 AS SELECT * FROM V_T1_B;
+DROP DATABASE DB29023216;
+DROP USER 'VIEWUSER'@'LOCALHOST';
+USE DB29023216;
+SELECT * FROM V_T1_A;
+ID	VAL
+SELECT * FROM V_T1_B;
+ID	VAL
+SELECT * FROM V_T1_A2;
+ID	VAL
+SELECT * FROM V_T1_B2;
+ID	VAL
+CREATE DEFINER=VIEWUSER@LOCALHOST FUNCTION TESTFUNC() RETURNS BOOL RETURN TRUE;
+CREATE VIEW V_T1_C AS SELECT DB29023216.TESTFUNC();
+DROP DATABASE DB29023216;
+DROP USER 'VIEWUSER'@'LOCALHOST';
+USE DB29023216;
+SELECT * FROM V_T1_C;
+DB29023216.TESTFUNC()
+1
+DROP DATABASE DB29023216;
+DROP USER 'VIEWUSER'@'LOCALHOST';

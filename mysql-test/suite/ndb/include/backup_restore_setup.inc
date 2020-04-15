@@ -54,6 +54,11 @@ if (!$NDB_BACKUP_DIR)
 --let $NDB_SAVED_BACKUPS=$MYSQL_TEST_DIR/suite/ndb/backups
 #echo NDB_SAVED_BACKUPS: $NDB_SAVED_BACKUPS;
 
---let NDB_RESTORE=$NDB_RESTORE --no-defaults
+# Read additional options from my.cnf files
+--let NDB_RESTORE=$NDB_RESTORE --defaults-file=$MYSQLTEST_VARDIR/my.cnf
+
+# ndb_restore by default will generate a core file when there is an error.
+# This is not appropriate for an automated testing environment, so disable it.
+--let NDB_RESTORE=$NDB_RESTORE --core-file=0
 
 --enable_query_log

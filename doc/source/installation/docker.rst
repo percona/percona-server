@@ -40,8 +40,17 @@ To start a container named ``ps`` running the latest version of
 
 .. important:: ``root`` is not a secure password.
 
-Accessing the |Percona Server| Container
-----------------------------------------
+.. note::
+
+    The `docker stop` command sends a `TERM` signal. Docker waits 10 seconds
+    and sends a `KILL` signal. Very large instances cannot dump the data from
+    memory to disk in 10 seconds. If you plan to run a very large instance, add
+    the following option to the `docker run` command.
+
+    --stop-timeout 600
+
+Accessing the Percona Server Container
+--------------------------------------
 
 To access the shell in the container::
 
@@ -272,4 +281,3 @@ and collation for all databases::
    percona/percona-server:8.0 \
    --character-set-server=utf8 \
    --collation-server=utf8_general_ci
-

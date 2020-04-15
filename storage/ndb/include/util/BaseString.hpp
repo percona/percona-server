@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -162,6 +162,15 @@ public:
    */
   ssize_t lastIndexOf(char c) const;
   
+  /*
+   * Check if given string is prefix.
+   *
+   * @param str string to check for
+   * @return true if str is prefix
+   */
+  bool starts_with(const BaseString& str) const;
+  bool starts_with(const char* str) const;
+
   /**
    * Returns a subset of a string
    *

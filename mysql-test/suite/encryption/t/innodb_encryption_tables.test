@@ -1,3 +1,5 @@
+SET GLOBAL innodb_encryption_threads=4;
+
 create table innodb_normal(c1 bigint not null, b char(200)) engine=innodb;
 create table innodb_compact(c1 bigint not null, b char(200)) engine=innodb row_format=compact;
 create table innodb_dynamic(c1 bigint not null, b char(200)) engine=innodb row_format=dynamic;
@@ -54,11 +56,11 @@ t1.c1 = t2.c1 and t1.b = t2.b;
 select count(*) from innodb_redundant t1, innodb_normal t2 where
 t1.c1 = t2.c1 and t1.b = t2.b;
 
-SELECT variable_value >= 0 FROM information_schema.global_status WHERE variable_name = 'innodb_num_pages_encrypted';
-SELECT variable_value >= 0 FROM information_schema.global_status WHERE variable_name = 'innodb_num_pages_decrypted';
-SELECT variable_value >= 0 FROM information_schema.global_status WHERE variable_name = 'innodb_num_pages_page_compressed';
-SELECT variable_value >= 0 FROM information_schema.global_status WHERE variable_name = 'innodb_num_pages_page_decompressed';
+--let $assert_text= Some pages should have been encrypted by now
+--let $assert_cond= "[SELECT COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME = \\'pages_encrypted\\']" > 0
+--source include/assert.inc
 
+--let restart_parameters=restart:--innodb-encryption-threads=4
 --source include/restart_mysqld.inc
 
 update innodb_normal set c1 = c1 + 1;
@@ -80,10 +82,9 @@ t1.c1 = t2.c1 and t1.b = t2.b;
 select count(*) from innodb_redundant t1, innodb_normal t2 where
 t1.c1 = t2.c1 and t1.b = t2.b;
 
-SELECT variable_value >= 0 FROM information_schema.global_status WHERE variable_name = 'innodb_num_pages_encrypted';
-SELECT variable_value >= 0 FROM information_schema.global_status WHERE variable_name = 'innodb_num_pages_decrypted';
-SELECT variable_value >= 0 FROM information_schema.global_status WHERE variable_name = 'innodb_num_pages_page_compressed';
-SELECT variable_value >= 0 FROM information_schema.global_status WHERE variable_name = 'innodb_num_pages_page_decompressed';
+--let $assert_text= There should be some pages decrypted
+--let $assert_cond= "[SELECT COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME = \\'pages_decrypted\\']" > 0
+--source include/assert.inc
 
 drop procedure innodb_insert_proc;
 drop table innodb_normal;
@@ -91,3 +92,12 @@ drop table innodb_compact;
 drop table innodb_dynamic;
 drop table innodb_compressed;
 drop table innodb_redundant;
+
+# Decrypt all tables
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
+--source include/wait_condition.inc
+
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;

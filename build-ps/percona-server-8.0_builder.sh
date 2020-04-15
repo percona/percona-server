@@ -15,6 +15,7 @@ Usage: $0 [OPTIONS]
         --build_rpm         If it is 1 rpm will be built
         --build_deb         If it is 1 deb will be built
         --build_tarball     If it is 1 tarball will be built
+        --with_ssl          If it is 1 tarball will also include ssl libs
         --install_deps      Install build dependencies(root previlages are required)
         --branch            Branch for build
         --repo              Repo for build
@@ -41,7 +42,7 @@ parse_arguments() {
         pick_args=1
         shift
     fi
-  
+
     for arg do
         val=$(echo "$arg" | sed -e 's;^--[^=]*=;;')
         case "$arg" in
@@ -53,6 +54,7 @@ parse_arguments() {
             --build_deb=*) DEB="$val" ;;
             --get_sources=*) SOURCE="$val" ;;
             --build_tarball=*) TARBALL="$val" ;;
+            --with_ssl=*) WITH_SSL="$val" ;;
             --branch=*) BRANCH="$val" ;;
             --repo=*) REPO="$val" ;;
             --install_deps=*) INSTALL="$val" ;;
@@ -62,7 +64,7 @@ parse_arguments() {
             --tokubackup_repo=*) TOKUBACKUP_REPO="$val" ;;
             --rpm_release=*) RPM_RELEASE="$val" ;;
             --deb_release=*) DEB_RELEASE="$val" ;;
-            --help) usage ;;      
+            --help) usage ;;
             *)
               if test -n "$pick_args"
               then
@@ -91,34 +93,10 @@ check_workdir(){
 add_percona_yum_repo(){
     if [ ! -f /etc/yum.repos.d/percona-dev.repo ]
     then
-        cat >/etc/yum.repos.d/percona-dev.repo <<EOL
-[percona-dev-$basearch]
-name=Percona internal YUM repository for build slaves \$releasever - \$basearch
-baseurl=http://jenkins.percona.com/yum-repo/\$releasever/RPMS/\$basearch
-gpgkey=http://jenkins.percona.com/yum-repo/PERCONA-PACKAGING-KEY
-gpgcheck=0
-enabled=1
-
-[percona-dev-noarch]
-name=Percona internal YUM repository for build slaves \$releasever - noarch
-baseurl=http://jenkins.percona.com/yum-repo/\$releasever/RPMS/noarch
-gpgkey=http://jenkins.percona.com/yum-repo/PERCONA-PACKAGING-KEY
-gpgcheck=0
-enabled=1
-EOL
+        curl -o /etc/yum.repos.d/percona-dev.repo https://jenkins.percona.com/yum-repo/percona-dev.repo
+	sed -i 's:$basearch:x86_64:g' /etc/yum.repos.d/percona-dev.repo
     fi
     return
-}
-
-add_percona_apt_repo(){
-  if [ ! -f /etc/apt/sources.list.d/percona-dev.list ]; then
-    cat >/etc/apt/sources.list.d/percona-dev.list <<EOL
-deb http://jenkins.percona.com/apt-repo/ @@DIST@@ main
-deb-src http://jenkins.percona.com/apt-repo/ @@DIST@@ main
-EOL
-    sed -i "s:@@DIST@@:$OS_NAME:g" /etc/apt/sources.list.d/percona-dev.list
-  fi
-  return
 }
 
 get_sources(){
@@ -174,7 +152,7 @@ get_sources(){
     if [ -z "${DESTINATION:-}" ]; then
         export DESTINATION=experimental
     fi
-    TIMESTAMP=$(date "+%Y%m%d-%H%M%S") 
+    TIMESTAMP=$(date "+%Y%m%d-%H%M%S")
     echo "DESTINATION=${DESTINATION}" >> ../percona-server-8.0.properties
     echo "UPLOAD=UPLOAD/${DESTINATION}/BUILDS/${PRODUCT}/${PRODUCT_FULL}/${BRANCH_NAME}/${REVISION}/${TIMESTAMP}" >> ../percona-server-8.0.properties
 
@@ -226,7 +204,7 @@ get_sources(){
     fi
     #
     git submodule update
-    cmake . -DDOWNLOAD_BOOST=1 -DWITH_BOOST=${WORKDIR}/build-ps/boost
+    cmake .  -DWITH_SSL=system -DFORCE_INSOURCE_BUILD=1 -DDOWNLOAD_BOOST=1 -DWITH_BOOST=${WORKDIR}/build-ps/boost
     make dist
     #
     EXPORTED_TAR=$(basename $(find . -type f -name percona-server*.tar.gz | sort | tail -n 1))
@@ -257,13 +235,13 @@ get_sources(){
     sed -i "s:@@BOOST_PACKAGE_NAME@@:${BOOST_PACKAGE_NAME}:g" build-ps/percona-server.spec
     cd ${WORKDIR}/percona-server
     tar --owner=0 --group=0 --exclude=.bzr --exclude=.git -czf ${PSDIR}.tar.gz ${PSDIR}
-    
+
     mkdir $WORKDIR/source_tarball
     mkdir $CURDIR/source_tarball
     cp ${PSDIR}.tar.gz $WORKDIR/source_tarball
     cp ${PSDIR}.tar.gz $CURDIR/source_tarball
     cd $CURDIR
-    rm -rf percona-server  
+    rm -rf percona-server
     return
 }
 
@@ -293,33 +271,43 @@ install_deps() {
         exit 1
     fi
     CURPLACE=$(pwd)
-    
+
     if [ "x$OS" = "xrpm" ]; then
         RHEL=$(rpm --eval %rhel)
         ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
         add_percona_yum_repo
         yum -y install http://www.percona.com/downloads/percona-release/redhat/0.1-4/percona-release-0.1-4.noarch.rpm || true
         yum -y install epel-release
-        yum -y install git numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc 
-        yum -y install time zlib-devel libaio-devel bison cmake pam-devel libeatmydata jemalloc-devel
-        yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel 
+        yum -y install git numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc zstd zstd-devel
+        yum -y install time zlib-devel libaio-devel bison cmake3 cmake pam-devel libeatmydata jemalloc-devel pkg-config
+        yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel
         yum -y install perl-Env perl-Data-Dumper perl-JSON MySQL-python perl-Digest perl-Digest-MD5 perl-Digest-Perl-MD5 || true
-        #if [ ${RHEL} -lt 7 -a $(uname -m) = x86_64 ]; then
-        #    yum -y install epel-release centos-release-scl
-        #    yum -y install devtoolset-6-gcc-c++ devtoolset-6-binutils
-        #fi
-        until yum -y install centos-release-scl; do
-            echo "waiting"
-            sleep 1
-        done
-        yum -y install  gcc-c++ devtoolset-7-gcc-c++ devtoolset-7-binutils
-        if [ "x$RHEL" = "x6" ]; then
-            yum -y install Percona-Server-shared-56  
+        if [ "${RHEL}" -lt 8 ]; then
+            until yum -y install centos-release-scl; do
+                echo "waiting"
+                sleep 1
+            done
+            yum -y install  gcc-c++ devtoolset-8-gcc-c++ devtoolset-8-binutils devtoolset-8-gcc devtoolset-8-gcc-c++
+            yum -y install ccache devtoolset-8-libasan-devel devtoolset-8-libubsan-devel devtoolset-8-valgrind devtoolset-8-valgrind-devel
+            yum -y install libasan libicu-devel libtool libzstd-devel lz4-devel make pkg-config
+            yum -y install re2-devel redhat-lsb-core lz4-static
+            source /opt/rh/devtoolset-8/enable
+        else
+	    yum -y install perl.x86_64
+            yum -y install binutils gcc gcc-c++ tar rpm-build rsync bison glibc glibc-devel libstdc++-devel make openssl-devel pam-devel perl perl-JSON perl-Memoize pkg-config
+            yum -y install automake autoconf cmake cmake3 jemalloc jemalloc-devel
+	    yum -y install libaio-devel ncurses-devel numactl-devel readline-devel time
+	    yum -y install rpcgen re2-devel libtirpc-devel
+	    yum -y install zstd libzstd libzstd-devel
         fi
-        source /opt/rh/devtoolset-7/enable
+        if [ "x$RHEL" = "x6" ]; then
+            yum -y install Percona-Server-shared-56
+	          yum -y install libevent2-devel
+	      else
+            yum -y install libevent-devel
+        fi
     else
         apt-get -y install dirmngr || true
-        add_percona_apt_repo
         apt-get update
         apt-get -y install dirmngr || true
         apt-get -y install lsb-release wget
@@ -330,27 +318,32 @@ install_deps() {
             echo "waiting"
         done
         apt-get -y purge eatmydata || true
-        echo "deb http://jenkins.percona.com/apt-repo/ ${DIST} main" > percona-dev.list
-        mv -f percona-dev.list /etc/apt/sources.list.d/
-        wget -q -O - http://jenkins.percona.com/apt-repo/8507EFA5.pub | sudo apt-key add -
-        wget -q -O - http://jenkins.percona.com/apt-repo/CD2EFD2A.pub | sudo apt-key add -
 
         apt-get update
-        apt-get -y install psmisc
+        apt-get -y install psmisc pkg-config
         apt-get -y install libsasl2-modules:amd64 || apt-get -y install libsasl2-modules
         apt-get -y install dh-systemd || true
         apt-get -y install curl bison cmake perl libssl-dev gcc g++ libaio-dev libldap2-dev libwrap0-dev gdb unzip gawk
         apt-get -y install lsb-release libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev libcurl4-openssl-dev
-        apt-get -y install libldap2-dev libnuma-dev libjemalloc-dev libc6-dbg valgrind libjson-perl python-mysqldb libsasl2-dev
+        apt-get -y install libldap2-dev libnuma-dev libjemalloc-dev libc6-dbg valgrind libjson-perl libsasl2-dev
+        if [ x"${DIST}" = xfocal ]; then
+            apt-get -y install python3-mysqldb
+        else
+            apt-get -y install python-mysqldb
+        fi
         apt-get -y install libeatmydata
         apt-get -y install libmecab2 mecab mecab-ipadic
         apt-get -y install build-essential devscripts doxygen doxygen-gui graphviz rsync
-        apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot 
-        if [ x"${DIST}" = xcosmic ]; then
-            apt-get -y install libssl1.0-dev libeatmydata1
+        apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot libaio-dev
+        apt-get -y install ccache libevent-dev libgsasl7 liblz4-dev libre2-dev libtool po-debconf
+        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster ]; then
+            apt-get -y install libeatmydata1
         fi
-
-
+        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xstretch -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster ]; then
+            apt-get -y install libzstd-dev
+        else
+            apt-get -y install libzstd1-dev
+        fi
     fi
     if [ ! -d /usr/local/percona-subunit2junitxml ]; then
         cd /usr/local
@@ -432,9 +425,9 @@ build_srpm(){
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/*.spec' --strip=2
     #
     cd ${WORKDIR}/rpmbuild/SOURCES
-    #wget http://downloads.sourceforge.net/boost/${BOOST_PACKAGE_NAME}.tar.bz2
-    wget https://dl.bintray.com/boostorg/release/1.67.0/source/boost_1_67_0.tar.gz
-    wget http://jenkins.percona.com/downloads/boost/${BOOST_PACKAGE_NAME}.tar.gz
+    wget https://dl.bintray.com/boostorg/release/1.70.0/source/${BOOST_PACKAGE_NAME}.tar.gz
+    #wget http://downloads.sourceforge.net/boost/${BOOST_PACKAGE_NAME}.tar.gz
+    #wget http://jenkins.percona.com/downloads/boost/${BOOST_PACKAGE_NAME}.tar.gz
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/*.patch' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-provides.sh' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-requires.sh' --strip=3
@@ -471,6 +464,11 @@ build_mecab_lib(){
     make
     make check
     make DESTDIR=${MECAB_INSTALL_DIR} install
+    cd ../${MECAB_INSTALL_DIR}
+    if [ -d usr/lib64 ]; then
+	mkdir -p usr/lib
+        mv usr/lib64/* usr/lib
+    fi
     cd ${WORKDIR}
 }
 
@@ -539,11 +537,12 @@ build_rpm(){
     mkdir -vp rpmbuild/{SOURCES,SPECS,BUILD,SRPMS,RPMS}
     #
     mv *.src.rpm rpmbuild/SRPMS
-    source /opt/rh/devtoolset-7/enable
+    source /opt/rh/devtoolset-8/enable
     build_mecab_lib
     build_mecab_dict
 
     cd ${WORKDIR}
+    source /opt/rh/devtoolset-8/enable
     #
     if [ ${ARCH} = x86_64 ]; then
         rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
@@ -558,7 +557,7 @@ build_rpm(){
     mkdir -p ${CURDIR}/rpm
     cp rpmbuild/RPMS/*/*.rpm ${WORKDIR}/rpm
     cp rpmbuild/RPMS/*/*.rpm ${CURDIR}/rpm
-    
+
 }
 
 build_source_deb(){
@@ -646,7 +645,7 @@ build_deb(){
     cd ${DIRNAME}
     dch -b -m -D "$DEBIAN_VERSION" --force-distribution -v "${VERSION}-${RELEASE}-${DEB_RELEASE}.${DEBIAN_VERSION}" 'Update distribution'
 
-    if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != cosmic ]; then
+    if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != focal -a "${DEBIAN_VERSION}" != disco -a "${DEBIAN_VERSION}" != buster ]; then
         gcc47=$(which gcc-4.7 2>/dev/null || true)
         if [ -x "${gcc47}" ]; then
             export CC=gcc-4.7
@@ -660,24 +659,18 @@ build_deb(){
     fi
 
     if [ ${DEBIAN_VERSION} = "xenial" ]; then
-        sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=date-time /' debian/rules 
+        sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=date-time /' debian/rules
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=date-time /' debian/rules
     fi
 
-    if [ ${DEBIAN_VERSION} = "stretch" ]; then
-        sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules 
-        sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
-    fi
-
-    if [ ${DEBIAN_VERSION} = "artful" -o ${DEBIAN_VERSION} = "bionic" ]; then
-        sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules 
+    if [ ${DEBIAN_VERSION} = "stretch" -o ${DEBIAN_VERSION} = "bionic" -o ${DEBIAN_VERSION} = "focal" -o ${DEBIAN_VERSION} = "buster" -o ${DEBIAN_VERSION} = "disco" ]; then
+        sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
     fi
     if [ ${DEBIAN_VERSION} = "cosmic" ]; then
-        sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=ignored-qualifiers -Wno-error=class-memaccess -Wno-error=shadow /' debian/rules 
+        sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=ignored-qualifiers -Wno-error=class-memaccess -Wno-error=shadow /' debian/rules
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=ignored-qualifiers -Wno-error=class-memaccess -Wno-error=shadow /' debian/rules
     fi
-
     dpkg-buildpackage -rfakeroot -uc -us -b
 
     cd ${WORKDIR}
@@ -703,7 +696,7 @@ build_tarball(){
     if [ -f /etc/redhat-release ]; then
       export OS_RELEASE="centos$(lsb_release -sr | awk -F'.' '{print $1}')"
       RHEL=$(rpm --eval %rhel)
-      source /opt/rh/devtoolset-7/enable
+      source /opt/rh/devtoolset-8/enable
     fi
     #
 
@@ -719,7 +712,10 @@ build_tarball(){
     export CFLAGS=$(rpm --eval %{optflags} | sed -e "s|march=i386|march=i686|g")
     export CXXFLAGS="${CFLAGS}"
     if [ -f /etc/redhat-release ]; then
-        SSL_VER_TMP=$(yum list installed|grep -i openssl|head -n1|awk '{print $2}'|awk -F "-" '{print $1}'|sed 's/\.//g'|sed 's/[a-z]$//')
+        SSL_VER_TMP=$(yum list installed|grep -i openssl|head -n1|awk '{print $2}'|awk -F "-" '{print $1}'|sed 's/\.//g'|sed 's/[a-z]$//' | awk -F':' '{print $2}')
+        if [ -z "${SSL_VER_TMP}" ]; then
+            SSL_VER_TMP=$(yum list installed|grep -i openssl|head -n1|awk '{print $2}'|awk -F "-" '{print $1}'|sed 's/\.//g'|sed 's/[a-z]$//')
+        fi
         export SSL_VER=".ssl${SSL_VER_TMP}"
     else
         SSL_VER_TMP=$(dpkg -l|grep -i libssl|grep -v "libssl\-"|head -n1|awk '{print $2}'|awk -F ":" '{print $1}'|sed 's/libssl/ssl/g'|sed 's/\.//g')
@@ -730,7 +726,7 @@ build_tarball(){
     build_mecab_dict
     MECAB_INSTALL_DIR="${WORKDIR}/mecab-install"
     rm -fr TARGET && mkdir TARGET
-    rm -rf jemalloc 
+    rm -rf jemalloc
     git clone https://github.com/jemalloc/jemalloc
     (
     cd jemalloc
@@ -740,10 +736,25 @@ build_tarball(){
     #
     rm -fr ${TARFILE%.tar.gz}
     tar xzf ${TARFILE}
-    cd ${TARFILE%.tar.gz}
-    CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
-    DIRNAME="tarball"
+    mkdir -p ${WORKDIR}/ssl/lib
+    if [ "x$OS" = "xdeb" ]; then
+        cp -av /usr/lib/x86_64-linux-gnu/libssl* ${WORKDIR}/ssl/lib
+	cp -av /usr/lib/x86_64-linux-gnu/libcrypto* ${WORKDIR}/ssl/lib
+        cp -av /usr/include/openssl ${WORKDIR}/ssl/include/
+    else
+        cp -av /usr/lib*/libssl.so* ${WORKDIR}/ssl/lib
+	cp -av /usr/lib*/libcrypto* ${WORKDIR}/ssl/lib
+        cp -av /usr/include/openssl ${WORKDIR}/ssl/include/
+    fi
 
+    cd ${TARFILE%.tar.gz}
+    if [ "x$WITH_SSL" = "x1" ]; then
+        CMAKE_OPTS="-DWITH_ROCKSDB=1 -DINSTALL_LAYOUT=STANDALONE -DWITH_SSL=$PWD/../ssl/ " bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
+        DIRNAME="yassl"
+    else
+        CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
+        DIRNAME="tarball"
+    fi
     mkdir -p ${WORKDIR}/${DIRNAME}
     mkdir -p ${CURDIR}/${DIRNAME}
     cp ../TARGET/*.tar.gz ${WORKDIR}/${DIRNAME}
@@ -762,6 +773,7 @@ RPM=0
 DEB=0
 SOURCE=0
 TARBALL=0
+WITH_SSL=0
 OS_NAME=
 ARCH=
 OS=
@@ -782,7 +794,7 @@ MYSQL_VERSION_MINOR=0
 MYSQL_VERSION_PATCH=12
 MYSQL_VERSION_EXTRA=-1
 PRODUCT_FULL=Percona-Server-8.0.12.1
-BOOST_PACKAGE_NAME=boost_1_67_0
+BOOST_PACKAGE_NAME=boost_1_70_0
 PERCONAFT_BRANCH=Percona-Server-5.7.22-22
 TOKUBACKUP_BRANCH=Percona-Server-5.7.22-22
 parse_arguments PICK-ARGS-FROM-ARGV "$@"

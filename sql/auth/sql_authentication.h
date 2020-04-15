@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,7 @@
 class ACL_USER;
 class Protocol_classic;
 class THD;
+class Restrictions;
 struct MEM_ROOT;
 struct SHOW_VAR;
 
@@ -62,6 +63,7 @@ class Thd_charset_adapter {
 struct MPVIO_EXT : public MYSQL_PLUGIN_VIO {
   MYSQL_SERVER_AUTH_INFO auth_info;
   const ACL_USER *acl_user;
+  Restrictions *restrictions;
   plugin_ref plugin;  ///< what plugin we're under
   LEX_STRING db;      ///< db name from the handshake packet
   /** when restarting a plugin this caches the last client reply */
@@ -86,8 +88,8 @@ struct MPVIO_EXT : public MYSQL_PLUGIN_VIO {
   uint *server_status;
   Protocol_classic *protocol;
   ulong max_client_packet_length;
-  char *ip;
-  char *host;
+  const char *ip;
+  const char *host;
   Thd_charset_adapter *charset_adapter;
   LEX_CSTRING acl_user_plugin;
   int vio_is_encrypted;
@@ -101,9 +103,7 @@ bool init_rsa_keys(void);
 void deinit_rsa_keys(void);
 int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff);
 
-#ifndef HAVE_WOLFSSL
 typedef struct rsa_st RSA;
-#endif
 class Rsa_authentication_keys {
  private:
   RSA *m_public_key;
@@ -232,6 +232,9 @@ class Cached_authentication_plugins {
 
 extern Cached_authentication_plugins *g_cached_authentication_plugins;
 
+ACL_USER *decoy_user(const LEX_CSTRING &username, const LEX_CSTRING &hostname,
+                     MEM_ROOT *mem, struct rand_struct *rand,
+                     bool is_initialized);
 #define AUTH_DEFAULT_RSA_PRIVATE_KEY "private_key.pem"
 #define AUTH_DEFAULT_RSA_PUBLIC_KEY "public_key.pem"
 

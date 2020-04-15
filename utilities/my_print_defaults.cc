@@ -1,6 +1,6 @@
 
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -132,19 +132,19 @@ static bool get_one_option(int optid,
       break;
     case 'I':
     case '?':
-      usage(0);
+      usage(false);
       exit(0);
     case 'v':
       verbose++;
       break;
     case 'V':
-      usage(1);
+      usage(true);
       exit(0);
     case '#':
       DBUG_PUSH(argument ? argument : default_dbug_option);
       break;
   }
-  return 0;
+  return false;
 }
 
 static int get_options(int *argc, char ***argv) {
@@ -154,7 +154,7 @@ static int get_options(int *argc, char ***argv) {
     exit(ho_error);
 
   if (*argc < 1) {
-    usage(0);
+    usage(false);
     return 1;
   }
   return 0;
@@ -162,7 +162,8 @@ static int get_options(int *argc, char ***argv) {
 
 int main(int argc, char **argv) {
   int count, error, args_used;
-  char **load_default_groups, *tmp_arguments[6];
+  const char **load_default_groups;
+  char *tmp_arguments[6];
   char **argument, **arguments, **org_argv;
   char *defaults, *extra_defaults, *group_suffix, *login_path;
 
@@ -179,15 +180,15 @@ int main(int argc, char **argv) {
   arguments[count] = 0;
 
   /* Check out the args */
-  if (!(load_default_groups = (char **)my_malloc(
-            PSI_NOT_INSTRUMENTED, (argc + 1) * sizeof(char *), MYF(MY_WME))))
+  if (!(load_default_groups = static_cast<const char **>(my_malloc(
+            PSI_NOT_INSTRUMENTED, (argc + 1) * sizeof(char *), MYF(MY_WME)))))
     exit(1);
   if (get_options(&argc, &argv)) exit(1);
   memcpy((char *)load_default_groups, (char *)argv, (argc + 1) * sizeof(*argv));
 
   MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
-  if ((error = load_defaults(config_file, (const char **)load_default_groups,
-                             &count, &arguments, &alloc))) {
+  if ((error = load_defaults(config_file, load_default_groups, &count,
+                             &arguments, &alloc))) {
     if (verbose && opt_defaults_file_used) {
       if (error == 1)
         fprintf(stderr, "WARNING: Defaults file '%s' not found!\n",

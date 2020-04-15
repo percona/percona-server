@@ -7,6 +7,8 @@
 
 --disable_query_log
 call mtr.add_suppression('Error in Log_event::read_log_event()');
+call mtr.add_suppression("Undo log can't be encrypted if the keyring plugin is not loaded.");
+call mtr.add_suppression("Check keyring plugin fail, please check the keyring plugin is loaded.");
 --enable_query_log
 
 # Create a table with encryption, should fail since keyring is not
@@ -44,7 +46,7 @@ DROP TABLE tne_1;
 --source include/shutdown_mysqld.inc
 
 # Grep for message in server error log
-let SEARCH_PATTERN=Can\'t set redo log tablespace to be encrypted;
+let SEARCH_PATTERN=Redo log cannot be encrypted if the keyring plugin is not loaded.;
 --source include/search_pattern.inc
 
 # Create path for ibdata* & undo* files both DBs
@@ -77,7 +79,6 @@ SELECT @@global.innodb_redo_log_encrypt;
 SET GLOBAL innodb_redo_log_encrypt = 1;
 SELECT @@global.innodb_undo_log_encrypt;
 SET GLOBAL innodb_undo_log_encrypt = 1;
---sleep 1
 SELECT @@global.innodb_undo_log_encrypt;
 --replace_regex /\.dll/.so/
 --error ER_UDF_EXISTS

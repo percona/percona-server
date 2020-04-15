@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,6 @@
 
 #include <errno.h>
 #include <limits.h>
-#include <math.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <cctype>
@@ -57,6 +56,7 @@
 #include "sql/item_inetfunc.h"      // Item_func_inet_ntoa
 #include "sql/item_json_func.h"     // Item_func_json
 #include "sql/item_keyring_func.h"  // Item_func_rotate_system_key
+#include "sql/item_pfs_func.h"      // Item_pfs_func_thread_id
 #include "sql/item_regexp_func.h"   // Item_func_regexp_xxx
 #include "sql/item_strfunc.h"       // Item_func_aes_encrypt
 #include "sql/item_sum.h"           // Item_sum_udf_str
@@ -74,6 +74,9 @@
 #include "sql/sql_udf.h"
 #include "sql/system_variables.h"
 #include "sql_string.h"
+#include "sql_time.h"  // str_to_datetime
+#include "sql_udf.h"
+#include "tztime.h"  // adjust_time_zone
 
 /**
   @addtogroup GROUP_PARSER
@@ -649,28 +652,6 @@ class Bin_instantiator {
   }
 };
 
-class Degrees_instantiator {
- public:
-  static const uint Min_argcount = 1;
-  static const uint Max_argcount = 1;
-
-  Item *instantiate(THD *thd, PT_item_list *args) {
-    return new (thd->mem_root)
-        Item_func_units(POS(), "degrees", (*args)[0], 180.0 / M_PI, 0.0);
-  }
-};
-
-class Radians_instantiator {
- public:
-  static const uint Min_argcount = 1;
-  static const uint Max_argcount = 1;
-
-  Item *instantiate(THD *thd, PT_item_list *args) {
-    return new (thd->mem_root)
-        Item_func_units(POS(), "radians", (*args)[0], M_PI / 180.0, 0.0);
-  }
-};
-
 class Oct_instantiator {
  public:
   static const uint Min_argcount = 1;
@@ -689,7 +670,7 @@ class Weekday_instantiator {
   static const uint Max_argcount = 1;
 
   Item *instantiate(THD *thd, PT_item_list *args) {
-    return new (thd->mem_root) Item_func_weekday(POS(), (*args)[0], 0);
+    return new (thd->mem_root) Item_func_weekday(POS(), (*args)[0], false);
   }
 };
 
@@ -745,7 +726,7 @@ class Dayofweek_instantiator {
   static const uint Max_argcount = 1;
 
   Item *instantiate(THD *thd, PT_item_list *args) {
-    return new (thd->mem_root) Item_func_weekday(POS(), (*args)[0], 1);
+    return new (thd->mem_root) Item_func_weekday(POS(), (*args)[0], true);
   }
 };
 
@@ -762,7 +743,7 @@ class From_unixtime_instantiator {
         Item *ut =
             new (thd->mem_root) Item_func_from_unixtime(POS(), (*args)[0]);
         return new (thd->mem_root)
-            Item_func_date_format(POS(), ut, (*args)[1], 0);
+            Item_func_date_format(POS(), ut, (*args)[1], false);
       }
       default:
         DBUG_ASSERT(false);
@@ -780,11 +761,12 @@ class Round_instantiator {
     switch (args->elements()) {
       case 1: {
         Item *i0 = new (thd->mem_root) Item_int_0(POS());
-        return new (thd->mem_root) Item_func_round(POS(), (*args)[0], i0, 0);
+        return new (thd->mem_root)
+            Item_func_round(POS(), (*args)[0], i0, false);
       }
       case 2:
         return new (thd->mem_root)
-            Item_func_round(POS(), (*args)[0], (*args)[1], 0);
+            Item_func_round(POS(), (*args)[0], (*args)[1], false);
       default:
         DBUG_ASSERT(false);
         return nullptr;
@@ -1075,7 +1057,7 @@ class Internal_function_factory : public Create_func {
 
   Item *create_func(THD *thd, LEX_STRING function_name,
                     PT_item_list *item_list) override {
-    if (!thd->parsing_system_view &&
+    if (!thd->parsing_system_view && !thd->is_dd_system_thread() &&
         DBUG_EVALUATE_IF("skip_dd_table_access_check", false, true)) {
       my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), function_name.str);
       return nullptr;
@@ -1100,9 +1082,8 @@ Internal_function_factory<Instantiator_fn>
 }  // namespace
 
 /**
-  Function builder for Stored Functions.
+  Function builder for stored functions.
 */
-
 class Create_sp_func : public Create_qfunc {
  public:
   virtual Item *create(THD *thd, LEX_STRING db, LEX_STRING name,
@@ -1133,7 +1114,7 @@ Item *Create_udf_func::create_func(THD *thd, LEX_STRING name,
 
 Item *Create_udf_func::create(THD *thd, udf_func *udf,
                               PT_item_list *item_list) {
-  DBUG_ENTER("Create_udf_func::create");
+  DBUG_TRACE;
 
   DBUG_ASSERT((udf->type == UDFTYPE_FUNCTION) ||
               (udf->type == UDFTYPE_AGGREGATE));
@@ -1169,7 +1150,7 @@ Item *Create_udf_func::create(THD *thd, udf_func *udf,
     default:
       my_error(ER_NOT_SUPPORTED_YET, MYF(0), "UDF return type");
   }
-  DBUG_RETURN(func);
+  return func;
 }
 
 Create_sp_func Create_sp_func::s_singleton;
@@ -1327,7 +1308,6 @@ Item *Create_sp_func::create(THD *thd, LEX_STRING db, LEX_STRING name,
   - Use uppercase (tokens are converted to uppercase before lookup.)
 
   This can't be constexpr because
-  - std::pair does not have a constexpr constructor in C++11, not until C++14.
   - Sun Studio does not allow the Create_func pointer to be constexpr.
 */
 static const std::pair<const char *, Create_func *> func_array[] = {
@@ -1366,7 +1346,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"DAYOFMONTH", SQL_FN(Item_func_dayofmonth, 1)},
     {"DAYOFWEEK", SQL_FACTORY(Dayofweek_instantiator)},
     {"DAYOFYEAR", SQL_FN(Item_func_dayofyear, 1)},
-    {"DEGREES", SQL_FACTORY(Degrees_instantiator)},
+    {"DEGREES", SQL_FN(Item_func_degrees, 1)},
     {"ELT", SQL_FN_V(Item_func_elt, 2, MAX_ARGLIST_SIZE)},
     {"EXP", SQL_FN(Item_func_exp, 1)},
     {"EXPORT_SET", SQL_FN_V(Item_func_export_set, 3, 5)},
@@ -1374,6 +1354,8 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"FIELD", SQL_FN_V(Item_func_field, 2, MAX_ARGLIST_SIZE)},
     {"FIND_IN_SET", SQL_FN(Item_func_find_in_set, 2)},
     {"FLOOR", SQL_FN(Item_func_floor, 1)},
+    {"FORMAT_BYTES", SQL_FN(Item_func_pfs_format_bytes, 1)},
+    {"FORMAT_PICO_TIME", SQL_FN(Item_func_pfs_format_pico_time, 1)},
     {"FOUND_ROWS", SQL_FN(Item_func_found_rows, 0)},
     {"FROM_BASE64", SQL_FN(Item_func_from_base64, 1)},
     {"FROM_DAYS", SQL_FN(Item_func_from_days, 1)},
@@ -1412,6 +1394,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
      SQL_FN_ODD(Item_func_json_array_insert, 3, MAX_ARGLIST_SIZE)},
     {"JSON_OBJECT",
      SQL_FN_EVEN(Item_func_json_row_object, 0, MAX_ARGLIST_SIZE)},
+    {"JSON_OVERLAPS", SQL_FN(Item_func_json_overlaps, 2)},
     {"JSON_SEARCH", SQL_FN_V_THD(Item_func_json_search, 3, MAX_ARGLIST_SIZE)},
     {"JSON_SET", SQL_FN_ODD(Item_func_json_set, 3, MAX_ARGLIST_SIZE)},
     {"JSON_REPLACE", SQL_FN_ODD(Item_func_json_replace, 3, MAX_ARGLIST_SIZE)},
@@ -1426,6 +1409,9 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"JSON_MERGE_PRESERVE",
      SQL_FN_V_LIST_THD(Item_func_json_merge_preserve, 2, MAX_ARGLIST_SIZE)},
     {"JSON_QUOTE", SQL_FN_LIST(Item_func_json_quote, 1)},
+    {"JSON_SCHEMA_VALID", SQL_FN(Item_func_json_schema_valid, 2)},
+    {"JSON_SCHEMA_VALIDATION_REPORT",
+     SQL_FN_V_THD(Item_func_json_schema_validation_report, 2, 2)},
     {"JSON_STORAGE_FREE", SQL_FN(Item_func_json_storage_free, 1)},
     {"JSON_STORAGE_SIZE", SQL_FN(Item_func_json_storage_size, 1)},
     {"JSON_UNQUOTE", SQL_FN_LIST(Item_func_json_unquote, 1)},
@@ -1474,8 +1460,10 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"PI", SQL_FN(Item_func_pi, 0)},
     {"POW", SQL_FN(Item_func_pow, 2)},
     {"POWER", SQL_FN(Item_func_pow, 2)},
+    {"PS_CURRENT_THREAD_ID", SQL_FN(Item_func_pfs_current_thread_id, 0)},
+    {"PS_THREAD_ID", SQL_FN(Item_func_pfs_thread_id, 1)},
     {"QUOTE", SQL_FN(Item_func_quote, 1)},
-    {"RADIANS", SQL_FACTORY(Radians_instantiator)},
+    {"RADIANS", SQL_FN(Item_func_radians, 1)},
     {"RAND", SQL_FN_V(Item_func_rand, 0, 1)},
     {"RANDOM_BYTES", SQL_FN(Item_func_random_bytes, 1)},
     {"REGEXP_INSTR", SQL_FN_V_LIST(Item_func_regexp_instr, 2, 6)},
@@ -1553,7 +1541,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"ST_ISVALID", SQL_FN(Item_func_isvalid, 1)},
     {"ST_LATFROMGEOHASH", SQL_FN(Item_func_latfromgeohash, 1)},
     {"ST_LATITUDE", SQL_FACTORY(Latitude_instantiator)},
-    {"ST_LENGTH", SQL_FN(Item_func_st_length, 1)},
+    {"ST_LENGTH", SQL_FN_V_LIST(Item_func_st_length, 1, 2)},
     {"ST_LINEFROMTEXT", SQL_FACTORY(Linefromtext_instantiator)},
     {"ST_LINEFROMWKB", SQL_FACTORY(Linefromwkb_instantiator)},
     {"ST_LINESTRINGFROMTEXT", SQL_FACTORY(Linestringfromtext_instantiator)},
@@ -1630,7 +1618,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"GET_DD_INDEX_SUB_PART_LENGTH",
      SQL_FN_LIST_INTERNAL(Item_func_get_dd_index_sub_part_length, 5)},
     {"GET_DD_CREATE_OPTIONS",
-     SQL_FN_INTERNAL(Item_func_get_dd_create_options, 2)},
+     SQL_FN_INTERNAL(Item_func_get_dd_create_options, 3)},
     {"GET_DD_TABLESPACE_PRIVATE_DATA",
      SQL_FN_INTERNAL(Item_func_get_dd_tablespace_private_data, 2)},
     {"GET_DD_INDEX_PRIVATE_DATA",
@@ -1708,7 +1696,29 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"INTERNAL_TABLESPACE_DATA_FREE",
      SQL_FN_INTERNAL(Item_func_internal_tablespace_data_free, 4)},
     {"INTERNAL_TABLESPACE_STATUS",
-     SQL_FN_INTERNAL(Item_func_internal_tablespace_status, 4)}};
+     SQL_FN_INTERNAL(Item_func_internal_tablespace_status, 4)},
+    {"INTERNAL_TABLESPACE_EXTRA",
+     SQL_FN_INTERNAL(Item_func_internal_tablespace_extra, 4)},
+    {"GET_DD_PROPERTY_KEY_VALUE",
+     SQL_FN_INTERNAL(Item_func_get_dd_property_key_value, 2)},
+    {"REMOVE_DD_PROPERTY_KEY",
+     SQL_FN_INTERNAL(Item_func_remove_dd_property_key, 2)},
+    {"CONVERT_INTERVAL_TO_USER_INTERVAL",
+     SQL_FN_INTERNAL(Item_func_convert_interval_to_user_interval, 2)},
+    {"INTERNAL_GET_DD_COLUMN_EXTRA",
+     SQL_FN_LIST_INTERNAL(Item_func_internal_get_dd_column_extra, 6)},
+    {"INTERNAL_GET_USERNAME",
+     SQL_FN_LIST_INTERNAL_V(Item_func_internal_get_username, 0, 1)},
+    {"INTERNAL_GET_HOSTNAME",
+     SQL_FN_LIST_INTERNAL_V(Item_func_internal_get_hostname, 0, 1)},
+    {"INTERNAL_GET_ENABLED_ROLE_JSON",
+     SQL_FN_INTERNAL(Item_func_internal_get_enabled_role_json, 0)},
+    {"INTERNAL_GET_MANDATORY_ROLES_JSON",
+     SQL_FN_INTERNAL(Item_func_internal_get_mandatory_roles_json, 0)},
+    {"INTERNAL_IS_MANDATORY_ROLE",
+     SQL_FN_INTERNAL(Item_func_internal_is_mandatory_role, 2)},
+    {"INTERNAL_IS_ENABLED_ROLE",
+     SQL_FN_INTERNAL(Item_func_internal_is_enabled_role, 2)}};
 
 using Native_functions_hash = std::unordered_map<std::string, Create_func *>;
 static const Native_functions_hash *native_functions_hash;
@@ -1754,41 +1764,70 @@ Item *create_func_cast(THD *thd, const POS &pos, Item *a,
   return create_func_cast(thd, pos, a, &type);
 }
 
-Item *create_func_cast(THD *thd, const POS &pos, Item *a,
-                       const Cast_type *type) {
-  if (a == NULL) return NULL;  // earlier syntax error detected
+extern CHARSET_INFO my_charset_utf8mb4_0900_bin;
+
+Item *create_func_cast(THD *thd, const POS &pos, Item *a, const Cast_type *type,
+                       bool as_array) {
+  // earlier syntax error detected
+  if (a == nullptr) return nullptr;
 
   const Cast_target cast_type = type->target;
   const char *c_len = type->length;
   const char *c_dec = type->dec;
 
-  Item *res = NULL;
+  Item *res = nullptr;
 
+  if (as_array) {
+    // Disallow CAST( .. AS .. ARRAY) in SP
+    if (thd->lex->get_sp_current_parsing_ctx()) {
+      my_error(ER_WRONG_USAGE, MYF(0), "CAST( .. AS .. ARRAY)",
+               "stored routines");
+      return nullptr;
+    }
+    if (type->charset != nullptr && type->charset != &my_charset_bin) {
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+               "specifying charset for multi-valued index");
+      return nullptr;
+    }
+  }
   switch (cast_type) {
-    case ITEM_CAST_BINARY:
-      res = new (thd->mem_root) Item_func_binary(pos, a);
-      break;
     case ITEM_CAST_SIGNED_INT:
-      res = new (thd->mem_root) Item_func_signed(pos, a);
+      if (as_array)
+        res = new (thd->mem_root)
+            Item_func_array_cast(pos, a, cast_type, 0, 0, NULL);
+      else
+        res = new (thd->mem_root) Item_typecast_signed(pos, a);
       break;
     case ITEM_CAST_UNSIGNED_INT:
-      res = new (thd->mem_root) Item_func_unsigned(pos, a);
+      if (as_array)
+        res = new (thd->mem_root)
+            Item_func_array_cast(pos, a, cast_type, 0, 0, NULL);
+      else
+        res = new (thd->mem_root) Item_typecast_unsigned(pos, a);
       break;
     case ITEM_CAST_DATE:
-      res = new (thd->mem_root) Item_date_typecast(pos, a);
+      if (as_array)
+        res = new (thd->mem_root)
+            Item_func_array_cast(pos, a, cast_type, 0, 0, NULL);
+      else
+        res = new (thd->mem_root) Item_typecast_date(pos, a);
       break;
     case ITEM_CAST_TIME:
     case ITEM_CAST_DATETIME: {
-      uint dec = c_dec ? strtoul(c_dec, NULL, 10) : 0;
+      uint dec = c_dec ? strtoul(c_dec, nullptr, 10) : 0;
       if (dec > DATETIME_MAX_DECIMALS) {
         my_error(ER_TOO_BIG_PRECISION, MYF(0), (int)dec, "CAST",
                  DATETIME_MAX_DECIMALS);
-        return 0;
+        return nullptr;
       }
-      res = (cast_type == ITEM_CAST_TIME)
-                ? (Item *)new (thd->mem_root) Item_time_typecast(pos, a, dec)
-                : (Item *)new (thd->mem_root)
-                      Item_datetime_typecast(pos, a, dec);
+      if (as_array)
+        res = new (thd->mem_root)
+            Item_func_array_cast(pos, a, cast_type, 0, dec, NULL);
+      else
+        res = (cast_type == ITEM_CAST_TIME)
+                  ? (Item *)new (thd->mem_root) Item_typecast_time(pos, a, dec)
+                  : (Item *)new (thd->mem_root)
+                        Item_typecast_datetime(pos, a, dec);
       break;
     }
     case ITEM_CAST_DECIMAL: {
@@ -1841,7 +1880,11 @@ Item *create_func_cast(THD *thd, const POS &pos, Item *a,
                  static_cast<ulong>(DECIMAL_MAX_SCALE));
         return 0;
       }
-      res = new (thd->mem_root) Item_decimal_typecast(pos, a, len, dec);
+      if (as_array)
+        res = new (thd->mem_root)
+            Item_func_array_cast(pos, a, cast_type, len, dec, NULL);
+      else
+        res = new (thd->mem_root) Item_typecast_decimal(pos, a, len, dec);
       break;
     }
     case ITEM_CAST_CHAR: {
@@ -1851,24 +1894,86 @@ Item *create_func_cast(THD *thd, const POS &pos, Item *a,
           (cs ? cs : thd->variables.collation_connection);
       if (c_len) {
         int error;
-        len = my_strtoll10(c_len, NULL, &error);
+        len = my_strtoll10(c_len, nullptr, &error);
         if ((error != 0) || (len > MAX_FIELD_BLOBLENGTH)) {
           my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), "cast as char",
                    MAX_FIELD_BLOBLENGTH);
           return nullptr;
         }
       }
-      res = new (thd->mem_root) Item_char_typecast(POS(), a, len, real_cs);
+      if (as_array) {
+        if (cast_type == ITEM_CAST_CHAR &&
+            (len < 0 || len > CONVERT_IF_BIGGER_TO_BLOB)) {
+          my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                   "CAST-ing data to array of char/binary BLOBs");
+          return res;
+        }
+        /*
+          Multi-valued index now supports only two charsets: binary for
+          BINARY(x) keys and my_charset_utf8mb4_0900_as_cs for CHAR(x) keys.
+          The latter one is because it's closest to binary in terms of sort
+          order and doesn't pad spaces.  This is important because JSON treat
+          e.g "abc" and "abc " as different values and space padding charset
+          will cause inconsistent key handling and failed asserts in InnoDB.
+        */
+        if (real_cs != &my_charset_bin) real_cs = &my_charset_utf8mb4_0900_bin;
+
+        res = new (thd->mem_root)
+            Item_func_array_cast(pos, a, cast_type, len, 0, real_cs);
+      } else
+        res = new (thd->mem_root) Item_typecast_char(POS(), a, len, real_cs);
       break;
     }
     case ITEM_CAST_JSON: {
-      res = new (thd->mem_root) Item_json_typecast(thd, pos, a);
+      if (as_array) {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "CAST-ing data to array of JSON");
+        return nullptr;
+      }
+      res = new (thd->mem_root) Item_typecast_json(thd, pos, a);
 
+      break;
+    }
+    case ITEM_CAST_FLOAT: {
+      bool as_double = false;
+
+      if (as_array) {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "CAST-ing data to array of FLOAT");
+        return nullptr;
+      }
+
+      // Check if binary precision is specified
+      if (c_len != nullptr) {
+        ulong decoded_size;
+        errno = 0;
+        decoded_size = strtoul(c_len, nullptr, 10);
+        if (errno != 0 || decoded_size > PRECISION_FOR_DOUBLE) {
+          my_error(ER_TOO_BIG_PRECISION, MYF(0), decoded_size, "CAST",
+                   PRECISION_FOR_DOUBLE);
+          return nullptr;
+        }
+        // Make the cast to DOUBLE
+        if (decoded_size > PRECISION_FOR_FLOAT) {
+          as_double = true;
+        }
+      }
+
+      res = new (thd->mem_root) Item_typecast_real(pos, a, as_double);
+      break;
+    }
+    case ITEM_CAST_DOUBLE: {
+      if (as_array) {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "CAST-ing data to array of DOUBLE");
+        return nullptr;
+      }
+
+      res = new (thd->mem_root) Item_typecast_real(pos, a, /*as_double*/ true);
       break;
     }
     default: {
       DBUG_ASSERT(0);
-      res = 0;
       break;
     }
   }
@@ -1902,15 +2007,23 @@ Item *create_temporal_literal(THD *thd, const char *str, size_t length,
   switch (type) {
     case MYSQL_TYPE_DATE:
     case MYSQL_TYPE_NEWDATE:
-      if (!str_to_datetime(cs, str, length, &ltime, flags, &status) &&
+      if (!propagate_datetime_overflow(
+              thd, &status.warnings,
+              str_to_datetime(cs, str, length, &ltime, flags, &status)) &&
           ltime.time_type == MYSQL_TIMESTAMP_DATE && !status.warnings)
         item = new (thd->mem_root) Item_date_literal(&ltime);
       break;
     case MYSQL_TYPE_DATETIME:
-      if (!str_to_datetime(cs, str, length, &ltime, flags, &status) &&
-          ltime.time_type == MYSQL_TIMESTAMP_DATETIME && !status.warnings)
-        item = new (thd->mem_root)
-            Item_datetime_literal(&ltime, status.fractional_digits);
+      if (!propagate_datetime_overflow(
+              thd, &status.warnings,
+              str_to_datetime(cs, str, length, &ltime, flags, &status)) &&
+          (ltime.time_type == MYSQL_TIMESTAMP_DATETIME ||
+           ltime.time_type == MYSQL_TIMESTAMP_DATETIME_TZ) &&
+          !status.warnings) {
+        adjust_time_zone_displacement(thd->time_zone(), &ltime);
+        item = new (thd->mem_root) Item_datetime_literal(
+            &ltime, status.fractional_digits, thd->time_zone());
+      }
       break;
     case MYSQL_TYPE_TIME:
       if (!str_to_time(cs, str, length, &ltime, 0, &status) &&

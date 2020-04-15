@@ -1,7 +1,8 @@
-call mtr.add_suppression("\\[ERROR\\] Function 'keyring_vault' already exists");
-call mtr.add_suppression("\\[ERROR\\] Couldn't load plugin named 'keyring_vault' with soname 'keyring_vault.*'.");
+call mtr.add_suppression("Function 'keyring_vault' already exists");
+call mtr.add_suppression("Couldn't load plugin named 'keyring_vault' with soname 'keyring_vault.*'.");
 call mtr.add_suppression("Plugin keyring_vault reported");
-SET @@global.keyring_vault_config="MYSQLTEST_VARDIR/std_data/keyring_vault_confs/keyring_vault1.conf";
+call mtr.add_suppression("keyring_vault initialization failure");
+call mtr.add_suppression("A message intended for a client cannot be sent there as no client-session is attached");
 # restart:<hidden args>
 CREATE TABLE t1(id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, credit_card VARCHAR(200), private VARCHAR(50)) ENGINE=InnoDB ENCRYPTION='y';
 SET DEBUG_SYNC= 'row_merge_after_scan SIGNAL opened WAIT_FOR rotated';
@@ -20,7 +21,6 @@ SET DEBUG_SYNC= 'now SIGNAL updated';
 DROP TABLE t2;
 SELECT variable_value > 0 FROM performance_schema.global_status WHERE variable_name = 'innodb_num_pages_encrypted';
 variable_value > 0
-1
 SELECT variable_value > 0 FROM performance_schema.global_status WHERE variable_name = 'innodb_encryption_n_merge_blocks_encrypted';
 variable_value > 0
 1
@@ -35,3 +35,11 @@ variable_value > 0
 1
 DROP TABLE t1;
 SET DEBUG_SYNC= 'RESET';
+CREATE TABLE t (a INT, b TEXT) ENGINE=InnoDB ENCRYPTION='y';
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL paused WAIT_FOR unpause';
+ALTER TABLE t ADD PRIMARY KEY (a);
+SET DEBUG_SYNC= 'now WAIT_FOR paused';
+SET DEBUG_SYNC= 'now SIGNAL unpause';
+DROP TABLE t;
+SET DEBUG_SYNC= 'RESET';
+UNINSTALL PLUGIN keyring_vault;

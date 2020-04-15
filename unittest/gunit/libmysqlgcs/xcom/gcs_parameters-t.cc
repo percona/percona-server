@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #include "gcs_base_test.h"
 
 #include "gcs_message_stage_lz4.h"
+#include "gcs_message_stage_split.h"
 
 using std::vector;
 
@@ -55,6 +56,8 @@ class GcsParametersTest : public GcsBaseTest {
     m_params.add_parameter("member_expel_timeout", "120");
     m_params.add_parameter("join_attempts", "3");
     m_params.add_parameter("join_sleep_time", "5");
+    m_params.add_parameter("fragmentation", "on");
+    m_params.add_parameter("fragmentation_threshold", "1024");
   }
 
   virtual void TearDown() {
@@ -160,6 +163,82 @@ TEST_F(GcsParametersTest, ParametersCompression) {
   ASSERT_EQ(err, GCS_OK);
 }
 
+/*
+ Checks default values for fragmentation, does sanity checks, etc.
+ */
+TEST_F(GcsParametersTest, ParametersFragmentation) {
+  enum_gcs_error err;
+
+  // --------------------------------------------------------
+  // Fragmentation default values
+  // --------------------------------------------------------
+  Gcs_interface_parameters implicit_values;
+  implicit_values.add_parameter("group_name", "ola");
+  implicit_values.add_parameter("peer_nodes",
+                                "127.0.0.1:24844,127.0.0.1:24845");
+  implicit_values.add_parameter("local_node", "127.0.0.1:24844");
+  implicit_values.add_parameter("bootstrap_group", "true");
+  implicit_values.add_parameter("poll_spin_loops", "100");
+
+  err = m_gcs->initialize(implicit_values);
+
+  ASSERT_EQ(err, GCS_OK);
+
+  const Gcs_interface_parameters &init_params =
+      m_xcs->get_initialization_parameters();
+
+  // fragmentation is ON by default
+  ASSERT_TRUE(init_params.get_parameter("fragmentation")->compare("on") == 0);
+
+  // fragmentation_threshold is set to the default
+  std::stringstream ss;
+  ss << Gcs_message_stage_split_v2::DEFAULT_THRESHOLD;
+  ASSERT_TRUE(
+      init_params.get_parameter("fragmentation_threshold")->compare(ss.str()) ==
+      0);
+
+  // finalize the interface
+  err = m_gcs->finalize();
+
+  ASSERT_EQ(err, GCS_OK);
+
+  // --------------------------------------------------------
+  // Fragmentation explicit values
+  // --------------------------------------------------------
+  std::string fragmentation = "off";
+  std::string fragmentation_threshold = "1";
+
+  Gcs_interface_parameters explicit_values;
+  explicit_values.add_parameter("group_name", "ola");
+  explicit_values.add_parameter("peer_nodes",
+                                "127.0.0.1:24844,127.0.0.1:24845");
+  explicit_values.add_parameter("local_node", "127.0.0.1:24844");
+  explicit_values.add_parameter("bootstrap_group", "true");
+  explicit_values.add_parameter("poll_spin_loops", "100");
+  explicit_values.add_parameter("fragmentation", fragmentation);
+  explicit_values.add_parameter("fragmentation_threshold",
+                                fragmentation_threshold);
+
+  err = m_gcs->initialize(explicit_values);
+
+  const Gcs_interface_parameters &init_params2 =
+      m_xcs->get_initialization_parameters();
+
+  ASSERT_EQ(err, GCS_OK);
+
+  // fragmentation is ON by default
+  ASSERT_TRUE(
+      init_params2.get_parameter("fragmentation")->compare(fragmentation) == 0);
+
+  // fragmentation is set to the value we explicitly configured
+  ASSERT_TRUE(init_params2.get_parameter("fragmentation_threshold")
+                  ->compare(fragmentation_threshold) == 0);
+
+  err = m_gcs->finalize();
+
+  ASSERT_EQ(err, GCS_OK);
+}
+
 TEST_F(GcsParametersTest, SanityParameters) {
   // initialize the interface
   enum_gcs_error err = m_gcs->initialize(m_params);
@@ -215,7 +294,8 @@ TEST_F(GcsParametersTest, AbsentLocalNode) {
 }
 
 TEST_F(GcsParametersTest, InvalidPeerNodes) {
-  std::string *p = (std::string *)m_params.get_parameter("peer_nodes");
+  std::string *p =
+      const_cast<std::string *>(m_params.get_parameter("peer_nodes"));
   std::string save = *p;
 
   // invalid peer
@@ -231,7 +311,8 @@ TEST_F(GcsParametersTest, InvalidPeerNodes) {
 }
 
 TEST_F(GcsParametersTest, InvalidLocalNode) {
-  std::string *p = (std::string *)m_params.get_parameter("local_node");
+  std::string *p =
+      const_cast<std::string *>(m_params.get_parameter("local_node"));
   std::string save = *p;
 
   // invalid peer
@@ -241,7 +322,8 @@ TEST_F(GcsParametersTest, InvalidLocalNode) {
 }
 
 TEST_F(GcsParametersTest, InvalidPollSpinLoops) {
-  std::string *p = (std::string *)m_params.get_parameter("poll_spin_loops");
+  std::string *p =
+      const_cast<std::string *>(m_params.get_parameter("poll_spin_loops"));
   std::string save = *p;
 
   *p = "Invalid";
@@ -250,8 +332,18 @@ TEST_F(GcsParametersTest, InvalidPollSpinLoops) {
 }
 
 TEST_F(GcsParametersTest, InvalidCompressionThreshold) {
-  std::string *p =
-      (std::string *)m_params.get_parameter("compression_threshold");
+  std::string *p = const_cast<std::string *>(
+      m_params.get_parameter("compression_threshold"));
+  std::string save = *p;
+
+  *p = "Invalid";
+  do_check_params();
+  *p = save;
+}
+
+TEST_F(GcsParametersTest, InvalidFragmentationThreshold) {
+  std::string *p = const_cast<std::string *>(
+      m_params.get_parameter("fragmentation_threshold"));
   std::string save = *p;
 
   *p = "Invalid";
@@ -260,7 +352,8 @@ TEST_F(GcsParametersTest, InvalidCompressionThreshold) {
 }
 
 TEST_F(GcsParametersTest, InvalidLocalNodeAddress) {
-  std::string *p = (std::string *)m_params.get_parameter("local_node");
+  std::string *p =
+      const_cast<std::string *>(m_params.get_parameter("local_node"));
   std::string save = *p;
 
   *p = "127.0";
@@ -269,7 +362,8 @@ TEST_F(GcsParametersTest, InvalidLocalNodeAddress) {
 }
 
 TEST_F(GcsParametersTest, InvalidWhitelistIPMask) {
-  std::string *p = (std::string *)m_params.get_parameter("ip_whitelist");
+  std::string *p =
+      const_cast<std::string *>(m_params.get_parameter("ip_whitelist"));
   std::string save = *p;
 
   *p = "192.168.1.1/33";
@@ -278,7 +372,8 @@ TEST_F(GcsParametersTest, InvalidWhitelistIPMask) {
 }
 
 TEST_F(GcsParametersTest, InvalidWhitelistIP) {
-  std::string *p = (std::string *)m_params.get_parameter("ip_whitelist");
+  std::string *p =
+      const_cast<std::string *>(m_params.get_parameter("ip_whitelist"));
   std::string save = *p;
 
   *p = "192.168.1.256/24";
@@ -287,7 +382,8 @@ TEST_F(GcsParametersTest, InvalidWhitelistIP) {
 }
 
 TEST_F(GcsParametersTest, InvalidWhitelistIPs) {
-  std::string *p = (std::string *)m_params.get_parameter("ip_whitelist");
+  std::string *p =
+      const_cast<std::string *>(m_params.get_parameter("ip_whitelist"));
   std::string save = *p;
 
   *p = "192.168.1.222/24,255.257.256.255";
@@ -296,7 +392,8 @@ TEST_F(GcsParametersTest, InvalidWhitelistIPs) {
 }
 
 TEST_F(GcsParametersTest, HalfBakedIP) {
-  std::string *p = (std::string *)m_params.get_parameter("ip_whitelist");
+  std::string *p =
+      const_cast<std::string *>(m_params.get_parameter("ip_whitelist"));
   std::string save = *p;
 
   *p = "192.168.";
@@ -305,7 +402,8 @@ TEST_F(GcsParametersTest, HalfBakedIP) {
 }
 
 TEST_F(GcsParametersTest, InvalidLocalNode_IP_not_found) {
-  std::string *p = (std::string *)m_params.get_parameter("local_node");
+  std::string *p =
+      const_cast<std::string *>(m_params.get_parameter("local_node"));
   std::string save = *p;
 
   *p = "8.8.8.8:24844";

@@ -452,9 +452,11 @@ CREATE TABLE t1 (
 `posted_on` timestamp NOT NULL default '1971-01-01 00:00:00',
 PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 AUTO_INCREMENT=1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 show fields from t1;
 Field	Type	Null	Key	Default	Extra
-id	int(11)	NO	PRI	NULL	auto_increment
+id	int	NO	PRI	NULL	auto_increment
 username	varchar(80)	NO			
 posted_on	timestamp	NO		1971-01-01 00:00:00	
 select is_nullable from INFORMATION_SCHEMA.COLUMNS where TABLE_NAME='t1' and COLUMN_NAME='posted_on';
@@ -464,6 +466,8 @@ drop table t1;
 CREATE TABLE t1 ( f1 INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
 f2 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 f3 TIMESTAMP NOT NULL default '1971-01-01 00:00:00');
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (f2,f3) VALUES (NOW(), "1971-01-01 00:00:00");
 INSERT INTO t1 (f2,f3) VALUES (NOW(), NULL);
 INSERT INTO t1 (f2,f3) VALUES (NOW(), ASCII(NULL));

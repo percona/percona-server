@@ -1,15 +1,10 @@
---skip # Test unstable on Jenkins
-
 --disable_query_log
-let $innodb_encrypt_tables_orig = `SELECT @@innodb_encrypt_tables`;
+let $default_table_encryption_orig = `SELECT @@default_table_encryption`;
 let $innodb_encryption_threads_orig = `SELECT @@innodb_encryption_threads`;
 --enable_query_log
 
 --disable_warnings
 SET GLOBAL innodb_encryption_threads = 4;
-
-# zlib
-#set global innodb_compression_algorithm = 1;
 
 create table innodb_normal (c1 int, b char(20)) engine=innodb;
 create table innodb_page_compressed1 (c1 int, b char(20)) engine=innodb COMPRESSION="zlib";
@@ -32,37 +27,6 @@ create table innodb_page_compressed9 (c1 int, b char(20)) engine=innodb COMPRESS
 show create table innodb_page_compressed9;
 
 --enable_warnings
-#create table innodb_normal (c1 int, b char(20)) engine=innodb;
-#show warnings;
-#create table innodb_page_compressed1 (c1 int, b char(20)) engine=innodb;
-#show warnings;
-#show create table innodb_page_compressed1;
-#create table innodb_page_compressed2 (c1 int, b char(20)) engine=innodb;
-#show warnings;
-#show create table innodb_page_compressed2;
-#create table innodb_page_compressed3 (c1 int, b char(20)) engine=innodb;
-#show warnings;
-#show create table innodb_page_compressed3;
-#create table innodb_page_compressed4 (c1 int, b char(20)) engine=innodb;
-#show warnings;
-#show create table innodb_page_compressed4;
-#create table innodb_page_compressed5 (c1 int, b char(20)) engine=innodb;
-#show warnings;
-#show create table innodb_page_compressed5;
-#create table innodb_page_compressed6 (c1 int, b char(20)) engine=innodb;
-#show warnings;
-#show create table innodb_page_compressed6;
-#create table innodb_page_compressed7 (c1 int, b char(20)) engine=innodb;
-#show warnings;
-#show create table innodb_page_compressed7;
-#create table innodb_page_compressed8 (c1 int, b char(20)) engine=innodb;
-#show warnings;
-#show create table innodb_page_compressed8;
-#create table innodb_page_compressed9 (c1 int, b char(20)) engine=innodb;
-#show warnings;
-#show create table innodb_page_compressed9;
-
-
 
 delimiter //;
 create procedure innodb_insert_proc (repeat_count int)
@@ -109,18 +73,13 @@ innodb_page_compressed9 for export;
 unlock tables;
 
 --echo # Wait until dirty pages are compressed and encrypted
-#let $wait_condition= select variable_value > 0 from information_schema.global_status where variable_name = 'INNODB_NUM_PAGES_PAGE_COMPRESSED';
-#--source include/wait_condition.inc
-let $wait_condition= select variable_value > 0 from information_schema.global_status where variable_name = 'INNODB_NUM_PAGES_ENCRYPTED';
+let $wait_condition= select count > 0 from information_schema.innodb_metrics WHERE name = 'pages_encrypted';
 --source include/wait_condition.inc
-
-SELECT variable_value > 0 FROM information_schema.global_status WHERE variable_name = 'innodb_num_pages_encrypted';
-#SELECT variable_value > 0 FROM information_schema.global_status WHERE variable_name = 'innodb_num_pages_page_compressed';
 
 --source include/restart_mysqld.inc
 
 SET GLOBAL innodb_encryption_threads = 4;
-SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 
 update innodb_page_compressed1 set c1 = c1 + 1;
 update innodb_page_compressed2 set c1 = c1 + 1;
@@ -140,15 +99,10 @@ innodb_page_compressed9 for export;
 
 unlock tables;
 
---echo # Wait until dirty pages are compressed and encrypted 2
-#let $wait_condition= select variable_value > 0 from information_schema.global_status where variable_name = 'INNODB_NUM_PAGES_PAGE_COMPRESSED';
-#--source include/wait_condition.inc
-let $wait_condition= select variable_value > 0 from information_schema.global_status where variable_name = 'INNODB_NUM_PAGES_DECRYPTED';
+let $wait_condition= select count > 0 from information_schema.innodb_metrics WHERE name = 'pages_decrypted';
 --source include/wait_condition.inc
 
-SELECT variable_value > 0 FROM information_schema.global_status WHERE variable_name = 'innodb_num_pages_decrypted';
-#SELECT variable_value > 0 FROM information_schema.global_status WHERE variable_name = 'innodb_num_pages_page_compressed';
-#SELECT variable_value > 0 FROM information_schema.global_status WHERE variable_name = 'innodb_num_pages_page_decompressed';
+# cleanup
 
 drop procedure innodb_insert_proc;
 drop table innodb_normal;
@@ -162,8 +116,14 @@ drop table innodb_page_compressed7;
 drop table innodb_page_compressed8;
 drop table innodb_page_compressed9;
 
+# Decrypt all tables
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
+--source include/wait_condition.inc
+
 # reset system
 --disable_query_log
-EVAL SET GLOBAL innodb_encrypt_tables = $innodb_encrypt_tables_orig;
+EVAL SET GLOBAL default_table_encryption = $default_table_encryption_orig;
 EVAL SET GLOBAL innodb_encryption_threads = $innodb_encryption_threads_orig;
 --enable_query_log

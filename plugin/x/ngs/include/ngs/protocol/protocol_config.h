@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,21 +27,22 @@
 
 #include <stdint.h>
 #include <list>
+#include <memory>
 
-#include "plugin/x/ngs/include/ngs_common/chrono.h"
+#include "plugin/x/src/helper/chrono.h"
 
+#include "plugin/x/ngs/include/ngs/compression_types.h"
 #include "plugin/x/src/global_timeouts.h"
 #include "plugin/x/src/xpl_system_variables.h"
 
 namespace ngs {
 
-class Protocol_config {
+class Protocol_global_config {
  public:
-  uint32_t default_max_frame_size;
   uint32_t max_message_size;
 
-  chrono::seconds connect_timeout;
-  chrono::milliseconds connect_timeout_hysteresis;
+  xpl::chrono::Seconds connect_timeout;
+  xpl::chrono::Milliseconds connect_timeout_hysteresis;
   uint32_t m_wait_timeout = Global_timeouts::Default::k_wait_timeout;
   uint32_t m_interactive_timeout =
       Global_timeouts::Default::k_interactive_timeout;
@@ -60,11 +61,20 @@ class Protocol_config {
             m_write_timeout};
   }
 
-  Protocol_config()
-      : default_max_frame_size(16 * 1024 * 1024),
-        max_message_size(16 * 1024 * 1024),
+  Protocol_global_config()
+      : max_message_size(16 * 1024 * 1024),
         connect_timeout(0),
         connect_timeout_hysteresis(100) {}
+};
+
+class Protocol_config {
+ public:
+  explicit Protocol_config(
+      const std::shared_ptr<Protocol_global_config> &global)
+      : m_global(global) {}
+
+  Compression_algorithm m_compression_algorithm = Compression_algorithm::k_none;
+  std::shared_ptr<Protocol_global_config> m_global;
 };
 
 }  // namespace ngs

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -363,10 +363,7 @@ class Rsegs {
   /** Make the undo tablespace inactive so that it will not be
   used for new transactions.  The purge thread will clear out
   all the undo logs, truncate it, and then mark it empty. */
-  void set_inactive_explicit() {
-    ut_ad(m_state == ACTIVE || m_state == INACTIVE_IMPLICIT);
-    m_state = INACTIVE_EXPLICIT;
-  }
+  void set_inactive_explicit() { m_state = INACTIVE_EXPLICIT; }
 
   /** Set the state of the undo tablespace to empty so that it
   can be dropped. */
@@ -574,4 +571,12 @@ struct TrxTrackCmp {
 // typedef std::unordered_set<TrxTrack, TrxTrackHash, TrxTrackHashCmp> TrxIdSet;
 typedef std::set<TrxTrack, TrxTrackCmp, ut_allocator<TrxTrack>> TrxIdSet;
 
+struct TrxVersion {
+  TrxVersion(trx_t *trx);
+
+  trx_t *m_trx;
+  ulint m_version;
+};
+
+typedef std::vector<TrxVersion, ut_allocator<TrxVersion>> hit_list_t;
 #endif /* trx0types_h */

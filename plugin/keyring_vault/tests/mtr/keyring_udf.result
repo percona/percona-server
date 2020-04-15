@@ -190,8 +190,6 @@ select keyring_key_remove(1);
 ERROR HY000: Can't initialize function 'keyring_key_remove'; Mismatch encountered. A string argument is expected for key id.
 select keyring_key_remove(NULL);
 ERROR HY000: Can't initialize function 'keyring_key_remove'; Mismatch encountered. A string argument is expected for key id.
-select keyring_key_generate('Rob_AES_8196','AES',2049);
-ERROR HY000: Can't initialize function 'keyring_key_generate'; The key is to long. The max length of the key is 2048
 select PLUGIN_NAME,PLUGIN_AUTHOR from information_schema.plugins where PLUGIN_NAME like '%keyring%';
 PLUGIN_NAME	PLUGIN_AUTHOR
 keyring_vault	Percona
@@ -563,6 +561,10 @@ ERROR HY000: Function 'keyring_key_store' failed because underlying keyring serv
 select @x;
 @x
 NULL
+select repeat('abcdefgh', 2049) into @x;
+select keyring_key_store('long_key', 'AES', @x);
+ERROR HY000: Function 'keyring_key_store' failed because key length is too long.
+select repeat('abcdefgh', 17) into @x;
 select keyring_key_generate('key_id','AES',64);
 keyring_key_generate('key_id','AES',64)
 1

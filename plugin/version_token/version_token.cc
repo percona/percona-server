@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
+#include "my_systime.h"  // TIMEOUT_INF, Timeout_type
 #include "sql/auth/auth_acls.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"
@@ -141,7 +142,7 @@ static MYSQL_THDVAR_ULONG(session_number,
 static void update_session_version_tokens(MYSQL_THD thd, SYS_VAR *,
                                           void *var_ptr, const void *save) {
   THDVAR(thd, session_number) = 0;
-  *(char **)var_ptr = *(char **)save;
+  *static_cast<char **>(var_ptr) = *static_cast<char *const *>(save);
 }
 
 static MYSQL_THDVAR_STR(session, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
@@ -372,9 +373,10 @@ static int parse_vtokens(char *input, enum command type) {
 
       case CHECK_VTOKEN: {
         char error_str[MYSQL_ERRMSG_SIZE];
+        const char *token_name_cstr = token_name.str;
         if (!mysql_acquire_locking_service_locks(
-                thd, VTOKEN_LOCKS_NAMESPACE, (const char **)&(token_name.str),
-                1, LOCKING_SERVICE_READ, LONG_TIMEOUT) &&
+                thd, VTOKEN_LOCKS_NAMESPACE, &(token_name_cstr), 1,
+                LOCKING_SERVICE_READ, LONG_TIMEOUT) &&
             !vtokens_unchanged) {
           auto it = version_tokens_hash->find(to_string(token_name));
           if (it != version_tokens_hash->end()) {
@@ -451,10 +453,10 @@ static int version_token_check(
       /* Ignore all commands but COM_QUERY and COM_STMT_PREPARE */
       if (0 != my_charset_latin1.coll->strnncoll(
                    &my_charset_latin1, command, length,
-                   (const uchar *)STRING_WITH_LEN("Query"), 0) &&
+                   (const uchar *)STRING_WITH_LEN("Query"), false) &&
           0 != my_charset_latin1.coll->strnncoll(
                    &my_charset_latin1, command, length,
-                   (const uchar *)STRING_WITH_LEN("Prepare"), 0))
+                   (const uchar *)STRING_WITH_LEN("Prepare"), false))
         return 0;
 
       if (THDVAR(thd, session))
@@ -968,7 +970,7 @@ static inline bool init_acquire(UDF_INIT *initid, UDF_ARGS *args,
   initid->decimals = 0;
   initid->max_length = 1;
   initid->ptr = NULL;
-  initid->const_item = 0;
+  initid->const_item = false;
   initid->extension = NULL;
 
   THD *thd = current_thd;
@@ -1022,7 +1024,8 @@ PLUGIN_EXPORT long long version_tokens_lock_shared(UDF_INIT *, UDF_ARGS *args,
   // For the UDF 1 == success, 0 == failure.
   return !acquire_locking_service_locks(
       NULL, VTOKEN_LOCKS_NAMESPACE, const_cast<const char **>(&args->args[0]),
-      args->arg_count - 1, LOCKING_SERVICE_READ, (unsigned long)timeout);
+      args->arg_count - 1, LOCKING_SERVICE_READ,
+      (timeout == -1 ? TIMEOUT_INF : static_cast<Timeout_type>(timeout)));
 }
 
 PLUGIN_EXPORT bool version_tokens_lock_exclusive_init(UDF_INIT *initid,
@@ -1048,7 +1051,8 @@ PLUGIN_EXPORT long long version_tokens_lock_exclusive(UDF_INIT *,
   // For the UDF 1 == success, 0 == failure.
   return !acquire_locking_service_locks(
       NULL, VTOKEN_LOCKS_NAMESPACE, const_cast<const char **>(&args->args[0]),
-      args->arg_count - 1, LOCKING_SERVICE_WRITE, (unsigned long)timeout);
+      args->arg_count - 1, LOCKING_SERVICE_WRITE,
+      (timeout == -1 ? TIMEOUT_INF : static_cast<Timeout_type>(timeout)));
 }
 
 PLUGIN_EXPORT bool version_tokens_unlock_init(UDF_INIT *, UDF_ARGS *args,

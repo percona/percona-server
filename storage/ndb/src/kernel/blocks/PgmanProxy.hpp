@@ -1,4 +1,5 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,6 +84,11 @@ protected:
   int get_page(Page_cache_client& caller,
                Signal*, Page_cache_client::Request& req, Uint32 flags);
 
+  void get_extent_page(Page_cache_client& caller,
+                       Signal*,
+                       Page_cache_client::Request& req,
+                       Uint32 flags);
+
   void update_lsn(Signal *signal,
                   Page_cache_client& caller,
                   Local_key key, Uint64 lsn);
@@ -100,6 +106,7 @@ protected:
 
   void send_data_file_ord(Signal*, Uint32 i, Uint32 ret, Uint32 version,
                           Uint32 cmd, Uint32 file_no = RNIL, Uint32 fd = RNIL);
+  bool extent_pages_available(Uint32 pages_needed, Page_cache_client& caller);
 };
 
 

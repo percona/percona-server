@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,6 @@
 #include "sql/sql_class.h"
 #include "sql/sql_get_diagnostics.h"
 #include "unittest/gunit/test_utils.h"
-#include "unittest/gunit/thread_utils.h"
 
 namespace get_diagnostics_unittest {
 
@@ -54,8 +53,8 @@ class FailHelper {
   void fail(const char *message) { FAIL() << message; }
 };
 
-LEX_STRING var_name1 = {C_STRING_WITH_LEN("var1")};
-LEX_STRING var_name2 = {C_STRING_WITH_LEN("var2")};
+LEX_CSTRING var_name1 = {STRING_WITH_LEN("var1")};
+LEX_CSTRING var_name2 = {STRING_WITH_LEN("var2")};
 
 class MockDiagInfoItem : public Diagnostics_information_item {
  public:
@@ -156,7 +155,7 @@ TEST_F(GetDiagnosticsTestDeathTest, DieWhenUnsettableItem) {
   info->set_which_da(Diagnostics_information::CURRENT_AREA);
   cmd = new (mem_root) Sql_cmd_get_diagnostics(info);
 
-  MY_EXPECT_DEATH(cmd->execute(thd()), ".*Assertion.*srp.*");
+  EXPECT_DEATH(cmd->execute(thd()), ".*Assertion.*srp.*");
 }
 #endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
 
@@ -347,7 +346,7 @@ static Item *get_cond_info_item(THD *thd, uint number,
   Condition_information_item *diag_info_item;
   List<Condition_information_item> items;
   MEM_ROOT *mem_root = thd->mem_root;
-  LEX_STRING var_name = {C_STRING_WITH_LEN("get_cond_info_item")};
+  LEX_CSTRING var_name = {STRING_WITH_LEN("get_cond_info_item")};
 
   // Simulate GET DIAGNOSTICS as a new command
   thd->reset_for_next_command();
@@ -440,7 +439,7 @@ TEST_F(GetDiagnosticsTest, PushPopDiagnosticsArea) {
 TEST_F(GetDiagnosticsTestDeathTest, DiePopDiagnosticsArea) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
 
-  MY_EXPECT_DEATH(thd()->pop_diagnostics_area(), ".*Assertion.*m_stacked_da*");
+  EXPECT_DEATH(thd()->pop_diagnostics_area(), ".*Assertion.*m_stacked_da*");
 }
 #endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
 

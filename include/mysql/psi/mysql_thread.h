@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -156,6 +156,6 @@ static inline void inline_mysql_thread_set_psi_THD(THD *thd) {
 
 #endif
 
-  /** @} (end of group psi_api_thread) */
+/** @} (end of group psi_api_thread) */
 
 #endif

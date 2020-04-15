@@ -1,6 +1,8 @@
 #ifndef MYSQL_INCORRECT_VAULT_KEY_H
 #define MYSQL_INCORRECT_VAULT_KEY_H
 
+#include "vault_key.h"
+
 namespace keyring {
 
 struct Incorrect_vault_key : public Vault_key {
@@ -19,12 +21,12 @@ struct Incorrect_vault_key : public Vault_key {
   int add_to_key_id_length;
   int add_to_user_id_length;
 
-  virtual bool get_next_key(IKey **key) {
+  virtual bool get_next_key(IKey **key_out) {
     if (was_key_retrieved) {
-      *key = nullptr;
+      *key_out = nullptr;
       return true;
     }
-    *key = new Incorrect_vault_key(*this);
+    *key_out = new Incorrect_vault_key(*this);
     was_key_retrieved = true;
     return false;
   }

@@ -1,5 +1,9 @@
---skip
 --source include/have_debug.inc
+
+call mtr.add_suppression("\\[InnoDB\\] Space to be marked as encrypted was not found for id");
+call mtr.add_suppression("\\[InnoDB\\] The page \\[page id: space=[1-9][0-9]*, page number=[1-9][0-9]*\\] in file '.*test.t1\\.ibd' cannot be decrypted\\.");
+call mtr.add_suppression("\\[InnoDB\\] Post - encryption checksum verification failed - decryption failed for space id = 4 page_no = 4");
+call mtr.add_suppression("\\[InnoDB\\] Table test/t1 is encrypted but decryption failed\. Seems that the encryption key fetched from keyring is not the correct one\. Are you using the correct keyring?");
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval SET @@global.keyring_file_data="$MYSQL_TMP_DIR/mysecret_keyring";
@@ -7,11 +11,9 @@ eval SET @@global.keyring_file_data="$MYSQL_TMP_DIR/mysecret_keyring";
 let MYSQLD_DATADIR=`select @@datadir`;
 --let $MYSQLD_DATADIR=`select @@datadir`
 --let t1_IBD = $MYSQLD_DATADIR/test/t1.ibd
---let SEARCH_RANGE = 10000000
 
 --disable_warnings
 SET GLOBAL innodb_file_per_table = ON;
-SET GLOBAL innodb_file_format = `Barracuda`;
 --enable_warnings
 
 create table t1 (a TEXT) engine=innodb encryption='Y';
@@ -38,20 +40,20 @@ COMMIT;
 
 --copy_file $MYSQLD_DATADIR/test/t1.ibd $MYSQLD_DATADIR/test/t1.ibd.MK
 
---let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --innodb-encrypt-tables=ON --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=1
+--replace_result $KEYRING_PLUGIN_OPT KEYRING_PLUGIN_OPT $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=1
 --source include/start_mysqld.inc
 
---let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES`
---echo # Wait max 10 min for key encryption threads to encrypt all spaces
---echo $encrypted_tables_count
+--let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
+#We do not encrypt temporary tablespace
+--echo # Wait max 10 min for key encryption threads to encrypt all spaces (apart from temporary)
 --let $wait_timeout= 600
-# encrypted_tables_count + 1 because INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION contains additional,
-# artificial innodb_system table
---let $wait_condition=SELECT COUNT(*) = $tables_count + 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0
+--let $wait_condition=SELECT COUNT(*) = $tables_count - 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
 --source include/wait_condition.inc
 
---let $assert_text= All encrypted tables should have encrypted flag set
---let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE FLAG = 8225]" = $tables_count
+--let $assert_debug=SELECT * FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION
+--let $assert_text= All encrypted tables should have encrypted flag set apart from temporary tablespace
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE ((FLAG & 8192) = 8192)]" = $tables_count - 1
 --source include/assert.inc
 
 let INNODB_PAGE_SIZE=`select @@innodb_page_size`;
@@ -71,29 +73,30 @@ let INNODB_PAGE_SIZE=`select @@innodb_page_size`;
 perl;
 open(FILE, "+<", "$ENV{MYSQLD_DATADIR}/test/t1.ibd") or die "open";
 binmode FILE;
-seek(FILE, $ENV{'INNODB_PAGE_SIZE'} * 3 + 26 + 100, SEEK_SET) or die "seek";
+seek(FILE, $ENV{'INNODB_PAGE_SIZE'} * 4 + 38, SEEK_SET) or die "seek";
 print FILE pack("H*", "c00lcafedeadb017");
 close FILE or die "close";
 EOF
 
---echo # Now restart server with encryption turned off and wait for threads to decrypt everything
+--echo # Now restart server with encryption from keyring to unencrypted and wait for threads to decrypt everything
 --echo # Apart from t1 which is corrupted and it should not be possible to decrypt this table
 
---let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --innodb-encrypt-tables=OFF --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=1
+--replace_result $KEYRING_PLUGIN_OPT KEYRING_PLUGIN_OPT $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --default-table-encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=1
 --source include/start_mysqld.inc
 
 --let $wait_timeout= 600
-# Note that INNODB_TABLESPACES_ENCRYPTION whill contain also artificail innodb_system tablespace
-# thus $tables_count == all tables, but one in INNODB_TABLESPACES_ENCRYPTION
---let $wait_condition=SELECT COUNT(*) = $tables_count FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
+# Wait till there is only one encrypted table left in INNODB_TABLESPACE_ENCRYPTION (it should be t1). Temp is always
+# not encrypted
+--let $wait_condition=SELECT COUNT(*) = $tables_count - 2 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0
 --source include/wait_condition.inc
 
 --let $assert_text= Table t1 should stayed encrypted as some of its pages were corrupted
---let $assert_cond= "[SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0]" = "test/t1"
+--let $assert_cond= "[SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1]" = "test/t1"
 --source include/assert.inc
 
 --let $assert_text= Table t1 should be the only one with encrypted flag set
---let $assert_cond= "[SELECT NAME FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE FLAG = 8225]" = "test/t1"
+--let $assert_cond= "[SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE ((FLAG & 8192) = 8192)]" = "test/t1"
 --source include/assert.inc
 
 --error ER_GET_ERRMSG
@@ -104,6 +107,8 @@ SELECT * FROM t1;
 --echo # Restore the original t1
 
 --move_file $MYSQLD_DATADIR/test/t1.ibd.MK $MYSQLD_DATADIR/test/t1.ibd
+
+--replace_result $KEYRING_PLUGIN_OPT KEYRING_PLUGIN_OPT $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --source include/start_mysqld.inc
 
 SELECT COUNT(*) FROM t1;

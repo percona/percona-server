@@ -1,4 +1,5 @@
 $KEYRING_PLUGIN_OPT
 $KEYRING_PLUGIN_EARLY_LOAD
 --keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring
---bootstrap --innodb-page-size=16k
+--initialize --innodb-page-size=16k
+

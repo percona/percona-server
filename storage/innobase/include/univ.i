@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -55,7 +55,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define INNODB_VERSION_BUGFIX MYSQL_VERSION_PATCH
 
 #ifndef PERCONA_INNODB_VERSION
-#define PERCONA_INNODB_VERSION 4
+#define PERCONA_INNODB_VERSION 10
 #endif
 
 /* The following is the InnoDB version as shown in
@@ -383,21 +383,6 @@ database name and table name. In addition, 14 bytes is added for:
 only (NONE | ZLIB | LZ4). */
 #define MAX_COMPRESSION_LEN 4
 
-/** The maximum length in bytes that a database name can occupy when stored in
-UTF8, including the terminating '\0', see dict_fs2utf8(). You must include
-mysql_com.h if you are to use this macro. */
-#define MAX_DB_UTF8_LEN (NAME_LEN + 1)
-
-/** The maximum length in bytes that a table name can occupy when stored in
-UTF8, including the terminating '\0', see dict_fs2utf8(). You must include
-mysql_com.h if you are to use this macro. NAME_LEN is multiplied by 3 because
-when partitioning is used a table name from InnoDB point of view could be
-table_name#P#partition_name#SP#subpartition_name where each of the 3 names can
-be up to NAME_LEN. So the maximum is:
-NAME_LEN + strlen(#P#) + NAME_LEN + strlen(#SP#) + NAME_LEN + strlen(\0).
-This macro only applies to table name, without any database name prefixed. */
-#define MAX_TABLE_UTF8_LEN (NAME_LEN * 3 + sizeof("#P##SP#"))
-
 /*
                         UNIVERSAL TYPE DEFINITIONS
                         ==========================
@@ -506,7 +491,17 @@ computers! */
 #define UNIV_SQL_NULL UINT32_UNDEFINED
 
 /** Flag to indicate a field which was added instantly */
-#define UNIV_SQL_ADD_COL_DEFAULT (UNIV_SQL_NULL - 1)
+#define UNIV_SQL_ADD_COL_DEFAULT (UINT32_UNDEFINED - 1)
+
+/** The following number as the length of a logical field means that no
+attribute value for the multi-value index exists in the JSON doc */
+#define UNIV_NO_INDEX_VALUE (UINT32_UNDEFINED - 2)
+
+/** The follwoing number as the length marker of a logical field, which
+is only used for multi-value field data, means the data itself of the
+field is actually an array. Define it as 0 to prevent any conflict with
+normal data length */
+#define UNIV_MULTI_VALUE_ARRAY_MARKER 0
 
 /** Lengths which are not UNIV_SQL_NULL, but bigger than the following
 number indicate that a field contains a reference to an externally
@@ -583,10 +578,12 @@ functions. */
 
 #ifdef _WIN32
 typedef ulint os_thread_ret_t;
+#define OS_PATH_SEPARATOR_STR "\\"
 #define OS_PATH_SEPARATOR '\\'
 #define OS_PATH_SEPARATOR_ALT '/'
 #else
 typedef void *os_thread_ret_t;
+#define OS_PATH_SEPARATOR_STR "/"
 #define OS_PATH_SEPARATOR '/'
 #define OS_PATH_SEPARATOR_ALT '\\'
 #endif /* _WIN32 */
@@ -711,19 +708,9 @@ constexpr auto to_int(T v) -> typename std::underlying_type<T>::type {
 }
 
 /** If we are doing something that takes longer than this many seconds then
-print an informative message. Type should be return type of ut_time(). */
-static constexpr ib_time_t PRINT_INTERVAL_SECS = 10;
-
-constexpr size_t PART_SEPARATOR_LEN = 3;
-constexpr size_t SUB_PART_SEPARATOR_LEN = 4;
-
-#ifdef _WIN32
-constexpr char PART_SEPARATOR[PART_SEPARATOR_LEN + 1] = "#p#";
-constexpr char SUB_PART_SEPARATOR[SUB_PART_SEPARATOR_LEN + 1] = "#sp#";
-#else
-constexpr char PART_SEPARATOR[PART_SEPARATOR_LEN + 1] = "#P#";
-constexpr char SUB_PART_SEPARATOR[SUB_PART_SEPARATOR_LEN + 1] = "#SP#";
-#endif /* _WIN32 */
+print an informative message. Type should be return type of ut_time_monotonic().
+*/
+static constexpr ib_time_monotonic_t PRINT_INTERVAL_SECS = 10;
 
 #if defined(UNIV_LIBRARY) && !defined(UNIV_NO_ERR_MSGS)
 

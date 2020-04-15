@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -20,17 +20,17 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef PLUGIN_X_SRC_MQ_BORKER_CONTEXT_H_
-#define PLUGIN_X_SRC_MQ_BORKER_CONTEXT_H_
+#ifndef PLUGIN_X_SRC_MQ_BROKER_CONTEXT_H_
+#define PLUGIN_X_SRC_MQ_BROKER_CONTEXT_H_
 
+#include <cstdint>
 #include <list>
 #include <queue>
-
-#include "my_inttypes.h"
 
 #include "plugin/x/ngs/include/ngs/notice_descriptor.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
 #include "plugin/x/src/helper/multithread/synchronize.h"
+#include "plugin/x/src/xpl_performance_schema.h"
 
 namespace xpl {
 
@@ -56,9 +56,10 @@ class Broker_context {
   Publish_queue m_queue;
 
   /** Queue synch for pushing thread and reading thread */
-  Synchronize m_synchronize;
+  Synchronize m_synchronize{KEY_mutex_x_broker_context_sync,
+                            KEY_cond_x_broker_context_sync};
 };
 
 }  // namespace xpl
 
-#endif  // PLUGIN_X_SRC_MQ_BORKER_CONTEXT_H_
+#endif  // PLUGIN_X_SRC_MQ_BROKER_CONTEXT_H_

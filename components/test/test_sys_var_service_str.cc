@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,9 @@ const char *filename = "test_component_sys_var_service_str.log";
 #define WRITE_LOG(format, lit_log_text)                   \
   log_text_len = sprintf(log_text, format, lit_log_text); \
   fwrite((uchar *)log_text, sizeof(char), log_text_len, outfile)
+#define WRITE_LOG2(format, a1, a2)                  \
+  log_text_len = sprintf(log_text, format, a1, a2); \
+  fwrite((uchar *)log_text, sizeof(char), log_text_len, outfile)
 
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
@@ -56,6 +59,7 @@ static char *str_variable_value;
   the service.
 */
 static mysql_service_status_t test_component_sys_var_service_str_init() {
+  str_variable_value = nullptr;
   unlink(filename);
   outfile = fopen(filename, "w+");
 
@@ -69,6 +73,63 @@ static mysql_service_status_t test_component_sys_var_service_str_init() {
           "Registering string sys_variable", NULL, NULL, (void *)&str_arg,
           (void *)&str_variable_value)) {
     WRITE_LOG("%s\n", "register_variable failed.");
+  }
+
+  {
+    char var1[160];
+    char *pvar;
+    size_t len = sizeof(var1) - 1;
+
+    pvar = &var1[0];
+    if (mysql_service_component_sys_variable_register->get_variable(
+            "mysql_server", "character_set_server", (void **)&pvar, &len)) {
+      WRITE_LOG("%s\n",
+                "get_variable mysql_server.character_set_server failed.");
+    } else {
+      WRITE_LOG2("character_set_server=[%.*s]\n", (int)len, pvar);
+    }
+
+    /* Use too small buffer, value is 7 bytes long (utf8mb4). */
+    char var2[7];
+    len = sizeof(var2) - 1;
+    pvar = &var2[0];
+    if (mysql_service_component_sys_variable_register->get_variable(
+            "mysql_server", "character_set_server", (void **)&pvar, &len)) {
+      WRITE_LOG(
+          "get_variable mysql_server.character_set_server failed. "
+          "The variable requires buffer %i bytes long.\n",
+          (int)len);
+    } else {
+      WRITE_LOG2("character_set_server=[%.*s]\n", (int)len, pvar);
+    }
+
+    /* Use smallest buffer that can hold the value, value is 7 bytes long
+     * (utf8mb4). */
+    char var3[8];
+    len = sizeof(var3) - 1;
+    pvar = &var3[0];
+    if (mysql_service_component_sys_variable_register->get_variable(
+            "mysql_server", "character_set_server", (void **)&pvar, &len)) {
+      WRITE_LOG(
+          "get_variable mysql_server.character_set_server failed. \n"
+          "The variable requires buffer %i bytes long.\n",
+          (int)len);
+    } else {
+      WRITE_LOG2("character_set_server=[%.*s]\n", (int)len, pvar);
+    }
+  }
+  {
+    char var[FN_REFLEN];
+    char *pvar;
+    size_t len = sizeof(var) - 1;
+
+    pvar = &var[0];
+    if (mysql_service_component_sys_variable_register->get_variable(
+            "mysql_server", "datadir", (void **)&pvar, &len)) {
+      WRITE_LOG("%s\n", "get_variable mysql_server.datadir failed.");
+    } else {
+      WRITE_LOG("%s\n", "get_variable mysql_server.datadir success.");
+    }
   }
 
   WRITE_LOG("%s\n", "test_component_sys_var_str end of init:");
@@ -90,6 +151,7 @@ static mysql_service_status_t test_component_sys_var_service_str_deinit() {
 
   var_value = new char[1024];
 
+  len = 1024;
   if (mysql_service_component_sys_variable_register->get_variable(
           "test_component_str", "str_sys_var", (void **)&var_value, &len)) {
     WRITE_LOG("%s\n", "get_variable failed.");
@@ -106,6 +168,7 @@ static mysql_service_status_t test_component_sys_var_service_str_deinit() {
 
   delete[] var_value;
   fclose(outfile);
+  str_variable_value = nullptr;
   return false;
 }
 

@@ -4,7 +4,7 @@
 # Start the DB server with datadir1
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-master_key
+MASTER_KEY
 USE test;
 CREATE TABLE tab1(c1 INT, c2 VARCHAR(30));
 INSERT INTO tab1 VALUES(1, 'Test consistency undo*');
@@ -24,7 +24,7 @@ DROP TABLE tab1,tab2;
 # Start the DB server with datadir2
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-master_key
+MASTER_KEY
 USE test;
 CREATE TABLE tab1(c1 INT, c2 VARCHAR(30));
 INSERT INTO tab1 VALUES(1, 'Test consistency undo*');
@@ -43,7 +43,7 @@ DROP TABLE tab1,tab2;
 # Start the DB server with datadir3 and keyring loaded.
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-off
+OFF
 USE test;
 CREATE TABLE tab1(c1 INT, c2 VARCHAR(30));
 INSERT INTO tab1 VALUES(1, 'Test consistency undo*');

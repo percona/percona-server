@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,6 @@
 #include <memory>  // std:unique_ptr
 #include <string>
 
-#include "binary_log_types.h"  // enum_field_types
 #include "my_inttypes.h"
 #include "sql/dd/result_type.h"  // dd::ResultType
 #include "sql/dd/string_type.h"
@@ -44,6 +43,10 @@ class Schema;
 }  // namespace dd
 struct TABLE;
 
+class Sql_check_constraint_spec;
+using Sql_check_constraint_spec_list =
+    Mem_root_array<Sql_check_constraint_spec *>;
+
 struct HA_CREATE_INFO;
 template <class T>
 class List;
@@ -58,24 +61,26 @@ class Dictionary_client;
 }
 
 static const char FIELD_NAME_SEPARATOR_CHAR = ';';
-static const char FOREIGN_KEY_NAME_SUBSTR[] = "_ibfk_";
+static const char CHECK_CONSTRAINT_NAME_SUBSTR[] = "_chk_";
 
 /**
   Prepares a dd::Table object from mysql_prepare_create_table() output
   and return it to the caller. This function creates a user table, as
   opposed to create_table() which can handle system tables as well.
 
-  @param thd            Thread handle
-  @param sch_obj        Schema.
-  @param table_name     Table name.
-  @param create_info    HA_CREATE_INFO describing the table to be created.
-  @param create_fields  List of fields for the table.
-  @param keyinfo        Array with descriptions of keys for the table.
-  @param keys           Number of keys.
-  @param keys_onoff     keys ON or OFF
-  @param fk_keyinfo     Array with descriptions of foreign keys for the table.
-  @param fk_keys        Number of foreign keys.
-  @param file           handler instance for the table.
+  @param thd                Thread handle
+  @param sch_obj            Schema.
+  @param table_name         Table name.
+  @param create_info        HA_CREATE_INFO describing the table to be created.
+  @param create_fields      List of fields for the table.
+  @param keyinfo            Array with descriptions of keys for the table.
+  @param keys               Number of keys.
+  @param keys_onoff         keys ON or OFF
+  @param fk_keyinfo         Array with descriptions of foreign keys for the
+                            table.
+  @param fk_keys            Number of foreign keys.
+  @param check_cons_spec    Specification of check constraints for the table.
+  @param file               handler instance for the table.
 
   @returns Constructed dd::Table object, or nullptr in case of an error.
 */
@@ -84,7 +89,8 @@ std::unique_ptr<dd::Table> create_dd_user_table(
     HA_CREATE_INFO *create_info, const List<Create_field> &create_fields,
     const KEY *keyinfo, uint keys,
     Alter_info::enum_enable_or_disable keys_onoff,
-    const FOREIGN_KEY *fk_keyinfo, uint fk_keys, handler *file);
+    const FOREIGN_KEY *fk_keyinfo, uint fk_keys,
+    const Sql_check_constraint_spec_list *check_cons_spec, handler *file);
 
 /**
   Prepares a dd::Table object from mysql_prepare_create_table() output
@@ -101,6 +107,7 @@ std::unique_ptr<dd::Table> create_dd_user_table(
   @param fk_keyinfo         Array with descriptions of foreign keys for the
   table.
   @param fk_keys            Number of foreign keys.
+  @param check_cons_spec    Specification of check constraints for the table.
   @param file               handler instance for the table.
 
   @returns Constructed dd::Table object, or nullptr in case of an error.
@@ -110,22 +117,24 @@ std::unique_ptr<dd::Table> create_table(
     HA_CREATE_INFO *create_info, const List<Create_field> &create_fields,
     const KEY *keyinfo, uint keys,
     Alter_info::enum_enable_or_disable keys_onoff,
-    const FOREIGN_KEY *fk_keyinfo, uint fk_keys, handler *file);
+    const FOREIGN_KEY *fk_keyinfo, uint fk_keys,
+    const Sql_check_constraint_spec_list *check_cons_spec, handler *file);
 
 /**
   Prepares a dd::Table object for a temporary table from
   mysql_prepare_create_table() output. Doesn't update DD tables,
   instead returns dd::Table object to caller.
 
-  @param thd            Thread handle.
-  @param sch_obj        Schema.
-  @param table_name     Table name.
-  @param create_info    HA_CREATE_INFO describing the table to be created.
-  @param create_fields  List of fields for the table.
-  @param keyinfo        Array with descriptions of keys for the table.
-  @param keys           Number of keys.
-  @param keys_onoff     Enable or disable keys.
-  @param file           handler instance for the table.
+  @param thd              Thread handle.
+  @param sch_obj          Schema.
+  @param table_name       Table name.
+  @param create_info      HA_CREATE_INFO describing the table to be created.
+  @param create_fields    List of fields for the table.
+  @param keyinfo          Array with descriptions of keys for the table.
+  @param keys             Number of keys.
+  @param keys_onoff       Enable or disable keys.
+  @param check_cons_spec  Specification of check constraints for the table.
+  @param file             handler instance for the table.
 
   @returns Constructed dd::Table object, or nullptr in case of an error.
 */
@@ -133,7 +142,8 @@ std::unique_ptr<dd::Table> create_tmp_table(
     THD *thd, const dd::Schema &sch_obj, const dd::String_type &table_name,
     HA_CREATE_INFO *create_info, const List<Create_field> &create_fields,
     const KEY *keyinfo, uint keys,
-    Alter_info::enum_enable_or_disable keys_onoff, handler *file);
+    Alter_info::enum_enable_or_disable keys_onoff,
+    const Sql_check_constraint_spec_list *check_cons_spec, handler *file);
 
 //////////////////////////////////////////////////////////////////////////
 // Function common to 'table' and 'view' objects
@@ -196,16 +206,18 @@ bool invalid_tablespace_usage(THD *thd, const dd::String_type &schema_name,
 
   @param table_name         Table name.
   @param table_name_length  Table name length.
+  @param hton               Table storage engine.
   @param fk                 Foreign key to be checked.
 
   @note We assume that the name is generated if it starts with
-        *table_name*_ibfk_. i.e. follow InnoDB approach.
+        (table name)(SE-specific or default foreign key name suffix)
+        (e.g. "_ibfk_" for InnoDB or "_fk_" for NDB).
 
   @returns true if name is generated, false otherwise.
 */
 
 bool is_generated_foreign_key_name(const char *table_name,
-                                   size_t table_name_length,
+                                   size_t table_name_length, handlerton *hton,
                                    const dd::Foreign_key &fk);
 
 /**
@@ -215,18 +227,16 @@ bool is_generated_foreign_key_name(const char *table_name,
   @param thd             Thread context.
   @param old_db          Table's database before rename.
   @param old_table_name  Table name before rename.
+  @param hton            Table's storage engine.
   @param new_db          Table's database after rename.
   @param new_tab         New version of the table with new name set.
-
-  @todo Implement new naming scheme (or move responsibility of
-        naming to the SE layer).
 
   @returns true if error, false otherwise.
 */
 
 bool rename_foreign_keys(THD *thd, const char *old_db,
-                         const char *old_table_name, const char *new_db,
-                         dd::Table *new_tab);
+                         const char *old_table_name, handlerton *hton,
+                         const char *new_db, dd::Table *new_tab);
 
 //////////////////////////////////////////////////////////////////////////
 // Functions for retrieving, inspecting and manipulating instances of
@@ -254,19 +264,20 @@ bool table_legacy_db_type(THD *thd, const char *schema_name,
                           const char *table_name, enum legacy_db_type *db_type);
 
 /**
-  Get the storage engine handlerton for the given table.
+  Get the storage engine handlerton for the given table or tablespace.
 
   This function sets explicit error codes if:
   - The SE is invalid:      ER_UNKNOWN_STORAGE_ENGINE
 
   @param[in]  thd             Thread context
-  @param[in]  table           dd::Table object describing the table.
+  @param[in]  obj             dd::Table or a dd::Tablespace object.
   @param[out] hton            Handlerton for the table's storage engine
 
   @retval     true            Error
   @retval     false           Success
 */
-bool table_storage_engine(THD *thd, const dd::Table *table, handlerton **hton);
+template <typename T>
+bool table_storage_engine(THD *thd, const T *obj, handlerton **hton);
 
 /**
   Regenerate a metadata locked table.
@@ -350,7 +361,8 @@ bool fill_dd_columns_from_create_fields(THD *thd, Abstract_table *tab_obj,
   @return dd::String_type representing column type.
 */
 
-dd::String_type get_sql_type_by_create_field(TABLE *table, Create_field *field);
+dd::String_type get_sql_type_by_create_field(TABLE *table,
+                                             const Create_field &field);
 
 /**
   Helper method to get numeric scale for types using Create_field type
@@ -393,8 +405,35 @@ bool get_field_numeric_precision(const Create_field *field,
 bool get_field_datetime_precision(const Create_field *field,
                                   uint *datetime_precision);
 
+/*
+  Does ENCRYPTION clause mean unencrypted or encrypted table ?
+
+  @note SQL server expects value '', 'N' or 'n' to represent unecnryption.
+  We do not consider 'Y'/'y' as encryption, so that this allows storage
+  engines to accept any other string like 'aes' or other string to
+  represent encryption type.
+
+  @param type - String given in ENCRYPTION clause.
+
+  @return true if table would be encrypted, else false.
+*/
+inline bool is_encrypted(const String_type &type) {
+  return (type.empty() == false && type != "" && type != "N" && type != "n");
+}
+
+inline bool is_encrypted(const LEX_STRING &type) {
+  return is_encrypted(String_type(type.str, type.length));
+}
+
 using Encrypt_result = ResultType<bool>;
-Encrypt_result is_tablespace_encrypted(THD *thd, const dd::Table &t);
+Encrypt_result is_tablespace_encrypted(THD *thd, const dd::Table &t,
+                                       bool *found_tablespace);
+
+using Encrypt_result = ResultType<bool>;
+Encrypt_result is_tablespace_encrypted(THD *thd, const HA_CREATE_INFO *ci,
+                                       bool *found_tablespace);
+
+Encrypt_result is_system_tablespace_encrypted(THD *thd);
 
 /**
   Predicate which indicates if the table has real (non-hidden) primary key.
@@ -403,6 +442,41 @@ Encrypt_result is_tablespace_encrypted(THD *thd, const dd::Table &t);
   @return true if a non-hidden index has type dd::Index::IT_PRIMARY
  */
 bool has_primary_key(const Table &t);
+
+/**
+  Check if name of check constraint is generated one.
+
+  @param    table_name         Table name.
+  @param    table_name_length  Table name length.
+  @param    cc_name            Check constraint name.
+  @param    cc_name_length     Check constraint name length.
+
+  @retval   true               If check constraint name is generated one.
+  @retval   false              Otherwise.
+*/
+bool is_generated_check_constraint_name(const char *table_name,
+                                        size_t table_name_length,
+                                        const char *cc_name,
+                                        size_t cc_name_length);
+
+/**
+  Rename generated check constraint names to match the new name of the table.
+
+  @param old_table_name  Table name before rename.
+  @param new_tab         New version of the table with new name set.
+
+  @returns true if error, false otherwise.
+*/
+bool rename_check_constraints(const char *old_table_name, dd::Table *new_tab);
+
+/**
+  Check if table uses general tablespace.
+
+  @param   t    dd::Table instance.
+
+  @returns true if table users general tablespace, false otherwise.
+*/
+bool uses_general_tablespace(const Table &t);
 
 }  // namespace dd
 #endif  // DD_TABLE_INCLUDED

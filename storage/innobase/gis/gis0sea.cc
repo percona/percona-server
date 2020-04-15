@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -352,10 +352,10 @@ static bool rtr_pcur_getnext_from_path(
       lock_prdt_t prdt;
 
       trx_t *trx = thr_get_trx(btr_cur->rtr_info->thr);
-      lock_mutex_enter();
+      trx_mutex_enter(trx);
       lock_init_prdt_from_mbr(&prdt, &btr_cur->rtr_info->mbr, mode,
                               trx->lock.lock_heap);
-      lock_mutex_exit();
+      trx_mutex_exit(trx);
 
       if (rw_latch == RW_NO_LATCH) {
         rw_lock_s_lock(&(block->lock));
@@ -762,6 +762,7 @@ void rtr_get_father_node(
       page_cur_position(rec, btr_pcur_get_block(r_cursor),
                         btr_cur_get_page_cur(btr_cur));
       btr_cur->rtr_info = sea_cur->rtr_info;
+      btr_cur->m_own_rtr_info = false;
       btr_cur->tree_height = sea_cur->tree_height;
       ut_ad(rtr_compare_cursor_rec(index, btr_cur, page_no, &heap));
       goto func_exit;
@@ -1183,12 +1184,12 @@ static bool rtr_cur_restore_position(
           REC_INFO_MIN_REC_FLAG) {
         ut_ad(rec_get_info_bits(rec, comp) & REC_INFO_MIN_REC_FLAG);
       } else {
-        ut_ad(
-            !cmp_rec_rec(r_cursor->m_old_rec, rec, offsets1, offsets2, index));
+        ut_ad(!cmp_rec_rec(r_cursor->m_old_rec, rec, offsets1, offsets2, index,
+                           page_is_spatial_non_leaf(rec, index)));
       }
 
       mem_heap_free(heap);
-    } while (0);
+    } while (false);
 #endif /* UNIV_DEBUG */
 
     return (true);
@@ -1250,8 +1251,8 @@ search_again:
         (rec_get_info_bits(rec, comp) & REC_INFO_MIN_REC_FLAG)) {
       r_cursor->m_pos_state = BTR_PCUR_IS_POSITIONED;
       ret = true;
-    } else if (!cmp_rec_rec(r_cursor->m_old_rec, rec, offsets1, offsets2,
-                            index)) {
+    } else if (!cmp_rec_rec(r_cursor->m_old_rec, rec, offsets1, offsets2, index,
+                            page_is_spatial_non_leaf(rec, index))) {
       r_cursor->m_pos_state = BTR_PCUR_IS_POSITIONED;
       ret = true;
     }
@@ -1741,7 +1742,7 @@ bool rtr_cur_search_with_match(
                                 &heap);
 
       ut_ad(cmp_rec_rec(test_rec.r_rec, last_match_rec, offsets2, offsets,
-                        index) == 0);
+                        index, false) == 0);
 #endif /* UNIV_DEBUG */
       /* Pop the last match record and position on it */
       match_rec->matched_recs->pop_back();

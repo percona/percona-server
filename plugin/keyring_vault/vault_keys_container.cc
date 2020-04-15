@@ -1,22 +1,22 @@
 #include "vault_keys_container.h"
 
 namespace keyring {
-bool Vault_keys_container::init(IKeyring_io *keyring_io,
-                                std::string keyring_storage_url) {
-  vault_io = dynamic_cast<IVault_io *>(keyring_io);
+bool Vault_keys_container::init(IKeyring_io *keyring_io_value,
+                                std::string keyring_storage_url_value) {
+  vault_io = dynamic_cast<IVault_io *>(keyring_io_value);
   DBUG_ASSERT(vault_io != nullptr);
-  return Keys_container::init(keyring_io, keyring_storage_url);
+  return Keys_container::init(keyring_io_value, keyring_storage_url_value);
 }
 
 IKey *Vault_keys_container::fetch_key(IKey *key) {
   DBUG_ASSERT(key->get_key_data() == nullptr);
-  DBUG_ASSERT(key->get_key_type()->empty());
+  DBUG_ASSERT(key->get_key_type_as_string()->empty());
 
   IKey *fetched_key = get_key_from_hash(key);
 
   if (fetched_key == nullptr) return nullptr;
 
-  if (fetched_key->get_key_type()->empty() &&
+  if (fetched_key->get_key_type_as_string()->empty() &&
       vault_io->retrieve_key_type_and_data(
           fetched_key))  // key is fetched for the first time
     return nullptr;

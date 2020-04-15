@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2018
+.\"      Date: 11/23/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "11/23/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "11/23/2019" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -127,11 +127,20 @@ The output from
 \fBmysqlbinlog\fR
 can be re\-executed (for example, by using it as input to
 \fBmysql\fR) to redo the statements in the log\&. This is useful for recovery operations after a server crash\&. For other usage examples, see the discussion later in this section and in
-Section\ \&7.5, \(lqPoint-in-Time (Incremental) Recovery Using the Binary Log\(rq\&.
+Section\ \&7.5, \(lqPoint-in-Time (Incremental) Recovery Using the Binary Log\(rq\&. To execute the internal\-use
+BINLOG
+statements used by
+\fBmysqlbinlog\fR, the user requires the
+BINLOG_ADMIN
+or
+SUPER
+privilege, or the
+REPLICATION_APPLIER
+privilege plus the appropriate privileges to execute each log event\&.
 .PP
-Normally, you use
+You can use
 \fBmysqlbinlog\fR
-to read binary log files directly and apply them to the local MySQL server\&. It is also possible to read binary logs from a remote server by using the
+to read binary log files directly and apply them to the local MySQL server\&. You can also read binary logs from a remote server by using the
 \fB\-\-read\-from\-remote\-server\fR
 option\&. To read remote binary logs, the connection parameter options can be given to indicate how to connect to the server\&. These options are
 \fB\-\-host\fR,
@@ -139,9 +148,23 @@ option\&. To read remote binary logs, the connection parameter options can be gi
 \fB\-\-port\fR,
 \fB\-\-protocol\fR,
 \fB\-\-socket\fR, and
-\fB\-\-user\fR; they are ignored except when you also use the
+\fB\-\-user\fR\&.
+.PP
+When binary log files have been encrypted, which can be done from MySQL 8\&.0\&.14 onwards,
+\fBmysqlbinlog\fR
+cannot read them directly, but can read them from the server using the
 \fB\-\-read\-from\-remote\-server\fR
-option\&.
+option\&. Binary log files are encrypted when the server\*(Aqs
+binlog_encryption
+system variable is set to
+ON\&. The
+SHOW BINARY LOGS
+statement shows whether a particular binary log file is encrypted or unencrypted\&. Encrypted and unencrypted binary log files can also be distinguished using the magic number at the start of the file header for encrypted log files (0xFD62696E), which differs from that used for unencrypted log files (0xFE62696E)\&. Note that from MySQL 8\&.0\&.14,
+\fBmysqlbinlog\fR
+returns a suitable error if you attempt to read an encrypted binary log file directly, but older versions of
+\fBmysqlbinlog\fR
+do not recognise the file as a binary log file at all\&. For more information on binary log encryption, see
+Section\ \&17.3.2, \(lqEncrypting Binary Log Files and Relay Log Files\(rq\&.
 .PP
 When running
 \fBmysqlbinlog\fR
@@ -154,7 +177,11 @@ environment variable\&.
 \fBmysqlbinlog\fR
 sets the value of
 pseudo_slave_mode
-to true before executing any SQL statements\&.
+to true before executing any SQL statements\&. This system variable affects the handling of XA transactions, the
+original_commit_timestamp
+replication delay timestamp and the
+original_server_version
+system variable, and unsupported SQL modes\&.
 .PP
 \fBmysqlbinlog\fR
 supports the following options, which can be specified on the command line or in the
@@ -162,7 +189,7 @@ supports the following options, which can be specified on the command line or in
 and
 [client]
 groups of an option file\&. For information about option files used by MySQL programs, see
-Section\ \&4.2.7, \(lqUsing Option Files\(rq\&.
+Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -354,7 +381,44 @@ Specify the maximum size of a row\-based binary log event, in bytes\&. Rows are 
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-compress\fR
+.sp
+Compress all information sent between the client and the server if possible\&. See
+Section\ \&4.2.6, \(lqConnection Compression Control\(rq\&.
+.sp
+This option was added in MySQL 8\&.0\&.17\&. As of MySQL 8\&.0\&.18 it is deprecated\&. It will be removed in a future MySQL version\&. See
+the section called \(lqLegacy Connection Compression Configuration\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-compression\-algorithms=\fR\fB\fIvalue\fR\fR
+The permitted compression algorithms for connections to the server\&. The available algorithms are the same as for the
+protocol_compression_algorithms
+system variable\&. The default value is
+uncompressed\&.
+.sp
+For more information, see
+Section\ \&4.2.6, \(lqConnection Compression Control\(rq\&.
+.sp
+This option was added in MySQL 8\&.0\&.18\&.
 .RE
 .sp
 .RS 4
@@ -596,8 +660,8 @@ Print debugging information and memory and CPU usage statistics when the program
 .\}
 \fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
 .sp
-A hint about the client\-side authentication plugin to use\&. See
-Section\ \&6.3.10, \(lqPluggable Authentication\(rq\&.
+A hint about which client\-side authentication plugin to use\&. See
+Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -615,7 +679,7 @@ Read this option file after the global option file but (on Unix) before the user
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -637,7 +701,7 @@ Exception: Even with
 \&.mylogin\&.cnf\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -668,7 +732,7 @@ and
 groups\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -752,7 +816,7 @@ stops if it reads such an event\&.
 .\}
 \fB\-\-get\-server\-public\-key\fR
 .sp
-Request from the server the public key required for RSA key pair\-based password exchange\&. This option applies to clients that that authenticate with the
+Request from the server the public key required for RSA key pair\-based password exchange\&. This option applies to clients that authenticate with the
 caching_sha2_password
 authentication plugin\&. For that plugin, the server does not send the public key unless requested\&. This option is ignored for accounts that do not authenticate with that plugin\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
 .sp
@@ -764,7 +828,7 @@ is given and specifies a valid public key file, it takes precedence over
 For information about the
 caching_sha2_password
 plugin, see
-Section\ \&6.5.1.3, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -839,7 +903,7 @@ Display only the groups listed in the
 \fB\-l \fR\fB\fIdir_name\fR\fR
 .sp
 Prepare local temporary files for
-LOAD DATA INFILE
+LOAD DATA
 in the specified directory\&.
 .if n \{\
 .sp
@@ -880,7 +944,7 @@ utility\&. See
 \fBmysql_config_editor\fR(1)\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -908,7 +972,7 @@ utility\&. See
 \fBmysql_config_editor\fR(1)\&.)
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -935,23 +999,39 @@ entries in the log\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-open\-files\-limit=\fR\fB\fIN\fR\fR
+Specify the number of open file descriptors to reserve\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-password[=\fR\fB\fIpassword\fR\fR\fB]\fR,
 \fB\-p[\fR\fB\fIpassword\fR\fR\fB]\fR
 .sp
-The password to use when connecting to the server\&. If you use the short option form (\fB\-p\fR), you
-\fIcannot\fR
-have a space between the option and the password\&. If you omit the
-\fIpassword\fR
-value following the
-\fB\-\-password\fR
+The password of the MySQL account used for connecting to the server\&. The password value is optional\&. If not given,
+\fBmysqlbinlog\fR
+prompts for one\&. If given, there must be
+\fIno space\fR
+between
+\fB\-\-password=\fR
 or
 \fB\-p\fR
-option on the command line,
-\fBmysqlbinlog\fR
-prompts for one\&.
+and the password following it\&. If no password option is specified, the default is to send no password\&.
 .sp
-Specifying a password on the command line should be considered insecure\&. See
-Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
+Specifying a password on the command line should be considered insecure\&. To avoid giving the password on the command line, use an option file\&. See
+Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&.
+.sp
+To explicitly specify that there is no password and that
+\fBmysqlbinlog\fR
+should not prompt for one, use the
+\fB\-\-skip\-password\fR
+option\&.
 .RE
 .sp
 .RS 4
@@ -969,7 +1049,7 @@ The directory in which to look for plugins\&. Specify this option if the
 option is used to specify an authentication plugin but
 \fBmysqlbinlog\fR
 does not find it\&. See
-Section\ \&6.3.10, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -999,7 +1079,7 @@ The TCP/IP port number to use for connecting to a remote server\&.
 Print the program name and all options that it gets from option files\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1026,8 +1106,8 @@ binlog\-row\-metadata\&.
 .\}
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
 .sp
-The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally would cause a protocol to be used other than the one you want\&. For details on the permissible values, see
-Section\ \&4.2.2, \(lqConnecting to the MySQL Server\(rq\&.
+The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally result in use of a protocol other than the one you want\&. For details on the permissible values, see
+Section\ \&4.2.4, \(lqConnecting to the MySQL Server Using Command Options\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1086,8 +1166,19 @@ BINLOG\-DUMP\-GTIDS, respectively\&. If
 is combined with
 \fB\-\-exclude\-gtids\fR, transactions can be filtered out on the master, avoiding unnecessary network traffic\&.
 .sp
-See also the description for
-\fB\-\-read\-from\-remote\-server\fR\&.
+The connection parameter options are used with this option or the
+\fB\-\-read\-from\-remote\-server\fR
+option\&. These options are
+\fB\-\-host\fR,
+\fB\-\-password\fR,
+\fB\-\-port\fR,
+\fB\-\-protocol\fR,
+\fB\-\-socket\fR, and
+\fB\-\-user\fR\&. If neither of the remote options is specified, the connection parameter options are ignored\&.
+.sp
+The
+REPLICATION SLAVE
+privilege is required to use this option\&.
 .RE
 .sp
 .RS 4
@@ -1101,15 +1192,21 @@ See also the description for
 \fB\-\-read\-from\-remote\-server\fR,
 \fB\-R\fR
 .sp
-Read the binary log from a MySQL server rather than reading a local log file\&. Any connection parameter options are ignored unless this option is given as well\&. These options are
+Read the binary log from a MySQL server rather than reading a local log file\&. This option requires that the remote server be running\&. It works only for binary log files on the remote server, not relay log files\&.
+.sp
+The connection parameter options are used with this option or the
+\fB\-\-read\-from\-remote\-master\fR
+option\&. These options are
 \fB\-\-host\fR,
 \fB\-\-password\fR,
 \fB\-\-port\fR,
 \fB\-\-protocol\fR,
 \fB\-\-socket\fR, and
-\fB\-\-user\fR\&.
+\fB\-\-user\fR\&. If neither of the remote options is specified, the connection parameter options are ignored\&.
 .sp
-This option requires that the remote server be running\&. It works only for binary log files on the remote server, not relay log files\&.
+The
+REPLICATION SLAVE
+privilege is required to use this option\&.
 .sp
 This option is like
 \fB\-\-read\-from\-remote\-master=BINLOG\-DUMP\-NON\-GTIDS\fR\&.
@@ -1293,8 +1390,8 @@ sha256_password
 and
 caching_sha2_password
 plugins, see
-Section\ \&6.5.1.2, \(lqSHA-256 Pluggable Authentication\(rq, and
-Section\ \&6.5.1.3, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+Section\ \&6.4.1.3, \(lqSHA-256 Pluggable Authentication\(rq, and
+Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1322,12 +1419,12 @@ statement to the output to specify the character set to be used for processing l
 .\}
 \fB\-\-shared\-memory\-base\-name=\fR\fB\fIname\fR\fR
 .sp
-On Windows, the shared\-memory name to use, for connections made using shared memory to a local server\&. The default value is
+On Windows, the shared\-memory name to use for connections made using shared memory to a local server\&. The default value is
 MYSQL\&. The shared\-memory name is case\-sensitive\&.
 .sp
-The server must be started with the
-\fB\-\-shared\-memory\fR
-option to enable shared\-memory connections\&.
+This option applies only if the server was started with the
+shared_memory
+system variable enabled to support shared\-memory connections\&.
 .RE
 .sp
 .RS 4
@@ -1384,6 +1481,12 @@ The use of this option is otherwise not normally recommended in production\&.
 .sp
 For connections to
 localhost, the Unix socket file to use, or, on Windows, the name of the named pipe to use\&.
+.sp
+On Windows, this option applies only if the server was started with the
+named_pipe
+system variable enabled to support named\-pipe connections\&. In addition, the user making the connection must be a member of the Windows group specified by the
+named_pipe_full_access_group
+system variable\&.
 .RE
 .sp
 .RS 4
@@ -1399,7 +1502,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&6.4.2, \(lqCommand Options for Encrypted Connections\(rq\&.
+the section called \(lqCommand Options for Encrypted Connections\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1416,7 +1519,7 @@ Controls whether to enable FIPS mode on the client side\&. The
 option differs from other
 \fB\-\-ssl\-\fR\fB\fIxxx\fR\fR
 options in that it is not used to establish encrypted connections, but rather to affect which cryptographic operations are permitted\&. See
-Section\ \&6.6, \(lqFIPS Support\(rq\&.
+Section\ \&6.5, \(lqFIPS Support\(rq\&.
 .sp
 These
 \fB\-\-ssl\-fips\-mode\fR
@@ -1636,10 +1739,26 @@ Section\ \&7.3, \(lqExample Backup and Recovery Strategy\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-tls\-ciphersuites=\fR\fB\fIciphersuite_list\fR\fR
+.sp
+The permissible ciphersuites for encrypted connections that use TLSv1\&.3\&. The value is a list of one or more colon\-separated ciphersuite names\&. The ciphersuites that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
+Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
+.sp
+This option was added in MySQL 8\&.0\&.16\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
 .sp
-The protocols permitted by the client for encrypted connections\&. The value is a comma\-separated list containing one or more protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
-Section\ \&6.4.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
+The permissible TLS protocols for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
+Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1668,7 +1787,7 @@ Do not stop at the end of the requested binary log from a MySQL server, but rath
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR,
 \fB\-u \fR\fB\fIuser_name\fR\fR
 .sp
-The MySQL user name to use when connecting to a remote server\&.
+The user name of the MySQL account to use when connecting to a remote server\&.
 .RE
 .sp
 .RS 4
@@ -1682,7 +1801,10 @@ The MySQL user name to use when connecting to a remote server\&.
 \fB\-\-verbose\fR,
 \fB\-v\fR
 .sp
-Reconstruct row events and display them as commented SQL statements\&. If this option is given twice (by passing in either "\-vv" or "\-\-verbose \-\-verbose"), the output includes comments to indicate column data types and some metadata, and row query log events if so configured\&.
+Reconstruct row events and display them as commented SQL statements, with table partition information where applicable\&. If this option is given twice (by passing in either "\-vv" or "\-\-verbose \-\-verbose"), the output includes comments to indicate column data types and some metadata, and informational log events such as row query log events if the
+binlog_rows_query_log_events
+system variable is set to
+TRUE\&.
 .sp
 For examples that show the effect of
 \fB\-\-base64\-output\fR
@@ -1723,10 +1845,6 @@ The
 \fBmysqlbinlog\fR
 version number shown when using this option is 3\&.4\&.
 .RE
-.PP
-You can also set the following variable by using
-\fB\-\-\fR\fB\fIvar_name\fR\fR\fB=\fR\fB\fIvalue\fR\fR
-syntax:
 .sp
 .RS 4
 .ie n \{\
@@ -1736,9 +1854,19 @@ syntax:
 .sp -1
 .IP \(bu 2.3
 .\}
-open_files_limit
+\fB\-\-zstd\-compression\-level=\fR\fB\fIlevel\fR\fR
+The compression level to use for connections to the server that use the
+zstd
+compression algorithm\&. The permitted levels are from 1 to 22, with larger values indicating increasing levels of compression\&. The default
+zstd
+compression level is 3\&. The compression level setting has no effect on connections that do not use
+zstd
+compression\&.
 .sp
-Specify the number of open file descriptors to reserve\&.
+For more information, see
+Section\ \&4.2.6, \(lqConnection Compression Control\(rq\&.
+.sp
+This option was added in MySQL 8\&.0\&.18\&.
 .RE
 .PP
 You can pipe the output of
@@ -1902,13 +2030,13 @@ For streamed input, do not use
 \fBmysqlbinlog\fR
 cannot identify the last log file to apply this option\&.
 .PP
-\fBLOAD DATA INFILE operations\fR. \fBmysqlbinlog\fR
+\fBLOAD DATA operations\fR. \fBmysqlbinlog\fR
 can produce output that reproduces a
-LOAD DATA INFILE
+LOAD DATA
 operation without the original data file\&.
 \fBmysqlbinlog\fR
 copies the data to a temporary file and writes a
-LOAD DATA LOCAL INFILE
+LOAD DATA LOCAL
 statement that refers to the file\&. The default location of the directory where these files are written is system\-specific\&. To specify a directory explicitly, use the
 \fB\-\-local\-load\fR
 option\&.
@@ -1916,9 +2044,9 @@ option\&.
 Because
 \fBmysqlbinlog\fR
 converts
-LOAD DATA INFILE
+LOAD DATA
 statements to
-LOAD DATA LOCAL INFILE
+LOAD DATA LOCAL
 statements (that is, it adds
 LOCAL), both the client and the server that you use to process the statements must be configured with the
 LOCAL
@@ -2153,7 +2281,7 @@ with the
 \fB\-\-verbose\fR
 or
 \fB\-v\fR
-option\&. The output will contain lines beginning with
+option\&. This output level also shows table partition information where applicable\&. The output will contain lines beginning with
 ###:
 .sp
 .if n \{\
@@ -2210,7 +2338,10 @@ Specify
 \fB\-\-verbose\fR
 or
 \fB\-v\fR
-twice to also display data types and some metadata for each column\&. The output will contain an additional comment following each column change:
+twice to also display data types and some metadata for each column, and informational log events such as row query log events if the
+binlog_rows_query_log_events
+system variable is set to
+TRUE\&. The output will contain an additional comment following each column change:
 .sp
 .if n \{\
 .RS 4
@@ -2456,7 +2587,73 @@ option, it can connect to a server and request binary log contents from that ser
 writes text output to its standard output, or to the file named as the value of the
 \fB\-\-result\-file=\fR\fB\fIfile_name\fR\fR
 option if that option is given\&.
-.PP
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+mysqlbinlog Backup Capabilities
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+mysqlbinlog Backup Options
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Static and Live Backups
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Output File Naming
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Example: mysqldump + mysqlbinlog for Backup and Restore
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+mysqlbinlog Backup Restrictions
+.RE
+mysqlbinlog Backup Capabilities.PP
 \fBmysqlbinlog\fR
 can read binary log files and write new files containing the same content\(emthat is, in binary format rather than text format\&. This capability enables you to easily back up a binary log in its original format\&.
 \fBmysqlbinlog\fR
@@ -2468,7 +2665,26 @@ is forcibly terminated\&. When the connection ends,
 \fBmysqlbinlog\fR
 does not wait and retry the connection, unlike a slave replication server\&. To continue a live backup after the server has been restarted, you must also restart
 \fBmysqlbinlog\fR\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
 .PP
+\fBmysqlbinlog\fR
+can back up both encrypted and unencrypted binary log files \&. However, copies of encrypted binary log files that are generated using
+\fBmysqlbinlog\fR
+are stored in an unencrypted format\&.
+.sp .5v
+.RE
+mysqlbinlog Backup Options.PP
 Binary log backup requires that you invoke
 \fBmysqlbinlog\fR
 with two options at minimum:
@@ -2556,7 +2772,7 @@ the section called \(lqSPECIFYING THE MYSQLBINLOG SERVER ID\(rq\&.
 .\}
 \fB\-\-result\-file\fR: A prefix for output file names, as described later\&.
 .RE
-.PP
+Static and Live Backups.PP
 To back up a server\*(Aqs binary log files with
 \fBmysqlbinlog\fR, you must specify file names that actually exist on the server\&. If you do not know the names, connect to the server and use the
 SHOW BINARY LOGS
@@ -2567,13 +2783,13 @@ statement to see the current names\&. Suppose that the statement produces this o
 .\}
 .nf
 mysql> \fBSHOW BINARY LOGS;\fR
-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+
-| Log_name      | File_size |
-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+
-| binlog\&.000130 |     27459 |
-| binlog\&.000131 |     13719 |
-| binlog\&.000132 |     43268 |
-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+
+| Log_name      | File_size | Encrypted |
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+
+| binlog\&.000130 |     27459 | No        |
+| binlog\&.000131 |     13719 | No        |
+| binlog\&.000132 |     43268 | No        |
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+
 .fi
 .if n \{\
 .RE
@@ -2797,6 +3013,33 @@ mysqlbinlog \-\-start\-position=27284 binlog\&.001002 binlog\&.001003 binlog\&.0
 You might find it easier to copy the backup files (dump file and binary log files) to the server host to make it easier to perform the restore operation, or if MySQL does not allow remote
 root
 access\&.
+mysqlbinlog Backup Restrictions.PP
+Binary log backups with
+\fBmysqlbinlog\fR
+are subject to these restrictions:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBmysqlbinlog\fR
+does not automatically reconnect to the MySQL server if the connection is lost (for example, if a server restart occurs or there is a network outage)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The delay for a backup is similar to the delay for a replication slave\&.
+.RE
 .SH "SPECIFYING THE MYSQLBINLOG SERVER ID"
 .PP
 When invoked with the
@@ -2880,7 +3123,7 @@ specifies a nonzero server ID\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

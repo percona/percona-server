@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,7 +94,13 @@ static MYSQL_SYSVAR_STR(
     MYSQL_DEFAULT_KEYRINGFILE                          /* default    */
 );
 
-static SYS_VAR *keyring_file_system_variables[] = {MYSQL_SYSVAR(data), NULL};
+static MYSQL_SYSVAR_BOOL(open_mode, keyring_open_mode,
+                         PLUGIN_VAR_INVISIBLE | PLUGIN_VAR_RQCMDARG,
+                         "Mode in which keyring file should be opened", NULL,
+                         NULL, true);
+
+static SYS_VAR *keyring_file_system_variables[] = {
+    MYSQL_SYSVAR(data), MYSQL_SYSVAR(open_mode), NULL};
 
 static SERVICE_TYPE(registry) *reg_srv = nullptr;
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;
@@ -105,9 +111,7 @@ static int keyring_init(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
 
   try {
     SSL_library_init();  // always returns 1
-#ifndef HAVE_WOLFSSL
     ERR_load_BIO_strings();
-#endif
     SSL_load_error_strings();
     OpenSSL_add_all_algorithms();
 
@@ -115,12 +119,14 @@ static int keyring_init(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
     keyring_init_psi_keys();
 #endif
 
+    DBUG_EXECUTE_IF("simulate_keyring_init_error", return true;);
+
     if (init_keyring_locks()) return true;
 
     logger.reset(new Logger());
     if (create_keyring_dir_if_does_not_exist(keyring_file_data_value)) {
       logger->log(ERROR_LEVEL, ER_KEYRING_FAILED_TO_CREATE_KEYRING_DIR);
-      return false;
+      return true;
     }
     keys.reset(new Keys_container(logger.get()));
     std::vector<std::string> allowedFileVersionsToInit;
@@ -132,7 +138,7 @@ static int keyring_init(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
     if (keys->init(keyring_io, keyring_file_data_value)) {
       is_keys_container_initialized = false;
       logger->log(ERROR_LEVEL, ER_KEYRING_FILE_INIT_FAILED);
-      return false;
+      return true;
     }
     is_keys_container_initialized = true;
     return false;
@@ -147,11 +153,9 @@ static int keyring_init(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
 static int keyring_deinit(void *arg MY_ATTRIBUTE((unused))) {
 // not taking a lock here as the calls to keyring_deinit are serialized by
 // the plugin framework
-#ifndef HAVE_WOLFSSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-#endif
   ERR_free_strings();
   EVP_cleanup();
   CRYPTO_cleanup_all_ex_data();
@@ -207,8 +211,12 @@ static bool mysql_key_generate(const char *key_id, const char *key_type,
 
 static void mysql_key_iterator_init(void **key_iterator) {
   *key_iterator = new Keys_iterator(logger.get());
-  mysql_key_iterator_init<keyring::Key>(
-      static_cast<Keys_iterator *>(*key_iterator), "keyring_file");
+  if (mysql_key_iterator_init<keyring::Key>(
+          static_cast<Keys_iterator *>(*key_iterator), "keyring_file") ==
+      true) {
+    delete static_cast<Keys_iterator *>(*key_iterator);
+    *key_iterator = nullptr;
+  }
 }
 
 static void mysql_key_iterator_deinit(void *key_iterator) {
@@ -249,5 +257,5 @@ mysql_declare_plugin(keyring_file){
     NULL,                          /*   status variables                */
     keyring_file_system_variables, /*   system variables                */
     NULL,
-    0,
+    PLUGIN_OPT_ALLOW_EARLY,
 } mysql_declare_plugin_end;

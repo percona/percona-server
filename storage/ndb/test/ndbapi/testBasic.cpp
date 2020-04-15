@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 #include <NdbConfig.hpp>
 #include <BlockNumbers.h>
 #include <NdbHost.h>
+#include <NdbMgmd.hpp>
 
 #define CHK1(b) \
   if (!(b)) { \
@@ -49,6 +50,11 @@
     result = NDBT_FAILED; \
     break; \
   }
+
+#define CHECK3(b) if (!(b)) { \
+  ndbout << "ERR: "<< step->getName() \
+         << " failed on line " << __LINE__ << endl; \
+  return NDBT_FAILED; }
 
 /**
  * TODO 
@@ -3194,7 +3200,7 @@ int runRefreshTuple(NDBT_Context* ctx, NDBT_Step* step){
   }
 
   return rc;
-};
+}
 
 // Regression test for bug #14208924
 static int
@@ -3944,6 +3950,179 @@ int deleteNdbWhileWaiting(NDBT_Context* ctx, NDBT_Step* step)
 /******* end TESTCASE DeleteNdbWhilePoll*******/
 
 
+int testAbortRace(NDBT_Context* ctx, NDBT_Step* step)
+{
+
+  /* Transaction 1 : Lock tuple */
+  /* Transaction 2 : Issue DELETE, INSERT */
+  /* ERROR INSERT 5091 */
+  /* Transaction 1 : Unlock tuple */
+  /* ... Transaction 2 should timeout due to ERROR INSERTS + ABORT */
+  /* Wait for Transaction 2 outcome */
+  /* Scan table via ACC */
+  
+  int result = NDBT_OK;
+  const NdbDictionary::Table *table= ctx->getTab();
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter restarter;
+
+  for (int r=0; r < 10; r++)
+  {
+    ndbout_c("Locking row %u", r);
+    /* Lock the tuple */
+    HugoOperations hugoOp1(*table);
+    CHECK2(hugoOp1.startTransaction(pNdb) == 0);
+    CHECK2(hugoOp1.pkReadRecord(pNdb, r, 1, NdbOperation::LM_Exclusive) == 0);
+    
+    CHECK2(hugoOp1.execute_NoCommit(pNdb) == 0);
+    
+    ndbout_c("Defining DEL, INS on %u", r);
+    /* Define delete + insert ops which will queue on the row lock */
+    HugoOperations hugoOp2(*table);
+    CHECK2(hugoOp2.startTransaction(pNdb) == 0);
+    CHECK2(hugoOp2.pkDeleteRecord(pNdb, r, 1) == 0);
+    CHECK2(hugoOp2.pkInsertRecord(pNdb, r, 1) == 0);
+    
+    CHECK2(hugoOp2.execute_async(pNdb, NdbTransaction::NoCommit) == 0);
+    
+    ndbout_c("Setting error insert");
+    restarter.insertErrorInAllNodes(5094);
+    
+    /* Wait a little */
+    NdbSleep_MilliSleep(500);
+    
+    ndbout_c("Releasing the lock");
+    /* Release the lock */
+    CHECK2(hugoOp1.execute_Commit(pNdb) == 0);
+    CHECK2(hugoOp1.closeTransaction(pNdb) == 0);
+    
+    ndbout_c("Waiting for DEL,INS");
+    /* Wait for some outcome on the async T2 */
+    CHECK2(hugoOp2.wait_async(pNdb) != 0); /* Error? */
+    CHECK2(hugoOp2.closeTransaction(pNdb) == 0);
+    
+    ndbout_c("Scanning the table");
+    /* Now scan via ACC */
+    HugoTransactions hugoTrans(*table);
+    CHECK2(hugoTrans.scanReadRecords(pNdb,
+                                     ctx->getNumRecords()) == 0);
+
+    /* Check the table */
+    //ndbout_c("Checking the table");
+    //CHECK2(NdbCompareUtils::doScanPkReplicaCheck(pNdb,
+    //                                             table));
+  
+  } while (0);
+
+    
+  //ndbout_c("Hanging around a while");
+  //NdbSleep_MilliSleep(4*1000);
+
+  restarter.insertErrorInAllNodes(0);
+  
+  return result;
+}
+
+/**
+ * This test case passes if the # records checkpointed
+ * is equal to #records in the table given in the test context
+ * times number of replicas in the cluster.
+ * It
+ * - performs a local checkpoint.
+ * - fills the table with #records given in the test context.
+ * - performs another local checkpoint. With the pLCP, only the
+ *    the records inserted into the context's table is expected to
+ *    appear in the LCP-statistics calculated by the test.
+ * - Checks the LCP'd records.
+ */
+int
+runCheckLCPStats(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  Uint32 master = restarter.getMasterNodeId();
+
+  // Perform an LCP and wait it to start and finish
+  int dump_req[] = { DumpStateOrd::DihStartLcpImmediately};
+  CHECK3(restarter.dumpStateOneNode(master, dump_req, 1) == 0);
+  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
+  NdbLogEventHandle handle =
+    ndb_mgm_create_logevent_handle(restarter.handle, filter);
+
+  struct ndb_logevent event;
+  while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+        event.type != NDB_LE_LocalCheckpointStarted);
+  while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+        event.type != NDB_LE_LocalCheckpointCompleted);
+
+  // Insert ctx->getNumRecords()
+  CHECK3(runLoadTable(ctx,step) == 0);
+
+  // Perform an LCP and wait until it is started
+  CHECK3(restarter.dumpStateOneNode(master, dump_req, 1) == 0);
+  while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+        event.type != NDB_LE_LocalCheckpointStarted);
+
+  NdbMgmd mgmd;
+  CHECK3(mgmd.connect());
+  CHECK3(mgmd.subscribe_to_events());
+  Uint32 no_of_replicas = mgmd.get_config32(CFG_SECTION_NODE,
+                                            CFG_DB_NO_REPLICAS);
+  g_err << "Number of replicas in cluster " << no_of_replicas << endl;
+  CHECK3(no_of_replicas > 0);
+  Uint64 expected_records = no_of_replicas * ctx->getNumRecords();
+  Uint64 checkpointed_records = 0;
+
+  Uint64 max_wait_seconds = 120;
+  Uint64 end_time = NdbTick_CurrentMillisecond() +
+    (max_wait_seconds * 1000);
+
+  // Read 'Completed LCP' events and sum up the checkpointed records
+  while (NdbTick_CurrentMillisecond() < end_time)
+  {
+    char buff[512];
+    if (!mgmd.get_next_event_line(buff,
+                                  sizeof(buff),
+                                  10 * 1000) == 0)
+    {
+      if  (strstr(buff, "Local checkpoint"))
+      {
+        /**
+         * Since we have already seen "Local checkpoint %u started" event
+         * earlier, this must be "Local checkpoint %u completed" event.
+         */
+        if (checkpointed_records == expected_records)
+        {
+          return NDBT_OK;
+        }
+        // Probably "Local checkpoint %u completed" came before all
+        // "Completed LCP" events came. Continue until end_time.
+      }
+
+      if (strstr(buff, "Completed LCP"))
+      {
+        unsigned int node = 0;
+        unsigned int ldm = 0;
+        unsigned int nfrags = 0;
+        unsigned int nRecords = 0;
+        unsigned int nBytes = 0;
+
+        sscanf(buff, "Node %u: LDM(%u): Completed LCP, #frags = %u #records = %u, #bytes = %u", &node, &ldm, &nfrags, &nRecords, &nBytes);
+
+        g_info << "Node " << node << " ldm " << ldm
+              << " Records " << nRecords << endl;
+        checkpointed_records += nRecords;
+      }
+    }
+  }
+
+  // Total checkpointed records includes both primary and the backup replicas
+  g_err << "Number of records checkpointed " << checkpointed_records << endl;
+
+  CHECK3(checkpointed_records == expected_records);
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testBasic);
 TESTCASE("PkInsert", 
 	 "Verify that we can insert and delete from this table using PK"
@@ -4360,6 +4539,19 @@ TESTCASE("DeleteNdbWhilePoll",
   STEP(runReadLockedTuple);
   STEP(deleteNdbWhileWaiting);
   FINALIZER(runClearTable2);
+}
+TESTCASE("AbortRace",
+         "Test race between ABORT and PREPARE processing at LDM")
+{
+  INITIALIZER(runLoadTable);
+  STEP(testAbortRace);
+  FINALIZER(runClearTable);
+}
+TESTCASE("CheckCompletedLCPStats",
+        "Check if the LCP'd #records is equal to "
+         "nReplicas * #records inserted" )
+{
+  STEP(runCheckLCPStats);
 }
 NDBT_TESTSUITE_END(testBasic);
 

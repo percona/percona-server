@@ -39,10 +39,10 @@ show create table parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
   `a` varchar(64) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `b` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 #restore parent to old definition
 alter table parent change column a a int;
 #restore fk for further testing
@@ -64,10 +64,10 @@ show create table parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
   `a` varchar(64) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `b` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 #restore parent to old definition
 alter table parent change column a a int;
 #Testing create table
@@ -79,7 +79,7 @@ a	b
 #now run the DDL query in server2
 create table child(
 ref int,
-foreign key fk1(ref) references parent(a)
+constraint fk1 foreign key (ref) references parent(a)
 ) engine ndb;
 #check if the parent metadata has been reset in server1
 #altering column should fail with error
@@ -95,7 +95,7 @@ a	b
 #now run the DDL query in server2
 alter table child
 drop foreign key fk1,
-add foreign key fk2(ref) references parent(b);
+add constraint fk2 foreign key (ref) references parent(b);
 #check if the parent metadata has been reset in server1
 #altering column should pass
 alter table parent
@@ -105,10 +105,10 @@ show create table parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
   `a` varchar(64) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `b` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 #restore parent to old definition
 alter table parent change column a a int;
 #setup for child referring multiple parents
@@ -118,13 +118,13 @@ a int unique
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `ref` int(11) DEFAULT NULL,
+  `ref` int DEFAULT NULL,
   KEY `fk2` (`ref`),
-  CONSTRAINT `fk2` FOREIGN KEY (`ref`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+  CONSTRAINT `fk2` FOREIGN KEY (`ref`) REFERENCES `parent` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 alter table child
 drop foreign key fk2,
-add foreign key fk1(ref) references parent(a);
+add constraint fk1 foreign key (ref) references parent(a);
 #Testing multiple alter FK create/drops : II
 #This also tests the fix for Bug#27646160
 #Also cache parent2
@@ -138,7 +138,7 @@ a	b
 #now run the DDL query in server2
 alter table child
 drop foreign key fk1,
-add foreign key fk2(ref) references parent2(a);
+add constraint fk2 foreign key (ref) references parent2(a);
 #check if the parent metadata has been reset in server1
 #altering column should pass
 alter table parent
@@ -148,10 +148,10 @@ show create table parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
   `a` varchar(64) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `b` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 #restore parent to old definition
 alter table parent change column a a int;
 #altering column in parent2 should fail with error
@@ -188,10 +188,10 @@ show create table parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
   `a` varchar(64) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `b` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 #restore parent to old definition
 alter table parent change column a a int;
 #altering column in parent2 should also pass
@@ -229,7 +229,7 @@ Table	Create Table
 parent	CREATE TABLE `parent` (
   `a` varchar(64) NOT NULL,
   UNIQUE KEY `a` (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 #restore parent to old definition
 alter table parent change column a a int;
 #cleanup

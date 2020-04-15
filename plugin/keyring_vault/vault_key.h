@@ -6,7 +6,7 @@
 
 namespace keyring {
 
-struct Vault_key final : public Key, public ISerialized_object {
+struct Vault_key : public Key, public ISerialized_object {
   Vault_key(const char *a_key_id, const char *a_key_type, const char *a_user_id,
             const void *a_key, size_t a_key_len) noexcept
       : Key(a_key_id, a_key_type, a_user_id, a_key, a_key_len),
@@ -25,11 +25,14 @@ struct Vault_key final : public Key, public ISerialized_object {
   using Key::get_key_data_size;
   size_t get_key_data_size() const;
   using Key::get_key_type;
-  const std::string *get_key_type() const;
+  Key_type get_key_type() const;
+  std::string *get_key_type_as_string();
+  const std::string *get_key_type_as_string() const;
 
-  virtual bool get_next_key(IKey **key);
+  virtual bool get_next_key(IKey **key_out);
   virtual bool has_next_key();
   virtual void create_key_signature() const;
+  virtual void xor_data(uchar *, size_t);
   virtual void xor_data();
 
  protected:

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,8 +21,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/include/udf/udf_utils.h"
-#include "mysql/components/my_service.h"
-#include "mysql/components/services/dynamic_privilege.h"
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/dynamic_privilege.h>
+#include <mysql/components/services/mysql_runtime_error_service.h>
 #include "plugin/group_replication/include/plugin.h"
 #include "sql/auth/auth_acls.h"
 
@@ -135,19 +136,65 @@ bool group_contains_recovering_member() {
   return false;
 }
 
-void log_group_action_result_message(Group_action_diagnostics *result_area,
+bool validate_uuid_parameter(std::string &uuid, size_t length,
+                             const char **error_message) {
+  if (uuid.empty() || length == 0) {
+    *error_message = server_uuid_not_present_str;
+    return true;
+  }
+
+  if (!binary_log::Uuid::is_valid(uuid.c_str(), length)) {
+    *error_message = server_uuid_not_valid_str;
+    return true;
+  }
+
+  if (group_member_mgr) {
+    std::unique_ptr<Group_member_info> member_info{
+        group_member_mgr->get_group_member_info(uuid)};
+    if (member_info.get() == nullptr) {
+      *error_message = server_uuid_not_on_group_str;
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool throw_udf_error(const char *action_name, const char *error_message,
+                     bool log_error) {
+  SERVICE_TYPE(registry) *registry = NULL;
+  if ((registry = get_plugin_registry())) {
+    my_service<SERVICE_TYPE(mysql_runtime_error)> svc_error(
+        "mysql_runtime_error", registry);
+    if (svc_error.is_valid()) {
+      mysql_error_service_emit_printf(svc_error, ER_GRP_RPL_UDF_ERROR, MYF(0),
+                                      action_name, error_message);
+      if (log_error)
+        LogErr(ERROR_LEVEL, ER_GRP_RPL_SERVER_UDF_ERROR, action_name,
+               error_message);
+      return false;
+    }
+  }
+  // Log the error in case we can't do much
+  LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SERVER_UDF_ERROR, action_name,
+               error_message);
+  return true;
+}
+
+bool log_group_action_result_message(Group_action_diagnostics *result_area,
                                      const char *action_name,
                                      char *result_message,
                                      unsigned long *length) {
+  bool error = false;
   switch (result_area->get_execution_message_level()) {
     case Group_action_diagnostics::GROUP_ACTION_LOG_ERROR:
-      my_error(ER_GRP_RPL_UDF_ERROR, MYF(ME_ERRORLOG), action_name,
-               result_area->get_execution_message().c_str());
+      throw_udf_error(action_name, result_area->get_execution_message().c_str(),
+                      true);
+      error = true;
       break;
     case Group_action_diagnostics::GROUP_ACTION_LOG_WARNING:
       my_stpcpy(result_message, result_area->get_execution_message().c_str());
       *length = result_area->get_execution_message().length();
-
       if (current_thd)
         push_warning(current_thd, Sql_condition::SL_WARNING,
                      ER_GRP_RPL_UDF_ERROR,
@@ -166,6 +213,7 @@ void log_group_action_result_message(Group_action_diagnostics *result_area,
       *length = result.length();
       /* purecov: end */
   }
+  return error;
 }
 
 bool check_locked_tables(char *message) {
@@ -181,4 +229,74 @@ bool check_locked_tables(char *message) {
     return false;
   }
   return true;
+}
+
+bool group_contains_member_older_than(
+    Member_version const &min_required_version) {
+  bool constexpr OLDER_MEMBER_EXISTS = true;
+  bool constexpr ALL_MEMBERS_OK = false;
+  bool result = OLDER_MEMBER_EXISTS;
+
+  std::vector<Group_member_info *> *members =
+      group_member_mgr->get_all_members();
+  auto it =
+      std::find_if(members->begin(), members->end(),
+                   [&min_required_version](Group_member_info *member) {
+                     return member->get_member_version() < min_required_version;
+                   });
+
+  result = (it == members->end() ? ALL_MEMBERS_OK : OLDER_MEMBER_EXISTS);
+
+  // Cleanup.
+  for (auto *member : *members) delete member;
+  delete members;
+
+  return result;
+}
+
+const char *Charset_service::arg_type("charset");
+const char *Charset_service::service_name("mysql_udf_metadata");
+SERVICE_TYPE(mysql_udf_metadata) *Charset_service::udf_metadata_service =
+    nullptr;
+
+bool Charset_service::init(SERVICE_TYPE(registry) * reg_srv) {
+  my_h_service h_udf_metadata_service;
+  if (!reg_srv || reg_srv->acquire(service_name, &h_udf_metadata_service))
+    return true;
+  udf_metadata_service = reinterpret_cast<SERVICE_TYPE(mysql_udf_metadata) *>(
+      h_udf_metadata_service);
+  return false;
+}
+
+bool Charset_service::deinit(SERVICE_TYPE(registry) * reg_srv) {
+  if (!reg_srv) return true;
+  using udf_metadata_t = SERVICE_TYPE_NO_CONST(mysql_udf_metadata);
+  if (udf_metadata_service)
+    reg_srv->release(reinterpret_cast<my_h_service>(
+        const_cast<udf_metadata_t *>(udf_metadata_service)));
+  return false;
+}
+
+/* Set the return value character set as latin1 */
+bool Charset_service::set_return_value_charset(
+    UDF_INIT *initid, const std::string &charset_name) {
+  char *charset = const_cast<char *>(charset_name.c_str());
+  if (udf_metadata_service->result_set(initid, Charset_service::arg_type,
+                                       static_cast<void *>(charset))) {
+    return true;
+  }
+  return false;
+}
+
+bool Charset_service::set_args_charset(UDF_ARGS *args,
+                                       const std::string &charset_name) {
+  char *charset = const_cast<char *>(charset_name.c_str());
+  for (uint index = 0; index < args->arg_count; ++index) {
+    if (udf_metadata_service->argument_set(args, Charset_service::arg_type,
+                                           index,
+                                           static_cast<void *>(charset))) {
+      return true;
+    }
+  }
+  return false;
 }

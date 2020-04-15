@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -386,13 +386,6 @@ private:
    * CONTAIN INFO ABOUT ALL NODES IN CLUSTER. NODE_PTR ARE USED AS NODE NUMBER
    * IF THE STATE ARE ZDELETE THEN THE NODE DOESN'T EXIST. NODES ARE ALLOWED 
    * TO REGISTER (ZADD) DURING RESTART.
-   *
-   * WHEN THE SYSTEM IS RUNNING THE MASTER WILL CHECK IF ANY NODE HAS MADE 
-   * A CNTR_MASTERREQ AND TAKE CARE OF THE REQUEST. 
-   * TO CONFIRM THE REQ, THE MASTER DEMANDS THAT ALL RUNNING NODES HAS VOTED 
-   * FOR THE NEW NODE. 
-   * NODE_PTR:MASTER_REQ IS USED DURING RESTART TO LOG 
-   * POSTPONED CNTR_MASTERREQ'S 
    *------------------------------------------------------------------------*/
   NdbBlocksRec *ndbBlocksRec;
 
@@ -429,7 +422,16 @@ private:
 
   NdbNodeBitmask c_allDefinedNodes;
   NdbNodeBitmask c_clusterNodes; // All members of qmgr cluster
-  NdbNodeBitmask c_startedNodes; // All cntr started nodes
+  /**
+   * c_cntr_startedNodeSet contains the nodes that have been allowed
+   * to start in CNTR_START_CONF. This is establised in phase 2 of the
+   * start.
+   *
+   * c_startedNodeSet contains the nodes that have completed the
+   * start and passed all start phases.
+   */
+  NdbNodeBitmask c_cntr_startedNodeSet;
+  NdbNodeBitmask c_startedNodeSet;
   
 public:
   struct StopRecord {
@@ -469,7 +471,12 @@ public:
     } m_state;
     SignalCounter m_stop_req_counter;
   };
+  bool is_node_starting(NodeId);
+  bool is_node_started(NodeId);
 private:
+  bool is_nodegroup_starting(Signal*, NodeId);
+  void get_node_group_mask(Signal*, NodeId, NdbNodeBitmask&);
+
   StopRecord c_stopRec;
   friend struct StopRecord;
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -242,13 +242,24 @@ void Trix::execREAD_NODESCONF(Signal* signal)
   //Uint32 noOfNodes   = readNodes->noOfNodes;
   NodeRecPtr nodeRecPtr;
 
+  {
+    ndbrequire(signal->getNoOfSections() == 1);
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr, 0);
+    ndbrequire(ptr.sz == 5 * NdbNodeBitmask::Size);
+    copy(readNodes->definedNodes.rep.data, ptr);
+    releaseSections(handle);
+  }
+
   c_masterNodeId = readNodes->masterNodeId;
   c_masterTrixRef = RNIL;
   c_noNodesFailed = 0;
 
   for(unsigned i = 0; i < MAX_NDB_NODES; i++) {
     jam();
-    if(NdbNodeBitmask::get(readNodes->allNodes, i)) {
+    if (readNodes->definedNodes.get(i))
+    {
       // Node is defined
       jam();
       ndbrequire(c_theNodes.getPool().seizeId(nodeRecPtr, i));
@@ -257,7 +268,8 @@ void Trix::execREAD_NODESCONF(Signal* signal)
       if (i == c_masterNodeId) {
         c_masterTrixRef = nodeRecPtr.p->trixRef;
       }
-      if(NdbNodeBitmask::get(readNodes->inactiveNodes, i)){
+      if (readNodes->inactiveNodes.get(i))
+      {
         // Node is not active
 	jam();
 	/**-----------------------------------------------------------------
@@ -299,6 +311,24 @@ void Trix::execNODE_FAILREP(Signal* signal)
 {
   jamEntry();
   NodeFailRep * const  nodeFail = (NodeFailRep *) signal->getDataPtr();
+
+  if(signal->getNoOfSections() >= 1)
+  {
+    ndbrequire(ndbd_send_node_bitmask_in_section(
+        getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version));
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr, 0);
+    memset(nodeFail->theNodes, 0, sizeof(nodeFail->theNodes));
+    copy(nodeFail->theNodes, ptr);
+    releaseSections(handle);
+  }
+  else
+  {
+    memset(nodeFail->theNodes + NdbNodeBitmask48::Size,
+           0,
+           _NDB_NBM_DIFF_BYTES);
+  }
 
   //Uint32 failureNr    = nodeFail->failNo;
   //Uint32 numberNodes  = nodeFail->noOfNodes;
@@ -546,14 +576,16 @@ void Trix::execDBINFO_SCANREQ(Signal *signal)
         c_theAttrOrderBufferPool.getSize(),
         c_theAttrOrderBufferPool.getEntrySize(),
         c_theAttrOrderBufferPool.getUsedHi(),
-        { 0,0,0,0 }},
+        { 0,0,0,0 },
+        0},
       { "Subscription Record",
         c_theSubscriptionRecPool.getUsed(),
         c_theSubscriptionRecPool.getSize(),
         c_theSubscriptionRecPool.getEntrySize(),
         c_theSubscriptionRecPool.getUsedHi(),
-        { 0,0,0,0 }},
-      { NULL, 0,0,0,0,{0,0,0,0}}
+        { 0,0,0,0 },
+        0},
+      { NULL, 0,0,0,0,{0,0,0,0},0}
     };
 
     const size_t num_config_params =
@@ -574,6 +606,8 @@ void Trix::execDBINFO_SCANREQ(Signal *signal)
       row.write_uint64(pools[pool].entry_size);
       for (size_t i = 0; i < num_config_params; i++)
         row.write_uint32(pools[pool].config_params[i]);
+      row.write_uint32(GET_RG(pools[pool].record_type));
+      row.write_uint32(GET_TID(pools[pool].record_type));
       ndbinfo_send_row(signal, req, row, rl);
       pool++;
       if (rl.need_break(req))
@@ -935,7 +969,8 @@ void Trix::execSUB_SYNC_REF(Signal* signal)
     DBUG_VOID_RETURN;
   }
   subRecPtr.p = subRec;
-  buildFailed(signal, subRecPtr, BuildIndxRef::InternalError);
+  buildFailed(signal, subRecPtr,
+              (BuildIndxRef::ErrorCode)subSyncRef->errorCode);
   DBUG_VOID_RETURN;
 }
 
@@ -2733,7 +2768,8 @@ Trix::statCleanExecute(Signal* signal, StatOp& stat)
   ndbrequire(ah[3].getAttributeId() == 3 && kz != 0);
 
   // AFTER_VALUES
-  const Uint32 avmax = 3 + MAX_INDEX_STAT_KEY_SIZE;
+  // avmax = other pk attributes + length + max index stat key size
+  const Uint32 avmax = 3 + 1 + MAX_INDEX_STAT_KEY_SIZE;
   Uint32 av[avmax];
   SegmentedSectionPtr ptr1;
   handle.getSection(ptr1, SubTableData::AFTER_VALUES);
@@ -2908,7 +2944,8 @@ Trix::statScanExecute(Signal* signal, StatOp& stat)
   ndbrequire(kz != 0 && vz != 0);
 
   // AFTER_VALUES
-  const Uint32 avmax = MAX_INDEX_STAT_KEY_SIZE + MAX_INDEX_STAT_VALUE_SIZE;
+  // avmax = length + max key size + length + max value size
+  const Uint32 avmax = 2 + MAX_INDEX_STAT_KEY_SIZE + MAX_INDEX_STAT_VALUE_SIZE;
   Uint32 av[avmax];
   SegmentedSectionPtr ptr1;
   handle.getSection(ptr1, SubTableData::AFTER_VALUES);

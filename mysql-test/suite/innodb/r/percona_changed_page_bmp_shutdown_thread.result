@@ -1,0 +1,8 @@
+call mtr.add_suppression("Last tracked LSN in \'\.\/ib_modified_log_[0-9_]+.xdb\' is [0-9]+, with the last checkpoint LSN is [0-9]+.");
+SELECT 1;
+1
+1
+# Asserting that the error was not thrown.
+[log_grep.inc] file:  pattern: threads created by InnoDB had not exited at shutdown
+[log_grep.inc] lines:   0
+# restart

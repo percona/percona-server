@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,8 @@
 */
 
 #include "Cmvmi.hpp"
+
+#include <cstring>
 
 #include <Configuration.hpp>
 #include <kernel_types.h>
@@ -49,6 +51,10 @@
 #include <signaldata/AllocMem.hpp>
 #include <signaldata/NodeStateSignalData.hpp>
 #include <signaldata/GetConfig.hpp>
+
+#ifdef ERROR_INSERT
+#include <signaldata/FsOpenReq.hpp>
+#endif
 
 #include <EventLogger.hpp>
 #include <TimeQueue.hpp>
@@ -135,6 +141,11 @@ Cmvmi::Cmvmi(Block_context& ctx) :
   addRecSignal(GSN_ALLOC_MEM_CONF, &Cmvmi::execALLOC_MEM_CONF);
 
   addRecSignal(GSN_GET_CONFIG_REQ, &Cmvmi::execGET_CONFIG_REQ);
+
+#ifdef ERROR_INSERT
+  addRecSignal(GSN_FSOPENCONF, &Cmvmi::execFSOPENCONF);
+  addRecSignal(GSN_FSCLOSECONF, &Cmvmi::execFSCLOSECONF);
+#endif
 
   subscriberPool.setSize(5);
   c_syncReqPool.setSize(5);
@@ -380,7 +391,7 @@ struct SavedEvent
   Uint32 m_len;
   Uint32 m_seq;
   Uint32 m_time;
-  Uint32 m_data[25];
+  Uint32 m_data[MAX_EVENT_REP_SIZE_WORDS];
 
   STATIC_CONST( HeaderLength = 3 );
 };
@@ -456,8 +467,14 @@ void
 SavedEventBuffer::purge()
 {
   const Uint32 * ptr = m_data + m_read_pos;
-  const SavedEvent * header = (SavedEvent*)ptr;
-  Uint32 len = SavedEvent::HeaderLength + header->m_len;
+  /* First word of SavedEvent is m_len.
+   * One can not safely cast ptr to SavedEvent pointer since it may wrap if at
+   * end of buffer.
+   */
+  constexpr Uint32 len_off = 0;
+  static_assert(offsetof(SavedEvent, m_len) == len_off * sizeof(Uint32), "");
+  const Uint32 data_len = ptr[len_off];
+  Uint32 len = SavedEvent::HeaderLength + data_len;
   m_read_pos = (m_read_pos + len) % m_buffer_len;
 }
 
@@ -509,17 +526,23 @@ SavedEventBuffer::scan(SavedEvent* _dst, Uint32 filter[])
   assert(m_scan_pos != m_write_pos);
   Uint32 * dst = (Uint32*)_dst;
   const Uint32 * ptr = m_data + m_scan_pos;
-  SavedEvent * s = (SavedEvent*)ptr;
-  assert(s->m_len <= 25);
-  Uint32 total = s->m_len + SavedEvent::HeaderLength;
+  /* First word of SavedEvent is m_len.
+   * One can not safely cast ptr to SavedEvent pointer since it may wrap if at
+   * end of buffer.
+   */
+  constexpr Uint32 len_off = 0;
+  static_assert(offsetof(SavedEvent, m_len) == len_off * sizeof(Uint32), "");
+  const Uint32 data_len = ptr[len_off];
+  require(data_len <= MAX_EVENT_REP_SIZE_WORDS);
+  Uint32 total = data_len + SavedEvent::HeaderLength;
   if (m_scan_pos + total <= m_buffer_len)
   {
-    memcpy(dst, s, 4 * total);
+    memcpy(dst, ptr, 4 * total);
   }
   else
   {
     Uint32 remain = m_buffer_len - m_scan_pos;
-    memcpy(dst, s, 4 * remain);
+    memcpy(dst, ptr, 4 * remain);
     memcpy(dst + remain, m_data, 4 * (total - remain));
   }
   m_scan_pos = (m_scan_pos + total) % m_buffer_len;
@@ -536,8 +559,19 @@ SavedEventBuffer::getScanPosSeq() const
 {
   assert(m_scan_pos != m_write_pos);
   const Uint32 * ptr = m_data + m_scan_pos;
-  SavedEvent * s = (SavedEvent*)ptr;
-  return s->m_seq;
+  /* First word of SavedEvent is m_len.
+   * Second word of SavedEvent is m_seq.
+   * One can not safely cast ptr to SavedEvent pointer since it may wrap if at
+   * end of buffer.
+   */
+  static_assert(offsetof(SavedEvent, m_seq) % sizeof(Uint32) == 0, "");
+  constexpr Uint32 seq_off = offsetof(SavedEvent, m_seq) / sizeof(Uint32);
+  if (m_scan_pos + seq_off < m_buffer_len)
+  {
+    return ptr[seq_off];
+  }
+  const Uint32 wrap_seq_off = m_scan_pos + seq_off - m_buffer_len;
+  return m_data[wrap_seq_off];
 }
 
 void Cmvmi::execEVENT_REP(Signal* signal) 
@@ -568,7 +602,15 @@ void Cmvmi::execEVENT_REP(Signal* signal)
   }
 
   jamEntry();
-  
+
+  Uint32 num_sections = signal->getNoOfSections();
+  SectionHandle handle(this, signal);
+  SegmentedSectionPtr segptr;
+  if (num_sections > 0)
+  {
+    ndbrequire(num_sections == 1);
+    handle.getSection(segptr, 0);
+  }
   /**
    * If entry is not found
    */
@@ -577,30 +619,106 @@ void Cmvmi::execEVENT_REP(Signal* signal)
   Logger::LoggerLevel severity;  
   EventLoggerBase::EventTextFunction textF;
   if (EventLoggerBase::event_lookup(eventType,eventCategory,threshold,severity,textF))
+  {
+    if (num_sections > 0)
+    {
+      releaseSections(handle);
+    }
     return;
+  }
   
-  SubscriberPtr ptr;
-  for(subscribers.first(ptr); ptr.i != RNIL; subscribers.next(ptr)){
-    if(ptr.p->logLevel.getLogLevel(eventCategory) < threshold){
+  Uint32 sig_length = signal->length();
+  SubscriberPtr subptr;
+  for(subscribers.first(subptr); subptr.i != RNIL; subscribers.next(subptr))
+  {
+    jam();
+    if(subptr.p->logLevel.getLogLevel(eventCategory) < threshold)
+    {
+      jam();
       continue;
     }
-    
-    sendSignal(ptr.p->blockRef, GSN_EVENT_REP, signal, signal->length(), JBB);
+    if (num_sections > 0)
+    {
+      /**
+       * Send only to nodes that are upgraded to a version that can handle
+       * signal sections in EVENT_REP.
+       * Not possible to send the signal to older versions that don't support
+       * sections in EVENT_REP since signal is too small for that.
+       */
+      Uint32 version = getNodeInfo(refToNode(subptr.p->blockRef)).m_version;
+      if (ndbd_send_node_bitmask_in_section(version))
+      {
+        sendSignalNoRelease(subptr.p->blockRef,
+                            GSN_EVENT_REP,
+                            signal,
+                            sig_length,
+                            JBB,
+                            &handle);
+      }
+      else
+      {
+        /**
+         * MGM server isn't ready to receive a long signal, we need to handle
+         * it for at least infoEvent's and WarningEvent's, other reports we
+         * will simply throw away. The upgrade order is supposed to start
+         * with upgrades of MGM server, so should normally not happen. But
+         * still good to not mismanage it completely.
+         */
+         if (eventType == NDB_LE_WarningEvent ||
+             eventType == NDB_LE_InfoEvent)
+         {
+           copy(&signal->theData[1], segptr);
+           Uint32 sz = segptr.sz > 24 ? 24 : segptr.sz;
+           sendSignal(subptr.p->blockRef,
+                      GSN_EVENT_REP,
+                      signal,
+                      sz,
+                      JBB);
+         }
+       }
+    }
+    else
+    {
+      sendSignal(subptr.p->blockRef,
+                 GSN_EVENT_REP,
+                 signal,
+                 sig_length,
+                 JBB);
+    }
   }
+
+  Uint32 buf[MAX_EVENT_REP_SIZE_WORDS];
+  Uint32 *data = signal->theData;
+  if (num_sections > 0)
+  {
+    copy(&buf[0], segptr);
+    data = &buf[0];
+  }
+  Uint32 sz = (num_sections > 0) ? segptr.sz : signal->getLength();
+  ndbrequire(sz <= MAX_EVENT_REP_SIZE_WORDS);
 
   Uint32 saveBuf = Uint32(eventCategory);
   if (saveBuf >= NDB_ARRAY_SIZE(m_saved_event_buffer) - 1)
     saveBuf = NDB_ARRAY_SIZE(m_saved_event_buffer) - 1;
-  m_saved_event_buffer[saveBuf].save(signal->theData, signal->getLength());
+  m_saved_event_buffer[saveBuf].save(data, sz);
 
-  if(clogLevel.getLogLevel(eventCategory) < threshold){
+  if(clogLevel.getLogLevel(eventCategory) < threshold)
+  {
+    if (num_sections > 0)
+    {
+      releaseSections(handle);
+    }
     return;
   }
 
   // Print the event info
   g_eventLogger->log(eventReport->getEventType(), 
-                     signal->theData, signal->getLength(), 0, 0);
+                     data, sz, 0, 0);
   
+  if (num_sections > 0)
+  {
+    releaseSections(handle);
+  }
   return;
 }//execEVENT_REP()
 
@@ -708,6 +826,7 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
     m_shared_page_pool.set((GlobalPage*)ptr, ~0);
   }
 
+  Uint32 min_eventlog = (2 * MAX_EVENT_REP_SIZE_WORDS * 4) + 8;
   Uint32 eventlog = 8192;
   ndb_mgm_get_int_parameter(p, CFG_DB_EVENTLOG_BUFFER_SIZE, &eventlog);
   {
@@ -715,6 +834,8 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
     Uint32 split = (eventlog + (cnt / 2)) / cnt;
     for (Uint32 i = 0; i < cnt; i++)
     {
+      if (split < min_eventlog)
+        split = min_eventlog;
       m_saved_event_buffer[i].init(split);
     }
   }
@@ -849,7 +970,7 @@ void Cmvmi::execSTTOR(Signal* signal)
                                 &db_watchdog_interval);
       ndbrequire(db_watchdog_interval);
       update_watch_dog_timer(db_watchdog_interval);
-      Uint32 kill_val;
+      Uint32 kill_val = 0;
       ndb_mgm_get_int_parameter(p, CFG_DB_WATCHDOG_IMMEDIATE_KILL, 
                                 &kill_val);
       globalEmulatorData.theWatchDog->setKillSwitch((bool)kill_val);
@@ -1451,6 +1572,144 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
           g_eventLogger->info("Disable Debug level in node log");
           g_eventLogger->disable(Logger::LL_DEBUG);
         }
+        else if (val == DumpStateOrd::CmvmiRelayDumpStateOrd)
+        {
+          /* MGMD have no transporter to API nodes.  To be able to send a
+           * dump command to an API node MGMD send the dump signal via a
+           * data node using CmvmiRelay command.  The first argument is the
+           * destination node, the rest is the dump command that should be
+           * sent.
+           *
+           * args: dest-node dump-state-ord-code dump-state-ord-arg#1 ...
+           */
+          jam();
+          const Uint32 length = signal->length();
+          if (length < 3)
+          {
+            // Not enough words for sending DUMP_STATE_ORD
+            jam();
+            return;
+          }
+          const Uint32 node_id = signal->theData[1];
+          const Uint32 ref = numberToRef(CMVMI, node_id);
+          std::memmove(&signal->theData[0],
+                       &signal->theData[2],
+                       (length - 2) * sizeof(Uint32));
+          sendSignal(ref , GSN_DUMP_STATE_ORD, signal, length - 2, JBB);
+        }
+        else if (val == DumpStateOrd::CmvmiDummySignal)
+        {
+          /* Log in event logger that signal sent by dump command
+           * CmvmiSendDummySignal is received.  Include information about
+           * signal size and its sections and which node sent it.
+           */
+          jam();
+          const Uint32 node_id = signal->theData[2];
+          const Uint32 num_secs = signal->getNoOfSections();
+          SectionHandle handle(this, signal);
+          SegmentedSectionPtr ptr[3];
+          for (Uint32 i = 0; i < num_secs; i++)
+          {
+              handle.getSection(ptr[i], i);
+          }
+          char msg[24*4];
+          snprintf(msg,
+                   sizeof(msg),
+                   "Receiving CmvmiDummySignal"
+                   " (size %u+%u+%u+%u+%u) from %u to %u.",
+                   signal->getLength(),
+                   num_secs,
+                   (num_secs > 0) ? ptr[0].sz : 0,
+                   (num_secs > 1) ? ptr[1].sz : 0,
+                   (num_secs > 2) ? ptr[2].sz : 0,
+                   node_id,
+                   getOwnNodeId());
+          g_eventLogger->info("%s", msg);
+          infoEvent("%s", msg);
+          releaseSections(handle);
+        }
+        else if (val == DumpStateOrd::CmvmiSendDummySignal)
+        {
+          /* Send a CmvmiDummySignal to specified node with specified size and
+           * sections.  This is used to verify that messages with certain
+           * signal sizes and sections can be sent and received.
+           *
+           * The sending is also logged in event logger.  This log entry should
+           * be matched with corresponding log when receiving the
+           * CmvmiDummySignal dump command.  See preceding dump command above.
+           *
+           * args: rep-node dest-node padding frag-size
+           *       #secs sec#1-len sec#2-len sec#3-len
+           */
+          jam();
+          if (signal->length() < 5)
+          {
+            // Not enough words to send a dummy signal
+            jam();
+            return;
+          }
+          const Uint32 node_id = signal->theData[2];
+          const Uint32 ref =
+            (getNodeInfo(node_id).m_type == NodeInfo::DB)
+            ? numberToRef(CMVMI, node_id)
+            : numberToRef(API_CLUSTERMGR, node_id);
+          const Uint32 fill_word = signal->theData[3];
+          const Uint32 frag_size = signal->theData[4];
+          if (frag_size != 0)
+          {
+            // Fragmented signals not supported yet.
+            jam();
+            return;
+          }
+          const Uint32 num_secs = (signal->length() > 5) ? signal->theData[5] : 0;
+          if (num_secs > 3)
+          {
+            jam();
+            return;
+          }
+          Uint32 tot_len = signal->length();
+          LinearSectionPtr ptr[3];
+          for (Uint32 i = 0; i < num_secs; i++)
+          {
+            const Uint32 sec_len = signal->theData[6 + i];
+            ptr[i].sz = sec_len;
+            tot_len += sec_len;
+          }
+          Uint32* sec_alloc = NULL;
+          Uint32* sec_data = &signal->theData[signal->length()];
+          if (tot_len > NDB_ARRAY_SIZE(signal->theData))
+          {
+            sec_data = sec_alloc = new Uint32[tot_len];
+          }
+          signal->theData[0] = DumpStateOrd::CmvmiDummySignal;
+          signal->theData[2] = getOwnNodeId();
+          for (Uint32 i = 0; i < tot_len; i++)
+          {
+            sec_data[i] = fill_word;
+          }
+          for (Uint32 i = 0; i < num_secs; i++)
+          {
+            const Uint32 sec_len = signal->theData[6 + i];
+            ptr[i].p = sec_data;
+            sec_data += sec_len;
+          }
+          char msg[24*4];
+          snprintf(msg,
+                   sizeof(msg),
+                   "Sending CmvmiDummySignal"
+                   " (size %u+%u+%u+%u+%u) from %u to %u.",
+                   signal->getLength(),
+                   num_secs,
+                   (num_secs > 0) ? ptr[0].sz : 0,
+                   (num_secs > 1) ? ptr[1].sz : 0,
+                   (num_secs > 2) ? ptr[2].sz : 0,
+                   getOwnNodeId(),
+                   node_id);
+          infoEvent("%s", msg);
+          sendSignal(ref , GSN_DUMP_STATE_ORD, signal,
+                     signal->length(), JBB, ptr, num_secs);
+          delete[] sec_alloc;
+        }
       }
     }
     return;
@@ -1742,7 +2001,7 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
   if (dumpState->args[0] == DumpStateOrd::DumpPageMemory)
   {
     const Uint32 len = signal->getLength();
-    if (len == 1)
+    if (len == 1) // DUMP 1000
     {
       // Start dumping resource limits
       signal->theData[1] = 0;
@@ -1755,7 +2014,7 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
       return;
     }
 
-    if (len == 2)
+    if (len == 2) // DUMP 1000 node-ref
     {
       // Dump data and index memory to specific ref
       Uint32 result_ref = signal->theData[1];
@@ -1777,21 +2036,43 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
       return;
     }
 
+    // DUMP 1000 0 0
     Uint32 id = signal->theData[1];
-    Resource_limit rl;
-    if (m_ctx.m_mm.get_resource_limit(id, rl))
+    if (id == 0)
     {
+      infoEvent("Resource global total: %u used: %u",
+                m_ctx.m_mm.get_allocated(),
+                m_ctx.m_mm.get_in_use());
+      infoEvent("Resource reserved total: %u used: %u",
+                m_ctx.m_mm.get_reserved(),
+                m_ctx.m_mm.get_reserved_in_use());
+      infoEvent("Resource shared total: %u used: %u spare: %u",
+                m_ctx.m_mm.get_shared(),
+                m_ctx.m_mm.get_shared_in_use(),
+                m_ctx.m_mm.get_spare());
+      id++;
+    }
+    Resource_limit rl;
+    for (; id <= RG_COUNT; id++)
+    {
+      if (!m_ctx.m_mm.get_resource_limit(id, rl))
+      {
+        continue;
+      }
       if (rl.m_min || rl.m_curr || rl.m_max || rl.m_spare)
       {
-        infoEvent("Resource %d min: %d max: %d curr: %d spare: %d",
+        infoEvent("Resource %u min: %u max: %u curr: %u spare: %u",
                   id, rl.m_min, rl.m_max, rl.m_curr, rl.m_spare);
       }
-
-      signal->theData[0] = 1000;
-      signal->theData[1] = id+1;
-      signal->theData[2] = ~0;
-      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 3, JBB);
     }
+    m_ctx.m_mm.dump(); // To data node log
+    return;
+  }
+  if (dumpState->args[0] == DumpStateOrd::DumpPageMemoryOnFail)
+  {
+    const Uint32 len = signal->getLength();
+    const bool dump_on_fail = (len >= 2) ? (signal->theData[1] != 0) : true;
+    m_ctx.m_mm.dump_on_alloc_fail(dump_on_fail);
     return;
   }
   if (arg == DumpStateOrd::CmvmiSchedulerExecutionTimer)
@@ -2041,7 +2322,102 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     sendSignal(NDBFS_REF, GSN_ALLOC_MEM_REQ, signal,
                AllocMemReq::SignalLength, JBB);
   }
+
+#ifdef ERROR_INSERT
+  if (signal->theData[0] == 667)
+  {
+    jam();
+    Uint32 numFiles = 100;
+    if (signal->getLength() == 2)
+    {
+      jam();
+      numFiles = signal->theData[1];
+    }
+
+    /* Send a number of concurrent file open requests
+     * for 'bound' files to NdbFS to test that it
+     * copes
+     * None are closed before all are open
+     */
+    g_remaining_responses = numFiles;
+
+    g_eventLogger->info("CMVMI : Bulk open %u files",
+                        numFiles);
+    FsOpenReq* openReq = (FsOpenReq*) &signal->theData[0];
+    openReq->userReference = reference();
+    openReq->userPointer = 0;
+    openReq->fileNumber[0] = ~Uint32(0);
+    openReq->fileNumber[1] = ~Uint32(0);
+    openReq->fileNumber[2] = 0;
+    openReq->fileNumber[3] =
+      1 << 24 |
+      1 << 16 |
+      255 << 8 |
+      255;
+    openReq->fileFlags = FsOpenReq::OM_READWRITE | FsOpenReq::OM_CREATE;
+
+    for (Uint32 i=0; i < numFiles; i++)
+    {
+      jam();
+      openReq->fileNumber[2] = i;
+      sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBB);
+    }
+    g_eventLogger->info("CMVMI : %u requests sent",
+                        numFiles);
+  }
+
+  if (signal->theData[0] == 668)
+  {
+    jam();
+
+    g_eventLogger->info("CMVMI : missing responses %u",
+                        g_remaining_responses);
+    /* Check that all files were opened */
+    ndbrequire(g_remaining_responses == 0);
+  }
+#endif // ERROR_INSERT
+
 }//Cmvmi::execDUMP_STATE_ORD()
+
+#ifdef ERROR_INSERT
+void
+Cmvmi::execFSOPENCONF(Signal* signal)
+{
+  jam();
+  if (signal->header.theSendersBlockRef != reference())
+  {
+    jam();
+    g_remaining_responses--;
+    g_eventLogger->info("Waiting for %u responses",
+                        g_remaining_responses);
+  }
+
+  if (g_remaining_responses > 0)
+  {
+    // We don't close any files until all are open
+    jam();
+    g_eventLogger->info("CMVMI delaying CONF");
+    sendSignalWithDelay(reference(), GSN_FSOPENCONF, signal, 300, signal->getLength());
+  }
+  else
+  {
+    signal->theData[0] = signal->theData[1];
+    signal->theData[1] = reference();
+    signal->theData[2] = 0;
+    signal->theData[3] = 1; // Remove the file on close"
+    signal->theData[4] = 0;
+    sendSignal(NDBFS_REF, GSN_FSCLOSEREQ, signal, 5, JBB);
+  }
+
+}
+
+void
+Cmvmi::execFSCLOSECONF(Signal* signal)
+{
+  jam();
+}
+
+#endif // ERROR_INSERT
 
 void
 Cmvmi::execALLOC_MEM_REF(Signal* signal)
@@ -2161,14 +2537,16 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
         dm_pages_total,
         sizeof(GlobalPage),
         0,
-        { CFG_DB_DATA_MEM,0,0,0 }},
+        { CFG_DB_DATA_MEM,0,0,0 },
+        0},
       { "Long message buffer",
         g_sectionSegmentPool.getUsed(),
         g_sectionSegmentPool.getSize(),
         sizeof(SectionSegment),
         g_sectionSegmentPool.getUsedHi(),
-        { CFG_DB_LONG_SIGNAL_BUFFER,0,0,0 }},
-      { NULL, 0,0,0,0,{ 0,0,0,0 }}
+        { CFG_DB_LONG_SIGNAL_BUFFER,0,0,0 },
+        0},
+      { NULL, 0,0,0,0,{ 0,0,0,0 }, 0}
     };
 
     static const size_t num_config_params =
@@ -2190,6 +2568,8 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
       row.write_uint64(pools[pool].entry_size);
       for (size_t i = 0; i < num_config_params; i++)
         row.write_uint32(pools[pool].config_params[i]);
+      row.write_uint32(GET_RG(pools[pool].record_type));
+      row.write_uint32(GET_TID(pools[pool].record_type));
       ndbinfo_send_row(signal, req, row, rl);
       pool++;
       if (rl.need_break(req))
@@ -2209,14 +2589,14 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
 
     char buf[512];
     const ConfigValues* const values = m_ctx.m_config.get_own_config_values();
-    ConfigValues::Entry entry;
+    ConfigSection::Entry entry;
     while (true)
     {
       /*
         Iterate own configuration by index and
         return the configured values
       */
-      index = values->getNextEntryByIndex(index, &entry);
+      index = values->getNextEntry(index, &entry);
       if (index == 0)
       {
          // No more config values
@@ -2237,15 +2617,15 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
 
       switch(entry.m_type)
       {
-      case ConfigValues::IntType:
+      case ConfigSection::IntTypeId:
         BaseString::snprintf(buf, sizeof(buf), "%u", entry.m_int);
         break;
 
-      case ConfigValues::Int64Type:
+      case ConfigSection::Int64TypeId:
         BaseString::snprintf(buf, sizeof(buf), "%llu", entry.m_int64);
         break;
 
-      case ConfigValues::StringType:
+      case ConfigSection::StringTypeId:
         BaseString::snprintf(buf, sizeof(buf), "%s", entry.m_string);
         break;
 
@@ -3159,7 +3539,8 @@ Cmvmi::execCONTINUEB(Signal* signal)
     m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
     {
       const Uint32 dm_pages_used = rl.m_curr;
-      const Uint32 dm_pages_total = rl.m_max > 0 ? rl.m_max : rl.m_min;
+      const Uint32 dm_pages_total =
+          (rl.m_max < Resource_limit::HIGHEST_LIMIT) ? rl.m_max : rl.m_min;
       const Uint32 dm_percent_now = calc_percent(dm_pages_used,
                                                  dm_pages_total);
 
@@ -3237,7 +3618,8 @@ Cmvmi::reportDMUsage(Signal* signal, int incDec, BlockReference ref)
   m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
 
   const Uint32 dm_pages_used = rl.m_curr;
-  const Uint32 dm_pages_total = rl.m_max > 0 ? rl.m_max : rl.m_min;
+  const Uint32 dm_pages_total =
+      (rl.m_max < Resource_limit::HIGHEST_LIMIT) ? rl.m_max : rl.m_min;
 
   const Uint32 acc_pages_used =
     sum_array(g_acc_pages_used, NDB_ARRAY_SIZE(g_acc_pages_used));
@@ -3262,7 +3644,8 @@ Cmvmi::reportIMUsage(Signal* signal, int incDec, BlockReference ref)
   m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
 
   const Uint32 dm_pages_used = rl.m_curr;
-  const Uint32 dm_pages_total = rl.m_max > 0 ? rl.m_max : rl.m_min;
+  const Uint32 dm_pages_total =
+      (rl.m_max < Resource_limit::HIGHEST_LIMIT) ? rl.m_max : rl.m_min;
 
   const Uint32 acc_pages_used =
     sum_array(g_acc_pages_used, NDB_ARRAY_SIZE(g_acc_pages_used));
@@ -3297,8 +3680,15 @@ void Cmvmi::execGET_CONFIG_REQ(Signal *signal)
   {
     error = GetConfigRef::WrongNodeId;
   }
+  Uint32 mgm_nodeid = refToNode(retRef);
 
-  const Uint32 config_length = m_ctx.m_config.m_clusterConfigPacked.length();
+  const Uint32 version = getNodeInfo(mgm_nodeid).m_version;
+
+  bool v2 = ndb_config_version_v2(version);
+
+  const Uint32 config_length = v2 ?
+    m_ctx.m_config.m_clusterConfigPacked_v2.length() :
+    m_ctx.m_config.m_clusterConfigPacked_v1.length();
   if (config_length == 0)
   {
     error = GetConfigRef::NoConfig;
@@ -3316,7 +3706,9 @@ void Cmvmi::execGET_CONFIG_REQ(Signal *signal)
 
   const Uint32 nSections= 1;
   LinearSectionPtr ptr[3];
-  ptr[0].p = (Uint32*)(m_ctx.m_config.m_clusterConfigPacked.get_data());
+  ptr[0].p = v2 ?
+    (Uint32*)(m_ctx.m_config.m_clusterConfigPacked_v2.get_data()) :
+    (Uint32*)(m_ctx.m_config.m_clusterConfigPacked_v1.get_data());
   ptr[0].sz = (config_length + 3) / 4;
 
   GetConfigConf *conf = (GetConfigConf *)signal->getDataPtrSend();

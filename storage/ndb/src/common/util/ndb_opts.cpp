@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -178,12 +178,13 @@ Ndb_opts::Ndb_opts(int & argc_ref, char** & argv_ref,
   main_argv_ptr(& argv_ref),
   mycnf_default_groups(default_groups ? default_groups : load_default_groups),
   options(long_options),
-  short_usage_fn(g_ndb_opt_short_usage)
+  short_usage_fn(g_ndb_opt_short_usage),
+  long_usage_extra_fn(empty_long_usage_extra_func)
 {
   my_load_defaults(MYSQL_CONFIG_NAME,  mycnf_default_groups,
                    main_argc_ptr, main_argv_ptr,  &opts_mem_root, NULL);
   Ndb_opts::registerUsage(this);
-};
+}
 
 Ndb_opts::~Ndb_opts()
 {
@@ -194,18 +195,18 @@ int Ndb_opts::handle_options(bool (*get_opt_fn)
                              (int, const struct my_option *, char *)) const
 {
   return ::handle_options(main_argc_ptr, main_argv_ptr, options, get_opt_fn);
-};
+}
 
 void Ndb_opts::set_usage_funcs(void (*short_fn)(void),
                                void (*long_fn)(void))
 {
   short_usage_fn = short_fn;
-  long_usage_extra_fn = long_fn ? long_fn : empty_long_usage_extra_func;
-};
+  if(long_fn) long_usage_extra_fn = long_fn;
+}
 
 void Ndb_opts::usage() const
 {
   long_usage_extra_fn();
   ndb_usage(short_usage_fn, mycnf_default_groups, options);
-};
+}
 

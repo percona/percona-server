@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,6 +77,7 @@ enum opt_hints_enum {
   INDEX_MERGE_HINT_ENUM,
   RESOURCE_GROUP_HINT_ENUM,
   SKIP_SCAN_HINT_ENUM,
+  HASH_JOIN_HINT_ENUM,
   MAX_HINT_ENUM
 };
 
@@ -300,7 +301,7 @@ class Opt_hints {
     @param query_type       If query type is QT_NORMALIZED_FORMAT,
                             un-resolved hints will also be printed
   */
-  void print(THD *thd, String *str, enum_query_type query_type);
+  void print(const THD *thd, String *str, enum_query_type query_type);
   /**
     Check if there are any unresolved hint objects and
     print warnings for them.
@@ -308,7 +309,7 @@ class Opt_hints {
     @param thd             Pointer to THD object
   */
   void check_unresolved(THD *thd);
-  virtual void append_name(THD *thd, String *str) = 0;
+  virtual void append_name(const THD *thd, String *str) = 0;
 
  private:
   /**
@@ -331,7 +332,7 @@ class Opt_hints {
     @param thd             pointer to THD object
     @param str             pointer to String object
   */
-  virtual void print_irregular_hints(THD *thd MY_ATTRIBUTE((unused)),
+  virtual void print_irregular_hints(const THD *thd MY_ATTRIBUTE((unused)),
                                      String *str MY_ATTRIBUTE((unused))) {}
 };
 
@@ -350,9 +351,9 @@ class Opt_hints_global : public Opt_hints {
     sys_var_hint = NULL;
   }
 
-  virtual void append_name(THD *, String *) {}
-  virtual PT_hint *get_complex_hints(opt_hints_enum type);
-  virtual void print_irregular_hints(THD *thd, String *str);
+  void append_name(const THD *, String *) override {}
+  PT_hint *get_complex_hints(opt_hints_enum type) override;
+  void print_irregular_hints(const THD *thd, String *str) override;
 };
 
 class PT_qb_level_hint;
@@ -394,7 +395,7 @@ class Opt_hints_qb : public Opt_hints {
     @param thd   pointer to THD object
     @param str   pointer to String object
   */
-  void append_qb_hint(THD *thd, String *str) {
+  void append_qb_hint(const THD *thd, String *str) {
     if (get_name()) {
       str->append(STRING_WITH_LEN("QB_NAME("));
       append_identifier(thd, str, get_name()->str, get_name()->length);
@@ -407,13 +408,13 @@ class Opt_hints_qb : public Opt_hints {
     @param thd   pointer to THD object
     @param str   pointer to String object
   */
-  virtual void append_name(THD *thd, String *str) {
+  void append_name(const THD *thd, String *str) override {
     str->append(STRING_WITH_LEN("@"));
     append_identifier(thd, str, get_print_name()->str,
                       get_print_name()->length);
   }
 
-  virtual PT_hint *get_complex_hints(opt_hints_enum type);
+  PT_hint *get_complex_hints(opt_hints_enum type) override;
 
   /**
     Function finds Opt_hints_table object corresponding to
@@ -463,7 +464,7 @@ class Opt_hints_qb : public Opt_hints {
   */
   Item_exists_subselect::enum_exec_method subquery_strategy() const;
 
-  virtual void print_irregular_hints(THD *thd, String *str);
+  void print_irregular_hints(const THD *thd, String *str) override;
 
   /**
     Checks if join order hints are applicable and
@@ -528,7 +529,7 @@ class Opt_hints_table : public Opt_hints {
     @param thd   pointer to THD object
     @param str   pointer to String object
   */
-  virtual void append_name(THD *thd, String *str) override {
+  void append_name(const THD *thd, String *str) override {
     append_identifier(thd, str, get_name()->str, get_name()->length);
     get_parent()->append_name(thd, str);
   }
@@ -593,7 +594,7 @@ class Opt_hints_key : public Opt_hints {
     @param thd   pointer to THD object
     @param str   pointer to String object
   */
-  virtual void append_name(THD *thd, String *str) {
+  void append_name(const THD *thd, String *str) override {
     get_parent()->append_name(thd, str);
     str->append(' ');
     append_identifier(thd, str, get_name()->str, get_name()->length);
@@ -602,7 +603,7 @@ class Opt_hints_key : public Opt_hints {
     Ignore printing of the object since parent complex hint has
     its own printing method.
   */
-  virtual bool ignore_print(opt_hints_enum type_arg) const {
+  bool ignore_print(opt_hints_enum type_arg) const override {
     return (type_arg == INDEX_MERGE_HINT_ENUM ||
             type_arg == SKIP_SCAN_HINT_ENUM);
   }
@@ -658,9 +659,10 @@ class Sys_var_hint {
   /**
     Print applicable hints.
 
+    @param thd   Thread handle
     @param str   Pointer to string object
   */
-  void print(String *str);
+  void print(const THD *thd, String *str);
 };
 
 /**
@@ -701,7 +703,7 @@ bool hint_table_state(const THD *thd, const TABLE_LIST *table,
   @param qb_name    pointer to query block name, may be null
   @param table_name pointer to table name
 */
-void append_table_name(THD *thd, String *str, const LEX_CSTRING *qb_name,
+void append_table_name(const THD *thd, String *str, const LEX_CSTRING *qb_name,
                        const LEX_CSTRING *table_name);
 
 /**

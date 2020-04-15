@@ -59,6 +59,10 @@ HEARTBEAT_INTERVAL	30.000
 TLS_VERSION	
 PUBLIC_KEY_PATH	
 GET_PUBLIC_KEY	NO
+NETWORK_NAMESPACE	
+COMPRESSION_ALGORITHM	uncompressed
+ZSTD_COMPRESSION_LEVEL	3
+TLS_CIPHERSUITES	NULL
 
 SELECT * FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier";
 CHANNEL_NAME	group_replication_applier
@@ -85,6 +89,8 @@ QUEUEING_TRANSACTION_START_QUEUE_TIMESTAMP	0000-00-00 00:00:00.000000
 SELECT * FROM performance_schema.replication_applier_configuration WHERE channel_name = "group_replication_applier";
 CHANNEL_NAME	group_replication_applier
 DESIRED_DELAY	0
+PRIVILEGE_CHECKS_USER	NULL
+REQUIRE_ROW_FORMAT	YES
 
 SELECT * FROM performance_schema.replication_applier_status WHERE channel_name = "group_replication_applier";
 CHANNEL_NAME	group_replication_applier
@@ -253,6 +259,10 @@ HEARTBEAT_INTERVAL	30.000
 TLS_VERSION	
 PUBLIC_KEY_PATH	
 GET_PUBLIC_KEY	NO
+NETWORK_NAMESPACE	
+COMPRESSION_ALGORITHM	uncompressed
+ZSTD_COMPRESSION_LEVEL	3
+TLS_CIPHERSUITES	NULL
 
 SELECT * FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier";
 CHANNEL_NAME	group_replication_applier
@@ -279,6 +289,8 @@ QUEUEING_TRANSACTION_START_QUEUE_TIMESTAMP	0000-00-00 00:00:00.000000
 SELECT * FROM performance_schema.replication_applier_configuration WHERE channel_name = "group_replication_applier";
 CHANNEL_NAME	group_replication_applier
 DESIRED_DELAY	0
+PRIVILEGE_CHECKS_USER	NULL
+REQUIRE_ROW_FORMAT	YES
 
 SELECT * FROM performance_schema.replication_applier_status WHERE channel_name = "group_replication_applier";
 CHANNEL_NAME	group_replication_applier

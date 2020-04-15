@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,7 @@ int64_t Gcs_debug_options::get_valid_debug_options() {
 
   unsigned int i = 0;
   for (i = 0; i < num_options; i++) {
-    ret = ret | (1 << i);
+    ret = ret | (static_cast<int64_t>(1) << i);
   }
 
   return ret;
@@ -119,7 +119,7 @@ bool Gcs_debug_options::get_debug_options(const int64_t debug_options,
   }
 
   for (i = 0; i < num_options; i++) {
-    if ((debug_options & (1 << i))) {
+    if ((debug_options & (static_cast<int64_t>(1) << i))) {
       res_debug_options += gcs_xcom_debug_strings[i];
       res_debug_options += ",";
     }
@@ -133,6 +133,7 @@ bool Gcs_debug_options::get_debug_options(const int64_t debug_options,
 bool Gcs_debug_options::get_debug_options(const std::string &debug_options,
                                           int64_t &res_debug_options) {
   bool found;
+  bool match = false;
   unsigned int i;
   unsigned int num_options = get_number_debug_options();
 
@@ -150,6 +151,7 @@ bool Gcs_debug_options::get_debug_options(const std::string &debug_options,
 
     if (!option.compare(m_debug_all)) {
       res_debug_options = GCS_DEBUG_ALL;
+      match = true;
       continue;
     }
 
@@ -160,15 +162,20 @@ bool Gcs_debug_options::get_debug_options(const std::string &debug_options,
     found = false;
     for (i = 0; i < num_options; i++) {
       if (!option.compare(gcs_xcom_debug_strings[i])) {
-        res_debug_options = res_debug_options | (1 << i);
+        res_debug_options = res_debug_options | (static_cast<int64_t>(1) << i);
         found = true;
         break;
       }
     }
 
+    match |= found;
+
     if (!found && option.compare("") && option.compare(m_debug_none))
       return true;
   }
+
+  if (!match && (debug_options.find(",") != std::string::npos)) return true;
+
   return false;
 }
 

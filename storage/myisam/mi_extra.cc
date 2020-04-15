@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,14 +53,14 @@ static void mi_extra_keyflag(MI_INFO *info, enum ha_extra_function function);
 int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg) {
   int error = 0;
   MYISAM_SHARE *share = info->s;
-  DBUG_ENTER("mi_extra");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("function: %d", (int)function));
 
   switch (function) {
     case HA_EXTRA_RESET_STATE: /* Reset state (don't free buffers) */
       info->lastinx = 0;       /* Use first index as def */
       info->last_search_keypage = info->lastpos = HA_OFFSET_ERROR;
-      info->page_changed = 1;
+      info->page_changed = true;
       /* Next/prev gives first/last */
       if (info->opt_flag & READ_CACHE_USED) {
         if ((error =
@@ -138,9 +138,9 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg) {
 
         if (!share->changed) {
           share->state.changed |= STATE_CHANGED | STATE_NOT_ANALYZED;
-          share->changed = 1; /* Update on close */
+          share->changed = true; /* Update on close */
           if (!share->global_changed) {
-            share->global_changed = 1;
+            share->global_changed = true;
             share->state.open_count++;
           }
         }
@@ -166,11 +166,11 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg) {
       _mi_decrement_open_count(info);
 #endif
       if (share->not_flushed) {
-        share->not_flushed = 0;
+        share->not_flushed = false;
         if (mysql_file_sync(share->kfile, MYF(0))) error = my_errno();
         if (mysql_file_sync(info->dfile, MYF(0))) error = my_errno();
         if (error) {
-          share->changed = 1;
+          share->changed = true;
           mi_print_error(info->s, HA_ERR_CRASHED);
           mi_mark_crashed(info); /* Fatal error found */
         }
@@ -178,10 +178,10 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg) {
       if (share->base.blobs) mi_alloc_rec_buff(info, -1, &info->rec_buff);
       break;
     case HA_EXTRA_NORMAL: /* Theese isn't in use */
-      info->quick_mode = 0;
+      info->quick_mode = false;
       break;
     case HA_EXTRA_QUICK:
-      info->quick_mode = 1;
+      info->quick_mode = true;
       break;
     case HA_EXTRA_NO_ROWS:
       if (!share->state.header.uniques) info->opt_flag |= OPT_NO_ROWS;
@@ -206,7 +206,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg) {
     tmp[0] = function;
     myisam_log_command(MI_LOG_EXTRA, info, (uchar *)tmp, 1, error);
   }
-  DBUG_RETURN(error);
+  return error;
 } /* mi_extra */
 
 void mi_set_index_cond_func(MI_INFO *info, index_cond_func_t func,
@@ -238,7 +238,7 @@ static void mi_extra_keyflag(MI_INFO *info, enum ha_extra_function function) {
 int mi_reset(MI_INFO *info) {
   int error = 0;
   MYISAM_SHARE *share = info->s;
-  DBUG_ENTER("mi_reset");
+  DBUG_TRACE;
   /*
     Free buffers and reset the following flags:
     EXTRA_CACHE, EXTRA_WRITE_CACHE, EXTRA_KEYREAD, EXTRA_QUICK
@@ -257,11 +257,11 @@ int mi_reset(MI_INFO *info) {
             MADV_RANDOM);
 #endif
   info->opt_flag &= ~(KEY_READ_USED | REMEMBER_OLD_POS);
-  info->quick_mode = 0;
+  info->quick_mode = false;
   info->lastinx = 0; /* Use first index as def */
   info->last_search_keypage = info->lastpos = HA_OFFSET_ERROR;
-  info->page_changed = 1;
+  info->page_changed = true;
   info->update = ((info->update & HA_STATE_CHANGED) | HA_STATE_NEXT_FOUND |
                   HA_STATE_PREV_FOUND);
-  DBUG_RETURN(error);
+  return error;
 }

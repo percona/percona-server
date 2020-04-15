@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,7 @@ std::unique_ptr<IKeys_container> keys(nullptr);
 volatile bool is_keys_container_initialized = false;
 std::unique_ptr<ILogger> logger(nullptr);
 std::unique_ptr<char[]> keyring_file_data(nullptr);
+bool keyring_open_mode = false;  // 0 - Read|Write|Create; 1 - Read only
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_rwlock_info all_keyring_rwlocks[] = {
@@ -69,15 +70,18 @@ bool init_keyring_locks() {
 }
 
 bool is_key_length_and_type_valid(const char *key_type, size_t key_len) {
+  std::string key_type_str(key_type);
   bool is_key_len_valid = false;
   bool is_type_valid = true;
 
-  if (strcmp(key_type, "AES") == 0)
+  if (key_type_str == keyring::AES)
     is_key_len_valid = (key_len == 16 || key_len == 24 || key_len == 32);
-  else if (strcmp(key_type, "RSA") == 0)
+  else if (key_type_str == keyring::RSA)
     is_key_len_valid = (key_len == 128 || key_len == 256 || key_len == 512);
-  else if (strcmp(key_type, "DSA") == 0)
+  else if (key_type_str == keyring::DSA)
     is_key_len_valid = (key_len == 128 || key_len == 256 || key_len == 384);
+  else if (key_type_str == keyring::SECRET)
+    is_key_len_valid = (key_len > 0 && key_len <= 16384);
   else {
     is_type_valid = false;
     logger->log(ERROR_LEVEL, ER_KEYRING_INVALID_KEY_TYPE);
@@ -162,8 +166,9 @@ bool mysql_key_fetch(std::unique_ptr<IKey> key_to_fetch, char **key_type,
     *key_len = fetched_key->get_key_data_size();
     fetched_key->xor_data();
     *key = static_cast<void *>(fetched_key->release_key_data());
-    *key_type = my_strdup(keyring::key_memory_KEYRING,
-                          fetched_key->get_key_type()->c_str(), MYF(MY_WME));
+    *key_type =
+        my_strdup(keyring::key_memory_KEYRING,
+                  fetched_key->get_key_type_as_string()->c_str(), MYF(MY_WME));
   } else
     *key = NULL;
   return false;
@@ -214,6 +219,7 @@ bool mysql_key_remove(std::unique_ptr<IKey> key_to_remove) {
 }
 
 bool mysql_keyring_iterator_init(Keys_iterator *key_iterator) {
+  if (!is_keys_container_initialized) return true;
   mysql_rwlock_rdlock(&LOCK_keyring);
   key_iterator->init();
   mysql_rwlock_unlock(&LOCK_keyring);

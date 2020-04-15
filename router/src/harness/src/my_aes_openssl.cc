@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -21,7 +21,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  This is copy of mysys_ssl/my_aes_openssl.cc with some parts that
+  This is a copy of mysys/my_aes_openssl.cc with some parts that
   we do not need removed.
   It's copied because the original file includes global my_aes_opmode_names
   which symbol is currently exposed from libmysqlclient. That is causing ODR
@@ -37,7 +37,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <cstring>  // for memset
 
 #include "my_aes.h"
-#include "my_aes_impl.h"
+#include "mysys/my_aes_impl.h"
 
 /* keep in sync with enum my_aes_opmode in my_aes.h */
 static uint my_aes_opmode_key_sizes_impl[] = {
@@ -64,23 +64,23 @@ static uint my_aes_opmode_key_sizes_impl[] = {
 
   @param [in] key               Key to use for real key creation
   @param [in] key_length        Length of the key
-  @param [out] rkey             Real key (used by OpenSSL/WolfSSL)
+  @param [out] rkey             Real key (used by OpenSSL)
   @param [out] opmode           encryption mode
 */
 
 void my_aes_create_key(const unsigned char *key, uint key_length, uint8 *rkey,
                        enum my_aes_opmode opmode) {
   const uint key_size = my_aes_opmode_key_sizes_impl[opmode] / 8;
-  uint8 *rkey_end;                              /* Real key boundary */
-  uint8 *ptr;                                   /* Start of the real key*/
-  uint8 *sptr;                                  /* Start of the working key */
-  uint8 *key_end = ((uint8 *)key) + key_length; /* Working key boundary*/
+  uint8 *rkey_end;                         /* Real key boundary */
+  uint8 *ptr;                              /* Start of the real key*/
+  const uint8 *sptr;                       /* Start of the working key */
+  const uint8 *key_end = key + key_length; /* Working key boundary*/
 
   rkey_end = rkey + key_size;
 
   memset(rkey, 0, key_size); /* Set initial key  */
 
-  for (ptr = rkey, sptr = (uint8 *)key; sptr < key_end; ptr++, sptr++) {
+  for (ptr = rkey, sptr = key; sptr < key_end; ptr++, sptr++) {
     if (ptr == rkey_end) /*  Just loop over tmp_key until we used all key */
       ptr = rkey;
     *ptr ^= *sptr;

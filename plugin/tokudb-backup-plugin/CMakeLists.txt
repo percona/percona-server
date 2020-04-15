@@ -10,6 +10,13 @@ int main() { return 0; }
 " TOKUDB_OK)
 ENDIF()
 
+IF (NOT DEFINED WITH_TOKUDB_BACKUP_PLUGIN)
+  IF (WITHOUT_TOKUDB_BACKUP_PLUGIN)
+    MESSAGE(STATUS "Skipping tokudb-backup-plugin")
+    RETURN()
+  ENDIF ()
+ENDIF ()
+
 include(CheckSymbolExists)
 check_symbol_exists(O_DIRECT "fcntl.h" HAVE_O_DIRECT)
 check_symbol_exists(CLOCK_REALTIME "time.h" HAVE_CLOCK_MONOTONIC)
@@ -19,23 +26,25 @@ IF(NOT TOKUDB_OK OR NOT HAVE_O_DIRECT OR NOT HAVE_CLOCK_MONOTONIC OR APPLE)
   RETURN()
 ENDIF()
 
-# disable -Wvla
-include(CheckCCompilerFlag)
-include(CheckCXXCompilerFlag)
-macro(append_cflags_if_supported)
-  foreach(flag ${ARGN})
-    string(REGEX REPLACE "-" "_" temp_flag ${flag})
-    check_c_compiler_flag(${flag} HAVE_C_${temp_flag})
-    if (HAVE_C_${temp_flag})
-      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${flag}")
-    endif ()
-    check_cxx_compiler_flag(${flag} HAVE_CXX_${temp_flag})
-    if (HAVE_CXX_${temp_flag})
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag}")
-    endif ()
-  endforeach(flag)
-endmacro(append_cflags_if_supported)
-append_cflags_if_supported(-Wno-vla)
+
+
+# Suppress warnings for all compilers
+remove_compile_flags(-Wvla)
+
+
+# Suppress warnings for all clang versions
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  append_cflags_if_supported(-Wno-deprecated-dynamic-exception-spec)
+  remove_compile_flags(-Wextra-semi -Wconditional-uninitialized)
+ENDIF()
+
+
+
+# compiler_options.cmake sets "-D_FORTIFY_SOURCE=2" for clang what causes
+# "error: redefinition of 'read'" for "Percona-TokuBackup/backup/backup.cc"
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  STRING (REPLACE "-D_FORTIFY_SOURCE=2" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
+ENDIF()
 
 IF(DEFINED TOKUDB_BACKUP_PLUGIN_VERSION)
   ADD_DEFINITIONS("-DTOKUDB_BACKUP_PLUGIN_VERSION=${TOKUDB_BACKUP_PLUGIN_VERSION}")
@@ -53,7 +62,7 @@ IF(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Percona-TokuBackup/backup/CMakeLists.txt"
 ELSE()
   MESSAGE(STATUS "tokudb-backup-plugin no backup ${CMAKE_CURRENT_SOURCE_DIR}")
 ENDIF()
-MYSQL_ADD_PLUGIN(tokudb_backup ${TOKUDB_BACKUP_SOURCES} MODULE_ONLY MODULE_OUTPUT_NAME "tokudb_backup" LINK_LIBRARIES regex stdc++)
+MYSQL_ADD_PLUGIN(tokudb_backup ${TOKUDB_BACKUP_SOURCES} MODULE_ONLY MODULE_OUTPUT_NAME "tokudb_backup" LINK_LIBRARIES stdc++)
 #
 # RPM installs documentation directly from the source tree
 #

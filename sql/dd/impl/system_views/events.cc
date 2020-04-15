@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,8 @@ Events::Events() {
   m_target_def.add_field(FIELD_EXECUTE_AT, "EXECUTE_AT",
                          "CONVERT_TZ(evt.execute_at,'+00:00', evt.time_zone)");
   m_target_def.add_field(FIELD_INTERVAL_VALUE, "INTERVAL_VALUE",
-                         "evt.interval_value");
+                         "CONVERT_INTERVAL_TO_USER_INTERVAL(evt.interval_value,"
+                         "evt.interval_field)");
   m_target_def.add_field(FIELD_INTERVAL_FIELD, "INTERVAL_FIELD",
                          "evt.interval_field");
   m_target_def.add_field(FIELD_SQL_MODE, "SQL_MODE", "evt.sql_mode");
@@ -64,8 +65,9 @@ Events::Events() {
   m_target_def.add_field(FIELD_CREATED, "CREATED", "evt.created");
   m_target_def.add_field(FIELD_LAST_ALTERED, "LAST_ALTERED",
                          "evt.last_altered");
-  m_target_def.add_field(FIELD_LAST_EXECUTED, "LAST_EXECUTED",
-                         "evt.last_executed");
+  m_target_def.add_field(
+      FIELD_LAST_EXECUTED, "LAST_EXECUTED",
+      "CONVERT_TZ(evt.last_executed,'+00:00', evt.time_zone)");
   m_target_def.add_field(FIELD_EVENT_COMMENT, "EVENT_COMMENT", "evt.comment");
   m_target_def.add_field(FIELD_ORIGINATOR, "ORIGINATOR", "evt.originator");
   m_target_def.add_field(FIELD_CHARACTER_SET_CLIENT, "CHARACTER_SET_CLIENT",

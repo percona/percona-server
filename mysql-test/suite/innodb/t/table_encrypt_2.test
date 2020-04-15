@@ -19,6 +19,6 @@ eval SET @@global.keyring_file_data="$MYSQL_TMP_DIR/keyring";
 --let $encryption_type=Y
 --source include/table_encrypt_2.inc
 
-#Cleanup
---remove_file $MYSQL_TMP_DIR/mysecret_keyring
+# Cleanup
+--remove_file $MYSQL_TMP_DIR/mydummy_key
 --remove_file $MYSQL_TMP_DIR/mysecret_keyring2

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,24 +26,12 @@
   ::mysql_harness::logging::kMainLogger  // must precede #include "logging.h"
 #include "mysql/harness/loader.h"
 
-////////////////////////////////////////
-// Package include files
-#include "designator.h"
-#include "exception.h"
-#include "harness_assert.h"
-#include "mysql/harness/filesystem.h"
-#include "mysql/harness/logging/logging.h"
-#include "mysql/harness/plugin.h"
-#include "utilities.h"
-IMPORT_LOG_FUNCTIONS()
-
-#include "my_compiler.h"
-
-////////////////////////////////////////
-// Standard include files
 #include <algorithm>
+#include <array>
 #include <atomic>
+#include <cassert>
 #include <cctype>
+#include <cstdarg>
 #include <cstring>
 #include <exception>
 #include <map>
@@ -55,31 +43,27 @@ IMPORT_LOG_FUNCTIONS()
 
 #ifndef _WIN32
 #include <dlfcn.h>
+#include <pthread.h>
 #include <unistd.h>
 #endif
 
-// <cassert> places assert() in global namespace on Ubuntu14.04, but might
-// place it in std:: on other platforms
-#include <assert.h>
+////////////////////////////////////////
+// Package include files
+#include "builtin_plugins.h"
+#include "common.h"  // mysql_harness::rename_thread()
+#include "designator.h"
+#include "dim.h"
+#include "exception.h"
+#include "harness_assert.h"
+#include "my_stacktrace.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/logging/logging.h"
+#include "mysql/harness/logging/registry.h"
+#include "mysql/harness/plugin.h"
+#include "utilities.h"
+IMPORT_LOG_FUNCTIONS()
 
-// safer than using cstdarg because va_* family of things might be macros or
-// functions on different platforms, in which case they will either have std::
-// prefix or they won't. Here's an example from QNX:
-//   https://svn.boost.org/trac/boost/ticket/3133
-#include <stdarg.h>
-
-// need POSIX signals and threads to support signal handling (pthread_sigmask(),
-// sigaction() and friends). For platforms that do not have them (e.g. Windows),
-// a different mechanism is used instead (see proxy_main()).
-// Compiler on Solaris does not always define _POSIX_C_SOURCE although the
-// signal handling is there
-#if (!defined _WIN32)
-#define USE_POSIX_SIGNALS
-#endif
-
-#ifdef USE_POSIX_SIGNALS
-#include <pthread.h>
-#endif
+#include "my_compiler.h"
 
 using mysql_harness::utility::find_range_first;
 using mysql_harness::utility::make_range;
@@ -89,6 +73,10 @@ using mysql_harness::Config;
 using mysql_harness::Path;
 
 using std::ostringstream;
+
+#if !defined(_WIN32)
+#define USE_POSIX_SIGNALS
+#endif
 
 /**
  * @defgroup Loader Plugin loader
@@ -105,24 +93,113 @@ using std::ostringstream;
 std::mutex we_might_shutdown_cond_mutex;
 std::condition_variable we_might_shutdown_cond;
 
-// when Router receives a signal to shut down, this flag is set
-static std::atomic<int> g_shutdown_pending{0};
+enum ShutdownReason { SHUTDOWN_NONE, SHUTDOWN_REQUESTED, SHUTDOWN_FATAL_ERROR };
 
-// called from sig_handler() on Unix,
-//        from NTService class and Ctrl+C handler on Windows
-void request_application_shutdown() {
-  g_shutdown_pending = 1;
+// set when the Router receives a signal to shut down or some fatal error
+// condition occurred
+static std::atomic<ShutdownReason> g_shutdown_pending{SHUTDOWN_NONE};
+
+// the thread that is setting the g_shutdown_pending to SHUTDOWN_FATAL_ERROR is
+// supposed to set this error message so that it bubbles up and ends up on the
+// console
+static std::string shutdown_fatal_error_message;
+
+std::mutex log_reopen_cond_mutex;
+std::condition_variable log_reopen_cond;
+static std::atomic<bool> g_log_reopen_requested{false};
+
+/**
+ * request application shutdown.
+ *
+ * @throws std::system_error same as std::unique_lock::lock does
+ */
+static void request_application_shutdown(const ShutdownReason reason) {
+  {
+    std::unique_lock<std::mutex> lk(we_might_shutdown_cond_mutex);
+    std::unique_lock<std::mutex> lk2(log_reopen_cond_mutex);
+    g_shutdown_pending = reason;
+  }
 
   we_might_shutdown_cond.notify_one();
+  // let's wake the log_reopen_thread too
+  log_reopen_cond.notify_one();
 }
 
-static void block_all_signals() {
+/**
+ * request application shutdown.
+ *
+ * @throws std::system_error same as std::unique_lock::lock does
+ */
+void request_application_shutdown() {
+  request_application_shutdown(SHUTDOWN_REQUESTED);
+}
+
+/**
+ * notify a "log_reopen" is requested.
+ *
+ * @throws std::system_error same as std::unique_lock::lock does
+ */
+static void request_log_reopen() {
+  {
+    std::unique_lock<std::mutex> lk(log_reopen_cond_mutex);
+    g_log_reopen_requested = true;
+  }
+  log_reopen_cond.notify_one();
+}
+
+namespace {
+#ifdef USE_POSIX_SIGNALS
+const std::array<int, 6> g_fatal_signals{SIGSEGV, SIGABRT, SIGBUS,
+                                         SIGILL,  SIGFPE,  SIGTRAP};
+#endif
+}  // namespace
+
+static void block_all_nonfatal_signals() {
 #ifdef USE_POSIX_SIGNALS
   sigset_t ss;
   sigfillset(&ss);
+  // we can't block those signals globally and rely on our handler thread, as
+  // these are only received by the offending thread itself.
+  // see "man signal" for more details
+  for (const auto &sig : g_fatal_signals) {
+    sigdelset(&ss, sig);
+  }
   if (0 != pthread_sigmask(SIG_SETMASK, &ss, nullptr)) {
     throw std::runtime_error("pthread_sigmask() failed: " +
                              std::string(std::strerror(errno)));
+  }
+#endif
+}
+
+#if !defined(__has_feature)
+#define __has_feature(x) 0
+#endif
+
+// GCC defines __SANITIZE_ADDRESS
+// clang has __has_feature and 'address_sanitizer'
+#if defined(__SANITIZE_ADDRESS__) || (__has_feature(address_sanitizer))
+#define HAS_FEATURE_ASAN
+#endif
+
+static void register_fatal_signal_handler() {
+  // enable a crash handler on POSIX systems if not built with ASAN
+#if defined(USE_POSIX_SIGNALS) && !defined(HAS_FEATURE_ASAN)
+#if defined(HAVE_STACKTRACE)
+  my_init_stacktrace();
+#endif  // HAVE_STACKTRACE
+
+  struct sigaction sa;
+  (void)sigemptyset(&sa.sa_mask);
+  sa.sa_flags = SA_RESETHAND;
+  sa.sa_handler = [](int sig) {
+    my_safe_printf_stderr("Application got fatal signal: %d\n", sig);
+#ifdef HAVE_STACKTRACE
+    my_print_stacktrace(nullptr, 0);
+#endif  // HAVE_STACKTRACE
+  };
+
+  for (const auto &sig : g_fatal_signals) {
+    (void)sigaction(sig, &sa, NULL);
   }
 #endif
 }
@@ -132,19 +209,31 @@ static void start_and_detach_signal_handler_thread() {
   std::promise<void> signal_handler_thread_setup_done;
 
   std::thread signal_thread([&signal_handler_thread_setup_done] {
+    mysql_harness::rename_thread("sig handler");
+
     sigset_t ss;
     sigemptyset(&ss);
     sigaddset(&ss, SIGINT);
     sigaddset(&ss, SIGTERM);
+    sigaddset(&ss, SIGHUP);
 
     signal_handler_thread_setup_done.set_value();
     int sig = 0;
-    if (0 == sigwait(&ss, &sig)) {
-      request_application_shutdown();
-    } else {
-      // man sigwait() says, it should only fail if we provided invalid signals,
-      // but SIGTERM and SIGINT should be totally fine.
-      harness_assert_this_should_not_execute();
+
+    while (true) {
+      if (0 == sigwait(&ss, &sig)) {
+        if (sig == SIGHUP) {
+          request_log_reopen();
+        } else {
+          harness_assert(sig == SIGINT || sig == SIGTERM);
+          request_application_shutdown();
+          return;
+        }
+      } else {
+        // man sigwait() says, it should only fail if we provided invalid
+        // signals.
+        harness_assert_this_should_not_execute();
+      }
     }
   });
 
@@ -156,8 +245,38 @@ static void start_and_detach_signal_handler_thread() {
 #endif
 }
 
+static void log_reopen_thread_function() {
+  auto &logging_registry = mysql_harness::DIM::instance().get_LoggingRegistry();
+  bool request_shutdown{false};
+  {
+    std::unique_lock<std::mutex> lk(log_reopen_cond_mutex);
+    log_reopen_cond.wait(lk, [&] {
+      if (g_shutdown_pending) {
+        return true;
+      }
+      if (g_log_reopen_requested) {
+        g_log_reopen_requested = false;
+        try {
+          logging_registry.flush_all_loggers();
+        } catch (const std::exception &e) {
+          // we have to postpone the shutdown request as it locks the
+          // mutex that we currently hold
+          request_shutdown = true;
+          shutdown_fatal_error_message = e.what();
+          return true;
+        }
+      }
+      return false;
+    });
+  }
+
+  if (request_shutdown) {
+    request_application_shutdown(SHUTDOWN_FATAL_ERROR);
+  }
+}
+
 #ifdef _WIN32
-static BOOL ctrl_c_handler(DWORD ctrl_type) {
+static BOOL WINAPI ctrl_c_handler(DWORD ctrl_type) {
   if (ctrl_type == CTRL_C_EVENT || ctrl_type == CTRL_BREAK_EVENT) {
     // user presed Ctrl+C or we got Ctrl+Break request
     request_application_shutdown();
@@ -169,7 +288,7 @@ static BOOL ctrl_c_handler(DWORD ctrl_type) {
 }
 
 void register_ctrl_c_handler() {
-  if (!SetConsoleCtrlHandler((PHANDLER_ROUTINE)ctrl_c_handler, TRUE)) {
+  if (!SetConsoleCtrlHandler(ctrl_c_handler, TRUE)) {
     std::cerr << "Could not install Ctrl+C handler, exiting.\n";
     exit(1);
   }
@@ -343,6 +462,46 @@ PluginFuncEnv::pop_error() noexcept {
   return ret;
 }
 
+// PluginThreads
+
+/**
+ * join all threads.
+ *
+ * @throws std::system_error from std::thread::join()
+ */
+void PluginThreads::join() {
+  // wait for all plugin-threads to join
+  for (auto &thr : threads_) {
+    if (thr.joinable()) thr.join();
+  }
+}
+
+void PluginThreads::push_back(std::thread &&thr) {
+  // if push-back throws it won't inc' 'running_' which is good.
+  threads_.push_back(std::move(thr));
+  ++running_;
+}
+
+void PluginThreads::try_stopped(std::exception_ptr &first_exc) {
+  std::exception_ptr exc;
+  while (running_ > 0 && plugin_stopped_events_.try_pop(exc)) {
+    --running_;
+
+    if (exc) {
+      first_exc = exc;
+      return;
+    }
+  }
+}
+
+void PluginThreads::wait_all_stopped(std::exception_ptr &first_exc) {
+  // wait until all plugins signaled their return value
+  for (; running_ > 0; --running_) {
+    auto exc = plugin_stopped_events_.pop();
+    if (!first_exc) first_exc = exc;
+  }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Loader
@@ -387,7 +546,18 @@ Plugin *Loader::load_from(const std::string &plugin_name,
       Designator designator(req);
 
       // Load the plugin using the plugin name.
-      Plugin *dep_plugin = load(designator.plugin);  // throws bad_plugin
+      Plugin *dep_plugin{nullptr};
+
+      try {
+        dep_plugin =
+            load(designator.plugin);  // throws bad_plugin and bad_section
+      } catch (const bad_section &) {
+        log_error(
+            "Plugin '%s' needs plugin '%s' which is missing in the "
+            "configuration",
+            plugin_name.c_str(), designator.plugin.c_str());
+        throw;
+      }
 
       // Check that the version of the plugin match what the
       // designator expected and raise an exception if they don't
@@ -410,15 +580,24 @@ Plugin *Loader::load_from(const std::string &plugin_name,
 }
 
 Plugin *Loader::load(const std::string &plugin_name, const std::string &key) {
-  log_info("  plugin '%s:%s' loading", plugin_name.c_str(), key.c_str());
+  log_debug("  plugin '%s:%s' loading", plugin_name.c_str(), key.c_str());
 
-  ConfigSection &plugin = config_.get(plugin_name, key);  // throws bad_section
-  const std::string &library_name = plugin.get("library");
-  return load_from(plugin_name, library_name);  // throws bad_plugin
+  if (BuiltinPlugins::instance().has(plugin_name)) {
+    Plugin *plugin = BuiltinPlugins::instance().get_plugin(plugin_name);
+    PluginInfo info(nullptr, plugin);
+    plugins_.emplace(plugin_name, std::move(info));
+    return plugin;
+  } else {
+    ConfigSection &plugin =
+        config_.get(plugin_name, key);  // throws bad_section
+    const std::string &library_name = plugin.get("library");
+    return load_from(plugin_name,
+                     library_name);  // throws bad_plugin and bad_section
+  }
 }
 
 Plugin *Loader::load(const std::string &plugin_name) {
-  log_info("  plugin '%s' loading", plugin_name.c_str());
+  log_debug("  plugin '%s' loading", plugin_name.c_str());
 
   Config::SectionList plugins = config_.get(plugin_name);  // throws bad_section
   if (plugins.size() > 1) {
@@ -443,6 +622,15 @@ void Loader::start() {
   // unload plugins on exit
   std::shared_ptr<void> exit_guard(nullptr, [this](void *) { unload_all(); });
 
+  // check if there is anything to load; if not we currently treat is as an
+  // error, not letting the user to run "idle" router that would close right
+  // away
+  if (external_plugins_to_load_count() == 0) {
+    throw std::runtime_error(
+        "Error: MySQL Router not configured to load or start any plugin. "
+        "Exiting.");
+  }
+
   // load plugins
   load_all();  // throws bad_plugin on load error, causing an early return
 
@@ -453,8 +641,19 @@ void Loader::start() {
   }
 }
 
+size_t Loader::external_plugins_to_load_count() {
+  size_t result = 0;
+  for (std::pair<const std::string &, std::string> name : available()) {
+    if (!BuiltinPlugins::instance().has(name.first)) {
+      result++;
+    }
+  }
+
+  return result;
+}
+
 void Loader::load_all() {
-  log_info("Loading all plugins.");
+  log_debug("Loading all plugins.");
 
   platform_specific_init();
   for (std::pair<const std::string &, std::string> name : available()) {
@@ -471,8 +670,76 @@ void Loader::load_all() {
 void Loader::unload_all() {
   // this stage has no implementation so far; however, we want to flag that we
   // reached this stage
-  log_info("Unloading all plugins.");
+  log_debug("Unloading all plugins.");
+  // If that ever gets implemented make sure to not attempt unloading
+  // built-in plugins
 }
+
+/**
+ * If a isn't set, return b.
+ *
+ * like ?:, but ensures that b is _always_ evaluated first.
+ */
+template <class T>
+T value_or(T a, T b) {
+  return a ? a : b;
+}
+
+class LogReopenThread {
+ public:
+  /**
+   * @throws std::system_error if out of threads
+   */
+  LogReopenThread() : reopen_thr_{log_reopen_thread_function} {}
+
+  /**
+   * stop the log_reopen_thread_function.
+   *
+   * @throws std::system_error from request_application_shutdown()
+   */
+  void stop() { request_application_shutdown(); }
+
+  /**
+   * join the log_reopen thread.
+   *
+   * @throws std::system_error same as std::thread::join
+   */
+  void join() { reopen_thr_.join(); }
+
+  /**
+   * destruct the thread.
+   *
+   * Same as std::thread it may call std::terminate in case the thread isn't
+   * joined yet, but joinable.
+   *
+   * In casing join() fails as best-effort, a log-message is attempted to be
+   * written.
+   */
+  ~LogReopenThread() {
+    // if it didn't throw in the constructor, it is joinable and we have to
+    // signal its shutdown
+    if (reopen_thr_.joinable()) {
+      try {
+        // if stop throws ... the join will block
+        stop();
+
+        // if join throws, log it and expect std::thread::~thread to call
+        // std::terminate
+        join();
+      } catch (const std::exception &e) {
+        try {
+          log_error("~LogReopenThread failed to join its thread: %s", e.what());
+        } catch (...) {
+          // ignore it, we did our best to tell the user why std::terminate will
+          // be called in a bit
+        }
+      }
+    }
+  }
+
+ private:
+  std::thread reopen_thr_;
+};
 
 std::exception_ptr Loader::run() {
   // initialize plugins
@@ -480,8 +747,18 @@ std::exception_ptr Loader::run() {
 
   // run plugins if initialization didn't fail
   if (!first_eptr) {
-    start_all();  // if start() throws, exception is forwarded to main_loop()
-    first_eptr = main_loop();  // calls stop_all() before exiting
+    try {
+      start_all();  // if start() throws, exception is forwarded to
+                    // main_loop()
+
+      // may throw std::system_error
+      LogReopenThread log_reopen_thread;
+
+      first_eptr = main_loop();
+    } catch (const std::exception &e) {
+      log_error("failed running start/main: %s", e.what());
+      first_eptr = stop_and_wait_all();
+    }
   }
 
   // not strict requiremnt, just good measure (they're no longer needed at
@@ -489,10 +766,7 @@ std::exception_ptr Loader::run() {
   assert(plugin_start_env_.empty());
 
   // deinitialize plugins
-  std::exception_ptr tmp = deinit_all();
-  if (!first_eptr) {
-    first_eptr = tmp;
-  }
+  first_eptr = value_or(first_eptr, deinit_all());
 
   // return the first exception that was triggered by an error returned from
   // any plugin function
@@ -523,10 +797,10 @@ static void call_plugin_function(PluginFuncEnv *env, std::exception_ptr &eptr,
                                  void (*fptr)(PluginFuncEnv *),
                                  const char *fnc_name, const char *plugin_name,
                                  const char *plugin_key = nullptr) noexcept {
-  auto handle_plugin_exception = [](std::exception_ptr & first_eptr,
-                                    const std::string &func_name,
-                                    const char *plug_name, const char *plug_key,
-                                    const std::exception *e) noexcept->void {
+  auto handle_plugin_exception =
+      [](std::exception_ptr & first_eptr, const std::string &func_name,
+         const char *plug_name, const char *plug_key,
+         const std::exception *e) noexcept->void {
     // Plugins are not allowed to throw, so let's alert the devs. But in
     // production, we want to be robust and try to handle this gracefully
     assert(0);
@@ -587,11 +861,18 @@ static void call_plugin_function(PluginFuncEnv *env, std::exception_ptr &eptr,
 
 // returns first exception triggered by init()
 std::exception_ptr Loader::init_all() {
-  log_info("Initializing all plugins.");
+  log_debug("Initializing all plugins.");
 
   if (!topsort()) throw std::logic_error("Circular dependencies in plugins");
+  order_.reverse();  // we need reverse-topo order for non-built-in plugins
 
-  order_.reverse();  // we need reverse-topo order
+  // we put the built-in plugins at the beginning
+  for (const std::pair<const std::string, PluginInfo> &plugin : plugins_) {
+    if (BuiltinPlugins::instance().has(plugin.first)) {
+      order_.push_front(plugin.first);
+    }
+  }
+
   for (auto it = order_.begin(); it != order_.end(); ++it) {
     const std::string &plugin_name = *it;
     PluginInfo &info = plugins_.at(plugin_name);
@@ -601,7 +882,7 @@ std::exception_ptr Loader::init_all() {
       continue;
     }
 
-    log_info("  plugin '%s' initializing", plugin_name.c_str());
+    log_debug("  plugin '%s' initializing", plugin_name.c_str());
     PluginFuncEnv env(&appinfo_, nullptr);
 
     std::exception_ptr eptr;
@@ -621,68 +902,92 @@ std::exception_ptr Loader::init_all() {
 
 // forwards first exception triggered by start() to main_loop()
 void Loader::start_all() {
-  log_info("Starting all plugins.");
+  log_debug("Starting all plugins.");
 
-  // block signal handling for all threads
+  // block non-fatal signal handling for all threads
   //
   // - no other thread than the signal-handler thread should receive signals
   // - syscalls should not get interrupted by signals either
   //
   // on windows, this is a no-op
-  block_all_signals();
+  block_all_nonfatal_signals();
 
-  // start all the plugins (call plugin's start() function)
-  for (const ConfigSection *section : config_.sections()) {
-    PluginInfo &plugin = plugins_.at(section->name);
-    void (*fptr)(PluginFuncEnv *) = plugin.plugin->start;
+  // for the fatal signals we want to have a handler that prints the stack-trace
+  // if possible
+  register_fatal_signal_handler();
 
-    if (!fptr) {
-      log_debug("  plugin '%s:%s' doesn't implement start()",
-                section->name.c_str(), section->key.c_str());
+  try {
+    // start all the plugins (call plugin's start() function)
+    for (const ConfigSection *section : config_.sections()) {
+      PluginInfo &plugin = plugins_.at(section->name);
+      void (*fptr)(PluginFuncEnv *) = plugin.plugin->start;
 
-      // create a env object for later
+      if (!fptr) {
+        log_debug("  plugin '%s:%s' doesn't implement start()",
+                  section->name.c_str(), section->key.c_str());
+
+        // create a env object for later
+        assert(plugin_start_env_.count(section) == 0);
+        plugin_start_env_[section] =
+            std::make_shared<PluginFuncEnv>(nullptr, section, false);
+
+        continue;
+      }
+
+      // future will remain valid even after promise is destructed
+      std::promise<std::shared_ptr<PluginFuncEnv>> env_promise;
+
+      // plugin start() will run in this new thread
+      std::thread plugin_thread([fptr, section, &env_promise, this]() {
+        log_debug("  plugin '%s:%s' starting", section->name.c_str(),
+                  section->key.c_str());
+
+        // init env object and unblock harness thread
+        std::shared_ptr<PluginFuncEnv> this_thread_env =
+            std::make_shared<PluginFuncEnv>(nullptr, section, true);
+        env_promise.set_value(this_thread_env);  // shared_ptr gets copied here
+                                                 // (future will own a copy)
+
+        std::exception_ptr eptr;
+        call_plugin_function(this_thread_env.get(), eptr, fptr, "start",
+                             section->name.c_str(), section->key.c_str());
+
+        {
+          std::lock_guard<std::mutex> lock(we_might_shutdown_cond_mutex);
+          plugin_threads_.push_exit_status(std::move(eptr));
+        }
+        we_might_shutdown_cond.notify_one();
+      });
+
+      // we could combine the thread creation with emplace_back
+      // but that sometimes leads to a crash on ASAN build (when the thread
+      // limit is reached apparently sometimes half-baked thread object gets
+      // added to the vector and its destructor crashes later on when the vector
+      // gets destroyed)
+      plugin_threads_.push_back(std::move(plugin_thread));
+
+      // block until starter thread is started
+      // then save the env object for later
       assert(plugin_start_env_.count(section) == 0);
       plugin_start_env_[section] =
-          std::make_shared<PluginFuncEnv>(nullptr, section, false);
+          env_promise.get_future()
+              .get();  // returns shared_ptr to PluginFuncEnv;
+                       // PluginFuncEnv exists on heap
 
-      continue;
-    }
+    }  // for (const ConfigSection* section: config_.sections())
+  } catch (const std::system_error &e) {
+    throw std::system_error(e.code(), "starting plugin-threads failed");
+  }
 
-    // future will remain valid even after promise is destructed
-    std::promise<std::shared_ptr<PluginFuncEnv>> env_promise;
-
-    // plugin start() will run in this new thread
-    plugin_threads_.emplace_back([fptr, section, &env_promise, this]() {
-      log_info("  plugin '%s:%s' starting", section->name.c_str(),
-               section->key.c_str());
-
-      // init env object and unblock harness thread
-      std::shared_ptr<PluginFuncEnv> this_thread_env =
-          std::make_shared<PluginFuncEnv>(nullptr, section, true);
-      env_promise.set_value(this_thread_env);  // shared_ptr gets copied here
-                                               // (future will own a copy)
-
-      std::exception_ptr eptr;
-      call_plugin_function(this_thread_env.get(), eptr, fptr, "start",
-                           section->name.c_str(), section->key.c_str());
-
-      plugin_stopped_events_.push(std::move(eptr));
-      we_might_shutdown_cond.notify_one();
-    });
-
-    // block until starter thread is started
-    // then save the env object for later
-    assert(plugin_start_env_.count(section) == 0);
-    plugin_start_env_[section] =
-        env_promise.get_future().get();  // returns shared_ptr to PluginFuncEnv;
-                                         // PluginFuncEnv exists on heap
-
-  }  // for (const ConfigSection* section: config_.sections())
-
-  // We wait with this until after we launch all plugin threads, to avoid
-  // a potential race if a signal was received while plugins were still
-  // launching.
-  start_and_detach_signal_handler_thread();
+  try {
+    // We wait with this until after we launch all plugin threads, to avoid
+    // a potential race if a signal was received while plugins were still
+    // launching.
+    start_and_detach_signal_handler_thread();
+  } catch (const std::system_error &e) {
+    // should we unblock the signals again?
+    throw std::system_error(e.code(), "starting signal-handler-thread failed");
+  }
 }
 
 /**
@@ -694,64 +999,67 @@ void Loader::start_all() {
  * - one plugin return an exception
  * - all plugins finished
  *
- * calls Loader::stop_all() and waits until all plugins finished.
- *
  * @returns first exception returned by any of the plugins start() or stop()
  * functions
  * @retval nullptr if no exception was returned
  */
 std::exception_ptr Loader::main_loop() {
-  log_info("Running.");
+  // RouterRoutingTest::RoutingPluginCantSpawnMoreThreads is waiting for this
+  // log-message to appear in the log to get a predictible test-scenario.
+  //
+  // Changing or moving this message, will break that test.
+  log_debug("Running.");
 
   std::exception_ptr first_eptr;
-
-  size_t plugins_running = plugin_threads_.size();
-
   // wait for a reason to shutdown
   {
     std::unique_lock<std::mutex> lk(we_might_shutdown_cond_mutex);
 
-    we_might_shutdown_cond.wait(lk, [&first_eptr, &plugins_running, this] {
+    we_might_shutdown_cond.wait(lk, [&first_eptr, this] {
       // external shutdown
-      if (g_shutdown_pending == 1) return true;
+      if (g_shutdown_pending == SHUTDOWN_REQUESTED) return true;
 
-      // wait for the first non-fatal exit
-      for (std::exception_ptr tmp; plugin_stopped_events_.try_pop(tmp);) {
-        plugins_running--;
-
-        if (tmp) {
-          first_eptr = tmp;
-          return true;
+      // shutdown due to a fatal error originating from Loader and its callees
+      // (but NOT from plugins)
+      if (g_shutdown_pending == SHUTDOWN_FATAL_ERROR) {
+        // there is a request to shut down due to a fatal error; generate an
+        // exception with requested message so that it bubbles up and ends up on
+        // the console as an error message
+        try {
+          throw std::runtime_error(shutdown_fatal_error_message);
+        } catch (const std::exception &) {
+          first_eptr = std::current_exception();  // capture
         }
+        return true;
       }
 
+      plugin_threads_.try_stopped(first_eptr);
+      if (first_eptr) return true;
+
       // all plugins stop successfully
-      if (plugins_running == 0) return true;
+      if (plugin_threads_.running() == 0) return true;
 
       return false;
     });
   }
 
+  return value_or(first_eptr, stop_and_wait_all());
+}
+
+std::exception_ptr Loader::stop_and_wait_all() {
+  std::exception_ptr first_eptr;
+
   // stop all plugins
-  {
-    std::exception_ptr tmp = stop_all();
-    if (tmp && !first_eptr) {
-      first_eptr = tmp;
+  first_eptr = value_or(first_eptr, stop_all());
+
+  plugin_threads_.wait_all_stopped(first_eptr);
+  try {
+    plugin_threads_.join();
+  } catch (...) {
+    // may throw due to deadlocks and other system-related reasons.
+    if (!first_eptr) {
+      first_eptr = std::current_exception();
     }
-  }
-
-  // wait until all plugins signaled their return value
-  for (; plugins_running > 0; plugins_running--) {
-    std::exception_ptr tmp = plugin_stopped_events_.pop();
-
-    if (tmp && !first_eptr) {
-      first_eptr = tmp;
-    }
-  }
-
-  // wait for all plugin-threads to join
-  for (auto &thr : plugin_threads_) {
-    thr.join();
   }
 
   // we will no longer need the env objects for start(), might as well
@@ -767,7 +1075,7 @@ std::exception_ptr Loader::main_loop() {
 std::exception_ptr Loader::stop_all() {
   // This function runs exactly once - it will be called even if all plugins
   // exit by themselves (thus there's nothing to stop).
-  log_info("Shutting down. Stopping all plugins.");
+  log_debug("Shutting down. Stopping all plugins.");
 
   // iterate over all plugin instances
   std::exception_ptr first_eptr;
@@ -787,8 +1095,8 @@ std::exception_ptr Loader::stop_all() {
       continue;
     }
 
-    log_info("  plugin '%s:%s' stopping", section->name.c_str(),
-             section->key.c_str());
+    log_debug("  plugin '%s:%s' stopping", section->name.c_str(),
+              section->key.c_str());
 
     PluginFuncEnv stop_env(nullptr, section);
     call_plugin_function(&stop_env, first_eptr, fptr, "stop",
@@ -801,7 +1109,7 @@ std::exception_ptr Loader::stop_all() {
 
 // returns first exception triggered by deinit()
 std::exception_ptr Loader::deinit_all() {
-  log_info("Deinitializing all plugins.");
+  log_debug("Deinitializing all plugins.");
 
   // we could just reverse order_ and that would work too,
   // but by leaving it intact it's easier to unit-test it
@@ -810,8 +1118,8 @@ std::exception_ptr Loader::deinit_all() {
 
   // call deinit() on all plugins that support the call
   std::exception_ptr first_eptr;
-  for (std::string &plugin_name : deinit_order) {
-    PluginInfo &info = plugins_.at(plugin_name);
+  for (const std::string &plugin_name : deinit_order) {
+    const PluginInfo &info = plugins_.at(plugin_name);
 
     if (!info.plugin->deinit) {
       log_debug("  plugin '%s' doesn't implement deinit()",
@@ -819,7 +1127,7 @@ std::exception_ptr Loader::deinit_all() {
       continue;
     }
 
-    log_info("  plugin '%s' deinitializing", plugin_name.c_str());
+    log_debug("  plugin '%s' deinitializing", plugin_name.c_str());
     PluginFuncEnv env(&appinfo_, nullptr);
 
     call_plugin_function(&env, first_eptr, info.plugin->deinit, "deinit",
@@ -832,10 +1140,16 @@ std::exception_ptr Loader::deinit_all() {
 bool Loader::topsort() {
   std::map<std::string, Loader::Status> status;
   std::list<std::string> order;
+
+  // for the non-builtin plugins do the sorting that takes their dependencies
+  // into account
   for (std::pair<const std::string, PluginInfo> &plugin : plugins_) {
-    bool succeeded = visit(plugin.first, &status, &order);
-    if (!succeeded) return false;
+    if (!BuiltinPlugins::instance().has(plugin.first)) {
+      bool succeeded = visit(plugin.first, &status, &order);
+      if (!succeeded) return false;
+    }
   }
+
   order_.swap(order);
   return true;
 }
@@ -878,6 +1192,6 @@ bool Loader::visit(const std::string &designator,
 namespace unittest_backdoor {
 HARNESS_EXPORT
 void set_shutdown_pending(bool shutdown_pending) {
-  g_shutdown_pending = shutdown_pending;
+  g_shutdown_pending = shutdown_pending ? SHUTDOWN_REQUESTED : SHUTDOWN_NONE;
 }
 }  // namespace unittest_backdoor

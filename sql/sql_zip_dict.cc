@@ -21,8 +21,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql/sql_zip_dict.h"
 
 #include <iostream>
-#include "sql/dd/impl/bootstrapper.h"
+#include "sql/dd/impl/bootstrap/bootstrap_ctx.h"  // DD_bootstrap_ctx
+#include "sql/dd/impl/bootstrap/bootstrapper.h"
 #include "sql/dd/impl/transaction_impl.h"
+#include "sql/dd/impl/utils.h"                 // execute_query
 #include "sql/dd/types/column.h"               // dd::enum_column_types
 #include "sql/dd/types/column_type_element.h"  // dd::Column_type_element
 #include "sql/dd/types/table.h"                // dd::enum_column_types
@@ -102,13 +104,27 @@ bool bootstrap(THD *thd) {
   DBUG_EXECUTE_IF("skip_compression_dict_create", skip_bootstrap = true;
                   return false;);
 
+  dd::String_type dict_table_str_enc{dict_table_str};
+
+  if (dd::bootstrap::DD_bootstrap_ctx::instance().is_dd_encrypted()) {
+    dict_table_str_enc += " ENCRYPTION='Y'";
+  }
+
+  dd::end_transaction(thd, false);
+
   // Create mysql.compression_dictionary table
-  if (execute_query(thd, dict_table_str)) {
+  if (execute_query(thd, dict_table_str_enc)) {
     return true;
   }
 
+  dd::String_type dict_cols_table_str_enc{dict_cols_table_str};
+
+  if (dd::bootstrap::DD_bootstrap_ctx::instance().is_dd_encrypted()) {
+    dict_cols_table_str_enc += " ENCRYPTION='Y'";
+  }
+
   // Create mysql.compression_dictionary_cols table
-  if (execute_query(thd, dict_cols_table_str)) {
+  if (execute_query(thd, dict_cols_table_str_enc)) {
     return true;
   }
 
@@ -174,8 +190,8 @@ delete)
 @param[in,out] thd  Session object
 @return TABLE* on success else nullptr */
 static TABLE *open_dictionary_table_write(THD *thd) {
-  TABLE_LIST tablelist(C_STRING_WITH_LEN(COMPRESSION_DICTIONARY_DB),
-                       C_STRING_WITH_LEN(COMPRESSION_DICTIONARY_TABLE),
+  TABLE_LIST tablelist(STRING_WITH_LEN(COMPRESSION_DICTIONARY_DB),
+                       STRING_WITH_LEN(COMPRESSION_DICTIONARY_TABLE),
                        COMPRESSION_DICTIONARY_TABLE, TL_WRITE,
                        MDL_SHARED_NO_READ_WRITE);
   tablelist.next_local = tablelist.next_global = nullptr;
@@ -205,8 +221,8 @@ static TABLE *open_dictionary_table_read(THD *thd) {
   DBUG_ASSERT(!thd->is_attachable_ro_transaction_active());
   thd->begin_attachable_ro_transaction();
 
-  TABLE_LIST tablelist(C_STRING_WITH_LEN(COMPRESSION_DICTIONARY_DB),
-                       C_STRING_WITH_LEN(COMPRESSION_DICTIONARY_TABLE),
+  TABLE_LIST tablelist(STRING_WITH_LEN(COMPRESSION_DICTIONARY_DB),
+                       STRING_WITH_LEN(COMPRESSION_DICTIONARY_TABLE),
                        COMPRESSION_DICTIONARY_TABLE, TL_READ);
   tablelist.next_local = tablelist.next_global = nullptr;
 
@@ -256,8 +272,8 @@ table mysql.compression_dictionary
 @return on success, a TABLE* object else nullptr on failure */
 
 static TABLE *open_dictionary_cols_table_write(THD *thd) {
-  TABLE_LIST tablelist(C_STRING_WITH_LEN(COMPRESSION_DICTIONARY_COLS_DB),
-                       C_STRING_WITH_LEN(COMPRESSION_DICTIONARY_COLS_TABLE),
+  TABLE_LIST tablelist(STRING_WITH_LEN(COMPRESSION_DICTIONARY_COLS_DB),
+                       STRING_WITH_LEN(COMPRESSION_DICTIONARY_COLS_TABLE),
                        COMPRESSION_DICTIONARY_COLS_TABLE,
                        TL_WRITE_CONCURRENT_DEFAULT, MDL_SHARED_WRITE);
   tablelist.next_local = tablelist.next_global = nullptr;
@@ -313,11 +329,12 @@ int create_zip_dict(THD *thd, const char *name, ulong name_len,
 #ifndef DBUG_OFF
   const std::string name_str(name, name_len);
   const std::string data_str(data, data_len);
-  DBUG_LOG("zip_dict",
-           "thd->query: " << thd->query().str << " dict_name: " << name_str
-                          << " dict_name_len: " << name_len
-                          << " data: " << data_str << " data_len: " << data_len
-                          << " if_not_exists: " << if_not_exists);
+  const std::string query_str(to_string(thd->query()));
+  DBUG_LOG("zip_dict", "thd->query: " << query_str << " dict_name: " << name_str
+                                      << " dict_name_len: " << name_len
+                                      << " data: " << data_str
+                                      << " data_len: " << data_len
+                                      << " if_not_exists: " << if_not_exists);
 #endif
   int error;
 
@@ -381,7 +398,7 @@ int create_zip_dict(THD *thd, const char *name, ulong name_len,
   }
 
   table->next_number_field->set_null();
-  table->auto_increment_field_not_null = true;
+  // table->auto_increment_field_not_null = true;
   table->record[0][0] = ts->default_values[0];
   table->file->ha_start_bulk_insert(1);  // 1 is the estimated rows to insert
 
@@ -396,7 +413,7 @@ int create_zip_dict(THD *thd, const char *name, ulong name_len,
     my_error(error, MYF(0), name, 64);
     table->file->ha_release_auto_increment();
     table->file->ha_end_bulk_insert();
-    table->auto_increment_field_not_null = false;
+    // table->auto_increment_field_not_null = false;
     close_thread_tables(thd);
     thd->mdl_context.release_transactional_locks();
     DBUG_RETURN(error);
@@ -426,10 +443,18 @@ int create_zip_dict(THD *thd, const char *name, ulong name_len,
         break;
       case HA_ERR_RECORD_FILE_FULL:
         error = ER_RECORD_FILE_FULL;
-        my_error(error, MYF(0), "compression_dictionary");
+        my_error(error, MYF(0), COMPRESSION_DICTIONARY_TABLE);
         break;
       case HA_ERR_TOO_MANY_CONCURRENT_TRXS:
         error = ER_TOO_MANY_CONCURRENT_TRXS;
+        my_error(error, MYF(0));
+        break;
+      case HA_ERR_TABLE_READONLY:
+        error = ER_OPEN_AS_READONLY;
+        my_error(error, MYF(0), COMPRESSION_DICTIONARY_TABLE);
+        break;
+      case HA_ERR_INNODB_FORCED_RECOVERY:
+        error = ER_INNODB_FORCED_RECOVERY;
         my_error(error, MYF(0));
         break;
       default:
@@ -460,7 +485,7 @@ int create_zip_dict(THD *thd, const char *name, ulong name_len,
 
   table->file->ha_release_auto_increment();
   table->file->ha_end_bulk_insert();
-  table->auto_increment_field_not_null = false;
+  // table->auto_increment_field_not_null = false;
 
   close_thread_tables(thd);
   thd->mdl_context.release_transactional_locks();
@@ -578,6 +603,14 @@ int drop_zip_dict(THD *thd, const char *name, ulong name_len, bool if_exists) {
       break;
     case HA_ERR_TOO_MANY_CONCURRENT_TRXS:
       error = ER_TOO_MANY_CONCURRENT_TRXS;
+      my_error(error, MYF(0));
+      break;
+    case HA_ERR_TABLE_READONLY:
+      error = ER_OPEN_AS_READONLY;
+      my_error(error, MYF(0), COMPRESSION_DICTIONARY_TABLE);
+      break;
+    case HA_ERR_INNODB_FORCED_RECOVERY:
+      error = ER_INNODB_FORCED_RECOVERY;
       my_error(error, MYF(0));
       break;
     default:
@@ -767,13 +800,16 @@ static bool cols_table_delete_low(TABLE *table, uint64 table_id,
     ret = table->file->ha_delete_row(table->record[0]);
   }
 
-  if (ret == 0) {
-    return (false);
-  } else {
-    DBUG_ASSERT(0);
-    int error = ER_UNKNOWN_ERROR;
-    my_error(error, MYF(0));
-    return (true);
+  switch (ret) {
+    case 0:
+      return (false);
+    case HA_ERR_INNODB_FORCED_RECOVERY:
+      my_error(ER_INNODB_FORCED_RECOVERY, MYF(0));
+      return (true);
+    default:
+      DBUG_ASSERT(0);
+      my_error(ER_UNKNOWN_ERROR, MYF(0));
+      return (true);
   }
 }
 

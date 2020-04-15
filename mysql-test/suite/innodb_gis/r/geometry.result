@@ -1,15 +1,13 @@
 SET default_storage_engine=InnoDB;
 SET innodb_strict_mode=OFF;
 SET SESSION debug="+d,row_print_geometry_data";
-SHOW VARIABLES LIKE '%engine%';
+SHOW VARIABLES LIKE '%storage_engine%';
 Variable_name	Value
 default_storage_engine	InnoDB
 default_tmp_storage_engine	InnoDB
 disabled_storage_engines	
 enforce_storage_engine	
-internal_tmp_disk_storage_engine	InnoDB
 internal_tmp_mem_storage_engine	TempTable
-use_secondary_engine	ON
 USE test;
 DROP TABLE IF EXISTS t1, gis_point, gis_line, gis_polygon;
 DROP TABLE IF EXISTS gis_multi_point, gis_multi_line, gis_multi_polygon;
@@ -29,35 +27,35 @@ CREATE TABLE gis_geometrycollection  (fid INTEGER NOT NULL PRIMARY KEY, g GEOMET
 CREATE TABLE gis_geometry (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY) ENGINE=InnoDB;
 SHOW FIELDS FROM gis_point;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	point	YES		NULL	
 SHOW FIELDS FROM gis_line;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	linestring	YES		NULL	
 SHOW FIELDS FROM gis_polygon;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	polygon	YES		NULL	
 SHOW FIELDS FROM gis_multi_point;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	multipoint	YES		NULL	
 SHOW FIELDS FROM gis_multi_line;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	multilinestring	YES		NULL	
 SHOW FIELDS FROM gis_multi_polygon;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	multipolygon	YES		NULL	
 SHOW FIELDS FROM gis_geometrycollection;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	geomcollection	YES		NULL	
 SHOW FIELDS FROM gis_geometry;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	geometry	YES		NULL	
 #INSERT using all WKT & WKB functions
 INSERT INTO gis_point VALUES

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -112,6 +112,6 @@ static inline void inline_mysql_mdl_destroy(PSI_metadata_lock *psi,
 }
 #endif /* HAVE_PSI_METADATA_INTERFACE */
 
-  /** @} (end of group psi_api_mdl) */
+/** @} (end of group psi_api_mdl) */
 
 #endif

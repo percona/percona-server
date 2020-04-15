@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -520,7 +520,6 @@ bool Gcs_ip_whitelist_entry_hostname::init_value() { return false; }
 
 std::vector<std::pair<std::vector<unsigned char>, std::vector<unsigned char>>>
     *Gcs_ip_whitelist_entry_hostname::get_value() {
-  std::string ip;
   bool error = false;
   std::pair<std::vector<unsigned char>, std::vector<unsigned char>> value;
 
@@ -533,10 +532,19 @@ std::vector<std::pair<std::vector<unsigned char>, std::vector<unsigned char>>>
     return nullptr;
   }
 
+  auto has_v4_addresses_it =
+      std::find_if(ips.begin(), ips.end(),
+                   [](std::pair<sa_family_t, std::string> const &ip_entry) {
+                     return ip_entry.first == AF_INET;
+                   });
+  bool has_v4_addresses = has_v4_addresses_it != ips.end();
+
   auto *retval = new std::vector<
       std::pair<std::vector<unsigned char>, std::vector<unsigned char>>>();
 
   for (auto &ip : ips) {
+    if (has_v4_addresses && ip.first == AF_INET6) continue;
+
     std::string mask = get_mask();
     // If mask is empty, lets hand out a default value.
     // 32 to IPv4 and 128 to IPv6

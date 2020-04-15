@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ Plugin_table table_status_by_account::m_table_def(
     "status_by_account",
     /* Definition */
     "  USER CHAR(32) collate utf8mb4_bin default null,\n"
-    "  HOST CHAR(60) collate utf8mb4_bin default null,\n"
+    "  HOST CHAR(255) CHARACTER SET ASCII default null,\n"
     "  VARIABLE_NAME VARCHAR(64) not null,\n"
     "  VARIABLE_VALUE VARCHAR(1024),\n"
     "  UNIQUE KEY `ACCOUNT` (USER, HOST, VARIABLE_NAME) USING HASH\n",

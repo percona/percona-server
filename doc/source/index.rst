@@ -25,7 +25,11 @@
 
   * You will troubleshoot without guesswork.
 
-Does this sound too good to be true? It's not. |Percona Server| offers breakthrough performance, scalability, features, and instrumentation. Its self-tuning algorithms and support for extremely high-performance hardware make it the clear choice for companies who demand the utmost performance and reliability from their database server.
+Does this sound too good to be true? It's not. |Percona Server| offers
+breakthrough performance, scalability, features, and instrumentation. Its
+self-tuning algorithms and support for extremely high-performance hardware
+make it the clear choice for companies who demand the utmost performance and
+reliability from their database server.
 
 Introduction
 ================================================================================
@@ -69,6 +73,7 @@ Performance Improvements
    performance/threadpool
    performance/xtradb_performance_improvements_for_io-bound_highly-concurrent_workloads
    performance/prefix_index_queries_optimization
+   performance/query_limit_records
 
 Flexibility Improvements
 ================================================================================
@@ -116,6 +121,34 @@ Management Improvements
    management/extended_show_grants
    management/data_at_rest_encryption
    management/ssl-improvement
+   management/utility_user
+
+Security Improvements
+================================================================================
+
+.. toctree::
+  :maxdepth: 1
+  :glob:
+
+  security/pam_plugin
+  security/simple-ldap
+  security/data-at-rest-encryption
+  security/vault
+  security/using-keyring-plugin
+  security/rotating-master-key
+  security/encrypting-tables
+  security/encrypting-tablespaces
+  security/encrypting-system-tablespace
+  security/encrypting-temporary-files
+  security/encrypting-binlogs
+  security/encrypting-redo-log
+  security/encrypting-undo-tablespace
+  security/encrypting-threads
+  security/encrypting-doublewrite-buffers
+  security/verifying-encryption
+  security/data-scrubbing
+  security/ssl-improvement
+  security/data-masking
 
 Diagnostics Improvements
 ================================================================================
@@ -149,6 +182,7 @@ TokuDB
    tokudb/tokudb_background_analyze_table
    tokudb/tokudb_variables
    tokudb/tokudb_status_variables
+   tokudb/tokudb_fractal_tree_indexing
    tokudb/tokudb_troubleshooting
    tokudb/tokudb_performance_schema
    tokudb/toku_backup
@@ -190,5 +224,3 @@ Reference
 
 * :ref:`genindex`
 * :ref:`modindex`
-
-

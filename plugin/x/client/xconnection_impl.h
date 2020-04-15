@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -31,14 +31,18 @@
 #include <memory>
 
 #include "my_io.h"
+#include "plugin/x/client/context/xcontext.h"
 #include "plugin/x/client/mysqlxclient/xconnection.h"
 #include "plugin/x/client/mysqlxclient/xerror.h"
-#include "plugin/x/client/xcontext.h"
 #include "violite.h"
 
 struct sockaddr_un;
 
 namespace xcl {
+
+namespace details {
+int make_vio_timeout(const int64_t value);
+}  // namespace details
 
 class Ssl_config;
 class Connection_config;

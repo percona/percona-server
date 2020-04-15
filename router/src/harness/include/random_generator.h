@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #ifndef MYSQL_HARNESS_RANDOM_GENERATOR_INCLUDED
 #define MYSQL_HARNESS_RANDOM_GENERATOR_INCLUDED
 
+#include <random>
 #include <string>
 
 #include "harness_export.h"
@@ -69,11 +70,19 @@ class HARNESS_EXPORT RandomGeneratorInterface {
    *
    */
   virtual std::string generate_strong_password(unsigned length) = 0;
+
+  explicit RandomGeneratorInterface() = default;
+  explicit RandomGeneratorInterface(const RandomGeneratorInterface &) = default;
+  RandomGeneratorInterface &operator=(const RandomGeneratorInterface &) =
+      default;
   virtual ~RandomGeneratorInterface();
 };
 
 class HARNESS_EXPORT RandomGenerator : public RandomGeneratorInterface {
+  std::mt19937 urng;
+
  public:
+  RandomGenerator() : urng(std::random_device().operator()()) {}
   std::string generate_identifier(
       unsigned length, unsigned alphabet_mask = AlphabetAll) override;
   std::string generate_strong_password(unsigned length) override;

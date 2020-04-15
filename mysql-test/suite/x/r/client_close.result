@@ -195,7 +195,7 @@ send Mysqlx.Sql.StmtExecute {
   stmt: "select 3"
 }
 
-send Mysqlx.Session.Close {
+send Mysqlx.Connection.Close {
 }
 
 2
@@ -204,13 +204,10 @@ send Mysqlx.Session.Close {
 3
 3
 0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-
+RUN recvok
 RUN select 4
 While executing select 4:
-Got expected error (one of: 2006 2007 )
+Got expected error: MySQL server has gone away (code 2006)
 aborting session sess
 switched to session default
 
@@ -222,18 +219,6 @@ Kill a session while idle
 connecting...
 active session is now 'sess'
 switched to session default
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 9
-    }
-  }
-  namespace: "xplugin"
-}
-
 Got expected error (one of: 0 1095 )
 switched to session sess
 aborting session sess
@@ -252,18 +237,6 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 switched to session default
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 10
-    }
-  }
-  namespace: "xplugin"
-}
-
 Got expected error (one of: 0 1095 )
 switched to session sess
 Got expected error (one of: 1317 2006 2007 5010 )
@@ -275,18 +248,6 @@ Kill a session that hasnt authenticated yet
 connecting...
 active session is now 'sess'
 switched to session default
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 11
-    }
-  }
-  namespace: "xplugin"
-}
-
 Got expected error (one of: 0 1095 )
 switched to session sess
 RUN select 1
@@ -303,18 +264,6 @@ send Mysqlx.Connection.CapabilitiesGet {
 }
 
 switched to session default
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 12
-    }
-  }
-  namespace: "xplugin"
-}
-
 Got expected error (one of: 0 1095 )
 switched to session sess
 Got expected error (one of: 2006 2007 )
@@ -446,11 +395,6 @@ switched to session default
 
 Final check of clients still around
 -----------------------------------
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 client_id	user	host	sql_session
 1	x_root	localhost	$SESSION
 command ok
@@ -1459,7 +1403,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "sql"
 }
 
-send Mysqlx.Session.Close {
+send Mysqlx.Connection.Close {
 }
 
 Column

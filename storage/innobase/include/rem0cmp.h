@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,15 +40,22 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 #include "rem0rec.h"
 
+/** Disable the min flag during row comparisons. */
+constexpr auto DISABLE_MIN_REC_FLAG_CHECK = ULINT_UNDEFINED;
+
+// Forward declaration
 namespace dd {
 class Spatial_reference_system;
 }
 
-/** Returns TRUE if two columns are equal for comparison purposes.
- @return true if the columns are considered equal in comparisons */
-ibool cmp_cols_are_equal(const dict_col_t *col1, /*!< in: column 1 */
-                         const dict_col_t *col2, /*!< in: column 2 */
-                         ibool check_charsets);
+/** Returns true if two columns are equal for comparison purposes.
+@param[in] col1 Column to compare.
+@param[in] col2 Column to compare.
+@param[in] check_charsets if true then check the character sets.
+@return true if the columns are considered equal in comparisons. */
+bool cmp_cols_are_equal(const dict_col_t *col1, const dict_col_t *col2,
+                        bool check_charsets);
+
 /*!< in: whether to check charsets */
 /** Compare two data fields.
 @param[in]	mtype	main type
@@ -78,6 +85,16 @@ UNIV_INLINE
 int cmp_dfield_dfield(const dfield_t *dfield1, const dfield_t *dfield2,
                       bool is_asc) MY_ATTRIBUTE((warn_unused_result));
 
+/** Compare two data fields, the first one can be of any form of multi-value
+field, while the second one must be one field from multi-value index
+@param[in]	dfield1	multi-value data field;
+@param[in]	dfield2	data field; must have type field set
+@return 0 if dfield1 has dfield2 or they are equal if both NULL, otherwise 1 */
+UNIV_INLINE
+int cmp_multi_value_dfield_dfield(const dfield_t *dfield1,
+                                  const dfield_t *dfield2)
+    MY_ATTRIBUTE((warn_unused_result));
+
 /** Compare a GIS data tuple to a physical record.
 @param[in] dtuple data tuple
 @param[in] rec B-tree record
@@ -95,6 +112,7 @@ rtree non-leaf node.
 @param[in]	dtuple	data tuple
 @param[in]	rec	R-tree record
 @param[in]	offsets	rec_get_offsets(rec)
+@param[in]  srs Spatial referenxe system
 @retval negative if dtuple is less than rec */
 int cmp_dtuple_rec_with_gis_internal(const dtuple_t *dtuple, const rec_t *rec,
                                      const ulint *offsets,
@@ -115,9 +133,7 @@ int cmp_dtuple_rec_with_match_low(const dtuple_t *dtuple, const rec_t *rec,
                                   const dict_index_t *index,
                                   const ulint *offsets, ulint n_cmp,
                                   ulint *matched_fields);
-#define cmp_dtuple_rec_with_match(tuple, rec, index, offsets, fields) \
-  cmp_dtuple_rec_with_match_low(tuple, rec, index, offsets,           \
-                                dtuple_get_n_fields_cmp(tuple), fields)
+
 /** Compare a data tuple to a physical record.
 @param[in]	dtuple		data tuple
 @param[in]	rec		B-tree or R-tree index record
@@ -154,9 +170,9 @@ int cmp_dtuple_rec(const dtuple_t *dtuple, const rec_t *rec,
 @param[in]	index	B-tree index
 @param[in]	offsets	rec_get_offsets(rec)
 @return true if prefix */
-ibool cmp_dtuple_is_prefix_of_rec(const dtuple_t *dtuple, const rec_t *rec,
-                                  const dict_index_t *index,
-                                  const ulint *offsets)
+bool cmp_dtuple_is_prefix_of_rec(const dtuple_t *dtuple, const rec_t *rec,
+                                 const dict_index_t *index,
+                                 const ulint *offsets)
     MY_ATTRIBUTE((warn_unused_result));
 /** Compare two physical records that contain the same number of columns,
 none of which are stored externally.
@@ -179,36 +195,44 @@ int cmp_rec_rec_simple(
 @param[in] offsets1 rec_get_offsets(rec1, index)
 @param[in] offsets2 rec_get_offsets(rec2, index)
 @param[in] index B-tree index
+@param[in] spatial_index_non_leaf true if record present in spatial index non
+leaf
 @param[in] nulls_unequal true if this is for index cardinality
 statistics estimation, and innodb_stats_method=nulls_unequal
 or innodb_stats_method=nulls_ignored
 @param[out] matched_fields number of completely matched fields
 within the first field not completely matched
+@param[in] cmp_btree_recs true if we're comparing two b-tree records
 @return the comparison result
 @retval 0 if rec1 is equal to rec2
 @retval negative if rec1 is less than rec2
 @retval positive if rec2 is greater than rec2 */
 int cmp_rec_rec_with_match(const rec_t *rec1, const rec_t *rec2,
                            const ulint *offsets1, const ulint *offsets2,
-                           const dict_index_t *index, bool nulls_unequal,
-                           ulint *matched_fields);
+                           const dict_index_t *index,
+                           bool spatial_index_non_leaf, bool nulls_unequal,
+                           ulint *matched_fields, bool cmp_btree_recs = true);
 
 /** Compare two B-tree records.
 Only the common first fields are compared, and externally stored field
 are treated as equal.
-@param[in]	rec1		B-tree record
-@param[in]	rec2		B-tree record
-@param[in]	offsets1	rec_get_offsets(rec1, index)
-@param[in]	offsets2	rec_get_offsets(rec2, index)
-@param[in]	index		B-tree index
+@param[in]	rec1			B-tree record
+@param[in]	rec2			B-tree record
+@param[in]	offsets1		rec_get_offsets(rec1, index)
+@param[in]	offsets2		rec_get_offsets(rec2, index)
+@param[in]	index			B-tree index
+@param[in]	spatial_index_non_leaf	true if record is in spatial non leaf
+page
 @param[out]	matched_fields	number of completely matched fields
-                                within the first field not completely matched
+within the first field not completely matched
+@param[in]  cmp_btree_recs  true if the both the records are b-tree records
 @return positive, 0, negative if rec1 is greater, equal, less, than rec2,
 respectively */
 UNIV_INLINE
 int cmp_rec_rec(const rec_t *rec1, const rec_t *rec2, const ulint *offsets1,
                 const ulint *offsets2, const dict_index_t *index,
-                ulint *matched_fields = NULL);
+                bool spatial_index_non_leaf, ulint *matched_fields = NULL,
+                bool cmp_btree_recs = true);
 
 /** Compare two data fields.
 @param[in] dfield1 data field

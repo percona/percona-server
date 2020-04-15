@@ -1,5 +1,4 @@
 --source include/not_group_replication_plugin.inc
-source include/have_ssl.inc;
 source include/master-slave.inc;
 
 # We don't test all types of ssl auth params here since it's a bit hard 
@@ -31,7 +30,7 @@ start slave;
 #showing that replication could work with ssl params
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --replace_column 2 ####
-eval change master to master_ssl=1 , master_ssl_ca ='$MYSQL_TEST_DIR/std_data/cacert.pem', master_ssl_cert='$MYSQL_TEST_DIR/std_data/client-cert.pem', master_ssl_key='$MYSQL_TEST_DIR/std_data/client-key.pem', master_tls_version='TLSv1.1';
+eval change master to master_ssl=1 , master_ssl_ca ='$MYSQL_TEST_DIR/std_data/cacert.pem', master_ssl_cert='$MYSQL_TEST_DIR/std_data/client-cert.pem', master_ssl_key='$MYSQL_TEST_DIR/std_data/client-key.pem', master_tls_version='TLSv1.2';
 start slave;
 --source include/wait_for_slave_to_start.inc
 

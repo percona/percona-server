@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -24,24 +24,29 @@
 
 INCLUDE(CheckCSourceRuns)
 
-# We require at least Clang 3.4.
+SET(FREEBSD 1)
+
+# We require at least Clang 6.0 (FreeBSD 12).
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
-  IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
+  IF(MY_COMPILER_IS_CLANG)
     CHECK_C_SOURCE_RUNS("
       int main()
       {
-        return (__clang_major__ < 3) ||
-               (__clang_major__ == 3 && __clang_minor__ < 4);
+        return (__clang_major__ < 6);
       }" HAVE_SUPPORTED_CLANG_VERSION)
     IF(NOT HAVE_SUPPORTED_CLANG_VERSION)
-      MESSAGE(FATAL_ERROR "Clang 3.4 or newer is required!")
+      MESSAGE(FATAL_ERROR "Clang 6.0 or newer is required!")
+    ENDIF()
+  ELSEIF(MY_COMPILER_IS_GNU)
+    EXECUTE_PROCESS(COMMAND ${CMAKE_C_COMPILER} -dumpversion
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      OUTPUT_VARIABLE GCC_VERSION)
+    IF(GCC_VERSION VERSION_LESS 5.3)
+      MESSAGE(FATAL_ERROR
+        "GCC 5.3 or newer is required (-dumpversion says ${GCC_VERSION})")
     ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR "Unsupported compiler!")
   ENDIF()
 ENDIF()
-
-# Should not be needed any more, but kept for easy resurrection if needed
-#   #Legacy option, maybe not needed anymore , taken as is from autotools build
-#   ADD_DEFINITIONS(-DNET_RETRY_COUNT=1000000)
 

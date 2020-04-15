@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # binaries
+usr/bin/comp_err
 usr/bin/ibd2sdi
 usr/bin/innochecksum
 usr/bin/lz4_decompress
@@ -58,12 +59,18 @@ usr/share/man/man1/mysqld_safe.1
 usr/share/man/man1/perror.1
 usr/share/man/man1/zlib_decompress.1
 usr/share/man/man8/mysqld.8
+# private shared libraries
+usr/lib/mysql/private/libprotobuf-lite.so.3.6.1
+usr/lib/mysql/private/libprotobuf.so.3.6.1
 # plugins
 usr/lib/mysql/plugin/component_log_filter_dragnet.so
 usr/lib/mysql/plugin/component_log_sink_json.so
 usr/lib/mysql/plugin/component_log_sink_syseventlog.so
+usr/lib/mysql/plugin/component_mysqlbackup.so
 usr/lib/mysql/plugin/component_validate_password.so
 usr/lib/mysql/plugin/component_audit_api_message_emit.so
+usr/lib/mysql/plugin/ddl_rewriter.so
+usr/lib/mysql/plugin/mysql_clone.so
 usr/lib/mysql/plugin/mysql_no_login.so
 usr/lib/mysql/plugin/innodb_engine.so
 usr/lib/mysql/plugin/rewriter.so
@@ -84,11 +91,11 @@ usr/lib/mysql/plugin/group_replication.so
 usr/lib/mysql/plugin/connection_control.so
 # support files
 usr/share/mysql-@MYSQL_BASE_VERSION@/dictionary.txt
-usr/share/mysql-@MYSQL_BASE_VERSION@/magic
 usr/share/mysql-@MYSQL_BASE_VERSION@/mysql-log-rotate
 # localized error msgs
 usr/share/mysql-@MYSQL_BASE_VERSION@/*/errmsg.sys
-usr/share/mysql-@MYSQL_BASE_VERSION@/errmsg-utf8.txt
+usr/share/mysql-@MYSQL_BASE_VERSION@/messages_to_error_log.txt
+usr/share/mysql-@MYSQL_BASE_VERSION@/messages_to_clients.txt
 # legal
 usr/share/mysql-@MYSQL_BASE_VERSION@/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-server-core/
 usr/share/mysql-@MYSQL_BASE_VERSION@/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-server-core/

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 ##############
 
 save_args=$*
-VERSION="autotest-run.sh version 1.22"
+VERSION="autotest-run.sh version 1.24"
 
 DATE=`date '+%Y-%m-%d'`
 if [ `uname -s` != "SunOS" ]
@@ -101,6 +101,7 @@ do
                 --site=*) site_arg="$1";;
                 --default-max-retries=*) default_max_retries_arg="$1";;
                 --default-force-cluster-restart) default_force_cluster_restart_arg="$1";;
+                --default-behaviour-on-failure=*) default_behaviour_on_failure_arg="$1";;
         esac
         shift
 done
@@ -182,10 +183,13 @@ on_exit() {
 ####################################
 # Revert copy of test programs
 ####################################
-  if [ -f "${run_dir}/revert_copy_missing_ndbclient_test_programs" ]
-  then
-    source "${run_dir}/revert_copy_missing_ndbclient_test_programs"
-  fi
+  for f in "${run_dir}/revert_copy_missing_ndbclient_test_programs"*
+  do
+    if [ -f "${f}" ]
+    then
+      source "${f}"
+    fi
+  done
 ####################################
 # Remove the lock file before exit #
 ####################################
@@ -283,23 +287,29 @@ choose(){
         rm -f $TMP1
 }
 
-choose_conf(){
-    if [ -f $test_dir/conf-$1-$HOST.cnf ]
-	then
-	echo "$test_dir/conf-$1-$HOST.cnf"
-    elif [ -f $test_dir/conf-$1.cnf ]
-    then
-	echo "$test_dir/conf-$1.cnf"
-    elif [ -f $test_dir/conf-$HOST.cnf ]
-    then
-	echo "$test_dir/conf-$HOST.cnf"
-    else
-	echo "Unable to find conf file looked for" 1>&2
-	echo "$test_dir/conf-$1-$HOST.cnf and" 1>&2
-	echo "$test_dir/conf-$HOST.cnf" 1>&2
-	echo "$test_dir/conf-$1.cnf" 1>&2
-	exit
+choose_conf() {
+  local testsuite="${1}"
+
+  local search_path=(
+    "${test_dir}/conf-${testsuite}-${HOST}.cnf"
+    "${test_dir}/conf-${testsuite}.cnf"
+    "${test_dir}/conf-${HOST}.cnf"
+    "${test_dir}/conf-${testsuite}-autotest.cnf"
+    "${test_dir}/conf-autotest.cnf"
+  )
+
+  for conf in "${search_path[@]}"; do
+    if [ -f "${conf}" ]; then
+      echo "${conf}"
+      return
     fi
+  done
+
+  echo "Unable to find conf file looked for" 1>&2
+  for conf in "${search_path[@]}"; do
+    echo " * ${conf}" 1>&2
+  done
+  exit 1
 }
 
 #########################################
@@ -371,6 +381,11 @@ done
 rm -f d.tmp.$$
 
 copy_missing_ndbclient_test_programs() {
+  if [ -f "${2}/bin/testDowngrade" ]
+  then
+    # Assume nothing need to be copied
+    return
+  fi
   (
     export LD_LIBRARY_PATH="${1}/bin:${1}/lib"
     for prog in testDowngrade testUpgrade
@@ -383,6 +398,8 @@ copy_missing_ndbclient_test_programs() {
           cp -p "${1}/bin/${prog}" "${2}/bin/${prog}"
       fi
     done
+    # May for example copy suite files *grade*-tests.txt and
+    # config files conf-*grade*.cnf
     for file in "${1}"/mysql-test/ndb/*grade*
     do
       f=$(basename "${file}")
@@ -393,14 +410,14 @@ copy_missing_ndbclient_test_programs() {
           cp -p "${file}" "${2}/mysql-test/ndb/${f}"
       fi
     done
-  ) > revert_copy_missing_ndbclient_test_programs
+  ) > revert_copy_missing_ndbclient_test_programs${3}
 }
 prefix="--prefix=$install_dir --prefix0=$install_dir0"
 if [ -n "$install_dir1" ]
 then
     prefix="$prefix --prefix1=$install_dir1"
-    copy_missing_ndbclient_test_programs ${install_dir0} ${install_dir1}
-    copy_missing_ndbclient_test_programs ${install_dir1} ${install_dir0}
+    copy_missing_ndbclient_test_programs ${install_dir0} ${install_dir1} _0_1
+    copy_missing_ndbclient_test_programs ${install_dir1} ${install_dir0} _1_0
 fi
 
 # If verbose level 0, use default verbose mode (1) for atrt anyway
@@ -434,6 +451,7 @@ else
     args="$args ${verbose_arg}"
     args="$args ${default_max_retries_arg}"
     args="$args ${default_force_cluster_restart_arg}"
+    args="$args ${default_behaviour_on_failure_arg}"
     $atrt $args my.cnf | tee -a log.txt
 
     atrt_test_status=${PIPESTATUS[0]}

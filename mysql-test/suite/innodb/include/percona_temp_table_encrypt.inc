@@ -20,10 +20,10 @@ INSERT INTO t01 VALUES ('Lorem ipsum dolor sit amet, consectetur adipiscing elit
 
 --let $session_temp_file = `SELECT CONCAT(@@datadir, PATH) FROM information_schema.innodb_session_temp_tablespaces WHERE ID = connection_id() AND PURPOSE="USER"`
 
---let $grep_pattern= Lorem ipsum dolor sit amet
---let $grep_file= $session_temp_file
---let $grep_output= boolean
---source include/grep_pattern.inc
+--let SEARCH_PATTERN= Lorem ipsum dolor sit amet
+--let SEARCH_FILE= $MYSQL_DATA_DIR/ibtmp1
+--let ABORT_ON= FOUND
+--source include/search_pattern_in_file.inc
 
 
 # this table created in separate file per table tablespace, make sure it not
@@ -45,10 +45,10 @@ INSERT INTO t03 VALUES ('Curabitur laoreet, velit non interdum venenatis');
 # make sure the temp table went to encrypted session temp tablespace
 --let $session_temp_file = `SELECT CONCAT(@@datadir, PATH) FROM information_schema.innodb_session_temp_tablespaces WHERE ID = connection_id() AND PURPOSE="USER ENCRYPTED"`
 
---let $grep_pattern= Curabitur laoreet, velit non interdum venenatis
---let $grep_file= $session_temp_file
---let $grep_output= boolean
---source include/grep_pattern.inc
+--let SEARCH_PATTERN= Curabitur laoreet, velit non interdum venenatis
+--let SEARCH_FILE= $MYSQL_DATA_DIR/ibtmp1
+--let ABORT_ON= FOUND
+--source include/search_pattern_in_file.inc
 
 CREATE TEMPORARY TABLE t05 (a INT) ENGINE=InnoDB;
 INSERT INTO t05 VALUES (1), (2), (3);

@@ -21,8 +21,8 @@ v16300 VARCHAR(16300) ,
 PRIMARY KEY (v64)
 ) ENGINE=rocksdb;
 CREATE TABLE t2 (
-v VARCHAR(191) ,
-PRIMARY KEY (v(191))
+v VARCHAR(255) ,
+PRIMARY KEY (v(255))
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
@@ -32,7 +32,7 @@ v64	varchar(64)	NO	PRI	NULL
 v16300	varchar(16300)	YES		NULL	
 SHOW COLUMNS IN t2;
 Field	Type	Null	Key	Default	Extra
-v	varchar(191)	NO	PRI	NULL	
+v	varchar(255)	NO	PRI	NULL	
 INSERT INTO t1 (v0,v1,v64,v16300) VALUES ('','','','');
 INSERT INTO t1 (v0,v1,v64,v16300) VALUES ('','y','Once there, double check that an article doesn\'t already exist','Here is a list of recommended books on MariaDB and MySQL. We\'ve provided links to Amazon.com here for convenience, but they can be found at many other bookstores, both online and off.
 
@@ -123,18 +123,18 @@ set session sql_mode=@orig_sql_mode;
 set @orig_tx_iso=@@session.transaction_isolation;
 set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t1 (v0,v1,v64,v16300) SELECT v16300, v16300, CONCAT('a',v16300), CONCAT(v16300,v1) FROM t1;
-ERROR 22001: Data too long for column 'v0' at row 5
+ERROR 22001: Data too long for column 'v0' at row 2
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
 INSERT INTO t1 (v0,v1,v64,v16300) SELECT v16300, v16300, CONCAT('a',v16300), CONCAT(v16300,v1) FROM t1;
 Warnings:
-Warning	1265	Data truncated for column 'v0' at row 5
-Warning	1265	Data truncated for column 'v1' at row 5
-Warning	1265	Data truncated for column 'v64' at row 5
-Warning	1265	Data truncated for column 'v16300' at row 5
-Warning	1265	Data truncated for column 'v0' at row 6
-Warning	1265	Data truncated for column 'v1' at row 6
-Warning	1265	Data truncated for column 'v64' at row 6
+Warning	1265	Data truncated for column 'v0' at row 2
+Warning	1265	Data truncated for column 'v1' at row 2
+Warning	1265	Data truncated for column 'v64' at row 2
+Warning	1265	Data truncated for column 'v16300' at row 2
+Warning	1265	Data truncated for column 'v0' at row 3
+Warning	1265	Data truncated for column 'v1' at row 3
+Warning	1265	Data truncated for column 'v64' at row 3
 set session sql_mode=@orig_sql_mode;
 set session transaction_isolation=@orig_tx_iso;
 SELECT v0, v1, v64, LENGTH(v16300) FROM t1;
@@ -160,10 +160,10 @@ primary key (pk)
 ) engine=rocksdb;
 insert into t1 values ('a','a');
 insert into t1 values ('a ', 'a-space');
-ERROR 23000: Duplicate entry 'a ' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a ' for key 't1.PRIMARY'
 insert into t1 values('b  ', 'b-2x-space');
 insert into t1 values ('b', 'b');
-ERROR 23000: Duplicate entry 'b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b' for key 't1.PRIMARY'
 select pk, hex(pk), col1 from t1;
 pk	hex(pk)	col1
 a	61	a
@@ -178,7 +178,7 @@ a	61	a
 b  	622020	b-2x-space
 # Try longer values
 insert into t1 values (concat('a', repeat(' ',10)), 'a-10-x-space');
-ERROR 23000: Duplicate entry 'a          ' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          ' for key 't1.PRIMARY'
 insert into t1 values (concat('c', repeat(' ',10)), 'c-10-x-space');
 select * from t1;
 pk	col1
@@ -284,10 +284,10 @@ Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Pl
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 insert into t1 values ('a','a');
 insert into t1 values ('a ', 'a-space');
-ERROR 23000: Duplicate entry 'a ' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a ' for key 't1.PRIMARY'
 insert into t1 values('b  ', 'b-2x-space');
 insert into t1 values ('b', 'b');
-ERROR 23000: Duplicate entry 'b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b' for key 't1.PRIMARY'
 select pk, hex(pk), col1 from t1;
 pk	hex(pk)	col1
 a	61	a
@@ -302,7 +302,7 @@ a	61	a
 b  	622020	b-2x-space
 # Try longer values
 insert into t1 values (concat('a', repeat(' ',10)), 'a-10-x-space');
-ERROR 23000: Duplicate entry 'a          ' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          ' for key 't1.PRIMARY'
 insert into t1 values (concat('c', repeat(' ',10)), 'c-10-x-space');
 select * from t1;
 pk	col1
@@ -408,10 +408,10 @@ primary key (pk)
 ) engine=rocksdb;
 insert into t1 values ('a','a');
 insert into t1 values ('a ', 'a-space');
-ERROR 23000: Duplicate entry 'a ' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a ' for key 't1.PRIMARY'
 insert into t1 values('b  ', 'b-2x-space');
 insert into t1 values ('b', 'b');
-ERROR 23000: Duplicate entry 'b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b' for key 't1.PRIMARY'
 select pk, hex(pk), col1 from t1;
 pk	hex(pk)	col1
 a	0061	a
@@ -426,7 +426,7 @@ a	0061	a
 b  	006200200020	b-2x-space
 # Try longer values
 insert into t1 values (concat('a', repeat(' ',10)), 'a-10-x-space');
-ERROR 23000: Duplicate entry 'a          ' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          ' for key 't1.PRIMARY'
 insert into t1 values (concat('c', repeat(' ',10)), 'c-10-x-space');
 select * from t1;
 pk	col1
@@ -454,7 +454,7 @@ test.t1	analyze	status	OK
 explain
 select col1, hex(col1) from t1 order by col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using filesort
+1	SIMPLE	t1	NULL	index	NULL	col1	131	NULL	#	#	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,hex(`test`.`t1`.`col1`) AS `hex(col1)` from `test`.`t1` order by `test`.`t1`.`col1`
 select col1, hex(col1) from t1 order by col1;
@@ -467,7 +467,7 @@ ab	00610062
 explain
 select col1, hex(col1) from t1 where col1 < 'b' order by col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	#	col1	#	#	NULL	#	#	Using where
+1	SIMPLE	t1	NULL	#	col1	#	#	NULL	#	#	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,hex(`test`.`t1`.`col1`) AS `hex(col1)` from `test`.`t1` where (`test`.`t1`.`col1` < 'b') order by `test`.`t1`.`col1`
 select col1, hex(col1) from t1 where col1 < 'b' order by col1;
@@ -488,7 +488,7 @@ insert into t1 values(23, repeat(' ',18), '18x-space');
 explain
 select pk, col1, hex(col1), length(col1) from t1 order by col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	#	NULL	#	#	NULL	#	#	Using filesort
+1	SIMPLE	t1	NULL	#	NULL	#	#	NULL	#	#	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col1` AS `col1`,hex(`test`.`t1`.`col1`) AS `hex(col1)`,length(`test`.`t1`.`col1`) AS `length(col1)` from `test`.`t1` order by `test`.`t1`.`col1`
 select pk, col1, hex(col1), length(col1) from t1 order by col1;
@@ -529,10 +529,10 @@ primary key (pk)
 ) engine=rocksdb;
 insert into t1 values ('a','a');
 insert into t1 values ('a ', 'a-space');
-ERROR 23000: Duplicate entry 'a ' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a ' for key 't1.PRIMARY'
 insert into t1 values('b  ', 'b-2x-space');
 insert into t1 values ('b', 'b');
-ERROR 23000: Duplicate entry 'b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b' for key 't1.PRIMARY'
 select pk, hex(pk), col1 from t1;
 pk	hex(pk)	col1
 a	61	a
@@ -547,7 +547,7 @@ a	61	a
 b  	622020	b-2x-space
 # Try longer values
 insert into t1 values (concat('a', repeat(' ',10)), 'a-10-x-space');
-ERROR 23000: Duplicate entry 'a          ' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          ' for key 't1.PRIMARY'
 insert into t1 values (concat('c', repeat(' ',10)), 'c-10-x-space');
 select * from t1;
 pk	col1
@@ -575,7 +575,7 @@ test.t1	analyze	status	OK
 explain
 select col1, hex(col1) from t1 order by col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using filesort
+1	SIMPLE	t1	NULL	index	NULL	col1	259	NULL	#	#	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,hex(`test`.`t1`.`col1`) AS `hex(col1)` from `test`.`t1` order by `test`.`t1`.`col1`
 select col1, hex(col1) from t1 order by col1;
@@ -588,7 +588,7 @@ ab	6162
 explain
 select col1, hex(col1) from t1 where col1 < 'b' order by col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	#	col1	#	#	NULL	#	#	Using where
+1	SIMPLE	t1	NULL	#	col1	#	#	NULL	#	#	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,hex(`test`.`t1`.`col1`) AS `hex(col1)` from `test`.`t1` where (`test`.`t1`.`col1` < 'b') order by `test`.`t1`.`col1`
 select col1, hex(col1) from t1 where col1 < 'b' order by col1;
@@ -609,7 +609,7 @@ insert into t1 values(23, repeat(' ',18), '18x-space');
 explain
 select pk, col1, hex(col1), length(col1) from t1 order by col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	#	NULL	#	#	NULL	#	#	Using filesort
+1	SIMPLE	t1	NULL	#	NULL	#	#	NULL	#	#	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col1` AS `col1`,hex(`test`.`t1`.`col1`) AS `hex(col1)`,length(`test`.`t1`.`col1`) AS `length(col1)` from `test`.`t1` order by `test`.`t1`.`col1`
 select pk, col1, hex(col1), length(col1) from t1 order by col1;
@@ -650,10 +650,10 @@ primary key (pk)
 ) engine=rocksdb;
 insert into t1 values ('a','a');
 insert into t1 values ('a ', 'a-space');
-ERROR 23000: Duplicate entry 'a ' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a ' for key 't1.PRIMARY'
 insert into t1 values('b  ', 'b-2x-space');
 insert into t1 values ('b', 'b');
-ERROR 23000: Duplicate entry 'b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b' for key 't1.PRIMARY'
 select pk, hex(pk), col1 from t1;
 pk	hex(pk)	col1
 a	0061	a
@@ -668,7 +668,7 @@ a	0061	a
 b  	006200200020	b-2x-space
 # Try longer values
 insert into t1 values (concat('a', repeat(' ',10)), 'a-10-x-space');
-ERROR 23000: Duplicate entry 'a          ' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          ' for key 't1.PRIMARY'
 insert into t1 values (concat('c', repeat(' ',10)), 'c-10-x-space');
 select * from t1;
 pk	col1
@@ -696,7 +696,7 @@ test.t1	analyze	status	OK
 explain
 select col1, hex(col1) from t1 order by col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using filesort
+1	SIMPLE	t1	NULL	index	NULL	col1	259	NULL	#	#	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,hex(`test`.`t1`.`col1`) AS `hex(col1)` from `test`.`t1` order by `test`.`t1`.`col1`
 select col1, hex(col1) from t1 order by col1;
@@ -709,7 +709,7 @@ ab	00610062
 explain
 select col1, hex(col1) from t1 where col1 < 'b' order by col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	#	col1	#	#	NULL	#	#	Using where
+1	SIMPLE	t1	NULL	#	col1	#	#	NULL	#	#	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,hex(`test`.`t1`.`col1`) AS `hex(col1)` from `test`.`t1` where (`test`.`t1`.`col1` < 'b') order by `test`.`t1`.`col1`
 select col1, hex(col1) from t1 where col1 < 'b' order by col1;
@@ -730,7 +730,7 @@ insert into t1 values(23, repeat(' ',18), '18x-space');
 explain
 select pk, col1, hex(col1), length(col1) from t1 order by col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	#	NULL	#	#	NULL	#	#	Using filesort
+1	SIMPLE	t1	NULL	#	NULL	#	#	NULL	#	#	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col1` AS `col1`,hex(`test`.`t1`.`col1`) AS `hex(col1)`,length(`test`.`t1`.`col1`) AS `length(col1)` from `test`.`t1` order by `test`.`t1`.`col1`
 select pk, col1, hex(col1), length(col1) from t1 order by col1;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,14 +24,15 @@
 
 #include "plugin/x/src/query_string_builder.h"
 
-#include <mutex>
+#include <cstdint>
 
-#include "my_dbug.h"
-#include "my_inttypes.h"
-#include "my_sys.h"  // escape_string_for_mysql
+#include <mutex>  // NOLINT(build/c++11)
+
+#include "my_dbug.h"  // NOLINT(build/include_subdir)
+#include "my_sys.h"   // escape_string_for_mysql NOLINT(build/include_subdir)
 #include "mysql/plugin.h"
 
-using namespace xpl;
+namespace xpl {
 
 CHARSET_INFO *Query_string_builder::m_charset = NULL;
 std::once_flag Query_string_builder::m_charset_initialized;
@@ -47,8 +48,6 @@ Query_string_builder::Query_string_builder(size_t reserve)
 
   m_str.reserve(reserve);
 }
-
-Query_string_builder::~Query_string_builder() {}
 
 Query_string_builder &Query_string_builder::quote_identifier(const char *s,
                                                              size_t length) {
@@ -67,9 +66,9 @@ Query_string_builder &Query_string_builder::quote_identifier_if_needed(
         need_quote = true;
         break;
       }
-  } else
+  } else {
     need_quote = true;
-
+  }
   if (need_quote)
     return quote_identifier(s, length);
   else
@@ -129,3 +128,5 @@ Query_string_builder &Query_string_builder::put(const char *s, size_t length) {
 Query_formatter Query_string_builder::format() {
   return Query_formatter(m_str, *m_charset);
 }
+
+}  // namespace xpl

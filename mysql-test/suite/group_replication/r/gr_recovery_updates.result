@@ -68,6 +68,7 @@ INSERT INTO t1 VALUES (2);
 include/rpl_sync.inc
 server4
 include/assert.inc [On the recovered member, the table should exist and have 1 elements;]
+SET DEBUG_SYNC= "reset";
 #
 # Clean up
 #

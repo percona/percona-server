@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,21 +51,37 @@
 #include <signaldata/IsolateOrd.hpp>
 #include <signaldata/ProcessInfoRep.hpp>
 #include <signaldata/LocalSysfile.hpp>
+#include <signaldata/SyncThreadViaReqConf.hpp>
+#include <signaldata/TakeOverTcConf.hpp>
 #include <ndb_version.h>
 #include <OwnProcessInfo.hpp>
 #include <NodeInfo.hpp>
 
 #include <TransporterRegistry.hpp> // Get connect address
 
+#include "../dbdih/Dbdih.hpp"
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
+
+#if (defined(VM_TRACE) || defined(ERROR_INSERT))
+//#define DEBUG_ARBIT 1
+#endif
+
+#ifdef DEBUG_ARBIT
+#define DEB_ARBIT(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_ARBIT(arglist) do { } while (0)
+#endif
 
 //#define DEBUG_QMGR_START
 #ifdef DEBUG_QMGR_START
 #include <DebuggerNames.hpp>
 #define DEBUG(x) ndbout << "QMGR " << __LINE__ << ": " << x << endl
 #define DEBUG_START(gsn, node, msg) DEBUG(getSignalName(gsn) << " to: " << node << " - " << msg)
-#define DEBUG_START2(gsn, rg, msg) { char nodes[255]; DEBUG(getSignalName(gsn) << " to: " << rg.m_nodes.getText(nodes) << " - " << msg); }
+#define DEBUG_START2(gsn, rg, msg) { \
+  char nodes[NdbNodeBitmask::TextLength + 1]; \
+  DEBUG(getSignalName(gsn) << " to: " << rg.m_nodes.getText(nodes) << " - " << msg); \
+}
 #define DEBUG_START3(signal, msg) DEBUG(getSignalName(signal->header.theVerId_signalNumber) << " from " << refToNode(signal->getSendersBlockRef()) << " - " << msg);
 #else
 #define DEBUG(x)
@@ -76,6 +92,138 @@ extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 360
 
+
+/**
+ * QMGR provides the following services:
+ *
+ * 1) Node id allocation
+ * ---------------------
+ *    This is a service provided to the Management server when a node is
+ *    requesting a config.
+ *
+ * 2) Heartbeat service for data nodes
+ * -----------------------------------
+ *    This is a service provided to the upper levels in NDB. When the
+ *    heartbeat discovers a failure it will send a FAIL_REP signal to
+ *    NDBCNTR.
+ *
+ * 3) Master assignment
+ * --------------------
+ *    NDB relies on that a new master can be allocated at each failure
+ *    through the usage of an algorithm to calculate the next master.
+ *    To handle this nodes are entering the cluster one node at a time.
+ *    This gives each node a dynamic node id, the new master is simply
+ *    selected as the node with the lowest dynamic id.
+ *
+ *    When the cluster is started from scratch it is important to select
+ *    a master that is actually part of the cluster startup and not
+ *    started later through a node restart handling. To handle this
+ *    QMGR makes use of the DIH_RESTART service provided by DIH.
+ *    This service will provide the GCI that the node can be started
+ *    from. This GCI is sent in each CM_REGREQ signal to ensure that
+ *    each node can decide whether they should be assigned as master
+ *    of the cluster.
+ *
+ *    In QMGR the master is called President and in DIH, NDBCNTR and DICT
+ *    the node is called master node. All these roles are always given
+ *    to the same node. Most protocols have a master role and thus most
+ *    protocols need to handle master take over.
+ *
+ * 4) Transactional node failure service
+ * -------------------------------------
+ *    Whenever a node fails, we need to ensure that all nodes agree on the
+ *    failed nodes. To handle this QMGR uses a prepare phase where the
+ *    president sends a list of failed nodes, other nodes can add to this
+ *    list in which case a new prepare phase is started. After all nodes
+ *    have agreed on the list of failed nodes the QMGR president sends a
+ *    list of nodes in the COMMIT_FAILREQ signal that specifies which nodes
+ *    have failed. This list is then sent up to NDBCNTR that handles the
+ *    spreading of this information to all other blocks in the NDB data
+ *    node.
+ *
+ *    The information is also sent to the connected API nodes.
+ *
+ * 5) Arbitration service
+ * ----------------------
+ *    In the case where we are not sure if the cluster has been partitioned,
+ *    we need to query an arbitrator to decide whether our node should survive
+ *    the crash. If no arbitrator is assigned, the node will fail. The
+ *    arbitrator must be prepared before the crash happens, the arbitrator
+ *    can only be used for one response. After this response a new arbitrator
+ *    must be selected.
+ *
+ *    It is also possible to not use any arbitrator service provided by NDB.
+ *    In this case QMGR will write a message to the Cluster log and the
+ *    external arbitrator needs to take action and shut down the node that
+ *    it wants to not survive.
+ *
+ * 6) Skip node service
+ * --------------------
+ *    When starting a data node it is possible to select a set of nodes to not
+ *    wait for in cluster restart. These nodes are provided as startup
+ *    parameter in ndbmtd/ndbd, --nowait-nodes.
+ *
+ * 7) Heartbeat service for API nodes
+ * ----------------------------------
+ *    QMGR sends heartbeat signals to all API nodes connected with some delay.
+ *    If API doesn't send any response, it will shut down the API connection.
+ *
+ * 8) Read nodes service
+ * ---------------------
+ *    This is used to check nodes in certain situations.
+ *
+ * 9) Connectivity check service
+ * -----------------------------
+ *    In the case of node failures we can configure NDB to make a full
+ *    connectivity check before deciding which nodes to assign as failed
+ *    nodes.
+ *
+ * 10) Ndbinfo membership table
+ * ----------------------------
+ *    Reports the current setup of nodes, their dynamic ids and neighbours.
+ *
+ * 11) Ndbinfo process table
+ * -------------------------
+ *    Reports various information required to manage NDB Cluster.
+ *
+ * 12) Isolate node service
+ * ------------------------
+ *    Connected to the connectivity check service.
+ *
+ * 13) Global node state service
+ * -----------------------------
+ *    Service used by many other blocks to inform them of node status.
+ *
+ * QMGR uses the following services:
+ *
+ * 1) Connect service
+ * ------------------
+ *    The transporter will inform QMGR about nodes connected through the
+ *    CONNECT_REP signal.
+ *
+ * 2) Check node group service in DIH
+ * ----------------------------------
+ *    Used by master assignment service and node failure services.
+ *
+ * 3) DIH_RESTART service in DIH
+ * -----------------------------
+ *    See above in master assignment service.
+ *
+ * 4) Block commit service
+ * -----------------------
+ *    Block commits when we form a new cluster after node failures.
+ *    This service is provided by DIH.
+ *
+ * 5) Close communication service
+ * ------------------------------
+ *    We need to inform transporter when a node has failed to ensure
+ *    the transporter will close the communication to this node.
+ *
+ * 6) Enable communication service
+ * -------------------------------
+ *    We need to enable communication to a node after we finished node
+ *    failure handling for a node.
+ */
 
 /**
  * c_start.m_gsn = GSN_CM_REGREQ
@@ -193,6 +341,13 @@ void Qmgr::execCONTINUEB(Signal* signal)
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 3000, 1);
     return;
   }
+  case ZNOTIFY_STATE_CHANGE:
+  {
+    jam();
+    handleStateChange(signal, tdata0);
+    return;
+  }
+
   default:
     jam();
     // ZCOULD_NOT_OCCUR_ERROR;
@@ -222,11 +377,17 @@ void Qmgr::execFAIL_REP(Signal* signal)
   const NodeId failNodeId = failRep->failNodeId;
   const FailRep::FailCause failCause = (FailRep::FailCause)failRep->failCause; 
   Uint32 failSource = failRep->getFailSourceNodeId(signal->length());
+  if (ERROR_INSERT_VALUE >= 951 && ERROR_INSERT_VALUE <= 960)
+  {
+    CRASH_INSERTION3();
+  }
   if (!failSource)
   {
     /* Failure source not included, use sender of signal as 'source' */
     failSource = refToNode(signal->getSendersBlockRef());
   }
+
+  CRASH_INSERTION(948);
 
   jamEntry();
   failReportLab(signal, failNodeId, failCause, failSource);
@@ -301,6 +462,7 @@ void Qmgr::execSTTOR(Signal* signal)
   case 1:
     initData(signal);
     g_eventLogger->info("Starting QMGR phase 1");
+    c_ndbcntr = (Ndbcntr*)globalData.getBlock(NDBCNTR);
     startphase1(signal);
     recompute_version_info(NodeInfo::DB);
     recompute_version_info(NodeInfo::API);
@@ -330,6 +492,13 @@ void Qmgr::execSTTOR(Signal* signal)
      * Enable communication to all API nodes by setting state
      *   to ZFAIL_CLOSING (which will make it auto-open in checkStartInterface)
      */
+    if (ERROR_INSERTED(949))
+    {
+      jam();
+      g_eventLogger->info("QMGR : Delaying allow-api-connect processing");
+      sendSignalWithDelay(reference(), GSN_STTOR, signal, 1000, 2);
+      return;
+    }
     c_allow_api_connect = 1;
     NodeRecPtr nodePtr;
     for (nodePtr.i = 1; nodePtr.i < MAX_NODES; nodePtr.i++)
@@ -393,13 +562,18 @@ Qmgr::execDIH_RESTARTREF(Signal*signal)
 {
   jamEntry();
 
+  ndbrequire(signal->getNoOfSections() == 1);
+  SectionHandle handle(this, signal);
+  SegmentedSectionPtr ptr;
+  handle.getSection(ptr, 0);
+  ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
+  c_start.m_no_nodegroup_nodes.clear();
+  copy(c_start.m_no_nodegroup_nodes.rep.data, ptr);
+  releaseSections(handle);
+
   g_eventLogger->info("DIH reported initial start, now starting the"
                       " Node Inclusion Protocol");
-  const DihRestartRef * ref = CAST_CONSTPTR(DihRestartRef,
-                                            signal->getDataPtr());
   c_start.m_latest_gci = 0;
-  c_start.m_no_nodegroup_nodes.assign(NdbNodeBitmask::Size,
-                                      ref->no_nodegroup_mask);
   execCM_INFOCONF(signal);
 }
 
@@ -408,11 +582,18 @@ Qmgr::execDIH_RESTARTCONF(Signal*signal)
 {
   jamEntry();
 
+  ndbrequire(signal->getNoOfSections() == 1);
+  SectionHandle handle(this, signal);
+  SegmentedSectionPtr ptr;
+  handle.getSection(ptr, 0);
+  ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
+  c_start.m_no_nodegroup_nodes.clear();
+  copy(c_start.m_no_nodegroup_nodes.rep.data, ptr);
+  releaseSections(handle);
+
   const DihRestartConf * conf = CAST_CONSTPTR(DihRestartConf,
                                               signal->getDataPtr());
   c_start.m_latest_gci = conf->latest_gci;
-  c_start.m_no_nodegroup_nodes.assign(NdbNodeBitmask::Size,
-                                      conf->no_nodegroup_mask);
   sendReadLocalSysfile(signal);
 }
 
@@ -624,11 +805,17 @@ void Qmgr::execCONNECT_REP(Signal* signal)
     (void)1;
   }
   
+  ReadNodesReq *req = (ReadNodesReq *)&signal->theData[0];
   ndbrequire(!c_start.m_nodes.isWaitingFor(connectedNodeId));
   ndbrequire(!c_readnodes_nodes.get(connectedNodeId));
   c_readnodes_nodes.set(connectedNodeId);
-  signal->theData[0] = reference();
-  sendSignal(calcQmgrBlockRef(connectedNodeId), GSN_READ_NODESREQ, signal, 1, JBA);
+  req->myRef = reference();
+  req->myVersion = NDB_VERSION_D;
+  sendSignal(calcQmgrBlockRef(connectedNodeId),
+             GSN_READ_NODESREQ,
+             signal,
+             ReadNodesReq::SignalLength,
+             JBA);
   return;
 }//Qmgr::execCONNECT_REP()
 
@@ -636,6 +823,61 @@ void
 Qmgr::execREAD_NODESCONF(Signal* signal)
 {
   jamEntry();
+  if (signal->getNoOfSections() > 0)
+  {
+    jam();
+    const ReadNodesConf * readNodes = (ReadNodesConf *)&signal->theData[0];
+    ndbrequire(signal->getNoOfSections() == 1);
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr, 0);
+    ndbrequire(ptr.sz == 5 * NdbNodeBitmask::Size);
+    copy((Uint32*)&readNodes->definedNodes.rep.data, ptr);
+    releaseSections(handle);
+  }
+  else
+  {
+    jam();
+
+    /**
+     * Handle transformation from old signal format with 5 bitmask with
+     * 2 words in each bitmask to 5 bitmasks with 5 words in each bitmask.
+     */
+    const ReadNodesConf_v1 * readNodes_v1 =
+      (ReadNodesConf_v1 *)&signal->theData[0];
+    ReadNodesConf * readNodes = (ReadNodesConf *)&signal->theData[0];
+
+    NdbNodeBitmask48 defined48Nodes;
+    NdbNodeBitmask48 inactive48Nodes;
+    NdbNodeBitmask48 cluster48Nodes;
+    NdbNodeBitmask48 starting48Nodes;
+    NdbNodeBitmask48 started48Nodes;
+
+    defined48Nodes.assign(NdbNodeBitmask48::Size,
+                          readNodes_v1->definedNodes);
+    inactive48Nodes.assign(NdbNodeBitmask48::Size,
+                           readNodes_v1->inactiveNodes);
+    cluster48Nodes.assign(NdbNodeBitmask48::Size,
+                          readNodes_v1->clusterNodes);
+    starting48Nodes.assign(NdbNodeBitmask48::Size,
+                           readNodes_v1->startingNodes);
+    started48Nodes.assign(NdbNodeBitmask48::Size,
+                          readNodes_v1->startedNodes);
+
+    NdbNodeBitmask clear_bitmask;
+    readNodes->definedNodes = clear_bitmask;
+    readNodes->inactiveNodes = clear_bitmask;
+    readNodes->clusterNodes = clear_bitmask;
+    readNodes->startingNodes = clear_bitmask;
+    readNodes->startedNodes = clear_bitmask;
+
+    readNodes->definedNodes = defined48Nodes;
+    readNodes->inactiveNodes = inactive48Nodes;
+    readNodes->clusterNodes = cluster48Nodes;
+    readNodes->startingNodes = starting48Nodes;
+    readNodes->startedNodes = started48Nodes;
+  }
+
   check_readnodes_reply(signal, 
 			refToNode(signal->getSendersBlockRef()),
 			GSN_READ_NODESCONF);
@@ -847,8 +1089,12 @@ Qmgr::sendCmRegReq(Signal * signal, Uint32 nodeId){
   req->mysql_version = NDB_MYSQL_VERSION_D;
   req->latest_gci = c_start.m_latest_gci;
   req->start_type = c_start.m_start_type;
-  c_start.m_skip_nodes.copyto(NdbNodeBitmask::Size, req->skip_nodes);
   const Uint32 ref = calcQmgrBlockRef(nodeId);
+  /**
+   *  Clear the additional bits, see comment above CmRegReq::SignalLength
+   *  in CmRegSignalData for details.
+   */
+  memset(req->unused_words, 0, sizeof(req->unused_words));
   sendSignal(ref, GSN_CM_REGREQ, signal, CmRegReq::SignalLength, JBB);
   DEBUG_START(GSN_CM_REGREQ, nodeId, "");
   
@@ -878,16 +1124,28 @@ Qmgr::sendCmRegReq(Signal * signal, Uint32 nodeId){
  * 2- We know the president, we dont bother us about this REQ. 
  *    The president has also got this REQ and will take care of it.
  *
- * 3- The president are not known. We have received CM_INIT, so we compare the
- *    senders node number to GETOWNNODEID().
- *    If we have a lower number than the sender then we will claim 
- *    that we are the president so we send him a refuse signal back. 
- *    We have to wait for the CONTINUEB signal before we can enter the 
- *    president role. If our GETOWNNODEID() if larger than sender node number, 
- *    we are not the president and just have to wait for the 
- *    reply signal (REF)  to our CM_REGREQ_2. 
- * 4- We havent received the CM_INIT signal so we don't know who we are. 
- *    Ignore the request.
+ * 3- The president isn't known. An election is currently ongoing.
+ *    This election will not be decided until all nodes in the cluster
+ *    except those specifically in skip list has been started.
+ *    The skip list comes from the startup parameter --nowait-nodes.
+ *    So if no one knows the President it means that we are performing
+ *    a cluster startup, either initial or a normal System restart of
+ *    the cluster.
+ *
+ *    In this case we wait until all nodes except those in the skip list
+ *    have sent CM_REGREQ to us. If this is the case the node with the
+ *    lowest node id AND that can start from the highest GCI promotes itself
+ *    to President. Since all nodes follow the same algorithm we are certain
+ *    that this will bring us to a point where all nodes has the same node
+ *    as President.
+ *    In addition this election ensures that the President in QMGR is also
+ *    selected as Master in NDBCNTR. It should not be possible that
+ *    CNTR_START_REQ gets a response where the Master says that it isn't
+ *    the master.
+ *
+ *     To ensure that the President is equal to the Master we send the
+ *     start GCI a node can handle in CM_REGREQ. This enables us to elect
+ *     a President that can also act as Master for NDBCNTR.
  *--------------------------------------------------------------------------*/
 /*******************************/
 /* CM_REGREQ                  */
@@ -918,7 +1176,6 @@ void Qmgr::execCM_REGREQ(Signal* signal)
   addNodePtr.i = cmRegReq->nodeId;
   Uint32 gci = 1;
   Uint32 start_type = ~0;
-  NdbNodeBitmask skip_nodes;
 
   if (!c_connectedNodes.get(cmRegReq->nodeId))
   {
@@ -945,14 +1202,8 @@ void Qmgr::execCM_REGREQ(Signal* signal)
     jam();
     gci = cmRegReq->latest_gci;
     start_type = cmRegReq->start_type;
-    skip_nodes.assign(NdbNodeBitmask::Size, cmRegReq->skip_nodes);
   }
-  
-  if (startingVersion < NDBD_SPLIT_VERSION)
-  {
-    startingMysqlVersion = 0;
-  }
-  
+
   if (creadyDistCom == ZFALSE) {
     jam();
     /* NOT READY FOR DISTRIBUTED COMMUNICATION.*/
@@ -961,55 +1212,26 @@ void Qmgr::execCM_REGREQ(Signal* signal)
   
   if (!ndbCompatible_ndb_ndb(NDB_VERSION, startingVersion)) {
     jam();
-    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZINCOMPATIBLE_VERSION);
+    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZINCOMPATIBLE_VERSION,
+                    startingVersion);
     return;
   }
 
-  if (!ndb_check_micro_gcp(startingVersion))
+  if (!ndbd_upgrade_ok(startingVersion))
   {
     jam();
-    infoEvent("Connection from node %u refused as it's not micro GCP enabled",
+    infoEvent("Connection from node %u refused as it's not ok to upgrade from",
               addNodePtr.i);
-    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZINCOMPATIBLE_VERSION);
-    return;
-  }
-
-  if (!ndb_pnr(startingVersion))
-  {
-    jam();
-    infoEvent("Connection from node %u refused as it's not does not support "
-              "parallel node recovery",
-              addNodePtr.i);
-    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZINCOMPATIBLE_VERSION);
-    return;
-  }
-
-  if (!ndb_check_hb_order_version(startingVersion) &&
-      m_hb_order_config_used)
-  {
-    jam();
-    infoEvent("Connection from node %u refused as it does not support "
-              "user-defined HeartbeatOrder",
-              addNodePtr.i);
-    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZINCOMPATIBLE_VERSION);
-    return;
-  }
-
-  if (m_connectivity_check.m_enabled &&
-      !ndbd_connectivity_check(startingVersion))
-  {
-    jam();
-    infoEvent("Connection from node %u refused as it does not support "
-              "ConnectCheckIntervalDelay",
-              addNodePtr.i);
-    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZINCOMPATIBLE_VERSION);
+    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZINCOMPATIBLE_VERSION,
+                    startingVersion);
     return;
   }
 
   if (check_start_type(start_type, c_start.m_start_type))
   {
     jam();
-    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZINCOMPATIBLE_START_TYPE);
+    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZINCOMPATIBLE_START_TYPE,
+                    startingVersion);
     return;
   }
   
@@ -1035,7 +1257,8 @@ void Qmgr::execCM_REGREQ(Signal* signal)
 	c_start.m_president_candidate = addNodePtr.i;
 	c_start.m_president_candidate_gci = gci;
       }
-      sendCmRegrefLab(signal, Tblockref, CmRegRef::ZELECTION);
+      sendCmRegrefLab(signal, Tblockref, CmRegRef::ZELECTION,
+                      startingVersion);
       return;
     }                          
     
@@ -1044,7 +1267,8 @@ void Qmgr::execCM_REGREQ(Signal* signal)
      * We know the president.
      * President will answer.
      */
-    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZNOT_PRESIDENT);
+    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZNOT_PRESIDENT,
+                    startingVersion);
     return;
   }//if
 
@@ -1054,7 +1278,8 @@ void Qmgr::execCM_REGREQ(Signal* signal)
     /**
      * President busy by adding another node
     */
-    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZBUSY_PRESIDENT);
+    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZBUSY_PRESIDENT,
+                    startingVersion);
     return;
   }//if
   
@@ -1064,7 +1289,8 @@ void Qmgr::execCM_REGREQ(Signal* signal)
     /**
      * Active taking over as president
      */
-    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZBUSY_TO_PRES);
+    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZBUSY_TO_PRES,
+                    startingVersion);
     return;
   }//if
 
@@ -1074,7 +1300,8 @@ void Qmgr::execCM_REGREQ(Signal* signal)
     /** 
      * The new node is not in config file
      */
-    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZNOT_IN_CFG);
+    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZNOT_IN_CFG,
+                    startingVersion);
     return;
   } 
 
@@ -1086,28 +1313,9 @@ void Qmgr::execCM_REGREQ(Signal* signal)
      * while in single user mode.
      */
     // handle rolling upgrade
-    {
-      unsigned int get_major = getMajor(startingVersion);
-      unsigned int get_minor = getMinor(startingVersion);
-      unsigned int get_build = getBuild(startingVersion);
-
-      if (startingVersion < NDBD_QMGR_SINGLEUSER_VERSION_5) {
-        jam();
-
-        infoEvent("QMGR: detect upgrade: new node %u old version %u.%u.%u",
-          (unsigned int)addNodePtr.i, get_major, get_minor, get_build);
-        /** 
-         * The new node is old version, send ZINCOMPATIBLE_VERSION instead
-         * of ZSINGLE_USER_MODE.
-         */
-        sendCmRegrefLab(signal, Tblockref, CmRegRef::ZINCOMPATIBLE_VERSION);
-      } else {
-        jam();
-
-        sendCmRegrefLab(signal, Tblockref, CmRegRef::ZSINGLE_USER_MODE);
-      }//if
-    }
-
+    jam();
+    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZSINGLE_USER_MODE,
+                    startingVersion);
     return;
   }//if
 
@@ -1117,7 +1325,8 @@ void Qmgr::execCM_REGREQ(Signal* signal)
   {
     jam();
     DEBUG("phase = " << phase);
-    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZNOT_DEAD);
+    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZNOT_DEAD,
+                    startingVersion);
     return;
   }
   
@@ -1157,9 +1366,44 @@ void Qmgr::execCM_REGREQ(Signal* signal)
   cmRegConf->presidentVersion  = getNodeInfo(getOwnNodeId()).m_version;
   cmRegConf->presidentMysqlVersion = getNodeInfo(getOwnNodeId()).m_mysql_version;
   cmRegConf->dynamicId         = TdynId;
-  c_clusterNodes.copyto(NdbNodeBitmask::Size, cmRegConf->allNdbNodes);
-  sendSignal(Tblockref, GSN_CM_REGCONF, signal, 
-	     CmRegConf::SignalLength, JBA);
+  const Uint32 packed_nodebitmask_length = c_clusterNodes.getPackedLengthInWords();
+  if (ndbd_send_node_bitmask_in_section(startingVersion))
+  {
+    jam();
+    // Send node bitmask in linear section.
+    LinearSectionPtr lsptr[3];
+
+    // 8192 is the size of signal->theData array.
+    STATIC_ASSERT(CmRegConf::SignalLength_v1 + NdbNodeBitmask::Size <=
+                  NDB_ARRAY_SIZE(signal->theData));
+    c_clusterNodes.copyto(packed_nodebitmask_length,
+                          &signal->theData[CmRegConf::SignalLength_v1]);
+    lsptr[0].p = &signal->theData[CmRegConf::SignalLength_v1];
+    lsptr[0].sz = packed_nodebitmask_length;
+
+    sendSignal(Tblockref,
+               GSN_CM_REGCONF,
+               signal,
+               CmRegConf::SignalLength,
+               JBA,
+               lsptr,
+               1);
+  }
+  else if (packed_nodebitmask_length <= NdbNodeBitmask48::Size)
+  {
+    jam();
+    c_clusterNodes.copyto(NdbNodeBitmask48::Size, cmRegConf->allNdbNodes_v1);
+    sendSignal(Tblockref, GSN_CM_REGCONF, signal,
+               CmRegConf::SignalLength_v1, JBA);
+  }
+  else
+  {
+    infoEvent("Connection from node %u refused as it does not support node "
+              "bitmask in signal section.",
+              addNodePtr.i);
+    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZINCOMPATIBLE_START_TYPE,
+                    startingVersion);
+  }
   DEBUG_START(GSN_CM_REGCONF, refToNode(Tblockref), "");
 
   /**
@@ -1190,8 +1434,10 @@ void Qmgr::execCM_REGREQ(Signal* signal)
 }//Qmgr::execCM_REGREQ()
 
 void Qmgr::sendCmRegrefLab(Signal* signal, BlockReference TBRef, 
-			   CmRegRef::ErrorCode Terror) 
+			   CmRegRef::ErrorCode Terror, Uint32 remote_node_version)
 {
+  const Uint32 remoteNodeVersion = remote_node_version;
+
   CmRegRef* ref = (CmRegRef*)signal->getDataPtrSend();
   ref->blockRef = reference();
   ref->nodeId = getOwnNodeId();
@@ -1201,9 +1447,49 @@ void Qmgr::sendCmRegrefLab(Signal* signal, BlockReference TBRef,
   ref->candidate_latest_gci = c_start.m_president_candidate_gci;
   ref->latest_gci = c_start.m_latest_gci;
   ref->start_type = c_start.m_start_type;
-  c_start.m_skip_nodes.copyto(NdbNodeBitmask::Size, ref->skip_nodes);
-  sendSignal(TBRef, GSN_CM_REGREF, signal, 
-	     CmRegRef::SignalLength, JBB);
+  Uint32 packed_nodebitmask_length =
+      c_start.m_skip_nodes.getPackedLengthInWords();
+
+  if (ndbd_send_node_bitmask_in_section(remoteNodeVersion))
+  {
+    jam();
+    // Send node bitmask in linear section.
+    LinearSectionPtr lsptr[3];
+    c_start.m_skip_nodes.copyto(packed_nodebitmask_length,
+                                &signal->theData[CmRegRef::SignalLength_v1]);
+    lsptr[0].p = &signal->theData[CmRegRef::SignalLength_v1];
+    lsptr[0].sz = packed_nodebitmask_length;
+
+    sendSignal(TBRef,
+               GSN_CM_REGREF,
+               signal,
+               CmRegRef::SignalLength,
+               JBB,
+               lsptr,
+               1);
+  }
+  else if (packed_nodebitmask_length <= NdbNodeBitmask48::Size)
+  {
+    jam();
+    c_start.m_skip_nodes.copyto(NdbNodeBitmask48::Size, ref->skip_nodes_v1);
+    sendSignal(TBRef, GSN_CM_REGREF, signal,
+               CmRegRef::SignalLength_v1, JBB);
+  }
+  else
+  {
+    /**
+     * Node bitmask cannot be sent to other node since it is longer
+     * than two words. We crash if the error is not ZINCOMPATIBLE_VERSION
+     * or ZINCOMPATIBLE_START_TYPE since other errors may change the state
+     * of qmgr. Also, other errors require us to have the correct bitmask
+     * for proper functioning.
+     */
+    ndbrequire((Terror == CmRegRef::ZINCOMPATIBLE_VERSION) ||
+               (Terror == CmRegRef::ZINCOMPATIBLE_START_TYPE));
+    memset(ref->skip_nodes_v1, 0, sizeof(ref->skip_nodes_v1));
+    sendSignal(TBRef, GSN_CM_REGREF, signal,
+               CmRegRef::SignalLength_v1, JBB);
+  }
   DEBUG_START(GSN_CM_REGREF, refToNode(TBRef), "");
   return;
 }//Qmgr::sendCmRegrefLab()
@@ -1228,7 +1514,25 @@ void Qmgr::execCM_REGCONF(Signal* signal)
   NodeRecPtr nodePtr;
   jamEntry();
 
-  const CmRegConf * const cmRegConf = (CmRegConf *)&signal->theData[0];
+  CmRegConf * const cmRegConf = (CmRegConf *)&signal->theData[0];
+
+  NdbNodeBitmask allNdbNodes;
+  if (signal->getNoOfSections() >= 1)
+  {
+    // copy node bitmask to cmRegConf->allNdbNodes from the signal section
+    jam();
+    ndbrequire(ndbd_send_node_bitmask_in_section(cmRegConf->presidentVersion));
+    SectionHandle handle(this, signal);
+    SegmentedSectionPtr ptr;
+    handle.getSection(ptr, 0);
+    ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
+    copy(allNdbNodes.rep.data, ptr);
+    releaseSections(handle);
+  }
+  else
+  {
+    allNdbNodes.assign(NdbNodeBitmask48::Size, cmRegConf->allNdbNodes_v1);
+  }
 
   if (!ndbCompatible_ndb_ndb(NDB_VERSION, cmRegConf->presidentVersion)) {
     jam();
@@ -1241,27 +1545,15 @@ void Qmgr::execCM_REGCONF(Signal* signal)
     return;
   }
 
-  if (!ndb_check_hb_order_version(cmRegConf->presidentVersion) &&
-      m_hb_order_config_used) {
+  if (!ndbd_upgrade_ok(cmRegConf->presidentVersion)) {
     jam();
     char buf[128];
-    BaseString::snprintf(buf,sizeof(buf), 
-			 "incompatible version own=0x%x other=0x%x, "
-			 "due to user-defined HeartbeatOrder, shutting down", 
-			 NDB_VERSION, cmRegConf->presidentVersion);
-    progError(__LINE__, NDBD_EXIT_UNSUPPORTED_VERSION, buf);  
+    BaseString::snprintf(buf,sizeof(buf),
+      "Not okay to upgrade from 0x%x, "
+      "shutting down",
+      cmRegConf->presidentVersion);
+    progError(__LINE__, NDBD_EXIT_UNSUPPORTED_VERSION, buf);
     return;
-  }
-
-  if (m_connectivity_check.m_enabled &&
-      !ndbd_connectivity_check(cmRegConf->presidentVersion))
-  {
-    jam();
-    m_connectivity_check.m_enabled = false;
-    ndbout_c("Disabling ConnectCheckIntervalDelay as president "
-             " does not support it");
-    infoEvent("Disabling ConnectCheckIntervalDelay as president "
-              " does not support it");
   }
 
   myNodePtr.i = getOwnNodeId();
@@ -1274,7 +1566,7 @@ void Qmgr::execCM_REGCONF(Signal* signal)
   cpresident   = cmRegConf->presidentNodeId;
   UintR TdynamicId   = cmRegConf->dynamicId;
   c_maxDynamicId = TdynamicId & 0xFFFF;
-  c_clusterNodes.assign(NdbNodeBitmask::Size, cmRegConf->allNdbNodes);
+  c_clusterNodes.assign(allNdbNodes);
 
   myNodePtr.p->ndynamicId = TdynamicId;
 
@@ -1332,12 +1624,18 @@ Qmgr::check_readnodes_reply(Signal* signal, Uint32 nodeId, Uint32 gsn)
 
   ndbrequire(c_readnodes_nodes.get(nodeId));
   ReadNodesConf* conf = (ReadNodesConf*)signal->getDataPtr();
+  ReadNodesReq* req = (ReadNodesReq*)signal->getDataPtrSend();
   if (gsn == GSN_READ_NODESREF)
   {
     jam();
 retry:
-    signal->theData[0] = reference();
-    sendSignal(calcQmgrBlockRef(nodeId), GSN_READ_NODESREQ, signal, 1, JBA);
+    req->myRef = reference();
+    req->myVersion = NDB_VERSION_D;
+    sendSignal(calcQmgrBlockRef(nodeId),
+               GSN_READ_NODESREQ,
+               signal,
+               ReadNodesReq::SignalLength,
+               JBA);
     return;
   }
   
@@ -1368,33 +1666,93 @@ retry:
   if (getNodeState().startLevel == NodeState::SL_STARTED)
   {
     jam();
-    NdbNodeBitmask part;
-    part.assign(NdbNodeBitmask::Size, conf->clusterNodes);
+    NdbNodeBitmask part = conf->clusterNodes;
     FailRep* rep = (FailRep*)signal->getDataPtrSend();
     rep->failCause = FailRep::ZPARTITIONED_CLUSTER;
     rep->partitioned.president = cpresident;
-    c_clusterNodes.copyto(NdbNodeBitmask::Size, rep->partitioned.partition);
+    memset(rep->partitioned.partition_v1, 0,
+           sizeof(rep->partitioned.partition_v1));
     rep->partitioned.partitionFailSourceNodeId = getOwnNodeId();
     Uint32 ref = calcQmgrBlockRef(nodeId);
     Uint32 i = 0;
     /* Send source of event info if a node supports it */
-    Uint32 length = FailRep::OrigSignalLength + FailRep::PartitionedExtraLength;    
+    Uint32 length = FailRep::OrigSignalLength +
+        FailRep::PartitionedExtraLength_v1;
+    Uint32 packed_bitmask_length = c_clusterNodes.getPackedLengthInWords();
+
     while((i = part.find(i + 1)) != NdbNodeBitmask::NotFound)
     {
       if (i == nodeId)
 	continue;
       rep->failNodeId = i;
-      bool sendSourceId = ndbd_fail_rep_source_node((getNodeInfo(i)).m_version);
-      sendSignal(ref, GSN_FAIL_REP, signal, 
-                 length + (sendSourceId ? FailRep::SourceExtraLength : 0), 
-                 JBA);
+      if (ndbd_send_node_bitmask_in_section(getNodeInfo(refToNode(ref)).m_version))
+      {
+        jam();
+        // Send node bitmask in signal section.
+        LinearSectionPtr lsptr[3];
+        Uint32* temp_buffer = &signal->
+            theData[FailRep::SignalLength +
+                    FailRep::PartitionedExtraLength_v1];
+        c_clusterNodes.copyto(packed_bitmask_length, temp_buffer);
+        lsptr[0].p = temp_buffer;
+        lsptr[0].sz = c_clusterNodes.getPackedLengthInWords();
+        sendSignal(ref,
+                   GSN_FAIL_REP,
+                   signal,
+                   length + FailRep::SourceExtraLength,
+                   JBA,
+                   lsptr,
+                   1);
+      }
+      else if (packed_bitmask_length <= 2)
+      {
+        jam();
+        c_clusterNodes.copyto(NdbNodeBitmask48::Size, rep->partitioned.partition_v1);
+        sendSignal(ref, GSN_FAIL_REP, signal,
+                   length + FailRep::SourceExtraLength,
+                   JBA);
+      }
+      else
+      {
+        ndbabort();
+      }
     }
     rep->failNodeId = nodeId;
-    bool sendSourceId = ndbd_fail_rep_source_node((getNodeInfo(nodeId)).m_version);
     
-    sendSignal(ref, GSN_FAIL_REP, signal,
-               length + (sendSourceId ? FailRep::SourceExtraLength : 0), 
-               JBB);
+    if (ndbd_send_node_bitmask_in_section(
+        getNodeInfo(refToNode(ref)).m_version))
+    {
+      jam();
+      // Send node bitmask in signal section.
+      LinearSectionPtr lsptr[3];
+      Uint32* temp_buffer = &signal->
+          theData[FailRep::SignalLength +
+                  FailRep::PartitionedExtraLength_v1];
+      c_clusterNodes.copyto(packed_bitmask_length, temp_buffer);
+      lsptr[0].p = temp_buffer;
+      lsptr[0].sz = c_clusterNodes.getPackedLengthInWords();
+      // clear the unused bits
+      memset(rep->partitioned.partition_v1, 0,
+             sizeof(rep->partitioned.partition_v1));
+      sendSignal(ref,
+                 GSN_FAIL_REP,
+                 signal,
+                 length + FailRep::SourceExtraLength,
+                 JBA,
+                 lsptr,
+                 1);
+    }
+    else if (packed_bitmask_length <= 2)
+    {
+      jam();
+      sendSignal(ref, GSN_FAIL_REP, signal,
+                 length + FailRep::SourceExtraLength,
+                 JBB);
+    }
+    else
+    {
+      ndbabort();
+    }
     return;
   }
   
@@ -1492,13 +1850,27 @@ void Qmgr::execCM_REGREF(Signal* signal)
   NdbNodeBitmask skip_nodes;
   DEBUG_START3(signal, TrefuseReason);
 
-  if (signal->getLength() == CmRegRef::SignalLength)
+  ndbrequire(signal->getLength() >= CmRegRef::SignalLength);
+  node_gci = ref->latest_gci;
+  candidate_gci = ref->candidate_latest_gci;
+  start_type = ref->start_type;
+
+  // check if node bitmask is in signal section
+  if (signal->getNoOfSections() >= 1)
   {
     jam();
-    node_gci = ref->latest_gci;
-    candidate_gci = ref->candidate_latest_gci;
-    start_type = ref->start_type;
-    skip_nodes.assign(NdbNodeBitmask::Size, ref->skip_nodes);
+    ndbrequire(signal->getLength() >= CmRegRef::SignalLength);
+    SectionHandle handle(this, signal);
+    SegmentedSectionPtr ptr;
+    handle.getSection(ptr, 0);
+
+    ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
+    copy(skip_nodes.rep.data, ptr);
+    releaseSections(handle);
+  }
+  else
+  {
+    skip_nodes.assign(NdbNodeBitmask48::Size, ref->skip_nodes_v1);
   }
   
   c_start.m_regReqReqRecv++;
@@ -1646,6 +2018,14 @@ void Qmgr::execCM_REGREF(Signal* signal)
   return;
 }//Qmgr::execCM_REGREF()
 
+/**
+ * This function contains the logic to decide if we won the election.
+ * A prerequisite to win an election is that no one is president and
+ * that all nodes in the cluster have tried to register (except those
+ * nodes in the skip list). We will wait for a time even for the skip
+ * nodes. Each node has sent its starting GCI, so we can also ensure
+ * that any node elected as President can also act as Master in NDBCNTR.
+ */
 Uint32
 Qmgr::check_startup(Signal* signal)
 {
@@ -1920,15 +2300,19 @@ start_report:
     c_start.m_skip_nodes.copyto(sz, ptr); ptr += sz;
     report_mask.copyto(sz, ptr); ptr+= sz;
     c_start.m_no_nodegroup_nodes.copyto(sz, ptr); ptr += sz;
-    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal,
-	       4+5*NdbNodeBitmask::Size, JBB);
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = signal->theData;
+    lsptr[0].sz = 4 + 5 * NdbNodeBitmask::Size;
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 1, JBB, lsptr, 1);
   }
   return retVal;
   
 missing_nodegroup:
   jam();
   {
-    char buf[100], mask1[100], mask2[100];
+    char buf[NdbNodeBitmask::TextLength + 1];
+    char mask1[NdbNodeBitmask::TextLength + 1];
+    char mask2[NdbNodeBitmask::TextLength + 1];
     c_start.m_starting_nodes.getText(mask1);
     tmp.assign(c_start.m_starting_nodes);
     tmp.bitANDC(c_start.m_starting_nodes_w_log);
@@ -1945,7 +2329,8 @@ missing_nodegroup:
 incomplete_log:
   jam();
   {
-    char buf[100], mask1[100];
+    char buf[NdbNodeBitmask::TextLength + 1];
+    char mask1[NdbNodeBitmask::TextLength + 1];
     c_start.m_starting_nodes.getText(mask1);
     BaseString::snprintf(buf, sizeof(buf),
 			 "Incomplete log for node group: %d! "
@@ -2040,16 +2425,6 @@ void Qmgr::execCM_NODEINFOCONF(Signal* signal)
   const Uint32 version = conf->version;
   Uint32 mysql_version = conf->mysql_version;
   Uint32 lqh_workers = conf->lqh_workers;
-  if (version < NDBD_SPLIT_VERSION)
-  {
-    jam();
-    mysql_version = 0;
-  }
-  if (version < NDBD_MT_LQH_VERSION)
-  {
-    jam();
-    lqh_workers = 0;
-  }
 
   NodeRecPtr nodePtr;  
   nodePtr.i = getOwnNodeId();
@@ -2124,13 +2499,9 @@ void Qmgr::execCM_NODEINFOREQ(Signal* signal)
   setNodeInfo(addNodePtr.i).m_version = req->version;
 
   Uint32 mysql_version = req->mysql_version;
-  if (req->version < NDBD_SPLIT_VERSION)
-    mysql_version = 0;
   setNodeInfo(addNodePtr.i).m_mysql_version = mysql_version;
 
   Uint32 lqh_workers = req->lqh_workers;
-  if (req->version < NDBD_MT_LQH_VERSION)
-    lqh_workers = 0;
   setNodeInfo(addNodePtr.i).m_lqh_workers = lqh_workers;
 
   c_maxDynamicId = req->dynamicId & 0xFFFF;
@@ -2203,7 +2574,6 @@ Qmgr::cmAddPrepare(Signal* signal, NodeRecPtr nodePtr, const NodeRec * self){
 void
 Qmgr::sendApiVersionRep(Signal* signal, NodeRecPtr nodePtr)
 {
-  if (getNodeInfo(nodePtr.i).m_version >= NDBD_NODE_VERSION_REP)
   {
     jam();
     Uint32 ref = calcQmgrBlockRef(nodePtr.i);
@@ -2329,8 +2699,7 @@ void Qmgr::execCM_ADD(Signal* signal)
     EnableComReq *enableComReq = (EnableComReq *)signal->getDataPtrSend();
     enableComReq->m_senderRef = reference();
     enableComReq->m_senderData = ENABLE_COM_CM_ADD_COMMIT;
-    NodeBitmask::clear(enableComReq->m_nodeIds);
-    NodeBitmask::set(enableComReq->m_nodeIds, addNodePtr.i);
+    enableComReq->m_enableNodeId = addNodePtr.i;
     sendSignal(TRPMAN_REF, GSN_ENABLE_COMREQ, signal,
                EnableComReq::SignalLength, JBB);
     break;
@@ -2358,7 +2727,7 @@ Qmgr::execENABLE_COMCONF(Signal *signal)
   const EnableComConf *enableComConf =
     (const EnableComConf *)signal->getDataPtr();
   Uint32 state = enableComConf->m_senderData;
-  Uint32 node = NodeBitmask::find(enableComConf->m_nodeIds, 0);
+  Uint32 node = enableComConf->m_enableNodeId;
 
   jamEntry();
 
@@ -2367,9 +2736,6 @@ Qmgr::execENABLE_COMCONF(Signal *signal)
     case ENABLE_COM_CM_ADD_COMMIT:
       jam();
       /* Only exactly one node possible here. */
-      ndbrequire(node != NodeBitmask::NotFound);
-      ndbrequire(NodeBitmask::find(enableComConf->m_nodeIds, node + 1) ==
-                 NodeBitmask::NotFound);
       handleEnableComAddCommit(signal, node);
       break;
 
@@ -2381,9 +2747,6 @@ Qmgr::execENABLE_COMCONF(Signal *signal)
     case ENABLE_COM_API_REGREQ:
       jam();
       /* Only exactly one node possible here. */
-      ndbrequire(node != NodeBitmask::NotFound);
-      ndbrequire(NodeBitmask::find(enableComConf->m_nodeIds, node + 1) ==
-                 NodeBitmask::NotFound);
       handleEnableComApiRegreq(signal, node);
       break;
 
@@ -2420,7 +2783,8 @@ Qmgr::joinedCluster(Signal* signal, NodeRecPtr nodePtr){
   EnableComReq *enableComReq = (EnableComReq *)signal->getDataPtrSend();
   enableComReq->m_senderRef = reference();
   enableComReq->m_senderData = ENABLE_COM_CM_COMMIT_NEW;
-  NodeBitmask::clear(enableComReq->m_nodeIds);
+  enableComReq->m_enableNodeId = 0;
+  enableComReq->m_nodeIds.clear();
   jam();
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
     ptrAss(nodePtr, nodeRec);
@@ -2430,15 +2794,23 @@ Qmgr::joinedCluster(Signal* signal, NodeRecPtr nodePtr){
       // to open communication to ourself.
       /*-------------------------------------------------------------------*/
       jamLine(nodePtr.i);
-      NodeBitmask::set(enableComReq->m_nodeIds, nodePtr.i);
+      enableComReq->m_nodeIds.set(nodePtr.i);
     }//if
   }//for
 
-  if (!NodeBitmask::isclear(enableComReq->m_nodeIds))
+  if (!enableComReq->m_nodeIds.isclear())
   {
     jam();
-    sendSignal(TRPMAN_REF, GSN_ENABLE_COMREQ, signal,
-               EnableComReq::SignalLength, JBB);
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = enableComReq->m_nodeIds.rep.data;
+    lsptr[0].sz = enableComReq->m_nodeIds.getPackedLengthInWords();
+    sendSignal(TRPMAN_REF,
+               GSN_ENABLE_COMREQ,
+               signal,
+               EnableComReq::SignalLength,
+               JBB,
+               lsptr,
+               1);
   }
   else
   {
@@ -2739,6 +3111,7 @@ void Qmgr::initData(Signal* signal)
 
   arbitRec.method = (ArbitRec::Method)arbitMethod;
   arbitRec.state = ARBIT_NULL;          // start state for all nodes
+  DEB_ARBIT(("Arbit state = ARBIT_INIT init"));
   arbitRec.apiMask[0].clear();          // prepare for ARBIT_CFG
 
   Uint32 sum = 0;
@@ -2830,6 +3203,7 @@ void Qmgr::timerHandlingLab(Signal* signal)
   const Uint32 sentHi = signal->theData[1];
   const Uint32 sentLo = signal->theData[2];
   const NDB_TICKS sent((Uint64(sentHi) << 32) | sentLo);
+  bool send_hb_always = false;
   
   if (NdbTick_Compare(sent,TcurrentTime) > 0)
   {
@@ -2839,21 +3213,71 @@ void Qmgr::timerHandlingLab(Signal* signal)
     {
       g_eventLogger->warning("timerHandlingLab, clock ticked backwards: %llu (ms)",
                               backwards);
+      send_hb_always = true;
     }
   }
   else
   {
     const Uint64 elapsed = NdbTick_Elapsed(sent,TcurrentTime).milliSec();
-    if (elapsed >= 1000)
+    if (elapsed >= 150)
     {
+      struct ndb_rusage curr_rusage;
       jam();
-      g_eventLogger->warning("timerHandlingLab, expected 10ms sleep"
-                             ", not scheduled for: %d (ms)", int(elapsed));
-    }
-    else if (elapsed >= 150)
-    {
-      g_eventLogger->info("timerHandlingLab, expected 10ms sleep"
-                          ", not scheduled for: %d (ms)", int(elapsed));
+      send_hb_always = true;
+      bool rusage_worked = true;
+      Uint64 exec_time = 0;
+      Uint64 sys_time = 0;
+      Ndb_GetRUsage(&curr_rusage, false);
+      if ((curr_rusage.ru_utime == 0 &&
+           curr_rusage.ru_stime == 0) ||
+          (m_timer_handling_rusage.ru_utime == 0 &&
+           m_timer_handling_rusage.ru_stime == 0))
+      {
+        jam();
+        rusage_worked = false;
+      }
+      if (rusage_worked)
+      {
+        exec_time = curr_rusage.ru_utime -
+                    m_timer_handling_rusage.ru_utime;
+        sys_time = curr_rusage.ru_stime -
+                    m_timer_handling_rusage.ru_stime;
+      }
+
+      if (elapsed >= 1000)
+      {
+        if (rusage_worked)
+        {
+          g_eventLogger->warning("timerHandlingLab, expected 10ms sleep"
+                                 ", not scheduled for: %d (ms), "
+                                 "exec_time %llu us, sys_time %llu us",
+                                 int(elapsed),
+                                 exec_time,
+                                 sys_time);
+        }
+        else
+        {
+          g_eventLogger->warning("timerHandlingLab, expected 10ms sleep"
+                              ", not scheduled for: %d (ms)", int(elapsed));
+        }
+      }
+      else
+      {
+        if (rusage_worked)
+        {
+          g_eventLogger->info("timerHandlingLab, expected 10ms sleep"
+                              ", not scheduled for: %d (ms), "
+                              "exec_time %llu us, sys_time %llu us",
+                              int(elapsed),
+                              exec_time,
+                              sys_time);
+        }
+        else
+        {
+          g_eventLogger->info("timerHandlingLab, expected 10ms sleep"
+                              ", not scheduled for: %d (ms)", int(elapsed));
+        }
+      }
     }
   }
 
@@ -2862,7 +3286,17 @@ void Qmgr::timerHandlingLab(Signal* signal)
     /**---------------------------------------------------------------------
      * WE ARE ONLY PART OF HEARTBEAT CLUSTER IF WE ARE UP AND RUNNING. 
      *---------------------------------------------------------------------*/
-    if (hb_send_timer.check(TcurrentTime)) {
+    if (hb_send_timer.check(TcurrentTime) || send_hb_always)
+    {
+      /**
+       * We send heartbeats once per heartbeat interval and 4 missed heartbeat
+       * intervals will cause a failure. If QMGR is not so responsive we're
+       * having some sort of overload issue. In this case we will always take
+       * the chance to send heartbeats immediately to avoid risking heartbeat
+       * failures (send_hb_always == true).
+       *
+       * Delaying checks of heartbeat timers is much less of a problem.
+       */
       jam();
       sendHeartbeat(signal);
       hb_send_timer.reset(TcurrentTime);
@@ -2898,6 +3332,8 @@ void Qmgr::timerHandlingLab(Signal* signal)
     hb_api_timer.reset(TcurrentTime);
     apiHbHandlingLab(signal, TcurrentTime);
   }
+
+  Ndb_GetRUsage(&m_timer_handling_rusage, false);
 
   //--------------------------------------------------
   // Resend this signal with 10 milliseconds delay.
@@ -3489,16 +3925,18 @@ Qmgr::execNF_COMPLETEREP(Signal* signal)
    * earlier information that transactions can be aborted
    */
   signal->theData[0] = rep.failedNodeId;
+  // The below entries are not used by NdbAPI.
+  signal->theData[1] = reference();
+  signal->theData[2] = 0; // Unknown failure number
   NodeRecPtr nodePtr;
   for (nodePtr.i = 1; nodePtr.i < MAX_NODES; nodePtr.i++) 
   {
     ptrAss(nodePtr, nodeRec);
-    if (nodePtr.p->phase == ZAPI_ACTIVE && 
-        ndb_takeovertc(getNodeInfo(nodePtr.i).m_version))
+    if (nodePtr.p->phase == ZAPI_ACTIVE)
     {
       jamLine(nodePtr.i);
       sendSignal(nodePtr.p->blockRef, GSN_TAKE_OVERTCCONF, signal, 
-                 NFCompleteRep::SignalLength, JBB);
+                 TakeOverTcConf::SignalLength, JBB);
     }//if
   }//for
   return;
@@ -3513,6 +3951,10 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
 {
   jamEntry();
   const DisconnectRep * const rep = (DisconnectRep *)&signal->theData[0];
+  if (ERROR_INSERT_VALUE >= 951 && ERROR_INSERT_VALUE <= 960)
+  {
+    CRASH_INSERTION3();
+  }
   const Uint32 nodeId = rep->nodeId;
   const Uint32 err = rep->err;
   const NodeInfo nodeInfo = getNodeInfo(nodeId);
@@ -3543,7 +3985,9 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
     CRASH_INSERTION(938);
     CRASH_INSERTION(944);
     CRASH_INSERTION(946);
-    BaseString::snprintf(buf, 100, "Node %u disconnected", nodeId);    
+    BaseString::snprintf(buf, 100, "Node %u disconnected in phase: %u",
+                         nodeId,
+                         nodePtr.p->phase);    
     progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED, buf);
     ndbabort();
   }
@@ -3645,8 +4089,7 @@ void Qmgr::node_failed(Signal* signal, Uint16 aFailedNode)
     closeCom->requestType = CloseComReqConf::RT_NO_REPLY;
     closeCom->failNo      = 0;
     closeCom->noOfNodes   = 1;
-    NodeBitmask::clear(closeCom->theNodes);
-    NodeBitmask::set(closeCom->theNodes, failedNodePtr.i);
+    closeCom->failedNodeId = failedNodePtr.i;
     sendSignal(TRPMAN_REF, GSN_CLOSE_COMREQ, signal,
                CloseComReqConf::SignalLength, JBB);
     return;
@@ -3723,10 +4166,12 @@ Qmgr::api_failed(Signal* signal, Uint32 nodeId)
   closeCom->requestType = CloseComReqConf::RT_API_FAILURE;
   closeCom->failNo      = 0;
   closeCom->noOfNodes   = 1;
+  closeCom->failedNodeId = nodeId;
   ProcessInfo * processInfo = getProcessInfo(nodeId);
-  if(processInfo) processInfo->invalidate();
-  NodeBitmask::clear(closeCom->theNodes);
-  NodeBitmask::set(closeCom->theNodes, failedNodePtr.i);
+  if (processInfo)
+  {
+    processInfo->invalidate();
+  }
   sendSignal(TRPMAN_REF, GSN_CLOSE_COMREQ, signal,
              CloseComReqConf::SignalLength, JBB);
 } // api_failed
@@ -3747,8 +4192,6 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
   const BlockReference ref = req->ref;
   
   Uint32 mysql_version = req->mysql_version;
-  if (version < NDBD_SPLIT_VERSION)
-    mysql_version = 0;
 
   NodeRecPtr apiNodePtr;
   apiNodePtr.i = refToNode(ref);
@@ -3783,17 +4226,8 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
   NodeInfo::NodeType type= getNodeInfo(apiNodePtr.i).getType();
   switch(type){
   case NodeInfo::API:
-    if (m_micro_gcp_enabled && !ndb_check_micro_gcp(version))
-    {
-      jam();
-      compatability_check = false;
-      extra = ": micro gcp enabled";
-    }
-    else
-    {
-      jam();
-      compatability_check = ndbCompatible_ndb_api(NDB_VERSION, version);
-    }
+    jam();
+    compatability_check = ndbCompatible_ndb_api(NDB_VERSION, version);
     break;
   case NodeInfo::MGM:
     compatability_check = ndbCompatible_ndb_mgmt(NDB_VERSION, version);
@@ -3806,6 +4240,11 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
     return;
   }
   
+  if (!ndbd_upgrade_ok(version))
+  {
+    compatability_check = false;
+  }
+
   if (!compatability_check) {
     jam();
     char buf[NDB_VERSION_STRING_BUF_SZ];
@@ -3851,8 +4290,7 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
       EnableComReq *enableComReq = (EnableComReq *)signal->getDataPtrSend();
       enableComReq->m_senderRef = reference();
       enableComReq->m_senderData = ENABLE_COM_API_REGREQ;
-      NodeBitmask::clear(enableComReq->m_nodeIds);
-      NodeBitmask::set(enableComReq->m_nodeIds, apiNodePtr.i);
+      enableComReq->m_enableNodeId = apiNodePtr.i;
       sendSignal(TRPMAN_REF, GSN_ENABLE_COMREQ, signal,
                  EnableComReq::SignalLength, JBB);
       return;
@@ -3881,8 +4319,7 @@ Qmgr::handleEnableComApiRegreq(Signal *signal, Uint32 node)
   signal->theData[1] = version;
   NodeReceiverGroup rg(QMGR, c_clusterNodes);
   rg.m_nodes.clear(getOwnNodeId());
-  sendVersionedDb(rg, GSN_NODE_VERSION_REP, signal, 2, JBB,
-                  NDBD_NODE_VERSION_REP);
+  sendSignal(rg, GSN_NODE_VERSION_REP, signal, 2, JBB);
 
   signal->theData[0] = node;
   EXECUTE_DIRECT(NDBCNTR, GSN_API_START_REP, signal, 1);
@@ -4044,7 +4481,7 @@ Qmgr::execAPI_VERSION_REQ(Signal * signal) {
     conf->m_inet_addr= 0;
   }
   conf->nodeId = nodeId;
-
+  conf->isSingleUser = (nodeId == getNodeState().getSingleUserApi());
   sendSignal(senderRef,
 	     GSN_API_VERSION_CONF,
 	     signal,
@@ -4205,7 +4642,10 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
 
     Uint32 code = NDBD_EXIT_NODE_DECLARED_DEAD;
     const char * msg = 0;
-    char extra[100];
+    // Message buffer for FailRep::ZPARTITIONED_CLUSTER
+    static const Uint32 bitmaskTextLen = NdbNodeBitmask::TextLength + 1;
+    char extra[2 * bitmaskTextLen + 30];
+
     switch(aFailCause){
     case FailRep::ZOWN_FAILURE: 
       msg = "Own failure"; 
@@ -4229,15 +4669,32 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
     case FailRep::ZPARTITIONED_CLUSTER:
     {
       code = NDBD_EXIT_PARTITIONED_SHUTDOWN;
-      char buf1[100], buf2[100];
+      char buf1[bitmaskTextLen], buf2[bitmaskTextLen];
       c_clusterNodes.getText(buf1);
-      if (((signal->getLength()== FailRep::OrigSignalLength + FailRep::PartitionedExtraLength) ||
-           (signal->getLength()== FailRep::SignalLength + FailRep::PartitionedExtraLength)) &&
+      if (((signal->getLength()== FailRep::OrigSignalLength + FailRep::PartitionedExtraLength_v1) ||
+           (signal->getLength()== FailRep::SignalLength + FailRep::PartitionedExtraLength_v1)) &&
           signal->header.theVerId_signalNumber == GSN_FAIL_REP)
       {
 	jam();
 	NdbNodeBitmask part;
-	part.assign(NdbNodeBitmask::Size, rep->partitioned.partition);
+	Uint32 senderRef = signal->getSendersBlockRef();
+	Uint32 senderVersion = getNodeInfo(refToNode(senderRef)).m_version;
+	if (signal->getNoOfSections() >= 1)
+	{
+	  ndbrequire(ndbd_send_node_bitmask_in_section(senderVersion));
+	  SectionHandle handle(this, signal);
+	  SegmentedSectionPtr ptr;
+	  handle.getSection(ptr, 0);
+
+	  ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
+          copy(part.rep.data, ptr);
+
+	  releaseSections(handle);
+	}
+	else
+	{
+	  part.assign(NdbNodeBitmask48::Size, rep->partitioned.partition_v1);
+	}
 	part.getText(buf2);
 	BaseString::snprintf(extra, sizeof(extra),
 			     "Our cluster: %s other cluster: %s",
@@ -4275,7 +4732,7 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
     CRASH_INSERTION(932);
     CRASH_INSERTION(938);
 
-    char buf[255];
+    char buf[sizeof(extra) + 100];
     BaseString::snprintf(buf, sizeof(buf), 
 			 "We(%u) have been declared dead by %u (via %u) reason: %s(%u)",
 			 getOwnNodeId(),
@@ -4374,11 +4831,31 @@ void Qmgr::execPREP_FAILREQ(Signal* signal)
   PrepFailReqRef * const prepFail = (PrepFailReqRef *)&signal->theData[0];
   BlockReference Tblockref  = prepFail->xxxBlockRef;
   Uint16 TfailureNr = prepFail->failNo;
+  Uint32 senderRef = signal->getSendersBlockRef();
+  Uint32 senderVersion = getNodeInfo(refToNode(senderRef)).m_version;
 
   jamEntry();
+
+  NdbNodeBitmask nodes;
+  if (signal->getNoOfSections() >= 1)
+  {
+    jam();
+    ndbrequire(ndbd_send_node_bitmask_in_section(senderVersion));
+    SectionHandle handle(this, signal);
+    SegmentedSectionPtr ptr;
+    handle.getSection(ptr, 0);
+    ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
+    copy(nodes.rep.data, ptr);
+    releaseSections(handle);
+  }
+  else
+  {
+    jam();
+    nodes.assign(NdbNodeBitmask48::Size, prepFail->theNodes);
+  }
   
   // Clear 'c_start.m_startNode' if it failed.
-  if (NdbNodeBitmask::get(prepFail->theNodes, c_start.m_startNode))
+  if (nodes.get(c_start.m_startNode))
   {
     jam();
     c_start.reset();
@@ -4399,7 +4876,7 @@ void Qmgr::execPREP_FAILREQ(Signal* signal)
     for (nodeId = 1; nodeId < MAX_NDB_NODES; nodeId++)
     {
       if (c_start.m_nodes.isWaitingFor(nodeId) &&
-          NdbNodeBitmask::get(prepFail->theNodes, nodeId))
+          nodes.get(nodeId))
       {
         jamLine(nodeId);
         /* Found such a condition as described above, clear state */
@@ -4419,13 +4896,13 @@ void Qmgr::execPREP_FAILREQ(Signal* signal)
 
   if (ERROR_INSERTED(941) &&
       getOwnNodeId() == 4 &&
-      NdbNodeBitmask::get(prepFail->theNodes, 2))
+      nodes.get(2))
   {
     /* Insert ERROR_INSERT crash */
     CRASH_INSERTION(941);
   }
 
-  cprepFailedNodes.assign(NdbNodeBitmask::Size, prepFail->theNodes);
+  cprepFailedNodes.assign(nodes);
   ndbassert(prepFail->noOfNodes == cprepFailedNodes.count());
 
   /**
@@ -4480,70 +4957,60 @@ void Qmgr::handleApiCloseComConf(Signal* signal)
   jam();
   CloseComReqConf * const closeCom = (CloseComReqConf *)&signal->theData[0];
 
+  Uint32 nodeId = closeCom->failedNodeId;
   /* Api failure special case */
-  for(Uint32 nodeId = 0; nodeId < MAX_NODES; nodeId ++)
+  /* Check that *only* 1 *API* node is included in
+   * this CLOSE_COM_CONF
+   */
+  ndbrequire(getNodeInfo(nodeId).getType() != NodeInfo::DB);
+  ndbrequire(closeCom->noOfNodes == 1);
+      
+  /* Now that we know communication from the failed Api has
+   * ceased, we can send the required API_FAILREQ signals
+   * and continue API failure handling
+   */
+  NodeRecPtr failedNodePtr;
+  failedNodePtr.i = nodeId;
+  ptrCheckGuard(failedNodePtr, MAX_NODES, nodeRec);
+      
+  ndbrequire((failedNodePtr.p->failState == 
+              WAITING_FOR_CLOSECOMCONF_ACTIVE) ||
+              (failedNodePtr.p->failState ==
+               WAITING_FOR_CLOSECOMCONF_NOTACTIVE));
+      
+  if (failedNodePtr.p->failState == WAITING_FOR_CLOSECOMCONF_ACTIVE)
   {
-    if (NodeBitmask::get(closeCom->theNodes, nodeId))
+    /**
+     * Inform application blocks TC, DICT, SUMA etc.
+     */
+    jam();
+    sendApiFailReq(signal, nodeId, false); // !sumaOnly
+    if(arbitRec.node == nodeId)
     {
-      jam();
-      /* Check that *only* 1 *API* node is included in
-       * this CLOSE_COM_CONF
-       */
-      ndbrequire(getNodeInfo(nodeId).getType() != NodeInfo::DB);
-      ndbrequire(closeCom->noOfNodes == 1);
-      NodeBitmask::clear(closeCom->theNodes, nodeId);
-      ndbrequire(NodeBitmask::isclear(closeCom->theNodes));
-      
-      /* Now that we know communication from the failed Api has
-       * ceased, we can send the required API_FAILREQ signals
-       * and continue API failure handling
-       */
-      NodeRecPtr failedNodePtr;
-      failedNodePtr.i = nodeId;
-      ptrCheckGuard(failedNodePtr, MAX_NODES, nodeRec);
-      
-      ndbrequire((failedNodePtr.p->failState == 
-                  WAITING_FOR_CLOSECOMCONF_ACTIVE) ||
-                 (failedNodePtr.p->failState ==
-                  WAITING_FOR_CLOSECOMCONF_NOTACTIVE));
-      
-      if (failedNodePtr.p->failState == WAITING_FOR_CLOSECOMCONF_ACTIVE)
-      {
-        /**
-         * Inform application blocks TC, DICT, SUMA etc.
-         */
-        jam();
-        sendApiFailReq(signal, nodeId, false); // !sumaOnly
-        if(arbitRec.node == nodeId)
-        {
-          arbitRec.code = ArbitCode::ApiFail;
-          handleArbitApiFail(signal, nodeId);
-        }
-      }
-      else
-      {
-        /**
-         * Always inform SUMA
-         */
-        jam();
-        sendApiFailReq(signal, nodeId, true); // sumaOnly
-      }
-      
-      if (getNodeInfo(failedNodePtr.i).getType() == NodeInfo::MGM)
-      {
-        /**
-         * Allow MGM do reconnect "directly"
-         */
-        jam();
-        set_hb_count(failedNodePtr.i) = 3;
-      }
-      
-      /* Handled the single API node failure */
-      return;
+      arbitRec.code = ArbitCode::ApiFail;
+      handleArbitApiFail(signal, nodeId);
     }
   }
-  /* Never get here */
-  ndbabort();
+  else
+  {
+    /**
+     * Always inform SUMA
+     */
+    jam();
+    sendApiFailReq(signal, nodeId, true); // sumaOnly
+  }
+      
+  if (getNodeInfo(failedNodePtr.i).getType() == NodeInfo::MGM)
+  {
+    /**
+     * Allow MGM do reconnect "directly"
+     */
+    jam();
+    set_hb_count(failedNodePtr.i) = 3;
+  }
+      
+  /* Handled the single API node failure */
+  return;
 }
 
 /**---------------------------------------------------------------------------
@@ -4589,8 +5056,17 @@ void Qmgr::execCLOSE_COMCONF(Signal* signal)
   BlockReference Tblockref  = closeCom->xxxBlockRef;
   Uint16 TfailureNr = closeCom->failNo;
 
-  cprepFailedNodes.assign(NdbNodeBitmask::Size, closeCom->theNodes);
-  ndbassert(closeCom->noOfNodes == cprepFailedNodes.count());
+  if (TfailureNr != cprepareFailureNr)
+  {
+    /**
+     * A new PREP_FAILREQ was already started, so ignore this
+     * one, we will soon enough be here again for the new
+     * failure and respond to this one instead. If we were to
+     * send something, it would be ignored by President anyways.
+     */
+    jam();
+    return;
+  }
 
   UintR tprepFailConf = ZTRUE;
 
@@ -4623,7 +5099,7 @@ void Qmgr::execCLOSE_COMCONF(Signal* signal)
 		       Tblockref,
 		       GSN_PREP_FAILREF,
 		       reference(),
-		       cfailureNr,
+		       TfailureNr,
 		       cprepFailedNodes);
   } else {
     /* We have prepared the failure of the requested nodes
@@ -4681,7 +5157,7 @@ void Qmgr::execPREP_FAILCONF(Signal* signal)
     jam();
     /**
      * We're performing a system shutdown, 
-     * don't let artibtrator shut us down
+     * don't let arbitrator shut us down
      */
     return;
   }
@@ -4762,8 +5238,26 @@ void Qmgr::execPREP_FAILREF(Signal* signal)
   PrepFailReqRef * const prepFail = (PrepFailReqRef *)&signal->theData[0];
 
   Uint16 TfailureNr = prepFail->failNo;
+  cprepFailedNodes.clear();
 
-  cprepFailedNodes.assign(NdbNodeBitmask::Size, prepFail->theNodes);
+  if(signal->getNoOfSections() >= 1)
+  {
+    jam();
+    Uint32 senderRef = signal->getSendersBlockRef();
+    Uint32 senderVersion = getNodeInfo(refToNode(senderRef)).m_version;
+    ndbrequire(ndbd_send_node_bitmask_in_section(senderVersion));
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr, 0);
+    ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
+    copy(cprepFailedNodes.rep.data, ptr);
+    releaseSections(handle);
+  }
+  else
+  {
+    jam();
+    cprepFailedNodes.assign(NdbNodeBitmask48::Size, prepFail->theNodes);
+  }
   ndbassert(prepFail->noOfNodes == cprepFailedNodes.count());
 
   if (TfailureNr != cfailureNr) {
@@ -4778,6 +5272,8 @@ void Qmgr::execPREP_FAILREF(Signal* signal)
   cfailedNodes = cprepFailedNodes;
 
   cfailureNr = cfailureNr + 1;
+  // Failure number may not wrap
+  ndbrequire(cfailureNr != 0);
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
     ptrAss(nodePtr, nodeRec);
     if (nodePtr.p->phase == ZRUNNING) {
@@ -4827,23 +5323,19 @@ void Qmgr::execCOMMIT_FAILREQ(Signal* signal)
      * SIGNAL. WE CAN HEAR IT SEVERAL TIMES IF THE PRESIDENTS KEEP FAILING.
      *-----------------------------------------------------------------------*/
     ccommitFailureNr = TfailureNr;
-    NodeFailRep * const nodeFail = (NodeFailRep *)&signal->theData[0];
     
-    nodeFail->failNo    = ccommitFailureNr;
-    nodeFail->masterNodeId = cpresident;
-    nodeFail->noOfNodes = ccommitFailedNodes.count();
-    ccommitFailedNodes.copyto(NdbNodeBitmask::Size, nodeFail->theNodes);
+    Uint32 nodeFailIndex = TfailureNr % MAX_DATA_NODE_FAILURES;
+    NodeFailRec* TnodeFailRec = &nodeFailRec[nodeFailIndex];
+    ndbrequire(TnodeFailRec->president == 0);
+    TnodeFailRec->failureNr = TfailureNr;
+    TnodeFailRec->president = cpresident;
+    TnodeFailRec->nodes = ccommitFailedNodes;
 
-    if (ERROR_INSERTED(936))
-    {
-      sendSignalWithDelay(NDBCNTR_REF, GSN_NODE_FAILREP, signal, 
-                          200, NodeFailRep::SignalLength);
-    }
-    else
-    {
-      sendSignal(NDBCNTR_REF, GSN_NODE_FAILREP, signal, 
-                 NodeFailRep::SignalLength, JBB);
-    }
+    SyncThreadViaReqConf* syncReq =(SyncThreadViaReqConf*)&signal->theData[0];
+    syncReq->senderRef = reference();
+    syncReq->senderData = TfailureNr;
+    sendSignal(TRPMAN_REF, GSN_SYNC_THREAD_VIA_REQ, signal,
+               SyncThreadViaReqConf::SignalLength, JBA);
 
     /**--------------------------------------------------------------------
      * WE MUST PREPARE TO ACCEPT THE CRASHED NODE INTO THE CLUSTER AGAIN BY 
@@ -4863,6 +5355,10 @@ void Qmgr::execCOMMIT_FAILREQ(Signal* signal)
     /*----------------------------------------------------------------------*/
     /*       WE INFORM THE API'S WE HAVE CONNECTED ABOUT THE FAILED NODES.  */
     /*----------------------------------------------------------------------*/
+    LinearSectionPtr lsptr[3];
+    lsptr->p = TnodeFailRec->nodes.rep.data;
+    lsptr->sz = TnodeFailRec->nodes.getPackedLengthInWords();
+
     for (nodePtr.i = 1; nodePtr.i < MAX_NODES; nodePtr.i++) {
       ptrAss(nodePtr, nodeRec);
       if (nodePtr.p->phase == ZAPI_ACTIVE) {
@@ -4872,10 +5368,24 @@ void Qmgr::execCOMMIT_FAILREQ(Signal* signal)
 
 	nodeFail->failNo    = ccommitFailureNr;
 	nodeFail->noOfNodes = ccommitFailedNodes.count();
-	ccommitFailedNodes.copyto(NdbNodeBitmask::Size, nodeFail->theNodes);
 
-        sendSignal(nodePtr.p->blockRef, GSN_NODE_FAILREP, signal, 
-		   NodeFailRep::SignalLength, JBB);
+        if (ndbd_send_node_bitmask_in_section(
+            getNodeInfo(refToNode(nodePtr.p->blockRef)).m_version))
+        {
+          sendSignal(nodePtr.p->blockRef, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB, lsptr, 1);
+        }
+        else if (lsptr->sz <= NdbNodeBitmask48::Size)
+        {
+	  TnodeFailRec->nodes.copyto(NdbNodeBitmask48::Size,
+	                             nodeFail->theNodes);
+          sendSignal(nodePtr.p->blockRef, GSN_NODE_FAILREP, signal,
+      		   NodeFailRep::SignalLength_v1, JBB);
+        }
+        else
+        {
+          ndbabort();
+        }
       }//if
     }//for
 
@@ -4894,6 +5404,43 @@ void Qmgr::execCOMMIT_FAILREQ(Signal* signal)
   sendSignal(Tblockref, GSN_COMMIT_FAILCONF, signal, 1, JBA);
   return;
 }//Qmgr::execCOMMIT_FAILREQ()
+
+void Qmgr::execSYNC_THREAD_VIA_CONF(Signal* signal)
+{
+  jamEntry();
+
+  const SyncThreadViaReqConf* syncConf =
+    (const SyncThreadViaReqConf*)&signal->theData[0];
+  const Uint32 index = syncConf->senderData % MAX_DATA_NODE_FAILURES;
+  NodeFailRec* TnodeFailRec = &nodeFailRec[index];
+  ndbrequire(TnodeFailRec->president != 0);
+  ndbrequire(TnodeFailRec->nodes.count() != 0);
+  NodeFailRep* nodeFail = (NodeFailRep*)&signal->theData[0];
+  nodeFail->failNo = TnodeFailRec->failureNr;
+  nodeFail->masterNodeId = TnodeFailRec->president;
+  nodeFail->noOfNodes = TnodeFailRec->nodes.count();
+
+  LinearSectionPtr lsptr[3];
+  lsptr->p = TnodeFailRec->nodes.rep.data;
+  lsptr->sz = TnodeFailRec->nodes.getPackedLengthInWords();
+
+  TnodeFailRec->president = 0; // Mark entry as unused.
+
+  if (ERROR_INSERTED(936))
+  {
+    SectionHandle handle(this);
+    ndbrequire(import(handle.m_ptr[0], lsptr[0].p, lsptr[0].sz));
+    handle.m_cnt = 1;
+    sendSignalWithDelay(NDBCNTR_REF, GSN_NODE_FAILREP, signal, 
+                        200, NodeFailRep::SignalLength, &handle);
+    releaseSections(handle);
+  }
+  else
+  {
+    sendSignal(NDBCNTR_REF, GSN_NODE_FAILREP, signal,
+               NodeFailRep::SignalLength, JBA, lsptr, 1);
+  }
+}
 
 /*--------------------------------------------------------------------------*/
 /* WE HAVE RECEIVED A CONFIRM OF THAT THIS NODE HAVE COMMITTED THE FAILURES.*/
@@ -5007,10 +5554,8 @@ void Qmgr::execREAD_NODESREQ(Signal* signal)
 {
   jamEntry();
 
-  BlockReference TBref = signal->theData[0];
-
-  ReadNodesConf * const readNodes = (ReadNodesConf *)&signal->theData[0];
-
+  ReadNodesReq *req = (ReadNodesReq *)&signal->theData[0];
+  BlockReference TBref = req->myRef;
   NodeRecPtr nodePtr;
   nodePtr.i = getOwnNodeId();
   ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
@@ -5018,17 +5563,59 @@ void Qmgr::execREAD_NODESREQ(Signal* signal)
   NdbNodeBitmask tmp = c_definedNodes;
   tmp.bitANDC(c_clusterNodes);
 
-  readNodes->noOfNodes = c_definedNodes.count();
-  readNodes->masterNodeId = cpresident;
-  readNodes->ndynamicId = nodePtr.p->ndynamicId;
-  c_definedNodes.copyto(NdbNodeBitmask::Size, readNodes->definedNodes);
-  c_clusterNodes.copyto(NdbNodeBitmask::Size, readNodes->clusterNodes);
-  tmp.copyto(NdbNodeBitmask::Size, readNodes->inactiveNodes);
-  NdbNodeBitmask::clear(readNodes->startingNodes);
-  NdbNodeBitmask::clear(readNodes->startedNodes);
+  Uint32 packed_length1 = c_definedNodes.getPackedLengthInWords();
+  Uint32 packed_length2 = c_clusterNodes.getPackedLengthInWords();
+  Uint32 packed_length3 = tmp.getPackedLengthInWords();
 
-  sendSignal(TBref, GSN_READ_NODESCONF, signal, 
-	     ReadNodesConf::SignalLength, JBB);
+  if (signal->length() >= ReadNodesReq::SignalLength)
+  {
+    jam();
+    ReadNodesConf * const readNodes = (ReadNodesConf *)&signal->theData[0];
+
+    readNodes->noOfNodes = c_definedNodes.count();
+    readNodes->masterNodeId = cpresident;
+    readNodes->ndynamicId = nodePtr.p->ndynamicId;
+
+    readNodes->definedNodes = c_definedNodes;
+    readNodes->clusterNodes = c_clusterNodes;
+    readNodes->inactiveNodes = tmp;
+    readNodes->startingNodes.clear();
+    readNodes->startedNodes.clear();
+
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = readNodes->definedNodes.rep.data;
+    lsptr[0].sz = 5 * NdbNodeBitmask::Size;
+    sendSignal(TBref,
+               GSN_READ_NODESCONF,
+               signal,
+               ReadNodesConf::SignalLength,
+               JBB,
+               lsptr,
+               1);
+  }
+  else if (packed_length1 <= NdbNodeBitmask48::Size &&
+           packed_length2 <= NdbNodeBitmask48::Size &&
+           packed_length3 <= NdbNodeBitmask48::Size)
+  {
+    jam();
+    ReadNodesConf_v1 * const readNodes = (ReadNodesConf_v1 *)&signal->theData[0];
+    readNodes->noOfNodes = c_definedNodes.count();
+    readNodes->masterNodeId = cpresident;
+    readNodes->ndynamicId = nodePtr.p->ndynamicId;
+
+    c_definedNodes.copyto(NdbNodeBitmask::Size, readNodes->definedNodes);
+    c_clusterNodes.copyto(NdbNodeBitmask::Size, readNodes->clusterNodes);
+    tmp.copyto(NdbNodeBitmask::Size, readNodes->inactiveNodes);
+    NdbNodeBitmask::clear(readNodes->startingNodes);
+    NdbNodeBitmask::clear(readNodes->startedNodes);
+
+    sendSignal(TBref, GSN_READ_NODESCONF, signal,
+              ReadNodesConf_v1::SignalLength, JBB);
+  }
+  else
+  {
+    ndbabort();
+  }
 }//Qmgr::execREAD_NODESREQ()
 
 void Qmgr::systemErrorBecauseOtherNodeFailed(Signal* signal, Uint32 line,
@@ -5053,7 +5640,7 @@ void Qmgr::systemErrorLab(Signal* signal, Uint32 line, const char * message)
   // Broadcast that this node is failing to other nodes
   failReport(signal, getOwnNodeId(), (UintR)ZTRUE, FailRep::ZOWN_FAILURE, getOwnNodeId());
 
-  // If it's known why shutdown occured
+  // If it's known why shutdown occurred
   // an error message has been passed to this function
   progError(line, NDBD_EXIT_NDBREQUIRE, message);  
 }//Qmgr::systemErrorLab()
@@ -5271,22 +5858,26 @@ Uint16 Qmgr::translateDynamicIdToNodeId(Signal* signal, UintR TdynamicId)
  *--------------------------------------------------------------------------*/
 void Qmgr::sendCloseComReq(Signal* signal, BlockReference TBRef, Uint16 aFailNo)
 {
+  jam();
   CloseComReqConf * const closeCom = (CloseComReqConf *)&signal->theData[0];
   
   closeCom->xxxBlockRef = TBRef;
   closeCom->requestType = CloseComReqConf::RT_NODE_FAILURE;
   closeCom->failNo      = aFailNo;
   closeCom->noOfNodes   = cprepFailedNodes.count();
-  /**
-   * We are sending a signal where bitmap is of size NodeBitmask::size and we only
-   * have a bitmask of NdbNodeBitmask::size, we clear all bits using NodeBitmask
-   * before assigning the smaller bitmask to ensure we don't send any garbage.
-   */
-  NodeBitmask::clear(closeCom->theNodes);
-  cprepFailedNodes.copyto(NdbNodeBitmask::Size, closeCom->theNodes);
-
-  sendSignal(TRPMAN_REF, GSN_CLOSE_COMREQ, signal,
-	     CloseComReqConf::SignalLength, JBB);
+  {
+    closeCom->failedNodeId = 0; /* Indicates we're sending bitmask */
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = cprepFailedNodes.rep.data;
+    lsptr[0].sz = cprepFailedNodes.getPackedLengthInWords();
+    sendSignal(TRPMAN_REF,
+               GSN_CLOSE_COMREQ,
+               signal,
+	       CloseComReqConf::SignalLength,
+               JBB,
+               lsptr,
+               1);
+  }
 
 }//Qmgr::sendCloseComReq()
 
@@ -5302,10 +5893,29 @@ Qmgr::sendPrepFailReqRef(Signal* signal,
   prepFail->xxxBlockRef = blockRef;
   prepFail->failNo = failNo;
   prepFail->noOfNodes = nodes.count();
-  nodes.copyto(NdbNodeBitmask::Size, prepFail->theNodes);
+  Uint32 packed_length = nodes.getPackedLengthInWords();
 
-  sendSignal(dstBlockRef, gsn, signal, PrepFailReqRef::SignalLength, JBA);  
-} 
+  if (ndbd_send_node_bitmask_in_section(
+      getNodeInfo(refToNode(dstBlockRef)).m_version))
+  {
+    Uint32* temp_failed_nodes = &signal->theData[PrepFailReqRef::SignalLength];
+    nodes.copyto(NdbNodeBitmask::Size, temp_failed_nodes);
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = temp_failed_nodes;
+    lsptr[0].sz = packed_length;
+    sendSignal(dstBlockRef, gsn, signal, PrepFailReqRef::SignalLength, JBA,
+               lsptr, 1);
+  }
+  else if (packed_length <= NdbNodeBitmask48::Size)
+  {
+    nodes.copyto(NdbNodeBitmask48::Size, prepFail->theNodes);
+    sendSignal(dstBlockRef, gsn, signal, PrepFailReqRef::SignalLength_v1, JBA);
+  }
+  else
+  {
+    ndbabort();
+  }
+}
 
 
 /**--------------------------------------------------------------------------
@@ -5332,7 +5942,7 @@ void Qmgr::sendPrepFailReq(Signal* signal, Uint16 aNode)
  */
 
 /**
- * Config signals are logically part of CM_INIT.
+ * Config signals are logically part of CM_REG.
  */
 void
 Qmgr::execARBIT_CFG(Signal* signal)
@@ -5439,6 +6049,7 @@ Qmgr::handleArbitStart(Signal* signal)
   ndbrequire(cpresident == getOwnNodeId());
   ndbrequire(arbitRec.state == ARBIT_NULL);
   arbitRec.state = ARBIT_INIT;
+  DEB_ARBIT(("Arbit state = ARBIT_INIT from NULL"));
   arbitRec.newstate = true;
   startArbitThread(signal);
 }
@@ -5480,11 +6091,13 @@ Qmgr::handleArbitApiFail(Signal* signal, Uint16 nodeId)
     if (cpresident == getOwnNodeId()) {
       jam();
       arbitRec.state = ARBIT_INIT;
+      DEB_ARBIT(("Arbit state = ARBIT_INIT from RUN"));
       arbitRec.newstate = true;
       startArbitThread(signal);
     } else {
       jam();
       arbitRec.state = ARBIT_NULL;
+      DEB_ARBIT(("Arbit state = ARBIT_NULL from RUN"));
     }
     break;
   case ARBIT_CHOOSE:		// XXX too late
@@ -5525,6 +6138,7 @@ Qmgr::handleArbitNdbAdd(Signal* signal, Uint16 nodeId)
   case ARBIT_PREP2:
     jam();
     arbitRec.state = ARBIT_INIT;
+    DEB_ARBIT(("Arbit state = ARBIT_INIT from PREP2"));
     arbitRec.newstate = true;
     startArbitThread(signal);
     break;
@@ -5581,6 +6195,14 @@ Qmgr::handleArbitCheck(Signal* signal)
   Uint32 prev_alive_nodes = count_previously_alive_nodes();
   ndbrequire(cpresident == getOwnNodeId());
   NdbNodeBitmask survivorNodes;
+  /**
+   * computeArbitNdbMask will only count nodes in the state ZRUNNING, crashed
+   * nodes are thus not part of this set of nodes. The method
+   * count_previously_alive_nodes counts both nodes in ZRUNNING and in
+   * ZPREPARE_FAIL but deducts those that was previously not started to ensure
+   * that we don't rely on non-started nodes in our check for whether
+   * arbitration is required.
+   */
   computeArbitNdbMask(survivorNodes);
   {
     jam();
@@ -5596,6 +6218,7 @@ Qmgr::handleArbitCheck(Signal* signal)
       ndbout << "Requiring arbitration, even if there is no" 
              << " possible split."<< endl;
       sd->output = CheckNodeGroups::Partitioning;
+      DEB_ARBIT(("Arbit state = ARBIT_RUN in 943"));
       arbitRec.state = ARBIT_RUN;
     }
     switch (sd->output) {
@@ -5663,6 +6286,7 @@ Qmgr::handleArbitCheck(Signal* signal)
       break;
     }
     arbitRec.state = ARBIT_INIT;
+    DEB_ARBIT(("Arbit state = ARBIT_INIT from non-RUN WinGroups"));
     arbitRec.newstate = true;
     break;
   case ArbitCode::Partitioning:
@@ -5670,6 +6294,7 @@ Qmgr::handleArbitCheck(Signal* signal)
     {
       jam();
       arbitRec.state = ARBIT_CHOOSE;
+      DEB_ARBIT(("Arbit state = ARBIT_CHOOSE from RUN"));
       arbitRec.newstate = true;
       break;
     }
@@ -5688,6 +6313,7 @@ Qmgr::handleArbitCheck(Signal* signal)
   crashme:
     jam();
     arbitRec.state = ARBIT_CRASH;
+    DEB_ARBIT(("Arbit state = ARBIT_CRASH"));
     arbitRec.newstate = true;
     break;
   }
@@ -5734,6 +6360,7 @@ Qmgr::runArbitThread(Signal* signal)
 #ifdef DEBUG_ARBIT
   char buf[256];
   NdbNodeBitmask ndbMask;
+  char maskbuf[NdbNodeBitmask::TextLength + 1];
   computeArbitNdbMask(ndbMask);
   ndbout << "arbit thread:";
   ndbout << " state=" << arbitRec.state;
@@ -5742,12 +6369,12 @@ Qmgr::runArbitThread(Signal* signal)
   ndbout << " node=" << arbitRec.node;
   arbitRec.ticket.getText(buf, sizeof(buf));
   ndbout << " ticket=" << buf;
-  ndbMask.getText(buf);
-  ndbout << " ndbmask=" << buf;
+  ndbMask.getText(maskbuf);
+  ndbout << " ndbmask=" << maskbuf;
   ndbout << " sendcount=" << arbitRec.sendCount;
   ndbout << " recvcount=" << arbitRec.recvCount;
-  arbitRec.recvMask.getText(buf);
-  ndbout << " recvmask=" << buf;
+  arbitRec.recvMask.getText(maskbuf);
+  ndbout << " recvmask=" << maskbuf;
   ndbout << " code=" << arbitRec.code;
   ndbout << endl;
 #endif
@@ -5830,6 +6457,7 @@ Qmgr::stateArbitInit(Signal* signal)
   }
   arbitRec.setTimestamp();  // Init arbitration timer 
   arbitRec.state = ARBIT_FIND;
+  DEB_ARBIT(("Arbit state = ARBIT_FIND"));
   arbitRec.newstate = true;
   stateArbitFind(signal);
 }
@@ -5860,6 +6488,7 @@ Qmgr::stateArbitFind(Signal* signal)
     // Don't select any API node as arbitrator
     arbitRec.node = 0;
     arbitRec.state = ARBIT_PREP1;
+    DEB_ARBIT(("Arbit state = ARBIT_PREP1"));
     arbitRec.newstate = true;
     stateArbitPrep(signal);
     return;
@@ -5882,6 +6511,7 @@ Qmgr::stateArbitFind(Signal* signal)
         ndbrequire(c_connectedNodes.get(aPtr.i));
         arbitRec.node = aPtr.i;
         arbitRec.state = ARBIT_PREP1;
+        DEB_ARBIT(("2:Arbit state = ARBIT_PREP1"));
         arbitRec.newstate = true;
         stateArbitPrep(signal);
         return;
@@ -5957,16 +6587,19 @@ Qmgr::stateArbitPrep(Signal* signal)
   if (arbitRec.code != 0) {			// error
     jam();
     arbitRec.state = ARBIT_INIT;
+    DEB_ARBIT(("Arbit state = ARBIT_INIT stateArbitPrep"));
     arbitRec.newstate = true;
     return;
   }
   if (arbitRec.recvMask.count() == 0) {		// recv all
     if (arbitRec.state == ARBIT_PREP1) {
       jam();
+      DEB_ARBIT(("Arbit state = ARBIT_PREP2 stateArbitPrep"));
       arbitRec.state = ARBIT_PREP2;
       arbitRec.newstate = true;
     } else {
       jam();
+      DEB_ARBIT(("Arbit state = ARBIT_START stateArbitPrep"));
       arbitRec.state = ARBIT_START;
       arbitRec.newstate = true;
       stateArbitStart(signal);
@@ -5976,6 +6609,7 @@ Qmgr::stateArbitPrep(Signal* signal)
   if (arbitRec.getTimediff() > getArbitTimeout()) {
     jam();
     arbitRec.state = ARBIT_INIT;
+    DEB_ARBIT(("Arbit state = ARBIT_INIT stateArbitPrep"));
     arbitRec.newstate = true;
     return;
   }
@@ -6014,6 +6648,7 @@ Qmgr::execARBIT_PREPREQ(Signal* signal)
     reportArbitEvent(signal, NDB_LE_ArbitState);
     arbitRec.state = ARBIT_RUN;
     arbitRec.newstate = true;
+    DEB_ARBIT(("Arbit state = ARBIT_RUN PrepAtRun"));
 
     // Non-president node logs.
     if (!c_connectedNodes.get(arbitRec.node))
@@ -6118,6 +6753,7 @@ Qmgr::stateArbitStart(Signal* signal)
 
     // Don't start arbitrator in API node => ARBIT_RUN
     arbitRec.state = ARBIT_RUN;
+    DEB_ARBIT(("Arbit state = ARBIT_RUN stateArbitStart"));
     arbitRec.newstate = true;
     return;
     break;
@@ -6144,10 +6780,12 @@ Qmgr::stateArbitStart(Signal* signal)
       if (arbitRec.code == ArbitCode::ApiStart) {
         jam();
         arbitRec.state = ARBIT_RUN;
+        DEB_ARBIT(("Arbit state = ARBIT_RUN stateArbitStart:Default"));
         arbitRec.newstate = true;
         return;
       }
       arbitRec.state = ARBIT_INIT;
+      DEB_ARBIT(("Arbit state = ARBIT_INIT stateArbitStart:Default"));
       arbitRec.newstate = true;
       return;
     }
@@ -6156,6 +6794,7 @@ Qmgr::stateArbitStart(Signal* signal)
       arbitRec.code = ArbitCode::ErrTimeout;
       reportArbitEvent(signal, NDB_LE_ArbitState);
       arbitRec.state = ARBIT_INIT;
+      DEB_ARBIT(("Arbit state = ARBIT_INIT stateArbitStart:Default timeout"));
       arbitRec.newstate = true;
       return;
     }
@@ -6274,6 +6913,7 @@ Qmgr::stateArbitChoose(Signal* signal)
 
       sendCommitFailReq(signal);        // start commit of failed nodes
       arbitRec.state = ARBIT_INIT;
+      DEB_ARBIT(("Arbit state = ARBIT_INIT stateArbitChoose"));
       arbitRec.newstate = true;
       return;
     }
@@ -6313,10 +6953,12 @@ Qmgr::stateArbitChoose(Signal* signal)
         jam();
         sendCommitFailReq(signal);        // start commit of failed nodes
         arbitRec.state = ARBIT_INIT;
+        DEB_ARBIT(("Arbit state = ARBIT_INIT stateArbitChoose:Default"));
         arbitRec.newstate = true;
         return;
       }
       arbitRec.state = ARBIT_CRASH;
+      DEB_ARBIT(("Arbit state = ARBIT_CRASH stateArbitChoose:Default"));
       arbitRec.newstate = true;
       stateArbitCrash(signal);		// do it at once
       return;
@@ -6328,6 +6970,7 @@ Qmgr::stateArbitChoose(Signal* signal)
       arbitRec.code = ArbitCode::ErrTimeout;
       reportArbitEvent(signal, NDB_LE_ArbitState);
       arbitRec.state = ARBIT_CRASH;
+      DEB_ARBIT(("Arbit state = ARBIT_CRASH stateArbitChoose:Def timeout"));
       arbitRec.newstate = true;
       stateArbitCrash(signal);		// do it at once
       return;
@@ -6421,16 +7064,31 @@ Qmgr::execARBIT_STOPREP(Signal* signal)
 Uint32
 Qmgr::count_previously_alive_nodes()
 {
+  /**
+   * This function is called as part of PREP_FAILCONF handling. This
+   * means that we are preparing a node failure. This means that
+   * NDBCNTR have not yet heard about the node failure and thus we
+   * can still use the method is_node_started to see whether the
+   * node was fully started before this failure.
+   *
+   * This method is called as part of arbitration check. A node is
+   * only counted as previously alive if the node was fully started.
+   *
+   * In addition we check that the node is a data node and that the
+   * QMGR node state is what we expect it to be if it was previously
+   * alive.
+   */
   Uint32 count = 0;
   NodeRecPtr aPtr;
   for (aPtr.i = 1; aPtr.i < MAX_NDB_NODES; aPtr.i++)
   {
-    jam();
     ptrAss(aPtr, nodeRec);
     if (getNodeInfo(aPtr.i).getType() == NodeInfo::DB &&
+        c_ndbcntr->is_node_started(aPtr.i) &&
         (aPtr.p->phase == ZRUNNING || aPtr.p->phase == ZPREPARE_FAIL))
     {
       jam();
+      jamLine(Uint16(aPtr.i));
       count++;
     }
   }
@@ -6445,7 +7103,9 @@ Qmgr::computeArbitNdbMask(NodeBitmaskPOD& aMask)
   for (aPtr.i = 1; aPtr.i < MAX_NDB_NODES; aPtr.i++) {
     jam();
     ptrAss(aPtr, nodeRec);
-    if (getNodeInfo(aPtr.i).getType() == NodeInfo::DB && aPtr.p->phase == ZRUNNING){
+    if (getNodeInfo(aPtr.i).getType() == NodeInfo::DB &&
+        aPtr.p->phase == ZRUNNING)
+    {
       jam();
       aMask.set(aPtr.i);
     }
@@ -6460,7 +7120,9 @@ Qmgr::computeArbitNdbMask(NdbNodeBitmaskPOD& aMask)
   for (aPtr.i = 1; aPtr.i < MAX_NDB_NODES; aPtr.i++) {
     jam();
     ptrAss(aPtr, nodeRec);
-    if (getNodeInfo(aPtr.i).getType() == NodeInfo::DB && aPtr.p->phase == ZRUNNING){
+    if (getNodeInfo(aPtr.i).getType() == NodeInfo::DB &&
+        aPtr.p->phase == ZRUNNING)
+    {
       jam();
       aMask.set(aPtr.i);
     }
@@ -6672,8 +7334,7 @@ Qmgr::execDUMP_STATE_ORD(Signal* signal)
     closeCom->requestType = CloseComReqConf::RT_NO_REPLY;
     closeCom->failNo      = 0;
     closeCom->noOfNodes   = 1;
-    NodeBitmask::clear(closeCom->theNodes);
-    NodeBitmask::set(closeCom->theNodes, nodeId);
+    closeCom->failedNodeId = nodeId;
     sendSignal(TRPMAN_REF, GSN_CLOSE_COMREQ, signal,
                CloseComReqConf::SignalLength, JBB);
   }
@@ -6720,9 +7381,28 @@ void
 Qmgr::execNODE_FAILREP(Signal * signal)
 {
   jamEntry();
+  NodeFailRep* nodeFail = (NodeFailRep*)signal->getDataPtr();
+  if(signal->getNoOfSections() >= 1)
+  {
+    ndbrequire(ndbd_send_node_bitmask_in_section(
+        getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version));
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr, 0);
+    memset(nodeFail->theNodes, 0, sizeof(nodeFail->theNodes));
+    copy(nodeFail->theNodes, ptr);
+    releaseSections(handle);
+  }
+  else
+  {
+    memset(nodeFail->theNodes + NdbNodeBitmask48::Size, 0,
+           _NDB_NBM_DIFF_BYTES);
+  }
   // make sure any distributed signals get acknowledged
   // destructive of the signal
-  c_counterMgr.execNODE_FAILREP(signal);
+  NdbNodeBitmask failedNodes;
+  failedNodes.assign(NdbNodeBitmask::Size, nodeFail->theNodes);
+  c_counterMgr.execNODE_FAILREP(signal, failedNodes);
 }
 
 void
@@ -6747,10 +7427,23 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
   if (refToBlock(req.senderRef) != QMGR) // request from management server
   {
     /* master */
-
-    if (getOwnNodeId() != cpresident)
+    Dbdih *dih = (Dbdih*)globalData.getBlock(DBDIH, instance());
+    bool is_dih_master = dih->is_master();
+    if (getOwnNodeId() != cpresident || !is_dih_master)
     {
       jam();
+      /**
+       * Either we are not president which leads to that we are not master
+       * in DIH, or we are president but hasn't yet seen our election to
+       * master in DIH. Either way we respond with NotMaster, if we are
+       * president and not master the response will lead to a retry which
+       * is likely to be successful.
+       */
+      if (getOwnNodeId() == cpresident)
+      {
+        jam();
+        g_eventLogger->info("President, but not master at ALLOC_NODEID_REQ");
+      }
       error = AllocNodeIdRef::NotMaster;
     }
     else if (!opAllocNodeIdReq.m_tracker.done())
@@ -6776,12 +7469,15 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
     else if (req.nodeType == NodeInfo::API && c_allow_api_connect == 0)
     {
       jam();
-      error = AllocNodeIdRef::NodeReserved;
+      error = AllocNodeIdRef::NotReady;
     }
 
     if (error)
     {
       jam();
+      g_eventLogger->info("Alloc node id for node %u failed, err: %u",
+                          nodePtr.i,
+                          error);
       AllocNodeIdRef * ref = (AllocNodeIdRef*)signal->getDataPtrSend();
       ref->senderRef = reference();
       ref->errorCode = error;
@@ -6868,7 +7564,15 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
     else
     {
       jam();
-      error = AllocNodeIdRef::NodeReserved;
+      if (nodePtr.p->phase == ZFAIL_CLOSING)
+      {
+        /* Occurs during node startup */
+        error = AllocNodeIdRef::NodeFailureHandlingNotCompleted;
+      }
+      else
+      {
+        error = AllocNodeIdRef::NodeReserved;
+      }
     }
   }
 #if 0
@@ -6887,6 +7591,9 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
   if (error)
   {
     jam();
+    g_eventLogger->info("Alloc nodeid for node %u failed,err: %u",
+                        req.nodeId,
+                        error);
     AllocNodeIdRef * ref = (AllocNodeIdRef*)signal->getDataPtrSend();
     ref->senderRef = reference();
     ref->errorCode = error;
@@ -7017,6 +7724,9 @@ Qmgr::completeAllocNodeIdReq(Signal *signal)
       ptrAss(nodePtr, nodeRec);
       nodePtr.p->m_secret = 0;
     }
+    g_eventLogger->info("Alloc node id for node %u failed, err: %u",
+                        opAllocNodeIdReq.m_req.nodeId,
+                        opAllocNodeIdReq.m_error);
 
     AllocNodeIdRef * ref = (AllocNodeIdRef*)signal->getDataPtrSend();
     ref->senderRef = reference();
@@ -7032,6 +7742,8 @@ Qmgr::completeAllocNodeIdReq(Signal *signal)
 
   jam();
 
+  g_eventLogger->info("Alloc node id for node %u succeeded",
+                      opAllocNodeIdReq.m_req.nodeId);
   AllocNodeIdConf * conf = (AllocNodeIdConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = opAllocNodeIdReq.m_req.senderData;
@@ -7056,12 +7768,32 @@ void
 Qmgr::execSTOP_REQ(Signal* signal)
 {
   jamEntry();
-  c_stopReq = * (StopReq*)signal->getDataPtr();
+
+  const StopReq* req = (const StopReq*)signal->getDataPtr();
+  c_stopReq.senderRef = req->senderRef;
+  c_stopReq.senderData = req->senderData;
+  c_stopReq.requestInfo = req->requestInfo;
+  c_stopReq.nodes.clear();
+  if (signal->getNoOfSections() >= 1)
+  {
+    jam();
+    SectionHandle handle(this, signal);
+    SegmentedSectionPtr ptr;
+    handle.getSection(ptr, 0);
+    ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
+    copy(c_stopReq.nodes.rep.data, ptr);
+    releaseSections(handle);
+  }
+  else
+  {
+    jam();
+    c_stopReq.nodes.assign(NdbNodeBitmask48::Size, req->nodes);
+  }
 
   if (c_stopReq.senderRef)
   {
     jam();
-    ndbrequire(NdbNodeBitmask::get(c_stopReq.nodes, getOwnNodeId()));
+    ndbrequire(c_stopReq.nodes.get(getOwnNodeId()));
     
     StopConf *conf = (StopConf*)signal->getDataPtrSend();
     conf->senderData = c_stopReq.senderData;
@@ -7075,7 +7807,7 @@ bool
 Qmgr::check_multi_node_shutdown(Signal* signal)
 {
   if (c_stopReq.senderRef && 
-      NdbNodeBitmask::get(c_stopReq.nodes, getOwnNodeId()))
+      c_stopReq.nodes.get(getOwnNodeId()))
   {
     jam();
     if(StopReq::getPerformRestart(c_stopReq.requestInfo))
@@ -7229,7 +7961,7 @@ Qmgr::startConnectivityCheck(Signal* signal, Uint32 reason, Uint32 causingNode)
   {
     jam();
     {
-      char buff[100];
+      char buff[NdbNodeBitmask::TextLength + 1];
       m_connectivity_check.m_nodesPinged.getText(buff);
       if (firstTime)
       {
@@ -7241,7 +7973,7 @@ Qmgr::startConnectivityCheck(Signal* signal, Uint32 reason, Uint32 causingNode)
       }
       else
       {
-        char buff2[100];
+        char buff2[NdbNodeBitmask::TextLength + 1];
         m_connectivity_check.m_nodesSuspect.getText(buff2);
         g_eventLogger->info("QMGR : Restarting connectivity check of %u other nodes (%s) due to %u syspect nodes (%s)",
                             m_connectivity_check.m_nodesPinged.count(),
@@ -7261,7 +7993,11 @@ Qmgr::startConnectivityCheck(Signal* signal, Uint32 reason, Uint32 causingNode)
     Uint32* sigPtr = &signal->theData[5];
     m_connectivity_check.m_nodesPinged.copyto(bitmaskSz, sigPtr); sigPtr+= bitmaskSz;
     m_connectivity_check.m_nodesSuspect.copyto(bitmaskSz, sigPtr);
-    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 5 + (2 * bitmaskSz), JBB);
+
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = signal->theData;
+    lsptr[0].sz = 5 + 2 * NdbNodeBitmask::Size;
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 1, JBB, lsptr, 1);
 
     m_connectivity_check.m_active = true;
     m_connectivity_check.m_tick = 0;
@@ -7446,10 +8182,10 @@ Qmgr::connectivityCheckCompleted(Signal* signal)
    * Nodes failed to respond.
    * Nodes failed during
    */
-  char pinged[100];
-  char late[100];
-  char silent[100];
-  char failed[100];
+  char pinged[NdbNodeBitmask::TextLength + 1];
+  char late[NdbNodeBitmask::TextLength + 1];
+  char silent[NdbNodeBitmask::TextLength + 1];
+  char failed[NdbNodeBitmask::TextLength + 1];
 
   /* Any 'waiting' nodes have been killed
    * Surviving suspects do not include them.
@@ -7860,8 +8596,31 @@ Qmgr::execISOLATE_ORD(Signal* signal)
   IsolateOrd* sig = (IsolateOrd*) signal->theData;
   
   ndbrequire(sig->senderRef != 0);
+  Uint32 senderNode = refToNode(sig->senderRef);
+  Uint32 sz;
+  Uint32 num_sections = signal->getNoOfSections();
+  SectionHandle handle(this, signal);
+  if (ndbd_send_node_bitmask_in_section(getNodeInfo(senderNode).m_version))
+  {
+    jam();
+    ndbrequire(num_sections == 1);
+    SegmentedSectionPtr ptr;
+    handle.getSection(ptr, 0);
+    copy(sig->nodesToIsolate, ptr);
+    ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
+    sz = ptr.sz;
+  }
+  else
+  {
+    jam();
+    memset(sig->nodesToIsolate + NdbNodeBitmask48::Size,
+           0,
+           _NDB_NBM_DIFF_BYTES);
+    sz = NdbNodeBitmask::Size;
+  }
   NdbNodeBitmask victims;
-  victims.assign(NdbNodeBitmask::Size, sig->nodesToIsolate);
+  memset(&victims, 0, sizeof(victims));
+  victims.assign(sz, sig->nodesToIsolate);
   ndbrequire(!victims.isclear());
 
   switch (sig->isolateStep)
@@ -7869,31 +8628,50 @@ Qmgr::execISOLATE_ORD(Signal* signal)
   case IsolateOrd::IS_REQ:
   {
     jam();
+    releaseSections(handle);
     /* Initial request, broadcast immediately */
 
     /* Need to get the set of live nodes to broadcast to */
     NdbNodeBitmask hitmen(c_clusterNodes);
 
+    sig->isolateStep = IsolateOrd::IS_BROADCAST;
     unsigned nodeId = hitmen.find_first();
     do
     {
       jam();
-      if (!ndbd_isolate_ord(getNodeInfo(nodeId).m_version))
+      BlockReference ref = calcQmgrBlockRef(nodeId);
+      if (ndbd_send_node_bitmask_in_section(getNodeInfo(nodeId).m_version))
       {
         jam();
-        /* Node not able to handle ISOLATE_ORD, skip */
-        hitmen.clear(nodeId);
+        LinearSectionPtr lsptr[3];
+        lsptr[0].p = (Uint32*)&victims;
+        lsptr[0].sz = victims.getPackedLengthInWords();
+        sendSignal(ref,
+                   GSN_ISOLATE_ORD,
+                   signal,
+                   IsolateOrd::SignalLength,
+                   JBA,
+                   lsptr,
+                   1);
       }
-
+      else
+      {
+        jam();
+        ndbrequire(victims.getPackedLengthInWords() <= 2);
+        memset(&sig->nodesToIsolate, 0, 8);
+        memcpy(&sig->nodesToIsolate,
+               &victims,
+               4 * victims.getPackedLengthInWords());
+        sendSignal(ref,
+                   GSN_ISOLATE_ORD,
+                   signal,
+                   IsolateOrd::SignalLengthWithBitmask48,
+                   JBA);
+      }
       nodeId = hitmen.find_next(nodeId + 1);
     } while (nodeId != BitmaskImpl::NotFound);
 
     ndbrequire(!hitmen.isclear()); /* At least me */
-
-    NodeReceiverGroup rg(QMGR, hitmen);
-
-    sig->isolateStep = IsolateOrd::IS_BROADCAST;
-    sendSignal(rg, GSN_ISOLATE_ORD, signal, IsolateOrd::SignalLength, JBA);
     return;
   }
   case IsolateOrd::IS_BROADCAST:
@@ -7906,11 +8684,12 @@ Qmgr::execISOLATE_ORD(Signal* signal)
     {
       /* Delay processing until delayMillis passes */
       jam();
-      sendSignalWithDelay(reference(), 
+      sendSignalWithDelay(reference(),
                           GSN_ISOLATE_ORD, 
                           signal, 
                           sig->delayMillis, 
-                          IsolateOrd::SignalLength);
+                          IsolateOrd::SignalLength,
+                          &handle);
       return;
     }
   }
@@ -7919,6 +8698,7 @@ Qmgr::execISOLATE_ORD(Signal* signal)
   {
     jam();
 
+    releaseSections(handle);
     if (ERROR_INSERTED(942))
     {
       jam();
@@ -7956,4 +8736,78 @@ Qmgr::execISOLATE_ORD(Signal* signal)
   }
 
   ndbabort();
+}
+
+
+void
+Qmgr::execNODE_STATE_REP(Signal* signal)
+{
+  jam();
+  const NodeState prevState = getNodeState();
+  SimulatedBlock::execNODE_STATE_REP(signal);
+
+  /* Check whether we are changing state */
+  const Uint32 prevStartLevel = prevState.startLevel;
+  const Uint32 newStartLevel = getNodeState().startLevel;
+
+  if (newStartLevel != prevStartLevel)
+  {
+    jam();
+    /* Inform APIs */
+    signal->theData[0] = ZNOTIFY_STATE_CHANGE;
+    signal->theData[1] = 1;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+  }
+
+  return;
+}
+
+void
+Qmgr::handleStateChange(Signal* signal, Uint32 nodeToNotify)
+{
+  jam();
+  bool take_a_break = false;
+
+  do
+  {
+    const NodeInfo::NodeType nt = getNodeInfo(nodeToNotify).getType();
+
+    if (nt == NodeInfo::API ||
+        nt == NodeInfo::MGM)
+    {
+      jam();
+
+      NodeRecPtr notifyNode;
+      notifyNode.i = nodeToNotify;
+      ptrCheckGuard(notifyNode, MAX_NODES, nodeRec);
+
+      if (notifyNode.p->phase == ZAPI_ACTIVE)
+      {
+        jam();
+        ndbassert(c_connectedNodes.get(nodeToNotify));
+
+        /**
+         * Ok, send an unsolicited API_REGCONF to inform
+         * the API of the state change
+         */
+        set_hb_count(nodeToNotify) = 0;
+        sendApiRegConf(signal, nodeToNotify);
+
+        take_a_break = true;
+      }
+    }
+
+    nodeToNotify++;
+  } while (nodeToNotify < MAX_NODES &&
+           !take_a_break);
+
+  if (nodeToNotify < MAX_NODES)
+  {
+    jam();
+    signal->theData[0] = ZNOTIFY_STATE_CHANGE;
+    signal->theData[1] = nodeToNotify;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+  }
+
+  return;
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,6 +68,10 @@ SHM_Transporter::ndb_shm_create()
                    shmId,
                    errno,
                    strerror(errno)));
+    fprintf(stderr,
+      "ERROR: Failed to create SHM segment of size %u with errno: %d(%s)\n",
+      shmSize, errno, strerror(errno));
+    require(false);
     return false;
   }
   return true;
@@ -87,6 +91,13 @@ SHM_Transporter::ndb_shm_get()
                    shmId,
                    errno,
                    strerror(errno)));
+    if (errno != ENOENT)
+    {
+      fprintf(stderr,
+        "ERROR: Failed to get SHM segment of size %u with errno: %d(%s)\n",
+        shmSize, errno, strerror(errno));
+      require(false);
+    }
     return false;
   }
   return true;
@@ -97,16 +108,17 @@ SHM_Transporter::ndb_shm_attach()
 {
   assert(shmBuf == 0);
   shmBuf = (char *)shmat(shmId, 0, 0);
-  if (shmBuf == 0)
+  if (shmBuf == (char*)-1)
   {
-    DEBUG_FPRINTF((stderr, "(%u)shmat(%u) failed LINE:%d, shmId:%d,"
-                           " errno %d(%s)\n",
-                   localNodeId,
-                   remoteNodeId,
-                   __LINE__,
-                   shmId,
-                   errno,
-                   strerror(errno)));
+    DEBUG_FPRINTF((stderr,
+            "(%u)shmat(%u) failed LINE:%d, shmId:%d,"
+            " errno %d(%s)\n",
+            localNodeId,
+            remoteNodeId,
+            __LINE__,
+            shmId,
+            errno,
+            strerror(errno)));
     if (isServer)
       shmctl(shmId, IPC_RMID, 0);
     _shmSegCreated = false;

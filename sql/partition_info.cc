@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,6 @@
 #include "sql/auth/auth_common.h"  // *_ACL
 #include "sql/create_field.h"
 #include "sql/derror.h"  // ER_THD
-#include "sql/error_handler.h"
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item.h"
@@ -74,13 +73,13 @@ using std::string;
 // TODO: Create ::get_copy() for getting a deep copy.
 
 partition_info *partition_info::get_clone(THD *thd, bool reset /* = false */) {
-  DBUG_ENTER("partition_info::get_clone");
+  DBUG_TRACE;
   List_iterator<partition_element> part_it(partitions);
   partition_element *part;
-  partition_info *clone = new (*THR_MALLOC) partition_info(*this);
+  partition_info *clone = new (thd->mem_root) partition_info(*this);
   if (!clone) {
     mem_alloc_error(sizeof(partition_info));
-    DBUG_RETURN(NULL);
+    return NULL;
   }
   new (&(clone->read_partitions)) MY_BITMAP;
   new (&(clone->lock_partitions)) MY_BITMAP;
@@ -91,10 +90,11 @@ partition_info *partition_info::get_clone(THD *thd, bool reset /* = false */) {
   while ((part = (part_it++))) {
     List_iterator<partition_element> subpart_it(part->subpartitions);
     partition_element *subpart;
-    partition_element *part_clone = new (*THR_MALLOC) partition_element(*part);
+    partition_element *part_clone =
+        new (thd->mem_root) partition_element(*part);
     if (!part_clone) {
       mem_alloc_error(sizeof(partition_element));
-      DBUG_RETURN(NULL);
+      return NULL;
     }
 
     /* Explicitly copy the tablespace name, use the thd->mem_root. */
@@ -122,10 +122,10 @@ partition_info *partition_info::get_clone(THD *thd, bool reset /* = false */) {
     part_clone->subpartitions.empty();
     while ((subpart = (subpart_it++))) {
       partition_element *subpart_clone =
-          new (*THR_MALLOC) partition_element(*subpart);
+          new (thd->mem_root) partition_element(*subpart);
       if (!subpart_clone) {
         mem_alloc_error(sizeof(partition_element));
-        DBUG_RETURN(NULL);
+        return NULL;
       }
 
       /* Explicitly copy the tablespace name, use the thd->mem_root. */
@@ -138,18 +138,18 @@ partition_info *partition_info::get_clone(THD *thd, bool reset /* = false */) {
     }
     clone->partitions.push_back(part_clone);
   }
-  DBUG_RETURN(clone);
+  return clone;
 }
 
 partition_info *partition_info::get_full_clone(THD *thd) {
   partition_info *clone;
-  DBUG_ENTER("partition_info::get_full_clone");
+  DBUG_TRACE;
   clone = get_clone(thd);
-  if (!clone) DBUG_RETURN(NULL);
+  if (!clone) return NULL;
   memcpy(&clone->read_partitions, &read_partitions, sizeof(read_partitions));
   memcpy(&clone->lock_partitions, &lock_partitions, sizeof(lock_partitions));
   clone->bitmaps_are_initialized = bitmaps_are_initialized;
-  DBUG_RETURN(clone);
+  return clone;
 }
 
 /**
@@ -166,7 +166,7 @@ partition_info *partition_info::get_full_clone(THD *thd) {
 bool partition_info::add_named_partition(const char *part_name, size_t length) {
   PART_NAME_DEF *part_def;
   Partition_share *part_share;
-  DBUG_ENTER("partition_info::add_named_partition");
+  DBUG_TRACE;
   DBUG_ASSERT(table && table->s && table->s->ha_share);
   part_share = static_cast<Partition_share *>((table->s->ha_share));
   DBUG_ASSERT(part_share->partition_name_hash != nullptr);
@@ -176,7 +176,7 @@ bool partition_info::add_named_partition(const char *part_name, size_t length) {
   part_def = find_or_nullptr(*part_name_hash, string(part_name, length));
   if (!part_def) {
     my_error(ER_UNKNOWN_PARTITION, MYF(0), part_name, table->alias);
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (part_def->is_subpart) {
@@ -192,7 +192,7 @@ bool partition_info::add_named_partition(const char *part_name, size_t length) {
   }
   DBUG_PRINT("info", ("Found partition %u is_subpart %d for name %s",
                       part_def->part_id, part_def->is_subpart, part_name));
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -201,11 +201,11 @@ bool partition_info::add_named_partition(const char *part_name, size_t length) {
 
 bool partition_info::set_named_partition_bitmap(const char *part_name,
                                                 size_t length) {
-  DBUG_ENTER("partition_info::set_named_partition_bitmap");
+  DBUG_TRACE;
   bitmap_clear_all(&read_partitions);
-  if (add_named_partition(part_name, length)) DBUG_RETURN(true);
+  if (add_named_partition(part_name, length)) return true;
   bitmap_copy(&lock_partitions, &read_partitions);
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -217,9 +217,9 @@ bool partition_info::set_named_partition_bitmap(const char *part_name,
     @retval true  Failure
 */
 bool partition_info::set_read_partitions(List<String> *partition_names) {
-  DBUG_ENTER("partition_info::set_read_partitions");
+  DBUG_TRACE;
   if (!partition_names || !partition_names->elements) {
-    DBUG_RETURN(true);
+    return true;
   }
 
   uint num_names = partition_names->elements;
@@ -238,9 +238,9 @@ bool partition_info::set_read_partitions(List<String> *partition_names) {
   do {
     String *part_name_str = partition_names_it++;
     if (add_named_partition(part_name_str->c_ptr(), part_name_str->length()))
-      DBUG_RETURN(true);
+      return true;
   } while (++i < num_names);
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -258,12 +258,12 @@ bool partition_info::set_read_partitions(List<String> *partition_names) {
 */
 
 bool partition_info::set_partition_bitmaps(TABLE_LIST *table_list) {
-  DBUG_ENTER("partition_info::set_partition_bitmaps");
+  DBUG_TRACE;
 
   DBUG_ASSERT(bitmaps_are_initialized);
   DBUG_ASSERT(table);
   is_pruning_completed = false;
-  if (!bitmaps_are_initialized) DBUG_RETURN(true);
+  if (!bitmaps_are_initialized) return true;
 
   if (table_list && table_list->partition_names &&
       table_list->partition_names->elements) {
@@ -274,16 +274,16 @@ bool partition_info::set_partition_bitmaps(TABLE_LIST *table_list) {
         which is currently ha_partition specific.
       */
       my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
-      DBUG_RETURN(true);
+      return true;
     }
-    if (set_read_partitions(table_list->partition_names)) DBUG_RETURN(true);
+    if (set_read_partitions(table_list->partition_names)) return true;
   } else {
     bitmap_set_all(&read_partitions);
     DBUG_PRINT("info", ("Set all partitions"));
   }
   bitmap_copy(&lock_partitions, &read_partitions);
   DBUG_ASSERT(bitmap_get_first_set(&lock_partitions) != MY_BIT_NONE);
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -315,10 +315,10 @@ bool partition_info::can_prune_insert(THD *thd, enum_duplicates duplic,
                                       MY_BITMAP *used_partitions) {
   *can_prune_partitions = PRUNE_NO;
   DBUG_ASSERT(bitmaps_are_initialized);
-  DBUG_ENTER("partition_info::can_prune_insert");
+  DBUG_TRACE;
 
   if (table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION)
-    DBUG_RETURN(false); /* Should not insert prune NDB tables */
+    return false; /* Should not insert prune NDB tables */
 
   /*
     If under LOCK TABLES pruning will skip start_stmt instead of external_lock
@@ -334,7 +334,7 @@ bool partition_info::can_prune_insert(THD *thd, enum_duplicates duplic,
 
     if (trigger_chain &&
         trigger_chain->has_updated_trigger_fields(&full_part_field_set))
-      DBUG_RETURN(false);
+      return false;
   }
 
   /*
@@ -345,7 +345,7 @@ bool partition_info::can_prune_insert(THD *thd, enum_duplicates duplic,
     Field **fld;
     for (fld = table->vfield; *fld; fld++) {
       if (bitmap_is_set(&full_part_field_set, (*fld)->field_index))
-        DBUG_RETURN(false);
+        return false;
     }
   }
 
@@ -357,7 +357,7 @@ bool partition_info::can_prune_insert(THD *thd, enum_duplicates duplic,
     Field **fld;
     for (fld = table->gen_def_fields_ptr; *fld; fld++) {
       if (bitmap_is_set(&full_part_field_set, (*fld)->field_index))
-        DBUG_RETURN(false);
+        return false;
     }
   }
 
@@ -369,7 +369,7 @@ bool partition_info::can_prune_insert(THD *thd, enum_duplicates duplic,
     */
     if (bitmap_is_set(&full_part_field_set,
                       table->found_next_number_field->field_index))
-      DBUG_RETURN(false);
+      return false;
   }
 
   /*
@@ -387,12 +387,12 @@ bool partition_info::can_prune_insert(THD *thd, enum_duplicates duplic,
       be updated by ON DUPLICATE UPDATE.
     */
     if (update.function_defaults_apply_on_columns(&full_part_field_set))
-      DBUG_RETURN(false);
+      return false;
 
     /*
       TODO: add check for static update values, which can be pruned.
     */
-    if (is_fields_in_part_expr(update_fields)) DBUG_RETURN(false);
+    if (is_fields_in_part_expr(update_fields)) return false;
 
     /*
       Cannot prune if there are BEFORE UPDATE triggers that changes any
@@ -405,7 +405,7 @@ bool partition_info::can_prune_insert(THD *thd, enum_duplicates duplic,
 
       if (trigger_chain &&
           trigger_chain->has_updated_trigger_fields(&full_part_field_set))
-        DBUG_RETURN(false);
+        return false;
     }
   }
 
@@ -436,7 +436,7 @@ bool partition_info::can_prune_insert(THD *thd, enum_duplicates duplic,
     Pruning possible, have to initialize the used_partitions bitmap.
     This also clears all bits.
   */
-  if (init_partition_bitmap(used_partitions, thd->mem_root)) DBUG_RETURN(true);
+  if (init_partition_bitmap(used_partitions, thd->mem_root)) return true;
 
   /*
     If no partitioning field in set (e.g. defaults) check pruning only once.
@@ -446,7 +446,7 @@ bool partition_info::can_prune_insert(THD *thd, enum_duplicates duplic,
   else
     *can_prune_partitions = PRUNE_YES;
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -461,6 +461,8 @@ bool partition_info::can_prune_insert(THD *thd, enum_duplicates duplic,
   @returns Operational status
     @retval false  Success
     @retval true   Failure
+  A return value of 'true' may indicate conversion error,
+  so caller must check thd->is_error().
 */
 
 bool partition_info::set_used_partition(List<Item> &fields, List<Item> &values,
@@ -470,30 +472,28 @@ bool partition_info::set_used_partition(List<Item> &fields, List<Item> &values,
   THD *thd = table->in_use;
   uint32 part_id;
   longlong func_value;
-  Dummy_error_handler error_handler;
-  bool ret = true;
-  DBUG_ENTER("set_partition");
+
   DBUG_ASSERT(thd);
 
   /* Only allow checking of constant values */
   List_iterator_fast<Item> v(values);
   Item *item;
-  thd->push_internal_handler(&error_handler);
+
   while ((item = v++)) {
-    if (!item->const_item()) goto err;
+    if (!item->const_item()) return true;
   }
 
   if (copy_default_values) restore_record(table, s->default_values);
 
   if (fields.elements || !values.elements) {
-    if (fill_record(thd, table, fields, values, &full_part_field_set, NULL))
-      goto err;
+    if (fill_record(thd, table, fields, values, &full_part_field_set, NULL,
+                    false))
+      return true;
   } else {
     if (fill_record(thd, table, table->field, values, &full_part_field_set,
-                    NULL))
-      goto err;
+                    NULL, false))
+      return true;
   }
-  DBUG_ASSERT(!table->auto_increment_field_not_null);
 
   /*
     Evaluate DEFAULT functions like CURRENT_TIMESTAMP.
@@ -513,36 +513,32 @@ bool partition_info::set_used_partition(List<Item> &fields, List<Item> &values,
     my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->read_set);
     const int rc = get_partition_id(this, &part_id, &func_value);
     dbug_tmp_restore_column_map(table->read_set, old_map);
-    if (rc) goto err;
+    if (rc) return true;
   }
 
   DBUG_PRINT("info", ("Insert into partition %u", part_id));
   bitmap_set_bit(used_partitions, part_id);
-  ret = false;
-
-err:
-  thd->pop_internal_handler();
-  DBUG_RETURN(ret);
+  return false;
 }
 
-  /*
-    Create a memory area where default partition names are stored and fill it
-    up with the names.
+/*
+  Create a memory area where default partition names are stored and fill it
+  up with the names.
 
-    SYNOPSIS
-      create_default_partition_names()
-      num_parts                       Number of partitions
-      start_no                        Starting partition number
-      subpart                         Is it subpartitions
+  SYNOPSIS
+    create_default_partition_names()
+    num_parts                       Number of partitions
+    start_no                        Starting partition number
+    subpart                         Is it subpartitions
 
-    RETURN VALUE
-      A pointer to the memory area of the default partition names
+  RETURN VALUE
+    A pointer to the memory area of the default partition names
 
-    DESCRIPTION
-      A support routine for the partition code where default values are
-      generated.
-      The external routine needing this code is check_partition_info
-  */
+  DESCRIPTION
+    A support routine for the partition code where default values are
+    generated.
+    The external routine needing this code is check_partition_info
+*/
 
 #define MAX_PART_NAME_SIZE 8
 
@@ -551,7 +547,7 @@ char *partition_info::create_default_partition_names(uint num_parts_arg,
   char *ptr = (char *)sql_calloc(num_parts_arg * MAX_PART_NAME_SIZE);
   char *move_ptr = ptr;
   uint i = 0;
-  DBUG_ENTER("create_default_partition_names");
+  DBUG_TRACE;
 
   if (likely(ptr != 0)) {
     do {
@@ -561,7 +557,7 @@ char *partition_info::create_default_partition_names(uint num_parts_arg,
   } else {
     mem_alloc_error(num_parts_arg * MAX_PART_NAME_SIZE);
   }
-  DBUG_RETURN(ptr);
+  return ptr;
 }
 
 /*
@@ -580,19 +576,17 @@ void partition_info::set_show_version_string(String *packet) {
     packet->append(STRING_WITH_LEN("\n/*!50500"));
   else {
     if (part_expr)
-      part_expr->walk(&Item::intro_version, Item::WALK_POSTFIX,
+      part_expr->walk(&Item::intro_version, enum_walk::POSTFIX,
                       (uchar *)&version);
     if (subpart_expr)
-      subpart_expr->walk(&Item::intro_version, Item::WALK_POSTFIX,
+      subpart_expr->walk(&Item::intro_version, enum_walk::POSTFIX,
                          (uchar *)&version);
     if (version == 0) {
       /* No new functions in partition function */
       packet->append(STRING_WITH_LEN("\n/*!50100"));
     } else {
-      char buf[65];
-      char *buf_ptr = longlong10_to_str((longlong)version, buf, 10);
       packet->append(STRING_WITH_LEN("\n/*!"));
-      packet->append(buf, (size_t)(buf_ptr - buf));
+      packet->append_longlong(version);
     }
   }
 }
@@ -612,14 +606,14 @@ char *partition_info::create_default_subpartition_name(uint subpart_no,
                                                        const char *part_name) {
   size_t size_alloc = strlen(part_name) + MAX_PART_NAME_SIZE;
   char *ptr = (char *)sql_calloc(size_alloc);
-  DBUG_ENTER("create_default_subpartition_name");
+  DBUG_TRACE;
 
   if (likely(ptr != NULL)) {
     snprintf(ptr, size_alloc, "%ssp%u", part_name, subpart_no);
   } else {
     mem_alloc_error(size_alloc);
   }
-  DBUG_RETURN(ptr);
+  return ptr;
 }
 
 /*
@@ -652,7 +646,7 @@ bool partition_info::set_up_default_partitions(Partition_handler *part_handler,
   uint i;
   char *default_name;
   bool result = true;
-  DBUG_ENTER("partition_info::set_up_default_partitions");
+  DBUG_TRACE;
 
   if (part_type != partition_type::HASH) {
     const char *error_string;
@@ -697,7 +691,7 @@ bool partition_info::set_up_default_partitions(Partition_handler *part_handler,
   } while (++i < num_parts);
   result = false;
 end:
-  DBUG_RETURN(result);
+  return result;
 }
 
 /*
@@ -729,7 +723,7 @@ bool partition_info::set_up_default_subpartitions(
   bool result = true;
   partition_element *part_elem;
   List_iterator<partition_element> part_it(partitions);
-  DBUG_ENTER("partition_info::set_up_default_subpartitions");
+  DBUG_TRACE;
 
   if (num_subparts == 0) {
     if (!part_handler) {
@@ -764,7 +758,7 @@ bool partition_info::set_up_default_subpartitions(
   } while (++i < num_parts);
   result = false;
 end:
-  DBUG_RETURN(result);
+  return result;
 }
 
 /*
@@ -787,16 +781,16 @@ end:
 
 bool partition_info::set_up_defaults_for_partitioning(
     Partition_handler *part_handler, HA_CREATE_INFO *info, uint start_no) {
-  DBUG_ENTER("partition_info::set_up_defaults_for_partitioning");
+  DBUG_TRACE;
 
   if (!default_partitions_setup) {
     default_partitions_setup = true;
     if (use_default_partitions)
-      DBUG_RETURN(set_up_default_partitions(part_handler, info, start_no));
+      return set_up_default_partitions(part_handler, info, start_no);
     if (is_sub_partitioned() && use_default_subpartitions)
-      DBUG_RETURN(set_up_default_subpartitions(part_handler, info));
+      return set_up_default_subpartitions(part_handler, info);
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /*
@@ -819,7 +813,7 @@ char *partition_info::find_duplicate_field() {
   List_iterator<char> it_outer(part_field_list);
   uint num_fields = part_field_list.elements;
   uint i, j;
-  DBUG_ENTER("partition_info::find_duplicate_field");
+  DBUG_TRACE;
 
   for (i = 0; i < num_fields; i++) {
     field_name_outer = it_outer++;
@@ -829,22 +823,18 @@ char *partition_info::find_duplicate_field() {
       if (i >= j) continue;
       if (!(my_strcasecmp(system_charset_info, field_name_outer,
                           field_name_inner))) {
-        DBUG_RETURN(field_name_outer);
+        return field_name_outer;
       }
     }
   }
-  DBUG_RETURN(NULL);
+  return NULL;
 }
 
 /**
   @brief Get part_elem and part_id from partition name
 
   @param partition_name Name of partition to search for.
-  @param [out] file_name Partition file name (part after table name,
-                        @code
-                        #P#<part>[#SP#<subpart>]
-                        @endcode
-                        ), skipped if NULL.
+
   @param [out] part_id   Id of found partition or NOT_A_PARTITION_ID.
 
   @retval Pointer to part_elem of [sub]partition, if not found NULL
@@ -855,11 +845,10 @@ char *partition_info::find_duplicate_field() {
   the partition, but part_id will be NOT_A_PARTITION_ID and file_name not set.
 */
 partition_element *partition_info::get_part_elem(const char *partition_name,
-                                                 char *file_name,
                                                  uint32 *part_id) {
   List_iterator<partition_element> part_it(partitions);
   uint i = 0;
-  DBUG_ENTER("partition_info::get_part_elem");
+  DBUG_TRACE;
   DBUG_ASSERT(part_id);
   *part_id = NOT_A_PARTITION_ID;
   do {
@@ -871,26 +860,22 @@ partition_element *partition_info::get_part_elem(const char *partition_name,
         partition_element *sub_part_elem = sub_part_it++;
         if (!my_strcasecmp(system_charset_info, sub_part_elem->partition_name,
                            partition_name)) {
-          if (file_name)
-            create_subpartition_name(file_name, "", part_elem->partition_name,
-                                     partition_name);
           *part_id = j + (i * num_subparts);
-          DBUG_RETURN(sub_part_elem);
+          return sub_part_elem;
         }
       } while (++j < num_subparts);
 
       /* Naming a partition (first level) on a subpartitioned table. */
       if (!my_strcasecmp(system_charset_info, part_elem->partition_name,
                          partition_name))
-        DBUG_RETURN(part_elem);
+        return part_elem;
     } else if (!my_strcasecmp(system_charset_info, part_elem->partition_name,
                               partition_name)) {
-      if (file_name) create_partition_name(file_name, "", partition_name, true);
       *part_id = i;
-      DBUG_RETURN(part_elem);
+      return part_elem;
     }
   } while (++i < num_parts);
-  DBUG_RETURN(NULL);
+  return NULL;
 }
 
 /*
@@ -916,7 +901,7 @@ const char *partition_info::find_duplicate_name() {
   List_iterator<partition_element> parts_it(partitions);
   partition_element *p_elem;
 
-  DBUG_ENTER("partition_info::find_duplicate_name");
+  DBUG_TRACE;
 
   /*
     TODO: If table->s->ha_part_data->partition_name_hash.elements is > 0,
@@ -928,8 +913,7 @@ const char *partition_info::find_duplicate_name() {
   if (is_sub_partitioned()) max_names += num_parts * num_subparts;
   while ((p_elem = (parts_it++))) {
     const char *partition_name = p_elem->partition_name;
-    if (!partition_names.insert(partition_name).second)
-      DBUG_RETURN(partition_name);
+    if (!partition_names.insert(partition_name).second) return partition_name;
 
     if (!p_elem->subpartitions.is_empty()) {
       List_iterator<partition_element> subparts_it(p_elem->subpartitions);
@@ -937,11 +921,11 @@ const char *partition_info::find_duplicate_name() {
       while ((subp_elem = (subparts_it++))) {
         const char *subpartition_name = subp_elem->partition_name;
         if (!partition_names.insert(subpartition_name).second)
-          DBUG_RETURN(subpartition_name);
+          return subpartition_name;
       }
     }
   }
-  DBUG_RETURN(nullptr);
+  return nullptr;
 }
 
 /*
@@ -986,7 +970,7 @@ const char *partition_info::find_duplicate_name() {
 static bool check_engine_condition(partition_element *p_elem,
                                    bool table_engine_set,
                                    handlerton **engine_type, bool *first) {
-  DBUG_ENTER("check_engine_condition");
+  DBUG_TRACE;
 
   DBUG_PRINT("enter", ("p_eng %s t_eng %s t_eng_set %u first %u state %u",
                        ha_resolve_storage_engine_name(p_elem->engine_type),
@@ -1001,10 +985,10 @@ static bool check_engine_condition(partition_element *p_elem,
   if ((table_engine_set &&
        (p_elem->engine_type != (*engine_type) && p_elem->engine_type)) ||
       (!table_engine_set && p_elem->engine_type != (*engine_type))) {
-    DBUG_RETURN(true);
+    return true;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /*
@@ -1037,7 +1021,7 @@ bool partition_info::check_engine_mix(handlerton *engine_type,
   handlerton *old_engine_type = engine_type;
   bool first = true;
   uint n_parts = partitions.elements;
-  DBUG_ENTER("partition_info::check_engine_mix");
+  DBUG_TRACE;
   DBUG_PRINT("info",
              ("in: engine_type = %s, table_engine_set = %u",
               ha_resolve_storage_engine_name(engine_type), table_engine_set));
@@ -1078,17 +1062,17 @@ bool partition_info::check_engine_mix(handlerton *engine_type,
   if (!engine_type) engine_type = old_engine_type;
   if (engine_type->flags & HTON_NO_PARTITION) {
     my_error(ER_PARTITION_MERGE_ERROR, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
   DBUG_PRINT("info", ("out: engine_type = %s",
                       ha_resolve_storage_engine_name(engine_type)));
-  DBUG_RETURN(false);
+  return false;
 error:
   /*
     Mixed engines not yet supported but when supported it will need
     the partition handler
   */
-  DBUG_RETURN(true);
+  return true;
 }
 
 /*
@@ -1118,7 +1102,7 @@ bool partition_info::check_range_constants(THD *thd) {
   uint i;
   List_iterator<partition_element> it(partitions);
   int result = true;
-  DBUG_ENTER("partition_info::check_range_constants");
+  DBUG_TRACE;
   DBUG_PRINT("enter",
              ("RANGE with %d parts, column_list = %u", num_parts, column_list));
 
@@ -1159,7 +1143,8 @@ bool partition_info::check_range_constants(THD *thd) {
     longlong part_range_value;
     bool signed_flag = !part_expr->unsigned_flag;
 
-    range_int_array = (longlong *)sql_alloc(num_parts * sizeof(longlong));
+    range_int_array =
+        (longlong *)(*THR_MALLOC)->Alloc(num_parts * sizeof(longlong));
     if (unlikely(range_int_array == NULL)) {
       mem_alloc_error(num_parts * sizeof(longlong));
       goto end;
@@ -1187,7 +1172,7 @@ bool partition_info::check_range_constants(THD *thd) {
   }
   result = false;
 end:
-  DBUG_RETURN(result);
+  return result;
 
 range_not_increasing_error:
   my_error(ER_RANGE_NOT_INCREASING_ERROR, MYF(0));
@@ -1257,7 +1242,7 @@ bool partition_info::compare_column_values(
 */
 
 bool partition_info::check_list_constants(THD *thd) {
-  uint i, size_entries, num_column_values;
+  uint size_entries, num_column_values;
   uint list_index = 0;
   part_elem_value *list_value;
   bool result = true;
@@ -1266,7 +1251,7 @@ bool partition_info::check_list_constants(THD *thd) {
   bool found_null = false;
   void *ptr;
   List_iterator<partition_element> list_func_it(partitions);
-  DBUG_ENTER("partition_info::check_list_constants");
+  DBUG_TRACE;
 
   num_list_values = 0;
   /*
@@ -1284,7 +1269,7 @@ bool partition_info::check_list_constants(THD *thd) {
     list.
   */
 
-  i = 0;
+  uint part_id = 0;
   do {
     part_def = list_func_it++;
     if (part_def->has_null_value) {
@@ -1293,12 +1278,12 @@ bool partition_info::check_list_constants(THD *thd) {
         goto end;
       }
       has_null_value = true;
-      has_null_part_id = i;
+      has_null_part_id = part_id;
       found_null = true;
     }
     List_iterator<part_elem_value> list_val_it1(part_def->list_val_list);
     while (list_val_it1++) num_list_values++;
-  } while (++i < num_parts);
+  } while (++part_id < num_parts);
   list_func_it.rewind();
   num_column_values = part_field_list.elements;
   size_entries = column_list
@@ -1313,19 +1298,19 @@ bool partition_info::check_list_constants(THD *thd) {
     part_column_list_val *loc_list_col_array;
     loc_list_col_array = (part_column_list_val *)ptr;
     list_col_array = (part_column_list_val *)ptr;
-    i = 0;
+    part_id = 0;
     do {
       part_def = list_func_it++;
       List_iterator<part_elem_value> list_val_it2(part_def->list_val_list);
       while ((list_value = list_val_it2++)) {
         part_column_list_val *col_val = list_value->col_val_array;
-        if (unlikely(fix_column_value_functions(thd, list_value, i))) {
-          DBUG_RETURN(true);
+        if (unlikely(fix_column_value_functions(thd, list_value, part_id))) {
+          return true;
         }
         memcpy(loc_list_col_array, (const void *)col_val, size_entries);
         loc_list_col_array += num_column_values;
       }
-    } while (++i < num_parts);
+    } while (++part_id < num_parts);
 
     varlen_sort(list_col_array,
                 list_col_array + num_list_values * num_column_values,
@@ -1341,7 +1326,7 @@ bool partition_info::check_list_constants(THD *thd) {
     }
   } else {
     list_array = (LIST_PART_ENTRY *)ptr;
-    i = 0;
+    part_id = 0;
     /*
       Fix to be able to reuse signed sort functions also for unsigned
       partition functions.
@@ -1355,9 +1340,9 @@ bool partition_info::check_list_constants(THD *thd) {
       while ((list_value = list_val_it2++)) {
         calc_value = list_value->value | type_add;
         list_array[list_index].list_value = calc_value;
-        list_array[list_index++].partition_id = i;
+        list_array[list_index++].partition_id = part_id;
       }
-    } while (++i < num_parts);
+    } while (++part_id < num_parts);
 
     LIST_PART_ENTRY *list_array_end = list_array + num_list_values;
     std::sort(list_array, list_array_end,
@@ -1376,7 +1361,7 @@ bool partition_info::check_list_constants(THD *thd) {
   DBUG_ASSERT(fixed);
   result = false;
 end:
-  DBUG_RETURN(result);
+  return result;
 }
 
 /**
@@ -1427,7 +1412,7 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
   uint i, tot_partitions;
   bool result = true, table_engine_set;
   const char *same_name;
-  DBUG_ENTER("partition_info::check_partition_info");
+  DBUG_TRACE;
 
   DBUG_PRINT("info", ("default table_engine = %s",
                       ha_resolve_storage_engine_name(table_engine)));
@@ -1438,14 +1423,14 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
     if (!list_of_part_fields) {
       DBUG_ASSERT(part_expr);
       err = part_expr->walk(&Item::check_partition_func_processor,
-                            Item::WALK_POSTFIX, NULL);
+                            enum_walk::POSTFIX, NULL);
     }
 
     /* Check for sub partition expression. */
     if (!err && is_sub_partitioned() && !list_of_subpart_fields) {
       DBUG_ASSERT(subpart_expr);
       err = subpart_expr->walk(&Item::check_partition_func_processor,
-                               Item::WALK_POSTFIX, NULL);
+                               enum_walk::POSTFIX, NULL);
     }
 
     if (err) {
@@ -1620,7 +1605,7 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
   }
   result = false;
 end:
-  DBUG_RETURN(result);
+  return result;
 }
 
 /*
@@ -1636,7 +1621,7 @@ end:
 
 void partition_info::print_no_partition_found(THD *thd, TABLE *table_arg) {
   char buf[100];
-  char *buf_ptr = (char *)&buf;
+  const char *buf_ptr = buf;
   TABLE_LIST table_list;
 
   table_list.db = table_arg->s->db.str;
@@ -1647,14 +1632,14 @@ void partition_info::print_no_partition_found(THD *thd, TABLE *table_arg) {
                ER_THD(thd, ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT), MYF(0));
   } else {
     if (column_list)
-      buf_ptr = (char *)"from column_list";
+      buf_ptr = "from column_list";
     else {
       my_bitmap_map *old_map =
           dbug_tmp_use_all_columns(table_arg, table_arg->read_set);
       if (part_expr->null_value)
-        buf_ptr = (char *)"NULL";
+        buf_ptr = "NULL";
       else
-        longlong2str(err_value, buf, part_expr->unsigned_flag ? 10 : -10);
+        longlong10_to_str(err_value, buf, part_expr->unsigned_flag ? 10 : -10);
       dbug_tmp_restore_column_map(table_arg->read_set, old_map);
     }
     my_error(ER_NO_PARTITION_FOR_GIVEN_VALUE, MYF(0), buf_ptr);
@@ -1716,16 +1701,16 @@ bool partition_info::set_part_expr(char *start_token, Item *item_ptr,
 bool partition_info::check_partition_field_length() {
   uint store_length = 0;
   uint i;
-  DBUG_ENTER("partition_info::check_partition_field_length");
+  DBUG_TRACE;
 
   for (i = 0; i < num_part_fields; i++)
     store_length += get_partition_field_store_length(part_field_array[i]);
-  if (store_length > MAX_KEY_LENGTH) DBUG_RETURN(true);
+  if (store_length > MAX_KEY_LENGTH) return true;
   store_length = 0;
   for (i = 0; i < num_subpart_fields; i++)
     store_length += get_partition_field_store_length(subpart_field_array[i]);
-  if (store_length > MAX_KEY_LENGTH) DBUG_RETURN(true);
-  DBUG_RETURN(false);
+  if (store_length > MAX_KEY_LENGTH) return true;
+  return false;
 }
 
 /*
@@ -1752,7 +1737,7 @@ bool partition_info::set_up_charset_field_preps() {
   uint tot_fields = 0;
   uint tot_part_fields = 0;
   uint tot_subpart_fields = 0;
-  DBUG_ENTER("set_up_charset_field_preps");
+  DBUG_TRACE;
 
   if (!(part_type == partition_type::HASH && list_of_part_fields) &&
       check_part_func_fields(part_field_array, false)) {
@@ -1770,7 +1755,7 @@ bool partition_info::set_up_charset_field_preps() {
     if (!(char_ptrs = (uchar **)sql_calloc(size))) goto error;
     restore_part_field_ptrs = char_ptrs;
     size = (tot_part_fields + 1) * sizeof(Field *);
-    if (!(char_ptrs = (uchar **)sql_alloc(size))) goto error;
+    if (!(char_ptrs = (uchar **)(*THR_MALLOC)->Alloc(size))) goto error;
     part_charset_field_array = (Field **)char_ptrs;
     ptr = part_field_array;
     i = 0;
@@ -1801,7 +1786,7 @@ bool partition_info::set_up_charset_field_preps() {
     if (!(char_ptrs = (uchar **)sql_calloc(size))) goto error;
     restore_subpart_field_ptrs = char_ptrs;
     size = (tot_subpart_fields + 1) * sizeof(Field *);
-    if (!(char_ptrs = (uchar **)sql_alloc(size))) goto error;
+    if (!(char_ptrs = (uchar **)(*THR_MALLOC)->Alloc(size))) goto error;
     subpart_charset_field_array = (Field **)char_ptrs;
     ptr = subpart_field_array;
     i = 0;
@@ -1816,10 +1801,10 @@ bool partition_info::set_up_charset_field_preps() {
     }
     subpart_charset_field_array[i] = NULL;
   }
-  DBUG_RETURN(false);
+  return false;
 error:
   mem_alloc_error(size);
-  DBUG_RETURN(true);
+  return true;
 }
 
 /*
@@ -1881,7 +1866,7 @@ err:
 
 void partition_info::report_part_expr_error(bool use_subpart_expr) {
   Item *expr = part_expr;
-  DBUG_ENTER("partition_info::report_part_expr_error");
+  DBUG_TRACE;
   if (use_subpart_expr) expr = subpart_expr;
 
   if (expr->type() == Item::FIELD_ITEM) {
@@ -1901,14 +1886,13 @@ void partition_info::report_part_expr_error(bool use_subpart_expr) {
         !(type == partition_type::HASH && list_of_fields)) {
       my_error(ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD, MYF(0),
                item_field->item_name.ptr());
-      DBUG_VOID_RETURN;
+      return;
     }
   }
   if (use_subpart_expr)
     my_error(ER_PARTITION_FUNC_NOT_ALLOWED_ERROR, MYF(0), "SUBPARTITION");
   else
     my_error(ER_PARTITION_FUNC_NOT_ALLOWED_ERROR, MYF(0), "PARTITION");
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -1925,14 +1909,14 @@ bool partition_info::is_fields_in_part_expr(List<Item> &fields) {
   List_iterator<Item> it(fields);
   Item *item;
   Item_field *field;
-  DBUG_ENTER("is_fields_in_part_expr");
+  DBUG_TRACE;
   while ((item = it++)) {
     field = item->field_for_view_update();
     DBUG_ASSERT(field->field->table == table);
     if (bitmap_is_set(&full_part_field_set, field->field->field_index))
-      DBUG_RETURN(true);
+      return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -1942,7 +1926,7 @@ bool partition_info::is_fields_in_part_expr(List<Item> &fields) {
 bool partition_info::is_full_part_expr_in_fields(List<Item> &fields) {
   Field **part_field = full_part_field_array;
   DBUG_ASSERT(*part_field);
-  DBUG_ENTER("is_full_part_expr_in_fields");
+  DBUG_TRACE;
   /*
     It is very seldom many fields in full_part_field_array, so it is OK
     to loop over all of them instead of creating a bitmap fields argument
@@ -1962,9 +1946,9 @@ bool partition_info::is_full_part_expr_in_fields(List<Item> &fields) {
         break;
       }
     }
-    if (!found) DBUG_RETURN(false);
+    if (!found) return false;
   } while (*(++part_field));
-  DBUG_RETURN(true);
+  return true;
 }
 
 /**
@@ -1978,14 +1962,14 @@ bool partition_info::is_full_part_expr_in_fields(List<Item> &fields) {
 */
 
 bool Parser_partition_info::add_max_value() {
-  DBUG_ENTER("partition_info::add_max_value");
+  DBUG_TRACE;
 
   part_column_list_val *col_val;
   if (!(col_val = add_column_value())) {
-    DBUG_RETURN(true);
+    return true;
   }
   col_val->max_value = true;
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -2002,12 +1986,12 @@ bool Parser_partition_info::add_max_value() {
 part_column_list_val *Parser_partition_info::add_column_value() {
   uint max_val =
       part_info->num_columns ? part_info->num_columns : MAX_REF_PARTS;
-  DBUG_ENTER("add_column_value");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("num_columns = %u, curr_list_object %u, max_val = %u",
                        part_info->num_columns, curr_list_object, max_val));
   if (curr_list_object < max_val) {
     curr_list_val->added_items++;
-    DBUG_RETURN(&curr_list_val->col_val_array[curr_list_object++]);
+    return &curr_list_val->col_val_array[curr_list_object++];
   }
   if (!part_info->num_columns && part_info->part_type == partition_type::LIST) {
     /*
@@ -2020,9 +2004,9 @@ part_column_list_val *Parser_partition_info::add_column_value() {
       ourselves recursively which should always succeed.
     */
     if (!reorganize_into_single_field_col_val() && !init_column_part()) {
-      DBUG_RETURN(add_column_value());
+      return add_column_value();
     }
-    DBUG_RETURN(NULL);
+    return NULL;
   }
   if (part_info->column_list) {
     my_error(ER_PARTITION_COLUMN_LIST_ERROR, MYF(0));
@@ -2032,7 +2016,7 @@ part_column_list_val *Parser_partition_info::add_column_value() {
     else
       my_error(ER_TOO_MANY_VALUES_ERROR, MYF(0), "LIST");
   }
-  DBUG_RETURN(NULL);
+  return NULL;
 }
 
 /**
@@ -2046,7 +2030,7 @@ part_column_list_val *Parser_partition_info::add_column_value() {
 
 void Parser_partition_info::init_col_val(part_column_list_val *col_val,
                                          Item *item) {
-  DBUG_ENTER("partition_info::init_col_val");
+  DBUG_TRACE;
 
   col_val->item_expression = item;
   col_val->null_value = item->null_value;
@@ -2063,7 +2047,6 @@ void Parser_partition_info::init_col_val(part_column_list_val *col_val,
     if (!curr_list_val->unsigned_flag) curr_part_elem->signed_flag = true;
   }
   col_val->part_info = NULL;
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -2084,12 +2067,12 @@ bool Parser_partition_info::add_column_list_value(THD *thd, Item *item) {
   Name_resolution_context *context = &thd->lex->current_select()->context;
   TABLE_LIST *save_list = context->table_list;
   const char *save_where = thd->where;
-  DBUG_ENTER("partition_info::add_column_list_value");
+  DBUG_TRACE;
 
   if (part_info->part_type == partition_type::LIST &&
       part_info->num_columns == 1U) {
     if (init_column_part()) {
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
@@ -2099,25 +2082,25 @@ bool Parser_partition_info::add_column_list_value(THD *thd, Item *item) {
   else
     thd->where = "partition function";
 
-  if (item->walk(&Item::check_partition_func_processor, Item::WALK_POSTFIX,
+  if (item->walk(&Item::check_partition_func_processor, enum_walk::POSTFIX,
                  NULL)) {
     my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
   if (item->fix_fields(thd, (Item **)0) ||
       ((context->table_list = save_list), false) || (!item->const_item())) {
     context->table_list = save_list;
     thd->where = save_where;
     my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
   thd->where = save_where;
 
   if (!(col_val = add_column_value())) {
-    DBUG_RETURN(true);
+    return true;
   }
   init_col_val(col_val, item);
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -2137,12 +2120,12 @@ bool Parser_partition_info::init_column_part() {
   part_column_list_val *col_val_array;
   part_elem_value *list_val;
   uint loc_num_columns;
-  DBUG_ENTER("partition_info::init_column_part");
+  DBUG_TRACE;
 
   if (!(list_val = (part_elem_value *)sql_calloc(sizeof(part_elem_value))) ||
       p_elem->list_val_list.push_back(list_val)) {
     mem_alloc_error(sizeof(part_elem_value));
-    DBUG_RETURN(true);
+    return true;
   }
   if (part_info->num_columns)
     loc_num_columns = part_info->num_columns;
@@ -2151,13 +2134,13 @@ bool Parser_partition_info::init_column_part() {
   if (!(col_val_array = (part_column_list_val *)sql_calloc(
             loc_num_columns * sizeof(part_column_list_val)))) {
     mem_alloc_error(loc_num_columns * sizeof(part_elem_value));
-    DBUG_RETURN(true);
+    return true;
   }
   list_val->col_val_array = col_val_array;
   list_val->added_items = 0;
   curr_list_val = list_val;
   curr_list_object = 0;
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -2186,7 +2169,7 @@ bool Parser_partition_info::reorganize_into_single_field_col_val() {
   part_elem_value *val = curr_list_val;
   uint num_values = part_info->num_columns;
   uint i;
-  DBUG_ENTER("Parser_partition_info::reorganize_into_single_field_col_val");
+  DBUG_TRACE;
   DBUG_ASSERT(part_info->part_type == partition_type::LIST);
   DBUG_ASSERT(!part_info->num_columns ||
               part_info->num_columns == val->added_items);
@@ -2199,16 +2182,16 @@ bool Parser_partition_info::reorganize_into_single_field_col_val() {
   for (i = 1; i < num_values; i++) {
     col_val = &val->col_val_array[i];
     if (init_column_part()) {
-      DBUG_RETURN(true);
+      return true;
     }
     if (!(new_col_val = add_column_value())) {
-      DBUG_RETURN(true);
+      return true;
     }
     memcpy(new_col_val, col_val, sizeof(*col_val));
     init_col_val(new_col_val, col_val->item_expression);
   }
   curr_list_val = val;
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -2231,21 +2214,21 @@ bool partition_info::fix_partition_values(part_elem_value *val,
                                           partition_element *part_elem,
                                           uint part_id) {
   part_column_list_val *col_val = val->col_val_array;
-  DBUG_ENTER("partition_info::fix_partition_values");
+  DBUG_TRACE;
 
   if (col_val->fixed) {
-    DBUG_RETURN(false);
+    return false;
   }
   if (val->added_items != 1) {
     my_error(ER_PARTITION_COLUMN_LIST_ERROR, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
   if (col_val->max_value) {
     /* The parser ensures we're not LIST partitioned here */
     DBUG_ASSERT(part_type == partition_type::RANGE);
     if (defined_max_value) {
       my_error(ER_PARTITION_MAXVALUE_ERROR, MYF(0));
-      DBUG_RETURN(true);
+      return true;
     }
     if (part_id == (num_parts - 1)) {
       defined_max_value = true;
@@ -2253,31 +2236,31 @@ bool partition_info::fix_partition_values(part_elem_value *val,
       part_elem->range_value = LLONG_MAX;
     } else {
       my_error(ER_PARTITION_MAXVALUE_ERROR, MYF(0));
-      DBUG_RETURN(true);
+      return true;
     }
   } else {
     Item *item_expr = col_val->item_expression;
     if ((val->null_value = item_expr->null_value)) {
       if (part_elem->has_null_value) {
         my_error(ER_MULTIPLE_DEF_CONST_IN_LIST_PART_ERROR, MYF(0));
-        DBUG_RETURN(true);
+        return true;
       }
       part_elem->has_null_value = true;
     } else if (item_expr->result_type() != INT_RESULT) {
       my_error(ER_VALUES_IS_NOT_INT_TYPE_ERROR, MYF(0),
                part_elem->partition_name);
-      DBUG_RETURN(true);
+      return true;
     }
     if (part_type == partition_type::RANGE) {
       if (part_elem->has_null_value) {
         my_error(ER_NULL_IN_VALUES_LESS_THAN, MYF(0));
-        DBUG_RETURN(true);
+        return true;
       }
       part_elem->range_value = val->value;
     }
   }
   col_val->fixed = 2;
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -2322,10 +2305,10 @@ bool partition_info::fix_column_value_functions(THD *thd, part_elem_value *val,
   bool result = false;
   uint i;
   part_column_list_val *col_val = val->col_val_array;
-  DBUG_ENTER("partition_info::fix_column_value_functions");
+  DBUG_TRACE;
 
   if (col_val->fixed > 1) {
-    DBUG_RETURN(false);
+    return false;
   }
   for (i = 0; i < n_columns; col_val++, i++) {
     Item *column_item = col_val->item_expression;
@@ -2367,7 +2350,7 @@ bool partition_info::fix_column_value_functions(THD *thd, part_elem_value *val,
     col_val->fixed = 2;
   }
 end:
-  DBUG_RETURN(result);
+  return result;
 }
 
 /**
@@ -2418,7 +2401,7 @@ bool partition_info::fix_parser_data(THD *thd) {
   partition_element *part_elem;
   uint num_elements;
   uint i = 0, j, k;
-  DBUG_ENTER("partition_info::fix_parser_data");
+  DBUG_TRACE;
 
   if (!(part_type == partition_type::RANGE ||
         part_type == partition_type::LIST)) {
@@ -2426,7 +2409,7 @@ bool partition_info::fix_parser_data(THD *thd) {
       /* KEY partitioning, check ALGORITHM = N. Should not pass the parser! */
       if (key_algorithm > enum_key_algorithm::KEY_ALGORITHM_55) {
         my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
-        DBUG_RETURN(true);
+        return true;
       }
       /* If not set, use DEFAULT = 2 for CREATE and ALTER! */
       if ((thd_sql_command(thd) == SQLCOM_CREATE_TABLE ||
@@ -2434,13 +2417,13 @@ bool partition_info::fix_parser_data(THD *thd) {
           key_algorithm == enum_key_algorithm::KEY_ALGORITHM_NONE)
         key_algorithm = enum_key_algorithm::KEY_ALGORITHM_55;
     }
-    DBUG_RETURN(false);
+    return false;
   }
   if (is_sub_partitioned() && list_of_subpart_fields) {
     /* KEY subpartitioning, check ALGORITHM = N. Should not pass the parser! */
     if (key_algorithm > enum_key_algorithm::KEY_ALGORITHM_55) {
       my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
-      DBUG_RETURN(true);
+      return true;
     }
     /* If not set, use DEFAULT = 2 for CREATE and ALTER! */
     if ((thd_sql_command(thd) == SQLCOM_CREATE_TABLE ||
@@ -2458,18 +2441,18 @@ bool partition_info::fix_parser_data(THD *thd) {
       if (column_list) {
         if (val->added_items != num_columns) {
           my_error(ER_PARTITION_COLUMN_LIST_ERROR, MYF(0));
-          DBUG_RETURN(true);
+          return true;
         }
         for (k = 0; k < num_columns; k++) {
           part_column_list_val *col_val = &val->col_val_array[k];
           if (col_val->null_value && part_type == partition_type::RANGE) {
             my_error(ER_NULL_IN_VALUES_LESS_THAN, MYF(0));
-            DBUG_RETURN(true);
+            return true;
           }
         }
       } else {
         if (fix_partition_values(val, part_elem, i)) {
-          DBUG_RETURN(true);
+          return true;
         }
         if (val->null_value) {
           /*
@@ -2481,7 +2464,7 @@ bool partition_info::fix_parser_data(THD *thd) {
       }
     }
   } while (++i < num_parts);
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -2520,7 +2503,7 @@ static bool strcmp_null(const char *a, const char *b) {
 */
 
 bool partition_info::has_same_partitioning(partition_info *new_part_info) {
-  DBUG_ENTER("partition_info::has_same_partitioning");
+  DBUG_TRACE;
 
   DBUG_ASSERT(part_field_array && part_field_array[0]);
 
@@ -2529,13 +2512,13 @@ bool partition_info::has_same_partitioning(partition_info *new_part_info) {
     a new one with KEY ALGORITHM = 1 ().
   */
 
-  if (part_field_array[0]->table->s->mysql_version >= 50503) DBUG_RETURN(false);
+  if (part_field_array[0]->table->s->mysql_version >= 50503) return false;
 
   if (!new_part_info || part_type != new_part_info->part_type ||
       num_parts != new_part_info->num_parts ||
       use_default_partitions != new_part_info->use_default_partitions ||
       new_part_info->is_sub_partitioned() != is_sub_partitioned())
-    DBUG_RETURN(false);
+    return false;
 
   if (part_type != partition_type::HASH) {
     /*
@@ -2549,22 +2532,24 @@ bool partition_info::has_same_partitioning(partition_info *new_part_info) {
         new_part_info->subpart_field_list.elements !=
             subpart_field_list.elements ||
         new_part_info->use_default_subpartitions != use_default_subpartitions)
-      DBUG_RETURN(false);
+      return false;
   } else {
     /* Check if KEY partitioned. */
     if (!new_part_info->list_of_part_fields || !list_of_part_fields ||
         new_part_info->part_field_list.elements != part_field_list.elements)
-      DBUG_RETURN(false);
+      return false;
   }
 
   /* Check that it will use the same fields in KEY (fields) list. */
-  List_iterator<char> old_field_name_it(part_field_list);
-  List_iterator<char> new_field_name_it(new_part_info->part_field_list);
-  char *old_name, *new_name;
-  while ((old_name = old_field_name_it++)) {
-    new_name = new_field_name_it++;
-    if (!new_name || my_strcasecmp(system_charset_info, new_name, old_name))
-      DBUG_RETURN(false);
+  {
+    List_iterator<char> old_field_name_it(part_field_list);
+    List_iterator<char> new_field_name_it(new_part_info->part_field_list);
+    char *old_name, *new_name;
+    while ((old_name = old_field_name_it++)) {
+      new_name = new_field_name_it++;
+      if (!new_name || my_strcasecmp(system_charset_info, new_name, old_name))
+        return false;
+    }
   }
 
   if (is_sub_partitioned()) {
@@ -2575,7 +2560,7 @@ bool partition_info::has_same_partitioning(partition_info *new_part_info) {
     while ((old_name = old_field_name_it++)) {
       new_name = new_field_name_it++;
       if (!new_name || my_strcasecmp(system_charset_info, new_name, old_name))
-        DBUG_RETURN(false);
+        return false;
     }
   }
 
@@ -2607,12 +2592,12 @@ bool partition_info::has_same_partitioning(partition_info *new_part_info) {
           part_elem->max_value != new_part_elem->max_value ||
           part_elem->signed_flag != new_part_elem->signed_flag ||
           part_elem->has_null_value != new_part_elem->has_null_value)
-        DBUG_RETURN(false);
+        return false;
 
       /* new_part_elem may not have engine_type set! */
       if (new_part_elem->engine_type &&
           part_elem->engine_type != new_part_elem->engine_type)
-        DBUG_RETURN(false);
+        return false;
 
       if (is_sub_partitioned()) {
         /*
@@ -2627,16 +2612,16 @@ bool partition_info::has_same_partitioning(partition_info *new_part_info) {
           part_elem_value *new_val;
           while ((val = list_vals++)) {
             new_val = new_list_vals++;
-            if (!new_val) DBUG_RETURN(false);
+            if (!new_val) return false;
             if ((!val->null_value && !new_val->null_value) &&
                 val->value != new_val->value)
-              DBUG_RETURN(false);
+              return false;
           }
-          if (new_list_vals++) DBUG_RETURN(false);
+          if (new_list_vals++) return false;
         } else {
           DBUG_ASSERT(part_type == partition_type::RANGE);
           if (new_part_elem->range_value != part_elem->range_value)
-            DBUG_RETURN(false);
+            return false;
         }
 
         if (!use_default_subpartitions) {
@@ -2651,7 +2636,7 @@ bool partition_info::has_same_partitioning(partition_info *new_part_info) {
             /* new_part_elem may not have engine_type set! */
             if (new_sub_part_elem->engine_type &&
                 sub_part_elem->engine_type != new_sub_part_elem->engine_type)
-              DBUG_RETURN(false);
+              return false;
 
             if (strcmp(sub_part_elem->partition_name,
                        new_sub_part_elem->partition_name) ||
@@ -2662,7 +2647,7 @@ bool partition_info::has_same_partitioning(partition_info *new_part_info) {
                 sub_part_elem->part_max_rows !=
                     new_sub_part_elem->part_max_rows ||
                 sub_part_elem->nodegroup_id != new_sub_part_elem->nodegroup_id)
-              DBUG_RETURN(false);
+              return false;
 
             if (strcmp_null(sub_part_elem->data_file_name,
                             new_sub_part_elem->data_file_name) ||
@@ -2670,7 +2655,7 @@ bool partition_info::has_same_partitioning(partition_info *new_part_info) {
                             new_sub_part_elem->index_file_name) ||
                 strcmp_null(sub_part_elem->tablespace_name,
                             new_sub_part_elem->tablespace_name))
-              DBUG_RETURN(false);
+              return false;
 
           } while (++j < num_subparts);
         }
@@ -2678,7 +2663,7 @@ bool partition_info::has_same_partitioning(partition_info *new_part_info) {
         if (part_elem->part_min_rows != new_part_elem->part_min_rows ||
             part_elem->part_max_rows != new_part_elem->part_max_rows ||
             part_elem->nodegroup_id != new_part_elem->nodegroup_id)
-          DBUG_RETURN(false);
+          return false;
 
         if (strcmp_null(part_elem->data_file_name,
                         new_part_elem->data_file_name) ||
@@ -2686,7 +2671,7 @@ bool partition_info::has_same_partitioning(partition_info *new_part_info) {
                         new_part_elem->index_file_name) ||
             strcmp_null(part_elem->tablespace_name,
                         new_part_elem->tablespace_name))
-          DBUG_RETURN(false);
+          return false;
       }
     } while (++i < num_parts);
   }
@@ -2697,9 +2682,9 @@ bool partition_info::has_same_partitioning(partition_info *new_part_info) {
   */
   if (key_algorithm != enum_key_algorithm::KEY_ALGORITHM_NONE ||
       new_part_info->key_algorithm == enum_key_algorithm::KEY_ALGORITHM_NONE)
-    DBUG_RETURN(false);
+    return false;
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 static bool has_same_column_order(List<Create_field> *create_list,
@@ -2745,12 +2730,11 @@ bool partition_info::same_key_column_order(List<Create_field> *create_list) {
 
 void partition_info::print_debug(const char *str MY_ATTRIBUTE((unused)),
                                  uint *value) {
-  DBUG_ENTER("print_debug");
+  DBUG_TRACE;
   if (value)
     DBUG_PRINT("info", ("parser: %s, val = %u", str, *value));
   else
     DBUG_PRINT("info", ("parser: %s", str));
-  DBUG_VOID_RETURN;
 }
 
 bool has_external_data_or_index_dir(partition_info &pi) {
@@ -2934,10 +2918,10 @@ bool partition_info::init_partition_bitmap(MY_BITMAP *bitmap,
   uint bitmap_bits = num_subparts ? (num_subparts * num_parts) : num_parts;
   uint bitmap_bytes = bitmap_buffer_size(bitmap_bits);
 
-  if (!(bitmap_buf = (uint32 *)alloc_root(mem_root, bitmap_bytes))) {
+  if (!(bitmap_buf = (uint32 *)mem_root->Alloc(bitmap_bytes))) {
     mem_alloc_error(bitmap_bytes);
     return true;
   }
-  bitmap_init(bitmap, bitmap_buf, bitmap_bits, false);
+  bitmap_init(bitmap, bitmap_buf, bitmap_bits);
   return false;
 }

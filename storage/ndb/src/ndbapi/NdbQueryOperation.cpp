@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -745,7 +745,7 @@ NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation,
   m_currentRow(tupleNotFound),
   m_maxRows(0),
   m_tupleSet(NULL)
-{};
+{}
 
 NdbResultStream::~NdbResultStream()
 {
@@ -1440,7 +1440,7 @@ NdbQuery::getNdbTransaction() const
 const NdbError& 
 NdbQuery::getNdbError() const {
   return m_impl.getNdbError();
-};
+}
 
 int NdbQuery::isPrunable(bool& prunable) const
 {
@@ -1486,7 +1486,7 @@ NdbQueryOperation::getQueryOperationDef() const
 NdbQuery& 
 NdbQueryOperation::getQuery() const {
   return m_impl.getQuery().getInterface();
-};
+}
 
 NdbRecAttr*
 NdbQueryOperation::getValue(const char* anAttrName,
@@ -1904,12 +1904,6 @@ NdbQueryImpl::buildQuery(NdbTransaction& trans,
                          const NdbQueryDefImpl& queryDef)
 {
   assert(queryDef.getNoOfOperations() > 0);
-  // Check for online upgrade/downgrade.
-  if (unlikely(!ndbd_join_pushdown(trans.getNdb()->getMinDbNodeVersion())))
-  {
-    trans.setOperationErrorCodeAbort(Err_FunctionNotImplemented);
-    return NULL;
-  }
   NdbQueryImpl* const query = new NdbQueryImpl(trans, queryDef);
   if (unlikely(query==NULL)) {
     trans.setOperationErrorCodeAbort(Err_MemoryAlloc);
@@ -3131,8 +3125,6 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     scanTabReq->transId1 = (Uint32) transId;
     scanTabReq->transId2 = (Uint32) (transId >> 32);
 
-    const Uint32 rootFragments = rootTable->getFragmentCount();
-    const Uint32 parallelism = rootFragments;
     Uint32 batchRows = root.getMaxBatchRows();
     const Uint32 batchByteSize = root.getMaxBatchBytes();
 
@@ -3141,6 +3133,15 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
      * Ordering can then only be guarented by restricting
      * parent batch to contain single rows.
      * (Child scans will have 'normal' batch size).
+     *
+     * Note that this solved the problem only for the 'v1'
+     * version of SPJ requests, and parameter. The v2 protocol
+     * introduced 'batch_size_rows' as part of the parameter,
+     * which took precedence over the batch size set in ScanTabReq.
+     * This resulted in giving not-sorted results even though
+     * sort order was requested. This is now fixed by setting a
+     * 'SFP_SORTED_ORDER' flag in the ScanFragParameter
+     * instead of hacking the batch size on the client side.
      */
     if (root.getOrdering() != NdbQueryOptions::ScanOrdering_unordered &&
         getQueryDef().getQueryType() == NdbQueryDef::MultiScanQuery)
@@ -3157,19 +3158,6 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     }
     ScanTabReq::setViaSPJFlag(reqInfo, 1);
     ScanTabReq::setPassAllConfsFlag(reqInfo, 1);
-
-    Uint32 nodeVersion = impl->getNodeNdbVersion(nodeId);
-    if (!ndbd_scan_tabreq_implicit_parallelism(nodeVersion))
-    {
-      // Implicit parallelism implies support for greater
-      // parallelism than storable explicitly in old reqInfo.
-      if (parallelism > PARALLEL_MASK)
-      {
-        setErrorCode(Err_SendFailed /* TODO: TooManyFragments, to too old cluster version */);
-        return -1;
-      }
-      ScanTabReq::setParallelism(reqInfo, parallelism);
-    }
 
     ScanTabReq::setRangeScanFlag(reqInfo, rangeScan);
     ScanTabReq::setDescendingFlag(reqInfo, descending);
@@ -3305,7 +3293,25 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
       numSections= 2;
     }
 
-    const int res = impl->sendSignal(&tSignal, nodeId, secs, numSections);
+    int res;
+    const Uint32 long_sections_size = m_keyInfo.getSize() + m_attrInfo.getSize();
+    const Uint32 nodeVersion = impl->getNodeNdbVersion(nodeId);
+    if (long_sections_size <= NDB_MAX_LONG_SECTIONS_SIZE)
+    {
+      res = impl->sendSignal(&tSignal, nodeId, secs, numSections);
+    }
+    else if (ndbd_frag_tckeyreq(nodeVersion))
+    {
+      res = impl->sendFragmentedSignal(&tSignal, nodeId, secs, numSections);
+    }
+    else
+    {
+      /* It should not be possible to see a table definition that supports
+       * big rows unless all data nodes that are started also can handle it.
+       */
+      require(ndbd_frag_tckeyreq(nodeVersion));
+    }
+
     if (unlikely(res == -1))
     {
       setErrorCode(Err_SendFailed);  // Error: 'Send to NDB failed'
@@ -4694,6 +4700,13 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo,
     {
       requestInfo |= QN_ScanFragParameters::SFP_PRUNE_PARAMS;
     }
+    if (getOrdering() != NdbQueryOptions::ScanOrdering_unordered)
+    {
+      requestInfo |= QN_ScanFragParameters::SFP_SORTED_ORDER;
+      // Only supported for root yet.
+      DBUG_ASSERT(this == &getRoot());
+    }
+
     param->requestInfo = requestInfo;
     param->resultData = getIdOfReceiver();
     param->batch_size_rows = batchRows;
@@ -4705,7 +4718,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo,
     break;
   }
   // Check deprecated QueryNode types last:
-  case QueryNodeParameters::QN_SCAN_INDEX_v1:
+  case QueryNodeParameters::QN_SCAN_INDEX_v1: //Deprecated
   {
     QN_ScanIndexParameters_v1* param = 
       reinterpret_cast<QN_ScanIndexParameters_v1*>(attrInfo.addr(startPos)); 
@@ -4737,7 +4750,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo,
     QueryNodeParameters::setOpLen(param->len, paramType, length);
     break;
   }
-  case QueryNodeParameters::QN_SCAN_FRAG_v1:
+  case QueryNodeParameters::QN_SCAN_FRAG_v1: //Deprecated
   {
     assert(paramType == QueryNodeParameters::QN_SCAN_FRAG_v1);
     QN_ScanFragParameters_v1* param =

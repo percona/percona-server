@@ -151,6 +151,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_create_temporary_checkpoint`
+     - Yes
+     - Yes
+     - Session
    * - :variable:`rocksdb_datadir`
      - Yes
      - No
@@ -199,6 +203,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_disable_file_deletions`
+     - Yes
+     - Yes
+     - Session
    * - :variable:`rocksdb_enable_bulk_load_api`
      - Yes
      - No
@@ -594,7 +602,7 @@ Disabled by default.
   :default: ``OFF``
 
 Specifies whether to allow server to restart once MyRocks reported data
-corruption. Disabled by default. 
+corruption. Disabled by default.
 
 Once corruption is detected server writes marker file (named
 ROCKSDB_CORRUPTED) in the data directory and aborts. If marker file exists,
@@ -951,6 +959,20 @@ Specifies whether MyRocks should create new column families
 if they do not exist.
 Disabled by default.
 
+.. variable:: rocksdb_create_temporary_checkpoint
+
+  :cli: ``--rocksdb-create-temporary-checkpoint``
+  :dyn: Yes
+  :scope: Session
+  :vartype: String
+
+This variable has been implemented in |Percona Server| :rn:`8.0.15-6`.
+When specified it will create a temporary RocksDB 'checkpoint' or
+'snapshot' in the :term:`datadir`. If the session ends with an existing
+checkpoint, or if the variable is reset to another value, the checkpoint
+will get removed. This variable should be used by backup tools. Prolonged
+use or other misuse can have serious side effects to the server instance.
+
 .. variable:: rocksdb_datadir
 
   :cli: ``--rocksdb-datadir``
@@ -970,11 +992,11 @@ By default, it is created in the current working directory.
   :vartype: Numeric
   :default: ``0``
 
-Specifies the size of the memtable used to store writes in MyRocks.
-This is the size per column family.
-When this size is reached, the memtable is flushed to persistent media.
-Default value is ``0``.
-Allowed range is up to ``18446744073709551615``.
+Specifies the maximum size of all memtables used to store writes in MyRocks
+across all column families. When this size is reached, the data is flushed
+to persistent media.
+The default value is ``0``.
+The allowed range is up to ``18446744073709551615``.
 
 .. variable:: rocksdb_deadlock_detect
 
@@ -1107,6 +1129,23 @@ Specifies the period in microseconds to delete obsolete files
 regardless of files removed during compaction.
 Default value is ``21600000000`` (6 hours).
 Allowed range is up to ``9223372036854775807``.
+
+.. variable:: rocksdb_disable_file_deletions
+
+
+  :cli: ``--rocksdb-disable-file-deletions``
+  :dyn: Yes
+  :scope: Session
+  :vartype: Boolean
+  :default: ``OFF``
+
+This variable has been implemented in |Percona Server| :rn:`8.0.15-6`.
+It allows a client to temporarily disable RocksDB deletion
+of old ``WAL`` and ``.sst`` files for the purposes of making a consistent
+backup. If the client session terminates for any reason after disabling
+deletions and has not re-enabled deletions, they will be explicitly
+re-enabled. This variable should be used by backup tools. Prolonged
+use or other misuse can have serious side effects to the server instance.
 
 .. variable:: rocksdb_enable_bulk_load_api
 
@@ -1363,13 +1402,17 @@ Enabled by default.
   :dyn: Yes
   :scope: Global
   :vartype: Boolean
-  :default: ``OFF``
+  :default: ``TRUE``
 
 When enabled, this option allows index key prefixes longer than 767 bytes (up to
 3072 bytes). This option mirrors the `innodb_large_prefix
 <https://dev.mysql.com/doc/refman/8.0/en/innodb-parameters.html#sysvar_innodb_large_prefix>`_
 The values for :variable:`rocksdb_large_prefix` should be the same between
 master and slave.
+
+.. note::
+
+    In version 8.0.16-7 and later, the default value is changed to ``TRUE``.
 
 .. variable:: rocksdb_keep_log_file_num
 
@@ -1544,17 +1587,17 @@ only one manifest file is used.
   :default: ``1000``
 
 Specifies the maximum number of file handles opened by MyRocks.
-Values in the range between ``0`` and ``open_files_limit`` 
-are taken as they are. If :variable:`rocksdb_max_open_files` value is 
-greater than ``open_files_limit``, it will be reset to 1/2 of 
+Values in the range between ``0`` and ``open_files_limit``
+are taken as they are. If :variable:`rocksdb_max_open_files` value is
+greater than ``open_files_limit``, it will be reset to 1/2 of
 ``open_files_limit``, and a warning will be emitted to the ``mysqld``
-error log. A value of ``-2`` denotes auto tuning: just sets 
-:variable:`rocksdb_max_open_files` value to 1/2 of ``open_files_limit``. 
+error log. A value of ``-2`` denotes auto tuning: just sets
+:variable:`rocksdb_max_open_files` value to 1/2 of ``open_files_limit``.
 Finally, ``-1`` means no limit, i.e. an infinite number of file handles.
 
 .. warning::
 
-  Setting :variable:`rocksdb_max_open_files` to ``-1`` is dangerous, 
+  Setting :variable:`rocksdb_max_open_files` to ``-1`` is dangerous,
   as server may quickly run out of file handles in this case.
 
 .. variable:: rocksdb_max_row_locks
@@ -1698,7 +1741,7 @@ the specified |cf| does not exist and cannot be created.
   :vartype: String
   :default:
 
-Specifies option overrides for each column family. 
+Specifies option overrides for each column family.
 Empty by default.
 
 .. variable:: rocksdb_paranoid_checks
@@ -1853,7 +1896,7 @@ Resets MyRocks internal statistics dynamically
 
 Specifies whether write batches should be used for replication thread
 instead of the transaction API.
-Disabled by default. 
+Disabled by default.
 
 There are two conditions which are necessary to
 use it: row replication format and slave
@@ -2165,10 +2208,18 @@ Specifies the path to the directory where MyRocks stores WAL files.
   :vartype: Numeric
   :default: ``1``
 
-Specifies the level of tolerance when recovering WAL files
+Specifies the level of tolerance when recovering write-ahead logs (WAL) files
 after a system crash.
-Default is ``1``.
-Allowed range is from ``0`` to ``3``.
+
+The following are the options:
+
+ * ``0``: if the last WAL entry is corrupted, truncate the entry and either start the server normally or refuse to start.
+
+ * ``1`` (default): if a WAL entry is corrupted, the server fails to   start and does not recover from the crash.
+
+ * ``2``: if a corrupted WAL entry is detected, truncate all entries after the detected corrupted entry. You can select this setting for replication slaves.
+
+ * ``3``: If a corrupted WAL entry is detected, skip only the corrupted entry and continue the apply WAL entries. This option can be dangerous.
 
 .. variable:: rocksdb_wal_size_limit_mb
 

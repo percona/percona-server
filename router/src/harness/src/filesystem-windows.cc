@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "filesystem.h"
+#include "mysql/harness/filesystem.h"
 
 #include <direct.h>
 #include <cassert>
@@ -41,15 +41,6 @@ using std::ostringstream;
 using std::string;
 
 namespace {
-std::string get_last_error() {
-  char message[512];
-  FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS |
-                    FORMAT_MESSAGE_ALLOCATE_BUFFER,
-                nullptr, GetLastError(), LANG_NEUTRAL, message, sizeof(message),
-                nullptr);
-  return std::string(message);
-}
-const std::string dirsep("/");
 const std::string extsep(".");
 }  // namespace
 
@@ -357,7 +348,8 @@ std::string get_tmp_dir(const std::string &name) {
   return result;
 }
 
-SecurityDescriptorPtr get_security_descriptor(const std::string &file_name) {
+std::unique_ptr<SECURITY_DESCRIPTOR, decltype(&free)> get_security_descriptor(
+    const std::string &file_name) {
   static constexpr SECURITY_INFORMATION kReqInfo = DACL_SECURITY_INFORMATION;
 
   // Get the size of the descriptor.
@@ -377,8 +369,8 @@ SecurityDescriptorPtr get_security_descriptor(const std::string &file_name) {
     }
   }
 
-  SecurityDescriptorPtr sec_desc(
-      static_cast<SECURITY_DESCRIPTOR *>(std::malloc(sec_desc_size)));
+  std::unique_ptr<SECURITY_DESCRIPTOR, decltype(&free)> sec_desc(
+      static_cast<SECURITY_DESCRIPTOR *>(std::malloc(sec_desc_size)), &free);
 
   if (GetFileSecurityA(file_name.c_str(), kReqInfo, sec_desc.get(),
                        sec_desc_size, &sec_desc_size) == FALSE) {
@@ -389,6 +381,12 @@ SecurityDescriptorPtr get_security_descriptor(const std::string &file_name) {
   }
 
   return sec_desc;
+}
+
+int mkdir_wrapper(const std::string &dir, perm_mode mode) {
+  auto res = _mkdir(dir.c_str());
+  if (res != 0) return errno;
+  return 0;
 }
 
 }  // namespace mysql_harness

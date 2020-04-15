@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -777,12 +777,32 @@ DECLARE_METHOD(void, get, (PSI_field * f, char *val, unsigned int *len));
 /* No support for indexes. */
 END_SERVICE_DEFINITION(pfs_plugin_column_datetime_v1)
 
+/*
+  SERVICE_DEFINITION(pfs_plugin_column_timestamp_v1)
+  Introduced in MySQL 8.0.14
+  Deprecated in MySQL 8.0.17
+  Status: Deprecated, use version 2 instead.
+*/
 BEGIN_SERVICE_DEFINITION(pfs_plugin_column_timestamp_v1)
 DECLARE_METHOD(void, set,
                (PSI_field * f, const char *str, unsigned int length));
 DECLARE_METHOD(void, get, (PSI_field * f, char *val, unsigned int *len));
 /* No support for indexes. */
 END_SERVICE_DEFINITION(pfs_plugin_column_timestamp_v1)
+
+/*
+  SERVICE_DEFINITION(pfs_plugin_column_timestamp_v2)
+  Introduced in MySQL 8.0.17
+  Status: Active.
+*/
+BEGIN_SERVICE_DEFINITION(pfs_plugin_column_timestamp_v2)
+DECLARE_METHOD(void, set,
+               (PSI_field * f, const char *str, unsigned int length));
+/* Set time stamp value in microseconds as returned by my_micro_time(). */
+DECLARE_METHOD(void, set2, (PSI_field * f, unsigned long long val));
+DECLARE_METHOD(void, get, (PSI_field * f, char *val, unsigned int *len));
+/* No support for indexes. */
+END_SERVICE_DEFINITION(pfs_plugin_column_timestamp_v2)
 
 BEGIN_SERVICE_DEFINITION(pfs_plugin_column_year_v1)
 DECLARE_METHOD(void, set, (PSI_field * f, PSI_year value));

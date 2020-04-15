@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,10 @@ class Sql_cmd_do final : public Sql_cmd_select {
   explicit Sql_cmd_do(Query_result *result_arg) : Sql_cmd_select(result_arg) {}
 
   enum_sql_command sql_command_code() const override { return SQLCOM_DO; }
+
+  const MYSQL_LEX_CSTRING *eligible_secondary_storage_engine() const override {
+    return nullptr;
+  }
 };
 
 class Query_result_do final : public Query_result {

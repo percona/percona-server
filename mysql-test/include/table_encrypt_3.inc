@@ -185,7 +185,7 @@ USE tde_db;
 --echo # File per table is set 0. Encryption not possible.
 SET GLOBAL innodb_file_per_table = 0;
 SELECT @@innodb_file_per_table;
---error ER_ILLEGAL_HA_CREATE_OPTION
+--error ER_INVALID_ENCRYPTION_REQUEST
 CREATE TABLE tde_db.t_encrypt(c4 JSON ,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
@@ -198,7 +198,7 @@ SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 
 CREATE TABLESPACE s_alt1 ADD DATAFILE 's_alt1.ibd';
---error ER_ILLEGAL_HA_CREATE_OPTION
+--error ER_INVALID_ENCRYPTION_REQUEST
 CREATE TABLE tde_db.t_encrypt (a int, b text) ENCRYPTION="Y" TABLESPACE=`s_alt1` ENGINE=InnoDB;
 SHOW WARNINGS;
 DROP TABLESPACE s_alt1;
@@ -208,7 +208,7 @@ CREATE TEMPORARY TABLE tde_db.t_encrypt (a int, b text) ENCRYPTION="Y" ENGINE=In
 SHOW WARNINGS;
 
 # Now error/warning shown
---error ER_ILLEGAL_HA
+--error ER_CHECK_NOT_IMPLEMENTED
 CREATE TABLE tde_db.t_encrypt_myisam (a int, b text) ENCRYPTION="Y" ENGINE=MyISAM;
 
 # Create a table with encryption and different row format
@@ -392,11 +392,12 @@ begin
                 set i = i + 1;
         end while;
 end|
-CREATE PROCEDURE tde_db.rotate_master_key()
+CREATE PROCEDURE tde_db.rotate_master_key(number_of_rotations INT)
 begin
         declare i int default 1;
         declare has_error int default 0;
-        while (i <= 500) DO
+
+        while (i <= number_of_rotations) DO
                 ALTER INSTANCE ROTATE INNODB MASTER KEY;
                 set i = i + 1;
         end while;
@@ -431,17 +432,13 @@ connect (con4,localhost,root,,);
 send call tde_db.read_t_encrypt();
 --echo # In connection con5 - Running "alter instance"
 connect (con5,localhost,root,,);
-send call tde_db.rotate_master_key();
---echo # In connection con6 - Running "alter instance"
+--send_eval call tde_db.rotate_master_key($number_of_MK_rotations)
+--echo # In connection con6 - Running "create table"
 connect (con6,localhost,root,,);
-send call tde_db.rotate_master_key();
+--send call tde_db.create_encrypt_table("Y")
 --enable_query_log
 --echo # In connection con7 - Running "create table"
 connect (con7,localhost,root,,);
-send call tde_db.create_encrypt_table("Y");
---enable_query_log
---echo # In connection con8 - Running "create table"
-connect (con8,localhost,root,,);
 send call tde_db.create_encrypt_table("N");
 --enable_query_log
 
@@ -487,12 +484,6 @@ connection con7;
 reap;
 --enable_query_log
 disconnect con7;
---echo # In connection con8
-connection con8;
---disable_query_log
-reap;
---enable_query_log
-disconnect con8;
 
 
 connection default;

@@ -1,10 +1,5 @@
-#--source include/have_file_key_management_plugin.inc
-# This is needed for longer testcase timeout at least P7/P8
 --source include/big_test.inc
 
-#
-# MDEV-8164: Server crashes in pfs_mutex_enter_func after fil_crypt_is_closing or alike
-#
 SET default_storage_engine = InnoDB;
 
 CREATE TABLE t1 (pk INT PRIMARY KEY, c VARCHAR(256));
@@ -17,14 +12,14 @@ CREATE TABLE t2 AS SELECT * FROM t1;
 let $i = 40;
 while ($i)
 {
-SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
+SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
 SET GLOBAL innodb_encryption_threads = 1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 AS SELECT * FROM t2;
 DROP TABLE IF EXISTS t2;
 CREATE TABLE t2 AS SELECT * FROM t1;
 SET GLOBAL innodb_encryption_rotation_iops = 100;
-SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 DROP TABLE IF EXISTS t2;
 CREATE TABLE t2 AS SELECT * FROM t1;
 DROP TABLE IF EXISTS t1;
@@ -37,11 +32,6 @@ dec $i;
 --enable_query_log
 
 drop table t1,t2;
-SET GLOBAL innodb_encryption_threads = 0;
-
-#
-# MDEV-8173: InnoDB; Failing assertion: crypt_data->type == 1
-#
 
 SET GLOBAL innodb_encryption_threads = 4;
 
@@ -64,12 +54,11 @@ INSERT IGNORE INTO `table10_int_autoinc` ( `col_int` ) VALUES ( 6 ), ( 2 ), ( 3 
 --disable_warnings
 --disable_query_log
 
-#let $i = 500;
 let $i = 100;
 while ($i)
 {
 connection con1;
-send SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
+send SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
 connection default;
 DROP TABLE IF EXISTS create_or_replace_t;
 CREATE TABLE IF NOT EXISTS create_or_replace_t AS SELECT * FROM table1_int_autoinc;
@@ -81,7 +70,7 @@ DROP TABLE IF EXISTS create_or_replace_t;
 send CREATE TABLE IF NOT EXISTS create_or_replace_t AS SELECT * FROM table0_int_autoinc;
 connection con1;
 --reap;
-send SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+send SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 connection con2;
 --reap;
 connection default;
@@ -93,7 +82,7 @@ DROP TABLE IF EXISTS create_or_replace_t;
 send CREATE TABLE IF NOT EXISTS create_or_replace_t AS SELECT * FROM table10_int_autoinc;
 connection con1;
 --reap;
-send SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
+send SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
 connection default;
 --reap;
 DROP TABLE IF EXISTS create_or_replace_t;
@@ -119,7 +108,7 @@ drop table if exists create_or_replace_t, table1_int_autoinc, table0_int_autoinc
 --enable_abort_on_error
 --enable_warnings
 
-SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SET GLOBAL innodb_encryption_threads = 4;
 
 --echo # Wait max 10 min for key encryption threads to decrypt all spaces
@@ -146,7 +135,7 @@ if (!$success)
 --echo # Success!
 
 SET GLOBAL innodb_encryption_threads = 0;
-SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 
 # Make sure that all dirty pages are flushed
 

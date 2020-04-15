@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -106,7 +106,8 @@ runTestSingleUserMode(NDBT_Context* ctx, NDBT_Step* step)
   Ndb* pNdb = GETNDB(step);
   NdbRestarter restarter;
   char tabName[255];
-  strncpy(tabName, ctx->getTab()->getName(), 255);
+  strncpy(tabName, ctx->getTab()->getName(), sizeof(tabName) - 1);
+  tabName[sizeof(tabName) - 1] = '\0';
   ndbout << "tabName="<<tabName<<endl;
 
   int i = 0;
@@ -191,7 +192,7 @@ TESTCASE("SingleUserMode",
   INITIALIZER(runTestSingleUserMode);
   FINALIZER(runClearTable);
 }
-NDBT_TESTSUITE_END(testSingleUserMode);
+NDBT_TESTSUITE_END(testSingleUserMode)
 
 
 int main(int argc, const char** argv){

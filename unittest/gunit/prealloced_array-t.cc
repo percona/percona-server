@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,9 +26,9 @@
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <memory>
+#include <random>
 
 #include "prealloced_array.h"
-#include "thread_utils.h"
 
 namespace prealloced_array_unittest {
 
@@ -54,30 +54,30 @@ typedef PreallocedArrayTest PreallocedArrayDeathTest;
 
 TEST_F(PreallocedArrayDeathTest, OutOfBoundsRead) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  MY_EXPECT_DEATH_IF_SUPPORTED(some_integer = int_10[5],
-                               ".*Assertion .*n < size.*");
+  EXPECT_DEATH_IF_SUPPORTED(some_integer = int_10[5],
+                            ".*Assertion .*n < size.*");
 }
 
 TEST_F(PreallocedArrayDeathTest, OutOfBoundsWrite) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  MY_EXPECT_DEATH_IF_SUPPORTED(int_10[5] = some_integer,
-                               ".*Assertion .*n < size.*");
+  EXPECT_DEATH_IF_SUPPORTED(int_10[5] = some_integer,
+                            ".*Assertion .*n < size.*");
 }
 
 TEST_F(PreallocedArrayDeathTest, EmptyBack) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  MY_EXPECT_DEATH_IF_SUPPORTED(int_10.back() = 42, ".*Assertion .*n < size.*");
+  EXPECT_DEATH_IF_SUPPORTED(int_10.back() = 42, ".*Assertion .*n < size.*");
 }
 
 TEST_F(PreallocedArrayDeathTest, EmptyPopBack) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  MY_EXPECT_DEATH_IF_SUPPORTED(int_10.pop_back(), ".*Assertion .*!empty.*");
+  EXPECT_DEATH_IF_SUPPORTED(int_10.pop_back(), ".*Assertion .*!empty.*");
 }
 
 TEST_F(PreallocedArrayDeathTest, EmptyErase) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   size_t ix = 0;
-  MY_EXPECT_DEATH_IF_SUPPORTED(int_10.erase(ix), ".*Assertion .*ix < size.*");
+  EXPECT_DEATH_IF_SUPPORTED(int_10.erase(ix), ".*Assertion .*ix < size.*");
 }
 
 #endif  // DBUG_OFF
@@ -187,7 +187,9 @@ TEST_F(PreallocedArrayTest, InsertUnique) {
     int_10.push_back(ix);
     int_10.push_back(ix);
   }
-  std::random_shuffle(int_10.begin(), int_10.end());
+  std::random_device rng;
+  std::mt19937 urng(rng());
+  std::shuffle(int_10.begin(), int_10.end(), urng);
   Prealloced_array<int, 1> unique_arr(PSI_NOT_INSTRUMENTED);
   for (int *pi = int_10.begin(); pi != int_10.end(); ++pi) {
     unique_arr.insert_unique(*pi);

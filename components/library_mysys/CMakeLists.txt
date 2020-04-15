@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,12 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
-
-SET(LIBRARY_MYSYS_SOURCES
+ADD_LIBRARY(library_mysys STATIC
   my_memory.cc
 )
-
-ADD_CONVENIENCE_LIBRARY(library_mysys ${LIBRARY_MYSYS_SOURCES})

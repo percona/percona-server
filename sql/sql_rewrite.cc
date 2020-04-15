@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -89,6 +89,7 @@
 #include "sql/log_event.h"  // append_query_string
 #include "sql/rpl_slave.h"  // SLAVE_SQL, SLAVE_IO
 #include "sql/set_var.h"
+#include "sql/sql_admin.h"  // Sql_cmd_clone
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_connect.h"
 #include "sql/sql_lex.h"  // LEX
@@ -185,11 +186,9 @@ void append_auth_id(const THD *thd, const LEX_USER *user, bool comma,
   String from_user(user->user.str, user->user.length, system_charset_info);
   String from_host(user->host.str, user->host.length, system_charset_info);
   if (comma) str->append(',');
-  append_query_string(const_cast<THD *>(thd), system_charset_info, &from_user,
-                      str);
+  append_query_string(thd, system_charset_info, &from_user, str);
   str->append(STRING_WITH_LEN("@"));
-  append_query_string(const_cast<THD *>(thd), system_charset_info, &from_host,
-                      str);
+  append_query_string(thd, system_charset_info, &from_host, str);
 }
 /**
   Used with List<>::sort for alphabetic sorting of LEX_USER records
@@ -229,13 +228,13 @@ int lex_user_comp(LEX_USER *l1, LEX_USER *l2) {
     @retval false   Otherwise
 */
 bool rewrite_query(THD *thd, Consumer_type type, Rewrite_params *params) {
-  DBUG_ENTER("rewrite_query");
+  DBUG_TRACE;
   std::unique_ptr<I_rewriter> rw = nullptr;
   bool rewrite = false;
 
   switch (thd->lex->sql_command) {
     case SQLCOM_GRANT:
-      rw.reset(new Rewriter_grant(thd, type));
+      rw.reset(new Rewriter_grant(thd, type, params));
       break;
     case SQLCOM_SET_PASSWORD:
       rw.reset(new Rewriter_set_password(thd, type, params));
@@ -291,7 +290,7 @@ bool rewrite_query(THD *thd, Consumer_type type, Rewrite_params *params) {
   }
   if (rw) rewrite = rw->rewrite();
 
-  DBUG_RETURN(rewrite);
+  return rewrite;
 }
 }  // anonymous namespace
 
@@ -318,14 +317,13 @@ bool rewrite_query(THD *thd, Consumer_type type, Rewrite_params *params) {
 */
 void mysql_rewrite_query(THD *thd, Consumer_type type /*= Consumer_type::LOG */,
                          Rewrite_params *params /*= nullptr*/) {
-  DBUG_ENTER("mysql_rewrite_query");
+  DBUG_TRACE;
   DBUG_ASSERT(thd);
   String *rlb = &thd->rewritten_query;
   rlb->mem_free();
   if (thd->lex->contains_plaintext_password) {
     rewrite_query(thd, type, params);
   }
-  DBUG_VOID_RETURN;
 }
 /**
   Provides the default interface to rewrite the ACL query.
@@ -388,7 +386,8 @@ Rewriter_user::Rewriter_user(THD *thd, Consumer_type type)
 bool Rewriter_user::rewrite() const {
   LEX *lex = m_thd->lex;
   String *rlb = &m_thd->rewritten_query;
-
+  rewrite_users(lex, rlb);
+  rewrite_default_roles(lex, rlb);
   rewrite_ssl_properties(lex, rlb);
   rewrite_user_resources(lex, rlb);
   rewrite_password_expired(lex, rlb);
@@ -396,6 +395,7 @@ bool Rewriter_user::rewrite() const {
   rewrite_password_history(lex, rlb);
   rewrite_password_reuse(lex, rlb);
   rewrite_password_require_current(lex, rlb);
+  rewrite_account_lock_state(lex, rlb);
   return false;
 }
 /**
@@ -547,6 +547,30 @@ void Rewriter_user::rewrite_password_require_current(LEX *lex,
       DBUG_ASSERT(false);
   }
 }
+
+/**
+  Append the account lock state
+
+  Append FAILED_LOGIN_ATTEMPTS/PASSWORD_LOCK_TIME if account auto-lock
+  is active.
+
+  @param [in]       lex     LEX to retrieve data from
+  @param [in, out]  str     The string in which plugin info is suffixed
+*/
+void Rewriter_user::rewrite_account_lock_state(LEX *lex, String *str) const {
+  if (lex->alter_password.update_failed_login_attempts) {
+    append_int(str, false, STRING_WITH_LEN(" FAILED_LOGIN_ATTEMPTS"),
+               lex->alter_password.failed_login_attempts, true);
+  }
+  if (lex->alter_password.update_password_lock_time) {
+    if (lex->alter_password.password_lock_time >= 0)
+      append_int(str, false, STRING_WITH_LEN(" PASSWORD_LOCK_TIME"),
+                 lex->alter_password.password_lock_time, true);
+    else
+      str->append(STRING_WITH_LEN(" PASSWORD_LOCK_TIME UNBOUNDED"));
+  }
+}
+
 /**
   Append the authentication plugin name for the user
 
@@ -617,6 +641,27 @@ void Rewriter_user::rewrite_users(LEX *lex, String *str) const {
   }
 }
 
+/**
+  Append the DEFAULT ROLE clause for users iff it is specified
+
+  @param [in]       lex     LEX struct to check if clause is specified
+  @param [in, out]  str     The string in which clause is suffixed
+*/
+void Rewriter_user::rewrite_default_roles(const LEX *lex, String *str) const {
+  bool comma = false;
+  if (lex->default_roles && lex->default_roles->elements > 0) {
+    str->append(" DEFAULT ROLE ");
+    lex->default_roles->sort(&lex_user_comp);
+    List_iterator<LEX_USER> role_it(*(lex->default_roles));
+    LEX_USER *role;
+    while ((role = role_it++)) {
+      if (comma) str->append(',');
+      str->append(create_authid_str_from(role).c_str());
+      comma = true;
+    }
+  }
+}
+
 Rewriter_create_user::Rewriter_create_user(THD *thd, Consumer_type type)
     : Rewriter_user(thd, type) {}
 
@@ -634,7 +679,6 @@ bool Rewriter_create_user::rewrite() const {
   if (lex->create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
     rlb->append("IF NOT EXISTS ");
 
-  rewrite_users(lex, rlb);
   parent::rewrite();
   return true;
 }
@@ -710,7 +754,6 @@ bool Rewriter_alter_user::rewrite() const {
 
   if (lex->drop_if_exists) rlb->append("IF EXISTS ");
 
-  rewrite_users(lex, rlb);
   parent::rewrite();
   return true;
 }
@@ -784,10 +827,8 @@ void Rewriter_alter_user::rewrite_password_reuse(const LEX *lex,
 Rewriter_show_create_user::Rewriter_show_create_user(THD *thd,
                                                      Consumer_type type,
                                                      Rewrite_params *params)
-    : Rewriter_user(thd, type) {
-  Show_user_params *show_params = dynamic_cast<Show_user_params *>(params);
-  if (show_params) m_hide_password_hash = show_params->hide_password_hash;
-}
+    : Rewriter_user(thd, type),
+      show_params_(dynamic_cast<Show_user_params *>(params)) {}
 
 /**
   Rewrite the query for the SHOW CREATE USER statement.
@@ -795,14 +836,41 @@ Rewriter_show_create_user::Rewriter_show_create_user(THD *thd,
   @retval true  the query is rewritten
 */
 bool Rewriter_show_create_user::rewrite() const {
-  LEX *lex = m_thd->lex;
   String *rlb = &m_thd->rewritten_query;
   rlb->mem_free();
   rlb->append("CREATE USER ");
-  rewrite_users(lex, rlb);
-  rewrite_default_roles(lex, rlb);
   parent::rewrite();
   return true;
+}
+
+/**
+  A special rewriter override to make SHOW CREATE USER convert the string
+  to hex if print_identified_with_as hex is on
+
+  @param [in]       user    LEX_USER to fetch the auth string of it.
+  @param [in, out]  str     The string in which hash value is suffixed
+
+  @sa Rewriter_user::append_auth_str
+*/
+void Rewriter_show_create_user::append_auth_str(LEX_USER *user,
+                                                String *str) const {
+  String from_auth(user->auth.str, user->auth.length, system_charset_info);
+
+  if (show_params_ && show_params_->print_identified_with_as_hex_ &&
+      user->auth.length) {
+    for (const char *c = user->auth.str;
+         static_cast<size_t>(c - user->auth.str) < user->auth.length; c++) {
+      if (!my_isgraph(system_charset_info, *c)) {
+        from_auth.alloc(user->auth.length * 2 + 3);
+        str_to_hex(from_auth.c_ptr_quick(), user->auth.str, user->auth.length);
+        from_auth.length(user->auth.length * 2 + 2);
+        str->append(from_auth);
+
+        return;
+      }
+    }
+  }
+  append_query_string(m_thd, system_charset_info, &from_auth, str);
 }
 /**
   Append the PASSWORD HISTORY clause for users
@@ -840,31 +908,10 @@ void Rewriter_show_create_user::append_user_auth_info(LEX_USER *user,
   append_plugin_name(user, str);
   if (user->auth.length > 0) {
     str->append(STRING_WITH_LEN(" AS "));
-    if (m_hide_password_hash) {
+    if (show_params_ && show_params_->hide_password_hash) {
       append_literal_secret(str);
     } else {
       append_auth_str(user, str);
-    }
-  }
-}
-/**
-  Append the DEFAULT ROLE clause for users iff it is specified
-
-  @param [in]       lex     LEX struct to check if clause is specified
-  @param [in, out]  str     The string in which clause is suffixed
-*/
-void Rewriter_show_create_user::rewrite_default_roles(const LEX *lex,
-                                                      String *str) const {
-  bool comma = false;
-  if (lex->default_roles && lex->default_roles->elements > 0) {
-    str->append(" DEFAULT ROLE ");
-    lex->default_roles->sort(&lex_user_comp);
-    List_iterator<LEX_USER> role_it(*(lex->default_roles));
-    LEX_USER *role;
-    while ((role = role_it++)) {
-      if (comma) str->append(',');
-      str->append(create_authid_str_from(role).c_str());
-      comma = true;
     }
   }
 }
@@ -959,8 +1006,11 @@ bool Rewriter_set_password::rewrite() const {
   return ret_val;
 }
 
-Rewriter_grant::Rewriter_grant(THD *thd, Consumer_type type)
-    : I_rewriter(thd, type) {}
+Rewriter_grant::Rewriter_grant(THD *thd, Consumer_type type,
+                               Rewrite_params *params)
+    : I_rewriter(thd, type) {
+  grant_params = dynamic_cast<Grant_params *>(params);
+}
 
 /**
   Rewrite the query for the GRANT statement.
@@ -973,10 +1023,20 @@ bool Rewriter_grant::rewrite() const {
   rlb->mem_free();
 
   TABLE_LIST *first_table = lex->select_lex->table_list.first;
-  bool comma = false, comma_inner;
   bool proxy_grant = lex->type == TYPE_ENUM_PROXY;
   String cols(1024);
   int c;
+
+  auto append_authids = [&rlb](THD *thd, List_iterator<LEX_USER> &list) {
+    LEX_USER *user_name, *tmp_user_name;
+    bool comma = false;
+    while ((tmp_user_name = list++)) {
+      if ((user_name = get_current_user(thd, tmp_user_name))) {
+        append_auth_id(thd, user_name, comma, rlb);
+        comma = true;
+      }
+    }
+  };
 
   rlb->append(STRING_WITH_LEN("GRANT "));
 
@@ -987,12 +1047,13 @@ bool Rewriter_grant::rewrite() const {
   else if (lex->grant_privilege)
     rlb->append(STRING_WITH_LEN("GRANT OPTION"));
   else {
+    bool comma = false;
     ulong priv;
 
     for (c = 0, priv = SELECT_ACL; priv <= GLOBAL_ACLS; c++, priv <<= 1) {
       if (priv == GRANT_ACL) continue;
 
-      comma_inner = false;
+      bool comma_inner = false;
 
       if (lex->columns.elements)  // show columns, if any
       {
@@ -1011,7 +1072,8 @@ bool Rewriter_grant::rewrite() const {
         while ((column = column_iter++)) {
           if (column->rights & priv) {
             comma_maybe(&cols, &comma_inner);
-            cols.append(column->column.ptr(), column->column.length());
+            append_identifier(m_thd, &cols, column->column.ptr(),
+                              column->column.length());
           }
         }
         cols.append(STRING_WITH_LEN(")"));
@@ -1020,7 +1082,8 @@ bool Rewriter_grant::rewrite() const {
       if (comma_inner || (lex->grant & priv))  // show privilege name
       {
         comma_maybe(rlb, &comma);
-        rlb->append(command_array[c], command_lengths[c]);
+        rlb->append(global_acls_vector[c].c_str(),
+                    global_acls_vector[c].length());
         if (!(lex->grant & priv))  // general outranks specific
           rlb->append(cols);
       }
@@ -1028,10 +1091,10 @@ bool Rewriter_grant::rewrite() const {
     /* List extended global privilege IDs */
     if (!first_table && !lex->current_select()->db) {
       List_iterator<LEX_CSTRING> it(lex->dynamic_privileges);
-      LEX_CSTRING *priv;
-      while ((priv = it++)) {
+      LEX_CSTRING *privilege;
+      while ((privilege = it++)) {
         comma_maybe(rlb, &comma);
-        rlb->append(priv->str, priv->length);
+        rlb->append(privilege->str, privilege->length);
       }
     }
     if (!comma)  // no privs, default to USAGE
@@ -1052,9 +1115,9 @@ bool Rewriter_grant::rewrite() const {
 
   LEX_USER *user_name, *tmp_user_name;
   List_iterator<LEX_USER> user_list(lex->users_list);
-  comma = false;
 
   if (proxy_grant) {
+    bool comma = false;
     tmp_user_name = user_list++;
     user_name = get_current_user(m_thd, tmp_user_name);
     if (user_name) append_auth_id(m_thd, user_name, comma, rlb);
@@ -1082,14 +1145,53 @@ bool Rewriter_grant::rewrite() const {
 
   rlb->append(STRING_WITH_LEN(" TO "));
 
-  while ((tmp_user_name = user_list++)) {
-    if ((user_name = get_current_user(m_thd, tmp_user_name))) {
-      append_auth_id(m_thd, user_name, comma, rlb);
-      comma = true;
-    }
-  }
+  append_authids(m_thd, user_list);
   if (lex->grant & GRANT_ACL) {
     rlb->append(STRING_WITH_LEN(" WITH GRANT OPTION"));
+  }
+
+  /*
+    AS ... clause is added in following cases
+    1. User has explicitly executed GRANT ... AS ...
+       In this case we write it as it.
+    2. --partial_revokes is ON and we are rewritting
+       GRANT for binary log.
+  */
+  if (grant_params != nullptr) {
+    LEX_GRANT_AS *grant_as = grant_params->grant_as_info;
+    if (grant_params->grant_as_provided ||
+        (m_consumer_type == Consumer_type::BINLOG && grant_as &&
+         grant_as->grant_as_used)) {
+      if ((user_name = get_current_user(m_thd, grant_as->user))) {
+        rlb->append(STRING_WITH_LEN(" AS "));
+        append_auth_id(m_thd, user_name, false, rlb);
+        rlb->append(STRING_WITH_LEN(" WITH ROLE "));
+        switch (grant_as->role_type) {
+          case role_enum::ROLE_DEFAULT:
+            rlb->append(STRING_WITH_LEN("DEFAULT"));
+            break;
+          case role_enum::ROLE_ALL:
+            rlb->append(STRING_WITH_LEN("ALL"));
+            if (grant_as->role_list) {
+              rlb->append(STRING_WITH_LEN(" EXCEPT "));
+              List_iterator<LEX_USER> role_list(*grant_as->role_list);
+              append_authids(m_thd, role_list);
+            }
+            break;
+          case role_enum::ROLE_NAME: {
+            List_iterator<LEX_USER> role_list(*grant_as->role_list);
+            append_authids(m_thd, role_list);
+          } break;
+          case role_enum::ROLE_NONE:
+            rlb->append(STRING_WITH_LEN("NONE"));
+            break;
+          default:
+            DBUG_ASSERT(false);
+            rlb->append(STRING_WITH_LEN("NONE"));
+            break;
+        }
+      }
+    }
   }
   return true;
 }
@@ -1176,6 +1278,13 @@ bool Rewriter_change_master::rewrite() const {
       lex->mi.ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED);
 
   comma = append_str(rlb, comma, "MASTER_TLS_VERSION =", lex->mi.tls_version);
+  if (LEX_MASTER_INFO::SPECIFIED_NULL == lex->mi.tls_ciphersuites) {
+    comma_maybe(rlb, &comma);
+    rlb->append(STRING_WITH_LEN("MASTER_TLS_CIPHERSUITES = NULL"));
+  } else if (LEX_MASTER_INFO::SPECIFIED_STRING == lex->mi.tls_ciphersuites) {
+    comma = append_str(rlb, comma, "MASTER_TLS_CIPHERSUITES =",
+                       lex->mi.tls_ciphersuites_string);
+  }
 
   // Public key
   comma = append_str(rlb, comma,
@@ -1199,6 +1308,12 @@ bool Rewriter_change_master::rewrite() const {
     }
     rlb->append(STRING_WITH_LEN(" )"));
   }
+  if (lex->mi.compression_algorithm)
+    comma = append_str(rlb, comma, "MASTER_COMPRESSION_ALGORITHMS = ",
+                       lex->mi.compression_algorithm);
+  comma = append_int(
+      rlb, comma, STRING_WITH_LEN("MASTER_ZSTD_COMPRESSION_LEVEL = "),
+      lex->mi.zstd_compression_level, lex->mi.zstd_compression_level != 0);
 
   /* channel options -- no preceding comma here! */
   if (lex->mi.for_channel)

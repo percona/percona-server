@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,8 @@
 #ifndef DD__TABLE_INCLUDED
 #define DD__TABLE_INCLUDED
 
+#include "mysql_version.h"  // MYSQL_VERSION_ID
+
 #include "sql/dd/sdi_fwd.h"               // Sdi_wcontext
 #include "sql/dd/types/abstract_table.h"  // dd::Abstract_table
 #include "sql/dd/types/foreign_key.h"     // IWYU pragma: keep
@@ -33,6 +35,7 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
+class Check_constraint;
 class Partition;
 class Table_impl;
 class Trigger;
@@ -47,6 +50,7 @@ class Table : virtual public Abstract_table {
   typedef std::vector<Foreign_key_parent *> Foreign_key_parent_collection;
   typedef Collection<Partition *> Partition_collection;
   typedef Collection<Trigger *> Trigger_collection;
+  typedef Collection<Check_constraint *> Check_constraint_collection;
 
   /*
     The type Partition_collection object 'own' the Partition* object. That
@@ -157,7 +161,7 @@ class Table : virtual public Abstract_table {
   // last_checked_for_upgrade_version_id api
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool is_checked_for_upgrade() const = 0;
+  virtual uint last_checked_for_upgrade_version_id() const = 0;
   virtual void mark_as_checked_for_upgrade() = 0;
 
   /////////////////////////////////////////////////////////////////////////
@@ -385,6 +389,16 @@ class Table : virtual public Abstract_table {
 
   virtual void drop_all_triggers() = 0;
 
+  /////////////////////////////////////////////////////////////////////////
+  // Check constraint collection.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual Check_constraint *add_check_constraint() = 0;
+
+  virtual const Check_constraint_collection &check_constraints() const = 0;
+
+  virtual Check_constraint_collection *check_constraints() = 0;
+
  public:
   /**
     Allocate a new object graph and invoke the copy contructor for
@@ -427,6 +441,9 @@ class Table : virtual public Abstract_table {
 
 ///////////////////////////////////////////////////////////////////////////
 
+inline bool is_checked_for_upgrade(const Table &t) {
+  return t.last_checked_for_upgrade_version_id() == MYSQL_VERSION_ID;
+}
 }  // namespace dd
 
 #endif  // DD__TABLE_INCLUDED

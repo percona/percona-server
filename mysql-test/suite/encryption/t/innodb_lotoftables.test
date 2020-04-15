@@ -1,4 +1,3 @@
---skip # Test is unstable on Jenkins
 -- source include/big_test.inc
 
 --disable_query_log
@@ -132,7 +131,7 @@ show status like 'innodb_pages0_read%';
 use test;
 show status like 'innodb_pages0_read%';
 
-SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
+SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
 SET GLOBAL innodb_encryption_threads=4;
 
 --echo #tables in innodb_encrypted_1 and innodb_encrypted_2 should be encrypted
@@ -157,8 +156,8 @@ SET GLOBAL innodb_encryption_threads=4;
 --source include/assert.inc
 
 --echo # Success!
---echo # Restart mysqld --innodb_encrypt_tables=0 --innodb_encryption_threads=0
--- let $restart_parameters=restart:--innodb_encrypt_tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED --innodb_encryption_threads=0
+--echo # Restart mysqld --default_table_encryption=0 --innodb_encryption_threads=0
+-- let $restart_parameters=restart:--default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED --innodb_encryption_threads=0
 -- source include/restart_mysqld.inc
 
 --echo # Restart Success!
@@ -233,7 +232,7 @@ show status like 'innodb_pages0_read%';
 --let $assert_cond="[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0 AND NAME LIKE \\'innodb_encrypted_3%\\']" = 100
 --source include/assert.inc
 
-SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SET GLOBAL innodb_encryption_threads=4;
 
 --let $wait_timeout= 600

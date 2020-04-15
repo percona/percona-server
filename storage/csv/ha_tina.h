@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,7 +83,7 @@ class ha_tina : public handler {
   File update_temp_file;
   String buffer;
   /*
-    The chain contains "holes" in the file, occured because of
+    The chain contains "holes" in the file, occurred because of
     deletes/updates. It is used in rnd_end() to get rid of them
     in the end of the query.
   */
@@ -132,7 +132,7 @@ class ha_tina : public handler {
     return (double)(stats.records + stats.deleted) / 20.0 + 10;
   }
   /* The next method will never be called */
-  virtual bool fast_key_read() { return 1; }
+  virtual bool fast_key_read() { return true; }
   /*
     TODO: return actual upper bound of number of records in the table.
     (e.g. save number of records seen on full table scan and/or use file size
@@ -146,7 +146,7 @@ class ha_tina : public handler {
   int write_row(uchar *buf);
   int update_row(const uchar *old_data, uchar *new_data);
   int delete_row(const uchar *buf);
-  int rnd_init(bool scan = 1);
+  int rnd_init(bool scan = true);
   int rnd_next(uchar *buf);
   int rnd_pos(uchar *buf, uchar *pos);
   bool check_and_repair(THD *thd);
@@ -155,7 +155,7 @@ class ha_tina : public handler {
   int rnd_end();
   int repair(THD *thd, HA_CHECK_OPT *check_opt);
   /* This is required for SQL layer to know that we support autorepair */
-  bool auto_repair() const { return 1; }
+  bool auto_repair() const { return true; }
   void position(const uchar *record);
   int info(uint);
   int extra(enum ha_extra_function operation);

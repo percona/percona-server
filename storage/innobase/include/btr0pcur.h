@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -165,12 +165,20 @@ enum pcur_pos_t {
   BTR_PCUR_IS_POSITIONED
 };
 
+/* Import tablespace context for persistent B-tree cursor. */
+struct import_ctx_t {
+  /* true if cursor fails to move to the next page during import. */
+  bool is_error{false};
+};
+
 /* The persistent B-tree cursor structure. This is used mainly for SQL
 selects, updates, and deletes. */
 
 struct btr_pcur_t {
-  /** Sets the old_rec_buf field to nullptr. */
-  void init();
+  /** Sets the old_rec_buf field to nullptr.
+  @param[in]  read_level  read level where the cursor would be positioned or
+  re-positioned. */
+  void init(size_t read_level = 0);
 
   /** @return the index of this persistent cursor */
   dict_index_t *index() { return (m_btr_cur.index); }
@@ -248,6 +256,13 @@ struct btr_pcur_t {
   void open_on_user_rec(dict_index_t *index, const dtuple_t *tuple,
                         page_cur_mode_t mode, ulint latch_mode, mtr_t *mtr,
                         const char *file, ulint line);
+
+  /** Allows setting the persistent cursor manually.
+  @param[in]      cursor      Page cursor where positioned.
+  @param[in]	    mode		    PAGE_CUR_L, ...
+  @param[in]	    latch_mode	BTR_SEARCH_LEAF or BTR_MODIFY_LEAF */
+  void open_on_user_rec(const page_cur_t &cursor, page_cur_mode_t mode,
+                        ulint latch_mode);
 
   /** Initializes and opens a persistent cursor to an index tree
   It should be closed with close().
@@ -548,7 +563,7 @@ struct btr_pcur_t {
 
   /** the modify clock value of the buffer block when the cursor position
   was stored */
-  ib_uint64_t m_modify_clock{0};
+  uint64_t m_modify_clock{0};
 
   /** the withdraw clock value of the buffer pool when the cursor
   position was stored */
@@ -572,15 +587,24 @@ struct btr_pcur_t {
 
   /** old_rec_buf size if old_rec_buf is not nullptr */
   size_t m_buf_size{0};
+
+  /** Read level where the cursor would be positioned or re-positioned. */
+  ulint m_read_level{0};
+
+  /* NOTE that the following field is initialized only during import
+  tablespace, otherwise undefined */
+  import_ctx_t *import_ctx{nullptr};
 };
 
-inline void btr_pcur_t::init() {
+inline void btr_pcur_t::init(size_t read_level) {
   set_fetch_type(Page_fetch::NORMAL);
 
   m_old_stored = false;
   m_old_rec_buf = nullptr;
   m_old_rec = nullptr;
   m_btr_cur.rtr_info = nullptr;
+  m_read_level = read_level;
+  import_ctx = nullptr;
 }
 
 /** Initializes and opens a persistent cursor to an index tree
@@ -709,11 +733,12 @@ inline dberr_t btr_pcur_t::open_no_init(dict_index_t *index,
     ut_ad((latch_mode & BTR_MODIFY_LEAF) || (latch_mode & BTR_SEARCH_LEAF));
 
     btr_cur_search_to_nth_level_with_no_latch(
-        index, 0, tuple, mode, cur, file, line, mtr,
+        index, m_read_level, tuple, mode, cur, file, line, mtr,
         ((latch_mode & BTR_MODIFY_LEAF) ? true : false));
   } else {
-    err = btr_cur_search_to_nth_level(index, 0, tuple, mode, latch_mode, cur,
-                                      has_search_latch, file, line, mtr);
+    err = btr_cur_search_to_nth_level(index, m_read_level, tuple, mode,
+                                      latch_mode, cur, has_search_latch, file,
+                                      line, mtr);
   }
 
   m_pos_state = BTR_PCUR_IS_POSITIONED;

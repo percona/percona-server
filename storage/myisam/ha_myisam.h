@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,6 @@
 #include "ft_global.h"
 #include "my_icp.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "myisam.h"
 #include "sql/handler.h" /* handler */
 #include "sql/table.h"   /* TABLE_SHARE */
@@ -60,9 +59,7 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
                      MI_COLUMNDEF *t2_recinfo, uint t2_keys, uint t2_recs,
                      bool strict);
 
-C_MODE_START
 ICP_RESULT index_cond_func_myisam(void *arg);
-C_MODE_END
 
 class Myisam_handler_share : public Handler_share {
  public:
@@ -138,7 +135,7 @@ class ha_myisam : public handler {
     return 0;
   }
   FT_INFO *ft_init_ext(uint flags, uint inx, String *key) {
-    return ft_init_search(flags, file, inx, (uchar *)key->ptr(),
+    return ft_init_search(flags, file, inx, pointer_cast<uchar *>(key->ptr()),
                           (uint)key->length(), key->charset(),
                           table->record[0]);
   }

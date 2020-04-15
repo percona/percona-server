@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "template_utils.h"
 
 #define is_mb_1(c) ((uchar)(c) <= 0x7F)
 #define is_mb_odd(c) (0x81 <= (uchar)(c) && (uchar)(c) <= 0xFE)
@@ -19693,7 +19694,7 @@ static size_t my_casedn_gb18030(const CHARSET_INFO *cs, char *src,
   DBUG_ASSERT(cs != NULL);
   DBUG_ASSERT(src != dst || cs->casedn_multiply == 1);
   DBUG_ASSERT(dstlen >= srclen * cs->casedn_multiply);
-  return my_casefold_gb18030(cs, src, srclen, dst, dstlen, cs->to_lower, 0);
+  return my_casefold_gb18030(cs, src, srclen, dst, dstlen, cs->to_lower, false);
 }
 
 /**
@@ -19711,7 +19712,7 @@ static size_t my_caseup_gb18030(const CHARSET_INFO *cs, char *src,
   DBUG_ASSERT(cs != NULL);
   DBUG_ASSERT(src != dst || cs->caseup_multiply == 1);
   DBUG_ASSERT(dstlen >= srclen * cs->caseup_multiply);
-  return my_casefold_gb18030(cs, src, srclen, dst, dstlen, cs->to_upper, 1);
+  return my_casefold_gb18030(cs, src, srclen, dst, dstlen, cs->to_upper, true);
 }
 
 /**
@@ -19962,8 +19963,10 @@ static int my_strnncoll_gb18030_internal(const CHARSET_INFO *cs,
   DBUG_ASSERT(cs != NULL);
 
   while (s < se && t < te) {
-    uint mblen_s = my_ismbchar_gb18030(cs, (char *)s, (char *)se);
-    uint mblen_t = my_ismbchar_gb18030(cs, (char *)t, (char *)te);
+    uint mblen_s = my_ismbchar_gb18030(cs, pointer_cast<const char *>(s),
+                                       pointer_cast<const char *>(se));
+    uint mblen_t = my_ismbchar_gb18030(cs, pointer_cast<const char *>(t),
+                                       pointer_cast<const char *>(te));
 
     if (mblen_s > 0 && mblen_t > 0) {
       uint code_s = get_weight_for_mbchar(cs, s, mblen_s);
@@ -20162,8 +20165,8 @@ static int my_wildcmp_gb18030_impl(const CHARSET_INFO *cs, const char *str,
   if (my_string_stack_guard && my_string_stack_guard(recurse_level)) return 1;
 
   while (wildstr != wildend) {
-    while (1) {
-      bool escaped = 0;
+    while (true) {
+      bool escaped = false;
       if ((w_len = get_code_and_length(cs, wildstr, wildend, &w_gb)) == 0)
         return 1;
 
@@ -20178,7 +20181,7 @@ static int my_wildcmp_gb18030_impl(const CHARSET_INFO *cs, const char *str,
           return 1;
 
         wildstr += w_len;
-        escaped = 1;
+        escaped = true;
       }
 
       if ((s_len = get_code_and_length(cs, str, str_end, &s_gb)) == 0) return 1;
@@ -20234,7 +20237,7 @@ static int my_wildcmp_gb18030_impl(const CHARSET_INFO *cs, const char *str,
         }
       }
 
-      while (1) {
+      while (true) {
         /* Skip until the first character from wildstr is found */
         while (str != str_end) {
           if ((s_len = get_code_and_length(cs, str, str_end, &s_gb)) == 0)
@@ -20282,14 +20285,17 @@ static int my_wildcmp_gb18030(const CHARSET_INFO *cs, const char *str,
                               const char *str_end, const char *wildstr,
                               const char *wildend, int escape, int w_one,
                               int w_many) {
-  uint escape_gb, w_one_gb, w_many_gb;
-
-  escape_gb = unicode_to_gb18030_code(cs, escape);
-  w_one_gb = unicode_to_gb18030_code(cs, w_one);
-  w_many_gb = unicode_to_gb18030_code(cs, w_many);
+  /*
+    w_one is always '_', or -1 when user sets the escape character equal to
+    '_'. w_many is always '%', or -1 when user sets the escape character equal
+    to '%'. And for '_' and '%', their values are same in GB18030 and Unicode,
+    we don't need to do conversion.
+   */
+  DBUG_ASSERT((w_one == -1 || w_one == '_') && (w_many == -1 || w_many == '%'));
+  uint escape_gb = unicode_to_gb18030_code(cs, escape);
 
   return my_wildcmp_gb18030_impl(cs, str, str_end, wildstr, wildend, escape_gb,
-                                 w_one_gb, w_many_gb, 1);
+                                 w_one, w_many, 1);
 }
 
 /**
@@ -20302,9 +20308,9 @@ static int my_wildcmp_gb18030(const CHARSET_INFO *cs, const char *str,
   @param[in,out] n2   n2
 */
 static void my_hash_sort_gb18030(const CHARSET_INFO *cs, const uchar *s,
-                                 size_t slen, ulong *n1, ulong *n2) {
+                                 size_t slen, uint64 *n1, uint64 *n2) {
   const uchar *e = s + slen;
-  ulong tmp1, tmp2;
+  uint64 tmp1, tmp2;
   size_t len;
   size_t s_gb;
   uint ch;
@@ -20442,8 +20448,8 @@ CHARSET_INFO my_charset_gb18030_chinese_ci = {
     0,                                               /* min_sort_char */
     0xFE39FE39,                                      /* max_sort_char */
     ' ',                                             /* pad char      */
-    1, /* escape_with_backslash_is_dangerous */
-    1, /* levels_for_compare */
+    true, /* escape_with_backslash_is_dangerous */
+    1,    /* levels_for_compare */
     &my_charset_gb18030_handler,
     &my_collation_ci_handler,
     PAD_SPACE};
@@ -20477,7 +20483,7 @@ CHARSET_INFO my_charset_gb18030_bin = {
     0,                              /* min_sort_char */
     0xFEFEFEFE,                     /* max_sort_char */
     ' ',                            /* pad char      */
-    1,                              /* escape_with_backslash_is_dangerous */
+    true,                           /* escape_with_backslash_is_dangerous */
     1,                              /* levels_for_compare */
     &my_charset_gb18030_handler,
     &my_collation_mb_bin_handler,

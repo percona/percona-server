@@ -127,7 +127,7 @@ CREATE TABLE t1(i INT) ENGINE=MYISAM;
 # Use perl to patch sdi_version in SDI file
 # Copy SDI file back into data dir
 IMPORT TABLE FROM 't1_.sdi';
-ERROR HY000: Imported sdi version (42) is not compatible with current (1)
+Got one of the listed errors
 DROP TABLE t1;
 #
 # IM-NEG-8 Verify that CREATE and FILE privileges are required
@@ -228,12 +228,12 @@ IMPORT TABLE FROM 't1_*.sdi', 't2_*.sdi';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 i
@@ -336,7 +336,7 @@ SHOW CREATE TABLE s1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `i` varchar(32) COLLATE latin1_bin DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_bin
 DROP TABLE s1.t1;
 DROP SCHEMA s1;
 # Clean $EXPORT_DIR
@@ -441,10 +441,10 @@ de DECIMAL(10,2), j INT GENERATED ALWAYS AS (42+i)) ENGINE=MYISAM;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT '42',
+  `i` int DEFAULT '42',
   `dt` datetime(3) DEFAULT CURRENT_TIMESTAMP(3),
   `de` decimal(10,2) DEFAULT NULL,
-  `j` int(11) GENERATED ALWAYS AS ((42 + `i`)) VIRTUAL
+  `j` int GENERATED ALWAYS AS ((42 + `i`)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1(dt,de) VALUES ('2017-03-28 18:48:01', 1.1),
 ('2017-03-28 18:48:02', 1.2),
@@ -463,10 +463,10 @@ IMPORT TABLE FROM 't1_*.sdi';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT '42',
+  `i` int DEFAULT '42',
   `dt` datetime(3) DEFAULT CURRENT_TIMESTAMP(3),
   `de` decimal(10,2) DEFAULT NULL,
-  `j` int(11) GENERATED ALWAYS AS ((42 + `i`)) VIRTUAL
+  `j` int GENERATED ALWAYS AS ((42 + `i`)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 i	dt	de	j
@@ -499,4 +499,18 @@ IMPORT TABLE FROM 't1_*.sdi';
 ERROR HY000: Unable to create or change a table without a primary key, when the system variable 'sql_require_primary_key' is set. Add a primary key to the table or unset this variable to avoid this message. Note that tables without a primary key can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
 SET SESSION sql_require_primary_key= OFF;
 # Clean SDI files in $EXPORT_DIR
+#-----------------------------------------------------------------------
+# WL#929 - Check constraint.
+# Test case to verify check constraint import from SDI.
+#-----------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT CHECK (f1 < 10)) ENGINE=MyISAM;
+DROP TABLE t1;
+IMPORT TABLE FROM 'test/t1*.sdi';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10))
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
 # Remove 'export' folder created at the beginning of test file.

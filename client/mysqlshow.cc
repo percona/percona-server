@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 
 #include "caching_sha2_passwordopt-vars.h"
 #include "client/client_priv.h"
+#include "compression.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
@@ -49,15 +50,19 @@
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 static char *host = 0, *opt_password = 0, *user = 0;
-static bool opt_show_keys = 0, opt_compress = 0, opt_count = 0, opt_status = 0;
-static bool tty_password = 0, opt_table_type = 0;
-static bool debug_info_flag = 0, debug_check_flag = 0;
+static bool opt_show_keys = false, opt_compress = false, opt_count = false,
+            opt_status = false;
+static bool tty_password = false, opt_table_type = false;
+static bool debug_info_flag = false, debug_check_flag = false;
 static uint my_end_arg = 0;
 static uint opt_verbose = 0;
-static char *default_charset = (char *)MYSQL_AUTODETECT_CHARSET_NAME;
+static const char *default_charset = MYSQL_AUTODETECT_CHARSET_NAME;
 static char *opt_plugin_dir = 0, *opt_default_auth = 0;
 static uint opt_enable_cleartext_plugin = 0;
-static bool using_opt_enable_cleartext_plugin = 0;
+static bool using_opt_enable_cleartext_plugin = false;
+
+static uint opt_zstd_compress_level = default_zstd_compression_level;
+static char *opt_compress_algorithm = nullptr;
 
 #if defined(_WIN32)
 static char *shared_memory_base_name = 0;
@@ -84,7 +89,7 @@ static char *opt_mysql_unix_port = 0;
 
 int main(int argc, char **argv) {
   int error;
-  bool first_argument_uses_wildcards = 0;
+  bool first_argument_uses_wildcards = false;
   char *wild;
   MYSQL mysql;
   MY_INIT(argv[0]);
@@ -103,15 +108,15 @@ int main(int argc, char **argv) {
       switch (*pos) {
         case '*':
           *pos = '%';
-          first_argument_uses_wildcards = 1;
+          first_argument_uses_wildcards = true;
           break;
         case '?':
           *pos = '_';
-          first_argument_uses_wildcards = 1;
+          first_argument_uses_wildcards = true;
           break;
         case '%':
         case '_':
-          first_argument_uses_wildcards = 1;
+          first_argument_uses_wildcards = true;
           break;
         case '\\':
           pos++;
@@ -133,7 +138,10 @@ int main(int argc, char **argv) {
   }
   mysql_init(&mysql);
   if (opt_compress) mysql_options(&mysql, MYSQL_OPT_COMPRESS, NullS);
-  SSL_SET_OPTIONS(&mysql);
+  if (SSL_SET_OPTIONS(&mysql)) {
+    fprintf(stderr, "%s", SSL_SET_OPTIONS_ERROR);
+    exit(1);
+  }
   if (opt_protocol)
     mysql_options(&mysql, MYSQL_OPT_PROTOCOL, (char *)&opt_protocol);
   if (opt_bind_addr) mysql_options(&mysql, MYSQL_OPT_BIND, opt_bind_addr);
@@ -143,6 +151,13 @@ int main(int argc, char **argv) {
                   shared_memory_base_name);
 #endif
   mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
+
+  if (opt_compress_algorithm)
+    mysql_options(&mysql, MYSQL_OPT_COMPRESSION_ALGORITHMS,
+                  opt_compress_algorithm);
+
+  mysql_options(&mysql, MYSQL_OPT_ZSTD_COMPRESSION_LEVEL,
+                &opt_zstd_compress_level);
 
   if (opt_plugin_dir && *opt_plugin_dir)
     mysql_options(&mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
@@ -165,7 +180,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "%s: %s\n", my_progname, mysql_error(&mysql));
     exit(1);
   }
-  mysql.reconnect = 1;
+  mysql.reconnect = true;
 
   switch (argc) {
     case 0:
@@ -275,6 +290,17 @@ static struct my_option my_long_options[] = {
      0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"version", 'V', "Output version information and exit.", 0, 0, 0,
      GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"compression-algorithms", 0,
+     "Use compression algorithm in server/client protocol. Valid values "
+     "are any combination of 'zstd','zlib','uncompressed'.",
+     &opt_compress_algorithm, &opt_compress_algorithm, 0, GET_STR, REQUIRED_ARG,
+     0, 0, 0, 0, 0, 0},
+    {"zstd-compression-level", 0,
+     "Use this compression level in the client/server protocol, in case "
+     "--compression-algorithms=zstd. Valid range is between 1 and 22, "
+     "inclusive. Default is 3.",
+     &opt_zstd_compress_level, &opt_zstd_compress_level, 0, GET_UINT,
+     REQUIRED_ARG, 3, 1, 22, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 static void usage(void) {
@@ -305,17 +331,22 @@ static bool get_one_option(int optid, const struct my_option *opt,
       opt_verbose++;
       break;
     case 'p':
-      if (argument == disabled_my_option)
-        argument = (char *)""; /* Don't require password */
+      if (argument == disabled_my_option) {
+        // Don't require password
+        static char empty_password[] = {'\0'};
+        DBUG_ASSERT(empty_password[0] ==
+                    '\0');  // Check that it has not been overwritten
+        argument = empty_password;
+      }
       if (argument) {
         char *start = argument;
         my_free(opt_password);
         opt_password = my_strdup(PSI_NOT_INSTRUMENTED, argument, MYF(MY_FAE));
         while (*argument) *argument++ = 'x'; /* Destroy argument */
         if (*start) start[1] = 0;            /* Cut length of argument */
-        tty_password = 0;
+        tty_password = false;
       } else
-        tty_password = 1;
+        tty_password = true;
       break;
     case 'W':
 #ifdef _WIN32
@@ -331,7 +362,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
       break;
     case '#':
       DBUG_PUSH(argument ? argument : "d:t:o");
-      debug_check_flag = 1;
+      debug_check_flag = true;
       break;
 #include "sslopt-case.h"
 
@@ -343,7 +374,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
       usage();
       exit(0);
   }
-  return 0;
+  return false;
 }
 }  // extern "C"
 

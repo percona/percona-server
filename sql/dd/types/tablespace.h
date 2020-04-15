@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 #include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
 #include "sql/dd/sdi_fwd.h"               // RJ_Document
 #include "sql/dd/types/entity_object.h"   // dd::Entity_object
+#include "sql/mdl.h"                      // enum enum_mdl_type
 
 class THD;
 class MDL_request;
@@ -172,25 +173,6 @@ class Tablespace : virtual public Entity_object {
 
 ///////////////////////////////////////////////////////////////////////////
 
-const uint32 SDI_KEY_LEN = 8;
-const uint32 SDI_TYPE_LEN = 4;
-
-/** Key to identify a dictionary object */
-struct sdi_key {
-  /** Type of Object, For ex: column, index, etc */
-  uint32 type;
-
-  /** Object id which should be unique in tablespsace */
-  uint64 id;
-};
-bool operator==(const sdi_key &a, const sdi_key &b);
-
-typedef std::vector<sdi_key> sdi_container;
-
-struct sdi_vector {
-  sdi_container m_vec;
-};
-
 /**
   Represents tables with their id, name, schema id and schema name.
   Needed to keep track of information when querying the dd to find
@@ -201,10 +183,14 @@ struct Tablespace_table_ref {
   String_type m_name;
   Object_id m_schema_id;
   String_type m_schema_name;
+  bool m_schema_encryption;
   Tablespace_table_ref() = default; /* purecov: inspected */
   Tablespace_table_ref(Object_id id, const String_type &&name,
                        Object_id schema_id)
-      : m_id{id}, m_name{std::move(name)}, m_schema_id{schema_id} {}
+      : m_id{id},
+        m_name{std::move(name)},
+        m_schema_id{schema_id},
+        m_schema_encryption{false} {}
 };
 
 bool operator==(const Tablespace_table_ref &a, const Tablespace_table_ref &b);
@@ -220,7 +206,7 @@ typedef std::vector<Tablespace_table_ref> Tablespace_table_ref_vec;
   @param thd thread context
   @param tso dd object
   @param tblrefs [OUT] Tablespace_table_ref objects for tables in tablespace
-  @retval true if error occured
+  @retval true if error occurred
   @retval false otherwise
  */
 bool fetch_tablespace_table_refs(THD *thd, const Tablespace &tso,
@@ -230,9 +216,19 @@ bool fetch_tablespace_table_refs(THD *thd, const Tablespace &tso,
   Create am MDL_request for a the table identified by a Tablespace_table_ref.
   @param thd thread context
   @param tref table to create request for
+  @param mdl_type The lock type requested.
   @retval MDL_request (allocated on thd->memroot)
  */
-MDL_request *mdl_req(THD *thd, const Tablespace_table_ref &tref);
+MDL_request *mdl_req(THD *thd, const Tablespace_table_ref &tref,
+                     enum enum_mdl_type mdl_type);
+
+/**
+  Create am MDL_request for a the schema name provided.
+  @param thd thread context
+  @param schema_name on which to create request for
+  @retval MDL_request (allocated on thd->memroot)
+ */
+MDL_request *mdl_schema_req(THD *thd, const dd::String_type &schema_name);
 
 }  // namespace dd
 

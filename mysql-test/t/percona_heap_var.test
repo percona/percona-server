@@ -165,7 +165,7 @@ DROP TABLE t1;
 --echo #
 
 CREATE TABLE `t1` (
-  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `id` INT NOT NULL AUTO_INCREMENT,
   `json_column` TEXT,
   PRIMARY KEY (`id`)
 ) ENGINE=MEMORY;
@@ -197,7 +197,7 @@ DROP TABLE t1;
 --echo # PS-3943: Explicit key_block_size is kept and doesn't change
 --echo #
 CREATE TABLE `t1` (
-  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `id` INT NOT NULL AUTO_INCREMENT,
   `json_column` TEXT,
   PRIMARY KEY (`id`)
 ) ENGINE=MEMORY KEY_BLOCK_SIZE=200;

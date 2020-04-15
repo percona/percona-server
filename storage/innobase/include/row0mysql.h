@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -60,7 +60,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql_cmd.h"
 #include "trx0types.h"
 #include "univ.i"
+#include "ut0bool_scope_guard.h"
 
+// Forward declarations
 class THD;
 class ha_innobase;
 class innodb_session_t;
@@ -84,7 +86,7 @@ struct trx_t;
 struct upd_node_t;
 struct upd_t;
 
-#include "create_info_encryption_key.h"
+#include "keyring_encryption_key_info.h"
 
 #ifndef UNIV_HOTBACKUP
 extern ibool row_rollback_on_timeout;
@@ -171,22 +173,19 @@ void row_mysql_store_blob_ref(
 /*<! in: use prebuilt->compress_heap only
 here */
 /** Reads a reference to a BLOB in the MySQL format.
- @return pointer to BLOB data */
-const byte *row_mysql_read_blob_ref(
-    ulint *len,      /*!< out: BLOB length */
-    const byte *ref, /*!< in: BLOB reference in the
-                     MySQL format */
-    ulint col_len,   /*!< in: BLOB reference length
-                     (not BLOB length) */
-    bool need_compression,
-    /*!< in: if the data need to be
-    compressed*/
-    const byte *dict_data,     /*!< in: optional compression
-                               dictionary data */
-    ulint dict_data_len,       /*!< in: optional compression
-                               dictionary data length */
-    row_prebuilt_t *prebuilt); /*!< in: use prebuilt->compress_heap
-                               only here */
+@param[out] len                 BLOB length.
+@param[in] ref                  BLOB reference in the MySQL format.
+@param[in] col_len              BLOB reference length (not BLOB length).
+@param[in] need_compression     if the data need to be compressed
+@param[in] dict_data            optional compression dictionary data
+@param[in] dict_data_len        optional compression dictionary data length
+@param[in] prebuilt             use prebuilt->compress_heap only heap
+@return pointer to BLOB data */
+const byte *row_mysql_read_blob_ref(ulint *len, const byte *ref, ulint col_len,
+                                    bool need_compression,
+                                    const byte *dict_data, ulint dict_data_len,
+                                    row_prebuilt_t *prebuilt);
+
 /** Converts InnoDB geometry data format to MySQL data format. */
 void row_mysql_store_geometry(
     byte *dest,      /*!< in/out: where to store */
@@ -267,12 +266,13 @@ row_prebuilt_t *row_create_prebuilt(
 void row_prebuilt_free(
     row_prebuilt_t *prebuilt, /*!< in, own: prebuilt struct */
     ibool dict_locked);       /*!< in: TRUE=data dictionary locked */
+
 /** Updates the transaction pointers in query graphs stored in the prebuilt
- struct. */
-void row_update_prebuilt_trx(
-    row_prebuilt_t *prebuilt, /*!< in/out: prebuilt struct
-                              in MySQL handle */
-    trx_t *trx);              /*!< in: transaction handle */
+struct.
+@param[in,out] prebuilt         Prebuilt struct in MySQL handle.
+@param[in,out] trx              Transaction handle. */
+void row_update_prebuilt_trx(row_prebuilt_t *prebuilt, trx_t *trx);
+
 /** Sets an AUTO_INC type lock on the table mentioned in prebuilt. The
  AUTO_INC lock gives exclusive access to the auto-inc counter of the
  table. The lock is reserved only for the duration of an SQL statement.
@@ -296,9 +296,8 @@ dberr_t row_insert_for_mysql(const byte *mysql_rec, row_prebuilt_t *prebuilt)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Builds a dummy query graph used in selects. */
-void row_prebuild_sel_graph(
-    row_prebuilt_t *prebuilt); /*!< in: prebuilt struct in MySQL
-                               handle */
+void row_prebuild_sel_graph(row_prebuilt_t *prebuilt); /*!< in: prebuilt struct
+                                                       in MySQL handle */
 /** Gets pointer to a prebuilt update vector used in updates. If the update
  graph has not yet been built in the prebuilt struct, then this function
  first builds it.
@@ -387,12 +386,14 @@ kept in non-LRU list while on failure the 'table' object will be freed.
                                 DB_SUCCESS added to the data dictionary cache)
 @param[in]	compression	compression algorithm to use, can be nullptr
 @param[in,out]	trx		transasction
+@param[in]	mode		keyring encryption mode
+@param[in]	keyring_encryption_key_id	keyring encryption info
 @return error code or DB_SUCCESS */
 dberr_t row_create_table_for_mysql(
     dict_table_t *table, const char *compression, trx_t *trx,
-    fil_encryption_t mode, /*!< in: encryption mode */
-    const CreateInfoEncryptionKeyId
-        &create_info_encryption_key_id) /*!< in: encryption key_id */
+    const fil_encryption_t mode, /*!< in: encryption mode */
+    const KeyringEncryptionKeyIdInfo
+        &keyring_encryption_key_id) /*!< in: encryption key_id */
     MY_ATTRIBUTE((warn_unused_result));
 /** Does an index creation operation for MySQL. TODO: currently failure
  to create an index results in dropping the whole table! This is no problem
@@ -410,31 +411,19 @@ dberr_t row_create_index_for_mysql(
                                 large. */
     dict_table_t *handler)      /* ! in/out: table handler. */
     MY_ATTRIBUTE((warn_unused_result));
-/** Scans a table create SQL string and adds to the data dictionary
- the foreign key constraints declared in the string. This function
- should be called after the indexes for a table have been created.
- Each foreign key constraint must be accompanied with indexes in
- bot participating tables. The indexes are allowed to contain more
+
+/** Loads foreign key constraints for the table being created. This
+ function should be called after the indexes for a table have been
+ created. Each foreign key constraint must be accompanied with indexes
+ in both participating tables. The indexes are allowed to contain more
  fields than mentioned in the constraint.
 
  @param[in]	trx		transaction
- @param[in]	sql_string	table create statement where
-                                 foreign keys are declared like:
-                                 FOREIGN KEY (a, b) REFERENCES table2(c, d),
-                                 table2 can be written also with the database
-                                 name before it: test.table2; the default
-                                 database id the database of parameter name
- @param[in]	sql_length	length of sql_string
  @param[in]	name		table full name in normalized form
- @param[in]	reject_fks	if TRUE, fail with error code
-                                 DB_CANNOT_ADD_CONSTRAINT if any
-                                 foreign keys are found.
  @param[in]	dd_table	MySQL dd::Table for the table
  @return error code or DB_SUCCESS */
-dberr_t row_table_add_foreign_constraints(trx_t *trx, const char *sql_string,
-                                          size_t sql_length, const char *name,
-                                          ibool reject_fks,
-                                          const dd::Table *dd_table)
+dberr_t row_table_load_foreign_constraints(trx_t *trx, const char *name,
+                                           const dd::Table *dd_table)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** The master thread in srv0srv.cc calls this regularly to drop tables which
@@ -519,7 +508,17 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
                                    bool replay)
     MY_ATTRIBUTE((warn_unused_result));
 
-/** Scans an index for either COOUNT(*) or CHECK TABLE.
+/** Read the total number of records in a consistent view.
+@param[in,out]  trx             Covering transaction.
+@param[in]  indexes             Indexes to scan.
+@param[in]  max_threads         Maximum number of threads to use.
+@param[out] n_rows              Number of rows seen.
+@return DB_SUCCESS or error code. */
+dberr_t row_mysql_parallel_select_count_star(
+    trx_t *trx, std::vector<dict_index_t *> &indexes, size_t max_threads,
+    ulint *n_rows);
+
+/** Scans an index for either COUNT(*) or CHECK TABLE.
 If CHECK TABLE; Checks that the index contains entries in an ascending order,
 unique constraint is not broken, and calculates the number of index entries
 in the read view of the current transaction.
@@ -569,6 +568,7 @@ struct mysql_row_templ_t {
                                 row format */
   ulint mysql_col_len;          /*!< length of the column in the MySQL
                                 row format */
+  ulint mysql_mvidx_len;        /*!< index length on multi-value array */
   ulint mysql_null_byte_offset; /*!< MySQL NULL bit byte offset in a
                                 MySQL record */
   ulint mysql_null_bit_mask;    /*!< bit mask to get the NULL bit,
@@ -595,6 +595,8 @@ struct mysql_row_templ_t {
                                 type and this field is != 0, then
                                 it is an unsigned integer type */
   ulint is_virtual;             /*!< if a column is a virtual column */
+  ulint is_multi_val;           /*!< if a column is a Multi-Value Array virtual
+                                  column */
   bool compressed;              /*!< if column format is compressed */
   LEX_CSTRING zip_dict_data;    /*!< associated compression dictionary */
 };
@@ -673,21 +675,35 @@ struct row_prebuilt_t {
                               DATA_POINT as non-BLOB type, the
                               templ_contains_blob can't tell us
                               if there is DATA_POINT */
-  mysql_row_templ_t *mysql_template;       /*!< template used to transform
-                                         rows fast between MySQL and Innobase
-                                         formats; memory for this template
-                                         is not allocated from 'heap' */
-  mem_heap_t *heap;                        /*!< memory heap from which
-                                           these auxiliary structures are
-                                           allocated when needed */
-  mem_heap_t *cursor_heap;                 /*!< memory heap from which
-                                           innodb_api_buf is allocated per session */
-  ins_node_t *ins_node;                    /*!< Innobase SQL insert node
-                                           used to perform inserts
-                                           to the table */
-  byte *ins_upd_rec_buff;  /*!< buffer for storing data converted
-                          to the Innobase format from the MySQL
-                          format */
+
+  /** 1 if extra(HA_EXTRA_INSERT_WITH_UPDATE) was requested, which happens
+  when ON DUPLICATE KEY UPDATE clause is present, 0 otherwise */
+  unsigned on_duplicate_key_update : 1;
+
+  /** 1 if extra(HA_EXTRA_WRITE_CAN_REPLACE) was requested, which happen when
+  REPLACE is done instead of regular INSERT, 0 otherwise */
+  unsigned replace : 1;
+
+  /** template used to transform rows fast between MySQL and Innobase formats;
+  memory for this template is not allocated from 'heap' */
+  mysql_row_templ_t *mysql_template;
+
+  /** memory heap from which these auxiliary structures are allocated when
+  needed */
+  mem_heap_t *heap;
+
+  /** memory heap from which innodb_api_buf is allocated per session */
+  mem_heap_t *cursor_heap;
+
+  /** Innobase SQL insert node used to perform inserts to the table */
+  ins_node_t *ins_node;
+
+  /** buffer for storing data converted to the Innobase format from the MySQL
+  format */
+  byte *ins_upd_rec_buff;
+
+  /* buffer for converting data format for multi-value virtual columns */
+  multi_value_data *mv_data;
   const byte *default_rec; /*!< the default values of all columns
                            (a "default row") in MySQL format */
   ulint hint_need_to_fetch_extra_cols;
@@ -715,6 +731,39 @@ struct row_prebuilt_t {
   que_fork_t *sel_graph;  /*!< dummy query graph used in
                           selects */
   dtuple_t *search_tuple; /*!< prebuilt dtuple used in selects */
+
+  /** prebuilt dtuple used in selects where the end of range is known */
+  dtuple_t *m_stop_tuple;
+
+  /** Set to true in row_search_mvcc when a row matching exactly the length and
+  value of stop_tuple was found, so that the next iteration of row_search_mvcc
+  knows it can simply return DB_RECORD_NOT_FOUND. If true, then for sure, at
+  least one such matching row was seen. If false, it might be false negative, as
+  not all control paths lead to setting this field to true in case a matching
+  row is visited. */
+  bool m_stop_tuple_found;
+
+ private:
+  /** Set to true iff we are inside read_range_first() or read_range_next() */
+  bool m_is_reading_range;
+
+ public:
+  bool is_reading_range() const { return m_is_reading_range; }
+
+  class row_is_reading_range_guard_t : private ut::bool_scope_guard_t {
+   public:
+    explicit row_is_reading_range_guard_t(row_prebuilt_t &prebuilt)
+        : ut::bool_scope_guard_t(prebuilt.m_is_reading_range) {}
+  };
+
+  row_is_reading_range_guard_t get_is_reading_range_guard() {
+    /* We implement row_is_reading_range_guard_t as a simple bool_scope_guard_t
+    because we trust that scopes are never nested and thus we don't need to
+    count their "openings" and "closings", so we assert that.*/
+    ut_ad(!m_is_reading_range);
+    return row_is_reading_range_guard_t(*this);
+  }
+
   byte row_id[DATA_ROW_ID_LEN];
   /*!< if the clustered index was
   generated, the row id of the
@@ -910,6 +959,42 @@ struct row_prebuilt_t {
   @retval true   if records can be prefetched
   @retval false  if records cannot be prefetched */
   bool can_prefetch_records() const;
+
+  /** Determines if the query is REPLACE or ON DUPLICATE KEY UPDATE in which
+  case duplicate values should be allowed (and further processed) instead of
+  causing an error.
+  @return true iff duplicated values should be allowed */
+  bool allow_duplicates() { return (replace || on_duplicate_key_update); }
+
+ private:
+  /** A helper function for init_search_tuples_types() which prepares the shape
+  of the tuple to match the index
+  @param[in]  tuple   this->search_tuple or this->m_stop_tuple */
+  void init_tuple_types(dtuple_t *tuple) {
+    dtuple_set_n_fields(tuple, index->n_fields);
+    dict_index_copy_types(tuple, index, index->n_fields);
+  }
+
+ public:
+  /** Initializes search_tuple and m_stop_tuple shape so they match the index */
+  void init_search_tuples_types() {
+    init_tuple_types(search_tuple);
+    init_tuple_types(m_stop_tuple);
+  }
+
+  /** Resets both search_tuple and m_stop_tuple */
+  void clear_search_tuples() {
+    dtuple_set_n_fields(search_tuple, 0);
+    dtuple_set_n_fields(m_stop_tuple, 0);
+  }
+
+  /** It is unsafe to copy this struct, and moving it would be non-trivial,
+  because we want to keep in sync with row_is_reading_range_guard_t. Therefore
+  it is much safer/easier to just forbid such operations.  */
+  row_prebuilt_t(row_prebuilt_t const &) = delete;
+  row_prebuilt_t &operator=(row_prebuilt_t const &) = delete;
+  row_prebuilt_t &operator=(row_prebuilt_t &&) = delete;
+  row_prebuilt_t(row_prebuilt_t &&) = delete;
 };
 
 /** Callback for row_mysql_sys_index_iterate() */
@@ -942,6 +1027,19 @@ dfield_t *innobase_get_computed_value(
     mem_heap_t **local_heap, mem_heap_t *heap, const dict_field_t *ifield,
     THD *thd, TABLE *mysql_table, const dict_table_t *old_table,
     upd_t *parent_update, dict_foreign_t *foreign, row_prebuilt_t *prebuilt);
+
+/** Parse out multi-values from a MySQL record
+@param[in]      mysql_table     MySQL table structure
+@param[in]      f_idx           field index of the multi-value column
+@param[in,out]  dfield          field structure to store parsed multi-value
+@param[in,out]  value           nullptr or the multi-value structure
+                                to store the parsed values
+@param[in]      old_val         old value if exists
+@param[in]      comp            true if InnoDB table uses compact row format
+@param[in,out]  heap            memory heap */
+void innobase_get_multi_value(const TABLE *mysql_table, ulint f_idx,
+                              dfield_t *dfield, multi_value_data *value,
+                              uint old_val, ulint comp, mem_heap_t *heap);
 
 /** Get the computed value by supplying the base column values.
 @param[in,out]	table	the table whose virtual column template to be built */

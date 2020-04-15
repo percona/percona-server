@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
+#include "plugin/x/src/interface/authentication.h"
 #include "unittest/gunit/xplugin/xcl/session_t.h"
 
 namespace xcl {
@@ -37,6 +37,16 @@ class Auth_chaining_test_suite_base : public Xcl_session_impl_tests {
         .WillRepeatedly(Return(false));
     EXPECT_CALL(m_mock_connection, connect(_, _, _))
         .WillRepeatedly(Return(XError{0, ""}));
+    EXPECT_CALL(*m_mock_protocol, add_notice_handler(_, Handler_position::Begin,
+                                                     Handler_priority_low))
+        .WillOnce(Return(3));
+    EXPECT_CALL(*m_mock_protocol, remove_notice_handler(3));
+    EXPECT_CALL(*m_mock_protocol, add_send_message_handler(_, _, _));
+    EXPECT_CALL(*m_mock_protocol, remove_send_message_handler(0));
+    EXPECT_CALL(m_mock_connection, set_read_timeout(_))
+        .WillRepeatedly(Return(XError{}));
+    EXPECT_CALL(m_mock_connection, set_write_timeout(_))
+        .WillRepeatedly(Return(XError{}));
   }
 
   void set_ssl_state(bool is_enabled) {
@@ -75,7 +85,9 @@ class Auth_chaining_test_suite_base : public Xcl_session_impl_tests {
     return result;
   }
   const bool k_fatal = true;
-  XError m_ok_auth{ngs::Authentication_interface::Status::Succeeded, ""};
+  XError m_ok_auth{
+      static_cast<int32_t>(xpl::iface::Authentication::Status::k_succeeded),
+      ""};
   XError m_error_failed_auth{ER_ACCESS_DENIED_ERROR,
                              "Invalid user or password"};
   XError m_error_fatal_failed_auth{ER_ACCESS_DENIED_ERROR,

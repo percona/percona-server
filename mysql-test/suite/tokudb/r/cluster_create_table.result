@@ -5,10 +5,10 @@ create table t1(a int, b int, c int, d int, primary key(a), clustering key(b))en
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `d` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   CLUSTERING KEY `b` (`b`)
 ) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -16,10 +16,10 @@ create clustering index foo on t1(c,d);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `d` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   CLUSTERING KEY `b` (`b`),
   CLUSTERING KEY `foo` (`c`,`d`)
@@ -30,10 +30,10 @@ alter table t1 add clustering key bar(d,c,b,a);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
-  `d` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
+  `d` int NOT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`),
   CLUSTERING KEY `b` (`b`),
   CLUSTERING KEY `foo` (`c`,`d`),

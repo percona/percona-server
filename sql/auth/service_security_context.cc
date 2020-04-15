@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,7 +80,11 @@ my_svc_bool thd_set_security_context(MYSQL_THD _thd,
                                      MYSQL_SECURITY_CONTEXT in_ctx) {
   THD *thd = dynamic_cast<THD *>(_thd);
   try {
-    if (in_ctx) thd->set_security_context(in_ctx);
+    if (in_ctx) {
+      thd->set_security_context(in_ctx);
+      // Turn ON the flag in THD iff the user is granted SYSTEM_USER privilege
+      set_system_user_flag(thd);
+    }
     return MY_SVC_FALSE;
   } catch (...) {
     return MY_SVC_TRUE;
@@ -175,8 +179,7 @@ my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT ctx,
     if (!tmp_thd) return true;
   }
 
-  retval = acl_getroot(tmp_thd ? tmp_thd : current_thd, ctx, (char *)user,
-                       (char *)host, (char *)ip, db)
+  retval = acl_getroot(tmp_thd ? tmp_thd : current_thd, ctx, user, host, ip, db)
                ? true
                : false;
 

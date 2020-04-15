@@ -1,2 +1,3 @@
+call mtr.add_suppression("Server SSL certificate doesn't verify");
 Variable_name	Value
-Ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
+Ssl_cipher	SSL_CIPHER

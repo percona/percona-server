@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -55,7 +55,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 enum status_severity { STATUS_VERBOSE, STATUS_INFO, STATUS_ERR };
 
-#define SHUTTING_DOWN() (srv_shutdown_state != SRV_SHUTDOWN_NONE)
+#define SHUTTING_DOWN() (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE)
 
 /* Flags that tell the buffer pool dump/load thread which action should it
 take after being waked up. */
@@ -377,15 +377,14 @@ normal client queries.
 @param[in]	n_io			number of IO ops done since buffer
                                         pool load has started */
 UNIV_INLINE
-void buf_load_throttle_if_needed(
-    std::chrono::steady_clock::time_point &last_check_tm,
-    ulint *last_activity_count, ulint n_io) {
+void buf_load_throttle_if_needed(ib_time_monotonic_ms_t *last_check_time,
+                                 ulint *last_activity_count, ulint n_io) {
   if (n_io % srv_io_capacity < srv_io_capacity - 1) {
     return;
   }
 
-  if (!last_check_tm.time_since_epoch().count() || *last_activity_count == 0) {
-    last_check_tm = std::chrono::steady_clock::now();
+  if (*last_check_time == 0 || *last_activity_count == 0) {
+    *last_check_time = ut_time_monotonic_ms();
     *last_activity_count = srv_get_activity_count();
     return;
   }
@@ -400,10 +399,8 @@ void buf_load_throttle_if_needed(
 
   /* There has been other activity, throttle. */
 
-  static const constexpr std::chrono::milliseconds ms1000(1000);
-  const auto now_tm = std::chrono::steady_clock::now();
-  const auto elapsed_tm = std::chrono::duration_cast<std::chrono::milliseconds>(
-      now_tm - last_check_tm);
+  const auto now = ut_time_monotonic_ms();
+  const auto elapsed_time = now - *last_check_time;
 
   /* Notice that elapsed_time is not the time for the last
   srv_io_capacity IO operations performed by BP load. It is the
@@ -422,14 +419,13 @@ void buf_load_throttle_if_needed(
   The deficiency is that we could have slept at 3., but for this we
   would have to update last_check_time before the
   "cur_activity_count == *last_activity_count" check and calling
-  ut_time_ms() that often may turn out to be too expensive. */
+  ut_time_monotonic_ms() that often may turn out to be too expensive. */
 
-  if (elapsed_tm < ms1000) {
-    os_thread_sleep(std::chrono::duration_cast<std::chrono::microseconds>(
-        ms1000 - elapsed_tm));
+  if (elapsed_time < 1000 /* 1 sec (1000 milli secs) */) {
+    os_thread_sleep((1000 - elapsed_time) * 1000 /* micro secs */);
   }
 
-  last_check_tm = std::chrono::steady_clock::now();
+  *last_check_time = ut_time_monotonic_ms();
   *last_activity_count = srv_get_activity_count();
 }
 
@@ -573,7 +569,7 @@ static void buf_load() {
     std::sort(dump, dump + dump_n);
   }
 
-  std::chrono::steady_clock::time_point last_check_tm;
+  ib_time_monotonic_ms_t last_check_time = 0;
   ulint last_activity_cnt = 0;
 
   /* Avoid calling the expensive fil_space_acquire_silent() for each
@@ -649,7 +645,7 @@ static void buf_load() {
       return;
     }
 
-    buf_load_throttle_if_needed(last_check_tm, &last_activity_cnt, i);
+    buf_load_throttle_if_needed(&last_check_time, &last_activity_cnt, i);
   }
 
   if (space != NULL) {
@@ -681,8 +677,6 @@ again. */
 void buf_dump_thread() {
   ut_ad(!srv_read_only_mode);
 
-  my_thread_init();
-
   buf_dump_status(STATUS_VERBOSE, "Dumping of buffer pool not started");
   buf_load_status(STATUS_VERBOSE, "Loading of buffer pool not started");
 
@@ -710,9 +704,4 @@ void buf_dump_thread() {
     buf_dump(FALSE /* ignore shutdown down flag,
 		keep going even if we are in a shutdown state */);
   }
-
-  my_thread_end();
-
-  std::atomic_thread_fence(std::memory_order_seq_cst);
-  srv_threads.m_buf_dump_thread_active = false;
 }

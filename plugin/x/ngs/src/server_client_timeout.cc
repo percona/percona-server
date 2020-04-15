@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,19 +26,19 @@
 
 #include "plugin/x/ngs/include/ngs/log.h"
 
-using namespace ngs;
+namespace ngs {
 
 Server_client_timeout::Server_client_timeout(
-    const chrono::time_point &release_all_before_time)
+    const xpl::chrono::Time_point &release_all_before_time)
     : m_release_all_before_time(release_all_before_time) {}
 
 void Server_client_timeout::validate_client_state(
-    ngs::shared_ptr<Client_interface> client) {
-  const chrono::time_point client_accept_time = client->get_accept_time();
-  const Client_interface::Client_state state = client->get_state();
+    std::shared_ptr<xpl::iface::Client> client) {
+  const xpl::chrono::Time_point client_accept_time = client->get_accept_time();
+  const xpl::iface::Client::Client::State state = client->get_state();
 
-  if (Client_interface::Client_accepted == state ||
-      Client_interface::Client_authenticating_first == state) {
+  if (xpl::iface::Client::State::k_accepted == state ||
+      xpl::iface::Client::State::k_authenticating_first == state) {
     if (client_accept_time <= m_release_all_before_time) {
       log_debug("%s: release triggered by timeout in state:%i",
                 client->client_id(), static_cast<int>(state));
@@ -46,13 +46,15 @@ void Server_client_timeout::validate_client_state(
       return;
     }
 
-    if (!chrono::is_valid(m_oldest_client_accept_time) ||
+    if (!xpl::chrono::is_valid(m_oldest_client_accept_time) ||
         m_oldest_client_accept_time > client_accept_time) {
       m_oldest_client_accept_time = client_accept_time;
     }
   }
 }
 
-chrono::time_point Server_client_timeout::get_oldest_client_accept_time() {
+xpl::chrono::Time_point Server_client_timeout::get_oldest_client_accept_time() {
   return m_oldest_client_accept_time;
 }
+
+}  // namespace ngs

@@ -23,10 +23,6 @@
 #ifndef SQL_THREAD_INCLUDED
 #define SQL_THREAD_INCLUDED
 
-#include <stdio.h>
-#include <sys/resource.h>
-#include <sys/time.h>
-
 #include <mysql/psi/mysql_cond.h>
 #include <mysql/psi/mysql_thread.h>
 
@@ -101,51 +97,5 @@ class Notification {
 };
 
 }  // namespace thread
-
-class disable_core_dumps_in_scope {
- private:
-  disable_core_dumps_in_scope(const disable_core_dumps_in_scope &);
-  disable_core_dumps_in_scope &operator=(const disable_core_dumps_in_scope &);
-
-  struct rlimit saved_core_rlimit;
-
- public:
-  disable_core_dumps_in_scope() {
-    int ret = getrlimit(RLIMIT_CORE, &saved_core_rlimit);
-    if (ret != 0) {
-      perror("getrlimit(RLIMIT_CORE) failed");
-      assert(ret == 0);
-    }
-
-    struct rlimit disabled_core_rlimit = saved_core_rlimit;
-    disabled_core_rlimit.rlim_cur = 0;
-
-    ret = setrlimit(RLIMIT_CORE, &disabled_core_rlimit);
-    if (ret != 0) {
-      perror("setrlimit(RLIMIT_CORE) failed");
-      assert(ret == 0);
-    }
-  }
-
-  ~disable_core_dumps_in_scope() {
-    int ret = setrlimit(RLIMIT_CORE, &saved_core_rlimit);
-    if (ret != 0) {
-      perror("setrlimit(RLIMIT_CORE) failed");
-      assert(ret == 0);
-    }
-  }
-};
-
-#define MY_EXPECT_DEATH_IF_SUPPORTED(statement, regex) \
-  do {                                                 \
-    disable_core_dumps_in_scope disable_core_dumps;    \
-    EXPECT_DEATH_IF_SUPPORTED(statement, regex);       \
-  } while (0)
-
-#define MY_EXPECT_DEATH(statement, regex)           \
-  do {                                              \
-    disable_core_dumps_in_scope disable_core_dumps; \
-    EXPECT_DEATH(statement, regex);                 \
-  } while (0)
 
 #endif  // SQL_THREAD_INCLUDED

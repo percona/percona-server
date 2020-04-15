@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,11 +38,12 @@
 #include "sql_string.h"
 
 Partition_parse_context::Partition_parse_context(
-    THD *thd, partition_info *part_info, partition_element *current_partition,
-    partition_element *curr_part_elem, bool is_add_or_reorganize_partition)
-    : Parse_context(thd, thd->lex->current_select()),
-      Parser_partition_info(part_info, current_partition, curr_part_elem, NULL,
-                            0),
+    THD *thd_arg, partition_info *part_info_arg,
+    partition_element *current_partition_arg,
+    partition_element *curr_part_elem_arg, bool is_add_or_reorganize_partition)
+    : Parse_context(thd_arg, thd_arg->lex->current_select()),
+      Parser_partition_info(part_info_arg, current_partition_arg,
+                            curr_part_elem_arg, nullptr, 0),
       is_add_or_reorganize_partition(is_add_or_reorganize_partition) {}
 
 bool PT_subpartition::contextualize(Partition_parse_context *pc) {
@@ -197,7 +198,6 @@ bool PT_part_definition::contextualize(Partition_parse_context *pc) {
 
   if (super::contextualize(pc)) return true;
 
-  THD *const thd = pc->thd;
   partition_info *const part_info = pc->part_info;
 
   auto *const curr_part = new (pc->thd->mem_root) partition_element();
@@ -224,11 +224,11 @@ bool PT_part_definition::contextualize(Partition_parse_context *pc) {
       if (part_info->part_type == partition_type::NONE)
         part_info->part_type = partition_type::HASH;
       else if (part_info->part_type == partition_type::RANGE) {
-        errorf(&ppc, pos, ER_THD(thd, ER_PARTITION_REQUIRES_VALUES_ERROR),
+        errorf(&ppc, pos, ER_THD(pc->thd, ER_PARTITION_REQUIRES_VALUES_ERROR),
                "RANGE", "LESS THAN");
         return true;
       } else if (part_info->part_type == partition_type::LIST) {
-        errorf(&ppc, pos, ER_THD(thd, ER_PARTITION_REQUIRES_VALUES_ERROR),
+        errorf(&ppc, pos, ER_THD(pc->thd, ER_PARTITION_REQUIRES_VALUES_ERROR),
                "LIST", "IN");
         return true;
       }
@@ -245,7 +245,8 @@ bool PT_part_definition::contextualize(Partition_parse_context *pc) {
       {
         if (part_info->num_columns && part_info->num_columns != 1U) {
           part_info->print_debug("Kilroy II", NULL);
-          error(&ppc, values_pos, ER_THD(thd, ER_PARTITION_COLUMN_LIST_ERROR));
+          error(&ppc, values_pos,
+                ER_THD(pc->thd, ER_PARTITION_COLUMN_LIST_ERROR));
           return true;
         } else
           part_info->num_columns = 1U;
@@ -265,7 +266,7 @@ bool PT_part_definition::contextualize(Partition_parse_context *pc) {
     } break;
     default:
       DBUG_ASSERT(false);
-      error(&ppc, pos, ER_THD(thd, ER_UNKNOWN_ERROR));
+      error(&ppc, pos, ER_THD(pc->thd, ER_UNKNOWN_ERROR));
       return true;
   }
 
@@ -284,7 +285,7 @@ bool PT_part_definition::contextualize(Partition_parse_context *pc) {
         partition but not on all the subsequent partitions.
       */
       error(&ppc, sub_partitions_pos,
-            ER_THD(thd, ER_PARTITION_WRONG_NO_SUBPART_ERROR));
+            ER_THD(pc->thd, ER_PARTITION_WRONG_NO_SUBPART_ERROR));
       return true;
     }
   } else {
@@ -295,13 +296,13 @@ bool PT_part_definition::contextualize(Partition_parse_context *pc) {
     if (part_info->num_subparts != 0) {
       if (part_info->num_subparts != ppc.count_curr_subparts) {
         error(&ppc, sub_partitions_pos,
-              ER_THD(thd, ER_PARTITION_WRONG_NO_SUBPART_ERROR));
+              ER_THD(pc->thd, ER_PARTITION_WRONG_NO_SUBPART_ERROR));
         return true;
       }
     } else if (ppc.count_curr_subparts > 0) {
       if (part_info->partitions.elements > 1) {
         error(&ppc, sub_partitions_pos,
-              ER_THD(thd, ER_PARTITION_WRONG_NO_SUBPART_ERROR));
+              ER_THD(pc->thd, ER_PARTITION_WRONG_NO_SUBPART_ERROR));
         return true;
       }
       part_info->num_subparts = ppc.count_curr_subparts;

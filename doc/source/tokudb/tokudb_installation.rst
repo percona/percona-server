@@ -122,12 +122,17 @@ Once the |TokuDB| server package is installed, the following output is shown:
 
      * See http://www.percona.com/doc/percona-server/8.0/tokudb/tokudb_intro.html for an introduction to TokuDB
 
+
 |Percona Server| has implemented |ps-admin| to make the enabling the
 |TokuDB| storage engine easier. This script will automatically disable
 Transparent huge pages, if they're enabled, and install and enable the
 |TokuDB| storage engine with all the required plugins. You need to run
-this script as root or with :program:`sudo`. After you run the script
+this script as root or with :program:`sudo`. The script should only
+be used for local installations and should not be used to install 
+TokuDB to a remote server. After you run the script
 with required parameters:
+
+|Percona Server| has implemented ``ps_tokudb_admin`` script to make the enabling the |TokuDB| storage engine easier. This script will automatically disable Transparent huge pages, if they're enabled, and install and enable the |TokuDB| storage engine with all the required plugins. You need to run this script as root or with :program:`sudo`. The script should only be used for local installations and should not be used to install TokuDB to a remote server. After you run the script with required parameters:
 
 .. code-block:: bash
 

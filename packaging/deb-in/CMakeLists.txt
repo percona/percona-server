@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,9 +20,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+IF(NOT LINUX)
   RETURN()
 ENDIF()
+
+# bionic, buster, etc
 IF (NOT DEFINED DEB_CODENAME)
   execute_process(
     COMMAND lsb_release -cs
@@ -31,6 +33,30 @@ IF (NOT DEFINED DEB_CODENAME)
   )
   SET (DEB_CODENAME ${DEB_CODENAME} CACHE STRING "")
 ENDIF()
+
+# debian, ubuntu
+IF (NOT DEFINED DEB_ID)
+  execute_process(
+    COMMAND lsb_release -is
+    OUTPUT_VARIABLE DEB_ID
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  SET (DEB_ID ${DEB_ID} CACHE STRING "")
+ENDIF()
+
+# 18.04, 9.x, etc
+IF (NOT DEFINED DEB_RELEASE)
+  execute_process(
+    COMMAND lsb_release -rs
+    OUTPUT_VARIABLE DEB_RELEASE
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  SET (DEB_RELEASE ${DEB_RELEASE} CACHE STRING "")
+ENDIF()
+
+# Change uppercase first letter of Ubuntu/Debian
+string(TOLOWER "${DEB_ID}" DEB_ID)
+
 IF (WITH_NDBCLUSTER)
   SET (DEB_BASE_PRODUCT "cluster-")
   SET (DEB_BASE_PRODUCTC "Cluster ")
@@ -63,19 +89,6 @@ IF (DEB_PRODUCT STREQUAL "commercial")
   SET (DEB_SERVERVERSION "${DEB_BASE_VERSION}+commercial-1")
   # List of plugins that are only in commercial packages
   # Plugins that are in both community and commercial should NOT be added here
-  SET (DEB_INCLUDE_BINARIES_EXTRA
-"
-debian/extra/audit_log-plugin
-debian/extra/authentication_pam-plugin
-debian/extra/authentication_ldap_sasl-plugin
-debian/extra/authentication_ldap_simple-plugin
-debian/extra/firewall-plugin
-debian/extra/keyring_okv-plugin
-debian/extra/keyring_encrypted_file-plugin
-debian/extra/mysql_clone-plugin
-debian/extra/openssl_udf-plugin
-debian/extra/thread_pool-plugin
-")
   SET (DEB_INSTALL_SERVER_PLUGINS
 "
 usr/lib/mysql/plugin/audit_log.so
@@ -85,41 +98,18 @@ usr/lib/mysql/plugin/authentication_ldap_simple.so
 usr/lib/mysql/plugin/data_masking.so
 usr/lib/mysql/plugin/keyring_okv.so
 usr/lib/mysql/plugin/keyring_encrypted_file.so
-usr/lib/mysql/plugin/mysql_clone.so
+usr/lib/mysql/plugin/keyring_hashicorp.so
 usr/lib/mysql/plugin/openssl_udf.so
 usr/lib/mysql/plugin/thread_pool.so
 usr/lib/mysql/plugin/firewall.so
+usr/lib/mysql/plugin/component_test_page_track_component.so
 ")
-  # Add debug versions of commercial plugins, if enabled
-  IF (DEFINED DEB_WITH_DEBUG)
-    SET (DEB_INSTALL_SERVER_PLUGINS "${DEB_INSTALL_SERVER_PLUGINS}
-usr/lib/mysql/plugin/debug/audit_log.so
-usr/lib/mysql/plugin/debug/authentication_pam.so
-usr/lib/mysql/plugin/debug/authentication_ldap_sasl.so
-usr/lib/mysql/plugin/debug/authentication_ldap_simple.so
-usr/lib/mysql/plugin/debug/data_masking.so
-usr/lib/mysql/plugin/debug/keyring_okv.so
-usr/lib/mysql/plugin/debug/keyring_encrypted_file.so
-usr/lib/mysql/plugin/debug/mysql_clone.so
-usr/lib/mysql/plugin/debug/openssl_udf.so
-usr/lib/mysql/plugin/debug/thread_pool.so
-usr/lib/mysql/plugin/debug/firewall.so
-")
-  ENDIF()
 
   IF (DEB_AWS_SDK)
-    SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DWITH_AWS_SDK=${DEB_AWS_SDK} -DDEB_AWS_SDK=${DEB_AWS_SDK}")
-    SET (DEB_INCLUDE_BINARIES_EXTRA "${DEB_INCLUDE_BINARIES_EXTRA}
-debian/extra/keyring_aws-plugin
-")
+    SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DWITH_KEYRING_AWS=ON -DWITH_AWS_SDK=${DEB_AWS_SDK} -DDEB_AWS_SDK=${DEB_AWS_SDK}")
     SET (DEB_INSTALL_SERVER_PLUGINS "${DEB_INSTALL_SERVER_PLUGINS}
 usr/lib/mysql/plugin/keyring_aws.so
 ")
-    IF (DEFINED DEB_WITH_DEBUG)
-      SET (DEB_INSTALL_SERVER_PLUGINS "${DEB_INSTALL_SERVER_PLUGINS}
-usr/lib/mysql/plugin/debug/keyring_aws.so
-")
-    ENDIF()
   ENDIF()
 
   IF (WITH_CURL)
@@ -147,8 +137,10 @@ override_dh_strip:
 	dh_strip -pmysql-${DEB_PRODUCTNAME}-server-core --dbg-package=mysql-${DEB_PRODUCTNAME}-server-core-dbgsym
 	dh_strip -pmysql-${DEB_PRODUCTNAME}-client-core --dbg-package=mysql-${DEB_PRODUCTNAME}-client-core-dbgsym
 	dh_strip -pmysql-${DEB_PRODUCTNAME}-server --dbg-package=mysql-${DEB_PRODUCTNAME}-server-dbgsym
+	dh_strip -pmysql-${DEB_PRODUCTNAME}-server-debug --dbg-package=mysql-${DEB_PRODUCTNAME}-server-debug-dbgsym
 	dh_strip -pmysql-${DEB_PRODUCTNAME}-client --dbg-package=mysql-${DEB_PRODUCTNAME}-client-dbgsym
 	dh_strip -pmysql-${DEB_PRODUCTNAME}-test --dbg-package=mysql-${DEB_PRODUCTNAME}-test-dbgsym
+	dh_strip -pmysql-${DEB_PRODUCTNAME}-test-debug --dbg-package=mysql-${DEB_PRODUCTNAME}-test-debug-dbgsym
 	dh_strip -pmysql-server
 	dh_strip -pmysql-client
 	dh_strip -pmysql-testsuite
@@ -169,6 +161,12 @@ Section: debug
 Depends: mysql-${DEB_PRODUCTNAME}-test (= \${binary:Version}), \${misc:Depends}
 Description: Debugging symbols for test suite
 
+Package: mysql-${DEB_PRODUCTNAME}-test-debug-dbgsym
+Architecture: any
+Section: debug
+Depends: mysql-${DEB_PRODUCTNAME}-test-debug (= \${binary:Version}), \${misc:Depends}
+Description: Debugging symbols for test suite debug binaries
+
 Package: mysql-${DEB_PRODUCTNAME}-client-core-dbgsym
 Architecture: any
 Section: debug
@@ -187,6 +185,12 @@ Section: debug
 Depends: mysql-${DEB_PRODUCTNAME}-server (= \${binary:Version}), \${misc:Depends}
 Description: Debugging symbols for server
 
+Package: mysql-${DEB_PRODUCTNAME}-server-debug-dbgsym
+Architecture: any
+Section: debug
+Depends: mysql-${DEB_PRODUCTNAME}-server-debug (= \${binary:Version}), \${misc:Depends}
+Description: Debugging symbols for server debug binaries
+
 Package: mysql-${DEB_PRODUCTNAME}-client-dbgsym
 Architecture: any
 Section: debug
@@ -194,35 +198,33 @@ Depends: mysql-${DEB_PRODUCTNAME}-client (= \${binary:Version}), \${misc:Depends
 Description: Debugging symbols for client
 ")
 
-# Platform specifics. The differences are generally only distro version
-# and whether or not systemd and/or apparmor are available
-IF(DEB_CODENAME STREQUAL "stretch")
-  SET (DEB_PLATFORMRELEASE "debian9")
-  SET (DEB_CONTROL_BDEPS ", dh-systemd")
-  SET (DEB_INSTALL_SOURCE_XZ "../*.tar.xz usr/src/mysql/")
-  SET (DEB_RULES_INSTALL_APPARMOR "")
-  SET (DEB_RULES_APPARMOR_LOAD "")
-  SET (DEB_INSTALL_SERVER_APPARMOR "")
-  SET (DEB_INIT_APPARMOR "")
-  SET (DEB_CONTROL_DBGSYM "")
-  SET (DEB_RULES_STRIP "")
-ELSEIF(DEB_CODENAME STREQUAL "sid")
-  IF (DEFINED DEB_GCC_SNAPSHOT)
-    SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DCMAKE_C_COMPILER=/usr/lib/gcc-snapshot/bin/gcc -DCMAKE_CXX_COMPILER=/usr/lib/gcc-snapshot/bin/g++ -DMYSQL_MAINTAINER_MODE=0 -DCMAKE_CXX_COMPILER_LAUNCHER=ccache")
-  ENDIF()
-  SET (DEB_PLATFORMRELEASE "debianunstable")
-  SET (DEB_CONTROL_BDEPS ", dh-systemd")
-  SET (DEB_INSTALL_SOURCE_XZ "../*.tar.xz usr/src/mysql/")
-  SET (DEB_RULES_INSTALL_APPARMOR "")
-  SET (DEB_RULES_APPARMOR_LOAD "")
-  SET (DEB_INSTALL_SERVER_APPARMOR "")
-  SET (DEB_INIT_APPARMOR "")
-  SET (DEB_CONTROL_DBGSYM "")
-  SET (DEB_RULES_STRIP "")
-ELSEIF(DEB_CODENAME STREQUAL "xenial")
-  SET (DEB_PLATFORMRELEASE "ubuntu16.04")
-  SET (DEB_CONTROL_BDEPS ", dh-apparmor, dh-systemd (>=1.5)")
-  SET (DEB_INSTALL_SOURCE_XZ "../*.tar.xz usr/src/mysql/")
+# lsb_release on Debian reports the full version number, e.g. 9.9, and we just want the major version
+IF(DEB_ID STREQUAL "debian")
+  string(REGEX REPLACE "\\..*" "" DEB_RELEASE "${DEB_RELEASE}")
+ENDIF()
+
+
+# ubuntu18.04, debian9, etc
+SET (DEB_PLATFORMRELEASE "${DEB_ID}${DEB_RELEASE}")
+
+# Only used on Ubuntu
+SET (DEB_CONTROL_BDEPS "")
+SET (DEB_RULES_INSTALL_APPARMOR "")
+SET (DEB_RULES_APPARMOR_LOAD "")
+SET (DEB_INSTALL_SERVER_APPARMOR "")
+SET (DEB_INIT_APPARMOR "")
+# Only used on Ubuntu 16.04 for manually created debug symbol packages
+SET (DEB_CONTROL_DBGSYM "")
+SET (DEB_RULES_STRIP "")
+
+# Used for testing unreleased gcc versions on e.g. Debian unstable
+IF (DEFINED DEB_GCC_SNAPSHOT)
+  SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DCMAKE_C_COMPILER=/usr/lib/gcc-snapshot/bin/gcc -DCMAKE_CXX_COMPILER=/usr/lib/gcc-snapshot/bin/g++ -DMYSQL_MAINTAINER_MODE=0 -DCMAKE_CXX_COMPILER_LAUNCHER=ccache")
+ENDIF()
+
+# Enable various apparmor systems for Ubuntu
+IF(DEB_ID STREQUAL "ubuntu")
+  SET (DEB_CONTROL_BDEPS ", dh-apparmor")
   SET (DEB_RULES_INSTALL_APPARMOR
     "
 	install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld
@@ -236,52 +238,12 @@ ELSEIF(DEB_CODENAME STREQUAL "xenial")
   SET (DEB_INSTALL_SERVER_APPARMOR "etc/apparmor.d/usr.sbin.mysqld")
   SET (DEB_INSTALL_ROUTER_APPARMOR "etc/apparmor.d/usr.bin.mysqlrouter")
   SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
-  SET (DEB_CONTROL_DBGSYM ${DEB_CONTROL_DBGSYM_DEFAULT})
-  SET (DEB_RULES_STRIP ${DEB_RULES_STRIP_DEFAULT})
-ELSEIF(DEB_CODENAME STREQUAL "bionic")
-  SET (DEB_PLATFORMRELEASE "ubuntu18.04")
-  SET (DEB_CONTROL_BDEPS ", dh-apparmor, dh-systemd (>=1.5)")
-  SET (DEB_INSTALL_SOURCE_XZ "../*.tar.xz usr/src/mysql/")
-  SET (DEB_RULES_INSTALL_APPARMOR
-  "
-	install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld
-	install -g root -o root -m 0644 -D debian/extra/apparmor-profile-router debian/tmp/etc/apparmor.d/usr.bin.mysqlrouter
-  ")
-  SET (DEB_RULES_APPARMOR_LOAD
-  "
-	dh_apparmor -pmysql-${DEB_PRODUCTNAME}-server --profile-name=usr.sbin.mysqld
-	dh_apparmor -pmysql-router-${DEB_PRODUCTNAME} --profile-name=usr.bin.mysqlrouter
-  ")
-  SET (DEB_INSTALL_SERVER_APPARMOR "etc/apparmor.d/usr.sbin.mysqld")
-  SET (DEB_INSTALL_ROUTER_APPARMOR "etc/apparmor.d/usr.bin.mysqlrouter")
-  SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
-  SET (DEB_CONTROL_DBGSYM "")
-  SET (DEB_RULES_STRIP "")
-ELSEIF(DEB_CODENAME STREQUAL "cosmic")
-  # Ubuntu 18.10 has OpenSSL 1.1.1, which we don't support yet
-  SET (DEB_CONTROL_BDEPS_SSL ",libssl1.0-dev")
-  SET (DEB_PLATFORMRELEASE "ubuntu18.10")
-  SET (DEB_CONTROL_BDEPS ", dh-apparmor, dh-systemd (>=1.5)")
-  SET (DEB_INSTALL_SOURCE_XZ "../*.tar.xz usr/src/mysql/")
-  SET (DEB_RULES_INSTALL_APPARMOR
-  "
-	install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld
-	install -g root -o root -m 0644 -D debian/extra/apparmor-profile-router debian/tmp/etc/apparmor.d/usr.bin.mysqlrouter
-  ")
-  SET (DEB_RULES_APPARMOR_LOAD
-  "
-	dh_apparmor -pmysql-${DEB_PRODUCTNAME}-server --profile-name=usr.sbin.mysqld
-	dh_apparmor -pmysql-router-${DEB_PRODUCTNAME} --profile-name=usr.bin.mysqlrouter
-  ")
-  SET (DEB_INSTALL_SERVER_APPARMOR "etc/apparmor.d/usr.sbin.mysqld")
-  SET (DEB_INSTALL_ROUTER_APPARMOR "etc/apparmor.d/usr.bin.mysqlrouter")
-  SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
-  SET (DEB_CONTROL_DBGSYM "")
-  SET (DEB_RULES_STRIP "")
-ELSE()
-  MESSAGE(STATUS
-    "Skipping deb packaging on unsupported platform ${DEB_CODENAME}.")
-  RETURN()
+  
+  # Ubuntu 16.04 doesn't automatically create debug symbol packages
+  IF(DEB_CODENAME STREQUAL "xenial")
+    SET (DEB_CONTROL_DBGSYM ${DEB_CONTROL_DBGSYM_DEFAULT})
+    SET (DEB_RULES_STRIP ${DEB_RULES_STRIP_DEFAULT})
+  ENDIF()
 ENDIF()
 
 IF (NOT DEFINED DEB_NOROUTER)

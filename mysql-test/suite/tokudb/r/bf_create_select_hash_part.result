@@ -5,6 +5,8 @@ CREATE TABLE `t1` (
 `val` varchar(32) DEFAULT NULL,
 PRIMARY KEY (`num`)
 ) PARTITION BY HASH (num) PARTITIONS 8;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 values (null,null);
 INSERT INTO t1 SELECT null,val FROM t1;
 INSERT INTO t1 SELECT null,val FROM t1;

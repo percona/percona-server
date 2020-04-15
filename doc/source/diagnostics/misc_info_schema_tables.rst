@@ -32,7 +32,7 @@ Only the temporary tables that were explicitly created with `CREATE TEMPORARY TA
    :column CREATE_TIME: Date and time of creation of the temporary table
    :column UPDATE_TIME: Date and time of the latest update of the temporary table
 
-This table holds information on the temporary tables existing for all connections. You don't need the ``SUPER`` privilege to query this table.
+This table holds information on the temporary tables that exist for all connections. You don't need the ``SUPER`` privilege to query this table.
 
 .. table:: INFORMATION_SCHEMA.TEMPORARY_TABLES
 
@@ -50,6 +50,3 @@ This table holds information on the temporary tables existing for all connection
    :column UPDATE_TIME: Date and time of the latest update of the temporary table
 
 This table holds information on the temporary tables existing for the running connection.
-
-
-

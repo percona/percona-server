@@ -67,7 +67,7 @@ uint hp_get_encoded_data_length(const HP_SHARE &info, const uchar *record,
 
       pack_length = column->length_bytes;
       length = pack_length + (pack_length == 1
-                                  ? (uint) * (uchar *)(record + src_offset)
+                                  ? (uint) * (const uchar *)(record + src_offset)
                                   : uint2korr(record + src_offset));
     } else if (is_blob_column(column)) {
       uint pack_length = column->length_bytes;

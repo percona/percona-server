@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@
 
 #include "cluster_metadata.h"
 #include "dim.h"
-#include "metadata_cache.h"
+#include "metadata_cache_gr.h"
 #include "metadata_factory.h"
 #include "mock_metadata.h"
 #include "mysql_session_replayer.h"
@@ -41,16 +41,18 @@
 using metadata_cache::ManagedInstance;
 using mysql_harness::TCPAddress;
 
+constexpr unsigned kRouterId = 2;
+
 class MetadataCacheTest : public ::testing::Test {
  public:
   MockNG mf;
-  MetadataCache cache;
+  GRMetadataCache cache;
 
   MetadataCacheTest()
-      : mf("admin", "admin", 1, 1, 1, std::chrono::seconds(10)),
-        cache("0000-0001", {TCPAddress("localhost", 32275)},
-              get_instance("admin", "admin", 1, 1, 1, std::chrono::seconds(10),
-                           mysqlrouter::SSLOptions()),
+      : mf("admin", "admin", 1, 1, 1),
+        cache(kRouterId, "0000-0001", {TCPAddress("localhost", 32275)},
+              get_instance(mysqlrouter::ClusterType::GR_V1, "admin", "admin", 1,
+                           1, 1, mysqlrouter::SSLOptions(), false, 0),
               std::chrono::seconds(10), mysqlrouter::SSLOptions(),
               "replicaset-1") {
     cache.refresh();
@@ -96,14 +98,16 @@ class MetadataCacheTest2 : public ::testing::Test {
         [this]() { return session.get(); },  // provide pointer to session
         [](mysqlrouter::MySQLSession *) {}   // and don't try deleting it!
     );
-    cmeta.reset(new ClusterMetadata("admin", "admin", 1, 1, 1,
-                                    std::chrono::seconds(10),
-                                    mysqlrouter::SSLOptions()));
+    cmeta.reset(new GRClusterMetadata("admin", "admin", 1, 1, 1,
+                                      mysqlrouter::SSLOptions()));
   }
 
   // make queries on metadata schema return a 3 members replicaset
   void expect_sql_metadata() {
     MySQLSessionReplayer &m = *session;
+
+    m.expect_execute("START TRANSACTION");
+    m.then_ok();
 
     m.expect_query_one(
         "SELECT * FROM mysql_innodb_cluster_metadata.schema_version");
@@ -114,32 +118,33 @@ class MetadataCacheTest2 : public ::testing::Test {
 
     m.expect_query(
         "SELECT R.replicaset_name, I.mysql_server_uuid, I.role, I.weight, "
-        "I.version_token, H.location, "
+        "I.version_token, "
         "I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX' FROM "
         "mysql_innodb_cluster_metadata.clusters "
         "AS F JOIN mysql_innodb_cluster_metadata.replicasets AS R ON "
         "F.cluster_id = R.cluster_id "
         "JOIN mysql_innodb_cluster_metadata.instances AS I ON R.replicaset_id "
-        "= I.replicaset_id "
-        "JOIN mysql_innodb_cluster_metadata.hosts AS H ON I.host_id = "
-        "H.host_id WHERE F.cluster_name = 'cluster-1' "
-        "AND R.attributes->>'$.group_replication_group_name' = '0000-0001';");
+        "= I.replicaset_id WHERE F.cluster_name = 'cluster-1' "
+        "AND R.attributes->>'$.group_replication_group_name' = '0000-0001'");
     m.then_return(
         8,
         {// replicaset_name, mysql_server_uuid, role, weight, version_token,
-         // location, I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX'
+         // I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX'
          {m.string_or_null("cluster-1"), m.string_or_null("uuid-server1"),
           m.string_or_null("HA"), m.string_or_null(), m.string_or_null(),
-          m.string_or_null(""), m.string_or_null("localhost:3000"),
+          m.string_or_null("localhost:3000"),
           m.string_or_null("localhost:30000")},
          {m.string_or_null("cluster-1"), m.string_or_null("uuid-server2"),
           m.string_or_null("HA"), m.string_or_null(), m.string_or_null(),
-          m.string_or_null(""), m.string_or_null("localhost:3001"),
+          m.string_or_null("localhost:3001"),
           m.string_or_null("localhost:30010")},
          {m.string_or_null("cluster-1"), m.string_or_null("uuid-server3"),
           m.string_or_null("HA"), m.string_or_null(), m.string_or_null(),
-          m.string_or_null(""), m.string_or_null("localhost:3002"),
+          m.string_or_null("localhost:3002"),
           m.string_or_null("localhost:30020")}});
+
+    m.expect_execute("COMMIT");
+    m.then_ok();
   }
 
   // make queries on PFS.replication_group_members return all members ONLINE
@@ -193,7 +198,7 @@ void expect_cluster_routable(MetadataCache &mc) {
   EXPECT_EQ(metadata_cache::ServerMode::ReadOnly, instances[2].mode);
 }
 
-void expect_cluster_not_routable(MetadataCache &mc) {
+void expect_cluster_not_routable(GRMetadataCache &mc) {
   std::vector<ManagedInstance> instances = mc.replicaset_lookup("cluster-1");
   ASSERT_EQ(0U, instances.size());
 }
@@ -203,8 +208,9 @@ TEST_F(MetadataCacheTest2, basic_test) {
   expect_sql_metadata();
   expect_sql_members();
 
-  MetadataCache mc(gr_id, metadata_servers, cmeta, std::chrono::seconds(10),
-                   mysqlrouter::SSLOptions(), "cluster-1");
+  GRMetadataCache mc(kRouterId, gr_id, metadata_servers, cmeta,
+                     std::chrono::seconds(10), mysqlrouter::SSLOptions(),
+                     "cluster-1");
   mc.refresh();
 
   // verify that cluster can be seen
@@ -233,8 +239,9 @@ TEST_F(MetadataCacheTest2, metadata_server_connection_failures) {
   // start off with all metadata servers up
   expect_sql_metadata();
   expect_sql_members();
-  MetadataCache mc(gr_id, metadata_servers, cmeta, std::chrono::seconds(10),
-                   mysqlrouter::SSLOptions(), "cluster-1");
+  GRMetadataCache mc(kRouterId, gr_id, metadata_servers, cmeta,
+                     std::chrono::seconds(10), mysqlrouter::SSLOptions(),
+                     "cluster-1");
   mc.refresh();
   expect_cluster_routable(mc);
 

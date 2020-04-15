@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -52,6 +52,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #ifndef UNIV_HOTBACKUP
 #include "clone0api.h"
+#include "fil0crypt.h"
 #include "mysqld.h"  // system_charset_info
 #include "que0types.h"
 #include "row0sel.h"
@@ -159,6 +160,8 @@ const char *dict_sys_t::s_file_per_table_name = "innodb_file_per_table";
 const char *dict_sys_t::s_default_undo_space_name_1 = "innodb_undo_001";
 const char *dict_sys_t::s_default_undo_space_name_2 = "innodb_undo_002";
 
+constexpr space_id_t dict_sys_t::s_space_id;
+
 /** the dictionary persisting structure */
 dict_persist_t *dict_persist = NULL;
 
@@ -197,9 +200,9 @@ index.
 @param[in]	index	index
 @param[in]	add_v	new virtual columns added along with an add index call
 @return true if the column names were found */
-static ibool dict_index_find_cols(const dict_table_t *table,
-                                  dict_index_t *index,
-                                  const dict_add_v_col_t *add_v);
+static ibool dict_index_find_and_set_cols(const dict_table_t *table,
+                                          dict_index_t *index,
+                                          const dict_add_v_col_t *add_v);
 /** Builds the internal dictionary cache representation for a clustered
  index, containing also system fields not defined by the user.
  @return own: the internal representation of the clustered index */
@@ -231,7 +234,7 @@ static void dict_index_remove_from_cache_low(
 have some changed dynamic metadata in memory and have not been written
 back to mysql.innodb_dynamic_metadata. Update LSN limit, which is used
 to stop user threads when redo log is running out of space and they
-do not hold latches (log.sn_limit_for_start). */
+do not hold latches (log.free_check_limit_sn). */
 static void dict_persist_update_log_margin(void);
 
 /** Removes a table object from the dictionary cache. */
@@ -265,11 +268,10 @@ bool dict_upgrade_zip_dict_missing = false;
 
 /** Checks if the database name in two table names is the same.
  @return true if same db name */
-ibool dict_tables_have_same_db(
-    const char *name1, /*!< in: table name in the form
-                       dbname '/' tablename */
-    const char *name2) /*!< in: table name in the form
-                       dbname '/' tablename */
+ibool dict_tables_have_same_db(const char *name1, /*!< in: table name in the
+                                                  form dbname '/' tablename */
+                               const char *name2) /*!< in: table name in the
+                                                  form dbname '/' tablename */
 {
   for (; *name1 == *name2; name1++, name2++) {
     if (*name1 == '/') {
@@ -282,9 +284,8 @@ ibool dict_tables_have_same_db(
 
 /** Return the end of table name where we have removed dbname and '/'.
  @return table name */
-const char *dict_remove_db_name(
-    const char *name) /*!< in: table name in the form
-                      dbname '/' tablename */
+const char *dict_remove_db_name(const char *name) /*!< in: table name in the
+                                                  form dbname '/' tablename */
 {
   const char *s = strchr(name, '/');
   ut_a(s);
@@ -553,8 +554,6 @@ void dict_table_close(dict_table_t *table, /*!< in/out: table */
     dict_stats_deinit(table);
   }
 
-  MONITOR_DEC(MONITOR_TABLE_REFERENCE);
-
   if (!dict_locked) {
     table_id_t table_id = table->id;
 
@@ -715,7 +714,7 @@ This function must not be called concurrently on the same table object.
 static void dict_table_autoinc_alloc(void *table_void) {
   dict_table_t *table = static_cast<dict_table_t *>(table_void);
 
-  table->autoinc_mutex = UT_NEW_NOKEY(ib_mutex_t());
+  table->autoinc_mutex = UT_NEW_NOKEY(AutoIncMutex());
   ut_a(table->autoinc_mutex != nullptr);
   mutex_create(LATCH_ID_AUTOINC, table->autoinc_mutex);
 
@@ -788,8 +787,8 @@ void dict_table_autoinc_log(dict_table_t *table, uint64_t value, mtr_t *mtr) {
     dict_persist->mutex. Above update to AUTOINC would be either
     written back to DDTableBuffer or not. But the redo logs for
     current change won't be counted into current checkpoint.
-    See how log_sys->dict_suggest_checkpoint_lsn is set. So
-    even a crash after below redo log flushed, no change lost.
+    See how log_sys->dict_max_allowed_checkpoint_lsn is set.
+    So even a crash after below redo log flushed, no change lost.
 
     If that function sets the dirty_status after below checking,
     which means current change would be written back to
@@ -1084,7 +1083,7 @@ dict_table_t *dict_table_open_on_name(
                                   loading a table definition */
 {
   dict_table_t *table;
-  DBUG_ENTER("dict_table_open_on_name");
+  DBUG_TRACE;
   DBUG_PRINT("dict_table_open_on_name", ("table: '%s'", table_name));
 
   if (!dict_locked) {
@@ -1094,7 +1093,13 @@ dict_table_t *dict_table_open_on_name(
   ut_ad(table_name);
   ut_ad(mutex_own(&dict_sys->mutex));
 
-  table = dict_table_check_if_in_cache_low(table_name);
+  std::string table_str(table_name);
+  /* Check and convert 5.7 table name. We always keep 8.0 format name in cache
+  during upgrade. */
+  if (dict_name::is_partition(table_name)) {
+    dict_name::rebuild(table_str);
+  }
+  table = dict_table_check_if_in_cache_low(table_str.c_str());
 
   if (table == NULL) {
     table = dict_load_table(table_name, true, ignore_err);
@@ -1114,7 +1119,7 @@ dict_table_t *dict_table_open_on_name(
       ib::info(ER_IB_MSG_175) << "Table " << table->name
                               << " is corrupted. Please drop the table"
                                  " and recreate it";
-      DBUG_RETURN(NULL);
+      return NULL;
     }
 
     if (table->can_be_evicted) {
@@ -1122,8 +1127,6 @@ dict_table_t *dict_table_open_on_name(
     }
 
     table->acquire();
-
-    MONITOR_INC(MONITOR_TABLE_REFERENCE);
   }
 
   ut_ad(dict_lru_validate());
@@ -1132,7 +1135,7 @@ dict_table_t *dict_table_open_on_name(
     dict_table_try_drop_aborted_and_mutex_exit(table, try_drop);
   }
 
-  DBUG_RETURN(table);
+  return table;
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1508,8 +1511,9 @@ dberr_t dict_table_rename_in_cache(
               ut_ad(table2->cached),
               (ut_strcmp(table2->name.m_name, new_name) == 0));
 
-  DBUG_EXECUTE_IF("dict_table_rename_in_cache_failure",
-                  if (table2 == NULL) { table2 = (dict_table_t *)-1; });
+  DBUG_EXECUTE_IF(
+      "dict_table_rename_in_cache_failure",
+      if (table2 == NULL) { table2 = (dict_table_t *)-1; });
 
   if (table2 != nullptr) {
     ib::error(ER_IB_MSG_178)
@@ -1569,7 +1573,7 @@ dberr_t dict_table_rename_in_cache(
     if (DICT_TF_HAS_DATA_DIR(table->flags)) {
       std::string new_ibd;
 
-      new_ibd = Fil_path::make_new_ibd(old_path, new_name);
+      new_ibd = Fil_path::make_new_path(old_path, new_name, IBD);
 
       new_path = mem_strdup(new_ibd.c_str());
 
@@ -1597,23 +1601,26 @@ dberr_t dict_table_rename_in_cache(
 
     clone_mark_abort(true);
 
-    std::string new_tablespace_name;
-    dd_filename_to_spacename(new_name, &new_tablespace_name);
+    std::string new_tablespace_name(new_name);
+    dict_name::convert_to_space(new_tablespace_name);
 
-    bool success = fil_rename_tablespace(table->space, old_path,
-                                         new_tablespace_name.c_str(), new_path);
+    dberr_t err = fil_rename_tablespace(table->space, old_path,
+                                        new_tablespace_name.c_str(), new_path);
 
     clone_mark_active();
 
     ut_free(old_path);
     ut_free(new_path);
 
-    if (!success) {
-      return (DB_ERROR);
+    if (err != DB_SUCCESS) {
+      return (err);
     }
   }
 
-  log_ddl->write_rename_table_log(table, new_name, table->name.m_name);
+  err = log_ddl->write_rename_table_log(table, new_name, table->name.m_name);
+  if (err != DB_SUCCESS) {
+    return (err);
+  }
 
   /* Remove table from the hash tables of tables */
   HASH_DELETE(dict_table_t, name_hash, dict_sys->table_hash,
@@ -1994,8 +2001,7 @@ void dict_partitioned_table_remove_from_cache(const char *name) {
       }
 
       if ((strncmp(name, prev_table->name.m_name, name_len) == 0) &&
-          strncmp(prev_table->name.m_name + name_len, PART_SEPARATOR,
-                  PART_SEPARATOR_LEN) == 0) {
+          dict_table_is_partition(prev_table)) {
         btr_drop_ahi_for_table(prev_table);
         dict_table_remove_from_cache(prev_table);
       }
@@ -2357,7 +2363,7 @@ dberr_t dict_index_add_to_cache_w_vcol(dict_table_t *table, dict_index_t *index,
   ut_d(mem_heap_validate(index->heap));
   ut_a(!index->is_clustered() || UT_LIST_GET_LEN(table->indexes) == 0);
 
-  if (!dict_index_find_cols(table, index, add_v)) {
+  if (!dict_index_find_and_set_cols(table, index, add_v)) {
     dict_mem_index_free(index);
     return (DB_CORRUPTION);
   }
@@ -2599,7 +2605,7 @@ static void dict_index_remove_from_cache_low(
     if (retries >= 60000) {
       ut_error;
     }
-  } while (srv_shutdown_state == SRV_SHUTDOWN_NONE || !lru_evict);
+  } while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE || !lru_evict);
 
   rw_lock_free(&index->lock);
 
@@ -2663,20 +2669,39 @@ void dict_index_remove_from_cache(dict_table_t *table, /*!< in/out: table */
   dict_index_remove_from_cache_low(table, index, FALSE);
 }
 
+/** Duplicate a virtual column information
+@param[in]	v_col	virtual column information to duplicate
+@param[in,out]	heap	memory heap
+@return the duplicated virtual column */
+static dict_v_col_t *dict_duplicate_v_col(const dict_v_col_t *v_col,
+                                          mem_heap_t *heap) {
+  dict_v_col_t *new_v_col =
+      static_cast<dict_v_col_t *>(mem_heap_zalloc(heap, sizeof(*v_col)));
+
+  ut_ad(v_col->v_indexes == nullptr);
+
+  /* Currently, only m_col and v_indexes would be cared in future use,
+  and v_indexes is always nullptr. So the memcpy can work for it */
+  memcpy(new_v_col, v_col, sizeof(*v_col));
+
+  return (new_v_col);
+}
+
 /** Tries to find column names for the index and sets the col field of the
 index.
 @param[in]	table	table
 @param[in,out]	index	index
 @param[in]	add_v	new virtual columns added along with an add index call
 @return true if the column names were found */
-static ibool dict_index_find_cols(const dict_table_t *table,
-                                  dict_index_t *index,
-                                  const dict_add_v_col_t *add_v) {
+static ibool dict_index_find_and_set_cols(const dict_table_t *table,
+                                          dict_index_t *index,
+                                          const dict_add_v_col_t *add_v) {
   std::vector<ulint, ut_allocator<ulint>> col_added;
   std::vector<ulint, ut_allocator<ulint>> v_col_added;
 
   ut_ad(table != NULL && index != NULL);
   ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+  ut_ad(!mutex_own(&dict_sys->mutex));
 
   for (ulint i = 0; i < index->n_fields; i++) {
     ulint j;
@@ -2727,7 +2752,20 @@ static ibool dict_index_find_cols(const dict_table_t *table,
     if (add_v) {
       for (j = 0; j < add_v->n_v_col; j++) {
         if (!strcmp(add_v->v_col_name[j], field->name)) {
-          field->col = const_cast<dict_col_t *>(&add_v->v_col[j].m_col);
+          /* Once add_v is not nullptr, it comes from ALTER TABLE.
+          To make sure the index can work after ALTER TABLE path,
+          which may happen when the ALTER TABLE gets rolled back,
+          it is a must to duplicate the virtual column information,
+          in case the passed in object would be freed after ALTER TABLE. */
+
+          mutex_enter(&dict_sys->mutex);
+          uint64_t old_size = mem_heap_get_size(table->heap);
+          dict_v_col_t *vcol =
+              dict_duplicate_v_col(&add_v->v_col[j], table->heap);
+          field->col = &vcol->m_col;
+          dict_sys->size += mem_heap_get_size(table->heap) - old_size;
+          mutex_exit(&dict_sys->mutex);
+
           goto found;
         }
       }
@@ -3294,7 +3332,7 @@ dberr_t dict_foreign_add_to_cache(dict_foreign_t *foreign,
   ibool added_to_referenced_list = FALSE;
   FILE *ef = dict_foreign_err_file;
 
-  DBUG_ENTER("dict_foreign_add_to_cache");
+  DBUG_TRACE;
   DBUG_PRINT("dict_foreign_add_to_cache", ("id: %s", foreign->id));
 
   ut_ad(mutex_own(&dict_sys->mutex));
@@ -3340,7 +3378,7 @@ dberr_t dict_foreign_add_to_cache(dict_foreign_t *foreign,
         mem_heap_free(foreign->heap);
       }
 
-      DBUG_RETURN(DB_CANNOT_ADD_CONSTRAINT);
+      return DB_CANNOT_ADD_CONSTRAINT;
     }
 
     for_in_cache->referenced_table = ref_table;
@@ -3384,7 +3422,7 @@ dberr_t dict_foreign_add_to_cache(dict_foreign_t *foreign,
         mem_heap_free(foreign->heap);
       }
 
-      DBUG_RETURN(DB_CANNOT_ADD_CONSTRAINT);
+      return DB_CANNOT_ADD_CONSTRAINT;
     }
 
     for_in_cache->foreign_table = for_table;
@@ -3409,503 +3447,14 @@ dberr_t dict_foreign_add_to_cache(dict_foreign_t *foreign,
   }
 
   ut_ad(dict_lru_validate());
-  DBUG_RETURN(DB_SUCCESS);
-}
-
-/** Scans from pointer onwards. Stops if is at the start of a copy of
- 'string' where characters are compared without case sensitivity, and
- only outside `` or "" quotes. Stops also at NUL.
- @return scanned up to this */
-static const char *dict_scan_to(const char *ptr,    /*!< in: scan from */
-                                const char *string) /*!< in: look for this */
-{
-  char quote = '\0';
-  bool escape = false;
-
-  for (; *ptr; ptr++) {
-    if (*ptr == quote) {
-      /* Closing quote character: do not look for
-      starting quote or the keyword. */
-
-      /* If the quote character is escaped by a
-      backslash, ignore it. */
-      if (escape) {
-        escape = false;
-      } else {
-        quote = '\0';
-      }
-    } else if (quote) {
-      /* Within quotes: do nothing. */
-      if (escape) {
-        escape = false;
-      } else if (*ptr == '\\') {
-        escape = true;
-      }
-    } else if (*ptr == '`' || *ptr == '"' || *ptr == '\'') {
-      /* Starting quote: remember the quote character. */
-      quote = *ptr;
-    } else {
-      /* Outside quotes: look for the keyword. */
-      ulint i;
-      for (i = 0; string[i]; i++) {
-        if (toupper((int)(unsigned char)(ptr[i])) !=
-            toupper((int)(unsigned char)(string[i]))) {
-          goto nomatch;
-        }
-      }
-      break;
-    nomatch:;
-    }
-  }
-
-  return (ptr);
-}
-
-/** Accepts a specified string. Comparisons are case-insensitive.
- @return if string was accepted, the pointer is moved after that, else
- ptr is returned */
-static const char *dict_accept(
-    const CHARSET_INFO *cs, /*!< in: the character set of ptr */
-    const char *ptr,        /*!< in: scan from this */
-    const char *string,     /*!< in: accept only this string as the next
-                            non-whitespace string */
-    ibool *success)         /*!< out: TRUE if accepted */
-{
-  const char *old_ptr = ptr;
-  const char *old_ptr2;
-
-  *success = FALSE;
-
-  while (my_isspace(cs, *ptr)) {
-    ptr++;
-  }
-
-  old_ptr2 = ptr;
-
-  ptr = dict_scan_to(ptr, string);
-
-  if (*ptr == '\0' || old_ptr2 != ptr) {
-    return (old_ptr);
-  }
-
-  *success = TRUE;
-
-  return (ptr + ut_strlen(string));
-}
-
-/** Scans an id. For the lexical definition of an 'id', see the code below.
- Strips backquotes or double quotes from around the id.
- @return scanned to */
-static const char *dict_scan_id(
-    const CHARSET_INFO *cs, /*!< in: the character set of ptr */
-    const char *ptr,        /*!< in: scanned to */
-    mem_heap_t *heap,       /*!< in: heap where to allocate the id
-                            (NULL=id will not be allocated, but it
-                            will point to string near ptr) */
-    const char **id,        /*!< out,own: the id; NULL if no id was
-                            scannable */
-    ibool table_id,         /*!< in: TRUE=convert the allocated id
-                           as a table name; FALSE=convert to UTF-8 */
-    ibool accept_also_dot)
-/*!< in: TRUE if also a dot can appear in a
-non-quoted id; in a quoted id it can appear
-always */
-{
-  char quote = '\0';
-  ulint len = 0;
-  const char *s;
-  char *str;
-  char *dst;
-
-  *id = NULL;
-
-  while (my_isspace(cs, *ptr)) {
-    ptr++;
-  }
-
-  if (*ptr == '\0') {
-    return (ptr);
-  }
-
-  if (*ptr == '`' || *ptr == '"') {
-    quote = *ptr++;
-  }
-
-  s = ptr;
-
-  if (quote) {
-    for (;;) {
-      if (!*ptr) {
-        /* Syntax error */
-        return (ptr);
-      }
-      if (*ptr == quote) {
-        ptr++;
-        if (*ptr != quote) {
-          break;
-        }
-      }
-      ptr++;
-      len++;
-    }
-  } else {
-    while (!my_isspace(cs, *ptr) && *ptr != '(' && *ptr != ')' &&
-           (accept_also_dot || *ptr != '.') && *ptr != ',' && *ptr != '\0') {
-      ptr++;
-    }
-
-    len = ptr - s;
-  }
-
-  if (heap == NULL) {
-    /* no heap given: id will point to source string */
-    *id = s;
-    return (ptr);
-  }
-
-  if (quote) {
-    char *d;
-
-    str = d = static_cast<char *>(mem_heap_alloc(heap, len + 1));
-
-    while (len--) {
-      if ((*d++ = *s++) == quote) {
-        s++;
-      }
-    }
-    *d++ = 0;
-    len = d - str;
-    ut_ad(*s == quote);
-    ut_ad(s + 1 == ptr);
-  } else {
-    str = mem_heap_strdupl(heap, s, len);
-  }
-
-  if (!table_id) {
-    /* Convert the identifier from connection character set
-    to UTF-8. */
-    len = 3 * len + 1;
-    *id = dst = static_cast<char *>(mem_heap_alloc(heap, len));
-
-    innobase_convert_from_id(cs, dst, str, len);
-  } else {
-    /* Encode using filename-safe characters. */
-    len = 5 * len + 1;
-    *id = dst = static_cast<char *>(mem_heap_alloc(heap, len));
-
-    innobase_convert_from_table_id(cs, dst, str, len);
-  }
-
-  return (ptr);
-}
-
-/** Tries to scan a column name.
- @return scanned to */
-static const char *dict_scan_col(
-    const CHARSET_INFO *cs,    /*!< in: the character set of ptr */
-    const char *ptr,           /*!< in: scanned to */
-    ibool *success,            /*!< out: TRUE if success */
-    dict_table_t *table,       /*!< in: table in which the column is */
-    const dict_col_t **column, /*!< out: pointer to column if success */
-    mem_heap_t *heap,          /*!< in: heap where to allocate */
-    const char **name)         /*!< out,own: the column name;
-                               NULL if no name was scannable */
-{
-  ulint i;
-
-  *success = FALSE;
-
-  ptr = dict_scan_id(cs, ptr, heap, name, FALSE, TRUE);
-
-  if (*name == NULL) {
-    return (ptr); /* Syntax error */
-  }
-
-  if (table == NULL) {
-    *success = TRUE;
-    *column = NULL;
-  } else {
-    for (i = 0; i < table->get_n_cols(); i++) {
-      const char *col_name = table->get_col_name(i);
-
-      if (0 == innobase_strcasecmp(col_name, *name)) {
-        /* Found */
-
-        *success = TRUE;
-        *column = table->get_col(i);
-        strcpy((char *)*name, col_name);
-
-        break;
-      }
-    }
-  }
-
-  return (ptr);
-}
-
-/** Open a table from its database and table name, this is currently used by
- foreign constraint parser to get the referenced table.
- @return complete table name with database and table name, allocated from
- heap memory passed in */
-char *dict_get_referenced_table(
-    const char *name,          /*!< in: foreign key table name */
-    const char *database_name, /*!< in: table db name */
-    ulint database_name_len,   /*!< in: db name length */
-    const char *table_name,    /*!< in: table name */
-    ulint table_name_len,      /*!< in: table name length */
-    dict_table_t **table,      /*!< out: table object or NULL */
-    mem_heap_t *heap)          /*!< in/out: heap memory */
-{
-  char *ref;
-  const char *db_name;
-
-  if (!database_name) {
-    /* Use the database name of the foreign key table */
-
-    db_name = name;
-    database_name_len = dict_get_db_name_len(name);
-  } else {
-    db_name = database_name;
-  }
-
-  /* Copy database_name, '/', table_name, '\0' */
-  ref = static_cast<char *>(
-      mem_heap_alloc(heap, database_name_len + table_name_len + 2));
-
-  memcpy(ref, db_name, database_name_len);
-  ref[database_name_len] = '/';
-  memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
-
-  /* Values;  0 = Store and compare as given; case sensitive
-              1 = Store and compare in lower; case insensitive
-              2 = Store as given, compare in lower; case semi-sensitive */
-  if (innobase_get_lower_case_table_names() == 2) {
-    innobase_casedn_str(ref);
-    *table = dd_table_open_on_name(current_thd, NULL, ref, true,
-                                   DICT_ERR_IGNORE_NONE);
-    memcpy(ref, db_name, database_name_len);
-    ref[database_name_len] = '/';
-    memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
-
-  } else {
-#ifndef _WIN32
-    if (innobase_get_lower_case_table_names() == 1) {
-      innobase_casedn_str(ref);
-    }
-#else
-    innobase_casedn_str(ref);
-#endif /* !_WIN32 */
-    *table = dd_table_open_on_name(current_thd, NULL, ref, true,
-                                   DICT_ERR_IGNORE_NONE);
-  }
-
-  if (*table != NULL) {
-    (*table)->release();
-  }
-
-  return (ref);
-}
-/** Scans a table name from an SQL string.
- @return scanned to */
-static const char *dict_scan_table_name(
-    const CHARSET_INFO *cs, /*!< in: the character set of ptr */
-    const char *ptr,        /*!< in: scanned to */
-    dict_table_t **table,   /*!< out: table object or NULL */
-    MDL_ticket **mdl,       /*!< out: mdl on table */
-    const char *name,       /*!< in: foreign key table name */
-    ibool *success,         /*!< out: TRUE if ok name found */
-    mem_heap_t *heap,       /*!< in: heap where to allocate the id */
-    const char **ref_name)  /*!< out,own: the table name;
-                           NULL if no name was scannable */
-{
-  const char *database_name = NULL;
-  ulint database_name_len = 0;
-  const char *table_name = NULL;
-  const char *scan_name;
-
-  *success = FALSE;
-  *table = NULL;
-
-  ptr = dict_scan_id(cs, ptr, heap, &scan_name, TRUE, FALSE);
-
-  if (scan_name == NULL) {
-    return (ptr); /* Syntax error */
-  }
-
-  if (*ptr == '.') {
-    /* We scanned the database name; scan also the table name */
-
-    ptr++;
-
-    database_name = scan_name;
-    database_name_len = strlen(database_name);
-
-    ptr = dict_scan_id(cs, ptr, heap, &table_name, TRUE, FALSE);
-
-    if (table_name == NULL) {
-      return (ptr); /* Syntax error */
-    }
-  } else {
-    /* To be able to read table dumps made with InnoDB-4.0.17 or
-    earlier, we must allow the dot separator between the database
-    name and the table name also to appear within a quoted
-    identifier! InnoDB used to print a constraint as:
-    ... REFERENCES `databasename.tablename` ...
-    starting from 4.0.18 it is
-    ... REFERENCES `databasename`.`tablename` ... */
-    const char *s;
-
-    for (s = scan_name; *s; s++) {
-      if (*s == '.') {
-        database_name = scan_name;
-        database_name_len = s - scan_name;
-        scan_name = ++s;
-        break; /* to do: multiple dots? */
-      }
-    }
-
-    table_name = scan_name;
-  }
-
-  *ref_name =
-      dd_get_referenced_table(name, database_name, database_name_len,
-                              table_name, strlen(table_name), table, mdl, heap);
-
-  *success = TRUE;
-  return (ptr);
-}
-
-/** Skips one id. The id is allowed to contain also '.'.
- @return scanned to */
-static const char *dict_skip_word(
-    const CHARSET_INFO *cs, /*!< in: the character set of ptr */
-    const char *ptr,        /*!< in: scanned to */
-    ibool *success)         /*!< out: TRUE if success, FALSE if just spaces
-                            left in string or a syntax error */
-{
-  const char *start;
-
-  *success = FALSE;
-
-  ptr = dict_scan_id(cs, ptr, NULL, &start, FALSE, TRUE);
-
-  if (start) {
-    *success = TRUE;
-  }
-
-  return (ptr);
-}
-
-/** Removes MySQL comments from an SQL string. A comment is either
- (a) '#' to the end of the line,
- (b) '--[space]' to the end of the line, or
- (c) '[slash][asterisk]' till the next '[asterisk][slash]' (like the familiar
- C comment syntax).
- @return own: SQL string stripped from comments; the caller must free
- this with ut_free()! */
-static char *dict_strip_comments(
-    const char *sql_string, /*!< in: SQL string */
-    size_t sql_length)      /*!< in: length of sql_string */
-{
-  char *str;
-  const char *sptr;
-  const char *eptr = sql_string + sql_length;
-  char *ptr;
-  /* unclosed quote character (0 if none) */
-  char quote = 0;
-  bool escape = false;
-
-  DBUG_ENTER("dict_strip_comments");
-
-  DBUG_PRINT("dict_strip_comments", ("%s", sql_string));
-
-  str = static_cast<char *>(ut_malloc_nokey(sql_length + 1));
-
-  sptr = sql_string;
-  ptr = str;
-
-  for (;;) {
-  scan_more:
-    if (sptr >= eptr || *sptr == '\0') {
-    end_of_string:
-      *ptr = '\0';
-
-      ut_a(ptr <= str + sql_length);
-
-      DBUG_PRINT("dict_strip_comments", ("%s", str));
-      DBUG_RETURN(str);
-    }
-
-    if (*sptr == quote) {
-      /* Closing quote character: do not look for
-      starting quote or comments. */
-
-      /* If the quote character is escaped by a
-      backslash, ignore it. */
-      if (escape) {
-        escape = false;
-      } else {
-        quote = 0;
-      }
-    } else if (quote) {
-      /* Within quotes: do not look for
-      starting quotes or comments. */
-      if (escape) {
-        escape = false;
-      } else if (*sptr == '\\') {
-        escape = true;
-      }
-    } else if (*sptr == '"' || *sptr == '`' || *sptr == '\'') {
-      /* Starting quote: remember the quote character. */
-      quote = *sptr;
-    } else if (*sptr == '#' ||
-               (sptr[0] == '-' && sptr[1] == '-' && sptr[2] == ' ')) {
-      for (;;) {
-        if (++sptr >= eptr) {
-          goto end_of_string;
-        }
-
-        /* In Unix a newline is 0x0A while in Windows
-        it is 0x0D followed by 0x0A */
-
-        switch (*sptr) {
-          case (char)0X0A:
-          case (char)0x0D:
-          case '\0':
-            goto scan_more;
-        }
-      }
-    } else if (!quote && *sptr == '/' && *(sptr + 1) == '*') {
-      sptr += 2;
-      for (;;) {
-        if (sptr >= eptr) {
-          goto end_of_string;
-        }
-
-        switch (*sptr) {
-          case '\0':
-            goto scan_more;
-          case '*':
-            if (sptr[1] == '/') {
-              sptr += 2;
-              goto scan_more;
-            }
-        }
-
-        sptr++;
-      }
-    }
-
-    *ptr = *sptr;
-
-    ptr++;
-    sptr++;
-  }
+  return DB_SUCCESS;
 }
 
 /** Finds the highest [number] for foreign key constraints of the table. Looks
  only at the >= 4.0.18-format id's, which are of the form
  databasename/tablename_ibfk_[number].
+ TODO: Remove this function once in-place ALTER TABLE code is
+ updated to avoid its use.
  @return highest number, 0 if table has no new format foreign key constraints */
 ulint dict_table_get_highest_foreign_id(
     dict_table_t *table) /*!< in: table in the dictionary memory cache */
@@ -3916,7 +3465,7 @@ ulint dict_table_get_highest_foreign_id(
   ulint id;
   ulint len;
 
-  DBUG_ENTER("dict_table_get_highest_foreign_id");
+  DBUG_TRACE;
 
   ut_a(table);
 
@@ -3949,809 +3498,10 @@ ulint dict_table_get_highest_foreign_id(
 
   DBUG_PRINT("dict_table_get_highest_foreign_id", ("id: %lu", biggest_id));
 
-  DBUG_RETURN(biggest_id);
+  return biggest_id;
 }
 
-/** Reports a simple foreign key create clause syntax error. */
-static void dict_foreign_report_syntax_err(
-    const char *name, /*!< in: table name */
-    const char *start_of_latest_foreign,
-    /*!< in: start of the foreign key clause
-    in the SQL string */
-    const char *ptr) /*!< in: place of the syntax error */
-{
-  ut_ad(!srv_read_only_mode);
-
-  FILE *ef = dict_foreign_err_file;
-
-  mutex_enter(&dict_foreign_err_mutex);
-  dict_foreign_error_report_low(ef, name);
-  fprintf(ef, "%s:\nSyntax error close to:\n%s\n", start_of_latest_foreign,
-          ptr);
-  mutex_exit(&dict_foreign_err_mutex);
-}
-
-/** Scans a table create SQL string and adds to the data dictionary the foreign
- key constraints declared in the string. This function should be called after
- the indexes for a table have been created. Each foreign key constraint must be
- accompanied with indexes in bot participating tables. The indexes are allowed
- to contain more fields than mentioned in the constraint.
-
- @param[in]	trx		transaction
- @param[in]	heap		memory heap
- @param[in]	cs		the character set of sql_string
- @param[in]	sql_string	table create statement where
-                                 foreign keys are declared like:
-                                 FOREIGN KEY (a, b) REFERENCES table2(c, d),
-                                 table2 can be written also with the database
-                                 name before it: test.table2; the default
-                                 database id the database of parameter name
- @param[in]	name		table full name in normalized form
- @param[in]	reject_fks	if TRUE, fail with error code
-                                 DB_CANNOT_ADD_CONSTRAINT if any
-                                 foreign keys are found.
- @return error code or DB_SUCCESS */
-static dberr_t dict_create_foreign_constraints_low(trx_t *trx, mem_heap_t *heap,
-                                                   const CHARSET_INFO *cs,
-                                                   const char *sql_string,
-                                                   const char *name,
-                                                   ibool reject_fks) {
-  dict_table_t *table = NULL;
-  dict_table_t *referenced_table;
-  dict_table_t *table_to_alter;
-  ulint highest_id_so_far = 0;
-  ulint number = 1;
-  dict_index_t *index;
-  dict_foreign_t *foreign;
-  const char *ptr = sql_string;
-  const char *start_of_latest_foreign = sql_string;
-  FILE *ef = dict_foreign_err_file;
-  const char *constraint_name;
-  ibool success;
-  dberr_t error;
-  const char *ptr1;
-  const char *ptr2;
-  ulint i;
-  ulint j;
-  ibool is_on_delete;
-  ulint n_on_deletes;
-  ulint n_on_updates;
-  const dict_col_t *columns[500];
-  const char *column_names[500];
-  const char *referenced_table_name;
-  dict_foreign_set local_fk_set;
-  dict_foreign_set_free local_fk_set_free(local_fk_set);
-  MDL_ticket *mdl;
-
-  ut_ad(!srv_read_only_mode);
-  ut_ad(mutex_own(&dict_sys->mutex));
-
-  table = dict_table_get_low(name);
-
-  if (table == NULL) {
-    mutex_enter(&dict_foreign_err_mutex);
-    dict_foreign_error_report_low(ef, name);
-    fprintf(ef,
-            "Cannot find the table in the internal"
-            " data dictionary of InnoDB.\n"
-            "Create table statement:\n%s\n",
-            sql_string);
-    mutex_exit(&dict_foreign_err_mutex);
-
-    return (DB_ERROR);
-  }
-
-  /* First check if we are actually doing an ALTER TABLE, and in that
-  case look for the table being altered */
-
-  ptr = dict_accept(cs, ptr, "ALTER", &success);
-
-  if (!success) {
-    goto loop;
-  }
-
-  ptr = dict_accept(cs, ptr, "TABLE", &success);
-
-  if (!success) {
-    goto loop;
-  }
-
-  /* We are doing an ALTER TABLE: scan the table name we are altering */
-
-  ptr = dict_scan_table_name(cs, ptr, &table_to_alter, &mdl, name, &success,
-                             heap, &referenced_table_name);
-  if (!success) {
-    ib::error(ER_IB_MSG_183)
-        << "Could not find the table being ALTERED in: " << sql_string;
-
-    return (DB_ERROR);
-  }
-
-  /* Starting from 4.0.18 and 4.1.2, we generate foreign key id's in the
-  format databasename/tablename_ibfk_[number], where [number] is local
-  to the table; look for the highest [number] for table_to_alter, so
-  that we can assign to new constraints higher numbers. */
-
-  /* If we are altering a temporary table, the table name after ALTER
-  TABLE does not correspond to the internal table name, and
-  table_to_alter is NULL. TODO: should we fix this somehow? */
-
-  if (table_to_alter == NULL) {
-    highest_id_so_far = 0;
-  } else {
-    highest_id_so_far = dict_table_get_highest_foreign_id(table_to_alter);
-    dd_table_close(table_to_alter, current_thd, &mdl, true);
-  }
-
-  number = highest_id_so_far + 1;
-  /* Scan for foreign key declarations in a loop */
-loop:
-  /* Scan either to "CONSTRAINT" or "FOREIGN", whichever is closer */
-
-  ptr1 = dict_scan_to(ptr, "CONSTRAINT");
-  ptr2 = dict_scan_to(ptr, "FOREIGN");
-
-  constraint_name = NULL;
-
-  if (ptr1 < ptr2) {
-    /* The user may have specified a constraint name. Pick it so
-    that we can store 'databasename/constraintname' as the id of
-    of the constraint to system tables. */
-    ptr = ptr1;
-
-    ptr = dict_accept(cs, ptr, "CONSTRAINT", &success);
-
-    ut_a(success);
-
-    if (!my_isspace(cs, *ptr) && *ptr != '"' && *ptr != '`') {
-      goto loop;
-    }
-
-    while (my_isspace(cs, *ptr)) {
-      ptr++;
-    }
-
-    /* read constraint name unless got "CONSTRAINT FOREIGN" */
-    if (ptr != ptr2) {
-      ptr = dict_scan_id(cs, ptr, heap, &constraint_name, FALSE, FALSE);
-    }
-  } else {
-    ptr = ptr2;
-  }
-
-  if (*ptr == '\0') {
-    /* The proper way to reject foreign keys for temporary
-    tables would be to split the lexing and syntactical
-    analysis of foreign key clauses from the actual adding
-    of them, so that ha_innodb.cc could first parse the SQL
-    command, determine if there are any foreign keys, and
-    if so, immediately reject the command if the table is a
-    temporary one. For now, this kludge will work. */
-    if (reject_fks && !local_fk_set.empty()) {
-      return (DB_CANNOT_ADD_CONSTRAINT);
-    }
-
-    if (dict_foreigns_has_s_base_col(local_fk_set, table)) {
-      return (DB_NO_FK_ON_S_BASE_COL);
-    }
-
-    std::for_each(local_fk_set.begin(), local_fk_set.end(), dict_foreign_free);
-    local_fk_set.clear();
-    return (DB_SUCCESS);
-  }
-
-  start_of_latest_foreign = ptr;
-
-  ptr = dict_accept(cs, ptr, "FOREIGN", &success);
-
-  if (!success) {
-    goto loop;
-  }
-
-  if (!my_isspace(cs, *ptr)) {
-    goto loop;
-  }
-
-  ptr = dict_accept(cs, ptr, "KEY", &success);
-
-  if (!success) {
-    goto loop;
-  }
-
-  ptr = dict_accept(cs, ptr, "(", &success);
-
-  if (!success) {
-    /* MySQL allows also an index id before the '('; we
-    skip it */
-    ptr = dict_skip_word(cs, ptr, &success);
-
-    if (!success) {
-      dict_foreign_report_syntax_err(name, start_of_latest_foreign, ptr);
-
-      return (DB_CANNOT_ADD_CONSTRAINT);
-    }
-
-    ptr = dict_accept(cs, ptr, "(", &success);
-
-    if (!success) {
-      /* We do not flag a syntax error here because in an
-      ALTER TABLE we may also have DROP FOREIGN KEY abc */
-
-      goto loop;
-    }
-  }
-
-  i = 0;
-
-  /* Scan the columns in the first list */
-col_loop1:
-  ut_a(i < (sizeof column_names) / sizeof *column_names);
-  ptr = dict_scan_col(cs, ptr, &success, table, columns + i, heap,
-                      column_names + i);
-  if (!success) {
-    mutex_enter(&dict_foreign_err_mutex);
-    dict_foreign_error_report_low(ef, name);
-    fprintf(ef, "%s:\nCannot resolve column name close to:\n%s\n",
-            start_of_latest_foreign, ptr);
-    mutex_exit(&dict_foreign_err_mutex);
-
-    return (DB_CANNOT_ADD_CONSTRAINT);
-  }
-
-  i++;
-
-  ptr = dict_accept(cs, ptr, ",", &success);
-
-  if (success) {
-    goto col_loop1;
-  }
-
-  ptr = dict_accept(cs, ptr, ")", &success);
-
-  if (!success) {
-    dict_foreign_report_syntax_err(name, start_of_latest_foreign, ptr);
-    return (DB_CANNOT_ADD_CONSTRAINT);
-  }
-
-  /* Try to find an index which contains the columns
-  as the first fields and in the right order. There is
-  no need to check column type match (on types_idx), since
-  the referenced table can be NULL if foreign_key_checks is
-  set to 0 */
-
-  index =
-      dict_foreign_find_index(table, NULL, column_names, i, NULL, TRUE, FALSE);
-
-  if (!index) {
-    /* SQL-layer already has checked that proper index exists.*/
-    ut_ad(0);
-    return (DB_CHILD_NO_INDEX);
-  }
-  ptr = dict_accept(cs, ptr, "REFERENCES", &success);
-
-  if (!success || !my_isspace(cs, *ptr)) {
-    dict_foreign_report_syntax_err(name, start_of_latest_foreign, ptr);
-    return (DB_CANNOT_ADD_CONSTRAINT);
-  }
-
-  /* Don't allow foreign keys on partitioned tables yet. */
-  ptr1 = dict_scan_to(ptr, "PARTITION");
-  if (ptr1) {
-    ptr1 = dict_accept(cs, ptr1, "PARTITION", &success);
-    if (success && my_isspace(cs, *ptr1)) {
-      ptr2 = dict_accept(cs, ptr1, "BY", &success);
-      if (success) {
-        /*
-          SQL-layer disallows foreign keys on partitioned tables
-          unless storage engine supports such FKs explicitly.
-        */
-        ut_ad(0);
-        return (DB_CANNOT_ADD_CONSTRAINT);
-      }
-    }
-  }
-  if (dict_table_is_partition(table)) {
-    /*
-      This is ALTER TABLE which adds foreign key to partitioned table.
-      SQL-layer should have blocked this already.
-    */
-    ut_ad(0);
-    return (DB_CANNOT_ADD_CONSTRAINT);
-  }
-
-  /* Let us create a constraint struct */
-
-  foreign = dict_mem_foreign_create();
-
-  if (constraint_name) {
-    ulint db_len;
-
-    /* Catenate 'databasename/' to the constraint name specified
-    by the user: we conceive the constraint as belonging to the
-    same MySQL 'database' as the table itself. We store the name
-    to foreign->id. */
-
-    db_len = dict_get_db_name_len(table->name.m_name);
-
-    foreign->id = static_cast<char *>(
-        mem_heap_alloc(foreign->heap, db_len + strlen(constraint_name) + 2));
-
-    ut_memcpy(foreign->id, table->name.m_name, db_len);
-    foreign->id[db_len] = '/';
-    strcpy(foreign->id + db_len + 1, constraint_name);
-  }
-
-  if (foreign->id == NULL) {
-    error = dict_create_add_foreign_id(&number, table->name.m_name, foreign);
-    if (error != DB_SUCCESS) {
-      dict_foreign_free(foreign);
-      return (error);
-    }
-  }
-
-  std::pair<dict_foreign_set::iterator, bool> ret =
-      local_fk_set.insert(foreign);
-
-  if (!ret.second) {
-    /* A duplicate foreign key name has been found */
-    dict_foreign_free(foreign);
-    return (DB_CANNOT_ADD_CONSTRAINT);
-  }
-
-  foreign->foreign_table = table;
-  foreign->foreign_table_name =
-      mem_heap_strdup(foreign->heap, table->name.m_name);
-  dict_mem_foreign_table_name_lookup_set(foreign, TRUE);
-
-  foreign->foreign_index = index;
-  foreign->n_fields = (unsigned int)i;
-
-  foreign->foreign_col_names = static_cast<const char **>(
-      mem_heap_alloc(foreign->heap, i * sizeof(void *)));
-
-  for (i = 0; i < foreign->n_fields; i++) {
-    foreign->foreign_col_names[i] = mem_heap_strdup(
-        foreign->heap, table->get_col_name(dict_col_get_no(columns[i])));
-  }
-
-  ptr = dict_scan_table_name(cs, ptr, &referenced_table, &mdl, name, &success,
-                             heap, &referenced_table_name);
-
-  /* Note that referenced_table can be NULL if the user has suppressed
-  checking of foreign key constraints! */
-
-  if (!success || (!referenced_table && trx->check_foreigns)) {
-    if (referenced_table) {
-      dd_table_close(referenced_table, current_thd, &mdl, true);
-    }
-    mutex_enter(&dict_foreign_err_mutex);
-    dict_foreign_error_report_low(ef, name);
-    fprintf(ef,
-            "%s:\nCannot resolve table name close to:\n"
-            "%s\n",
-            start_of_latest_foreign, ptr);
-    mutex_exit(&dict_foreign_err_mutex);
-
-    return (DB_CANNOT_ADD_CONSTRAINT);
-  }
-
-  /* Don't allow foreign keys on partitioned tables yet. */
-  if (referenced_table && dict_table_is_partition(referenced_table)) {
-    /* How could one make a referenced table to be a partition? */
-    ut_ad(0);
-    return (DB_CANNOT_ADD_CONSTRAINT);
-  }
-
-  ptr = dict_accept(cs, ptr, "(", &success);
-
-  if (!success) {
-    if (referenced_table) {
-      dd_table_close(referenced_table, current_thd, &mdl, true);
-    }
-    dict_foreign_report_syntax_err(name, start_of_latest_foreign, ptr);
-    return (DB_CANNOT_ADD_CONSTRAINT);
-  }
-
-  /* Scan the columns in the second list */
-  i = 0;
-
-col_loop2:
-  ptr = dict_scan_col(cs, ptr, &success, referenced_table, columns + i, heap,
-                      column_names + i);
-  i++;
-
-  if (!success) {
-    if (referenced_table) {
-      dd_table_close(referenced_table, current_thd, &mdl, true);
-    }
-    mutex_enter(&dict_foreign_err_mutex);
-    dict_foreign_error_report_low(ef, name);
-    fprintf(ef,
-            "%s:\nCannot resolve column name close to:\n"
-            "%s\n",
-            start_of_latest_foreign, ptr);
-    mutex_exit(&dict_foreign_err_mutex);
-
-    return (DB_CANNOT_ADD_CONSTRAINT);
-  }
-
-  ptr = dict_accept(cs, ptr, ",", &success);
-
-  if (success) {
-    goto col_loop2;
-  }
-
-  ptr = dict_accept(cs, ptr, ")", &success);
-
-  if (!success || foreign->n_fields != i) {
-    if (referenced_table) {
-      dd_table_close(referenced_table, current_thd, &mdl, true);
-    }
-
-    dict_foreign_report_syntax_err(name, start_of_latest_foreign, ptr);
-    return (DB_CANNOT_ADD_CONSTRAINT);
-  }
-
-  n_on_deletes = 0;
-  n_on_updates = 0;
-
-scan_on_conditions:
-  /* Loop here as long as we can find ON ... conditions */
-
-  ptr = dict_accept(cs, ptr, "ON", &success);
-
-  if (!success) {
-    goto try_find_index;
-  }
-
-  ptr = dict_accept(cs, ptr, "DELETE", &success);
-
-  if (!success) {
-    ptr = dict_accept(cs, ptr, "UPDATE", &success);
-
-    if (!success) {
-      if (referenced_table) {
-        dd_table_close(referenced_table, current_thd, &mdl, true);
-      }
-
-      dict_foreign_report_syntax_err(name, start_of_latest_foreign, ptr);
-      return (DB_CANNOT_ADD_CONSTRAINT);
-    }
-
-    is_on_delete = FALSE;
-    n_on_updates++;
-  } else {
-    is_on_delete = TRUE;
-    n_on_deletes++;
-  }
-
-  ptr = dict_accept(cs, ptr, "RESTRICT", &success);
-
-  if (success) {
-    goto scan_on_conditions;
-  }
-
-  ptr = dict_accept(cs, ptr, "CASCADE", &success);
-
-  if (success) {
-    if (is_on_delete) {
-      foreign->type |= DICT_FOREIGN_ON_DELETE_CASCADE;
-    } else {
-      foreign->type |= DICT_FOREIGN_ON_UPDATE_CASCADE;
-    }
-
-    goto scan_on_conditions;
-  }
-
-  ptr = dict_accept(cs, ptr, "NO", &success);
-
-  if (success) {
-    ptr = dict_accept(cs, ptr, "ACTION", &success);
-
-    if (!success) {
-      if (referenced_table) {
-        dd_table_close(referenced_table, current_thd, &mdl, true);
-      }
-      dict_foreign_report_syntax_err(name, start_of_latest_foreign, ptr);
-
-      return (DB_CANNOT_ADD_CONSTRAINT);
-    }
-
-    if (is_on_delete) {
-      foreign->type |= DICT_FOREIGN_ON_DELETE_NO_ACTION;
-    } else {
-      foreign->type |= DICT_FOREIGN_ON_UPDATE_NO_ACTION;
-    }
-
-    goto scan_on_conditions;
-  }
-
-  ptr = dict_accept(cs, ptr, "SET", &success);
-
-  if (!success) {
-    if (referenced_table) {
-      dd_table_close(referenced_table, current_thd, &mdl, true);
-    }
-    dict_foreign_report_syntax_err(name, start_of_latest_foreign, ptr);
-    return (DB_CANNOT_ADD_CONSTRAINT);
-  }
-
-  ptr = dict_accept(cs, ptr, "NULL", &success);
-
-  if (!success) {
-    if (referenced_table) {
-      dd_table_close(referenced_table, current_thd, &mdl, true);
-    }
-    dict_foreign_report_syntax_err(name, start_of_latest_foreign, ptr);
-    return (DB_CANNOT_ADD_CONSTRAINT);
-  }
-
-  for (j = 0; j < foreign->n_fields; j++) {
-    if ((foreign->foreign_index->get_col(j)->prtype) & DATA_NOT_NULL) {
-      /* It is not sensible to define SET NULL
-      if the column is not allowed to be NULL!
-      SQL-layer already enforces this. */
-      ut_ad(0);
-      if (referenced_table) {
-        dd_table_close(referenced_table, current_thd, &mdl, true);
-      }
-      return (DB_CANNOT_ADD_CONSTRAINT);
-    }
-  }
-
-  if (is_on_delete) {
-    foreign->type |= DICT_FOREIGN_ON_DELETE_SET_NULL;
-  } else {
-    foreign->type |= DICT_FOREIGN_ON_UPDATE_SET_NULL;
-  }
-
-  goto scan_on_conditions;
-
-try_find_index:
-  if (n_on_deletes > 1 || n_on_updates > 1) {
-    /* It is an error to define more than 1 action */
-    if (referenced_table) {
-      dd_table_close(referenced_table, current_thd, &mdl, true);
-    }
-
-    mutex_enter(&dict_foreign_err_mutex);
-    dict_foreign_error_report_low(ef, name);
-    fprintf(ef,
-            "%s:\n"
-            "You have twice an ON DELETE clause"
-            " or twice an ON UPDATE clause.\n",
-            start_of_latest_foreign);
-    mutex_exit(&dict_foreign_err_mutex);
-
-    return (DB_CANNOT_ADD_CONSTRAINT);
-  }
-
-  /* Try to find an index which contains the columns as the first fields
-  and in the right order, and the types are the same as in
-  foreign->foreign_index */
-
-  if (referenced_table) {
-    index = dict_foreign_find_index(referenced_table, NULL, column_names, i,
-                                    foreign->foreign_index, TRUE, FALSE);
-    if (!index) {
-      dd_table_close(referenced_table, current_thd, &mdl, true);
-      mutex_enter(&dict_foreign_err_mutex);
-      dict_foreign_error_report_low(ef, name);
-      fprintf(ef,
-              "%s:\n"
-              "Cannot find an index in the"
-              " referenced table where the\n"
-              "referenced columns appear as the"
-              " first columns, or column types\n"
-              "in the table and the referenced table"
-              " do not match for constraint.\n"
-              "Note that the internal storage type of"
-              " ENUM and SET changed in\n"
-              "tables created with >= InnoDB-4.1.12,"
-              " and such columns in old tables\n"
-              "cannot be referenced by such columns"
-              " in new tables.\n%s\n",
-              start_of_latest_foreign, FOREIGN_KEY_CONSTRAINTS_MSG);
-      mutex_exit(&dict_foreign_err_mutex);
-
-      return (DB_PARENT_NO_INDEX);
-    }
-  } else {
-    ut_a(trx->check_foreigns == FALSE);
-    index = NULL;
-  }
-
-  foreign->referenced_index = index;
-  foreign->referenced_table = referenced_table;
-
-  foreign->referenced_table_name =
-      mem_heap_strdup(foreign->heap, referenced_table_name);
-  dict_mem_referenced_table_name_lookup_set(foreign, TRUE);
-
-  foreign->referenced_col_names = static_cast<const char **>(
-      mem_heap_alloc(foreign->heap, i * sizeof(void *)));
-
-  for (i = 0; i < foreign->n_fields; i++) {
-    foreign->referenced_col_names[i] =
-        mem_heap_strdup(foreign->heap, column_names[i]);
-  }
-
-  if (referenced_table) {
-    dd_table_close(referenced_table, current_thd, &mdl, true);
-  }
-
-  goto loop;
-}
-
-/** Scans a table create SQL string and adds to the data dictionary
-the foreign key constraints declared in the string. This function
-should be called after the indexes for a table have been created.
-Each foreign key constraint must be accompanied with indexes in
-bot participating tables. The indexes are allowed to contain more
-fields than mentioned in the constraint.
-
-@param[in]	trx		transaction
-@param[in]	sql_string	table create statement where
-                                foreign keys are declared like:
-                                FOREIGN KEY (a, b) REFERENCES table2(c, d),
-                                table2 can be written also with the database
-                                name before it: test.table2; the default
-                                database id the database of parameter name
-@param[in]	sql_length	length of sql_string
-@param[in]	name		table full name in normalized form
-@param[in]	reject_fks	if TRUE, fail with error code
-                                DB_CANNOT_ADD_CONSTRAINT if any
-                                foreign keys are found.
-@return error code or DB_SUCCESS */
-dberr_t dict_create_foreign_constraints(trx_t *trx, const char *sql_string,
-                                        size_t sql_length, const char *name,
-                                        ibool reject_fks) {
-  char *str;
-  dberr_t err;
-  mem_heap_t *heap;
-
-  ut_a(trx);
-  ut_a(trx->mysql_thd);
-
-  str = dict_strip_comments(sql_string, sql_length);
-  heap = mem_heap_create(10000);
-
-  err = dict_create_foreign_constraints_low(
-      trx, heap, innobase_get_charset(trx->mysql_thd), str, name, reject_fks);
-
-  mem_heap_free(heap);
-  ut_free(str);
-
-  return (err);
-}
-
-/** Parses the CONSTRAINT id's to be dropped in an ALTER TABLE statement.
- @return DB_SUCCESS or DB_CANNOT_DROP_CONSTRAINT if syntax error or the
- constraint id does not match */
-dberr_t dict_foreign_parse_drop_constraints(
-    mem_heap_t *heap,                  /*!< in: heap from which we can
-                                       allocate memory */
-    trx_t *trx,                        /*!< in: transaction */
-    dict_table_t *table,               /*!< in: table */
-    ulint *n,                          /*!< out: number of constraints
-                                       to drop */
-    const char ***constraints_to_drop) /*!< out: id's of the
-                                       constraints to drop */
-{
-  ibool success;
-  char *str;
-  size_t len;
-  const char *ptr;
-  const char *id;
-  const CHARSET_INFO *cs;
-
-  ut_a(trx);
-  ut_a(trx->mysql_thd);
-
-  cs = innobase_get_charset(trx->mysql_thd);
-
-  *n = 0;
-
-  *constraints_to_drop =
-      static_cast<const char **>(mem_heap_alloc(heap, 1000 * sizeof(char *)));
-
-  ptr = innobase_get_stmt_unsafe(trx->mysql_thd, &len);
-
-  str = dict_strip_comments(ptr, len);
-
-  ptr = str;
-
-  ut_ad(mutex_own(&dict_sys->mutex));
-loop:
-  ptr = dict_scan_to(ptr, "DROP");
-
-  if (*ptr == '\0') {
-    ut_free(str);
-
-    return (DB_SUCCESS);
-  }
-
-  ptr = dict_accept(cs, ptr, "DROP", &success);
-
-  if (!my_isspace(cs, *ptr)) {
-    goto loop;
-  }
-
-  ptr = dict_accept(cs, ptr, "FOREIGN", &success);
-
-  if (!success || !my_isspace(cs, *ptr)) {
-    goto loop;
-  }
-
-  ptr = dict_accept(cs, ptr, "KEY", &success);
-
-  if (!success) {
-    goto syntax_error;
-  }
-
-  ptr = dict_scan_id(cs, ptr, heap, &id, FALSE, TRUE);
-
-  if (id == NULL) {
-    goto syntax_error;
-  }
-
-  ut_a(*n < 1000);
-  (*constraints_to_drop)[*n] = id;
-  (*n)++;
-
-  if (std::find_if(table->foreign_set.begin(), table->foreign_set.end(),
-                   dict_foreign_matches_id(id)) == table->foreign_set.end()) {
-    if (!srv_read_only_mode) {
-      FILE *ef = dict_foreign_err_file;
-
-      mutex_enter(&dict_foreign_err_mutex);
-      rewind(ef);
-      ut_print_timestamp(ef);
-      fputs(
-          " Error in dropping of a foreign key"
-          " constraint of table ",
-          ef);
-      ut_print_name(ef, NULL, table->name.m_name);
-      fprintf(ef,
-              ",\nin SQL command\n%s"
-              "\nCannot find a constraint with the"
-              " given id %s.\n",
-              str, id);
-      mutex_exit(&dict_foreign_err_mutex);
-    }
-
-    ut_free(str);
-
-    return (DB_CANNOT_DROP_CONSTRAINT);
-  }
-
-  goto loop;
-
-syntax_error:
-  if (!srv_read_only_mode) {
-    FILE *ef = dict_foreign_err_file;
-
-    mutex_enter(&dict_foreign_err_mutex);
-    rewind(ef);
-    ut_print_timestamp(ef);
-    fputs(
-        " Syntax error in dropping of a"
-        " foreign key constraint of table ",
-        ef);
-    ut_print_name(ef, NULL, table->name.m_name);
-    fprintf(ef,
-            ",\n"
-            "close to:\n%s\n in SQL command\n%s\n",
-            ptr, str);
-    mutex_exit(&dict_foreign_err_mutex);
-  }
-
-  ut_free(str);
-
-  return (DB_CANNOT_DROP_CONSTRAINT);
-}
-
-  /*==================== END OF FOREIGN KEY PROCESSING ====================*/
+/*==================== END OF FOREIGN KEY PROCESSING ====================*/
 
 #ifdef UNIV_DEBUG
 /** Checks that a tuple has n_fields_cmp value in a sensible range, so that
@@ -4774,16 +3524,15 @@ ibool dict_index_check_search_tuple(
 
 /** Builds a node pointer out of a physical record and a page number.
  @return own: node pointer */
-dtuple_t *dict_index_build_node_ptr(
-    const dict_index_t *index, /*!< in: index */
-    const rec_t *rec,          /*!< in: record for which to build node
-                               pointer */
-    page_no_t page_no,         /*!< in: page number to put in node
-                               pointer */
-    mem_heap_t *heap,          /*!< in: memory heap where pointer
-                               created */
-    ulint level)               /*!< in: level of rec in tree:
-                               0 means leaf level */
+dtuple_t *dict_index_build_node_ptr(const dict_index_t *index, /*!< in: index */
+                                    const rec_t *rec,  /*!< in: record for which
+                                                       to build node  pointer */
+                                    page_no_t page_no, /*!< in: page number to
+                                                       put in node pointer */
+                                    mem_heap_t *heap, /*!< in: memory heap where
+                                                      pointer created */
+                                    ulint level) /*!< in: level of rec in tree:
+                                                 0 means leaf level */
 {
   dtuple_t *tuple;
   dfield_t *field;
@@ -5026,80 +3775,6 @@ void dict_print_info_on_foreign_key_in_create_format(
       !(foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL)) {
     fputs(" ON UPDATE RESTRICT", file);
   }
-}
-
-/** Outputs info on foreign keys of a table. */
-void dict_print_info_on_foreign_keys(
-    ibool create_table_format, /*!< in: if TRUE then print in
-                  a format suitable to be inserted into
-                  a CREATE TABLE, otherwise in the format
-                  of SHOW TABLE STATUS */
-    FILE *file,                /*!< in: file where to print */
-    trx_t *trx,                /*!< in: transaction */
-    dict_table_t *table)       /*!< in: table */
-{
-  dict_foreign_t *foreign;
-
-  mutex_enter(&dict_sys->mutex);
-
-  for (dict_foreign_set::iterator it = table->foreign_set.begin();
-       it != table->foreign_set.end(); ++it) {
-    foreign = *it;
-
-    if (create_table_format) {
-      dict_print_info_on_foreign_key_in_create_format(file, trx, foreign, TRUE);
-    } else {
-      ulint i;
-      fputs("; (", file);
-
-      for (i = 0; i < foreign->n_fields; i++) {
-        if (i) {
-          putc(' ', file);
-        }
-
-        innobase_quote_identifier(file, trx, foreign->foreign_col_names[i]);
-      }
-
-      fputs(") REFER ", file);
-      ut_print_name(file, trx, foreign->referenced_table_name);
-      putc('(', file);
-
-      for (i = 0; i < foreign->n_fields; i++) {
-        if (i) {
-          putc(' ', file);
-        }
-        innobase_quote_identifier(file, trx, foreign->referenced_col_names[i]);
-      }
-
-      putc(')', file);
-
-      if (foreign->type == DICT_FOREIGN_ON_DELETE_CASCADE) {
-        fputs(" ON DELETE CASCADE", file);
-      }
-
-      if (foreign->type == DICT_FOREIGN_ON_DELETE_SET_NULL) {
-        fputs(" ON DELETE SET NULL", file);
-      }
-
-      if (foreign->type & DICT_FOREIGN_ON_DELETE_NO_ACTION) {
-        fputs(" ON DELETE NO ACTION", file);
-      }
-
-      if (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE) {
-        fputs(" ON UPDATE CASCADE", file);
-      }
-
-      if (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL) {
-        fputs(" ON UPDATE SET NULL", file);
-      }
-
-      if (foreign->type & DICT_FOREIGN_ON_UPDATE_NO_ACTION) {
-        fputs(" ON UPDATE NO ACTION", file);
-      }
-    }
-  }
-
-  mutex_exit(&dict_sys->mutex);
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -5489,17 +4164,11 @@ void dict_persist_to_dd_table_buffer() {
   bool persisted = false;
 
   if (dict_sys == nullptr) {
-    log_sys->dict_suggest_checkpoint_lsn = 0;
+    log_set_dict_max_allowed_checkpoint_lsn(*log_sys, 0);
     return;
   }
 
   mutex_enter(&dict_persist->mutex);
-
-  if (UT_LIST_GET_LEN(dict_persist->dirty_dict_tables) == 0) {
-    mutex_exit(&dict_persist->mutex);
-    log_sys->dict_suggest_checkpoint_lsn = 0;
-    return;
-  }
 
   for (dict_table_t *table = UT_LIST_GET_FIRST(dict_persist->dirty_dict_tables);
        table != NULL;) {
@@ -5519,17 +4188,23 @@ void dict_persist_to_dd_table_buffer() {
 
   ut_ad(dict_persist->num_dirty_tables == 0);
 
-  if (persisted) {
-    /* Get this lsn with dict_persist->mutex held,
-    so no other concurrent dynamic metadata change logs
-    would be before this lsn. */
-    log_sys->dict_suggest_checkpoint_lsn = log_get_lsn(*log_sys);
-  }
+  /* Get this lsn with dict_persist->mutex held,
+  so no other concurrent dynamic metadata change logs
+  would be before this lsn. */
+  const lsn_t persisted_lsn = log_get_lsn(*log_sys);
+
+  /* As soon as we release the dict_persist->mutex, new dynamic
+  metadata changes could happen. They would be not persisted
+  until next call to dict_persist_to_dd_table_buffer.
+  We must not remove redo which could allow to deduce them.
+  Therefore the maximum allowed lsn for checkpoint is the
+  current lsn. */
+  log_set_dict_max_allowed_checkpoint_lsn(*log_sys, persisted_lsn);
 
   mutex_exit(&dict_persist->mutex);
 
   if (persisted) {
-    log_buffer_flush_to_disk();
+    log_write_up_to(*log_sys, persisted_lsn, true);
   }
 }
 
@@ -5539,7 +4214,7 @@ void dict_persist_to_dd_table_buffer() {
 have some changed dynamic metadata in memory and have not been written
 back to mysql.innodb_dynamic_metadata. Update LSN limit, which is used
 to stop user threads when redo log is running out of space and they
-do not hold latches (log.sn_limit_for_start). */
+do not hold latches (log.free_check_limit_sn). */
 static void dict_persist_update_log_margin() {
   /* Below variables basically considers only the AUTO_INCREMENT counter
   and a small margin for corrupted indexes. */
@@ -5580,10 +4255,7 @@ static void dict_persist_update_log_margin() {
 
   if (log_sys != nullptr) {
     /* Update margin for redo log */
-    log_sys->dict_persist_margin.store(margin);
-
-    /* Update log.sn_limit_for_start. */
-    log_update_limits(*log_sys);
+    log_set_dict_persist_margin(*log_sys, margin);
   }
 }
 #endif /* !UNIV_HOTBACKUP */
@@ -5657,7 +4329,7 @@ void dict_ind_init(void) {
   dict_table_t *table;
 
   /* create dummy table and index for REDUNDANT infimum and supremum */
-  table = dict_mem_table_create("SYS_DUMMY1", DICT_HDR_SPACE, 1, 0, 0, 0);
+  table = dict_mem_table_create("SYS_DUMMY1", DICT_HDR_SPACE, 1, 0, 0, 0, 0);
   dict_mem_table_add_col(table, NULL, NULL, DATA_CHAR,
                          DATA_ENGLISH | DATA_NOT_NULL, 8);
 
@@ -5915,6 +4587,7 @@ void dict_resize() {
 
   mutex_exit(&dict_sys->mutex);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Closes the data dictionary module. */
 void dict_close(void) {
@@ -5940,6 +4613,7 @@ void dict_close(void) {
     dict_table_close(dict_sys->ddl_log, true, false);
   }
 
+#ifndef UNIV_HOTBACKUP
   /* Free the hash elements. We don't remove them from the table
   because we are going to destroy the table anyway. */
   for (ulint i = 0; i < hash_get_n_cells(dict_sys->table_id_hash); i++) {
@@ -5956,6 +4630,7 @@ void dict_close(void) {
       dict_table_remove_from_cache(prev_table);
     }
   }
+#endif /* !UNIV_HOTBACKUP */
 
   hash_table_free(dict_sys->table_hash);
 
@@ -5963,7 +4638,9 @@ void dict_close(void) {
   therefore we don't delete the individual elements. */
   hash_table_free(dict_sys->table_id_hash);
 
+#ifndef UNIV_HOTBACKUP
   dict_ind_free();
+#endif /* !UNIV_HOTBACKUP */
 
   mutex_exit(&dict_sys->mutex);
   mutex_free(&dict_sys->mutex);
@@ -5975,10 +4652,12 @@ void dict_close(void) {
 
   mutex_free(&dict_foreign_err_mutex);
 
+#ifndef UNIV_HOTBACKUP
   if (dict_foreign_err_file != NULL) {
     fclose(dict_foreign_err_file);
     dict_foreign_err_file = NULL;
   }
+#endif /* !UNIV_HOTBACKUP */
 
   ut_ad(dict_sys->size == 0);
 
@@ -5986,6 +4665,7 @@ void dict_close(void) {
   dict_sys = NULL;
 }
 
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 /** Validate the dictionary table LRU list.
  @return true if valid */
@@ -6271,8 +4951,8 @@ dict_table_t::flags |     0     |    1    |     1      |    1
 fil_space_t::flags  |     0     |    0    |     1      |    1
 @param[in]	table_flags	dict_table_t::flags
 @return tablespace flags (fil_space_t::flags) */
-ulint dict_tf_to_fsp_flags(ulint table_flags) {
-  DBUG_EXECUTE_IF("dict_tf_to_fsp_flags_failure", return (ULINT_UNDEFINED););
+uint32_t dict_tf_to_fsp_flags(uint32_t table_flags) {
+  DBUG_EXECUTE_IF("dict_tf_to_fsp_flags_failure", return (UINT32_UNDEFINED););
 
   bool has_atomic_blobs = DICT_TF_HAS_ATOMIC_BLOBS(table_flags);
   page_size_t page_size = dict_tf_get_page_size(table_flags);
@@ -6287,8 +4967,8 @@ ulint dict_tf_to_fsp_flags(ulint table_flags) {
     has_atomic_blobs = false;
   }
 
-  ulint fsp_flags = fsp_flags_init(page_size, has_atomic_blobs, has_data_dir,
-                                   is_shared, false);
+  uint32_t fsp_flags = fsp_flags_init(page_size, has_atomic_blobs, has_data_dir,
+                                      is_shared, false);
 
   return (fsp_flags);
 }
@@ -6468,7 +5148,7 @@ void DDTableBuffer::open() {
   }
 
   table = dict_mem_table_create(table_name, dict_sys_t::s_space_id, N_USER_COLS,
-                                0, 0, 0);
+                                0, 0, 0, 0);
 
   table->id = dict_sys_t::s_dynamic_meta_table_id;
   table->is_dd_table = true;
@@ -6767,13 +5447,14 @@ void Persister::write_log(table_id_t id,
                           mtr_t *mtr) const {
   byte *log_ptr;
   ulint size = get_write_size(metadata);
+  /* Both table id and version would be written in a compressed format,
+  each of which would cost 1..11 bytes, and MLOG_TABLE_DYNAMIC_META costs
+  1 byte. Refer to mlog_write_initial_dict_log_record() as well */
+  static constexpr uint8_t metadata_log_header_size = 23;
 
   ut_ad(size > 0);
 
-  /* We will write the id in a much compressed format, which costs
-  1..11 bytes, and the MLOG_TABLE_DYNAMIC_META costs 1 byte,
-  refer to mlog_write_initial_dict_log_record() as well */
-  log_ptr = mlog_open_metadata(mtr, 12 + size);
+  log_ptr = mlog_open_metadata(mtr, metadata_log_header_size + size);
   ut_ad(log_ptr != NULL);
 
   log_ptr = mlog_write_initial_dict_log_record(
@@ -7398,7 +6079,7 @@ std::string dict_table_get_datadir(const dict_table_t *table) {
 @param[out]	dict_id		zip_dict id
 @retval	DB_SUCCESS		if OK
 @retval	DB_RECORD_NOT_FOUND	if not found */
-dberr_t dict_get_dictionary_id_by_key(ulint table_id, ulint column_pos,
+dberr_t dict_get_dictionary_id_by_key(table_id_t table_id, ulint column_pos,
                                       ulint *dict_id) {
   ut_ad(srv_is_upgrade_mode);
   ut_ad(!mutex_own(&dict_sys->mutex));
@@ -7450,27 +6131,158 @@ dberr_t dict_get_dictionary_info_by_id(ulint dict_id, char **name,
   return err;
 }
 
-bool dict_detect_encryption(bool is_upgrade, space_id_t mysql_plugin_space) {
-  bool encrypt_mysql = false;
-  if (is_upgrade) {
-    if (mysql_plugin_space == SYSTEM_TABLE_SPACE) {
-      return (srv_sys_space.is_encrypted());
-    }
-
-    space_id_t space_id = fil_space_get_id_by_name("mysql/plugin");
-    if (space_id == SPACE_UNKNOWN) {
-      return (false);
-    }
-
-    fil_space_t *space = fil_space_get(space_id);
-    ut_ad(space != nullptr);
-
-    if (space == nullptr) {
-      return (false);
-    }
-    encrypt_mysql = FSP_FLAGS_GET_ENCRYPTION(space->flags);
+/** Detect if database has encrypted mysql plugin space. This is
+ *  indication that system tablespace was encrypted.
+@param[in] mysql_plugin_space   space_id of mysql/plugin table.
+@return true if encrypted, false if not (or fail to open mysql/plugin table) */
+static bool dict_is_mysql_plugin_space_encrypted(
+    space_id_t mysql_plugin_space) {
+  /* It is possible that plugin table was created with
+  innodb_file_per_table == false, then this tablespace
+  will reside in system tablespace */
+  if (mysql_plugin_space == SYSTEM_TABLE_SPACE) {
+    return (srv_sys_space.is_encrypted());
   }
 
-  return (encrypt_mysql || srv_encrypt_tables == SRV_ENCRYPT_TABLES_ON ||
-          srv_encrypt_tables == SRV_ENCRYPT_TABLES_FORCE);
+  space_id_t space_id = fil_space_get_id_by_name("mysql/plugin");
+  if (space_id == SPACE_UNKNOWN) {
+    return (false);
+  }
+
+  const fil_space_t *space = fil_space_get(space_id);
+  ut_ad(space != nullptr);
+
+  if (space == nullptr) {
+    return false;
+  }
+  return FSP_FLAGS_GET_ENCRYPTION(space->flags);
+}
+
+/** @return true if default_table_encryption is ON or ONLINE_TO_KEYRING */
+static bool dict_should_be_keyring_encrypted() {
+  /* We cannot use srv_default_encryption here because it is
+  set by server using fix_default_table_encryption() handlerton API
+  after InnoDB initialization is done and we need the variable
+  as part of InnoDB initialization. So we directly use the server
+  global variable structure */
+
+  enum_default_table_encryption default_enc =
+      static_cast<enum_default_table_encryption>(
+          global_system_variables.default_table_encryption);
+
+  return (default_enc == DEFAULT_TABLE_ENC_ON ||
+          default_enc == DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING);
+}
+
+/** Reads mysql.ibd's page0 from buffer if the tablespace is already loaded
+into Fil_system cache
+@return tuple <0> success - true if no error
+              <1> true if encryption flag is set, false otherwise */
+static std::tuple<bool, bool> get_mysql_ibd_page_0_from_buffer() {
+  auto result = std::make_tuple(false, false);
+
+  fil_space_t *space = fil_space_acquire_silent(dict_sys_t::s_space_id);
+  if (space == nullptr) {
+    return (result);
+  }
+
+  const page_size_t page_size(space->flags);
+  mtr_t mtr;
+  mtr_start(&mtr);
+  buf_block_t *block = buf_page_get(page_id_t(dict_sys_t::s_space_id, 0),
+                                    univ_page_size, RW_X_LATCH, &mtr);
+
+  if (block == nullptr) {
+    mtr_commit(&mtr);
+    fil_space_release(space);
+    return (result);
+  }
+
+  const ulint flags = fsp_header_get_flags(buf_block_get_frame(block));
+  std::get<0>(result) = true;
+  std::get<1>(result) = FSP_FLAGS_GET_ENCRYPTION(flags);
+
+  mtr_commit(&mtr);
+  fil_space_release(space);
+  return (result);
+}
+
+/** Reads mysql.ibd's page0 directly from disk
+@param[in] buf - buffer for reading page0 into
+@return tuple <0> success - true if no error
+              <1> true if encryption flag is set, false otherwise */
+static std::tuple<bool, bool> get_mysql_ibd_page_0_io() {
+  auto result = std::make_tuple(false, false);
+
+  /* page0 of mysql.ibd is not in the buffer, try direct io */
+  auto buf = ut_make_unique_ptr_nokey(2 * UNIV_PAGE_SIZE);
+
+  bool successfully_opened = false;
+
+  pfs_os_file_t file = os_file_create_simple_no_error_handling(
+      innodb_data_file_key, dict_sys_t::s_dd_space_file_name, OS_FILE_OPEN,
+      OS_FILE_READ_ONLY, srv_read_only_mode, &successfully_opened);
+
+  if (!successfully_opened) {
+    return (result);
+  }
+
+  buf_frame_t *page =
+      static_cast<buf_frame_t *>(ut_align(buf.get(), UNIV_PAGE_SIZE));
+
+  ut_ad(page == page_align(page));
+
+  IORequest request(IORequest::READ);
+  dberr_t err = os_file_read_first_page_noexit(
+      request, dict_sys_t::s_dd_space_file_name, file, page, UNIV_PAGE_SIZE);
+
+  os_file_close(file);
+
+  if (err != DB_SUCCESS) {
+    return (result);
+  }
+
+  const ulint flags = fsp_header_get_flags(page);
+  std::get<0>(result) = true;
+  std::get<1>(result) = FSP_FLAGS_GET_ENCRYPTION(flags);
+
+  return (result);
+}
+
+/** Detect if mysql.ibd's page0 has encryption flag set.
+The page 0 either read from buffer (if available) or
+directly from disk.
+@return tuple <0> success - true if no error
+              <1> true if encryption flag is set, false otherwise */
+static std::tuple<bool, bool> dict_mysql_ibd_page_0_has_encryption_flag_set() {
+  //<0> element - success, <1> element - encryption flag
+  auto result = std::make_tuple(false, false);
+
+  /* read from buffer */
+  result = get_mysql_ibd_page_0_from_buffer();
+  if (!std::get<0>(result)) {
+    result = get_mysql_ibd_page_0_io();
+  }
+  return (result);
+}
+
+bool dict_detect_encryption_of_mysql_ibd(dict_init_mode_t dict_init_mode,
+                                         space_id_t mysql_plugin_space,
+                                         bool &encrypt_mysql) {
+  bool success = false;
+  switch (dict_init_mode) {
+    case DICT_INIT_CREATE_FILES:
+      encrypt_mysql = dict_should_be_keyring_encrypted();
+      return true;
+    case DICT_INIT_UPGRADE_57_FILES:
+      encrypt_mysql = dict_is_mysql_plugin_space_encrypted(mysql_plugin_space);
+      return true;
+    case DICT_INIT_CHECK_FILES:
+      std::tie(success, encrypt_mysql) =
+          dict_mysql_ibd_page_0_has_encryption_flag_set();
+      return success;
+    default:
+      ut_ad(0);
+      return false;
+  }
 }

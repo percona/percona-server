@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -34,20 +34,7 @@ use My::Find;
 use My::Platform;
 
 # Rules to run first of all
-
-sub add_opt_values {
-  my ($self, $config)= @_;
-
-  # add auto-options
-  $config->insert('OPT', 'port'   => fix_port($self, $config) );
-  $config->insert('OPT', 'vardir' => sub { $self->{ARGS}->{vardir} });
-  $config->insert('mysqld', "loose-skip-$_" => undef) for (@::optional_plugins);
-}
-
-my @pre_rules=
-(
-  \&add_opt_values,
-);
+my @pre_rules = (\&pre_check_no_hosts_in_cluster_config);
 
 sub get_basedir {
   my ($self, $group) = @_;
@@ -113,9 +100,9 @@ sub fix_pidfile {
 }
 
 sub fix_port {
-  my ($self, $config, $group_name, $group)= @_;
-  my $port= $self->{PORT}++;
-  return $port;
+  my ($self, $config, $group_name, $group) = @_;
+  my $hostname = $group->value('#host');
+  return $self->{HOSTS}->{$hostname}++;
 }
 
 sub fix_x_port {
@@ -235,12 +222,7 @@ sub fix_std_data {
   return "$testdir/std_data";
 }
 
-sub ssl_supported {
-  return $::ssl_supported;
-}
-
 sub fix_ssl_disabled {
-  return if !ssl_supported(@_);
 
   # Add ssl-mode=DISABLED to avoid that mysqltest
   # connects with SSL by default.
@@ -248,19 +230,16 @@ sub fix_ssl_disabled {
 }
 
 sub fix_ssl_ca {
-  return if !ssl_supported(@_);
   my $std_data = fix_std_data(@_);
   return "$std_data/cacert.pem";
 }
 
 sub fix_ssl_server_cert {
-  return if !ssl_supported(@_);
   my $std_data = fix_std_data(@_);
   return "$std_data/server-cert.pem";
 }
 
 sub fix_ssl_server_key {
-  return if !ssl_supported(@_);
   my $std_data = fix_std_data(@_);
   return "$std_data/server-key.pem";
 }
@@ -284,6 +263,8 @@ my @mysqld_rules = (
   { '#log-error'                                   => \&fix_log_error },
   { 'caching_sha2_password_private_key_path'       => \&fix_rsa_private_key },
   { 'caching_sha2_password_public_key_path'        => \&fix_rsa_public_key },
+  { 'loose-sha256_password_private_key_path'       => \&fix_rsa_private_key },
+  { 'loose-sha256_password_public_key_path'        => \&fix_rsa_public_key },
   { 'character-sets-dir'                           => \&fix_charset_dir },
   { 'datadir'                                      => \&fix_datadir },
   { 'port'                                         => \&fix_port },
@@ -389,6 +370,45 @@ my @mysqlbinlog_rules = (
 #  - will be run in order listed here
 my @mysql_upgrade_rules = ();
 
+# For [cluster_config] section there should be no ndbd, ndb_mgmd, mysqld,
+# ndbapi options set.  These should only be set in cluster instance specific
+# sections, [cluster_config.X].  This is crucial when determining in the order
+# ndb_mgmd will enumerate node ids for nodes without explicit node id.
+sub pre_check_no_hosts_in_cluster_config {
+  my ($self, $config) = @_;
+
+  my $group = $config->group('cluster_config');
+  if (defined $group) {
+    if (defined $group->if_exist('ndbd') ||
+        defined $group->if_exist('ndb_mgmd') ||
+        defined $group->if_exist('mysqld') ||
+        defined $group->if_exist('ndbapi')) {
+      croak "Configuration error: Do not set ndbd, ndb_mgmd, mysqld, ndbapi ".
+            "in [cluster_config] section.  Use cluster specific sections ".
+            "[cluster_config.X] instead.";
+    }
+  }
+}
+
+# For each [cluster_config.X] record all allocated node ids (set using NodeId
+# property).  This will be used when determining what node id nodes with no
+# configured node id will get.
+sub track_allocated_nodeid {
+  my ($self, $config, $group_name, $group) = @_;
+
+  my (undef, $process_type, $idx, $suffix) = split(/\./, $group_name);
+
+  if (my $nodeid = $group->if_exist('NodeId')) {
+    if (!defined $suffix) {
+      croak "Configuration error: Do not set NodeId in general group ".
+            "[$group_name] but use instance specific group like ".
+            "[cluster_config.$process_type.1.cluster] instead.";
+    }
+    $config->{"cluster_config.$suffix"}->{"ALLOCATED NODEIDS"}->{$nodeid} = 1;
+  }
+  return;
+}
+
 # Generate a [client.<suffix>] group to be used for
 # connecting to [mysqld.<suffix>].
 sub post_check_client_group {
@@ -489,8 +509,18 @@ sub post_fix_mysql_cluster_section {
     $config->insert('mysql_cluster' . $group->suffix(),
                     'ndb_connectstring', $ndb_connectstring);
 
+    # Add ndb_connectstring to each ndbd connected to this
+    # cluster.
+    foreach my $ndbd ($config->like('cluster_config.ndbd.')) {
+      if ($ndbd->suffix() eq $group->suffix()) {
+        my $after = $ndbd->after('cluster_config.ndbd');
+        $config->insert("ndbd$after",
+                        'ndb_connectstring', $ndb_connectstring);
+      }
+    }
+
     # Add ndb_connectstring to each mysqld connected to this
-    # cluster
+    # cluster.
     foreach my $mysqld ($config->like('cluster_config.mysqld.')) {
       if ($mysqld->suffix() eq $group->suffix()) {
         my $after = $mysqld->after('cluster_config.mysqld');
@@ -540,9 +570,22 @@ sub run_section_rules {
 sub run_generate_sections_from_cluster_config {
   my ($self, $config) = @_;
 
-  my @options = ('ndb_mgmd', 'ndbd', 'mysqld', 'ndbapi');
-
   foreach my $group ($config->like('cluster_config\.\w*$')) {
+
+    # @options will be a list of ndbd, ndb_mgmd, mysqld, ndbapi ordered in the
+    # way that ndb_mgmd will assign node ids to nodes without id.
+    my @options;
+
+    foreach my $option ($group->options()) {
+      my $option_name = $option->name();
+      if ($option_name =~ /^(ndbd|ndb_mgmd|mysqld|ndbapi)$/)
+      {
+        push @options, $option_name;
+      }
+    }
+
+    # Keep track of next node id to use if not explicitly set.
+    my $next_nodeid = 1;
 
     # Keep track of current index per process type
     my %idxes;
@@ -569,6 +612,27 @@ sub run_generate_sections_from_cluster_config {
         # Generate a section for ndb_mgmd to read
         $config->insert("cluster_config.$option_name.$idx$suffix",
                         "HostName", $host);
+
+        # Predict how ndbd_mgm will assign node id for current node.
+        my $node = $config->group("cluster_config.$option_name.$idx$suffix");
+        my $nodeid = $node->if_exist('NodeId');
+        if (!$nodeid) {
+          $nodeid = $next_nodeid;
+          while ($config->{"cluster_config$suffix"}->
+                          {"ALLOCATED NODEIDS"}->
+                          {$nodeid}) {
+            $nodeid++;
+          }
+        }
+        $next_nodeid = $nodeid + 1;
+
+        # For data node set matching command line option --ndb-nodeid.
+        # If prediction of node id is wrong, and node id for another node type
+        # is used, that will cause testcase to fail during setup.
+        if ($option_name eq 'ndbd') {
+          $config->insert("$option_name.$idx$suffix",
+                          'ndb-nodeid', $nodeid);
+        }
 
         if ($option_name eq 'mysqld') {
           my $datadir =
@@ -607,7 +671,6 @@ sub new_config {
 
   my $self = bless { CONFIG    => $config,
                      ARGS      => $args,
-                     PORT      => $args->{baseport},
                      HOSTS     => $hosts,
                      NEXT_HOST => 0,
                      SERVER_ID => 1,
@@ -622,6 +685,9 @@ sub new_config {
                            @cluster_config_rules);
 
   $self->run_generate_sections_from_cluster_config($config);
+
+  $self->run_section_rules($config, 'cluster_config\.\w',
+                           ({ 'CODE' => \&track_allocated_nodeid }));
 
   $self->run_section_rules($config, 'cluster_config.ndb_mgmd.',
                            @ndb_mgmd_rules);
@@ -646,6 +712,14 @@ sub new_config {
   # Additional rules required for [mysqltest]
   $self->run_rules_for_group($config, $config->insert('mysqltest'),
                              @mysqltest_rules);
+
+  if ($::secondary_engine_support) {
+    eval 'use mtr_secondary_engine_config; 1';
+    # Additional rules required for secondary engine server
+    push(@post_rules, \&post_check_secondary_engine_group);
+    # Additional rules required for [mysqld] when secondary engine is enabled
+    push(@post_rules, \&post_check_secondary_engine_mysqld_group);
+  }
 
   # Run post rules
   foreach my $rule (@post_rules) {

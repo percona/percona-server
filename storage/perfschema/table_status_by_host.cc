@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ Plugin_table table_status_by_host::m_table_def(
     /* Name */
     "status_by_host",
     /* Definition */
-    "  HOST CHAR(60) collate utf8mb4_bin default null,\n"
+    "  HOST CHAR(255) CHARACTER SET ASCII default null,\n"
     "  VARIABLE_NAME VARCHAR(64) not null,\n"
     "  VARIABLE_VALUE VARCHAR(1024),\n"
     "  UNIQUE KEY (HOST, VARIABLE_NAME) USING HASH\n",

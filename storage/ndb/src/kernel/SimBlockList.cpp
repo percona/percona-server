@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,42 +61,12 @@
 #include <thrman.hpp>
 #include <trpman.hpp>
 #include <mt.hpp>
+#include "portlib/NdbMem.h"
 
 #define JAM_FILE_ID 492
 
 
-#ifndef VM_TRACE
 #define NEW_BLOCK(B) new B
-#else
-enum SIMBLOCKLIST_DUMMY { A_VALUE = 0 };
-
-void * operator new (size_t sz, SIMBLOCKLIST_DUMMY dummy){
-  char * tmp = (char *)malloc(sz);
-  if (!tmp)
-    abort();
-
-#ifndef NDB_PURIFY
-#ifdef VM_TRACE
-  const int initValue = 0xf3;
-#else
-  const int initValue = 0x0;
-#endif
-  
-  const int p = (sz / 4096);
-  const int r = (sz % 4096);
-  
-  for(int i = 0; i<p; i++)
-    memset(tmp+(i*4096), initValue, 4096);
-  
-  if(r > 0)
-    memset(tmp+p*4096, initValue, r);
-
-#endif
-  
-  return tmp;
-}
-#define NEW_BLOCK(B) new(A_VALUE) B
-#endif
 
 void
 SimBlockList::load(EmulatorData& data){
@@ -232,3 +202,33 @@ SimBlockList::unload(){
     noOfBlocks = 0;
   }
 }
+
+Uint64 SimBlockList::getTransactionMemoryNeed(
+  const Uint32 dbtc_instance_count,
+  const Uint32 ldm_instance_count,
+  const ndb_mgm_configuration_iterator * mgm_cfg,
+  const bool use_reserved) const
+{
+  Uint64 byte_count = Dbtc::getTransactionMemoryNeed(
+    dbtc_instance_count,
+    mgm_cfg,
+    use_reserved);
+  byte_count += Dbacc::getTransactionMemoryNeed(
+    ldm_instance_count,
+    mgm_cfg,
+    use_reserved);
+  byte_count += Dblqh::getTransactionMemoryNeed(
+    ldm_instance_count,
+    mgm_cfg,
+    use_reserved);
+  byte_count += Dbtup::getTransactionMemoryNeed(
+    ldm_instance_count,
+    mgm_cfg,
+    use_reserved);
+  byte_count += Dbtux::getTransactionMemoryNeed(
+    ldm_instance_count,
+    mgm_cfg,
+    use_reserved);
+  return byte_count;
+}
+

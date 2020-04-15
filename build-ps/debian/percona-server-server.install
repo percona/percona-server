@@ -1,4 +1,5 @@
 # binaries
+usr/bin/comp_err
 usr/bin/myisamchk
 usr/bin/myisamlog
 usr/bin/myisampack
@@ -12,10 +13,9 @@ usr/bin/mysqld_multi
 usr/bin/mysqld_safe
 usr/bin/ps_mysqld_helper
 usr/bin/perror
-usr/bin/resolveip
-usr/bin/resolve_stack_dump
 usr/sbin/mysqld
 usr/bin/ps-admin
+usr/bin/ibd2sdi
 
 # configuration files
 debian/extra/mysql.cnf  etc/mysql/
@@ -37,12 +37,14 @@ usr/share/man/man1/mysqlbinlog.1
 usr/share/man/man1/mysqld_multi.1
 usr/share/man/man1/mysqld_safe.1
 usr/share/man/man1/mysql.server.1
+usr/share/man/man1/ibd2sdi.1
 usr/share/man/man1/perror.1
-usr/share/man/man1/resolveip.1
-usr/share/man/man1/resolve_stack_dump.1
 usr/share/man/man8/mysqld.8
 # SQL files
 usr/share/mysql/*.sql
+#private shared libs
+usr/lib/mysql/private/libprotobuf-lite.so.3.6.1
+usr/lib/mysql/private/libprotobuf.so.3.6.1
 # plugins
 usr/lib/mysql/plugin/adt_null.so
 usr/lib/mysql/plugin/auth_socket.so
@@ -60,6 +62,18 @@ usr/lib/mysql/plugin/validate_password.so
 usr/lib/mysql/plugin/version_token.so
 usr/lib/mysql/plugin/keyring_file.so
 usr/lib/mysql/plugin/keyring_udf.so
+usr/lib/mysql/plugin/component_log_filter_dragnet.so
+usr/lib/mysql/plugin/component_log_sink_json.so
+usr/lib/mysql/plugin/component_log_sink_syseventlog.so
+usr/lib/mysql/plugin/component_validate_password.so
+usr/lib/mysql/plugin/component_audit_api_message_emit.so
+usr/lib/mysql/plugin/component_test_udf_services.so
+usr/lib/mysql/plugin/mysql_clone.so
+usr/lib/mysql/plugin/data_masking.*
+usr/lib/mysql/plugin/component_mysqlbackup.so
+usr/lib/mysql/plugin/debug/component_mysqlbackup.so
+usr/lib/mysql/plugin/debug/data_masking.so
+usr/lib/mysql/plugin/debug/mysql_clone.so
 usr/lib/mysql/plugin/debug/adt_null.so
 usr/lib/mysql/plugin/debug/auth_socket.so
 usr/lib/mysql/plugin/debug/innodb_engine.so
@@ -79,6 +93,8 @@ usr/lib/mysql/plugin/debug/keyring_udf.so
 usr/lib/mysql/plugin/debug/connection_control.so
 usr/lib/mysql/plugin/debug/group_replication.so
 usr/lib/mysql/plugin/debug/authentication_ldap_sasl_client.so
+usr/lib/mysql/plugin/debug/component_test_udf_services.so
+
 # Percona plugins
 usr/lib/mysql/plugin/audit_log.so
 usr/lib/mysql/plugin/debug/audit_log.so
@@ -101,9 +117,9 @@ usr/lib/mysql/plugin/group_replication.so
 usr/lib/mysql/plugin/authentication_ldap_sasl_client.so
 usr/lib/mysql/plugin/debug/keyring_vault.so
 usr/lib/mysql/plugin/keyring_vault.so
+usr/lib/mysql/plugin/authentication_ldap_simple.so
 # support files
 usr/share/mysql/dictionary.txt
-usr/share/mysql/magic
 usr/share/mysql/mysql-log-rotate
 usr/share/mysql/mysql-helpers
 usr/share/mysql/mysql-systemd-start

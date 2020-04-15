@@ -23,18 +23,14 @@ enum btr_scrub_page_allocation_status_t {
 /**
  * constants returned by btr_page_needs_scrubbing & btr_scrub_recheck_page
  */
-#define BTR_SCRUB_PAGE 1                         /* page should be scrubbed */
-#define BTR_SCRUB_SKIP_PAGE 2                    /* no scrub & no action */
-#define BTR_SCRUB_SKIP_PAGE_AND_CLOSE_TABLE 3    /* no scrub & close table */
-#define BTR_SCRUB_SKIP_PAGE_AND_COMPLETE_SPACE 4 /* no scrub & complete space \
-                                                  */
-#define BTR_SCRUB_TURNED_OFF      \
-  5 /* we detected that scrubbing \
-    was disabled by global        \
-    variable */
+#define BTR_SCRUB_PAGE 1                          /* page should be scrubbed */
+#define BTR_SCRUB_SKIP_PAGE 2                     /* no scrub & no action */
+#define BTR_SCRUB_SKIP_PAGE_AND_CLOSE_TABLE 3     /* no scrub & close table */
+#define BTR_SCRUB_SKIP_PAGE_AND_COMPLETE_SPACE 4  // no scrub & complete space
+#define BTR_SCRUB_TURNED_OFF \
+  5 /* we detected that scrubbing was disabled by global variable */
 
-/**************************************************************/ /**
- struct for keeping scrub statistics. */
+/** struct for keeping scrub statistics. */
 struct btr_scrub_stat_t {
   /* page reorganizations */
   ulint page_reorganizations;
@@ -47,11 +43,10 @@ struct btr_scrub_stat_t {
   ulint page_split_failures_unknown;
 };
 
-/**************************************************************/ /**
- struct for thread local scrub state. */
+/** struct for thread local scrub state. */
 struct btr_scrub_t {
   /* current space */
-  ulint space;
+  space_id_t space;
 
   /* is scrubbing enabled for this space */
   bool scrubbing;
@@ -68,75 +63,60 @@ struct btr_scrub_t {
   btr_scrub_stat_t scrub_stat;
 };
 
-/*********************************************************************
-Init scrub global variables */
+/** Init scrub global variables */
 void btr_scrub_init();
 
-/*********************************************************************
-Cleanup scrub globals */
+/** Cleanup scrub globals */
 void btr_scrub_cleanup();
 
-/***********************************************************************
-Return crypt statistics */
-void btr_scrub_total_stat(
-    /*==================*/
-    btr_scrub_stat_t *stat); /*!< out: stats to update */
+/** Return crypt statistics
+@param[out] stat stats to update */
+void btr_scrub_total_stat(btr_scrub_stat_t *stat);
 
-/**************************************************************/ /**
- Check if a page needs scrubbing
- * @return BTR_SCRUB_PAGE if page should be scrubbed
- * else btr_scrub_skip_page should be called
- * with this return value (and without any latches held)
- */
-int btr_page_needs_scrubbing(
-    /*=====================*/
-    btr_scrub_t *scrub_data, /*!< in: scrub data  */
-    buf_block_t *block,      /*!< in: block to check, latched */
-    btr_scrub_page_allocation_status_t allocated); /*!< in: is block
-                                                   allocated, free or
-                                                   unknown */
+/** Check if a page needs scrubbing
+@param[in] 	scrub_data
+@param[in]	block
+@param[in]	allocated	is block allocated, free or unknown
+@return		BTR_SCRUB_PAGE if page should be scrubbed
+                else BTR_SCRUB_SKIP_PAGE should be called
+                with this return value (and without any latches held) */
+int btr_page_needs_scrubbing(btr_scrub_t *scrub_data, buf_block_t *block,
+                             btr_scrub_page_allocation_status_t allocated);
 
-/****************************************************************
-Recheck if a page needs scrubbing, and if it does load appropriate
+/** Recheck if a page needs scrubbing, and if it does load appropriate
 table and index
-* @return BTR_SCRUB_PAGE if page should be scrubbed
-* else btr_scrub_skip_page should be called
-* with this return value (and without any latches held)
+@param[in] 	scrub_data
+@param[in]	block
+@param[in]	allocated	is block allocated or free
+@param[in]	mtr
+@return		BTR_SCRUB_PAGE if page should be scrubbed
+                else BTR_SCRUB_SKIP_PAGE should be called
+                with this return value (and without any latches held) */
+int btr_scrub_recheck_page(btr_scrub_t *scrub_data, buf_block_t *block,
+                           btr_scrub_page_allocation_status_t allocated,
+                           mtr_t *mtr);
+
+/** Perform actual scrubbing of page
+@param[in] 	scrub_data
+@param[in]	block
+@param[in]	allocated	is block allocated
+@param[in]	mtr
 */
-int btr_scrub_recheck_page(
-    /*====================*/
-    btr_scrub_t *scrub_data,                      /*!< inut: scrub data */
-    buf_block_t *block,                           /*!< in: block */
-    btr_scrub_page_allocation_status_t allocated, /*!< in: is block
-                                                  allocated or free */
-    mtr_t *mtr);                                  /*!< in: mtr */
+int btr_scrub_page(btr_scrub_t *scrub_data, buf_block_t *block,
+                   btr_scrub_page_allocation_status_t allocated, mtr_t *mtr);
 
-/****************************************************************
-Perform actual scrubbing of page */
-int btr_scrub_page(
-    /*============*/
-    btr_scrub_t *scrub_data,                      /*!< in/out: scrub data */
-    buf_block_t *block,                           /*!< in: block */
-    btr_scrub_page_allocation_status_t allocated, /*!< in: is block
-                                                  allocated or free */
-    mtr_t *mtr);                                  /*!< in: mtr */
+/** Perform cleanup needed for a page not needing scrubbing
+@param[in] 	scrub_data
+@param[in]	needs_scrubbing */
+void btr_scrub_skip_page(btr_scrub_t *scrub_data, int needs_scrubbing);
 
-/****************************************************************
-Perform cleanup needed for a page not needing scrubbing */
-void btr_scrub_skip_page(
-    /*============*/
-    btr_scrub_t *scrub_data, /*!< in/out: scrub data */
-    int needs_scrubbing);    /*!< in:  return value from
-                             btr_page_needs_scrubbing or
-                             btr_scrub_recheck_page which encodes what kind
-                             of cleanup is needed */
-
-/****************************************************************
-Start iterating a space
-* @return true if scrubbing is turned on */
-bool btr_scrub_start_space(
-    /*===================*/
-    ulint space, btr_scrub_t *scrub_data, bool compressed);
+/** Start iterating a space
+@param[in]	scrub_data
+@param[in]	compressed
+  @return true if scrubbing is turned on
+*/
+bool btr_scrub_start_space(space_id_t space, btr_scrub_t *scrub_data,
+                           bool compressed);
 
 /** Complete iterating a space.
 @param[in,out]	scrub_data	 scrub data */

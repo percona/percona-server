@@ -7,17 +7,17 @@ CREATE CLUSTERING INDEX b ON t1 (b) LOCK=EXCLUSIVE ALGORITHM=COPY;
 ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'CLUSTERING'
 ALTER TABLE t1 ADD CLUSTERING INDEX b (b), LOCK=EXCLUSIVE, ALGORITHM=COPY;
 ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'CLUSTERING'
-CREATE TABLE t1 (a INT PRIMARY KEY, b INT, UNIQUE CLUSTERING KEY b (b));
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT, UNIQUE CLUSTERING KEY b (b));
 ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'CLUSTERING'
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT, UNIQUE UNIQUE KEY b (b));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNIQUE KEY b (b))' at line 1
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT, CLUSTERING CLUSTERING KEY b (b));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CLUSTERING KEY b (b))' at line 1
-CREATE TABLE t1 (a INT PRIMARY KEY, b INT, CLUSTERING UNIQUE KEY b (b));
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT, CLUSTERING UNIQUE KEY b (b));
 ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'CLUSTERING'
-CREATE TABLE t1 (a INT PRIMARY KEY, b INT, CONSTRAINT c1 UNIQUE CLUSTERING KEY b (b));
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT, CONSTRAINT c1 UNIQUE CLUSTERING KEY b (b));
 ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'CLUSTERING'
-CREATE TABLE t1 (a INT PRIMARY KEY, b INT, CONSTRAINT c1 CLUSTERING UNIQUE KEY b (b));
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT, CONSTRAINT c1 CLUSTERING UNIQUE KEY b (b));
 ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'CLUSTERING'
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT, CONSTRAINT c1 UNIQUE UNIQUE KEY b (b));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNIQUE KEY b (b))' at line 1

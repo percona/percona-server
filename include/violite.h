@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,11 +40,15 @@
 #endif
 #include <sys/types.h>
 
+#include <string>
+
 #include "my_inttypes.h"
 #include "my_psi_config.h"  // IWYU pragma: keep
 #include "mysql/components/services/my_io_bits.h"
 #include "mysql/components/services/my_thread_bits.h"
 #include "mysql/components/services/mysql_socket_bits.h"
+
+#include "mysql/psi/mysql_socket.h"
 
 struct Vio;
 
@@ -136,6 +140,10 @@ enum enum_vio_io_event {
   VIO_IO_EVENT_CONNECT
 };
 
+#define VIO_SOCKET_ERROR ((size_t)-1)
+#define VIO_SOCKET_WANT_READ ((size_t)-2)
+#define VIO_SOCKET_WANT_WRITE ((size_t)-3)
+
 #define VIO_LOCALHOST 1            /* a localhost connection */
 #define VIO_BUFFERED_READ 2        /* use buffered read */
 #define VIO_READ_BUFFER_SIZE 16384 /* size of read buffer */
@@ -162,6 +170,9 @@ int vio_shutdown(MYSQL_VIO vio, int how);
 int vio_cancel(MYSQL_VIO vio, int how);
 bool vio_reset(MYSQL_VIO vio, enum enum_vio_type type, my_socket sd, void *ssl,
                uint flags);
+bool vio_is_blocking(Vio *vio);
+int vio_set_blocking(Vio *vio, bool set_blocking_mode);
+int vio_set_blocking_flag(Vio *vio, bool set_blocking_flag);
 size_t vio_read(MYSQL_VIO vio, uchar *buf, size_t size);
 size_t vio_read_buff(MYSQL_VIO vio, uchar *buf, size_t size);
 size_t vio_write(MYSQL_VIO vio, const uchar *buf, size_t size);
@@ -179,6 +190,7 @@ struct st_vio_network {
 };
 
 void vio_proxy_protocol_add(const st_vio_network &net) noexcept;
+void vio_proxy_cleanup() noexcept;
 /* setsockopt TCP_NODELAY at IPPROTO_TCP level, when possible */
 int vio_fastsend(MYSQL_VIO vio);
 /* setsockopt SO_KEEPALIVE at SOL_SOCKET level, when possible */
@@ -187,11 +199,13 @@ int vio_keepalive(MYSQL_VIO vio, bool onoff);
 bool vio_should_retry(MYSQL_VIO vio);
 /* Check that operation was timed out */
 bool vio_was_timeout(MYSQL_VIO vio);
+#ifndef DBUG_OFF
 /* Short text description of the socket for those, who are curious.. */
 #define VIO_DESCRIPTION_SIZE 30 /* size of description */
 void vio_description(MYSQL_VIO vio, char *buf);
+#endif  // DBUG_OFF
 /* Return the type of the connection */
-enum enum_vio_type vio_type(MYSQL_VIO vio);
+enum enum_vio_type vio_type(const MYSQL_VIO vio);
 /* Return last error number */
 int vio_errno(MYSQL_VIO vio);
 /* Get socket number */
@@ -211,7 +225,7 @@ extern void vio_set_wait_callback(void (*before_wait)(void),
 
 /* Connect to a peer. */
 bool vio_socket_connect(MYSQL_VIO vio, struct sockaddr *addr, socklen_t len,
-                        int timeout);
+                        bool nonblocking, int timeout);
 
 bool vio_get_normalized_ip_string(const struct sockaddr *addr,
                                   size_t addr_length, char *ip_string,
@@ -239,25 +253,10 @@ extern "C" {
 #define HAVE_OPENSSL11 1
 #endif  // OPENSSL_VERSION_NUMBER
 
-/* apple deprecated openssl in MacOSX Lion */
-#ifdef __APPLE__
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
-
 #define HEADER_DES_LOCL_H dummy_something
-#ifndef WOLFSSL_MYSQL_COMPATIBLE
-#define WOLFSSL_MYSQL_COMPATIBLE
-#endif
-/* Set wolfSSL to use same type as MySQL do for socket handles */
-typedef my_socket WOLFSSL_SOCKET_T;
-#define WOLFSSL_SOCKET_T_DEFINED
 
-// clang-format off
-#include <wolfssl_fix_namespace_pollution_pre.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
-#include <wolfssl_fix_namespace_pollution.h>
-// clang-format on
 
 enum enum_ssl_init_error {
   SSL_INITERR_NOERROR = 0,
@@ -283,12 +282,13 @@ struct st_VioSSLFd {
 int sslaccept(struct st_VioSSLFd *, MYSQL_VIO, long timeout,
               unsigned long *errptr);
 int sslconnect(struct st_VioSSLFd *, MYSQL_VIO, long timeout,
-               unsigned long *errptr);
+               unsigned long *errptr, SSL **ssl);
 
 struct st_VioSSLFd *new_VioSSLConnectorFd(
     const char *key_file, const char *cert_file, const char *ca_file,
-    const char *ca_path, const char *cipher, enum enum_ssl_init_error *error,
-    const char *crl_file, const char *crl_path, const long ssl_ctx_flags);
+    const char *ca_path, const char *cipher, const char *ciphersuites,
+    enum enum_ssl_init_error *error, const char *crl_file, const char *crl_path,
+    const long ssl_ctx_flags);
 
 long process_tls_version(const char *tls_version);
 
@@ -298,8 +298,9 @@ uint get_fips_mode();
 
 struct st_VioSSLFd *new_VioSSLAcceptorFd(
     const char *key_file, const char *cert_file, const char *ca_file,
-    const char *ca_path, const char *cipher, enum enum_ssl_init_error *error,
-    const char *crl_file, const char *crl_path, const long ssl_ctx_flags);
+    const char *ca_path, const char *cipher, const char *ciphersuites,
+    enum enum_ssl_init_error *error, const char *crl_file, const char *crl_path,
+    const long ssl_ctx_flags);
 void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd);
 
 void vio_ssl_end();
@@ -325,6 +326,9 @@ void vio_end(void);
   (vio)->peer_addr(vio, buf, prt, buflen)
 #define vio_io_wait(vio, event, timeout) (vio)->io_wait(vio, event, timeout)
 #define vio_is_connected(vio) (vio)->is_connected(vio)
+#define vio_is_blocking(vio) (vio)->is_blocking(vio)
+#define vio_set_blocking(vio, val) (vio)->set_blocking(vio, val)
+#define vio_set_blocking_flag(vio, val) (vio)->set_blocking_flag(vio, val)
 #endif /* !defined(DONT_MAP_VIO) */
 
 #ifdef _WIN32
@@ -394,6 +398,12 @@ struct Vio {
   std::atomic_flag kevent_wakeup_flag = ATOMIC_FLAG_INIT;
 #endif
 
+#ifdef HAVE_SETNS
+  /**
+    Socket network namespace.
+  */
+  char network_namespace[256];
+#endif
   /*
      VIO vtable interface to be implemented by VIO's like SSL, Socket,
      Named Pipe, etc.
@@ -441,7 +451,11 @@ struct Vio {
 #endif
 #ifdef HAVE_OPENSSL
   void *ssl_arg = {nullptr};
-#endif
+  struct PSI_socket_locker *m_psi_read_locker = {nullptr};
+  PSI_socket_locker_state m_psi_read_state;
+  struct PSI_socket_locker *m_psi_write_locker = {nullptr};
+  PSI_socket_locker_state m_psi_write_state;
+#endif /* HAVE_OPENSSL */
 #if defined(_WIN32)
   HANDLE handle_file_map = {nullptr};
   char *handle_map = {nullptr};
@@ -452,7 +466,13 @@ struct Vio {
   HANDLE event_conn_closed = {nullptr};
   size_t shared_memory_remain = {0};
   char *shared_memory_pos = {nullptr};
+
 #endif /* _WIN32 */
+  bool (*is_blocking)(Vio *vio) = {nullptr};
+  int (*set_blocking)(Vio *vio, bool val) = {nullptr};
+  int (*set_blocking_flag)(Vio *vio, bool val) = {nullptr};
+  /* Indicates whether socket or SSL based communication is blocking or not. */
+  bool is_blocking_flag = {true};
 
  private:
   friend Vio *internal_vio_create(uint flags);

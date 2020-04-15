@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,6 @@
 # This is the CMakeLists for InnoDB
 
 INCLUDE(innodb.cmake)
-INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 ADD_DEFINITIONS(-DLOG_SUBSYSTEM_TAG="InnoDB")
 
@@ -58,6 +57,7 @@ SET(INNOBASE_SOURCES
 	arch/arch0arch.cc
 	arch/arch0page.cc
 	arch/arch0log.cc
+	arch/arch0recv.cc
 	btr/btr0btr.cc
 	btr/btr0cur.cc
 	btr/btr0pcur.cc
@@ -77,6 +77,7 @@ SET(INNOBASE_SOURCES
 	clone/clone0apply.cc
 	clone/clone0desc.cc
 	clone/clone0snapshot.cc
+	clone/clone0repl.cc
 	data/data0data.cc
 	data/data0type.cc
 	dict/dict0boot.cc
@@ -145,6 +146,7 @@ SET(INNOBASE_SOURCES
 	log/log0chkp.cc
 	log/log0ddl.cc
 	log/log0log.cc
+	log/log0meb.cc
 	log/log0online.cc
 	log/log0recv.cc
 	log/log0test.cc
@@ -177,6 +179,7 @@ SET(INNOBASE_SOURCES
 	row/row0pread.cc
 	row/row0purge.cc
 	row/row0pread-adapter.cc
+	row/row0pread-histogram.cc
 	row/row0row.cc
 	row/row0sel.cc
 	row/row0uins.cc
@@ -213,11 +216,6 @@ SET(INNOBASE_SOURCES
 	ut/ut0vec.cc
 	ut/ut0wqueue.cc)
 
-IF(WITH_INNODB)
-  # Legacy option
-  SET(WITH_INNOBASE_STORAGE_ENGINE TRUE)
-ENDIF()
-
 ADD_LIBRARY(innodb_zipdecompress STATIC ${INNOBASE_ZIP_DECOMPRESS_SOURCES})
 TARGET_COMPILE_DEFINITIONS(
   innodb_zipdecompress PRIVATE UNIV_LIBRARY UNIV_NO_ERR_MSGS)
@@ -232,16 +230,11 @@ MYSQL_ADD_PLUGIN(innobase
   ${INNOBASE_SOURCES} ${INNOBASE_ZIP_DECOMPRESS_SOURCES} STORAGE_ENGINE
   MANDATORY
   MODULE_OUTPUT_NAME ha_innodb
-  LINK_LIBRARIES ${ZLIB_LIBRARY} ${LZ4_LIBRARY} ${NUMA_LIBRARY})
+  LINK_LIBRARIES sql_dd sql_gis ${ZLIB_LIBRARY} ${LZ4_LIBRARY} ${NUMA_LIBRARY})
 
-
-IF(WITH_INNOBASE_STORAGE_ENGINE)
-  ADD_DEPENDENCIES(innobase GenError)
-ENDIF()
 
 # Avoid generating Hardware Capabilities due to crc32 instructions
-IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-  INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+IF(SOLARIS_INTEL)
   MY_CHECK_CXX_COMPILER_FLAG("-Wa,-nH" HAVE_WA_NH)
   IF(HAVE_WA_NH)
     ADD_COMPILE_FLAGS(
@@ -252,34 +245,13 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
 ENDIF()
 
 # Generated code with logical-op warnings
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  MY_CHECK_CXX_COMPILER_FLAG("-Wlogical-op" HAVE_LOGICAL_OP)
-  IF(HAVE_LOGICAL_OP)
-    INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-    ADD_COMPILE_FLAGS(fts/fts0pars.cc
-                      COMPILE_FLAGS "-Wno-logical-op")
-  ENDIF()
-  MY_CHECK_CXX_COMPILER_FLAG("-Wcast-function-type" HAVE_CAST_FUNCTION_TYPE)
-  IF(HAVE_CAST_FUNCTION_TYPE)
-    ADD_COMPILE_FLAGS(fts/fts0pars.cc
-                      COMPILE_FLAGS "-Wno-cast-function-type")
-  ENDIF()
+MY_CHECK_CXX_COMPILER_WARNING("-Wlogical-op" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  ADD_COMPILE_FLAGS(fts/fts0pars.cc
+    COMPILE_FLAGS "${HAS_WARN_FLAG}")
 ENDIF()
-
-# A GCC bug causes crash when compiling these files on ARM64 with -O1+
-# Compile them with -O0 as a workaround.
-IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
-  # Bug was fixed in GCC 5.2, so workaround only needed < 5.2
-  EXECUTE_PROCESS(COMMAND ${CMAKE_C_COMPILER} -dumpversion
-                  OUTPUT_VARIABLE GCC_VERSION)
-  IF(GCC_VERSION VERSION_LESS 5.2)
-    INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-    ADD_COMPILE_FLAGS(
-      btr/btr0btr.cc
-      btr/btr0cur.cc
-      buf/buf0buf.cc
-      gis/gis0sea.cc
-      COMPILE_FLAGS "-O0"
-      )
-  ENDIF()
+MY_CHECK_CXX_COMPILER_WARNING("-Wcast-function-type" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  ADD_COMPILE_FLAGS(fts/fts0pars.cc
+    COMPILE_FLAGS "${HAS_WARN_FLAG}")
 ENDIF()

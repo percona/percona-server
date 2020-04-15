@@ -1,7 +1,7 @@
 #ifndef SQL_EXECUTOR_INCLUDED
 #define SQL_EXECUTOR_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,35 +31,41 @@
 #include <string.h>
 #include <sys/types.h>
 #include <memory>
+#include <vector>
 
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
-#include "sql/item.h"
-#include "sql/records.h"  // READ_RECORD
+#include "my_table_map.h"
 #include "sql/row_iterator.h"
-#include "sql/sql_class.h"  // THD
 #include "sql/sql_lex.h"
 #include "sql/sql_opt_exec_shared.h"  // QEP_shared_owner
 #include "sql/table.h"
 #include "sql/temp_table_param.h"  // Temp_table_param
 
+class CacheInvalidatorIterator;
+class Cached_item;
 class Field;
 class Field_longlong;
 class Filesort;
+class FollowTailIterator;
+class Item;
 class Item_sum;
 class JOIN;
 class JOIN_TAB;
 class Opt_trace_object;
 class QEP_TAB;
 class QUICK_SELECT_I;
+class THD;
+class Window;
+enum class Window_retrieve_cached_row_reason;
 struct CACHE_FIELD;
-struct MI_COLUMNDEF;
 struct POSITION;
-struct st_join_table;
 template <class T>
 class List;
+template <typename Element_type>
+class Mem_root_array;
 
 /**
    Possible status of a "nested loop" operation (Next_select_func family of
@@ -93,6 +99,17 @@ typedef enum_nested_loop_state (*Next_select_func)(JOIN *, class QEP_TAB *,
                                                    bool);
 
 /*
+  Array of pointers to tables whose rowids compose the temporary table
+  record.
+*/
+struct SJ_TMP_TABLE_TAB {
+  QEP_TAB *qep_tab;
+  uint rowid_offset;
+  ushort null_byte;
+  uchar null_bit;
+};
+
+/*
   Temporary table used by semi-join DuplicateElimination strategy
 
   This consists of the temptable itself and data needed to put records
@@ -111,20 +128,9 @@ typedef enum_nested_loop_state (*Next_select_func)(JOIN *, class QEP_TAB *,
 
 class SJ_TMP_TABLE {
  public:
-  SJ_TMP_TABLE() : hash_field(NULL) {}
-  /*
-    Array of pointers to tables whose rowids compose the temporary table
-    record.
-  */
-  class TAB {
-   public:
-    QEP_TAB *qep_tab;
-    uint rowid_offset;
-    ushort null_byte;
-    uchar null_bit;
-  };
-  TAB *tabs;
-  TAB *tabs_end;
+  SJ_TMP_TABLE() : hash_field(nullptr) {}
+  SJ_TMP_TABLE_TAB *tabs;
+  SJ_TMP_TABLE_TAB *tabs_end;
 
   /*
     is_confluent==true means this is a special case where the temptable record
@@ -148,13 +154,6 @@ class SJ_TMP_TABLE {
 
   /* The temporary table itself (NULL means not created yet) */
   TABLE *tmp_table;
-
-  /*
-    These are the members we got from temptable creation code. We'll need
-    them if we'll need to convert table from HEAP to MyISAM/Maria.
-  */
-  MI_COLUMNDEF *start_recinfo;
-  MI_COLUMNDEF *recinfo;
 
   /* Pointer to next table (next->start_idx > this->end_idx) */
   SJ_TMP_TABLE *next;
@@ -280,6 +279,7 @@ class QEP_tmp_table : public QEP_operation {
   void set_write_func(Next_select_func new_write_func) {
     write_func = new_write_func;
   }
+  Next_select_func get_write_func() const { return write_func; }
 
  private:
   /** Write function that would be used for saving records in tmp table. */
@@ -303,7 +303,8 @@ enum_nested_loop_state evaluate_join_record(JOIN *join, QEP_TAB *qep_tab,
 enum_nested_loop_state end_send_count(JOIN *join, QEP_TAB *qep_tab);
 
 MY_ATTRIBUTE((warn_unused_result))
-bool copy_fields(Temp_table_param *param, const THD *thd);
+bool copy_fields(Temp_table_param *param, const THD *thd,
+                 bool reverse_copy = false);
 
 enum Copy_func_type {
   /**
@@ -333,19 +334,36 @@ enum Copy_func_type {
   */
   CFT_WF_USES_ONLY_ONE_ROW,
   /**
+    In first windowing step, copies non-window functions which do not rely on
+    window functions, i.e. those that have Item::has_wf() == false.
+  */
+  CFT_HAS_NO_WF,
+  /**
     In final windowing step, copies all non-wf functions. Must be called after
     all wfs have been evaluated, as non-wf functions may reference wf,
     e.g. 1+RANK.
   */
-  CFT_NON_WF,
+  CFT_HAS_WF,
   /**
     Copies all window functions.
   */
-  CFT_WF
+  CFT_WF,
+  /**
+    Copies all items that are expressions containing aggregates, but are not
+    themselves aggregates. Such expressions are typically split into their
+    constituent parts during setup_fields(), such that the parts that are
+    _not_ aggregates are replaced by Item_refs that point into a slice.
+    See AggregateIterator::Read() for more details.
+   */
+  CFT_DEPENDING_ON_AGGREGATE
 };
 
 bool copy_funcs(Temp_table_param *, const THD *thd,
                 Copy_func_type type = CFT_ALL);
+
+// Combines copy_fields() and copy_funcs().
+bool copy_fields_and_funcs(Temp_table_param *param, const THD *thd,
+                           Copy_func_type type = CFT_ALL);
 
 /**
   Copy the lookup key into the table ref's key buffer.
@@ -357,7 +375,7 @@ bool copy_funcs(Temp_table_param *, const THD *thd,
   @retval false ref key copied successfully
   @retval true  error dectected during copying of key
 */
-bool cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref);
+bool construct_lookup_ref(THD *thd, TABLE *table, TABLE_REF *ref);
 
 /** Help function when we get some an error from the table handler. */
 int report_handler_error(TABLE *table, int error);
@@ -365,7 +383,7 @@ int report_handler_error(TABLE *table, int error);
 int safe_index_read(QEP_TAB *tab);
 
 int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
-void join_setup_read_record(QEP_TAB *tab);
+void join_setup_iterator(QEP_TAB *tab);
 int join_materialize_derived(QEP_TAB *tab);
 int join_materialize_table_function(QEP_TAB *tab);
 int join_materialize_semijoin(QEP_TAB *tab);
@@ -374,23 +392,27 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl);
 int update_item_cache_if_changed(List<Cached_item> &list);
 
 // Create list for using with tempory table
-bool change_to_use_tmp_fields(THD *thd, Ref_item_array ref_item_array,
-                              List<Item> &new_list1, List<Item> &new_list2,
-                              uint elements, List<Item> &items);
+bool change_to_use_tmp_fields(List<Item> &all_fields,
+                              size_t num_select_elements, THD *thd,
+                              Ref_item_array ref_item_array,
+                              List<Item> *res_selected_fields,
+                              List<Item> *res_all_fields);
 // Create list for using with tempory table
-bool change_refs_to_tmp_fields(THD *thd, Ref_item_array ref_item_array,
-                               List<Item> &new_list1, List<Item> &new_list2,
-                               uint elements, List<Item> &items);
+bool change_refs_to_tmp_fields(List<Item> &all_fields,
+                               size_t num_select_elements, THD *thd,
+                               Ref_item_array ref_item_array,
+                               List<Item> *res_selected_fields,
+                               List<Item> *res_all_fields);
 bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct);
 bool setup_sum_funcs(THD *thd, Item_sum **func_ptr);
 bool make_group_fields(JOIN *main_join, JOIN *curr_join);
-bool setup_copy_fields(THD *thd, Temp_table_param *param,
+bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
+                       THD *thd, Temp_table_param *param,
                        Ref_item_array ref_item_array,
-                       List<Item> &res_selected_fields,
-                       List<Item> &res_all_fields, uint elements,
-                       List<Item> &all_fields);
+                       List<Item> *res_selected_fields,
+                       List<Item> *res_all_fields);
 bool check_unique_constraint(TABLE *table);
-ulonglong unique_hash(Field *field, ulonglong *hash);
+ulonglong unique_hash(const Field *field, ulonglong *hash);
 
 class QEP_TAB : public QEP_shared_owner {
  public:
@@ -410,10 +432,8 @@ class QEP_TAB : public QEP_shared_owner {
         rematerialize(false),
         materialize_table(NULL),
         next_select(NULL),
-        read_record(),
         used_null_fields(false),
         used_uneven_bit_fields(false),
-        keep_current_rowid(false),
         copy_current_rowid(NULL),
         not_used_in_distinct(false),
         cache_idx_cond(NULL),
@@ -452,6 +472,16 @@ class QEP_TAB : public QEP_shared_owner {
     m_qs->set_table(t);
     if (t) t->reginfo.qep_tab = this;
   }
+
+  bool temporary_table_deduplicates() const {
+    return m_temporary_table_deduplicates;
+  }
+  void set_temporary_table_deduplicates(bool arg) {
+    m_temporary_table_deduplicates = arg;
+  }
+
+  bool using_table_scan() const { return m_using_table_scan; }
+  void set_using_table_scan(bool arg) { m_using_table_scan = arg; }
 
   /// @returns semijoin strategy for this table.
   uint get_sj_strategy() const;
@@ -497,13 +527,7 @@ class QEP_TAB : public QEP_shared_owner {
   }
 
   bool use_order() const;  ///< Use ordering provided by chosen index?
-  bool sort_table();
   bool remove_duplicates();
-
-  inline bool skip_record(THD *thd, bool *skip_record_arg) {
-    *skip_record_arg = condition() ? condition()->val_int() == false : false;
-    return thd->is_error();
-  }
 
   /**
      Used to begin a new execution of a subquery. Necessary if this subquery
@@ -514,15 +538,14 @@ class QEP_TAB : public QEP_shared_owner {
     if (m_quick_optim) set_quick(m_quick_optim);
   }
 
-  void pick_table_access_method(const JOIN_TAB *join_tab);
-  void set_pushed_table_access_method(void);
+  void pick_table_access_method();
   void push_index_cond(const JOIN_TAB *join_tab, uint keyno,
                        Opt_trace_object *trace_obj);
 
   /// @return the index used for a table in a QEP
   uint effective_index() const;
 
-  bool pfs_batch_update(JOIN *join);
+  bool pfs_batch_update(JOIN *join) const;
 
  public:
   /// Pointer to table reference
@@ -553,9 +576,6 @@ class QEP_TAB : public QEP_shared_owner {
     QEP_TAB, and match_tab points to the last QEP_TAB handled by the strategy.
     match_tab->found_match should be checked to see if the current value group
     had a match.
-    If doing a FirstMatch, check this QEP_TAB to see if there is a match.
-    Unless the FirstMatch performs a "split jump", this is equal to the
-    current QEP_TAB.
   */
   plan_idx match_tab;
 
@@ -592,23 +612,89 @@ class QEP_TAB : public QEP_shared_owner {
   Setup_func materialize_table;
   bool using_dynamic_range = false;
   Next_select_func next_select;
-  READ_RECORD read_record;
+  unique_ptr_destroy_only<RowIterator> iterator;
 
   // join-cache-related members
   bool used_null_fields;
   bool used_uneven_bit_fields;
 
-  /*
-    Used by DuplicateElimination. tab->table->ref must have the rowid
-    whenever we have a current record. copy_current_rowid needed because
-    we cannot bind to the rowid buffer before the table has been opened.
-  */
-  bool keep_current_rowid;
+  // Whether the row ID is needed for this table, and where the row ID can be
+  // found.
+  //
+  // If rowid_status != NO_ROWID_NEEDED, it indicates that this table is part of
+  // weedout. In order for weedout to eliminate duplicate rows, it needs a
+  // unique ID for each row it reads. In general, any operator that needs the
+  // row ID should ask the storage engine directly for the ID of the last row
+  // read by calling handler::position(). However, it is not that simple...
+  //
+  // As mentioned, position() will ask the storage engine to provide the row ID
+  // of the last row read. But some iterators (i.e. HashJoinIterator) buffer
+  // rows, so that the last row returned by i.e. HashJoinIterator is not
+  // necessarily the same as the last row returned by the storage engine.
+  // This means that any iterator that buffers rows without using a temporary
+  // table must store and restore the row ID itself. If a temporary table is
+  // used, the temporary table engine will provide the row ID.
+  //
+  // When creating the iterator tree, any iterator that needs to interact with
+  // row IDs must adhere to the following rules:
+  //
+  //   1. Any iterator that buffers rows without using a temporary table must
+  //      store and restore the row ID if rowid_status != NO_ROWID_NEEDED.
+  //      In addition, they must mark that they do so by changing the value of
+  //      rowid_status to ROWID_PROVIDED_BY_ITERATOR_READ_CALL in their
+  //      constructor.
+  //   2. Any iterator that needs the row ID (currently only WeedoutIterator)
+  //      must check rowid_status to see if they should call position() or trust
+  //      that a row ID is provided by another iterator. Note that when filesort
+  //      sorts by row ID, it handles everything regarding row ID itself.
+  //      It manages this because sorting by row ID always goes through a
+  //      temporary table, which in turn will provide the row ID to filesort.
+  //   3. As the value of rowid_status may change while building the iterator
+  //      tree, all iterators interacting with row IDs must cache the
+  //      value they see in their constructor.
+  //
+  //  Consider the following example:
+  //
+  //        Weedout (t1,t3)
+  //              |
+  //         Nested loop
+  //        /          |
+  //    Hash join      t3
+  //    /      |
+  //   t1      t2
+  //
+  // During query planning, rowid_status will be set to
+  // NEED_TO_CALL_POSITION_FOR_ROWID on t1 and t3 due to the planned weedout.
+  // When the iterator tree is constructed, the hash join constructor will be
+  // called first. It caches the value of rowid_status for t1 per rule 3 above,
+  // and changes the value to ROWID_PROVIDED_BY_ITERATOR_READ_CALL per rule 1.
+  // This notifies any iterator above itself that they should not call
+  // position(). When the nested loop constructor is called, nothing happens, as
+  // the iterator does not interact with row IDs in any way. When the weedout
+  // constructor is called, it caches the value of rowid_status for t1 and t3
+  // per rule 3. During execution, the weedout will call position() on t3,
+  // since rowid_status was NEED_TO_CALL_POSITION_FOR_ROWID when the iterator
+  // was constructed. It will not call position() on t1, as rowid_status was set
+  // to ROWID_PROVIDED_BY_ITERATOR_READ_CALL by the hash join iterator.
+  //
+  // Note that if you have a NULL-complemented row, there is no guarantee that
+  // position() will provide a valid row ID, or not even a valid row ID pointer.
+  // So all operations must check for NULL-complemented rows before trying to
+  // use/copy a row ID.
+  rowid_statuses rowid_status{NO_ROWID_NEEDED};
+
+  // Helper structure for copying the row ID. Only used by BNL and BKA in the
+  // non-iterator executor.
   CACHE_FIELD *copy_current_rowid;
 
   /** true <=> remove duplicates on this table. */
   bool needs_duplicate_removal = false;
 
+  // If we have a query of the type SELECT DISTINCT t1.* FROM t1 JOIN t2
+  // ON ..., (ie., we join in one or more tables that we don't actually
+  // read any columns from), we can stop scanning t2 as soon as we see the
+  // first row. This pattern seems to be a workaround for lack of semijoins
+  // in older versions of MySQL.
   bool not_used_in_distinct;
 
   /// Index condition for BKA access join
@@ -669,6 +755,8 @@ class QEP_TAB : public QEP_shared_owner {
   /**
     Count of rows fetched from this table; maintained by sub_select() and
     reset to 0 by JOIN::reset().
+
+    Only used by the pre-iterator executor.
   */
   ha_rows m_fetched_rows;
 
@@ -681,6 +769,31 @@ class QEP_TAB : public QEP_shared_owner {
      and clarity in EXPLAIN.
   */
   table_map lateral_derived_tables_depend_on_me;
+
+  Mem_root_array<const CacheInvalidatorIterator *> *invalidators = nullptr;
+
+  /**
+    If this table is a temporary table used for whole-JOIN materialization
+    (e.g. before sorting): true iff the table deduplicates, typically by way
+    of an unique index.
+
+    Otherwise, unused.
+   */
+  bool m_temporary_table_deduplicates = false;
+
+  /**
+    True if iterator is a TableScanIterator. Used so that we can know whether
+    to stream directly across derived tables and into sorts (we cannot if there
+    is a ref access).
+   */
+  bool m_using_table_scan = false;
+
+  /**
+    If this table is a recursive reference(to a CTE), contains a pointer to the
+    iterator here. This is so that MaterializeIterator can get a list of all
+    such iterators, to coordinate rematerialization and other signals.
+   */
+  FollowTailIterator *recursive_iterator = nullptr;
 
   QEP_TAB(const QEP_TAB &);             // not defined
   QEP_TAB &operator=(const QEP_TAB &);  // not defined
@@ -707,6 +820,45 @@ class QEP_TAB_standalone {
   QEP_TAB m_qt;
 };
 
+void copy_sum_funcs(Item_sum **func_ptr, Item_sum **end_ptr);
 bool set_record_buffer(const QEP_TAB *tab);
+bool init_sum_functions(Item_sum **func_ptr, Item_sum **end_ptr);
+void init_tmptable_sum_functions(Item_sum **func_ptr);
+bool update_sum_func(Item_sum **func_ptr);
+void update_tmptable_sum_func(Item_sum **func_ptr, TABLE *tmp_table);
+bool has_rollup_result(Item *item);
+
+/*
+  If a condition cannot be applied right away, for instance because it is a
+  WHERE condition and we're on the right side of an outer join, we have to
+  return it up so that it can be applied on a higher recursion level.
+  This structure represents such a condition.
+ */
+struct PendingCondition {
+  Item *cond;
+  int table_index_to_attach_to;  // -1 means “on the last possible outer join”.
+};
+
+unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
+    unique_ptr_destroy_only<RowIterator> iterator,
+    const std::vector<Item *> &conditions, THD *thd);
+
+void SplitConditions(Item *condition,
+                     std::vector<Item *> *predicates_below_join,
+                     std::vector<PendingCondition> *predicates_above_join);
+
+bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
+                                       const bool new_partition_or_eof,
+                                       bool *output_row_ready);
+bool buffer_windowing_record(THD *thd, Temp_table_param *param,
+                             bool *new_partition);
+bool bring_back_frame_row(THD *thd, Window *w, Temp_table_param *out_param,
+                          int64 rowno, Window_retrieve_cached_row_reason reason,
+                          int fno = 0);
+
+void ConvertItemsToCopy(List<Item> *items, Field **fields,
+                        Temp_table_param *param, JOIN *join);
+std::string RefToString(const TABLE_REF &ref, const KEY *key,
+                        bool include_nulls);
 
 #endif /* SQL_EXECUTOR_INCLUDED */

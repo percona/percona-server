@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,6 +74,7 @@ struct Channel_ssl_info {
   char *ssl_cipher;            // list of permissible ciphers to use for SSL
   int ssl_verify_server_cert;  // check the server's Common Name value
   char *tls_version;           // TLS version to use for SSL
+  char *tls_ciphersuites;      // list of permissible ciphersuites for TLS 1.3
 };
 
 void initialize_channel_ssl_info(Channel_ssl_info *channel_ssl_info);
@@ -102,6 +103,8 @@ struct Channel_creation_info {
   char *public_key_path;     // RSA Public key information
   int get_public_key;        // Preference to get public key from donor if not
                              // available
+  char *compression_algorithm;
+  unsigned int zstd_compression_level;
 };
 
 void initialize_channel_creation_info(Channel_creation_info *channel_info);
@@ -186,6 +189,14 @@ int channel_start(const char *channel, Channel_connection_info *connection_info,
     @retval !=0    Error
 */
 int channel_stop(const char *channel, int threads_to_stop, long timeout);
+
+/**
+  Kills the Binlog Dump threads.
+
+  @return the operation status
+    @retval 0      OK
+*/
+int binlog_dump_thread_kill();
 
 /**
   Stops all the running channel threads according to the given options.
@@ -413,6 +424,21 @@ bool is_partial_transaction_on_channel_relay_log(const char *channel);
     @retval          false              none of the the channels are running.
 */
 bool is_any_slave_channel_running(int thread_mask);
+
+/**
+  Method to get the credentials configured for a channel
+
+  @param[in]  channel       The channel name
+  @param[out] user          The user to extract
+  @param[out] password      The password to extract
+  @param[out] pass_size     The password size
+
+  @return the operation status
+    @retval false   OK
+    @retval true    Error, channel not found
+*/
+int channel_get_credentials(const char *channel, const char **user,
+                            char **password, size_t *pass_size);
 
 /**
   Return type for function

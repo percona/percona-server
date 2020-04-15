@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -101,19 +101,21 @@ class Rpl_info : public Slave_reporting_capability {
   */
   Rpl_info_handler *get_rpl_info_handler() { return (handler); }
 
-  enum_return_check check_info() { return (handler->check_info()); }
+  enum_return_check check_info() const { return (handler->check_info()); }
 
   int remove_info() { return (handler->remove_info()); }
 
   int clean_info() { return (handler->clean_info()); }
 
-  bool is_transactional() { return (handler->is_transactional()); }
+  bool is_transactional() const { return (handler->is_transactional()); }
 
   bool update_is_transactional() {
     return (handler->update_is_transactional());
   }
 
-  char *get_description_info() { return (handler->get_description_info()); }
+  char *get_description_info() const {
+    return (handler->get_description_info());
+  }
 
   bool copy_info(Rpl_info_handler *from, Rpl_info_handler *to) {
     if (read_info(from) || write_info(to)) return (true);
@@ -121,9 +123,9 @@ class Rpl_info : public Slave_reporting_capability {
     return (false);
   }
 
-  uint get_internal_id() { return internal_id; }
+  uint get_internal_id() const { return internal_id; }
 
-  char *get_channel() { return channel; }
+  char *get_channel() const { return const_cast<char *>(channel); }
 
   /**
     To search in the slave repositories, each slave info object
@@ -163,11 +165,10 @@ class Rpl_info : public Slave_reporting_capability {
      Every slave info object acts on a particular channel in Multisource
      Replication.
   */
-  char channel[CHANNEL_NAME_LENGTH + 1];
+  char channel[CHANNEL_NAME_LENGTH + 1] = {0};
 
-  Rpl_info(const char *type
+  Rpl_info(const char *type,
 #ifdef HAVE_PSI_INTERFACE
-           ,
            PSI_mutex_key *param_key_info_run_lock,
            PSI_mutex_key *param_key_info_data_lock,
            PSI_mutex_key *param_key_info_sleep_lock,
@@ -175,9 +176,8 @@ class Rpl_info : public Slave_reporting_capability {
            PSI_mutex_key *param_key_info_data_cond,
            PSI_mutex_key *param_key_info_start_cond,
            PSI_mutex_key *param_key_info_stop_cond,
-           PSI_mutex_key *param_key_info_sleep_cond
+           PSI_mutex_key *param_key_info_sleep_cond,
 #endif
-           ,
            uint param_id, const char *param_channel);
 
  private:

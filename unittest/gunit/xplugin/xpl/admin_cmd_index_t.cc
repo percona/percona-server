@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -37,15 +37,15 @@
 namespace xpl {
 namespace test {
 
+using ::testing::_;
 using ::testing::DoAll;
 using ::testing::Eq;
 using ::testing::Return;
 using ::testing::StrictMock;
-using ::testing::_;
 
 class Admin_command_index_stub : public Admin_command_index {
  public:
-  explicit Admin_command_index_stub(ngs::Session_interface *session)
+  explicit Admin_command_index_stub(iface::Session *session)
       : Admin_command_index(session) {}
   using Admin_command_index::is_table_support_virtual_columns;
 };
@@ -68,17 +68,16 @@ class Admin_command_index_test : public ::testing::Test {
     args.reset(new Admin_command_arguments_object(list));
   }
 
-  StrictMock<ngs::test::Mock_sql_data_context> data_context;
-  StrictMock<xpl::test::Mock_client> client;
-  StrictMock<ngs::test::Mock_protocol_encoder> encoder;
-  StrictMock<ngs::test::Mock_session> session;
+  StrictMock<Mock_sql_data_context> data_context;
+  StrictMock<Mock_client> client;
+  StrictMock<Mock_protocol_encoder> encoder;
+  StrictMock<Mock_session> session;
   std::unique_ptr<Admin_command_index_stub> command;
   Admin_command_arguments_object::List list;
-  ngs::unique_ptr<Admin_command_arguments_object> args;
+  std::unique_ptr<Admin_command_arguments_object> args;
 };
 
 namespace {
-const char *const NAMESPACE = "mysqlx";
 #define ALPHA "alpha"
 #define BETA "beta"
 #define GAMMA "gamma"
@@ -132,39 +131,37 @@ const One_row_resultset TABLE_WITH_MYISAM_ENGINE{BETA,
 
 TEST_F(Admin_command_index_test, drop_empty_schema) {
   set_arguments(Any::Object{{"schema", ""}, COLLECTION, INDEX_NAME});
-  ASSERT_ERROR_CODE(ER_X_BAD_SCHEMA, command->drop(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_BAD_SCHEMA, command->drop(args.get()));
 }
 
 TEST_F(Admin_command_index_test, drop_missing_schema) {
   set_arguments(Any::Object{COLLECTION, INDEX_NAME});
-  ASSERT_ERROR_CODE(ER_X_CMD_NUM_ARGUMENTS,
-                    command->drop(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_CMD_NUM_ARGUMENTS, command->drop(args.get()));
 }
 
 TEST_F(Admin_command_index_test, drop_empty_collection) {
   set_arguments(Any::Object{SCHEMA, {"collection", ""}, INDEX_NAME});
-  ASSERT_ERROR_CODE(ER_X_BAD_TABLE, command->drop(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_BAD_TABLE, command->drop(args.get()));
 }
 
 TEST_F(Admin_command_index_test, drop_missing_collection) {
   set_arguments(Any::Object{SCHEMA, INDEX_NAME});
-  ASSERT_ERROR_CODE(ER_X_CMD_NUM_ARGUMENTS,
-                    command->drop(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_CMD_NUM_ARGUMENTS, command->drop(args.get()));
 }
 
 TEST_F(Admin_command_index_test, drop_empty_index_name) {
   set_arguments(Any::Object{SCHEMA, COLLECTION, {"name", ""}});
-  ASSERT_ERROR_CODE(ER_X_MISSING_ARGUMENT,
-                    command->drop(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_MISSING_ARGUMENT, command->drop(args.get()));
 }
 
 TEST_F(Admin_command_index_test, drop_missing_index_name) {
   set_arguments(Any::Object{SCHEMA, COLLECTION});
-  ASSERT_ERROR_CODE(ER_X_CMD_NUM_ARGUMENTS,
-                    command->drop(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_CMD_NUM_ARGUMENTS, command->drop(args.get()));
 }
 
 TEST_F(Admin_command_index_test, drop_no_schema) {
+  EXPECT_CALL(data_context, is_sql_mode_set(_)).WillOnce(Return(false));
+
   EXPECT_CALL(data_context, execute(Eq(Sql(GET_INDEX_COLUMNS)), _, _))
       .WillOnce(Return(ngs::Success()));
 
@@ -172,10 +169,12 @@ TEST_F(Admin_command_index_test, drop_no_schema) {
       .WillOnce(Return(ngs::Error_code(ER_BAD_DB_ERROR, "bad db error")));
 
   set_arguments(Any::Object{SCHEMA, COLLECTION, INDEX_NAME});
-  ASSERT_ERROR_CODE(ER_X_BAD_TABLE, command->drop(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_BAD_TABLE, command->drop(args.get()));
 }
 
 TEST_F(Admin_command_index_test, drop_no_collection) {
+  EXPECT_CALL(data_context, is_sql_mode_set(_)).WillOnce(Return(false));
+
   EXPECT_CALL(data_context, execute(Eq(Sql(GET_INDEX_COLUMNS)), _, _))
       .WillOnce(Return(ngs::Success()));
 
@@ -183,10 +182,12 @@ TEST_F(Admin_command_index_test, drop_no_collection) {
       .WillOnce(Return(ngs::Error_code(ER_NO_SUCH_TABLE, "no such table")));
 
   set_arguments(Any::Object{SCHEMA, COLLECTION, INDEX_NAME});
-  ASSERT_ERROR_CODE(ER_X_BAD_TABLE, command->drop(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_BAD_TABLE, command->drop(args.get()));
 }
 
 TEST_F(Admin_command_index_test, drop_no_virtual_column_no_index) {
+  EXPECT_CALL(data_context, is_sql_mode_set(_)).WillOnce(Return(false));
+
   EXPECT_CALL(data_context, execute(Eq(Sql(GET_INDEX_COLUMNS)), _, _))
       .WillOnce(Return(ngs::Success()));
 
@@ -194,11 +195,14 @@ TEST_F(Admin_command_index_test, drop_no_virtual_column_no_index) {
       .WillOnce(Return(ngs::Error_code(ER_NO_SUCH_INDEX, "no such index")));
 
   set_arguments(Any::Object{SCHEMA, COLLECTION, INDEX_NAME});
-  ASSERT_ERROR_CODE(ER_NO_SUCH_INDEX, command->drop(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_NO_SUCH_INDEX, command->drop(args.get()));
 }
 
 TEST_F(Admin_command_index_test, drop_index_with_column) {
   One_row_resultset column_name{DECIMAL_COLUMN};
+
+  EXPECT_CALL(data_context, is_sql_mode_set(_)).WillOnce(Return(false));
+
   EXPECT_CALL(data_context, execute(Eq(Sql(GET_INDEX_COLUMNS)), _, _))
       .WillOnce(DoAll(SetUpResultset(column_name), Return(ngs::Success())));
 
@@ -209,7 +213,7 @@ TEST_F(Admin_command_index_test, drop_index_with_column) {
       .WillOnce(Return(ngs::Success()));
 
   set_arguments(Any::Object{SCHEMA, COLLECTION, INDEX_NAME});
-  ASSERT_ERROR_CODE(ER_X_SUCCESS, command->drop(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_SUCCESS, command->drop(args.get()));
 }
 
 TEST_F(Admin_command_index_test,
@@ -270,7 +274,7 @@ TEST_F(Admin_command_index_test, create_invalid_schema) {
                             INDEX_NAME,
                             UNIQUE,
                             {"constraint", DECIMAL_FIELD}});
-  ASSERT_ERROR_CODE(ER_X_BAD_SCHEMA, command->create(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_BAD_SCHEMA, command->create(args.get()));
 }
 
 TEST_F(Admin_command_index_test, create_invalid_collection) {
@@ -279,21 +283,19 @@ TEST_F(Admin_command_index_test, create_invalid_collection) {
                             INDEX_NAME,
                             UNIQUE,
                             {"constraint", DECIMAL_FIELD}});
-  ASSERT_ERROR_CODE(ER_X_BAD_TABLE, command->create(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_BAD_TABLE, command->create(args.get()));
 }
 
 TEST_F(Admin_command_index_test, create_invalid_index_name) {
   set_arguments(Any::Object{
       SCHEMA, COLLECTION, {"name", ""}, UNIQUE, {"constraint", DECIMAL_FIELD}});
-  ASSERT_ERROR_CODE(ER_X_CMD_ARGUMENT_VALUE,
-                    command->create(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_CMD_ARGUMENT_VALUE, command->create(args.get()));
 }
 
 TEST_F(Admin_command_index_test, create_missing_unique) {
   set_arguments(Any::Object{
       SCHEMA, COLLECTION, {"name", ""}, {"constraint", DECIMAL_FIELD}});
-  ASSERT_ERROR_CODE(ER_X_CMD_NUM_ARGUMENTS,
-                    command->create(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_CMD_NUM_ARGUMENTS, command->create(args.get()));
 }
 
 TEST_F(Admin_command_index_test, create_check_virtual_support_no_collection) {
@@ -302,7 +304,7 @@ TEST_F(Admin_command_index_test, create_check_virtual_support_no_collection) {
 
   set_arguments(Any::Object{
       SCHEMA, COLLECTION, INDEX_NAME, UNIQUE, {"constraint", DECIMAL_FIELD}});
-  ASSERT_ERROR_CODE(ER_X_BAD_TABLE, command->create(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_BAD_TABLE, command->create(args.get()));
 }
 
 TEST_F(Admin_command_index_test, create_check_virtual_support_goes_wrong) {
@@ -311,7 +313,7 @@ TEST_F(Admin_command_index_test, create_check_virtual_support_goes_wrong) {
 
   set_arguments(Any::Object{
       SCHEMA, COLLECTION, INDEX_NAME, UNIQUE, {"constraint", DECIMAL_FIELD}});
-  ASSERT_ERROR_CODE(ER_INTERNAL_ERROR, command->create(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_INTERNAL_ERROR, command->create(args.get()));
 }
 
 TEST_F(Admin_command_index_test, create_bad_constraint) {
@@ -319,13 +321,9 @@ TEST_F(Admin_command_index_test, create_bad_constraint) {
       .WillOnce(DoAll(SetUpResultset(TABLE_WITH_INNODB_ENGINE),
                       Return(ngs::Success())));
 
-  set_arguments(Any::Object{SCHEMA,
-                            COLLECTION,
-                            INDEX_NAME,
-                            UNIQUE,
-                            {"constraint", Any::Object{MEMBER}}});
-  ASSERT_ERROR_CODE(ER_X_CMD_NUM_ARGUMENTS,
-                    command->create(NAMESPACE, args.get()));
+  set_arguments(Any::Object{
+      SCHEMA, COLLECTION, INDEX_NAME, UNIQUE, {"constraint", Any::Object{}}});
+  ASSERT_ERROR_CODE(ER_X_CMD_NUM_ARGUMENTS, command->create(args.get()));
 }
 
 TEST_F(Admin_command_index_test, create_regular_index_with_virtual_column) {
@@ -350,7 +348,7 @@ TEST_F(Admin_command_index_test, create_regular_index_with_virtual_column) {
                             INDEX_NAME,
                             NOT_UNIQUE,
                             {"constraint", DECIMAL_FIELD}});
-  ASSERT_ERROR_CODE(ER_X_SUCCESS, command->create(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_SUCCESS, command->create(args.get()));
 }
 
 TEST_F(Admin_command_index_test, create_regular_index_with_stored_column) {
@@ -375,7 +373,7 @@ TEST_F(Admin_command_index_test, create_regular_index_with_stored_column) {
                             INDEX_NAME,
                             NOT_UNIQUE,
                             {"constraint", DECIMAL_FIELD}});
-  ASSERT_ERROR_CODE(ER_X_SUCCESS, command->create(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_SUCCESS, command->create(args.get()));
 }
 
 TEST_F(Admin_command_index_test, create_regular_index_without_column) {
@@ -399,7 +397,7 @@ TEST_F(Admin_command_index_test, create_regular_index_without_column) {
                             INDEX_NAME,
                             NOT_UNIQUE,
                             {"constraint", DECIMAL_FIELD}});
-  ASSERT_ERROR_CODE(ER_X_SUCCESS, command->create(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_SUCCESS, command->create(args.get()));
 }
 
 TEST_F(Admin_command_index_test, create_regular_index_with_two_virtual_column) {
@@ -433,7 +431,7 @@ TEST_F(Admin_command_index_test, create_regular_index_with_two_virtual_column) {
                   NOT_UNIQUE,
                   INDEX_TYPE_PLAIN,
                   {"constraint", Any::Array{DECIMAL_FIELD, TEXT_FIELD}}});
-  ASSERT_ERROR_CODE(ER_X_SUCCESS, command->create(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_SUCCESS, command->create(args.get()));
 }
 
 TEST_F(Admin_command_index_test, create_spatial_index) {
@@ -462,7 +460,7 @@ TEST_F(Admin_command_index_test, create_spatial_index) {
                             NOT_UNIQUE,
                             INDEX_TYPE_SPATIAL,
                             {"constraint", GEOJSON_FIELD}});
-  ASSERT_ERROR_CODE(ER_X_SUCCESS, command->create(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_SUCCESS, command->create(args.get()));
 }
 
 TEST_F(Admin_command_index_test, create_unique_spatial_index) {
@@ -472,8 +470,7 @@ TEST_F(Admin_command_index_test, create_unique_spatial_index) {
                             UNIQUE,
                             INDEX_TYPE_SPATIAL,
                             {"constraint", GEOJSON_FIELD}});
-  ASSERT_ERROR_CODE(ER_X_CMD_ARGUMENT_VALUE,
-                    command->create(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_CMD_ARGUMENT_VALUE, command->create(args.get()));
 }
 
 TEST_F(Admin_command_index_test, create_unable_to_create) {
@@ -498,7 +495,7 @@ TEST_F(Admin_command_index_test, create_unable_to_create) {
                             INDEX_NAME,
                             NOT_UNIQUE,
                             {"constraint", DECIMAL_FIELD}});
-  ASSERT_ERROR_CODE(ER_X_ARTIFICIAL1, command->create(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_ARTIFICIAL1, command->create(args.get()));
 }
 
 TEST_F(Admin_command_index_test, create_bd_null_error_required_field_missing) {
@@ -524,7 +521,7 @@ TEST_F(Admin_command_index_test, create_bd_null_error_required_field_missing) {
                             NOT_UNIQUE,
                             {"constraint", DECIMAL_FIELD}});
   ASSERT_ERROR_CODE(ER_X_DOC_REQUIRED_FIELD_MISSING,
-                    command->create(NAMESPACE, args.get()));
+                    command->create(args.get()));
 }
 
 TEST_F(Admin_command_index_test, create_bd_null_error) {
@@ -546,7 +543,7 @@ TEST_F(Admin_command_index_test, create_bd_null_error) {
 
   set_arguments(Any::Object{
       SCHEMA, COLLECTION, INDEX_NAME, NOT_UNIQUE, {"constraint", TEXT_FIELD}});
-  ASSERT_ERROR_CODE(ER_BAD_NULL_ERROR, command->create(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_BAD_NULL_ERROR, command->create(args.get()));
 }
 
 TEST_F(Admin_command_index_test, create_unable_to_craete_spatial_index) {
@@ -577,7 +574,7 @@ TEST_F(Admin_command_index_test, create_unable_to_craete_spatial_index) {
                             INDEX_TYPE_SPATIAL,
                             {"constraint", GEOJSON_FIELD}});
   ASSERT_ERROR_CODE(ER_X_DOC_REQUIRED_FIELD_MISSING,
-                    command->create(NAMESPACE, args.get()));
+                    command->create(args.get()));
 }
 
 TEST_F(Admin_command_index_test, create_fulltext_index) {
@@ -604,7 +601,7 @@ TEST_F(Admin_command_index_test, create_fulltext_index) {
                             NOT_UNIQUE,
                             INDEX_TYPE_FULLTEXT,
                             {"constraint", FULLTEXT_FIELD}});
-  ASSERT_ERROR_CODE(ER_X_SUCCESS, command->create(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_SUCCESS, command->create(args.get()));
 }
 
 TEST_F(Admin_command_index_test, create_fulltext_index_with_parser) {
@@ -634,7 +631,7 @@ TEST_F(Admin_command_index_test, create_fulltext_index_with_parser) {
                             INDEX_TYPE_FULLTEXT,
                             {"with_parser", "ngram"},
                             {"constraint", FULLTEXT_FIELD}});
-  ASSERT_ERROR_CODE(ER_X_SUCCESS, command->create(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_SUCCESS, command->create(args.get()));
 }
 
 TEST_F(Admin_command_index_test, create_unique_fulltext_index) {
@@ -644,8 +641,7 @@ TEST_F(Admin_command_index_test, create_unique_fulltext_index) {
                             UNIQUE,
                             INDEX_TYPE_FULLTEXT,
                             {"constraint", FULLTEXT_FIELD}});
-  ASSERT_ERROR_CODE(ER_X_CMD_ARGUMENT_VALUE,
-                    command->create(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_CMD_ARGUMENT_VALUE, command->create(args.get()));
 }
 
 }  // namespace test

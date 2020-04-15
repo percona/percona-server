@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -68,14 +68,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @return DB_SUCCESS or error code */
 dberr_t dict_build_table_def(
     dict_table_t *table, trx_t *trx, fil_encryption_t mode,
-    const CreateInfoEncryptionKeyId &create_info_encryption_key_id) {
-  char db_buf[NAME_LEN + 1];
-  char tbl_buf[NAME_LEN + 1];
+    const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
+  std::string db_name;
+  std::string tbl_name;
+  dict_name::get_table(table->name.m_name, db_name, tbl_name);
 
-  dd_parse_tbl_name(table->name.m_name, db_buf, tbl_buf, nullptr, nullptr,
-                    nullptr);
-
-  bool is_dd_table = dd::get_dictionary()->is_dd_table_name(db_buf, tbl_buf);
+  bool is_dd_table =
+      dd::get_dictionary()->is_dd_table_name(db_name.c_str(), tbl_name.c_str());
 
   /** In-memory counter used for assigning table_id
   of data dictionary table. This counter is only used
@@ -87,19 +86,20 @@ dberr_t dict_build_table_def(
   server started on mysql datadir. In that scenario, we should
   use the next available table id */
   if (is_dd_table ||
-      (compression_dict::is_hardcoded(db_buf, tbl_buf) && dd_table_id != 1)) {
+      (compression_dict::is_hardcoded(db_name.c_str(), tbl_name.c_str()) &&
+       dd_table_id != 1)) {
     table->id = dd_table_id++;
     table->is_dd_table = true;
 
-    ut_ad(compression_dict::is_hardcoded(db_buf, tbl_buf) ||
-          strcmp(tbl_buf, innodb_dd_table[table->id - 1].name) == 0);
+    ut_ad(compression_dict::is_hardcoded(db_name.c_str(), tbl_name.c_str()) ||
+          strcmp(tbl_name.c_str(), innodb_dd_table[table->id - 1].name) == 0);
 
   } else {
     dict_table_assign_new_id(table, trx);
   }
 
   dberr_t err = dict_build_tablespace_for_table(table, trx, mode,
-                                                create_info_encryption_key_id);
+                                                keyring_encryption_key_id);
 
   return (err);
 }
@@ -107,10 +107,11 @@ dberr_t dict_build_table_def(
 /** Build a tablespace to store various objects.
 @param[in,out]	trx		DD transaction
 @param[in,out]	tablespace	Tablespace object describing what to build.
+@param[in]      keyring_encryption_key_id info on keyring encryption key
 @return DB_SUCCESS or error code. */
 dberr_t dict_build_tablespace(
     trx_t *trx, Tablespace *tablespace, fil_encryption_t mode,
-    const CreateInfoEncryptionKeyId &create_info_encryption_key_id) {
+    const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
   dberr_t err = DB_SUCCESS;
   mtr_t mtr;
   space_id_t space = 0;
@@ -140,8 +141,11 @@ dberr_t dict_build_tablespace(
     return DB_IO_ERROR;
   }
 
-  log_ddl->write_delete_space_log(trx, NULL, space, datafile->filepath(), false,
-                                  true);
+  err = log_ddl->write_delete_space_log(trx, NULL, space, datafile->filepath(),
+                                        false, true);
+  if (err != DB_SUCCESS) {
+    return err;
+  }
 
   /* We create a new generic empty tablespace.
   We initially let it be 4 pages:
@@ -153,7 +157,7 @@ dberr_t dict_build_tablespace(
 
   err = fil_ibd_create(space, tablespace->name(), datafile->filepath(),
                        tablespace->flags(), FIL_IBD_FILE_INITIAL_SIZE, mode,
-                       create_info_encryption_key_id);
+                       keyring_encryption_key_id);
 
   DBUG_INJECT_CRASH("ddl_crash_after_create_tablespace",
                     crash_injection_after_create_counter++);
@@ -195,17 +199,13 @@ static ibt::Tablespace *determine_session_temp_tblsp(
     innodb_session_t *innodb_session, bool is_intrinsic, bool is_slave_thd) {
   ibt::Tablespace *tblsp = nullptr;
   bool encrypted = false;
-  switch (srv_encrypt_tables) {
-    case SRV_ENCRYPT_TABLES_ON:
-    case SRV_ENCRYPT_TABLES_FORCE:
-    case SRV_ENCRYPT_TABLES_KEYRING_ON:
-    case SRV_ENCRYPT_TABLES_KEYRING_FORCE:
-    case SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING:
-    case SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING_FORCE:
+  switch (srv_default_table_encryption) {
+    case DEFAULT_TABLE_ENC_ON:
+    case DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING:
       encrypted = true;
       break;
-    case SRV_ENCRYPT_TABLES_OFF:
-    case SRV_ENCRYPT_TABLES_ONLINE_FROM_KEYRING_TO_UNENCRYPTED:
+    case DEFAULT_TABLE_ENC_OFF:
+    case DEFAULT_TABLE_ENC_ONLINE_FROM_KEYRING_TO_UNENCRYPTED:
       if (srv_tmp_tablespace_encrypt) {
         encrypted = true;
       }
@@ -238,10 +238,11 @@ static ibt::Tablespace *determine_session_temp_tblsp(
 /** Builds a tablespace to contain a table, using file-per-table=1.
 @param[in,out]	table	Table to build in its own tablespace.
 @param[in,out]	trx	Transaction
+@param[in]      keyring_encryption_key_id info on keyring encryption key
 @return DB_SUCCESS or error code */
 dberr_t dict_build_tablespace_for_table(
     dict_table_t *table, trx_t *trx, fil_encryption_t mode,
-    const CreateInfoEncryptionKeyId &create_info_encryption_key_id) {
+    const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
   dberr_t err = DB_SUCCESS;
   mtr_t mtr;
   space_id_t space = 0;
@@ -256,8 +257,7 @@ dberr_t dict_build_tablespace_for_table(
 
   if (mode == FIL_ENCRYPTION_ON ||
       (mode == FIL_ENCRYPTION_DEFAULT &&
-       (srv_encrypt_tables == SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING ||
-        srv_encrypt_tables == SRV_ENCRYPT_TABLES_KEYRING_FORCE))) {
+       srv_default_table_encryption == DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING)) {
     DICT_TF2_FLAG_SET(table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE);
   }
 
@@ -282,11 +282,11 @@ dberr_t dict_build_tablespace_for_table(
     table->space = space;
 
     /* Determine the tablespace flags. */
-    ulint fsp_flags = dict_tf_to_fsp_flags(table->flags);
+    uint32_t fsp_flags = dict_tf_to_fsp_flags(table->flags);
 
     /* For file-per-table tablespace, set encryption flag */
     if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE)) {
-      FSP_FLAGS_SET_ENCRYPTION(fsp_flags);
+      fsp_flags_set_encryption(fsp_flags);
     }
 
     if (DICT_TF_HAS_DATA_DIR(table->flags)) {
@@ -312,7 +312,12 @@ dberr_t dict_build_tablespace_for_table(
       return DB_IO_ERROR;
     }
 
-    log_ddl->write_delete_space_log(trx, table, space, filepath, false, false);
+    err = log_ddl->write_delete_space_log(trx, table, space, filepath, false,
+                                          false);
+    if (err != DB_SUCCESS) {
+      ut_free(filepath);
+      return err;
+    }
 
     /* We create a new single-table tablespace for the table.
     We initially let it be 4 pages:
@@ -322,13 +327,12 @@ dberr_t dict_build_tablespace_for_table(
     - page 3 will contain the root of the clustered index of
     the table we create here. */
 
-    std::string tablespace_name;
-
-    dd_filename_to_spacename(table->name.m_name, &tablespace_name);
+    std::string tablespace_name(table->name.m_name);
+    dict_name::convert_to_space(tablespace_name);
 
     err = fil_ibd_create(space, tablespace_name.c_str(), filepath, fsp_flags,
                          FIL_IBD_FILE_INITIAL_SIZE, mode,
-                         create_info_encryption_key_id);
+                         keyring_encryption_key_id);
 
     ut_free(filepath);
 
@@ -519,7 +523,8 @@ void dict_drop_temporary_table_index(const dict_index_t *index,
   tablespace and the .ibd file is missing do nothing,
   else free the all the pages */
   if (root_page_no != FIL_NULL && found) {
-    btr_free(page_id_t(space, root_page_no), page_size);
+    btr_free(page_id_t(space, root_page_no), page_size,
+             index->table->is_intrinsic());
   }
 }
 
@@ -708,11 +713,11 @@ void dict_table_assign_new_id(dict_table_t *table, trx_t *trx) {
 @param[in]	is_create	true when creating SDI index
 @return in-memory index structure for tablespace dictionary or NULL */
 dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
-                                         ulint in_flags, bool is_create) {
-  ulint flags = space_discarded ? in_flags : fil_space_get_flags(space);
+                                         uint32_t in_flags, bool is_create) {
+  uint32_t flags = space_discarded ? in_flags : fil_space_get_flags(space);
 
   /* This means the tablespace is evicted from cache */
-  if (flags == ULINT_UNDEFINED) {
+  if (flags == UINT32_UNDEFINED) {
     return (NULL);
   }
 
@@ -735,7 +740,7 @@ dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
     rec_format = REC_FORMAT_COMPACT;
   }
 
-  ulint table_flags = 0;
+  uint32_t table_flags = 0;
   dict_tf_set(&table_flags, rec_format, zip_ssize, has_data_dir,
               has_shared_space);
 
@@ -745,7 +750,7 @@ dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
   snprintf(table_name, sizeof(table_name), "SDI_" SPACE_ID_PF, space);
 
   dict_table_t *table =
-      dict_mem_table_create(table_name, space, 5, 0, table_flags, 0);
+      dict_mem_table_create(table_name, space, 5, 0, 0, table_flags, 0);
 
   dict_mem_table_add_col(table, heap, "type", DATA_INT,
                          DATA_NOT_NULL | DATA_UNSIGNED, 4);
@@ -843,10 +848,10 @@ static ibool dict_create_extract_int_aux(void *row,      /*!< in: sel_node_t* */
 (table id, column pos) pair.
 @return	error code or DB_SUCCESS */
 dberr_t dict_create_get_zip_dict_id_by_reference(
-    ulint table_id,   /*!< in: table id */
-    ulint column_pos, /*!< in: column position */
-    ulint *dict_id,   /*!< out: dict id */
-    trx_t *trx)       /*!< in/out: transaction */
+    table_id_t table_id, /*!< in: table id */
+    ulint column_pos,    /*!< in: column position */
+    ulint *dict_id,      /*!< out: dict id */
+    trx_t *trx)          /*!< in/out: transaction */
 {
   ut_ad(dict_id);
   ut_ad(srv_is_upgrade_mode);

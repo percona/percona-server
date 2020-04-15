@@ -1,3 +1,5 @@
+SET GLOBAL innodb_encryption_threads=4;
+
 CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB encryption='KEYRING';
 CREATE TABLE t2 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB;
 CREATE TABLE t3 (id INT, a VARCHAR(255)) ENGINE=InnoDB encryption='KEYRING';
@@ -30,7 +32,6 @@ call innodb_insert_proc(1500);
 commit;
 set autocommit=1;
 
---let $tables_count= `select count(*) from information_schema.tables where engine = 'InnoDB' and table_schema <> 'information_schema'`
 --echo # Wait max 10 min for key encryption threads to encrypt all test/t_ tables (all should have MIN_KEY_VERSION 1 assigned)
 --let $wait_timeout= 600
 --let $wait_condition=SELECT SUM(MIN_KEY_VERSION) = 7 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME LIKE 'test/t_'
@@ -73,7 +74,6 @@ set autocommit=1;
 -- source include/start_mysqld.inc
 
 --disable_warnings
-SET GLOBAL innodb_file_format = `Barracuda`;
 SET GLOBAL innodb_file_per_table = ON;
 --enable_warnings
 
@@ -131,8 +131,17 @@ SHOW CREATE TABLE t7;
 -- source include/search_pattern_in_file.inc
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN KEYRING_PLUGIN $KEYRING_PLUGIN_OPT KEYRING_PLUGIN_OPT
---let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --innodb-encrypt-tables=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4
--- source include/start_mysqld.inc
+--let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --default-table-encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4
+--source include/start_mysqld.inc
 
 DROP PROCEDURE innodb_insert_proc;
 DROP TABLE t1, t2, t3, t4, t5, t6, t7;
+
+# Decrypt all tables
+
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
+--source include/wait_condition.inc
+
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;

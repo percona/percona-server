@@ -1,0 +1,21 @@
+Starting from release :rn:`8.0.15-5`, |Percona Server| uses the upstream
+implementation of binary log encryption. The variable |encrypt-binlog| is
+removed and the related command line option |opt.encrypt-binlog| is not
+supported. It is important that you remove the |encrypt-binlog| variable from
+your configuration file before you attempt to upgrade either from another
+release in the |Percona Server| |version| series or from |Percona Server|
+5.7. Otherwise, a server boot error will be produced reporting an unknown
+variable. The implemented binary log encryption is compatible with the old
+format: the binary log encrypted in a previous version of MySQL 8.0 series or
+Percona Server for MySQL are supported.
+
+.. seealso::
+
+   |MySQL| Documentation
+      - `Encrypting Binary Log Files and Relay Log Files
+        <https://dev.mysql.com/doc/refman/8.0/en/replication-binlog-encryption.html>`_
+      - `binlog_encryption variable
+        <https://dev.mysql.com/doc/refman/8.0/en/replication-options-binary-log.html#sysvar_binlog_encryption>`_
+
+.. |encrypt-binlog| replace:: ``encrypt_binlog``
+.. |opt.encrypt-binlog| replace:: ``--encrypt_binlog``

@@ -12,7 +12,9 @@
   connection cq;
   SET GLOBAL innodb_stats_persistent=on;
 
-  set default_storage_engine= myisam;
+  --source include/force_myisam_default.inc
+  --source include/have_myisam.inc
+
   let $point=   before_reset_query_plan;
   SET @save_log_bin= @@sql_log_bin;
   SET SQL_LOG_BIN=0;
@@ -549,6 +551,7 @@ let $query=SELECT DISTINCT alias2.pk AS field1, alias2.pk AS field2, alias2.pk A
 
 --source include/explain_for_connection.inc
 
+--enable_warnings
 drop table t1;
 drop table t2;
 

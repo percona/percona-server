@@ -9,14 +9,14 @@ Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DESCRIBE t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	NO	PRI	NULL	
+a	int	NO	PRI	NULL	
 b	char(8)	YES		NULL	
 DESC t2 a;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 DESCRIBE t3 '%';
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 b	char(8)	YES		NULL	
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 DROP TABLE t1, t2, t3;

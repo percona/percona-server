@@ -230,12 +230,12 @@ insert into t2 values(1),(2);
 Warnings:
 Warning	1261	Row 1 doesn't contain data for all columns
 Warning	1261	Row 2 doesn't contain data for all columns
+SET @previous_sql_mode = @@sql_mode;
+SET sql_mode = 'ALLOW_INVALID_DATES';
 select f1 from t1 where f2 <> '0000-00-00 00:00:00' order by f1;
 f1
 1
 2
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'f2' at row 1
 delete from t1;
 Warnings:
 Warning	1261	Row 1 doesn't contain data for all columns
@@ -244,8 +244,7 @@ select f1 from t1 where f2 <> '0000-00-00 00:00:00' order by f1;
 f1
 1
 2
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'f2' at row 1
+SET sql_mode = @previous_sql_mode;
 drop table t1,t2;
 CREATE TABLE t1 (c1 INT, c2 TIMESTAMP, c3 REAL, c4 DOUBLE);
 INSERT INTO t1 (c1, c2, c3, c4) VALUES (10, '1970-02-01 01:02:03', 1.1E-100, 1.1E+100);
@@ -622,7 +621,7 @@ ERROR 0A000: LOAD DATA is not allowed in stored procedures
 SET @save_local_infile = @@local_infile;
 SET GLOBAL local_infile = OFF;
 LOAD DATA LOCAL INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1;
-ERROR 42000: The used command is not allowed with this MySQL version
+ERROR 42000: Loading local data is disabled; this must be enabled on both the client and server sides
 SET GLOBAL local_infile = @save_local_infile;
 DROP TABLE t1;
 CREATE TABLE t2(a BLOB);
@@ -633,3 +632,65 @@ CREATE TABLE t3(a VARCHAR(20), i INT NOT NULL);
 LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t3 (a) SET i = NULL;
 ERROR 23000: Column 'i' cannot be null
 DROP TABLE t3;
+#
+# Bug#28460369 LOAD DATA INFILE THROWS ERROR WITH NOT NULL COLUMN DEFINED
+#              VIA SET
+#
+# Verify that LOAD DATA rejects rows with no data for GEOMETRY NOT NULL
+# columns. However, if the column is set using the SET clause,
+# LOAD DATA should succeed.
+CREATE TABLE t1 (x DOUBLE, y DOUBLE, g GEOMETRY NOT NULL SRID 4326);
+LOAD DATA INFILE '../../std_data/x_y_data.csv'
+  INTO TABLE t1
+FIELDS TERMINATED BY ','
+  (x, y);
+ERROR HY000: Field 'g' doesn't have a default value
+LOAD DATA INFILE '../../std_data/x_y_data.csv'
+  INTO TABLE t1
+FIELDS TERMINATED BY ','
+  (x, y) SET g = ST_SRID(POINT(x, y), 4326);
+SELECT x, y, ST_AsText(g), ST_SRID(g) FROM t1;
+x	y	ST_AsText(g)	ST_SRID(g)
+10	20	POINT(20 10)	4326
+30	40	POINT(40 30)	4326
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Bug#30126375 - LOAD DATA WITH SET CLAUSE IGNORES NO_AUTO_VALUE_ON_ZERO
+#                MODE
+#-----------------------------------------------------------------------
+SET @old_sql_mode = @@sql_mode;
+SET @@sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, j INT);
+INSERT INTO t1 VALUES (0, 1);
+# NO_AUTO_VALUE_ON_ZERO should prevent generation of new
+# auto-increment value. So row should get 0 as id.
+SELECT * FROM t1;
+id	j
+0	1
+# LOAD DATA from file with separators.
+SELECT * FROM t1 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1.txt';
+DELETE FROM t1;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t1 SET j = 2;;
+# The above LOAD DATA should preserve id (i.e. 0) for the row.
+SELECT * FROM t1;
+id	j
+0	2
+# LOAD DATA from file in fixed row format.
+SELECT * FROM t1 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' FIELDS TERMINATED BY '' ENCLOSED BY '';
+DELETE FROM t1;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '' SET j = 3;;
+# The above LOAD DATA should preserve id (i.e. 0) for the row too.
+SELECT * FROM t1;
+id	j
+0	3
+# LOAD DATA from XML file.
+# Use mysqldump --xml to produce t1.xml file.
+DELETE FROM t1;
+LOAD XML INFILE "MYSQLTEST_VARDIR/tmp/t1.xml" IGNORE INTO TABLE t1 SET j = 4;;
+# The above LOAD DATA should preserve id (i.e. 0) for the row as well.
+SELECT * FROM t1;
+id	j
+0	4
+# Clean up.
+DROP TABLE t1;
+SET sql_mode=@old_sql_mode;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -173,23 +173,23 @@ class OptRangeTest : public ::testing::Test {
     return new Item_cond_or(new_item_lt(fld, val1), new_item_gt(fld, val1));
   }
 
-    /**
-      Utility funtion used to simplify creation of SEL_TREEs with
-      specified range predicate operators and values. Also verifies that
-      the created SEL_TREE has the expected range conditions.
+  /**
+    Utility funtion used to simplify creation of SEL_TREEs with
+    specified range predicate operators and values. Also verifies that
+    the created SEL_TREE has the expected range conditions.
 
-      @param type            The type of range predicate operator requested
-      @param fld             The field used in the range predicate
-      @param val1            The first value used in the range predicate
-      @param val2            The second value used in the range predicate.
-                             Only used for range predicates that takes two
-                             values (BETWEEN).
-      @param expected_result The range conditions the created SEL_TREE
-                             is expected to consist of. The format of this
-                             string is what opt_range.cc print_tree() produces.
+    @param type            The type of range predicate operator requested
+    @param fld             The field used in the range predicate
+    @param val1            The first value used in the range predicate
+    @param val2            The second value used in the range predicate.
+                           Only used for range predicates that takes two
+                           values (BETWEEN).
+    @param expected_result The range conditions the created SEL_TREE
+                           is expected to consist of. The format of this
+                           string is what opt_range.cc print_tree() produces.
 
-      @return SEL_TREE that has been verified to have expected range conditions.
-    */
+    @return SEL_TREE that has been verified to have expected range conditions.
+  */
 // Undefined at end of this file
 #define create_tree(i, er) do_create_tree(i, er, TestFailLinePrinter(__LINE__))
   SEL_TREE *do_create_tree(Item *item, const char *expected_result,
@@ -420,7 +420,7 @@ TEST_F(OptRangeTest, AllocateExplicit) {
 TEST_F(OptRangeTest, AllocateImplicit) {
   for (int ix = 0; ix < num_iterations; ++ix) {
     free_root(thd()->mem_root, MYF(MY_KEEP_PREALLOC));
-    for (int ii = 0; ii < num_allocs; ++ii) new (*THR_MALLOC) SEL_ARG;
+    for (int ii = 0; ii < num_allocs; ++ii) new (thd()->mem_root) SEL_ARG;
   }
 }
 
@@ -1433,8 +1433,9 @@ TEST_F(OptRangeTest, KeyOr1) {
     sel_arg_lt4:       [--------------------->
   */
 
-  SEL_ROOT *tmp = key_or(&opt_param, new (*THR_MALLOC) SEL_ROOT(&sel_arg_lt3),
-                         new (*THR_MALLOC) SEL_ROOT(&sel_arg_gt3));
+  SEL_ROOT *tmp =
+      key_or(&opt_param, new (thd()->mem_root) SEL_ROOT(&sel_arg_lt3),
+             new (thd()->mem_root) SEL_ROOT(&sel_arg_gt3));
 
   /*
     Ranges now:
@@ -1450,7 +1451,7 @@ TEST_F(OptRangeTest, KeyOr1) {
   EXPECT_STREQ(expected_merged, range_string.c_ptr());
 
   SEL_ROOT *tmp2 =
-      key_or(&opt_param, tmp, new (*THR_MALLOC) SEL_ROOT(&sel_arg_lt4));
+      key_or(&opt_param, tmp, new (thd()->mem_root) SEL_ROOT(&sel_arg_lt4));
   EXPECT_EQ(null_root, tmp2);
 }
 
@@ -1564,7 +1565,7 @@ class Mock_SEL_ARG : public SEL_ARG {
     part = 1;
     min_flag = 0;
     max_flag = 0;
-    maybe_flag = 0;
+    maybe_flag = false;
   }
 };
 
@@ -1735,15 +1736,15 @@ TEST_F(OptRangeTest, CombineAlways2) {
       part = 0;
       left = NULL;
       next = NULL;
-      min_flag = max_flag = maybe_flag = 0;
+      min_flag = max_flag = maybe_flag = false;
       set_endpoints(1, 2);
       next_key_part = NULL;
       make_root();
     }
 
-    void add_next_key_part(SEL_ROOT *next) {
-      set_next_key_part(next);
-      next->root->part = part + 1;
+    void add_next_key_part(SEL_ROOT *next_arg) {
+      set_next_key_part(next_arg);
+      next_arg->root->part = part + 1;
     }
 
    private:

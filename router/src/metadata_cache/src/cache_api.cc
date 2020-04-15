@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "metadata_cache.h"
+#include "metadata_cache_ar.h"
+#include "metadata_cache_gr.h"
 #include "metadata_factory.h"
 #include "mysqlrouter/metadata_cache.h"
 
@@ -68,10 +69,14 @@ MetadataCacheAPIBase *MetadataCacheAPI::instance() {
 /**
  * Initialize the metadata cache.
  *
- * @param group_replication_id id of the replication group
+ * @param cluster_type type of the cluster the metadata cache object will
+ * represent (GR or ReplicaSet)
+ * @param router_id id of the router in the cluster metadata
+ * @param cluster_type_specific_id (id of the replication group for GR,
+ * cluster_id for ReplicaSet)
  * @param metadata_servers The list of cluster metadata servers
- * @param user The user name used to connect to the metadata servers.
- * @param password The password used to connect to the metadata servers.
+ * @param user_credentials The user name and password used to connect to the
+ * metadata servers.
  * @param ttl The ttl for the contents of the cache
  * @param ssl_options SSL related options for connections
  * @param cluster_name The name of the cluster from the metadata schema
@@ -80,23 +85,64 @@ MetadataCacheAPIBase *MetadataCacheAPI::instance() {
  * @param read_timeout The time in seconds after which read from metadata
  *                     server should timeout.
  * @param thread_stack_size memory in kilobytes allocated for thread's stack
+ * @param use_cluster_notifications Flag indicating if the metadata cache should
+ *                             use cluster notifications as an additional
+ *                             trigger for metadata refresh (only available for
+ *                             GR cluster type)
+ * @param view_id last known view_id of the cluster metadata (only relevant
+ *                for ReplicaSet cluster)
  */
 void MetadataCacheAPI::cache_init(
-    const std::string &group_replication_id,
+    const mysqlrouter::ClusterType cluster_type, const unsigned router_id,
+    const std::string &cluster_type_specific_id,
     const std::vector<mysql_harness::TCPAddress> &metadata_servers,
-    const std::string &user, const std::string &password,
+    const mysqlrouter::UserCredentials &user_credentials,
     std::chrono::milliseconds ttl, const mysqlrouter::SSLOptions &ssl_options,
     const std::string &cluster_name, int connect_timeout, int read_timeout,
-    size_t thread_stack_size) {
+    size_t thread_stack_size, bool use_cluster_notifications,
+    const unsigned view_id) {
   std::lock_guard<std::mutex> lock(g_metadata_cache_m);
 
-  g_metadata_cache.reset(
-      new MetadataCache(group_replication_id, metadata_servers,
-                        get_instance(user, password, connect_timeout,
-                                     read_timeout, 1, ttl, ssl_options),
-                        ttl, ssl_options, cluster_name, thread_stack_size));
+  if (cluster_type == mysqlrouter::ClusterType::RS_V2) {
+    g_metadata_cache.reset(new ARMetadataCache(
+        router_id, cluster_type_specific_id, metadata_servers,
+        get_instance(cluster_type, user_credentials.username,
+                     user_credentials.password, connect_timeout, read_timeout,
+                     1, ssl_options, use_cluster_notifications, view_id),
+        ttl, ssl_options, cluster_name, thread_stack_size));
+  } else {
+    g_metadata_cache.reset(new GRMetadataCache(
+        router_id, cluster_type_specific_id, metadata_servers,
+        get_instance(cluster_type, user_credentials.username,
+                     user_credentials.password, connect_timeout, read_timeout,
+                     1, ssl_options, use_cluster_notifications, view_id),
+        ttl, ssl_options, cluster_name, thread_stack_size,
+        use_cluster_notifications));
+  }
 
   is_initialized_ = true;
+}
+
+std::string MetadataCacheAPI::instance_name() const { return inst_name_; }
+void MetadataCacheAPI::instance_name(const std::string &inst_name) {
+  inst_name_ = inst_name;
+}
+
+std::string MetadataCacheAPI::cluster_type_specific_id() const {
+  return g_metadata_cache->cluster_type_specific_id();
+}
+
+std::string MetadataCacheAPI::cluster_name() const {
+  return g_metadata_cache->cluster_name();
+}
+
+std::chrono::milliseconds MetadataCacheAPI::ttl() const {
+  return g_metadata_cache->ttl();
+}
+
+mysqlrouter::ClusterType MetadataCacheAPI::cluster_type() const {
+  LOCK_METADATA_AND_CHECK_INITIALIZED();
+  return g_metadata_cache->cluster_type();
 }
 
 /**
@@ -158,6 +204,12 @@ void MetadataCacheAPI::remove_listener(
     ReplicasetStateListenerInterface *listener) {
   LOCK_METADATA_AND_CHECK_INITIALIZED();
   g_metadata_cache->remove_listener(replicaset_name, listener);
+}
+
+MetadataCacheAPI::RefreshStatus MetadataCacheAPI::get_refresh_status() {
+  LOCK_METADATA_AND_CHECK_INITIALIZED();
+
+  return g_metadata_cache->refresh_status();
 }
 
 }  // namespace metadata_cache

@@ -85,7 +85,7 @@ DROP DATABASE tde_db;
 
 --echo # Try starting without keyring : Error
 let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1  --secure-file-priv="" --console </dev/null>>$MYSQL_TMP_DIR/wl9290.err 2>&1;
---error 1,42
+--error 1
 --exec $NEW_CMD
 
 --echo # Restart without keyring plugin possible if redo files removed
@@ -102,9 +102,6 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --innodb_page_
 let SEARCH_FILE= $MYSQL_TMP_DIR/wl9290.err;
 let SEARCH_PATTERN=  Redo log was encrypted, but keyring plugin is not loaded;
 --source include/search_pattern.inc
-let SEARCH_PATTERN= Aborting;
---source include/search_pattern.inc
-
 
 # shutdown server
 --let $_server_id= `SELECT @@server_id`

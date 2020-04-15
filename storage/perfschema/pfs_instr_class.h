@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -174,6 +174,8 @@ struct PFS_instr_class {
   bool is_progress() const { return m_flags & PSI_FLAG_STAGE_PROGRESS; }
 
   bool is_shared_exclusive() const { return m_flags & PSI_FLAG_RWLOCK_SX; }
+
+  bool is_priority() const { return m_flags & PSI_FLAG_RWLOCK_PR; }
 
   bool is_transferable() const { return m_flags & PSI_FLAG_TRANSFER; }
 

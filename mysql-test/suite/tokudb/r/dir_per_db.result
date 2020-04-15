@@ -7,6 +7,8 @@ SET GLOBAL tokudb_dir_per_db= 1;
 #  CREATE
 ########
 CREATE TABLE t1 (a INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, b INT(10) UNSIGNED NOT NULL) ENGINE=tokudb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 SET b = 10;
 INSERT INTO t1 SET b = 20;
 SELECT b FROM t1 ORDER BY a;
@@ -49,6 +51,8 @@ SET GLOBAL tokudb_dir_per_db= 0;
 #  CREATE
 ########
 CREATE TABLE t1 (a INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, b INT(10) UNSIGNED NOT NULL) ENGINE=tokudb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 SET b = 10;
 INSERT INTO t1 SET b = 20;
 SELECT b FROM t1 ORDER BY a;
@@ -94,6 +98,8 @@ SET GLOBAL tokudb_dir_per_db= (1 - 1);;
 #  CREATE
 ########
 CREATE TABLE t1 (a INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, b INT(10) UNSIGNED NOT NULL) ENGINE=tokudb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 SET b = 10;
 INSERT INTO t1 SET b = 20;
 SELECT b FROM t1 ORDER BY a;
@@ -140,6 +146,8 @@ SET GLOBAL tokudb_dir_per_db= (1 - 0);;
 #  CREATE
 ########
 CREATE TABLE t1 (a INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, b INT(10) UNSIGNED NOT NULL) ENGINE=tokudb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 SET b = 10;
 INSERT INTO t1 SET b = 20;
 SELECT b FROM t1 ORDER BY a;

@@ -12,6 +12,9 @@ min(b)
 6
 drop table t1;
 CREATE TABLE t1 ( `a` int(11) NOT NULL auto_increment, `b` int(11) default NULL,PRIMARY KEY  (`a`),UNIQUE KEY `b` (`b`)) ENGINE=innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 (b) values (1);
 replace into t1 (b) values (2), (1), (3);
 select * from t1;
@@ -35,7 +38,7 @@ key (rowid), unique(val)) engine=innodb;
 replace into t1 (val) values ('1'),('2');
 replace into t1 (val) values ('1'),('2');
 insert into t1 (val) values ('1'),('2');
-ERROR 23000: Duplicate entry '1' for key 'val'
+ERROR 23000: Duplicate entry '1' for key 't1.val'
 select * from t1;
 rowid	val
 3	1
@@ -45,7 +48,7 @@ create table t1 (a int not null auto_increment primary key, val int) engine=Inno
 insert into t1 (val) values (1);
 update t1 set a=2 where a=1;
 insert into t1 values (2, 2);
-ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2' for key 't1.PRIMARY'
 insert into t1 (val) value (3);
 select * from t1;
 a	val
@@ -288,16 +291,20 @@ drop table t4,t3,t2,t1;
 create table t1 (s1 varbinary(2),primary key (s1)) engine=innodb;
 create table t2 (s1 binary(2),primary key (s1)) engine=innodb;
 create table t3 (s1 varchar(2) binary,primary key (s1)) engine=innodb;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 create table t4 (s1 char(2) binary,primary key (s1)) engine=innodb;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 insert into t1 values (0x41),(0x4120),(0x4100);
 insert into t2 values (0x41),(0x4120),(0x4100);
-ERROR 23000: Duplicate entry 'A' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'A' for key 't2.PRIMARY'
 insert into t2 values (0x41),(0x4120);
 insert into t3 values (0x41),(0x4120),(0x4100);
-ERROR 23000: Duplicate entry 'A ' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'A ' for key 't3.PRIMARY'
 insert into t3 values (0x41),(0x4100);
 insert into t4 values (0x41),(0x4120),(0x4100);
-ERROR 23000: Duplicate entry 'A' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'A' for key 't4.PRIMARY'
 insert into t4 values (0x41),(0x4100);
 select hex(s1) from t1;
 hex(s1)
@@ -365,7 +372,11 @@ hex(s1)
 4120
 drop table t2,t1;
 create table t1 (a int primary key,s1 varchar(2) binary not null unique) engine=innodb;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 create table t2 (s1 char(2) binary not null, constraint c foreign key(s1) references t1(s1) on update cascade) engine=innodb;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 insert into t1 values(1,0x4100),(2,0x41);
 insert into t2 values(0x41);
 select hex(s1) from t2;
@@ -398,7 +409,7 @@ ALTER TABLE t2 DROP FOREIGN KEY t2_ibfk_0;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   KEY `t2_ibfk_0` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2,t1;
@@ -435,8 +446,8 @@ references t2(c1) on delete cascade;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) NOT NULL,
-  `c2` bigint(20) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` bigint NOT NULL,
   PRIMARY KEY (`c1`),
   UNIQUE KEY `c2` (`c2`),
   CONSTRAINT `c2_fk` FOREIGN KEY (`c2`) REFERENCES `t2` (`c1`) ON DELETE CASCADE
@@ -445,8 +456,8 @@ alter table t1 drop foreign key c2_fk;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) NOT NULL,
-  `c2` bigint(20) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` bigint NOT NULL,
   PRIMARY KEY (`c1`),
   UNIQUE KEY `c2` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -606,6 +617,7 @@ a BIGINT(20) NOT NULL,
 PRIMARY KEY  (a)
 ) ENGINE=INNODB DEFAULT CHARSET=UTF8;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t2 (
 a BIGINT(20) NOT NULL,
@@ -617,6 +629,7 @@ CONSTRAINT t_fk FOREIGN KEY (a) REFERENCES t1 (a)
 ON DELETE CASCADE
 ) ENGINE=INNODB DEFAULT CHARSET=UTF8;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1, 'bar', 'vbar');
@@ -657,8 +670,8 @@ DELETE CASCADE ON UPDATE CASCADE;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
-  `f` int(11) NOT NULL,
+  `id` int NOT NULL,
+  `f` int NOT NULL,
   PRIMARY KEY (`id`),
   KEY `f` (`f`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f`) REFERENCES `t1` (`f`) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -696,7 +709,7 @@ id
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=349 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t2 (id int PRIMARY KEY) ENGINE=InnoDB;
@@ -705,7 +718,7 @@ ALTER TABLE t1 ADD CONSTRAINT t1_t2 FOREIGN KEY (id) REFERENCES t2(id);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`),
   CONSTRAINT `t1_t2` FOREIGN KEY (`id`) REFERENCES `t2` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=349 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -729,6 +742,8 @@ Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1(
 id BIGINT(20) NOT NULL AUTO_INCREMENT PRIMARY KEY
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES(-10);
 SELECT * FROM t1;
 id
@@ -764,6 +779,7 @@ c2 VARCHAR(128) NOT NULL,
 PRIMARY KEY(c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=100;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t2 (
 c1 INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -771,6 +787,8 @@ c2 INT(10) UNSIGNED DEFAULT NULL,
 PRIMARY KEY(c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=200;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ANALYZE TABLE t2;
 Table	Op	Msg_type	Msg_text

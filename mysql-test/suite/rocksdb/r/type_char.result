@@ -3,8 +3,8 @@ c CHAR ,
 c0 CHAR(0) ,
 c1 CHAR(1) ,
 c20 CHAR(20) ,
-c191 CHAR(191) ,
-PRIMARY KEY (c191)
+c255 CHAR(255) ,
+PRIMARY KEY (c255)
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
@@ -12,53 +12,52 @@ c	char(1)	YES		NULL
 c0	char(0)	YES		NULL	
 c1	char(1)	YES		NULL	
 c20	char(20)	YES		NULL	
-c191	char(191)	NO	PRI	NULL	
-INSERT INTO t1 (c,c0,c1,c20,c191) VALUES ('','','','','');
-INSERT INTO t1 (c,c0,c1,c20,c191) VALUES ('a','','b','abcdefghi klmnopqrst', 'Creating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn');
-SELECT c,c0,c1,c20,c191 FROM t1;
-c	c0	c1	c20	c191
+c255	char(255)	NO	PRI	NULL	
+INSERT INTO t1 (c,c0,c1,c20,c255) VALUES ('','','','','');
+INSERT INTO t1 (c,c0,c1,c20,c255) VALUES ('a','','b','abcdefghi klmnopqrst', 'Creating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn');
+SELECT c,c0,c1,c20,c255 FROM t1;
+c	c0	c1	c20	c255
 				
 a		b	abcdefghi klmnopqrst	Creating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn
-INSERT INTO t1 (c,c0,c1,c20,c191) VALUES ('abc', 'a', 'abc', REPEAT('a',21), REPEAT('x',256));
+INSERT INTO t1 (c,c0,c1,c20,c255) VALUES ('abc', 'a', 'abc', REPEAT('a',21), REPEAT('x',256));
 ERROR 22001: Data too long for column 'c' at row 1
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-INSERT INTO t1 (c,c0,c1,c20,c191) VALUES ('abc', 'a', 'abc', REPEAT('a',21), REPEAT('x',256));
+INSERT INTO t1 (c,c0,c1,c20,c255) VALUES ('abc', 'a', 'abc', REPEAT('a',21), REPEAT('x',256));
 Warnings:
 Warning	1265	Data truncated for column 'c' at row 1
 Warning	1265	Data truncated for column 'c0' at row 1
 Warning	1265	Data truncated for column 'c1' at row 1
 Warning	1265	Data truncated for column 'c20' at row 1
-Warning	1265	Data truncated for column 'c191' at row 1
+Warning	1265	Data truncated for column 'c255' at row 1
 set session sql_mode=@orig_sql_mode;
 set @orig_tx_iso=@@session.transaction_isolation;
 set session transaction_isolation='READ-COMMITTED';
-INSERT INTO t1 (c,c0,c1,c20,c191) SELECT c191, c191, c191, c191, CONCAT('a',c191,c1) FROM t1;
-ERROR 22001: Data too long for column 'c' at row 5
+INSERT INTO t1 (c,c0,c1,c20,c255) SELECT c255, c255, c255, c255, CONCAT('a',c255,c1) FROM t1;
+ERROR 22001: Data too long for column 'c' at row 2
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-INSERT INTO t1 (c,c0,c1,c20,c191) SELECT c191, c191, c191, c191, CONCAT('a',c191,c1) FROM t1;
+INSERT INTO t1 (c,c0,c1,c20,c255) SELECT c255, c255, c255, c255, CONCAT('a',c255,c1) FROM t1;
 Warnings:
-Warning	1265	Data truncated for column 'c' at row 5
-Warning	1265	Data truncated for column 'c0' at row 5
-Warning	1265	Data truncated for column 'c1' at row 5
-Warning	1265	Data truncated for column 'c20' at row 5
-Warning	1265	Data truncated for column 'c191' at row 5
-Warning	1265	Data truncated for column 'c' at row 6
-Warning	1265	Data truncated for column 'c0' at row 6
-Warning	1265	Data truncated for column 'c1' at row 6
-Warning	1265	Data truncated for column 'c20' at row 6
-Warning	1265	Data truncated for column 'c191' at row 6
+Warning	1265	Data truncated for column 'c' at row 2
+Warning	1265	Data truncated for column 'c0' at row 2
+Warning	1265	Data truncated for column 'c1' at row 2
+Warning	1265	Data truncated for column 'c20' at row 2
+Warning	1265	Data truncated for column 'c' at row 3
+Warning	1265	Data truncated for column 'c0' at row 3
+Warning	1265	Data truncated for column 'c1' at row 3
+Warning	1265	Data truncated for column 'c20' at row 3
+Warning	1265	Data truncated for column 'c255' at row 3
 set session sql_mode=@orig_sql_mode;
 set session transaction_isolation=@orig_tx_iso;
-SELECT c,c0,c1,c20,c191 FROM t1;
-c	c0	c1	c20	c191
+SELECT c,c0,c1,c20,c255 FROM t1;
+c	c0	c1	c20	c255
 				
 				a
-C		C	Creating an article	aCreating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn
-a		a	aaaaaaaaaaaaaaaaaaaa	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+C		C	Creating an article	aCreating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesnb
+a		a	aaaaaaaaaaaaaaaaaaaa	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 a		b	abcdefghi klmnopqrst	Creating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn
-x		x	xxxxxxxxxxxxxxxxxxxx	axxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+x		x	xxxxxxxxxxxxxxxxxxxx	axxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 SELECT DISTINCT c20, REPEAT('a',LENGTH(c20)), COUNT(*) FROM t1 GROUP BY c1, c20;
 c20	REPEAT('a',LENGTH(c20))	COUNT(*)
 		2

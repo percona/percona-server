@@ -1,5 +1,5 @@
 create table `ngram_simple` (
-`i` int(11) not null auto_increment,
+`i` int not null auto_increment,
 `txt` text collate utf8mb4_bin not null,
 primary key (`i`),
 fulltext key `fx_txts` (`txt`) ) engine=InnoDB auto_increment=10 default charset=utf8mb4 collate=utf8mb4_bin;

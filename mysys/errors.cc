@@ -134,10 +134,11 @@ const char *globerrs[GLOBERRS] = {
     "Invalid decimal value for option '%s'.",
     "%s.",
     "Failed to reset before a primary ignorable character %s.",
-    "Failed to reset before a territory ignorable character %s.",
+    "Failed to reset before a tertiary ignorable character %s.",
     "Shift character out of range: %s.",
     "Reset character out of range: %s.",
     "Unknown LDML tag: '%.*s'.",
+    "Failed to reset before a secondary ignorable character %s.",
     "Can't create socket '%s' (Errcode: %d)",
     "File name '%s' is too long (max: %d)"};
 

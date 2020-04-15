@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,19 +25,9 @@ IF(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)  # bypass Warning C4996 (getenv)
 ENDIF()
 
-INCLUDE(${CMAKE_SOURCE_DIR}/cmake/compile_flags.cmake)
-
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/../include/mysqlrouter)
-INCLUDE_DIRECTORIES(SYSTEM ${SSL_INCLUDE_DIRS})
 
-IF(WITH_SSL STREQUAL "wolfssl")
-  SET(MY_AES_IMPL ${CMAKE_SOURCE_DIR}/mysys_ssl/my_aes_wolfssl.cc)
-  #ADD_DEFINITIONS(-DSIZEOF_LONG=${SIZEOF_LONG} -DSIZEOF_LONG_LONG=${SIZEOF_LONG_LONG})
-ELSE()
-  SET(MY_AES_IMPL ${CMAKE_SOURCE_DIR}/mysys_ssl/my_aes_openssl.cc)
-ENDIF()
-
-ADD_DEFINITIONS(${SSL_DEFINES})
+SET(MY_AES_IMPL ${CMAKE_SOURCE_DIR}/mysys/my_aes_openssl.cc)
 
 
 SET(lib_source_files
@@ -58,28 +48,32 @@ SET(lib_source_files
   # ${MY_AES_IMPL}
   )
 IF(WIN32)
-  LIST(APPEND lib_source_files windows/nt_servc.cc windows/main-windows.cc windows/password_vault.cc)
+  LIST(APPEND lib_source_files
+    windows/main-windows.cc
+    windows/nt_servc.cc
+    windows/password_vault.cc
+    )
 ENDIF()
 
 SET(source_files main.cc)
 
+IF(WIN32)
+  LIST(APPEND source_files
+    ../../harness/src/logging/eventlog_rc/message.rc
+    ../../harness/src/logging/eventlog_rc/MSG00001.bin)
+ENDIF()
+
 IF(NOT WIN32)
   ADD_LIBRARY(router_lib SHARED ${lib_source_files} ${common_files})
 ELSE()
-  # on Windows, we statically link the router lib to otherwise avoid exporting a bunch of symbols
+  # on Windows, we statically link the router lib to otherwise avoid
+  # exporting a bunch of symbols
   ADD_LIBRARY(router_lib STATIC ${lib_source_files})
 ENDIF()
-TARGET_LINK_LIBRARIES(router_lib ${CMAKE_DL_LIBS} harness-library ${MySQL_CLIENT_LIB} ${SSL_LIBRARIES})
-IF(WIN32)
-  TARGET_LINK_LIBRARIES(router_lib crypt32)
-ENDIF()
-TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC ../include ${MySQL_INCLUDE_DIRS})
-IF(WITH_HARNESS)
-  TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC "${PROJECT_BINARY_DIR}")
-  TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC "${PROJECT_BINARY_DIR}/include/mysql/harness")
-  TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC "${PROJECT_BINARY_DIR}/include")
-  TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC "${PROJECT_BINARY_DIR}/harness")
-ENDIF()
+TARGET_LINK_LIBRARIES(router_lib
+  ${CMAKE_DL_LIBS} harness-library perconaserverclient ${SSL_LIBRARIES}
+  )
+TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC ../include)
 
 SET_TARGET_PROPERTIES(router_lib PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
@@ -98,31 +92,39 @@ ELSE()
   )
 ENDIF()
 
+ADD_INSTALL_RPATH_FOR_OPENSSL(router_lib)
 SET_PATH_TO_SSL(router_lib ${CMAKE_BINARY_DIR}/library_output_directory)
 
-MYSQL_ADD_EXECUTABLE(${MYSQL_ROUTER_TARGET} ${source_files} COMPONENT Router)
-# add mysqlrouter to the build-all target
-ADD_DEPENDENCIES(${MYSQL_ROUTER_BUILD_ALL_TARGET}
-  ${MYSQL_ROUTER_TARGET})
+MYSQL_ADD_EXECUTABLE(mysqlrouter
+  ${source_files}
+  COMPONENT Router
+  LINK_LIBRARIES
+  harness-library
+  router_lib
+  ${CMAKE_DL_LIBS}
+  )
 
-SET_PROPERTY(TARGET ${MYSQL_ROUTER_TARGET} PROPERTY INSTALL_RPATH "${ROUTER_INSTALL_RPATH}")
+ADD_INSTALL_RPATH(mysqlrouter "${ROUTER_INSTALL_RPATH}")
 
-TARGET_LINK_LIBRARIES(${MYSQL_ROUTER_TARGET} ${CMAKE_DL_LIBS} router_lib harness-library)
-IF(WIN32)
-  TARGET_LINK_LIBRARIES(${MYSQL_ROUTER_TARGET} crypt32)
-ENDIF()
-IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
-  TARGET_LINK_LIBRARIES(${MYSQL_ROUTER_TARGET} -lnsl -lsocket)
+IF(SOLARIS)
+  TARGET_LINK_LIBRARIES(mysqlrouter -lnsl -lsocket)
 ENDIF()
 
 IF(APPLE)
-  SET_TARGET_PROPERTIES(${MYSQL_ROUTER_TARGET} PROPERTIES
+  SET_TARGET_PROPERTIES(mysqlrouter PROPERTIES
     LINK_FLAGS "-undefined dynamic_lookup")
-ELSEIF(CMAKE_COMPILER_IS_GNUCXX)
 ENDIF()
 
 INSTALL(TARGETS router_lib
-  RUNTIME DESTINATION ${ROUTER_INSTALL_BINDIR}
-  LIBRARY DESTINATION ${ROUTER_INSTALL_LIBDIR}
-  ARCHIVE DESTINATION ${ROUTER_INSTALL_LIBDIR}
-  COMPONENT Router)
+  RUNTIME DESTINATION ${ROUTER_INSTALL_BINDIR} COMPONENT Router
+  ARCHIVE DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
+  LIBRARY DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
+  NAMELINK_SKIP
+  )
+
+MYSQL_ADD_EXECUTABLE(mysqlrouter_keyring
+  keyring_cli.cc
+  keyring_frontend.cc
+  COMPONENT Router
+  LINK_LIBRARIES router_lib
+  )

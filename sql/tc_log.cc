@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
    Copyright (c) 2009, 2013, Monty Program Ab
    Copyright (C) 2012 Percona Inc.
 
@@ -29,6 +29,8 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
+
+#include <algorithm>
 
 #include "map_helpers.h"
 #include "my_alloc.h"
@@ -242,14 +244,15 @@ TC_LOG_MMAP::PAGE *TC_LOG_MMAP::get_active_from_pool() {
         best_p = p;
       }
     }
-    if (*best_p == NULL || best_free == 0) return NULL;
+    if (*best_p == nullptr || best_free == 0) return nullptr;
   }
 
   PAGE *new_active = *best_p;
   if (new_active->free == new_active->size)  // we've chosen an empty page
   {
     tc_log_cur_pages_used++;
-    set_if_bigger(tc_log_max_pages_used, tc_log_cur_pages_used);
+    tc_log_max_pages_used =
+        std::max(tc_log_max_pages_used, tc_log_cur_pages_used);
   }
 
   *best_p = (*best_p)->next;
@@ -289,13 +292,13 @@ void TC_LOG_MMAP::overflow() {
   implement the logic.
  */
 TC_LOG::enum_result TC_LOG_MMAP::commit(THD *thd, bool all) {
-  DBUG_ENTER("TC_LOG_MMAP::commit");
+  DBUG_TRACE;
   ulong cookie = 0;
   my_xid xid = thd->get_transaction()->xid_state()->get_xid()->get_my_xid();
 
   if (all && xid)
     if (!(cookie = log_xid(xid)))
-      DBUG_RETURN(RESULT_ABORTED);  // Failed to log the transaction
+      return RESULT_ABORTED;  // Failed to log the transaction
 
   /*
     Acquire a shared lock to block commits until START TRANSACTION WITH
@@ -306,12 +309,12 @@ TC_LOG::enum_result TC_LOG_MMAP::commit(THD *thd, bool all) {
   sunlock();
 
   if (rc)
-    DBUG_RETURN(RESULT_INCONSISTENT);  // Transaction logged, but not committed
+    return RESULT_INCONSISTENT;  // Transaction logged, but not committed
 
   /* If cookie is non-zero, something was logged */
   if (cookie) unlog(cookie, xid);
 
-  DBUG_RETURN(RESULT_SUCCESS);
+  return RESULT_SUCCESS;
 }
 
 int TC_LOG_MMAP::rollback(THD *thd, bool all) {
@@ -357,11 +360,11 @@ ulong TC_LOG_MMAP::log_xid(my_xid xid) {
       mysql_cond_wait(&COND_active, &LOCK_tc);
 
     /* no active page ? take one from the pool. */
-    if (active == NULL) {
+    if (active == nullptr) {
       active = get_active_from_pool();
 
       /* There are no pages with free slots? Wait and retry. */
-      if (active == NULL) {
+      if (active == nullptr) {
         overflow();
         continue;
       }
@@ -384,9 +387,9 @@ ulong TC_LOG_MMAP::log_xid(my_xid xid) {
       goto done;  // we're done
     }
   }  // page was not synced! do it now
-  DBUG_ASSERT(active == p && syncing == NULL);
+  DBUG_ASSERT(active == p && syncing == nullptr);
   syncing = p;                         // place is vacant - take it
-  active = NULL;                       // page is not active anymore
+  active = nullptr;                    // page is not active anymore
   mysql_cond_broadcast(&COND_active);  // in case somebody's waiting
   mysql_mutex_unlock(&LOCK_tc);
   err = sync();
@@ -417,7 +420,7 @@ bool TC_LOG_MMAP::sync() {
   /* Page is synced. Let's move it to the pool. */
   *pool_last_ptr = syncing;
   pool_last_ptr = &(syncing->next);
-  syncing->next = NULL;
+  syncing->next = nullptr;
   syncing->state = err ? PS_ERROR : PS_POOL;
   mysql_cond_broadcast(&COND_pool);  // in case somebody's waiting
 
@@ -425,7 +428,7 @@ bool TC_LOG_MMAP::sync() {
   mysql_cond_broadcast(&syncing->cond);
 
   /* Mark syncing slot as free and wake-up new syncer. */
-  syncing = NULL;
+  syncing = nullptr;
   if (active) mysql_cond_signal(&active->cond);
 
   mysql_mutex_unlock(&LOCK_tc);
@@ -448,7 +451,7 @@ void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid MY_ATTRIBUTE((unused))) {
   *x = 0;
   p->free++;
   DBUG_ASSERT(p->free <= p->size);
-  set_if_smaller(p->ptr, x);
+  p->ptr = std::min(p->ptr, x);
   if (p->free == p->size)  // the page is completely empty
     tc_log_cur_pages_used--;
   if (p->waiters == 0)                 // the page is in pool and ready to rock

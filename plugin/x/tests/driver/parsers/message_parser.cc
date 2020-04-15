@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -99,6 +99,11 @@ bool get_notice_payload_from_text(const Mysqlx::Notice::Frame_Type type,
   std::unique_ptr<Message> msg{parser::get_notice_message_from_text(
       type, text_payload, &error, allow_partial_messaged)};
 
+  if (nullptr == msg) {
+    // Fail when there is a payload, still we received a null message
+    return text_payload.empty();
+  }
+
   if (allow_partial_messaged)
     return msg->SerializePartialToString(out_binary_payload);
 
@@ -173,6 +178,11 @@ Message *get_client_message_from_text(
     const bool allow_partial_messaged) {
   std::string find_by = name;
   Message *message;
+
+  if (find_by.empty()) {
+    *out_error = "Message name is empty";
+    return nullptr;
+  }
 
   while (true) {
     auto msg = client_msgs_by_name.find(find_by);

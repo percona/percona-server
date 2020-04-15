@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -87,9 +87,9 @@ bool String::real_alloc(size_t length) {
 
    @retval false Either the copy operation is complete or, if the size of the
    new buffer is smaller than the currently allocated buffer (if one exists),
-   no allocation occured.
+   no allocation occurred.
 
-   @retval true An error occured when attempting to allocate memory or memory
+   @retval true An error occurred when attempting to allocate memory or memory
    allocation length exceeded allowed limit (4GB) for String Class.
 */
 bool String::mem_realloc(size_t alloc_length, bool force_on_heap) {
@@ -105,8 +105,8 @@ bool String::mem_realloc(size_t alloc_length, bool force_on_heap) {
     m_alloced_length = 0;
   }
 
-  if (m_alloced_length < len) {  // Available bytes are not enough
-  // Signal an error if len exceeds uint32 max on 64-bit word platform.
+  if (m_alloced_length < len) {  // Available bytes are not enough.
+    // Signal an error if len exceeds uint32 max on 64-bit word platform.
 #if defined(__WORDSIZE) && (__WORDSIZE == 64)
     if (len > std::numeric_limits<uint32>::max()) return true;
 #endif
@@ -141,19 +141,19 @@ inline size_t String::next_realloc_exp_size(size_t sz) {
 }
 
 /**
-  This function is used by the various append() member functions, to ensure
-  that append() has amortized constant cost. Once we have started to allocate
-  buffer on the heap, we increase the buffer size exponentially, rather
-  than linearly.
+  This function is used by the various append() and replace() member functions,
+  to ensure that functions have amortized constant cost.
+  Once we have started to allocate buffer on the heap, we increase the buffer
+  size exponentially, rather than linearly.
 
   @param alloc_length The requested string size in characters, excluding any
                       null terminator.
 
   @retval false Either the copy operation is complete or, if the size of the
   new buffer is smaller than the currently allocated buffer (if one exists),
-  no allocation occured.
+  no allocation occurred.
 
-  @retval true An error occured when attempting to allocate memory.
+  @retval true An error occurred when attempting to allocate memory.
 
   @see mem_realloc.
  */
@@ -176,15 +176,13 @@ bool String::set_int(longlong num, bool unsigned_flag, const CHARSET_INFO *cs) {
 bool String::set_real(double num, uint decimals, const CHARSET_INFO *cs) {
   char buff[FLOATING_POINT_BUFFER];
   uint dummy_errors;
-  size_t len;
 
-  m_charset = cs;
-  if (decimals >= NOT_FIXED_DEC) {
-    len = my_gcvt(num, MY_GCVT_ARG_DOUBLE, static_cast<int>(sizeof(buff)) - 1,
-                  buff, NULL);
+  if (decimals >= DECIMAL_NOT_SPECIFIED) {
+    size_t len = my_gcvt(num, MY_GCVT_ARG_DOUBLE,
+                         static_cast<int>(sizeof(buff)) - 1, buff, nullptr);
     return copy(buff, len, &my_charset_latin1, cs, &dummy_errors);
   }
-  len = my_fcvt(num, decimals, buff, NULL);
+  size_t len = my_fcvt(num, decimals, buff, nullptr);
   return copy(buff, len, &my_charset_latin1, cs, &dummy_errors);
 }
 
@@ -423,7 +421,7 @@ bool String::copy(const char *str, size_t arg_length,
 bool String::set_ascii(const char *str, size_t arg_length) {
   if (m_charset->mbminlen == 1) {
     set(str, arg_length, m_charset);
-    return 0;
+    return false;
   }
   uint dummy_errors;
   return copy(str, arg_length, &my_charset_latin1, m_charset, &dummy_errors);
@@ -440,10 +438,6 @@ bool String::fill(size_t max_length, char fill_char) {
     m_length = max_length;
   }
   return false;
-}
-
-void String::strip_sp() {
-  while (m_length && my_isspace(m_charset, m_ptr[m_length - 1])) m_length--;
 }
 
 bool String::append(const String &s) {
@@ -547,30 +541,14 @@ bool String::append(const char *s, size_t arg_length, const CHARSET_INFO *cs) {
   return false;
 }
 
-bool String::append(IO_CACHE *file, size_t arg_length) {
-  if (mem_realloc(m_length + arg_length)) return true;
-  if (my_b_read(file, reinterpret_cast<uchar *>(m_ptr) + m_length,
-                arg_length)) {
-    shrink(m_length);
-    return true;
-  }
-  m_length += arg_length;
-  return false;
-}
-
 /**
   Append a parenthesized number to String.
   Used in various pieces of SHOW related code.
 
   @param nr     Number
-  @param radix  Radix, optional parameter, 10 by default.
 */
-bool String::append_parenthesized(long nr, int radix) {
-  char buff[64], *end;
-  buff[0] = '(';
-  end = int10_to_str(nr, buff + 1, radix);
-  *end++ = ')';
-  return append(buff, (uint)(end - buff));
+bool String::append_parenthesized(int64_t nr) {
+  return append('(') || append_longlong(nr) || append(')');
 }
 
 bool String::append_with_prefill(const char *s, size_t arg_length,
@@ -679,7 +657,7 @@ bool String::replace(size_t offset, size_t arg_length, const char *to,
               m_length - offset - arg_length);
     } else {
       if (diff) {
-        if (mem_realloc(m_length + diff)) return true;
+        if (mem_realloc_exp(m_length + diff)) return true;
         memmove(m_ptr + offset + to_length, m_ptr + offset + arg_length,
                 m_length - offset - arg_length);
       }
@@ -691,10 +669,9 @@ bool String::replace(size_t offset, size_t arg_length, const char *to,
 }
 
 // added by Holyfoot for "geometry" needs
-int String::reserve(size_t space_needed, size_t grow_by) {
+bool String::reserve(size_t space_needed, size_t grow_by) {
   if (m_alloced_length < m_length + space_needed) {
-    if (mem_realloc(m_alloced_length + max(space_needed, grow_by) - 1))
-      return true;
+    return mem_realloc(m_alloced_length + max(space_needed, grow_by) - 1);
   }
   return false;
 }
@@ -711,15 +688,13 @@ void qs_append(double d, size_t len, String *str) {
 }
 
 void qs_append(int i, String *str) {
-  char *buff = &((*str)[str->length()]);
-  char *end = int10_to_str(i, buff, -10);
-  str->length(str->length() + (int)(end - buff));
+  char *end = longlong10_to_str(i, str->ptr() + str->length(), -10);
+  str->length(end - str->ptr());
 }
 
 void qs_append(uint i, String *str) {
-  char *buff = &((*str)[str->length()]);
-  char *end = int10_to_str(i, buff, 10);
-  str->length(str->length() + (int)(end - buff));
+  char *end = longlong10_to_str(i, str->ptr() + str->length(), 10);
+  str->length(end - str->ptr());
 }
 
 /*
@@ -741,8 +716,9 @@ void qs_append(uint i, String *str) {
 */
 
 int sortcmp(const String *s, const String *t, const CHARSET_INFO *cs) {
-  return cs->coll->strnncollsp(cs, (uchar *)s->ptr(), s->length(),
-                               (uchar *)t->ptr(), t->length());
+  return cs->coll->strnncollsp(
+      cs, pointer_cast<const uchar *>(s->ptr()), s->length(),
+      pointer_cast<const uchar *>(t->ptr()), t->length());
 }
 
 /*
@@ -964,7 +940,8 @@ size_t well_formed_copy_nchars(const CHARSET_INFO *to_cs, char *to,
 
     for (; nchars; nchars--) {
       const char *from_prev = from;
-      if ((cnvres = (*mb_wc)(from_cs, &wc, (uchar *)from, from_end)) > 0)
+      if ((cnvres = (*mb_wc)(from_cs, &wc, pointer_cast<const uchar *>(from),
+                             from_end)) > 0)
         from += cnvres;
       else if (cnvres == MY_CS_ILSEQ) {
         if (!*well_formed_error_pos) *well_formed_error_pos = from;
@@ -1132,9 +1109,10 @@ size_t convert_to_printable(char *to, size_t to_len, const char *from,
 
   @return   number of bytes in the output string
 */
-size_t bin_to_hex_str(char *to, size_t to_len, char *from, size_t from_len) {
+size_t bin_to_hex_str(char *to, size_t to_len, const char *from,
+                      size_t from_len) {
   char *out;
-  char *in;
+  const char *in;
   size_t i;
 
   if (to_len < ((from_len * 2) + 1)) return 0;
@@ -1203,7 +1181,7 @@ bool validate_string(const CHARSET_INFO *cs, const char *str, size_t length,
 
   while (from < from_end) {
     my_wc_t wc;
-    int cnvres = (*mb_wc)(cs, &wc, (uchar *)from, from_end);
+    int cnvres = (*mb_wc)(cs, &wc, pointer_cast<const uchar *>(from), from_end);
     if (cnvres <= 0) {
       *valid_length = from - reinterpret_cast<const uchar *>(str);
       return true;

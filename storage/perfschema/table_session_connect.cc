@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -135,7 +135,8 @@ static bool parse_length_encoded_string(const char **ptr, char *dest,
   const char *well_formed_error_pos = NULL, *cannot_convert_error_pos = NULL,
              *from_end_pos = NULL;
 
-  copy_length = data_length = net_field_length((uchar **)ptr);
+  data_length =
+      net_field_length(const_cast<uchar **>(pointer_cast<const uchar **>(ptr)));
 
   /* we don't tolerate NULL as a length */
   if (data_length == NULL_LENGTH) {

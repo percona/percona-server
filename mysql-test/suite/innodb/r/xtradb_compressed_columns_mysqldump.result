@@ -25,7 +25,7 @@ SET SQL_QUOTE_SHOW_CREATE = OFF;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE t1 (
-  id int(11) NOT NULL AUTO_INCREMENT,
+  id int NOT NULL AUTO_INCREMENT,
   a blob /*!50633 COLUMN_FORMAT COMPRESSED */,
   b blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d2 */,
   c blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d3 */,
@@ -35,7 +35,7 @@ t1	CREATE TABLE t1 (
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE t2 (
-  id int(11) NOT NULL AUTO_INCREMENT,
+  id int NOT NULL AUTO_INCREMENT,
   a blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d1 */,
   b blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d2 */,
   c blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d3 */,
@@ -46,7 +46,7 @@ SET SQL_QUOTE_SHOW_CREATE = ON;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `a` blob /*!50633 COLUMN_FORMAT COMPRESSED */,
   `b` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d2` */,
   `c` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d3` */,
@@ -56,7 +56,7 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `a` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d1` */,
   `b` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d2` */,
   `c` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d3` */,
@@ -82,11 +82,11 @@ COUNT(*) = 0
 1
 # Importing SQL dump with compressed columns enabled and dictionaries disabled
 Warnings:
-Note	49004	Compression dictionary 'd1' does not exist
+Note	7004	Compression dictionary 'd1' does not exist
 Warnings:
-Note	49004	Compression dictionary 'd2' does not exist
+Note	7004	Compression dictionary 'd2' does not exist
 Warnings:
-Note	49004	Compression dictionary 'd3' does not exist
+Note	7004	Compression dictionary 'd3' does not exist
 number_of_short_rows_in_first_match
 1
 number_of_long_rows_in_first_match
@@ -99,11 +99,11 @@ COUNT(*) = 0
 1
 # Importing SQL dump with compressed columns and dictionaries enabled
 Warnings:
-Note	49004	Compression dictionary 'd1' does not exist
+Note	7004	Compression dictionary 'd1' does not exist
 Warnings:
-Note	49004	Compression dictionary 'd2' does not exist
+Note	7004	Compression dictionary 'd2' does not exist
 Warnings:
-Note	49004	Compression dictionary 'd3' does not exist
+Note	7004	Compression dictionary 'd3' does not exist
 number_of_short_rows_in_first_match
 1
 number_of_long_rows_in_first_match

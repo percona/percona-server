@@ -27,6 +27,10 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #ifndef _TOKUDB_SYSVARS_H
 #define _TOKUDB_SYSVARS_H
 
+extern "C" {
+extern uint force_recovery;
+}
+
 namespace tokudb {
 namespace sysvars {
 

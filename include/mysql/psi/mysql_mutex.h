@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -338,6 +338,6 @@ static inline int inline_mysql_mutex_unlock(
 
 #endif /* DISABLE_MYSQL_THREAD_H */
 
-  /** @} (end of group psi_api_mutex) */
+/** @} (end of group psi_api_mutex) */
 
 #endif

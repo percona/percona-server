@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -31,34 +31,40 @@
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
+#include <cinttypes>
 #include <functional>
 #include <sstream>
 
-#include "plugin/x/ngs/include/ngs/capabilities/handler_auth_mech.h"
-#include "plugin/x/ngs/include/ngs/capabilities/handler_client_interactive.h"
-#include "plugin/x/ngs/include/ngs/capabilities/handler_readonly_value.h"
-#include "plugin/x/ngs/include/ngs/capabilities/handler_tls.h"
-#include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/server_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/session_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/ssl_context_interface.h"
+#include "my_dbug.h"  // NOLINT(build/include_subdir)
+
+#include "my_macros.h"   // NOLINT(build/include_subdir)
+#include "my_systime.h"  // my_sleep NOLINT(build/include_subdir)
+
 #include "plugin/x/ngs/include/ngs/log.h"
-#include "plugin/x/ngs/include/ngs/ngs_error.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/ngs/include/ngs/protocol_encoder.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
-#include "plugin/x/ngs/include/ngs_common/operations_factory.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/src/capabilities/capability_compression.h"
+#include "plugin/x/src/capabilities/handler_auth_mech.h"
+#include "plugin/x/src/capabilities/handler_client_interactive.h"
+#include "plugin/x/src/capabilities/handler_connection_attributes.h"
+#include "plugin/x/src/capabilities/handler_readonly_value.h"
+#include "plugin/x/src/capabilities/handler_tls.h"
+#include "plugin/x/src/interface/protocol_monitor.h"
+#include "plugin/x/src/interface/server.h"
+#include "plugin/x/src/interface/session.h"
+#include "plugin/x/src/interface/ssl_context.h"
+#include "plugin/x/src/operations_factory.h"
+#include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_global_status_variables.h"
+#include "plugin/x/src/xpl_performance_schema.h"
 
 namespace ngs {
 
-using Waiting_for_io_interface =
-    ngs::Protocol_decoder::Waiting_for_io_interface;
-
 namespace details {
 
-class No_idle_processing : public Waiting_for_io_interface {
+class No_idle_processing : public xpl::iface::Waiting_for_io {
  public:
   bool has_to_report_idle_waiting() override { return false; }
   void on_idle_or_before_read() override {}
@@ -68,21 +74,23 @@ class No_idle_processing : public Waiting_for_io_interface {
 
 }  // namespace details
 
-Client::Client(std::shared_ptr<Vio_interface> connection,
-               Server_interface &server, Client_id client_id,
-               Protocol_monitor_interface *pmon,
+Client::Client(std::shared_ptr<xpl::iface::Vio> connection,
+               xpl::iface::Server &server, Client_id client_id,
+               xpl::iface::Protocol_monitor *pmon,
                const Global_timeouts &timeouts)
     : m_client_id(client_id),
       m_server(server),
       m_connection(connection),
-      m_decoder(m_connection, pmon, m_server.get_config(),
+      m_config(std::make_shared<Protocol_config>(m_server.get_config())),
+      m_dispatcher(this),
+      m_decoder(&m_dispatcher, m_connection, pmon, m_config,
                 timeouts.wait_timeout, timeouts.read_timeout),
       m_client_addr("n/c"),
       m_client_port(0),
-      m_state(Client_invalid),
+      m_state(State::k_invalid),
       m_removed(false),
       m_protocol_monitor(pmon),
-      m_close_reason(Not_closing),
+      m_session_exit_mutex(KEY_mutex_x_client_session_exit),
       m_msg_buffer(NULL),
       m_msg_buffer_size(0),
       m_supports_expired_passwords(false) {
@@ -96,15 +104,15 @@ Client::~Client() {
   log_debug("%s: Delete client", m_id);
   if (m_connection) m_connection->shutdown();
 
-  if (m_msg_buffer) ngs::free_array(m_msg_buffer);
+  if (m_msg_buffer) free_array(m_msg_buffer);
 }
 
-ngs::chrono::time_point Client::get_accept_time() const {
+xpl::chrono::Time_point Client::get_accept_time() const {
   return m_accept_time;
 }
 
 void Client::reset_accept_time() {
-  m_accept_time = chrono::now();
+  m_accept_time = xpl::chrono::now();
   m_server.restart_client_supervision_timer();
 }
 
@@ -112,7 +120,7 @@ void Client::activate_tls() {
   log_debug("%s: enabling TLS for client", client_id());
 
   const auto connect_timeout =
-      chrono::to_seconds(m_server.get_config()->connect_timeout);
+      xpl::chrono::to_seconds(m_server.get_config()->connect_timeout);
 
   const auto real_connect_timeout =
       std::min<uint32_t>(connect_timeout, m_read_timeout);
@@ -127,40 +135,46 @@ void Client::activate_tls() {
 }
 
 void Client::on_auth_timeout() {
-  m_close_reason = Close_connect_timeout;
+  set_close_reason_if_non_fatal(Close_reason::k_connect_timeout);
 
   // XXX send an ERROR notice when it's available
   disconnect_and_trigger_close();
 }
 
-Capabilities_configurator *Client::capabilities_configurator() {
-  std::vector<Capability_handler_ptr> handlers;
+xpl::Capabilities_configurator *Client::capabilities_configurator() {
+  std::vector<xpl::Capability_handler_ptr> handlers;
 
-  handlers.push_back(ngs::allocate_shared<Capability_tls>(ngs::ref(*this)));
+  handlers.push_back(allocate_shared<xpl::Capability_tls>(std::ref(*this)));
   handlers.push_back(
-      ngs::allocate_shared<Capability_auth_mech>(ngs::ref(*this)));
-
-  handlers.push_back(
-      ngs::allocate_shared<Capability_readonly_value>("doc.formats", "text"));
+      allocate_shared<xpl::Capability_auth_mech>(std::ref(*this)));
 
   handlers.push_back(
-      ngs::allocate_shared<Capability_client_interactive>(ngs::ref(*this)));
+      allocate_shared<xpl::Capability_readonly_value>("doc.formats", "text"));
 
-  return ngs::allocate_object<Capabilities_configurator>(handlers);
+  handlers.push_back(
+      allocate_shared<xpl::Capability_client_interactive>(std::ref(*this)));
+
+  handlers.push_back(
+      ngs::allocate_shared<xpl::Capability_connection_attributes>());
+
+  handlers.push_back(ngs::allocate_shared<xpl::Capability_compression>(this));
+
+  return ngs::allocate_object<xpl::Capabilities_configurator>(handlers);
 }
 
 void Client::get_capabilities(const Mysqlx::Connection::CapabilitiesGet &) {
-  ngs::Memory_instrumented<Capabilities_configurator>::Unique_ptr configurator(
+  Memory_instrumented<xpl::Capabilities_configurator>::Unique_ptr configurator(
       capabilities_configurator());
-  ngs::Memory_instrumented<Mysqlx::Connection::Capabilities>::Unique_ptr caps(
+  Memory_instrumented<Mysqlx::Connection::Capabilities>::Unique_ptr caps(
       configurator->get());
 
-  m_encoder->send_message(Mysqlx::ServerMessages::CONN_CAPABILITIES, *caps);
+  m_encoder->send_protobuf_message(Mysqlx::ServerMessages::CONN_CAPABILITIES,
+                                   *caps);
 }
 
 void Client::set_capabilities(
     const Mysqlx::Connection::CapabilitiesSet &setcap) {
-  ngs::Memory_instrumented<Capabilities_configurator>::Unique_ptr configurator(
+  Memory_instrumented<xpl::Capabilities_configurator>::Unique_ptr configurator(
       capabilities_configurator());
   Error_code error_code = configurator->prepare_set(setcap.capabilities());
   m_encoder->send_result(error_code);
@@ -169,28 +183,54 @@ void Client::set_capabilities(
   }
 }
 
-void Client::handle_message(Message_request &request) {
+bool Client::handle_session_connect_attr_set(ngs::Message_request &command) {
+  const auto capabilities_set =
+      static_cast<const Mysqlx::Connection::CapabilitiesSet &>(
+          *command.get_message());
+  const auto capabilities = capabilities_set.capabilities();
+  // other capabilites are not allowed at this point
+  if (capabilities.capabilities_size() != 1 ||
+      capabilities.capabilities(0).name() != "session_connect_attrs") {
+    log_debug("Only session_connect_attr capability is allowed at this point");
+    m_encoder->send_result(
+        ngs::Fatal(ER_X_CAPABILITY_SET_NOT_ALLOWED,
+                   "Only session_connect_attr capability is allowed after"
+                   " Session.Reset"));
+  } else {
+    set_capabilities(capabilities_set);
+  }
+  return true;
+}
+
+void Client::handle_message(Message_request *request) {
   auto s(session());
 
   log_message_recv(request);
 
-  if (m_state != Client_accepted && s) {
-    // pass the message to the session
-    s->handle_message(request);
+  if (m_state == State::k_accepted_with_session &&
+      request->get_message_type() ==
+          Mysqlx::ClientMessages::CON_CAPABILITIES_SET) {
+    handle_session_connect_attr_set(*request);
     return;
   }
 
-  Client_state expected_state = Client_accepted;
+  if (m_state != State::k_accepted && s) {
+    // pass the message to the session
+    s->handle_message(*request);
+    return;
+  }
+
+  State expected_state = State::k_accepted;
 
   // there is no session before authentication, so we handle the messages
   // ourselves
   log_debug("%s: Client got message %i", client_id(),
-            (int)request.get_message_type());
+            static_cast<int>(request->get_message_type()));
 
-  switch (request.get_message_type()) {
+  switch (request->get_message_type()) {
     case Mysqlx::ClientMessages::CON_CLOSE:
       m_encoder->send_ok("bye!");
-      m_close_reason = Close_normal;
+      set_close_reason_if_non_fatal(Close_reason::k_normal);
       disconnect_and_trigger_close();
       break;
 
@@ -201,17 +241,17 @@ void Client::handle_message(Message_request &request) {
 
     case Mysqlx::ClientMessages::CON_CAPABILITIES_GET:
       get_capabilities(static_cast<const Mysqlx::Connection::CapabilitiesGet &>(
-          *request.get_message()));
+          *request->get_message()));
       break;
 
     case Mysqlx::ClientMessages::CON_CAPABILITIES_SET:
       set_capabilities(static_cast<const Mysqlx::Connection::CapabilitiesSet &>(
-          *request.get_message()));
+          *request->get_message()));
       break;
 
     case Mysqlx::ClientMessages::SESS_AUTHENTICATE_START:
       if (m_state.compare_exchange_strong(expected_state,
-                                          Client_authenticating_first) &&
+                                          State::k_authenticating_first) &&
           server().is_running()) {
         log_debug("%s: Authenticating client...", client_id());
 
@@ -219,7 +259,7 @@ void Client::handle_message(Message_request &request) {
         if (s) {
           // forward the message to the pre-allocated session, rest of auth will
           // be handled by the session
-          s->handle_message(request);
+          s->handle_message(*request);
         }
         break;
       }
@@ -229,18 +269,32 @@ void Client::handle_message(Message_request &request) {
       // invalid message at this time
       m_protocol_monitor->on_error_unknown_msg_type();
       log_debug("%s: Invalid message %i received during client initialization",
-                client_id(), request.get_message_type());
-      m_encoder->send_result(ngs::Fatal(ER_X_BAD_MESSAGE, "Invalid message"));
-      m_close_reason = Close_error;
+                client_id(), request->get_message_type());
+      m_encoder->send_result(Fatal(ER_X_BAD_MESSAGE, "Invalid message"));
+      set_close_reason_if_non_fatal(Close_reason::k_error);
       disconnect_and_trigger_close();
       break;
   }
 }
 
-void Client::disconnect_and_trigger_close() {
-  if (m_close_reason == Not_closing) m_close_reason = Close_normal;
+void Client::set_close_reason_if_non_fatal(const Close_reason reason) {
+  switch (m_close_reason) {
+    case Close_reason::k_normal:
+    case Close_reason::k_none:
+      m_close_reason = reason;
+      return;
 
-  shutdown_connection();
+    default:
+      return;
+  }
+}
+
+void Client::disconnect_and_trigger_close() {
+  set_close_reason_if_non_fatal(Close_reason::k_normal);
+
+  m_state = State::k_closing;
+
+  m_connection->shutdown();
 }
 
 const char *Client::client_hostname_or_address() const {
@@ -253,50 +307,70 @@ void Client::on_read_timeout() {
   Mysqlx::Notice::Warning warning;
   const bool force_flush = true;
 
-  m_close_reason = Close_read_timeout;
+  set_close_reason_if_non_fatal(Close_reason::k_read_timeout);
+
   warning.set_level(Mysqlx::Notice::Warning::ERROR);
   warning.set_code(ER_IO_READ_ERROR);
   warning.set_msg("IO Read error: read_timeout exceeded");
   std::string warning_data;
   warning.SerializeToString(&warning_data);
-  m_encoder->send_notice(Frame_type::k_warning, Frame_scope::k_global,
-                         warning_data, force_flush);
+  m_encoder->send_notice(xpl::iface::Frame_type::k_warning,
+                         xpl::iface::Frame_scope::k_global, warning_data,
+                         force_flush);
 }
 
 // this will be called on socket errors, but also when halt_and_wait() is called
 // which will shutdown the socket for reading and trigger a eof
 // (meaning, closed for reads, but writes would still be ok)
-void Client::on_network_error(int error) {
+void Client::on_network_error(const int error) {
   if (error == SOCKET_ETIMEDOUT || error == SOCKET_EAGAIN) {
-    ++xpl::Global_status_variables::instance().m_aborted_clients;
-    if (m_close_reason != Close_read_timeout)
-      m_close_reason = Close_write_timeout;
+    set_close_reason_if_non_fatal(Close_reason::k_write_timeout);
   }
-  if (error == 0)
-    log_debug("%s: peer disconnected (state %i)", client_id(), m_state.load());
-  else
-    log_debug("%s: network error %i (state %i)", client_id(), error,
-              m_state.load());
-  if (m_close_reason == Not_closing && m_state != Client_closing && error != 0)
-    m_close_reason = Close_net_error;
 
-  m_state.exchange(Client_closing);
+  log_debug("%s, %" PRIu32 ": on_network_error(error:%i)", client_id(),
+            static_cast<uint32_t>(m_state.load()), error);
+
+  if (m_state != State::k_closing && error != 0)
+    set_close_reason_if_non_fatal(Close_reason::k_net_error);
+
+  m_state.exchange(State::k_closing);
+}
+
+void Client::update_counters() {
+  switch (m_close_reason) {
+    case Close_reason::k_write_timeout:
+    case Close_reason::k_read_timeout:
+      ++xpl::Global_status_variables::instance().m_aborted_clients;
+      ++xpl::Global_status_variables::instance().m_connection_errors_count;
+      break;
+
+    case Close_reason::k_connect_timeout:
+    case Close_reason::k_net_error:
+      ++xpl::Global_status_variables::instance().m_connection_errors_count;
+      break;
+
+    default:
+      return;
+  }
 }
 
 void Client::remove_client_from_server() {
-  if (false == m_removed.exchange(true)) m_server.on_client_closed(*this);
+  if (false == m_removed.exchange(true)) {
+    update_counters();
+    m_server.on_client_closed(*this);
+  }
 }
 
 void Client::on_client_addr(const bool skip_resolve) {
   m_client_addr.resize(INET6_ADDRSTRLEN);
 
   switch (m_connection->get_type()) {
-    case Connection_tcpip: {
-      m_connection->peer_addr(m_client_addr, m_client_port);
+    case xpl::Connection_tcpip: {
+      m_connection->peer_addr(&m_client_addr, &m_client_port);
     } break;
 
-    case Connection_namedpipe:
-    case Connection_unixsocket:  // fall through
+    case xpl::Connection_namedpipe:
+    case xpl::Connection_unixsocket:  // fall through
       m_client_host = "localhost";
       return;
 
@@ -312,7 +386,7 @@ void Client::on_client_addr(const bool skip_resolve) {
   try {
     m_client_host = resolve_hostname();
   } catch (...) {
-    m_close_reason = Close_reject;
+    set_close_reason_if_non_fatal(Close_reason::k_reject);
     disconnect_and_trigger_close();
 
     throw;
@@ -320,132 +394,118 @@ void Client::on_client_addr(const bool skip_resolve) {
 }
 
 void Client::on_accept() {
+  DBUG_TRACE;
   log_debug("%s: Accepted client connection from %s", client_id(),
             client_address());
+
+  DBUG_EXECUTE_IF("client_accept_timeout", {
+    int32_t i = 0;
+    const int32_t max_iterations = 1000;
+    while (m_server.is_running() && i < max_iterations) {
+      my_sleep(10000);
+      ++i;
+    }
+  });
 
   m_connection->set_thread_owner();
 
   // it can be accessed directly (no other thread access thus object)
-  m_state = Client_accepted;
+  m_state = State::k_accepted;
 
   set_encoder(ngs::allocate_object<Protocol_encoder>(
       m_connection,
-      ngs::bind(&Client::on_network_error, this, ngs::placeholders::_1),
-      m_protocol_monitor));
+      std::bind(&Client::on_network_error, this, std::placeholders::_1),
+      m_protocol_monitor, &m_memory_block_pool));
 
   // pre-allocate the initial session
   // this is also needed for the srv_session to correctly report us to the
   // audit.log as in the Pre-authenticate state
-  ngs::shared_ptr<Session_interface> session(
-      m_server.create_session(*this, *m_encoder, 1));
-  if (!session) {
-    log_warning(ER_XPLUGIN_FAILED_TO_CREATE_SESSION_FOR_CONN, client_id(),
-                m_client_addr.c_str());
-    m_encoder->send_init_error(
-        ngs::Fatal(ER_OUT_OF_RESOURCES, "Could not allocate session"));
-  } else {
-    ngs::Error_code error(session->init());
-    if (error) {
-      log_warning(ER_XPLUGIN_FAILED_TO_INITIALIZE_SESSION, client_id(),
-                  error.message.c_str());
-      m_encoder->send_result(error);
-      session.reset();
-    } else
-      m_session = session;
-  }
-  if (!session) {
-    m_close_reason = Close_error;
+  if (!create_session()) {
+    m_close_reason = Close_reason::k_error;
     disconnect_and_trigger_close();
+
+    return;
+  }
+
+  if (xpl::Plugin_system_variables::m_enable_hello_notice)
+    m_encoder->send_notice(xpl::iface::Frame_type::k_server_hello,
+                           xpl::iface::Frame_scope::k_global, "", true);
+}
+
+void Client::on_session_auth_success(xpl::iface::Session *) {
+  log_debug("%s: on_session_auth_success", client_id());
+  // this is called from worker thread
+  State expected = State::k_authenticating_first;
+  m_state.compare_exchange_strong(expected, State::k_running);
+
+  if (Compression_algorithm::k_none != m_cached_compression_algorithm) {
+    Compression_style style = m_cached_combine_msg
+                                  ? Compression_style::k_group
+                                  : Compression_style::k_multiple;
+
+    if (m_cached_max_msg == 1) {
+      style = Compression_style::k_single;
+    }
+
+    get_protocol_compression_or_install_it()->set_compression_options(
+        m_cached_compression_algorithm, style, m_cached_max_msg);
+
+    m_config->m_compression_algorithm = m_cached_compression_algorithm;
   }
 }
 
-void Client::on_session_auth_success(Session_interface &) {
-  // this is called from worker thread
-  Client_state expected = Client_authenticating_first;
-  m_state.compare_exchange_strong(expected, Client_running);
-}
-
-void Client::on_session_close(Session_interface &s MY_ATTRIBUTE((unused))) {
-  log_debug("%s: Session %i removed", client_id(), s.session_id());
+void Client::on_session_close(xpl::iface::Session *s MY_ATTRIBUTE((unused))) {
+  log_debug("%s: Session %i removed", client_id(), s->session_id());
 
   // no more open sessions, disconnect
-  if (m_close_reason == Not_closing) m_close_reason = Close_normal;
+  disconnect_and_trigger_close();
 
-  m_state = Client_closing;
-
-  shutdown_connection();
+  if (s->state_before_close() != xpl::iface::Session::State::k_authenticating) {
+    ++xpl::Global_status_variables::instance().m_closed_sessions_count;
+  }
 
   remove_client_from_server();
 }
 
-void Client::on_session_reset(Session_interface &s MY_ATTRIBUTE((unused))) {
-  log_debug("%s: Resetting session %i", client_id(), s.session_id());
+void Client::on_session_reset(xpl::iface::Session *s MY_ATTRIBUTE((unused))) {
+  log_debug("%s: Resetting session %i", client_id(), s->session_id());
 
-  m_state = Client_accepted_with_session;
-  ngs::shared_ptr<Session_interface> session(
-      m_server.create_session(*this, *m_encoder, 1));
-  if (!session) {
-    log_warning(ER_XPLUGIN_FAILED_TO_CREATE_SESSION_FOR_CONN, client_id(),
-                m_client_addr.c_str());
-    m_encoder->send_result(
-        ngs::Fatal(ER_OUT_OF_RESOURCES, "Could not allocate new session"));
-    m_state = Client_closing;
-  } else {
-    ngs::Error_code error(session->init());
-    if (error) {
-      log_warning(ER_XPLUGIN_FAILED_TO_INITIALIZE_SESSION, client_id(),
-                  error.message.c_str());
-      m_encoder->send_result(error);
-      session.reset();
-      m_state = Client_closing;
-    } else {
-      {
-        MUTEX_LOCK(lock_session_exit, get_session_exit_mutex());
-        m_session = session;
-      }
-      m_encoder->send_ok();
-    }
+  if (!create_session()) {
+    m_state = State::k_closing;
+    return;
   }
+  m_state = State::k_accepted_with_session;
+  m_encoder->send_ok();
 }
 
 void Client::on_server_shutdown() {
-  log_debug("%s: closing client because of shutdown (state: %i)", client_id(),
-            m_state.load());
+  log_debug("%s: closing client because of shutdown (state: %" PRIu32 ")",
+            client_id(), static_cast<uint32_t>(m_state.load()));
+  std::shared_ptr<xpl::iface::Session> local_copy = m_session;
+
+  if (local_copy) local_copy->on_kill();
+
   // XXX send a server shutdown notice
   disconnect_and_trigger_close();
 }
 
-Protocol_monitor_interface &Client::get_protocol_monitor() {
+xpl::iface::Protocol_monitor &Client::get_protocol_monitor() {
   return *m_protocol_monitor;
 }
 
-void Client::set_encoder(ngs::Protocol_encoder_interface *enc) {
-  m_encoder =
-      ngs::Memory_instrumented<Protocol_encoder_interface>::Unique_ptr(enc);
+void Client::set_encoder(xpl::iface::Protocol_encoder *enc) {
+  m_encoder.reset(enc);
   m_encoder->get_flusher()->set_write_timeout(m_write_timeout);
+
+  if (m_session) m_session->set_proto(m_encoder.get());
 }
 
-void Client::get_last_error(int *out_error_code, std::string *out_message) {
-  ngs::Operations_factory operations_factory;
-  System_interface::Shared_ptr system_interface(
-      operations_factory.create_system_interface());
-
-  system_interface->get_socket_error_and_message(*out_error_code, *out_message);
-}
-
-void Client::shutdown_connection() {
-  m_state = Client_closing;
-
-  m_connection->shutdown();
-}
-
-Error_code Client::read_one_message(Message_request *out_message) {
-  const auto decode_error =
-      m_decoder.read_and_decode(out_message, get_idle_processing());
+Error_code Client::read_one_message_and_dispatch() {
+  DBUG_TRACE;
+  const auto decode_error = m_decoder.read_and_decode(get_idle_processing());
 
   if (decode_error.was_peer_disconnected()) {
     on_network_error(0);
-    out_message->reset(nullptr);
     return {};
   }
 
@@ -455,9 +515,8 @@ Error_code Client::read_one_message(Message_request *out_message) {
       on_read_timeout();
     }
 
-    if (!(io_error == EBADF && m_close_reason == Close_connect_timeout)) {
-      on_network_error(io_error);
-    }
+    if (EBADF != io_error) on_network_error(io_error);
+
     return {};
   }
 
@@ -469,21 +528,18 @@ void Client::run(const bool skip_name_resolve) {
     on_client_addr(skip_name_resolve);
     on_accept();
 
-    while (m_state != Client_closing && m_session) {
-      Message_request request;
-      Error_code error = read_one_message(&request);
+    while (m_state != State::k_closing && m_session) {
+      Error_code error = read_one_message_and_dispatch();
 
       // read could took some time, thus lets recheck the state
-      if (m_state == Client_closing) break;
+      if (m_state == State::k_closing) break;
 
       if (error) {
         // !message and !error = EOF
-        if (error) m_encoder->send_result(ngs::Fatal(error));
+        m_encoder->send_result(Fatal(error));
         disconnect_and_trigger_close();
         break;
       }
-
-      handle_message(request);
     }
   } catch (std::exception &e) {
     log_error(ER_XPLUGIN_FORCE_STOP_CLIENT, client_id(), e.what());
@@ -491,7 +547,7 @@ void Client::run(const bool skip_name_resolve) {
 
   {
     MUTEX_LOCK(lock, server().get_client_exit_mutex());
-    m_state = Client_closed;
+    m_state = State::k_closed;
 
     remove_client_from_server();
   }
@@ -510,14 +566,60 @@ void Client::set_wait_timeout(const uint32_t wait_timeout) {
   m_decoder.set_wait_timeout(wait_timeout);
 }
 
-Waiting_for_io_interface *Client::get_idle_processing() {
+xpl::iface::Waiting_for_io *Client::get_idle_processing() {
   if (nullptr == m_session) {
     static details::No_idle_processing no_idle;
 
     return &no_idle;
   }
 
-  return &m_session->get_notice_output_queue().get_callbacks_waiting_for_io();
+  return m_session->get_notice_output_queue().get_callbacks_waiting_for_io();
 }
 
+Protocol_encoder_compression *Client::get_protocol_compression_or_install_it() {
+  if (!m_is_compression_encoder_injected) {
+    m_is_compression_encoder_injected = true;
+    auto encoder = ngs::allocate_object<Protocol_encoder_compression>(
+        std::move(m_encoder), m_protocol_monitor,
+        std::bind(&Client::on_network_error, this, std::placeholders::_1),
+        &m_memory_block_pool);
+    set_encoder(encoder);
+  }
+
+  return reinterpret_cast<Protocol_encoder_compression *>(m_encoder.get());
+}
+
+void Client::configure_compression_opts(const Compression_algorithm algo,
+                                        const int64_t max_msg,
+                                        const bool combine) {
+  m_cached_compression_algorithm = algo;
+  m_cached_max_msg = max_msg;
+  m_cached_combine_msg = combine;
+}
+
+bool Client::create_session() {
+  std::shared_ptr<xpl::iface::Session> session(
+      m_server.create_session(this, m_encoder.get(), 1));
+  if (!session) {
+    log_warning(ER_XPLUGIN_FAILED_TO_CREATE_SESSION_FOR_CONN, client_id(),
+                m_client_addr.c_str());
+    m_encoder->send_result(
+        Fatal(ER_OUT_OF_RESOURCES, "Could not allocate new session"));
+    return false;
+  }
+
+  Error_code error(session->init());
+  if (error) {
+    log_warning(ER_XPLUGIN_FAILED_TO_INITIALIZE_SESSION, client_id(),
+                error.message.c_str());
+    m_encoder->send_result(error);
+    return false;
+  }
+
+  {
+    MUTEX_LOCK(lock_session_exit, get_session_exit_mutex());
+    m_session = session;
+  }
+  return true;
+}
 }  // namespace ngs

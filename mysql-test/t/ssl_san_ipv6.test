@@ -1,5 +1,3 @@
---source include/have_ssl.inc
-
 # As YaSSL does not implement 'X509_get_ext_d2i()' function and always
 # returns NULL, '--ssl-mode=VERIFY_IDENTITY' can only check commonName ('CN')
 # entry in the certificate and therefore this test won't pass.
@@ -17,6 +15,9 @@
 # Oracle Bug #68052 "SSL Certificate Subject ALT Names with IPs not respected with --ssl-verify-serve"
 #
 
+CREATE USER 'mysqltest_1'@'::1';
+CREATE USER 'mysqltest_1'@'127.0.0.1';
+
 # This is a IPV6 companion of 'main.ssl_san' MTR test case
 
 # Check if it is possible to connect to the server via SSL with
@@ -24,13 +25,15 @@
 # to another server ('CN' == 'percona-server'), it has '::1' in the
 # Subject Alternative Names (SAN) list.
 
---exec $MYSQL -h ::1 --ssl-mode=VERIFY_CA --protocol=tcp --ssl-ca=$MYSQL_TEST_DIR/std_data/percona-cacert.pem -e "SELECT '::1' AS answer"
---exec $MYSQL -h ::1 --ssl-mode=VERIFY_IDENTITY --protocol=tcp --ssl-ca=$MYSQL_TEST_DIR/std_data/percona-cacert.pem -e "SELECT '::1 (--ssl-mode=VERIFY_IDENTITY)' AS answer"
+--exec $MYSQL -u mysqltest_1 -h ::1 --ssl-mode=VERIFY_CA --protocol=tcp --ssl-ca=$MYSQL_TEST_DIR/std_data/percona-cacert.pem -e "SELECT '::1' AS answer"
+--exec $MYSQL -u mysqltest_1 -h ::1 --ssl-mode=VERIFY_IDENTITY --protocol=tcp --ssl-ca=$MYSQL_TEST_DIR/std_data/percona-cacert.pem -e "SELECT '::1 (--ssl-mode=VERIFY_IDENTITY)' AS answer"
 
---exec $MYSQL -h ::ffff:127.0.0.1 --ssl-mode=VERIFY_CA --protocol=tcp --ssl-ca=$MYSQL_TEST_DIR/std_data/percona-cacert.pem -e "SELECT '::ffff:127.0.0.1' AS answer"
+--exec $MYSQL -u mysqltest_1 -h ::ffff:127.0.0.1 --ssl-mode=VERIFY_CA --protocol=tcp --ssl-ca=$MYSQL_TEST_DIR/std_data/percona-cacert.pem -e "SELECT '::ffff:127.0.0.1' AS answer"
 # The next command is expected to fail with CR_SSL_CONNECTION_ERROR (2026) as
 # mapped IP V4 address is not in the certificate SAN list
 --error 1
---exec $MYSQL -h ::ffff:127.0.0.1 --ssl-mode=VERIFY_IDENTITY --protocol=tcp --ssl-ca=$MYSQL_TEST_DIR/std_data/percona-cacert.pem -e "SELECT '::ffff:127.0.0.1 (--ssl-mode=VERIFY_IDENTITY)' AS answer"
+--exec $MYSQL -u mysqltest_1 -h ::ffff:127.0.0.1 --ssl-mode=VERIFY_IDENTITY --protocol=tcp --ssl-ca=$MYSQL_TEST_DIR/std_data/percona-cacert.pem -e "SELECT '::ffff:127.0.0.1 (--ssl-mode=VERIFY_IDENTITY)' AS answer"
 
+DROP USER 'mysqltest_1'@'::1';
+DROP USER 'mysqltest_1'@'127.0.0.1';
 --source include/wait_until_count_sessions.inc

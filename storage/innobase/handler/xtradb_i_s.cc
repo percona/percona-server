@@ -63,7 +63,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
     STRUCT_FLD(field_name, nullptr), STRUCT_FLD(field_length, 0),      \
         STRUCT_FLD(field_type, MYSQL_TYPE_NULL), STRUCT_FLD(value, 0), \
         STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),          \
-        STRUCT_FLD(open_method, SKIP_OPEN_TABLE)                       \
+        STRUCT_FLD(open_method, 0)                                     \
   }
 
 /** Auxiliary function to store char* value in MYSQL_TYPE_STRING field.
@@ -101,14 +101,14 @@ static ST_FIELD_INFO xtradb_read_view_fields_info[] = {
      STRUCT_FLD(field_length, TRX_ID_MAX_LEN + 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define READ_VIEW_UPPER_LIMIT_ID 1
     {STRUCT_FLD(field_name, "READ_VIEW_UPPER_LIMIT_TRX_ID"),
      STRUCT_FLD(field_length, TRX_ID_MAX_LEN + 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define READ_VIEW_LOW_LIMIT_ID 2
     {STRUCT_FLD(field_name, "READ_VIEW_LOW_LIMIT_TRX_ID"),
@@ -116,7 +116,7 @@ static ST_FIELD_INFO xtradb_read_view_fields_info[] = {
      STRUCT_FLD(field_length, TRX_ID_MAX_LEN + 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     END_OF_ST_FIELD_INFO};
 

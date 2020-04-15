@@ -25,8 +25,8 @@ DELIMITER ;//
 CALL create_zip_dict(@numbers);
 CALL create_table_referencing_zip_dict();
 
-# check if corresponding records were added to 'xtradb_zip_dict' and
-# 'xtradb_zip_dict_cols' tables in 'information_schema'.
+# check if corresponding records were added to 'compression_dictionary' and
+# 'compression_dictionary_tables' tables in 'information_schema'.
 #
 SELECT dict_data = @numbers AS zip_dict_data_match FROM information_schema.compression_dictionary WHERE dict_name = 'dict';
 SELECT dict_name = 'dict' AS dict_names_match FROM information_schema.compression_dictionary_tables
@@ -49,8 +49,8 @@ DELIMITER ;//
 # call this procedure
 CALL create_zip_dict_and_table(@numbers);
 
-# check if corresponding records were added to 'xtradb_zip_dict' and
-# 'xtradb_zip_dict_cols' tables in 'information_schema' for the
+# check if corresponding records were added to 'compression_dictionary' and
+# 'compression_dictionary_tables' tables in 'information_schema' for the
 # compression dictionary and table created by 'create_zip_dict_and_table()' .
 SELECT dict_data = @numbers AS another_zip_dict_data_match FROM information_schema.compression_dictionary WHERE dict_name = 'another_dict';
 SELECT dict_name= 'another_dict' AS another_dict_names_match FROM information_schema.compression_dictionary_tables

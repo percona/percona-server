@@ -178,6 +178,14 @@ while ($i)
          DEALLOCATE PREPARE stmt;
 
          let $query=
+         SELECT * FROM t1 WHERE EXISTS 
+           (SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+            WHERE t1.i = t3.i);
+         eval EXPLAIN $query;
+         --sorted_result
+         eval $query;
+
+         let $query=
          SELECT * FROM t1 WHERE (t1.i) IN 
            (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
          eval EXPLAIN $query;
@@ -214,7 +222,7 @@ while ($i)
 
          let $query=
          SELECT * FROM t1 WHERE (11) IN 
-           (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+           (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i <> 0);
          eval EXPLAIN $query;
          --sorted_result
          eval $query;
@@ -429,16 +437,24 @@ create table t3 (a int);
 insert into t3 select A.a + 10*B.a from t0 A, t0 B;
 
 explain select * from t3 where a in (select kp1 from t1 where kp1<20);
+--sorted_result
 select * from t3 where a in (select kp1 from t1 where kp1<20);
 
 explain select * from t3 where a in (select kp1 from t1 where kp1<20) and a<20;
+--sorted_result
 select * from t3 where a in (select kp1 from t1 where kp1<20) and a<20;
 
 create table t4 (pk int primary key);
 insert into t4 select a from t3;
 
-explain select * from t3 where a in 
+explain select * from t3 where a in
           (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
+
+# In subquery_sj_loosescan_bka_nobnl (ie., with loose scan), demonstrates
+# how NestedLoopSemiJoinWithDuplicateRemovalIterator is used.
+explain format=tree select * from t3 where a in
+          (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
+--sorted_result
 select * from t3 where a in 
   (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
 
@@ -487,6 +503,7 @@ insert into t2 values (1),(2);
 create table t3 ( a int , filler char(100), key(a)); 
 insert into t3 select A.a + 10*B.a, 'filler' from t0 A, t0 B;
 explain select * from t3 where a in (select a from t2) and (a > 5 or a < 10); 
+--sorted_result
 select * from t3 where a in (select a from t2); 
 
 drop table t0, t2, t3;
@@ -1388,6 +1405,17 @@ FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a+0 AND
                          (ot1.a, ot2.a) IN (SELECT it1.a+0, it2.a+0
                                             FROM it1 JOIN it2 ON it1.a=it2.a);
 
+# In subquery_sj_dupsweed (ie., duplicate weedout active), demonstrates
+# how weedouts that intersect with outer joins are being dropped and then
+# reintroduced again at the very top of the join tree.
+#
+# In subquery_sj_{all,firstmatch}_*, demonstrates how partially overlapping
+# outer joins and first matches are rejected by the join optimizer and cannot
+# exist (DBUG_ASSERTs in FindSubstructure verify it).
+EXPLAIN FORMAT=tree SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)
+         LEFT JOIN ot3 ON ot2.a=ot3.a AND ot3.a IN (SELECT a FROM it3);
+
 --sorted_result
 SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)
@@ -1763,6 +1791,7 @@ VALUES (1,'g','g'), (2,'v','v'), (3,'t','t'), (4,'u','u'), (5,'n','n');
 EXPLAIN SELECT vkey FROM t0 WHERE pk IN
   (SELECT t1.pk FROM t0 t1 JOIN t0 t2 ON t2.vkey = t1.vnokey);
 
+--sorted_result
 SELECT vkey FROM t0 WHERE pk IN 
   (SELECT t1.pk FROM t0 t1 JOIN t0 t2 ON t2.vkey = t1.vnokey);
 
@@ -1800,7 +1829,9 @@ DELIMITER ;|
 INSERT INTO t1 VALUES (1),(2),(3);
 INSERT INTO t2 VALUES (2),(3),(4);
 
+--sorted_result
 CALL p1;
+--sorted_result
 CALL p1;
 
 DROP TABLE t1,t2;
@@ -2001,11 +2032,13 @@ CREATE TABLE t2 (
 ) charset utf8mb4;
 INSERT INTO t2 VALUES (123,NULL,NULL);
 
+--sorted_result
 SELECT int_key  
 FROM t0  
 WHERE varchar_nokey  IN (  
   SELECT t1 .varchar_key  from t1
 );
+--sorted_result
 SELECT t0.int_key  
 FROM t0
 WHERE t0.varchar_nokey  IN (  
@@ -2021,6 +2054,7 @@ WHERE t0.varchar_nokey  IN (
   FROM t1 AS t1_1  JOIN t1 AS t1_2 ON t1_1 .int_key
 );
 
+--sorted_result
 SELECT t0.int_key  
 FROM t0, t2
 WHERE t0.varchar_nokey  IN (  
@@ -2135,6 +2169,7 @@ FROM t2
 WHERE LEFT(country,1) = "A" 
 ; 
 
+--sorted_result
 SELECT city, country_id
 FROM t1
 WHERE country_id IN (
@@ -2143,6 +2178,7 @@ WHERE country_id IN (
   WHERE LEFT(country,1) = "A" 
 );
 
+--sorted_result
 SELECT city, country_id
 FROM t1
 WHERE country_id IN (
@@ -2160,6 +2196,8 @@ WHERE country_id IN (
 );
 ";
 
+
+--sorted_result
 execute stmt;
 
 deallocate prepare stmt;
@@ -2191,7 +2229,9 @@ FROM t1
 WHERE t1field IN (SELECT * FROM v2);
 ";
 
+--sorted_result
 EXECUTE stmt;
+--sorted_result
 EXECUTE stmt;
 
 PREPARE stmt FROM
@@ -2255,10 +2295,13 @@ INSERT INTO t1 VALUES (1,10),(2,11),(1,13);
 CREATE TABLE t2 AS SELECT * FROM t1;
 CREATE TABLE t3 AS SELECT * FROM t1;
 
+# not with prepared statements because of Bug#16926177
+--disable_ps_protocol
 SELECT COUNT(*) FROM t1
 GROUP BY t1.a 
 HAVING t1.a IN (SELECT t3.a FROM t3
                 WHERE t3.b IN (SELECT b FROM t2 WHERE t2.a=t1.a));
+--enable_ps_protocol
 
 DROP TABLE t1, t2, t3;
 
@@ -2421,6 +2464,7 @@ WHERE EMPNUM IN
    WHERE PNUM IN
      (SELECT PNUM  FROM proj));
 
+--sorted_result
 SELECT EMPNUM, EMPNAME
 FROM staff
 WHERE EMPNUM IN
@@ -2801,6 +2845,7 @@ insert into t2 select * from t1;
 insert into t3 select * from t1;
 create table t4 select * from t1;
 
+--sorted_result
 SELECT *
 FROM t1
 WHERE 1 IN(SELECT 1
@@ -2819,6 +2864,7 @@ WHERE 1 IN(SELECT 1
                       WHERE 1 IN(SELECT 1
                                  FROM t4)));
 
+--sorted_result
 SELECT *
 FROM t1
 WHERE 1 IN(SELECT 1
@@ -3303,21 +3349,9 @@ t1.b=t2.b);
 update t1 set a=3, b=11 where a=4;
 update t2 set b=11 where a=3;
 
-# the query just below may exhibit BUG#49129:
-create temporary table tmp select * from t0 where t0.a in 
-  (select t1.a from t1, t2 where t2.a=t0.a and t1.b=t2.b);
-# detect it and warn in result file if it's the case:
-create temporary table tmp_as_ref (a int);
-insert into tmp_as_ref values(0),(1),(2),(3); # correct desired result
-if (`select count(*) from tmp_as_ref left join tmp on tmp.a=tmp_as_ref.a
-where tmp.a is null`)
-{
-  --echo 
-  --echo # The result below is wrong due to Bug#49129
-}
-select * from tmp;
+select * from t0 where t0.a in (select t1.a from t1, t2 where t2.a=t0.a and t1.b=t2.b);
 
-drop table t0, t1, t2, tmp, tmp_as_ref;
+drop table t0, t1, t2;
 
 #
 # BUG#35767: Processing of uncorrelated subquery with semi-join cause wrong result and crash
@@ -3603,6 +3637,7 @@ eval $query;
 let $query=
 SELECT pk FROM t1 WHERE (b, c) IN (SELECT b, c FROM t2 WHERE pk > 0);
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 let $query=
@@ -3613,36 +3648,43 @@ eval $query;
 let $query=
 SELECT pk FROM t1 WHERE (b, e) IN (SELECT b, e FROM t2 WHERE pk > 0);
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 let $query=
 SELECT pk FROM t1 WHERE (b, f) IN (SELECT b, f FROM t2 WHERE pk > 0);
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 let $query=
 SELECT pk FROM t1 WHERE (b, g) IN (SELECT b, g FROM t2 WHERE pk > 0);
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 let $query=
 SELECT pk FROM t1 WHERE (b, h) IN (SELECT b, h FROM t2 WHERE pk > 0);
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 let $query=
 SELECT pk FROM t1 WHERE (b, i) IN (SELECT b, i FROM t2 WHERE pk > 0);
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 let $query=
 SELECT pk FROM t1 WHERE (b, j) IN (SELECT b, j FROM t2 WHERE pk > 0);
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 let $query=
 SELECT pk FROM t1 WHERE (b, k) IN (SELECT b, k FROM t2 WHERE pk > 0);
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1, t2;
@@ -3828,7 +3870,9 @@ WHERE country_id IN (SELECT vf_country_id FROM v1);
 ";
 
 --echo
+--sorted_result
 EXECUTE stmt;
+--sorted_result
 EXECUTE stmt;
 
 DROP TABLE t1,t2;
@@ -3994,6 +4038,7 @@ SELECT * FROM ot1,ot4
 WHERE (ot1.a,ot4.a) IN (SELECT it2.a,it3.a
                         FROM it2,it3);
 
+--sorted_result
 eval $query;
 eval explain $query;
 
@@ -4819,6 +4864,7 @@ WHERE ot1.a IN (SELECT a FROM it1) AND
       ot2.a IN (SELECT a FROM it2);
 
 eval explain $query;
+--sorted_result
 eval $query;
 
 DROP TABLE ot1, ot2, it1, it2;
@@ -4979,6 +5025,7 @@ WHERE t1a.col_int_key IN (
 );
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 ALTER TABLE t1 ENGINE=Innodb;
@@ -5403,9 +5450,12 @@ WHERE col_int_key IN (
   FROM v1 AS alias1
   WHERE alias1.col_varchar_key < 'v'
 );
+--sorted_result
 eval $query;
 eval prepare stmt FROM "$query";
+--sorted_result
 execute stmt;
+--sorted_result
 execute stmt;
 
 DEALLOCATE PREPARE stmt;
@@ -6028,6 +6078,14 @@ SELECT sq2_alias2.col_varchar_key AS sq2_field1,
 FROM t3 AS sq2_alias1 LEFT OUTER JOIN t3 AS sq2_alias2
      ON sq2_alias1.pk = sq2_alias2.col_int_key;
 
+#
+# Note that due to the UNION DISTINCT, view_inline_2 will get a unique index
+# on the temporary table it is materialized into (both parts of the query are
+# materialized straight into the same table). This enables more semijoin
+# optimizations than one would expect; in particular, we can do semijoin
+# table pullout (rewriting the IN into a simple inner join) if enabled,
+# and use unique_subquery instead of index_subquery if not.
+#
 CREATE VIEW view_inline_2 AS
 SELECT 'p', 'p' UNION SELECT 'k', 's';
 
@@ -6352,6 +6410,7 @@ WHERE (col_varchar_nokey, col_varchar_nokey) IN
    );
 
 eval explain format=json $query;
+--sorted_result
 eval $query;
 
 SET @@optimizer_switch= @optimizer_switch_saved;
@@ -6388,6 +6447,7 @@ WHERE (col_int_nokey, col_int_nokey) IN
    );
 
 eval explain format=json $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1, t2;
@@ -6924,6 +6984,11 @@ ORDER BY col_int_key
 
 eval explain $query;
 
+# In subquery_sj_loosescan_bka_nobnl (ie., with loose scan), shows a case
+# where we can't use NestedLoopSemiJoinWithDuplicateRemovalIterator since we
+# have a table that is both firstmatch (semijoin) _and_ outer join.
+eval explain format=tree $query;
+
 eval $query;
 
 DROP TABLE t1, t2, t3, t4;
@@ -7173,3 +7238,16 @@ SELECT c FROM t WHERE 1 IN
 (SELECT t.c = page_size FROM information_schema.innodb_cmpmem);
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug #29132639: WL#12470: SIG 6 IN CONNECTJOINS|SQL/SQL_EXECUTOR.C
+--echo #
+
+CREATE TABLE t1 ( f1 TIME, f2 VARCHAR(1) );
+INSERT INTO t1 VALUES ('08:35:24', 'X'), ('14:51:13', 'S'), ('11:22:33', 'Q');
+CREATE TABLE t2 ( pk INTEGER );
+INSERT INTO t2 VALUES (1), (2);
+ANALYZE TABLE t1, t2;
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
+SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
+DROP TABLE t1, t2;

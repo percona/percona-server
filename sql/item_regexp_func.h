@@ -1,7 +1,7 @@
 #ifndef SQL_ITEM_REGEXP_FUNC_H_
 #define SQL_ITEM_REGEXP_FUNC_H_
 
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,7 +76,8 @@
 */
 class Item_func_regexp : public Item_func {
  public:
-  Item_func_regexp(const POS &pos, PT_item_list *args) : Item_func(pos, args) {}
+  Item_func_regexp(const POS &pos, PT_item_list *opt_list)
+      : Item_func(pos, opt_list) {}
 
   /**
     Resolves the collation to use for comparison. The type resolution is done
@@ -179,11 +180,11 @@ class Item_func_regexp : public Item_func {
   double convert_str_to_real() {
     DBUG_ASSERT(fixed == 1);
     int err_not_used;
-    char *end_not_used;
+    const char *end_not_used;
     String *res = val_str(&str_value);
     if (res == nullptr) return 0.0;
-    return my_strntod(res->charset(), const_cast<char *>(res->ptr()),
-                      res->length(), &end_not_used, &err_not_used);
+    return my_strntod(res->charset(), res->ptr(), res->length(), &end_not_used,
+                      &err_not_used);
   }
 
   longlong convert_str_to_int() {
@@ -213,20 +214,12 @@ class Item_func_regexp : public Item_func {
   bool set_pattern();
 
   unique_ptr_destroy_only<regexp::Regexp_facade> m_facade;
-
- private:
-  /**
-    The collation that is supposed to be used if you were to compare the
-    pattern and the subject strings. We use this only for figuring out whether
-    regular expression matching should be case-sensitive or not.
-  */
-  DTCollation m_cmp_collation;
 };
 
 class Item_func_regexp_instr : public Item_func_regexp {
  public:
-  Item_func_regexp_instr(const POS &pos, PT_item_list *args)
-      : Item_func_regexp(pos, args) {
+  Item_func_regexp_instr(const POS &pos, PT_item_list *opt_list)
+      : Item_func_regexp(pos, opt_list) {
     set_data_type_longlong();
   }
 
@@ -279,8 +272,8 @@ class Item_func_regexp_instr : public Item_func_regexp {
 
 class Item_func_regexp_like : public Item_func_regexp {
  public:
-  Item_func_regexp_like(const POS &pos, PT_item_list *args)
-      : Item_func_regexp(pos, args) {
+  Item_func_regexp_like(const POS &pos, PT_item_list *opt_list)
+      : Item_func_regexp(pos, opt_list) {
     set_data_type_bool();
   }
 
@@ -318,8 +311,8 @@ class Item_func_regexp_like : public Item_func_regexp {
 
 class Item_func_regexp_replace : public Item_func_regexp {
  public:
-  Item_func_regexp_replace(const POS &pos, PT_item_list *args)
-      : Item_func_regexp(pos, args) {
+  Item_func_regexp_replace(const POS &pos, PT_item_list *opt_list)
+      : Item_func_regexp(pos, opt_list) {
     set_data_type_string_init();
   }
 
@@ -359,8 +352,8 @@ class Item_func_regexp_replace : public Item_func_regexp {
 
 class Item_func_regexp_substr : public Item_func_regexp {
  public:
-  Item_func_regexp_substr(const POS &pos, PT_item_list *args)
-      : Item_func_regexp(pos, args) {
+  Item_func_regexp_substr(const POS &pos, PT_item_list *opt_list)
+      : Item_func_regexp(pos, opt_list) {
     set_data_type_string_init();
   }
 

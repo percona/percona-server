@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -20,9 +20,11 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-delimiter ||;
+delimiter ;
 
-use mtr||
+use mtr;
+
+DELIMITER $$
 
 CREATE DEFINER=root@localhost PROCEDURE check_testcase_perfschema()
 BEGIN
@@ -61,12 +63,11 @@ BEGIN
       ORDER BY UDF_NAME;
   END;
   END IF;
-END||
+END$$
 
---
 -- Procedure used to check if server has been properly
 -- restored after testcase has been run
---
+
 CREATE DEFINER=root@localhost PROCEDURE check_testcase()
 BEGIN
 
@@ -125,7 +126,8 @@ BEGIN
          ACTION_REFERENCE_OLD_ROW, ACTION_REFERENCE_NEW_ROW, SQL_MODE, DEFINER CHARACTER_SET_CLIENT,
          COLLATION_CONNECTION, DATABASE_COLLATION
     FROM INFORMATION_SCHEMA.TRIGGERS
-      WHERE TRIGGER_NAME NOT IN ('gs_insert', 'ts_insert');
+      WHERE TRIGGER_NAME NOT IN ('gs_insert', 'ts_insert')
+      ORDER BY TRIGGER_CATALOG, TRIGGER_SCHEMA, TRIGGER_NAME;
   -- Dump all created procedures, only those in the sys schema should exist
   -- do not select the CREATED or LAST_ALTERED columns however, as tests like mysqldump.test / mysql_ugprade.test update this
   SELECT SPECIFIC_NAME,ROUTINE_CATALOG,ROUTINE_SCHEMA,ROUTINE_NAME,ROUTINE_TYPE,DATA_TYPE,CHARACTER_MAXIMUM_LENGTH,
@@ -141,31 +143,23 @@ BEGIN
   -- INSTALL/UNINSTALL command
   SELECT * FROM INFORMATION_SCHEMA.PLUGINS;
 
-  -- Percona disabled until zip dictionary reimplementation in the new DD
-  -- -- Dump all created compression dictionaries
-  -- SELECT * FROM information_schema.xtradb_zip_dict ORDER BY name;
+  -- Dump all created compression dictionaries
+  SELECT * FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY ORDER BY DICT_NAME;
 
   SHOW GLOBAL STATUS LIKE 'slave_open_temp_tables';
 
   -- Check for number of active connections before & after the test run.
-  -- It is observed that several rpl tests fails due to mismatch in Threads
-  -- count when we use SHOW GLOBAL STATUS LIKE 'Threads_Connected':
-  --  Variable_name Value
-  -- -Threads_connected    1
-  -- +Threads_connected    2
-  -- This is due to the default value of MASTER_HEARTBEAT_PERIOD which is equal
-  -- to slave_net_timeout/2 = 60secs.
-  -- Due to this, even after the slave is stopped, the master will not close
-  -- the client session until MASTER_HEARTBEAT_PERIOD is reached.
-  -- Hence, excluding the 'Binlog Dump' thread.
 
   -- mysql.session is used internally by plugins to access the server. We may
   -- not find consistent result in information_schema.processlist, hence
   -- excluding it from check-testcase. Similar reasoning applies to the event
   -- scheduler.
+  --
+  -- For "unauthenticated user", see Bug#30035699 "UNAUTHENTICATED USER" SHOWS UP IN CHECK-TESTCASE
+  --
   SELECT USER, HOST, DB, COMMAND, INFO FROM INFORMATION_SCHEMA.PROCESSLIST
-    WHERE COMMAND NOT IN ('Binlog Dump','Binlog Dump GTID','Sleep')
-      AND USER NOT IN ('mysql.session', 'event_scheduler')
+    WHERE COMMAND NOT IN ('Sleep')
+      AND USER NOT IN ('unauthenticated user','mysql.session', 'event_scheduler')
         ORDER BY COMMAND;
 
   -- Checksum system tables to make sure they have been properly
@@ -198,14 +192,15 @@ BEGIN
     mysql.time_zone_transition_type,
     mysql.user;
 
-END||
+END$$
 
---
 -- Procedure used by test case used to force all
 -- servers to restart after testcase and thus skipping
 -- check test case after test
---
 CREATE DEFINER=root@localhost PROCEDURE force_restart()
 BEGIN
   SELECT 1 INTO OUTFILE 'force_restart';
-END||
+END$$
+
+DELIMITER ;
+

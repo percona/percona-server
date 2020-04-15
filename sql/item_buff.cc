@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,6 @@
 #include <stddef.h>
 #include <algorithm>
 
-#include "binary_log_types.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -56,16 +55,16 @@ Cached_item *new_Cached_item(THD *thd, Item *item) {
   switch (item->result_type()) {
     case STRING_RESULT:
       if (item->is_temporal())
-        return new (*THR_MALLOC) Cached_item_temporal(item);
+        return new (thd->mem_root) Cached_item_temporal(item);
       if (item->data_type() == MYSQL_TYPE_JSON)
-        return new (*THR_MALLOC) Cached_item_json(item);
-      return new (*THR_MALLOC) Cached_item_str(thd, item);
+        return new (thd->mem_root) Cached_item_json(item);
+      return new (thd->mem_root) Cached_item_str(thd, item);
     case INT_RESULT:
-      return new (*THR_MALLOC) Cached_item_int(item);
+      return new (thd->mem_root) Cached_item_int(item);
     case REAL_RESULT:
-      return new (*THR_MALLOC) Cached_item_real(item);
+      return new (thd->mem_root) Cached_item_real(item);
     case DECIMAL_RESULT:
-      return new (*THR_MALLOC) Cached_item_decimal(item);
+      return new (thd->mem_root) Cached_item_decimal(item);
     case ROW_RESULT:
     default:
       DBUG_ASSERT(0);
@@ -92,7 +91,7 @@ bool Cached_item_str::cmp(void) {
   String *res;
   bool tmp;
 
-  DBUG_ENTER("Cached_item_str::cmp");
+  DBUG_TRACE;
   DBUG_ASSERT(!item->is_temporal());
   DBUG_ASSERT(item->data_type() != MYSQL_TYPE_JSON);
   if ((res = item->val_str(&tmp_value)))
@@ -100,23 +99,22 @@ bool Cached_item_str::cmp(void) {
   DBUG_PRINT("info", ("old: %s, new: %s", value.c_ptr_safe(),
                       res ? res->c_ptr_safe() : ""));
   if (null_value != item->null_value) {
-    if ((null_value = item->null_value))
-      DBUG_RETURN(true);  // New value was null
+    if ((null_value = item->null_value)) return true;  // New value was null
     tmp = true;
   } else if (null_value)
-    DBUG_RETURN(0);  // new and old value was null
+    return false;  // new and old value was null
   else
     tmp = sortcmp(&value, res, item->collation.collation) != 0;
   if (tmp) value.copy(*res);  // Remember for next cmp
-  DBUG_RETURN(tmp);
+  return tmp;
 }
 
 Cached_item_str::~Cached_item_str() {
   item = 0;  // Safety
 }
 
-Cached_item_json::Cached_item_json(Item *item)
-    : Cached_item(item), m_value(new (*THR_MALLOC) Json_wrapper()) {}
+Cached_item_json::Cached_item_json(Item *item_arg)
+    : Cached_item(item_arg), m_value(new (*THR_MALLOC) Json_wrapper()) {}
 
 Cached_item_json::~Cached_item_json() { destroy(m_value); }
 
@@ -162,19 +160,19 @@ void Cached_item_json::copy_to_Item_cache(Item_cache *i_c) {
 }
 
 bool Cached_item_real::cmp(void) {
-  DBUG_ENTER("Cached_item_real::cmp");
+  DBUG_TRACE;
   double nr = item->val_real();
   DBUG_PRINT("info", ("old: %f, new: %f", value, nr));
   if (null_value != item->null_value || nr != value) {
     null_value = item->null_value;
     value = nr;
-    DBUG_RETURN(true);
+    return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Cached_item_int::cmp(void) {
-  DBUG_ENTER("Cached_item_int::cmp");
+  DBUG_TRACE;
   longlong nr = item->val_int();
   DBUG_PRINT("info", ("old: 0x%.16llx, new: 0x%.16llx", (ulonglong)value,
                       (ulonglong)nr));
@@ -182,21 +180,21 @@ bool Cached_item_int::cmp(void) {
   if (null_value != item->null_value || nr != value) {
     null_value = item->null_value;
     value = nr;
-    DBUG_RETURN(true);
+    return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Cached_item_temporal::cmp(void) {
-  DBUG_ENTER("Cached_item_temporal::cmp");
+  DBUG_TRACE;
   longlong nr = item->val_temporal_by_field_type();
   DBUG_PRINT("info", ("old: %lld, new: %lld", value, nr));
   if (null_value != item->null_value || nr != value) {
     null_value = item->null_value;
     value = nr;
-    DBUG_RETURN(true);
+    return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 Cached_item_decimal::Cached_item_decimal(Item *it) : Cached_item(it) {
@@ -226,7 +224,7 @@ void Cached_item_decimal::copy_to_Item_cache(Item_cache *i_c) {
 bool Cached_item_decimal::cmp() {
   my_decimal tmp;
   my_decimal *ptmp = item->val_decimal(&tmp);
-  DBUG_ENTER("Cached_item_decimal::cmp");
+  DBUG_TRACE;
   /*
     NULL handling is wrong here, see Bug#25407964 GROUP BY DESC GIVES WRONG
     RESULT WHEN GROUPS ON DECIMAL AND SEES A NULL.
@@ -236,7 +234,7 @@ bool Cached_item_decimal::cmp() {
     null_value = item->null_value;
     /* Save only not null values */
     if (!null_value) my_decimal2decimal(ptmp, &value);
-    DBUG_RETURN(true);
+    return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -116,7 +116,10 @@ static uint get_collation_number_internal(const char *name) {
   my_casedn_str(&my_charset_latin1, lower_case_name);
 
   DBUG_ASSERT(coll_name_num_map != nullptr);
-  return (*coll_name_num_map)[lower_case_name];
+  auto name_num_map_it = coll_name_num_map->find(lower_case_name);
+  if (name_num_map_it != coll_name_num_map->end())
+    return name_num_map_it->second;
+  return 0;
 }
 
 static void simple_cs_init_functions(CHARSET_INFO *cs) {
@@ -128,53 +131,62 @@ static void simple_cs_init_functions(CHARSET_INFO *cs) {
   cs->cset = &my_charset_8bit_handler;
 }
 
-static int cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from) {
+static bool cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from) {
   to->number = from->number ? from->number : to->number;
 
-  if (from->csname)
-    if (!(to->csname = my_once_strdup(from->csname, MYF(MY_WME)))) goto err;
+  if (from->csname) {
+    to->csname = my_once_strdup(from->csname, MYF(MY_WME));
+    if (to->csname == nullptr) return true;
+  }
 
-  if (from->name)
-    if (!(to->name = my_once_strdup(from->name, MYF(MY_WME)))) goto err;
+  if (from->name) {
+    to->name = my_once_strdup(from->name, MYF(MY_WME));
+    if (to->name == nullptr) return true;
+  }
 
-  if (from->comment)
-    if (!(to->comment = my_once_strdup(from->comment, MYF(MY_WME)))) goto err;
+  if (from->comment) {
+    to->comment = my_once_strdup(from->comment, MYF(MY_WME));
+    if (to->comment == nullptr) return true;
+  }
 
   if (from->ctype) {
-    if (!(to->ctype = (uchar *)my_once_memdup(
-              (char *)from->ctype, MY_CS_CTYPE_TABLE_SIZE, MYF(MY_WME))))
-      goto err;
-    if (init_state_maps(to)) goto err;
+    to->ctype = static_cast<uchar *>(
+        my_once_memdup(from->ctype, MY_CS_CTYPE_TABLE_SIZE, MYF(MY_WME)));
+    if (to->ctype == nullptr) return true;
+    if (init_state_maps(to)) return true;
   }
-  if (from->to_lower)
-    if (!(to->to_lower = (uchar *)my_once_memdup(
-              (char *)from->to_lower, MY_CS_TO_LOWER_TABLE_SIZE, MYF(MY_WME))))
-      goto err;
 
-  if (from->to_upper)
-    if (!(to->to_upper = (uchar *)my_once_memdup(
-              (char *)from->to_upper, MY_CS_TO_UPPER_TABLE_SIZE, MYF(MY_WME))))
-      goto err;
+  if (from->to_lower) {
+    to->to_lower = static_cast<uchar *>(
+        my_once_memdup(from->to_lower, MY_CS_TO_LOWER_TABLE_SIZE, MYF(MY_WME)));
+    if (to->to_lower == nullptr) return true;
+  }
+
+  if (from->to_upper) {
+    to->to_upper = static_cast<uchar *>(
+        my_once_memdup(from->to_upper, MY_CS_TO_UPPER_TABLE_SIZE, MYF(MY_WME)));
+    if (to->to_upper == nullptr) return true;
+  }
+
   if (from->sort_order) {
-    if (!(to->sort_order = (uchar *)my_once_memdup((char *)from->sort_order,
-                                                   MY_CS_SORT_ORDER_TABLE_SIZE,
-                                                   MYF(MY_WME))))
-      goto err;
+    to->sort_order = static_cast<uchar *>(my_once_memdup(
+        from->sort_order, MY_CS_SORT_ORDER_TABLE_SIZE, MYF(MY_WME)));
+    if (to->sort_order == nullptr) return true;
   }
+
   if (from->tab_to_uni) {
-    uint sz = MY_CS_TO_UNI_TABLE_SIZE * sizeof(uint16);
-    if (!(to->tab_to_uni = (uint16 *)my_once_memdup((char *)from->tab_to_uni,
-                                                    sz, MYF(MY_WME))))
-      goto err;
+    size_t sz = MY_CS_TO_UNI_TABLE_SIZE * sizeof(uint16);
+    to->tab_to_uni = static_cast<uint16 *>(
+        my_once_memdup(from->tab_to_uni, sz, MYF(MY_WME)));
+    if (to->tab_to_uni == nullptr) return true;
   }
-  if (from->tailoring)
-    if (!(to->tailoring = my_once_strdup(from->tailoring, MYF(MY_WME))))
-      goto err;
 
-  return 0;
+  if (from->tailoring) {
+    to->tailoring = my_once_strdup(from->tailoring, MYF(MY_WME));
+    if (to->tailoring == nullptr) return true;
+  }
 
-err:
-  return 1;
+  return false;
 }
 
 static bool simple_cs_is_full(CHARSET_INFO *cs) {
@@ -393,7 +405,7 @@ error:
 char *get_charsets_dir(char *buf) {
   const char *sharedir = SHAREDIR;
   char *res;
-  DBUG_ENTER("get_charsets_dir");
+  DBUG_TRACE;
 
   if (charsets_dir != NULL)
     strmake(buf, charsets_dir, FN_REFLEN - 1);
@@ -407,7 +419,7 @@ char *get_charsets_dir(char *buf) {
   }
   res = convert_dirname(buf, buf, NullS);
   DBUG_PRINT("info", ("charsets dir: '%s'", buf));
-  DBUG_RETURN(res);
+  return res;
 }
 
 CHARSET_INFO *all_charsets[MY_ALL_CHARSETS_SIZE] = {NULL};
@@ -529,14 +541,13 @@ const char *get_charset_name(uint charset_number) {
   if (charset_number < array_elements(all_charsets)) {
     CHARSET_INFO *cs = all_charsets[charset_number];
 
-    if (cs && (cs->number == charset_number) && cs->name)
-      return (char *)cs->name;
+    if (cs && (cs->number == charset_number) && cs->name) return cs->name;
   }
 
   return "?"; /* this mimics find_type() */
 }
 
-static CHARSET_INFO *get_internal_charset(MY_CHARSET_LOADER *loader,
+static CHARSET_INFO *get_internal_charset(MY_CHARSET_LOADER *loader_arg,
                                           uint cs_number, myf flags) {
   char buf[FN_REFLEN];
   CHARSET_INFO *cs;
@@ -564,8 +575,8 @@ static CHARSET_INFO *get_internal_charset(MY_CHARSET_LOADER *loader,
 
     if (cs->state & MY_CS_AVAILABLE) {
       if (!(cs->state & MY_CS_READY)) {
-        if ((cs->cset->init && cs->cset->init(cs, loader)) ||
-            (cs->coll->init && cs->coll->init(cs, loader))) {
+        if ((cs->cset->init && cs->cset->init(cs, loader_arg)) ||
+            (cs->coll->init && cs->coll->init(cs, loader_arg))) {
           cs = NULL;
         } else
           cs->state |= MY_CS_READY;
@@ -595,7 +606,7 @@ CHARSET_INFO *get_charset(uint cs_number, myf flags) {
     char index_file[FN_REFLEN + sizeof(MY_CHARSET_INDEX)], cs_string[23];
     my_stpcpy(get_charsets_dir(index_file), MY_CHARSET_INDEX);
     cs_string[0] = '#';
-    int10_to_str(cs_number, cs_string + 1, 10);
+    longlong10_to_str(cs_number, cs_string + 1, 10);
     my_error(EE_UNKNOWN_CHARSET, MYF(0), cs_string, index_file);
   }
   return cs;
@@ -648,7 +659,7 @@ CHARSET_INFO *my_charset_get_by_name(MY_CHARSET_LOADER *loader,
                                      myf flags) {
   uint cs_number;
   CHARSET_INFO *cs;
-  DBUG_ENTER("get_charset_by_csname");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("name: '%s'", cs_name));
 
   std::call_once(charsets_initialized, init_available_charsets);
@@ -662,7 +673,7 @@ CHARSET_INFO *my_charset_get_by_name(MY_CHARSET_LOADER *loader,
     my_error(EE_UNKNOWN_CHARSET, MYF(0), cs_name, index_file);
   }
 
-  DBUG_RETURN(cs);
+  return cs;
 }
 
 CHARSET_INFO *get_charset_by_csname(const char *cs_name, uint cs_flags,
@@ -935,4 +946,6 @@ void charset_uninit() {
   cs_name_pri_num_map = nullptr;
   delete cs_name_bin_num_map;
   cs_name_bin_num_map = nullptr;
+
+  new (&charsets_initialized) std::once_flag;
 }

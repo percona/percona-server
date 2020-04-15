@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -236,10 +236,11 @@ int Sasl_client::sasl_start(char **client_output, int *client_output_length) {
     log_error("Sasl_client::SaslStart: sasl connection is null");
     return rc_sasl;
   }
+  void *sasl_client_output_p = &sasl_client_output;
   do {
     rc_sasl =
         sasl_client_start(m_connection, m_mechanism, &interactions,
-                          (const char **)&sasl_client_output,
+                          static_cast<const char **>(sasl_client_output_p),
                           (unsigned int *)client_output_length, &mechanism);
     if (rc_sasl == SASL_INTERACT) interact(interactions);
   } while (rc_sasl == SASL_INTERACT);
@@ -267,9 +268,11 @@ int Sasl_client::sasl_step(char *server_in, int server_in_length,
   if (m_connection == NULL) {
     return rc_sasl;
   }
+  void *client_out_p = client_out;
   do {
     rc_sasl = sasl_client_step(m_connection, server_in, server_in_length,
-                               &interactions, (const char **)client_out,
+                               &interactions,
+                               static_cast<const char **>(client_out_p),
                                (unsigned int *)client_out_length);
     if (rc_sasl == SASL_INTERACT) Sasl_client::interact(interactions);
   } while (rc_sasl == SASL_INTERACT);
@@ -282,6 +285,13 @@ void Sasl_client::set_user_info(std::string name, std::string pwd) {
   strncpy(m_user_pwd, pwd.c_str(), sizeof(m_user_pwd) - 1);
   m_user_pwd[sizeof(m_user_pwd) - 1] = '\0';
 }
+
+#ifdef __clang__
+// Clang UBSAN false positive?
+// Call to function through pointer to incorrect function type
+static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio,
+                             MYSQL *mysql) SUPPRESS_UBSAN;
+#endif  // __clang__
 
 static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   int rc_sasl = SASL_FAIL;
@@ -360,4 +370,4 @@ EXIT:
 mysql_declare_client_plugin(AUTHENTICATION) "authentication_ldap_sasl_client",
     "Yashwant Sahu", "LDAP SASL Client Authentication Plugin", {0, 1, 0},
     "PROPRIETARY", NULL, NULL, NULL, NULL,
-    sasl_authenticate mysql_end_client_plugin;
+    sasl_authenticate, NULL mysql_end_client_plugin;

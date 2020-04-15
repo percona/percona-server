@@ -23,5 +23,6 @@
 
 .. |mysql.last-version| replace:: MySQL 8.0
 .. |version.next| replace:: 9.0
+.. |changed-version| replace:: 8.0.15-5
 .. |version.prev| replace:: 5.7
 .. |version.previous| replace:: 5.7

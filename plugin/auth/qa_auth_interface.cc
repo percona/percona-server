@@ -1,4 +1,4 @@
-/*  Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -78,7 +78,7 @@ static int qa_auth_interface(MYSQL_PLUGIN_VIO *vio,
     strcpy(info->user_name, "user_name");
     info->user_name_length = 9;
     /* Overwriting not intended, effect not visible */
-    strcpy((char *)info->auth_string, "auth_string");
+    strcpy(const_cast<char *>(info->auth_string), "auth_string");
     info->auth_string_length = 11;
     /* Assign with account for authorization, effect on CURRENT_USER() */
     strcpy(info->authenticated_as, "authenticated_as");
@@ -95,7 +95,7 @@ static int qa_auth_interface(MYSQL_PLUGIN_VIO *vio,
     /* Original value is 14. Test runs also with higher value. Changes have no
      * effect.*/
     info->user_name_length = 28;
-    strcpy((char *)info->auth_string, "qa_test_3_dest");
+    strcpy(const_cast<char *>(info->auth_string), "qa_test_3_dest");
     /* Original value is 14. Test runs also with higher value. Changes have no
      * effect.*/
     info->auth_string_length = 28;
@@ -107,7 +107,7 @@ static int qa_auth_interface(MYSQL_PLUGIN_VIO *vio,
     /* Original value is 14. Test runs also with lower value. Changes have no
      * effect.*/
     info->user_name_length = 8;
-    strcpy((char *)info->auth_string, "qa_test_4_dest");
+    strcpy(const_cast<char *>(info->auth_string), "qa_test_4_dest");
     /* Original value is 14. Test runs also with lower value. Changes have no
      * effect.*/
     info->auth_string_length = 8;
@@ -120,7 +120,7 @@ static int qa_auth_interface(MYSQL_PLUGIN_VIO *vio,
     strcpy(info->user_name, "");
     info->user_name_length = 0;
     /* This assignment has no effect.*/
-    strcpy((char *)info->auth_string, "");
+    strcpy(const_cast<char *>(info->auth_string), "");
     info->auth_string_length = 0;
     /* This assignment caused an error or an "empty" user */
     strcpy(info->authenticated_as, "");
@@ -202,6 +202,13 @@ mysql_declare_plugin(test_plugin){
 
 #include "my_compiler.h"
 
+#ifdef __clang__
+// Clang UBSAN false positive?
+// Call to function through pointer to incorrect function type
+static int test_plugin_client(MYSQL_PLUGIN_VIO *vio,
+                              MYSQL *mysql) SUPPRESS_UBSAN;
+#endif  // __clang__
+
 /**
   The main function of the test plugin.
 
@@ -271,4 +278,5 @@ static int test_plugin_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 
 mysql_declare_client_plugin(AUTHENTICATION) "qa_auth_interface", "Horst Hunger",
     "Dialog Client Authentication Plugin", {0, 1, 0},
-    "GPL", NULL, NULL, NULL, NULL, test_plugin_client mysql_end_client_plugin;
+    "GPL", NULL, NULL, NULL, NULL,
+    test_plugin_client, NULL mysql_end_client_plugin;

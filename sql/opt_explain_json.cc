@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,42 +58,38 @@ class SELECT_LEX_UNIT;
   This array must be in sync with Extra_tag enum.
 */
 static const char *json_extra_tags[ET_total] = {
-    NULL,                             // ET_none
-    "using_temporary_table",          // ET_USING_TEMPORARY
-    "using_filesort",                 // ET_USING_FILESORT
-    "index_condition",                // ET_USING_INDEX_CONDITION
-    NULL,                             // ET_USING
-    "range_checked_for_each_record",  // ET_RANGE_CHECKED_FOR_EACH_RECORD
-    "pushed_condition",               // ET_USING_WHERE_WITH_PUSHED_CONDITION
-    "using_where",                    // ET_USING_WHERE
-    "not_exists",                     // ET_NOT_EXISTS
-    "using_MRR",                      // ET_USING_MRR
-    "using_index",                    // ET_USING_INDEX
-    "full_scan_on_NULL_key",          // ET_FULL_SCAN_ON_NULL_KEY
-    "skip_open_table",                // ET_SKIP_OPEN_TABLE
-    "open_frm_only",                  // ET_OPEN_FRM_ONLY
-    "open_full_table",                // ET_OPEN_FULL_TABLE
-    "scanned_databases",              // ET_SCANNED_DATABASES
-    "using_index_for_group_by",       // ET_USING_INDEX_FOR_GROUP_BY
-    "using_index_for_skip_scan",      // ET_USING_INDEX_FOR_SKIP_SCAN
-    "distinct",                       // ET_DISTINCT
-    "loosescan",                      // ET_LOOSESCAN
-    NULL,                             // ET_START_TEMPORARY
-    NULL,                             // ET_END_TEMPORARY
-    "first_match",                    // ET_FIRST_MATCH
-    NULL,                             // ET_MATERIALIZE
-    NULL,                             // ET_START_MATERIALIZE
-    NULL,                             // ET_END_MATERIALIZE
-    NULL,                             // ET_SCAN
-    "using_join_buffer",              // ET_USING_JOIN_BUFFER
-    "const_row_not_found",            // ET_CONST_ROW_NOT_FOUND
-    "unique_row_not_found",           // ET_UNIQUE_ROW_NOT_FOUND
-    "impossible_on_condition",        // ET_IMPOSSIBLE_ON_CONDITION
-    "pushed_join",                    // ET_PUSHED_JOIN
-    "ft_hints",                       // ET_FT_HINTS
-    "backward_index_scan",            // ET_BACKWARD_SCAN
-    "recursive",                      // ET_RECURSIVE
-    "table_function",                 // ET_TABLE_FUNCTION
+    NULL,                                  // ET_none
+    "using_temporary_table",               // ET_USING_TEMPORARY
+    "using_filesort",                      // ET_USING_FILESORT
+    "index_condition",                     // ET_USING_INDEX_CONDITION
+    NULL,                                  // ET_USING
+    "range_checked_for_each_record",       // ET_RANGE_CHECKED_FOR_EACH_RECORD
+    "pushed_condition",                    // ET_USING_PUSHED_CONDITION
+    "using_where",                         // ET_USING_WHERE
+    "not_exists",                          // ET_NOT_EXISTS
+    "using_MRR",                           // ET_USING_MRR
+    "using_index",                         // ET_USING_INDEX
+    "full_scan_on_NULL_key",               // ET_FULL_SCAN_ON_NULL_KEY
+    "using_index_for_group_by",            // ET_USING_INDEX_FOR_GROUP_BY
+    "using_index_for_skip_scan",           // ET_USING_INDEX_FOR_SKIP_SCAN
+    "distinct",                            // ET_DISTINCT
+    "loosescan",                           // ET_LOOSESCAN
+    NULL,                                  // ET_START_TEMPORARY
+    NULL,                                  // ET_END_TEMPORARY
+    "first_match",                         // ET_FIRST_MATCH
+    NULL,                                  // ET_MATERIALIZE
+    NULL,                                  // ET_START_MATERIALIZE
+    NULL,                                  // ET_END_MATERIALIZE
+    NULL,                                  // ET_SCAN
+    "using_join_buffer",                   // ET_USING_JOIN_BUFFER
+    "const_row_not_found",                 // ET_CONST_ROW_NOT_FOUND
+    "unique_row_not_found",                // ET_UNIQUE_ROW_NOT_FOUND
+    "impossible_on_condition",             // ET_IMPOSSIBLE_ON_CONDITION
+    "pushed_join",                         // ET_PUSHED_JOIN
+    "ft_hints",                            // ET_FT_HINTS
+    "backward_index_scan",                 // ET_BACKWARD_SCAN
+    "recursive",                           // ET_RECURSIVE
+    "table_function",                      // ET_TABLE_FUNCTION
     "skip_records_in_range_due_to_force",  // ET_SKIP_RECORDS_IN_RANGE
     "using_secondary_engine",              // ET_USING_SECONDARY_ENGINE
     "rematerialize"                        // ET_REMATERIALIZE
@@ -391,7 +387,7 @@ class context : public Explain_context {
     @returns
       -1   subquery wasn't found
        0   subqusery were added
-       1   error occured
+       1   error occurred
   */
   virtual int add_where_subquery(subquery_ctx *ctx MY_ATTRIBUTE((unused)),
                                  SELECT_LEX_UNIT *subquery
@@ -416,6 +412,8 @@ class context : public Explain_context {
   Implements CTX_WHERE, CTX_HAVING, CTX_ORDER_BY_SQ, CTX_GROUP_BY_SQ and
   CTX_OPTIMIZED_AWAY_SUBQUERY context nodes.
   This class hosts underlying join_ctx or uion_ctx.
+
+  Is used for a subquery, a derived table.
 */
 
 class subquery_ctx : virtual public context, public qep_row {
@@ -1226,7 +1224,8 @@ class window_ctx : public join_ctx {
         for (; ord != NULL; ord = ord->next) {
           String str;
           (*ord->item)
-              ->print_for_order(&str, (enum_query_type)(QT_NO_DB | QT_NO_TABLE),
+              ->print_for_order(current_thd, &str,
+                                (enum_query_type)(QT_NO_DB | QT_NO_TABLE),
                                 ord->used_alias);
           if (ord->direction == ORDER_DESC)
             str.append(STRING_WITH_LEN(" desc"));
@@ -1234,11 +1233,11 @@ class window_ctx : public join_ctx {
         }
       }
       if (w->needs_buffering()) {
-        Opt_trace_object to(json, K_FRAME_BUFFER);
-        to.add(K_USING_TMP_TABLE, true);
+        Opt_trace_object to_buf(json, K_FRAME_BUFFER);
+        to_buf.add(K_USING_TMP_TABLE, true);
         if (w->optimizable_range_aggregates() ||
             w->optimizable_row_aggregates() || w->static_aggregates())
-          to.add(K_OPTIMIZED_FRAME_EVALUATION, true);
+          to_buf.add(K_OPTIMIZED_FRAME_EVALUATION, true);
       }
       Opt_trace_array wfs(json, K_FUNCTIONS);
       List_iterator<Item_sum> wfs_it(w->functions());
@@ -1452,7 +1451,8 @@ int join_ctx::add_where_subquery(subquery_ctx *ctx, SELECT_LEX_UNIT *subquery) {
 }
 
 /**
-  Context class to group materialized JOIN_TABs to "matirealized" array
+  Context class to group materialized JOIN_TABs to "materialized" array.
+  Is used for semijoin materialization.
 */
 
 class materialize_ctx : public joinable_ctx,
@@ -1516,6 +1516,8 @@ class materialize_ctx : public joinable_ctx,
     add_string_array(json, K_REF, col_ref);
 
     if (!col_rows.is_empty()) obj->add(K_ROWS, col_rows.value);
+
+    format_extra(obj);
 
     /*
       Currently K-REF/col_ref is not shown; it would always be "func", since
@@ -1656,13 +1658,13 @@ bool union_result_ctx::format(Opt_trace_context *json) {
 
 qep_row *Explain_format_JSON::entry() { return current_context->entry(); }
 
-bool Explain_format_JSON::begin_context(enum_parsing_context ctx,
+bool Explain_format_JSON::begin_context(enum_parsing_context ctx_arg,
                                         SELECT_LEX_UNIT *subquery,
                                         const Explain_format_flags *flags) {
   using namespace opt_explain_json_namespace;
 
   context *prev_context = current_context;
-  switch (ctx) {
+  switch (ctx_arg) {
     case CTX_JOIN:
       DBUG_ASSERT(current_context == NULL ||
                   // subqueries:

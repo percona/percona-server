@@ -1,7 +1,7 @@
 #ifndef ITEM_GEOFUNC_INCLUDED
 #define ITEM_GEOFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,6 @@
 #include <sys/types.h>
 #include <vector>
 
-#include "binary_log_types.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -857,7 +856,7 @@ class Item_func_spatial_collection : public Item_geometry_func {
     for (unsigned int i = 0; i < arg_count; ++i) {
       if (args[i]->fixed && args[i]->data_type() != MYSQL_TYPE_GEOMETRY) {
         String str;
-        args[i]->print(&str, QT_NO_DATA_EXPANSION);
+        args[i]->print(thd, &str, QT_NO_DATA_EXPANSION);
         str.append('\0');
         my_error(ER_ILLEGAL_VALUE_FOR_TYPE, MYF(0), "non geometric", str.ptr());
         return true;
@@ -900,8 +899,9 @@ class Item_func_spatial_mbr_rel : public Item_bool_func2 {
   }
 
   const char *func_name() const override;
-  void print(String *str, enum_query_type query_type) override {
-    Item_func::print(str, query_type);
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override {
+    Item_func::print(thd, str, query_type);
   }
   bool resolve_type(THD *) override {
     maybe_null = true;
@@ -911,6 +911,7 @@ class Item_func_spatial_mbr_rel : public Item_bool_func2 {
     val_int();
     return null_value;
   }
+  bool cast_incompatible_args(uchar *) override { return false; }
 };
 
 class Item_func_spatial_rel : public Item_bool_func2 {
@@ -964,6 +965,7 @@ class Item_func_spatial_rel : public Item_bool_func2 {
   int geocol_equals_check(
       const typename BG_geometry_collection::Geometry_list *gv1,
       const typename BG_geometry_collection::Geometry_list *gv2);
+  bool cast_incompatible_args(uchar *) override { return false; }
 };
 
 class Item_func_spatial_relation : public Item_bool_func2 {
@@ -977,8 +979,9 @@ class Item_func_spatial_relation : public Item_bool_func2 {
     maybe_null = true;
     return false;
   }
-  void print(String *str, enum_query_type query_type) override {
-    Item_func::print(str, query_type);
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override {
+    Item_func::print(thd, str, query_type);
   }
   longlong val_int() override;
   bool is_null() override {
@@ -1000,12 +1003,13 @@ class Item_func_spatial_relation : public Item_bool_func2 {
     @param[out] result Result of the relational operation.
     @param[out] null True if the function should return NULL, false otherwise.
 
-    @retval true An error has occured and has been reported with my_error.
+    @retval true An error has occurred and has been reported with my_error.
     @retval false Success.
   */
   virtual bool eval(const dd::Spatial_reference_system *srs,
                     const gis::Geometry *g1, const gis::Geometry *g2,
                     bool *result, bool *null) = 0;
+  bool cast_incompatible_args(uchar *) override { return false; }
 };
 
 class Item_func_st_contains final : public Item_func_spatial_relation {
@@ -1380,7 +1384,7 @@ class Item_func_isempty : public Item_bool_func {
  public:
   Item_func_isempty(const POS &pos, Item *a) : Item_bool_func(pos, a) {}
   longlong val_int() override;
-  optimize_type select_optimize() const override { return OPTIMIZE_NONE; }
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_NONE; }
   const char *func_name() const override { return "st_isempty"; }
   bool resolve_type(THD *) override {
     maybe_null = true;
@@ -1399,7 +1403,7 @@ class Item_func_isclosed : public Item_bool_func {
  public:
   Item_func_isclosed(const POS &pos, Item *a) : Item_bool_func(pos, a) {}
   longlong val_int() override;
-  optimize_type select_optimize() const override { return OPTIMIZE_NONE; }
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_NONE; }
   const char *func_name() const override { return "st_isclosed"; }
   bool resolve_type(THD *) override {
     maybe_null = true;
@@ -1411,7 +1415,7 @@ class Item_func_isvalid : public Item_bool_func {
  public:
   Item_func_isvalid(const POS &pos, Item *a) : Item_bool_func(pos, a) {}
   longlong val_int() override;
-  optimize_type select_optimize() const override { return OPTIMIZE_NONE; }
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_NONE; }
   const char *func_name() const override { return "st_isvalid"; }
 };
 
@@ -1653,7 +1657,8 @@ class Item_func_st_length : public Item_real_func {
   String value;
 
  public:
-  Item_func_st_length(const POS &pos, Item *a) : Item_real_func(pos, a) {}
+  Item_func_st_length(const POS &pos, PT_item_list *ilist)
+      : Item_real_func(pos, ilist) {}
   double val_real() override;
   const char *func_name() const override { return "st_length"; }
   bool resolve_type(THD *thd) override {

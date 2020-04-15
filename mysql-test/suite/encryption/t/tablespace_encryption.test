@@ -1,0 +1,157 @@
+CREATE TABLESPACE ts1 ENCRYPTION_KEY_ID=3;
+CREATE TABLE t1_in_ts1 (a VARCHAR(255)) TABLESPACE=ts1;
+CREATE TABLESPACE ts2 ENCRYPTION_KEY_ID=5;
+CREATE TABLE t1_in_ts2 (a VARCHAR(255)) TABLESPACE=ts2;
+CREATE TABLESPACE ts3;
+CREATE TABLE t1_in_ts3 (a VARCHAR(255)) TABLESPACE=ts3;
+CREATE TABLESPACE ts4 ENCRYPTION='N';
+CREATE TABLE t1_in_ts4 (a VARCHAR(255)) TABLESPACE=ts4;
+
+# Check that ENCRYPTION='KEYRING' is blocked
+--error ER_INVALID_ENCRYPTION_OPTION
+CREATE TABLESPACE ts5 ENCRYPTION='KEYRING';
+--error ER_INVALID_ENCRYPTION_OPTION
+ALTER TABLESPACE ts4 ENCRYPTION='KEYRING';
+
+INSERT t1_in_ts1 VALUES (REPEAT('foobarsecret', 12));
+INSERT t1_in_ts2 VALUES (REPEAT('tempsecret', 12));
+INSERT t1_in_ts3 VALUES (REPEAT('dummysecret', 12));
+INSERT t1_in_ts4 VALUES (REPEAT('soooosecret', 12));
+
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
+
+--let tables_count=`SELECT COUNT(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
+--let $wait_timeout= 600
+# Encrypted tables count should be equal $tables_count - 2 - because ts4 and temporary should stay unencrypted
+--let $wait_condition=SELECT COUNT(*) = $tables_count - 2 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--source include/wait_condition.inc
+
+--let $assert_text= table ts4 should not be encrypted
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0 and name=\\'ts4\\']" = 1
+--source include/assert.inc
+
+--let $assert_text= Successful rotation of percona_innodb-0 to version 2
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
+--source include/assert.inc
+
+--let $assert_text= None of the tablespaces should get re-encrypted with version 2 as innodb_encryption_rotate_key_age is 2
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 2]" = 0
+--source include/assert.inc
+
+--let $assert_text= Successful rotation of percona_innodb-0 to version 3
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
+--source include/assert.inc
+
+--let $wait_timeout= 600
+# We should have ts3 encrypted with key0,ver3
+--let $wait_condition=SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 3 and name='ts3' AND CURRENT_KEY_ID = 0
+--source include/wait_condition.inc
+
+--let $assert_text= Table ts1 should not get re-encrypted as key 3 is still in version 1
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 and name=\\'ts1\\' AND CURRENT_KEY_ID = 3]" = 1
+--source include/assert.inc
+
+--let $assert_text= Tablespace ts2 should not get re-encrypted as key 5 is still in version 1
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 and name=\\'ts2\\' AND CURRENT_KEY_ID = 5]" = 1
+--source include/assert.inc
+
+--let $assert_text= Table ts4 should stay unencrypted
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0]" = 1
+--source include/assert.inc
+
+--echo # Now, let's rotate key 5 twice
+
+--let $assert_text= Successful rotation of percona_innodb-5 to version 2
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-5\\"\\) = 1]" = 1
+--source include/assert.inc
+
+--let $assert_text= Successful rotation of percona_innodb-5 to version 3
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-5\\"\\) = 1]" = 1
+--source include/assert.inc
+
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 3 and name='ts2' AND CURRENT_KEY_ID = 5
+--source include/wait_condition.inc
+
+CREATE TABLESPACE ts5 ENCRYPTION_KEY_ID=5;
+CREATE TABLE t1_in_ts5 (a varchar(255)) TABLESPACE=ts5;
+
+--let $assert_text= Tablespace ts5 should be encrypted with latest version of percona_innodb-5, i.e. version 3
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 3 and name=\\'ts5\\' AND CURRENT_KEY_ID = 5]" = 1
+--source include/assert.inc
+
+--echo # Setting innodb_encryption_rotate_key_age to 1. Now each key rotation should result
+--echo # in re-encryption of the table
+SET GLOBAL innodb_encryption_rotate_key_age = 1;
+
+--let $assert_text= Successful rotation of percona_innodb-0 to version 4
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
+--source include/assert.inc
+
+--let $wait_timeout= 600
+# We should have ts3 encrypted with key0,ver4
+--let $wait_condition=SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 4 and name='ts3' AND CURRENT_KEY_ID = 0
+--source include/wait_condition.inc
+
+--let $assert_text= Table ts2 should not get re-encrypted as key 5 is still in version 3
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 3 and name=\\'ts2\\' AND CURRENT_KEY_ID = 5]" = 1
+--source include/assert.inc
+
+--echo # Rotate key 5 to version 4 => this should trigger table ts2 re-encryption
+--let $assert_text= Successful rotation of percona_innodb-5 to version 4
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-5\\"\\) = 1]" = 1
+--source include/assert.inc
+
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 4 and name='ts2' AND CURRENT_KEY_ID = 5
+--source include/wait_condition.inc
+
+--echo # Now turn the re-encryption off by setting innodb_encryption_rotate_key_age to 0
+SET GLOBAL innodb_encryption_rotate_key_age = 0;
+
+--echo # Rotating key should not cause any re-encryption
+
+--let $assert_text= Successful rotation of percona_innodb-0 to version 5
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
+--source include/assert.inc
+
+--echo # Rotate key 5 to version 5 => this should trigger table ts2 re-encryption
+--let $assert_text= Successful rotation of percona_innodb-5 to version 5
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-5\\"\\) = 1]" = 1
+--source include/assert.inc
+
+--let $assert_text= All tables should be still encrypted with key version 4 at most.
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION > 4]" = 0
+--source include/assert.inc
+
+--echo # Make sure ts4 is still unencrypted
+
+--let $assert_text= Tablespace ts4 should stay unencrypted
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE name=\\'ts4\\']" = 0
+--source include/assert.inc
+
+--echo # Now turn off the encryption.
+
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_rotate_key_age = 2;
+
+--let $wait_timeout= 600
+# All tablespaces should get decrypted
+--let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
+--source include/wait_condition.inc
+
+SET GLOBAL default_table_encryption=OFF;
+SET GLOBAL innodb_encryption_threads=0;
+
+# cleanup
+DROP TABLE t1_in_ts1, t1_in_ts2, t1_in_ts3, t1_in_ts4, t1_in_ts5;
+DROP TABLESPACE ts1;
+DROP TABLESPACE ts2;
+DROP TABLESPACE ts3;
+DROP TABLESPACE ts4;
+DROP TABLESPACE ts5;
+
+# The backup file might be a leftover after calling generate key on existing key
+--error 0,1
+--remove_file "$MYSQL_TMP_DIR/mysecret_keyring.backup"

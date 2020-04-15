@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -120,8 +120,15 @@ public:
   int getMasterNodeId();
   int getNextMasterNodeId(int nodeId);
   int getNodeGroup(int nodeId);
+  int getNodeGroups(Vector<int>& node_groups,
+                    int * max_alive_replicas_ptr = nullptr);
+  int getNumNodeGroups();
+  int getNumReplicas();
+  int getMaxConcurrentNodeFailures();
+  int getMaxFailedNodes();
   int getRandomNodeSameNodeGroup(int nodeId, int randomNumber);
   int getRandomNodeOtherNodeGroup(int nodeId, int randomNumber);
+  int getRandomNodePreferOtherNodeGroup(int nodeId, int randomNumber);
   int getRandomNotMasterNodeId(int randomNumber);
 
   int getMasterNodeVersion(int& version);
@@ -149,6 +156,8 @@ public:
   void setReconnect(bool);
 
   int rollingRestart(Uint32 flags = 0);
+
+  int getNodeConnectCount(int nodeId);
 protected:
 
   int waitClusterState(ndb_mgm_node_status _status,

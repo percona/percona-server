@@ -132,9 +132,10 @@ extern const char *globerrs[]; /* my_error_messages is here */
 #define EE_SHIFT_CHAR_OUT_OF_RANGE 88
 #define EE_RESET_CHAR_OUT_OF_RANGE 89
 #define EE_UNKNOWN_LDML_TAG 90
-#define EE_SOCKET 91
-#define EE_TOOLONGFILENAME 92
-#define EE_ERROR_LAST 92 /* Copy last error nr */
+#define EE_FAILED_TO_RESET_BEFORE_SECONDARY_IGNORABLE_CHAR 91
+#define EE_SOCKET 92
+#define EE_TOOLONGFILENAME 93
+#define EE_ERROR_LAST 93 /* Copy last error nr */
 /* Add error numbers before EE_ERROR_LAST and change it accordingly. */
 
 /* Exit codes for option processing. When exiting from server use the

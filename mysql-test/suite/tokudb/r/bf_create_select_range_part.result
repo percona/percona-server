@@ -13,6 +13,8 @@ PARTITION p4 VALUES LESS THAN (500000),
 PARTITION p5 VALUES LESS THAN (600000),
 PARTITION p6 VALUES LESS THAN (700000),
 PARTITION p7 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 values (null,null);
 INSERT INTO t1 SELECT null,val FROM t1;
 INSERT INTO t1 SELECT null,val FROM t1;

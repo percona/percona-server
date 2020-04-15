@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@
 
 #include "my_config.h"
 
+#include <algorithm>
 #include <memory>
 
 #include <errno.h>
@@ -110,7 +111,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
   my_off_t key_root[HA_MAX_POSSIBLE_KEY], key_del[MI_MAX_KEY_BLOCK_SIZE];
   ulonglong max_key_file_length, max_data_file_length;
   ST_FILE_ID file_id = {0, 0};
-  DBUG_ENTER("mi_open_share");
+  DBUG_TRACE;
 
   m_info = NULL;
   kfile = -1;
@@ -125,7 +126,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     if (realpath_err || (*myisam_test_invalid_symlink)(name_buff) ||
         my_is_symlink(name_buff, &file_id)) {
       set_my_errno(HA_WRONG_CREATE_OPTION);
-      DBUG_RETURN(NULL);
+      return NULL;
     }
   }
 
@@ -146,11 +147,11 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     share_buff.key_cache =
         multi_key_cache_search((uchar *)name_buff, strlen(name_buff));
 
-    DBUG_EXECUTE_IF("myisam_pretend_crashed_table_on_open",
-                    if (strstr(name, "/t1")) {
-                      set_my_errno(HA_ERR_CRASHED);
-                      goto err;
-                    });
+    DBUG_EXECUTE_IF(
+        "myisam_pretend_crashed_table_on_open", if (strstr(name, "/t1")) {
+          set_my_errno(HA_ERR_CRASHED);
+          goto err;
+        });
     DEBUG_SYNC_C("before_opening_indexfile");
     if ((kfile = mysql_file_open(mi_key_file_kfile, name_buff,
                                  (open_mode = O_RDWR) | O_NOFOLLOW, MYF(0))) <
@@ -293,10 +294,6 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     max_key_file_length =
         mi_safe_mul(MI_MIN_KEY_BLOCK_LENGTH,
                     ((ulonglong)1 << (share->base.key_reflength * 8)) - 1);
-#if SIZEOF_OFF_T == 4
-    set_if_smaller(max_data_file_length, INT_MAX32);
-    set_if_smaller(max_key_file_length, INT_MAX32);
-#endif
     share->base.max_data_file_length = (my_off_t)max_data_file_length;
     share->base.max_key_file_length = (my_off_t)max_key_file_length;
 
@@ -346,8 +343,9 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
         disk_pos_assert(disk_pos + share->keyinfo[i].keysegs * HA_KEYSEG_SIZE,
                         end_pos);
         if (share->keyinfo[i].key_alg == HA_KEY_ALG_RTREE)
-          share->have_rtree = 1;
-        set_if_smaller(share->blocksize, share->keyinfo[i].block_length);
+          share->have_rtree = true;
+        share->blocksize =
+            std::min(share->blocksize, uint(share->keyinfo[i].block_length));
         share->keyinfo[i].seg = pos;
         for (j = 0; j < share->keyinfo[i].keysegs; j++, pos++) {
           disk_pos = mi_keyseg_read(disk_pos, pos);
@@ -515,8 +513,8 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
             (HA_OPTION_READ_ONLY_DATA | HA_OPTION_TMP_TABLE |
              HA_OPTION_COMPRESS_RECORD | HA_OPTION_TEMP_COMPRESS_RECORD)) ||
            (open_flags & HA_OPEN_TMP_TABLE) || share->have_rtree)
-              ? 0
-              : 1;
+              ? false
+              : true;
       if (share->concurrent_insert) {
         share->lock.get_status = mi_get_status;
         share->lock.copy_status = mi_copy_status;
@@ -570,11 +568,11 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
   info.last_loop = share->state.update_count;
   if (mode == O_RDONLY) share->options |= HA_OPTION_READ_ONLY_DATA;
   info.lock_type = F_UNLCK;
-  info.quick_mode = 0;
+  info.quick_mode = false;
   info.bulk_insert = 0;
   info.ft1_to_ft2 = 0;
   info.errkey = -1;
-  info.page_changed = 1;
+  info.page_changed = true;
   mysql_mutex_lock(&share->intern_lock);
   info.read_record = share->read_record;
   share->reopen++;
@@ -586,7 +584,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
   }
   if ((open_flags & HA_OPEN_TMP_TABLE) ||
       (share->options & HA_OPTION_TMP_TABLE)) {
-    share->temporary = share->delay_key_write = 1;
+    share->temporary = share->delay_key_write = true;
     share->write_flag = MYF(MY_NABP);
     share->w_locks++; /* We don't have to update status */
     share->tot_locks++;
@@ -595,7 +593,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
   if (((open_flags & HA_OPEN_DELAY_KEY_WRITE) ||
        (share->options & HA_OPTION_DELAY_KEY_WRITE)) &&
       myisam_delay_key_write)
-    share->delay_key_write = 1;
+    share->delay_key_write = true;
   info.state = &share->state.state; /* Change global values by default */
   mysql_mutex_unlock(&share->intern_lock);
 
@@ -620,7 +618,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     intern_filename(name_buff, share->index_file_name);
     _myisam_log(MI_LOG_OPEN, m_info, (uchar *)name_buff, strlen(name_buff));
   }
-  DBUG_RETURN(m_info);
+  return m_info;
 
 err:
   save_errno = my_errno() ? my_errno() : HA_ERR_END_OF_FILE;
@@ -654,7 +652,7 @@ err:
   }
   if (!internal_table) mysql_mutex_unlock(&THR_LOCK_myisam);
   set_my_errno(save_errno);
-  DBUG_RETURN(NULL);
+  return NULL;
 } /* mi_open_share */
 
 uchar *mi_alloc_rec_buff(MI_INFO *info, ulong length, uchar **buf) {
@@ -797,7 +795,7 @@ uint mi_state_info_write(File file, MI_STATE_INFO *state, uint pWrite) {
   uchar *ptr = buff;
   uint i, keys = (uint)state->header.keys,
           key_blocks = state->header.max_block_size_index;
-  DBUG_ENTER("mi_state_info_write");
+  DBUG_TRACE;
 
   memcpy(ptr, &state->header, sizeof(state->header));
   ptr += sizeof(state->header);
@@ -872,10 +870,9 @@ uint mi_state_info_write(File file, MI_STATE_INFO *state, uint pWrite) {
   }
 
   if (pWrite & 1)
-    DBUG_RETURN(mysql_file_pwrite(file, buff, (size_t)(ptr - buff), 0L,
-                                  MYF(MY_NABP | MY_THREADSAFE)) != 0);
-  DBUG_RETURN(
-      mysql_file_write(file, buff, (size_t)(ptr - buff), MYF(MY_NABP)) != 0);
+    return mysql_file_pwrite(file, buff, (size_t)(ptr - buff), 0L,
+                             MYF(MY_NABP)) != 0;
+  return mysql_file_write(file, buff, (size_t)(ptr - buff), MYF(MY_NABP)) != 0;
 }
 
 uchar *mi_state_info_read(uchar *ptr, MI_STATE_INFO *state) {

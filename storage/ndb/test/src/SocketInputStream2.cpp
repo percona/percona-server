@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ SocketInputStream2::gets(BaseString& str)
 
   abort(); // Should never come here
   return false;
-};
+}
 
 
 bool
@@ -59,7 +59,7 @@ SocketInputStream2::has_data_to_read()
     return true; // Yes, there was data
 
   if (res == 0)
-    return false; // Timeout occured
+    return false; // Timeout occurred
 
   require(res == -1);
   return false;

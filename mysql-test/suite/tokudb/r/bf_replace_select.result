@@ -5,9 +5,13 @@ CREATE TABLE `t1` (
 `val` varchar(32) DEFAULT NULL,
 PRIMARY KEY (`num`)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE `t2` (
 `count` bigint(20) NOT NULL
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 values (null,null);
 INSERT INTO t1 SELECT null,val FROM t1;
 INSERT INTO t1 SELECT null,val FROM t1;

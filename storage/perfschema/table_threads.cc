@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ Plugin_table table_threads::m_table_def(
     "  TYPE VARCHAR(10) not null,\n"
     "  PROCESSLIST_ID BIGINT unsigned,\n"
     "  PROCESSLIST_USER VARCHAR(32),\n"
-    "  PROCESSLIST_HOST VARCHAR(60),\n"
+    "  PROCESSLIST_HOST VARCHAR(255) CHARACTER SET ASCII default null,\n"
     "  PROCESSLIST_DB VARCHAR(64),\n"
     "  PROCESSLIST_COMMAND VARCHAR(16),\n"
     "  PROCESSLIST_TIME BIGINT,\n"
@@ -224,6 +224,10 @@ int table_threads::make_row(PFS_thread *pfs) {
     return HA_ERR_RECORD_DELETED;
   }
 
+  if (pfs->m_disable_instrumentation) {
+    return HA_ERR_RECORD_DELETED;
+  }
+
   m_row.m_thread_internal_id = pfs->m_thread_internal_id;
   m_row.m_parent_thread_internal_id = pfs->m_parent_thread_internal_id;
   m_row.m_processlist_id = pfs->m_processlist_id;
@@ -334,7 +338,7 @@ int table_threads::make_row(PFS_thread *pfs) {
   }
   m_row.m_connection_type = pfs->m_connection_type;
 
-  m_row.m_enabled = pfs->m_enabled;
+  m_row.m_enabled = !pfs->m_disable_instrumentation && pfs->m_enabled;
   m_row.m_history = pfs->m_history;
   m_row.m_psi = pfs;
 

@@ -29,10 +29,10 @@ struct audit_handler_syslog_data_t {
   logger_epilog_func_t footer;
 };
 
-int audit_handler_syslog_write(audit_handler_t *handler, const char *buf,
-                               size_t len);
-int audit_handler_syslog_flush(audit_handler_t *handler);
-int audit_handler_syslog_close(audit_handler_t *handler);
+static int audit_handler_syslog_write(audit_handler_t *handler, const char *buf,
+                                      size_t len);
+static int audit_handler_syslog_flush(audit_handler_t *handler);
+static int audit_handler_syslog_close(audit_handler_t *handler);
 
 audit_handler_t *audit_handler_syslog_open(
     audit_handler_syslog_config_t *opts) noexcept {
@@ -60,8 +60,8 @@ audit_handler_t *audit_handler_syslog_open(
   return handler;
 }
 
-int audit_handler_syslog_write(audit_handler_t *handler, const char *buf,
-                               size_t len) {
+static int audit_handler_syslog_write(audit_handler_t *handler, const char *buf,
+                                      size_t len) {
   audit_handler_syslog_data_t *data =
       (audit_handler_syslog_data_t *)handler->data;
   DBUG_ASSERT(data->struct_size == sizeof(audit_handler_syslog_data_t));
@@ -69,7 +69,7 @@ int audit_handler_syslog_write(audit_handler_t *handler, const char *buf,
   return len;
 }
 
-int audit_handler_syslog_flush(audit_handler_t *handler) {
+static int audit_handler_syslog_flush(audit_handler_t *handler) {
   audit_handler_syslog_data_t *data =
       (audit_handler_syslog_data_t *)handler->data;
   MY_STAT stat_arg;
@@ -79,7 +79,7 @@ int audit_handler_syslog_flush(audit_handler_t *handler) {
   return 0;
 }
 
-int audit_handler_syslog_close(audit_handler_t *handler) {
+static int audit_handler_syslog_close(audit_handler_t *handler) {
   audit_handler_syslog_data_t *data =
       (audit_handler_syslog_data_t *)handler->data;
   data->footer(nullptr, 0);

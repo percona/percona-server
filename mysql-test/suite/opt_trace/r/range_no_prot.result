@@ -4936,7 +4936,7 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	k1,k2	k2	5	NULL	2	100.00	Using index condition
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`i1` > '2') order by `test`.`t1`.`i1`,`test`.`t1`.`i2`
+Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`i1` > 2) order by `test`.`t1`.`i1`,`test`.`t1`.`i2`
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -4971,7 +4971,7 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`t1`.`i1` > '2')"
+                  "resulting_condition": "(`t1`.`i1` > 2)"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -5128,13 +5128,13 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`t1`.`i1` > '2')",
+              "original_condition": "(`t1`.`i1` > 2)",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": "(`t1`.`i1` > '2')"
+                  "attached": "(`t1`.`i1` > 2)"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -5251,8 +5251,8 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
             "finalizing_table_conditions": [
               {
                 "table": "`t1`",
-                "original_table_condition": "(`t1`.`i1` > '2')",
-                "final_table_condition   ": "(`t1`.`i1` > '2')"
+                "original_table_condition": "(`t1`.`i1` > 2)",
+                "final_table_condition   ": "(`t1`.`i1` > 2)"
               }
             ] /* finalizing_table_conditions */
           },
@@ -5260,7 +5260,7 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
             "refine_plan": [
               {
                 "table": "`t1`",
-                "pushed_index_condition": "(`t1`.`i1` > '2')",
+                "pushed_index_condition": "(`t1`.`i1` > 2)",
                 "table_condition_attached": null
               }
             ] /* refine_plan */
@@ -5286,7 +5286,7 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	k1,k2	k1	5	NULL	2	100.00	Using where; Backward index scan; Using index
 Warnings:
-Note	1003	/* select#1 */ select distinct `test`.`t1`.`i1` AS `i1` from `test`.`t1` where (`test`.`t1`.`i1` >= '1') order by `test`.`t1`.`i1` desc
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`i1` AS `i1` from `test`.`t1` where (`test`.`t1`.`i1` >= 1) order by `test`.`t1`.`i1` desc
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -5321,7 +5321,7 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`t1`.`i1` >= '1')"
+                  "resulting_condition": "(`t1`.`i1` >= 1)"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -5497,13 +5497,13 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`t1`.`i1` >= '1')",
+              "original_condition": "(`t1`.`i1` >= 1)",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": "(`t1`.`i1` >= '1')"
+                  "attached": "(`t1`.`i1` >= 1)"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -5580,8 +5580,8 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
             "finalizing_table_conditions": [
               {
                 "table": "`t1`",
-                "original_table_condition": "(`t1`.`i1` >= '1')",
-                "final_table_condition   ": "(`t1`.`i1` >= '1')"
+                "original_table_condition": "(`t1`.`i1` >= 1)",
+                "final_table_condition   ": "(`t1`.`i1` >= 1)"
               }
             ] /* finalizing_table_conditions */
           },
@@ -6808,7 +6808,7 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
                       "range_analysis": {
                         "table_scan": {
                           "rows": 2,
-                          "cost": 2e308
+                          "cost": 1e308
                         } /* table_scan */,
                         "potential_range_indexes": [
                           {
@@ -6925,6 +6925,13 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
     }
   ] /* steps */
 }	0	0
+#
+# Bug#30266767 OPTIMIZER TRACE CONTAINS INVALID JSON FOR FORCE INDEX QUERIES
+#
+SELECT JSON_TYPE(REGEXP_SUBSTR(TRACE, "1.*e308"))
+FROM information_schema.OPTIMIZER_TRACE;
+JSON_TYPE(REGEXP_SUBSTR(TRACE, "1.*e308"))
+DOUBLE
 DROP TABLE t1;
 
 # BUG#18023222 OPTIMIZER TRACE ERROR ON RANGE ANALYSIS OF
@@ -7156,7 +7163,7 @@ EXPLAIN SELECT * FROM t WHERE b IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	NULL	ref	i_b	i_b	17	const	1	100.00	Using index condition
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i`,`test`.`t`.`b` AS `b` from `test`.`t` where isnull(`test`.`t`.`b`)
+Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i`,`test`.`t`.`b` AS `b` from `test`.`t` where (`test`.`t`.`b` is null)
 SELECT trace FROM information_schema.optimizer_trace;
 trace
 {
@@ -7166,7 +7173,7 @@ trace
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `t`.`i` AS `i`,`t`.`b` AS `b` from `t` where isnull(`t`.`b`)"
+            "expanded_query": "/* select#1 */ select `t`.`i` AS `i`,`t`.`b` AS `b` from `t` where (`t`.`b` is null)"
           }
         ] /* steps */
       } /* join_preparation */
@@ -7178,19 +7185,19 @@ trace
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "isnull(`t`.`b`)",
+              "original_condition": "(`t`.`b` is null)",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "isnull(`t`.`b`)"
+                  "resulting_condition": "(`t`.`b` is null)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "isnull(`t`.`b`)"
+                  "resulting_condition": "(`t`.`b` is null)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "isnull(`t`.`b`)"
+                  "resulting_condition": "(`t`.`b` is null)"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -7330,13 +7337,13 @@ trace
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "isnull(`t`.`b`)",
+              "original_condition": "(`t`.`b` is null)",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t`",
-                  "attached": "isnull(`t`.`b`)"
+                  "attached": "(`t`.`b` is null)"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -7345,8 +7352,8 @@ trace
             "finalizing_table_conditions": [
               {
                 "table": "`t`",
-                "original_table_condition": "isnull(`t`.`b`)",
-                "final_table_condition   ": "isnull(`t`.`b`)"
+                "original_table_condition": "(`t`.`b` is null)",
+                "final_table_condition   ": "(`t`.`b` is null)"
               }
             ] /* finalizing_table_conditions */
           },
@@ -7354,7 +7361,7 @@ trace
             "refine_plan": [
               {
                 "table": "`t`",
-                "pushed_index_condition": "isnull(`t`.`b`)",
+                "pushed_index_condition": "(`t`.`b` is null)",
                 "table_condition_attached": null
               }
             ] /* refine_plan */

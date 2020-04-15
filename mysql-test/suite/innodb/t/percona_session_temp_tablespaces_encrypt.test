@@ -32,7 +32,9 @@ INSERT INTO t3 SELECT * FROM t3;
 --replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES WHERE ID = connection_id() ORDER BY SPACE;
 
-SET GLOBAL innodb_encrypt_tables=ON;
+SELECT @@global.default_table_encryption;
+SET GLOBAL default_table_encryption=ON;
+SELECT @@global.default_table_encryption;
 
 CREATE TEMPORARY TABLE test.t4(a INT, b BLOB);
 CREATE TEMPORARY TABLE test.t5(a INT, b BLOB);
@@ -47,11 +49,13 @@ INSERT INTO t6 SELECT * FROM t6;
 --replace_column 1 ID
 --replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES WHERE ID = connection_id() ORDER BY SPACE;
-SET GLOBAL innodb_encrypt_tables=OFF;
+
+SELECT @@global.default_table_encryption;
+SET GLOBAL default_table_encryption=OFF;
+SELECT @@global.default_table_encryption;
 DROP TABLE t3, t6;
 
 SET GLOBAL innodb_temp_tablespace_encrypt=ON;
-SELECT @@innodb_encrypt_tables;
 --echo # Create a new connection.
 connect (con2, localhost, root,,);
 connection con2;
@@ -76,7 +80,9 @@ INSERT INTO t3 SELECT * FROM t3;
 --replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES WHERE ID = connection_id() ORDER BY SPACE;
 
-SET GLOBAL innodb_encrypt_tables=ON;
+SELECT @@global.default_table_encryption;
+SET GLOBAL default_table_encryption=ON;
+SELECT @@global.default_table_encryption;
 
 CREATE TEMPORARY TABLE test.t4(a INT, b BLOB);
 CREATE TEMPORARY TABLE test.t5(a INT, b BLOB);
@@ -92,21 +98,28 @@ INSERT INTO t6 SELECT * FROM t6;
 --replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES WHERE ID = connection_id() ORDER BY SPACE;
 
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+
 connection default;
 disconnect con1;
 disconnect con2;
+--source include/wait_until_count_sessions.inc
 
 SET GLOBAL innodb_temp_tablespace_encrypt=default;
-SET GLOBAL innodb_encrypt_tables=default;
+SET GLOBAL default_table_encryption=default;
 SET GLOBAL big_tables=default;
 DROP TABLE t3;
 DROP TABLE t6;
 connect (con3, localhost, root,,);
 connection con3;
 
---replace_column 1 ID
---replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+--let $assert_text = Active session temp tablespaces count should be 2
+--let $assert_cond = "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES WHERE STATE = \"ACTIVE\"]" = 2
+--source include/assert.inc
+
+--let $assert_text = Inactive session temp tablespaces count should be 8
+--let $assert_cond = "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES WHERE STATE = \"INACTIVE\"]" = 8
+--source include/assert.inc
 
 connection default;
 disconnect con3;

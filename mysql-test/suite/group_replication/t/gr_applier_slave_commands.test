@@ -15,33 +15,32 @@
 #
 # 1. Start GR on member i.e. make M1 ONLINE. Now, check the execution of
 #    following commands on the GR channels.
-#  a) CHM is blocked on group_replication_applier
-#  b) FLUSH RELAY LOGS is blocked on group_replication_applier
-#  c) START SLAVE IO_THREAD is blocked on group_replication_applier
-#  d) START SLAVE IO_THREAD with UNTIL option is blocked on
+#  a) CHANGE MASTER command is blocked for other options than
+#     `PRIVILEGE_CHECKS_USER` for group replication applier channel.
+#  b) START SLAVE IO_THREAD is blocked on group_replication_applier
+#  c) START SLAVE IO_THREAD with UNTIL option is blocked on
 #     group_replication_applier
-#  e) STOP SLAVE IO_THREAD is blocked on group_replication_applier
-#  f) START SLAVE is blocked on group_replication_applier
-#  g) STOP SLAVE is blocked on group_replication_applier
-#  h) SHOW SLAVE STATUS is blocked on group_replication_applier
-#  i) START SLAVE SQL_THREAD is allowed on group_replication_applier
-#  j) START SLAVE SQL_THREAD with UNTIL option is allowed on
+#  d) STOP SLAVE IO_THREAD is blocked on group_replication_applier
+#  r) START SLAVE is blocked on group_replication_applier
+#  f) STOP SLAVE is blocked on group_replication_applier
+#  g) SHOW SLAVE STATUS is blocked on group_replication_applier
+#  h) START SLAVE SQL_THREAD is allowed on group_replication_applier
+#  i) START SLAVE SQL_THREAD with UNTIL option is allowed on
 #     group_replication_applier
-#  k) STOP SLAVE SQL_THREAD is allowed on group_replication_applier
-#  l) SHOW RELAYLOG EVENTS is allowed on group_replication_applier
+#  j) STOP SLAVE SQL_THREAD is allowed on group_replication_applier
+#  k) SHOW RELAYLOG EVENTS is allowed on group_replication_applier
 #
 # 2. Stop GR on member i.e. make M1 OFFLINE. Now, check the execution of
 #    following commands on the GR channels.
 #  a) CHM is blocked on group_replication_applier
-#  b) FLUSH RELAY LOGS is blocked on group_replication_applier
-#  c) START SLAVE IO_THREAD is blocked on group_replication_applier
-#  d) STOP SLAVE IO_THREAD is blocked on group_replication_applier
-#  e) START SLAVE is blocked on group_replication_applier
-#  f) STOP SLAVE is blocked on group_replication_applier
-#  g) SHOW SLAVE STATUS is blocked on group_replication_applier
-#  h) START SLAVE SQL_THREAD is allowed on group_replication_applier
-#  i) STOP SLAVE SQL_THREAD is allowed on group_replication_applier
-#  j) SHOW RELAYLOG EVENTS is allowed on group_replication_applier
+#  b) START SLAVE IO_THREAD is blocked on group_replication_applier
+#  c) STOP SLAVE IO_THREAD is blocked on group_replication_applier
+#  d) START SLAVE is blocked on group_replication_applier
+#  e) STOP SLAVE is blocked on group_replication_applier
+#  f) SHOW SLAVE STATUS is blocked on group_replication_applier
+#  g) START SLAVE SQL_THREAD is allowed on group_replication_applier
+#  h) STOP SLAVE SQL_THREAD is allowed on group_replication_applier
+#  i) SHOW RELAYLOG EVENTS is allowed on group_replication_applier
 #
 # 3. Start GR on M1. Connect to M2 which is ONLINE.
 #  a) RESET SLAVE ALL is blocked on group_replication_applier
@@ -73,14 +72,9 @@
 # Part 1 - Checking the execution of the command when group_replication is ON.
 
 --echo
---echo # CHANGE MASTER command is blocked for restricted channels.
---error ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_applier";
-
---echo
---echo # FLUSH RELAY LOGS for group_replication_applier is blocked in all conditions
+--echo # CHANGE MASTER command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
 --error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
-FLUSH RELAY LOGS FOR CHANNEL 'group_replication_applier';
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_applier";
 
 --echo
 --echo # error when executing START SLAVE IO_THREAD FOR CHANNEL
@@ -156,14 +150,9 @@ START SLAVE SQL_THREAD UNTIL RELAY_LOG_FILE = 'server-relay-log-group_replicatio
 --source include/stop_group_replication.inc
 
 --echo
---echo # CHANGE MASTER command is blocked for restricted channels.
---error ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_applier";
-
---echo
---echo # FLUSH RELAY LOGS for group_replication_applier is blocked in all conditions
+--echo # CHANGE MASTER command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
 --error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
-FLUSH RELAY LOGS FOR CHANNEL 'group_replication_applier';
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_applier";
 
 --echo
 --echo # error when executing START SLAVE IO_THREAD FOR CHANNEL

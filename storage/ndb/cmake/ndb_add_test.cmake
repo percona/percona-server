@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,7 @@ FUNCTION(NDB_ADD_TEST)
   # - adds test to be run by ctest
   # - skips install ot the unittest binary
   MYSQL_ADD_EXECUTABLE(${EXEC} ${SRC} ADD_TEST ${EXEC})
+  SET_TARGET_PROPERTIES(${EXEC} PROPERTIES ENABLE_EXPORTS TRUE)
 
   # Add additional libraries
   IF(ARG_LIBS)
@@ -60,7 +61,7 @@ FUNCTION(NDB_ADD_TEST)
   string (REPLACE "-" "_" FLAG_NAME "${NAME}")
   string (TOUPPER ${FLAG_NAME} FLAG_UC)
   SET_TARGET_PROPERTIES(${EXEC}
-                      PROPERTIES COMPILE_FLAGS "-DTEST_${FLAG_UC}")
+    PROPERTIES COMPILE_FLAGS "-DTEST_${FLAG_UC}")
   
   # Link the unit test program with mytap(and thus implicitly mysys)
   TARGET_LINK_LIBRARIES(${EXEC} mytap)

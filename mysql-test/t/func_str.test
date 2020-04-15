@@ -1,10 +1,5 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
-
-# When removing this, also remove 'SET default_storage_engine InnoDB' below
 --source include/no_ps_protocol.inc
---source include/force_myisam_default.inc
+--source include/count_sessions.inc
 
 # Description
 # -----------
@@ -167,60 +162,6 @@ select domain from t1 where concat('@', trim(leading '.' from concat('.', domain
 drop table t1;
 
 #
-# Test bug in concat_ws
-#
-
-CREATE TABLE t1 (
-  id int(10) unsigned NOT NULL,
-  title varchar(255) default NULL,
-  prio int(10) unsigned default NULL,
-  category int(10) unsigned default NULL,
-  program int(10) unsigned default NULL,
-  bugdesc text,
-  created datetime default NULL,
-  modified timestamp NOT NULL,
-  bugstatus int(10) unsigned default NULL,
-  submitter int(10) unsigned default NULL
-) ENGINE=MyISAM;
-
-INSERT INTO t1 VALUES (1,'Link',1,1,1,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','2001-02-28 08:40:16',20010228084016,0,4);
-SELECT CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified+0,bugstatus,submitter), '"') FROM t1;
-SELECT CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugstatus,submitter), '"') FROM t1;
-SELECT CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified+0,bugstatus,submitter) FROM t1;
-SELECT bugdesc, REPLACE(bugdesc, 'xxxxxxxxxxxxxxxxxxxx', 'bbbbbbbbbbbbbbbbbbbb') from t1 group by bugdesc;
-drop table t1;
-
-#
-# Test bug in AES_DECRYPT() when called with wrong argument
-#
-
-CREATE TABLE t1 (id int(11) NOT NULL auto_increment, tmp text NOT NULL, KEY id (id)) ENGINE=MyISAM;
-INSERT INTO t1 VALUES (1, 'a545f661efdd1fb66fdee3aab79945bf');
-SELECT 1 FROM t1 WHERE tmp=AES_DECRYPT(tmp,"password");
-DROP TABLE t1;
-
-CREATE TABLE t1 (
-  wid int(10) unsigned NOT NULL auto_increment,
-  data_podp date default NULL,
-  status_wnio enum('nowy','podp','real','arch') NOT NULL default 'nowy',
-  PRIMARY KEY(wid)
-);
-
-INSERT INTO t1 VALUES (8,NULL,'real');
-INSERT INTO t1 VALUES (9,NULL,'nowy');
-SELECT elt(status_wnio,data_podp) FROM t1 GROUP BY wid;
-DROP TABLE t1;
-
-#
-# test for #739
-
-CREATE TABLE t1 (title text) ENGINE=MyISAM;
-INSERT INTO t1 VALUES ('Congress reconvenes in September to debate welfare and adult education');
-INSERT INTO t1 VALUES ('House passes the CAREERS bill');
-SELECT CONCAT("</a>",RPAD("",(55 - LENGTH(title)),".")) from t1;
-DROP TABLE t1;
-
-#
 # test for Bug #2290 "output truncated with ELT when using DISTINCT"
 #
 
@@ -319,15 +260,13 @@ select FIND_IN_SET(_latin1'B',_latin2'a,b,c,d');
 
 select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin1'd',2);
 
-# fix this:
---disable_testcase BUG#0000
 select SUBSTRING_INDEX(_latin1'abcdabcdabcd' COLLATE latin1_bin,_latin1'd',2);
 select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin1'd' COLLATE latin1_bin,2);
---enable_testcase
 
---error 1267
+# 'd' converts from _latin2 to _latin1, 0xa3 does not
 select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin2'd',2);
---error 1267
+--error ER_CANNOT_CONVERT_STRING
+select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin2 0xa3, 2);
 select SUBSTRING_INDEX(_latin1'abcdabcdabcd' COLLATE latin1_general_ci,_latin1'd' COLLATE latin1_bin,2);
 
 select _latin1'B' between _latin1'a' and _latin1'c';
@@ -577,33 +516,6 @@ select trim(leading NULL from 'kate') as "must_be_null";
 select trim(trailing NULL from 'xyz') as "must_be_null";
 
 #
-# Bug #7751 - conversion for a bigint unsigned constant 
-#
-
-CREATE TABLE t1 (
-  id int(11) NOT NULL auto_increment,
-  a bigint(20) unsigned default NULL,
-  PRIMARY KEY  (id)
-) ENGINE=MyISAM;
-
-INSERT INTO t1 VALUES
-('0','16307858876001849059');
-
-SELECT CONV('e251273eb74a8ee3', 16, 10);
-
-EXPLAIN 
-SELECT id
-  FROM t1
-  WHERE a = 16307858876001849059;
-
-EXPLAIN 
-  SELECT id
-  FROM t1
-  WHERE a = CONV('e251273eb74a8ee3', 16, 10);
-
-DROP TABLE t1;
-
-#
 # Bug #6317: string function CHAR, parameter is NULL, wrong result
 #
 SELECT CHAR(NULL,121,83,81,'76') as my_column;
@@ -783,25 +695,6 @@ EXPLAIN SELECT s FROM t1 WHERE TRIM(TRAILING 'y' FROM s) > 'ab';
 EXPLAIN SELECT s FROM t1 WHERE TRIM(BOTH 'y' FROM s) > 'ab';
 
 DROP TABLE t1;
-
-#
-# Bug #31758 inet_ntoa, oct, crashes server with null + filesort 
-#
-create table t1 (a bigint not null)engine=myisam;
-insert into t1 set a = 1024*1024*1024*4;
-SET @orig_sql_mode = @@SQL_MODE;
-SET SQL_MODE='';
-delete from t1 order by (inet_ntoa(a)) desc limit 10;
-SET SQL_MODE=@orig_sql_mode;
-drop table t1;
-create table t1 (a char(36) not null)engine=myisam;
-insert ignore into t1 set a = ' ';
-insert ignore into t1 set a = ' ';
-select * from t1 order by (oct(a));
-drop table t1;
-
---echo End of 4.1 tests
-
 #
 # Bug #13361: SELECT FORMAT(<decimal field with null>, 2) crashes
 #
@@ -1677,6 +1570,7 @@ insert into t1 values(''), (' '), ('xxxxxxxxxxxxxxx');
 create table t2(a int);
 insert into t2 values(0),(0),(1),(0),(10),(-2),(30),(NULL);
 
+--sorted_result
 select t1.a as str, length(t1.a) as str_length, t2.a as pos, t2.a + 10 as length, insert(t1.a, t2.a, t2.a + 10, '1234567') as 'insert' from t1, t2;
 drop table t1,t2;
 
@@ -2025,9 +1919,6 @@ SELECT COUNT(*), CONCAT(x, 'x') FROM (SELECT * FROM t) AS tt;
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLE t;
 
-# Force default storage engine InnoDB for new tests
-
-SET default_storage_engine=InnoDB;
 
 --echo # Bug#26049942 create table .. as select .. quote() give wrong length
 
@@ -2067,3 +1958,117 @@ CALL proc(51390, 51394);
 CALL proc(51390, 51394);
 --enable_warnings
 DROP PROCEDURE proc;
+
+--echo #
+--echo # Bug#29133127 ASSERTION `MAYBE_NULL' FAILED
+--echo #              |ITEM_FUNC_CONCAT::VAL_STR(STRING*)
+--echo #
+SET GLOBAL max_allowed_packet=1024;
+
+connect (con1,localhost,root,,);
+
+--source include/turn_off_strict_mode.inc
+SET collation_connection=utf32_unicode_ci;
+SELECT
+CONCAT('"',CONCAT('";"',repeat('a',60),
+                        repeat('b',60),
+                        repeat('c',60),
+                        repeat ('d',100)),'"');
+SELECT
+CONCAT('"',CONCAT_WS('";"',repeat('a',60),
+                           repeat('b',60),
+                           repeat('c',60),
+                           repeat ('d',100)),'"');
+SELECT
+CONCAT_WS('"',CONCAT_WS('";"',repeat('a',60),
+                              repeat('b',60),
+                              repeat('c',60),
+                              repeat ('d',100)),'"');
+--source include/restore_strict_mode.inc
+SELECT
+CONCAT('"',CONCAT('";"',repeat('a',60),
+                        repeat('b',60),
+                        repeat('c',60),
+                        repeat ('d',100)),'"');
+SELECT
+CONCAT('"',CONCAT_WS('";"',repeat('a',60),
+                           repeat('b',60),
+                           repeat('c',60),
+                           repeat ('d',100)),'"');
+SELECT
+CONCAT_WS('"',CONCAT_WS('";"',repeat('a',60),
+                              repeat('b',60),
+                              repeat('c',60),
+                              repeat ('d',100)),'"');
+connection default;
+disconnect con1;
+
+SET GLOBAL max_allowed_packet=default;
+
+--source include/wait_until_count_sessions.inc
+
+--echo #
+--echo # Bug#29739778 ASSERTION FAILED: MAYBE_NULL,
+--echo #              IN ITEM_STR_FUNC::PUSH_PACKET_OVERFLOW_WARNING
+--echo #
+
+set sql_mode='';
+
+do repeat(row_count()  ,((-9223372036854775808 )<<('{ }'  ))  );
+do ((repeat(1,9223372036854775808))or(convert((0x6d5b5d8d)using dec8)));
+
+set sql_mode=default;
+
+--echo #
+--echo # Bug #30114420 ASSERTION `CURRENT_THD->IS_ERROR()'
+--echo #               FAILED|SQL/ITEM_STRFUNC.CC
+--echo #
+
+CREATE TABLE t1(c1 VARCHAR(10));
+INSERT INTO t1 VALUES ('Alaska');
+SELECT HEX(LPAD('', 42, REPLACE(COMPRESS(42),c1,''))) FROM t1;
+SELECT HEX(LPAD('', 42, SUBSTRING_INDEX(COMPRESS(42),c1,1))) FROM t1;
+--disable_result_log
+SELECT LPAD('', 42, REPLACE(RANDOM_BYTES(42),c1,'')) FROM t1;
+SELECT LPAD('', 42, REPLACE(AES_ENCRYPT(c1, 'key'),c1,'')) FROM t1;
+--enable_result_log
+
+SELECT LPAD('', 42, REPLACE(MD5(c1),c1,'')) FROM t1;
+SELECT HEX(LPAD('', 42, TRIM(BOTH c1 FROM x'ff'))) FROM t1;
+
+SELECT HEX(LPAD('', 42, REPLACE(x'ffff',c1,''))) FROM t1;
+--error ER_CANNOT_CONVERT_STRING
+SELECT HEX(LPAD('', 42, TRIM(x'ffff' FROM c1))) FROM t1;
+
+--error ER_CANNOT_CONVERT_STRING
+SELECT LPAD('', 42, REPLACE(c1, 'las', x'ff')) FROM t1;
+--error ER_CANNOT_CONVERT_STRING
+SELECT LPAD('', 42, REPLACE(c1, x'ff', 'las')) FROM t1;
+
+--error ER_CANNOT_CONVERT_STRING
+SELECT HEX(SUBSTRING_INDEX(_utf8mb4 x'41F09F8DA3F09F8DA3' , x'f0', 2)) FROM t1;
+
+DROP TABLE t1;
+
+--error ER_CANNOT_CONVERT_STRING
+SELECT TRIM(BOTH x'f0' FROM _utf8mb4 x'F09F8DA3F09F8DA3');
+
+SELECT TRIM(BOTH x'F09F8DA3' FROM _utf8mb4 x'F09F8DA3F09F8DA3');
+
+--error ER_CANNOT_CONVERT_STRING
+SELECT TRIM(_latin2 x'a3' from _latin1 "hello");
+--error ER_CANNOT_CONVERT_STRING
+SELECT REPLACE(_latin1 "hello", _latin2 x'a3', "hei");
+--error ER_CANNOT_CONVERT_STRING
+SELECT REPLACE(_latin1 "hello", "hei", _latin2 x'a3');
+--error ER_CANNOT_CONVERT_STRING
+SELECT SUBSTRING_INDEX(_latin1 "hello", _latin2 x'a3', 42);
+
+# F09F8DA3 == sushi
+SELECT TRIM(leading _utf8mb4 x'F09F8DA3' from _gb18030 x'9439B9376181308B33');
+SELECT SUBSTRING_INDEX(_utf8mb4 x'C3A6C3B8F09F8DA361C3A6C3B8F09F8DA362',
+                       _gb18030 x'81308B339439B937', 2);
+
+# 9439B937 == sushi
+SELECT REPLACE('æøåæøå',_utf16 x'00e5', _gb18030 x'9439B937');
+SELECT REPLACE(_latin1 x'E6F8E5E6F8E5',_utf16 x'00e5', _utf32 x'00000061');

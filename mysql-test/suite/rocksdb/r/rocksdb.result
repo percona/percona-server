@@ -40,7 +40,7 @@ create table t0 (a int primary key) engine=rocksdb;
 show create table t0;
 Table	Create Table
 t0	CREATE TABLE `t0` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t0;
@@ -73,7 +73,7 @@ explain select * from t2 where a='abc';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	const	PRIMARY	PRIMARY	42	const	#	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select 'abc' AS `a`,'def' AS `b` from `test`.`t2` where 1
+Note	1003	/* select#1 */ select 'abc' AS `a`,'def' AS `b` from `test`.`t2` where true
 select * from t2 where a='abc';
 a	b
 abc	def
@@ -325,7 +325,7 @@ DROP TABLE t15;
 create table t16 (pk int primary key, a char(8)) engine=RocksDB;
 insert into t16 values (1,'a'),(2,'b'),(3,'c'),(4,'d');
 update t16 set pk=100, a = 'updated' where a in ('b','c');
-ERROR 23000: Duplicate entry '100' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '100' for key 't16.PRIMARY'
 select * from t16;
 pk	a
 1	a
@@ -353,16 +353,16 @@ drop table t_very_long_table_name;
 create table t17 (pk varchar(12) primary key, col1 varchar(12)) engine=rocksdb;
 insert into t17 values ('row1', 'val1');
 insert into t17 values ('row1', 'val1-try2');
-ERROR 23000: Duplicate entry 'row1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'row1' for key 't17.PRIMARY'
 insert into t17 values ('ROW1', 'val1-try2');
-ERROR 23000: Duplicate entry 'ROW1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'ROW1' for key 't17.PRIMARY'
 insert into t17 values ('row2', 'val2');
 insert into t17 values ('row3', 'val3');
 # This is ok
 update t17 set pk='row4' where pk='row1';
 # This will try to overwrite another row:
 update t17 set pk='row3' where pk='row2';
-ERROR 23000: Duplicate entry 'row3' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'row3' for key 't17.PRIMARY'
 select * from t17;
 pk	col1
 row2	val2
@@ -894,6 +894,7 @@ rocksdb_allow_concurrent_memtable_write	OFF
 rocksdb_allow_mmap_reads	OFF
 rocksdb_allow_mmap_writes	OFF
 rocksdb_allow_to_start_after_corruption	OFF
+rocksdb_blind_delete_primary_key	OFF
 rocksdb_block_cache_size	536870912
 rocksdb_block_restart_interval	16
 rocksdb_block_size	16384
@@ -903,6 +904,7 @@ rocksdb_bulk_load_allow_sk	OFF
 rocksdb_bulk_load_allow_unsorted	OFF
 rocksdb_bulk_load_size	1000
 rocksdb_bytes_per_sync	0
+rocksdb_cache_dump	ON
 rocksdb_cache_high_pri_pool_ratio	0.000000
 rocksdb_cache_index_and_filter_blocks	ON
 rocksdb_cache_index_and_filter_with_high_priority	ON
@@ -920,6 +922,7 @@ rocksdb_concurrent_prepare	ON
 rocksdb_create_checkpoint	
 rocksdb_create_if_missing	ON
 rocksdb_create_missing_column_families	OFF
+rocksdb_create_temporary_checkpoint	
 rocksdb_datadir	./.rocksdb
 rocksdb_db_write_buffer_size	0
 rocksdb_deadlock_detect	OFF
@@ -932,8 +935,13 @@ rocksdb_debug_ttl_rec_ts	0
 rocksdb_debug_ttl_snapshot_ts	0
 rocksdb_default_cf_options	block_based_table_factory={cache_index_and_filter_blocks=1;filter_policy=bloomfilter:10:false;whole_key_filtering=1};level_compaction_dynamic_level_bytes=true;optimize_filters_for_hits=true;compaction_pri=kMinOverlappingRatio;compression=kLZ4Compression;bottommost_compression=kLZ4Compression;
 rocksdb_delayed_write_rate	0
+rocksdb_delete_cf	
 rocksdb_delete_obsolete_files_period_micros	21600000000
+rocksdb_disable_file_deletions	OFF
 rocksdb_enable_bulk_load_api	ON
+rocksdb_enable_insert_with_update_caching	ON
+rocksdb_enable_iterate_bounds	ON
+rocksdb_enable_remove_orphaned_dropped_cfs	ON
 rocksdb_enable_thread_tracking	ON
 rocksdb_enable_ttl	ON
 rocksdb_enable_ttl_read_filtering	ON
@@ -952,13 +960,14 @@ rocksdb_index_type	kBinarySearch
 rocksdb_info_log_level	error_level
 rocksdb_is_fd_close_on_exec	ON
 rocksdb_keep_log_file_num	1000
-rocksdb_large_prefix	OFF
+rocksdb_large_prefix	ON
 rocksdb_lock_scanned_rows	OFF
 rocksdb_lock_wait_timeout	1
 rocksdb_log_file_time_to_roll	0
 rocksdb_manifest_preallocation_size	4194304
 rocksdb_manual_compaction_threads	0
 rocksdb_manual_wal_flush	ON
+rocksdb_master_skip_tx_api	OFF
 rocksdb_max_background_jobs	2
 rocksdb_max_latest_deadlocks	5
 rocksdb_max_log_file_size	0
@@ -982,9 +991,11 @@ rocksdb_persistent_cache_size_mb	0
 rocksdb_pin_l0_filter_and_index_blocks_in_cache	ON
 rocksdb_print_snapshot_conflict_queries	OFF
 rocksdb_rate_limiter_bytes_per_sec	0
-rocksdb_read_free_rpl_tables	
+rocksdb_read_free_rpl	OFF
+rocksdb_read_free_rpl_tables	.*
 rocksdb_records_in_range	50
 rocksdb_reset_stats	OFF
+rocksdb_rollback_on_timeout	OFF
 rocksdb_rpl_skip_tx_api	OFF
 rocksdb_seconds_between_stat_computes	3600
 rocksdb_signal_drop_index_thread	OFF
@@ -993,13 +1004,20 @@ rocksdb_skip_bloom_filter_on_read	OFF
 rocksdb_skip_fill_cache	OFF
 rocksdb_sst_mgr_rate_bytes_per_sec	0
 rocksdb_stats_dump_period_sec	600
+rocksdb_stats_level	0
 rocksdb_stats_recalc_rate	0
 rocksdb_store_row_debug_checksums	OFF
 rocksdb_strict_collation_check	OFF
 rocksdb_strict_collation_exceptions	
 rocksdb_table_cache_numshardbits	6
+rocksdb_table_stats_background_thread_nice_value	19
+rocksdb_table_stats_max_num_rows_scanned	0
+rocksdb_table_stats_recalc_threshold_count	100
+rocksdb_table_stats_recalc_threshold_pct	10
 rocksdb_table_stats_sampling_pct	10
+rocksdb_table_stats_use_table_scan	OFF
 rocksdb_tmpdir	
+rocksdb_trace_block_cache_access	
 rocksdb_trace_sst_api	OFF
 rocksdb_two_write_queues	ON
 rocksdb_unsafe_for_binlog	OFF
@@ -1184,7 +1202,7 @@ insert into t3 values(1, 'one',11), (2,'two',22);
 explain 
 select key1 from t3 where key1='one';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ref	key1	key1	41	const	#	100.00	NULL
+1	SIMPLE	t3	NULL	ref	key1	key1	41	const	#	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`key1` AS `key1` from `test`.`t3` where (`test`.`t3`.`key1` = 'one')
 select key1 from t3 where key1='one';
@@ -1310,7 +1328,7 @@ set session transaction_isolation='READ-COMMITTED';
 begin;
 insert into t1 values ('new-val1');
 insert into t1 select * from t2;
-ERROR 23000: Duplicate entry 'old-val1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'old-val1' for key 't1.PRIMARY'
 commit;
 set session transaction_isolation=@orig_tx_iso;
 select * from t1;
@@ -1380,7 +1398,7 @@ drop table t1;
 CREATE TABLE t1 (pk INT PRIMARY KEY, a SMALLINT, b INT, KEY (a)) ENGINE=RocksDB;
 INSERT IGNORE INTO t1 VALUES (1, 157, 0), (2, 1898, -504403), (1, -14659,  0);
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't1.PRIMARY'
 SELECT * FROM t1;
 pk	a	b
 1	157	0
@@ -1405,7 +1423,7 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 set @tmp1= @@rocksdb_max_row_locks;
 set rocksdb_max_row_locks= 20;
 update t1 set a=a+10;
-ERROR HY000: Got error 10 'Operation aborted: Failed to acquire lock due to max_num_locks limit' from ROCKSDB
+ERROR HY000: Got error 10 'Operation aborted: Failed to acquire lock due to rocksdb_max_row_locks limit' from ROCKSDB
 DROP TABLE t1;
 # 
 # Test AUTO_INCREMENT behavior problem,
@@ -1515,10 +1533,12 @@ set autocommit=1;
 drop table t0, t1;
 #
 # Check status variables
+# NOTE: We exclude rocksdb_num_get_for_update_calls because it's a debug only status var
 #
-show status like 'rocksdb%';
+show status where variable_name like 'rocksdb%' and variable_name not like '%num_get_for_update%';
 Variable_name	Value
 rocksdb_rows_deleted	#
+rocksdb_rows_deleted_blind	#
 rocksdb_rows_inserted	#
 rocksdb_rows_read	#
 rocksdb_rows_updated	#
@@ -1532,6 +1552,9 @@ rocksdb_memtable_total	#
 rocksdb_memtable_unflushed	#
 rocksdb_queries_point	#
 rocksdb_queries_range	#
+rocksdb_table_index_stats_success	#
+rocksdb_table_index_stats_failure	#
+rocksdb_table_index_stats_req_queue_length	#
 rocksdb_covered_secondary_key_lookups	#
 rocksdb_block_cache_add	#
 rocksdb_block_cache_add_failures	#
@@ -1626,9 +1649,10 @@ rocksdb_write_other	#
 rocksdb_write_self	#
 rocksdb_write_timedout	#
 rocksdb_write_wal	#
-select VARIABLE_NAME from performance_schema.global_status where VARIABLE_NAME LIKE 'rocksdb%';
+select VARIABLE_NAME from performance_schema.global_status where VARIABLE_NAME LIKE 'rocksdb%' and VARIABLE_NAME NOT LIKE '%num_get_for_update%';
 VARIABLE_NAME
 rocksdb_rows_deleted
+rocksdb_rows_deleted_blind
 rocksdb_rows_inserted
 rocksdb_rows_read
 rocksdb_rows_updated
@@ -1642,6 +1666,9 @@ rocksdb_memtable_total
 rocksdb_memtable_unflushed
 rocksdb_queries_point
 rocksdb_queries_range
+rocksdb_table_index_stats_success
+rocksdb_table_index_stats_failure
+rocksdb_table_index_stats_req_queue_length
 rocksdb_covered_secondary_key_lookups
 rocksdb_block_cache_add
 rocksdb_block_cache_add_failures
@@ -1738,9 +1765,10 @@ rocksdb_write_timedout
 rocksdb_write_wal
 # RocksDB-SE's status variables are global internally 
 #  but they are shown as both session and global, like InnoDB's status vars.
-select VARIABLE_NAME from performance_schema.session_status where VARIABLE_NAME LIKE 'rocksdb%';
+select VARIABLE_NAME from performance_schema.session_status where VARIABLE_NAME LIKE 'rocksdb%' and VARIABLE_NAME NOT LIKE '%num_get_for_update%';
 VARIABLE_NAME
 rocksdb_rows_deleted
+rocksdb_rows_deleted_blind
 rocksdb_rows_inserted
 rocksdb_rows_read
 rocksdb_rows_updated
@@ -1754,6 +1782,9 @@ rocksdb_memtable_total
 rocksdb_memtable_unflushed
 rocksdb_queries_point
 rocksdb_queries_range
+rocksdb_table_index_stats_success
+rocksdb_table_index_stats_failure
+rocksdb_table_index_stats_req_queue_length
 rocksdb_covered_secondary_key_lookups
 rocksdb_block_cache_add
 rocksdb_block_cache_add_failures
@@ -1855,7 +1886,7 @@ create table t0 (a int) engine=myisam;
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1 (
 pk int primary key, 
-col1 varchar(191),
+col1 varchar(255),
 key(col1)
 ) engine=rocksdb;
 insert into t1 select a, repeat('123456789ABCDEF-', 5) from t0;
@@ -1873,11 +1904,18 @@ id1 bigint(20) unsigned NOT NULL DEFAULT '0',
 id2 bigint(20) unsigned NOT NULL DEFAULT '0',
 link_type bigint(20) unsigned NOT NULL DEFAULT '0',
 visibility tinyint(3) NOT NULL DEFAULT '0',
-data varchar(191) NOT NULL DEFAULT '',
+data varchar(255) NOT NULL DEFAULT '',
 time bigint(20) unsigned NOT NULL DEFAULT '0',
 version int(11) unsigned NOT NULL DEFAULT '0',
 PRIMARY KEY (link_type,id1,id2)
 ) engine=rocksdb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 select a,a,a,1,a,a,a from t0;
 alter table t1 add index id1_type (id1,link_type,visibility,time,version,data);
 select * from t1 where id1 = 3;
@@ -2362,7 +2400,7 @@ insert into t1 values (1), (2), (3);
 begin;
 insert into t1 values (4), (5), (6);
 insert into t1 values (7), (8), (2), (9);
-ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2' for key 't1.PRIMARY'
 select * from t1;
 id
 1
@@ -2384,11 +2422,11 @@ SET @old_mode = @@sql_mode;
 SET sql_mode = 'strict_all_tables';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-create table t1 (a int, b text, c varchar(191), Primary Key(a), Key(c, b(191))) engine=rocksdb;
+create table t1 (a int, b text, c varchar(255), Primary Key(a), Key(c, b(255))) engine=rocksdb;
 drop table t1;
 set @orig_rocksdb_large_prefix=@@global.rocksdb_large_prefix;
 set @@global.rocksdb_large_prefix=1;
-create table t1 (a int, b text, c varchar(191), Primary Key(a), Key(b(191))) engine=rocksdb;
+create table t1 (a int, b text, c varchar(255), Primary Key(a), Key(b(255))) engine=rocksdb;
 set @@global.rocksdb_large_prefix=@orig_rocksdb_large_prefix;
 insert into t1 values (1, '1abcde', '1abcde'), (2, '2abcde', '2abcde'), (3, '3abcde', '3abcde');
 select * from t1;
@@ -2398,12 +2436,12 @@ a	b	c
 3	3abcde	3abcde
 explain select * from t1 where b like '1%';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	b	b	767	NULL	#	100.00	Using where
+1	SIMPLE	t1	NULL	range	b	b	1023	NULL	#	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`b` like '1%')
 explain select b, a from t1 where b like '1%';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	b	b	767	NULL	#	100.00	Using where
+1	SIMPLE	t1	NULL	range	b	b	1023	NULL	#	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b`,`test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`b` like '1%')
 update t1 set b= '12345' where b = '2abcde';
@@ -2414,7 +2452,7 @@ a	b	c
 3	3abcde	3abcde
 drop table t1;
 create table t1 (a int, b text, c varchar(400), Primary Key(a), Key(b(2255))) engine=rocksdb;
-ERROR 42000: Specified key was too long; max key length is 767 bytes
+ERROR 42000: Specified key was too long; max key length is 3072 bytes
 SET sql_mode = @old_mode;
 drop table t0;
 #
@@ -2464,9 +2502,9 @@ SELECT * FROM t2 WHERE c1 > 4294967295 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
 EXPLAIN SELECT * FROM t2 WHERE c1 > 4294967295 ORDER BY c1,c6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	50	100.00	Using where
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`c1` AS `c1`,`test`.`t2`.`c2` AS `c2`,`test`.`t2`.`c3` AS `c3`,`test`.`t2`.`c4` AS `c4`,`test`.`t2`.`c5` AS `c5`,`test`.`t2`.`c6` AS `c6`,`test`.`t2`.`c7` AS `c7` from `test`.`t2` where (`test`.`t2`.`c1` > 4294967295) order by `test`.`t2`.`c1`,`test`.`t2`.`c6`
+Note	1003	/* select#1 */ select `test`.`t2`.`c1` AS `c1`,`test`.`t2`.`c2` AS `c2`,`test`.`t2`.`c3` AS `c3`,`test`.`t2`.`c4` AS `c4`,`test`.`t2`.`c5` AS `c5`,`test`.`t2`.`c6` AS `c6`,`test`.`t2`.`c7` AS `c7` from `test`.`t2` where false order by `test`.`t2`.`c1`,`test`.`t2`.`c6`
 drop table t2;
 #
 # Issue #135: register transaction was not being called for statement
@@ -2583,8 +2621,8 @@ create table r2 like r1;
 show create table r2;
 Table	Create Table
 r2	CREATE TABLE `r2` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `value` int(11) DEFAULT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `value` int DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 begin;
@@ -2607,8 +2645,8 @@ create table r2 like r1;
 show create table r2;
 Table	Create Table
 r2	CREATE TABLE `r2` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `value` int(11) DEFAULT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `value` int DEFAULT NULL,
   KEY `i` (`id`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 begin;
@@ -2689,9 +2727,11 @@ INSERT INTO t1 VALUES ('c1-val2','c2-val3',6);
 INSERT INTO t1 VALUES ('c1-val3','c2-val3',7);
 SELECT * FROM t1 force index(idx) WHERE c1 <> 'c1-val2' ORDER BY c1 DESC;
 c1	c2	c3
+c1-val3	c2-val3	7
+c1-val1	c2-val1	5
 explain SELECT * FROM t1  force index(idx) WHERE c1 <> '1' ORDER BY c1 DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	idx	idx	42	NULL	#	100.00	Using index condition; Backward index scan
+1	SIMPLE	t1	NULL	range	idx	idx	42	NULL	#	100.00	Using where; Backward index scan
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3` from `test`.`t1` FORCE INDEX (`idx`) where (`test`.`t1`.`c1` <> '1') order by `test`.`t1`.`c1` desc
 drop table t1;
@@ -2740,11 +2780,18 @@ id3 bigint(20),
 PRIMARY KEY (id1, id2, id3))
 ENGINE=ROCKSDB
 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (id1 bigint(20),
 id2 bigint(20),
 PRIMARY KEY (id1, id2))
 ENGINE=ROCKSDB
 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 set rocksdb_commit_in_the_middle=1;
 SET @save_rocksdb_bulk_load_size= @@rocksdb_bulk_load_size;
 set rocksdb_bulk_load_size = 100;

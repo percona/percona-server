@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -24,14 +24,21 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define USER_TABLE_INCLUDED
 
 #include "my_inttypes.h"
-#include "sql/sql_class.h"
-#include "sql/table.h"
+
+// Forward declarations
+class Restrictions;
+class THD;
+struct LEX_USER;
+struct TABLE;
 
 namespace acl_table {
 
 const ulong USER_ATTRIBUTE_NONE = 0L;
 const ulong USER_ATTRIBUTE_RETAIN_PASSWORD = (1L << 0);
 const ulong USER_ATTRIBUTE_DISCARD_PASSWORD = (1L << 1);
+const ulong USER_ATTRIBUTE_RESTRICTIONS = (1L << 3);
+const ulong USER_ATTRIBUTE_FAILED_LOGIN_ATTEMPTS = (1L << 4);
+const ulong USER_ATTRIBUTE_PASSWORD_LOCK_TIME = (1L << 5);
 
 class Pod_user_what_to_update {
  public:
@@ -43,7 +50,8 @@ class Pod_user_what_to_update {
 
 int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
                        bool revoke_grant, bool can_create_user,
-                       acl_table::Pod_user_what_to_update &what_to_update);
+                       acl_table::Pod_user_what_to_update &what_to_update,
+                       Restrictions *restrictions = nullptr);
 
 bool read_user_table(THD *thd, TABLE *table);
 #endif /* USER_TABLE_INCLUDED */

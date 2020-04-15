@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,7 @@
 
 #include <utility>
 
-#include "plugin/x/ngs/include/ngs_common/to_string.h"
+#include "plugin/x/src/helper/to_string.h"
 
 namespace xpl {
 namespace test {
@@ -84,11 +84,6 @@ Scalar::Scalar(const double value) {
   m_base.set_v_double(value);
 }
 
-Scalar::Scalar(const char *value, unsigned type) {
-  m_base.set_type(Mysqlx::Datatypes::Scalar_Type_V_OCTETS);
-  m_base.mutable_v_octets()->CopyFrom(Scalar::Octets(value, type));
-}
-
 Scalar::Scalar(const Scalar::Octets &value) {
   m_base.set_type(Mysqlx::Datatypes::Scalar_Type_V_OCTETS);
   m_base.mutable_v_octets()->CopyFrom(value);
@@ -99,15 +94,20 @@ Scalar::Scalar(const Scalar::String &value) {
   m_base.mutable_v_string()->CopyFrom(value);
 }
 
+Scalar::Scalar(const char *value) {
+  m_base.set_type(Mysqlx::Datatypes::Scalar_Type_V_STRING);
+  *m_base.mutable_v_string()->mutable_value() = value;
+}
+
 Scalar::Scalar(Scalar::Null) {
   m_base.set_type(Mysqlx::Datatypes::Scalar_Type_V_NULL);
 }
 
 Scalar::String::String(const std::string &value) { m_base.set_value(value); }
 
-Scalar::Octets::Octets(const std::string &value, const unsigned type) {
+Scalar::Octets::Octets(const std::string &value, const Content_type type) {
   m_base.set_value(value);
-  m_base.set_content_type(type);
+  m_base.set_content_type(static_cast<uint32_t>(type));
 }
 
 Any::Any(const Scalar &scalar) {
@@ -171,6 +171,12 @@ Any::Object::Object(const std::initializer_list<Any::Object::Fld> &list) {
     item->set_key(f.key);
     item->mutable_value()->CopyFrom(f.value);
   }
+}
+
+Any::Object::Object(const std::string &key, Any *value) {
+  Mysqlx::Datatypes::Object_ObjectField *item = m_base.add_fld();
+  item->set_key(key);
+  if (value) item->mutable_value()->CopyFrom(*value);
 }
 
 Object::Object(const std::string &key, Expr *value) {

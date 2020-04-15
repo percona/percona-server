@@ -1,5 +1,5 @@
-/*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+﻿/*
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -79,18 +79,22 @@
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
+#include "mysql/harness/tty.h"
+#include "mysql/harness/vt100_filter.h"
 #include "mysql_session.h"
+#include "mysqlrouter/mysql_client_thread_token.h"
 #include "random_generator.h"
 #include "router_app.h"
 #include "utils.h"
 #include "windows/main-windows.h"
+
 IMPORT_LOG_FUNCTIONS()
 
 /** @brief Initialise Dependency Injection Manager (DIM)
  *
- * This is the place to initialise all the DI stuff used thoroughout our
- * application. (well, maybe we'll want plugins to init their own stuff, we'll
- * see).
+ * Unless there's a specific reason to do it elsewhere, this is the place to
+ * initialise all the DI stuff used thoroughout our application. (well, maybe
+ * we'll want plugins to init their own stuff, we'll see).
  *
  * Naturally, unit tests will not run this code, as they will initialise the
  * objects they need their own way.
@@ -115,26 +119,42 @@ static void init_DIM() {
   // Ofstream
   dim.set_Ofstream([]() { return new mysqlrouter::RealOfstream(); },
                    std::default_delete<mysqlrouter::Ofstream>());
-
-  // logging facility
-  dim.set_LoggingRegistry(
-      []() {
-        static mysql_harness::logging::Registry registry;
-        return &registry;
-      },
-      [](mysql_harness::logging::Registry *) {}  // don't delete our static!
-  );
 }
 
-int real_main(int argc, char **argv) {
+static void preconfig_log_init(bool use_os_logger_initially) noexcept {
+  // setup registry object in DIM
+  {
+    mysql_harness::DIM &dim = mysql_harness::DIM::instance();
+    dim.set_LoggingRegistry(
+        []() {
+          static mysql_harness::logging::Registry registry;
+          return &registry;
+        },
+        [](mysql_harness::logging::Registry *) {}  // don't delete our static!
+    );
+  }
+
+  // initialize logger to log to stderr or OS logger. After reading
+  // configuration inside of MySQLRouter::start(), it will be re-initialized
+  // according to information in the configuration file
+  {
+    mysql_harness::LoaderConfig config(mysql_harness::Config::allow_keys);
+    try {
+      MySQLRouter::init_main_logger(config, true,  // true = raw logging mode
+                                    use_os_logger_initially);
+    } catch (const std::runtime_error &) {
+      // If log init fails, there's not much we can do here (no way to log the
+      // error) except to catch this exception to prevent it from bubbling up
+      // to std::terminate()
+    }
+  }
+}
+
+int real_main(int argc, char **argv, bool use_os_logger_initially) {
+  preconfig_log_init(use_os_logger_initially);
+
   mysql_harness::rename_thread("main");
   init_DIM();
-
-  // initialize logger to log to stderr. After reading configuration inside of
-  // MySQLRouter::start(), it will be re-initialized according to information in
-  // the configuration file
-  mysql_harness::LoaderConfig config(mysql_harness::Config::allow_keys);
-  MySQLRouter::init_main_logger(config, true);  // true = raw logging mode
 
   // TODO This is very ugly, it should not be a global. It's defined in
   // config_generator.cc and
@@ -143,14 +163,25 @@ int real_main(int argc, char **argv) {
   extern std::string g_program_name;
   g_program_name = argv[0];
 
+  mysqlrouter::MySQLClientThreadToken api_token;
   if (mysql_library_init(argc, argv, NULL)) {
     log_error("Could not initialize MySQL library");
     return 1;
   }
 
+  // cout is a tty?
+  Tty cout_tty(Tty::fd_from_stream(std::cout));
+  Vt100Filter filtered_out_streambuf(
+      std::cout.rdbuf(), !(cout_tty.is_tty() && cout_tty.ensure_vt100()));
+  std::ostream filtered_out_stream(&filtered_out_streambuf);
+
+  Tty cerr_tty(Tty::fd_from_stream(std::cout));
+  Vt100Filter filtered_err_streambuf(
+      std::cerr.rdbuf(), !(cerr_tty.is_tty() && cerr_tty.ensure_vt100()));
+  std::ostream filtered_err_stream(&filtered_err_streambuf);
   int result = 0;
   try {
-    MySQLRouter router(argc, argv);
+    MySQLRouter router(argc, argv, filtered_out_stream, filtered_err_stream);
     // This nested try/catch block is necessary in Windows, to
     // workaround a crash that occurs when an exception is thrown from
     // a plugin (e.g. routing_plugin_tests)
@@ -164,6 +195,8 @@ int real_main(int argc, char **argv) {
       result = 1;
     } catch (const silent_exception &) {
     }
+    // cleanup on shutdown
+    router.stop();
   } catch (const std::invalid_argument &exc) {
     log_error("Configuration error: %s", exc.what());
     result = 1;
@@ -178,11 +211,6 @@ int real_main(int argc, char **argv) {
     result = 1;
   }
 
-  // We should deinitialize mysql-lib but we can't do it safely here until
-  // we do WL9558 "Plugin life-cycle that support graceful shutdown and
-  // restart." Currently we can get here while there are still some threads
-  // running (like metadata_cache thread that is managed by the global
-  // g_metadata_cache) that still use mysql-lib, which leads to crash.
   mysql_library_end();
 
   return result;
@@ -192,6 +220,6 @@ int main(int argc, char **argv) {
 #ifdef _WIN32
   return proxy_main(real_main, argc, argv);
 #else
-  return real_main(argc, argv);
+  return real_main(argc, argv, false);  // false = log initially to STDERR
 #endif
 }

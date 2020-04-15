@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,9 @@
 #include "mysql/harness/logging/handler.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
+#ifdef _WIN32
+#include "mysql/harness/logging/eventlog_plugin.h"
+#endif
 
 #include "common.h"
 #include "dim.h"
@@ -40,16 +43,17 @@
 
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <cstdarg>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
 
 using mysql_harness::Path;
-using mysql_harness::logging::LogLevel;
-using mysql_harness::logging::Logger;
-using mysql_harness::logging::Record;
 using mysql_harness::serial_comma;
+using mysql_harness::logging::Logger;
+using mysql_harness::logging::LogLevel;
+using mysql_harness::logging::Record;
 
 // TODO one day we'll improve this and move it to a common spot
 #define harness_assert(COND) \
@@ -66,9 +70,21 @@ const std::map<std::string, LogLevel> Registry::kLogLevels{
     {"debug", LogLevel::kDebug},
 };
 
-// log level is stored in this hacky global variable; see place where it's
-// set for exaplanation
-std::string g_HACK_default_log_level;
+const std::map<std::string, LogTimestampPrecision>
+    Registry::kLogTimestampPrecisions{
+        {"second", LogTimestampPrecision::kSec},
+        {"sec", LogTimestampPrecision::kSec},
+        {"s", LogTimestampPrecision::kSec},
+        {"millisecond", LogTimestampPrecision::kMilliSec},
+        {"msec", LogTimestampPrecision::kMilliSec},
+        {"ms", LogTimestampPrecision::kMilliSec},
+        {"microsecond", LogTimestampPrecision::kMicroSec},
+        {"usec", LogTimestampPrecision::kMicroSec},
+        {"us", LogTimestampPrecision::kMicroSec},
+        {"nanosecond", LogTimestampPrecision::kNanoSec},
+        {"nsec", LogTimestampPrecision::kNanoSec},
+        {"ns", LogTimestampPrecision::kNanoSec},
+    };
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -131,6 +147,13 @@ std::set<std::string> Registry::get_logger_names() const {
   return result;
 }
 
+void Registry::flush_all_loggers() {
+  std::lock_guard<std::mutex> lock(mtx_);
+  for (const auto &handler : handlers_) {
+    handler.second->reopen();
+  }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // handler CRUD
@@ -161,7 +184,7 @@ void Registry::remove_handler(std::string name) {
 }
 
 // throws std::logic_error
-std::shared_ptr<Handler> Registry::get_handler(std::string name) const {
+std::shared_ptr<Handler> Registry::get_handler(const std::string &name) const {
   std::lock_guard<std::mutex> lock(mtx_);
 
   auto it = handlers_.find(name);
@@ -176,6 +199,16 @@ std::set<std::string> Registry::get_handler_names() const {
   std::set<std::string> result;
   for (const auto &pair : handlers_) result.emplace(pair.first);
   return result;
+}
+
+bool Registry::is_handled(LogLevel level) const {
+  std::lock_guard<std::mutex> lock(mtx_);
+
+  for (const auto &handler_pair : handlers_) {
+    if (level <= handler_pair.second->get_level()) return true;
+  }
+
+  return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -204,6 +237,15 @@ void set_log_level_for_all_loggers(Registry &registry, LogLevel level) {
   }
 }
 
+void set_timestamp_precision_for_all_loggers(Registry &registry,
+                                             LogTimestampPrecision precision) {
+  for (const std::string &logger_name : registry.get_logger_names()) {
+    Logger logger = registry.get_logger(logger_name);
+    logger.set_timestamp_precision(precision);
+    registry.update_logger(logger_name, logger);
+  }
+}
+
 void clear_registry(Registry &registry) {
   // wipe any existing loggers
   for (const std::string &name : registry.get_logger_names())
@@ -216,17 +258,18 @@ void clear_registry(Registry &registry) {
 
 std::ostream *get_default_logger_stream() { return &std::cerr; }
 
-void create_main_logfile_handler(Registry &registry, const std::string &program,
-                                 const std::string &logging_folder,
-                                 bool format_messages) {
-  // Register the console as the handler if the logging folder is
-  // undefined. Otherwise, register a file handler.
-  if (logging_folder.empty()) {
-    registry.add_handler(kMainConsoleHandler,
-                         std::make_shared<StreamHandler>(
-                             *get_default_logger_stream(), format_messages));
-    attach_handler_to_all_loggers(registry, kMainConsoleHandler);
-  } else {
+void create_main_log_handler(Registry &registry, const std::string &program,
+                             const std::string &logging_folder,
+                             bool format_messages,
+                             bool use_os_log /*= false*/) {
+#ifndef _WIN32
+  // currently logging to OS log is only supported on Windows
+  // (maybe in the future we'll add Syslog on the Unix side)
+  harness_assert(use_os_log == false);
+#endif
+
+  // if logging folder is provided, make filelogger our main handler
+  if (!logging_folder.empty()) {
     Path log_file = Path::make_path(logging_folder, program, "log");
 
     // throws std::runtime_error on failure to open file
@@ -234,20 +277,42 @@ void create_main_logfile_handler(Registry &registry, const std::string &program,
                                               log_file, format_messages));
 
     attach_handler_to_all_loggers(registry, kMainLogHandler);
+    return;
+  }
+
+  // if user wants to log to OS log, make that our main handler
+#ifdef _WIN32  // only Windows Eventlog is supported at the moment
+  if (use_os_log) {
+    // throws std::runtime_error on failure to init Windows Eventlog
+    registry.add_handler(
+        EventlogHandler::kDefaultName,
+        std::make_shared<EventlogHandler>(
+            format_messages, mysql_harness::logging::LogLevel::kWarning,
+            false));
+
+    attach_handler_to_all_loggers(registry, EventlogHandler::kDefaultName);
+    return;
+  }
+#endif
+
+  // fall back to logging to console
+  {
+    registry.add_handler(kMainConsoleHandler,
+                         std::make_shared<StreamHandler>(
+                             *get_default_logger_stream(), format_messages));
+    attach_handler_to_all_loggers(registry, kMainConsoleHandler);
   }
 }
 
-void init_logger(Registry &registry, const Config &config,
-                 const std::string &logger_name) {
-  registry.create_logger(logger_name, get_default_log_level(config));
+void create_logger(Registry &registry, const LogLevel level,
+                   const std::string &logger_name) {
+  registry.create_logger(logger_name, level);
 }
 
-void init_loggers(Registry &registry, const Config &config,
-                  const std::list<std::string> &modules,
-                  const std::string &main_app) {
+void create_module_loggers(Registry &registry, const LogLevel level,
+                           const std::list<std::string> &modules,
+                           const std::string &main_app) {
   // Create a logger for each module in the logging registry.
-  LogLevel level =
-      get_default_log_level(config);  // throws std::invalid_argument
   for (const std::string &module : modules)
     registry.create_logger(module, level);  // throws std::logic_error
 
@@ -256,33 +321,17 @@ void init_loggers(Registry &registry, const Config &config,
   harness_assert(registry.get_logger_names().size() > 0);
 }
 
-LogLevel get_default_log_level(const Config &config) {
-  // What we do here is an UGLY HACK. See code where g_HACK_default_log_level
-  // is set for explanation.
-  //
-  // Before introducing this hack in Router v8.0, we used to obtain the default
-  // log level from configuration, like so:
-  //
-  //   // We get the default log level from the configuration.
-  //   auto level_name = config.get_default("log_level");
-  //
-  // Once we have a proper remedy, something analogous should be reinstated.
-
-  // Obtain default log level (through UGLY HACK)
-  (void)config;  // after we remove this hack, config will be used once again
-  std::string level_name = mysql_harness::logging::g_HACK_default_log_level;
-
-  std::transform(level_name.begin(), level_name.end(), level_name.begin(),
-                 ::tolower);
+HARNESS_EXPORT
+LogLevel log_level_from_string(std::string name) {
+  std::transform(name.begin(), name.end(), name.begin(), ::tolower);
 
   // Return its enum representation
   try {
-    return Registry::kLogLevels.at(level_name);
-  } catch (std::out_of_range &exc) {
+    return Registry::kLogLevels.at(name);
+  } catch (const std::out_of_range &) {
     std::stringstream buffer;
 
-    buffer << "Log level '" << level_name
-           << "' is not valid. Valid values are: ";
+    buffer << "Log level '" << name << "' is not valid. Valid values are: ";
 
     // Print the entries using a serial comma
     std::vector<std::string> alternatives;
@@ -291,6 +340,68 @@ LogLevel get_default_log_level(const Config &config) {
     serial_comma(buffer, alternatives.begin(), alternatives.end());
     throw std::invalid_argument(buffer.str());
   }
+}
+
+LogLevel get_default_log_level(const Config &config, bool raw_mode) {
+  constexpr const char kNone[] = "";
+
+  // aliases with shorter names
+  constexpr const char *kLogLevel =
+      mysql_harness::logging::kConfigOptionLogLevel;
+  constexpr const char *kLogger = mysql_harness::logging::kConfigSectionLogger;
+
+  std::string level_name;
+  // extract log level from [logger] section/log level entry, if it exists
+  if (config.has(kLogger) && config.get(kLogger, kNone).has(kLogLevel))
+    level_name = config.get(kLogger, kNone).get(kLogLevel);
+  // otherwise, set it to default
+  else
+    level_name = raw_mode ? mysql_harness::logging::kRawLogLevelName
+                          : mysql_harness::logging::kDefaultLogLevelName;
+
+  return log_level_from_string(level_name);  // throws std::invalid_argument
+}
+
+HARNESS_EXPORT
+LogTimestampPrecision log_timestamp_precision_from_string(std::string name) {
+  std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+
+  // Return its enum representation
+  try {
+    return Registry::kLogTimestampPrecisions.at(name);
+  } catch (const std::out_of_range &) {
+    std::stringstream buffer;
+
+    buffer << "Timestamp precision '" << name
+           << "' is not valid. Valid values are: ";
+
+    // Print the entries using a serial comma
+    std::vector<std::string> alternatives;
+    for (const auto &pair : Registry::kLogTimestampPrecisions)
+      alternatives.push_back(pair.first);
+    serial_comma(buffer, alternatives.begin(), alternatives.end());
+    throw std::invalid_argument(buffer.str());
+  }
+}
+
+LogTimestampPrecision get_default_timestamp_precision(const Config &config) {
+  constexpr const char kNone[] = "";
+
+  // aliases with shorter names
+  constexpr const char *kLogTimestampPrecision =
+      mysql_harness::logging::kConfigOptionLogTimestampPrecision;
+  constexpr const char *kLogger = mysql_harness::logging::kConfigSectionLogger;
+
+  std::string precision;
+  // extract precision from [logger] section/log, if it exists
+  if (config.has(kLogger) &&
+      config.get(kLogger, kNone).has(kLogTimestampPrecision))
+    precision = config.get(kLogger, kNone).get(kLogTimestampPrecision);
+  else
+    precision = "second";
+
+  return log_timestamp_precision_from_string(
+      precision);  // throws std::invalid_argument
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -322,6 +433,26 @@ void set_log_level_for_all_loggers(LogLevel level) {
   set_log_level_for_all_loggers(registry, level);
 }
 
+bool log_level_is_handled(LogLevel level, const char *module) {
+  mysql_harness::logging::Registry &registry =
+      mysql_harness::DIM::instance().get_LoggingRegistry();
+
+  Logger logger;
+  try {
+    logger = registry.get_logger(module);
+  } catch (const std::logic_error &) {
+    logger = registry.get_logger(mysql_harness::logging::g_main_app_log_domain);
+  }
+
+  return logger.is_handled(level);
+}
+
+void set_timestamp_precision_for_all_loggers(LogTimestampPrecision precision) {
+  mysql_harness::logging::Registry &registry =
+      mysql_harness::DIM::instance().get_LoggingRegistry();
+  set_timestamp_precision_for_all_loggers(registry, precision);
+}
+
 }  // namespace logging
 
 }  // namespace mysql_harness
@@ -339,7 +470,7 @@ void set_log_level_for_all_loggers(LogLevel level) {
 // However, since we are building a DLL/DSO with this file, and since VS only
 // allows __declspec(dllimport/dllexport) in function declarations, we must
 // provide both declaration and definition.
-extern "C" MY_ATTRIBUTE((format(printf, 3, 0))) void LOGGER_API
+extern "C" MY_ATTRIBUTE((format(printf, 3, 0))) void HARNESS_EXPORT
     log_message(LogLevel level, const char *module, const char *fmt,
                 va_list ap);
 
@@ -347,9 +478,7 @@ extern "C" void log_message(LogLevel level, const char *module, const char *fmt,
                             va_list ap) {
   harness_assert(level <= LogLevel::kDebug);
 
-  // get timestamp
-  time_t now;
-  time(&now);
+  std::chrono::time_point<std::chrono::system_clock> now{};
 
   mysql_harness::logging::Registry &registry =
       mysql_harness::DIM::instance().get_LoggingRegistry();
@@ -363,7 +492,7 @@ extern "C" void log_message(LogLevel level, const char *module, const char *fmt,
   Logger logger;
   try {
     logger = registry.get_logger(module);
-  } catch (std::logic_error &) {
+  } catch (const std::logic_error &) {
     // Logger is not registered for this module (log domain), so log as main
     // application domain instead (which should always be available)
     using mysql_harness::logging::g_main_app_log_domain;
@@ -380,6 +509,8 @@ extern "C" void log_message(LogLevel level, const char *module, const char *fmt,
              "Module '%s' not registered with logger - "
              "logging the following message as '%s' instead",
              module, g_main_app_log_domain.c_str());
+    if (std::chrono::time_point<std::chrono::system_clock>{} == now)
+      now = std::chrono::system_clock::now();
     logger.handle(
         {LogLevel::kError, getpid(), now, g_main_app_log_domain, msg});
 
@@ -387,6 +518,11 @@ extern "C" void log_message(LogLevel level, const char *module, const char *fmt,
     // log message
     module = g_main_app_log_domain.c_str();
   }
+
+  if (!logger.is_handled(level)) return;
+
+  if (std::chrono::time_point<std::chrono::system_clock>{} == now)
+    now = std::chrono::system_clock::now();
 
   // Build the message
   char message[mysql_harness::logging::kLogMessageMaxSize];

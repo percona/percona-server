@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,6 @@
 #include "my_inttypes.h"
 #include "my_stacktrace.h"
 #include "unittest/gunit/test_utils.h"
-#include "unittest/gunit/thread_utils.h"
 
 namespace segfault_unittest {
 
@@ -47,9 +46,9 @@ class FatalSignalDeathTest : public ::testing::Test {
 
 TEST_F(FatalSignalDeathTest, Abort) {
 #if defined(_WIN32)
-  MY_EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got exception.*");
+  EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got exception.*");
 #else
-  MY_EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got signal 6.*");
+  EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got signal 6.*");
 #endif
 }
 
@@ -61,16 +60,16 @@ TEST_F(FatalSignalDeathTest, Segfault) {
    caught by handle_fatal_signal(). We get an empty error message from the
    gtest library instead.
   */
-  MY_EXPECT_DEATH_IF_SUPPORTED(*pint = 42, "");
+  EXPECT_DEATH_IF_SUPPORTED(*pint = 42, "");
 #elif defined(__SANITIZE_ADDRESS__)
   /* AddressSanitizer */
-  MY_EXPECT_DEATH_IF_SUPPORTED(*pint = 42, ".*ASAN:(DEADLYSIGNAL|SIGSEGV).*");
+  EXPECT_DEATH_IF_SUPPORTED(*pint = 42, ".*ASAN:(DEADLYSIGNAL|SIGSEGV).*");
 #else
   /*
    On most platforms we get SIGSEGV == 11, but SIGBUS == 10 is also possible.
    And on Mac OsX we can get SIGILL == 4 (but only in optmized mode).
   */
-  MY_EXPECT_DEATH_IF_SUPPORTED(*pint = 42, ".* UTC - mysqld got signal .*");
+  EXPECT_DEATH_IF_SUPPORTED(*pint = 42, ".* UTC - mysqld got signal .*");
 #endif
 }
 
@@ -105,7 +104,7 @@ TEST(PrintUtilities, Itoa) {
     my_res = my_safe_itoa(10, intarr[ix], &buff[sizeof(buff) - 1]);
     EXPECT_STREQ(sprintbuff, my_res);
 
-    ll2str(intarr[ix], buff, 10, 0);
+    ll2str(intarr[ix], buff, 10, false);
     EXPECT_STREQ(sprintbuff, buff);
 
     sprintf(sprintbuff, "%lld", -intarr[ix]);
@@ -113,7 +112,7 @@ TEST(PrintUtilities, Itoa) {
     EXPECT_STREQ(sprintbuff, my_res);
 
     // This one fails ....
-    // ll2str(-intarr[ix], buff, 10, 0);
+    // ll2str(-intarr[ix], buff, 10, false);
     // EXPECT_STREQ(sprintbuff, buff)
     //  << "failed for " << -intarr[ix];
 
@@ -121,14 +120,14 @@ TEST(PrintUtilities, Itoa) {
     my_res = my_safe_itoa(16, intarr[ix], &buff[sizeof(buff) - 1]);
     EXPECT_STREQ(sprintbuff, my_res);
 
-    ll2str(intarr[ix], buff, 16, 0);
+    ll2str(intarr[ix], buff, 16, false);
     EXPECT_STREQ(sprintbuff, buff);
 
     sprintf(sprintbuff, "%llx", -intarr[ix]);
     my_res = my_safe_itoa(16, -intarr[ix], &buff[sizeof(buff) - 1]);
     EXPECT_STREQ(sprintbuff, my_res) << "failed for " << -intarr[ix];
 
-    ll2str(-intarr[ix], buff, 16, 0);
+    ll2str(-intarr[ix], buff, 16, false);
     EXPECT_STREQ(sprintbuff, buff);
   }
 }

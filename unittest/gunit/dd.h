@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,6 +53,7 @@
 #include "sql/dd/types/view_table.h"
 #include "sql/histograms/histogram.h"
 #include "sql/histograms/value_map.h"
+#include "sql/sql_class.h"
 #include "unittest/gunit/base_mock_field.h"
 #include "unittest/gunit/base_mock_handler.h"
 #include "unittest/gunit/fake_table.h"
@@ -61,10 +62,10 @@ class Json_wrapper;
 
 namespace dd_unittest {
 
+using ::testing::_;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::StrictMock;
-using ::testing::_;
 
 /**
   Mock handler for dictionary operations.
@@ -81,10 +82,20 @@ class Mock_dd_HANDLER : public Base_mock_HANDLER {
   // Handler method used for updates
   MOCK_METHOD2(update_row, int(const ::uchar *, ::uchar *));
 
-  Mock_dd_HANDLER(handlerton *ht, TABLE_SHARE *share)
-      : Base_mock_HANDLER(ht, share) {}
+  Mock_dd_HANDLER(handlerton *hton, TABLE_SHARE *share)
+      : Base_mock_HANDLER(hton, share) {}
 
-  virtual ~Mock_dd_HANDLER() {}
+  ~Mock_dd_HANDLER() override {}
+
+  /* Real DD handlers use InnoDB which supports gap locks.
+   * We need to override this method for mock as well
+   * because of Percona commit
+   * dd290a688dcbe114a8cb342e58410510e8378734 (PS-4257)
+   * when anti-deatdlock checks have been added to
+   * src/handler.cc.
+   * Whithout this, above fix interferes with unit tests.
+   */
+  bool has_gap_locks() const noexcept override { return true; }
 };
 
 /**
@@ -104,7 +115,7 @@ class Mock_dd_field_longlong : public Base_mock_field_longlong {
     Note: Sun Studio needs a little help in resolving longlong.
   */
   MOCK_METHOD2(store, type_conversion_status(::longlong, bool));
-  MOCK_METHOD0(val_int, ::longlong(void));
+  MOCK_CONST_METHOD0(val_int, ::longlong(void));
   MOCK_METHOD0(val_uint, ::ulonglong(void));
 
   /*
@@ -141,7 +152,7 @@ class Mock_dd_field_varstring : public Base_mock_field_varstring {
   */
   MOCK_METHOD3(store, type_conversion_status(const char *, size_t length,
                                              const CHARSET_INFO *));
-  MOCK_METHOD2(val_str, String *(String *, String *));
+  MOCK_CONST_METHOD2(val_str, String *(String *, String *));
 
   /*
     Add fake methods to set and get expected contents.
@@ -173,24 +184,28 @@ inline Fake_TABLE *get_schema_table(THD *thd, handlerton *hton) {
   Fake_TABLE_SHARE dummy_share(1);  // Keep Field_varstring constructor happy.
 
   // Add fields
-  m_field_list.push_back(new (*THR_MALLOC) Mock_dd_field_longlong());  // id
-  m_field_list.push_back(new (*THR_MALLOC)
+  m_field_list.push_back(new (thd->mem_root) Mock_dd_field_longlong());  // id
+  m_field_list.push_back(new (thd->mem_root)
                              Mock_dd_field_longlong());  // catalog_id
   m_field_list.push_back(
-      new (*THR_MALLOC) Mock_dd_field_varstring(64, &dummy_share));  // name
-  m_field_list.push_back(new (*THR_MALLOC)
+      new (thd->mem_root) Mock_dd_field_varstring(64, &dummy_share));  // name
+  m_field_list.push_back(new (thd->mem_root)
                              Mock_dd_field_longlong());  // collation_id
-  m_field_list.push_back(new (*THR_MALLOC)
+  m_field_list.push_back(new (thd->mem_root)
                              Mock_dd_field_longlong());  // created
-  m_field_list.push_back(new (*THR_MALLOC)
+  m_field_list.push_back(new (thd->mem_root)
                              Mock_dd_field_longlong());  // last_altered
+  m_field_list.push_back(new (*THR_MALLOC)               // options
+                         Mock_dd_field_varstring(128, &dummy_share));
+  m_field_list.push_back(new (*THR_MALLOC)
+                             Mock_dd_field_longlong());  // default_encryption
 
   // Create table object (and table share implicitly).
   table = new Fake_TABLE(m_field_list);
 
   // Create a strict mock handler for the share.
   StrictMock<Mock_dd_HANDLER> *ha =
-      new (*THR_MALLOC) StrictMock<Mock_dd_HANDLER>(hton, table->s);
+      new (thd->mem_root) StrictMock<Mock_dd_HANDLER>(hton, table->s);
 
   // Set current open table.
   ha->change_table_ptr(table, table->s);
@@ -217,8 +232,7 @@ inline Fake_TABLE *get_schema_table(THD *thd, handlerton *hton) {
   table->s->default_values = new uchar[table->s->reclength];
   table->s->tmp_table = NON_TRANSACTIONAL_TMP_TABLE;
 
-  // Allocate dummy records to avoid failures in the handler functions.
-  table->record[0] = new uchar[table->s->reclength];
+  // Allocate dummy record[1] to avoid failures in the handler functions.
   table->record[1] = new uchar[table->s->reclength];
 
   return table;

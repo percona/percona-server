@@ -1,11 +1,10 @@
 // Copyright (c) 2014, Google Inc.
 // Copyright (c) 2017, MariaDB Corporation.
 
-/**************************************************/ /**
- @file btr/btr0scrub.cc
- Scrubbing of btree pages
-
- *******************************************************/
+/**
+@file btr/btr0scrub.cc
+Scrubbing of btree pages
+*/
 
 #include "btr0scrub.h"
 #include "btr0btr.h"
@@ -14,9 +13,6 @@
 #include "fsp0fsp.h"
 #include "ibuf0ibuf.h"
 #include "mtr0mtr.h"
-
-/* used when trying to acquire dict-lock */
-bool fil_crypt_is_closing(ulint space);
 
 /**
  * scrub data at delete time (e.g purge thread)
@@ -52,33 +48,15 @@ static btr_scrub_stat_t scrub_stat;
 static ib_mutex_t scrub_stat_mutex;
 mysql_pfs_key_t scrub_stat_mutex_key;
 
-#ifdef UNIV_DEBUG
-/**
- * srv_scrub_force_testing
- *
- * - force scrubbing using background threads even for uncompressed tables
- * - force pessimistic scrubbing (page split) even if not needed
- *   (see test_pessimistic_scrub_pct)
- */
-bool srv_scrub_force_testing = true;
-
-/**
- * Force pessimistic scrubbing in 50% of the cases (UNIV_DEBUG only)
- */
-static int test_pessimistic_scrub_pct = 50;
-
-#endif
 static uint scrub_compression_level = page_zip_level;
 
-/**************************************************************/ /**
- Log a scrubbing failure */
-static void log_scrub_failure(
-    /*===============*/
-    dict_index_t *index,     /*!< in: index */
-    btr_scrub_t *scrub_data, /*!< in: data to store statistics on */
-    buf_block_t *block,      /*!< in: block */
-    dberr_t err)             /*!< in: error */
-{
+/** Log a scrubbing failure
+@param[in]	index
+@param[in,out]	scrub_data data to store statistics on
+@param[in]	block
+@param[in]	err */
+static void log_scrub_failure(dict_index_t *index, btr_scrub_t *scrub_data,
+                              buf_block_t *block, dberr_t err) {
   const char *reason = "unknown";
   switch (err) {
     case DB_UNDERFLOW:
@@ -104,10 +82,14 @@ static void log_scrub_failure(
              << reason;
 }
 
-/****************************************************************
-Lock dict mutexes */
-static bool btr_scrub_lock_dict_func(ulint space_id, bool lock_to_close_table,
-                                     const char *file, uint line) {
+/** Lock dict mutexes
+@param[in]	space_id
+@param[in]	lock_to_close_table
+@param[in]	file
+@param[in]	line */
+static bool btr_scrub_lock_dict_func(space_id_t space_id,
+                                     bool lock_to_close_table, const char *file,
+                                     uint line) {
   time_t start = time(0);
   time_t last = start;
 
@@ -142,7 +124,8 @@ static bool btr_scrub_lock_dict_func(ulint space_id, bool lock_to_close_table,
     if (now >= last + 30) {
       fprintf(stderr,
               "WARNING: %s:%u waited %ld seconds for"
-              " dict_sys lock, space: " ULINTPF " lock_to_close_table: %d\n",
+              " dict_sys lock, space: " SPACE_ID_PF
+              " lock_to_close_table: %d\n",
               file, line, long(now - start), space_id, lock_to_close_table);
 
       last = now;
@@ -156,26 +139,20 @@ static bool btr_scrub_lock_dict_func(ulint space_id, bool lock_to_close_table,
 #define btr_scrub_lock_dict(space, lock_to_close_table) \
   btr_scrub_lock_dict_func(space, lock_to_close_table, __FILE__, __LINE__)
 
-/****************************************************************
-Unlock dict mutexes */
+/** Unlock dict mutexes */
 static void btr_scrub_unlock_dict() { dict_mutex_exit_for_mysql(); }
 
-/****************************************************************
-Release reference to table
-*/
-static void btr_scrub_table_close(
-    /*==================*/
-    dict_table_t *table) /*!< in: table */
-{
+/** Release reference to table
+@param[in]	table */
+static void btr_scrub_table_close(dict_table_t *table) {
   bool dict_locked = true;
   bool try_drop = false;
   table->stats_bg_flag &= ~BG_SCRUB_IN_PROGRESS;
   dict_table_close(table, dict_locked, try_drop);
 }
 
-/****************************************************************
-Release reference to table
-*/
+/** Release reference to table
+@param[in]	scrub_data */
 static void btr_scrub_table_close_for_thread(btr_scrub_t *scrub_data) {
   if (scrub_data->current_table == NULL) {
     return;
@@ -198,12 +175,9 @@ static void btr_scrub_table_close_for_thread(btr_scrub_t *scrub_data) {
   scrub_data->current_index = NULL;
 }
 
-/**************************************************************/ /**
- Check if scrubbing is turned ON or OFF */
-static bool check_scrub_setting(
-    /*=====================*/
-    btr_scrub_t *scrub_data) /*!< in: scrub data  */
-{
+/** Check if scrubbing is turned ON or OFF
+@param[in]	scrub_data */
+static bool check_scrub_setting(btr_scrub_t *scrub_data) {
   if (scrub_data->compressed)
     return srv_background_scrub_data_compressed;
   else
@@ -212,16 +186,15 @@ static bool check_scrub_setting(
 
 #define IBUF_INDEX_ID (DICT_IBUF_ID_MIN + IBUF_SPACE_ID)
 
-/**************************************************************/ /**
- Check if a page needs scrubbing */
-
-int btr_page_needs_scrubbing(
-    /*=====================*/
-    btr_scrub_t *scrub_data, /*!< in: scrub data  */
-    buf_block_t *block,      /*!< in: block to check, latched */
-    btr_scrub_page_allocation_status_t allocated) /*!< in: is block known
-                                                  to be allocated */
-{
+/** Check if a page needs scrubbing
+@param[in]	scrub_data
+@param[in]	block		block to check, latched
+@param[in]	allocated	is block known to be allocated
+@return         BTR_SCRUB_PAGE if page should be scrubbed
+                else BTR_SCRUB_SKIP_PAGE should be called
+                 with this return value (and without any latches held) */
+int btr_page_needs_scrubbing(btr_scrub_t *scrub_data, buf_block_t *block,
+                             btr_scrub_page_allocation_status_t allocated) {
   /**
    * Check if scrubbing has been turned OFF.
    *
@@ -298,16 +271,10 @@ int btr_page_needs_scrubbing(
   return BTR_SCRUB_PAGE;
 }
 
-/****************************************************************
-Handle a skipped page
-*/
-
-void btr_scrub_skip_page(
-    /*==================*/
-    btr_scrub_t *scrub_data, /*!< in: data with scrub state */
-    int needs_scrubbing)     /*!< in: return code from
-                             btr_page_needs_scrubbing */
-{
+/** Handle a skipped page
+@param[in]	scrub_data
+@param[in]	needs_scrubbing	return code from btr_page_needs_scrubbing */
+void btr_scrub_skip_page(btr_scrub_t *scrub_data, int needs_scrubbing) {
   switch (needs_scrubbing) {
     case BTR_SCRUB_SKIP_PAGE:
       /* nothing todo */
@@ -325,25 +292,13 @@ void btr_scrub_skip_page(
   ut_a(0);
 }
 
-/****************************************************************
-Try to scrub a page using btr_page_reorganize_low
-return DB_SUCCESS on success or DB_OVERFLOW on failure */
-static dberr_t btr_optimistic_scrub(
-    /*==================*/
-    btr_scrub_t *scrub_data, /*!< in: data with scrub state */
-    buf_block_t *block,      /*!< in: block to scrub */
-    dict_index_t *index,     /*!< in: index */
-    mtr_t *mtr)              /*!< in: mtr */
-{
-#ifdef UNIV_DEBUG
-  if (srv_scrub_force_testing &&
-      page_get_n_recs(buf_block_get_frame(block)) > 2 &&
-      (rand() % 100) < test_pessimistic_scrub_pct) {
-    log_scrub_failure(index, scrub_data, block, DB_OVERFLOW);
-    return DB_OVERFLOW;
-  }
-#endif
-
+/** Try to scrub a page using btr_page_reorganize_low
+@param[in]	scrub_data
+@param(in]	block
+@param[in]	index
+@param[in]	mtr */
+static dberr_t btr_optimistic_scrub(btr_scrub_t *scrub_data, buf_block_t *block,
+                                    dict_index_t *index, mtr_t *mtr) {
   page_cur_t cur;
   page_cur_set_before_first(block, &cur);
   bool recovery = false;
@@ -365,18 +320,17 @@ static dberr_t btr_optimistic_scrub(
   return DB_SUCCESS;
 }
 
-/****************************************************************
-Try to scrub a page by splitting it
-return DB_SUCCESS on success
-DB_UNDERFLOW if page has too few records
-DB_OUT_OF_FILE_SPACE if we can't find space for split */
-static dberr_t btr_pessimistic_scrub(
-    /*==================*/
-    btr_scrub_t *scrub_data, /*!< in: data with scrub state */
-    buf_block_t *block,      /*!< in: block to scrub */
-    dict_index_t *index,     /*!< in: index */
-    mtr_t *mtr)              /*!< in: mtr */
-{
+/** Try to scrub a page by splitting it
+
+@param[in]	scrub_data
+@param[in]	block
+@param[in]	index
+@param[in]	mtr
+@return		DB_SUCCESS on success, DB_UNDERFLOW if page has too few records,
+                DB_OUT_OF_FILE_SPACE if we can't find space for split */
+static dberr_t btr_pessimistic_scrub(btr_scrub_t *scrub_data,
+                                     buf_block_t *block, dict_index_t *index,
+                                     mtr_t *mtr) {
   page_t *page = buf_block_get_frame(block);
 
   if (page_get_n_recs(page) < 2) {
@@ -399,9 +353,9 @@ static dberr_t btr_pessimistic_scrub(
   }
 
   /* read block variables */
-  const ulint page_no = mach_read_from_4(page + FIL_PAGE_OFFSET);
-  const ulint left_page_no = mach_read_from_4(page + FIL_PAGE_PREV);
-  const ulint right_page_no = mach_read_from_4(page + FIL_PAGE_NEXT);
+  const page_no_t page_no = mach_read_from_4(page + FIL_PAGE_OFFSET);
+  const page_no_t left_page_no = mach_read_from_4(page + FIL_PAGE_PREV);
+  const page_no_t right_page_no = mach_read_from_4(page + FIL_PAGE_NEXT);
   fil_space_t *space = fil_space_get(index->table->space);
   const page_size_t page_size(space->flags);
 
@@ -487,14 +441,11 @@ static dberr_t btr_pessimistic_scrub(
   return DB_SUCCESS;
 }
 
-/****************************************************************
-Location index by id for a table
-return index or NULL */
-static dict_index_t *find_index(
-    /*========*/
-    dict_table_t *table,    /*!< in: table */
-    space_index_t index_id) /*!< in: index id */
-{
+/** Location index by id for a table
+@param[in]	table
+@param[in]	index_id
+@return		index or NULL  */
+static dict_index_t *find_index(dict_table_t *table, space_index_t index_id) {
   if (table != NULL) {
     dict_index_t *index = table->first_index();
     while (index != NULL) {
@@ -506,13 +457,9 @@ static dict_index_t *find_index(
   return NULL;
 }
 
-/****************************************************************
-Check if table should be scrubbed
-*/
-static bool btr_scrub_table_needs_scrubbing(
-    /*============================*/
-    dict_table_t *table) /*!< in: table */
-{
+/** Check if table should be scrubbed
+@param[in]	table */
+static bool btr_scrub_table_needs_scrubbing(dict_table_t *table) {
   if (table == NULL) return false;
 
   if (table->stats_bg_flag & BG_STAT_SHOULD_QUIT) {
@@ -530,13 +477,9 @@ static bool btr_scrub_table_needs_scrubbing(
   return true;
 }
 
-/****************************************************************
-Check if index should be scrubbed
-*/
-static bool btr_scrub_index_needs_scrubbing(
-    /*============================*/
-    dict_index_t *index) /*!< in: index */
-{
+/** Check if index should be scrubbed
+@param[in]	index */
+static bool btr_scrub_index_needs_scrubbing(dict_index_t *index) {
   if (index == NULL) return false;
 
   if (dict_index_is_ibuf(index)) {
@@ -550,14 +493,12 @@ static bool btr_scrub_index_needs_scrubbing(
   return true;
 }
 
-/****************************************************************
-Get table and index and store it on scrub_data
+/** Get table and index and store it on scrub_data
+@param[in,out]	scrub_data
+@param[in]	index_id
 */
-static void btr_scrub_get_table_and_index(
-    /*=========================*/
-    btr_scrub_t *scrub_data, /*!< in/out: scrub data */
-    space_index_t index_id)  /*!< in: index id */
-{
+static void btr_scrub_get_table_and_index(btr_scrub_t *scrub_data,
+                                          space_index_t index_id) {
   /* first check if it's an index to current table */
   scrub_data->current_index = find_index(scrub_data->current_table, index_id);
 
@@ -599,15 +540,12 @@ static void btr_scrub_get_table_and_index(
   scrub_data->current_index = find_index(table, index_id);
 }
 
-/****************************************************************
-Handle free page */
-
-int btr_scrub_free_page(
-    /*====================*/
-    btr_scrub_t *scrub_data, /*!< in/out: scrub data */
-    buf_block_t *block,      /*!< in: block to scrub */
-    mtr_t *mtr)              /*!< in: mtr */
-{
+/** Handle free page
+@param[in,out]	scrub_data
+@param[in]	block
+@param[in]	mtr */
+int btr_scrub_free_page(btr_scrub_t *scrub_data, buf_block_t *block,
+                        mtr_t *mtr) {
   // TODO(jonaso): scrub only what is actually needed
 
   {
@@ -632,18 +570,18 @@ int btr_scrub_free_page(
   return BTR_SCRUB_SKIP_PAGE_AND_CLOSE_TABLE;
 }
 
-/****************************************************************
-Recheck if a page needs scrubbing, and if it does load appropriate
-table and index */
-
-int btr_scrub_recheck_page(
-    /*====================*/
-    btr_scrub_t *scrub_data,                      /*!< inut: scrub data */
-    buf_block_t *block,                           /*!< in: block */
-    btr_scrub_page_allocation_status_t allocated, /*!< in: is block
-                                                  allocated or free */
-    mtr_t *mtr)                                   /*!< in: mtr */
-{
+/** Recheck if a page needs scrubbing, and if it does load appropriate
+table and index
+@param[in,out]	scrub_data
+@param[in]	block
+@param[in]	allocated	is block allocated or free
+@param[in]	mtr
+@return		BTR_SCRUB_PAGE if page should be scrubbed
+                else BTR_SCRUB_SKIP_PAGE should be called
+                with this return value (and without any latches held) */
+int btr_scrub_recheck_page(btr_scrub_t *scrub_data, buf_block_t *block,
+                           btr_scrub_page_allocation_status_t allocated,
+                           mtr_t *mtr) {
   /* recheck if page needs scrubbing (knowing allocation status) */
   int needs_scrubbing = btr_page_needs_scrubbing(scrub_data, block, allocated);
 
@@ -695,17 +633,13 @@ int btr_scrub_recheck_page(
   return BTR_SCRUB_PAGE;
 }
 
-/****************************************************************
-Perform actual scrubbing of page */
-
-int btr_scrub_page(
-    /*============*/
-    btr_scrub_t *scrub_data,                      /*!< in/out: scrub data */
-    buf_block_t *block,                           /*!< in: block */
-    btr_scrub_page_allocation_status_t allocated, /*!< in: is block
-                                                  allocated or free */
-    mtr_t *mtr)                                   /*!< in: mtr */
-{
+/** Perform actual scrubbing of page
+@param[in,out]	scrub_data
+@param[in]	block
+@param[in]	allocated is block allocated or free
+@param[in]	mtr */
+int btr_scrub_page(btr_scrub_t *scrub_data, buf_block_t *block,
+                   btr_scrub_page_allocation_status_t allocated, mtr_t *mtr) {
   /* recheck if page needs scrubbing (knowing allocation status) */
   int needs_scrubbing = BTR_SCRUB_SKIP_PAGE_AND_CLOSE_TABLE;
 
@@ -766,12 +700,12 @@ int btr_scrub_page(
   return BTR_SCRUB_SKIP_PAGE;  // no further action needed
 }
 
-/**************************************************************/ /**
- Start iterating a space */
-
-bool btr_scrub_start_space(
-    /*===================*/
-    ulint space, btr_scrub_t *scrub_data, bool compressed) {
+/** Start iterating a space
+@param[im]	space
+@param[out]	scrub_data
+@param[in]	compressed */
+bool btr_scrub_start_space(space_id_t space, btr_scrub_t *scrub_data,
+                           bool compressed) {
   scrub_data->space = space;
   scrub_data->current_table = NULL;
   scrub_data->current_index = NULL;
@@ -781,8 +715,8 @@ bool btr_scrub_start_space(
   return scrub_data->scrubbing;
 }
 
-/***********************************************************************
-Update global statistics with thread statistics */
+/** Update global statistics with thread statistics
+@param[in,out] scrub_data */
 static void btr_scrub_update_total_stat(btr_scrub_t *scrub_data) {
   mutex_enter(&scrub_stat_mutex);
   scrub_stat.page_reorganizations +=
@@ -804,31 +738,26 @@ static void btr_scrub_update_total_stat(btr_scrub_t *scrub_data) {
 
 /** Complete iterating a space.
 @param[in,out]	scrub_data	 scrub data */
-
 void btr_scrub_complete_space(btr_scrub_t *scrub_data) {
   ut_ad(scrub_data->scrubbing);
   btr_scrub_table_close_for_thread(scrub_data);
   btr_scrub_update_total_stat(scrub_data);
 }
 
-/*********************************************************************
-Return scrub statistics */
+/** Return scrub statistics
+@param[out]	stat	 scrub statistics */
 void btr_scrub_total_stat(btr_scrub_stat_t *stat) {
   mutex_enter(&scrub_stat_mutex);
   *stat = scrub_stat;
   mutex_exit(&scrub_stat_mutex);
 }
 
-/*********************************************************************
-Init global variables */
-
+/** Init global variables */
 void btr_scrub_init() {
   mutex_create(LATCH_ID_SCRUB_STAT_MUTEX, &scrub_stat_mutex);
 
   memset(&scrub_stat, 0, sizeof(scrub_stat));
 }
 
-/*********************************************************************
-Cleanup globals */
-
+/** Cleanup globals */
 void btr_scrub_cleanup() { mutex_free(&scrub_stat_mutex); }

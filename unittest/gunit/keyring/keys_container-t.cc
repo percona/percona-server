@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,12 +35,12 @@
 
 namespace keyring__keys_container_unittest {
 using namespace keyring;
+using ::testing::_;
 using ::testing::DoAll;
 using ::testing::InSequence;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::StrEq;
-using ::testing::_;
 
 bool check_if_file_exists_and_TAG_is_correct(const char *file_name) {
   char tag[4];
@@ -159,8 +159,6 @@ TEST_F(Keys_container_test, InitWithFileWithCorrect_2_0_Struct) {
   delete sample_key;  // unused in this test
 }
 
-// HAVE_UBSAN: undefined behaviour in gmock.
-#if !defined(HAVE_UBSAN)
 TEST_F(Keys_container_test, InitWithFileWithIncorrectKeyringVersion) {
   const char *keyring_incorrect_version = "./keyring_incorrect_version";
   remove(keyring_incorrect_version);
@@ -175,7 +173,6 @@ TEST_F(Keys_container_test, InitWithFileWithIncorrectKeyringVersion) {
   remove(keyring_incorrect_version);
   delete sample_key;  // unused in this test
 }
-#endif  // HAVE_UBSAN
 
 TEST_F(Keys_container_test, InitWithFileWithIncorrectTAG) {
   const char *keyring_incorrect_tag = "./keyring_incorrect_tag";
@@ -211,7 +208,7 @@ TEST_F(Keys_container_test, StoreFetchRemove) {
   size_t key_data_fetched_size = fetched_key->get_key_data_size();
   EXPECT_STREQ(sample_key_data.c_str(),
                reinterpret_cast<const char *>(key_data_fetched));
-  EXPECT_STREQ("AES", fetched_key->get_key_type()->c_str());
+  EXPECT_STREQ("AES", fetched_key->get_key_type_as_string()->c_str());
   ASSERT_TRUE(sample_key_data.length() + 1 == key_data_fetched_size);
 
   keys_container->remove_key(&key_id);
@@ -354,7 +351,7 @@ TEST_F(Keys_container_test,
   ASSERT_TRUE(fetched_key != nullptr);
 
   Key key(fetched_key->get_key_id()->c_str(),
-          fetched_key->get_key_type()->c_str(),
+          fetched_key->get_key_type_as_string()->c_str(),
           fetched_key->get_user_id()->c_str(), fetched_key->get_key_data(),
           fetched_key->get_key_data_size());
   key.xor_data();
@@ -368,7 +365,7 @@ TEST_F(Keys_container_test,
   std::string key_data_with_version = "2:" + key_data3;
   EXPECT_STREQ(key_data_with_version.c_str(),
                reinterpret_cast<const char *>(key_data_fetched));
-  EXPECT_STREQ("AES", fetched_key->get_key_type()->c_str());
+  EXPECT_STREQ("AES", fetched_key->get_key_type_as_string()->c_str());
   ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
 
   Key latest_innodb_key("percona_innodb1_2_3:0", nullptr, nullptr, nullptr, 0);
@@ -376,7 +373,7 @@ TEST_F(Keys_container_test,
   ASSERT_TRUE(fetched_innodb_key != nullptr);
 
   Key innodb_key(fetched_innodb_key->get_key_id()->c_str(),
-                 fetched_innodb_key->get_key_type()->c_str(),
+                 fetched_innodb_key->get_key_type_as_string()->c_str(),
                  fetched_innodb_key->get_user_id()->c_str(),
                  fetched_innodb_key->get_key_data(),
                  fetched_innodb_key->get_key_data_size());
@@ -392,7 +389,7 @@ TEST_F(Keys_container_test,
   key_data_with_version = "1:" + ik_data2;
   EXPECT_STREQ(key_data_with_version.c_str(),
                reinterpret_cast<const char *>(key_data_fetched));
-  EXPECT_STREQ("AES", fetched_key->get_key_type()->c_str());
+  EXPECT_STREQ("AES", fetched_key->get_key_type_as_string()->c_str());
   ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
 
   my_free(fetched_key->release_key_data());
@@ -428,7 +425,7 @@ TEST_F(Keys_container_test,
   ASSERT_TRUE(fetched_key != nullptr);
 
   Key key(fetched_key->get_key_id()->c_str(),
-          fetched_key->get_key_type()->c_str(),
+          fetched_key->get_key_type_as_string()->c_str(),
           fetched_key->get_user_id()->c_str(), fetched_key->get_key_data(),
           fetched_key->get_key_data_size());
   key.xor_data();
@@ -442,7 +439,7 @@ TEST_F(Keys_container_test,
   std::string key_data_with_version = "1:" + key_data2;
   EXPECT_STREQ(key_data_with_version.c_str(),
                reinterpret_cast<const char *>(key_data_fetched));
-  EXPECT_STREQ("AES", fetched_key->get_key_type()->c_str());
+  EXPECT_STREQ("AES", fetched_key->get_key_type_as_string()->c_str());
   ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
 
   std::string sk_data1("sk_data_1");
@@ -468,7 +465,7 @@ TEST_F(Keys_container_test,
   ASSERT_TRUE(fetched_key_2 != nullptr);
 
   Key key_2(fetched_key_2->get_key_id()->c_str(),
-            fetched_key_2->get_key_type()->c_str(),
+            fetched_key_2->get_key_type_as_string()->c_str(),
             fetched_key_2->get_user_id()->c_str(),
             fetched_key_2->get_key_data(), fetched_key_2->get_key_data_size());
   key_2.xor_data();
@@ -482,7 +479,7 @@ TEST_F(Keys_container_test,
   key_data_with_version = "2:" + key_data3;
   EXPECT_STREQ(key_data_with_version.c_str(),
                reinterpret_cast<const char *>(key_data_fetched));
-  EXPECT_STREQ("AES", fetched_key->get_key_type()->c_str());
+  EXPECT_STREQ("AES", fetched_key->get_key_type_as_string()->c_str());
   ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
 
   std::string key_data4("system_key_data_4");
@@ -500,7 +497,7 @@ TEST_F(Keys_container_test,
   ASSERT_TRUE(fetched_key_3 != nullptr);
 
   Key key_3(fetched_key_3->get_key_id()->c_str(),
-            fetched_key_3->get_key_type()->c_str(),
+            fetched_key_3->get_key_type_as_string()->c_str(),
             fetched_key_3->get_user_id()->c_str(),
             fetched_key_3->get_key_data(), fetched_key_3->get_key_data_size());
   key_3.xor_data();
@@ -514,7 +511,7 @@ TEST_F(Keys_container_test,
   key_data_with_version = "3:" + key_data4;
   EXPECT_STREQ(key_data_with_version.c_str(),
                reinterpret_cast<const char *>(key_data_fetched));
-  EXPECT_STREQ("AES", fetched_key->get_key_type()->c_str());
+  EXPECT_STREQ("AES", fetched_key->get_key_type_as_string()->c_str());
   ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
 
   std::string sk_data2("sk_data_2");
@@ -529,7 +526,8 @@ TEST_F(Keys_container_test,
 
   ASSERT_TRUE(fetched_sk != nullptr);
 
-  Key sk(fetched_sk->get_key_id()->c_str(), fetched_sk->get_key_type()->c_str(),
+  Key sk(fetched_sk->get_key_id()->c_str(),
+         fetched_sk->get_key_type_as_string()->c_str(),
          fetched_sk->get_user_id()->c_str(), fetched_sk->get_key_data(),
          fetched_sk->get_key_data_size());
   sk.xor_data();
@@ -542,7 +540,7 @@ TEST_F(Keys_container_test,
   key_data_with_version = "1:" + sk_data2;
   EXPECT_STREQ(key_data_with_version.c_str(),
                reinterpret_cast<const char *>(key_data_fetched));
-  EXPECT_STREQ("AES", fetched_sk->get_key_type()->c_str());
+  EXPECT_STREQ("AES", fetched_sk->get_key_type_as_string()->c_str());
   ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
 
   my_free(fetched_key->release_key_data());
@@ -629,7 +627,7 @@ TEST_F(Keys_container_test,
   ASSERT_TRUE(fetched_key != nullptr);
 
   Key key(fetched_key->get_key_id()->c_str(),
-          fetched_key->get_key_type()->c_str(),
+          fetched_key->get_key_type_as_string()->c_str(),
           fetched_key->get_user_id()->c_str(), fetched_key->get_key_data(),
           fetched_key->get_key_data_size());
   key.xor_data();
@@ -643,7 +641,7 @@ TEST_F(Keys_container_test,
   std::string key_data_with_version = "1:" + key_data2;
   EXPECT_STREQ(key_data_with_version.c_str(),
                reinterpret_cast<const char *>(key_data_fetched));
-  EXPECT_STREQ("AES", fetched_key->get_key_type()->c_str());
+  EXPECT_STREQ("AES", fetched_key->get_key_type_as_string()->c_str());
   ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
 
   my_free(fetched_key->release_key_data());
@@ -745,8 +743,8 @@ TEST_F(Keys_container_test, StoreTwiceTheSame) {
 class Buffered_file_io_20 : public Buffered_file_io {
  public:
   Buffered_file_io_20(ILogger *logger) : Buffered_file_io(logger) {}
-  void set_memory_needed_for_buffer(size_t memory_needed_for_buffer) {
-    this->memory_needed_for_buffer = memory_needed_for_buffer;
+  void set_memory_needed_for_buffer(size_t memory_needed) {
+    memory_needed_for_buffer = memory_needed;
   }
 };
 
@@ -1106,8 +1104,8 @@ TEST_F(Keys_container_test_dont_close,
   keys_container = new Keys_container(logger);
 
   // this key will not be in backup file thus we do not care about it
-  Key *sample_key3 = new Key("Roberts_key3", "ZZZZ", "MaybeRobert",
-                             (void *)("DATA"), strlen("DATA"));
+  Key *sample_key3 =
+      new Key("Roberts_key3", "ZZZZ", "MaybeRobert", "DATA", strlen("DATA"));
 
   EXPECT_EQ(keys_container->init(keyring_io_dont_remove_backup, file_name), 0);
   EXPECT_EQ(keys_container->store_key(sample_key3), 0);
@@ -1919,11 +1917,11 @@ class Mock_system_keys_container : public ISystem_keys_container {
 
 class Keys_container_with_system_keys_container_setter : public Keys_container {
  public:
-  Keys_container_with_system_keys_container_setter(ILogger *logger)
-      : Keys_container(logger) {}
+  Keys_container_with_system_keys_container_setter(ILogger *logger_value)
+      : Keys_container(logger_value) {}
   void set_system_keys_container(
-      ISystem_keys_container *system_keys_container) {
-    this->system_keys_container.reset(system_keys_container);
+      ISystem_keys_container *system_keys_container_value) {
+    this->system_keys_container.reset(system_keys_container_value);
   }
 };
 
@@ -1953,14 +1951,14 @@ TEST_F(Keys_container_with_mocked_system_keys_container_test,
   IKeyring_io *keyring_io = new Buffered_file_io(logger);
   Mock_system_keys_container *system_keys_container =
       new Mock_system_keys_container;
-  keys_container->set_system_keys_container(system_keys_container);
   EXPECT_EQ(keys_container->init(keyring_io, file_name), 0);
   ASSERT_TRUE(keys_container->get_number_of_keys() == 0);
+  keys_container->set_system_keys_container(system_keys_container);
 
   EXPECT_CALL(*system_keys_container,
               rotate_key_id_if_system_key_without_version(sample_key))
       .WillOnce(Return(true));  // error on key rotation
-  EXPECT_EQ(keys_container->store_key(sample_key), 1);
+  EXPECT_EQ(keys_container->store_key(sample_key), true);
   ASSERT_TRUE(keys_container->get_number_of_keys() == 0);
 
   delete logger;

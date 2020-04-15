@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -47,11 +47,11 @@ if forward_direction is true,
 prev_page_no otherwise.
 @param[in]	forward_direction	move direction: true means moving
 forward, false - backward. */
-static void btr_update_scan_stats(const page_t *page, ulint page_no,
+static void btr_update_scan_stats(const page_t *page, page_no_t page_no,
                                   bool forward_direction) {
   fragmentation_stats_t stats;
   memset(&stats, 0, sizeof(stats));
-  const ulint extracted_page_no = page_get_page_no(page);
+  const auto extracted_page_no = page_get_page_no(page);
   const ulint delta = forward_direction ? page_no - extracted_page_no
                                         : extracted_page_no - page_no;
 
@@ -74,6 +74,9 @@ void btr_pcur_t::store_position(mtr_t *mtr) {
   ut_ad(m_latch_mode != BTR_NO_LATCHES);
 
   auto block = get_block();
+
+  if (!block && !btr_cur_get_index(get_btr_cur())->table->is_readable())
+    return; /* decryption failure */
 
   SRV_CORRUPT_TABLE_CHECK(block, return;);
 
@@ -183,7 +186,8 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
     but always do a search */
 
     btr_cur_open_at_index_side(m_rel_pos == BTR_PCUR_BEFORE_FIRST_IN_TREE,
-                               index, latch_mode, get_btr_cur(), 0, mtr);
+                               index, latch_mode, get_btr_cur(), m_read_level,
+                               mtr);
 
     m_latch_mode = BTR_LATCH_MODE_WITHOUT_INTENTION(latch_mode);
 
@@ -231,7 +235,9 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
 
         offsets2 = rec_get_offsets(rec, index, nullptr, m_old_n_fields, &heap);
 
-        ut_ad(!cmp_rec_rec(m_old_rec, rec, offsets1, offsets2, index));
+        ut_ad(!cmp_rec_rec(m_old_rec, rec, offsets1, offsets2, index,
+                           page_is_spatial_non_leaf(rec, index), nullptr,
+                           false));
         mem_heap_free(heap);
 #endif /* UNIV_DEBUG */
         return (true);
@@ -328,7 +334,6 @@ void btr_pcur_t::move_to_next_page(mtr_t *mtr) {
 
   switch (mode) {
     case BTR_SEARCH_TREE:
-    case BTR_PARALLEL_READ_INIT:
       mode = BTR_SEARCH_LEAF;
       break;
     case BTR_MODIFY_TREE:
@@ -363,8 +368,18 @@ void btr_pcur_t::move_to_next_page(mtr_t *mtr) {
   });
 
 #ifdef UNIV_BTR_DEBUG
-  ut_a(page_is_comp(next_page) == page_is_comp(page));
-  ut_a(btr_page_get_prev(next_page, mtr) == get_block()->page.id.page_no());
+  if (!import_ctx) {
+    ut_a(page_is_comp(next_page) == page_is_comp(page));
+    ut_a(btr_page_get_prev(next_page, mtr) == get_block()->page.id.page_no());
+  } else {
+    if (page_is_comp(next_page) != page_is_comp(page) ||
+        btr_page_get_prev(next_page, mtr) != get_block()->page.id.page_no()) {
+      /* next page does not contain valid previous page number,
+      next page is corrupted, can't move cursor to the next page*/
+      import_ctx->is_error = true;
+    }
+    DBUG_EXECUTE_IF("ib_import_page_corrupt", import_ctx->is_error = true;);
+  }
 #endif /* UNIV_BTR_DEBUG */
 
   btr_leaf_page_release(get_block(), mode, mtr);
@@ -471,4 +486,23 @@ void btr_pcur_t::open_on_user_rec(dict_index_t *index, const dtuple_t *tuple,
 
     ut_error;
   }
+}
+
+void btr_pcur_t::open_on_user_rec(const page_cur_t &page_cursor,
+                                  page_cur_mode_t mode, ulint latch_mode) {
+  auto btr_cur = get_btr_cur();
+
+  btr_cur->index = const_cast<dict_index_t *>(page_cursor.index);
+
+  auto page_cur = get_page_cur();
+
+  memcpy(page_cur, &page_cursor, sizeof(*page_cur));
+
+  m_search_mode = mode;
+
+  m_pos_state = BTR_PCUR_IS_POSITIONED;
+
+  m_latch_mode = BTR_LATCH_MODE_WITHOUT_FLAGS(latch_mode);
+
+  m_trx_if_known = nullptr;
 }

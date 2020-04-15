@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -64,40 +64,24 @@ Tablespace_pool *tbsp_pool = nullptr;
 /* Directory to store session temporary tablespaces, provided by user */
 char *srv_temp_dir = nullptr;
 
-/** @return true for encrypted purpose, else false */
-static bool is_encrypt(enum tbsp_purpose purpose) {
-  switch (purpose) {
-    case TBSP_USER:
-    case TBSP_INTRINSIC:
-    case TBSP_SLAVE:
-      return (false);
-    case TBSP_ENC_USER:
-    case TBSP_ENC_INTRINSIC:
-    case TBSP_ENC_SLAVE:
-      return (true);
-    default:
-      ut_ad(0);
-  }
-  /* Make compilers happy */
-  ut_ad(0);
-  return (false);
-}
-
 /** Sesssion Temporary tablespace */
 Tablespace::Tablespace()
     : m_space_id(++m_last_used_space_id), m_inited(), m_thread_id() {
   ut_ad(m_space_id <= dict_sys_t::s_max_temp_space_id);
   m_purpose = TBSP_NONE;
+  mutex_create(LATCH_ID_TEMP_POOL_TBLSP, &m_mutex);
 }
 
 Tablespace::~Tablespace() {
+  mutex_destroy(&m_mutex);
+
   if (!m_inited) {
     return;
   }
 
   close();
 
-  ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
+  ut_ad(srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS);
   bool file_pre_exists = false;
   bool success = os_file_delete_if_exists(innodb_temp_file_key, path().c_str(),
                                           &file_pre_exists);
@@ -113,7 +97,7 @@ dberr_t Tablespace::create() {
   ut_ad(m_space_id > dict_sys_t::s_min_temp_space_id);
 
   /* Create the filespace flags */
-  ulint fsp_flags =
+  uint32_t fsp_flags =
       fsp_flags_init(univ_page_size, /* page sizes and a flag if compressed */
                      false,          /* needed only for compressed tables */
                      false,          /* has DATA_DIR */
@@ -159,8 +143,11 @@ bool Tablespace::truncate() {
     return (false);
   }
 
+  acquire();
+
   bool success = fil_truncate_tablespace(m_space_id, FIL_IBT_FILE_INITIAL_SIZE);
   if (!success) {
+    release();
     return (success);
   }
 
@@ -171,6 +158,8 @@ bool Tablespace::truncate() {
   mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
   fsp_header_init(m_space_id, FIL_IBT_FILE_INITIAL_SIZE, &mtr, false);
   mtr_commit(&mtr);
+
+  release();
   return (true);
 }
 
@@ -186,7 +175,7 @@ bool Tablespace::encrypt() {
 }
 
 void Tablespace::decrypt() {
-  if (!is_encrypt(m_purpose)) {
+  if (!is_encrypted()) {
     return;
   }
   byte encryption_info[ENCRYPTION_INFO_SIZE];
@@ -194,7 +183,7 @@ void Tablespace::decrypt() {
 
   fil_space_t *space = fil_space_get(m_space_id);
 
-  FSP_FLAGS_UNSET_ENCRYPTION(space->flags);
+  fsp_flags_unset_encryption(space->flags);
 
   /* There is no need to empty the encryption info in page 0
   here. This is because the file is just truncated and extended
@@ -210,6 +199,23 @@ void Tablespace::decrypt() {
   ut_a(err == DB_SUCCESS);
 
   rw_lock_x_unlock(&space->latch);
+}
+
+void Tablespace::rotate_encryption_key() {
+  if (!is_encrypted()) {
+    return;
+  }
+
+  acquire();
+
+  fil_space_t *space = fil_space_get(m_space_id);
+
+  bool success = encryption_rotate_low(space);
+  if (!success) {
+    ib::warn(ER_XB_MSG_6, space->name);
+  }
+
+  release();
 }
 
 uint32_t Tablespace::file_id() const {
@@ -273,7 +279,7 @@ Tablespace *Tablespace_pool::get(my_thread_id id, enum tbsp_purpose purpose) {
   }
 
   ts = m_free->back();
-  if (is_encrypt(purpose)) {
+  if (Tablespace::is_encrypted(purpose)) {
     if (!ts->encrypt()) {
       release();
       ib::error() << "Unable to encrypt a session temp tablespace. Probably due"

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -245,8 +245,8 @@ TEST_F(MDLDeathTest, DieWhenMTicketsNonempty) {
                    MDL_TRANSACTION);
 
   EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
-  MY_EXPECT_DEATH(m_mdl_context.destroy(),
-                  ".*Assertion.*m_ticket_store.*is_empty.*");
+  EXPECT_DEATH(m_mdl_context.destroy(),
+               ".*Assertion.*m_ticket_store.*is_empty.*");
   m_mdl_context.release_transactional_locks();
 }
 #endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
@@ -3813,8 +3813,9 @@ class MDLHtonNotifyTest : public MDLTest {
 */
 
 TEST_F(MDLHtonNotifyTest, NotifyNamespaces) {
-  bool notify_or_not[MDL_key::NAMESPACE_END] = {
+  bool notify_or_not[] = {
       false,  // GLOBAL
+      false,  // BACKUP_LOCK
       true,   // TABLESPACE
       true,   // SCHEMA
       true,   // TABLE
@@ -3824,8 +3825,18 @@ TEST_F(MDLHtonNotifyTest, NotifyNamespaces) {
       true,   // EVENT
       false,  // COMMIT
       false,  // USER_LEVEL_LOCK
-      false   // LOCKING_SERVICE
+      false,  // LOCKING_SERVICE
+      false,  // SRID
+      false,  // ACL_CACHE
+      false,  //
+      false,  // COLUMN_STATISTICS
+      false,  // RESOURCE_GROUPS
+      false,  // FOREIGN_KEY
+      false   // CHECK_CONSTRAINT
   };
+  static_assert(
+      sizeof(notify_or_not) == MDL_key::NAMESPACE_END,
+      "Initializer list for notify_or_not[] has the wrong number of elements!");
 
   for (uint i = 0; i < static_cast<uint>(MDL_key::NAMESPACE_END); i++) {
     MDL_request request;
@@ -4262,25 +4273,25 @@ TEST_F(MDLKeyDeathTest, DieWhenNamesAreTooLong) {
       "0123456789012345678901234567890123456789012345678901234567890123"
       "0123456789";
 
-  MY_EXPECT_DEATH(MDL_key key0(MDL_key::TABLE, too_long_name, ""),
-                  ".*Assertion.*strlen.*");
-  MY_EXPECT_DEATH(MDL_key key1(MDL_key::TABLE, "", too_long_name),
-                  ".*Assertion.*strlen.*");
+  EXPECT_DEATH(MDL_key key0(MDL_key::TABLE, too_long_name, ""),
+               ".*Assertion.*strlen.*");
+  EXPECT_DEATH(MDL_key key1(MDL_key::TABLE, "", too_long_name),
+               ".*Assertion.*strlen.*");
 
   MDL_key key2;
 
-  MY_EXPECT_DEATH(key2.mdl_key_init(MDL_key::TABLE, too_long_name, ""),
-                  ".*Assertion.*strlen.*");
-  MY_EXPECT_DEATH(key2.mdl_key_init(MDL_key::TABLE, "", too_long_name),
-                  ".*Assertion.*strlen.*");
+  EXPECT_DEATH(key2.mdl_key_init(MDL_key::TABLE, too_long_name, ""),
+               ".*Assertion.*strlen.*");
+  EXPECT_DEATH(key2.mdl_key_init(MDL_key::TABLE, "", too_long_name),
+               ".*Assertion.*strlen.*");
 }
 #endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
 
-  /*
-    Verifies that for production build we allow construction of
-    MDL_key with too long database or object names, but they are
-    truncated.
-  */
+/*
+  Verifies that for production build we allow construction of
+  MDL_key with too long database or object names, but they are
+  truncated.
+*/
 
 #if defined(DBUG_OFF)
 TEST_F(MDLKeyTest, TruncateTooLongNames) {

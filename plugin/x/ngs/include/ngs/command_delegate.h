@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,11 +25,15 @@
 #ifndef PLUGIN_X_NGS_INCLUDE_NGS_COMMAND_DELEGATE_H_
 #define PLUGIN_X_NGS_INCLUDE_NGS_COMMAND_DELEGATE_H_
 
-#include "decimal.h"
-#include "m_ctype.h"
-#include "my_compiler.h"
+#include <string>
+#include <vector>
+
+#include "decimal.h"      // NOLINT(build/include_subdir)
+#include "m_ctype.h"      // NOLINT(build/include_subdir)
+#include "my_compiler.h"  // NOLINT(build/include_subdir)
 #include "mysql/service_command.h"
-#include "plugin/x/ngs/include/ngs/protocol_encoder.h"
+
+#include "plugin/x/ngs/include/ngs/error_code.h"
 
 namespace ngs {
 class Command_delegate {
@@ -46,8 +50,10 @@ class Command_delegate {
     enum_field_types type;
     unsigned int flags;
   };
-  typedef std::vector<Field_type> Field_types;
 
+  using Field_types = std::vector<Field_type>;
+
+ public:
   Command_delegate() {}
   virtual ~Command_delegate() {}
 
@@ -110,7 +116,7 @@ class Command_delegate {
  protected:
   Info m_info;
   Field_types m_field_types;
-  uint m_sql_errno = 0;
+  uint32_t m_sql_errno = 0;
   std::string m_err_msg;
   std::string m_sqlstate;
 
@@ -130,13 +136,39 @@ class Command_delegate {
     @param resultcs Charset of the result set
 
     @returns
-    true  an error occured, server will abort the command
+    true  an error occurred, server will abort the command
     false ok
   */
   virtual int start_result_metadata(
-      uint num_cols MY_ATTRIBUTE((unused)), uint flags MY_ATTRIBUTE((unused)),
+      uint32_t num_cols, uint32_t flags MY_ATTRIBUTE((unused)),
       const CHARSET_INFO *resultcs MY_ATTRIBUTE((unused))) {
     m_field_types.clear();
+
+    /*
+      std::vector often reserves memory using following
+      allocation function:
+
+          f(n)=2^n
+
+      where "n" is number of inserted elements and f(n) describes number
+      of total elements that current memory block can hold.
+      Thus if user does "push_back", "n" times then following number of
+      allocations will occur:
+
+           |Number of push_back |Allocations |Reserved |
+           |--------------------|------------|---------|
+           |0                   |0           |0        |
+           |1                   |1           |1        |
+           |2                   |2           |2        |
+           |3                   |3           |4        |
+           |4                   |3           |4        |
+           |5                   |4           |8        |
+           |6                   |4           |8        |
+
+      Following reservation should give little boost for
+      resultsets with 3+ columns.
+    */
+    m_field_types.reserve(num_cols);
     return false;
   }
 
@@ -147,7 +179,7 @@ class Command_delegate {
     @param charset Field's charset
 
     @returns
-    true  an error occured, server will abort the command
+    true  an error occurred, server will abort the command
     false ok
   */
   virtual int field_metadata(struct st_send_field *field,
@@ -163,7 +195,7 @@ class Command_delegate {
     Indicates end of metadata for the result set
 
     @returns
-    true  an error occured, server will abort the command
+    true  an error occurred, server will abort the command
     false ok
   */
   virtual int end_result_metadata(uint server_status MY_ATTRIBUTE((unused)),
@@ -175,7 +207,7 @@ class Command_delegate {
     Indicates the beginning of a new row in the result set/metadata
 
     @returns
-    true  an error occured, server will abort the command
+    true  an error occurred, server will abort the command
     false ok
   */
   virtual int start_row() { return false; }
@@ -184,20 +216,20 @@ class Command_delegate {
    Indicates the end of the current row in the result set/metadata
 
    @returns
-   true  an error occured, server will abort the command
+   true  an error occurred, server will abort the command
    false ok
   */
   virtual int end_row() { return false; }
 
   /*
-    An error occured during execution
+    An error occurred during execution
 
-    @details This callback indicates that an error occureded during command
+    @details This callback indicates that an error occurreded during command
     execution and the partial row should be dropped. Server will raise error
     and return.
 
     @returns
-    true  an error occured, server will abort the command
+    true  an error occurred, server will abort the command
     false ok
   */
   virtual void abort_row() {}
@@ -214,7 +246,7 @@ class Command_delegate {
     Receive NULL value from server
 
     @returns
-    true  an error occured, server will abort the command
+    true  an error occurred, server will abort the command
     false ok
   */
   virtual int get_null() { return false; }
@@ -228,7 +260,7 @@ class Command_delegate {
     track the metadata that was sent just prior to the result set.
 
     @returns
-    true  an error occured, server will abort the command
+    true  an error occurred, server will abort the command
     false ok
   */
   virtual int get_integer(longlong value MY_ATTRIBUTE((unused))) {
@@ -242,7 +274,7 @@ class Command_delegate {
     @param unsigned_flag true <=> value is unsigned
 
     @returns
-    true  an error occured, server will abort the command
+    true  an error occurred, server will abort the command
     false ok
   */
   virtual int get_longlong(longlong value MY_ATTRIBUTE((unused)),
@@ -256,7 +288,7 @@ class Command_delegate {
     @param value Value received
 
     @returns
-    true  an error occured, server will abort the command
+    true  an error occurred, server will abort the command
     false ok
   */
   virtual int get_decimal(const decimal_t *value MY_ATTRIBUTE((unused))) {
@@ -273,7 +305,7 @@ class Command_delegate {
     track the metadata that was sent just prior to the result set.
 
     @returns
-    true  an error occured, server will abort the command
+    true  an error occurred, server will abort the command
     false ok
   */
   virtual int get_double(double value MY_ATTRIBUTE((unused)),
@@ -287,7 +319,7 @@ class Command_delegate {
     @param value    Value received
 
     @returns
-    true  an error occured during storing, server will abort the command
+    true  an error occurred during storing, server will abort the command
     false ok
   */
   virtual int get_date(const MYSQL_TIME *value MY_ATTRIBUTE((unused))) {
@@ -301,7 +333,7 @@ class Command_delegate {
     @param decimals Number of decimals
 
     @returns
-    true  an error occured during storing, server will abort the command
+    true  an error occurred during storing, server will abort the command
     false ok
   */
   virtual int get_time(const MYSQL_TIME *value MY_ATTRIBUTE((unused)),
@@ -316,7 +348,7 @@ class Command_delegate {
     @param decimals Number of decimals
 
     @returns
-    true  an error occured during storing, server will abort the command
+    true  an error occurred during storing, server will abort the command
     false ok
   */
   virtual int get_datetime(const MYSQL_TIME *value MY_ATTRIBUTE((unused)),
@@ -332,7 +364,7 @@ class Command_delegate {
     @param valuecs Value's charset
 
     @returns
-    true  an error occured, server will abort the command
+    true  an error occurred, server will abort the command
     false ok
   */
   virtual int get_string(const char *const value MY_ATTRIBUTE((unused)),
@@ -353,8 +385,8 @@ class Command_delegate {
     @param last_insert_id       Last insert id being assigned during execution
     @param message              A message from server
   */
-  virtual void handle_ok(uint server_status, uint statement_warn_count,
-                         ulonglong affected_rows, ulonglong last_insert_id,
+  virtual void handle_ok(uint32_t server_status, uint32_t statement_warn_count,
+                         uint64_t affected_rows, uint64_t last_insert_id,
                          const char *const message) {
     m_info.server_status = server_status;
     m_info.num_warnings = statement_warn_count;

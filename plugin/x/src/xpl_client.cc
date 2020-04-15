@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,53 +26,46 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <memory>
 #include <stdexcept>
 
+#include <cstdint>
+#include <vector>
+
 // needed for ip_to_hostname(), should probably be turned into a service
-#include "my_inttypes.h"
+#include "my_dbug.h"     // NOLINT(build/include_subdir)
+#include "my_systime.h"  // my_sleep NOLINT(build/include_subdir)
 #include "plugin/x/generated/mysqlx_version.h"
-#include "plugin/x/ngs/include/ngs/capabilities/configurator.h"
-#include "plugin/x/ngs/include/ngs/capabilities/handler_readonly_value.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
-#include "plugin/x/ngs/include/ngs_common/string_formatter.h"
-#include "plugin/x/src/cap_handles_expired_passwords.h"
+#include "plugin/x/src/capabilities/configurator.h"
+#include "plugin/x/src/capabilities/handler_expired_passwords.h"
+#include "plugin/x/src/capabilities/handler_readonly_value.h"
+#include "plugin/x/src/helper/string_formatter.h"
 #include "plugin/x/src/mysql_show_variable_wrapper.h"
 #include "plugin/x/src/mysql_variables.h"
 #include "plugin/x/src/xpl_server.h"
 #include "plugin/x/src/xpl_session.h"
-#include "sql/hostname.h"
+#include "sql/hostname_cache.h"  // ip_to_hostname
 
 namespace xpl {
 
-Client::Client(std::shared_ptr<ngs::Vio_interface> connection,
-               ngs::Server_interface &server, Client_id client_id,
-               Protocol_monitor *pmon, const Global_timeouts &timeouts)
+Client::Client(std::shared_ptr<iface::Vio> connection, iface::Server &server,
+               Client_id client_id, Protocol_monitor *pmon,
+               const Global_timeouts &timeouts)
     : ngs::Client(connection, server, client_id, pmon, timeouts) {
   if (pmon) pmon->init(this);
 }
 
 Client::~Client() { ngs::free_object(m_protocol_monitor); }
 
-void Client::on_session_close(ngs::Session_interface &s) {
-  ngs::Client::on_session_close(s);
-  if (s.state_before_close() != ngs::Session_interface::Authenticating) {
-    ++Global_status_variables::instance().m_closed_sessions_count;
-  }
-}
-
-void Client::on_session_reset(ngs::Session_interface &s) {
-  ngs::Client::on_session_reset(s);
-}
-
-ngs::Capabilities_configurator *Client::capabilities_configurator() {
-  ngs::Capabilities_configurator *caps =
-      ngs::Client::capabilities_configurator();
+Capabilities_configurator *Client::capabilities_configurator() {
+  Capabilities_configurator *caps = ngs::Client::capabilities_configurator();
 
   // add our capabilities
-  caps->add_handler(ngs::allocate_shared<ngs::Capability_readonly_value>(
-      "node_type", "mysql"));
   caps->add_handler(
-      ngs::allocate_shared<Cap_handles_expired_passwords>(ngs::ref(*this)));
+      ngs::allocate_shared<Capability_readonly_value>("node_type", "mysql"));
+  caps->add_handler(
+      ngs::allocate_shared<Cap_handles_expired_passwords>(std::ref(*this)));
 
   return caps;
 }
@@ -104,33 +97,13 @@ This can be called from any thread, so care must be taken to not call
 anything that's not thread safe from here.
  */
 void Client::kill() {
-  if (m_state == Client_accepted) {
+  if (m_state == State::k_accepted) {
     disconnect_and_trigger_close();
     return;
   }
 
   m_session->on_kill();
   ++Global_status_variables::instance().m_killed_sessions_count;
-}
-
-void Client::on_network_error(int error) {
-  ngs::Client::on_network_error(error);
-  if (error != 0)
-    ++Global_status_variables::instance().m_connection_errors_count;
-}
-
-void Client::on_server_shutdown() {
-  ngs::shared_ptr<ngs::Session_interface> local_copy = m_session;
-
-  if (local_copy) local_copy->on_kill();
-
-  ngs::Client::on_server_shutdown();
-}
-
-void Client::on_auth_timeout() {
-  ngs::Client::on_auth_timeout();
-
-  ++Global_status_variables::instance().m_connection_errors_count;
 }
 
 /* Check is a session assigned to this client has following thread data
@@ -143,25 +116,34 @@ bool Client::is_handler_thd(const THD *thd) const {
   // not reseted (by Mysqlx::Session::Reset) in middle
   // of this operations.
   MUTEX_LOCK(lock_session_exit, m_session_exit_mutex);
-  auto session = this->session_smart_ptr();
+  auto session = this->session_shared_ptr();
 
   return thd && session && (session->get_thd() == thd);
 }
 
 void Client::get_status_ssl_cipher_list(SHOW_VAR *var) {
   std::vector<std::string> ciphers =
-      ngs::Ssl_session_options(&connection()).ssl_cipher_list();
+      Ssl_session_options(&connection()).ssl_cipher_list();
 
-  mysqld::xpl_show_var(var).assign(ngs::join(ciphers, ":"));
+  mysqld::xpl_show_var(var).assign(join(ciphers, ":"));
 }
 
 std::string Client::resolve_hostname() {
   std::string result;
   std::string socket_ip_string;
-  uint16 socket_port;
+  uint16_t socket_port;
+
+  DBUG_EXECUTE_IF("resolve_timeout", {
+    int i = 0;
+    int max_iterations = 1000;
+    while (server().is_running() && i < max_iterations) {
+      my_sleep(10000);
+      ++i;
+    }
+  });
 
   sockaddr_storage *addr =
-      m_connection->peer_addr(socket_ip_string, socket_port);
+      m_connection->peer_addr(&socket_ip_string, &socket_port);
 
   if (NULL == addr) {
     log_debug("%s: get peer address failed, can't resolve IP to hostname",
@@ -170,7 +152,7 @@ std::string Client::resolve_hostname() {
   }
 
   char *hostname = NULL;
-  uint connect_errors = 0;
+  uint32_t connect_errors = 0;
   const int resolve_result = ip_to_hostname(addr, socket_ip_string.c_str(),
                                             &hostname, &connect_errors);
 
@@ -194,19 +176,21 @@ bool Client::is_localhost(const char *hostname) {
 void Protocol_monitor::init(Client *client) { m_client = client; }
 
 namespace {
+
 template <ngs::Common_status_variables::Variable ngs::Common_status_variables::
               *variable>
-inline void update_status(ngs::Session_interface *session) {
+inline void update_status(iface::Session *session) {
   if (session) ++(session->get_status_variables().*variable);
   ++(Global_status_variables::instance().*variable);
 }
 
 template <ngs::Common_status_variables::Variable ngs::Common_status_variables::
               *variable>
-inline void update_status(ngs::Session_interface *session, long param) {
-  if (session) (session->get_status_variables().*variable) += param;
-  (Global_status_variables::instance().*variable) += param;
+inline void update_status(iface::Session *session, const uint32_t value) {
+  if (session) (session->get_status_variables().*variable) += value;
+  (Global_status_variables::instance().*variable) += value;
 }
+
 }  // namespace
 
 void Protocol_monitor::on_notice_warning_send() {
@@ -242,19 +226,48 @@ void Protocol_monitor::on_row_send() {
       m_client->session());
 }
 
-void Protocol_monitor::on_send(long bytes_transferred) {
+void Protocol_monitor::on_send(const uint32_t bytes_transferred) {
   update_status<&ngs::Common_status_variables::m_bytes_sent>(
       m_client->session(), bytes_transferred);
 }
 
-void Protocol_monitor::on_receive(long bytes_transferred) {
+void Protocol_monitor::on_send_compressed(const uint32_t bytes_transferred) {
+  update_status<&ngs::Common_status_variables::m_bytes_sent_compressed_payload>(
+      m_client->session(), bytes_transferred);
+}
+
+void Protocol_monitor::on_send_before_compression(
+    const uint32_t bytes_transferred) {
+  update_status<&ngs::Common_status_variables::m_bytes_sent_uncompressed_frame>(
+      m_client->session(), bytes_transferred);
+}
+
+void Protocol_monitor::on_receive(const uint32_t bytes_transferred) {
   update_status<&ngs::Common_status_variables::m_bytes_received>(
+      m_client->session(), bytes_transferred);
+}
+
+void Protocol_monitor::on_receive_compressed(const uint32_t bytes_transferred) {
+  update_status<
+      &ngs::Common_status_variables::m_bytes_received_compressed_payload>(
+      m_client->session(), bytes_transferred);
+}
+
+void Protocol_monitor::on_receive_after_decompression(
+    const uint32_t bytes_transferred) {
+  update_status<
+      &ngs::Common_status_variables::m_bytes_received_uncompressed_frame>(
       m_client->session(), bytes_transferred);
 }
 
 void Protocol_monitor::on_error_unknown_msg_type() {
   update_status<&ngs::Common_status_variables::m_errors_unknown_message_type>(
       m_client->session());
+}
+
+void Protocol_monitor::on_messages_sent(const uint32_t messages) {
+  update_status<&ngs::Common_status_variables::m_messages_sent>(
+      m_client->session(), messages);
 }
 
 }  // namespace xpl

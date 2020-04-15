@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -95,8 +95,8 @@ struct recv_addr_t;
 mysqlbackup --include regexp option: then we do not want to create tables in
 directories which were not included */
 extern bool meb_replay_file_ops;
-/** true if the redo log is copied during an online backup */
-extern volatile bool is_online_redo_copy;
+/** list of tablespaces, that experienced an inplace DDL during a backup op */
+extern std::list<std::pair<space_id_t, lsn_t>> index_load_list;
 /** the last redo log flush len as seen by MEB */
 extern volatile lsn_t backup_redo_log_flushed_lsn;
 /** TRUE when the redo log is being backed up */
@@ -109,11 +109,15 @@ log scanned.
 @param[in,out]	scanned_lsn		lsn of buffer start, we return scanned
 lsn
 @param[in,out]	scanned_checkpoint_no	4 lowest bytes of the highest scanned
+@param[out]	block_no	highest block no in scanned buffer.
 checkpoint number so far
 @param[out]	n_bytes_scanned		how much we were able to scan, smaller
-than buf_len if log data ended here */
+than buf_len if log data ended here
+@param[out]	has_encrypted_log	set true, if buffer contains encrypted
+redo log, set false otherwise */
 void meb_scan_log_seg(byte *buf, ulint buf_len, lsn_t *scanned_lsn,
-                      ulint *scanned_checkpoint_no, ulint *n_bytes_scanned);
+                      uint32_t *scanned_checkpoint_no, uint32_t *block_no,
+                      ulint *n_bytes_scanned, bool *has_encrypted_log);
 
 /** Applies the hashed log records to the page, if the page lsn is less than the
 lsn of a log record. This can be called when a buffer page has just been
@@ -175,7 +179,26 @@ bool meb_scan_log_recs(ulint available_memory, const byte *buf, ulint len,
                        lsn_t checkpoint_lsn, lsn_t start_lsn,
                        lsn_t *contiguous_lsn, lsn_t *group_scanned_lsn);
 
+/** Creates an IORequest object for decrypting redo log with
+Encryption::decrypt_log() method. If the encryption_info parameter is
+a null pointer, then encryption information is read from
+"ib_logfile0". If the encryption_info parameter is not null, then it
+should contain a copy of the encryption info stored in the header of
+"ib_logfile0".
+@param[in,out]	encryption_request      an IORequest object
+@param[in]	encryption_info         a copy of the encryption info in
+the header of "ib_logfile0", or a null pointer
+@retval	true	if the call succeeded
+@retval	false	otherwise */
+bool meb_read_log_encryption(IORequest &encryption_request,
+                             byte *encryption_info = nullptr);
+
 bool recv_check_log_header_checksum(const byte *buf);
+/** Check the 4-byte checksum to the trailer checksum field of a log
+block.
+@param[in]	block	pointer to a log block
+@return whether the checksum matches */
+bool log_block_checksum_is_ok(const byte *block);
 #else /* UNIV_HOTBACKUP */
 
 /** Applies the hashed log records to the page, if the page lsn is less than the
@@ -259,6 +282,8 @@ pages.
                                 the application; the caller must in this case
                                 own the log mutex */
 void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf);
+
+bool is_mysql_ibd_page_0_in_redo();
 
 #if defined(UNIV_DEBUG) || defined(UNIV_HOTBACKUP)
 /** Return string name of the redo log record type.
@@ -528,6 +553,8 @@ struct recv_sys_t {
   /** event to signal that the page cleaner has finished the request */
   os_event_t flush_end;
 
+#else  /* !UNIV_HOTBACKUP */
+  bool apply_file_operations;
 #endif /* !UNIV_HOTBACKUP */
 
   /** This is true when log rec application to pages is allowed;
@@ -576,6 +603,17 @@ struct recv_sys_t {
 
   /** The log records have been parsed up to this lsn */
   lsn_t recovered_lsn;
+
+  /** The previous value of recovered_lsn - before we parsed the last mtr.
+  It is equal to recovered_lsn before we parsed any mtr. This is used to
+  find moments in which recovered_lsn moves to the next block in which case
+  we should update the last_block_first_rec_group (described below). */
+  lsn_t previous_recovered_lsn;
+
+  /** Tracks what should be the proper value of first_rec_group field in the
+  header of the block to which recovered_lsn belongs. It might be also zero,
+  in which case it means we do not know. */
+  uint32_t last_block_first_rec_group;
 
   /** Set when finding a corrupt log block or record, or there
   is a log parsing buffer overflow */

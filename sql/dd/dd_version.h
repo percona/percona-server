@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -137,17 +137,41 @@
   - Bug#24741307: add last_checked_for_upgrade column to msyql.tables table
 
 
-  80014: Current
+  80014: Published in 8.0.14
   ----------------------------------------------------------------------------
   Changes from version 80013:
 
   - Bug#28492272: Synchronize sql_mode in server with that in DD.
 
 
-  80015: Next DD version number after the previous is public.
+  80015: Not published. DD version still at 80014 in server 8.0.15.
+  ----------------------------------------------------------------------------
+  No changes from version 80014.
+
+
+  80016: Published in 8.0.16
   ----------------------------------------------------------------------------
   Changes from version 80014:
 
+  - WL#929 - CHECK CONSTRAINTS
+      New DD table check_constraints is introduced for the check
+      constraints metadata.
+
+  - WL#12261 adds new mysql.schemata.default_encryption DD column.
+
+  - Bug#29053560 Increases DD column mysql.tablespaces.name length to 268.
+
+  80017: Current
+  ----------------------------------------------------------------------------
+  Changes from version 80016:
+
+  - WL#12731 adds new mysql.schemata.se_private_data DD column.
+  - WL#12571 Support fully qualified hostnames longer than 60 characters
+    Server metadata table columns size is increased to 255.
+
+  80018: Next DD version number after the previous is public.
+  ----------------------------------------------------------------------------
+  Changes from version 80017:
   - No changes, this version number is not active yet.
 
 
@@ -160,9 +184,9 @@
 */
 namespace dd {
 
-static const uint DD_VERSION = 80014;
+static const uint DD_VERSION = 80017;
 
-static const uint DD_VERSION_MINOR_DOWNGRADE_THRESHOLD = 80014;
+static const uint DD_VERSION_MINOR_DOWNGRADE_THRESHOLD = 80017;
 
 }  // namespace dd
 

@@ -35,6 +35,7 @@ SELECT a,2 as a FROM (SELECT '1' as a) b HAVING a=1;
 SELECT 1 FROM (SELECT 1) a WHERE a=2;
 --error 1054
 SELECT (SELECT 1) as a FROM (SELECT 1 FROM t1  HAVING a=1) as a;
+--sorted_result
 select * from t1 as x1, (select * from t1) as x2;
 explain select * from t1 as x1, (select * from t1) as x2;
 drop table if exists  t2,t3;
@@ -154,6 +155,7 @@ drop table t1;
 
 create table t1 (a int);
 insert into t1 values (1),(2);
+--sorted_result
 select * from ( select * from t1 union select * from t1) a,(select * from t1 union select * from t1) b;
 explain select * from ( select * from t1 union select * from t1) a,(select * from t1 union select * from t1) b;
 drop table t1;
@@ -442,12 +444,21 @@ SET @optimizer_switch_saved= @@optimizer_switch;
 SET @@optimizer_switch="derived_merge=off";
 
 --echo # Ref access to the derived table should be used.
-EXPLAIN SELECT table1 . o1 
-FROM C table1  
-  JOIN ( C table2  
-    JOIN ( SELECT * FROM cc ) table3  
-    ON table3 .`i1`  = table2 .o1  
-  ) ON table3 .`i2`  = table2 .o1   
+EXPLAIN SELECT table1 . o1
+FROM C table1
+  JOIN ( C table2
+    JOIN ( SELECT * FROM cc ) table3
+    ON table3 .`i1`  = table2 .o1
+  ) ON table3 .`i2`  = table2 .o1
+;
+
+# Test EXPLAIN on MaterializeIterator.
+EXPLAIN FORMAT=tree SELECT table1 . o1
+FROM C table1
+  JOIN ( C table2
+    JOIN ( SELECT * FROM cc ) table3
+    ON table3 .`i1`  = table2 .o1
+  ) ON table3 .`i2`  = table2 .o1
 ;
 
 SET @@optimizer_switch=@optimizer_switch_saved;
@@ -522,6 +533,7 @@ EXPLAIN SELECT * FROM (SELECT * FROM t1) tt;
 SELECT * FROM (SELECT * FROM t1) tt;
 --echo  explain for multitable derived
 EXPLAIN SELECT * FROM (SELECT * FROM t1 JOIN t2 ON f1=f2) tt;
+--sorted_result
 SELECT * FROM (SELECT * FROM t1 JOIN t2 ON f1=f2) tt;
 --echo  explain for derived with where
 FLUSH STATUS;
@@ -549,6 +561,7 @@ EXPLAIN SELECT * FROM v1;
 SELECT * FROM v1;
 --echo  explain for multitable views
 EXPLAIN SELECT * FROM v2;
+--sorted_result
 SELECT * FROM v2;
 --echo  explain for views with where
 EXPLAIN SELECT * FROM v3 WHERE f11 IN (1,3);
@@ -556,6 +569,7 @@ SELECT * FROM v3 WHERE f11 IN (1,3);
 --echo explain for joined views
 EXPLAIN
   SELECT * FROM v3 JOIN v4 ON f1=f2;
+--sorted_result
 SELECT * FROM v3 JOIN v4 ON f1=f2;
 
 FLUSH STATUS;
@@ -2403,6 +2417,8 @@ FROM t1 RIGHT JOIN
      ON t1.pk = dt.pk;
 
 eval explain $query;
+
+--sorted_result
 eval $query;
 
 SET @@optimizer_switch=@optimizer_switch_saved;
@@ -2829,18 +2845,6 @@ EXECUTE yy;
 
 DROP TABLE t1;
 
---echo #
---echo # Bug#25907510 CRASH IN HA_MYISAM::IDX_COND_PUSH WITH INTERNAL_TMP_DISK_STORAGE_ENGINE=MYISAM
---echo #
-
-#set sql_mode="";
-set global internal_tmp_disk_storage_engine=myisam;
-create table t (a bit(1),b int) engine=innodb;
-create table s (a int) engine=innodb;
-select 1 from t natural right outer join
- (select a,@q from s limit 2) w where b;
-drop table t,s;
-set global internal_tmp_disk_storage_engine=default;
 
 --echo #
 --echo # Bug#26596977: ASSERT `!(USED_TABS & (~READ_TABLES & ~FILTER_FOR_TABLE))'
@@ -2981,3 +2985,60 @@ SET a=5
 WHERE a IN (SELECT a FROM t2
             ORDER BY (SELECT a FROM (SELECT SUM(a) FROM t1) AS dt));
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#30381092 WRONG BEHAVIOR OF '=' CONDITION WHEN WORKING WITH COMPLEX SUBQUERIES
+--echo #
+
+# Parent table
+CREATE TABLE t1 (t1_id INT PRIMARY KEY);
+# Child table, one-to-many.
+CREATE TABLE t2 (t2_id INT, t1_id INT);
+
+INSERT INTO t1 VALUES (-1), (1);
+INSERT INTO t2 SELECT t1_id, t1_id FROM t1;
+ANALYZE TABLE t1,t2;
+
+# ot.t2_id is a deeply nested outer reference.
+
+# We verify that the pulling-out finds the outer reference. We hide
+# this reference in various places :-)
+
+# Inside the WHERE clause of a merged derived table in a scalar subquery.
+
+let $query=
+SELECT * FROM t2 AS ot
+WHERE
+( SELECT t1_id AS it1
+  FROM ( SELECT * FROM t1 AS it2
+         WHERE t1_id = ( SELECT t1_id
+                         FROM ( SELECT * FROM t2 AS it3
+                                WHERE t2_id=ot.t2_id
+                              ) AS dt1
+                       )
+       ) AS dt2
+) IS NOT NULL;
+
+eval EXPLAIN $query;
+eval $query;
+
+# Inside the WHERE clause of a non-merged derived table in a scalar
+# subquery.
+
+let $query=
+SELECT * FROM t2 AS ot
+WHERE
+( SELECT t1_id AS it1
+  FROM ( SELECT * FROM t1 AS it2
+         WHERE t1_id = ( SELECT /*+ NO_MERGE() */ t1_id
+                         FROM ( SELECT * FROM t2 AS it3
+                                WHERE t2_id=ot.t2_id
+                              ) AS dt1
+                       )
+       ) AS dt2
+) IS NOT NULL;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2;

@@ -12,6 +12,7 @@ let $query=select * from
   ) as tt;
 eval $query;
 eval explain $query; 
+eval explain format=tree $query;   # Tests printing of MaterializedTableFunctionIterator.
 
 --error ER_INVALID_DEFAULT
 select * from
@@ -42,7 +43,7 @@ let $query= select * from
              jpath_i int path '$.a'
                 default '33' on empty
                 default '66' on error,
-             jpath_r real(10,2) path '$.a'
+             jpath_r real path '$.a'
                 default '33.3' on empty
                 default '77.7' on error,
              jsn_path json path '$.a' default '{"x":33}' on empty,
@@ -369,6 +370,7 @@ EXPLAIN SELECT /*+ JOIN_ORDER(jt, t1) */ id, jt.*
   JSON_TABLE(jd, '$[*]' COLUMNS (jid FOR ORDINALITY,
                                  val INT PATH '$')) AS jt;
 
+--sorted_result
 SELECT /*+ JOIN_ORDER(t2,jt) */ t1.id, t2.id, jt.*
   FROM t1,
     JSON_TABLE(t1.jd, '$[*]' COLUMNS (jid FOR ORDINALITY,
@@ -984,6 +986,7 @@ ANALYZE TABLE t1;
 
 ANALYZE TABLE t1;
 
+--sorted_result
 SELECT * FROM t1 as jj1,
   (SELECT tt2.* FROM t1 as tt2,
     JSON_TABLE (f1, "$" COLUMNS (id FOR ORDINALITY)) AS tbl) dt;
@@ -1278,3 +1281,64 @@ SHOW CREATE TABLE t2;
 DROP TABLE t1, t2;
 
 SET @@SESSION.character_set_connection = DEFAULT;
+
+--echo #
+--echo # Bug#28851656: JSON_TABLE RETURN "UNKNOWN DATABASE ''" FROM A FUNCTION
+--echo #
+CREATE FUNCTION FN_COUNT_ROWS(X JSON)
+RETURNS INT DETERMINISTIC
+  RETURN (
+    SELECT COUNT(*) FROM JSON_TABLE( X, '$[*]' COLUMNS( I INT PATH '$')) der
+  );
+
+SELECT FN_COUNT_ROWS('[1, 2]') CNT;
+SELECT FN_COUNT_ROWS('[1, 2, 3]') CNT;
+SELECT FN_COUNT_ROWS('[1, 2, 3, 4]') CNT;
+
+DROP FUNCTION FN_COUNT_ROWS;
+
+--echo #
+--echo # Bug#30310265: VIEWS LOSE THE CHARACTER SET OF JSON_TABLE'S
+--echo #               PATH ARGUMENTS
+--echo #
+
+CREATE VIEW v1 AS
+  SELECT * FROM JSON_TABLE('{"å":{"å":1}}', '$.å' COLUMNS (x INT PATH '$.å')) t;
+SELECT * FROM v1;
+SET NAMES latin1;
+# Used to return zero rows.
+SELECT * FROM v1;
+SET NAMES DEFAULT;
+DROP VIEW v1;
+
+CREATE VIEW v2 AS
+  SELECT * FROM JSON_TABLE('{}', '$' COLUMNS (
+    x VARCHAR(10) PATH '$.a' DEFAULT '"isn''t here"' ON EMPTY)
+  ) t;
+# SHOW CREATE VIEW and SELECT from the view used to fail with a syntax error.
+SHOW CREATE VIEW v2;
+SELECT * FROM v2;
+DROP VIEW v2;
+
+# The string literals in JSON_TABLE didn't accept character set
+# introducers. Verify that they are accepted now.
+SELECT * FROM
+  JSON_TABLE(JSON_OBJECT(),
+             _utf8mb4'$' COLUMNS (NESTED PATH _utf8mb4'$.x' COLUMNS
+               (y INT PATH _utf8mb4'$.y'
+                      DEFAULT _utf8mb4'1' ON EMPTY
+                      DEFAULT _utf8mb4'2' ON ERROR))) jt;
+
+--echo #
+--echo # Bug#30382156: STORED PROCEDURE, JSON_TABLE AND "CONST" JOIN TYPE
+--echo #
+CREATE TABLE t (id INT PRIMARY KEY, j JSON);
+INSERT INTO t VALUES (1, '{"x":1}');
+CREATE PROCEDURE p()
+  SELECT * FROM t, JSON_TABLE(j, '$' COLUMNS (x INT PATH '$.x')) jt
+    WHERE id = 1;
+CALL p();
+CALL p();
+CALL p();
+DROP PROCEDURE p;
+DROP TABLE t;

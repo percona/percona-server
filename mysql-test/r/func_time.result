@@ -469,7 +469,7 @@ monthname(date)
 NULL
 January
 drop table t1,t2;
-CREATE TABLE t1 (updated text) ENGINE=MyISAM;
+CREATE TABLE t1 (updated text) ENGINE=Innodb;
 INSERT INTO t1 VALUES ('');
 SELECT month(updated) from t1;
 month(updated)
@@ -957,10 +957,10 @@ sec_to_time(1) + 0, from_unixtime(1) + 0;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `now() - now()` bigint(16) NOT NULL DEFAULT '0',
-  `curtime() - curtime()` int(9) NOT NULL DEFAULT '0',
-  `sec_to_time(1) + 0` int(9) DEFAULT NULL,
-  `from_unixtime(1) + 0` bigint(16) DEFAULT NULL
+  `now() - now()` bigint NOT NULL DEFAULT '0',
+  `curtime() - curtime()` int NOT NULL DEFAULT '0',
+  `sec_to_time(1) + 0` int DEFAULT NULL,
+  `from_unixtime(1) + 0` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 SELECT SEC_TO_TIME(3300000);
@@ -1230,9 +1230,7 @@ DROP TABLE t1,t2;
 set time_zone= @@global.time_zone;
 select str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE;
 str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE
-NULL
-Warnings:
-Warning	1411	Incorrect datetime value: '10:00 PM' for function str_to_date
+22:10:00
 create table t1 (field DATE);
 insert into t1 values ('2006-11-06');
 select * from t1 where field < '2006-11-06 04:08:36.0';
@@ -1666,7 +1664,7 @@ End of 5.1 tests
 # ORDER BY DESC on date index"
 #
 CREATE TABLE t1(c1 DATE NOT NULL PRIMARY KEY, c2 DATE NULL, c3 INT,
-INDEX idx2(c2)) ENGINE=MyISAM;
+INDEX idx2(c2)) ENGINE=InnoDB;
 SET TIMESTAMP=1235553613;
 INSERT INTO t1 VALUES(NOW(),NOW(),3),
 (ADDTIME(NOW(),'1 01:01:01'),ADDTIME(NOW(),'1 01:01:01'),4),
@@ -1675,12 +1673,12 @@ INSERT INTO t1 VALUES(NOW(),NOW(),3),
 Warnings:
 Note	1292	Incorrect date value: '2009-02-25 12:20:13' for column 'c1' at row 1
 Note	1292	Incorrect date value: '2009-02-25 12:20:13' for column 'c2' at row 1
-Note	1265	Data truncated for column 'c1' at row 2
-Note	1265	Data truncated for column 'c2' at row 2
-Note	1265	Data truncated for column 'c1' at row 3
-Note	1265	Data truncated for column 'c2' at row 3
-Note	1265	Data truncated for column 'c1' at row 4
-Note	1265	Data truncated for column 'c2' at row 4
+Note	1292	Incorrect date value: '2009-02-26 13:21:14' for column 'c1' at row 2
+Note	1292	Incorrect date value: '2009-02-26 13:21:14' for column 'c2' at row 2
+Note	1292	Incorrect date value: '2009-02-27 13:21:14' for column 'c1' at row 3
+Note	1292	Incorrect date value: '2009-02-27 13:21:14' for column 'c2' at row 3
+Note	1292	Incorrect date value: '2009-02-28 13:21:14' for column 'c1' at row 4
+Note	1292	Incorrect date value: '2009-02-28 13:21:14' for column 'c2' at row 4
 SELECT * FROM t1;
 c1	c2	c3
 2009-02-25	2009-02-25	3
@@ -1762,7 +1760,7 @@ drop table t1;
 # BUG#13545236 - ASSERT IN SEC_SINCE_EPOCH
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-CREATE TABLE t1 (a TIME NOT NULL) ENGINE=MyIsam;
+CREATE TABLE t1 (a TIME NOT NULL) ENGINE=InnoDB;
 INSERT INTO t1 VALUES ('04:39:24');
 INSERT INTO t1 VALUES ('00:20:09');
 SELECT a FROM t1
@@ -1774,21 +1772,17 @@ WHERE CONVERT_TZ(TIMESTAMPADD(YEAR, a, DATE('0000-00-00')),
 '+00:00','+00:00');
 a
 DROP TABLE t1;
-CREATE TABLE t1 (a TIME) ENGINE=MyIsam;
+CREATE TABLE t1 (a TIME) ENGINE=InnoDB;
 INSERT INTO t1 VALUES ('00:00:00');
 SELECT * FROM t1 WHERE TIMESTAMPDIFF(MONTH, a, TIMESTAMP('0000-00-01')) IS NULL;
 a
 00:00:00
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-01'
 SELECT * FROM t1 WHERE TIMESTAMPDIFF(MONTH, a, TIMESTAMP'0000-00-01 00:00:00') IS NULL;
 a
 00:00:00
 SELECT * FROM t1 WHERE TIMESTAMPDIFF(MONTH, a, DATE('0000-00-01')) IS NULL;
 a
 00:00:00
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-01'
 SELECT * FROM t1 WHERE TIMESTAMPDIFF(MONTH, a, DATE'0000-00-01') IS NULL;
 a
 00:00:00
@@ -1846,7 +1840,7 @@ CREATE TABLE t1 AS SELECT IF(0, coalesce(NULL), now(0)) + 0;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `IF(0, coalesce(NULL), now(0)) + 0` bigint(16) DEFAULT NULL
+  `IF(0, coalesce(NULL), now(0)) + 0` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
@@ -1919,6 +1913,14 @@ ERROR HY000: Incorrect arguments to period_add
 SELECT PERIOD_DIFF(200024, 200012);
 ERROR HY000: Incorrect arguments to period_diff
 SELECT PERIOD_DIFF(200012, 200024);
+ERROR HY000: Incorrect arguments to period_diff
+#
+# Bug #29175262 ITEM_FUNC_PERIOD_ADD::VAL_INT
+#               BEHAVES DIFFERENTLY ON WINDOWS: GIVES ERROR
+#
+select period_add(-9223372036854775808,29880);
+ERROR HY000: Incorrect arguments to period_add
+select period_diff(-9223372036854775808,201902);
 ERROR HY000: Incorrect arguments to period_diff
 #
 # Bug #27004729: UBSAN: ITEM_FUNC_MAKEDATE::GET_DATE - SIGNED INTEGER OVERFLOW
@@ -2060,3 +2062,18 @@ result
 NULL
 Warnings:
 Warning	1441	Datetime function: datetime field overflow
+#
+# Bug #29334643 ASSERTION FAILED:
+#     !M_IS_ALLOCED || !M_PTR || !M_ALLOCED_LENGTH || (M_ALLOCED_LEN
+#
+CREATE TABLE t0022 (
+c0000 text
+);
+WITH cte1 AS
+(SELECT(replace(md5(0x9025c5c7),
+convert((1) using utf8),
+(!(cast((connection_id()) AS char(20)))))) AS a1 FROM t0022)
+SELECT cte1.a1
+FROM cte1 WHERE cte1.a1 = from_unixtime(1537000917);
+ERROR HY000: Incorrect DATETIME value: 'f4a4727407f28927f036a0bf46ed03f7'
+DROP TABLE t0022;

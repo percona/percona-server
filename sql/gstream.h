@@ -1,7 +1,7 @@
 #ifndef GSTREAM_INCLUDED
 #define GSTREAM_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ class Gis_read_stream {
   ~Gis_read_stream() { my_free(m_err_msg); }
 
   enum enum_tok_types get_next_toc_type();
-  bool get_next_word(LEX_STRING *);
+  bool get_next_word(LEX_CSTRING *);
   bool get_next_number(double *);
   bool check_next_symbol(char);
 
@@ -59,9 +59,10 @@ class Gis_read_stream {
   /* Skip next character, if match. Return 1 if no match */
   inline bool skip_char(char skip) {
     skip_space();
-    if ((m_cur >= m_limit) || *m_cur != skip) return 1; /* Didn't find char */
+    if ((m_cur >= m_limit) || *m_cur != skip)
+      return true; /* Didn't find char */
     m_cur++;
-    return 0;
+    return false;
   }
   void set_error_msg(const char *msg);
 

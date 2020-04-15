@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -208,7 +208,11 @@ Configuration::fetch_configuration(const char* _connect_string,
   m_clusterConfig = p;
 
   const ConfigValues * cfg = (ConfigValues*)m_clusterConfig;
-  cfg->pack(m_clusterConfigPacked);
+  cfg->pack_v1(m_clusterConfigPacked_v1);
+  if (OUR_V2_VERSION)
+  {
+    cfg->pack_v2(m_clusterConfigPacked_v2);
+  }
 
   {
     Uint32 generation;
@@ -694,7 +698,8 @@ Configuration::get_config_generation() const {
 
 
 void
-Configuration::calcSizeAlt(ConfigValues * ownConfig){
+Configuration::calcSizeAlt(ConfigValues * ownConfig)
+{
   const char * msg = "Invalid configuration fetched";
   char buf[255];
 
@@ -708,14 +713,26 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   unsigned int noOfMGMNodes = 0;
   unsigned int noOfNodes = 0;
   unsigned int noOfAttributes = 0;
-  unsigned int noOfOperations = 0;
-  unsigned int noOfLocalOperations = 0;
-  unsigned int noOfTransactions = 0;
+  unsigned int noOfOperations = 32768;
+  unsigned int noOfLocalOperations = 32;
+  unsigned int noOfTransactions = 4096;
   unsigned int noOfIndexPages = 0;
   unsigned int noOfDataPages = 0;
-  unsigned int noOfScanRecords = 0;
-  unsigned int noOfLocalScanRecords = 0;
+  unsigned int noOfScanRecords = 256;
+  unsigned int noOfLocalScanRecords = 32;
   unsigned int noBatchSize = 0;
+  unsigned int noOfIndexOperations = 8192;
+  unsigned int noOfTriggerOperations = 4000;
+  unsigned int reservedScanRecords = 256 / 4;
+  unsigned int reservedLocalScanRecords = 32 / 4;
+  unsigned int reservedOperations = 32768 / 4;
+  unsigned int reservedTransactions = 4096 / 4;
+  unsigned int reservedIndexOperations = 8192 / 4;
+  unsigned int reservedTriggerOperations = 4000 / 4;
+  unsigned int transactionBufferBytes = 1048576;
+  unsigned int reservedTransactionBufferBytes = 1048576 / 4;
+  unsigned int maxOpsPerTrans = ~(Uint32)0;
+
   m_logLevel = new LogLevel();
   if (!m_logLevel)
   {
@@ -725,7 +742,9 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   struct AttribStorage { int paramId; Uint32 * storage; bool computable; };
   AttribStorage tmp[] = {
     { CFG_DB_NO_SCANS, &noOfScanRecords, false },
+    { CFG_DB_RESERVED_SCANS, &reservedScanRecords, true },
     { CFG_DB_NO_LOCAL_SCANS, &noOfLocalScanRecords, true },
+    { CFG_DB_RESERVED_LOCAL_SCANS, &reservedLocalScanRecords, true },
     { CFG_DB_BATCH_SIZE, &noBatchSize, false },
     { CFG_DB_NO_TABLES, &noOfTables, false },
     { CFG_DB_NO_ORDERED_INDEXES, &noOfOrderedIndexes, false },
@@ -734,8 +753,17 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     { CFG_DB_NO_REPLICAS, &noOfReplicas, false },
     { CFG_DB_NO_ATTRIBUTES, &noOfAttributes, false },
     { CFG_DB_NO_OPS, &noOfOperations, false },
+    { CFG_DB_RESERVED_OPS, &reservedOperations, true },
     { CFG_DB_NO_LOCAL_OPS, &noOfLocalOperations, true },
-    { CFG_DB_NO_TRANSACTIONS, &noOfTransactions, false }
+    { CFG_DB_NO_TRANSACTIONS, &noOfTransactions, false },
+    { CFG_DB_RESERVED_TRANSACTIONS, &reservedTransactions, true },
+    { CFG_DB_MAX_DML_OPERATIONS_PER_TRANSACTION, &maxOpsPerTrans, false },
+    { CFG_DB_NO_INDEX_OPS, &noOfIndexOperations, true },
+    { CFG_DB_RESERVED_INDEX_OPS, &reservedIndexOperations, true },
+    { CFG_DB_NO_TRIGGER_OPS, &noOfTriggerOperations, true },
+    { CFG_DB_RESERVED_TRIGGER_OPS, &reservedTriggerOperations, true },
+    { CFG_DB_TRANS_BUFFER_MEM, &transactionBufferBytes, false },
+    { CFG_DB_RESERVED_TRANS_BUFFER_MEM, &reservedTransactionBufferBytes, true },
   };
 
   ndb_mgm_configuration_iterator db(*(ndb_mgm_configuration*)ownConfig, 0);
@@ -752,10 +780,10 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     }
   }
 
-  Uint32 lqhInstances = 1;
+  Uint32 ldmInstances = 1;
   if (globalData.isNdbMtLqh)
   {
-    lqhInstances = globalData.ndbMtLqhWorkers;
+    ldmInstances = globalData.ndbMtLqhWorkers;
   }
 
   Uint32 tcInstances = 1;
@@ -776,11 +804,13 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 
   noOfDataPages = (Uint32)(dataMem / 32768);
   noOfIndexPages = (Uint32)(indexMem / 8192);
-  noOfIndexPages = DO_DIV(noOfIndexPages, lqhInstances);
+  noOfIndexPages = DO_DIV(noOfIndexPages, ldmInstances);
 
-  for(unsigned j = 0; j<LogLevel::LOGLEVEL_CATEGORIES; j++){
+  for(unsigned j = 0; j<LogLevel::LOGLEVEL_CATEGORIES; j++)
+  {
     Uint32 tmp;
-    if(!ndb_mgm_get_int_parameter(&db, CFG_MIN_LOGLEVEL+j, &tmp)){
+    if (!ndb_mgm_get_int_parameter(&db, CFG_MIN_LOGLEVEL+j, &tmp))
+    {
       m_logLevel->setLogLevel((LogLevel::EventCategory)j, tmp);
     }
   }
@@ -865,6 +895,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
    */
   ConfigValuesFactory cfg(ownConfig);
 
+  cfg.begin();
   /**
    * Ensure that Backup doesn't fail due to lack of trigger resources
    */
@@ -888,25 +919,92 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   }
 
 
-  if (noOfLocalScanRecords == 0) {
-#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
-    noOfLocalScanRecords = (noOfDBNodes * noOfScanRecords) + 
-#else
-    noOfLocalScanRecords = tcInstances * lqhInstances *
+  if (noOfLocalScanRecords == 0)
+  {
+    noOfLocalScanRecords = tcInstances * ldmInstances *
       (noOfDBNodes * noOfScanRecords) +
-#endif
       1 /* NR */ + 
-      1 /* LCP */; 
+      1 /* LCP */;
+    if (noOfLocalScanRecords > 100000)
+    {
+      /**
+       * Number of local scan records is clearly very large, this should
+       * only happen in very large clusters with lots of data nodes, lots
+       * of TC instances, lots of LDM instances. In this case it is highly
+       * unlikely that all these resources are allocated simultaneously.
+       * It is still possible to set MaxNoOfLocalScanRecords to a higher
+       * number if desirable.
+       */
+      g_eventLogger->info("Capped calculation of local scan records to "
+                          "100000 from %u, still possible to set"
+                          " MaxNoOfLocalScans"
+                          " explicitly to go higher",
+                          noOfLocalScanRecords);
+      noOfLocalScanRecords = 100000;
+    }
+    if (noOfLocalScanRecords * noBatchSize > 1000000)
+    {
+      /**
+       * Ensure that we don't use up more than 100 MByte of lock operation
+       * records per LDM instance to avoid ridiculous amount of memory
+       * allocated for operation records. We keep old numbers in smaller
+       * configs for easier upgrades.
+       */
+      Uint32 oldBatchSize = noBatchSize;
+      noBatchSize = 1000000 / noOfLocalScanRecords;
+      g_eventLogger->info("Capped BatchSizePerLocalScan to %u from %u to avoid"
+                          " very large memory allocations"
+                          ", still possible to set MaxNoOfLocalScans"
+                          " explicitly to go higher",
+                          noBatchSize,
+                          oldBatchSize);
+    }
   }
+  cfg.put(CFG_LDM_BATCH_SIZE, noBatchSize);
+
   if (noOfLocalOperations == 0) {
-    noOfLocalOperations= (11 * noOfOperations) / 10;
+    if (noOfOperations == 0)
+      noOfLocalOperations = 11 * 32768 / 10;
+    else
+      noOfLocalOperations= (11 * noOfOperations) / 10;
   }
 
-  Uint32 noOfTCScanRecords = noOfScanRecords;
-  Uint32 noOfTCLocalScanRecords = noOfLocalScanRecords;
+  const Uint32 noOfTCLocalScanRecords = DO_DIV(noOfLocalScanRecords,
+                                               tcInstances);
+  const Uint32 noOfTCScanRecords = noOfScanRecords;
 
-  noOfLocalOperations = DO_DIV(noOfLocalOperations, lqhInstances);
-  noOfLocalScanRecords = DO_DIV(noOfLocalScanRecords, lqhInstances);
+  // ReservedXXX defaults to 25% of MaxNoOfXXX
+  if (reservedScanRecords == 0)
+  {
+    reservedScanRecords = noOfScanRecords / 4;
+  }
+  if (reservedLocalScanRecords == 0)
+  {
+    reservedLocalScanRecords = noOfLocalScanRecords / 4;
+  }
+  if (reservedOperations == 0)
+  {
+    reservedOperations = noOfOperations / 4;
+  }
+  if (reservedTransactions == 0)
+  {
+    reservedTransactions = noOfTransactions / 4;
+  }
+  if (reservedIndexOperations == 0)
+  {
+    reservedIndexOperations = noOfIndexOperations / 4;
+  }
+  if (reservedTriggerOperations == 0)
+  {
+    reservedTriggerOperations = noOfTriggerOperations / 4;
+  }
+  if (reservedTransactionBufferBytes == 0)
+  {
+    reservedTransactionBufferBytes = transactionBufferBytes / 4;
+  }
+
+  noOfLocalOperations = DO_DIV(noOfLocalOperations, ldmInstances);
+  noOfLocalScanRecords = DO_DIV(noOfLocalScanRecords, ldmInstances);
 
   {
     Uint32 noOfAccTables= noOfMetaTables/*noOfTables+noOfUniqueHashIndexes*/;
@@ -930,21 +1028,49 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
      * non-dedicated things for local usage.
      */
 #define EXTRA_LOCAL_OPERATIONS 150
-    cfg.put(CFG_ACC_OP_RECS,
+    Uint32 local_operations = 
 	    (noOfLocalOperations + EXTRA_LOCAL_OPERATIONS) + 
 	    (noOfLocalScanRecords * noBatchSize) +
-	    NODE_RECOVERY_SCAN_OP_RECORDS);
+	    NODE_RECOVERY_SCAN_OP_RECORDS;
+    local_operations = MIN(local_operations, UINT28_MAX);
+    cfg.put(CFG_ACC_OP_RECS, local_operations);
+
+#ifdef VM_TRACE
+    ndbout_c("reservedOperations: %u, reservedLocalScanRecords: %u,"
+             " NODE_RECOVERY_SCAN_OP_RECORDS: %u, "
+             "noOfLocalScanRecords: %u, "
+             "noOfLocalOperations: %u",
+             reservedOperations,
+             reservedLocalScanRecords,
+             NODE_RECOVERY_SCAN_OP_RECORDS,
+             noOfLocalScanRecords,
+             noOfLocalOperations);
+#endif
+    Uint32 ldm_reserved_operations =
+            (reservedOperations / ldmInstances) + EXTRA_LOCAL_OPERATIONS +
+            (reservedLocalScanRecords / ldmInstances) +
+            NODE_RECOVERY_SCAN_OP_RECORDS;
+    ldm_reserved_operations = MIN(ldm_reserved_operations, UINT28_MAX);
+    cfg.put(CFG_LDM_RESERVED_OPERATIONS, ldm_reserved_operations);
 
     cfg.put(CFG_ACC_TABLE, noOfAccTables);
     
     cfg.put(CFG_ACC_SCAN, noOfLocalScanRecords);
+    cfg.put(CFG_ACC_RESERVED_SCAN_RECORDS,
+            reservedLocalScanRecords / ldmInstances);
+    cfg.put(CFG_TUP_RESERVED_SCAN_RECORDS,
+            reservedLocalScanRecords / ldmInstances);
+    cfg.put(CFG_TUX_RESERVED_SCAN_RECORDS,
+            reservedLocalScanRecords / ldmInstances);
+    cfg.put(CFG_LQH_RESERVED_SCAN_RECORDS,
+            reservedLocalScanRecords / ldmInstances);
   }
   
   {
     /**
      * Dih Size Alt values
      */
-    Uint32 noFragPerTable= (((noOfDBNodes * lqhInstances) + 
+    Uint32 noFragPerTable= (((noOfDBNodes * ldmInstances) + 
                              NO_OF_FRAGS_PER_CHUNK - 1) >>
                             LOG_NO_OF_FRAGS_PER_CHUNK) <<
       LOG_NO_OF_FRAGS_PER_CHUNK;
@@ -954,7 +1080,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     
     cfg.put(CFG_DIH_REPLICAS, 
 	    NO_OF_FRAG_PER_NODE * noOfMetaTables *
-	    noOfDBNodes * noOfReplicas * lqhInstances);
+	    noOfDBNodes * noOfReplicas * ldmInstances);
 
     cfg.put(CFG_DIH_TABLE, 
 	    noOfMetaTables);
@@ -970,8 +1096,10 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     cfg.put(CFG_LQH_TABLE, 
 	    noOfMetaTables);
 
-    cfg.put(CFG_LQH_TC_CONNECT, 
-	    noOfLocalOperations + EXTRA_LOCAL_OPERATIONS);
+    Uint32 local_operations =
+	    noOfLocalOperations + EXTRA_LOCAL_OPERATIONS;
+    local_operations = MIN(local_operations, UINT28_MAX);
+    cfg.put(CFG_LQH_TC_CONNECT, local_operations);
     
     cfg.put(CFG_LQH_SCAN, 
 	    noOfLocalScanRecords);
@@ -989,20 +1117,86 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     /**
      * Tc Size Alt values
      */
-    cfg.put(CFG_TC_API_CONNECT, 
-	    3 * noOfTransactions);
-    
-    cfg.put(CFG_TC_TC_CONNECT, 
-	    (2 * noOfOperations) + 16 + noOfTransactions);
-    
+    const Uint32 takeOverOperations = noOfOperations;
+    if (maxOpsPerTrans == ~(Uint32)0)
+    {
+      maxOpsPerTrans = noOfOperations;
+    }
+    if (maxOpsPerTrans > noOfOperations)
+    {
+      BaseString::snprintf(
+          buf,
+          sizeof(buf),
+          "Config param MaxDMLOperationsPerTransaction(%u) must not be bigger"
+          " than available failover records given by "
+          "MaxNoOfConcurrentOperations(%u)\n",
+          maxOpsPerTrans,
+          noOfOperations);
+      ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, buf);
+    }
+
+    cfg.put(CFG_TC_TARGET_FRAG_LOCATION, Uint32(0));
+    cfg.put(CFG_TC_MAX_FRAG_LOCATION, UINT32_MAX);
+    cfg.put(CFG_TC_RESERVED_FRAG_LOCATION, Uint32(0));
+
+    cfg.put(CFG_TC_TARGET_SCAN_FRAGMENT, noOfTCLocalScanRecords);
+    cfg.put(CFG_TC_MAX_SCAN_FRAGMENT, UINT32_MAX);
+    cfg.put(CFG_TC_RESERVED_SCAN_FRAGMENT, reservedLocalScanRecords / tcInstances);
+
+    cfg.put(CFG_TC_TARGET_SCAN_RECORD, noOfTCScanRecords);
+    cfg.put(CFG_TC_MAX_SCAN_RECORD, noOfTCScanRecords);
+    cfg.put(CFG_TC_RESERVED_SCAN_RECORD, reservedScanRecords / tcInstances);
+
+    cfg.put(CFG_TC_TARGET_CONNECT_RECORD, noOfOperations + 16 + noOfTransactions);
+    cfg.put(CFG_TC_MAX_CONNECT_RECORD, UINT32_MAX);
+    cfg.put(CFG_TC_RESERVED_CONNECT_RECORD, reservedOperations / tcInstances);
+
+    cfg.put(CFG_TC_TARGET_TO_CONNECT_RECORD, takeOverOperations);
+    cfg.put(CFG_TC_MAX_TO_CONNECT_RECORD, takeOverOperations);
+    cfg.put(CFG_TC_RESERVED_TO_CONNECT_RECORD, takeOverOperations);
+
+    cfg.put(CFG_TC_TARGET_COMMIT_ACK_MARKER, noOfTransactions);
+    cfg.put(CFG_TC_MAX_COMMIT_ACK_MARKER, UINT32_MAX);
+    cfg.put(CFG_TC_RESERVED_COMMIT_ACK_MARKER, reservedTransactions / tcInstances);
+
+    cfg.put(CFG_TC_TARGET_TO_COMMIT_ACK_MARKER, Uint32(0));
+    cfg.put(CFG_TC_MAX_TO_COMMIT_ACK_MARKER, Uint32(0));
+    cfg.put(CFG_TC_RESERVED_TO_COMMIT_ACK_MARKER, Uint32(0));
+
+    cfg.put(CFG_TC_TARGET_INDEX_OPERATION, noOfIndexOperations);
+    cfg.put(CFG_TC_MAX_INDEX_OPERATION, UINT32_MAX);
+    cfg.put(CFG_TC_RESERVED_INDEX_OPERATION, reservedIndexOperations / tcInstances);
+
+    cfg.put(CFG_TC_TARGET_API_CONNECT_RECORD, noOfTransactions);
+    cfg.put(CFG_TC_MAX_API_CONNECT_RECORD, UINT32_MAX);
+    cfg.put(CFG_TC_RESERVED_API_CONNECT_RECORD, reservedTransactions / tcInstances);
+
+    cfg.put(CFG_TC_TARGET_TO_API_CONNECT_RECORD, reservedTransactions);
+    cfg.put(CFG_TC_MAX_TO_API_CONNECT_RECORD, noOfTransactions);
+    cfg.put(CFG_TC_RESERVED_TO_API_CONNECT_RECORD, reservedTransactions / tcInstances);
+
+    cfg.put(CFG_TC_TARGET_CACHE_RECORD, noOfTransactions);
+    cfg.put(CFG_TC_MAX_CACHE_RECORD, noOfTransactions);
+    cfg.put(CFG_TC_RESERVED_CACHE_RECORD, reservedTransactions / tcInstances);
+
+    cfg.put(CFG_TC_TARGET_FIRED_TRIGGER_DATA, noOfTriggerOperations);
+    cfg.put(CFG_TC_MAX_FIRED_TRIGGER_DATA, UINT32_MAX);
+    cfg.put(CFG_TC_RESERVED_FIRED_TRIGGER_DATA, reservedTriggerOperations / tcInstances);
+
+    cfg.put(CFG_TC_TARGET_ATTRIBUTE_BUFFER, transactionBufferBytes);
+    cfg.put(CFG_TC_MAX_ATTRIBUTE_BUFFER, UINT32_MAX);
+    cfg.put(CFG_TC_RESERVED_ATTRIBUTE_BUFFER, reservedTransactionBufferBytes / tcInstances);
+
+    cfg.put(CFG_TC_TARGET_COMMIT_ACK_MARKER_BUFFER, 2 * noOfTransactions);
+    cfg.put(CFG_TC_MAX_COMMIT_ACK_MARKER_BUFFER, UINT32_MAX);
+    cfg.put(CFG_TC_RESERVED_COMMIT_ACK_MARKER_BUFFER, 2 * reservedTransactions / tcInstances);
+
+    cfg.put(CFG_TC_TARGET_TO_COMMIT_ACK_MARKER_BUFFER, Uint32(0));
+    cfg.put(CFG_TC_MAX_TO_COMMIT_ACK_MARKER_BUFFER, Uint32(0));
+    cfg.put(CFG_TC_RESERVED_TO_COMMIT_ACK_MARKER_BUFFER, Uint32(0));
+
     cfg.put(CFG_TC_TABLE, 
 	    noOfMetaTables);
-    
-    cfg.put(CFG_TC_LOCAL_SCAN, 
-	    noOfTCLocalScanRecords);
-    
-    cfg.put(CFG_TC_SCAN, 
-	    noOfTCScanRecords);
   }
   
   {
@@ -1012,12 +1206,14 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     cfg.put(CFG_TUP_FRAG, 
 	    NO_OF_FRAG_PER_NODE * noOfMetaTables* noOfReplicas);
     
-    cfg.put(CFG_TUP_OP_RECS, 
-	    noOfLocalOperations + EXTRA_LOCAL_OPERATIONS);
-    
+    Uint32 local_operations =
+	    noOfLocalOperations + EXTRA_LOCAL_OPERATIONS;
+    local_operations = MIN(local_operations, UINT28_MAX);
+    cfg.put(CFG_TUP_OP_RECS, local_operations);
+
     cfg.put(CFG_TUP_PAGE, 
 	    noOfDataPages);
-    
+
     cfg.put(CFG_TUP_TABLE, 
 	    noOfMetaTables);
     
@@ -1041,6 +1237,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     cfg.put(CFG_TUX_SCAN_OP, noOfLocalScanRecords); 
   }
 
+  require(cfg.commit(true));
   m_ownConfig = (ndb_mgm_configuration*)cfg.getConfigValues();
   m_ownConfigIterator = ndb_mgm_create_configuration_iterator
     (m_ownConfig, 0);

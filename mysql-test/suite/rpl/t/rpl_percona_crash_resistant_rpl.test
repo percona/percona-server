@@ -14,7 +14,7 @@ DROP TABLE IF EXISTS t1;
 
 call mtr.add_suppression(".*Recovery from master pos.*");
 
-CREATE TABLE t1 (id INT(11) NOT NULL AUTO_INCREMENT, PRIMARY KEY(id)) ENGINE=InnoDB;
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(id)) ENGINE=InnoDB;
 
 #
 # Test the non-crashing case

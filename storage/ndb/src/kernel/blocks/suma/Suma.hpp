@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,9 +94,13 @@ public:
    * Trigger logging
    */
   void execTRIG_ATTRINFO(Signal* signal);
+  void doFIRE_TRIG_ORD(Signal* signal, LinearSectionPtr lsptr[3]);
   void execFIRE_TRIG_ORD(Signal* signal);
   void execFIRE_TRIG_ORD_L(Signal* signal);
   void execSUB_GCP_COMPLETE_REP(Signal* signal);
+  void sendSUB_GCP_COMPLETE_REP(Signal* signal);
+  Uint32 mark_epoch_inflight(Uint64 gci);
+  void unmark_epoch_inflight(Signal* signal, Uint32 inflight_index);
   
   /**
    * DIH signals
@@ -167,6 +171,7 @@ public:
   typedef Ptr<Subscriber> SubscriberPtr;
   typedef ArrayPool<Subscriber> Subscriber_pool;
   typedef DLList<Subscriber_pool> Subscriber_list;
+  typedef ConstLocalDLList<Subscriber_pool> ConstLocal_Subscriber_list;
   typedef LocalDLList<Subscriber_pool> Local_Subscriber_list;
 
   struct Table;
@@ -451,6 +456,14 @@ public:
                                  Local_Subscriber_list& list);
   
   Uint32 getFirstGCI(Signal* signal);
+  void sendBatchedSUB_TABLE_DATA(Signal* signal,
+                                 Subscriber_list::Head subscriber,
+                                 LinearSectionPtr ptr[],
+                                 Uint32 nptr);
+  void send_fragmented_SUB_TABLE_DATA_callback(Signal* signal,
+                                               Uint32 inflight_index,
+                                               Uint32 returnCode);
+
 
   void create_triggers(Signal*, Ptr<Subscription>);
   void drop_triggers(Signal*, Ptr<Subscription>);
@@ -669,8 +682,12 @@ private:
   
   struct Buffer_page 
   {
-    STATIC_CONST( DATA_WORDS = 8192 - 10);
-    STATIC_CONST( GCI_SZ32 = 2 );
+    static constexpr Uint32 DATA_WORDS = 8192 - 10;
+    static constexpr Uint32 GCI_SZ32 = 2;
+    static constexpr Uint32 SAME_GCI_FLAG = 0x80000000;
+    static constexpr Uint32 SIZE_MASK = 0x0000FFFF;
+    static constexpr Uint32 PART_NUM_SHIFT = 28;
+    static constexpr Uint32 PART_NUM_MASK = 7;
 
     Uint32 _tupdata1;
     Uint32 _tupdata2;
@@ -697,12 +714,15 @@ private:
   Bucket_mask m_switchover_buckets;  
   
   void init_buffers();
-  Uint32* get_buffer_ptr(Signal*, Uint32 buck, Uint64 gci, Uint32 sz);
+  Uint32* get_buffer_ptr(Signal*, Uint32 buck, Uint64 gci, Uint32 sz, Uint32 part);
   Uint32 seize_page();
   void free_page(Uint32 page_id, Buffer_page* page);
   void out_of_buffer(Signal*);
   void out_of_buffer_release(Signal* signal, Uint32 buck);
 
+  Uint32 reformat(Signal* signal,
+                  LinearSectionPtr ptr[3],
+                  const LinearSectionPtr lsptr[3]);
   void start_resend(Signal*, Uint32 bucket);
   void resend_bucket(Signal*, Uint32 bucket, Uint64 gci,
 		     Uint32 page_pos, Uint64 last_gci);
@@ -762,15 +782,33 @@ private:
   {
     Uint64 m_gci;
     Uint32 m_cnt;
+    Uint32 m_flags;
   };
 
   Uint32 m_gcp_rep_cnt;
+  /**
+    Next complete epoch to send report for.
+  */
+  Uint32 m_snd_gcp_rep_counter_index;
+  /**
+    Oldest incomplete epoch.
+  */
   Uint32 m_min_gcp_rep_counter_index;
+  /**
+    Index of next epoch to store.
+  */
   Uint32 m_max_gcp_rep_counter_index;
-  struct SubGcpCompleteCounter m_gcp_rep_counter[10];
+
+  STATIC_CONST(MAX_LDM_EPOCH_LAG = 50);
+  SubGcpCompleteCounter m_gcp_rep_counter[MAX_LDM_EPOCH_LAG];
+
+  Uint32 m_oldest_gcp_inflight_index;
+  Uint32 m_newest_gcp_inflight_index;
+  SubGcpCompleteCounter m_gcp_inflight[2];
 
   /* Buffer used in Suma::execALTER_TAB_REQ(). */
   Uint32 b_dti_buf[MAX_WORDS_META_FILE];
+  Uint32 b_dti_buf_ref_count;
   Uint64 m_current_gci;
 
   Uint32 m_startphase;

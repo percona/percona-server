@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@ Plugin_table table_ets_by_host_by_event_name::m_table_def(
     /* Name */
     "events_transactions_summary_by_host_by_event_name",
     /* Definition */
-    "  HOST CHAR(60) collate utf8mb4_bin default null,\n"
+    "  HOST CHAR(255) CHARACTER SET ASCII default null,\n"
     "  EVENT_NAME VARCHAR(128) not null,\n"
     "  COUNT_STAR BIGINT unsigned not null,\n"
     "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"

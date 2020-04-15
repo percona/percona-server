@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -317,7 +317,8 @@ static dberr_t buf_parallel_dblwr_make_path(void) noexcept {
   ut_ad(srv_parallel_doublewrite_path);
 
   if (Fil_path::is_absolute_path(srv_parallel_doublewrite_path)) {
-    strncpy(path, srv_parallel_doublewrite_path, sizeof(path));
+    strncpy(path, srv_parallel_doublewrite_path, sizeof(path) - 1);
+    path[sizeof(path) - 1] = '\0';
   } else {
     /* A relative path to the parallel doublewrite file is based either on
     srv_data_home, either mysql data directory if the former is empty. */
@@ -416,7 +417,7 @@ dberr_t buf_dblwr_init_or_load_pages(pfs_os_file_t file, const char *path) {
 
   read_request.disable_compression();
 
-  err = os_file_read(read_request, file, read_buf,
+  err = os_file_read(read_request, path, file, read_buf,
                      TRX_SYS_PAGE_NO * UNIV_PAGE_SIZE, UNIV_PAGE_SIZE);
 
   if (err != DB_SUCCESS) {
@@ -460,7 +461,7 @@ dberr_t buf_dblwr_init_or_load_pages(pfs_os_file_t file, const char *path) {
   }
 
   /* Read the pages from the doublewrite buffer to memory */
-  err = os_file_read(read_request, file, buf, block1 * UNIV_PAGE_SIZE,
+  err = os_file_read(read_request, path, file, buf, block1 * UNIV_PAGE_SIZE,
                      TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE);
 
   if (err != DB_SUCCESS) {
@@ -472,9 +473,10 @@ dberr_t buf_dblwr_init_or_load_pages(pfs_os_file_t file, const char *path) {
     return (err);
   }
 
-  err = os_file_read(
-      read_request, file, buf + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
-      block2 * UNIV_PAGE_SIZE, TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE);
+  err = os_file_read(read_request, path, file,
+                     buf + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
+                     block2 * UNIV_PAGE_SIZE,
+                     TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE);
 
   if (err != DB_SUCCESS) {
     ib::error(ER_IB_MSG_102) << "Failed to read the second double write buffer "
@@ -611,7 +613,7 @@ dberr_t buf_dblwr_init_or_load_pages(pfs_os_file_t file, const char *path) {
     byte *recovery_buf = static_cast<byte *>(
         ut_align(parallel_dblwr_buf.recovery_buf_unaligned, UNIV_PAGE_SIZE));
 
-    err = os_file_read(read_request, parallel_dblwr_buf.file, recovery_buf, 0,
+    err = os_file_read(read_request, path, parallel_dblwr_buf.file, recovery_buf, 0,
                        size);
     if (err != DB_SUCCESS) {
       ib::error() << "Failed to read the parallel "
@@ -1076,7 +1078,7 @@ out: encrypted page (if tablespace is
 encrypted */
 static void buf_dblwr_encrypt_page(const buf_block_t *block,
                                    page_t *dblwr_page) {
-  const ulint space_id = block->page.id.space();
+  const auto space_id = block->page.id.space();
   fil_space_t *space = fil_space_acquire_silent(space_id);
 
   if (space == nullptr) {
@@ -1204,8 +1206,11 @@ void buf_dblwr_flush_buffered_writes(ulint dblwr_partition) noexcept {
         (dblwr_partition + 1) * srv_doublewrite_batch_size * UNIV_PAGE_SIZE);
 #endif
 
-  os_file_write(io_req, parallel_dblwr_buf.path, parallel_dblwr_buf.file,
-                write_buf, file_pos, len);
+  const auto err =
+      os_file_write(io_req, parallel_dblwr_buf.path, parallel_dblwr_buf.file,
+                    write_buf, file_pos, len);
+  if (UNIV_UNLIKELY(err != DB_SUCCESS))
+    ib::fatal(ER_PARALLEL_DOUBLEWRITE_WRITE_ERROR);
 
   ut_ad(dblwr_shard->first_free <= srv_doublewrite_batch_size);
 
@@ -1482,6 +1487,10 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 the disk file.
 @return DB_SUCCESS or error code */
 dberr_t buf_parallel_dblwr_create(void) noexcept {
+  if (!srv_use_doublewrite_buf) {
+    return (DB_SUCCESS);
+  }
+
   if (!parallel_dblwr_buf.file.is_closed() || srv_read_only_mode) {
     ut_ad(parallel_dblwr_buf.recovery_buf_unaligned == nullptr);
     return (DB_SUCCESS);

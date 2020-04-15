@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -238,6 +238,13 @@ NdbOperation::release()
 
   theLockHandle = NULL;
   m_blob_lock_upgraded = false;
+
+#ifndef NDEBUG
+  // Poison members to detect late usage
+  m_accessTable = m_currentTable = (NdbTableImpl*) 0x1;
+  theNdbCon = (NdbTransaction*) 0x1;
+  m_key_record = m_attribute_record = (NdbRecord*) 0x1;
+#endif
 }
 
 void
@@ -562,13 +569,6 @@ NdbOperation::getLockHandleImpl()
 {
   assert(! theLockHandle);
   
-  if (unlikely(theNdb->getMinDbNodeVersion() < 
-               NDBD_UNLOCK_OP_SUPPORTED))
-  {
-    /* Function not implemented yet */
-    return 4003;
-  }
-
   if (likely(((theOperationType == ReadRequest) ||
               (theOperationType == ReadExclusive)) &&
              (m_type == PrimaryKeyAccess) &&

@@ -67,12 +67,6 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57_sys;
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
 --source include/start_mysqld.inc
 
---echo # Execute mysql_upgrade
-
---source include/mysql_upgrade_preparation.inc
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
---source include/mysql_upgrade_cleanup.inc
-
 SHOW CREATE TABLE test.t1;
 SELECT * FROM t1;
 

@@ -62,15 +62,23 @@ create table test.pfs_published_schema
 # Keeping track of all signatures published in GA ...
 
 insert into test.pfs_published_schema
- values("MySQL 8.0.11",
-        "79252c8a82ca73426191822e10c9e7f174e466eb5961a976f2ca8c36be2e2fbe");
+ values("MySQL 8.0.17",
+        "b77ece4deaa3c4676d817ed98c3cc33f5b1a08a001bf610a7d02fb52a42b613d");
 
 insert into test.pfs_published_schema
- values("MySQL 8.0.14",
-        "a8f7f77d7764da472255ade12060a7f1b24c0b519a6bc966835c26745819504e");
+ values("MySQL 8.0.172",
+        "4b2535cee3a558d09b93caaa1fe9021da9e758ffcacd0922bea81ae9799175dc");
+
+insert into test.pfs_published_schema
+ values("MySQL 8.0.18",
+        "1d6747d842bb2483c860cd7b28e886bdc6111ff61fd6b4d07e367aa7b3e9d9bf");
+
+insert into test.pfs_published_schema
+ values("MySQL 8.0.19",
+        "f58dba20c4234c34cedfcacd3b9a295dcac77a09b79d5f41d5f740878f272d4d");
 
 create table test.pfs_check_table
-  (id int(11) NOT NULL AUTO_INCREMENT,
+  (id int NOT NULL AUTO_INCREMENT,
    t text NOT NULL,
    row_hash varchar(64) default null,
    PRIMARY KEY (id));
@@ -80,7 +88,7 @@ delimiter $$;
 create procedure test.pfs_check_proc()
 begin
   declare whole_schema longtext;
-  declare max_length int(11);
+  declare max_length int;
   declare found_signature varchar(64);
   declare found_version varchar(20);
 

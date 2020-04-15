@@ -61,6 +61,7 @@ typedef OSMutex ib_bpmutex_t;
 #else /* UNIV_LIBRARY */
 
 #include <set>
+#include <type_traits>
 #include "ib0mutex.h"
 #include "os0atomic.h"
 #include "sync0policy.h"
@@ -75,17 +76,17 @@ typedef OSMutex EventMutex;
 
 #ifdef HAVE_IB_LINUX_FUTEX
 UT_MUTEX_TYPE(TTASFutexMutex, GenericPolicy, FutexMutex)
-UT_MUTEX_TYPE(TTASFutexMutex, BlockMutexPolicy, BlockFutexMutex)
+UT_MUTEX_TYPE(TTASFutexMutex, AggregateMutexStatsPolicy, BlockFutexMutex)
 #endif /* HAVE_IB_LINUX_FUTEX */
 
 UT_MUTEX_TYPE(TTASMutex, GenericPolicy, SpinMutex)
-UT_MUTEX_TYPE(TTASMutex, BlockMutexPolicy, BlockSpinMutex)
+UT_MUTEX_TYPE(TTASMutex, AggregateMutexStatsPolicy, BlockSpinMutex)
 
 UT_MUTEX_TYPE(OSTrackMutex, GenericPolicy, SysMutex)
-UT_MUTEX_TYPE(OSTrackMutex, BlockMutexPolicy, BlockSysMutex)
+UT_MUTEX_TYPE(OSTrackMutex, AggregateMutexStatsPolicy, BlockSysMutex)
 
 UT_MUTEX_TYPE(TTASEventMutex, GenericPolicy, SyncArrayMutex)
-UT_MUTEX_TYPE(TTASEventMutex, BlockMutexPolicy, BlockSyncArrayMutex)
+UT_MUTEX_TYPE(TTASEventMutex, AggregateMutexStatsPolicy, BlockSyncArrayMutex)
 
 #ifndef UNIV_HOTBACKUP
 #ifdef MUTEX_FUTEX

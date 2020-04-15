@@ -1,5 +1,5 @@
 $KEYRING_PLUGIN_OPT
 --early-plugin-load="keyring_file=$KEYRING_PLUGIN"
 --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring
---innodb-encrypt-tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED
+--default-table-encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED
 --innodb-encryption-threads=0

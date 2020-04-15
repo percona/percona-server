@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -107,8 +107,8 @@ class row_log_table_blob_t {
   row_log_table_blob_t() : offset(BLOB_FREED) {}
 #endif /* UNIV_DEBUG */
 
-    /** Declare a BLOB freed again.
-    @param offset_arg row_log_t::tail::total */
+  /** Declare a BLOB freed again.
+  @param offset_arg row_log_t::tail::total */
 #ifdef UNIV_DEBUG
   void blob_free(ulonglong offset_arg)
 #else  /* UNIV_DEBUG */
@@ -348,7 +348,7 @@ bool log_tmp_block_decrypt(const byte *src_block, ulint size, byte *dst_block,
 @param[in,out] log     online rebuild log
 @return true if success, false if not */
 static MY_ATTRIBUTE((warn_unused_result)) int row_log_tmpfile(row_log_t *log) {
-  DBUG_ENTER("row_log_tmpfile");
+  DBUG_TRACE;
   if (log->fd < 0) {
     log->fd = row_merge_file_create_low(log->path);
     DBUG_EXECUTE_IF("row_log_tmpfile_fail",
@@ -359,7 +359,7 @@ static MY_ATTRIBUTE((warn_unused_result)) int row_log_tmpfile(row_log_t *log) {
     }
   }
 
-  DBUG_RETURN(log->fd);
+  return log->fd;
 }
 
 /** Allocate the memory for the log buffer.
@@ -367,31 +367,30 @@ static MY_ATTRIBUTE((warn_unused_result)) int row_log_tmpfile(row_log_t *log) {
 @return true if success, false if not */
 static MY_ATTRIBUTE((warn_unused_result)) bool row_log_block_allocate(
     row_log_buf_t &log_buf) {
-  DBUG_ENTER("row_log_block_allocate");
+  DBUG_TRACE;
   if (log_buf.block == NULL) {
-    DBUG_EXECUTE_IF("simulate_row_log_allocation_failure", DBUG_RETURN(false););
+    DBUG_EXECUTE_IF("simulate_row_log_allocation_failure", return false;);
 
     log_buf.block =
         ut_allocator<byte>(mem_key_row_log_buf)
             .allocate_large(srv_sort_buf_size, &log_buf.block_pfx, false);
 
     if (log_buf.block == NULL) {
-      DBUG_RETURN(false);
+      return false;
     }
   }
-  DBUG_RETURN(true);
+  return true;
 }
 
 /** Free the log buffer.
 @param[in,out]	log_buf	Buffer used for log operation */
 static void row_log_block_free(row_log_buf_t &log_buf) {
-  DBUG_ENTER("row_log_block_free");
+  DBUG_TRACE;
   if (log_buf.block != NULL) {
     ut_allocator<byte>(mem_key_row_log_buf)
         .deallocate_large(log_buf.block, &log_buf.block_pfx);
     log_buf.block = NULL;
   }
-  DBUG_VOID_RETURN;
 }
 
 /** Logs an operation to a secondary index that is (or was) being created. */
@@ -1378,7 +1377,7 @@ void row_log_table_blob_free(
     dict_index_t *index, /*!< in/out: clustered index, X-latched */
     page_no_t page_no)   /*!< in: starting page number of the BLOB */
 {
-  DBUG_ENTER("row_log_table_blob_free");
+  DBUG_TRACE;
 
   ut_ad(index->is_clustered());
   ut_ad(dict_index_is_online_ddl(index));
@@ -1386,7 +1385,7 @@ void row_log_table_blob_free(
   ut_ad(page_no != FIL_NULL);
 
   if (index->online_log->error != DB_SUCCESS) {
-    DBUG_VOID_RETURN;
+    return;
   }
 
   page_no_map *blobs = index->online_log->blobs;
@@ -1411,8 +1410,6 @@ void row_log_table_blob_free(
     p.first->second.blob_free(log_pos);
   }
 #undef log_pos
-
-  DBUG_VOID_RETURN;
 }
 
 /** Notes that a BLOB is being allocated during online ALTER TABLE. */
@@ -1420,7 +1417,7 @@ void row_log_table_blob_alloc(
     dict_index_t *index, /*!< in/out: clustered index, X-latched */
     page_no_t page_no)   /*!< in: starting page number of the BLOB */
 {
-  DBUG_ENTER("row_log_table_blob_alloc");
+  DBUG_TRACE;
 
   ut_ad(index->is_clustered());
   ut_ad(dict_index_is_online_ddl(index));
@@ -1430,7 +1427,7 @@ void row_log_table_blob_alloc(
   ut_ad(page_no != FIL_NULL);
 
   if (index->online_log->error != DB_SUCCESS) {
-    DBUG_VOID_RETURN;
+    return;
   }
 
   /* Only track allocations if the same page has been freed
@@ -1443,8 +1440,6 @@ void row_log_table_blob_alloc(
       p->second.blob_alloc(index->online_log->tail.total);
     }
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /** Converts a log record to a table row.
@@ -1598,6 +1593,43 @@ static MY_ATTRIBUTE((warn_unused_result))
   return (row);
 }
 
+/** Tries to insert an entry into a secondary index, which is created for
+multi-value field. For each value to be inserted, if a record with exactly
+the same fields is found, the other record is necessarily marked deleted.
+It is then unmarked. Otherwise, the entry is just inserted to the index.
+@param[in]      flags           undo logging and locking flags
+@param[in]      index           secondary index
+@param[in,out]  offsets_heap    memory heap that can be emptied
+@param[in,out]  heap            memory heap
+@param[in,out]  entry           index entry to insert
+@param[in]      trx_id          PAGE_MAX_TRX_ID during row_log_table_apply(),
+                                or trx_id when undo log is disabled during
+                                alter copy operation or 0
+@param[in]      thr             query thread
+@retval DB_SUCCESS on success
+@retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
+@retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
+@return error code */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    apply_insert_multi_value(ulint flags, dict_index_t *index,
+                             mem_heap_t *offsets_heap, mem_heap_t *heap,
+                             dtuple_t *entry, trx_id_t trx_id, que_thr_t *thr) {
+  dberr_t err = DB_SUCCESS;
+  Multi_value_entry_builder_insert mv_entry_builder(index, entry);
+
+  for (dtuple_t *mv_entry = mv_entry_builder.begin(); mv_entry != nullptr;
+       mv_entry = mv_entry_builder.next()) {
+    err =
+        row_ins_sec_index_entry_low(flags, BTR_MODIFY_TREE, index, offsets_heap,
+                                    heap, mv_entry, trx_id, thr, false);
+    if (err != DB_SUCCESS) {
+      break;
+    }
+  }
+
+  return (err);
+}
+
 /** Replays an insert operation on a table that was rebuilt.
  @return DB_SUCCESS or error code */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t
@@ -1654,9 +1686,15 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     }
 
     entry = row_build_index_entry(row, NULL, index, heap);
-    error =
-        row_ins_sec_index_entry_low(flags, BTR_MODIFY_TREE, index, offsets_heap,
-                                    heap, entry, trx_id, thr, false);
+
+    if (index->is_multi_value()) {
+      error = apply_insert_multi_value(flags, index, offsets_heap, heap, entry,
+                                       trx_id, thr);
+    } else {
+      error = row_ins_sec_index_entry_low(flags, BTR_MODIFY_TREE, index,
+                                          offsets_heap, heap, entry, trx_id,
+                                          thr, false);
+    }
 
     /* Report correct index name for duplicate key error. */
     if (error == DB_DUPLICATE_KEY) {
@@ -1717,6 +1755,86 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_insert(
   return (error);
 }
 
+/** Delete a record from a secondary index.
+@param[in]	index	secondary index
+@param[in]	entry	entry to delete
+@param[in,out]	pcur	B-tree cursor
+@return DB_SUCCESS or error code */
+static inline MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_log_table_delete_sec(dict_index_t *index, const dtuple_t *entry,
+                             btr_pcur_t *pcur) {
+  dberr_t error;
+  mtr_t mtr;
+
+  ut_ad(!index->is_clustered());
+
+  mtr_start(&mtr);
+
+  btr_pcur_open(index, entry, PAGE_CUR_LE,
+                BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE, pcur, &mtr);
+#ifdef UNIV_DEBUG
+  switch (btr_pcur_get_btr_cur(pcur)->flag) {
+    case BTR_CUR_UNSET:
+    case BTR_CUR_DELETE_REF:
+    case BTR_CUR_DEL_MARK_IBUF:
+    case BTR_CUR_DELETE_IBUF:
+    case BTR_CUR_INSERT_TO_IBUF:
+      /* We did not request buffering. */
+      break;
+    case BTR_CUR_HASH:
+    case BTR_CUR_HASH_FAIL:
+    case BTR_CUR_BINARY:
+      goto flag_ok;
+  }
+  ut_ad(0);
+flag_ok:
+#endif /* UNIV_DEBUG */
+
+  if (page_rec_is_infimum(btr_pcur_get_rec(pcur)) ||
+      btr_pcur_get_low_match(pcur) < index->n_uniq) {
+    /* All secondary index entries should be
+    found, because new_table is being modified by
+    this thread only, and all indexes should be
+    updated in sync. */
+    mtr_commit(&mtr);
+    return (DB_INDEX_CORRUPT);
+  }
+
+  btr_cur_pessimistic_delete(&error, FALSE, btr_pcur_get_btr_cur(pcur),
+                             BTR_CREATE_FLAG, false, 0, 0, 0, &mtr);
+  mtr_commit(&mtr);
+
+  return (error);
+}
+
+/** Deletes a record from a multi-value index.
+@param[in]	row	row to delete
+@param[in]	ext	external data
+@param[in]	index	multi-value index
+@param[in,out]	pcur	B-tree cursor
+@param[in,out]	heap	memory heap
+@return DB_SUCCESS or error code */
+static inline MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    apply_delete_multi_value(const dtuple_t *row, row_ext_t *ext,
+                             dict_index_t *index, btr_pcur_t *pcur,
+                             mem_heap_t *heap) {
+  dberr_t err = DB_SUCCESS;
+  Multi_value_entry_builder_normal mv_entry_builder(row, ext, index, heap, true,
+                                                    false);
+
+  ut_ad(index->is_multi_value());
+
+  for (dtuple_t *entry = mv_entry_builder.begin(); entry != nullptr;
+       entry = mv_entry_builder.next()) {
+    err = row_log_table_delete_sec(index, entry, pcur);
+    if (err != DB_SUCCESS) {
+      return (err);
+    }
+  }
+
+  return (err);
+}
+
 /** Deletes a record from a table that is being rebuilt.
  @return DB_SUCCESS or error code */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t
@@ -1767,43 +1885,19 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       continue;
     }
 
+    if (index->is_multi_value()) {
+      error = apply_delete_multi_value(row, ext, index, pcur, heap);
+      if (error == DB_INDEX_CORRUPT) {
+        return (error);
+      }
+      continue;
+    }
+
     const dtuple_t *entry = row_build_index_entry(row, ext, index, heap);
 
-    mtr_start(mtr);
-
-    btr_pcur_open(index, entry, PAGE_CUR_LE,
-                  BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE, pcur, mtr);
-#ifdef UNIV_DEBUG
-    switch (btr_pcur_get_btr_cur(pcur)->flag) {
-      case BTR_CUR_UNSET:
-      case BTR_CUR_DELETE_REF:
-      case BTR_CUR_DEL_MARK_IBUF:
-      case BTR_CUR_DELETE_IBUF:
-      case BTR_CUR_INSERT_TO_IBUF:
-        /* We did not request buffering. */
-        break;
-      case BTR_CUR_HASH:
-      case BTR_CUR_HASH_FAIL:
-      case BTR_CUR_BINARY:
-        goto flag_ok;
-    }
-    ut_ad(0);
-  flag_ok:
-#endif /* UNIV_DEBUG */
-
-    if (page_rec_is_infimum(btr_pcur_get_rec(pcur)) ||
-        btr_pcur_get_low_match(pcur) < index->n_uniq) {
-      /* All secondary index entries should be
-      found, because new_table is being modified by
-      this thread only, and all indexes should be
-      updated in sync. */
-      mtr_commit(mtr);
+    if (row_log_table_delete_sec(index, entry, pcur) == DB_INDEX_CORRUPT) {
       return (DB_INDEX_CORRUPT);
     }
-
-    btr_cur_pessimistic_delete(&error, FALSE, btr_pcur_get_btr_cur(pcur),
-                               BTR_CREATE_FLAG, false, 0, 0, 0, mtr);
-    mtr_commit(mtr);
   }
 
   return (error);
@@ -1934,6 +2028,83 @@ flag_ok:
       row_log_table_apply_delete_low(trx, &pcur, old_pk, offsets, heap, &mtr));
 }
 
+/** Replays an update operation on the multi-value index.
+@param[in]	index		multi-value index
+@param[in]	n_index		the sequence of the index
+@param[in]	old_row		old row of the update
+@param[in]	old_ext		old external data of the update
+@param[in]	new_row		new row of the update
+@param[in]	non_mv_upd	true if any non-multi-value field on the index
+                                gets updated too
+@param[in]	trx_id		transaction id of the update
+@param[in]	thr		query graph
+@param[in,out]	offsets_heap	memory heap that can be emptied
+@param[in,out]	heap		memory heap
+@return DB_SUCCESS or error code */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    apply_update_multi_value(dict_index_t *index, uint32_t n_index,
+                             const dtuple_t *old_row, row_ext_t *old_ext,
+                             const dtuple_t *new_row, bool non_mv_upd,
+                             trx_id_t trx_id, que_thr_t *thr,
+                             mem_heap_t *offsets_heap, mem_heap_t *heap) {
+  btr_pcur_t pcur;
+  mtr_t mtr;
+  dberr_t error = DB_SUCCESS;
+
+  ut_ad(index->is_multi_value());
+
+  /* Do the same with other secondary index handling in
+  row_log_table_apply_update() */
+  {
+    Multi_value_entry_builder_normal mv_entry_builder(old_row, old_ext, index,
+                                                      heap, true, !non_mv_upd);
+
+    for (dtuple_t *entry = mv_entry_builder.begin(); entry != nullptr;
+         entry = mv_entry_builder.next()) {
+      mtr_start(&mtr);
+      if (row_search_index_entry(index, entry, BTR_MODIFY_TREE, &pcur, &mtr) !=
+          ROW_FOUND) {
+        mtr_commit(&mtr);
+        ut_ad(0);
+        return (DB_CORRUPTION);
+      }
+
+      btr_cur_pessimistic_delete(&error, FALSE, btr_pcur_get_btr_cur(&pcur),
+                                 BTR_CREATE_FLAG, false, 0, 0, 0, &mtr);
+
+      if (error != DB_SUCCESS) {
+        return (error);
+      }
+
+      mtr_commit(&mtr);
+    }
+  }
+
+  {
+    Multi_value_entry_builder_normal mv_entry_builder(new_row, nullptr, index,
+                                                      heap, true, !non_mv_upd);
+
+    for (dtuple_t *entry = mv_entry_builder.begin(); entry != nullptr;
+         entry = mv_entry_builder.next()) {
+      error = row_ins_sec_index_entry_low(
+          BTR_CREATE_FLAG | BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG |
+              BTR_KEEP_SYS_FLAG,
+          BTR_MODIFY_TREE, index, offsets_heap, heap, entry, trx_id, thr,
+          false);
+
+      if (error == DB_DUPLICATE_KEY) {
+        thr_get_trx(thr)->error_key_num = n_index;
+      }
+
+      if (error != DB_SUCCESS) {
+        return (error);
+      }
+    }
+  }
+
+  return (error);
+}
+
 /** Replays an update operation on a table that was rebuilt.
  @return DB_SUCCESS or error code */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
@@ -1960,6 +2131,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
   mtr_t mtr;
   btr_pcur_t pcur;
   dberr_t error;
+  bool non_mv_upd = true;
   ulint n_index = 0;
   trx_t *trx = thr_get_trx(thr);
 
@@ -2189,14 +2361,11 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
   dtuple_t *old_row;
   row_ext_t *old_ext;
 
-  if (dict_index_t *index_next = index->next()) {
+  if (index->next() != nullptr) {
     /* Construct the row corresponding to the old value of
     the record. */
     old_row = row_build(ROW_COPY_DATA, index, btr_pcur_get_rec(&pcur),
                         cur_offsets, NULL, NULL, NULL, &old_ext, heap);
-    if (dict_index_has_virtual(index_next)) {
-      dtuple_copy_v_fields(old_row, update->old_vrow);
-    }
     ut_ad(old_row);
 
     DBUG_PRINT("ib_alter_table",
@@ -2224,7 +2393,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
 
     dtuple_big_rec_free(big_rec);
   }
-
+  bool vfields_copied = false;
   while ((index = index->next()) != NULL) {
     n_index++;
     if (error != DB_SUCCESS) {
@@ -2235,15 +2404,26 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
       continue;
     }
 
-    if (!row_upd_changes_ord_field_binary(index, update, thr, old_row, NULL)) {
+    if (!vfields_copied && dict_index_has_virtual(index)) {
+      dtuple_copy_v_fields(old_row, old_pk);
+      vfields_copied = true;
+    }
+
+    if (!row_upd_changes_ord_field_binary(
+            index, update, thr, old_row, nullptr,
+            (index->is_multi_value() ? &non_mv_upd : nullptr))) {
       continue;
     }
 
-    if (dict_index_has_virtual(index)) {
-      dtuple_copy_v_fields(old_row, old_pk);
-    }
-
     mtr_commit(&mtr);
+
+    if (index->is_multi_value()) {
+      error =
+          apply_update_multi_value(index, n_index, old_row, old_ext, row,
+                                   non_mv_upd, trx_id, thr, offsets_heap, heap);
+      mtr_start(&mtr);
+      continue;
+    }
 
     entry = row_build_index_entry(old_row, old_ext, index, heap);
     if (!entry) {
@@ -2764,7 +2944,7 @@ next_block:
     byte *buf = index->online_log->head.block;
 
     err = os_file_read_no_error_handling_int_fd(
-        request, index->online_log->fd, buf, ofs, srv_sort_buf_size, nullptr);
+        request, index->online_log->path, index->online_log->fd, buf, ofs, srv_sort_buf_size, nullptr);
 
     /* If encryption is enabled decrypt buffer after reading it
     from file system. */
@@ -2987,8 +3167,7 @@ dberr_t row_log_table_apply(que_thr_t *thr, dict_table_t *old_table,
   dict_index_t *clust_index;
 
   thr_get_trx(thr)->error_key_num = 0;
-  DBUG_EXECUTE_IF("innodb_trx_duplicates",
-                  thr_get_trx(thr)->duplicates = TRX_DUP_REPLACE;);
+  DBUG_EXECUTE_IF("innodb_trx_duplicates", thr->prebuilt->replace = 1;);
 
   stage->begin_phase_log_table();
 
@@ -3015,7 +3194,7 @@ dberr_t row_log_table_apply(que_thr_t *thr, dict_table_t *old_table,
   }
 
   rw_lock_x_unlock(dict_index_get_lock(clust_index));
-  DBUG_EXECUTE_IF("innodb_trx_duplicates", thr_get_trx(thr)->duplicates = 0;);
+  DBUG_EXECUTE_IF("innodb_trx_duplicates", thr->prebuilt->replace = 0;);
 
   return (error);
 }
@@ -3037,7 +3216,7 @@ bool row_log_allocate(
     const char *path)     /*!< in: where to create temporary file */
 {
   row_log_t *log;
-  DBUG_ENTER("row_log_allocate");
+  DBUG_TRACE;
 
   ut_ad(!dict_index_is_online_ddl(index));
   ut_ad(index->is_clustered() == !!table);
@@ -3050,7 +3229,7 @@ bool row_log_allocate(
   log = static_cast<row_log_t *>(ut_malloc_nokey(sizeof *log));
 
   if (log == NULL) {
-    DBUG_RETURN(false);
+    return false;
   }
 
   log->fd = -1;
@@ -3078,13 +3257,13 @@ bool row_log_allocate(
   index->online_log = log;
 
   if (log_tmp_is_encrypted()) {
-    ulint size = srv_sort_buf_size;
+    auto size = srv_sort_buf_size;
     log->crypt_head = static_cast<byte *>(os_mem_alloc_large(&size, false));
     log->crypt_tail = static_cast<byte *>(os_mem_alloc_large(&size, false));
 
     if (!log->crypt_head || !log->crypt_tail) {
       row_log_free(log);
-      DBUG_RETURN(false);
+      return false;
     }
   }
 
@@ -3093,7 +3272,7 @@ bool row_log_allocate(
   atomic operations in both cases. */
   MONITOR_ATOMIC_INC(MONITOR_ONLINE_CREATE_INDEX);
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 /** Free the row log for an index that was being created online. */
@@ -3154,7 +3333,7 @@ static void row_log_apply_op_low(
 
   ut_ad(!index->is_clustered());
 
-  ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X) == has_index_lock);
+  ut_ad(!!rw_lock_own(dict_index_get_lock(index), RW_LOCK_X) == has_index_lock);
 
   ut_ad(!index->is_corrupted());
   ut_ad(trx_id != 0 || op == ROW_OP_DELETE);
@@ -3374,7 +3553,7 @@ static MY_ATTRIBUTE((warn_unused_result)) const mrec_t *row_log_apply_op(
   /* Online index creation is only used for secondary indexes. */
   ut_ad(!index->is_clustered());
 
-  ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X) == has_index_lock);
+  ut_ad(!!rw_lock_own(dict_index_get_lock(index), RW_LOCK_X) == has_index_lock);
 
   if (index->is_corrupted()) {
     *error = DB_INDEX_CORRUPT;
@@ -3567,7 +3746,7 @@ next_block:
     byte *buf = index->online_log->head.block;
 
     dberr_t err = os_file_read_no_error_handling_int_fd(
-        request, index->online_log->fd, buf, ofs, srv_sort_buf_size, nullptr);
+        request, index->online_log->path, index->online_log->fd, buf, ofs, srv_sort_buf_size, nullptr);
 
     /* If encryption is enabled decrypt buffer after reading it
     from file system. */
@@ -3783,7 +3962,7 @@ dberr_t row_log_apply(const trx_t *trx, dict_index_t *index,
   dberr_t error;
   row_log_t *log;
   row_merge_dup_t dup = {index, table, NULL, 0};
-  DBUG_ENTER("row_log_apply");
+  DBUG_TRACE;
 
   ut_ad(dict_index_is_online_ddl(index));
   ut_ad(!index->is_clustered());
@@ -3820,5 +3999,5 @@ dberr_t row_log_apply(const trx_t *trx, dict_index_t *index,
 
   row_log_free(log);
 
-  DBUG_RETURN(error);
+  return error;
 }

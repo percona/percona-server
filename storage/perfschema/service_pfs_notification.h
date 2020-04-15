@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -23,9 +23,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef SERVICE_PFS_NOTIFICATION_H
 #define SERVICE_PFS_NOTIFICATION_H
 
-struct PSI_notification_v1;
+struct PSI_notification_v3;
 
-int pfs_register_notification(const struct PSI_notification_v1 *callbacks,
+int pfs_register_notification(const struct PSI_notification_v3 *callbacks,
                               bool with_ref_count);
 int pfs_unregister_notification(int handle);
 void pfs_notify_thread_create(PSI_thread *thread);

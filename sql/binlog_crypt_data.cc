@@ -17,6 +17,7 @@
 #include "binlog_crypt_data.h"
 
 #include "my_byteorder.h"
+#include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #ifdef MYSQL_SERVER
@@ -101,7 +102,8 @@ bool Binlog_crypt_data::init_with_loaded_key(
     uint sch, const uchar *nonce MY_ATTRIBUTE((unused))) noexcept {
   scheme = sch;
 #ifdef MYSQL_SERVER
-  DBUG_ASSERT(key != nullptr && nonce != nullptr);
+  DBUG_ASSERT(key != nullptr);
+  DBUG_ASSERT(nonce != nullptr);
   memcpy(this->nonce, nonce, binary_log::Start_encryption_event::NONCE_LENGTH);
 #endif
   enabled = true;
@@ -132,7 +134,8 @@ bool Binlog_crypt_data::init(uint sch MY_ATTRIBUTE((unused)),
 }
 
 void Binlog_crypt_data::set_iv(uchar *iv, uint32 offs) const {
-  DBUG_ASSERT(key != nullptr && key_length == 16);
+  DBUG_ASSERT(key != nullptr);
+  DBUG_ASSERT(key_length == 16);
 
   uchar iv_plain[binary_log::Start_encryption_event::IV_LENGTH];
   memcpy(iv_plain, nonce, binary_log::Start_encryption_event::NONCE_LENGTH);

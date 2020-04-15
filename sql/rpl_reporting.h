@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -89,7 +89,8 @@ class Slave_reporting_capability {
   /**
      Check if the current error is of temporary nature or not.
   */
-  int has_temporary_error(THD *thd, uint error_arg = 0, bool *silent = 0) const;
+  int has_temporary_error(THD *thd, uint error_arg = 0,
+                          bool *silent = nullptr) const;
 
   /**
      Error information structure.
@@ -137,8 +138,8 @@ class Slave_reporting_capability {
 
   /*
     For MSR, there is a need to introduce error messages per channel.
-    Instead of changing the error messages in share/errmsg-utf8.txt to
-    introduce the clause, FOR CHANNEL "%s", we construct a string like this.
+    Instead of changing the error messages in share/messages_to_error_log.txt
+    to introduce the clause, FOR CHANNEL "%s", we construct a string like this.
     There might be problem with a client applications which could print
     error messages and see no %s.
     @TODO: fix this.
@@ -168,7 +169,7 @@ class Slave_reporting_capability {
 inline void Slave_reporting_capability::do_report(loglevel level, int err_code,
                                                   const char *msg,
                                                   va_list v_args) const {
-  va_report(level, err_code, NULL, msg, v_args);
+  va_report(level, err_code, nullptr, msg, v_args);
 }
 
 #endif  // RPL_REPORTING_H

@@ -19,7 +19,9 @@ of incompatible changes that could cause automatic upgrade to fail:
 - `Upgrade Paths <https://dev.mysql.com/doc/refman/8.0/en/upgrade-paths.html>`_
 - `Preparing your Installation for Upgrade <https://dev.mysql.com/doc/refman/8.0/en/upgrade-prerequisites.html>`_
 
-.. warning:: 
+.. include:: ./.res/text/encrypt_binlog.removing.txt
+
+.. warning::
 
    Do not upgrade from 5.7 to 8.0 on a crashed instance. If the server instance
    has crashed, crash recovery should be run before proceeding with the upgrade.
@@ -32,14 +34,14 @@ of incompatible changes that could cause automatic upgrade to fail:
    With partitioned tables that use the TokuDB or MyRocks storage
    engine, the upgrade only works with native partitioning.
 
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 
 .. contents::
    :local:
    :depth: 1
 
 Upgrading using the Percona repositories
-================================================================================
+===============================================================================
 
 The easiest and recommended way of installing - where possible - is by using the
 |Percona| repositories.
@@ -50,7 +52,7 @@ Instructions for enabling the repositories in a system can be found in:
 * :doc:`Percona YUM Repository <installation/yum_repo>`
 
 DEB-based distributions
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 
 |tip.run-all.root|
 
@@ -58,14 +60,14 @@ Having done the full backup (or dump if possible), stop the server running
 and proceed to do the modifications needed in your
 configuration file, as explained at the beginning of this guide.
 
-.. note:: 
+.. note::
 
    If you are running *Debian*/*Ubuntu* system with `systemd
    <http://freedesktop.org/wiki/Software/systemd/>`_ as the default system and
    service manager you can invoke the above command with :program:`systemctl`
    instead of :program:`service`. Currently both are supported.
 
-Then install the new server with: 
+Then install the new server with:
 
 Enable the repository:
 
@@ -86,8 +88,7 @@ The |TokuDB| and |MyRocks| storage engines are installed separately. The ``perco
 
    $ apt-get install percona-server-tokudb
 
-If you only used the |MyRocks| storage engine in |Percona Server| |version.prev|, install the
-``percona-server-rocksdb`` package.
+If you only used the |MyRocks| storage engine in |Percona Server| |version.prev|, install the ``percona-server-rocksdb`` package.
 
 .. code-block:: bash
 
@@ -101,7 +102,7 @@ and restart the service after it's finished.
 .. code-block:: bash
 
    $ mysql_upgrade
- 
+
    Checking if update is needed.
    Checking server version.
    Running queries to upgrade MySQL server.
@@ -112,7 +113,7 @@ and restart the service after it's finished.
    ...
    Upgrade process completed successfully.
    Checking if update is needed.
- 
+
    $ service mysql restart
 
 RPM-based distributions
@@ -143,7 +144,7 @@ Having done the full backup (and dump if possible), stop the server:
       Percona-Server-test-57-5.7.10-3.1.el7.x86_64
       Percona-Server-tokudb-57-5.7.10-3.1.el7.x86_64
 
-After checking, proceed to remove them without dependencies: 
+After checking, proceed to remove them without dependencies:
 
 .. code-block:: bash
 
@@ -227,16 +228,16 @@ indexes needed and do the modifications needed:
       pgrade process completed successfully.
       Checking if update is needed.
 
-Once this is done, just restart the server as usual: |service.mysql.restart| 
+Once this is done, just restart the server as usual: |service.mysql.restart|
 
 After the service has been successfully restarted you can use the new |Percona
 Server| 8.0.
 
 Upgrading using Standalone Packages
-================================================================================
+===============================================================================
 
 DEB-based distributions
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 
 Having done the full backup (and dump if possible), stop the
 server. |tip.run-this.root|: :bash:`/etc/init.d/mysql stop` and remove the
@@ -297,13 +298,12 @@ install ``percona-server-tokudb-8.0.13-3.stretch_amd64.deb`` if you want
    |Percona Server| 8.0 comes with the :ref:`TokuDB storage engine
    <tokudb_intro>`. You can find more information on how to install and enable
    the |TokuDB| storage in the :ref:`tokudb_installation` guide.
-   
+
 .. warning::
 
    When installing packages manually like this, you'll need to make sure to
    resolve all the dependencies and install missing packages yourself. At least
-   the following packages should be installed before installing |Percona Server|
-   8.0: ``libmecab2``, ``libjemalloc1``, ``zlib1g-dev``, and ``libaio1``.
+   the following packages should be installed before installing |Percona Server| 8.0: ``libmecab2``, ``libjemalloc1``, ``zlib1g-dev``, and ``libaio1``.
 
 The installation script will not run automatically :command:`mysql_upgrade`, so
 you'll need to run it yourself and restart the service afterwards.
@@ -317,7 +317,7 @@ Having done the full backup (and dump if possible), stop the server (command:
 .. code-block:: bash
 
    $ rpm -qa | grep Percona-Server
-   
+
    Percona-Server-57-debuginfo-5.7.10-3.1.el7.x86_64
    Percona-Server-client-57-5.7.10-3.1.el7.x86_64
    Percona-Server-devel-57-5.7.10-3.1.el7.x86_64
@@ -387,17 +387,9 @@ To install all the packages (for debugging, testing, etc.) you should run:
    When installing packages manually like this, you'll need to make sure to
    resolve all the dependencies and install missing packages yourself.
 
-Once installed, proceed to modify your configuration file - :file:`my.cnf` - and
-install the plugins if necessary. If you're using |TokuDB| storage engine you'll
-need to comment out all the |TokuDB| specific variables in your configuration
-file(s) before starting the server, otherwise server won't be able to
-start. *RHEL*/*CentOS* 7 automatically backs up the previous configuration file
-to :file:`/etc/my.cnf.rpmsave` and installs the default :file:`my.cnf`. After
-upgrade/install process completes you can move the old configuration file back
-(after you remove all the unsupported system variables).
+Once installed, proceed to modify your configuration file - :file:`my.cnf` - and install the plugins if necessary. If you're using |TokuDB| storage engine you'll need to comment out all the |TokuDB| specific variables in your configuration file(s) before starting the server, otherwise server won't be able to start. *RHEL*/*CentOS* 7 automatically backs up the previous configuration file to :file:`/etc/my.cnf.rpmsave` and installs the default :file:`my.cnf`. After upgrade/install process completes you can move the old configuration file back (after you remove all the unsupported system variables).
 
-As the schema of the grant table has changed, the server must be started without
-reading them: :bash:`service mysql start`
+As the schema of the grant table has changed, the server must be started without reading them: :bash:`service mysql start`
 
 Then, use :file:`mysql_upgrade` to migrate to the new grant tables. It will
 rebuild the indexes needed and do the modifications needed:
@@ -412,7 +404,7 @@ rebuild the indexes needed and do the modifications needed:
 After this is done, just restart the server as usual: |service.mysql.restart|
 
 Upgrading from Systems that Use the |TokuDB| or |MyRocks| Storage Engine and Partitioned Tables
-====================================================================================================
+=================================================================================================
 
 Due to the limitation imposed by |MySQL|, it is the storage engine that must
 provide support for partitioning.  |MySQL| 8.0 only provides support for
@@ -464,6 +456,20 @@ will contain messages like:
 
    |MySQL| Documentation: Partitioning Limitations Relating to Storage Engines
       https://dev.mysql.com/doc/refman/8.0/en/partitioning-limitations-storage-engines.html
+
+Performing a Distribution upgrade in-place on a System with installed Percona packages
+--------------------------------------------------------------------------------------------
+The recommended process for performing a distribution upgrade on a system with
+the Percona packages installed is the following:
+
+    1. Record the installed Percona packages
+    2. Backup the data and configurations
+    3. Uninstall the Percona packages without removing the configurations or
+       data
+    4. Perform the upgrade by following the distribution upgrade instructions
+    5. Reboot the system
+    6. Install the Percona packages intended for the upgraded version of the
+       distribution
 
 .. include:: .res/replace.txt
 .. include:: .res/replace.program.txt

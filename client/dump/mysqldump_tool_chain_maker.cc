@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,8 @@
 #include "client/dump/mysqldump_tool_chain_maker_options.h"
 #include "client/dump/sql_formatter.h"
 #include "client/dump/standard_writer.h"
+#include "client/dump/view.h"
+#include "m_ctype.h"
 
 using namespace Mysql::Tools::Dump;
 using std::placeholders::_1;
@@ -53,11 +55,34 @@ I_object_reader *Mysqldump_tool_chain_maker::create_chain(
            "MRG_MyISAM", rows_task->get_related_table()->get_type()))) {
     return NULL;
   }
-  if (!m_options->is_object_included_in_dump(
-          dynamic_cast<Abstract_data_object *>(
-              dump_task->get_related_db_object()))) {
+
+  Abstract_data_object *object =
+      dynamic_cast<Abstract_data_object *>(dump_task->get_related_db_object());
+  if (!m_options->is_object_included_in_dump(object)) {
     return NULL;
   }
+  /*
+    View dependency check is moved post filteration. This will ensure that
+    only filtered out views will be checked for their dependecies. This
+    allows mysqlpump to dump a database even when there exsits an invalid
+    view in another database which user is not interested to dump. I_S views
+    are skipped from this check.
+  */
+  if (object && (dynamic_cast<View *>(object) != NULL) &&
+      my_strcasecmp(&my_charset_latin1, object->get_schema().c_str(),
+                    INFORMATION_SCHEMA_DB_NAME)) {
+    Mysql::Tools::Base::Mysql_query_runner *runner = this->get_runner();
+    /* Check if view dependent objects exists */
+    if (runner->run_query(std::string("LOCK TABLES ") +
+                          this->get_quoted_object_full_name(
+                              object->get_schema(), object->get_name()) +
+                          " READ") != 0)
+      return NULL;
+    else
+      runner->run_query(std::string("UNLOCK TABLES"));
+    delete runner;
+  }
+
   if (m_main_object_reader == NULL) {
     I_output_writer *writer;
     if (m_options->m_result_file.has_value())
@@ -67,6 +92,10 @@ I_object_reader *Mysqldump_tool_chain_maker::create_chain(
     else
       writer = new Standard_writer(this->get_message_handler(),
                                    this->get_object_id_generator());
+    if (writer->init()) {
+      delete writer;
+      return NULL;
+    }
     m_all_created_elements.push_back(writer);
     if (m_options->m_compress_output_algorithm.has_value()) {
       std::string algorithm_name =
@@ -78,6 +107,10 @@ I_object_reader *Mysqldump_tool_chain_maker::create_chain(
       if (algorithm_name == "lz4") {
         Compression_lz4_writer *compression_writer = new Compression_lz4_writer(
             this->get_message_handler(), this->get_object_id_generator());
+        if (compression_writer->init()) {
+          delete compression_writer;
+          return NULL;
+        }
         compression_writer_as_wrapper = compression_writer;
         compression_writer_as_writer = compression_writer;
       } else if (algorithm_name == "zlib") {
@@ -85,13 +118,18 @@ I_object_reader *Mysqldump_tool_chain_maker::create_chain(
             new Compression_zlib_writer(this->get_message_handler(),
                                         this->get_object_id_generator(),
                                         Z_DEFAULT_COMPRESSION);
+        if (compression_writer->init()) {
+          delete compression_writer;
+          return NULL;
+        }
         compression_writer_as_wrapper = compression_writer;
         compression_writer_as_writer = compression_writer;
-      } else
+      } else {
         this->pass_message(Mysql::Tools::Base::Message_data(
             0, "Unknown compression method: " + algorithm_name,
             Mysql::Tools::Base::Message_type_error));
-
+        return NULL;
+      }
       compression_writer_as_wrapper->register_output_writer(writer);
       writer = compression_writer_as_writer;
       m_all_created_elements.push_back(writer);

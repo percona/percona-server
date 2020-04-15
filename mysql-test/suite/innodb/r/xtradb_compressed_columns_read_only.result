@@ -85,8 +85,8 @@ DROP COMPRESSION_DICTIONARY dummy_dict;
 ERROR HY000: Running in read-only mode
 DROP COMPRESSION_DICTIONARY numbers;
 ERROR HY000: Running in read-only mode
-# Check if 'information_schema' queries for 'xtradb_zip_dict'
-# and 'xtradb_zip_dict_cols' work in read-only mode.
+# Check if 'information_schema' queries for 'compression_dictionary'
+# and 'compression_dictionary_tables' work in read-only mode.
 SET @dictionary_data = 'onetwothreefour';
 SELECT dict_name INTO @dict_name FROM information_schema.compression_dictionary WHERE dict_name = 'numbers';
 SELECT dict_data = @dictionary_data AS dictionary_data_match FROM information_schema.compression_dictionary WHERE dict_name = 'numbers';

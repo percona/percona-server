@@ -39,6 +39,9 @@ class HTTP_SERVER_EXPORT BaseRequestHandler {
 
   virtual void handle_request(HttpRequest &req) = 0;
 
+  BaseRequestHandler() = default;
+  explicit BaseRequestHandler(const BaseRequestHandler &) = delete;
+  BaseRequestHandler &operator=(const BaseRequestHandler &) = delete;
   virtual ~BaseRequestHandler();
 };
 
@@ -66,6 +69,25 @@ class HTTP_SERVER_EXPORT HttpServerComponent {
   std::weak_ptr<HttpServer> srv_;
 
   HttpServerComponent() = default;
+};
+
+class HttpAuthRealm;
+
+/**
+ * high-level Authentication frontend.
+ *
+ * bridges HttpRequest with the HttpAuthRealm's
+ */
+class HTTP_SERVER_EXPORT HttpAuth {
+ public:
+  /**
+   * require Authorization.
+   *
+   * @returns if request has been handled
+   * @retval true request handled
+   */
+  static bool require_auth(HttpRequest &req,
+                           std::shared_ptr<HttpAuthRealm> realm);
 };
 
 #endif

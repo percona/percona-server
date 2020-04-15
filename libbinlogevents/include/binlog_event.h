@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 
   @file binlog_event.h
 
-  @brief Contains the classes representing events occuring in the replication
+  @brief Contains the classes representing events occurring in the replication
   stream. Each event is represented as a byte sequence with logical divisions
   as event header, event specific data and event footer. The header and footer
   are common to all the events and are represented as two different subclasses.
@@ -124,11 +124,11 @@
    8 /* type, table_map_for_update */ + 1U +                                  \
    4 /* type, master_data_written */ + /* type, db_1, db_2, ... */            \
    1U + (MAX_DBS_IN_EVENT_MTS * (1 + NAME_LEN)) + 3U +                        \
-   /* type, microseconds */ +1U + 32 * 3 + 1 +                                \
-   60 /* type, user_len, user, host_len, host */ + 1U +                       \
-   1 /* type, explicit_def..ts*/ + 1U + 8 /* type, xid of DDL */ + 1U +       \
+   /* type, microseconds */ +1U + 32 * 3 + /* type, user_len, user */         \
+   1 + 255 /* host_len, host */ + 1U + 1 /* type, explicit_def..ts*/ + 1U +   \
+   8 /* type, xid of DDL */ + 1U +                                            \
    2 /* type, default_collation_for_utf8mb4_number */ +                       \
-   1 /* sql_require_primary_key */)
+   1 /* sql_require_primary_key */ + 1 /* type, default_table_encryption */)
 
 /**
    Uninitialized timestamp value (for either last committed or sequence number).
@@ -362,6 +362,16 @@ enum Log_event_type {
   MARIA_EVENTS_BEGIN = 160,
 
   ENUM_END_EVENT /* end marker */
+};
+
+/**
+  Struct to pass basic information about a event: type, query, is it ignorable
+*/
+struct Log_event_basic_info {
+  Log_event_type event_type{UNKNOWN_EVENT};
+  const char *query{nullptr};
+  size_t query_length{0};
+  bool ignorable_event{false};
 };
 
 /**

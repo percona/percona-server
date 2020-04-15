@@ -6,14 +6,6 @@
 #include "test_utils.h"
 #include "vault_credentials_parser.h"
 
-std::unique_ptr<keyring::IKeys_container> keys(nullptr);
-
-#if defined(HAVE_PSI_INTERFACE)
-namespace keyring {
-PSI_memory_key key_memory_KEYRING = PSI_NOT_INSTRUMENTED;
-}
-#endif
-
 namespace keyring__vault_credentials_parser_unittest {
 using namespace keyring;
 
@@ -46,8 +38,8 @@ TEST_F(Vault_credentials_parser_test, ParseNotExistingFile) {
       log(MY_ERROR_LEVEL, StrEq("Could not open file with credentials.")));
   EXPECT_CALL(
       *(reinterpret_cast<Mock_logger *>(logger)),
-      log(MY_ERROR_LEVEL, StrEq("File '/.there_no_such_file' not found "
-                                "(Errcode: 2 - No such file or directory)")));
+      log(MY_WARNING_LEVEL, StrEq("File '/.there_no_such_file' not found (OS "
+                                  "errno 2 - No such file or directory)")));
 
   std::string file_url = "/.there_no_such_file";
   Vault_credentials vault_credentials;
@@ -278,6 +270,7 @@ TEST_F(Vault_credentials_parser_test, ParseFileWithValuesWithSpacesInIt) {
 }
 }  // namespace keyring__vault_credentials_parser_unittest
 
+#ifndef MERGE_UNITTESTS
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   MY_INIT(argv[0]);
@@ -287,3 +280,4 @@ int main(int argc, char **argv) {
 
   return ret;
 }
+#endif  // MERGE_UNITTESTS

@@ -29,7 +29,7 @@
 #include <vector>
 
 #include "plugin/x/client/mysqlxclient/xrow.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_const.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_const.h"
 
 namespace {
 
@@ -85,7 +85,8 @@ inline std::string get_flags(const xcl::Column_type &field, uint32_t flags) {
         r += " TIMESTAMP";
         break;
 
-      default: {}
+      default: {
+      }
     }
   }
   if (flags & MYSQLX_COLUMN_FLAGS_NOT_NULL) r += " NOT_NULL";

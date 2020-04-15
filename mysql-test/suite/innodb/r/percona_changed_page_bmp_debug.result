@@ -6,7 +6,7 @@ call mtr.add_suppression("last tracked LSN in");
 RESET CHANGED_PAGE_BITMAPS;
 CREATE TABLE t1 (x INT) ENGINE=InnoDB;
 2nd restart
-# restart:-#d,bitmap_page_write_error
+# restart:--debug=+d,bitmap_page_write_error
 INSERT INTO t1 VALUES (1);
 SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
 SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
@@ -38,7 +38,7 @@ RESET CHANGED_PAGE_BITMAPS;
 4th restart
 # restart
 5th restart
-# restart:-#d,bitmap_page_2_write_error
+# restart:--debug=+d,bitmap_page_2_write_error
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
 SET DEBUG_SYNC="i_s_innodb_changed_pages_range_ready SIGNAL ready WAIT_FOR finish";
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
@@ -66,7 +66,7 @@ CREATE TABLE t1 (a INT) ENGINE=InnoDB STATS_PERSISTENT=0;
 SET GLOBAL innodb_file_per_table=ON;
 CREATE TABLE t2 (a INT) ENGINE=InnoDB;
 # 6th restart
-# restart:-#d,bitmap_page_2_write_error
+# restart:--debug=+d,bitmap_page_2_write_error
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
@@ -105,7 +105,7 @@ RESET CHANGED_PAGE_BITMAPS;
 #
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
 9th restart
-# restart:-#d,bitmap_page_write_error
+# restart:--debug=+d,bitmap_page_write_error
 # connection con2
 SET DEBUG_SYNC="log_online_follow_redo_log SIGNAL flush_ready WAIT_FOR finish_flush";
 FLUSH CHANGED_PAGE_BITMAPS;

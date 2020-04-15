@@ -2,7 +2,7 @@ drop database if exists mysqltest1;
 create schema foo;
 show create schema foo;
 Database	Create Database
-foo	CREATE DATABASE `foo` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
+foo	CREATE DATABASE `foo` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
 show schemas like 'foo';
 Database (foo)
 foo
@@ -168,14 +168,14 @@ SET @@session.lock_wait_timeout= @start_session_value;
 CREATE SCHEMA s;
 SHOW CREATE SCHEMA s;
 Database	Create Database
-s	CREATE DATABASE `s` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
+s	CREATE DATABASE `s` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
 USE s;
 ALTER SCHEMA s DEFAULT COLLATE= utf8_general_ci;
 Warnings:
 Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW CREATE SCHEMA s;
 Database	Create Database
-s	CREATE DATABASE `s` /*!40100 DEFAULT CHARACTER SET utf8 */
+s	CREATE DATABASE `s` /*!40100 DEFAULT CHARACTER SET utf8 */ /*!80016 DEFAULT ENCRYPTION='N' */
 DROP SCHEMA s;
 ERROR HY000: Schema directory './s/' does not exist
 DROP SCHEMA s;
@@ -183,30 +183,19 @@ CREATE SCHEMA s;
 CREATE VIEW s.v AS SELECT * FROM mysql.time_zone;
 DROP SCHEMA s;
 CREATE SCHEMA s;
-CREATE TABLE s.t (pk INTEGER PRIMARY KEY) ENGINE= MyISAM;
-Got one of the listed errors
 CREATE TABLE s.t (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
 t.ibd
 DROP SCHEMA s;
 CREATE SCHEMA s;
-CREATE TABLE s.t_myisam (pk INTEGER PRIMARY KEY) ENGINE= MyISAM;
 CREATE TABLE s.t_innodb (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
-ALTER TABLE s.t_myisam ADD COLUMN c INTEGER;
-ERROR HY000: Can't find file: 't_myisam' (errno: 2 - No such file or directory)
 ALTER TABLE s.t_innodb ADD COLUMN c INTEGER;
 Got one of the listed errors
 DROP SCHEMA s;
 CREATE SCHEMA s;
-CREATE TABLE s.t_myisam (pk INTEGER PRIMARY KEY) ENGINE= MyISAM;
 CREATE TABLE s.t_innodb (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
-SHOW CREATE TABLE s.t_myisam;
-ERROR HY000: Can't find file: 't_myisam' (errno: 2 - No such file or directory)
 DROP SCHEMA s;
 CREATE SCHEMA s;
-CREATE TABLE s.t_myisam (pk INTEGER PRIMARY KEY) ENGINE= MyISAM;
 CREATE TABLE s.t_innodb (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
-DROP TABLE s.t_myisam;
-ERROR HY000: Storage engine can't drop table 's.t_myisam' because it is missing. Use DROP TABLE IF EXISTS to remove it from data-dictionary.
 DROP TABLE s.t_innodb;
 DROP SCHEMA s;
 #
@@ -322,3 +311,27 @@ DROP SCHEMA IF EXISTS broken;
 # Create and drop schema again to make sure nothing is left behind
 CREATE SCHEMA broken;
 DROP SCHEMA broken;
+
+Bug#30344462: CHANGING DEFAULT ENCRYPTION FOR A SCHEMA WILL RESET
+DEFAULT COLLATION
+
+CREATE SCHEMA s CHARACTER SET ascii;
+USE s;
+SHOW CREATE SCHEMA s;
+Database	Create Database
+s	CREATE DATABASE `s` /*!40100 DEFAULT CHARACTER SET ascii */ /*!80016 DEFAULT ENCRYPTION='N' */
+SHOW VARIABLES LIKE 'collation_database';
+Variable_name	Value
+collation_database	ascii_general_ci
+ALTER SCHEMA s ENCRYPTION = 'n';
+# Without the patch, altering encryption would also
+# reset the default collation, and if the schema is
+# the currently used schema, the 'collation_database'
+# variable would also be reset.
+SHOW CREATE SCHEMA s;
+Database	Create Database
+s	CREATE DATABASE `s` /*!40100 DEFAULT CHARACTER SET ascii */ /*!80016 DEFAULT ENCRYPTION='N' */
+SHOW VARIABLES LIKE 'collation_database';
+Variable_name	Value
+collation_database	ascii_general_ci
+DROP SCHEMA s;

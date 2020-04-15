@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,8 +56,8 @@ InitConfigFileParser::~InitConfigFileParser() {
 //  Read Config File
 //****************************************************************************
 InitConfigFileParser::Context::Context(const ConfigInfo * info)
-  :  m_userProperties(true), m_configValues(1000, 20) {
-
+  :  m_userProperties(true), m_configValues()
+{
   m_config = new Properties(true);
   m_defaults = new Properties(true);
 }
@@ -208,12 +208,26 @@ InitConfigFileParser::run_config_rules(Context& ctx)
       BaseString::snprintf(ctx.fname, sizeof(ctx.fname),
                            "%s", tmp[j].m_sectionType.c_str());
       ctx.type             = InitConfigFileParser::Section;
+      //Memory that belongs to m_sectionData is transfered to
+      //ctx.m_currentSection and will be released by ctx.
       ctx.m_currentSection = tmp[j].m_sectionData;
+      tmp[j].m_sectionData = NULL;
       ctx.m_userDefaults   = getSection(ctx.fname, ctx.m_defaults);
       require((ctx.m_currentInfo    = m_info->getInfo(ctx.fname)) != 0);
       require((ctx.m_systemDefaults = m_info->getDefaults(ctx.fname)) != 0);
       if(!storeSection(ctx))
-	return 0;
+      {
+        //Memory at ctx.m_currentSection will be released by storeSection() in
+        //Success case. So, releasing memory on failure.
+        delete ctx.m_currentSection;
+        ctx.m_currentSection = NULL;
+        //Releasing memory referenced by tmp[].m_sectionData
+        for (unsigned itr = j + 1; itr < tmp.size(); itr++)
+        {
+          delete tmp[itr].m_sectionData;
+        }
+        return 0;
+      }
     }
   }
 
@@ -291,6 +305,36 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
 					 const char* fname,
 					 const char* value)
 {
+  if (native_strcasecmp(fname, "MaxNoOfConcurrentScans") == 0 ||
+      native_strcasecmp(fname, "MaxNoOfConcurrentIndexOperations") == 0 ||
+      native_strcasecmp(fname, "MaxNoOfConcurrentOperations") == 0 ||
+      native_strcasecmp(fname, "MaxNoOfConcurrentTransactions") == 0)
+  {
+    if (ctx.m_currentSection->contains("TransactionMemory"))
+    {
+      ctx.reportError(
+          "[%s] Parameter %s can not be set along with TransactionMemory",
+          ctx.fname, fname);
+      return false;
+    }
+  }
+
+  if (native_strcasecmp(fname, "TransactionMemory") == 0)
+  {
+    if (ctx.m_currentSection->contains("MaxNoOfConcurrentScans") ||
+        ctx.m_currentSection->contains("MaxNoOfConcurrentIndexOperations") ||
+        ctx.m_currentSection->contains("MaxNoOfConcurrentOperations") ||
+        ctx.m_currentSection->contains("MaxNoOfConcurrentTransactions"))
+    {
+      ctx.reportError(
+          "[%s] Parameter %s can not be set along with any of the below "
+          "deprecated parameter(s) MaxNoOfConcurrentScans, "
+          "MaxNoOfConcurrentIndexOperations, MaxNoOfConcurrentOperations "
+          "and MaxNoOfConcurrentTransactions",
+          ctx.fname, fname);
+      return false;
+    }
+  }
 
   if (ctx.m_currentSection->contains(fname))
   {
@@ -311,7 +355,7 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
   if (status == ConfigInfo::CI_DEPRECATED) {
     const char * desc = m_info->getDescription(ctx.m_currentInfo, fname);
     if(desc && desc[0]){
-      ctx.reportWarning("[%s] %s is deprecated, use %s instead",
+      ctx.reportWarning("[%s] %s is deprecated, will use %s instead",
 			ctx.fname, fname, desc);
     } else if (desc == 0){
       ctx.reportWarning("[%s] %s is deprecated", ctx.fname, fname);
@@ -750,7 +794,14 @@ InitConfigFileParser::handle_mycnf_defaults(Vector<struct my_option>& options,
   require((ctx.m_currentInfo = m_info->getInfo(ctx.fname)) != 0);
   require((ctx.m_systemDefaults = m_info->getDefaults(ctx.fname)) != 0);
   if(store_in_properties(options, ctx, name))
-    return storeSection(ctx);
+  {
+    if(storeSection(ctx))
+    {
+      return true;
+    }
+  }
+  delete ctx.m_currentSection;
+  ctx.m_currentSection = NULL;
   return false;
 }
 
@@ -839,6 +890,7 @@ Config *
 InitConfigFileParser::parse_mycnf() 
 {
   Config * res = 0;
+  bool release_current_section = true;
   Vector<struct my_option> options;
   for(int i = 0 ; i < ConfigInfo::m_NoOfParams ; ++ i)
   {
@@ -1044,6 +1096,7 @@ InitConfigFileParser::parse_mycnf()
   }
 
   res = run_config_rules(ctx);
+  release_current_section = false;
 
 end:
   for (int i = 0; options[i].name; i++)
@@ -1053,6 +1106,15 @@ end:
     free(options[i].value);
   }
 
+  /**
+   * ctx.m_currentSection is released only in case of failure
+   * in success case the memory will be released in storeSection().
+   */
+  if (release_current_section)
+  {
+    delete ctx.m_currentSection;
+    ctx.m_currentSection = NULL;
+  }
   return res;
 }
 

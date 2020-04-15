@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -41,39 +41,11 @@
 
 INCLUDE(cmake_parse_arguments)
 
-FUNCTION(SET_PATH_TO_SSL target target_out_dir)
-  IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
-    IF(BUILD_IS_SINGLE_CONFIG)
-      ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
-        COMMAND install_name_tool -change
-              "${CRYPTO_VERSION}" "@loader_path/../lib/${CRYPTO_VERSION}"
-              $<TARGET_FILE_NAME:${target}>
-        COMMAND install_name_tool -change
-              "${OPENSSL_VERSION}" "@loader_path/../lib/${OPENSSL_VERSION}"
-              $<TARGET_FILE_NAME:${target}>
-        WORKING_DIRECTORY ${target_out_dir}
-      )
-    ELSE()
-      ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
-        COMMAND install_name_tool -change
-            "${CRYPTO_VERSION}"
-            "@loader_path/../../lib/${CMAKE_CFG_INTDIR}/${CRYPTO_VERSION}"
-        $<TARGET_FILE_NAME:${target}>
-        COMMAND install_name_tool -change
-            "${OPENSSL_VERSION}"
-            "@loader_path/../../lib/${CMAKE_CFG_INTDIR}/${OPENSSL_VERSION}"
-        $<TARGET_FILE_NAME:${target}>
-        WORKING_DIRECTORY ${target_out_dir}/${CMAKE_CFG_INTDIR}
-      )
-    ENDIF()
-  ENDIF()
-ENDFUNCTION()
-
 FUNCTION (MYSQL_ADD_EXECUTABLE)
   # Pass-through arguments for ADD_EXECUTABLE
   MYSQL_PARSE_ARGUMENTS(ARG
-   "WIN32;DESTINATION;COMPONENT;ADD_TEST;RUNTIME_OUTPUT_DIRECTORY"
-   "SKIP_INSTALL;EXCLUDE_FROM_ALL"
+   "DESTINATION;COMPONENT;ADD_TEST;DEPENDENCIES;LINK_LIBRARIES;RUNTIME_OUTPUT_DIRECTORY"
+   "SKIP_INSTALL;ENABLE_EXPORTS;EXCLUDE_FROM_ALL;EXCLUDE_ON_SOLARIS"
    ${ARGN}
   )
   LIST(GET ARG_DEFAULT_ARGS 0 target)
@@ -89,9 +61,33 @@ FUNCTION (MYSQL_ADD_EXECUTABLE)
 
   SET(sources ${ARG_DEFAULT_ARGS})
   ADD_VERSION_INFO(${target} EXECUTABLE sources)
-  ADD_EXECUTABLE(${target} ${ARG_WIN32} ${sources})
+
+  ADD_EXECUTABLE(${target} ${sources})
 
   SET_PATH_TO_SSL(${target} ${TARGET_RUNTIME_OUTPUT_DIRECTORY})
+
+  IF(ARG_DEPENDENCIES)
+    ADD_DEPENDENCIES(${target} ${ARG_DEPENDENCIES})
+  ENDIF()
+  IF(ARG_COMPONENT STREQUAL "Router")
+    ADD_DEPENDENCIES(mysqlrouter_all ${target})
+  ENDIF()
+
+  IF(ARG_LINK_LIBRARIES)
+    TARGET_LINK_LIBRARIES(${target} ${ARG_LINK_LIBRARIES})
+  ENDIF()
+
+  IF(SOLARIS AND ARG_EXCLUDE_ON_SOLARIS)
+    MESSAGE(WARNING
+      "Likely link failure for this compiler, skipping target ${target}")
+    SET(ARG_EXCLUDE_FROM_ALL TRUE)
+    SET(ARG_SKIP_INSTALL TRUE)
+    UNSET(ARG_ADD_TEST)
+  ENDIF()
+
+  IF(ARG_ENABLE_EXPORTS)
+    SET_TARGET_PROPERTIES(${target} PROPERTIES ENABLE_EXPORTS TRUE)
+  ENDIF()
 
   IF(ARG_EXCLUDE_FROM_ALL)
 #   MESSAGE(STATUS "EXCLUDE_FROM_ALL ${target}")
@@ -125,14 +121,10 @@ FUNCTION (MYSQL_ADD_EXECUTABLE)
     ENDIF()
     IF(ARG_COMPONENT)
       SET(COMP COMPONENT ${ARG_COMPONENT})
-    ELSEIF(MYSQL_INSTALL_COMPONENT)
-      SET(COMP COMPONENT ${MYSQL_INSTALL_COMPONENT})
     ELSE()
       SET(COMP COMPONENT Client)
     ENDIF()
-    IF(LINUX_INSTALL_RPATH_ORIGIN)
-      SET_PROPERTY(TARGET ${target} PROPERTY INSTALL_RPATH "\$ORIGIN/")
-    ENDIF()
+    ADD_INSTALL_RPATH_FOR_OPENSSL(${target})
     MYSQL_INSTALL_TARGETS(${target} DESTINATION ${ARG_DESTINATION} ${COMP})
 #   MESSAGE(STATUS "INSTALL ${target} ${ARG_DESTINATION}")
   ENDIF()

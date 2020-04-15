@@ -21,9 +21,11 @@ SELECT 1 FROM qn;
 
 --echo #  multiple refs
 
+--sorted_result
 WITH qn AS (SELECT b as a FROM t1)
 SELECT qn.a, qn2.a  FROM qn, qn as qn2;
 
+--sorted_result
 WITH qn AS (SELECT b as a FROM t1),
 qn2 AS (SELECT c FROM t1 WHERE a IS NULL or a>0)
 SELECT qn.a, qn2.c  FROM qn, qn2;
@@ -42,6 +44,7 @@ WITH qn AS (SELECT b as a FROM t1),
 qn2 AS (SELECT a FROM qn WHERE a IS NULL or a>0)
 SELECT qn.a, qn2.a  FROM qn, qn2;
 
+--sorted_result
 eval $query;
 eval EXPLAIN $query;
 
@@ -803,12 +806,6 @@ with
  select * from best_month union all select * from worst_month;
 
 drop table sales_days;
-
---echo # Tmp table cannot be MyISAM
-set global internal_tmp_disk_storage_engine=myisam;
---error ER_SWITCH_TMP_ENGINE
-with qn as (select 1) select * from qn;
-set global internal_tmp_disk_storage_engine=default;
 
 --echo # Special parser command not allowed to users.
 --error ER_PARSE_ERROR

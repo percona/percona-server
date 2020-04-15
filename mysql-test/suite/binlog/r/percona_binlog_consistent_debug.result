@@ -19,6 +19,7 @@ SHOW STATUS LIKE 'binlog_snapshot_%';
 Variable_name	Value
 Binlog_snapshot_file	binlog.000001
 Binlog_snapshot_position	POSITION
+Binlog_snapshot_gtid_executed	not-in-consistent-snapshot
 SET DEBUG_SYNC="now SIGNAL finish_commit";
 # connection con1
 # connection default
@@ -51,5 +52,6 @@ Warning	1868	file ./binlog.000002 was not purged because it is the active log fi
 VARIABLE_NAME	VARIABLE_VALUE
 Binlog_snapshot_file	binlog.000002
 Binlog_snapshot_position	POSITION
+Binlog_snapshot_gtid_executed	not-in-consistent-snapshot
 # connection con3
 # connection default

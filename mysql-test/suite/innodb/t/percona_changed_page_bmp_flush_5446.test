@@ -1,0 +1,45 @@
+
+call mtr.add_suppression("Log writer is waiting for tracker to to catch up lag");
+
+# Enable InnoDB metrics
+
+SET GLOBAL innodb_monitor_enable = module_log;
+
+# check that FLUSH does not hang
+FLUSH CHANGED_PAGE_BITMAPS;
+
+CREATE TABLE t (a INT, b TEXT);
+
+let $i=0;
+
+--disable_query_log
+while ($i < 500)
+{
+  INSERT INTO t (a, b) VALUES (1, REPEAT('b', 6000)), (1, REPEAT('b', 6000));
+  inc $i;
+}
+--enable_query_log
+
+--source ../include/log_read_checkpoint_lsn.inc
+
+FLUSH CHANGED_PAGE_BITMAPS;
+
+--source ../include/log_read_tracked_lsn.inc
+
+if ($checkpoint_lsn > $tracked_lsn) {
+  --echo "checkpoint lsn is greater than tracked lsn $checkpoint_lsn vs $tracked_lsn"
+}
+
+# Wait for all dirty pages to be flushed.
+--let $wait_condition= SELECT variable_value = 0 FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_dirty'
+--source include/wait_condition.inc
+
+# check that FLUSH does not hang
+FLUSH CHANGED_PAGE_BITMAPS;
+
+
+DROP TABLE t;
+
+--disable_warnings
+SET GLOBAL innodb_monitor_enable = default;
+--enable_warnings

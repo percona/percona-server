@@ -135,10 +135,42 @@ class Tablespace {
   /** @return complete path including filename */
   std::string path() const;
 
-  /** @return true if session tablespace is encrypted, else false */
+  /** Encrypt a session temporary tablespace
+  @return true if session tablespace is encrypted, else false */
   bool encrypt();
 
+  /** @return true for encrypted purpose, else false */
+  bool is_encrypted() const { return (is_encrypted(m_purpose)); }
+
+  /** @return true for encrypted purpose, else false
+  @param[in]  purpose  the purpose of session temp tablespace */
+  static bool is_encrypted(enum tbsp_purpose purpose) {
+    switch (purpose) {
+      case TBSP_USER:
+      case TBSP_INTRINSIC:
+      case TBSP_SLAVE:
+        return (false);
+      case TBSP_ENC_USER:
+      case TBSP_ENC_INTRINSIC:
+      case TBSP_ENC_SLAVE:
+        return (true);
+      default:
+        ut_ad(0);
+    }
+    /* Make compilers happy */
+    ut_ad(0);
+    return (false);
+  }
+
+  /** Re-encrypt encrypted session temporary tablespace with the
+  new master key */
+  void rotate_encryption_key();
+
  private:
+  void acquire() { mutex_enter(&m_mutex); }
+
+  void release() { mutex_exit(&m_mutex); }
+
   /** Remove encryption information from tablespace in-memory structure.
   On-disk changes are not necessary */
   void decrypt();
@@ -165,6 +197,9 @@ class Tablespace {
 
   /** Purpose for this tablespace */
   enum tbsp_purpose m_purpose;
+
+  /** Used only to synchronize truncate and rotate key operations */
+  ib_mutex_t m_mutex;
 };
 
 /** Pool of session temporary tablespaces. Each session gets at max two
@@ -214,6 +249,30 @@ class Tablespace_pool {
 
     std::for_each(begin(*m_active), end(*m_active), f);
     std::for_each(begin(*m_free), end(*m_free), f);
+
+    release();
+  }
+
+  /** Iterate through the list of "active" tablespaces and perform specified
+  operation on the tablespace on every iteration.
+  @param[in]    f                Function pointer for the function to be
+  executed on every iteration */
+  template <typename F>
+  void iterate_active_tbsp(F &&f) {
+    acquire();
+
+    std::for_each(begin(*m_active), end(*m_active), f);
+
+    release();
+  }
+
+  /** Re-encrypt encrypted session temporary tablespaces in the pool
+  with the new master key */
+  void rotate_encryption_keys() {
+    acquire();
+
+    std::for_each(begin(*m_active), end(*m_active),
+                  [](ibt::Tablespace *ts) { ts->rotate_encryption_key(); });
 
     release();
   }

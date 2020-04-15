@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,12 +20,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
-
-IF(SIZEOF_VOIDP EQUAL 8)
-  SET(ARCH_64BIT 1)
-ELSE()
-  SET(ARCH_64BIT 0)
+# Disable ld.gold for clang-7 and clang-8
+IF(USE_LD_LLD AND CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND
+   NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
+  STRING(REPLACE "-fuse-ld=gold" "" CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS}")
+  STRING(REPLACE "-fuse-ld=gold" "" CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS}")
 ENDIF()
 
 INCLUDE(cmake/version.cmake)
@@ -35,20 +34,27 @@ SET(CMAKE_MODULE_PATH
   "${CMAKE_CURRENT_SOURCE_DIR}"
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-IF(${CMAKE_VERSION} VERSION_GREATER "3.0")
-  # enable MACOSX_RPATH
-  CMAKE_POLICY(SET CMP0042 NEW)
-  # warn about non-existing dependencies in add_dependencies()
-  CMAKE_POLICY(SET CMP0046 NEW)
-  # set the VERSION as documented in PROJECT() command
-  CMAKE_POLICY(SET CMP0048 NEW)
-  IF(${CMAKE_VERSION} VERSION_GREATER "3.1")
-    # only interpret if() arguments as variables or keywords when unquoted
-    CMAKE_POLICY(SET CMP0054 NEW)
-  ENDIF()
-  PROJECT("MySQLRouter" VERSION ${PROJECT_VERSION_TEXT} LANGUAGES C CXX)
-ELSE()
-  PROJECT("MySQLRouter")
+# enable MACOSX_RPATH
+CMAKE_POLICY(SET CMP0042 NEW)
+# warn about non-existing dependencies in add_dependencies()
+CMAKE_POLICY(SET CMP0046 NEW)
+# set the VERSION as documented in PROJECT() command
+CMAKE_POLICY(SET CMP0048 NEW)
+# only interpret if() arguments as variables or keywords when unquoted
+CMAKE_POLICY(SET CMP0054 NEW)
+PROJECT("MySQLRouter" VERSION ${PROJECT_VERSION_TEXT} LANGUAGES C CXX)
+
+# In CMake 3.12 and above, the
+#
+# * ``check_include_file`` macro in the ``CheckIncludeFile`` module, the
+# * ``check_include_file_cxx`` macro in the
+#   ``CheckIncludeFileCXX`` module, and the
+# * ``check_include_files`` macro in the ``CheckIncludeFiles`` module
+#
+# now prefer to link the check executable to the libraries listed in the
+# ``CMAKE_REQUIRED_LIBRARIES`` variable.
+IF(POLICY CMP0075)
+  CMAKE_POLICY(SET CMP0075 OLD)
 ENDIF()
 
 IF(SOLARIS)
@@ -58,16 +64,36 @@ IF(SOLARIS)
 
   # Sun Studio 12.6 creates a bogus code when -x02 is used
   # that crashes whenever std::condition_variable::wait_for() is used
-  IF(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64"
-      OR CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
+  IF(SOLARIS_INTEL)
     STRING_APPEND(CMAKE_CXX_FLAGS_RELWITHDEBINFO " -xO1")
     STRING_APPEND(CMAKE_CXX_FLAGS_RELEASE " -xO1")
     STRING_APPEND(CMAKE_CXX_FLAGS_MINSIZEREL " -xO1")
   ENDIF()
 ENDIF()
 
+# ld.lld: error: corrupt input file:
+# version definition index 0 for symbol __gcov_var is out of bounds
+IF(ENABLE_GCOV)
+  STRING(REPLACE "-fuse-ld=lld" ""
+    CMAKE_C_LINK_FLAGS ${CMAKE_C_LINK_FLAGS})
+  STRING(REPLACE "-fuse-ld=lld" ""
+    CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS})
+  STRING(REPLACE "-Wl,--gdb-index" ""
+    CMAKE_C_LINK_FLAGS ${CMAKE_C_LINK_FLAGS})
+  STRING(REPLACE "-Wl,--gdb-index" ""
+    CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS})
+ENDIF()
+
+DISABLE_MISSING_PROFILE_WARNING()
+
 IF(WIN32)
-  # 'identifier' : class 'type' needs to have dll-interface to be used by clients of class 'type2'
+  # Activate necessary dllexport/dllimport declarations.
+  ADD_DEFINITIONS(-DPROTOBUF_USE_DLLS)
+ENDIF()
+
+IF(WIN32)
+  # 'identifier' : class 'type' needs to have dll-interface to be used
+  # by clients of class 'type2'
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251")
 ENDIF()
 
@@ -87,24 +113,12 @@ ENDIF()
 INCLUDE(cmake/settings.cmake)
 INCLUDE(cmake/set_rpath.cmake)
 
-# SSL
-MESSAGE(STATUS "MySQL Router SSL_LIBRARIES:    ${SSL_LIBRARIES}")
-MESSAGE(STATUS "MySQL Router SSL_DEFINES:      ${SSL_DEFINES}")
-MESSAGE(STATUS "MySQL Router SSL_INCLUDE_DIRS: ${SSL_INCLUDE_DIRS}")
-
 # Required tools, libraries, etc..
 INCLUDE(cmake/testing.cmake)  # does not enable testing
-INCLUDE(${CMAKE_SOURCE_DIR}/cmake/install_layout.cmake)
 INCLUDE(cmake/configure.cmake)
 INCLUDE(cmake/packaging.cmake)
 INCLUDE(cmake/Plugin.cmake)
-
-# Set the proper paths for the mysqlclient library
-SET(MySQL_CLIENT_LIB perconaserverclient)
-SET(MySQL_VERSION_HEADER ${CMAKE_BINARY_DIR}/include/mysql_version.h)
-SET(MySQL_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/include)
-LIST(APPEND MySQL_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
-LIST(APPEND MySQL_INCLUDE_DIRS ${CMAKE_BINARY_DIR}/include)
+INCLUDE(cmake/fuzzer.cmake)
 
 INCLUDE_DIRECTORIES(${PROJECT_BINARY_DIR}/include)
 
@@ -113,10 +127,9 @@ INCLUDE_DIRECTORIES(${PROJECT_BINARY_DIR}/include)
 #
 # each target needs to add itself via
 #
-#   ADD_DEPENDENCIES(${MYSQL_ROUTER_BUILD_ALL_TARGET} ...)
+#   ADD_DEPENDENCIES(mysqlrouter_all ...)
 #
-SET(MYSQL_ROUTER_BUILD_ALL_TARGET mysqlrouter_all)
-ADD_CUSTOM_TARGET(${MYSQL_ROUTER_BUILD_ALL_TARGET})
+ADD_CUSTOM_TARGET(mysqlrouter_all)
 
 # Load all modules, including plugins
 ADD_SUBDIRECTORY(src)

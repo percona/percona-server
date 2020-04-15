@@ -819,7 +819,7 @@ comment 'Characteristics procedure test'
   return 42|
 show create function chistics|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-chistics	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `chistics`() RETURNS int(11)
+chistics	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `chistics`() RETURNS int
     DETERMINISTIC
     SQL SECURITY INVOKER
     COMMENT 'Characteristics procedure test'
@@ -832,7 +832,7 @@ no sql
 comment 'Characteristics function test'|
 show create function chistics|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-chistics	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `chistics`() RETURNS int(11)
+chistics	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `chistics`() RETURNS int
     NO SQL
     DETERMINISTIC
     SQL SECURITY INVOKER
@@ -1916,7 +1916,7 @@ show procedure status where db='test';
 end	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 call bug2267_4()|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-bug2267_4		CREATE DEFINER=`root`@`localhost` FUNCTION `bug2267_4`() RETURNS int(11)
+bug2267_4		CREATE DEFINER=`root`@`localhost` FUNCTION `bug2267_4`() RETURNS int
 return 100	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure bug2267_1|
 drop procedure bug2267_2|
@@ -2160,6 +2160,9 @@ msg text not null,
 primary key (id),
 unique key rid (rid, id)
 )|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 drop procedure if exists bug2460_1|
 create procedure bug2460_1(in v int)
 begin
@@ -2212,6 +2215,8 @@ set @@sql_mode = ''$
 drop function if exists bug2564_3$
 create function bug2564_3(x int, y int) returns int
 return x || y$
+Warnings:
+Warning	1287	'|| as a synonym for OR' is deprecated and will be removed in a future release. Please use OR instead
 set @@sql_mode = 'ANSI'$
 drop function if exists bug2564_4$
 create function bug2564_4(x int, y int) returns int
@@ -2228,11 +2233,11 @@ bug2564_2	ANSI_QUOTES	CREATE DEFINER="root"@"localhost" PROCEDURE "bug2564_2"()
 insert into "t1" values ('foo', 1)	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show create function bug2564_3|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-bug2564_3		CREATE DEFINER=`root`@`localhost` FUNCTION `bug2564_3`(x int, y int) RETURNS int(11)
+bug2564_3		CREATE DEFINER=`root`@`localhost` FUNCTION `bug2564_3`(x int, y int) RETURNS int
 return x || y	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show create function bug2564_4|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-bug2564_4	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI	CREATE DEFINER="root"@"localhost" FUNCTION "bug2564_4"(x int, y int) RETURNS int(11)
+bug2564_4	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI	CREATE DEFINER="root"@"localhost" FUNCTION "bug2564_4"(x int, y int) RETURNS int
 return x || y	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure bug2564_1|
 drop procedure bug2564_2|
@@ -2300,7 +2305,7 @@ create table t3 as select bug2773()|
 show create table t3|
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `bug2773()` int(11) DEFAULT NULL
+  `bug2773()` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t3|
 drop function bug2773|
@@ -2360,15 +2365,15 @@ Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` char(16) NOT NULL DEFAULT '',
-  `data` int(11) NOT NULL
+  `data` int NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Database	Create Database
-test	CREATE DATABASE `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
+test	CREATE DATABASE `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
 Database (foo)
 Level	Code	Message
 Field	Type	Null	Key	Default	Extra
 id	char(16)	NO			
-data	int(11)	NO		NULL	
+data	int	NO		NULL	
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 Database	Table	In_use	Name_locked
 Variable_name	Value
@@ -2381,15 +2386,15 @@ Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` char(16) NOT NULL DEFAULT '',
-  `data` int(11) NOT NULL
+  `data` int NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Database	Create Database
-test	CREATE DATABASE `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
+test	CREATE DATABASE `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
 Database (foo)
 Level	Code	Message
 Field	Type	Null	Key	Default	Extra
 id	char(16)	NO			
-data	int(11)	NO		NULL	
+data	int	NO		NULL	
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 Database	Table	In_use	Name_locked
 Variable_name	Value
@@ -2629,6 +2634,9 @@ b smallint(5) unsigned not null,
 c char(32) not null,
 primary key  (a)
 ) engine=myisam default charset=latin1|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t4 values (1, 2, 'oneword')|
 insert into t4 values (2, 2, 'anotherword')|
 drop procedure if exists bug7743|
@@ -2639,6 +2647,8 @@ select a into var from t4 where b = 2 and c = binary searchstring limit 1;
 show warnings;
 select var;
 end|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 call bug7743("oneword")|
 Level	Code	Message
 var
@@ -2682,6 +2692,8 @@ drop procedure bug7992_1|
 drop procedure bug7992_2|
 drop table t3|
 create table t3 (  userid bigint(20) not null default 0 )|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 drop procedure if exists bug8116|
 create procedure bug8116(in _userid int)
 select * from t3 where userid = _userid|
@@ -2776,6 +2788,9 @@ create table t3 (
 lpitnumber int(11) default null,
 lrecordtype int(11) default null
 )|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t4 (
 lbsiid int(11) not null default '0',
 ltradingmodeid int(11) not null default '0',
@@ -2783,11 +2798,18 @@ ltradingareaid int(11) not null default '0',
 csellingprice decimal(19,4) default null,
 primary key  (lbsiid,ltradingmodeid,ltradingareaid)
 )|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t5 (
 lbsiid int(11) not null default '0',
 ltradingareaid int(11) not null default '0',
 primary key  (lbsiid,ltradingareaid)
 )|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 drop procedure if exists bug8849|
 create procedure bug8849()
 begin
@@ -3494,6 +3516,8 @@ begin
 set f1= concat( 'hello', f1 );
 return f1;
 end|
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 drop function bug9048|
 create function bug9048(f1 char binary) returns char binary
 begin
@@ -3587,7 +3611,7 @@ begin
 select bug12379();
 end|
 select bug12379()|
-ERROR 23000: Duplicate entry 'X' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'X' for key 't3.PRIMARY'
 select 1|
 1
 1
@@ -3604,7 +3628,7 @@ select 3|
 3
 3
 call bug12379_3()|
-ERROR 23000: Duplicate entry 'X' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'X' for key 't3.PRIMARY'
 select 4|
 4
 4
@@ -3659,7 +3683,7 @@ s1
 0
 1
 call bug6127()|
-ERROR 23000: Duplicate entry '0' for key 's1'
+ERROR 23000: Duplicate entry '0' for key 't3.s1'
 select * from t3|
 s1
 0
@@ -3859,9 +3883,11 @@ returns bigint(20)
 main_loop: begin
 return 42;
 end */;;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 show create function bug14723;;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-bug14723		CREATE DEFINER=`root`@`localhost` FUNCTION `bug14723`() RETURNS bigint(20)
+bug14723		CREATE DEFINER=`root`@`localhost` FUNCTION `bug14723`() RETURNS bigint
 main_loop: begin
 return 42;
 end	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
@@ -4717,6 +4743,8 @@ primary key (id)
 )|
 create function bug15728() returns int(11)
 return last_insert_id()|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t3 values (0)|
 select last_insert_id()|
 last_insert_id()
@@ -4769,7 +4797,7 @@ create table t3 as select bug12472() as i|
 show create table t3|
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t3|
 i
@@ -4780,7 +4808,7 @@ create table t3 as select * from v1|
 show create table t3|
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `j` int(11) DEFAULT NULL
+  `j` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t3|
 j
@@ -4883,10 +4911,10 @@ use mysqltest1|
 call p1()|
 show create database mysqltest1|
 Database	Create Database
-mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET koi8r */
+mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET koi8r */ /*!80016 DEFAULT ENCRYPTION='N' */
 show create database mysqltest2|
 Database	Create Database
-mysqltest2	CREATE DATABASE `mysqltest2` /*!40100 DEFAULT CHARACTER SET utf8 */
+mysqltest2	CREATE DATABASE `mysqltest2` /*!40100 DEFAULT CHARACTER SET utf8 */ /*!80016 DEFAULT ENCRYPTION='N' */
 alter database mysqltest1 character set utf8|
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -4894,10 +4922,10 @@ use mysqltest2|
 call mysqltest1.p1()|
 show create database mysqltest1|
 Database	Create Database
-mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET koi8r */
+mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET koi8r */ /*!80016 DEFAULT ENCRYPTION='N' */
 show create database mysqltest2|
 Database	Create Database
-mysqltest2	CREATE DATABASE `mysqltest2` /*!40100 DEFAULT CHARACTER SET utf8 */
+mysqltest2	CREATE DATABASE `mysqltest2` /*!40100 DEFAULT CHARACTER SET utf8 */ /*!80016 DEFAULT ENCRYPTION='N' */
 drop database mysqltest1|
 drop database mysqltest2|
 use test|
@@ -5056,7 +5084,6 @@ koi8r
 use test|
 DROP DATABASE mysqltest1|
 DROP DATABASE mysqltest2|
-DROP DATABASE IF EXISTS mysqltest1|
 CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8|
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -5262,12 +5289,12 @@ BEGIN
 SET @a = 1;
 END|
 ERROR HY000: String '1234567890abcdefGHIKLsdafdsjakfhkshfkshsndvkjsddngjhasdkjghskahfdksjhc' is too long for user name (should be no longer than 32)
-CREATE DEFINER=some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY
+CREATE DEFINER=some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890X
 FUNCTION bug16899_f1() RETURNS INT
 BEGIN
 RETURN 1;
 END|
-ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY' is too long for host name (should be no longer than 60)
+ERROR HY000: String 'host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij12345' is too long for host name (should be no longer than 255)
 drop procedure if exists bug21416|
 create procedure bug21416() show create procedure bug21416|
 call bug21416()|
@@ -5300,6 +5327,8 @@ PRIMARY KEY (ID),
 KEY Action (Action),
 KEY Action_Date (Action_Date)
 )|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3(Member_ID) VALUES
 ('111111'), ('222222'), ('333333'), ('444444'), ('555555'), ('666666')|
 INSERT INTO t4(Member_ID, Action, Action_Date, Track) VALUES
@@ -6031,14 +6060,14 @@ insert into examplebug20777 values (1, 9223372036854775806, 9223372036854775807,
 show create table examplebug20777;
 Table	Create Table
 examplebug20777	CREATE TABLE `examplebug20777` (
-  `i` int(1) NOT NULL DEFAULT '0',
-  `2**63-2` bigint(20) unsigned DEFAULT NULL,
-  `2**63-1` bigint(20) unsigned DEFAULT NULL,
-  `2**63` bigint(20) unsigned DEFAULT NULL,
-  `2**63+1` bigint(20) unsigned DEFAULT NULL,
-  `2**64-2` bigint(20) unsigned DEFAULT NULL,
-  `2**64-1` bigint(20) unsigned DEFAULT NULL,
-  `2**64` bigint(20) unsigned DEFAULT NULL
+  `i` int NOT NULL DEFAULT '0',
+  `2**63-2` bigint unsigned DEFAULT NULL,
+  `2**63-1` bigint unsigned DEFAULT NULL,
+  `2**63` bigint unsigned DEFAULT NULL,
+  `2**63+1` bigint unsigned DEFAULT NULL,
+  `2**64-2` bigint unsigned DEFAULT NULL,
+  `2**64-1` bigint unsigned DEFAULT NULL,
+  `2**64` bigint unsigned DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from examplebug20777 order by i;
 i	2**63-2	2**63-1	2**63	2**63+1	2**64-2	2**64-1	2**64
@@ -6127,6 +6156,8 @@ SELECT c1 FROM v1;
 SET loops = loops - 1;
 END WHILE;
 END|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE PROCEDURE p2(IN loops BIGINT(19) UNSIGNED)
 BEGIN
 WHILE loops > 0 DO
@@ -6135,6 +6166,8 @@ CALL p1(@p1_p2_cnt);
 SET loops = loops - 1;
 END WHILE;
 END|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE FUNCTION f1(loops INT UNSIGNED)
 RETURNS INT
 BEGIN
@@ -6170,7 +6203,6 @@ DROP PROCEDURE p2;
 DROP FUNCTION f1;
 DROP VIEW v1;
 DROP TABLE t1;
-drop database if exists mysqltest_db1;
 create database mysqltest_db1;
 create procedure mysqltest_db1.sp_bug28551() begin end;
 call mysqltest_db1.sp_bug28551();
@@ -6388,6 +6420,9 @@ declare x int(11);
 set x=-1;
 return x;
 end|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create view v1 as select 1 as one, f1() as days;
 show create view test.v1;
 View	Create View	character_set_client	collation_connection
@@ -6433,7 +6468,7 @@ CALL p2(10);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` bigint(11) DEFAULT NULL
+  `v` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 DROP TABLE t1;
@@ -6444,7 +6479,7 @@ Warning	1366	Incorrect integer value: 'text' for column 'v' at row 1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` bigint(11) DEFAULT NULL
+  `v` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 DROP TABLE t1;
@@ -6550,6 +6585,10 @@ barcode INT(8) UNSIGNED ZEROFILL nOT NULL,
 PRIMARY KEY  (id),
 UNIQUE KEY barcode (barcode)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 
 INSERT INTO t1 (id, barcode) VALUES (1, 12345678);
 INSERT INTO t1 (id, barcode) VALUES (2, 12345679);
@@ -6559,6 +6598,10 @@ id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
 barcode BIGINT(11) UNSIGNED ZEROFILL NOT NULL,
 PRIMARY KEY  (id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 
 INSERT INTO test.t2 (id, barcode) VALUES (1, 12345106708);
 INSERT INTO test.t2 (id, barcode) VALUES (2, 12345106709);
@@ -6567,6 +6610,9 @@ CREATE FUNCTION f1(p INT(8))
 RETURNS BIGINT(11) UNSIGNED
 READS SQL DATA
 RETURN FLOOR(p/1000)*1000000 + 100000 + FLOOR((p MOD 1000)/10)*100 + (p MOD 10);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 
 #
 # - Check.
@@ -6999,7 +7045,6 @@ DROP PROCEDURE p5;
 # The string "versiondata" seems
 # to be 'leaking' into the schema name space
 #
-DROP DATABASE IF EXISTS mixedCaseDbName;
 CREATE DATABASE mixedCaseDbName;
 CREATE PROCEDURE mixedCaseDbName.tryMyProc() begin end|
 CREATE FUNCTION mixedCaseDbName.tryMyFunc() returns text begin return 'IT WORKS'; end
@@ -7890,20 +7935,20 @@ ERROR 42S02: Table 'mysql.proc' doesn't exist
 # Metadata of stored function f1.
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'f1';
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
-f1	def	test	f1	FUNCTION	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	SQL	return 1	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	<created>	<modified>	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+f1	def	test	f1	FUNCTION	int	NULL	NULL	10	0	NULL	NULL	NULL	int	SQL	return 1	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	<created>	<modified>	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT * FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'f1';
 SPECIFIC_CATALOG	SPECIFIC_SCHEMA	SPECIFIC_NAME	ORDINAL_POSITION	PARAMETER_MODE	PARAMETER_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_TYPE
-def	test	f1	0	NULL	NULL	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	FUNCTION
-def	test	f1	1	IN	a	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	FUNCTION
+def	test	f1	0	NULL	NULL	int	NULL	NULL	10	0	NULL	NULL	NULL	int	FUNCTION
+def	test	f1	1	IN	a	int	NULL	NULL	10	0	NULL	NULL	NULL	int	FUNCTION
 # Metadata of stored procedure p1.
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'p1';
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 p1	def	test	p1	PROCEDURE		NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	SQL	select 1	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	<created>	<modified>	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT * FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'p1';
 SPECIFIC_CATALOG	SPECIFIC_SCHEMA	SPECIFIC_NAME	ORDINAL_POSITION	PARAMETER_MODE	PARAMETER_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_TYPE
-def	test	p1	1	IN	a	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	PROCEDURE
-def	test	p1	2	INOUT	b	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	PROCEDURE
-def	test	p1	3	OUT	c	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	PROCEDURE
+def	test	p1	1	IN	a	int	NULL	NULL	10	0	NULL	NULL	NULL	int	PROCEDURE
+def	test	p1	2	INOUT	b	int	NULL	NULL	10	0	NULL	NULL	NULL	int	PROCEDURE
+def	test	p1	3	OUT	c	int	NULL	NULL	10	0	NULL	NULL	NULL	int	PROCEDURE
 # Basic test to cover "READS SQL DATA" in ALTER operation.
 ALTER FUNCTION f1 READS SQL DATA;
 DROP FUNCTION f1;
@@ -7937,12 +7982,12 @@ end|
 call bug4902()|
 Grants for root@localhost
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
-GRANT APPLICATION_PASSWORD_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,INNODB_REDO_LOG_ARCHIVE,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 call bug4902()|
 Grants for root@localhost
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
-GRANT APPLICATION_PASSWORD_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,INNODB_REDO_LOG_ARCHIVE,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 drop procedure bug4902|
 drop procedure if exists bug4902_2|
@@ -8087,12 +8132,12 @@ create procedure 15298_2 () sql security definer show grants;
 call 15298_1();
 Grants for root@localhost
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
-GRANT APPLICATION_PASSWORD_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,INNODB_REDO_LOG_ARCHIVE,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 call 15298_2();
 Grants for root@localhost
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
-GRANT APPLICATION_PASSWORD_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,INNODB_REDO_LOG_ARCHIVE,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 drop user mysqltest_1@localhost;
 drop procedure 15298_1;
@@ -8339,4 +8384,23 @@ y
 11
 15
 DROP PROCEDURE v1;
+DROP TABLE t1;
+#
+# Bug#30520714 - MYSQL SERVER RETURNS UNEXPECTED ROWS WHEN USING STORED
+#                FUNCTIONS IN WHERE CLAUSE
+#
+CREATE TABLE t1( f1 INT NOT NULL PRIMARY KEY, f2 INT);
+INSERT INTO t1 VALUES (1, 1);
+CREATE FUNCTION ReturnFalse() RETURNS BOOL
+DETERMINISTIC
+BEGIN
+DECLARE result BOOL;
+SET result = FALSE;
+RETURN result;
+END$$
+SELECT IF (COUNT(*) > 0, 'affected', 'not affected') FROM t1
+WHERE f1 = 1 AND f2 AND ReturnFalse();
+IF (COUNT(*) > 0, 'affected', 'not affected')
+not affected
+DROP FUNCTION ReturnFalse;
 DROP TABLE t1;

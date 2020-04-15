@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -34,16 +34,15 @@ ENDFUNCTION()
 # so that they could be accessed from there
 SET(MYSQLX_GENERATE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated" CACHE STRING "MYSQLX_GENERATE_DIR")
 
-GENERATE_XERRORS(${MYSQLX_PROJECT_DIR}/ngs/include/ngs/ngs_error.h NGS_ERROR NGS_ERROR_NAMES)
 GENERATE_XERRORS(${MYSQLX_PROJECT_DIR}/src/xpl_error.h XPL_ERROR XPL_ERROR_NAMES)
 
-CONFIGURE_FILE(${MYSQLX_PROJECT_DIR}/src/mysqlx_error.h.in
+CONFIGURE_FILE(${MYSQLX_PROJECT_DIR}/src/config/mysqlx_error.h.in
                ${MYSQLX_GENERATE_DIR}/mysqlx_error.h)
 
-CONFIGURE_FILE(${MYSQLX_PROJECT_DIR}/src/mysqlx_ername.h.in
+CONFIGURE_FILE(${MYSQLX_PROJECT_DIR}/src/config/mysqlx_ername.h.in
                ${MYSQLX_GENERATE_DIR}/mysqlx_ername.h)
 
-CONFIGURE_FILE(${MYSQLX_PROJECT_DIR}/src/mysqlx_version.h.in
+CONFIGURE_FILE(${MYSQLX_PROJECT_DIR}/src/config/mysqlx_version.h.in
                ${MYSQLX_GENERATE_DIR}/mysqlx_version.h )
 
 INSTALL(FILES ${MYSQLX_GENERATE_DIR}/mysqlx_error.h

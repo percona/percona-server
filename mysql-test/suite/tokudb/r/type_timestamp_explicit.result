@@ -446,9 +446,11 @@ CREATE TABLE t1 (
 `posted_on` timestamp NOT NULL default '1971-01-01 00:00:00',
 PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 AUTO_INCREMENT=1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 show fields from t1;
 Field	Type	Null	Key	Default	Extra
-id	int(11)	NO	PRI	NULL	auto_increment
+id	int	NO	PRI	NULL	auto_increment
 username	varchar(80)	NO			
 posted_on	timestamp	NO		1971-01-01 00:00:00	
 select is_nullable from INFORMATION_SCHEMA.COLUMNS where TABLE_NAME='t1' and COLUMN_NAME='posted_on';
@@ -458,6 +460,8 @@ drop table t1;
 CREATE TABLE t1 ( f1 INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
 f2 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 f3 TIMESTAMP NOT NULL default '1971-01-01 00:00:00');
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (f2,f3) VALUES (NOW(), "1971-01-01 00:00:00");
 UPDATE t1 SET f2=NOW(), f3=FROM_UNIXTIME('9999999999') WHERE f1=1;
 ERROR 23000: Column 'f3' cannot be null
@@ -740,7 +744,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` timestamp NOT NULL,
   `c2` timestamp NOT NULL DEFAULT '2001-01-01 01:01:01',
-  `c3` int(11) NOT NULL DEFAULT '42'
+  `c3` int NOT NULL DEFAULT '42'
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES (NULL, DEFAULT, DEFAULT);
 ERROR 23000: Column 'c1' cannot be null

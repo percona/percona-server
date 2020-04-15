@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "strings/str_uca_type.h"
+#include "template_utils.h"
 
 size_t my_caseup_str_mb(const CHARSET_INFO *cs, char *str) {
   uint32 l;
@@ -207,12 +208,12 @@ int my_strcasecmp_mb(const CHARSET_INFO *cs, const char *s, const char *t) {
   return (*t != *s);
 }
 
-  /*
-  ** Compare string against string with wildcard
-  **	0 if matched
-  **	-1 if not matched with wildcard
-  **	 1 if matched with wildcard
-  */
+/*
+** Compare string against string with wildcard
+**	0 if matched
+**	-1 if not matched with wildcard
+**	 1 if matched with wildcard
+*/
 
 #define INC_PTR(cs, A, B) \
   A += (my_ismbchar(cs, A, B) ? my_ismbchar(cs, A, B) : 1)
@@ -220,10 +221,12 @@ int my_strcasecmp_mb(const CHARSET_INFO *cs, const char *s, const char *t) {
 #define likeconv(s, A) (uchar)(s)->sort_order[(uchar)(A)]
 
 static int my_wildcmp_mb_impl(const CHARSET_INFO *cs, const char *str,
-                              const char *str_end, const char *wildstr,
-                              const char *wildend, int escape, int w_one,
+                              const char *str_end, const char *wildstr_arg,
+                              const char *wildend_arg, int escape, int w_one,
                               int w_many, int recurse_level) {
   int result = -1; /* Not found, using wildcards */
+  const uchar *wildstr = pointer_cast<const uchar *>(wildstr_arg);
+  const uchar *wildend = pointer_cast<const uchar *>(wildend_arg);
 
   if (my_string_stack_guard && my_string_stack_guard(recurse_level)) return 1;
   while (wildstr != wildend) {
@@ -251,7 +254,7 @@ static int my_wildcmp_mb_impl(const CHARSET_INFO *cs, const char *str,
     }
     if (*wildstr == w_many) { /* Found w_many */
       uchar cmp;
-      const char *mb = wildstr;
+      const uchar *mb = wildstr;
       int mb_len = 0;
 
       wildstr++;
@@ -291,9 +294,9 @@ static int my_wildcmp_mb_impl(const CHARSET_INFO *cs, const char *str,
           INC_PTR(cs, str, str_end);
         }
         {
-          int tmp =
-              my_wildcmp_mb_impl(cs, str, str_end, wildstr, wildend, escape,
-                                 w_one, w_many, recurse_level + 1);
+          int tmp = my_wildcmp_mb_impl(
+              cs, str, str_end, pointer_cast<const char *>(wildstr),
+              wildend_arg, escape, w_one, w_many, recurse_level + 1);
           if (tmp <= 0) return (tmp);
         }
       } while (str != str_end);
@@ -341,7 +344,8 @@ size_t my_well_formed_len_mb(const CHARSET_INFO *cs, const char *b,
     my_wc_t wc;
     int mb_len;
 
-    if ((mb_len = cs->cset->mb_wc(cs, &wc, (uchar *)b, (uchar *)e)) <= 0) {
+    if ((mb_len = cs->cset->mb_wc(cs, &wc, pointer_cast<const uchar *>(b),
+                                  pointer_cast<const uchar *>(e))) <= 0) {
       *error = b < e ? 1 : 0;
       break;
     }
@@ -373,8 +377,9 @@ uint my_instr_mb(const CHARSET_INFO *cs, const char *b, size_t b_length,
     while (b < end) {
       int mb_len;
 
-      if (!cs->coll->strnncoll(cs, (uchar *)b, s_length, (uchar *)s, s_length,
-                               0)) {
+      if (!cs->coll->strnncoll(cs, pointer_cast<const uchar *>(b), s_length,
+                               pointer_cast<const uchar *>(s), s_length,
+                               false)) {
         if (nmatch) {
           match[0].beg = 0;
           match[0].end = (uint)(b - b0);
@@ -555,7 +560,8 @@ int my_strcasecmp_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 }
 
 void my_hash_sort_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                         const uchar *key, size_t len, ulong *nr1, ulong *nr2) {
+                         const uchar *key, size_t len, uint64 *nr1,
+                         uint64 *nr2) {
   const uchar *pos = key;
 
   /*
@@ -564,9 +570,9 @@ void my_hash_sort_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   */
   key = skip_trailing_space(key, len);
 
-  for (; pos < (uchar *)key; pos++) {
+  for (; pos < key; pos++) {
     nr1[0] ^=
-        (ulong)((((uint)nr1[0] & 63) + nr2[0]) * ((uint)*pos)) + (nr1[0] << 8);
+        (uint64)((((uint)nr1[0] & 63) + nr2[0]) * ((uint)*pos)) + (nr1[0] << 8);
     nr2[0] += 3;
   }
 }
@@ -692,7 +698,7 @@ bool my_like_range_mb(const CHARSET_INFO *cs, const char *ptr,
 
       *max_length = res_length;
       pad_max_char(cs, max_str, max_end);
-      return 0;
+      return false;
     }
     if ((mb_len = my_ismbchar(cs, ptr, end)) > 1) {
       if (ptr + mb_len > end || min_str + mb_len > min_end) break;
@@ -769,7 +775,7 @@ bool my_like_range_mb(const CHARSET_INFO *cs, const char *ptr,
   *min_length = *max_length = (size_t)(min_str - min_org);
   while (min_str != min_end)
     *min_str++ = *max_str++ = ' '; /* Because if key compression */
-  return 0;
+  return false;
 }
 
 /**
@@ -812,7 +818,8 @@ bool my_like_range_generic(const CHARSET_INFO *cs, const char *ptr,
   for (; charlen > 0; charlen--) {
     my_wc_t wc, wc2;
     int res;
-    if ((res = cs->cset->mb_wc(cs, &wc, (uchar *)ptr, (uchar *)end)) <= 0) {
+    if ((res = cs->cset->mb_wc(cs, &wc, pointer_cast<const uchar *>(ptr),
+                               pointer_cast<const uchar *>(end))) <= 0) {
       if (res == MY_CS_ILSEQ) /* Bad sequence */
         return true;          /* min_length and max_length are not important */
       break;                  /* End of the string */
@@ -820,7 +827,8 @@ bool my_like_range_generic(const CHARSET_INFO *cs, const char *ptr,
     ptr += res;
 
     if (wc == (my_wc_t)escape) {
-      if ((res = cs->cset->mb_wc(cs, &wc, (uchar *)ptr, (uchar *)end)) <= 0) {
+      if ((res = cs->cset->mb_wc(cs, &wc, pointer_cast<const uchar *>(ptr),
+                                 pointer_cast<const uchar *>(end))) <= 0) {
         if (res == MY_CS_ILSEQ)
           return true; /* min_length and max_length are not important */
         /*
@@ -869,7 +877,8 @@ bool my_like_range_generic(const CHARSET_INFO *cs, const char *ptr,
     if (cs->uca) contraction_flags = cs->uca->contraction_flags;
     if (contraction_flags &&
         my_uca_can_be_contraction_head(contraction_flags, wc) &&
-        (res = cs->cset->mb_wc(cs, &wc2, (uchar *)ptr, (uchar *)end)) > 0) {
+        (res = cs->cset->mb_wc(cs, &wc2, pointer_cast<const uchar *>(ptr),
+                               pointer_cast<const uchar *>(end))) > 0) {
       const uint16 *weight;
       if ((wc2 == (my_wc_t)w_one || wc2 == (my_wc_t)w_many)) {
         /* Contraction head followed by a wildcard */
@@ -943,10 +952,12 @@ pad_min_max:
 }
 
 static int my_wildcmp_mb_bin_impl(const CHARSET_INFO *cs, const char *str,
-                                  const char *str_end, const char *wildstr,
-                                  const char *wildend, int escape, int w_one,
-                                  int w_many, int recurse_level) {
+                                  const char *str_end, const char *wildstr_arg,
+                                  const char *wildend_arg, int escape,
+                                  int w_one, int w_many, int recurse_level) {
   int result = -1; /* Not found, using wildcards */
+  const uchar *wildstr = pointer_cast<const uchar *>(wildstr_arg);
+  const uchar *wildend = pointer_cast<const uchar *>(wildend_arg);
 
   if (my_string_stack_guard && my_string_stack_guard(recurse_level)) return 1;
   while (wildstr != wildend) {
@@ -957,7 +968,7 @@ static int my_wildcmp_mb_bin_impl(const CHARSET_INFO *cs, const char *str,
         if (str + l > str_end || memcmp(str, wildstr, l) != 0) return 1;
         str += l;
         wildstr += l;
-      } else if (str == str_end || *wildstr++ != *str++)
+      } else if (str == str_end || *wildstr++ != static_cast<uchar>(*str++))
         return (1); /* No match */
       if (wildstr == wildend)
         return (str != str_end); /* Match if both are at end */
@@ -973,7 +984,7 @@ static int my_wildcmp_mb_bin_impl(const CHARSET_INFO *cs, const char *str,
     }
     if (*wildstr == w_many) { /* Found w_many */
       int cmp;
-      const char *mb = wildstr;
+      const uchar *mb = wildstr;
       int mb_len = 0;
 
       wildstr++;
@@ -1004,16 +1015,17 @@ static int my_wildcmp_mb_bin_impl(const CHARSET_INFO *cs, const char *str,
               str += mb_len;
               break;
             }
-          } else if (!my_ismbchar(cs, str, str_end) && *str == cmp) {
+          } else if (!my_ismbchar(cs, str, str_end) &&
+                     static_cast<uchar>(*str) == cmp) {
             str++;
             break;
           }
           INC_PTR(cs, str, str_end);
         }
         {
-          int tmp =
-              my_wildcmp_mb_bin_impl(cs, str, str_end, wildstr, wildend, escape,
-                                     w_one, w_many, recurse_level + 1);
+          int tmp = my_wildcmp_mb_bin_impl(
+              cs, str, str_end, pointer_cast<const char *>(wildstr),
+              wildend_arg, escape, w_one, w_many, recurse_level + 1);
           if (tmp <= 0) return (tmp);
         }
       } while (str != str_end);
@@ -1265,7 +1277,8 @@ size_t my_numcells_mb(const CHARSET_INFO *cs, const char *b, const char *e) {
   while (b < e) {
     int mb_len;
     uint pg;
-    if ((mb_len = cs->cset->mb_wc(cs, &wc, (uchar *)b, (uchar *)e)) <= 0 ||
+    if ((mb_len = cs->cset->mb_wc(cs, &wc, pointer_cast<const uchar *>(b),
+                                  pointer_cast<const uchar *>(e))) <= 0 ||
         wc > 0xFFFF) {
       /*
         Let's think a wrong sequence takes 1 dysplay cell.

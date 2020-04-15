@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,10 @@
 #include <ndb_global.h>
 #include <BaseString.hpp>
 #include <UtilBuffer.hpp>
+#include <unordered_map>
 
 enum PropertiesType {
+  PropertiesType_Undefined = -1,
   PropertiesType_Uint32 = 0,
   PropertiesType_char = 1,
   PropertiesType_Properties = 2,
@@ -48,6 +50,9 @@ struct Property {
   Property(const char* name, Uint64 val);
   Property(const char* name, const char * value);
   Property(const char* name, const class Properties * value);
+  // We have no copy or move constructors so delete also assignment operator.
+  Property& operator=(const Property&) = delete;
+  Property& operator=(Property&&) = delete;
   ~Property();
 private:
   friend class Properties;
@@ -66,6 +71,7 @@ public:
   Properties(bool case_insensitive= false);
   Properties(const Properties &);
   Properties(const Property *, int len);
+  Properties& operator=(const Properties&);
   virtual ~Properties();
 
   /**
@@ -138,15 +144,17 @@ public:
   /**
    *  Iterator over names 
    */
-  class Iterator { 
+  class Iterator
+  {
   public:
     Iterator(const Properties* prop);
+    ~Iterator();
 
     const char* first();
     const char* next();
   private:
     const Properties*  m_prop;
-    Uint32 m_iterator;
+    class IteratorImpl *m_iterImpl;
   };
   friend class Properties::Iterator;
 
@@ -156,6 +164,7 @@ public:
   
   Uint32 getPropertiesErrno() const { return propErrno; }
   Uint32 getOSErrno() const { return osErrno; }
+
 private:
   Uint32 propErrno;
   Uint32 osErrno;

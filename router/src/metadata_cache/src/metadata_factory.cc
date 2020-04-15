@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,12 +24,16 @@
 
 #include "metadata_factory.h"
 #include "cluster_metadata.h"
+#include "cluster_metadata_ar.h"
+#include "cluster_metadata_gr.h"
 
 std::shared_ptr<MetaData> meta_data{nullptr};
 
 /**
- * Return an instance of NG metadata.
+ * Return an instance of cluster metadata.
  *
+ * @param cluster_type type of the cluster the metadata cache object will
+ * represent (GR or ReplicaSet)
  * @param user The user name used to authenticate to the metadata server.
  * @param password The password used to authenticate to the metadata server.
  * @param connect_timeout The time after which trying to connect to the
@@ -39,15 +43,27 @@ std::shared_ptr<MetaData> meta_data{nullptr};
  * @param connection_attempts The number of times a connection to the metadata
  *                            server must be attempted, when a connection
  *                            attempt fails.
- * @param ttl The TTL of the cached data (in milliseconds).
  * @param ssl_options SSL related options to be used for connection
+ * @param use_cluster_notifications Flag indicating if the metadata cache
+ *                                  should use cluster notifications as an
+ *                                  additional trigger for metadata refresh
+ *                                  (only available for GR cluster type)
+ * @param view_id last known view_id of the cluster metadata (only relevant
+ *                for ReplicaSet cluster)
  */
 std::shared_ptr<MetaData> get_instance(
-    const std::string &user, const std::string &password, int connect_timeout,
-    int read_timeout, int connection_attempts, std::chrono::milliseconds ttl,
-    const mysqlrouter::SSLOptions &ssl_options) {
-  meta_data.reset(new ClusterMetadata(user, password, connect_timeout,
-                                      read_timeout, connection_attempts, ttl,
-                                      ssl_options));
+    const mysqlrouter::ClusterType cluster_type, const std::string &user,
+    const std::string &password, int connect_timeout, int read_timeout,
+    int connection_attempts, const mysqlrouter::SSLOptions &ssl_options,
+    const bool use_cluster_notifications, const unsigned view_id) {
+  if (cluster_type == mysqlrouter::ClusterType::RS_V2) {
+    meta_data.reset(new ARClusterMetadata(user, password, connect_timeout,
+                                          read_timeout, connection_attempts,
+                                          ssl_options, view_id));
+  } else {
+    meta_data.reset(new GRClusterMetadata(
+        user, password, connect_timeout, read_timeout, connection_attempts,
+        ssl_options, use_cluster_notifications));
+  }
   return meta_data;
 }

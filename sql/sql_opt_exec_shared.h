@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,9 @@
 #ifndef SQL_OPT_EXEC_SHARED_INCLUDED
 #define SQL_OPT_EXEC_SHARED_INCLUDED
 
-#include "item.h"
 #include "my_base.h"
 #include "my_dbug.h"
+#include "sql/item.h"
 
 class JOIN;
 class Item_func_match;
@@ -82,8 +82,8 @@ struct TABLE_REF {
     If a table in a subquery has this it means that the table access
     will switch from ref access to table scan when the outer query
     produces a NULL value to be checked for in the subquery. This will
-    be used by NOT IN subqueries and IN subqueries for which
-    is_top_level_item() returns false.
+    be used by NOT IN subqueries and IN subqueries which need to distinguish
+    NULL and FALSE, where ignore_unknown() is false.
   */
   bool **cond_guards;
   /**
@@ -282,6 +282,12 @@ class QEP_shared {
   void set_type(enum join_type t) { m_type = t; }
   Item *condition() const { return m_condition; }
   void set_condition(Item *c) { m_condition = c; }
+  bool condition_is_pushed_to_sort() const {
+    return m_condition_is_pushed_to_sort;
+  }
+  void mark_condition_as_pushed_to_sort() {
+    m_condition_is_pushed_to_sort = true;
+  }
   Key_map &keys() { return m_keys; }
   ha_rows records() const { return m_records; }
   void set_records(ha_rows r) { m_records = r; }
@@ -399,6 +405,16 @@ class QEP_shared {
   Item *m_condition;
 
   /**
+    Whether the condition in m_condition is evaluated in front of a sort,
+    so that it does not need to be evaluated again (unless it is outer to
+    an inner join; see the relevant comments in SortingIterator::Init().
+
+    Note that m_condition remains non-nullptr in this case, for purposes
+    of the (non-tree) EXPLAIN and for filesort to build up its read maps.
+  */
+  bool m_condition_is_pushed_to_sort = false;
+
+  /**
      All keys with can be used.
      Used by add_key_field() (optimization time) and execution of dynamic
      range (DynamicRangeIterator), and EXPLAIN.
@@ -459,8 +475,14 @@ class QEP_shared_owner {
 
   JOIN *join() const { return m_qs ? m_qs->join() : nullptr; }
   void set_join(JOIN *j) { return m_qs->set_join(j); }
+
+  // NOTE: This index (and the associated map) is not the same as
+  // table_ref's index, which is the index in the original FROM list
+  // (before optimization).
   plan_idx idx() const { return m_qs->idx(); }
   void set_idx(plan_idx i) { return m_qs->set_idx(i); }
+  qep_tab_map idx_map() const { return qep_tab_map{1} << m_qs->idx(); }
+
   TABLE *table() const { return m_qs->table(); }
   POSITION *position() const { return m_qs->position(); }
   void set_position(POSITION *p) { return m_qs->set_position(p); }
@@ -485,7 +507,13 @@ class QEP_shared_owner {
   void set_type(enum join_type t) { return m_qs->set_type(t); }
   Item *condition() const { return m_qs->condition(); }
   void set_condition(Item *to) { return m_qs->set_condition(to); }
-  Key_map &keys() { return m_qs->keys(); }
+  bool condition_is_pushed_to_sort() const {
+    return m_qs->condition_is_pushed_to_sort();
+  }
+  void mark_condition_as_pushed_to_sort() {
+    m_qs->mark_condition_as_pushed_to_sort();
+  }
+  Key_map &keys() const { return m_qs->keys(); }
   ha_rows records() const { return m_qs->records(); }
   void set_records(ha_rows r) { return m_qs->set_records(r); }
   QUICK_SELECT_I *quick() const { return m_qs->quick(); }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,8 +90,8 @@
   must be called prefix (to enable skipping) and postfix (to disable
   skipping).
 */
-static const Item::enum_walk walk_options = Item::enum_walk(
-    Item::WALK_PREFIX | Item::WALK_POSTFIX | Item::WALK_SUBQUERY);
+static const enum_walk walk_options =
+    enum_walk::SUBQUERY_PREFIX | enum_walk::POSTFIX;
 
 /**
    Rejects the query if it has a combination of DISTINCT and ORDER BY which
@@ -178,13 +178,11 @@ bool Group_check::check_query(THD *thd) {
   ORDER *order = select->order_list.first;
 
   // Validate SELECT list
-  List_iterator<Item> select_exprs_it(select->item_list);
-  Item *expr;
   uint number_in_list = 1;
   const char *place = "SELECT list";
 
-  while ((expr = select_exprs_it++)) {
-    if (check_expression(thd, expr, true)) goto err;
+  for (Item &sel_expr : select->item_list) {
+    if (check_expression(thd, &sel_expr, true)) goto err;
     ++number_in_list;
   }
 
@@ -369,7 +367,10 @@ bool Group_check::is_fd_on_source(Item *item) {
       transformation. But there cannot be a key-based or equality-based
       functional dependency on a NULL literal.
       Moreover, there are no FDs in a UNION.
-      So if the query has ROLLUP, we can stop here.
+      So if the query has ROLLUP, we can stop here. Above, we have tested the
+      column against the group columns and that's enough.
+      See test group_by_fd_no_prot for examples of queries with ROLLUP which
+      are accepted or not.
     */
     return false;
   }
@@ -668,7 +669,7 @@ bool Group_check::is_in_fd(Item *item) {
 
   DBUG_ASSERT(local_column(item));
   Used_tables ut(select);
-  (void)item->walk(&Item::used_tables_for_level, Item::WALK_POSTFIX,
+  (void)item->walk(&Item::used_tables_for_level, enum_walk::POSTFIX,
                    pointer_cast<uchar *>(&ut));
   if ((ut.used_tables & ~whole_tables_fd) == 0) {
     /*
@@ -685,7 +686,7 @@ bool Group_check::is_in_fd(Item *item) {
   }
   for (uint j = 0; j < fd.size(); j++) {
     Item *const item2 = fd.at(j);
-    if (item2->eq(item, 0)) return true;
+    if (item2->eq(item, false)) return true;
     /*
       Say that we have view:
       create view v1 as select i, 2*i as z from t1; and we do:
@@ -699,7 +700,7 @@ bool Group_check::is_in_fd(Item *item) {
       reach to real_item() of v1.i.
     */
     Item *const real_it2 = item2->real_item();
-    if (real_it2 != item2 && real_it2->eq(item, 0)) return true;
+    if (real_it2 != item2 && real_it2->eq(item, false)) return true;
   }
   if (!search_in_underlying) return false;
   return is_in_fd_of_underlying(down_cast<Item_ident *>(item));
@@ -738,7 +739,7 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
 
     Item *const real_it = item->real_item();
     Used_tables ut(select);
-    (void)item->walk(&Item::used_tables_for_level, Item::WALK_POSTFIX,
+    (void)item->walk(&Item::used_tables_for_level, enum_walk::POSTFIX,
                      pointer_cast<uchar *>(&ut));
     /*
       todo When we eliminate all uses of cached_table, we can probably add a
@@ -849,9 +850,9 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
 Item *Group_check::get_fd_equal(Item *item) {
   for (uint j = 0; j < fd.size(); j++) {
     Item *const item2 = fd.at(j);
-    if (item2->eq(item, 0)) return item2;
+    if (item2->eq(item, false)) return item2;
     Item *const real_it2 = item2->real_item();
-    if (real_it2 != item2 && real_it2->eq(item, 0)) return item2;
+    if (real_it2 != item2 && real_it2->eq(item, false)) return item2;
   }
   return nullptr;
 }
@@ -903,7 +904,9 @@ void Group_check::analyze_conjunct(Item *cond, Item *conjunct,
   */
   const table_map not_null_tables = cnj->not_null_tables();
   if (!not_null_tables) return;
-  if (cnj->functype() == Item_func::NOT_FUNC)  // to handle e.g. NOT LIKE
+  auto functype = cnj->functype();
+  if (functype == Item_func::NOT_FUNC ||    // to handle e.g. col NOT LIKE
+      functype == Item_func::ISTRUTH_FUNC)  // and e.g. (col>3) IS TRUE
   {
     conjunct = cnj->arguments()[0];
     if (conjunct->type() != Item::FUNC_ITEM) return;
@@ -930,7 +933,7 @@ void Group_check::analyze_conjunct(Item *cond, Item *conjunct,
       thinking a NULL value of 'a' makes "=" UNKNOWN (while it's a NULL
       value of 'b' which does and explains the presence of t1 in
       not_null_tables()). There is only one case where we dive because it's
-      easy, it's NOT.
+      easy, it's NOT and IS TRUE/FALSE.
       (3) the condition is in WHERE, or is an outer join condition and the
       column's table is on weak side.
       (4) the column is represented by some Item_ident in the FD list.
@@ -1081,7 +1084,7 @@ void Group_check::find_fd_in_joined_table(List<TABLE_LIST> *join_list) {
   List_iterator<TABLE_LIST> li(*join_list);
   TABLE_LIST *table;
   while ((table = li++)) {
-    if (table->sj_cond()) {
+    if (table->is_sj_or_aj_nest()) {
       /*
         We can ignore this nest as:
         - the subquery's WHERE was copied to the semi-join condition
@@ -1092,6 +1095,8 @@ void Group_check::find_fd_in_joined_table(List<TABLE_LIST> *join_list) {
         link" in the graph of functional dependencies, as they are neither in
         GROUP BY (the source) nor in the SELECT list / HAVING / ORDER BY (the
         target).
+        If this is an antijoin nest, it's a NOT, which doesn't bring any
+        functional dependency.
       */
       continue;
     }
@@ -1191,7 +1196,7 @@ bool Group_check::do_ident_check(Item_ident *i, table_map tm,
       goto ignore_children;
     case CHECK_STRONG_SIDE_COLUMN: {
       Used_tables ut(select);
-      (void)i->walk(&Item::used_tables_for_level, Item::WALK_POSTFIX,
+      (void)i->walk(&Item::used_tables_for_level, enum_walk::POSTFIX,
                     pointer_cast<uchar *>(&ut));
       if ((ut.used_tables & tm) && !is_in_fd(i))
         return true;  // It is a strong-side column and not FD

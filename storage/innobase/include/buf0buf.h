@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -894,7 +894,8 @@ UNIV_INLINE
 void buf_page_set_old(buf_page_t *bpage, ibool old);
 
 /** Determine the time of first access of a block in the buffer pool.
- @return ut_time_ms() at the time of first access, 0 if not accessed */
+ @return ut_time_monotonic_ms() at the time of first access, 0 if not accessed
+ */
 UNIV_INLINE
 unsigned buf_page_is_accessed(const buf_page_t *bpage) /*!< in: control block */
     MY_ATTRIBUTE((warn_unused_result));
@@ -976,7 +977,7 @@ the buffer pool.
 @return whether the operation succeeded
 @retval DB_SUCCESS              always when writing, or if a read page was OK
 @retval	DB_PAGE_CORRUPTED       if the checksum fails on a page read
-@retval	DB_DECRYPTION_FAILED    if page post encryption checksum matches but
+@retval	DB_IO_DECRYPT_FAIL    if page post encryption checksum matches but
                                 after decryption normal page checksum does
                                 not match */
 dberr_t buf_page_io_complete(buf_page_t *bpage, bool evict = false);
@@ -1137,6 +1138,11 @@ if needed.
 @return	aligned size */
 UNIV_INLINE
 ulint buf_pool_size_align(ulint size);
+
+/** Adjust the proposed chunk unit size so that it satisfies all invariants
+@param[in]      size    proposed size of buffer pool chunk unit in bytes
+@return adjusted size which meets invariants */
+ulonglong buf_pool_adjust_chunk_unit(ulonglong size);
 
 /** Calculate the checksum of a page from compressed table and update the
 page.
@@ -1514,6 +1520,12 @@ struct buf_block_t {
     return (mach_read_from_4(frame + FIL_PAGE_NEXT));
   }
 
+  /** Get the prev page number of the current buffer block.
+  @return prev page number of the current buffer block. */
+  page_no_t get_prev_page_no() const {
+    return (mach_read_from_4(frame + FIL_PAGE_PREV));
+  }
+
   /** Get the page type of the current buffer block.
   @return page type of the current buffer block. */
   page_type_t get_page_type() const {
@@ -1792,7 +1804,7 @@ struct buf_pool_t {
   ulint n_pend_unzip;          /*!< number of pending decompressions.
                                Accessed atomically. */
 
-  time_t last_printout_time;
+  ib_time_monotonic_t last_printout_time;
   /*!< when buf_print_io was last time
   called. Accesses not protected. */
   buf_buddy_stat_t buddy_stat[BUF_BUDDY_SIZES_MAX + 1];

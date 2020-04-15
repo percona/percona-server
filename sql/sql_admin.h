@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -375,6 +375,9 @@ class Sql_cmd_show_grants : public Sql_cmd {
 
 enum alter_instance_action_enum {
   ROTATE_INNODB_MASTER_KEY,
+  ALTER_INSTANCE_RELOAD_TLS,
+  ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR,
+  ROTATE_BINLOG_MASTER_KEY,
   LAST_MASTER_KEY /* Add new master key type before this */
 };
 

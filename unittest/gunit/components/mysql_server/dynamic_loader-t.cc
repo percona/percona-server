@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <audit_api_message_service_imp.h>
 #include <component_status_var_service.h>
 #include <component_sys_var_service.h>
+#include <components/mysql_server/mysql_connection_attributes_iterator_imp.h>
+#include <components/mysql_server/mysql_page_track.h>
+#include <components/mysql_server/udf_metadata_imp.h>
 #include <example_services.h>
 #include <gtest/gtest.h>
+#include <keyring_iterator_service_imp.h>
 #include <mysql.h>
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>
@@ -35,6 +39,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/dynamic_loader.h>
 #include <mysql/components/services/mysql_socket_bits.h>
+#include <mysql/components/services/page_track_service.h>
 #include <mysql/components/services/persistent_dynamic_loader.h>
 #include <mysql/components/services/psi_statement_bits.h>
 #include <mysql/components/services/psi_thread_bits.h>
@@ -52,14 +57,26 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"
+#include "mysql_current_thread_reader_imp.h"
 #include "scope_guard.h"
 #include "sql/auth/dynamic_privileges_impl.h"
+#include "sql/server_component/mysql_admin_session_imp.h"
 #include "sql/udf_registration_imp.h"
 
 extern mysql_component_t COMPONENT_REF(mysql_server);
 
 struct mysql_component_t *mysql_builtin_components[] = {
     &COMPONENT_REF(mysql_server), 0};
+
+DEFINE_METHOD(MYSQL_SESSION, mysql_component_mysql_admin_session_imp::open,
+              (srv_session_error_cb, void *)) {
+  return nullptr;
+}
+
+DEFINE_BOOL_METHOD(mysql_component_mysql_current_thread_reader_imp::get,
+                   (MYSQL_THD *)) {
+  return true;
+}
 
 DEFINE_BOOL_METHOD(mysql_component_host_application_signal_imp::signal,
                    (int, void *)) {
@@ -159,8 +176,26 @@ DEFINE_METHOD(void, mysql_clone_start_statement,
 
 DEFINE_METHOD(void, mysql_clone_finish_statement, (THD *)) { return; }
 
+DEFINE_METHOD(int, mysql_clone_get_charsets, (THD *, Mysql_Clone_Values &)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, mysql_clone_validate_charsets,
+              (THD *, Mysql_Clone_Values &)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, mysql_clone_get_configs, (THD *, Mysql_Clone_Key_Values &)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, mysql_clone_validate_configs,
+              (THD *, Mysql_Clone_Key_Values &)) {
+  return (0);
+}
+
 DEFINE_METHOD(MYSQL *, mysql_clone_connect,
-              (THD *, const char *, uint, const char *, const char *,
+              (THD *, const char *, uint32_t, const char *, const char *,
                mysql_clone_ssl_context *, MYSQL_SOCKET *)) {
   return nullptr;
 }
@@ -171,7 +206,7 @@ DEFINE_METHOD(int, mysql_clone_send_command,
 }
 
 DEFINE_METHOD(int, mysql_clone_get_response,
-              (THD *, MYSQL *, bool, uint32_t, uchar **, size_t *)) {
+              (THD *, MYSQL *, bool, uint32_t, uchar **, size_t *, size_t *)) {
   return 0;
 }
 
@@ -181,12 +216,16 @@ DEFINE_METHOD(void, mysql_clone_disconnect, (THD *, MYSQL *, bool, bool)) {
   return;
 }
 
+DEFINE_METHOD(void, mysql_clone_get_error, (THD *, uint32_t *, const char **)) {
+  return;
+}
+
 DEFINE_METHOD(int, mysql_clone_get_command,
               (THD *, uchar *, uchar **, size_t *)) {
   return 0;
 }
 
-DEFINE_METHOD(int, mysql_clone_send_response, (THD *, uchar *, size_t)) {
+DEFINE_METHOD(int, mysql_clone_send_response, (THD *, bool, uchar *, size_t)) {
   return 0;
 }
 
@@ -253,6 +292,100 @@ DEFINE_BOOL_METHOD(
   return true;
 }
 
+DEFINE_METHOD(int, Page_track_implementation::start,
+              (MYSQL_THD, Page_Track_SE, uint64_t *)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, Page_track_implementation::stop,
+              (MYSQL_THD, Page_Track_SE, uint64_t *)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, Page_track_implementation::get_page_ids,
+              (MYSQL_THD, Page_Track_SE, uint64_t *, uint64_t *,
+               unsigned char *, size_t, Page_Track_Callback, void *)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, Page_track_implementation::get_num_page_ids,
+              (MYSQL_THD, Page_Track_SE, uint64_t *, uint64_t *, uint64_t *)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, Page_track_implementation::purge,
+              (MYSQL_THD, Page_Track_SE, uint64_t *)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, Page_track_implementation::get_status,
+              (MYSQL_THD, Page_Track_SE, uint64_t *, uint64_t *)) {
+  return (0);
+}
+
+DEFINE_BOOL_METHOD(mysql_keyring_iterator_imp::init,
+                   (my_h_keyring_iterator * iterator MY_ATTRIBUTE((unused)))) {
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_keyring_iterator_imp::deinit,
+                   (my_h_keyring_iterator iterator MY_ATTRIBUTE((unused)))) {
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_keyring_iterator_imp::get,
+                   (my_h_keyring_iterator iterator MY_ATTRIBUTE((unused)),
+                    char *key_id MY_ATTRIBUTE((unused)),
+                    size_t key_id_size MY_ATTRIBUTE((unused)),
+                    char *user_id MY_ATTRIBUTE((unused)),
+                    size_t user_id_size MY_ATTRIBUTE((unused)))) {
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_udf_metadata_imp::argument_get,
+                   (UDF_ARGS *, const char *, unsigned int, void **)) {
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_udf_metadata_imp::argument_set,
+                   (UDF_ARGS *, const char *, unsigned int, void *)) {
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_udf_metadata_imp::result_set,
+                   (UDF_INIT *, const char *, void *)) {
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_udf_metadata_imp::result_get,
+                   (UDF_INIT *, const char *, void **)) {
+  return true;
+}
+
+DEFINE_BOOL_METHOD(
+    mysql_connection_attributes_iterator_imp::init,
+    (MYSQL_THD thd MY_ATTRIBUTE((unused)),
+     my_h_connection_attributes_iterator *iterator MY_ATTRIBUTE((unused)))) {
+  return true;
+}
+
+DEFINE_BOOL_METHOD(
+    mysql_connection_attributes_iterator_imp::deinit,
+    (my_h_connection_attributes_iterator iterator MY_ATTRIBUTE((unused)))) {
+  return true;
+}
+
+DEFINE_BOOL_METHOD(
+    mysql_connection_attributes_iterator_imp::get,
+    (MYSQL_THD thd MY_ATTRIBUTE((unused)),
+     my_h_connection_attributes_iterator *iterator MY_ATTRIBUTE((unused)),
+     const char **name MY_ATTRIBUTE((unused)),
+     size_t *name_length MY_ATTRIBUTE((unused)),
+     const char **value MY_ATTRIBUTE((unused)),
+     size_t *value_length MY_ATTRIBUTE((unused)),
+     const char **client_charset MY_ATTRIBUTE((unused)))) {
+  return true;
+}
 /* TODO following code resembles symbols used in sql library, these should be
   some day extracted to be reused both in sql library and server component
   unit tests. */
@@ -275,6 +408,9 @@ bool check_valid_path(const char *path, size_t len) {
 
 namespace dynamic_loader_unittest {
 
+using registry_type_t = SERVICE_TYPE_NO_CONST(registry);
+using loader_type_t = SERVICE_TYPE_NO_CONST(dynamic_loader);
+
 class dynamic_loader : public ::testing::Test {
  protected:
   virtual void SetUp() {
@@ -282,15 +418,19 @@ class dynamic_loader : public ::testing::Test {
     reg = NULL;
     loader = NULL;
     ASSERT_FALSE(mysql_services_bootstrap(&reg));
-    ASSERT_FALSE(reg->acquire("dynamic_loader", (my_h_service *)&loader));
+    ASSERT_FALSE(reg->acquire("dynamic_loader",
+                              reinterpret_cast<my_h_service *>(
+                                  const_cast<loader_type_t **>(&loader))));
   }
 
   virtual void TearDown() {
     if (reg) {
-      ASSERT_FALSE(reg->release((my_h_service)reg));
+      ASSERT_FALSE(reg->release(
+          reinterpret_cast<my_h_service>(const_cast<registry_type_t *>(reg))));
     }
     if (loader) {
-      ASSERT_FALSE(reg->release((my_h_service)loader));
+      ASSERT_FALSE(reg->release(
+          reinterpret_cast<my_h_service>(const_cast<loader_type_t *>(loader))));
     }
     shutdown_dynamic_loader();
     ASSERT_FALSE(mysql_services_shutdown());
@@ -507,7 +647,7 @@ TEST_F(dynamic_loader, metadata) {
 
   ASSERT_FALSE(query_service->create(&iterator));
 
-  auto guard = create_scope_guard(
+  auto query_service_guard = create_scope_guard(
       [&query_service, &iterator]() { query_service->release(iterator); });
 
   for (; !query_service->is_valid(iterator); query_service->next(iterator)) {

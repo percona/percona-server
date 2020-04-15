@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -39,8 +39,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #endif /* !UNIV_HOTBACKUP */
 
+/** NOTE - Changing this from the original number of 50 to 45 as
+insert_debug.test was failing in ASAN build because of a stack overflow issue.
+It was found that rtr_info_t was taking up a lot of stack space in the function
+btr_insert_on_non_leaf_level_func which is part of the recursive stack
+trace. */
 #define BTR_MAX_NODE_LEVEL          \
-  50 /*!< Maximum B-tree page level \
+  45 /*!< Maximum B-tree page level \
      (not really a hard limit).     \
      Used in debug assertions       \
      in btr_page_set_level and      \
@@ -67,7 +72,7 @@ buf_block_t *btr_block_get_func(const page_id_t &page_id,
   block = buf_page_get_gen(page_id, page_size, mode, nullptr,
                            Page_fetch::NORMAL, file, line, mtr, false, &err);
 
-  if (err == DB_DECRYPTION_FAILED) {
+  if (err == DB_IO_DECRYPT_FAIL) {
     if (index && index->table) {
       index->table->set_file_unreadable();
     }

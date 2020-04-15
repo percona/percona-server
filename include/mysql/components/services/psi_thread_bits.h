@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -124,6 +124,7 @@ typedef int (*spawn_thread_v1_t)(PSI_thread_key key, my_thread_handle *thread,
   Create instrumentation for a thread.
   @param key the registered key
   @param identity an address typical of the thread
+  @param thread_id PROCESSLIST_ID of the thread
   @return an instrumented thread
 */
 typedef struct PSI_thread *(*new_thread_v1_t)(PSI_thread_key key,
@@ -140,10 +141,31 @@ typedef void (*set_thread_THD_v1_t)(struct PSI_thread *thread, THD *thd);
 /**
   Assign an id to an instrumented thread.
   @param thread the instrumented thread
-  @param id the id to assign
+  @param id the PROCESSLIST_ID to assign
 */
 typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread,
                                    unsigned long long id);
+/**
+  Read the THREAD_ID of the current thread.
+  @return the id of the instrumented thread
+*/
+typedef unsigned long long (*get_current_thread_internal_id_v2_t)();
+
+/**
+  Read the THREAD_ID of an instrumented thread.
+  @param thread the instrumented thread
+  @return the id of the instrumented thread
+*/
+typedef unsigned long long (*get_thread_internal_id_v2_t)(
+    struct PSI_thread *thread);
+
+/**
+  Get the instrumentation for the thread of given PROCESSLIST_ID.
+  @param processlist_id the thread id
+  @return the instrumented thread
+*/
+typedef struct PSI_thread *(*get_thread_by_id_v2_t)(
+    unsigned long long processlist_id);
 
 /**
   Assign the current operating system thread id to an instrumented thread.
@@ -254,6 +276,9 @@ typedef int (*set_thread_resource_group_by_id_v1_t)(
 */
 typedef void (*set_thread_v1_t)(struct PSI_thread *thread);
 
+/** Aggregate the thread status variables. */
+typedef void (*aggregate_thread_status_v2_t)(struct PSI_thread *thread);
+
 /** Delete the current thread instrumentation. */
 typedef void (*delete_current_thread_v1_t)(void);
 
@@ -275,23 +300,42 @@ typedef int (*set_thread_connect_attrs_v1_t)(const char *buffer,
                                              const void *from_cs);
 
 /**
-  Get the current event.
+  Get the current thread current event.
+  @param [out] thread_internal_id The thread internal id
+  @param [out] event_id The per thread event id.
+*/
+typedef void (*get_current_thread_event_id_v2_t)(
+    unsigned long long *thread_internal_id, unsigned long long *event_id);
+
+/**
+  Get the thread current event.
+  @deprecated
   @param [out] thread_internal_id The thread internal id
   @param [out] event_id The per thread event id.
 */
 typedef void (*get_thread_event_id_v1_t)(unsigned long long *thread_internal_id,
                                          unsigned long long *event_id);
 
+/**
+  Get the thread current event.
+  @param psi the instrumented thread
+  @param [out] thread_internal_id The thread internal id
+  @param [out] event_id The per thread event id.
+*/
+typedef void (*get_thread_event_id_v2_t)(struct PSI_thread *psi,
+                                         unsigned long long *thread_internal_id,
+                                         unsigned long long *event_id);
+
 /* Duplicate definitions to avoid dependency on mysql_com.h */
 #define PSI_USERNAME_LENGTH (32 * 3)
 #define PSI_NAME_LEN (64 * 3)
-#define PSI_HOSTNAME_LENGTH (60)
+#define PSI_HOSTNAME_LENGTH (255)
 
 /**
   Performance Schema thread type: user/foreground or system/background.
   @sa get_thread_system_attrs
 */
-struct PSI_thread_attrs_v1 {
+struct PSI_thread_attrs_v3 {
   /* PFS internal thread id, unique. */
   unsigned long long m_thread_internal_id;
 
@@ -332,27 +376,27 @@ struct PSI_thread_attrs_v1 {
   bool m_system_thread;
 };
 
-typedef struct PSI_thread_attrs_v1 PSI_thread_attrs;
+typedef struct PSI_thread_attrs_v3 PSI_thread_attrs;
 
 /**
   Callback for the pfs_notification service.
   @param thread_attrs system attributes of the current thread.
 */
-typedef void (*PSI_notification_cb)(const PSI_thread_attrs *thread_attrs);
+typedef void (*PSI_notification_cb_v3)(const PSI_thread_attrs_v3 *thread_attrs);
 
 /**
   Registration structure for the pfs_notification service.
-  @sa register_notification_v1_t
+  @sa register_notification_v3_t
 */
-struct PSI_notification_v1 {
-  PSI_notification_cb thread_create;
-  PSI_notification_cb thread_destroy;
-  PSI_notification_cb session_connect;
-  PSI_notification_cb session_disconnect;
-  PSI_notification_cb session_change_user;
+struct PSI_notification_v3 {
+  PSI_notification_cb_v3 thread_create;
+  PSI_notification_cb_v3 thread_destroy;
+  PSI_notification_cb_v3 session_connect;
+  PSI_notification_cb_v3 session_disconnect;
+  PSI_notification_cb_v3 session_change_user;
 };
 
-typedef struct PSI_notification_v1 PSI_notification;
+typedef struct PSI_notification_v3 PSI_notification;
 
 /**
   Get system attributes for the current thread.
@@ -360,7 +404,7 @@ typedef struct PSI_notification_v1 PSI_notification;
   @param thread_attrs pointer to pfs_thread_attr struct
   @return 0 if successful, 1 otherwise
 */
-typedef int (*get_thread_system_attrs_v1_t)(PSI_thread_attrs *thread_attrs);
+typedef int (*get_thread_system_attrs_v3_t)(PSI_thread_attrs_v3 *thread_attrs);
 
 /**
   Get system attributes for an instrumented thread, identified either by the
@@ -371,9 +415,10 @@ typedef int (*get_thread_system_attrs_v1_t)(PSI_thread_attrs *thread_attrs);
   @param thread_attrs pointer to pfs_thread_attr struct
   @return 0 if successful, 1 otherwise
 */
-typedef int (*get_thread_system_attrs_by_id_v1_t)(
+typedef int (*get_thread_system_attrs_by_id_v3_t)(
     PSI_thread *thread, unsigned long long thread_id,
-    PSI_thread_attrs *thread_attrs);
+    PSI_thread_attrs_v3 *thread_attrs);
+
 /**
   Register callback functions for the Notification service.
   For best performance, set with_ref_count = false.
@@ -383,7 +428,7 @@ typedef int (*get_thread_system_attrs_by_id_v1_t)(
   @sa unregister_notification
   @return registration handle on success, 0 if failure
 */
-typedef int (*register_notification_v1_t)(const PSI_notification *callbacks,
+typedef int (*register_notification_v3_t)(const PSI_notification_v3 *callbacks,
                                           bool with_ref_count);
 
 /**

@@ -8,19 +8,44 @@ call mtr.add_suppression("Function 'keyring_file' already exists");
 call mtr.add_suppression("Couldn't load plugin named 'keyring_file' with soname 'keyring_file.*'.");
 call mtr.add_suppression("Plugin keyring_file reported");
 
-let $initial_encrypt_tables_value = `select @@innodb_encrypt_tables`;
+--source include/count_sessions.inc
+
+CREATE DATABASE db1;
+USE db1;
+
+CREATE USER u1@localhost;
+GRANT ALL ON db1.* TO u1@localhost;
+GRANT CREATE TABLESPACE, PROCESS, SYSTEM_VARIABLES_ADMIN, SUPER, RELOAD, TABLE_ENCRYPTION_ADMIN ON *.* TO u1@localhost;
+connect (con1, localhost, u1,, db1);
+
+let $initial_default_table_encryption = `select @@default_table_encryption`;
 
 create table t1_default_explicit_on (a int) engine=innodb encryption="Y";
 create table t2_default_explicit_off (a int) engine=innodb encryption="N";
 
-set global innodb_encrypt_tables='ON';
+SET default_table_encryption='ON';
+ALTER DATABASE db1 DEFAULT ENCRYPTION='Y';
+SET GLOBAL table_encryption_privilege_check = OFF;
+
 create table t3_on_default (a int) engine=innodb;
 create table t4_on_explicit_off (a int) engine=innodb encryption="N";
---error ER_ILLEGAL_HA_CREATE_OPTION
+
+--error ER_INVALID_ENCRYPTION_REQUEST
 create table t_unencrypted_tablespace (a text) tablespace ts_unencrypted1 ENGINE="InnoDB";
-set global innodb_encrypt_tables='FORCE';
---error ER_INVALID_ENCRYPTION_OPTION
+
+SET GLOBAL table_encryption_privilege_check = ON;
+
+connection default;
+REVOKE TABLE_ENCRYPTION_ADMIN ON *.* FROM u1@localhost;
+connection con1;
+
+--error ER_CANNOT_SET_TABLE_ENCRYPTION
 create table t5_force_explicit_off (a int) engine=innodb encryption="N";
+
+connection default;
+GRANT TABLE_ENCRYPTION_ADMIN ON *.* TO u1@localhost;
+connection con1;
+
 create table t6_force_default (a int) engine=innodb;
 create table t6_force_default_dup like t6_force_default;
 --error ER_ILLEGAL_HA_CREATE_OPTION
@@ -29,18 +54,21 @@ create table t7_partitioned (a int, primary key(a))
 	partition by range (a) partitions 2 (
 		partition p1 values less than (20),
 		partition p2 values less than (40) tablespace ts_encrypted2);
---error ER_ILLEGAL_HA_CREATE_OPTION
+--error ER_INVALID_ENCRYPTION_REQUEST
 create table t_unencrypted_tablespace (a text) tablespace ts_unencrypted1 ENGINE="InnoDB";
-set global innodb_encrypt_tables='OFF';
+SET GLOBAL table_encryption_privilege_check = OFF;
+ALTER DATABASE db1 DEFAULT ENCRYPTION='N';
 create table t5_off_explicit_off (a int) engine=innodb encryption="N";
 create table t5_off_explicit_off_dup like t5_off_explicit_off;
---error ER_ILLEGAL_HA_CREATE_OPTION
+--error ER_INVALID_ENCRYPTION_REQUEST
 create table t7_partitioned_fail (a int, primary key(a))
 	engine=innodb tablespace ts_encrypted1
 	partition by range (a) partitions 2 (
 		partition p1 values less than (20),
 		partition p2 values less than (40) tablespace ts_encrypted2);
-set global innodb_encrypt_tables='FORCE';
+
+ALTER DATABASE db1 DEFAULT ENCRYPTION='Y';
+SET GLOBAL table_encryption_privilege_check = ON;
 
 insert into t1_default_explicit_on values (42);
 insert into t2_default_explicit_off values (42);
@@ -58,25 +86,50 @@ show create table t6_force_default;
 show create table t6_force_default_dup;
 show create table t5_off_explicit_off_dup;
 
---error ER_INVALID_ENCRYPTION_OPTION
+connection default;
+REVOKE TABLE_ENCRYPTION_ADMIN ON *.* FROM u1@localhost;
+connection con1;
+
+--error ER_CANNOT_SET_TABLE_ENCRYPTION
 alter table t1_default_explicit_on encryption="N";
+
+connection default;
+GRANT TABLE_ENCRYPTION_ADMIN ON *.* TO u1@localhost;
+connection con1;
+
 alter table t2_default_explicit_off encryption="Y";
---error ER_INVALID_ENCRYPTION_OPTION
+
+connection default;
+REVOKE TABLE_ENCRYPTION_ADMIN ON *.* FROM u1@localhost;
+connection con1;
+
+--error ER_CANNOT_SET_TABLE_ENCRYPTION
 alter table t2_default_explicit_off encryption="N";
+
+connection default;
+GRANT TABLE_ENCRYPTION_ADMIN ON *.* TO u1@localhost;
+connection con1;
+
+
 alter table t3_on_default;
---error ER_INVALID_ENCRYPTION_OPTION
 alter table t4_on_explicit_off encryption="N";
 
-set global innodb_encrypt_tables='ON';
+SET default_table_encryption='ON';
+
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 alter table t1_default_explicit_on encryption="N", ALGORITHM=INPLACE;
+
 alter table t1_default_explicit_on encryption="Y", ALGORITHM=INPLACE;
+
 alter table t1_default_explicit_on encryption="N";
 alter table t2_default_explicit_off encryption="N";
+
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 alter table t3_on_default encryption="N", ALGORITHM=INPLACE;
 alter table t3_on_default encryption="Y", ALGORITHM=INPLACE;
+
 alter table t3_on_default encryption="N";
+
 alter table t4_on_explicit_off ALGORITHM=INPLACE;
 alter table t4_on_explicit_off encryption="N";
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
@@ -85,7 +138,10 @@ alter table t6_force_default encryption="N", ALGORITHM=INPLACE;
 # Even when it's ON or FORCE, non encrypted tables can be altered,
 # without changing their encryption settings
 alter table t4_on_explicit_off change a b int;
-set global innodb_encrypt_tables='FORCE';
+
+ALTER DATABASE db1 DEFAULT ENCRYPTION='Y';
+SET GLOBAL table_encryption_privilege_check = ON;
+
 alter table t4_on_explicit_off change b a int;
 
 show create table t1_default_explicit_on;
@@ -118,7 +174,11 @@ select * from t6_force_default;
 --echo #
 --echo # PS-5120 - Cannot add encrypted tables in to encrypted tablespace
 --echo #
-set global innodb_encrypt_tables = ON;
+
+SET default_table_encryption = ON;
+ALTER DATABASE db1 DEFAULT ENCRYPTION='Y';
+SET GLOBAL table_encryption_privilege_check = OFF;
+
 create tablespace ts1 add datafile 'ts1.ibd' encryption='Y';
 create table t7(a INT);
 show create table t7;
@@ -128,6 +188,9 @@ drop table t7;
 drop tablespace ts1;
 
 # Cleanup
+connection default;
+disconnect con1;
+
 drop table t1_default_explicit_on;
 drop table t2_default_explicit_off;
 drop table t3_on_default;
@@ -141,5 +204,9 @@ drop tablespace ts_encrypted1;
 drop tablespace ts_encrypted2;
 drop tablespace ts_unencrypted1;
 
-eval set global innodb_encrypt_tables=$initial_encrypt_tables_value;
-
+eval SET default_table_encryption=$initial_default_table_encryption;
+ALTER DATABASE db1 DEFAULT ENCRYPTION='N';
+SET GLOBAL table_encryption_privilege_check = default;
+DROP USER u1@localhost;
+DROP DATABASE db1;
+--source include/wait_until_count_sessions.inc

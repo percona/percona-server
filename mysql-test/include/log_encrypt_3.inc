@@ -5,7 +5,8 @@
 
 call mtr.add_suppression("ibd can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded.");
 call mtr.add_suppression("Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("Can't set redo log tablespace to be encrypted.");
+call mtr.add_suppression("Redo log cannot be encrypted if the keyring plugin is not loaded.");
+call mtr.add_suppression("Check keyring plugin fail, please check the keyring plugin is loaded.");
 call mtr.add_suppression("Redo log key generation failed.");
 
 let $old_innodb_file_per_table = `SELECT @@innodb_file_per_table`;
@@ -67,7 +68,7 @@ let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PL
 --source include/restart_mysqld_no_echo.inc
 
 SELECT @@global.innodb_redo_log_encrypt;
-SET GLOBAL innodb_redo_log_encrypt = 1;
+eval SET GLOBAL innodb_redo_log_encrypt = $redo_log_encrypt_mode;
 SELECT @@global.innodb_redo_log_encrypt;
 
 CREATE TABLE tde_db.t1 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
@@ -115,7 +116,7 @@ CREATE TABLE tde_db.t2 (a BIGINT PRIMARY KEY, b LONGBLOB)
 			ENCRYPTION='Y' ENGINE=InnoDB;
 
 START TRANSACTION;
-SET GLOBAL innodb_redo_log_encrypt = 1;
+eval SET GLOBAL innodb_redo_log_encrypt = $redo_log_encrypt_mode;
 INSERT INTO t1 (a, b) VALUES (1, REPEAT('a', 6*512*512));
 INSERT INTO t2 (a, b) VALUES (1, REPEAT('a', 6*512*512));
 SELECT a,LEFT(b,10) FROM tde_db.t1;

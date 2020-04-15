@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,7 +77,7 @@ class Materialized_cursor final : public Server_side_cursor {
 
   int send_result_set_metadata(THD *thd, List<Item> &send_result_set_metadata);
   bool is_open() const override { return table != 0; }
-  int open(JOIN *) override;
+  int open(THD *, JOIN *) override;
   bool fetch(ulong num_rows) override;
   void close() override;
   ~Materialized_cursor() override;
@@ -182,7 +182,7 @@ bool mysql_open_cursor(THD *thd, Query_result *result,
       temporary table have been closed.
     */
 
-    if ((rc = materialized_cursor->open(0))) {
+    if ((rc = materialized_cursor->open(thd, nullptr))) {
       delete materialized_cursor;
       goto end;
     }
@@ -203,7 +203,7 @@ Server_side_cursor::~Server_side_cursor() {}
 
 void Server_side_cursor::operator delete(void *ptr,
                                          size_t size MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("Server_side_cursor::operator delete");
+  DBUG_TRACE;
   Server_side_cursor *cursor = (Server_side_cursor *)ptr;
   /*
     If this cursor has never been opened, mem_root is empty. Otherwise,
@@ -215,7 +215,6 @@ void Server_side_cursor::operator delete(void *ptr,
 
   TRASH(ptr, size);
   free_root(&own_root, MYF(0));
-  DBUG_VOID_RETURN;
 }
 
 /***************************************************************************
@@ -229,9 +228,7 @@ Materialized_cursor::Materialized_cursor(Query_result *result_arg,
       table(table_arg),
       fetch_limit(0),
       fetch_count(0),
-      is_rnd_inited(0) {
-  fake_unit.thd = table->in_use;
-}
+      is_rnd_inited(false) {}
 
 /**
   Preserve the original metadata to be sent to the client.
@@ -287,8 +284,7 @@ end:
   return rc || thd->is_error();
 }
 
-int Materialized_cursor::open(JOIN *join MY_ATTRIBUTE((unused))) {
-  THD *thd = fake_unit.thd;
+int Materialized_cursor::open(THD *thd, JOIN *) {
   int rc;
   Query_arena backup_arena;
 
@@ -388,7 +384,7 @@ bool Query_result_materialize::send_result_set_metadata(THD *thd,
                                                         List<Item> &list,
                                                         uint) {
   DBUG_ASSERT(table == 0);
-  if (create_result_table(unit->thd, unit->get_field_list(), false,
+  if (create_result_table(thd, unit->get_field_list(), false,
                           thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,
                           "", false, true))
     return true;
@@ -402,7 +398,7 @@ bool Query_result_materialize::send_result_set_metadata(THD *thd,
     return true;
   }
 
-  if (materialized_cursor->send_result_set_metadata(unit->thd, list)) {
+  if (materialized_cursor->send_result_set_metadata(thd, list)) {
     delete materialized_cursor;
     table = 0;
     materialized_cursor = 0;

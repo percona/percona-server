@@ -1,0 +1,14 @@
+# Set different paths for --datadir
+# Check that the file exists in the working folder.
+# Unzip the zip file.
+# Stop DB server which was created by MTR default
+# Start the 8.0.16 server on 8.0.15 datadir
+# restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=MYSQLD_DATADIR1 --keyring_file_data=MYSQLD_DATADIR1/mysecret_keyring KEYRING_PLUGIN_OPT KEYRING_PLUGIN_EARLY_LOAD
+include/assert.inc [Encryption of mysql.ibd should be set to Y.]
+SET SESSION DEBUG = '+d,skip_dd_table_access_check';
+include/assert.inc [dd_properties should not contain information about encryption]
+include/assert.inc [All tables in mysql tablespace should have encrypt_type=Y set in options.]
+# restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=MYSQLD_DATADIR1 --keyring_file_data=MYSQLD_DATADIR1/mysecret_keyring KEYRING_PLUGIN_OPT KEYRING_PLUGIN_EARLY_LOAD
+# Remove copied files
+# Restart the server with default options.
+# restart

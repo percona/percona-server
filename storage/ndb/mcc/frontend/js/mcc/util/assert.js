@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2019 Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -19,7 +19,7 @@ GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 */
 
 /******************************************************************************
@@ -28,66 +28,58 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  ***                                                                        ***
  ******************************************************************************
  *
- *  Module: 
+ *  Module:
  *      Name: mcc.util.assert
  *
  *  Description:
  *      Utilities to check assertions and throw exceptions if not met
  *
- *  External interface: 
+ *  External interface:
  *      mcc.util.assert: Assert expression with text message
  *
- *  External data: 
+ *  External data:
  *      None
  *
- *  Internal interface: 
+ *  Internal interface:
  *      None
  *
- *  Internal data: 
+ *  Internal data:
  *      assertExc: Anonymous assert exception class
  *
- *  Unit test interface: 
+ *  Unit test interface:
  *      None
  *
  *  Todo:
  *      Implement unit tests.
- * 
+ *
  ******************************************************************************/
 
-/****************************** Import/export  ********************************/
+/******************************* Import/export ********************************/
+dojo.provide('mcc.util.assert');
 
-dojo.provide("mcc.util.assert");
+dojo.require('mcc.util');
 
-dojo.require("mcc.util");
-
-
-/**************************** External interface  *****************************/
-
+/***************************** External interface *****************************/
 mcc.util.assert.assert = assert;
 
-/****************************** Implementation  *******************************/
-
+/******************************* Implementation *******************************/
 // Anonymous exception class
 var assertExc = dojo.declare(null, {
     msg: null,
     constructor: function (msg) {
         this.msg = msg;
     },
-    toString: function () {
-        return ("AssertException: " + this.msg);
-    }
+    toString: function () { return ('AssertException: ' + this.msg); }
 });
 
 // Check expression, if false, throw exception
-function assert(expression, message) {
+function assert (expression, message) {
     if (!expression) {
         throw new assertExc(message);
     }
 }
 
-/******************************** Initialize  *********************************/
-
+/********************************* Initialize *********************************/
 dojo.ready(function () {
-    mcc.util.dbg("Assertion module initialized");
+    console.info('[INF]Assertion module initialized');
 });
-

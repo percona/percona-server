@@ -96,6 +96,8 @@ select c1 + c1 * (c2 / 100) as col from t1;
 col
 140.36
 create table t2 select c1 + c1 * (c2 / 100) as col1, round(c1, 5) as col2, round(c1, 35) as col3, sqrt(c1*1e-15) col4 from t1;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 select * from t2;
 col1	col2	col3	col4
 140.36	121.00000	121	0.00000034785054261852176
@@ -115,6 +117,9 @@ max(a)	min(a)	avg(a)
 1	1	1
 drop table t1;
 create table t1 (f float, f2 float(24), f3 float(6,2), d double, d2 float(53), d3 double(10,3), de decimal, de2 decimal(6), de3 decimal(5,2), n numeric, n2 numeric(8), n3 numeric(7,6));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 show full columns from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 f	float	NULL	YES		NULL		#	
@@ -155,6 +160,8 @@ create table t1 (f float(54));
 ERROR 42000: Incorrect column specifier for column 'f'
 drop table if exists t1;
 create table t1 (d1 double, d2 double unsigned);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 insert into t1 set d1 = -1.0;
 update t1 set d2 = d1;
 ERROR 22003: Out of range value for column 'd2' at row 1
@@ -163,6 +170,8 @@ d1	d2
 -1	NULL
 drop table t1;
 create table t1 (f float(4,3));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 insert into t1 values (-11.0);
 ERROR 22003: Out of range value for column 'f' at row 1
 insert into t1 values (-11);
@@ -179,6 +188,8 @@ select * from t1;
 f
 drop table if exists t1;
 create table t1 (f double(4,3));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 insert into t1 values (-11.0);
 ERROR 22003: Out of range value for column 'f' at row 1
 insert into t1 values (-11);
@@ -230,10 +241,16 @@ reckey	recdesc
 109	Has 109 as key
 drop table t1;
 create table t1 (d double(10,1));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 create table t2 (d double(10,9));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 insert into t1 values ("100000000.0");
 insert into t2 values ("1.23456780");
 create table t3 select * from t2 union select * from t1;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 select * from t3;
 d
 1.234567800
@@ -273,6 +290,8 @@ select 10e307;
 10e307
 1e308
 create table t1(a int, b double(8, 2));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 insert into t1 values
 (1, 28.50), (1, 121.85), (1, 157.23), (1, 1351.00), (1, -1965.35), (1, 81.75), 
 (1, 217.08), (1, 7.94), (4, 96.07), (4, 6404.65), (4, -6500.72), (2, 100.00),
@@ -356,6 +375,10 @@ CREATE TABLE t1 (
 f1 real zerofill,
 f2 double zerofill,
 f3 float zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 INSERT INTO t1 VALUES ( 0.314152e+1, 0.314152e+1, 0.314152e+1);
 PREPARE stmt1 FROM 'select f1, f2, f3 FROM t1';
 select f1, f2, f3 FROM t1;
@@ -369,6 +392,8 @@ f1	f2	f3
 0000000000000003.14152	0000000000000003.14152	000003.14152
 DROP TABLE t1;
 create table t1 (f1 double(200, 0));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 insert into t1 values (1e199), (-1e199);
 insert into t1 values (1e200), (-1e200);
 insert into t1 values (2e200), (-2e200);
@@ -381,6 +406,8 @@ f1 + 0e0
 -1e200
 drop table t1;
 create table t1 (f1 float(30, 0));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 insert into t1 values (1e29), (-1e29);
 insert into t1 values (1e30), (-1e30);
 insert into t1 values (2e30), (-2e30);

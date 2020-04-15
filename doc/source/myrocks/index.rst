@@ -29,4 +29,5 @@ engines, if your workload uses fast storage, such as SSD:
    column-family
    variables
    information-schema-tables
+   performance-schema-tables
 

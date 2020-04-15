@@ -26,6 +26,7 @@
 #include "mysql/psi/psi_cond.h"
 #include "mysql/psi/psi_mutex.h"
 #include "mysql/service_mysql_alloc.h"
+#include "template_utils.h"
 #include "thr_mutex.h"
 
 struct audit_log_buffer_t {
@@ -170,6 +171,7 @@ int audit_log_buffer_write(audit_log_buffer_t *log, const char *buf,
                       log_record_state_t::COMPLETE);
       audit_log_buffer_resume(log);
     }
+    audit_log_buffer_size_overflow.fetch_add(1, std::memory_order_relaxed);
     return (0);
   }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,14 +54,6 @@ const uint GEOM_HEADER_SIZE = (SRID_SIZE + WKB_HEADER_SIZE);
 
 const uint32 GET_SIZE_ERROR = 0xFFFFFFFFU;
 
-inline bool is_little_endian() {
-#ifdef WORDS_BIGENDIAN
-  return false;
-#else
-  return true;
-#endif
-}
-
 /**
   Point with coordinates X and Y.
 */
@@ -110,9 +102,8 @@ struct MBR {
   }
   void add_xy(point_xy p) { add_xy(p.x, p.y); }
   void add_xy(const char *px, const char *py) {
-    double x, y;
-    float8get(&x, px);
-    float8get(&y, py);
+    double x = float8get(px);
+    double y = float8get(py);
     add_xy(x, y);
   }
   void add_mbr(const MBR *mbr) {
@@ -396,7 +387,7 @@ class Geometry {
       *number = uint4korr(m_data);  // GIS-TODO: byte order
     }
     void get_float8(double *x) {
-      float8get(x, m_data);  // GIS-TODO: byte order
+      *x = float8get(m_data);  // GIS-TODO: byte order
     }
 
    public:
@@ -468,7 +459,7 @@ class Geometry {
 
   class Class_info {
    public:
-    LEX_STRING m_name;
+    const LEX_CSTRING m_name;
     int m_type_id;
     create_geom_t m_create_func;
     Class_info(const char *name, int type_id, create_geom_t create_func);
@@ -1252,7 +1243,6 @@ class Gis_point : public Geometry {
 
     set_bg_adapter(true);
     const char *p = static_cast<char *>(m_ptr) + K * SIZEOF_STORED_DOUBLE;
-    double val;
 
     /*
       Boost Geometry may use a point that is only default constructed that
@@ -1261,8 +1251,7 @@ class Gis_point : public Geometry {
      */
     if (m_ptr == NULL) return 0;
 
-    float8get(&val, p);
-    return val;
+    return float8get(p);
   }
 
   /// @brief Set a coordinate
@@ -2042,14 +2031,14 @@ class Gis_wkb_vector : public Geometry {
   Gis_wkb_vector() : Geometry() { m_geo_vect = NULL; }
 
   ~Gis_wkb_vector() override {
-  /*
-    See ~Geometry() for why we do try-catch like this.
+    /*
+      See ~Geometry() for why we do try-catch like this.
 
-    Note that although ~Inplace_vector() calls std::vector member functions,
-    all of them have no-throw guarantees, so this function won't throw any
-    exception now. We do so nonetheless for potential mis-use of exceptions
-    in futher code.
-  */
+      Note that although ~Inplace_vector() calls std::vector member functions,
+      all of them have no-throw guarantees, so this function won't throw any
+      exception now. We do so nonetheless for potential mis-use of exceptions
+      in futher code.
+    */
 #if !defined(DBUG_OFF)
     try {
 #endif
@@ -2473,8 +2462,8 @@ class Gis_geometry_collection : public Geometry {
   inside a Geometry_buffer object, unless used as boost geometry adapter,
   in which case the object may simply placed on stack or new'ed on heap.
  */
-struct Geometry_buffer
-    : public my_aligned_storage<sizeof(Gis_polygon), MY_ALIGNOF(Gis_polygon)> {
+struct Geometry_buffer {
+  alignas(Gis_polygon) char data[sizeof(Gis_polygon)];
 };
 
 class WKB_scanner_event_handler {

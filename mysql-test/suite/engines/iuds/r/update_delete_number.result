@@ -119,12 +119,12 @@ c1	c2	c3
 CREATE TABLE t2(c1 INT SIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 INT UNSIGNED NULL, c3 INT);
 INSERT INTO t2(c1) VALUES(1),(2),(3),(4),(5);
 UPDATE t2 SET c1=1 WHERE c1=3;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 UPDATE IGNORE t2 SET c1=1 WHERE c1>=3;
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
 SELECT c1 FROM t2;
 c1
 1
@@ -851,7 +851,13 @@ id	id_str
 1	test1
 drop table mt1;
 create table mt1 (n int(10) not null primary key, d int(10));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table mt2 (n int(10) not null primary key, d int(10));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into mt1 values(1,1), (3,3);
 insert into mt2 values(1,10),(2,20);
 UPDATE mt2 left outer join mt1 on mt1.n=mt2.n  SET mt1.d=mt2.d;
@@ -865,7 +871,13 @@ n	d
 2	20
 drop table mt1,mt2;
 create table mt1 (n int(10), d int(10));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table mt2 (n int(10), d int(10));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into mt1 values(1,1),(1,2);
 insert into mt2 values(1,10),(2,20);
 UPDATE mt1 straight_join mt2 SET mt1.d=mt2.d,mt2.d=30 WHERE mt1.n=mt2.n;
@@ -879,7 +891,13 @@ n	d
 2	20
 drop table mt1,mt2;
 create table mt1 (n int(10), d int(10));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table mt2 (n int(10), d int(10));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into mt1 values(1,1),(3,2);
 insert into mt2 values(1,10),(1,20);
 UPDATE mt1 straight_join mt2 SET mt1.d=mt2.d,mt2.d=30 WHERE mt1.n=mt2.n;
@@ -908,8 +926,17 @@ select * from mt2;
 n	d
 drop table mt1,mt2;
 CREATE TABLE mt1 (`colA` int(10) unsigned NOT NULL auto_increment, `colB` int(11) NOT NULL default '0', PRIMARY KEY  (`colA`));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO mt1 VALUES (4433,5424);
 CREATE TABLE mt2 (`colC` int(10) unsigned NOT NULL default '0', `colA` int(10) unsigned NOT NULL default '0', `colD` int(10) unsigned NOT NULL default '0', `colE` int(10) unsigned NOT NULL default '0', `colF` int(10) unsigned NOT NULL default '0', PRIMARY KEY  (`colC`,`colA`,`colD`,`colE`));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO mt2 VALUES (3,4433,10005,495,500);
 INSERT INTO mt2 VALUES (3,4433,10005,496,500);
 INSERT INTO mt2 VALUES (3,4433,10009,494,500);
@@ -921,11 +948,11 @@ INSERT INTO mt2 VALUES (3,4433,10005,493,500);
 INSERT INTO mt2 VALUES (3,4433,10005,492,500);
 UPDATE IGNORE mt2,mt1 set mt2.colE = mt2.colE + 1,colF=0 WHERE mt1.colA = mt2.colA AND (mt1.colB & 4096) > 0 AND (colE + 1) < colF;
 Warnings:
-Warning	1062	Duplicate entry '3-4433-10005-493' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3-4433-10005-494' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3-4433-10005-495' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3-4433-10005-496' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3-4433-10005-497' for key 'PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-493' for key 'mt2.PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-494' for key 'mt2.PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-495' for key 'mt2.PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-496' for key 'mt2.PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-497' for key 'mt2.PRIMARY'
 SELECT * FROM mt2;
 colC	colA	colD	colE	colF
 3	4433	10005	492	500
@@ -939,7 +966,11 @@ colC	colA	colD	colE	colF
 3	4433	10013	490	0
 DROP TABLE mt1,mt2;
 create table mt1(id1 smallint(5), field char(5));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table mt2(id2 smallint(5), field char(5));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into mt1 values (1, 'a'), (2, 'aa');
 insert into mt2 values (1, 'b'), (2, 'bb');
 select * from mt1;
@@ -993,7 +1024,12 @@ delete mt1 from mt1,mt2 where mt1.col1 < (select max(col1) from mt1) and mt1.col
 ERROR HY000: You can't specify target table 'mt1' for update in FROM clause
 drop table mt1,mt2;
 CREATE TABLE IF NOT EXISTS `mt1` (`id` int(11) NOT NULL auto_increment, `tst` text, `tsmt1` text, PRIMARY KEY  (`id`));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE IF NOT EXISTS `mt2` (`ID` int(11) NOT NULL auto_increment, `ParId` int(11) default NULL, `tst` text, `tsmt1` text, PRIMARY KEY  (`ID`), KEY `IX_ParId_mt2` (`ParId`),  FOREIGN KEY (`ParId`) REFERENCES `mt1` (`id`));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO mt1(tst,tsmt1) VALUES("MySQL","MySQL AB"), ("MSSQL","Microsoft"), ("ORACLE","ORACLE");
 INSERT INTO mt2(ParId) VALUES(1), (2), (3);
 select * from mt2;
@@ -1222,12 +1258,12 @@ c1	c2	c3
 CREATE TABLE t2(c1 TINYINT SIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 TINYINT UNSIGNED NULL, c3 INT);
 INSERT INTO t2(c1) VALUES(1),(2),(3),(4),(5);
 UPDATE t2 SET c1=1 WHERE c1=3;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 UPDATE IGNORE t2 SET c1=1 WHERE c1>=3;
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
 SELECT c1 FROM t2;
 c1
 1
@@ -1997,12 +2033,12 @@ c1	c2	c3
 CREATE TABLE t2(c1 SMALLINT SIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 SMALLINT UNSIGNED NULL, c3 INT);
 INSERT INTO t2(c1) VALUES(1),(2),(3),(4),(5);
 UPDATE t2 SET c1=1 WHERE c1=3;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 UPDATE IGNORE t2 SET c1=1 WHERE c1>=3;
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
 SELECT c1 FROM t2;
 c1
 1
@@ -2744,12 +2780,12 @@ c1	c2	c3
 CREATE TABLE t2(c1 MEDIUMINT SIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 MEDIUMINT UNSIGNED NULL, c3 INT);
 INSERT INTO t2(c1) VALUES(1),(2),(3),(4),(5);
 UPDATE t2 SET c1=1 WHERE c1=3;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 UPDATE IGNORE t2 SET c1=1 WHERE c1>=3;
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
 SELECT c1 FROM t2;
 c1
 1
@@ -3491,12 +3527,12 @@ c1	c2	c3
 CREATE TABLE t2(c1 BIGINT SIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 BIGINT UNSIGNED NULL, c3 INT);
 INSERT INTO t2(c1) VALUES(1),(2),(3),(4),(5);
 UPDATE t2 SET c1=1 WHERE c1=3;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 UPDATE IGNORE t2 SET c1=1 WHERE c1>=3;
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
 SELECT c1 FROM t2;
 c1
 1

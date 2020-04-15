@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,7 +63,7 @@
 namespace my_testing {
 
 int chars_2_decimal(const char *chars, my_decimal *to) {
-  char *end = strend(chars);
+  const char *end = strend(chars);
   return string2decimal(chars, to, &end);
 }
 
@@ -88,6 +88,8 @@ void setup_server_for_unit_tests() {
   system_charset_info = &my_charset_utf8_general_ci;
   sys_var_init();
   init_common_variables();
+  test_flags |= TEST_SIGINT;
+  test_flags &= ~TEST_CORE_ON_SIGNAL;
   my_init_signals();
   randominit(&sql_rand, 0, 0);
   transaction_cache_init();

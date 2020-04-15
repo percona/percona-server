@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -34,20 +34,13 @@
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "sha2.h"                   // SHA256
+#include "sql/lexer_yystype.h"      // Lexer_yystype
 #include "sql/sql_digest_stream.h"  // sql_digest_state
-#include "sql/sql_lex.h"            // LEX_YYSTYPE
 #include "sql/sql_yacc.h"           // Generated code.
 #include "sql_string.h"             // String
 
 #define LEX_TOKEN_WITH_DEFINITION
 #include "sql/lex_token.h"
-
-/* Name pollution from sql/sql_lex.h */
-#ifdef LEX_YYSTYPE
-#undef LEX_YYSTYPE
-#endif
-
-#define LEX_YYSTYPE YYSTYPE *
 
 #define SIZE_OF_A_TOKEN 2
 
@@ -97,7 +90,8 @@ inline void store_token(sql_digest_storage *digest_storage, uint token) {
   Read an identifier from token array.
 */
 inline uint read_identifier(const sql_digest_storage *digest_storage,
-                            uint index, char **id_string, int *id_length) {
+                            uint index, const char **id_string,
+                            int *id_length) {
   uint new_index;
   uint safe_byte_count = digest_storage->m_byte_count;
 
@@ -119,7 +113,7 @@ inline uint read_identifier(const sql_digest_storage *digest_storage,
     bytes_needed += length;
     /* If we can read entire identifier from token array */
     if ((index + bytes_needed) <= safe_byte_count) {
-      *id_string = (char *)(src + 2);
+      *id_string = pointer_cast<const char *>(src) + 2;
       *id_length = length;
 
       new_index = index + bytes_needed;
@@ -214,7 +208,7 @@ void compute_digest_text(const sql_digest_storage *digest_storage,
   }
 
   char id_buffer[NAME_LEN + 1] = {'\0'};
-  char *id_string;
+  const char *id_string;
   size_t id_length;
   bool convert_text = !my_charset_same(from_cs, to_cs);
 
@@ -234,7 +228,7 @@ void compute_digest_text(const sql_digest_storage *digest_storage,
       case IDENT_QUOTED:
       case TOK_IDENT:
       case TOK_IDENT_AT: {
-        char *id_ptr = NULL;
+        const char *id_ptr = nullptr;
         int id_len = 0;
         uint err_cs = 0;
 
@@ -384,7 +378,7 @@ static inline void peek_last_three_tokens(
 }
 
 sql_digest_state *digest_add_token(sql_digest_state *state, uint token,
-                                   LEX_YYSTYPE yylval) {
+                                   Lexer_yystype *yylval) {
   sql_digest_storage *digest_storage = NULL;
 
   digest_storage = &state->m_digest_storage;
@@ -582,7 +576,7 @@ sql_digest_state *digest_add_token(sql_digest_state *state, uint token,
     case IDENT:
     case IDENT_QUOTED:
     case TOK_IDENT_AT: {
-      YYSTYPE *lex_token = yylval;
+      Lexer_yystype *lex_token = yylval;
       char *yytext = lex_token->lex_str.str;
       size_t yylen = lex_token->lex_str.length;
 

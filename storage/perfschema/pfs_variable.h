@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -487,7 +487,7 @@ THD *PFS_variable_cache<Var_type>::get_THD(PFS_thread *pfs_thread) {
 template <class Var_type>
 bool PFS_variable_cache<Var_type>::initialize_session(void) {
   if (m_initialized) {
-    return 0;
+    return false;
   }
 
   return do_initialize_session();
@@ -500,7 +500,7 @@ bool PFS_variable_cache<Var_type>::initialize_session(void) {
 template <class Var_type>
 bool PFS_variable_cache<Var_type>::initialize_client_session(void) {
   if (m_initialized) {
-    return 0;
+    return false;
   }
 
   /* Requires aggregation by user, host or account. */

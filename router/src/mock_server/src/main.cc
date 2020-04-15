@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -53,8 +53,10 @@ constexpr unsigned kHelpScreenIndent = 8;
 struct MysqlServerMockConfig {
   std::string queries_filename;
   std::string module_prefix;
+  std::string bind_address{"0.0.0.0"};
   unsigned port{3306};
   unsigned http_port{0};
+  unsigned xport{0};
   bool verbose{false};
 };
 
@@ -110,32 +112,23 @@ class MysqlServerMockFrontend {
     std::unique_ptr<mysql_harness::Loader> loader_;
 
     init_DIM();
-    mysql_harness::LoaderConfig loader_config(
-        mysql_harness::Config::allow_keys);
+    std::unique_ptr<mysql_harness::LoaderConfig> loader_config(
+        new mysql_harness::LoaderConfig(mysql_harness::Config::allow_keys));
 
     mysql_harness::DIM &dim = mysql_harness::DIM::instance();
     mysql_harness::logging::Registry &registry = dim.get_LoggingRegistry();
 
     mysql_harness::Config config;
-
-    // NOTE: See where g_HACK_default_log_level is set in production code to
-    // understand the hack. One day we will want to revert to something
-    // analogous to what we had before. Original code looked like this:
-    //   config.set_default(mysql_harness::logging::kConfigOptionLogLevel,
-    //   "debug");
-    if (config_.verbose) {
-      mysql_harness::logging::g_HACK_default_log_level = "debug";
-    } else {
-      mysql_harness::logging::g_HACK_default_log_level = "warning";
-    }
+    const mysql_harness::logging::LogLevel log_level =
+        mysql_harness::logging::get_default_log_level(config);
 
     mysql_harness::logging::clear_registry(registry);
-    mysql_harness::logging::init_loggers(
-        registry, config,
+    mysql_harness::logging::create_module_loggers(
+        registry, log_level,
         {mysql_harness::logging::kMainLogger, "mock_server", "http_server", "",
          "rest_mock_server"},
         mysql_harness::logging::kMainLogger);
-    mysql_harness::logging::create_main_logfile_handler(registry, "", "", true);
+    mysql_harness::logging::create_main_log_handler(registry, "", "", true);
 
     registry.set_ready();
 
@@ -150,41 +143,60 @@ class MysqlServerMockFrontend {
     }
 
     // log to stderr
-    loader_config.set_default("logging_folder", "");
+    loader_config->set_default("logging_folder", "");
+    loader_config->add("logger");
+    loader_config->get("logger", "")
+        .add("level", config_.verbose ? "debug" : "warning");
 
     // assume all path relative to the installed binary
     auto plugin_dir = mysql_harness::get_plugin_dir(origin_dir_.str());
-    loader_config.set_default("plugin_folder", plugin_dir);
+    loader_config->set_default("plugin_folder", plugin_dir);
 
     // those are unused, but must be set
     auto base_path = mysql_harness::Path(origin_dir_).join("..");
-    loader_config.set_default(
+    loader_config->set_default(
         "runtime_folder",
         mysql_harness::Path(base_path).join("var").join("lib").str());
-    loader_config.set_default("config_folder",
-                              mysql_harness::Path(base_path).join("etc").str());
-    loader_config.set_default(
+    loader_config->set_default(
+        "config_folder", mysql_harness::Path(base_path).join("etc").str());
+    loader_config->set_default(
         "data_folder",
         mysql_harness::Path(base_path).join("var").join("share").str());
 
     if (config_.http_port != 0) {
-      auto &rest_mock_server_config = loader_config.add("rest_mock_server", "");
+      auto &rest_mock_server_config =
+          loader_config->add("rest_mock_server", "");
       rest_mock_server_config.set("library", "rest_mock_server");
 
-      auto &http_server_config = loader_config.add("http_server", "");
+      auto &http_server_config = loader_config->add("http_server", "");
       http_server_config.set("library", "http_server");
       http_server_config.set("port", std::to_string(config_.http_port));
       http_server_config.set("static_folder", "");
     }
 
-    auto &mock_server_config = loader_config.add("mock_server", "");
+    auto &mock_server_config = loader_config->add("mock_server", "classic");
     mock_server_config.set("library", "mock_server");
+    mock_server_config.set("bind_address", config_.bind_address);
     mock_server_config.set("port", std::to_string(config_.port));
     mock_server_config.set("filename", config_.queries_filename);
     mock_server_config.set("module_prefix", config_.module_prefix);
+    mock_server_config.set("protocol", "classic");
+
+    if (config_.xport != 0) {
+      auto &mock_x_server_config = loader_config->add("mock_server", "x");
+      mock_x_server_config.set("library", "mock_server");
+      mock_x_server_config.set("port", std::to_string(config_.xport));
+      mock_x_server_config.set("filename", config_.queries_filename);
+      mock_x_server_config.set("module_prefix", config_.module_prefix);
+      mock_x_server_config.set("protocol", "x");
+    }
+
+    mysql_harness::DIM::instance().set_Config(
+        [&]() { return loader_config.release(); },
+        std::default_delete<mysql_harness::LoaderConfig>());
 
     try {
-      loader_.reset(new mysql_harness::Loader("server-mock", loader_config));
+      loader_.reset(new mysql_harness::Loader("server-mock", *loader_config));
     } catch (const std::runtime_error &err) {
       throw std::runtime_error(std::string("init-loader failed: ") +
                                err.what());
@@ -215,11 +227,26 @@ class MysqlServerMockFrontend {
                             "filename", [this](const std::string &filename) {
                               config_.queries_filename = filename;
                             });
+
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"-B", "--bind-address"}),
+        "TCP address to bind to listen on for classic protocol connections.",
+        CmdOptionValueReq::required, "string",
+        [this](const std::string &bind_address) {
+          config_.bind_address = bind_address;
+        });
+
     arg_handler_.add_option(
         CmdOption::OptionNames({"-P", "--port"}),
         "TCP port to listen on for classic protocol connections.",
         CmdOptionValueReq::required, "int", [this](const std::string &port) {
           config_.port = static_cast<unsigned>(std::stoul(port));
+        });
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"-X", "--xport"}),
+        "TCP port to listen on for X protocol connections.",
+        CmdOptionValueReq::required, "int", [this](const std::string &port) {
+          config_.xport = static_cast<unsigned>(std::stoul(port));
         });
     arg_handler_.add_option(
         CmdOption::OptionNames({"--http-port"}),
@@ -260,7 +287,7 @@ int main(int argc, char *argv[]) {
   result = WSAStartup(MAKEWORD(2, 2), &wsaData);
   if (result != 0) {
     std::cerr << "WSAStartup failed with error: " << result << std::endl;
-    return -1;
+    return EXIT_FAILURE;
   }
 #endif
 
@@ -275,7 +302,7 @@ int main(int argc, char *argv[]) {
     frontend.run();
   } catch (const std::exception &e) {
     std::cout << "ERROR: " << e.what() << std::endl;
-    return -1;
+    return EXIT_FAILURE;
   }
 
   return 0;

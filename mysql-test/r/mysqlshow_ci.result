@@ -79,13 +79,19 @@ Database: information_schema
 +---------------------------------------+
 |                Tables                 |
 +---------------------------------------+
+| ADMINISTRABLE_ROLE_AUTHORIZATIONS     |
+| APPLICABLE_ROLES                      |
 | CHARACTER_SETS                        |
+| CHECK_CONSTRAINTS                     |
 | CLIENT_STATISTICS                     |
 | COLLATION_CHARACTER_SET_APPLICABILITY |
 | COLLATIONS                            |
 | COLUMN_PRIVILEGES                     |
 | COLUMN_STATISTICS                     |
 | COLUMNS                               |
+| COMPRESSION_DICTIONARY                |
+| COMPRESSION_DICTIONARY_TABLES         |
+| ENABLED_ROLES                         |
 | ENGINES                               |
 | EVENTS                                |
 | FILES                                 |
@@ -119,6 +125,8 @@ Database: information_schema
 | INNODB_TABLES                         |
 | INNODB_TABLESPACES                    |
 | INNODB_TABLESPACES_BRIEF              |
+| INNODB_TABLESPACES_ENCRYPTION         |
+| INNODB_TABLESPACES_SCRUBBING          |
 | INNODB_TABLESTATS                     |
 | INNODB_TEMP_TABLE_INFO                |
 | INNODB_TRX                            |
@@ -133,6 +141,9 @@ Database: information_schema
 | PROFILING                             |
 | REFERENTIAL_CONSTRAINTS               |
 | RESOURCE_GROUPS                       |
+| ROLE_COLUMN_GRANTS                    |
+| ROLE_ROUTINE_GRANTS                   |
+| ROLE_TABLE_GRANTS                     |
 | ROUTINES                              |
 | SCHEMA_PRIVILEGES                     |
 | SCHEMATA                              |
@@ -158,13 +169,19 @@ Database: INFORMATION_SCHEMA
 +---------------------------------------+
 |                Tables                 |
 +---------------------------------------+
+| ADMINISTRABLE_ROLE_AUTHORIZATIONS     |
+| APPLICABLE_ROLES                      |
 | CHARACTER_SETS                        |
+| CHECK_CONSTRAINTS                     |
 | CLIENT_STATISTICS                     |
 | COLLATION_CHARACTER_SET_APPLICABILITY |
 | COLLATIONS                            |
 | COLUMN_PRIVILEGES                     |
 | COLUMN_STATISTICS                     |
 | COLUMNS                               |
+| COMPRESSION_DICTIONARY                |
+| COMPRESSION_DICTIONARY_TABLES         |
+| ENABLED_ROLES                         |
 | ENGINES                               |
 | EVENTS                                |
 | FILES                                 |
@@ -198,6 +215,8 @@ Database: INFORMATION_SCHEMA
 | INNODB_TABLES                         |
 | INNODB_TABLESPACES                    |
 | INNODB_TABLESPACES_BRIEF              |
+| INNODB_TABLESPACES_ENCRYPTION         |
+| INNODB_TABLESPACES_SCRUBBING          |
 | INNODB_TABLESTATS                     |
 | INNODB_TEMP_TABLE_INFO                |
 | INNODB_TRX                            |
@@ -212,6 +231,9 @@ Database: INFORMATION_SCHEMA
 | PROFILING                             |
 | REFERENTIAL_CONSTRAINTS               |
 | RESOURCE_GROUPS                       |
+| ROLE_COLUMN_GRANTS                    |
+| ROLE_ROUTINE_GRANTS                   |
+| ROLE_TABLE_GRANTS                     |
 | ROUTINES                              |
 | SCHEMA_PRIVILEGES                     |
 | SCHEMATA                              |

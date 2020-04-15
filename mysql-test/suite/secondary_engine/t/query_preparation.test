@@ -42,7 +42,6 @@ SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 ALTER TABLE t1 SECONDARY_UNLOAD;
 EXECUTE ps;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
-ALTER TABLE t1 SECONDARY_UNLOAD;
 EXECUTE ps;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 DROP PREPARE ps;
@@ -80,8 +79,7 @@ SELECT * FROM v1, t2 WHERE v1.id = t2.id;
 SELECT SUM(x) FROM v1;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
-# A forced index scan cannot be offloaded, since the secondary storage
-# engine doesn't have indexes.
+# A forced index scan can be offloaded, since it's just a hint.
 FLUSH STATUS;
 SELECT x FROM t1 FORCE INDEX (t1_x);
 PREPARE ps FROM 'SELECT x FROM t1 FORCE INDEX (t1_x)';
@@ -89,7 +87,6 @@ EXECUTE ps;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 SET @my_use_secondary_engine = @@use_secondary_engine;
 SET @@use_secondary_engine = FORCED;
---error ER_SECONDARY_ENGINE
 EXECUTE ps;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 SET @@use_secondary_engine = @my_use_secondary_engine;
@@ -158,6 +155,9 @@ EXECUTE ps;
 EXECUTE ps;
 DROP PREPARE ps;
 SELECT * FROM t1, t2, t_primary_only tp WHERE t1.id = t2.id AND t2.id = tp.id;
+
+# Queries that access schema tables should not be offloaded.
+EXPLAIN SELECT * FROM t1, INFORMATION_SCHEMA.COLUMN_PRIVILEGES t2;
 
 # It should be possible to have tables with an auto-increment column
 # in a secondary engine.
@@ -246,7 +246,25 @@ FLUSH STATUS;
 CREATE PROCEDURE p1() SELECT COUNT(*) FROM t1;
 CALL p1();
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+PREPARE ps1 FROM 'SELECT * FROM t1';
+EXECUTE ps1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+CREATE PROCEDURE p2() EXECUTE ps1;
+CREATE PROCEDURE p3() PREPARE ps2 FROM 'SELECT * FROM t1';
+FLUSH STATUS;
+CALL p2();
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+CALL p3();
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+EXECUTE ps1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+EXECUTE ps2;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+DROP PREPARE ps1;
+DROP PREPARE ps2;
 DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
 
 # Queries inside a trigger should not be offloaded.
 FLUSH STATUS;
@@ -516,6 +534,286 @@ ANALYZE TABLE t1;
 EXPLAIN SELECT * FROM t1;
 EXPLAIN FORMAT=JSON SELECT * FROM t1;
 DROP TABLE t1;
+
+--echo #
+--echo # Load only a subset of columns into secondary engine.
+--echo #
+SET @my_use_secondary_engine = @@use_secondary_engine;
+CREATE TABLE t1 (
+  pk INT PRIMARY KEY AUTO_INCREMENT,
+  a INT,
+  b INT NOT SECONDARY,
+  c INT,
+  d INT NOT SECONDARY
+) SECONDARY_ENGINE MOCK;
+
+CREATE TABLE t2 (
+  pk INT PRIMARY KEY AUTO_INCREMENT,
+  e INT,
+  f INT NOT SECONDARY,
+  g INT,
+  h INT NOT SECONDARY
+) SECONDARY_ENGINE MOCK;
+
+INSERT INTO t1 (a, b, c, d) VALUES (1,1,1,1), (1,1,1,1), (2,2,2,2);
+INSERT INTO t2 (e, f, g, h) VALUES (2,2,2,2), (2,2,2,2), (3,3,3,3);
+
+ALTER TABLE t1 SECONDARY_LOAD;
+ALTER TABLE t2 SECONDARY_LOAD;
+
+--echo # Statements which should be sent to primary engine since not all columns
+--echo # are in secondary engine.
+CREATE VIEW v1 as SELECT * FROM t1;
+CREATE VIEW v2 as SELECT t1.a, t2.f FROM t1, t2;
+SELECT * FROM t1;
+--error ER_SECONDARY_ENGINE
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ * FROM t1;
+SELECT 1 FROM t1 WHERE b=1;
+SELECT 1 FROM t1 GROUP BY b;
+SELECT 1 FROM t1 ORDER BY b;
+--error ER_SECONDARY_ENGINE
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ 1 FROM t1 WHERE b=1;
+--error ER_SECONDARY_ENGINE
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ 1 FROM t1 GROUP BY b;
+--error ER_SECONDARY_ENGINE
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ 1 FROM t1 ORDER BY b;
+SELECT * FROM v1;
+SELECT SUM(b) FROM v1;
+SELECT 1 FROM v1 WHERE b=1;
+SELECT 1 FROM v1 GROUP BY b;
+SELECT 1 FROM v1 ORDER BY b;
+--error ER_SECONDARY_ENGINE
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ * FROM v1;
+--error ER_SECONDARY_ENGINE
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ SUM(b) FROM v1;
+--error ER_SECONDARY_ENGINE
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ 1 FROM v1 WHERE b=1;
+--error ER_SECONDARY_ENGINE
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ 1 FROM v1 GROUP BY b;
+--error ER_SECONDARY_ENGINE
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ 1 FROM v1 ORDER BY b;
+--sorted_result
+SELECT t1.a, t2.f FROM t1, t2;
+--error ER_SECONDARY_ENGINE
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ t1.a, t2.f FROM t1, t2;
+--sorted_result
+SELECT * FROM v2;
+--error ER_SECONDARY_ENGINE
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ * FROM v2;
+
+--echo # Statements which should be sent to the secondary engine since all
+--echo # columns are in secondary engine.
+SET @@use_secondary_engine = FORCED;
+CREATE VIEW v3 as SELECT a, c FROM t1;
+CREATE VIEW v4 as SELECT t1.a, t1.c, t2.e, t2.g FROM t1, t2;
+SELECT a, c FROM t1;
+SELECT 1 FROM t1 WHERE a=1;
+SELECT * FROM v3;
+SELECT t1.a, t1.c, t2.e, t2.g FROM t1, t2;
+SELECT * FROM v4;
+
+DROP VIEW v1, v2, v3, v4;
+DROP TABLE t1, t2;
+SET @@use_secondary_engine = @my_use_secondary_engine;
+
+--echo #
+--echo # NOT SECONDARY on partitioned table
+--echo #
+CREATE TABLE t1 (a INT PRIMARY KEY NOT SECONDARY, b INT DEFAULT 10)
+PARTITION BY RANGE (a) (
+PARTITION p0 VALUES LESS THAN (1),
+PARTITION p1 VALUES LESS THAN (2),
+PARTITION p2 VALUES LESS THAN (3),
+PARTITION p3 VALUES LESS THAN (4),
+PARTITION p4 VALUES LESS THAN (5),
+PARTITION p5 VALUES LESS THAN (6),
+PARTITION max VALUES LESS THAN MAXVALUE);
+INSERT INTO t1(a) VALUES (-1),(0),(1),(2),(3),(4),(5),(6),(7),(8);
+ALTER TABLE t1 SECONDARY_ENGINE=MOCK;
+ALTER TABLE t1 SECONDARY_LOAD;
+ANALYZE TABLE t1;
+FLUSH STATUS;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+--error ER_SECONDARY_ENGINE
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ a FROM t1;
+SELECT a FROM t1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+SELECT b FROM t1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ b FROM t1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+DROP TABLE t1;
+
+--echo #
+--echo # Use NOT SECONDARY as comment.
+--echo #
+CREATE TABLE t1 (a INT /* NOT SECONDARY */, b INT ) SECONDARY_ENGINE MOCK;
+INSERT INTO t1 VALUES (1,1);
+ALTER TABLE t1 SECONDARY_LOAD;
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ a FROM t1;
+FLUSH STATUS;
+SELECT a FROM t1;
+SELECT * FROM t1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+DROP TABLE t1;
+
+--echo #
+--echo # Use NOT SECONADRY with other constraint on column.
+--echo #
+CREATE TABLE t1 (a INT, b INT NOT SECONDARY UNIQUE KEY) SECONDARY_ENGINE MOCK;
+INSERT INTO t1 VALUES (1, 1);
+ALTER TABLE t1 SECONDARY_LOAD;
+FLUSH STATUS;
+--error ER_SECONDARY_ENGINE
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ * FROM t1;
+SELECT a FROM t1;
+--error ER_SECONDARY_ENGINE
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ b FROM t1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+DROP TABLE t1;
+
+
+--echo # Add NON SECONDARY and do not use SECONDARY_ENGINE AT CREATE
+CREATE TABLE t1 (a INT NOT SECONDARY, b INT);
+INSERT INTO t1 VALUES (1,1);
+SELECT a FROM t1;
+SELECT b FROM t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#28738100: SECONDARY ENGINE RETURNS WRONG RESULT WITH IS NULL CLAUSE
+--echo #
+
+# Enable special handling of IS NULL for this test case.
+SET @saved_sql_auto_is_null = @@sql_auto_is_null;
+SET @@sql_auto_is_null = 1;
+CREATE TABLE t(a INT PRIMARY KEY AUTO_INCREMENT) SECONDARY_ENGINE MOCK;
+ALTER TABLE t SECONDARY_LOAD;
+INSERT INTO t VALUES ();
+ANALYZE TABLE t;
+# Verify that a IS NULL is rewritten to a = last_insert_id().
+EXPLAIN SELECT * FROM t WHERE a IS NULL;
+DROP TABLE t;
+# Restore regular handling of IS NULL.
+SET @@sql_auto_is_null = @saved_sql_auto_is_null;
+
+--echo # Bug#29288023: Join condition is substituted with REF access
+
+CREATE TABLE t1(f1 int, f11 int);
+CREATE TABLE t2(f2 int, f22 int);
+INSERT INTO t1 VALUES(1,1),(2,2),(3,3),(5,5),(9,9),(7,7);
+INSERT INTO t2 VALUES(1,1),(3,3),(2,2),(4,4),(8,8),(6,6);
+let $query=
+SELECT *
+FROM t1 JOIN (SELECT f2, SUM(f22) AS b FROM t2 GROUP BY f2) AS dt
+     ON t1.f1=dt.f2;
+--echo Explain should show <auto_key0> for indexes on derived tables
+ANALYZE TABLE t1, t2;
+eval EXPLAIN $query;
+ALTER TABLE t1 SECONDARY_ENGINE=MOCK;
+ALTER TABLE t1 SECONDARY_LOAD;
+ALTER TABLE t2 SECONDARY_ENGINE=MOCK;
+ALTER TABLE t2 SECONDARY_LOAD;
+ANALYZE TABLE t1, t2;
+--echo Secondary engine does not support indexes on derived tables
+eval EXPLAIN $query;
+DROP TABLE t1, t2;
+
+CREATE TABLE t1(x INT, y INT, z INT, c INT, d INT);
+INSERT INTO t1 VALUES
+ (1, 5, 2, 2, 3), (2, 2, 5, 2, 3), (3, 5, 5, 2, 3), (4, 2, 5, 2, 3),
+ (2, 3, 4, 2, 3), (7, 6, 5, 2, 3), (8, 9, 5, 2, 3), (9, 6, 5, 2, 3),
+ (10, 7, 5, 2, 3), (11, 6, 5, 2, 3), (12, 7, 5, 2, 3), (13, -1, 5, 2, 3),
+ (14, 7, 5, 2, 3), (15, 8, 5, 2, 3), (16, 4, 5, 2, 3), (17, 7, 5, 2, 3),
+ (18, 7, 5, 2, 3), (19, 17, 5, 2, 3), (20, 17, 5, 2, 3), (21, 5, -1, 2, 3),
+ (22, 5, 5, 2, 3);
+ALTER TABLE t1 SECONDARY_ENGINE=MOCK;
+ALTER TABLE t1 SECONDARY_LOAD;
+ANALYZE TABLE t1;
+EXPLAIN
+SELECT *
+FROM (SELECT * FROM t1 WHERE x < 7 LIMIT 20) tt1,
+     (SELECT * FROM t1 WHERE x < y LIMIT 20) tt2
+WHERE tt1.x> 5 and tt1.x=tt2.x;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#29994087: SIG11 AT MATERIALIZEITERATOR::INIT() IN
+--echo #               SQL/COMPOSITE_ITERATORS.CC
+--echo #
+CREATE TABLE t (a INT, b INT) SECONDARY_ENGINE MOCK;
+ALTER TABLE t SECONDARY_LOAD;
+SELECT 1 FROM t
+WHERE (1, 2) IN (SELECT 3, 4 UNION SELECT 5, 6) OR b <= 10;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#29615190: SELECTS ON TABLES OFFLOADED TO SECONDARY ENGINE ARE
+--echo #               WRITTEN TWICE TO THE MYSQLD GENERAL LOG
+--echo #
+
+CREATE TABLE t(x INT) SECONDARY_ENGINE MOCK;
+ALTER TABLE t SECONDARY_LOAD;
+
+SET @saved_general_log = @@global.general_log;
+SET @saved_log_output = @@global.log_output;
+SET GLOBAL general_log = 1;
+SET GLOBAL log_output = 'table';
+
+TRUNCATE TABLE mysql.general_log;
+SELECT * FROM t;
+# Expect the query to be written once to the general log (or twice
+# under ps protocol - once for preparation and once for execution).
+--disable_query_log
+eval SELECT COUNT(*) - $PS_PROTOCOL AS statement_count
+     FROM mysql.general_log
+     WHERE argument = 'SELECT * FROM t';
+--enable_query_log
+
+TRUNCATE TABLE mysql.general_log;
+PREPARE ps FROM 'SELECT * FROM t';
+SELECT COUNT(*) FROM mysql.general_log WHERE argument = 'SELECT * FROM t';
+EXECUTE ps;
+SELECT COUNT(*) FROM mysql.general_log WHERE argument = 'SELECT * FROM t';
+DROP PREPARE ps;
+
+TRUNCATE TABLE mysql.general_log;
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ * FROM t;
+# Expect the query to be written once to the general log (or twice
+# under ps protocol - once for preparation and once for execution).
+--disable_query_log
+eval SELECT COUNT(*) - $PS_PROTOCOL AS statement_count
+     FROM mysql.general_log
+     WHERE argument LIKE 'SELECT % * FROM t';
+--enable_query_log
+
+TRUNCATE TABLE mysql.general_log;
+PREPARE ps FROM 'SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ * FROM t';
+SELECT COUNT(*) FROM mysql.general_log WHERE argument LIKE 'SELECT % * FROM t';
+EXECUTE ps;
+SELECT COUNT(*) FROM mysql.general_log WHERE argument LIKE 'SELECT % * FROM t';
+DROP PREPARE ps;
+
+SET GLOBAL general_log = @saved_general_log;
+SET GLOBAL log_output = @saved_log_output;
+
+TRUNCATE TABLE mysql.general_log;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#30391501: ASSERTION FAILURE WHEN RUNNING RAPID.AGG_PROJ_ANY
+--echo #               WITH --PS-PROTOCOL
+--echo #
+CREATE TABLE t(x INT) SECONDARY_ENGINE MOCK;
+INSERT INTO t VALUES (1), (2), (3);
+ALTER TABLE t SECONDARY_LOAD;
+SELECT (SELECT 9 FROM DUAL) AS y FROM t GROUP BY y;
+PREPARE ps FROM 'SELECT (SELECT 9 FROM DUAL) AS y FROM t GROUP BY y';
+EXECUTE ps;
+DROP PREPARE ps;
+DROP TABLE t;
 
 --disable_query_log
 UNINSTALL PLUGIN mock;

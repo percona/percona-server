@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,23 +27,22 @@
 #include <sys/types.h>
 #include <string>
 
-#include "binary_log_types.h"
+#include "field_types.h"
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "map_helpers.h"
-#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
 #include "sql/item.h"     // Item::Type
 #include "sql/sp_head.h"  // Stored_program_creation_ctx
 #include "sql/sql_lex.h"
-#include "sql/thr_malloc.h"
 
 class Object_creation_ctx;
 class Query_arena;
 class THD;
+struct CHARSET_INFO;
 struct LEX_USER;
+struct MEM_ROOT;
 
 namespace dd {
 class Routine;
@@ -151,21 +150,15 @@ class Stored_routine_creation_ctx : public Stored_program_creation_ctx {
                                                    TABLE *proc_tbl);
 
  public:
-  virtual Stored_program_creation_ctx *clone(MEM_ROOT *mem_root) {
-    return new (mem_root)
-        Stored_routine_creation_ctx(m_client_cs, m_connection_cl, m_db_cl);
-  }
+  Stored_program_creation_ctx *clone(MEM_ROOT *mem_root) override;
 
  protected:
-  virtual Object_creation_ctx *create_backup_ctx(THD *thd) const {
-    DBUG_ENTER("Stored_routine_creation_ctx::create_backup_ctx");
-    DBUG_RETURN(new (*THR_MALLOC) Stored_routine_creation_ctx(thd));
-  }
-
-  virtual void delete_backup_ctx() { destroy(this); }
+  Object_creation_ctx *create_backup_ctx(THD *thd) const override;
+  void delete_backup_ctx() override;
 
  private:
-  Stored_routine_creation_ctx(THD *thd) : Stored_program_creation_ctx(thd) {}
+  explicit Stored_routine_creation_ctx(THD *thd)
+      : Stored_program_creation_ctx(thd) {}
 
   Stored_routine_creation_ctx(const CHARSET_INFO *client_cs,
                               const CHARSET_INFO *connection_cl,

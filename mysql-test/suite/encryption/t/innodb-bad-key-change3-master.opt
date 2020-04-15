@@ -1,4 +1,4 @@
 $KEYRING_PLUGIN_OPT
 --early-plugin-load="keyring_file=$KEYRING_PLUGIN"
 --loose-keyring_file_data=$MYSQLTEST_VARDIR/keys1.txt
---innodb-encrypt-tables=OFF
+--default-table-encryption=OFF

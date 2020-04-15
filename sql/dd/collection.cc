@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 #include "sql/dd/impl/raw/raw_record_set.h"              // dd::Raw_record_set
 #include "sql/dd/impl/raw/raw_table.h"                   // dd::Raw_table
 #include "sql/dd/impl/types/abstract_table_impl.h"       // IWYU pragma: keep
+#include "sql/dd/impl/types/check_constraint_impl.h"     // IWYU pragma: keep
 #include "sql/dd/impl/types/column_impl.h"               // IWYU pragma: keep
 #include "sql/dd/impl/types/column_type_element_impl.h"  // IWYU pragma: keep
 #include "sql/dd/impl/types/foreign_key_element_impl.h"  // IWYU pragma: keep
@@ -108,10 +109,7 @@ void Collection<T>::remove(typename Collection<T>::impl_type *item) {
 template <typename T>
 typename Collection<T>::iterator Collection<T>::find(const impl_type *item) {
   // Find the element and prepare iterator pointing to found element.
-  typename Collection<T>::iterator iterator(
-      &m_items, std::find(m_items.begin(), m_items.end(), item));
-
-  return iterator;
+  return iterator(&m_items, std::find(m_items.begin(), m_items.end(), item));
 }
 
 /**
@@ -124,7 +122,7 @@ bool Collection<T>::restore_items(Parent_item *parent,
                                   Open_dictionary_tables_ctx *otx,
                                   Raw_table *table, Object_key *key,
                                   Compare comp) {
-  DBUG_ENTER("Collection::restore_items");
+  DBUG_TRACE;
 
   // NOTE: if this assert is firing, that means the table was not registered
   // for that transaction. Use Open_dictionary_tables_ctx::register_tables().
@@ -135,7 +133,7 @@ bool Collection<T>::restore_items(Parent_item *parent,
   std::unique_ptr<Object_key> key_holder(key);
 
   std::unique_ptr<Raw_record_set> rs;
-  if (table->open_record_set(key, rs)) DBUG_RETURN(true);
+  if (table->open_record_set(key, rs)) return true;
 
   // Process records.
 
@@ -148,7 +146,7 @@ bool Collection<T>::restore_items(Parent_item *parent,
 
     if (item->restore_attributes(*r) || rs->next(r)) {
       clear_all_items();
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
@@ -174,7 +172,7 @@ bool Collection<T>::restore_items(Parent_item *parent,
   for (auto item : m_items) {
     if (item->restore_children(otx) || item->validate()) {
       clear_all_items();
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
@@ -183,7 +181,7 @@ bool Collection<T>::restore_items(Parent_item *parent,
   // So we need to sort the elements in m_item based on ordinal position.
   std::sort(m_items.begin(), m_items.end(), comp);
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 template <typename T>
@@ -202,14 +200,14 @@ bool Collection<T>::restore_items(Parent_item *parent,
 
 template <typename T>
 bool Collection<T>::store_items(Open_dictionary_tables_ctx *otx) {
-  DBUG_ENTER("Collection::store_items");
+  DBUG_TRACE;
 
-  if (empty()) DBUG_RETURN(false);
+  if (empty()) return false;
 
   // Drop items from m_removed_items.
 
   for (auto *removed : m_removed_items) {
-    if (removed->validate() || removed->drop(otx)) DBUG_RETURN(true);
+    if (removed->validate() || removed->drop(otx)) return true;
   }
 
   delete_container_pointers(m_removed_items);
@@ -217,42 +215,42 @@ bool Collection<T>::store_items(Open_dictionary_tables_ctx *otx) {
   // Add new items and update existing if needed.
 
   for (Collection<T>::impl_type *item : m_items) {
-    if (item->validate() || item->store(otx)) DBUG_RETURN(true);
+    if (item->validate() || item->store(otx)) return true;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 template <typename T>
 bool Collection<T>::drop_items(Open_dictionary_tables_ctx *otx,
                                Raw_table *table, Object_key *key) const {
-  DBUG_ENTER("Collection::drop_items");
+  DBUG_TRACE;
 
   // Make sure key gets deleted
   std::unique_ptr<Object_key> key_holder(key);
 
-  if (empty()) DBUG_RETURN(false);
+  if (empty()) return false;
 
   // Drop items
 
   for (const Collection<T>::impl_type *item : m_items) {
-    if (item->drop_children(otx)) DBUG_RETURN(true);
+    if (item->drop_children(otx)) return true;
   }
 
   std::unique_ptr<Raw_record_set> rs;
-  if (table->open_record_set(key, rs)) DBUG_RETURN(true);
+  if (table->open_record_set(key, rs)) return true;
 
   // Process records.
 
   Raw_record *r = rs->current_record();
   while (r) {
     // Drop the item record from DD table
-    if (r->drop()) DBUG_RETURN(true);
+    if (r->drop()) return true;
 
-    if (rs->next(r)) DBUG_RETURN(true);
+    if (rs->next(r)) return true;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 template <typename T>
@@ -299,6 +297,8 @@ template dd::Partition_index *
 template Tablespace_file *
     &Collection<Tablespace_file *>::Collection_iterator::operator*();
 template Trigger *&Collection<Trigger *>::Collection_iterator::operator*();
+template Check_constraint *
+    &Collection<Check_constraint *>::Collection_iterator::operator*();
 
 template const Column *
     &Collection<Column *>::Collection_const_iterator::operator*();
@@ -330,6 +330,8 @@ template const View_table *
     &Collection<View_table *>::Collection_const_iterator::operator*();
 template const Trigger *
     &Collection<Trigger *>::Collection_const_iterator::operator*();
+template const Check_constraint *
+    &Collection<Check_constraint *>::Collection_const_iterator::operator*();
 
 template bool Collection<Column *>::restore_items<Abstract_table_impl>(
     Abstract_table_impl *, Open_dictionary_tables_ctx *, Raw_table *,
@@ -390,6 +392,9 @@ template bool
 Collection<Trigger *>::restore_items<Table_impl, Trigger_order_comparator>(
     Table_impl *, Open_dictionary_tables_ctx *, Raw_table *, Object_key *,
     Trigger_order_comparator);
+template bool Collection<Check_constraint *>::restore_items<Table_impl>(
+    Table_impl *, Open_dictionary_tables_ctx *, Raw_table *, Object_key *,
+    Check_constraint_order_comparator);
 
 template bool Collection<Column *>::store_items(Open_dictionary_tables_ctx *);
 template bool Collection<Column_type_element *>::store_items(
@@ -418,6 +423,8 @@ template bool Collection<View_routine *>::store_items(
 template bool Collection<View_table *>::store_items(
     Open_dictionary_tables_ctx *);
 template bool Collection<Trigger *>::store_items(Open_dictionary_tables_ctx *);
+template bool Collection<Check_constraint *>::store_items(
+    Open_dictionary_tables_ctx *);
 
 template bool Collection<Column *>::drop_items(Open_dictionary_tables_ctx *,
                                                Raw_table *, Object_key *) const;
@@ -453,6 +460,8 @@ template bool Collection<View_table *>::drop_items(Open_dictionary_tables_ctx *,
 template bool Collection<Trigger *>::drop_items(Open_dictionary_tables_ctx *,
                                                 Raw_table *,
                                                 Object_key *) const;
+template bool Collection<Check_constraint *>::drop_items(
+    Open_dictionary_tables_ctx *, Raw_table *, Object_key *) const;
 
 template void Collection<Column *>::clear_all_items();
 template void Collection<Column_type_element *>::clear_all_items();
@@ -469,6 +478,7 @@ template void Collection<Tablespace_file *>::clear_all_items();
 template void Collection<View_routine *>::clear_all_items();
 template void Collection<View_table *>::clear_all_items();
 template void Collection<Trigger *>::clear_all_items();
+template void Collection<Check_constraint *>::clear_all_items();
 
 template void Collection<Column *>::clear_removed_items();
 template void Collection<Column_type_element *>::clear_removed_items();
@@ -484,6 +494,7 @@ template void Collection<Partition_value *>::clear_removed_items();
 template void Collection<Tablespace_file *>::clear_removed_items();
 template void Collection<View_table *>::clear_removed_items();
 template void Collection<Trigger *>::clear_removed_items();
+template void Collection<Check_constraint *>::clear_removed_items();
 
 template void Collection<Column *>::remove(Column_impl *);
 template void Collection<Column_type_element *>::remove(
@@ -503,6 +514,7 @@ template void Collection<Tablespace_file *>::remove(Tablespace_file_impl *);
 template void Collection<View_routine *>::remove(View_routine_impl *);
 template void Collection<View_table *>::remove(View_table_impl *);
 template void Collection<Trigger *>::remove(Trigger_impl *);
+template void Collection<Check_constraint *>::remove(Check_constraint_impl *);
 
 template Collection<Column *>::iterator Collection<Column *>::find(
     const Column_impl *);
@@ -534,6 +546,8 @@ template Collection<View_table *>::iterator Collection<View_table *>::find(
     const View_table_impl *);
 template Collection<Trigger *>::iterator Collection<Trigger *>::find(
     const Trigger_impl *);
+template Collection<Check_constraint *>::iterator
+Collection<Check_constraint *>::find(const Check_constraint_impl *);
 
 template const Collection<Column *>::abstract_type *Collection<Column *>::at(
     size_t n) const;
@@ -582,6 +596,8 @@ template void Collection<View_table *>::deep_copy<View_impl>(
     Collection<View_table *> const &, View_impl *);
 template void Collection<Trigger *>::deep_copy<Table_impl>(
     Collection<Trigger *> const &, Table_impl *);
+template void Collection<Check_constraint *>::deep_copy<Table_impl>(
+    Collection<Check_constraint *> const &, Table_impl *);
 
 /**
  @endcond

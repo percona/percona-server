@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -123,13 +123,13 @@ byte *trx_undo_update_rec_get_update(
                                 be preserved as long as the update vector is
                                 used, as we do NOT copy the data in the
                                 record! */
-    dict_index_t *index,        /*!< in: clustered index */
+    const dict_index_t *index,  /*!< in: clustered index */
     ulint type,                 /*!< in: TRX_UNDO_UPD_EXIST_REC,
                                 TRX_UNDO_UPD_DEL_REC, or
                                 TRX_UNDO_DEL_MARK_REC; in the last case,
                                 only trx id and roll ptr fields are added to
                                 the update vector */
-    trx_id_t trx_id,            /*!< in: transaction id from this undorecord */
+    trx_id_t trx_id,            /*!< in: transaction id from this undo record */
     roll_ptr_t roll_ptr,        /*!< in: roll pointer from this undo record */
     ulint info_bits,            /*!< in: info bits from this undo record */
     trx_t *trx,                 /*!< in: transaction */
@@ -202,6 +202,17 @@ the undo log (which is the after image for an update) */
 
 /** Build a previous version of a clustered index record. The caller must hold
 a latch on the index page of the clustered index record.
+If the vrow passed to this function is not null, then this function will store
+information about virtual columns from the requested version in vrow, unless the
+change did not affect any secondary index nor ordering field of clustered index
+(the change has UPD_NODE_NO_ORD_CHANGE flag) in which case the requested
+information can not be reconstructed from undo log, and the caller may assume
+that the (virtual) columns of secondary index have the same values they have in
+the more recent version (the one `rec` comes from).
+Equivalently, if the vrow is not returned, it is either because it was not
+requested, or not available due to UPD_NODE_NO_ORD_CHANGE.
+Obviously vrow is also not set in case rec is the oldest version in history,
+in which case we also set old_vers to NULL.
 @param[in]	index_rec	clustered index record in the index tree
 @param[in]	index_mtr	mtr which contains the latch to index_rec page
                                 and purge_view
@@ -221,10 +232,13 @@ a latch on the index page of the clustered index record.
 @param[in]	v_status	status determine if it is going into this
                                 function by purge thread or not. And if we read
                                 "after image" of undo log has been rebuilt
-@retval false if the previous version is earlier than purge_view, which means
-that it may have been removed */
+@param[in]	lob_undo	LOB undo information.
+@retval true if previous version was built, or if it was an insert or the table
+has been rebuilt
+@retval false if the previous version is earlier than purge_view, or being
+purged, which means that it may have been removed */
 bool trx_undo_prev_version_build(const rec_t *index_rec, mtr_t *index_mtr,
-                                 const rec_t *rec, dict_index_t *index,
+                                 const rec_t *rec, const dict_index_t *index,
                                  ulint *offsets, mem_heap_t *heap,
                                  rec_t **old_vers, mem_heap_t *v_heap,
                                  const dtuple_t **vrow, ulint v_status,
@@ -359,33 +373,6 @@ struct type_cmpl_t {
   uint8_t m_flag;
 };
 
-/*******************************************************************/ /**
- Builds an update vector based on a remaining part of an undo log record.
- @return remaining part of the record, NULL if an error detected, which
- means that the record is corrupted */
-byte *trx_undo_update_rec_get_update(
-    /*===========================*/
-    const byte *ptr,     /*!< in: remaining part in update undo log
-                         record, after reading the row reference
-                         NOTE that this copy of the undo log record must
-                         be preserved as long as the update vector is
-                         used, as we do NOT copy the data in the
-                         record! */
-    dict_index_t *index, /*!< in: clustered index */
-    ulint type,          /*!< in: TRX_UNDO_UPD_EXIST_REC,
-                         TRX_UNDO_UPD_DEL_REC, or
-                         TRX_UNDO_DEL_MARK_REC; in the last case,
-                         only trx id and roll ptr fields are added to
-                         the update vector */
-    trx_id_t trx_id,     /*!< in: transaction id from this undorecord */
-    roll_ptr_t roll_ptr, /*!< in: roll pointer from this undo record */
-    ulint info_bits,     /*!< in: info bits from this undo record */
-    trx_t *trx,          /*!< in: transaction */
-    mem_heap_t *heap,    /*!< in: memory heap from which the memory
-                         needed is allocated */
-    upd_t **upd,         /*!< out, own: update vector */
-    lob::undo_vers_t *lob_undo, type_cmpl_t &type_cmpl);
-
 /** Reads from an undo log record the general parameters.
  @return remaining part of undo log record after reading these values */
 byte *trx_undo_rec_get_pars(
@@ -400,6 +387,22 @@ byte *trx_undo_rec_get_pars(
     table_id_t *table_id,     /*!< out: table id */
     type_cmpl_t &type_cmpl);  /*!< out: type compilation info. */
 
+/** Get the max free space of undo log by assuming it's a fresh new page
+and the free space doesn't count for the undo log header too. */
+size_t trx_undo_max_free_space();
+
+/** Decide if the following undo log record is a multi-value virtual column
+@param[in]     undo_rec        undo log record
+@return true if this is a multi-value virtual column log, otherwise false */
+bool trx_undo_rec_is_multi_value(const byte *undo_rec);
+
+/** Read from an undo log record a non-virtual column value.
+@param[in,out]	ptr	pointer to remaining part of the undo record
+@param[in,out]	field	stored field
+@param[in,out]	heap	memory heap
+@return remaining part of undo log record after reading these values */
+const byte *trx_undo_rec_get_multi_value(const byte *ptr, dfield_t *field,
+                                         mem_heap_t *heap);
 #include "trx0rec.ic"
 
 #endif /* !UNIV_HOTBACKUP */

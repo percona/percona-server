@@ -1,0 +1,1 @@
+--nowarnings --innodb-force-recovery=1

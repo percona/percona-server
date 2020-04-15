@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,17 +24,18 @@
 
 #include "plugin/x/src/io/xpl_listener_unix_socket.h"
 
-#include "my_config.h"
-
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
 
-#include "my_io.h"
+#include "my_config.h"  // NOLINT(build/include_subdir)
+#include "my_io.h"      // NOLINT(build/include_subdir)
+
 #include "plugin/x/generated/mysqlx_version.h"
-#include "plugin/x/ngs/include/ngs_common/operations_factory.h"
-#include "plugin/x/ngs/include/ngs_common/string_formatter.h"
+#include "plugin/x/src/helper/string_formatter.h"
+#include "plugin/x/src/operations_factory.h"
 #include "plugin/x/src/xpl_log.h"
+#include "plugin/x/src/xpl_performance_schema.h"
 
 #ifdef HAVE_SYS_UN_H
 #include <signal.h>
@@ -46,7 +47,7 @@ namespace xpl {
 
 class Unixsocket_creator {
  public:
-  Unixsocket_creator(ngs::Operations_factory_interface &operations_factory)
+  explicit Unixsocket_creator(iface::Operations_factory &operations_factory)
       : m_operations_factory(operations_factory),
         m_system_interface(operations_factory.create_system_interface()) {}
 
@@ -62,10 +63,10 @@ class Unixsocket_creator {
     (void)m_system_interface->unlink(unix_socket_lockfile.c_str());
   }
 
-  ngs::Socket_interface::Shared_ptr create_and_bind_unixsocket(
+  std::shared_ptr<iface::Socket> create_and_bind_unixsocket(
       const std::string &unix_socket_file, std::string &error_message,
-      const uint32 backlog) {
-    ngs::Socket_interface::Shared_ptr listener_socket(
+      const uint32_t backlog) {
+    std::shared_ptr<iface::Socket> listener_socket(
         m_operations_factory.create_socket(MYSQL_INVALID_SOCKET));
 
 #if defined(HAVE_SYS_UN_H)
@@ -84,7 +85,7 @@ class Unixsocket_creator {
 
     // Check path length, probably move to set unix port?
     if (unix_socket_file.length() > (sizeof(addr.sun_path) - 1)) {
-      error_message = ngs::String_formatter()
+      error_message = String_formatter()
                           .append("the socket file path is too long (> ")
                           .append(sizeof(addr.sun_path) - 1)
                           .append(")")
@@ -101,8 +102,8 @@ class Unixsocket_creator {
         KEY_socket_x_unix, AF_UNIX, SOCK_STREAM, 0);
 
     if (INVALID_SOCKET == listener_socket->get_socket_fd()) {
-      m_system_interface->get_socket_error_and_message(err, errstr);
-      error_message = ngs::String_formatter()
+      m_system_interface->get_socket_error_and_message(&err, &errstr);
+      error_message = String_formatter()
                           .append("can't create UNIX Socket: ")
                           .append(errstr)
                           .append(" (")
@@ -123,8 +124,8 @@ class Unixsocket_creator {
     if (listener_socket->bind(reinterpret_cast<struct sockaddr *>(&addr),
                               sizeof(addr)) < 0) {
       umask(old_mask);
-      m_system_interface->get_socket_error_and_message(err, errstr);
-      error_message = ngs::String_formatter()
+      m_system_interface->get_socket_error_and_message(&err, &errstr);
+      error_message = String_formatter()
                           .append("`bind()` on UNIX socket failed with error: ")
                           .append(errstr)
                           .append(" (")
@@ -143,10 +144,10 @@ class Unixsocket_creator {
 
     // listen
     if (listener_socket->listen(backlog) < 0) {
-      m_system_interface->get_socket_error_and_message(err, errstr);
+      m_system_interface->get_socket_error_and_message(&err, &errstr);
 
       error_message =
-          ngs::String_formatter()
+          String_formatter()
               .append("`listen()` on UNIX socket failed with error: ")
               .append(errstr)
               .append("(")
@@ -172,7 +173,7 @@ class Unixsocket_creator {
 
   bool create_unixsocket_lockfile(const std::string &unix_socket_file,
                                   std::string &error_message) {
-    ngs::File_interface::Shared_ptr lockfile_fd;
+    std::shared_ptr<iface::File> lockfile_fd;
 #if !defined(HAVE_SYS_UN_H)
     return false;
 #else
@@ -185,7 +186,7 @@ class Unixsocket_creator {
     int retries = 3;
     while (true) {
       if (!retries--) {
-        error_message = ngs::String_formatter()
+        error_message = String_formatter()
                             .append("unable to create UNIX socket lock file ")
                             .append(lock_filename)
                             .append(" after ")
@@ -260,7 +261,7 @@ class Unixsocket_creator {
 
       if (read_pid != cur_pid && read_pid != parent_pid) {
         if (m_system_interface->kill(read_pid, 0) == 0) {
-          error_message = ngs::String_formatter()
+          error_message = String_formatter()
                               .append("another process with PID ")
                               .append(read_pid)
                               .append(" is using UNIX socket file")
@@ -286,7 +287,7 @@ class Unixsocket_creator {
              static_cast<int>(cur_pid));
     if (lockfile_fd->write(buffer, strlen(buffer)) !=
         static_cast<signed>(strlen(buffer))) {
-      error_message = ngs::String_formatter()
+      error_message = String_formatter()
                           .append("can't write UNIX socket lock file ")
                           .append(lock_filename)
                           .append(", errno: ")
@@ -297,7 +298,7 @@ class Unixsocket_creator {
     }
 
     if (lockfile_fd->fsync() != 0) {
-      error_message = ngs::String_formatter()
+      error_message = String_formatter()
                           .append("can't sync UNIX socket lock file ")
                           .append(lock_filename)
                           .append(", errno: ")
@@ -308,7 +309,7 @@ class Unixsocket_creator {
     }
 
     if (lockfile_fd->close() != 0) {
-      error_message = ngs::String_formatter()
+      error_message = String_formatter()
                           .append("can't close UNIX socket lock file ")
                           .append(lock_filename)
                           .append(", errno: ")
@@ -322,18 +323,20 @@ class Unixsocket_creator {
 #endif  // defined(HAVE_SYS_UN_H)
   }
 
-  ngs::Operations_factory_interface &m_operations_factory;
-  ngs::System_interface::Shared_ptr m_system_interface;
+  iface::Operations_factory &m_operations_factory;
+  std::shared_ptr<iface::System> m_system_interface;
 };
 
 Listener_unix_socket::Listener_unix_socket(
-    ngs::Operations_factory_interface::Shared_ptr operations_factory,
-    const std::string &unix_socket_path, ngs::Socket_events_interface &event,
-    const uint32 backlog)
+    std::shared_ptr<iface::Operations_factory> operations_factory,
+    const std::string &unix_socket_path, iface::Socket_events &event,
+    const uint32_t backlog)
     : m_operations_factory(operations_factory),
       m_unix_socket_path(unix_socket_path),
       m_backlog(backlog),
-      m_state(ngs::State_listener_initializing),
+      m_state(iface::Listener::State::k_initializing,
+              KEY_mutex_x_listener_unix_socket_sync,
+              KEY_cond_x_listener_unix_socket_sync),
       m_event(event) {}
 
 Listener_unix_socket::~Listener_unix_socket() {
@@ -368,7 +371,7 @@ std::string Listener_unix_socket::get_last_error() { return m_last_error; }
 bool Listener_unix_socket::setup_listener(On_connection on_connection) {
   Unixsocket_creator unixsocket_creator(*m_operations_factory);
 
-  if (!m_state.is(ngs::State_listener_initializing)) {
+  if (!m_state.is(iface::Listener::State::k_initializing)) {
     close_listener();
     return false;
   }
@@ -386,14 +389,14 @@ bool Listener_unix_socket::setup_listener(On_connection on_connection) {
     return false;
   }
 
-  m_state.set(ngs::State_listener_prepared);
+  m_state.set(iface::Listener::State::k_prepared);
 
   return true;
 }
 
 void Listener_unix_socket::close_listener() {
-  if (ngs::State_listener_stopped ==
-      m_state.set_and_return_old(ngs::State_listener_stopped))
+  if (iface::Listener::State::k_stopped ==
+      m_state.set_and_return_old(iface::Listener::State::k_stopped))
     return;
 
   if (NULL == m_unix_socket) return;
@@ -412,16 +415,16 @@ void Listener_unix_socket::loop() {}
 
 void Listener_unix_socket::report_properties(On_report_properties on_prop) {
   switch (m_state.get()) {
-    case ngs::State_listener_initializing:
+    case State::k_initializing:
       on_prop(ngs::Server_property_ids::k_unix_socket, "");
       break;
 
-    case ngs::State_listener_prepared:
-    case ngs::State_listener_running:  // fall-through
+    case State::k_prepared:
+    case State::k_running:  // fall-through
       on_prop(ngs::Server_property_ids::k_unix_socket, m_unix_socket_path);
       break;
 
-    case ngs::State_listener_stopped:
+    case State::k_stopped:
       on_prop(ngs::Server_property_ids::k_unix_socket,
               ngs::PROPERTY_NOT_CONFIGURED);
       break;

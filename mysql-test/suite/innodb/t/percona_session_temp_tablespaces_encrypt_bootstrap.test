@@ -1,0 +1,54 @@
+let $MYSQLD_BASEDIR= `select @@basedir`;
+--mkdir $MYSQL_TMP_DIR/datadir1
+
+let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/datadir1/data;
+
+--echo # Stop the instance which was created by MTR
+--source include/shutdown_mysqld.inc
+
+--let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql
+--let KEYRING_DATA="--keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring"
+--let ERROR_LOG=$MYSQL_TMP_DIR/session_temp_encrypt_err.log
+
+--echo # create bootstrap file
+write_file $BOOTSTRAP_SQL;
+CREATE DATABASE test;
+EOF
+
+--let BOOTSTRAP_CMD = $MYSQLD_CMD --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --default-table-encryption=ON $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD $KEYRING_DATA > $ERROR_LOG 2>&1
+
+--echo # Bootstrap new instance with default_table_encryption=ON
+--exec $BOOTSTRAP_CMD
+
+--echo # Start the instance with default_table_encryption=ON
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR1 --default_table_encryption=ON"
+--source include/start_mysqld.inc
+
+--let $MYSQL_DATA_DIR= `select @@datadir`
+
+CREATE DATABASE db1;
+USE db1;
+
+CREATE TABLE t1(a INT);
+
+INSERT INTO t1 (a) VALUES (1),(2),(3),(4),(5);
+
+SHOW CREATE TABLE t1;
+
+SELECT * FROM t1;
+
+CREATE TEMPORARY TABLE t2 (a INT);
+INSERT INTO t2 (a) VALUES (1),(2),(3),(4),(5);
+
+SELECT SPACE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES WHERE ID = connection_id() ORDER BY SPACE;
+
+DROP DATABASE db1;
+
+--echo # Start default MTR instance
+--let $restart_parameters=
+--source include/restart_mysqld.inc
+
+--remove_file $BOOTSTRAP_SQL
+--force-rmdir $MYSQL_TMP_DIR/datadir1
+--remove_file $ERROR_LOG

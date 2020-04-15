@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 #include "m_string.h"
 #include "my_inttypes.h"
 #include "mysql.h"
+#include "template_utils.h"
 #include "typelib.h"
 
 #if defined(HAVE_OPENSSL)
@@ -55,13 +56,7 @@ const char *ssl_mode_names_lib[] = {"DISABLED",  "PREFERRED",       "REQUIRED",
 TYPELIB ssl_mode_typelib = {array_elements(ssl_mode_names_lib) - 1, "",
                             ssl_mode_names_lib, NULL};
 
-const char *ssl_fips_mode_names_lib[] =
-#ifndef HAVE_WOLFSSL
-    {"OFF", "ON", "STRICT",
-#else
-    {"OFF",
-#endif
-     NullS};
+const char *ssl_fips_mode_names_lib[] = {"OFF", "ON", "STRICT", NullS};
 TYPELIB ssl_fips_mode_typelib = {array_elements(ssl_fips_mode_names_lib) - 1,
                                  "", ssl_fips_mode_names_lib, NULL};
 
@@ -70,6 +65,7 @@ static char *opt_ssl_ca = 0;
 static char *opt_ssl_capath = 0;
 static char *opt_ssl_cert = 0;
 static char *opt_ssl_cipher = 0;
+static char *opt_tls_ciphersuites = 0;
 static char *opt_ssl_key = 0;
 static char *opt_ssl_crl = 0;
 static char *opt_ssl_crlpath = 0;
@@ -77,7 +73,7 @@ static char *opt_tls_version = 0;
 static ulong opt_ssl_fips_mode = SSL_FIPS_MODE_OFF;
 static bool ssl_mode_set_explicitly = false;
 
-static inline void set_client_ssl_options(MYSQL *mysql) {
+static inline int set_client_ssl_options(MYSQL *mysql) {
   /*
     Print a warning if explicitly defined combination of --ssl-mode other than
     VERIFY_CA or VERIFY_IDENTITY with explicit --ssl-ca or --ssl-capath values.
@@ -100,12 +96,20 @@ static inline void set_client_ssl_options(MYSQL *mysql) {
   mysql_options(mysql, MYSQL_OPT_TLS_VERSION, opt_tls_version);
   mysql_options(mysql, MYSQL_OPT_SSL_MODE, &opt_ssl_mode);
   mysql_options(mysql, MYSQL_OPT_SSL_FIPS_MODE, &opt_ssl_fips_mode);
+  if (opt_ssl_fips_mode > 0 && mysql_errno(mysql) == CR_SSL_FIPS_MODE_ERR)
+    return 1;
+  mysql_options(mysql, MYSQL_OPT_TLS_CIPHERSUITES, opt_tls_ciphersuites);
+
+  return 0;
 }
 
-#define SSL_SET_OPTIONS(mysql) set_client_ssl_options(mysql);
+#define SSL_SET_OPTIONS(mysql) set_client_ssl_options(mysql)
 #else
 #define SSL_SET_OPTIONS(mysql) \
   do {                         \
   } while (0)
 #endif
+
+const char *SSL_SET_OPTIONS_ERROR = "Failed to set ssl related options.\n";
+
 #endif /* SSLOPT_VARS_INCLUDED */

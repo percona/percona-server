@@ -20,9 +20,6 @@ SET @save_sql_mode=@@sql_mode;
 # - an error is the expected result with the current implementation,
 #   and is a limitation.
 
-# Test needs MyISAM for a few subtests
---source include/have_myisam.inc
-
 set SQL_MODE='';
 
 create table ADDDATE(a int);
@@ -431,9 +428,6 @@ select "terminated, space";      $$
 select "non terminated, comment" /* comment */$$
 select "terminated, comment"; /* comment */$$
 
-# Multi queries can not be used in --ps-protocol test mode
---disable_ps_protocol
-
 select "stmt 1";select "stmt 2 non terminated"$$
 select "stmt 1";select "stmt 2 terminated";$$
 select "stmt 1";select "stmt 2 non terminated, space"      $$
@@ -449,8 +443,6 @@ $$
 
 DROP PROCEDURE IF EXISTS p26030; CREATE PROCEDURE p26030() SELECT 1; CALL p26030()
 $$
-
---enable_ps_protocol
 
 delimiter ;$$
 DROP PROCEDURE p26030;
@@ -748,50 +740,6 @@ DROP TABLE t1, t2, t3;
 --echo #
 
 #
-# Bug#31293 - Incorrect parser errors for create/alter/drop logfile group/tablespace
-#
-
---echo # Should use myisam
-
--- error ER_ILLEGAL_HA_CREATE_OPTION
-create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' initial_size=32M engine=myisam; 
--- error ER_ILLEGAL_HA_CREATE_OPTION
-create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=myisam;
--- error ER_FEATURE_UNSUPPORTED
-create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=innodb;
-
--- error ER_ILLEGAL_HA_CREATE_OPTION
-create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1 engine=myisam initial_size=32M;
--- error ER_ILLEGAL_HA_CREATE_OPTION
-create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1 engine=myisam;
--- error ER_ILLEGAL_HA_CREATE_OPTION
-create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1 engine=myisam;
-
--- error ER_ILLEGAL_HA_CREATE_OPTION
-alter logfile group ndb_lg1 add undofile 'ndb_undo1.dat' wait engine=myisam;
--- error ER_ILLEGAL_HA_CREATE_OPTION
-alter logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=myisam;
--- error ER_ILLEGAL_HA_CREATE_OPTION
-alter logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=myisam;
-
--- error ER_TABLESPACE_MISSING_WITH_NAME
-alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' initial_size=32M engine=myisam;
--- error ER_TABLESPACE_MISSING_WITH_NAME
-alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' engine=myisam;
--- error ER_TABLESPACE_MISSING_WITH_NAME
-alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' engine=myisam;
-
--- error ER_ILLEGAL_HA_CREATE_OPTION
-drop logfile group ndb_lg1 engine=myisam;
--- error ER_ILLEGAL_HA_CREATE_OPTION
-drop logfile group ndb_lg1 engine=myisam;
-
--- error ER_TABLESPACE_MISSING_WITH_NAME
-drop tablespace ndb_ts1 engine=myisam;
--- error ER_TABLESPACE_MISSING_WITH_NAME
-drop tablespace ndb_ts1 engine=myisam;
-
-#
 # Bug#12546960 - 60993: NAME QUOTED WITH QUOTE INSTEAD OF BACKTICK 
 #                       GIVES NO SYNTAX ERROR
 #
@@ -885,11 +833,11 @@ SELECT 1 INTO @var17727401 FROM t1;
 SELECT 1 INTO @var17727401 FROM DUAL;
 
 # Double "INTO" clause: parse error is "near 'INTO @var17727401_2' at line 1"
---error ER_PARSE_ERROR
+--error ER_MULTIPLE_INTO_CLAUSES
 SELECT 1 INTO @var17727401_1 FROM t1 INTO @var17727401_2;
 
 # Double "INTO" clause: parse error is "near 'INTO @var17727401_2' at line 2"
---error ER_PARSE_ERROR
+--error ER_MULTIPLE_INTO_CLAUSES
 SELECT 1 INTO @var17727401_1 FROM DUAL
   INTO @var17727401_2;
 
@@ -899,7 +847,7 @@ SELECT 1 FROM t1 WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1 LIMIT 1 INTO @var1772740
 --error ER_PARSE_ERROR
 SELECT 1 FROM t1 WHERE 1 INTO @var17727401 GROUP BY 1 HAVING 1 ORDER BY 1 LIMIT 1;
 
---error ER_PARSE_ERROR
+--error ER_MULTIPLE_INTO_CLAUSES
 SELECT 1 INTO @var17727401_1
   FROM t1 WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1 LIMIT 1
   INTO @var17727401_2;
@@ -925,6 +873,7 @@ SELECT 1 FROM t1 UNION SELECT 1 FROM t1 INTO @var17727401;
 (SELECT 1 FROM t1 ORDER BY 1) ORDER BY 1;
 (SELECT 1 FROM t1 LIMIT 1) LIMIT 1;
 
+--error ER_NOT_SUPPORTED_YET
 ((SELECT 1 FROM t1 ORDER BY 1) ORDER BY 1) ORDER BY 1;
 ((SELECT 1 FROM t1 LIMIT 1) LIMIT 1) LIMIT 1;
 
@@ -1337,7 +1286,7 @@ SELECT 1 UNION (SELECT 2);
 
 --error ER_PARSE_ERROR
 SELECT a FROM t1 LIMIT 1 UNION ALL SELECT a FROM t1;
---error ER_PARSE_ERROR
+--error ER_NOT_SUPPORTED_YET
 (SELECT 1) UNION (SELECT 2 UNION SELECT 3);
 #--error ER_WRONG_USAGE
 (SELECT a FROM t1 LIMIT 1) UNION ALL (SELECT a FROM t1 ORDER BY a) LIMIT 2;
@@ -1384,7 +1333,7 @@ SELECT 1 UNION (SELECT 2 FROM t1 ORDER BY a LIMIT 1);
   ORDER BY t1.b;
 
 # Generally speaking, we don't support nested unions:
---error ER_PARSE_ERROR
+--error ER_NOT_SUPPORTED_YET
 SELECT 1 UNION ( SELECT 1 UNION SELECT 1 );
 # OTOH union expressions are left-associative by their nature,
 # so "s1 UNION s2 UNION ..." and "(s1 UNION s2) UNION ..." are same,
@@ -1392,6 +1341,10 @@ SELECT 1 UNION ( SELECT 1 UNION SELECT 1 );
 ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
 ( (SELECT 1 UNION SELECT 1 ) UNION SELECT 1 ) UNION SELECT 1;
 # But:
+--error ER_NOT_SUPPORTED_YET
+( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1 );
+
+# Missing ")":
 --error ER_PARSE_ERROR
 ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
 
@@ -1657,13 +1610,13 @@ SELECT 1 FROM t1 INTO @v UNION (SELECT 1);
 --error ER_PARSE_ERROR
 ((SELECT 1 FROM t1 INTO @v) UNION (SELECT 1));
 
---error ER_WRONG_USAGE
+--error ER_MISPLACED_INTO
 SELECT 1 INTO @v UNION SELECT 1;
---error ER_WRONG_USAGE
+--error ER_MISPLACED_INTO
 (SELECT 1 INTO @v) UNION SELECT 1;
---error ER_WRONG_USAGE
+--error ER_MISPLACED_INTO
 SELECT 1 INTO @v UNION (SELECT 1);
---error ER_WRONG_USAGE
+--error ER_MISPLACED_INTO
 ((SELECT 1 INTO @v) UNION (SELECT 1));
 
 --error ER_TOO_MANY_ROWS
@@ -1701,9 +1654,9 @@ SELECT 1 UNION (SELECT 2 INTO OUTFILE 'parser.test.file2');
 --remove_file $datadir/test/parser.test.file4
 --remove_file $datadir/test/parser.test.file5
 
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM (SELECT a INTO @v FROM t1) t1a;
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM (SELECT a INTO @v) t1a;
 
 DROP TABLE t1;
@@ -2297,3 +2250,255 @@ SET parser_max_mem_size = 10000000; # minimum allowed value
 --eval CREATE PROCEDURE p() SELECT 1 FROM (SELECT '$s') a
 --enable_query_log
 SET parser_max_mem_size = default;
+
+--echo #
+--echo # Bug #28968848: SIMPLIFY MYSQL_YYABORT
+--echo #
+
+--error ER_PARSE_ERROR
+CREATE PROCEDURE p1 () wrong syntax;
+
+--echo #
+--echo # Bug #25220656: THE "PERSIST" EXTENSION IS A RESERVED KEYWORD
+--echo #
+
+# PERSIST and PERSIST_ONLY are not reserved words any more:
+
+SELECT 1 AS PERSIST, 2 AS PERSIST_ONLY;
+
+# Negative checks for non-reserved words not allowed as role names:
+
+--error ER_PARSE_ERROR
+CREATE ROLE EVENT;
+--error ER_PARSE_ERROR
+CREATE ROLE FILE;
+--error ER_PARSE_ERROR
+CREATE ROLE NONE;
+--error ER_PARSE_ERROR
+CREATE ROLE PROCESS;
+--error ER_PARSE_ERROR
+CREATE ROLE PROXY;
+--error ER_PARSE_ERROR
+CREATE ROLE RELOAD;
+--error ER_PARSE_ERROR
+CREATE ROLE REPLICATION;
+--error ER_PARSE_ERROR
+CREATE ROLE RESOURCE;
+--error ER_PARSE_ERROR
+CREATE ROLE SUPER;
+
+# Negative checks for non-reserved words not allowed as system variable names:
+
+--error ER_PARSE_ERROR
+SET GLOBAL = DEFAULT;
+--error ER_PARSE_ERROR
+SET LOCAL = DEFAULT;
+--error ER_PARSE_ERROR
+SET PERSIST = DEFAULT;
+--error ER_PARSE_ERROR
+SET PERSIST_ONLY = DEFAULT;
+--error ER_PARSE_ERROR
+SET SESSION = DEFAULT;
+--echo #
+--echo # Bug#29033659: SOME NON-RESERVED WORDS CAN'T BE USED AS SP LABELS
+--echo #
+
+DELIMITER |;
+
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+  ACCOUNT: LOOP RETURN 1; END LOOP;
+  ALWAYS: LOOP RETURN 1; END LOOP;
+  BACKUP: LOOP RETURN 1; END LOOP;
+  CLOSE: LOOP RETURN 1; END LOOP;
+  FORMAT: LOOP RETURN 1; END LOOP;
+  GROUP_REPLICATION: LOOP RETURN 1; END LOOP;
+  HOST: LOOP RETURN 1; END LOOP;
+  INVISIBLE: LOOP RETURN 1; END LOOP;
+  OPEN: LOOP RETURN 1; END LOOP;
+  OPTIONS: LOOP RETURN 1; END LOOP;
+  OWNER: LOOP RETURN 1; END LOOP;
+  PARSER: LOOP RETURN 1; END LOOP;
+  PORT: LOOP RETURN 1; END LOOP;
+  REMOVE: LOOP RETURN 1; END LOOP;
+  RESTORE: LOOP RETURN 1; END LOOP;
+  ROLE: LOOP RETURN 1; END LOOP;
+  SECONDARY: LOOP RETURN 1; END LOOP;
+  SECONDARY_ENGINE: LOOP RETURN 1; END LOOP;
+  SECONDARY_LOAD: LOOP RETURN 1; END LOOP;
+  SECONDARY_UNLOAD: LOOP RETURN 1; END LOOP;
+  SECURITY: LOOP RETURN 1; END LOOP;
+  SERVER: LOOP RETURN 1; END LOOP;
+  SOCKET: LOOP RETURN 1; END LOOP;
+  SONAME: LOOP RETURN 1; END LOOP;
+  UPGRADE: LOOP RETURN 1; END LOOP;
+  VISIBLE: LOOP RETURN 1; END LOOP;
+  WRAPPER: LOOP RETURN 1; END LOOP;
+END|
+
+DELIMITER ;|
+
+DROP FUNCTION f1;
+
+--echo #
+--echo # Bug#29205289: PARSER ACCEPTS UNDOCUMENTED SYNTAX: `... = TABLE_ALIAS`
+--echo #
+
+CREATE TABLE t1 (i INT);
+--error ER_PARSE_ERROR
+LOCK TABLES t1=a READ;
+--error ER_PARSE_ERROR
+HANDLER t1 OPEN=a;
+--error ER_PARSE_ERROR
+SELECT * FROM t1=a;
+--error ER_PARSE_ERROR
+SELECT * FROM (SELECT 1)=a;
+--error ER_PARSE_ERROR
+SELECT * FROM t1 JOIN t1=a;
+--error ER_PARSE_ERROR
+UPDATE t1=a SET i=0;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #22320942: ODBC OUTER JOIN ESCAPE SEQUENCE SYNTAX IS BROKEN
+--echo #
+
+CREATE TEMPORARY TABLE t1 (i INT);
+CREATE TEMPORARY TABLE t2 (i INT);
+
+SELECT * FROM { OJ t1 LEFT JOIN t2 ON TRUE };
+
+--error ER_PARSE_ERROR
+SELECT * FROM { `OJ` t1 LEFT JOIN t2 ON TRUE };
+
+--error ER_PARSE_ERROR
+SELECT * FROM { random_identifier t1 LEFT JOIN t2 ON TRUE };
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #28997518: "COLLATE X GENERATED ALWAYS ... COLLATE Y": X HAS
+--echo #                 A PRIORITY OVER Y
+--echo #
+
+# Even compatible multiple COLLATE clauses should fail:
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1 (
+  x VARCHAR(10)
+  COLLATE ascii_bin
+  COLLATE ascii_bin
+);
+
+# Incompatible COLLATE clauses should fail with the same error message:
+
+--error ER_PARSE_ERROR
+CREATE TABLE t2 (
+  x VARCHAR(10)
+  COLLATE ascii_bin
+  COLLATE ascii_general_ci
+);
+
+# Multiple COLLATE clauses mixed with other column attributes should fail too:
+
+--error ER_PARSE_ERROR
+CREATE TABLE t3 (
+  x VARCHAR(10)
+  COLLATE ascii_bin
+  NOT NULL
+  COLLATE ascii_bin
+);
+
+# Multiple COLLATE clauses should fail in gcol definitions (syntax 1):
+
+--error ER_PARSE_ERROR
+CREATE TABLE t3 (
+  x VARCHAR(10)
+  COLLATE ascii_bin
+  GENERATED ALWAYS AS(NULL)
+  COLLATE ascii_bin
+);
+
+# Multiple COLLATE clauses should fail in gcol definitions (syntax 2):
+
+--error ER_PARSE_ERROR
+CREATE TABLE t4 (
+  x VARCHAR(10)
+  GENERATED ALWAYS AS(NULL)
+  COLLATE ascii_bin
+  COLLATE ascii_bin
+);
+
+--echo #
+--echo # Bug#28961997: REMOVE PARENTHESES INFORMATION FROM AST
+--echo #
+
+CREATE VIEW v1 AS (SELECT 1 ORDER BY 1) UNION (SELECT 3 ORDER BY 1) ORDER BY 1;
+SHOW CREATE VIEW v1;
+DROP VIEW v1;
+
+--echo #
+--echo # Bug#29871803: REQUIRED PARENTHESES NO LONGER PRINTED FOR CERTAIN UNION
+--echo # STATEMENTS
+--echo #
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(a INTEGER);
+CREATE TABLE t3(a INTEGER, b INTEGER, c INTEGER);
+INSERT INTO t3 VALUES(1, 10, 100), (2, 20, 200), (3, 30, 300), (4, 40, 400);
+ANALYZE TABLE t1, t2, t3;
+
+EXPLAIN (SELECT a FROM t1 ORDER BY a LIMIT 1) UNION SELECT a FROM t2;
+EXPLAIN SELECT a FROM t1 UNION (SELECT a FROM t2 LIMIT 1);
+
+CREATE VIEW v1 as (SELECT a FROM t1 ORDER BY a LIMIT 1) UNION SELECT a FROM t2;
+SHOW CREATE VIEW v1;
+
+CREATE VIEW v2 as SELECT a FROM t1 UNION (SELECT a FROM t2 ORDER BY a LIMIT 1);
+SHOW CREATE VIEW v2;
+
+EXPLAIN (SELECT * FROM t3 ORDER BY a LIMIT 3) ORDER BY b DESC LIMIT 2;
+--error ER_NOT_SUPPORTED_YET
+EXPLAIN ((SELECT * FROM t3 ORDER BY a LIMIT 3)
+            ORDER BY b DESC LIMIT 2)
+                ORDER BY c LIMIT 1;
+
+DROP VIEW v1;
+DROP VIEW v2;
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#30131161: SYNTAX ERROR WITH || WHEN USING PIPES_AS_CONCAT AFTER
+--echo #               UPGRADING TO 8.0.17
+--echo #
+
+SET sql_mode=(SELECT CONCAT(@@sql_mode, ',PIPES_AS_CONCAT'));
+
+# `||` should have higher precedence than `LIKE` and `ESCAPE`:
+
+SELECT 'ab' LIKE 'a%', 'ab' LIKE 'a' || '%';
+SELECT 'ab' NOT LIKE 'a%', 'ab' NOT LIKE 'a' || '%';
+
+SELECT 'ab' LIKE 'ac', 'ab' LIKE 'a' || 'c';
+SELECT 'ab' NOT LIKE 'ac', 'ab' NOT LIKE 'a' || 'c';
+
+SELECT 'a%' LIKE 'a!%' ESCAPE '!', 'a%' LIKE 'a!' || '%' ESCAPE '!';
+SELECT 'a%' NOT LIKE 'a!%' ESCAPE '!', 'a%' NOT LIKE 'a!' || '%' ESCAPE '!';
+
+SELECT 'a%' LIKE 'a!%' ESCAPE '$', 'a%' LIKE 'a!' || '%' ESCAPE '$';
+SELECT 'a%' NOT LIKE 'a!%' ESCAPE '$', 'a%' NOT LIKE 'a!' || '%' ESCAPE '$';
+
+SELECT 'a%' LIKE 'a!%' ESCAPE '!', 'a%' LIKE 'a!%' ESCAPE '' || '!';
+SELECT 'a%' NOT LIKE 'a!%' ESCAPE '!', 'a%' NOT LIKE 'a!%' ESCAPE '' || '!';
+
+SELECT 'a%' LIKE 'a!%' ESCAPE '' || '$', 'a%' LIKE 'a!%' ESCAPE '' || '$';
+SELECT 'a%' NOT LIKE 'a!%' ESCAPE '' || '$', 'a%' NOT LIKE 'a!%' ESCAPE '' || '$';
+
+# `||` should have a higher precedence than `^`:
+
+SELECT 1 ^ 100, 1 ^ '10' || '0';
+
+# `||` should have a lower precedence than the unary `-`:
+
+SELECT -1 || '0';
+
+SET sql_mode=DEFAULT;

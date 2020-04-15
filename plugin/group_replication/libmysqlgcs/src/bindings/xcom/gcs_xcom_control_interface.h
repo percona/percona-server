@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,6 +98,7 @@ class Gcs_suspicions_manager {
                                     m_suspicions
     @param[in] is_killer_node Indicates if node should remove suspect members
                               from the group
+    @param[in] max_synode XCom max synode
   */
 
   void process_view(
@@ -106,7 +107,7 @@ class Gcs_suspicions_manager {
       std::vector<Gcs_member_identifier *> left_nodes,
       std::vector<Gcs_member_identifier *> member_suspect_nodes,
       std::vector<Gcs_member_identifier *> non_member_suspect_nodes,
-      bool is_killer_node);
+      bool is_killer_node, synode_no max_synode);
 
   /**
     Invoked periodically by the suspicions processing thread, it picks a
@@ -220,6 +221,14 @@ class Gcs_suspicions_manager {
   */
   bool has_majority();
 
+  /*
+    Updates the synode_no of the last message removed from the XCom cache.
+
+    @param[in] last_removed The synode_no of the last message removed from the
+                            cache.
+  */
+  void update_last_removed(synode_no last_removed);
+
  private:
   /**
     Invoked by Gcs_suspicions_manager::process_view, it verifies if any
@@ -240,13 +249,15 @@ class Gcs_suspicions_manager {
                                         m_suspicions
     @param[in] member_suspect_nodes List of previously active nodes to add to
                                     m_suspicions
+    @param[in] max_synode XCom max synode
     @return Indicates if new suspicions were added
   */
 
   bool add_suspicions(
       Gcs_xcom_nodes *xcom_nodes,
       std::vector<Gcs_member_identifier *> non_member_suspect_nodes,
-      std::vector<Gcs_member_identifier *> member_suspect_nodes);
+      std::vector<Gcs_member_identifier *> member_suspect_nodes,
+      synode_no max_synode);
 
   /*
     XCom proxy pointer
@@ -314,6 +325,14 @@ class Gcs_suspicions_manager {
   bool m_has_majority;
 
   /*
+    The synode_no of the last message removed from the XCom cache.
+    The suspicions manager will use this to verify if a suspected node has
+    gone too far behind the group to be recoverable; when that happens, it
+    will print a warning message.
+  */
+  synode_no m_cache_last_removed;
+
+  /*
     Disabling the copy constructor and assignment operator.
   */
   Gcs_suspicions_manager(Gcs_suspicions_manager const &);
@@ -335,7 +354,7 @@ class Gcs_suspicions_manager {
 */
 class Gcs_xcom_control : public Gcs_control_interface {
  public:
-  static constexpr int s_connection_attempts = 10;
+  static constexpr int CONNECTION_ATTEMPTS = 10;
 
   /**
     Gcs_xcom_control_interface constructor.
@@ -420,19 +439,30 @@ class Gcs_xcom_control : public Gcs_control_interface {
     @param[in] xcom_nodes Set of nodes that participated in the consensus
                             to deliver the message
     @param[in] same_view  Whether this global view was already delivered.
+    @param[in] max_synode XCom max synode
   */
 
   bool xcom_receive_global_view(synode_no message_id,
-                                Gcs_xcom_nodes *xcom_nodes, bool same_view);
+                                Gcs_xcom_nodes *xcom_nodes, bool same_view,
+                                synode_no max_synode);
 
   /*
     This method is called in order to give a hint on what the node thinks
     about other nodes.
 
+    The view is ignored if 1) it has no nodes, 2) the local node does not
+    have a view installed or 3) the local node is not present in its current
+    view (i.e., it has been expelled).
+
     @param[in] xcom_nodes Set of nodes that participated in the consensus
-                            to deliver the message
+                          to deliver the message
+    @param[in] max_synode XCom max synode
+
+    @return   True if the view was processed;
+              False otherwise.
   */
-  bool xcom_receive_local_view(Gcs_xcom_nodes *xcom_nodes);
+  bool xcom_receive_local_view(Gcs_xcom_nodes *xcom_nodes,
+                               synode_no max_synode);
 
   /*
     This method is called in order to inform that the node has left the
@@ -445,11 +475,15 @@ class Gcs_xcom_control : public Gcs_control_interface {
     to the state exchange.
 
     @param[in] msg message
-    @param[in] protocol_version protocol version in use by control message,
+    @param[in] maximum_supported_protocol_version maximum supported protocol
+    version
+    @param[in] used_protocol_version protocol version in use by control message,
                                 i.e. state exchange message
   */
 
-  void process_control_message(Gcs_message *msg, unsigned int protocol_version);
+  void process_control_message(
+      Gcs_message *msg, Gcs_protocol_version maximum_supported_protocol_version,
+      Gcs_protocol_version used_protocol_version);
 
   std::map<int, const Gcs_control_event_listener &> *get_event_listeners();
 
@@ -457,6 +491,11 @@ class Gcs_xcom_control : public Gcs_control_interface {
     Return the address associated with the current node.
   */
   Gcs_xcom_node_address *get_node_address();
+
+  /**
+    @returns the information about the local membership of this node.
+   */
+  Gcs_xcom_node_information const &get_node_information() const;
 
   /**
     Return a pointer to the proxy object used to access XCOM.
@@ -515,6 +554,15 @@ class Gcs_xcom_control : public Gcs_control_interface {
   */
   void set_join_behavior(unsigned int join_attempts,
                          unsigned int join_sleep_time);
+
+  /**
+    Sets a new value for the maximum size of the XCom cache.
+
+    @param[in] size the new maximum size of the XCom cache
+    @retval - GCS_OK if request was successfully scheduled in XCom,
+              GCS_NOK otherwise.
+  */
+  enum_gcs_error set_xcom_cache_size(uint64_t size);
 
   /**
     Notify that the current member has left the group and whether it left
@@ -611,7 +659,6 @@ class Gcs_xcom_control : public Gcs_control_interface {
     Cycle through peers_list and try to open a connection to the peer, if it
     isn't the node itself.
 
-    @param[in] local_node_ip String with the IP and port of the local node
     @param[in] peers_list list of the peers
 
     @return connection descriptor to a peer
@@ -655,6 +702,14 @@ class Gcs_xcom_control : public Gcs_control_interface {
   std::pair<bool, connection_descriptor *> connect_to_peer(
       Gcs_xcom_node_address &peer,
       std::map<std::string, int> const &my_addresses);
+
+  /**
+   * Expel the given members from XCom.
+   *
+   * @param incompatible_members the members to expel
+   */
+  void expel_incompatible_members(
+      std::vector<Gcs_xcom_node_information> const &incompatible_members);
 
   // The group that this interface pertains
   Gcs_group_identifier *m_gid;

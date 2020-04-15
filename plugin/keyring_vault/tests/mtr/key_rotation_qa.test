@@ -5,25 +5,26 @@
 
 --source include/have_keyring_vault_plugin.inc
 --source include/no_valgrind_without_big.inc
-call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'keyring_vault initialization failure.");
-call mtr.add_suppression("\\[Error\\] Function 'keyring_vault' already exists");
-call mtr.add_suppression("\\[Error\\] Couldn't load plugin named 'keyring_vault' with soname 'keyring_vault.so'.");
-call mtr.add_suppression("\\[Error\\] Couldn't load plugin named 'keyring_vault' with soname 'keyring_vault.dll'.");
-call mtr.add_suppression("\\[Error\\] InnoDB: Can't generate new master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[Error\\] InnoDB: Encryption information in datafile");
-call mtr.add_suppression("\\[Error\\] InnoDB: Operating system error number 2 in a file operation.");
-call mtr.add_suppression("\\[Error\\] InnoDB: The error means the system cannot find the path specified.");
-call mtr.add_suppression("\\[Error\\] InnoDB: Could not find a valid tablespace file for");
-call mtr.add_suppression("\\[Error\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
-call mtr.add_suppression("\\[Error\\] InnoDB: Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace `test/.*` because it could not be opened.");
-call mtr.add_suppression("\\[Error\\] InnoDB: Failed to find tablespace for table");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Can't read encryption key from file");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot open table .* from the internal data dictionary of InnoDB though the .frm file for the table exists.*");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to decrpt encryption information, please check key file is not changed!");
+--source include/not_repeat.inc
+call mtr.add_suppression("Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("Plugin keyring_vault reported: 'keyring_vault initialization failure.");
+call mtr.add_suppression("Function 'keyring_vault' already exists");
+call mtr.add_suppression("Couldn't load plugin named 'keyring_vault' with soname 'keyring_vault.so'.");
+call mtr.add_suppression("Couldn't load plugin named 'keyring_vault' with soname 'keyring_vault.dll'.");
+call mtr.add_suppression("InnoDB: Can't generate new master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("Encryption information in datafile");
+call mtr.add_suppression("Operating system error number 2 in a file operation.");
+call mtr.add_suppression("The error means the system cannot find the path specified.");
+call mtr.add_suppression("Could not find a valid tablespace file for");
+call mtr.add_suppression("If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
+call mtr.add_suppression("Ignoring tablespace `test/.*` because it could not be opened.");
+call mtr.add_suppression("Failed to find tablespace for table");
+call mtr.add_suppression("Can't read encryption key from file");
+call mtr.add_suppression("Cannot open table .* from the internal data dictionary of InnoDB though the .frm file for the table exists.*");
+call mtr.add_suppression("Failed to decrypt encryption information, please check whether key file has been changed!");
 
---source generate_default_conf_files.inc
+--source generate_default_mount_conf_files.inc
 --source is_vault_server_up.inc
 
 # Create mount points
@@ -195,5 +196,4 @@ DROP TABLE t1,t2,t5,t12,t10;
 --source mount_point_service.inc
 --let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_2
 --source mount_point_service.inc
---remove_file $KEYRING_INVALID_TOKEN_CONF_FILE
 --echo #End:

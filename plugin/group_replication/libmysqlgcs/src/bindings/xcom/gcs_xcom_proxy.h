@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,10 +24,12 @@
 #define GCS_XCOM_PROXY_INCLUDED
 
 #include <string>
+#include <unordered_set>  // std::unordered_set
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_cond.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_mutex.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_util.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_internal_message.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_group_member_information.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_input_queue.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_connection.h"
@@ -196,6 +198,44 @@ class Gcs_xcom_proxy {
       uint32_t group_id, xcom_event_horizon event_horizon) = 0;
 
   /**
+   This member function is responsible for retrieving the application payloads
+   decided in the synodes in @c synodes, from the XCom instance connected to
+   via @c fd.
+
+   @param[in] fd The file descriptor to the XCom connection established
+   earlier
+   @param[in] group_id The identifier of the group from which the payloads
+   will be retrieved
+   @param[in] synodes The desired synodes
+   @param[out] reply Where the requested payloads will be written to
+   @returns true (false) on success (failure). Success means that XCom had the
+   requested payloads, which were written to @c reply.
+   */
+  virtual bool xcom_client_get_synode_app_data(
+      connection_descriptor *fd, uint32_t group_id, synode_no_array &synodes,
+      synode_app_data_array &reply) = 0;
+
+  /**
+    This member function is responsible for setting a new value for the maximum
+    size of the XCom cache.
+
+    This function is asynchronous, so the return value indicates only whether
+    the request to change the value was successfully pushed to XCom or not.
+    However, since the cache size is set only for the local node, and makes no
+    further verifications on the value, if XCom processes the request, it will
+    accept the new value. The callers of this function must validate that the
+    value set is within the limits set to the maximum size of the XCom cache.
+
+    This function REQUIRES a prior call to @c xcom_open_handlers to establish a
+    connection to XCom.
+
+    @param size The new value for the maximum size of the XCom cache.
+    @returns true (false) on success (failure). Success means that XCom will
+             process our request, failure means it wont.
+  */
+  virtual bool xcom_client_set_cache_size(uint64_t size) = 0;
+
+  /**
     This member function is responsible for pushing data into consensus on
     XCom. The caller is responsible to making sure that there is an open XCom
     session @c xcom_input_connect and also that the server is part of the XCom
@@ -234,16 +274,12 @@ class Gcs_xcom_proxy {
     called when the XCOM thread was started but the node has not joined
     a group.
 
-    @param xcom_input_open indicates whether the input channel to the XCom
-                           thread has already been opened.
-    @returns true (false) on success (failure). Success means that XCom will
-             process our request, failure means it wont. There could be errors
-             later in the process of exiting XCom. Since this is basically an
-             asynchronous function, one needs to wait for the XCom thread to
-             to ensure that XCom terminated.
+    There could be errors later in the process of exiting XCom. Since this is
+    basically an asynchronous function, one needs to wait for the XCom thread to
+    to ensure that XCom terminated.
   */
 
-  virtual bool xcom_exit(bool xcom_input_open) = 0;
+  virtual void xcom_exit() = 0;
 
   /*
     Return the operation mode as an integer from an operation mode provided
@@ -333,15 +369,22 @@ class Gcs_xcom_proxy {
     server_key_file  - Path of file that contains the server's X509 key in PEM
                        format.
     server_cert_file - Path of file that contains the server's X509 certificate
-    in PEM format. client_key_file  - Path of file that contains the client's
-    X509 key in PEM format. client_cert_file - Path of file that contains the
-    client's X509 certificate in PEM format. ca_file          - Path of file
-    that contains list of trusted SSL CAs. ca_path          - Path of directory
-    that contains trusted SSL CA certificates in PEM format. crl_file         -
-    Path of file that contains certificate revocation lists. crl_path         -
-    Path of directory that contains certificate revocation list files. cipher
-    - List of permitted ciphers to use for connection encryption. tls_version
-    - Protocols permitted for secure connections.
+                       in PEM format.
+    client_key_file  - Path of file that contains the client's X509 key in PEM
+                       format.
+    client_cert_file - Path of file that contains the client's X509 certificate
+                       in PEM format.
+    ca_file          - Path of file that contains list of trusted SSL CAs.
+    ca_path          - Path of directory that contains trusted SSL CA
+                       certificates in PEM format.
+    crl_file         - Path of file that contains certificate revocation lists.
+    crl_path         - Path of directory that contains certificate revocation
+                       list files.
+    cipher           - List of permitted ciphers to use for connection
+                       encryption.
+    tls_version      - Protocols permitted for secure connections.
+    tls_ciphersuites - List of permitted ciphersuites to use for TLS 1.3
+                       connection encryption.
 
     Note that only the server_key_file/server_cert_file and the client_key_file/
     client_cert_file are required and the rest of the pointers can be NULL.
@@ -351,11 +394,23 @@ class Gcs_xcom_proxy {
     The caller can free the parameters after the SSL is started
     if this is necessary.
   */
-  virtual void xcom_set_ssl_parameters(
-      const char *server_key_file, const char *server_cert_file,
-      const char *client_key_file, const char *client_cert_file,
-      const char *ca_file, const char *ca_path, const char *crl_file,
-      const char *crl_path, const char *cipher, const char *tls_version) = 0;
+  struct ssl_parameters {
+    const char *server_key_file;
+    const char *server_cert_file;
+    const char *client_key_file;
+    const char *client_cert_file;
+    const char *ca_file;
+    const char *ca_path;
+    const char *crl_file;
+    const char *crl_path;
+    const char *cipher;
+  };
+  struct tls_parameters {
+    const char *tls_version;
+    const char *tls_ciphersuites;
+  };
+  virtual void xcom_set_ssl_parameters(ssl_parameters ssl,
+                                       tls_parameters tls) = 0;
 
   virtual site_def const *find_site_def(synode_no synode) = 0;
 
@@ -620,6 +675,21 @@ class Gcs_xcom_proxy {
                                       xcom_event_horizon &event_horizon) = 0;
 
   /**
+   Function to retrieve the application payloads decided on a set of synodes.
+
+   @param[in] xcom_instance The XCom instance to connect to
+   @param[in] group_id_hash Hash of group identifier.
+   @param[in] synode_set The desired synodes
+   @param[out] reply Where the requested payloads will be written to
+   @returns true (false) on success (failure). Success means that XCom had the
+   requested payloads, which were written to @c reply.
+   */
+  virtual bool xcom_get_synode_app_data(
+      Gcs_xcom_node_information const &xcom_instance, uint32_t group_id_hash,
+      const std::unordered_set<Gcs_xcom_synode> &synode_set,
+      synode_app_data_array &reply) = 0;
+
+  /**
     Function to reconfigure XCOM's event horizon.
 
     @param group_id_hash Hash of group identifier.
@@ -629,6 +699,14 @@ class Gcs_xcom_proxy {
   */
   virtual bool xcom_set_event_horizon(uint32_t group_id_hash,
                                       xcom_event_horizon event_horizon) = 0;
+  /**
+    Function to reconfigure the maximum size of the XCom cache.
+
+    @param size Cache size limit.
+    @return true if the operation is successfully pushed to XCom's queue,
+                 false otherwise
+  */
+  virtual bool xcom_set_cache_size(uint64_t size) = 0;
 
   /**
     Function to force the set of nodes in XCOM's configuration.
@@ -662,10 +740,18 @@ class Gcs_xcom_proxy {
   /**
    * Opens the input channel to XCom.
    *
+   * @param address address to connect to
+   * @param port port to connect to
    * @retval true if successful
    * @retval false otherwise
    */
-  virtual bool xcom_input_connect() = 0;
+  virtual bool xcom_input_connect(std::string const &address,
+                                  xcom_port port) = 0;
+
+  /**
+   * Closes the input channel to XCom.
+   */
+  virtual void xcom_input_disconnect() = 0;
 
   /**
    * Attempts to send the command @c data to XCom. (Called by GCS.)
@@ -741,6 +827,11 @@ class Gcs_xcom_proxy_base : public Gcs_xcom_proxy {
                               xcom_event_horizon &event_horizon);
   bool xcom_set_event_horizon(uint32_t group_id_hash,
                               xcom_event_horizon event_horizon);
+  bool xcom_get_synode_app_data(
+      Gcs_xcom_node_information const &xcom_instance, uint32_t group_id_hash,
+      const std::unordered_set<Gcs_xcom_synode> &synode_set,
+      synode_app_data_array &reply);
+  bool xcom_set_cache_size(uint64_t size);
   bool xcom_force_nodes(Gcs_xcom_nodes &nodes, uint32_t group_id_hash);
 
  private:
@@ -777,13 +868,19 @@ class Gcs_xcom_proxy_impl : public Gcs_xcom_proxy_base {
                                      xcom_event_horizon &event_horizon);
   bool xcom_client_set_event_horizon(uint32_t group_id,
                                      xcom_event_horizon event_horizon);
+  bool xcom_client_get_synode_app_data(connection_descriptor *con,
+                                       uint32_t group_id_hash,
+                                       synode_no_array &synodes,
+                                       synode_app_data_array &reply);
+
+  bool xcom_client_set_cache_size(uint64_t size);
   bool xcom_client_boot(node_list *nl, uint32_t group_id);
   connection_descriptor *xcom_client_open_connection(std::string,
                                                      xcom_port port);
   bool xcom_client_close_connection(connection_descriptor *fd);
   bool xcom_client_send_data(unsigned long long size, char *data);
   void xcom_init(xcom_port listen_port);
-  bool xcom_exit(bool xcom_input_open);
+  void xcom_exit();
   int xcom_get_ssl_mode(const char *mode);
   int xcom_get_ssl_fips_mode(const char *mode);
   int xcom_set_ssl_fips_mode(int mode);
@@ -791,13 +888,7 @@ class Gcs_xcom_proxy_impl : public Gcs_xcom_proxy_base {
   bool xcom_init_ssl();
   void xcom_destroy_ssl();
   bool xcom_use_ssl();
-  void xcom_set_ssl_parameters(const char *server_key_file,
-                               const char *server_cert_file,
-                               const char *client_key_file,
-                               const char *client_cert_file,
-                               const char *ca_file, const char *ca_path,
-                               const char *crl_file, const char *crl_path,
-                               const char *cipher, const char *tls_version);
+  void xcom_set_ssl_parameters(ssl_parameters ssl, tls_parameters tls);
   site_def const *find_site_def(synode_no synode);
 
   enum_gcs_error xcom_wait_ready();
@@ -821,7 +912,8 @@ class Gcs_xcom_proxy_impl : public Gcs_xcom_proxy_base {
   bool get_should_exit();
   void set_should_exit(bool should_exit);
 
-  bool xcom_input_connect();
+  bool xcom_input_connect(std::string const &address, xcom_port port);
+  void xcom_input_disconnect();
   bool xcom_input_try_push(app_data_ptr data);
   Gcs_xcom_input_queue::future_reply xcom_input_try_push_and_get_reply(
       app_data_ptr data);
@@ -860,11 +952,40 @@ class Gcs_xcom_proxy_impl : public Gcs_xcom_proxy_base {
   const char *m_crl_path;
   const char *m_cipher;
   const char *m_tls_version;
+  const char *m_tls_ciphersuites;
 
   std::atomic_bool m_should_exit;
 
   /* Input channel to XCom */
   Gcs_xcom_input_queue m_xcom_input_queue;
+
+  /*
+    Auxiliary function for the "xcom_wait_*" functions. Executes the actual
+    timed wait for the variable associated with the condition to be changed
+    and performs error checking.
+
+    The function will lock @c condition_lock, so it must be unlocked when the
+    function is called.
+
+    @param condition Cond variable on which we want to wait.
+    @param condition_lock Lock to access the @c condition variable.
+    @param need_to_wait A function implemented by the caller that verifies if
+                        the wait shall be executed. The function must return
+                        true when the wait must be executed, false otherwise.
+    @param condition_event A function that returns the string identifying the
+                           event associated with the cond. The string will be
+                           printed as a suffix to the error messages:
+                           "<error code> while waiting for <cond_event string>"
+                           The function receives the error code of the timed
+                           wait as an argument.
+
+    @retval GCS_OK if the wait is successful;
+            GCS_NOK if the timed wait terminates with an error.
+   */
+  enum_gcs_error xcom_wait_for_condition(
+      My_xp_cond_impl &condition, My_xp_mutex_impl &condition_lock,
+      std::function<bool(void)> need_to_wait,
+      std::function<const std::string(int res)> condition_event);
 
   /*
     Disabling the copy constructor and assignment operator.
@@ -895,6 +1016,24 @@ class Gcs_xcom_app_cfg {
     @param loops the number of spins.
    */
   void set_poll_spin_loops(unsigned int loops);
+
+  /**
+    Configures the maximum size of the xcom cache.
+    @param size the maximum size of the cache.
+   */
+  void set_xcom_cache_size(uint64_t size);
+
+  /**
+   Configures XCom with its unique instance identifier, i.e. its (address,
+   incarnation) pair.
+
+   Takes ownership of @c identity.
+
+   @param identity the unique identifier
+   @retval true if there was an error configuring XCom
+   @retval false if configuration was successful
+   */
+  bool set_identity(node_address *identity);
 
   /**
     Must be called when XCom is not engaged anymore.

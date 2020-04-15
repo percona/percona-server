@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ static inline bool init_acquire(UDF_INIT *initid, UDF_ARGS *args,
   initid->decimals = 0;
   initid->max_length = 1;
   initid->ptr = NULL;
-  initid->const_item = 0;
+  initid->const_item = false;
   initid->extension = NULL;
 
   // At least three arguments - namespace, lock, timeout
@@ -102,7 +102,8 @@ long long service_get_write_locks(UDF_INIT *, UDF_ARGS *args, unsigned char *,
   // For the UDF 1 == success, 0 == failure.
   return !acquire_locking_service_locks(
       NULL, lock_namespace, const_cast<const char **>(&args->args[1]),
-      args->arg_count - 2, LOCKING_SERVICE_WRITE, static_cast<ulong>(timeout));
+      args->arg_count - 2, LOCKING_SERVICE_WRITE,
+      (timeout == -1 ? TIMEOUT_INF : static_cast<Timeout_type>(timeout)));
 }
 
 bool service_release_locks_init(UDF_INIT *initid, UDF_ARGS *args,
@@ -111,7 +112,7 @@ bool service_release_locks_init(UDF_INIT *initid, UDF_ARGS *args,
   initid->decimals = 0;
   initid->max_length = 1;
   initid->ptr = NULL;
-  initid->const_item = 0;
+  initid->const_item = false;
   initid->extension = NULL;
 
   // Only one argument - lock_namespace (string)

@@ -37,7 +37,7 @@ struct Valid_percona_system_key {
    system key's name and system key's version.
 */
 struct Valid_percona_system_key valid_percona_system_keys[] = {
-    {PERCONA_INNODB_KEY_NAME, 32, true}};
+    {PERCONA_INNODB_KEY_NAME, 32, true}, {PERCONA_REDO_KEY_NAME, 32, false}};
 const size_t valid_percona_system_keys_size =
     array_elements(valid_percona_system_keys);
 

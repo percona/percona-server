@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -131,7 +131,7 @@ class Sdi_wcontext {
   /** Pointer to schema name to use for schema references in SDI */
   const String_type *m_schema_name;
 
-  /** Flag indicating that an error has occured */
+  /** Flag indicating that an error has occurred */
   bool m_error;
 
   friend char *buf_handle(Sdi_wcontext *wctx, size_t sz);
@@ -171,7 +171,7 @@ String_type generic_serialize(THD *thd, const char *dd_object_type,
   w.Uint(Dictionary_impl::get_target_dd_version());
 
   w.String(STRING_WITH_LEN("sdi_version"));
-  w.Uint64(sdi_version);
+  w.Uint64(SDI_VERSION);
 
   w.String(STRING_WITH_LEN("dd_object_type"));
   w.String(dd_object_type, dd_object_type_size);
@@ -245,7 +245,7 @@ class Sdi_rcontext {
   /** Sdi version from SDI */
   std::uint64_t m_sdi_version;
 
-  /** Flag indicating that an error has occured */
+  /** Flag indicating that an error has occurred */
   bool m_error;
 
   friend void track_object(Sdi_rcontext *rctx, Column *column_object);
@@ -313,9 +313,15 @@ bool generic_lookup_ref(THD *thd, MDL_key::enum_mdl_namespace mdlns,
   }
 
   // Acquire MDL here so that it becomes possible to acquire the
-  // schema to look up its id in the current DD
-  if (mdl_lock(thd, mdlns, name, "", MDL_INTENTION_EXCLUSIVE)) {
-    return true;
+  // tablespace/schema to look up its id in the current DD
+  if (mdlns == MDL_key::TABLESPACE) {
+    if (mdl_lock(thd, mdlns, "", name, MDL_INTENTION_EXCLUSIVE)) {
+      return true;
+    }
+  } else {
+    if (mdl_lock(thd, mdlns, name, "", MDL_INTENTION_EXCLUSIVE)) {
+      return true;
+    }
   }
 
   dd::cache::Dictionary_client *dc = thd->dd_client();
@@ -404,10 +410,10 @@ bool generic_deserialize(
   RJ_Value &sdi_version_val = doc["sdi_version"];
   DBUG_ASSERT(sdi_version_val.IsUint64());
   std::uint64_t sdi_version_ = sdi_version_val.GetUint64();
-  if (sdi_version_ != sdi_version) {
+  if (sdi_version_ != SDI_VERSION) {
     // Incompatible change
     my_error(ER_IMP_INCOMPATIBLE_SDI_VERSION, MYF(0), sdi_version_,
-             sdi_version);
+             SDI_VERSION);
     return true;
   }
 

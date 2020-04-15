@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@
 #include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
-#include "sql/auth/auth_common.h"  // SUPER_ACL
+#include "sql/auth/auth_common.h"  // SUPER_ACL, generate_password
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/derror.h"  // ER_THD
 #include "sql/enum_query_type.h"
@@ -67,6 +67,7 @@
 #include "sql/table.h"
 #include "sql_string.h"
 
+using std::min;
 using std::string;
 
 static collation_unordered_map<string, sys_var *> *system_variable_hash;
@@ -86,7 +87,7 @@ static collation_unordered_set<string> *never_persistable_vars;
 */
 bool get_sysvar_source(const char *name, uint length,
                        enum enum_variable_source *source) {
-  DBUG_ENTER("get_sysvar_source");
+  DBUG_TRACE;
 
   bool ret = false;
   sys_var *sysvar = nullptr;
@@ -105,13 +106,13 @@ bool get_sysvar_source(const char *name, uint length,
   }
 
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 sys_var_chain all_sys_vars = {NULL, NULL};
 
 int sys_var_init() {
-  DBUG_ENTER("sys_var_init");
+  DBUG_TRACE;
 
   /* Must be already initialized. */
   DBUG_ASSERT(system_charset_info != NULL);
@@ -125,37 +126,35 @@ int sys_var_init() {
 
   if (mysql_add_sys_var_chain(all_sys_vars.first)) goto error;
 
-  DBUG_RETURN(0);
+  return 0;
 
 error:
   LogErr(ERROR_LEVEL, ER_FAILED_TO_INIT_SYS_VAR);
-  DBUG_RETURN(1);
+  return 1;
 }
 
 int sys_var_add_options(std::vector<my_option> *long_options, int parse_flags) {
-  DBUG_ENTER("sys_var_add_options");
+  DBUG_TRACE;
 
   for (sys_var *var = all_sys_vars.first; var; var = var->next) {
     if (var->register_option(long_options, parse_flags)) goto error;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 
 error:
   LogErr(ERROR_LEVEL, ER_FAILED_TO_INIT_SYS_VAR);
-  DBUG_RETURN(1);
+  return 1;
 }
 
 void sys_var_end() {
-  DBUG_ENTER("sys_var_end");
+  DBUG_TRACE;
 
   delete system_variable_hash;
   delete never_persistable_vars;
   system_variable_hash = nullptr;
 
   for (sys_var *var = all_sys_vars.first; var; var = var->next) var->cleanup();
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -171,13 +170,15 @@ void sys_var_end() {
 bool check_priv(THD *thd, bool static_variable) {
   Security_context *sctx = thd->security_context();
   /* for dynamic variables user needs SUPER_ACL or SYSTEM_VARIABLES_ADMIN */
+  const bool is_utility_user = acl_is_utility_user(
+      sctx->priv_user().str, sctx->host().str, sctx->ip().str);
   if (!static_variable) {
-    if (!sctx->check_access(SUPER_ACL) &&
+    if (!is_utility_user && !sctx->check_access(SUPER_ACL) &&
         !(sctx->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
               .first)) {
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
                "SUPER or SYSTEM_VARIABLES_ADMIN");
-      return 1;
+      return true;
     }
   } else {
     /*
@@ -190,10 +191,10 @@ bool check_priv(THD *thd, bool static_variable) {
               .first)) {
       my_error(ER_PERSIST_ONLY_ACCESS_DENIED_ERROR, MYF(0),
                "SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN");
-      return 1;
+      return true;
     }
   }
-  return 0;
+  return false;
 }
 
 /**
@@ -326,11 +327,11 @@ bool sys_var::update(THD *thd, set_var *var) {
   }
 }
 
-uchar *sys_var::session_value_ptr(THD *, THD *target_thd, LEX_STRING *) {
+const uchar *sys_var::session_value_ptr(THD *, THD *target_thd, LEX_STRING *) {
   return session_var_ptr(target_thd);
 }
 
-uchar *sys_var::global_value_ptr(THD *, LEX_STRING *) {
+const uchar *sys_var::global_value_ptr(THD *, LEX_STRING *) {
   return global_var_ptr();
 }
 
@@ -364,8 +365,8 @@ bool sys_var::check(THD *thd, set_var *var) {
   return false;
 }
 
-uchar *sys_var::value_ptr(THD *running_thd, THD *target_thd, enum_var_type type,
-                          LEX_STRING *base) {
+const uchar *sys_var::value_ptr(THD *running_thd, THD *target_thd,
+                                enum_var_type type, LEX_STRING *base) {
   if (type == OPT_GLOBAL || type == OPT_PERSIST || scope() == GLOBAL) {
     mysql_mutex_assert_owner(&LOCK_global_system_variables);
     AutoRLock lock(guard);
@@ -374,65 +375,35 @@ uchar *sys_var::value_ptr(THD *running_thd, THD *target_thd, enum_var_type type,
     return session_value_ptr(running_thd, target_thd, base);
 }
 
-uchar *sys_var::value_ptr(THD *thd, enum_var_type type, LEX_STRING *base) {
+const uchar *sys_var::value_ptr(THD *thd, enum_var_type type,
+                                LEX_STRING *base) {
   return value_ptr(thd, thd, type, base);
 }
 
 bool sys_var::set_default(THD *thd, set_var *var) {
-  DBUG_ENTER("sys_var::set_default");
+  DBUG_TRACE;
   if (var->is_global_persist() || scope() == GLOBAL)
     global_save_default(thd, var);
   else
     session_save_default(thd, var);
 
   bool ret = check(thd, var) || update(thd, var);
-  DBUG_RETURN(ret);
-}
-
-bool sys_var::is_default(THD *, set_var *var) {
-  DBUG_ENTER("sys_var::is_default");
-  bool ret = false;
-  longlong def = option.def_value;
-  switch (get_var_type()) {
-    case GET_INT:
-    case GET_UINT:
-    case GET_LONG:
-    case GET_ULONG:
-    case GET_LL:
-    case GET_ULL:
-    case GET_BOOL:
-    case GET_ENUM:
-    case GET_SET:
-    case GET_FLAGSET:
-    case GET_ASK_ADDR:
-      if (def == (longlong)var->save_result.ulonglong_value) ret = true;
-      break;
-    case GET_DOUBLE:
-      if ((double)def == (double)var->save_result.double_value) ret = true;
-      break;
-    case GET_STR_ALLOC:
-    case GET_STR:
-    case GET_NO_ARG:
-    case GET_PASSWORD:
-      if ((def == (longlong)var->save_result.string_value.str) ||
-          (((char *)def) &&
-           !strcmp((char *)def, var->save_result.string_value.str)))
-        ret = true;
-      break;
-  }
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 void sys_var::set_user_host(THD *thd) {
   memset(user, 0, sizeof(user));
+  DBUG_ASSERT(thd->security_context()->user().length < sizeof(user));
   /* set client user */
-  if (thd->security_context()->user().length)
+  if (thd->security_context()->user().length > 0)
     strncpy(user, thd->security_context()->user().str,
             thd->security_context()->user().length);
   memset(host, 0, sizeof(host));
-  if (thd->security_context()->host().length)
-    strncpy(host, thd->security_context()->host().str,
-            thd->security_context()->host().length);
+  if (thd->security_context()->host().length > 0) {
+    int host_len =
+        min<size_t>(sizeof(host) - 1, thd->security_context()->host().length);
+    strncpy(host, thd->security_context()->host().str, host_len);
+  }
 }
 
 void sys_var::do_deprecated_warning(THD *thd) {
@@ -448,9 +419,9 @@ void sys_var::do_deprecated_warning(THD *thd) {
                       ? ER_DEPRECATE_MSG_NO_REPLACEMENT
                       : ER_DEPRECATE_MSG_WITH_REPLACEMENT;
     if (thd)
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_WARN_DEPRECATED_SYNTAX, ER_THD(thd, errmsg), buf1,
-                          deprecation_substitute);
+      push_warning_printf(
+          thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
+          ER_THD_NONCONST(thd, errmsg), buf1, deprecation_substitute);
     else
       LogErr(WARNING_LEVEL, errmsg, buf1, deprecation_substitute);
   }
@@ -458,22 +429,25 @@ void sys_var::do_deprecated_warning(THD *thd) {
 
 Item *sys_var::copy_value(THD *thd) {
   LEX_STRING str;
-  uchar *val_ptr = session_value_ptr(thd, thd, &str);
+  const uchar *val_ptr = session_value_ptr(thd, thd, &str);
   switch (get_var_type()) {
     case GET_INT:
-      return new Item_int(*(int *)val_ptr);
+      return new Item_int(*pointer_cast<const int *>(val_ptr));
     case GET_UINT:
-      return new Item_int((ulonglong) * (uint *)val_ptr);
+      return new Item_int(
+          static_cast<ulonglong>(*pointer_cast<const uint *>(val_ptr)));
     case GET_LONG:
-      return new Item_int((longlong) * (long *)val_ptr);
+      return new Item_int(
+          static_cast<longlong>(*pointer_cast<const long *>(val_ptr)));
     case GET_ULONG:
-      return new Item_int((ulonglong) * (ulong *)val_ptr);
+      return new Item_int(
+          static_cast<ulonglong>(*pointer_cast<const ulong *>(val_ptr)));
     case GET_LL:
-      return new Item_int(*(longlong *)val_ptr);
+      return new Item_int(*pointer_cast<const longlong *>(val_ptr));
     case GET_ULL:
-      return new Item_int(*(ulonglong *)val_ptr);
+      return new Item_int(*pointer_cast<const ulonglong *>(val_ptr));
     case GET_BOOL:
-      return new Item_int(*(bool *)val_ptr);
+      return new Item_int(*pointer_cast<const bool *>(val_ptr));
     case GET_ENUM:
     case GET_SET:
     case GET_FLAGSET:
@@ -481,12 +455,13 @@ Item *sys_var::copy_value(THD *thd) {
     case GET_STR:
     case GET_NO_ARG:
     case GET_PASSWORD: {
-      const char *tmp_str_val = (const char *)val_ptr;
+      const char *tmp_str_val = pointer_cast<const char *>(val_ptr);
       return new Item_string(tmp_str_val, strlen(tmp_str_val),
                              system_charset_info);
     }
     case GET_DOUBLE:
-      return new Item_float(*(double *)val_ptr, NOT_FIXED_DEC);
+      return new Item_float(*pointer_cast<const double *>(val_ptr),
+                            DECIMAL_NOT_SPECIFIED);
     default:
       DBUG_ASSERT(0);
   }
@@ -654,7 +629,8 @@ int mysql_del_sys_var_chain(sys_var *first) {
     False if a >= b.
 */
 static int show_cmp(const void *a, const void *b) {
-  return strcmp(((SHOW_VAR *)a)->name, ((SHOW_VAR *)b)->name);
+  return strcmp(static_cast<const SHOW_VAR *>(a)->name,
+                static_cast<const SHOW_VAR *>(b)->name);
 }
 
 /*
@@ -790,7 +766,7 @@ sys_var *intern_find_sys_var(const char *str, size_t length) {
 int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened) {
   int error;
   List_iterator_fast<set_var_base> it(*var_list);
-  DBUG_ENTER("sql_set_variables");
+  DBUG_TRACE;
 
   LEX *lex = thd->lex;
   set_var_base *var;
@@ -824,18 +800,18 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened) {
           (setvar->type == OPT_PERSIST || setvar->type == OPT_PERSIST_ONLY)) {
         pv = Persisted_variables_cache::get_instance();
         /* update in-memory copy of persistent options */
-        pv->set_variable(thd, setvar);
+        if (pv->set_variable(thd, setvar)) return 1;
       }
     }
     /* flush all persistent options to a file */
     if (pv && pv->flush_to_file()) {
       my_error(ER_VARIABLE_NOT_PERSISTED, MYF(0));
-      DBUG_RETURN(1);
+      return 1;
     }
   }
 err:
-  free_underlaid_joins(thd->lex->select_lex);
-  DBUG_RETURN(error);
+  free_underlaid_joins(thd, thd->lex->select_lex);
+  return error;
 }
 
 /**
@@ -862,8 +838,8 @@ bool keyring_access_test() {
 *****************************************************************************/
 
 set_var::set_var(enum_var_type type_arg, sys_var *var_arg,
-                 const LEX_STRING *base_name_arg, Item *value_arg)
-    : var(var_arg), type(type_arg), base(*base_name_arg) {
+                 LEX_CSTRING base_name_arg, Item *value_arg)
+    : var(var_arg), type(type_arg), base(base_name_arg) {
   /*
     If the set value is a field, change it to a string to allow things like
     SET table_type=MYISAM;
@@ -962,32 +938,32 @@ Resolve the variable assignment
 */
 
 int set_var::resolve(THD *thd) {
-  DBUG_ENTER("set_var::resolve");
+  DBUG_TRACE;
   var->do_deprecated_warning(thd);
   if (var->is_readonly()) {
     if (type != OPT_PERSIST_ONLY) {
       my_error(ER_INCORRECT_GLOBAL_LOCAL_VAR, MYF(0), var->name.str,
                "read only");
-      DBUG_RETURN(-1);
+      return -1;
     }
     if (type == OPT_PERSIST_ONLY && var->is_non_persistent() &&
         !can_persist_non_persistent_var(thd, var, type)) {
       my_error(ER_INCORRECT_GLOBAL_LOCAL_VAR, MYF(0), var->name.str,
                "non persistent read only");
-      DBUG_RETURN(-1);
+      return -1;
     }
   }
   if (!var->check_scope(type)) {
     int err = (is_global_persist()) ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE;
     my_error(err, MYF(0), var->name.str);
-    DBUG_RETURN(-1);
+    return -1;
   }
   if (type == OPT_GLOBAL || type == OPT_PERSIST) {
     /* Either the user has SUPER_ACL or she has SYSTEM_VARIABLES_ADMIN */
-    if (check_priv(thd, false)) DBUG_RETURN(1);
+    if (check_priv(thd, false)) return 1;
   }
   if (type == OPT_PERSIST_ONLY) {
-    if (check_priv(thd, true)) DBUG_RETURN(1);
+    if (check_priv(thd, true)) return 1;
   }
 
   /* check if read/write non-persistent variables can be persisted */
@@ -996,16 +972,16 @@ int set_var::resolve(THD *thd) {
       !can_persist_non_persistent_var(thd, var, type)) {
     my_error(ER_INCORRECT_GLOBAL_LOCAL_VAR, MYF(0), var->name.str,
              "non persistent");
-    DBUG_RETURN(-1);
+    return -1;
   }
 
   /* value is a NULL pointer if we are using SET ... = DEFAULT */
-  if (!value) DBUG_RETURN(0);
+  if (!value) return 0;
 
   if ((!value->fixed && value->fix_fields(thd, &value)) || value->check_cols(1))
-    DBUG_RETURN(-1);
+    return -1;
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -1019,14 +995,14 @@ int set_var::resolve(THD *thd) {
 */
 
 int set_var::check(THD *thd) {
-  DBUG_ENTER("set_var::check");
+  DBUG_TRACE;
 
   /* value is a NULL pointer if we are using SET ... = DEFAULT */
-  if (!value) DBUG_RETURN(0);
+  if (!value) return 0;
 
   if (var->check_update_type(value->result_type())) {
     my_error(ER_WRONG_TYPE_FOR_VAR, MYF(0), var->name.str);
-    DBUG_RETURN(-1);
+    return -1;
   }
   int ret = (type != OPT_PERSIST_ONLY && var->check(thd, this)) ? -1 : 0;
 
@@ -1036,7 +1012,7 @@ int set_var::check(THD *thd) {
                              value->item_name.length());
   }
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /**
@@ -1083,7 +1059,7 @@ int set_var::light_check(THD *thd) {
 
 void set_var::update_source_user_host_timestamp(THD *thd) {
   var->set_source(enum_variable_source::DYNAMIC);
-  var->set_source_name(EMPTY_STR.str);
+  var->set_source_name(EMPTY_CSTR.str);
   var->set_user_host(thd);
   var->set_timestamp();
 }
@@ -1120,11 +1096,11 @@ int set_var::update(THD *thd) {
   return ret;
 }
 
-void set_var::print_short(String *str) {
+void set_var::print_short(const THD *thd, String *str) {
   str->append(var->name.str, var->name.length);
   str->append(STRING_WITH_LEN("="));
   if (value)
-    value->print(str, QT_ORDINARY);
+    value->print(thd, str, QT_ORDINARY);
   else
     str->append(STRING_WITH_LEN("DEFAULT"));
 }
@@ -1132,9 +1108,10 @@ void set_var::print_short(String *str) {
 /**
   Self-print assignment
 
+  @param thd Thread handle
   @param str String buffer to append the partial assignment to.
 */
-void set_var::print(THD *, String *str) {
+void set_var::print(const THD *thd, String *str) {
   switch (type) {
     case OPT_PERSIST:
       str->append("PERSIST ");
@@ -1152,7 +1129,7 @@ void set_var::print(THD *, String *str) {
     str->append(base.str, base.length);
     str->append(STRING_WITH_LEN("."));
   }
-  print_short(str);
+  print_short(thd, str);
 }
 
 /*****************************************************************************
@@ -1172,7 +1149,7 @@ int set_var_user::check(THD *) {
     Item_func_set_user_var can't substitute something else on its place =>
     0 can be passed as last argument (reference on item)
   */
-  return user_var_item->check(0) ? -1 : 0;
+  return user_var_item->check(false) ? -1 : 0;
 }
 
 /**
@@ -1208,8 +1185,8 @@ int set_var_user::update(THD *thd) {
   return 0;
 }
 
-void set_var_user::print(THD *, String *str) {
-  user_var_item->print_assignment(str, QT_ORDINARY);
+void set_var_user::print(const THD *thd, String *str) {
+  user_var_item->print_assignment(thd, str, QT_ORDINARY);
 }
 
 /*****************************************************************************
@@ -1218,17 +1195,24 @@ void set_var_user::print(THD *, String *str) {
 
 set_var_password::set_var_password(LEX_USER *user_arg, char *password_arg,
                                    char *current_password_arg,
-                                   bool retain_current)
+                                   bool retain_current, bool gen_pass)
     : user(user_arg),
       password(password_arg),
       current_password(current_password_arg),
-      retain_current_password(retain_current) {
+      retain_current_password(retain_current),
+      generate_password(gen_pass) {
   if (current_password != nullptr) {
     user_arg->uses_replace_clause = true;
     user_arg->current_auth.str = current_password_arg;
     user_arg->current_auth.length = strlen(current_password_arg);
   }
   user_arg->retain_current_password = retain_current_password;
+}
+
+set_var_password::~set_var_password() {
+  // We copied the generated password buffer to circumvent
+  // the password nullification code in change_password()
+  if (generate_password) my_free(password);
 }
 
 /**
@@ -1248,14 +1232,30 @@ int set_var_password::check(THD *thd) {
 }
 
 int set_var_password::update(THD *thd) {
+  if (generate_password) {
+    thd->m_disable_password_validation = true;
+    std::string generated_password;
+    generate_random_password(&generated_password,
+                             thd->variables.generated_random_password_length);
+    /*
+      We need to copy the password buffer here because it will be set to \0
+      later by change_password() and since we're generated a random password
+      we need to retain it until it can be sent to the client.
+      Because set_var_password never will get its destructor called we also
+      need to move the string allocated memory to the THD mem root.
+    */
+    password = thd->mem_strdup(generated_password.c_str());
+    str_generated_password = thd->mem_strdup(generated_password.c_str());
+  }
   /* Returns 1 as the function sends error to client */
-  return change_password(thd, user, password, current_password,
-                         retain_current_password)
-             ? 1
-             : 0;
+  auto res = change_password(thd, user, password, current_password,
+                             retain_current_password)
+                 ? 1
+                 : 0;
+  return res;
 }
 
-void set_var_password::print(THD *thd, String *str) {
+void set_var_password::print(const THD *thd, String *str) {
   if (user->user.str != NULL && user->user.length > 0) {
     str->append(STRING_WITH_LEN("PASSWORD FOR "));
     append_identifier(thd, str, user->user.str, user->user.length);
@@ -1314,12 +1314,12 @@ int set_var_collation_client::update(THD *thd) {
           ->is_enabled())
     thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
         ->mark_as_changed(thd, NULL);
-  thd->protocol_text.init(thd);
-  thd->protocol_binary.init(thd);
+  thd->protocol_text->init(thd);
+  thd->protocol_binary->init(thd);
   return 0;
 }
 
-void set_var_collation_client::print(THD *, String *str) {
+void set_var_collation_client::print(const THD *, String *str) {
   str->append((set_cs_flags & SET_CS_NAMES) ? "NAMES " : "CHARACTER SET ");
   if (set_cs_flags & SET_CS_DEFAULT)
     str->append("DEFAULT");

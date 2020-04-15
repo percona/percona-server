@@ -281,7 +281,7 @@ select ts from test0.benchmark where state like 'slave ends load' into @s_1;
 select ts from test0.benchmark where state like 'slave is processing load' into @s_0;
 let $delta_file= `select replace(concat("delta_",uuid(),".out"),"-","_")`;
 --replace_regex /delta_.*.out/delta.out/
-eval select time_to_sec(@m_1) - time_to_sec(@m_0) as 'delta_m', 
+eval select time_to_sec(@m_1) - time_to_sec(@m_0) as 'delta_m',
        time_to_sec(@s_1) - time_to_sec(@s_0) as 'delta_s',
        time_to_sec(@s_m1) - time_to_sec(@s_m0) as 'delta_sm'  into outfile '$delta_file';
 

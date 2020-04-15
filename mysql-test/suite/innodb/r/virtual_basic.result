@@ -240,14 +240,24 @@ c
 3
 CREATE unique INDEX idx1 ON t(c);
 INSERT INTO t(h)VALUES ('mm');
-ERROR 23000: Duplicate entry '3' for key 'idx1'
+ERROR 23000: Duplicate entry '3' for key 't.idx1'
 DROP TABLE t;
 CREATE TABLE `t1` ( `a` INT(11) DEFAULT NULL,   `b` INT(11) DEFAULT NULL,   `c` INT(11) GENERATED ALWAYS AS (a+b) VIRTUAL,   `x` INT(11) NOT NULL,   `h` VARCHAR(10) DEFAULT NULL,   PRIMARY KEY (`x`),   KEY `idx` (`c`) ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1, 2, DEFAULT, 3, 'mm');
 INSERT INTO t1 VALUES (11, 22, DEFAULT, 23, 'mm');
 UPDATE t1 SET x = 4 WHERE x =3;
 DROP TABLE t1;
 CREATE TABLE `t1` ( `a` INT(11) DEFAULT NULL,   `b` INT(11) DEFAULT NULL,   `c` INT(11) GENERATED ALWAYS AS (a+b) VIRTUAL,   `x` INT(11) NOT NULL,   `h` VARCHAR(10) DEFAULT NULL,   KEY `idx` (`c`) ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1, 2, DEFAULT, 3, 'mm');
 INSERT INTO t1 VALUES (11, 22, DEFAULT, 23, 'mm');
 START TRANSACTION;
@@ -273,6 +283,12 @@ CREATE TABLE `t` (
 PRIMARY KEY (`h`),
 KEY `idx` (`c`)
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t VALUES (11, 3, DEFAULT, DEFAULT, 1);
 INSERT INTO t VALUES (18, 1, DEFAULT, DEFAULT, 2);
 INSERT INTO t VALUES (28, 1, DEFAULT, DEFAULT, 3);
@@ -375,6 +391,9 @@ CREATE TABLE `t` (
 `e` INT(11) GENERATED ALWAYS AS (10) VIRTUAL,
 `h` INT(11) NOT NULL,
 PRIMARY KEY (`h`) ) ROW_FORMAT=COMPACT  ENGINE=InnoDB charset latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
@@ -382,8 +401,8 @@ t	CREATE TABLE `t` (
   `b` varchar(3000) DEFAULT NULL,
   `c` varchar(14000) GENERATED ALWAYS AS (concat(`a`,`b`)) VIRTUAL,
   `d` varchar(5000) GENERATED ALWAYS AS (`b`) VIRTUAL,
-  `e` int(11) GENERATED ALWAYS AS (10) VIRTUAL,
-  `h` int(11) NOT NULL,
+  `e` int GENERATED ALWAYS AS (10) VIRTUAL,
+  `h` int NOT NULL,
   PRIMARY KEY (`h`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
 INSERT INTO t VALUES (REPEAT('g', 10000), REPEAT('x', 2800), DEFAULT, DEFAULT, DEFAULT, 1);
@@ -426,6 +445,9 @@ CREATE TABLE `t` (
 `h` INT(11) NOT NULL,
 PRIMARY KEY (`h`)
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t VALUES (REPEAT('g', 16000), REPEAT('x', 16000), DEFAULT, DEFAULT, DEFAULT, 1);
 INSERT INTO t VALUES (REPEAT('a', 32000), REPEAT('b', 11000), DEFAULT, DEFAULT, DEFAULT, 2);
 INSERT INTO t VALUES (REPEAT('m', 18000), REPEAT('n', 46000), DEFAULT, DEFAULT, DEFAULT, 3);
@@ -474,6 +496,13 @@ KEY `m3` (`m3`),
 KEY `c` (`c`(100)),
 KEY `e` (`e`,`d`(20))
 ) ENGINE=InnoDB charset latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t VALUES (1, 2, DEFAULT, 3, "aaa", DEFAULT, REPEAT('g', 10000), REPEAT('x', 2800), DEFAULT, DEFAULT, DEFAULT, 1);
 INSERT INTO t VALUES (11, 21, DEFAULT, 31, "bbb", DEFAULT, REPEAT('a', 9000), REPEAT('b', 2000), DEFAULT, DEFAULT, DEFAULT, 2);
 INSERT INTO t VALUES (21, 31, DEFAULT, 41, "zzz", DEFAULT, REPEAT('m', 8000), REPEAT('n', 3000), DEFAULT, DEFAULT, DEFAULT, 3);
@@ -532,19 +561,28 @@ CREATE TABLE `t1` (
 `extra` int(11) DEFAULT NULL,
 UNIQUE KEY `uidx` (`col5`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 CHANGE COLUMN extra col6 INT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) NOT NULL,
-  `col3` int(11) NOT NULL,
-  `col4` int(11) DEFAULT NULL,
-  `col5` int(11) GENERATED ALWAYS AS ((`col2` % `col3`)) VIRTUAL,
-  `col7` int(11) GENERATED ALWAYS AS ((`col5` * `col5`)) VIRTUAL,
-  `col8` int(11) GENERATED ALWAYS AS ((`col5` % `col5`)) VIRTUAL,
+  `col1` int NOT NULL,
+  `col2` int NOT NULL,
+  `col3` int NOT NULL,
+  `col4` int DEFAULT NULL,
+  `col5` int GENERATED ALWAYS AS ((`col2` % `col3`)) VIRTUAL,
+  `col7` int GENERATED ALWAYS AS ((`col5` * `col5`)) VIRTUAL,
+  `col8` int GENERATED ALWAYS AS ((`col5` % `col5`)) VIRTUAL,
   `col9` text,
-  `col6` int(11) DEFAULT NULL,
+  `col6` int DEFAULT NULL,
   UNIQUE KEY `uidx` (`col5`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t1;
@@ -583,6 +621,16 @@ CREATE TABLE `t1` (
 `col9` text,
 `extra` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 DROP COLUMN col7;
 DROP TABLE t1;
 CREATE TABLE t1 (
@@ -746,6 +794,9 @@ CREATE TABLE `t` (
 `e` INT(11) GENERATED ALWAYS AS (10) VIRTUAL,
 `h` INT(11) NOT NULL,
 PRIMARY KEY (`h`) ) ROW_FORMAT=DYNAMIC  ENGINE=InnoDB charset latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
@@ -753,8 +804,8 @@ t	CREATE TABLE `t` (
   `b` varchar(3000) DEFAULT NULL,
   `c` varchar(14000) GENERATED ALWAYS AS (concat(`a`,`b`)) VIRTUAL,
   `d` varchar(5000) GENERATED ALWAYS AS (`b`) VIRTUAL,
-  `e` int(11) GENERATED ALWAYS AS (10) VIRTUAL,
-  `h` int(11) NOT NULL,
+  `e` int GENERATED ALWAYS AS (10) VIRTUAL,
+  `h` int NOT NULL,
   PRIMARY KEY (`h`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 INSERT INTO t VALUES (REPEAT('g', 10000), REPEAT('x', 2800), DEFAULT, DEFAULT, DEFAULT, 1);
@@ -795,6 +846,9 @@ CREATE TABLE `t` (
 `e` INT(11) GENERATED ALWAYS AS (10) VIRTUAL,
 `h` INT(11) NOT NULL,
 PRIMARY KEY (`h`) ) ROW_FORMAT=REDUNDANT  ENGINE=InnoDB charset latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
@@ -802,8 +856,8 @@ t	CREATE TABLE `t` (
   `b` varchar(3000) DEFAULT NULL,
   `c` varchar(14000) GENERATED ALWAYS AS (concat(`a`,`b`)) VIRTUAL,
   `d` varchar(5000) GENERATED ALWAYS AS (`b`) VIRTUAL,
-  `e` int(11) GENERATED ALWAYS AS (10) VIRTUAL,
-  `h` int(11) NOT NULL,
+  `e` int GENERATED ALWAYS AS (10) VIRTUAL,
+  `h` int NOT NULL,
   PRIMARY KEY (`h`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
 INSERT INTO t VALUES (REPEAT('g', 10000), REPEAT('x', 2800), DEFAULT, DEFAULT, DEFAULT, 1);
@@ -844,6 +898,9 @@ CREATE TABLE `t` (
 `e` INT(11) GENERATED ALWAYS AS (10) VIRTUAL,
 `h` INT(11) NOT NULL,
 PRIMARY KEY (`h`) ) ROW_FORMAT=COMPRESSED  ENGINE=InnoDB charset latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
@@ -851,8 +908,8 @@ t	CREATE TABLE `t` (
   `b` varchar(3000) DEFAULT NULL,
   `c` varchar(14000) GENERATED ALWAYS AS (concat(`a`,`b`)) VIRTUAL,
   `d` varchar(5000) GENERATED ALWAYS AS (`b`) VIRTUAL,
-  `e` int(11) GENERATED ALWAYS AS (10) VIRTUAL,
-  `h` int(11) NOT NULL,
+  `e` int GENERATED ALWAYS AS (10) VIRTUAL,
+  `h` int NOT NULL,
   PRIMARY KEY (`h`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
 INSERT INTO t VALUES (REPEAT('g', 10000), REPEAT('x', 2800), DEFAULT, DEFAULT, DEFAULT, 1);
@@ -992,9 +1049,9 @@ Warning	1831	Duplicate index 'pk' defined on the table 'test.t'. This is depreca
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `col_int_nokey` int(11) DEFAULT NULL,
-  `col_int` int(11) GENERATED ALWAYS AS ((`col_int_nokey` + `col_int_nokey`)) STORED NOT NULL,
-  `col_int_key` int(11) GENERATED ALWAYS AS ((`col_int` + `col_int_nokey`)) VIRTUAL NOT NULL,
+  `col_int_nokey` int DEFAULT NULL,
+  `col_int` int GENERATED ALWAYS AS ((`col_int_nokey` + `col_int_nokey`)) STORED NOT NULL,
+  `col_int_key` int GENERATED ALWAYS AS ((`col_int` + `col_int_nokey`)) VIRTUAL NOT NULL,
   `col_date_nokey` date DEFAULT NULL,
   `col_date` date GENERATED ALWAYS AS ((`col_date_nokey` + interval 30 day)) STORED NOT NULL,
   `col_date_key` date GENERATED ALWAYS AS ((`col_date` + interval 30 day)) VIRTUAL NOT NULL,
@@ -1133,10 +1190,10 @@ ALTER TABLE t1 CHANGE  d d INT GENERATED ALWAYS AS(a+b) FIRST;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `d` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `d` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
   `h` varchar(10) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -1150,6 +1207,8 @@ FOREIGN KEY (parent_id)
 REFERENCES parent(id)
 ON DELETE CASCADE
 ) ENGINE=INNODB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE child ADD INDEX `i1` (x);
 CREATE TABLE child_1 (
 id INT,
@@ -1159,6 +1218,8 @@ INDEX par_ind (parent_id),
 FOREIGN KEY (parent_id)
 REFERENCES parent(id)
 ) ENGINE=INNODB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE child_1 ADD INDEX `i1` (x);
 DROP TABLE child_1;
 DROP TABLE child;
@@ -1172,6 +1233,8 @@ FOREIGN KEY (parent_id)
 REFERENCES parent(id)
 ON DELETE CASCADE
 ) ENGINE=INNODB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 DROP TABLE child;
 CREATE TABLE child (
 id INT,
@@ -1180,6 +1243,8 @@ x int(11) GENERATED ALWAYS AS (parent_id+1),
 INDEX par_ind (parent_id),
 INDEX `i1` (x)
 ) ENGINE=INNODB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE child ADD FOREIGN KEY (parent_id)
 REFERENCES parent(id)
 ON DELETE CASCADE;
@@ -1215,6 +1280,10 @@ KEY `vbidxcol` (`vbidxcol`),
 KEY `a_2` (`a`,`vbidxcol`),
 KEY `vbidxcol_2` (`vbidxcol`,`d`)
 )  ENGINE=INNODB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE `ibstd_16_fk` (
 `a` int(11) DEFAULT NULL,
 `d` int(11) DEFAULT NULL,
@@ -1250,6 +1319,9 @@ KEY `vbidxcol` (`vbidxcol`),
 KEY `vbidxcol_2` (`vbidxcol`,`d`),
 CONSTRAINT `fk_16` FOREIGN KEY (`a`) REFERENCES `ibstd_16` (`a`) ON DELETE SET NULL
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE ibstd_16_fk ADD INDEX `a_2` (`a`,`vbidxcol`);
 DROP TABLE ibstd_16_fk;
 CREATE TABLE `ibstd_16_fk` (
@@ -1268,6 +1340,9 @@ KEY `vbidxcol` (`vbidxcol`),
 KEY `a_2` (`a`,`vbidxcol`),
 KEY `vbidxcol_2` (`vbidxcol`,`d`)
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE `ibstd_16_fk` ADD CONSTRAINT `fk_16` FOREIGN KEY (`a`) REFERENCES `ibstd_16` (`a`) ON DELETE SET NULL;
 DROP INDEX a_2 ON ibstd_16_fk;
 INSERT INTO ibstd_16 VALUES (1, 2, "aaa", "bbb", default, default, default);
@@ -1280,7 +1355,7 @@ insert into t set a=1;
 alter table t add column c int generated always as (1) virtual;
 insert into t set a=2;
 alter table t add unique index(c);
-ERROR 23000: Duplicate entry '1' for key 'c'
+ERROR 23000: Duplicate entry '1' for key 't.c'
 insert into t set a=1;
 drop table t;
 create table t (
@@ -1303,6 +1378,12 @@ c4 int(1),
 c5 int(1)GENERATED ALWAYS AS ((c2 - c4)) VIRTUAL,
 UNIQUE KEY c5_9(c5)
 )ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t CHANGE COLUMN c5 c5 INT(1) GENERATED ALWAYS AS(c2 -
 c4)VIRTUAL AFTER c3,ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: INPLACE ADD or DROP of virtual columns cannot be combined with other ALTER TABLE actions. Try ALGORITHM=COPY.
@@ -1343,6 +1424,21 @@ KEY `idx9` (`col6`),
 KEY `idx6` (`col6`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1831	Duplicate index 'col5_2' defined on the table 'test.t'. This is deprecated and will be disallowed in a future release.
 Warning	1831	Duplicate index 'idx6' defined on the table 'test.t'. This is deprecated and will be disallowed in a future release.
 ALTER TABLE t CHANGE COLUMN col3b col8a BIGINT GENERATED ALWAYS AS
@@ -1407,7 +1503,7 @@ t'),(0,1,0,1,'yzgktb'),(0,0,0,0,'zgktb'),(0,0,0,0,'gktbkj'),(0,0,0,0,0),(0,0,1
 0,0,0,0,'mkn'),(0,0,0,0,'knbtoervql'),(0,0,1,0,1),(0,0,0,0,'nbtoerv'),(0,0,0,0
 ,'btoerv'),(0,0,1,0,'toer'),(1,0,0,0,0),(0,0,0,0,'ervq'),(0,0,0,0,'rvqlzsvasu'
 ),(0,0,0,0,'vqlzs'),(0,0,0,0,0),(0,1,0,0,'lzsvasu'),(0,0,0,0,'zsvasurq');
-ERROR 23000: Duplicate entry '00' for key 'c9k'
+ERROR 23000: Duplicate entry '00' for key 't.c9k'
 SELECT
 DISTINCT * FROM t
 FORCE KEY(PRIMARY,c3k,c3,c9k,c9)
@@ -1439,10 +1535,10 @@ NULL
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `d` int(11) GENERATED ALWAYS AS (((`a` + `b`) + `b`)) VIRTUAL,
-  `e` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `d` int GENERATED ALWAYS AS (((`a` + `b`) + `b`)) VIRTUAL,
+  `e` int GENERATED ALWAYS AS (`a`) VIRTUAL,
   `h` varchar(10) DEFAULT NULL,
   KEY `idx` (`d`),
   KEY `idx2` (`e`,`d`)
@@ -1456,11 +1552,11 @@ Warning	1831	Duplicate index 'idx' defined on the table 'test.t'. This is deprec
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `e` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `e` int GENERATED ALWAYS AS (`a`) VIRTUAL,
   `h` varchar(10) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
   KEY `idx2` (`e`),
   KEY `idx` (`e`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1468,11 +1564,11 @@ ALTER TABLE t ADD INDEX idx4(c, e), ADD COLUMN x VARCHAR(10) GENERATED ALWAYS AS
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `e` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `e` int GENERATED ALWAYS AS (`a`) VIRTUAL,
   `h` varchar(10) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
   `x` varchar(10) GENERATED ALWAYS AS (`h`) VIRTUAL,
   KEY `idx2` (`e`),
   KEY `idx4` (`c`,`e`)
@@ -1484,15 +1580,15 @@ ALTER TABLE t ADD INDEX (x), ADD COLUMN k INT, ALGORITHM=INPLACE, LOCK=NONE;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `e` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `e` int GENERATED ALWAYS AS (`a`) VIRTUAL,
   `h` varchar(10) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
   `x` varchar(10) GENERATED ALWAYS AS (`h`) VIRTUAL,
-  `i` int(11) GENERATED ALWAYS AS (((`a` + `a`) + `b`)) VIRTUAL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
+  `i` int GENERATED ALWAYS AS (((`a` + `a`) + `b`)) VIRTUAL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
   KEY `idx2` (`e`),
   KEY `idx4` (`c`,`e`),
   KEY `x` (`x`)
@@ -1503,16 +1599,16 @@ ALTER TABLE t ADD COLUMN l INT GENERATED ALWAYS AS(a+a+b), ADD INDEX (l), ALGORI
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `e` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `e` int GENERATED ALWAYS AS (`a`) VIRTUAL,
   `h` varchar(10) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
   `x` varchar(10) GENERATED ALWAYS AS (`h`) VIRTUAL,
-  `i` int(11) GENERATED ALWAYS AS (((`a` + `a`) + `b`)) VIRTUAL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
-  `l` int(11) GENERATED ALWAYS AS (((`a` + `a`) + `b`)) VIRTUAL,
+  `i` int GENERATED ALWAYS AS (((`a` + `a`) + `b`)) VIRTUAL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  `l` int GENERATED ALWAYS AS (((`a` + `a`) + `b`)) VIRTUAL,
   KEY `idx2` (`e`),
   KEY `idx4` (`c`,`e`),
   KEY `x` (`x`),
@@ -1624,6 +1720,10 @@ KEY `vbidxcol` (`vbidxcol`),
 KEY `a_2` (`a`,`vbidxcol`),
 KEY `vbidxcol_2` (`vbidxcol`,`d`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t values (11, 1, "11", "aa", default, default, default);
 ALTER TABLE t ADD COLUMN nc01128 BIGINT  AUTO_INCREMENT NOT NULL, ADD KEY auto_nc01128(nc01128);
 DROP TABLE t;

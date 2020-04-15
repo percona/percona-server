@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,6 +61,8 @@
 #include <stdio.h>
 #include <string>
 
+#include "client_async_authentication.h"
+#include "compression.h"  // validate_compression_attributes
 #include "errmsg.h"
 #include "lex_string.h"
 #include "map_helpers.h"
@@ -118,6 +120,7 @@
 #include "../libmysql/mysql_trace.h" /* MYSQL_TRACE() instrumentation */
 #include "sql_common.h"
 #ifdef MYSQL_SERVER
+#include "mysql_com_server.h"
 #include "sql/client_settings.h"
 #else
 #include "libmysql/client_settings.h"
@@ -210,6 +213,10 @@ char mysql_server_last_error[MYSQL_ERRMSG_SIZE];
 /* forward declaration */
 static int read_one_row(MYSQL *mysql, uint fields, MYSQL_ROW row,
                         ulong *lengths);
+static net_async_status read_one_row_nonblocking(MYSQL *mysql, uint fields,
+                                                 MYSQL_ROW row, ulong *lengths,
+                                                 int *res);
+
 /**
   Convert the connect timeout option to a timeout value for VIO
   functions (vio_socket_connect() and vio_io_wait()).
@@ -286,7 +293,7 @@ static DWORD get_win32_connect_timeout(MYSQL *mysql) {
 
 void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate) {
   NET *net;
-  DBUG_ENTER("set_mysql_error");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("error :%d '%s'", errcode, ER_CLIENT(errcode)));
   DBUG_ASSERT(mysql != 0);
 
@@ -300,7 +307,6 @@ void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate) {
     mysql_server_last_errno = errcode;
     my_stpcpy(mysql_server_last_error, ER_CLIENT(errcode));
   }
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -337,7 +343,7 @@ void set_mysql_extended_error(MYSQL *mysql, int errcode, const char *sqlstate,
                               const char *format, ...) {
   NET *net;
   va_list args;
-  DBUG_ENTER("set_mysql_extended_error");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("error :%d '%s'", errcode, format));
   DBUG_ASSERT(mysql != 0);
 
@@ -349,13 +355,11 @@ void set_mysql_extended_error(MYSQL *mysql, int errcode, const char *sqlstate,
   my_stpcpy(net->sqlstate, sqlstate);
 
   MYSQL_TRACE(ERROR, mysql, ());
-
-  DBUG_VOID_RETURN;
 }
 
-  /*
-    Create a named pipe connection
-  */
+/*
+  Create a named pipe connection
+*/
 
 #ifdef _WIN32
 
@@ -423,15 +427,15 @@ static HANDLE create_named_pipe(MYSQL *mysql, DWORD connect_timeout,
 }
 #endif
 
-  /*
-    Create new shared memory connection, return handler of connection
+/*
+  Create new shared memory connection, return handler of connection
 
-    @param mysql  Pointer of mysql structure
-    @param net    Pointer of net structure
-    @param connect_timeout  Timeout of connection (in milliseconds)
+  @param mysql  Pointer of mysql structure
+  @param net    Pointer of net structure
+  @param connect_timeout  Timeout of connection (in milliseconds)
 
-    @return HANDLE to the shared memory area.
-  */
+  @return HANDLE to the shared memory area.
+*/
 
 #if defined(_WIN32)
 static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
@@ -562,7 +566,7 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
   CloseHandle(connect_named_mutex);
   connect_named_mutex = NULL;
 
-  p = int10_to_str(connect_number, connect_number_char, 10);
+  p = longlong10_to_str(connect_number, connect_number_char, 10);
 
   /*
     The name of event and file-mapping events create agree next rule:
@@ -680,16 +684,6 @@ static void free_state_change_info(MYSQL_EXTENSION *ext) {
 
   for (i = SESSION_TRACK_SYSTEM_VARIABLES; i <= SESSION_TRACK_END; i++) {
     if (list_length(info->info_list[i].head_node) != 0) {
-      /*
-        Since nodes were multi-alloced, we don't need to free the data
-        separately. But the str member in data needs to be freed.
-      */
-      LIST *tmp_list = info->info_list[i].head_node;
-      while (tmp_list) {
-        LEX_STRING *tmp = (LEX_STRING *)(tmp_list)->data;
-        if (tmp->str) my_free(tmp->str);
-        tmp_list = tmp_list->next;
-      }
       list_free(info->info_list[i].head_node, (uint)0);
     }
   }
@@ -697,27 +691,82 @@ static void free_state_change_info(MYSQL_EXTENSION *ext) {
 }
 
 /**
-  Read Ok packet along with the server state change information.
+  Helper function to check if the buffer has at least bytes remaining
+
+  If the buffer is too small it raises CR_MALFORMED_PACKET_ERROR.
+
+  @param mysql the handle that has the buffer
+  @param packet the current position in the buffer
+  @param packet_length the size of the packet
+  @param bytes the bytes that we want available
+  @retval true the buffer has that many bytes
+  @retval false the buffer has less bytes remaining
+*/
+inline bool buffer_check_remaining(MYSQL *mysql, uchar *packet,
+                                   ulong packet_length, size_t bytes) {
+  size_t remaining_bytes = packet_length - (packet - mysql->net.read_pos);
+  if (remaining_bytes < bytes) {
+    set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+    return false;
+  }
+  return true;
+}
+
+/*
+  Helper function to safely read a variable size from a buffer.
+  If the buffer is too small it raises CR_MALFORMED_PACKET_ERROR
+  and sets is_error to true.
+  Otherwise it sets is_error to false and calls @ref inet_field_length_ll.
+
+  @sa @ref net_field_length_ll
+
+  @param mysql the handle to return an error in
+  @param [in,out] packet pointer to the buffer to read the length from
+  @param packet_length  remining bytes in packet
+  @param [out] is_error set to true if the buffer contains no room for a
+  full length, false otherwise.
+  @return the size read.
+*/
+inline my_ulonglong net_field_length_ll_safe(MYSQL *mysql, uchar **packet,
+                                             ulong packet_length,
+                                             bool *is_error) {
+  size_t sizeof_len = net_field_length_size(*packet);
+  if (!buffer_check_remaining(mysql, *packet, packet_length, sizeof_len)) {
+    *is_error = true;
+    return 0;
+  }
+
+  *is_error = false;
+  return net_field_length_ll(packet);
+}
+
+/**
+ Read Ok packet along with the server state change information.
 */
 void read_ok_ex(MYSQL *mysql, ulong length) {
   size_t total_len, len;
   uchar *pos, *saved_pos;
   my_ulonglong affected_rows, insert_id;
   char *db;
+  char *data_str;
 
   CHARSET_INFO *saved_cs;
-  char charset_name[64];
   bool is_charset;
 
   STATE_INFO *info = NULL;
   enum enum_session_state_type type;
   LIST *element = NULL;
   LEX_STRING *data = NULL;
+  bool is_error;
 
   pos = mysql->net.read_pos + 1;
 
-  affected_rows = net_field_length_ll(&pos); /* affected rows */
-  insert_id = net_field_length_ll(&pos);     /* insert id */
+  affected_rows = net_field_length_ll_safe(mysql, &pos, length,
+                                           &is_error); /* affected rows */
+  if (is_error) return;
+  insert_id =
+      net_field_length_ll_safe(mysql, &pos, length, &is_error); /* insert id */
+  if (is_error) return;
 
   /*
    The following check ensures that we skip the assignment for the
@@ -739,11 +788,13 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
                         (ulong)mysql->affected_rows, (ulong)mysql->insert_id));
   }
 
+  if (!buffer_check_remaining(mysql, pos, length, 2)) return;
   /* server status */
   mysql->server_status = uint2korr(pos);
   pos += 2;
 
   if (protocol_41(mysql)) {
+    if (!buffer_check_remaining(mysql, pos, length, 2)) return;
     mysql->warning_count = uint2korr(pos);
     pos += 2;
   } else
@@ -756,41 +807,48 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
 
     if (pos < mysql->net.read_pos + length) {
       /* get the info field */
-      size_t length_msg_member = (size_t)net_field_length(&pos);
+      size_t length_msg_member =
+          (size_t)net_field_length_ll_safe(mysql, &pos, length, &is_error);
+      if (is_error) return;
+      if (!buffer_check_remaining(mysql, pos, length, length_msg_member))
+        return;
       mysql->info = (length_msg_member ? (char *)pos : NULL);
       pos += (length_msg_member);
 
       /* read session state changes info */
       if (mysql->server_status & SERVER_SESSION_STATE_CHANGED) {
         saved_pos = pos;
-        total_len = (size_t)net_field_length(&pos);
+        total_len =
+            (size_t)net_field_length_ll_safe(mysql, &pos, length, &is_error);
+        if (is_error) return;
         /* ensure that mysql->info is zero-terminated */
         if (mysql->info) *saved_pos = 0;
 
         while (total_len > 0) {
           saved_pos = pos;
-          type = (enum enum_session_state_type)net_field_length(&pos);
-
+          type = (enum enum_session_state_type)net_field_length_ll_safe(
+              mysql, &pos, length, &is_error);
+          if (is_error) return;
           switch (type) {
             case SESSION_TRACK_SYSTEM_VARIABLES:
               /* Move past the total length of the changed entity. */
-              (void)net_field_length(&pos);
+              (void)net_field_length_ll_safe(mysql, &pos, length, &is_error);
+              if (is_error) return;
 
               /* Name of the system variable. */
-              len = (size_t)net_field_length(&pos);
+              len = (size_t)net_field_length_ll_safe(mysql, &pos, length,
+                                                     &is_error);
+              if (is_error) return;
+              if (!buffer_check_remaining(mysql, pos, length, len)) return;
 
               if (!my_multi_malloc(key_memory_MYSQL_state_change_info, MYF(0),
                                    &element, sizeof(LIST), &data,
-                                   sizeof(LEX_STRING), NullS)) {
+                                   sizeof(LEX_STRING), &data_str, len, NullS)) {
                 set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
                 return;
               }
 
-              if (!(data->str = (char *)my_malloc(PSI_NOT_INSTRUMENTED, len,
-                                                  MYF(MY_WME)))) {
-                set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-                return;
-              }
+              data->str = data_str;
               memcpy(data->str, (char *)pos, len);
               data->length = len;
               pos += len;
@@ -799,28 +857,28 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
               ADD_INFO(info, element, SESSION_TRACK_SYSTEM_VARIABLES);
 
               /*
-                Check if the changed variable was charset. In that case we need
-                to update mysql->charset.
-                */
+               Check if the changed variable was charset. In that case we need
+               to update mysql->charset.
+               */
               if (!strncmp(data->str, "character_set_client", data->length))
-                is_charset = 1;
+                is_charset = true;
               else
-                is_charset = 0;
+                is_charset = false;
+
+              /* Value of the system variable. */
+              len = (size_t)net_field_length_ll_safe(mysql, &pos, length,
+                                                     &is_error);
+              if (is_error) return;
+              if (!buffer_check_remaining(mysql, pos, length, len)) return;
 
               if (!my_multi_malloc(key_memory_MYSQL_state_change_info, MYF(0),
                                    &element, sizeof(LIST), &data,
-                                   sizeof(LEX_STRING), NullS)) {
+                                   sizeof(LEX_STRING), &data_str, len, NullS)) {
                 set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
                 return;
               }
 
-              /* Value of the system variable. */
-              len = (size_t)net_field_length(&pos);
-              if (!(data->str = (char *)my_malloc(PSI_NOT_INSTRUMENTED, len,
-                                                  MYF(MY_WME)))) {
-                set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-                return;
-              }
+              data->str = data_str;
               memcpy(data->str, (char *)pos, len);
               data->length = len;
               pos += len;
@@ -829,15 +887,21 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
               ADD_INFO(info, element, SESSION_TRACK_SYSTEM_VARIABLES);
 
               if (is_charset == 1) {
+                char charset_name[MY_CS_NAME_SIZE * 8];  // MY_CS_BUFFER_SIZE
+                size_t charset_name_length =
+                    std::min(data->length, sizeof(charset_name) - 1);
                 saved_cs = mysql->charset;
 
-                memcpy(charset_name, data->str, data->length);
-                charset_name[data->length] = 0;
+                memcpy(charset_name, data->str, charset_name_length);
+                charset_name[charset_name_length] = 0;
 
                 if (!(mysql->charset = get_charset_by_csname(
                           charset_name, MY_CS_PRIMARY, MYF(MY_WME)))) {
-                  /* Ideally, the control should never reach her. */
-                  DBUG_ASSERT(0);
+                  DBUG_PRINT(
+                      "warning",
+                      ("session tracker supplied %s is not a valid charset."
+                       " Keeping the old one.",
+                       charset_name));
                   mysql->charset = saved_cs;
                 }
               }
@@ -846,22 +910,22 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
             case SESSION_TRACK_TRANSACTION_CHARACTERISTICS:
             case SESSION_TRACK_SCHEMA:
 
+              /* Move past the total length of the changed entity. */
+              (void)net_field_length_ll_safe(mysql, &pos, length, &is_error);
+              if (is_error) return;
+              len = (size_t)net_field_length_ll_safe(mysql, &pos, length,
+                                                     &is_error);
+              if (is_error) return;
+              if (!buffer_check_remaining(mysql, pos, length, len)) return;
+
               if (!my_multi_malloc(key_memory_MYSQL_state_change_info, MYF(0),
                                    &element, sizeof(LIST), &data,
-                                   sizeof(LEX_STRING), NullS)) {
+                                   sizeof(LEX_STRING), &data_str, len, NullS)) {
                 set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
                 return;
               }
 
-              /* Move past the total length of the changed entity. */
-              (void)net_field_length(&pos);
-
-              len = (size_t)net_field_length(&pos);
-              if (!(data->str = (char *)my_malloc(PSI_NOT_INSTRUMENTED, len,
-                                                  MYF(MY_WME)))) {
-                set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-                return;
-              }
+              data->str = data_str;
               memcpy(data->str, (char *)pos, len);
               data->length = len;
               pos += len;
@@ -885,19 +949,14 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
 
               break;
             case SESSION_TRACK_GTIDS:
-              if (!my_multi_malloc(key_memory_MYSQL_state_change_info, MYF(0),
-                                   &element, sizeof(LIST), &data,
-                                   sizeof(LEX_STRING), NullS)) {
-                set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-                return;
-              }
-
               /* Move past the total length of the changed entity. */
-              (void)net_field_length(&pos);
+              (void)net_field_length_ll_safe(mysql, &pos, length, &is_error);
+              if (is_error) return;
 
               /* read (and ignore for now) the GTIDS encoding specification code
                */
-              (void)net_field_length(&pos);
+              (void)net_field_length_ll_safe(mysql, &pos, length, &is_error);
+              if (is_error) return;
 
               /*
                  For now we ignore the encoding specification, since only one
@@ -906,13 +965,19 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
                  */
 
               /* read the length of the encoded string. */
-              len = (size_t)net_field_length(&pos);
-              if (!(data->str = (char *)my_malloc(PSI_NOT_INSTRUMENTED, len,
-                                                  MYF(MY_WME)))) {
+              len = (size_t)net_field_length_ll_safe(mysql, &pos, length,
+                                                     &is_error);
+              if (is_error) return;
+              if (!buffer_check_remaining(mysql, pos, length, len)) return;
+
+              if (!my_multi_malloc(key_memory_MYSQL_state_change_info, MYF(0),
+                                   &element, sizeof(LIST), &data,
+                                   sizeof(LEX_STRING), &data_str, len, NullS)) {
                 set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
                 return;
               }
 
+              data->str = data_str;
               memcpy(data->str, (char *)pos, len);
               data->length = len;
               pos += len;
@@ -921,22 +986,23 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
               ADD_INFO(info, element, SESSION_TRACK_GTIDS);
               break;
             case SESSION_TRACK_STATE_CHANGE:
+              /* Get the length of the boolean tracker */
+              len = (size_t)net_field_length_ll_safe(mysql, &pos, length,
+                                                     &is_error);
+              if (is_error) return;
+
+              /* length for boolean tracker is always 1 */
+              DBUG_ASSERT(len == 1);
+              if (!buffer_check_remaining(mysql, pos, length, len)) return;
+
               if (!my_multi_malloc(key_memory_MYSQL_state_change_info, MYF(0),
                                    &element, sizeof(LIST), &data,
-                                   sizeof(LEX_STRING), NullS)) {
+                                   sizeof(LEX_STRING), &data_str, len, NullS)) {
                 set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
                 return;
               }
 
-              /* Get the length of the boolean tracker */
-              len = (size_t)net_field_length(&pos);
-              /* length for boolean tracker is always 1 */
-              DBUG_ASSERT(len == 1);
-              if (!(data->str = (char *)my_malloc(PSI_NOT_INSTRUMENTED, len,
-                                                  MYF(MY_WME)))) {
-                set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-                return;
-              }
+              data->str = data_str;
               memcpy(data->str, (char *)pos, len);
               data->length = len;
               pos += len;
@@ -948,10 +1014,13 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
             default:
               DBUG_ASSERT(type <= SESSION_TRACK_END);
               /*
-                Unknown/unsupported type received, get the total length and move
-                past it.
-                */
-              len = (size_t)net_field_length(&pos);
+               Unknown/unsupported type received, get the total length and move
+               past it.
+               */
+
+              len = (size_t)net_field_length_ll_safe(mysql, &pos, length,
+                                                     &is_error);
+              if (is_error) return;
               pos += len;
               break;
           }
@@ -975,6 +1044,75 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
   else
     mysql->info = NULL;
   return;
+}
+
+/* Helper for cli_safe_read and cli_safe_read_nonblocking */
+static ulong cli_safe_read_with_ok_complete(MYSQL *mysql, bool parse_ok,
+                                            bool *is_data_packet, ulong len);
+
+/**
+  Read a packet from server in asynchronous way. This function can return
+  without completly reading the packet, in such a case call this function
+  again until complete packet is read.
+
+  @param[in]  mysql           connection handle
+  @param[in]  parse_ok	      if set to true then parse OK packet if it
+                              was sent by server
+  @param[out] is_data_packet  if set to true then the packet received
+                              was a "data packet".
+  @param[out] res             The length of the packet that was read or
+                              packet_error in case of error.
+
+  @retval     NET_ASYNC_NOT_READY  packet was not completely read
+  @retval     NET_ASYNC_COMPLETE   finished reading packet
+*/
+net_async_status cli_safe_read_with_ok_nonblocking(MYSQL *mysql, bool parse_ok,
+                                                   bool *is_data_packet,
+                                                   ulong *res) {
+  NET *net = &mysql->net;
+  NET_ASYNC *net_async = NET_ASYNC_DATA(net);
+  ulong len = 0, complen = 0;
+  DBUG_TRACE;
+
+  if (net_async->async_multipacket_read_started == false) {
+    net_async->async_multipacket_read_started = true;
+    net_async->async_multipacket_read_saved_whereb = net->where_b;
+    net_async->async_multipacket_read_total_len = 0;
+  }
+
+  if (net->vio != 0) {
+    net_async_status status = my_net_read_nonblocking(net, &len, &complen);
+    if (len != packet_error) {
+      net_async->async_multipacket_read_total_len += len;
+      net->where_b += len;
+    }
+
+    if (status == NET_ASYNC_NOT_READY) {
+      return NET_ASYNC_NOT_READY;
+    }
+  }
+
+  net->where_b = net_async->async_multipacket_read_saved_whereb;
+  net->read_pos = net->buff + net->where_b;
+
+  DBUG_PRINT("info", ("total nb read: %lu",
+                      net_async->async_multipacket_read_total_len));
+  *res = cli_safe_read_with_ok_complete(
+      mysql, parse_ok, is_data_packet,
+      net_async->async_multipacket_read_total_len);
+
+  net_async->async_multipacket_read_started = false;
+  net_async->async_multipacket_read_saved_whereb = 0;
+
+  return NET_ASYNC_COMPLETE;
+}
+
+/**
+  Its a non blocking version of cli_safe_read
+*/
+net_async_status cli_safe_read_nonblocking(MYSQL *mysql, bool *is_data_packet,
+                                           ulong *res) {
+  return cli_safe_read_with_ok_nonblocking(mysql, false, is_data_packet, res);
 }
 
 /**
@@ -1003,15 +1141,24 @@ ulong cli_safe_read_with_ok(MYSQL *mysql, bool parse_ok, bool *is_data_packet) {
   if (is_data_packet) *is_data_packet = false;
 
   if (net->vio != 0) len = my_net_read(net);
+  return cli_safe_read_with_ok_complete(mysql, parse_ok, is_data_packet, len);
+}
+
+ulong cli_safe_read_with_ok_complete(MYSQL *mysql, bool parse_ok,
+                                     bool *is_data_packet, ulong len) {
+  NET *net = &mysql->net;
+  DBUG_TRACE;
 
   if (len == packet_error || len == 0) {
+#ifndef DBUG_OFF
     char desc[VIO_DESCRIPTION_SIZE];
     vio_description(net->vio, desc);
     DBUG_PRINT("error",
                ("Wrong connection or packet. fd: %s  len: %lu", desc, len));
+#endif  // DBUG_OFF
 #ifdef MYSQL_SERVER
     if (net->vio && (net->last_errno == ER_NET_READ_INTERRUPTED))
-      return (packet_error);
+      return packet_error;
 #endif /*MYSQL_SERVER*/
     end_server(mysql);
     set_mysql_error(mysql,
@@ -1019,7 +1166,7 @@ ulong cli_safe_read_with_ok(MYSQL *mysql, bool parse_ok, bool *is_data_packet) {
                         ? CR_NET_PACKET_TOO_LARGE
                         : CR_SERVER_LOST,
                     unknown_sqlstate);
-    return (packet_error);
+    return packet_error;
   }
 
   MYSQL_TRACE(PACKET_RECEIVED, mysql, (len, net->read_pos));
@@ -1066,7 +1213,7 @@ ulong cli_safe_read_with_ok(MYSQL *mysql, bool parse_ok, bool *is_data_packet) {
 
     DBUG_PRINT("error", ("Got error: %d/%s (%s)", net->last_errno,
                          net->sqlstate, net->last_error));
-    return (packet_error);
+    return packet_error;
   } else {
     /* if it is OK packet irrespective of new/old server */
     if (net->read_pos[0] == 0) {
@@ -1118,7 +1265,7 @@ ulong cli_safe_read_with_ok(MYSQL *mysql, bool parse_ok, bool *is_data_packet) {
           error. In case of error its description is stored in mysql handle.
 */
 ulong cli_safe_read(MYSQL *mysql, bool *is_data_packet) {
-  return cli_safe_read_with_ok(mysql, 0, is_data_packet);
+  return cli_safe_read_with_ok(mysql, false, is_data_packet);
 }
 
 void free_rows(MYSQL_DATA *cur) {
@@ -1134,18 +1281,22 @@ bool cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
                           const uchar *arg, size_t arg_length, bool skip_check,
                           MYSQL_STMT *stmt) {
   NET *net = &mysql->net;
-  bool result = 1;
+  bool result = true;
   bool stmt_skip = stmt ? stmt->state != MYSQL_STMT_INIT_DONE : false;
-  DBUG_ENTER("cli_advanced_command");
+  DBUG_TRACE;
 
   if (mysql->net.vio == 0) { /* Do reconnect if possible */
-    if (mysql_reconnect(mysql) || stmt_skip) DBUG_RETURN(1);
+    if (mysql_reconnect(mysql) || stmt_skip) return true;
   }
+  /* turn off non blocking operations */
+  if (!vio_is_blocking(mysql->net.vio))
+    vio_set_blocking_flag(mysql->net.vio, true);
+
   if (mysql->status != MYSQL_STATUS_READY ||
       mysql->server_status & SERVER_MORE_RESULTS_EXISTS) {
     DBUG_PRINT("error", ("state: %d", mysql->status));
     set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
-    DBUG_RETURN(1);
+    return true;
   }
 
   net_clear_error(net);
@@ -1253,10 +1404,10 @@ bool cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
   }
 #endif
 
-  result = 0;
+  result = false;
   if (!skip_check) {
-    result = ((mysql->packet_length = cli_safe_read_with_ok(mysql, 1, NULL)) ==
-                      packet_error
+    result = ((mysql->packet_length =
+                   cli_safe_read_with_ok(mysql, true, NULL)) == packet_error
                   ? 1
                   : 0);
 
@@ -1272,11 +1423,117 @@ bool cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
 
 end:
   DBUG_PRINT("exit", ("result: %d", result));
-  DBUG_RETURN(result);
+  return result;
+}
+
+net_async_status cli_advanced_command_nonblocking(
+    MYSQL *mysql, enum enum_server_command command, const uchar *header,
+    ulong header_length, const uchar *arg, ulong arg_length, bool skip_check,
+    MYSQL_STMT *stmt, bool *ret) {
+  NET *net = &mysql->net;
+  NET_ASYNC *net_async = NET_ASYNC_DATA(net);
+  bool result = true;
+  *ret = result;
+  bool stmt_skip = stmt ? stmt->state != MYSQL_STMT_INIT_DONE : false;
+  DBUG_TRACE;
+  DBUG_DUMP("sending", header, header_length);
+  if (arg && arg_length) {
+    DBUG_DUMP("sending arg", arg, arg_length);
+  }
+
+  if (mysql->net.vio == 0) {
+    set_mysql_error(mysql, CR_SERVER_GONE_ERROR, unknown_sqlstate);
+    goto end;
+  }
+  if (net_async->async_send_command_status == NET_ASYNC_SEND_COMMAND_IDLE) {
+    if (vio_is_blocking(mysql->net.vio)) {
+      vio_set_blocking_flag(net->vio, false);
+    }
+
+    if (mysql->status != MYSQL_STATUS_READY ||
+        mysql->server_status & SERVER_MORE_RESULTS_EXISTS) {
+      DBUG_PRINT("error", ("state: %d", mysql->status));
+      set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
+      return NET_ASYNC_COMPLETE;
+    }
+
+    net_clear_error(net);
+    mysql->info = 0;
+    mysql->affected_rows = ~(my_ulonglong)0;
+    /*
+      Do not check the socket/protocol buffer on COM_QUIT as the
+      result of a previous command might not have been read. This
+      can happen if a client sends a query but does not reap
+      the result before attempting to close the connection.
+    */
+    DBUG_ASSERT(command <= COM_END);
+    net_clear(&mysql->net, (command != COM_QUIT));
+    net_async->async_send_command_status = NET_ASYNC_SEND_COMMAND_WRITE_COMMAND;
+  }
+
+  MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
+  if (net_async->async_send_command_status ==
+      NET_ASYNC_SEND_COMMAND_WRITE_COMMAND) {
+    bool err;
+    MYSQL_TRACE(SEND_COMMAND, mysql,
+                (command, header_length, arg_length, header, arg));
+    net_async_status status = net_write_command_nonblocking(
+        net, (uchar)command, header, header_length, arg, arg_length, &err);
+    if (status == NET_ASYNC_NOT_READY) {
+      return NET_ASYNC_NOT_READY;
+    }
+    if (err) {
+      DBUG_PRINT("error",
+                 ("Can't send command to server. Error: %d", socket_errno));
+      if (net->last_errno == ER_NET_PACKET_TOO_LARGE) {
+        set_mysql_error(mysql, CR_NET_PACKET_TOO_LARGE, unknown_sqlstate);
+        goto end;
+      }
+      end_server(mysql);
+      /* reset net_async to null as its reference has been freed */
+      net_async = nullptr;
+      if (stmt_skip) goto end;
+      set_mysql_error(mysql, CR_SERVER_GONE_ERROR, unknown_sqlstate);
+      goto end;
+    }
+    MYSQL_TRACE(PACKET_SENT, mysql, (header_length + arg_length));
+    if (skip_check) {
+      result = false;
+      goto end;
+    } else {
+      net_async->async_send_command_status = NET_ASYNC_SEND_COMMAND_READ_STATUS;
+    }
+  }
+
+  if (net_async->async_send_command_status ==
+      NET_ASYNC_SEND_COMMAND_READ_STATUS) {
+    ulong pkt_len;
+    net_async_status status =
+        cli_safe_read_with_ok_nonblocking(mysql, true, nullptr, &pkt_len);
+    if (status == NET_ASYNC_NOT_READY) {
+      return NET_ASYNC_NOT_READY;
+    }
+    mysql->packet_length = pkt_len;
+    result = (pkt_len == packet_error ? 1 : 0);
+#if defined(CLIENT_PROTOCOL_TRACING)
+    /*
+      Return to READY_FOR_COMMAND protocol stage in case server reports
+      error or sends OK packet.
+    */
+    if (!result || mysql->net.read_pos[0] == 0x00)
+      MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
+#endif
+  }
+end:
+  if (net_async)
+    net_async->async_send_command_status = NET_ASYNC_SEND_COMMAND_IDLE;
+  DBUG_PRINT("exit", ("result: %d", result));
+  *ret = result;
+  return NET_ASYNC_COMPLETE;
 }
 
 void free_old_query(MYSQL *mysql) {
-  DBUG_ENTER("free_old_query");
+  DBUG_TRACE;
   if (mysql->field_alloc) {
     free_root(mysql->field_alloc, MYF(0));
     init_alloc_root(PSI_NOT_INSTRUMENTED, mysql->field_alloc, 8192,
@@ -1286,7 +1543,53 @@ void free_old_query(MYSQL *mysql) {
   mysql->field_count = 0; /* For API */
   mysql->warning_count = 0;
   mysql->info = 0;
-  DBUG_VOID_RETURN;
+}
+
+/**
+  Finish reading of a partial result set from the server in asynchronous
+  way. This function can return without completly flushing the result set,
+  in such a case call this function again until result set in flushed.
+  Read OK packet incase result set is not a data packet.
+
+  @param[in]  mysql           connection handle
+  @param[out] res             true in case of protocol error, false otherwise
+
+  @retval     NET_ASYNC_NOT_READY  result set not flushed yet
+  @retval     NET_ASYNC_COMPLETE   finished flushing result set
+*/
+static net_async_status flush_one_result_nonblocking(MYSQL *mysql, bool *res) {
+  DBUG_TRACE;
+
+  *res = false;
+  while (true) {
+    ulong packet_length;
+    bool is_data_packet;
+    if (cli_safe_read_nonblocking(mysql, &is_data_packet, &packet_length) ==
+        NET_ASYNC_NOT_READY) {
+      return NET_ASYNC_NOT_READY;
+    }
+    mysql->packet_length = packet_length;
+    if (packet_length == packet_error) {
+      *res = true;
+      break;
+    }
+    if (mysql->net.read_pos[0] != 0 && !is_data_packet) {
+      if (protocol_41(mysql)) {
+        uchar *pos = mysql->net.read_pos + 1;
+        if (mysql->server_capabilities & CLIENT_DEPRECATE_EOF &&
+            !is_data_packet) {
+          read_ok_ex(mysql, packet_length);
+        } else {
+          mysql->warning_count = uint2korr(pos);
+          pos += 2;
+          mysql->server_status = uint2korr(pos);
+        }
+        pos += 2;
+      }
+      break;
+    }
+  }
+  return NET_ASYNC_COMPLETE;
 }
 
 /**
@@ -1374,30 +1677,42 @@ static bool opt_flush_ok_packet(MYSQL *mysql, bool *is_ok_packet) {
   return false;
 }
 
+static net_async_status cli_flush_use_result_nonblocking(
+    MYSQL *mysql, bool flush_all_results MY_ATTRIBUTE((unused))) {
+  DBUG_TRACE;
+  /*
+    flush_all_results is only used for mysql_stmt_close, and async is not
+    supported for that.
+  */
+  DBUG_ASSERT(!flush_all_results);
+  bool res;
+  return flush_one_result_nonblocking(mysql, &res);
+}
+
 /*
   Flush result set sent from server
 */
 
 static void cli_flush_use_result(MYSQL *mysql, bool flush_all_results) {
   /* Clear the current execution status */
-  DBUG_ENTER("cli_flush_use_result");
+  DBUG_TRACE;
   DBUG_PRINT("warning", ("Not all packets read, clearing them"));
 
-  if (flush_one_result(mysql)) DBUG_VOID_RETURN; /* An error occurred */
+  if (flush_one_result(mysql)) return; /* An error occurred */
 
-  if (!flush_all_results) DBUG_VOID_RETURN;
+  if (!flush_all_results) return;
 
   while (mysql->server_status & SERVER_MORE_RESULTS_EXISTS) {
     bool is_ok_packet;
     if (opt_flush_ok_packet(mysql, &is_ok_packet))
-      DBUG_VOID_RETURN; /* An error occurred. */
+      return; /* An error occurred. */
     if (is_ok_packet) {
       /*
         Indeed what we got from network was an OK packet, and we
         know that OK is the last one in a multi-result-set, so
         just return.
       */
-      DBUG_VOID_RETURN;
+      return;
     }
 
     /*
@@ -1408,20 +1723,19 @@ static void cli_flush_use_result(MYSQL *mysql, bool flush_all_results) {
     */
     MYSQL_TRACE_STAGE(mysql, WAIT_FOR_FIELD_DEF);
     if (!(mysql->server_capabilities & CLIENT_DEPRECATE_EOF)) {
-      if (flush_one_result(mysql)) DBUG_VOID_RETURN; /* An error occurred. */
+      if (flush_one_result(mysql)) return; /* An error occurred. */
     } else {
       uchar *pos = (uchar *)mysql->net.read_pos;
       ulong field_count = net_field_length(&pos);
       if (read_com_query_metadata(mysql, pos, field_count)) {
-        DBUG_VOID_RETURN;
+        return;
       } else {
         free_root(mysql->field_alloc, MYF(0));
       }
     }
     MYSQL_TRACE_STAGE(mysql, WAIT_FOR_ROW);
-    if (flush_one_result(mysql)) DBUG_VOID_RETURN;
+    if (flush_one_result(mysql)) return;
   }
-  DBUG_VOID_RETURN;
 }
 
 #ifdef _WIN32
@@ -1481,11 +1795,13 @@ static int check_license(MYSQL *mysql) {
 
 void end_server(MYSQL *mysql) {
   int save_errno = errno;
-  DBUG_ENTER("end_server");
+  DBUG_TRACE;
   if (mysql->net.vio != 0) {
+#ifndef DBUG_OFF
     char desc[VIO_DESCRIPTION_SIZE];
     vio_description(mysql->net.vio, desc);
     DBUG_PRINT("info", ("Net: %s", desc));
+#endif  // DBUG_OFF
 #ifdef MYSQL_SERVER
     slave_io_thread_detach_vio();
 #endif
@@ -1494,14 +1810,52 @@ void end_server(MYSQL *mysql) {
     mysql_prune_stmt_list(mysql);
   }
   net_end(&mysql->net);
+  //  net_extension_free(&mysql->net);
   free_old_query(mysql);
   errno = save_errno;
   MYSQL_TRACE(DISCONNECTED, mysql, ());
-  DBUG_VOID_RETURN;
+}
+
+/**
+  Frees the memory allocated for a result, set by APIs which would have
+  returned rows.
+
+  @param[in]   result              buffer which needs to be freed
+
+  @retval      NET_ASYNC_NOT_READY operation not complete, retry again
+  @retval      NET_ASYNC_COMPLETE  operation complete
+*/
+net_async_status STDCALL mysql_free_result_nonblocking(MYSQL_RES *result) {
+  DBUG_TRACE;
+  DBUG_PRINT("enter", ("mysql_res: %p", result));
+  if (!result) return NET_ASYNC_COMPLETE;
+
+  MYSQL *mysql = result->handle;
+  if (mysql) {
+    if (mysql->unbuffered_fetch_owner == &result->unbuffered_fetch_cancelled)
+      mysql->unbuffered_fetch_owner = 0;
+    if (mysql->status == MYSQL_STATUS_USE_RESULT) {
+      if (mysql->methods->flush_use_result_nonblocking(mysql, false) ==
+          NET_ASYNC_NOT_READY) {
+        return NET_ASYNC_NOT_READY;
+      }
+      mysql->status = MYSQL_STATUS_READY;
+      if (mysql->unbuffered_fetch_owner) *mysql->unbuffered_fetch_owner = true;
+    }
+  }
+  free_rows(result->data);
+  if (result->field_alloc) {
+    free_root(result->field_alloc, MYF(0));
+    my_free(result->field_alloc);
+  }
+  my_free(result->row);
+  my_free(result);
+
+  return NET_ASYNC_COMPLETE;
 }
 
 void STDCALL mysql_free_result(MYSQL_RES *result) {
-  DBUG_ENTER("mysql_free_result");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("mysql_res: %p", result));
   if (result) {
     MYSQL *mysql = result->handle;
@@ -1523,7 +1877,6 @@ void STDCALL mysql_free_result(MYSQL_RES *result) {
     my_free(result->row);
     my_free(result);
   }
-  DBUG_VOID_RETURN;
 }
 
 /****************************************************************************
@@ -1570,6 +1923,7 @@ static const char *default_options[] = {"port",
                                         "ssl_mode",
                                         "optional-resultset-metadata",
                                         "ssl-fips-mode",
+                                        "tls-ciphersuites",
                                         NullS};
 enum option_id {
   OPT_port = 1,
@@ -1612,6 +1966,7 @@ enum option_id {
   OPT_ssl_mode,
   OPT_optional_resultset_metadata,
   OPT_ssl_fips_mode,
+  OPT_tls_ciphersuites,
   OPT_keep_this_one_last
 };
 
@@ -1690,7 +2045,7 @@ static char *set_ssl_option_unpack_path(const char *arg) {
   if (arg) {
     char *buff =
         (char *)my_malloc(key_memory_mysql_options, FN_REFLEN + 1, MYF(MY_WME));
-    unpack_filename(buff, (char *)arg);
+    unpack_filename(buff, arg);
     opt_var = my_strdup(key_memory_mysql_options, buff, MYF(MY_WME));
     my_free(buff);
   }
@@ -1702,7 +2057,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
   int argc;
   char *argv_buff[1], **argv;
   const char *groups[3];
-  DBUG_ENTER("mysql_read_default_options");
+  DBUG_TRACE;
   DBUG_PRINT("enter",
              ("file: %s  group: %s", filename, group ? group : "NULL"));
 
@@ -1711,10 +2066,10 @@ void mysql_read_default_options(struct st_mysql_options *options,
 
   argc = 1;
   argv = argv_buff;
-  argv_buff[0] = (char *)"client";
-  groups[0] = (char *)"client";
-  groups[1] = (char *)group;
-  groups[2] = 0;
+  argv_buff[0] = const_cast<char *>("client");
+  groups[0] = "client";
+  groups[1] = group;
+  groups[2] = nullptr;
 
   MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
   my_load_defaults(filename, groups, &argc, &argv, &alloc, nullptr);
@@ -1726,14 +2081,14 @@ void mysql_read_default_options(struct st_mysql_options *options,
         continue;
       /* DBUG_PRINT("info",("option: %s",option[0])); */
       if (option[0][0] == '-' && option[0][1] == '-') {
-        char *end = strcend(*option, '=');
-        char *opt_arg = 0;
-        if (*end) {
+        char *end = strchr(*option, '=');
+        char *opt_arg = nullptr;
+        if (end != nullptr) {
           opt_arg = end + 1;
           *end = 0; /* Remove '=' */
         }
         /* Change all '_' in variable name to '-' */
-        for (end = *option; *(end = strcend(end, '_'));) *end = '-';
+        for (end = *option; end != nullptr; end = strchr(end, '_')) *end = '-';
         switch (find_type(*option + 2, &option_types, FIND_TYPE_BASIC)) {
           case OPT_port:
             if (opt_arg) options->port = atoi(opt_arg);
@@ -1746,7 +2101,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
             }
             break;
           case OPT_compress:
-            options->compress = 1;
+            options->compress = true;
             options->client_flag |= CLIENT_COMPRESS;
             break;
           case OPT_password:
@@ -1821,6 +2176,9 @@ void mysql_read_default_options(struct st_mysql_options *options,
             options->ssl_cipher =
                 my_strdup(key_memory_mysql_options, opt_arg, MYF(MY_WME));
             break;
+          case OPT_tls_ciphersuites:
+            EXTENSION_SET_STRING(options, tls_ciphersuites, opt_arg);
+            break;
           case OPT_tls_version:
             EXTENSION_SET_SSL_STRING(options, tls_version, opt_arg,
                                      SSL_MODE_PREFERRED);
@@ -1839,6 +2197,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
           case OPT_ssl_ca:
           case OPT_ssl_capath:
           case OPT_ssl_cipher:
+          case OPT_tls_ciphersuites:
           case OPT_ssl_crl:
           case OPT_ssl_crlpath:
           case OPT_tls_version:
@@ -1895,7 +2254,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
             break;
           case OPT_report_data_truncation:
             options->report_data_truncation =
-                opt_arg ? (atoi(opt_arg) != 0) : 1;
+                opt_arg ? (atoi(opt_arg) != 0) : true;
             break;
           case OPT_plugin_dir: {
             char buff[FN_REFLEN], buff2[FN_REFLEN];
@@ -1934,7 +2293,6 @@ void mysql_read_default_options(struct st_mysql_options *options,
       }
     }
   }
-  DBUG_VOID_RETURN;
 }
 
 /**************************************************************************
@@ -1983,11 +2341,11 @@ static int unpack_field(MYSQL *mysql, MEM_ROOT *alloc, bool default_value,
                         uint server_capabilities, MYSQL_ROWS *row,
                         MYSQL_FIELD *field) {
   ulong lengths[9]; /* Max length of each field */
-  DBUG_ENTER("unpack_field");
+  DBUG_TRACE;
 
   if (!field) {
     set_mysql_error(mysql, CR_UNKNOWN_ERROR, unknown_sqlstate);
-    DBUG_RETURN(1);
+    return 1;
   }
 
   memset(field, 0, sizeof(MYSQL_FIELD));
@@ -2014,7 +2372,7 @@ static int unpack_field(MYSQL *mysql, MEM_ROOT *alloc, bool default_value,
     if (lengths[6] != 12) {
       /* malformed packet. signal an error. */
       set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
-      DBUG_RETURN(1);
+      return 1;
     }
 
     pos = (uchar *)row->data[6];
@@ -2034,36 +2392,58 @@ static int unpack_field(MYSQL *mysql, MEM_ROOT *alloc, bool default_value,
   }
 #ifndef DELETE_SUPPORT_OF_4_0_PROTOCOL
   else {
+    /*
+      If any of the row->data[] below is NULL, it can result in a
+      crash. Error out early as it indicates a malformed packet.
+      For data[0], data[1] and data[5], strmake_root() will handle
+      NULL values.
+    */
+    if (!row->data[2] || !row->data[3] || !row->data[4]) {
+      set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+      return 1;
+    }
+
     cli_fetch_lengths(&lengths[0], row->data, default_value ? 6 : 5);
-    field->org_table = field->table = strdup_root(alloc, (char *)row->data[0]);
-    field->name = strdup_root(alloc, (char *)row->data[1]);
+    field->org_table = field->table =
+        strmake_root(alloc, (char *)row->data[0], lengths[0]);
+    field->name = strmake_root(alloc, (char *)row->data[1], lengths[1]);
     field->length = (uint)uint3korr((uchar *)row->data[2]);
     field->type = (enum enum_field_types)(uchar)row->data[3][0];
 
-    field->catalog = (char *)"";
-    field->db = (char *)"";
+    field->catalog = const_cast<char *>("");
+    field->db = const_cast<char *>("");
     field->catalog_length = 0;
     field->db_length = 0;
     field->org_table_length = field->table_length = lengths[0];
     field->name_length = lengths[1];
 
     if (server_capabilities & CLIENT_LONG_FLAG) {
+      if (lengths[4] != 3) {
+        /* malformed packet. signal an error. */
+        set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+        return 1;
+      }
       field->flags = uint2korr((uchar *)row->data[4]);
       field->decimals = (uint)(uchar)row->data[4][2];
     } else {
+      if (lengths[4] != 2) {
+        /* malformed packet. signal an error. */
+        set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+        return 1;
+      }
       field->flags = (uint)(uchar)row->data[4][0];
       field->decimals = (uint)(uchar)row->data[4][1];
     }
     if (IS_NUM(field->type)) field->flags |= NUM_FLAG;
     if (default_value && row->data[5]) {
-      field->def = strdup_root(alloc, (char *)row->data[5]);
+      field->def = strmake_root(alloc, (char *)row->data[5], lengths[5]);
       field->def_length = lengths[5];
     } else
       field->def = 0;
     field->max_length = 0;
   }
 #endif /* DELETE_SUPPORT_OF_4_0_PROTOCOL */
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /***************************************************************************
@@ -2075,26 +2455,126 @@ MYSQL_FIELD *unpack_fields(MYSQL *mysql, MYSQL_ROWS *data, MEM_ROOT *alloc,
                            uint server_capabilities) {
   MYSQL_ROWS *row;
   MYSQL_FIELD *field, *result;
-  DBUG_ENTER("unpack_fields");
+  DBUG_TRACE;
 
-  field = result =
-      (MYSQL_FIELD *)alloc_root(alloc, (uint)sizeof(*field) * fields);
+  field = result = (MYSQL_FIELD *)alloc->Alloc((uint)sizeof(*field) * fields);
   if (!result) {
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-    DBUG_RETURN(0);
+    return 0;
   }
   memset(field, 0, sizeof(MYSQL_FIELD) * fields);
   for (row = data; row; row = row->next, field++) {
     /* fields count may be wrong */
     if (field < result || static_cast<uint>(field - result) >= fields) {
-      DBUG_RETURN(NULL);
+      return NULL;
     }
     if (unpack_field(mysql, alloc, default_value, server_capabilities, row,
                      field)) {
-      DBUG_RETURN(NULL);
+      return NULL;
     }
   }
-  DBUG_RETURN(result);
+  return result;
+}
+
+/**
+  Read metadata resultset from server in asynchronous way.
+
+  @param[in]    mysql           connection handle
+  @param[in]    alloc           memory allocator root
+  @param[in]    field_count     total number of fields
+  @param[in]    field           number of columns in single field descriptor
+  @param[out]   ret             an array of field rows
+
+  @retval     NET_ASYNC_NOT_READY  metadata resultset not read completely
+  @retval     NET_ASYNC_COMPLETE   finished reading metadata resultset
+*/
+net_async_status cli_read_metadata_ex_nonblocking(MYSQL *mysql, MEM_ROOT *alloc,
+                                                  ulong field_count,
+                                                  unsigned int field,
+                                                  MYSQL_FIELD **ret) {
+  DBUG_TRACE;
+  uchar *pos;
+  ulong pkt_len;
+  NET *net = &mysql->net;
+  MYSQL_ASYNC *async_data = ASYNC_DATA(mysql);
+  *ret = nullptr;
+
+  if (!async_data->async_read_metadata_field_len) {
+    async_data->async_read_metadata_field_len =
+        (ulong *)alloc->Alloc(sizeof(ulong) * field);
+  }
+  if (!async_data->async_read_metadata_fields) {
+    async_data->async_read_metadata_fields =
+        (MYSQL_FIELD *)alloc->Alloc((uint)sizeof(MYSQL_FIELD) * field_count);
+    if (async_data->async_read_metadata_fields)
+      memset(async_data->async_read_metadata_fields, 0,
+             sizeof(MYSQL_FIELD) * field_count);
+  }
+
+  if (!async_data->async_read_metadata_fields) {
+    set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+    goto end;
+  }
+
+  if (!async_data->async_read_metadata_data.data) {
+    async_data->async_read_metadata_data.data =
+        (MYSQL_ROW)alloc->Alloc(sizeof(char *) * (field + 1));
+    memset(async_data->async_read_metadata_data.data, 0,
+           sizeof(char *) * (field + 1));
+  }
+
+  /*
+    In this below loop we read each column info as 1 single row
+    and save it in mysql->fields array
+  */
+  while (async_data->async_read_metadata_cur_field < field_count) {
+    int res;
+    if (read_one_row_nonblocking(mysql, field,
+                                 async_data->async_read_metadata_data.data,
+                                 async_data->async_read_metadata_field_len,
+                                 &res) == NET_ASYNC_NOT_READY) {
+      return NET_ASYNC_NOT_READY;
+    }
+
+    if (res == -1) {
+      goto end;
+    }
+
+    if (unpack_field(mysql, alloc, false, mysql->server_capabilities,
+                     &async_data->async_read_metadata_data,
+                     async_data->async_read_metadata_fields +
+                         async_data->async_read_metadata_cur_field)) {
+      goto end;
+    }
+    async_data->async_read_metadata_cur_field++;
+  }
+
+  /* Read EOF packet in case of old client */
+  if (!(mysql->server_capabilities & CLIENT_DEPRECATE_EOF)) {
+    if (cli_safe_read_nonblocking(mysql, nullptr, &pkt_len) ==
+        NET_ASYNC_NOT_READY) {
+      return NET_ASYNC_NOT_READY;
+    }
+
+    if (pkt_len == packet_error) {
+      goto end;
+    }
+
+    pos = net->read_pos;
+    if (*pos == 254) {
+      mysql->warning_count = uint2korr(pos + 1);
+      mysql->server_status = uint2korr(pos + 3);
+    }
+  }
+  *ret = async_data->async_read_metadata_fields;
+
+end:
+  async_data->async_read_metadata_field_len = nullptr;
+  async_data->async_read_metadata_fields = nullptr;
+  memset(&async_data->async_read_metadata_data, 0,
+         sizeof(async_data->async_read_metadata_data));
+  async_data->async_read_metadata_cur_field = 0;
+  return NET_ASYNC_COMPLETE;
 }
 
 /**
@@ -2117,20 +2597,28 @@ MYSQL_FIELD *cli_read_metadata_ex(MYSQL *mysql, MEM_ROOT *alloc,
   MYSQL_FIELD *fields, *result;
   MYSQL_ROWS data;
   NET *net = &mysql->net;
+  size_t size;
 
-  DBUG_ENTER("cli_read_metadata");
+  DBUG_TRACE;
 
-  len = (ulong *)alloc_root(alloc, sizeof(ulong) * field);
+  len = (ulong *)alloc->Alloc(sizeof(ulong) * field);
+  size = sizeof(MYSQL_FIELD) * field_count;
 
-  fields = result =
-      (MYSQL_FIELD *)alloc_root(alloc, (uint)sizeof(MYSQL_FIELD) * field_count);
+  if (field_count != (size / sizeof(MYSQL_FIELD))) {
+    set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+    end_server(mysql);
+    return 0;
+  }
+
+  fields = result = (MYSQL_FIELD *)alloc->Alloc(size);
   if (!result) {
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-    DBUG_RETURN(0);
+    end_server(mysql);
+    return 0;
   }
   memset(fields, 0, sizeof(MYSQL_FIELD) * field_count);
 
-  data.data = (MYSQL_ROW)alloc_root(alloc, sizeof(char *) * (field + 1));
+  data.data = (MYSQL_ROW)alloc->Alloc(sizeof(char *) * (field + 1));
   memset(data.data, 0, sizeof(char *) * (field + 1));
 
   /*
@@ -2138,21 +2626,40 @@ MYSQL_FIELD *cli_read_metadata_ex(MYSQL *mysql, MEM_ROOT *alloc,
     and save it in mysql->fields array
   */
   for (f = 0; f < field_count; ++f) {
-    if (read_one_row(mysql, field, data.data, len) == -1) DBUG_RETURN(NULL);
-    if (unpack_field(mysql, alloc, 0, mysql->server_capabilities, &data,
+    if (read_one_row(mysql, field, data.data, len) == -1) return NULL;
+    if (unpack_field(mysql, alloc, false, mysql->server_capabilities, &data,
                      fields++))
-      DBUG_RETURN(NULL);
+      return NULL;
   }
   /* Read EOF packet in case of old client */
   if (!(mysql->server_capabilities & CLIENT_DEPRECATE_EOF)) {
-    if (packet_error == cli_safe_read(mysql, NULL)) DBUG_RETURN(0);
+    if (packet_error == cli_safe_read(mysql, NULL)) return 0;
     pos = net->read_pos;
     if (*pos == 254) {
       mysql->warning_count = uint2korr(pos + 1);
       mysql->server_status = uint2korr(pos + 3);
     }
   }
-  DBUG_RETURN(result);
+  return result;
+}
+
+static int alloc_field_alloc(MYSQL *mysql) {
+  if (mysql->field_alloc == nullptr) {
+    mysql->field_alloc = (MEM_ROOT *)my_malloc(
+        key_memory_MYSQL, sizeof(MEM_ROOT), MYF(MY_WME | MY_ZEROFILL));
+    if (mysql->field_alloc == nullptr) {
+      set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+      return 1;
+    }
+    init_alloc_root(PSI_NOT_INSTRUMENTED, mysql->field_alloc, 8192,
+                    0); /* Assume rowlength < 8192 */
+  }
+  /* At this point the NET is receiving a resultset. max packet should be set */
+  DBUG_ASSERT(mysql->net.max_packet_size != 0);
+  /* Limit the size of the columns buffer to MAX packet size or 1M */
+  mysql->field_alloc->set_max_capacity(
+      std::max(1024UL * 1024UL, mysql->net.max_packet_size));
+  return 0;
 }
 
 /**
@@ -2167,17 +2674,23 @@ MYSQL_FIELD *cli_read_metadata_ex(MYSQL *mysql, MEM_ROOT *alloc,
 */
 MYSQL_FIELD *cli_read_metadata(MYSQL *mysql, ulong field_count,
                                unsigned int field) {
-  if (mysql->field_alloc == nullptr) {
-    mysql->field_alloc = (MEM_ROOT *)my_malloc(
-        key_memory_MYSQL, sizeof(MEM_ROOT), MYF(MY_WME | MY_ZEROFILL));
-    if (mysql->field_alloc == nullptr) {
-      set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-      return nullptr;
-    }
-    init_alloc_root(PSI_NOT_INSTRUMENTED, mysql->field_alloc, 8192,
-                    0); /* Assume rowlength < 8192 */
-  }
+  alloc_field_alloc(mysql);
   return cli_read_metadata_ex(mysql, mysql->field_alloc, field_count, field);
+}
+
+/**
+  Helper method to read metadata in asynchronous way.
+*/
+static net_async_status cli_read_metadata_nonblocking(MYSQL *mysql,
+                                                      ulong field_count,
+                                                      unsigned int field,
+                                                      MYSQL_FIELD **ret) {
+  alloc_field_alloc(mysql);
+  if (cli_read_metadata_ex_nonblocking(mysql, mysql->field_alloc, field_count,
+                                       field, ret) == NET_ASYNC_NOT_READY) {
+    return NET_ASYNC_NOT_READY;
+  }
+  return NET_ASYNC_COMPLETE;
 }
 
 /**
@@ -2226,6 +2739,209 @@ static int read_com_query_metadata(MYSQL *mysql, uchar *pos,
   return 0;
 }
 
+/**
+  Read resultset metadata returned by COM_QUERY command in asynchronous way.
+
+  @param[in]    mysql           Client connection handle.
+  @param[in]    pos             Position in the packet where the metadata
+                                starts.
+  @param[in]    field_count     Number of columns in the field descriptor.
+  @param[out]   res             set to false incase of success and true for
+  error.
+
+  @retval     NET_ASYNC_NOT_READY  metadata resultset not read completely
+  @retval     NET_ASYNC_COMPLETE   finished reading metadata resultset
+*/
+static net_async_status read_com_query_metadata_nonblocking(MYSQL *mysql,
+                                                            uchar *pos,
+                                                            ulong field_count,
+                                                            int *res) {
+  DBUG_TRACE;
+  /* pos is only set on the first reentrant call. */
+  if (pos) {
+    /* Store resultset metadata flag. */
+    if (mysql->client_flag & CLIENT_OPTIONAL_RESULTSET_METADATA) {
+      mysql->resultset_metadata =
+          static_cast<enum enum_resultset_metadata>(*pos);
+    } else {
+      mysql->resultset_metadata = RESULTSET_METADATA_FULL;
+    }
+  }
+
+  switch (mysql->resultset_metadata) {
+    case RESULTSET_METADATA_FULL:
+      /* Read metadata. */
+      MYSQL_TRACE_STAGE(mysql, WAIT_FOR_FIELD_DEF);
+
+      if (cli_read_metadata_nonblocking(
+              mysql, field_count, protocol_41(mysql) ? 7 : 5, &mysql->fields) ==
+          NET_ASYNC_NOT_READY) {
+        return NET_ASYNC_NOT_READY;
+      }
+
+      if (!mysql->fields) {
+        free_root(mysql->field_alloc, MYF(0));
+        *res = 1;
+        return NET_ASYNC_COMPLETE;
+      }
+      break;
+
+    case RESULTSET_METADATA_NONE:
+      /* Skip metadata. */
+      mysql->fields = NULL;
+      break;
+
+    default:
+      /* Unknown metadata flag. */
+      mysql->fields = NULL;
+      *res = 1;
+      return NET_ASYNC_COMPLETE;
+  }
+
+  *res = 0;
+  return NET_ASYNC_COMPLETE;
+}
+
+net_async_status cli_read_rows_nonblocking(MYSQL *mysql,
+                                           MYSQL_FIELD *mysql_fields,
+                                           unsigned int fields,
+                                           MYSQL_DATA **result_out) {
+  uint field;
+  ulong pkt_len;
+  ulong len;
+  uchar *cp;
+  char *to, *end_to;
+  MYSQL_ROWS *cur;
+  NET *net = &mysql->net;
+  bool is_data_packet;
+  DBUG_TRACE;
+  MYSQL_ASYNC *async_context = ASYNC_DATA(mysql);
+  NET_ASYNC *net_async = NET_ASYNC_DATA(net);
+  *result_out = nullptr;
+
+  if (cli_safe_read_nonblocking(mysql, &is_data_packet, &pkt_len) ==
+      NET_ASYNC_NOT_READY) {
+    return NET_ASYNC_NOT_READY;
+  }
+
+  mysql->packet_length = pkt_len;
+  if (pkt_len == packet_error) {
+    if (net_async->read_rows_is_first_read) {
+      free_rows(async_context->rows_result_buffer);
+      async_context->rows_result_buffer = nullptr;
+    }
+    net_async->read_rows_is_first_read = true;
+    return NET_ASYNC_COMPLETE;
+  }
+
+  if (net_async->read_rows_is_first_read) {
+    MYSQL_DATA *result;
+    if (!(result =
+              (MYSQL_DATA *)my_malloc(key_memory_MYSQL_DATA, sizeof(MYSQL_DATA),
+                                      MYF(MY_WME | MY_ZEROFILL))) ||
+        !(result->alloc =
+              (MEM_ROOT *)my_malloc(key_memory_MYSQL_DATA, sizeof(MEM_ROOT),
+                                    MYF(MY_WME | MY_ZEROFILL)))) {
+      set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+      net_async->read_rows_is_first_read = true;
+      free_rows(result);
+      return NET_ASYNC_COMPLETE;
+    }
+    async_context->rows_result_buffer = result;
+    init_alloc_root(PSI_NOT_INSTRUMENTED, result->alloc, 8192,
+                    0); /* Assume rowlength < 8192 */
+    async_context->prev_row_ptr = &result->data;
+    result->rows = 0;
+    result->fields = fields;
+
+    net_async->read_rows_is_first_read = false;
+  }
+
+  /*
+    The last EOF packet is either a single 254 character or (in MySQL 4.1)
+    254 followed by 1-7 status bytes or an OK packet starting with 0xFE
+  */
+  while (*(cp = net->read_pos) == 0 || is_data_packet) {
+    MYSQL_DATA *result = async_context->rows_result_buffer;
+    result->rows++;
+    if (!(cur = (MYSQL_ROWS *)result->alloc->Alloc(sizeof(MYSQL_ROWS))) ||
+        !(cur->data = ((MYSQL_ROW)result->alloc->Alloc(
+              (fields + 1) * sizeof(char *) + pkt_len)))) {
+      free_rows(result);
+      async_context->rows_result_buffer = nullptr;
+      set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+      net_async->read_rows_is_first_read = true;
+      return NET_ASYNC_COMPLETE;
+    }
+    *async_context->prev_row_ptr = cur;
+    async_context->prev_row_ptr = &cur->next;
+    to = (char *)(cur->data + fields + 1);
+    end_to = to + pkt_len - 1;
+    for (field = 0; field < fields; field++) {
+      if ((len = (ulong)net_field_length(&cp)) ==
+          NULL_LENGTH) { /* null field */
+        cur->data[field] = 0;
+      } else {
+        cur->data[field] = to;
+        if (len > (ulong)(end_to - to)) {
+          free_rows(result);
+          async_context->rows_result_buffer = nullptr;
+          set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+          net_async->read_rows_is_first_read = true;
+          return NET_ASYNC_COMPLETE;
+        }
+        memcpy(to, (char *)cp, len);
+        to[len] = 0;
+        to += len + 1;
+        cp += len;
+        if (mysql_fields) {
+          if (mysql_fields[field].max_length < len)
+            mysql_fields[field].max_length = len;
+        }
+      }
+    }
+    cur->data[field] = to; /* End of last field */
+    if (cli_safe_read_nonblocking(mysql, &is_data_packet, &pkt_len) ==
+        NET_ASYNC_NOT_READY) {
+      return NET_ASYNC_NOT_READY;
+    }
+    mysql->packet_length = pkt_len;
+    if (pkt_len == packet_error) {
+      free_rows(async_context->rows_result_buffer);
+      async_context->rows_result_buffer = nullptr;
+      net_async->read_rows_is_first_read = true;
+      return NET_ASYNC_COMPLETE;
+    }
+  }
+
+  *async_context->prev_row_ptr = 0; /* last pointer is null */
+  /* read EOF packet or OK packet if it is new client */
+  if (pkt_len > 1) {
+    if (mysql->server_capabilities & CLIENT_DEPRECATE_EOF && !is_data_packet)
+      read_ok_ex(mysql, pkt_len);
+    else {
+      mysql->warning_count = uint2korr(cp + 1);
+      mysql->server_status = uint2korr(cp + 3);
+    }
+
+    DBUG_PRINT("info", ("status: %u  warning_count:  %u", mysql->server_status,
+                        mysql->warning_count));
+  }
+
+#if defined(CLIENT_PROTOCOL_TRACING)
+  if (mysql->server_status & SERVER_MORE_RESULTS_EXISTS)
+    MYSQL_TRACE_STAGE(mysql, WAIT_FOR_RESULT);
+  else
+    MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
+#endif
+  DBUG_PRINT("exit",
+             ("Got %lu rows", (ulong)async_context->rows_result_buffer->rows));
+  *result_out = async_context->rows_result_buffer;
+  async_context->rows_result_buffer = nullptr;
+  net_async->read_rows_is_first_read = true;
+  return NET_ASYNC_COMPLETE;
+}
+
 /* Read all rows (data) from server */
 
 MYSQL_DATA *cli_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields,
@@ -2239,12 +2955,12 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields,
   MYSQL_ROWS **prev_ptr, *cur;
   NET *net = &mysql->net;
   bool is_data_packet;
-  DBUG_ENTER("cli_read_rows");
+  DBUG_TRACE;
 
   if ((pkt_len = cli_safe_read(mysql, &is_data_packet)) == packet_error)
-    DBUG_RETURN(0);
+    return 0;
 
-  if (pkt_len == 0) DBUG_RETURN(0);
+  if (pkt_len == 0) return 0;
   if (!(result =
             (MYSQL_DATA *)my_malloc(key_memory_MYSQL_DATA, sizeof(MYSQL_DATA),
                                     MYF(MY_WME | MY_ZEROFILL))) ||
@@ -2253,7 +2969,7 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields,
                                   MYF(MY_WME | MY_ZEROFILL)))) {
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
     free_rows(result);
-    DBUG_RETURN(0);
+    return 0;
   }
   init_alloc_root(PSI_NOT_INSTRUMENTED, result->alloc, 8192,
                   0); /* Assume rowlength < 8192 */
@@ -2268,12 +2984,12 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields,
 
   while (*(cp = net->read_pos) == 0 || is_data_packet) {
     result->rows++;
-    if (!(cur = (MYSQL_ROWS *)alloc_root(result->alloc, sizeof(MYSQL_ROWS))) ||
-        !(cur->data = ((MYSQL_ROW)alloc_root(
-              result->alloc, (fields + 1) * sizeof(char *) + pkt_len)))) {
+    if (!(cur = (MYSQL_ROWS *)result->alloc->Alloc(sizeof(MYSQL_ROWS))) ||
+        !(cur->data = ((MYSQL_ROW)result->alloc->Alloc(
+              (fields + 1) * sizeof(char *) + pkt_len)))) {
       free_rows(result);
       set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-      DBUG_RETURN(0);
+      return 0;
     }
     *prev_ptr = cur;
     prev_ptr = &cur->next;
@@ -2288,7 +3004,7 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields,
         if (len > (ulong)(end_to - to)) {
           free_rows(result);
           set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
-          DBUG_RETURN(0);
+          return 0;
         }
         memcpy(to, (char *)cp, len);
         to[len] = 0;
@@ -2303,7 +3019,7 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields,
     cur->data[field] = to; /* End of last field */
     if ((pkt_len = cli_safe_read(mysql, &is_data_packet)) == packet_error) {
       free_rows(result);
-      DBUG_RETURN(0);
+      return 0;
     }
   }
   *prev_ptr = 0; /* last pointer is null */
@@ -2327,24 +3043,17 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields,
     MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
 #endif
   DBUG_PRINT("exit", ("Got %lu rows", (ulong)result->rows));
-  DBUG_RETURN(result);
+  return result;
 }
 
-/*
-  Read one row. Uses packet buffer as storage for fields.
-  When next packet is read, the previous field values are destroyed
-*/
-
-static int read_one_row(MYSQL *mysql, uint fields, MYSQL_ROW row,
-                        ulong *lengths) {
+static int read_one_row_complete(MYSQL *mysql, ulong pkt_len,
+                                 bool is_data_packet, uint fields,
+                                 MYSQL_ROW row, ulong *lengths) {
   uint field;
-  ulong pkt_len, len;
-  bool is_data_packet;
+  ulong len;
   uchar *pos, *prev_pos, *end_pos;
   NET *net = &mysql->net;
 
-  if ((pkt_len = cli_safe_read(mysql, &is_data_packet)) == packet_error)
-    return -1;
   if (net->read_pos[0] != 0x00 && !is_data_packet) {
     if (pkt_len > 1) /* MySQL 4.1 protocol */
     {
@@ -2389,6 +3098,46 @@ static int read_one_row(MYSQL *mysql, uint fields, MYSQL_ROW row,
   return 0;
 }
 
+/*
+  Read one row. Uses packet buffer as storage for fields.
+  When next packet is read, the previous field values are destroyed
+*/
+
+static int read_one_row(MYSQL *mysql, uint fields, MYSQL_ROW row,
+                        ulong *lengths) {
+  ulong pkt_len;
+  bool is_data_packet;
+
+  if ((pkt_len = cli_safe_read(mysql, &is_data_packet)) == packet_error)
+    return -1;
+
+  return read_one_row_complete(mysql, pkt_len, is_data_packet, fields, row,
+                               lengths);
+}
+
+static net_async_status read_one_row_nonblocking(MYSQL *mysql, uint fields,
+                                                 MYSQL_ROW row, ulong *lengths,
+                                                 int *res) {
+  ulong pkt_len;
+  bool is_data_packet;
+  net_async_status status;
+
+  status = cli_safe_read_nonblocking(mysql, &is_data_packet, &pkt_len);
+  if (status == NET_ASYNC_NOT_READY) {
+    return status;
+  }
+
+  mysql->packet_length = pkt_len;
+  if (pkt_len == packet_error) {
+    *res = -1;
+    return NET_ASYNC_COMPLETE;
+  }
+
+  *res = read_one_row_complete(mysql, pkt_len, is_data_packet, fields, row,
+                               lengths);
+  return NET_ASYNC_COMPLETE;
+}
+
 /****************************************************************************
   Init MySQL structure or allocate one
 ****************************************************************************/
@@ -2401,7 +3150,7 @@ MYSQL *STDCALL mysql_init(MYSQL *mysql) {
       set_mysql_error(NULL, CR_OUT_OF_MEMORY, unknown_sqlstate);
       return 0;
     }
-    mysql->free_me = 1;
+    mysql->free_me = true;
   } else
     memset(mysql, 0, sizeof(*(mysql)));
   mysql->charset = default_client_charset_info;
@@ -2450,14 +3199,17 @@ MYSQL *STDCALL mysql_init(MYSQL *mysql) {
     - existing apps which explicitely asked for no reconnection
     (mysql.reconnect=0) will not see a behaviour change.
   */
-  mysql->reconnect = 0;
+  mysql->reconnect = false;
 #if defined(HAVE_OPENSSL) && !defined(MYSQL_SERVER)
   ENSURE_EXTENSIONS_PRESENT(&mysql->options);
   mysql->options.extension->ssl_mode = SSL_MODE_PREFERRED;
 #endif
+  /* by default connection_compressed should be OFF */
+  ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+  mysql->options.extension->connection_compressed = false;
 
   mysql->resultset_metadata = RESULTSET_METADATA_FULL;
-
+  ASYNC_DATA(mysql)->async_op_status = ASYNC_OP_UNSET;
   return mysql;
 }
 
@@ -2472,13 +3224,21 @@ MYSQL_EXTENSION *mysql_extension_init(MYSQL *mysql MY_ATTRIBUTE((unused))) {
   ext = static_cast<MYSQL_EXTENSION *>(my_malloc(PSI_NOT_INSTRUMENTED,
                                                  sizeof(MYSQL_EXTENSION),
                                                  MYF(MY_WME | MY_ZEROFILL)));
+  ext->mysql_async_context = static_cast<MYSQL_ASYNC *>(
+      my_malloc(PSI_NOT_INSTRUMENTED, sizeof(struct MYSQL_ASYNC),
+                MYF(MY_WME | MY_ZEROFILL)));
+  /* set default value */
+  ext->mysql_async_context->async_op_status = ASYNC_OP_UNSET;
+#ifdef MYSQL_SERVER
+  ext->server_extn = nullptr;
+#endif
   return ext;
 }
 
 void mysql_extension_free(MYSQL_EXTENSION *ext) {
   if (!ext) return;
   if (ext->trace_data) my_free(ext->trace_data);
-
+  if (ext->mysql_async_context) my_free(ext->mysql_async_context);
   // free state change related resources.
   free_state_change_info(ext);
 
@@ -2496,30 +3256,29 @@ bool STDCALL mysql_ssl_set(MYSQL *mysql MY_ATTRIBUTE((unused)),
                            const char *ca MY_ATTRIBUTE((unused)),
                            const char *capath MY_ATTRIBUTE((unused)),
                            const char *cipher MY_ATTRIBUTE((unused))) {
-  bool result = 0;
-  DBUG_ENTER("mysql_ssl_set");
+  bool result = false;
+  DBUG_TRACE;
 #if defined(HAVE_OPENSSL)
   result = mysql_options(mysql, MYSQL_OPT_SSL_KEY, key) +
                    mysql_options(mysql, MYSQL_OPT_SSL_CERT, cert) +
                    mysql_options(mysql, MYSQL_OPT_SSL_CA, ca) +
                    mysql_options(mysql, MYSQL_OPT_SSL_CAPATH, capath) +
                    mysql_options(mysql, MYSQL_OPT_SSL_CIPHER, cipher)
-               ? 1
-               : 0;
+               ? true
+               : false;
 #endif
-  DBUG_RETURN(result);
+  return result;
 }
 
-  /*
-    Free strings in the SSL structure and clear 'use_ssl' flag.
-    NB! Errors are not reported until you do mysql_real_connect.
-  */
+/*
+  Free strings in the SSL structure and clear 'use_ssl' flag.
+  NB! Errors are not reported until you do mysql_real_connect.
+*/
 
 #if defined(HAVE_OPENSSL)
 
 static void mysql_ssl_free(MYSQL *mysql) {
-  struct st_VioSSLFd *ssl_fd = (struct st_VioSSLFd *)mysql->connector_fd;
-  DBUG_ENTER("mysql_ssl_free");
+  DBUG_TRACE;
 
   my_free(mysql->options.ssl_key);
   my_free(mysql->options.ssl_cert);
@@ -2530,9 +3289,8 @@ static void mysql_ssl_free(MYSQL *mysql) {
     my_free(mysql->options.extension->tls_version);
     my_free(mysql->options.extension->ssl_crl);
     my_free(mysql->options.extension->ssl_crlpath);
+    my_free(mysql->options.extension->tls_ciphersuites);
   }
-  if (ssl_fd) SSL_CTX_free(ssl_fd->ssl_context);
-  my_free(mysql->connector_fd);
   mysql->options.ssl_key = 0;
   mysql->options.ssl_cert = 0;
   mysql->options.ssl_ca = 0;
@@ -2545,9 +3303,9 @@ static void mysql_ssl_free(MYSQL *mysql) {
     mysql->options.extension->tls_version = 0;
     mysql->options.extension->ssl_mode = SSL_MODE_DISABLED;
     mysql->options.extension->ssl_fips_mode = SSL_FIPS_MODE_OFF;
+    mysql->options.extension->tls_ciphersuites = 0;
   }
   mysql->connector_fd = 0;
-  DBUG_VOID_RETURN;
 }
 
 #endif /* HAVE_OPENSSL */
@@ -2563,12 +3321,12 @@ static void mysql_ssl_free(MYSQL *mysql) {
 */
 
 const char *STDCALL mysql_get_ssl_cipher(MYSQL *mysql MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("mysql_get_ssl_cipher");
+  DBUG_TRACE;
 #if defined(HAVE_OPENSSL)
   if (mysql->net.vio && mysql->net.vio->ssl_arg)
-    DBUG_RETURN(SSL_get_cipher_name((SSL *)mysql->net.vio->ssl_arg));
+    return SSL_get_cipher_name((SSL *)mysql->net.vio->ssl_arg);
 #endif /* HAVE_OPENSSL */
-  DBUG_RETURN(NULL);
+  return NULL;
 }
 
 #include <openssl/x509v3.h>
@@ -2768,7 +3526,7 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
   size_t iplen = 0;
   int ret_validation = 1;
 
-  DBUG_ENTER("ssl_verify_server_cert");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("server_hostname: %s", server_hostname));
 
   if (!(ssl = (SSL *)vio->ssl_arg)) {
@@ -2866,7 +3624,7 @@ error:
   if (server_ip_address != nullptr) ASN1_OCTET_STRING_free(server_ip_address);
 
   if (server_cert != NULL) X509_free(server_cert);
-  DBUG_RETURN(ret_validation);
+  return ret_validation;
 }
 
 /*
@@ -2875,10 +3633,16 @@ error:
 */
 
 static bool cli_read_query_result(MYSQL *mysql);
+static net_async_status cli_read_query_result_nonblocking(MYSQL *mysql);
 static MYSQL_RES *cli_use_result(MYSQL *mysql);
 
 int cli_read_change_user_result(MYSQL *mysql) {
   return cli_safe_read(mysql, NULL);
+}
+
+net_async_status cli_read_change_user_result_nonblocking(MYSQL *mysql,
+                                                         ulong *ret) {
+  return cli_safe_read_nonblocking(mysql, nullptr, ret);
 }
 
 static MYSQL_METHODS client_methods = {
@@ -2901,6 +3665,14 @@ static MYSQL_METHODS client_methods = {
     cli_read_binary_rows,    /* read_rows_from_cursor */
     free_rows
 #endif
+    ,
+    cli_read_query_result_nonblocking,      /* read_query_result_nonblocking */
+    cli_advanced_command_nonblocking,       /* advanced_command_nonblocking */
+    cli_read_rows_nonblocking,              /* read_rows_nonblocking */
+    cli_flush_use_result_nonblocking,       /* flush_use_result_nonblocking */
+    cli_read_query_result_nonblocking,      /* next_result_nonblocking */
+    cli_read_change_user_result_nonblocking /* read_change_user_result_nonblocking
+                                             */
 };
 
 typedef enum my_cs_match_type_enum {
@@ -3179,7 +3951,11 @@ int mysql_init_character_set(MYSQL *mysql) {
 /*********** client side authentication support **************************/
 
 static int client_mpvio_write_packet(MYSQL_PLUGIN_VIO *, const uchar *, int);
+static net_async_status client_mpvio_write_packet_nonblocking(
+    struct MYSQL_PLUGIN_VIO *, const uchar *, int, int *);
 static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
+static net_async_status native_password_auth_client_nonblocking(
+    MYSQL_PLUGIN_VIO *vio, MYSQL *mysql, int *result);
 static int clear_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
 
 static auth_plugin_t native_password_client_plugin = {
@@ -3194,7 +3970,8 @@ static auth_plugin_t native_password_client_plugin = {
     NULL,
     NULL,
     NULL,
-    native_password_auth_client};
+    native_password_auth_client,
+    native_password_auth_client_nonblocking};
 
 static auth_plugin_t clear_password_client_plugin = {
     MYSQL_CLIENT_AUTHENTICATION_PLUGIN,
@@ -3208,7 +3985,8 @@ static auth_plugin_t clear_password_client_plugin = {
     NULL,
     NULL,
     NULL,
-    clear_password_auth_client};
+    clear_password_auth_client,
+    NULL};
 
 #if defined(HAVE_OPENSSL)
 static auth_plugin_t sha256_password_client_plugin = {
@@ -3223,7 +4001,8 @@ static auth_plugin_t sha256_password_client_plugin = {
     sha256_password_init,
     sha256_password_deinit,
     NULL,
-    sha256_password_auth_client};
+    sha256_password_auth_client,
+    sha256_password_auth_client_nonblocking};
 
 static auth_plugin_t caching_sha2_password_client_plugin = {
     MYSQL_CLIENT_AUTHENTICATION_PLUGIN,
@@ -3237,7 +4016,8 @@ static auth_plugin_t caching_sha2_password_client_plugin = {
     caching_sha2_password_init,
     caching_sha2_password_deinit,
     NULL,
-    caching_sha2_password_auth_client};
+    caching_sha2_password_auth_client,
+    caching_sha2_password_auth_client_nonblocking};
 #endif
 #ifdef AUTHENTICATION_WIN
 extern "C" auth_plugin_t win_auth_client_plugin;
@@ -3324,24 +4104,6 @@ static size_t get_length_store_length(size_t length) {
   return ptr - &length_buffer[0];
 }
 
-/* this is a "superset" of MYSQL_PLUGIN_VIO, in C++ I use inheritance */
-struct MCPVIO_EXT {
-  int (*read_packet)(MYSQL_PLUGIN_VIO *vio, uchar **buf);
-  int (*write_packet)(MYSQL_PLUGIN_VIO *vio, const uchar *pkt, int pkt_len);
-  void (*info)(MYSQL_PLUGIN_VIO *vio, MYSQL_PLUGIN_VIO_INFO *info);
-  /* -= end of MYSQL_PLUGIN_VIO =- */
-  MYSQL *mysql;
-  auth_plugin_t *plugin; /**< what plugin we're under */
-  const char *db;
-  struct {
-    uchar *pkt; /**< pointer into NET::buff */
-    uint pkt_len;
-  } cached_server_reply;
-  int packets_read, packets_written; /**< counters for send/received packets */
-  int mysql_change_user;             /**< if it's mysql_change_user() */
-  int last_read_packet_len; /**< the length of the last *read* packet */
-};
-
 /*
   Write 1-8 bytes of string length header infromation to dest depending on
   value of src_len, then copy src_len bytes from src to dest.
@@ -3354,8 +4116,9 @@ struct MCPVIO_EXT {
  @return pointer dest+src_len+header size or NULL if
 */
 
-static char *write_length_encoded_string4(char *dest, char *dest_end, char *src,
-                                          char *src_end) {
+static char *write_length_encoded_string4(char *dest, char *dest_end,
+                                          const uchar *src,
+                                          const uchar *src_end) {
   size_t src_len = (size_t)(src_end - src);
   uchar *to = net_store_length((uchar *)dest, src_len);
   if ((char *)(to + src_len) >= dest_end) return NULL;
@@ -3367,8 +4130,8 @@ static char *write_length_encoded_string4(char *dest, char *dest_end, char *src,
   Write 1 byte of string length header information to dest and
   copy src_len bytes from src to dest.
 */
-static char *write_string(char *dest, char *dest_end, char *src,
-                          char *src_end) {
+static char *write_string(char *dest, char *dest_end, const uchar *src,
+                          const uchar *src_end) {
   size_t src_len = (size_t)(src_end - src);
   uchar *to = NULL;
   if (src_len >= 251) return NULL;
@@ -3607,6 +4370,12 @@ static int cli_establish_ssl(MYSQL *mysql) {
     unsigned long ssl_error;
     char buff[33], *end;
 
+    /* check if server supports compression else turn off client capability */
+    if (!(mysql->server_capabilities & CLIENT_ZSTD_COMPRESSION_ALGORITHM))
+      mysql->client_flag &= ~CLIENT_ZSTD_COMPRESSION_ALGORITHM;
+    if (!(mysql->server_capabilities & CLIENT_COMPRESS))
+      mysql->client_flag &= ~CLIENT_COMPRESS;
+
     end = mysql_fill_packet_header(mysql, buff, sizeof(buff));
 
     /*
@@ -3629,7 +4398,9 @@ static int cli_establish_ssl(MYSQL *mysql) {
     /* Create the VioSSLConnectorFd - init SSL and load certs */
     if (!(ssl_fd = new_VioSSLConnectorFd(
               options->ssl_key, options->ssl_cert, options->ssl_ca,
-              options->ssl_capath, options->ssl_cipher, &ssl_init_error,
+              options->ssl_capath, options->ssl_cipher,
+              options->extension ? options->extension->tls_ciphersuites : NULL,
+              &ssl_init_error,
               options->extension ? options->extension->ssl_crl : NULL,
               options->extension ? options->extension->ssl_crlpath : NULL,
               options->extension ? options->extension->ssl_ctx_flags : 0))) {
@@ -3644,7 +4415,7 @@ static int cli_establish_ssl(MYSQL *mysql) {
     DBUG_PRINT("info", ("IO layer change in progress..."));
     MYSQL_TRACE(SSL_CONNECT, mysql, ());
     if (sslconnect(ssl_fd, net->vio, (long)(mysql->options.connect_timeout),
-                   &ssl_error)) {
+                   &ssl_error, nullptr)) {
       char buf[512];
       ERR_error_string_n(ssl_error, buf, 512);
       buf[511] = 0;
@@ -3677,7 +4448,265 @@ error:
 #endif /* HAVE_OPENSSL */
 }
 
+/**
+  This function will establish asynchronous ssl connection by completing 4
+  different ssl connection states. Initial state is set to SSL_NONE during
+  which this functions does priliminary checks like if server supports ssl
+  or not, if CA certificate is required etc. Once preliminary checks are
+  done state is changed to SSL_REQUEST. In this state ssl request packet
+  is sent by client. If this network IO is complete, state is changed to
+  SSL_CONNECT. During SSL_CONNECT sslconnect() is called which can return
+  immediately or complete SSL handshake. If it returns immediately client
+  will save all SSL context in struct mysql_async_auth, so that next call
+  to this function will ensure that SSL_new() is not called twice. Once
+  ssl connection is established state is changed to SSL_COMPLETE.
+
+  @param[in]    mysql           Client connection handle.
+  @param[out]   res             set to false incase of success and true for
+  error.
+
+  @retval     NET_ASYNC_NOT_READY  ssl connection not yet established
+  @retval     NET_ASYNC_COMPLETE   ssl connection established
+*/
+static net_async_status cli_establish_ssl_nonblocking(MYSQL *mysql, int *res) {
+  DBUG_TRACE;
+#ifdef HAVE_OPENSSL
+  NET *net = &mysql->net;
+  NET_ASYNC *net_async = NET_ASYNC_DATA(net);
+  mysql_async_connect *ctx = ASYNC_DATA(mysql)->connect_context;
+
+  if (ctx->ssl_state == SSL_NONE) {
+    /* Don't fallback on unencrypted connection if SSL required. */
+    if (mysql->options.extension &&
+        mysql->options.extension->ssl_mode >= SSL_MODE_REQUIRED &&
+        !(mysql->server_capabilities & CLIENT_SSL)) {
+      set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
+                               ER_CLIENT(CR_SSL_CONNECTION_ERROR),
+                               "SSL is required but the server doesn't "
+                               "support it");
+      goto error;
+    }
+
+    /*
+      If the ssl_mode is VERIFY_CA or VERIFY_IDENTITY, make sure
+      that the connection doesn't succeed without providing the
+      CA certificate.
+    */
+    if (mysql->options.extension &&
+        mysql->options.extension->ssl_mode > SSL_MODE_REQUIRED &&
+        !(mysql->options.ssl_ca || mysql->options.ssl_capath)) {
+      set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
+                               ER_CLIENT(CR_SSL_CONNECTION_ERROR),
+                               "CA certificate is required if ssl-mode "
+                               "is VERIFY_CA or VERIFY_IDENTITY");
+      goto error;
+    }
+
+    /*
+      Attempt SSL connection if ssl_mode != SSL_MODE_DISABLED and
+      the server supports SSL. Fallback on unencrypted
+      connection otherwise.
+    */
+    if (!mysql->options.extension ||
+        mysql->options.extension->ssl_mode == SSL_MODE_DISABLED ||
+        !(mysql->server_capabilities & CLIENT_SSL)) {
+      goto done;
+    }
+    ctx->ssl_state = SSL_REQUEST;
+  }
+
+  if (ctx->ssl_state == SSL_REQUEST) {
+    char buff[33], *end;
+
+    end = mysql_fill_packet_header(mysql, buff, sizeof(buff));
+
+    /*
+      Send mysql->client_flag, max_packet_size - unencrypted
+      otherwise the server does not know we want to do SSL
+    */
+    MYSQL_TRACE(SEND_SSL_REQUEST, mysql,
+                ((size_t)(end - buff), (const unsigned char *)buff));
+    bool ret;
+    if (my_net_write_nonblocking(net, (uchar *)buff, (size_t)(end - buff),
+                                 &ret) == NET_ASYNC_NOT_READY) {
+      return NET_ASYNC_NOT_READY;
+    }
+
+    if (ret) {
+      set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
+                               ER_CLIENT(CR_SERVER_LOST_EXTENDED),
+                               "sending connection information to server",
+                               errno);
+      goto error;
+    }
+
+    ctx->ssl_state = SSL_CONNECT;
+  }
+
+  if (ctx->ssl_state == SSL_CONNECT) {
+    /* Do the SSL layering. */
+    struct st_mysql_options *options = &mysql->options;
+    struct st_VioSSLFd *ssl_fd;
+    enum enum_ssl_init_error ssl_init_error;
+    const char *cert_error;
+    unsigned long ssl_error;
+    size_t ret;
+
+    MYSQL_TRACE_STAGE(mysql, SSL_NEGOTIATION);
+
+    if (!mysql->connector_fd) {
+      /* Create the VioSSLConnectorFd - init SSL and load certs */
+      if (!(ssl_fd = new_VioSSLConnectorFd(
+                options->ssl_key, options->ssl_cert, options->ssl_ca,
+                options->ssl_capath, options->ssl_cipher,
+                options->extension ? options->extension->tls_ciphersuites
+                                   : NULL,
+                &ssl_init_error,
+                options->extension ? options->extension->ssl_crl : NULL,
+                options->extension ? options->extension->ssl_crlpath : NULL,
+                options->extension ? options->extension->ssl_ctx_flags : 0))) {
+        set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR,
+                                 unknown_sqlstate,
+                                 ER_CLIENT(CR_SSL_CONNECTION_ERROR),
+                                 sslGetErrString(ssl_init_error));
+        goto error;
+      }
+      mysql->connector_fd = (unsigned char *)ssl_fd;
+    } else {
+      ssl_fd = (struct st_VioSSLFd *)mysql->connector_fd;
+    }
+
+    /* Connect to the server */
+    DBUG_PRINT("info", ("IO layer change in progress..."));
+    MYSQL_TRACE(SSL_CONNECT, mysql, ());
+    if ((ret = sslconnect(ssl_fd, net->vio,
+                          (long)(mysql->options.connect_timeout), &ssl_error,
+                          &ctx->ssl))) {
+      switch (ret) {
+        case VIO_SOCKET_WANT_READ:
+          net_async->async_blocking_state = NET_NONBLOCKING_READ;
+          return NET_ASYNC_NOT_READY;
+        case VIO_SOCKET_WANT_WRITE:
+          net_async->async_blocking_state = NET_NONBLOCKING_WRITE;
+          return NET_ASYNC_NOT_READY;
+        default:
+          break;
+          /* continue for error handling */
+      }
+
+      char buf[512];
+      ERR_error_string_n(ssl_error, buf, 512);
+      buf[511] = 0;
+      set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
+                               ER_CLIENT(CR_SSL_CONNECTION_ERROR), buf);
+      goto error;
+    }
+    DBUG_PRINT("info", ("IO layer change done!"));
+
+    /* sslconnect creates a new vio, so update it. */
+    vio_set_blocking_flag(net->vio, !ctx->non_blocking);
+
+    /* Verify server cert */
+    if ((mysql->client_flag & CLIENT_SSL_VERIFY_SERVER_CERT) &&
+        ssl_verify_server_cert(net->vio, mysql->host, &cert_error)) {
+      set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
+                               ER_CLIENT(CR_SSL_CONNECTION_ERROR), cert_error);
+      goto error;
+    }
+
+    MYSQL_TRACE(SSL_CONNECTED, mysql, ());
+    MYSQL_TRACE_STAGE(mysql, AUTHENTICATE);
+  }
+
+done:
+  *res = 0;
+  ctx->ssl_state = SSL_COMPLETE;
+  return NET_ASYNC_COMPLETE;
+
+error:
+  *res = 1;
+  ctx->ssl_state = SSL_COMPLETE;
+  return NET_ASYNC_COMPLETE;
+
+#else
+  (void)mysql; /* avoid warning */
+  *res = 0;
+  ctx->ssl_state = SSL_COMPLETE;
+  return NET_ASYNC_COMPLETE;
+#endif /* HAVE_OPENSSL */
+}
+
+/**
+  Asynchronous authentication phase is divided into several smaller chunks
+  of subtasks like:
+  1. Determine the default/initial plugin to use
+  2. Call authentication plugin API
+  3. Handle response from authentication plugin API
+  4. Check if server asked to use a different authentication plugin
+  5. In case server asked to use a different authentication plugin
+     use that plugin to start the authentication process again.
+  6. Complete authentication.
+
+  All above tasks are implemented in below authsm_* functions where
+  authsm stads for authentication state machine.
+*/
+static mysql_state_machine_status authsm_begin_plugin_auth(
+    mysql_async_auth *ctx);
+static mysql_state_machine_status authsm_run_first_authenticate_user(
+    mysql_async_auth *ctx);
+static mysql_state_machine_status authsm_handle_first_authenticate_user(
+    mysql_async_auth *ctx);
+static mysql_state_machine_status authsm_read_change_user_result(
+    mysql_async_auth *ctx);
+static mysql_state_machine_status authsm_handle_change_user_result(
+    mysql_async_auth *ctx);
+static mysql_state_machine_status authsm_run_second_authenticate_user(
+    mysql_async_auth *ctx);
+static mysql_state_machine_status authsm_handle_second_authenticate_user(
+    mysql_async_auth *ctx);
+static mysql_state_machine_status authsm_finish_auth(mysql_async_auth *ctx);
+
+/**
+  Asynchronous connection phase is divided into several smaller modules
+  where wach module does following:
+  1. Begin the connection to the server, including any DNS resolution
+     necessary, socket configuration, etc
+  2. Complete the connection itself
+  3. Connection established, read the first packet
+  4. Parse the handshake from the server
+  5. Establish SSL connection if needed
+  6. Invoke the plugin to send the authentication data to the server
+  7. Authenticated, set intial database if specified
+  8. Send COM_INIT_DB.
+  9. Prepare to send a sequence of init commands.
+  10.Send an init command.
+
+  Below are the modules which does all above tasks.
+*/
+static mysql_state_machine_status csm_begin_connect(mysql_async_connect *ctx);
+static mysql_state_machine_status csm_complete_connect(
+    mysql_async_connect *ctx);
+static mysql_state_machine_status csm_read_greeting(mysql_async_connect *ctx);
+static mysql_state_machine_status csm_parse_handshake(mysql_async_connect *ctx);
+static mysql_state_machine_status csm_establish_ssl(mysql_async_connect *ctx);
+static mysql_state_machine_status csm_authenticate(mysql_async_connect *ctx);
+static mysql_state_machine_status csm_prep_select_database(
+    mysql_async_connect *ctx);
+#ifndef MYSQL_SERVER
+static mysql_state_machine_status csm_prep_init_commands(
+    mysql_async_connect *ctx);
+static mysql_state_machine_status csm_send_one_init_command(
+    mysql_async_connect *ctx);
+#endif
+
 #define MAX_CONNECTION_ATTR_STORAGE_LENGTH 65536
+
+int mysql_get_socket_descriptor(MYSQL *mysql) {
+  if (mysql && mysql->net.vio) {
+    return vio_fd(mysql->net.vio);
+  }
+  return -1;
+}
 
 /* clang-format off */
 /**
@@ -3804,6 +4833,9 @@ error:
       <td>Value of the 1st client attribute</td></tr>
   <tr><td colspan="3">.. (if more data in length of all key-values, more keys and values parts)</td></tr>
   <tr><td colspan="3">}</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>zstd_compression_level</td>
+    <td>compression level for zstd compression algorithm</td></tr>
   </table>
 
   Example
@@ -3857,16 +4889,19 @@ error:
   @param mpvio      The connection to use
   @param data       The scramble to send
   @param data_len   Length of data
+  @param buff_out   Buffer holding client handshake packet
+  @param buff_len   Length of buffer holding client handshake packet
   @retval 0 ok
   @retval 1 error
 
   @sa mysql_fill_packet_header()
   page_protocol_conn_packets_protocol_handshake_response
 */
-static int send_client_reply_packet(MCPVIO_EXT *mpvio, const uchar *data,
-                                    int data_len) {
+static bool prep_client_reply_packet(MCPVIO_EXT *mpvio, const uchar *data,
+                                     int data_len, char **buff_out,
+                                     int *buff_len) {
+  DBUG_TRACE;
   MYSQL *mysql = mpvio->mysql;
-  NET *net = &mysql->net;
   char *buff, *end;
   size_t buff_size;
   size_t connect_attrs_len =
@@ -3874,16 +4909,65 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio, const uchar *data,
        mysql->options.extension)
           ? mysql->options.extension->connection_attributes_length
           : 0;
+  unsigned int compress_level = 0;
+  bool server_zstd =
+      (mysql->server_capabilities & CLIENT_ZSTD_COMPRESSION_ALGORITHM);
+  bool client_zstd =
+      (mysql->options.client_flag & CLIENT_ZSTD_COMPRESSION_ALGORITHM);
 
+  /* validate compression configuration */
+  ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+  if (mysql->options.extension->compression_algorithm) {
+    std::string algorithm = mysql->options.extension->compression_algorithm;
+    if (!algorithm.empty() &&
+        validate_compression_attributes(algorithm, std::string(), true)) {
+      set_mysql_error(mysql, CR_COMPRESSION_WRONGLY_CONFIGURED,
+                      unknown_sqlstate);
+      return true;
+    }
+  }
+
+  /**
+    If server/client is configured to use zstd compression then set compression
+    level if specified, else set level to a default value.
+  */
+  if (server_zstd && client_zstd) {
+    if (mysql->options.extension &&
+        mysql->options.extension->zstd_compression_level)
+      compress_level = mysql->options.extension->zstd_compression_level;
+    else
+      compress_level = default_zstd_compression_level;
+  }
+  /* Remove those compression capabilities that server does not support. */
+  if (!(mysql->server_capabilities & CLIENT_COMPRESS))
+    mysql->client_flag &= ~CLIENT_COMPRESS;
+  if (!(mysql->server_capabilities & CLIENT_ZSTD_COMPRESSION_ALGORITHM))
+    mysql->client_flag &= ~CLIENT_ZSTD_COMPRESSION_ALGORITHM;
+  /*
+   If server and client have no compression algorithms in common, we must
+   fall back to uncompressed. In that case, check that uncompressed is
+   allowed by client.
+  */
+  if (!(mysql->client_flag & CLIENT_COMPRESS) &&
+      !(mysql->client_flag & CLIENT_ZSTD_COMPRESSION_ALGORITHM) &&
+      mysql->options.extension->connection_compressed) {
+    set_mysql_error(mysql, CR_COMPRESSION_WRONGLY_CONFIGURED, unknown_sqlstate);
+    return true;
+  }
   DBUG_ASSERT(connect_attrs_len < MAX_CONNECTION_ATTR_STORAGE_LENGTH);
+
+  *buff_out = nullptr;
+  *buff_len = 0;
 
   /*
     Fixed size of the packet is 32 bytes. See mysql_fill_packet_header.
     +9 because data is a length encoded binary where meta data size is max 9.
   */
   buff_size = 33 + USERNAME_LENGTH + data_len + 9 + NAME_LEN + NAME_LEN +
-              connect_attrs_len + 9;
-  buff = static_cast<char *>(my_alloca(buff_size));
+              connect_attrs_len + 9 + ((server_zstd && client_zstd) ? 1 : 0);
+
+  buff = static_cast<char *>(
+      my_malloc(PSI_NOT_INSTRUMENTED, buff_size, MYF(MY_WME | MY_ZEROFILL)));
 
   /* The client_flags is already calculated. Just fill in the packet header */
   end = mysql_fill_packet_header(mysql, buff, buff_size);
@@ -3915,12 +4999,11 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio, const uchar *data,
       the string followed by the actual string.
       */
     if (mysql->server_capabilities & CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA)
-      end =
-          write_length_encoded_string4(end, (char *)(buff + buff_size),
-                                       (char *)data, (char *)(data + data_len));
+      end = write_length_encoded_string4(end, (char *)(buff + buff_size), data,
+                                         data + data_len);
     else
-      end = write_string(end, (char *)(buff + buff_size), (char *)data,
-                         (char *)(data + data_len));
+      end =
+          write_string(end, (char *)(buff + buff_size), data, data + data_len);
     if (end == NULL) goto error;
   } else
     *end++ = 0;
@@ -3936,6 +5019,38 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio, const uchar *data,
 
   end = (char *)send_client_connect_attrs(mysql, (uchar *)end);
 
+  if (server_zstd && client_zstd) {
+    /* send compression level if both client and server support it */
+    *end = static_cast<unsigned char>(compress_level);
+    end++;
+  }
+
+  *buff_out = buff;
+  *buff_len = end - buff;
+
+  return false;
+
+error:
+  my_free(buff);
+  return true;
+}
+
+static int send_client_reply_packet(MCPVIO_EXT *mpvio, const uchar *data,
+                                    int data_len) {
+  DBUG_TRACE;
+  MYSQL *mysql = mpvio->mysql;
+  NET *net = &mysql->net;
+  char *buff = nullptr, *end = nullptr;
+  int buff_len;
+  int ret = 0;
+  bool prep_err;
+
+  prep_err = prep_client_reply_packet(mpvio, data, data_len, &buff, &buff_len);
+  if (prep_err) {
+    return 1;
+  }
+
+  end = buff + buff_len;
   /* Write authentication package */
   MYSQL_TRACE(SEND_AUTH_RESPONSE, mysql,
               ((size_t)(end - buff), (const unsigned char *)buff));
@@ -3944,14 +5059,53 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio, const uchar *data,
     set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
                              ER_CLIENT(CR_SERVER_LOST_EXTENDED),
                              "sending authentication information", errno);
-    goto error;
+    ret = 1;
   }
   MYSQL_TRACE(PACKET_SENT, mysql, ((size_t)(end - buff)));
-  return 0;
-
-error:
-  return 1;
+  my_free(buff);
+  return ret;
 }
+
+static net_async_status send_client_reply_packet_nonblocking(MCPVIO_EXT *mpvio,
+                                                             const uchar *pkt,
+                                                             int pkt_len,
+                                                             bool *result) {
+  DBUG_TRACE;
+  MYSQL *mysql = mpvio->mysql;
+  mysql_async_auth *ctx = ASYNC_DATA(mysql)->connect_context->auth_context;
+  net_async_status status;
+
+  bool error = false;
+  if (!ctx->change_user_buff) {
+    error =
+        prep_client_reply_packet(mpvio, pkt, pkt_len, &ctx->change_user_buff,
+                                 &ctx->change_user_buff_len);
+    if (error) {
+      goto end;
+    }
+  }
+
+  status = my_net_write_nonblocking(&mysql->net, (uchar *)ctx->change_user_buff,
+                                    ctx->change_user_buff_len, &error);
+
+  if (status == NET_ASYNC_NOT_READY) {
+    return NET_ASYNC_NOT_READY;
+  }
+
+end:
+  *result = error;
+  my_free(ctx->change_user_buff);
+  ctx->change_user_buff = nullptr;
+
+  return NET_ASYNC_COMPLETE;
+}
+
+#ifdef __clang__
+// Clang UBSAN false positive?
+// Call to function through pointer to incorrect function type
+static int client_mpvio_read_packet(MYSQL_PLUGIN_VIO *mpv,
+                                    uchar **buf) SUPPRESS_UBSAN;
+#endif  // __clang__
 
 /**
   vio->read_packet() callback method for client authentication plugins
@@ -4011,6 +5165,88 @@ static int client_mpvio_read_packet(MYSQL_PLUGIN_VIO *mpv, uchar **buf) {
 }
 
 /**
+  vio->read_packet() nonblocking callback method for client authentication
+  plugins
+*/
+static net_async_status client_mpvio_read_packet_nonblocking(
+    struct MYSQL_PLUGIN_VIO *mpv, uchar **buf, int *result) {
+  DBUG_TRACE;
+  MCPVIO_EXT *mpvio = (MCPVIO_EXT *)mpv;
+  MYSQL *mysql = mpvio->mysql;
+  ulong pkt_len;
+  int error;
+
+  /* there are cached data left, feed it to a plugin */
+  if (mpvio->cached_server_reply.pkt) {
+    *buf = mpvio->cached_server_reply.pkt;
+    mpvio->cached_server_reply.pkt = 0;
+    mpvio->packets_read++;
+    *result = mpvio->cached_server_reply.pkt_len;
+    return NET_ASYNC_COMPLETE;
+  }
+
+  if (mpvio->packets_read == 0) {
+    /*
+      the server handshake packet came from the wrong plugin,
+      or it's mysql_change_user(). Either way, there is no data
+      for a plugin to read. send a dummy packet to the server
+      to initiate a dialog.
+    */
+    net_async_status status =
+        client_mpvio_write_packet_nonblocking(mpv, 0, 0, &error);
+    if (status == NET_ASYNC_NOT_READY) {
+      return NET_ASYNC_NOT_READY;
+    }
+    if (error) {
+      *result = (int)packet_error;
+      return NET_ASYNC_COMPLETE;
+    }
+  }
+
+  /*
+    packets_read needs to be set here to avoid entering above condition
+    again.
+  */
+  mpvio->packets_read++;
+  /* otherwise read the data */
+  net_async_status status =
+      mysql->methods->read_change_user_result_nonblocking(mysql, &pkt_len);
+  if (status == NET_ASYNC_NOT_READY) {
+    return NET_ASYNC_NOT_READY;
+  }
+
+  mpvio->last_read_packet_len = pkt_len;
+  *buf = mysql->net.read_pos;
+
+  /* was it a request to change plugins ? */
+  if (**buf == 254) {
+    *result = (int)packet_error;
+    return NET_ASYNC_COMPLETE;
+  }
+
+  /*
+    the server sends \1\255 or \1\254 instead of just \255 or \254 -
+    for us to not confuse it with an error or "change plugin" packets.
+    We remove this escaping \1 here.
+    See also server_mpvio_write_packet() where the escaping is
+    done.
+  */
+  if (pkt_len && **buf == 1) {
+    (*buf)++;
+    pkt_len--;
+  }
+  *result = pkt_len;
+  return NET_ASYNC_COMPLETE;
+}
+
+#ifdef __clang__
+// Clang UBSAN false positive?
+// Call to function through pointer to incorrect function type
+static int client_mpvio_write_packet(MYSQL_PLUGIN_VIO *mpv, const uchar *pkt,
+                                     int pkt_len) SUPPRESS_UBSAN;
+#endif  // __clang__
+
+/**
   vio->write_packet() callback method for client authentication plugins
 
   This function is called by a client authentication plugin, when it wants
@@ -4048,6 +5284,53 @@ static int client_mpvio_write_packet(MYSQL_PLUGIN_VIO *mpv, const uchar *pkt,
   }
   mpvio->packets_written++;
   return res;
+}
+
+/**
+  vio->write_packet() nonblocking callback method for client authentication
+  plugins
+*/
+static net_async_status client_mpvio_write_packet_nonblocking(
+    struct MYSQL_PLUGIN_VIO *mpv, const uchar *pkt, int pkt_len, int *result) {
+  DBUG_TRACE;
+  MCPVIO_EXT *mpvio = (MCPVIO_EXT *)mpv;
+  bool error = false;
+
+  if (mpvio->packets_written == 0) {
+    /* mysql_change_user_nonblocking not implemented yet. */
+    DBUG_ASSERT(!mpvio->mysql_change_user);
+    net_async_status status =
+        send_client_reply_packet_nonblocking(mpvio, pkt, pkt_len, &error);
+    if (status == NET_ASYNC_NOT_READY) {
+      return NET_ASYNC_NOT_READY;
+    }
+  } else {
+    NET *net = &mpvio->mysql->net;
+
+    MYSQL_TRACE(SEND_AUTH_DATA, mpvio->mysql, ((size_t)pkt_len, pkt));
+
+    if (mpvio->mysql->thd)
+      *result = 1; /* no chit-chat in embedded */
+    else {
+      net_async_status status =
+          my_net_write_nonblocking(net, pkt, pkt_len, &error);
+      if (status == NET_ASYNC_NOT_READY) {
+        return NET_ASYNC_NOT_READY;
+      }
+      *result = error;
+
+      if (error) {
+        set_mysql_extended_error(mpvio->mysql, CR_SERVER_LOST, unknown_sqlstate,
+                                 ER_CLIENT(CR_SERVER_LOST_EXTENDED),
+                                 "sending authentication information", errno);
+      } else {
+        MYSQL_TRACE(PACKET_SENT, mpvio->mysql, ((size_t)pkt_len));
+      }
+    }
+  }
+  mpvio->packets_written++;
+  *result = error ? -1 : 0;
+  return NET_ASYNC_COMPLETE;
 }
 
 /**
@@ -4098,10 +5381,10 @@ static void client_mpvio_info(MYSQL_PLUGIN_VIO *vio,
   mpvio_info(mpvio->mysql->net.vio, info);
 }
 
-bool libmysql_cleartext_plugin_enabled = 0;
+bool libmysql_cleartext_plugin_enabled = false;
 
-static bool check_plugin_enabled(MYSQL *mysql, auth_plugin_t *plugin) {
-  if (plugin == &clear_password_client_plugin &&
+static bool check_plugin_enabled(MYSQL *mysql, mysql_async_auth *ctx) {
+  if (ctx->auth_plugin == &clear_password_client_plugin &&
       (!libmysql_cleartext_plugin_enabled &&
        (!mysql->options.extension ||
         !mysql->options.extension->enable_cleartext_plugin))) {
@@ -4110,6 +5393,12 @@ static bool check_plugin_enabled(MYSQL *mysql, auth_plugin_t *plugin) {
         ER_CLIENT(CR_AUTH_PLUGIN_CANNOT_LOAD),
         clear_password_client_plugin.name, "plugin not enabled");
     return true;
+  }
+  if (ctx->non_blocking && !ctx->auth_plugin->authenticate_user_nonblocking) {
+    set_mysql_extended_error(
+        mysql, CR_AUTH_PLUGIN_CANNOT_LOAD, unknown_sqlstate,
+        ER_CLIENT(CR_AUTH_PLUGIN_CANNOT_LOAD), ctx->auth_plugin->name,
+        "plugin does not support nonblocking connect");
   }
   return false;
 }
@@ -4132,58 +5421,166 @@ static bool check_plugin_enabled(MYSQL *mysql, auth_plugin_t *plugin) {
 */
 int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
                     const char *data_plugin, const char *db) {
-  const char *auth_plugin_name;
-  auth_plugin_t *auth_plugin;
-  MCPVIO_EXT mpvio;
-  ulong pkt_length;
-  int res;
+  DBUG_TRACE;
+  mysql_state_machine_status status;
+  mysql_async_auth ctx;
+  memset(&ctx, 0, sizeof(ctx));
 
-  DBUG_ENTER("run_plugin_auth");
+  ctx.mysql = mysql;
+  ctx.data = data;
+  ctx.data_len = data_len;
+  ctx.data_plugin = data_plugin;
+  ctx.db = db;
+  ctx.non_blocking = false;
+  ctx.state_function = authsm_begin_plugin_auth;
+
+  do {
+    status = ctx.state_function(&ctx);
+  } while (status != STATE_MACHINE_FAILED && status != STATE_MACHINE_DONE);
+
+  return status == STATE_MACHINE_FAILED;
+}
+
+/**
+  This functions drives the authentication on client side in a nonblocking
+  way. This function will call differnt modules in a sequence where each
+  module is responsible to acheive a particular part in entire authentication
+  phase.
+
+  @note this is used by both the mysql_real_connect_nonblocking
+
+  @param mysql       mysql
+  @param data        pointer to the plugin auth data (scramble) in the
+                     handshake packet
+  @param data_len    the length of the data
+  @param data_plugin a plugin that data were prepared for
+                     or 0 if it's mysql_change_user()
+  @param db          initial db to use, can be 0
+
+  @retval     NET_ASYNC_NOT_READY  authentication not yet complete
+  @retval     NET_ASYNC_COMPLETE   authentication done
+*/
+mysql_state_machine_status run_plugin_auth_nonblocking(MYSQL *mysql, char *data,
+                                                       uint data_len,
+                                                       const char *data_plugin,
+                                                       const char *db) {
+  DBUG_TRACE;
+  mysql_async_auth *ctx = ASYNC_DATA(mysql)->connect_context->auth_context;
+  if (!ctx) {
+    ctx = static_cast<mysql_async_auth *>(
+        my_malloc(key_memory_MYSQL, sizeof(*ctx), MYF(MY_WME | MY_ZEROFILL)));
+
+    ctx->mysql = mysql;
+    ctx->data = data;
+    ctx->data_len = data_len;
+    ctx->data_plugin = data_plugin;
+    ctx->db = db;
+    ctx->non_blocking = true;
+    ctx->state_function = authsm_begin_plugin_auth;
+    ASYNC_DATA(mysql)->connect_context->auth_context = ctx;
+  }
+
+  mysql_state_machine_status ret = ctx->state_function(ctx);
+  if (ret == STATE_MACHINE_FAILED || ret == STATE_MACHINE_DONE) {
+    my_free(ctx);
+    ASYNC_DATA(mysql)->connect_context->auth_context = nullptr;
+  }
+
+  return ret;
+}
+
+/**
+  Determine the default/initial plugin to use
+*/
+static mysql_state_machine_status authsm_begin_plugin_auth(
+    mysql_async_auth *ctx) {
+  DBUG_TRACE;
+  MYSQL *mysql = ctx->mysql;
   /* determine the default/initial plugin to use */
   if (mysql->options.extension && mysql->options.extension->default_auth &&
       mysql->server_capabilities & CLIENT_PLUGIN_AUTH) {
-    auth_plugin_name = mysql->options.extension->default_auth;
-    if (!(auth_plugin = (auth_plugin_t *)mysql_client_find_plugin(
-              mysql, auth_plugin_name, MYSQL_CLIENT_AUTHENTICATION_PLUGIN)))
-      DBUG_RETURN(1); /* oops, not found */
+    ctx->auth_plugin_name = mysql->options.extension->default_auth;
+    if (!(ctx->auth_plugin = (auth_plugin_t *)mysql_client_find_plugin(
+              mysql, ctx->auth_plugin_name,
+              MYSQL_CLIENT_AUTHENTICATION_PLUGIN)))
+      return STATE_MACHINE_FAILED; /* oops, not found */
   } else {
-    auth_plugin = &caching_sha2_password_client_plugin;
-    auth_plugin_name = auth_plugin->name;
+    ctx->auth_plugin = &caching_sha2_password_client_plugin;
+    ctx->auth_plugin_name = ctx->auth_plugin->name;
   }
 
-  if (check_plugin_enabled(mysql, auth_plugin)) DBUG_RETURN(1);
+  if (check_plugin_enabled(mysql, ctx)) return STATE_MACHINE_FAILED;
 
-  DBUG_PRINT("info", ("using plugin %s", auth_plugin_name));
+  DBUG_PRINT("info", ("using plugin %s", ctx->auth_plugin_name));
 
   mysql->net.last_errno = 0; /* just in case */
 
-  if (data_plugin && strcmp(data_plugin, auth_plugin_name)) {
+  if (ctx->data_plugin && strcmp(ctx->data_plugin, ctx->auth_plugin_name)) {
     /* data was prepared for a different plugin, don't show it to this one */
-    data = 0;
-    data_len = 0;
+    ctx->data = 0;
+    ctx->data_len = 0;
   }
 
-  mpvio.mysql_change_user = data_plugin == 0;
-  mpvio.cached_server_reply.pkt = (uchar *)data;
-  mpvio.cached_server_reply.pkt_len = data_len;
-  mpvio.read_packet = client_mpvio_read_packet;
-  mpvio.write_packet = client_mpvio_write_packet;
-  mpvio.info = client_mpvio_info;
-  mpvio.mysql = mysql;
-  mpvio.packets_read = mpvio.packets_written = 0;
-  mpvio.db = db;
-  mpvio.plugin = auth_plugin;
+  ctx->mpvio.mysql_change_user = ctx->data_plugin == 0;
+  ctx->mpvio.cached_server_reply.pkt = (uchar *)ctx->data;
+  ctx->mpvio.cached_server_reply.pkt_len = ctx->data_len;
+  ctx->mpvio.read_packet = client_mpvio_read_packet;
+  ctx->mpvio.write_packet = client_mpvio_write_packet;
+  ctx->mpvio.read_packet_nonblocking = client_mpvio_read_packet_nonblocking;
+  ctx->mpvio.write_packet_nonblocking = client_mpvio_write_packet_nonblocking;
+  ctx->mpvio.info = client_mpvio_info;
+  ctx->mpvio.mysql = mysql;
+  ctx->mpvio.packets_read = ctx->mpvio.packets_written = 0;
+  ctx->mpvio.db = ctx->db;
+  ctx->mpvio.plugin = ctx->auth_plugin;
+  ctx->client_auth_plugin_state =
+      (int)(client_auth_caching_sha2_password_plugin_status::
+                CACHING_SHA2_READING_PASSWORD);
 
-  MYSQL_TRACE(AUTH_PLUGIN, mysql, (auth_plugin->name));
+  ctx->state_function = authsm_run_first_authenticate_user;
+  return STATE_MACHINE_CONTINUE;
+}
 
-  res = auth_plugin->authenticate_user((MYSQL_PLUGIN_VIO *)&mpvio, mysql);
+/**
+  Authentication can have two authenticate_user calls, depending on
+  what the server responds with; this handles the first.
+*/
+static mysql_state_machine_status authsm_run_first_authenticate_user(
+    mysql_async_auth *ctx) {
+  DBUG_TRACE;
+  MYSQL *mysql = ctx->mysql;
+  MYSQL_TRACE(AUTH_PLUGIN, mysql, (ctx->auth_plugin->name));
+
+  if (ctx->non_blocking && ctx->auth_plugin->authenticate_user_nonblocking) {
+    net_async_status status = ctx->auth_plugin->authenticate_user_nonblocking(
+        (struct MYSQL_PLUGIN_VIO *)&ctx->mpvio, mysql, &ctx->res);
+    if (status == NET_ASYNC_NOT_READY) {
+      return STATE_MACHINE_WOULD_BLOCK;
+    }
+  } else {
+    ctx->res = ctx->auth_plugin->authenticate_user(
+        (struct MYSQL_PLUGIN_VIO *)&ctx->mpvio, mysql);
+  }
+
+  ctx->state_function = authsm_handle_first_authenticate_user;
+  return STATE_MACHINE_CONTINUE;
+}
+
+/**
+  Handle the result of the first authenticate_user.
+*/
+static mysql_state_machine_status authsm_handle_first_authenticate_user(
+    mysql_async_auth *ctx) {
+  DBUG_TRACE;
+  MYSQL *mysql = ctx->mysql;
   DBUG_PRINT("info",
              ("authenticate_user returned %s",
-              res == CR_OK ? "CR_OK"
-                           : res == CR_ERROR ? "CR_ERROR"
-                                             : res == CR_OK_HANDSHAKE_COMPLETE
-                                                   ? "CR_OK_HANDSHAKE_COMPLETE"
-                                                   : "error"));
+              ctx->res == CR_OK
+                  ? "CR_OK"
+                  : ctx->res == CR_ERROR ? "CR_ERROR"
+                                         : ctx->res == CR_OK_HANDSHAKE_COMPLETE
+                                               ? "CR_OK_HANDSHAKE_COMPLETE"
+                                               : "error"));
 
   static_assert(CR_OK == -1, "");
   static_assert(CR_ERROR == 0, "");
@@ -4196,7 +5593,7 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
     already performed required checks. Further, server side plugin did not
     really care about plugin used by client in this case.
   */
-  if (res > CR_OK &&
+  if (ctx->res > CR_OK &&
       (!my_net_is_inited(&mysql->net) ||
        (mysql->net.read_pos[0] != 0 && mysql->net.read_pos[0] != 254))) {
     /*
@@ -4204,92 +5601,156 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
       unless the error code is CR_ERROR and mysql->net.last_errno
       is already set (the plugin has done it)
     */
-    DBUG_PRINT("info", ("res=%d", res));
-    if (res > CR_ERROR)
-      set_mysql_error(mysql, res, unknown_sqlstate);
+    DBUG_PRINT("info", ("res=%d", ctx->res));
+    if (ctx->res > CR_ERROR)
+      set_mysql_error(mysql, ctx->res, unknown_sqlstate);
     else if (!mysql->net.last_errno)
       set_mysql_error(mysql, CR_UNKNOWN_ERROR, unknown_sqlstate);
-    DBUG_RETURN(1);
+    return STATE_MACHINE_FAILED;
   }
+  ctx->state_function = authsm_read_change_user_result;
+  return STATE_MACHINE_CONTINUE;
+}
 
+/**
+  After the first authenticate_user comes a call to read the result of the
+  implied change_user.
+*/
+static mysql_state_machine_status authsm_read_change_user_result(
+    mysql_async_auth *ctx) {
+  DBUG_TRACE;
+  MYSQL *mysql = ctx->mysql;
   /* read the OK packet (or use the cached value in mysql->net.read_pos */
-  if (res == CR_OK)
-    pkt_length = (*mysql->methods->read_change_user_result)(mysql);
-  else /* res == CR_OK_HANDSHAKE_COMPLETE */
-    pkt_length = mpvio.last_read_packet_len;
+  if (ctx->res == CR_OK) {
+    if (ctx->non_blocking) {
+      net_async_status status =
+          (*mysql->methods->read_change_user_result_nonblocking)(
+              mysql, &ctx->pkt_length);
+      if (status == NET_ASYNC_NOT_READY) {
+        return STATE_MACHINE_WOULD_BLOCK;
+      }
+    } else {
+      ctx->pkt_length = (*mysql->methods->read_change_user_result)(mysql);
+    }
+  } else /* res == CR_OK_HANDSHAKE_COMPLETE */
+    ctx->pkt_length = ctx->mpvio.last_read_packet_len;
 
-  DBUG_PRINT("info", ("OK packet length=%lu", pkt_length));
-  if (pkt_length == packet_error) {
+  ctx->state_function = authsm_handle_change_user_result;
+  return STATE_MACHINE_CONTINUE;
+}
+
+/**
+  Check if server asked to use a different authentication plugin
+*/
+static mysql_state_machine_status authsm_handle_change_user_result(
+    mysql_async_auth *ctx) {
+  DBUG_TRACE;
+  MYSQL *mysql = ctx->mysql;
+  DBUG_PRINT("info", ("OK packet length=%lu", ctx->pkt_length));
+  if (ctx->pkt_length == packet_error) {
     if (mysql->net.last_errno == CR_SERVER_LOST)
       set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
                                ER_CLIENT(CR_SERVER_LOST_EXTENDED),
                                "reading authorization packet", errno);
-    DBUG_RETURN(1);
+    return STATE_MACHINE_FAILED;
   }
 
   if (mysql->net.read_pos[0] == 254) {
-    /* The server asked to use a different authentication plugin */
-    if (pkt_length < 2) {
-      set_mysql_error(mysql, CR_MALFORMED_PACKET,
-                      unknown_sqlstate); /* purecov: inspected */
-      DBUG_RETURN(1);
-    } else {
-      /* "use different plugin" packet */
-      uint len;
-      auth_plugin_name = (char *)mysql->net.read_pos + 1;
-      len = (uint)strlen(
-          auth_plugin_name); /* safe as my_net_read always appends \0 */
-      mpvio.cached_server_reply.pkt_len = pkt_length - len - 2;
-      mpvio.cached_server_reply.pkt = mysql->net.read_pos + len + 2;
-      DBUG_PRINT("info", ("change plugin packet from server for plugin %s",
-                          auth_plugin_name));
-    }
+    ctx->state_function = authsm_run_second_authenticate_user;
+  } else
+    ctx->state_function = authsm_finish_auth;
 
-    if (!(auth_plugin = (auth_plugin_t *)mysql_client_find_plugin(
-              mysql, auth_plugin_name, MYSQL_CLIENT_AUTHENTICATION_PLUGIN)))
-      DBUG_RETURN(1);
+  return STATE_MACHINE_CONTINUE;
+}
 
-    if (check_plugin_enabled(mysql, auth_plugin)) DBUG_RETURN(1);
+/**
+  Start the authentication process again with the plugin which
+  server asked for.
+*/
+static mysql_state_machine_status authsm_run_second_authenticate_user(
+    mysql_async_auth *ctx) {
+  DBUG_TRACE;
+  MYSQL *mysql = ctx->mysql;
+  /* The server asked to use a different authentication plugin */
+  if (ctx->pkt_length < 2) {
+    set_mysql_error(mysql, CR_MALFORMED_PACKET,
+                    unknown_sqlstate); /* purecov: inspected */
+    return STATE_MACHINE_FAILED;
+  } else {
+    /* "use different plugin" packet */
+    uint len;
+    ctx->auth_plugin_name = (char *)mysql->net.read_pos + 1;
+    len = (uint)strlen(
+        ctx->auth_plugin_name); /* safe as my_net_read always appends \0 */
+    ctx->mpvio.cached_server_reply.pkt_len = ctx->pkt_length - len - 2;
+    ctx->mpvio.cached_server_reply.pkt = mysql->net.read_pos + len + 2;
+    DBUG_PRINT("info", ("change plugin packet from server for plugin %s",
+                        ctx->auth_plugin_name));
+  }
+  if (!(ctx->auth_plugin = (auth_plugin_t *)mysql_client_find_plugin(
+            mysql, ctx->auth_plugin_name, MYSQL_CLIENT_AUTHENTICATION_PLUGIN)))
+    return STATE_MACHINE_FAILED;
 
-    MYSQL_TRACE(AUTH_PLUGIN, mysql, (auth_plugin->name));
+  if (check_plugin_enabled(mysql, ctx)) return STATE_MACHINE_FAILED;
 
-    mpvio.plugin = auth_plugin;
-    res = auth_plugin->authenticate_user((MYSQL_PLUGIN_VIO *)&mpvio, mysql);
+  MYSQL_TRACE(AUTH_PLUGIN, mysql, (ctx->auth_plugin->name));
 
-    DBUG_PRINT("info", ("second authenticate_user returned %s",
-                        res == CR_OK
-                            ? "CR_OK"
-                            : res == CR_ERROR ? "CR_ERROR"
-                                              : res == CR_OK_HANDSHAKE_COMPLETE
-                                                    ? "CR_OK_HANDSHAKE_COMPLETE"
-                                                    : "error"));
-    if (res > CR_OK) {
-      if (res > CR_ERROR)
-        set_mysql_error(mysql, res, unknown_sqlstate);
-      else if (!mysql->net.last_errno)
-        set_mysql_error(mysql, CR_UNKNOWN_ERROR, unknown_sqlstate);
-      DBUG_RETURN(1);
-    }
+  ctx->mpvio.plugin = ctx->auth_plugin;
+  ctx->res = ctx->auth_plugin->authenticate_user(
+      (struct MYSQL_PLUGIN_VIO *)&ctx->mpvio, mysql);
 
-    if (res != CR_OK_HANDSHAKE_COMPLETE) {
-      /* Read what server thinks about out new auth message report */
-      if (cli_safe_read(mysql, NULL) == packet_error) {
-        if (mysql->net.last_errno == CR_SERVER_LOST)
-          set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
-                                   ER_CLIENT(CR_SERVER_LOST_EXTENDED),
-                                   "reading final connect information", errno);
-        DBUG_RETURN(1);
-      }
+  ctx->state_function = authsm_handle_second_authenticate_user;
+  return STATE_MACHINE_CONTINUE;
+}
+
+/* Now read the results. */
+static mysql_state_machine_status authsm_handle_second_authenticate_user(
+    mysql_async_auth *ctx) {
+  DBUG_TRACE;
+  MYSQL *mysql = ctx->mysql;
+  DBUG_PRINT("info",
+             ("second authenticate_user returned %s",
+              ctx->res == CR_OK
+                  ? "CR_OK"
+                  : ctx->res == CR_ERROR ? "CR_ERROR"
+                                         : ctx->res == CR_OK_HANDSHAKE_COMPLETE
+                                               ? "CR_OK_HANDSHAKE_COMPLETE"
+                                               : "error"));
+  if (ctx->res > CR_OK) {
+    if (ctx->res > CR_ERROR)
+      set_mysql_error(mysql, ctx->res, unknown_sqlstate);
+    else if (!mysql->net.last_errno)
+      set_mysql_error(mysql, CR_UNKNOWN_ERROR, unknown_sqlstate);
+    return STATE_MACHINE_FAILED;
+  }
+
+  if (ctx->res != CR_OK_HANDSHAKE_COMPLETE) {
+    /* Read what server thinks about out new auth message report */
+    if (cli_safe_read(mysql, NULL) == packet_error) {
+      if (mysql->net.last_errno == CR_SERVER_LOST)
+        set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
+                                 ER_CLIENT(CR_SERVER_LOST_EXTENDED),
+                                 "reading final connect information", errno);
+      return STATE_MACHINE_FAILED;
     }
   }
+
+  ctx->state_function = authsm_finish_auth;
+  return STATE_MACHINE_CONTINUE;
+}
+
+/* Final cleanup */
+static mysql_state_machine_status authsm_finish_auth(mysql_async_auth *ctx) {
+  DBUG_TRACE;
+  MYSQL *mysql = ctx->mysql;
   /*
     net->read_pos[0] should always be 0 here if the server implements
     the protocol correctly
   */
-  res = (mysql->net.read_pos[0] != 0);
+  ctx->res = (mysql->net.read_pos[0] != 0);
 
   MYSQL_TRACE(AUTHENTICATED, mysql, ());
-  DBUG_RETURN(res);
+  return ctx->res ? STATE_MACHINE_FAILED : STATE_MACHINE_DONE;
 }
 
 /** set some default attributes */
@@ -4336,34 +5797,156 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
                                   const char *user, const char *passwd,
                                   const char *db, uint port,
                                   const char *unix_socket, ulong client_flag) {
-  char buff[NAME_LEN + USERNAME_LENGTH + 100];
-  int scramble_data_len, pkt_scramble_len = 0;
-  char *end, *host_info = 0, *server_version_end, *pkt_end;
-  char *scramble_data;
-  char *scramble_buffer = NULL;
-  const char *scramble_plugin;
-  ulong pkt_length;
+  DBUG_TRACE;
+  mysql_state_machine_status status;
+  mysql_async_connect ctx;
+  memset(&ctx, 0, sizeof(ctx));
+
+  ctx.mysql = mysql;
+  ctx.host = host;
+  ctx.port = port;
+  ctx.db = db;
+  ctx.user = user;
+  ctx.passwd = passwd;
+  ctx.unix_socket = unix_socket;
+  ctx.client_flag = client_flag;
+  ctx.state_function = csm_begin_connect;
+  ctx.ssl_state = SSL_NONE;
+
+  do {
+    status = ctx.state_function(&ctx);
+  } while (status != STATE_MACHINE_FAILED && status != STATE_MACHINE_DONE);
+
+  if (status == STATE_MACHINE_DONE) {
+    DBUG_PRINT("exit", ("Mysql handler: %p", mysql));
+    return mysql;
+  }
+
+  DBUG_PRINT("error", ("message: %u/%s (%s)", mysql->net.last_errno,
+                       mysql->net.sqlstate, mysql->net.last_error));
+  {
+    /* Free alloced memory */
+    end_server(mysql);
+    mysql_close_free(mysql);
+    if (!(client_flag & CLIENT_REMEMBER_OPTIONS))
+      mysql_close_free_options(mysql);
+    if (ctx.scramble_buffer_allocated) my_free(ctx.scramble_buffer);
+  }
+  return 0;
+}
+
+/**
+  This API attempts to initialize all the context needed to make an asynchronous
+  connection followed by establishing a connection to MySQL database. If this
+  API returns NET_ASYNC_COMPLETE then connection is established else call this
+  API from the client application until the status returned is
+  NET_ASYNC_COMPLETE.
+
+  @param[in]      mysql           connection handle
+  @param[in]      host            host name or IP address
+  @param[in]      user            login ID used to connect to host
+  @param[in]      passwd          password for this login ID
+  @param[in]      db              default database to be set after connection
+  @param[in]      port            port number to use for connection
+  @param[in]      unix_socket     socket file to use for connection
+  @param[in]      client_flag     flag to indidcate what client can handle
+
+  @retval       NET_ASYNC_COMPLETE               Success.
+  @retval       NET_ASYNC_ERROR                  Error.
+*/
+net_async_status STDCALL mysql_real_connect_nonblocking(
+    MYSQL *mysql, const char *host, const char *user, const char *passwd,
+    const char *db, uint port, const char *unix_socket, ulong client_flag) {
+  DBUG_TRACE;
+
+  mysql_state_machine_status status;
+  mysql_async_connect *ctx = ASYNC_DATA(mysql)->connect_context;
+
+  if (client_flag & MYSQL_OPT_COMPRESS) {
+    set_mysql_error(mysql, CR_COMPRESSION_NOT_SUPPORTED, unknown_sqlstate);
+    return NET_ASYNC_ERROR;
+  }
+  if (!ctx) {
+    ctx = static_cast<mysql_async_connect *>(
+        my_malloc(key_memory_MYSQL, sizeof(*ctx), MYF(MY_WME | MY_ZEROFILL)));
+    if (!ctx) return NET_ASYNC_ERROR;
+
+    ctx->mysql = mysql;
+    ctx->host = host;
+    ctx->port = port;
+    ctx->db = db;
+    ctx->user = user;
+    ctx->passwd = passwd;
+    ctx->unix_socket = unix_socket;
+    ctx->client_flag = client_flag;
+    ctx->non_blocking = true;
+    ctx->state_function = csm_begin_connect;
+    ctx->ssl_state = SSL_NONE;
+    ASYNC_DATA(mysql)->connect_context = ctx;
+    ASYNC_DATA(mysql)->async_op_status = ASYNC_OP_CONNECT;
+  }
+
+  do {
+    status = ctx->state_function(ctx);
+  } while (status != STATE_MACHINE_FAILED && status != STATE_MACHINE_DONE);
+
+  if (status == STATE_MACHINE_DONE) {
+    my_free(ASYNC_DATA(mysql)->connect_context);
+    ASYNC_DATA(mysql)->connect_context = NULL;
+    ASYNC_DATA(mysql)->async_op_status = ASYNC_OP_UNSET;
+    return NET_ASYNC_COMPLETE;
+  }
+  {
+    DBUG_PRINT("error", ("message: %u/%s (%s)", mysql->net.last_errno,
+                         mysql->net.sqlstate, mysql->net.last_error));
+    /* Free alloced memory */
+    end_server(mysql);
+    mysql_close_free(mysql);
+    if (!(ctx->client_flag & CLIENT_REMEMBER_OPTIONS))
+      mysql_close_free_options(mysql);
+    if (ctx->scramble_buffer_allocated) {
+      my_free(ctx->scramble_buffer);
+      ctx->scramble_buffer = nullptr;
+    }
+    my_free(ctx);
+    return NET_ASYNC_ERROR;
+  }
+}
+/**
+  Begin the connection to the server, including any DNS resolution
+  necessary, socket configuration, etc.
+*/
+static mysql_state_machine_status csm_begin_connect(mysql_async_connect *ctx) {
+  MYSQL *mysql = ctx->mysql;
+  const char *host = ctx->host;
+  const char *user = ctx->user;
+  const char *passwd = ctx->passwd;
+  const char *db = ctx->db;
+  uint port = ctx->port;
+  const char *unix_socket = ctx->unix_socket;
+  ulong client_flag = ctx->client_flag;
+
+  DBUG_TRACE;
+
+  DBUG_PRINT("enter",
+             ("host: %s  db: %s  user: %s (client)", host ? host : "(Null)",
+              db ? db : "(Null)", user ? user : "(Null)"));
+
   NET *net = &mysql->net;
-  bool scramble_buffer_allocated = false;
 #ifdef _WIN32
   HANDLE hPipe = INVALID_HANDLE_VALUE;
 #endif
 #ifdef HAVE_SYS_UN_H
   struct sockaddr_un UNIXaddr;
 #endif
-  DBUG_ENTER("mysql_real_connect");
-
-  DBUG_PRINT("enter",
-             ("host: %s  db: %s  user: %s (client)", host ? host : "(Null)",
-              db ? db : "(Null)", user ? user : "(Null)"));
-
   /* Test whether we're already connected */
   if (net->vio) {
     set_mysql_error(mysql, CR_ALREADY_CONNECTED, unknown_sqlstate);
-    DBUG_RETURN(0);
+    return STATE_MACHINE_FAILED;
   }
 
-  if (set_connect_attributes(mysql, buff, sizeof(buff))) DBUG_RETURN(0);
+  if (set_connect_attributes(mysql, ctx->buff, sizeof(ctx->buff)))
+    return STATE_MACHINE_FAILED;
 
   mysql->methods = &client_methods;
   net->vio = 0;           /* If something goes wrong */
@@ -4403,9 +5986,6 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
   MYSQL_TRACE_STAGE(mysql, CONNECTING);
   MYSQL_TRACE(CONNECTING, mysql, ());
 
-  /*
-    Part 0: Grab a socket and connect it to the server
-  */
 #if defined(_WIN32)
   if ((!mysql->options.protocol ||
        mysql->options.protocol == MYSQL_PROTOCOL_MEMORY) &&
@@ -4421,8 +6001,8 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
                  ("host: '%s'  socket: '%s'  shared memory: %s  have_tcpip: %d",
                   host ? host : "<null>", unix_socket ? unix_socket : "<null>",
                   mysql->options.shared_memory_base_name, (int)have_tcpip));
-      if (mysql->options.protocol == MYSQL_PROTOCOL_MEMORY) goto error;
-
+      if (mysql->options.protocol == MYSQL_PROTOCOL_MEMORY)
+        return STATE_MACHINE_FAILED;
       /*
         Try also with PIPE or TCP/IP. Clear the error from
         create_shared_memory().
@@ -4433,7 +6013,7 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
       mysql->options.protocol = MYSQL_PROTOCOL_MEMORY;
       unix_socket = 0;
       host = mysql->options.shared_memory_base_name;
-      snprintf(host_info = buff, sizeof(buff) - 1,
+      snprintf(ctx->host_info = ctx->buff, sizeof(ctx->buff) - 1,
                ER_CLIENT(CR_SHARED_MEMORY_CONNECTION), host);
     }
   }
@@ -4449,7 +6029,7 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
     if (sock == SOCKET_ERROR) {
       set_mysql_extended_error(mysql, CR_SOCKET_CREATE_ERROR, unknown_sqlstate,
                                ER_CLIENT(CR_SOCKET_CREATE_ERROR), socket_errno);
-      goto error;
+      return STATE_MACHINE_FAILED;
     }
 
     net->vio =
@@ -4458,12 +6038,14 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
       DBUG_PRINT("error", ("Unknow protocol %d ", mysql->options.protocol));
       set_mysql_error(mysql, CR_CONN_UNKNOW_PROTOCOL, unknown_sqlstate);
       closesocket(sock);
-      goto error;
+      return STATE_MACHINE_FAILED;
     }
+
+    if (ctx->non_blocking) vio_set_blocking_flag(net->vio, !ctx->non_blocking);
 
     host = LOCAL_HOST;
     if (!unix_socket) unix_socket = mysql_unix_port;
-    host_info = (char *)ER_CLIENT(CR_LOCALHOST_CONNECTION);
+    ctx->host_info = const_cast<char *>(ER_CLIENT(CR_LOCALHOST_CONNECTION));
     DBUG_PRINT("info", ("Using UNIX sock '%s'", unix_socket));
 
     memset(&UNIXaddr, 0, sizeof(UNIXaddr));
@@ -4474,7 +6056,8 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
       my_net_set_retry_count(net, mysql->options.extension->retry_count);
 
     if (vio_socket_connect(net->vio, (struct sockaddr *)&UNIXaddr,
-                           sizeof(UNIXaddr), get_vio_connect_timeout(mysql))) {
+                           sizeof(UNIXaddr), ctx->non_blocking,
+                           get_vio_connect_timeout(mysql))) {
       DBUG_PRINT("error",
                  ("Got error %d on connect to local server", socket_errno));
       set_mysql_extended_error(mysql, CR_CONNECTION_ERROR, unknown_sqlstate,
@@ -4482,7 +6065,7 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
                                socket_errno);
       vio_delete(net->vio);
       net->vio = 0;
-      goto error;
+      return STATE_MACHINE_FAILED;
     }
     mysql->options.protocol = MYSQL_PROTOCOL_SOCKET;
   }
@@ -4501,11 +6084,11 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
       if (mysql->options.protocol == MYSQL_PROTOCOL_PIPE ||
           (host && !strcmp(host, LOCAL_HOST_NAMEDPIPE)) ||
           (unix_socket && !strcmp(unix_socket, MYSQL_NAMEDPIPE)))
-        goto error;
+        return STATE_MACHINE_FAILED;
       /* Try also with TCP/IP */
     } else {
       net->vio = vio_new_win32pipe(hPipe);
-      snprintf(host_info = buff, sizeof(buff) - 1,
+      snprintf(ctx->host_info = ctx->buff, sizeof(ctx->buff) - 1,
                ER_CLIENT(CR_NAMEDPIPE_CONNECTION), unix_socket);
     }
   }
@@ -4526,8 +6109,8 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
 
     if (!host) host = LOCAL_HOST;
 
-    snprintf(host_info = buff, sizeof(buff) - 1, ER_CLIENT(CR_TCP_CONNECTION),
-             host);
+    snprintf(ctx->host_info = ctx->buff, sizeof(ctx->buff) - 1,
+             ER_CLIENT(CR_TCP_CONNECTION), host);
     DBUG_PRINT("info", ("Server name: '%s'.  TCP sock: %d", host, port));
 
     memset(&hints, 0, sizeof(hints));
@@ -4539,6 +6122,11 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
     snprintf(port_buf, NI_MAXSERV, "%d", port);
     gai_errno = getaddrinfo(host, port_buf, &hints, &res_lst);
 
+    DBUG_EXECUTE_IF("vio_client_use_localhost", {
+      DBUG_ASSERT(strlen(host) == 255);
+      gai_errno = getaddrinfo(LOCAL_HOST, port_buf, &hints, &res_lst);
+    });
+
     if (gai_errno != 0) {
       /*
         For DBUG we are keeping the right message but for client we default to
@@ -4547,8 +6135,7 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
       DBUG_PRINT("info", ("IPV6 getaddrinfo error %d", gai_errno));
       set_mysql_extended_error(mysql, CR_UNKNOWN_HOST, unknown_sqlstate,
                                ER_CLIENT(CR_UNKNOWN_HOST), host, errno);
-
-      goto error;
+      return STATE_MACHINE_FAILED;
     }
 
     /* Get address info for client bind name if it is provided */
@@ -4568,7 +6155,7 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
                                  mysql->options.bind_address, bind_gai_errno);
 
         freeaddrinfo(res_lst);
-        goto error;
+        return STATE_MACHINE_FAILED;
       }
       DBUG_PRINT("info", ("  got address info for client bind name"));
     }
@@ -4636,7 +6223,7 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
           closesocket(sock);
           freeaddrinfo(res_lst);
           if (client_bind_ai_lst) freeaddrinfo(client_bind_ai_lst);
-          goto error;
+          return STATE_MACHINE_FAILED;
         }
       }
       /* Just reinitialize if one is already allocated. */
@@ -4645,17 +6232,20 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
         closesocket(sock);
         freeaddrinfo(res_lst);
         if (client_bind_ai_lst) freeaddrinfo(client_bind_ai_lst);
-        goto error;
+        return STATE_MACHINE_FAILED;
       }
+
+      if (ctx->non_blocking)
+        vio_set_blocking_flag(net->vio, !ctx->non_blocking);
 
       DBUG_PRINT("info", ("Connect socket"));
 
       if (mysql->options.extension && mysql->options.extension->retry_count)
         my_net_set_retry_count(net, mysql->options.extension->retry_count);
 
-      status = vio_socket_connect(net->vio, t_res->ai_addr,
-                                  (socklen_t)t_res->ai_addrlen,
-                                  get_vio_connect_timeout(mysql));
+      status = vio_socket_connect(
+          net->vio, t_res->ai_addr, (socklen_t)t_res->ai_addrlen,
+          ctx->non_blocking, get_vio_connect_timeout(mysql));
       /*
         Here we rely on vio_socket_connect() to return success only if
         the connect attempt was really successful. Otherwise we would
@@ -4682,7 +6272,7 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
     if (sock == SOCKET_ERROR) {
       set_mysql_extended_error(mysql, CR_IPSOCK_ERROR, unknown_sqlstate,
                                ER_CLIENT(CR_IPSOCK_ERROR), saved_error);
-      goto error;
+      return STATE_MACHINE_FAILED;
     }
 
     if (status) {
@@ -4691,22 +6281,41 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
       set_mysql_extended_error(mysql, CR_CONN_HOST_ERROR, unknown_sqlstate,
                                ER_CLIENT(CR_CONN_HOST_ERROR), host,
                                saved_error);
-      goto error;
+      return STATE_MACHINE_FAILED;
     }
   }
 
+  ctx->state_function = csm_complete_connect;
+  ctx->host = host;
+  ctx->user = user;
+  ctx->passwd = passwd;
+  ctx->db = db;
+  ctx->port = port;
+  ctx->unix_socket = unix_socket;
+  ctx->client_flag = client_flag;
+  return STATE_MACHINE_CONTINUE;
+}
+
+/**
+  Complete the connection itself, setting options on the now-connected socket.
+*/
+static mysql_state_machine_status csm_complete_connect(
+    mysql_async_connect *ctx) {
+  DBUG_TRACE;
+  MYSQL *mysql = ctx->mysql;
+  NET *net = &mysql->net;
   DBUG_PRINT("info", ("net->vio: %p", net->vio));
   if (!net->vio) {
     DBUG_PRINT("error", ("Unknow protocol %d ", mysql->options.protocol));
     set_mysql_error(mysql, CR_CONN_UNKNOW_PROTOCOL, unknown_sqlstate);
-    goto error;
+    return STATE_MACHINE_FAILED;
   }
 
   if (my_net_init(net, net->vio)) {
     vio_delete(net->vio);
     net->vio = 0;
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-    goto error;
+    return STATE_MACHINE_FAILED;
   }
   vio_keepalive(net->vio, true);
 
@@ -4737,22 +6346,51 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
                              ER_CLIENT(CR_SERVER_LOST_EXTENDED),
                              "waiting for initial communication packet",
                              socket_errno);
-    goto error;
+    return STATE_MACHINE_FAILED;
   }
+  ctx->state_function = csm_read_greeting;
+  return STATE_MACHINE_CONTINUE;
+}
 
-  /*
-    Part 1: Connection established, read and parse first packet
-  */
+/**
+  Read the greeting from the server that is read the first packet
+*/
+static mysql_state_machine_status csm_read_greeting(mysql_async_connect *ctx) {
+  DBUG_TRACE;
+  MYSQL *mysql = ctx->mysql;
   DBUG_PRINT("info", ("Read first packet."));
 
-  if ((pkt_length = cli_safe_read(mysql, NULL)) == packet_error) {
+  if (!ctx->non_blocking)
+    ctx->pkt_length = cli_safe_read(mysql, NULL);
+  else {
+    if (cli_safe_read_nonblocking(mysql, NULL, &ctx->pkt_length) ==
+        NET_ASYNC_NOT_READY) {
+      return STATE_MACHINE_WOULD_BLOCK;
+    }
+  }
+  if (ctx->pkt_length == packet_error) {
     if (mysql->net.last_errno == CR_SERVER_LOST)
       set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
                                ER_CLIENT(CR_SERVER_LOST_EXTENDED),
                                "reading initial communication packet",
                                socket_errno);
-    goto error;
+    return STATE_MACHINE_FAILED;
   }
+  ctx->state_function = csm_parse_handshake;
+  return STATE_MACHINE_CONTINUE;
+}
+
+/**
+  Parse the handshake from the server.
+*/
+static mysql_state_machine_status csm_parse_handshake(
+    mysql_async_connect *ctx) {
+  DBUG_TRACE;
+  MYSQL *mysql = ctx->mysql;
+  NET *net = &mysql->net;
+  int pkt_length = ctx->pkt_length;
+  int pkt_scramble_len = 0;
+  char *end, *server_version_end, *pkt_end;
   pkt_end = (char *)net->read_pos + pkt_length;
   /* Check if version of protocol matches current one */
   mysql->protocol_version = net->read_pos[0];
@@ -4763,7 +6401,7 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
     set_mysql_extended_error(mysql, CR_VERSION_ERROR, unknown_sqlstate,
                              ER_CLIENT(CR_VERSION_ERROR),
                              mysql->protocol_version, PROTOCOL_VERSION);
-    goto error;
+    return STATE_MACHINE_FAILED;
   }
   server_version_end = end = strend((char *)net->read_pos + 1);
   mysql->thread_id = uint4korr((uchar *)end + 1);
@@ -4772,10 +6410,10 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
     Scramble is split into two parts because old clients do not understand
     long scrambles; here goes the first part.
   */
-  scramble_data = end;
-  scramble_data_len = AUTH_PLUGIN_DATA_PART_1_LENGTH + 1;
-  scramble_plugin = NULL;
-  end += scramble_data_len;
+  ctx->scramble_data = end;
+  ctx->scramble_data_len = AUTH_PLUGIN_DATA_PART_1_LENGTH + 1;
+  ctx->scramble_plugin = NULL;
+  end += ctx->scramble_data_len;
 
   if (pkt_end >= end + 1) mysql->server_capabilities = uint2korr((uchar *)end);
   if (pkt_end >= end + 18) {
@@ -4787,34 +6425,34 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
     if (pkt_scramble_len < 0) {
       set_mysql_error(mysql, CR_MALFORMED_PACKET,
                       unknown_sqlstate); /* purecov: inspected */
-      goto error;
+      return STATE_MACHINE_FAILED;
     }
   }
   end += 18;
 
-  if (mysql_init_character_set(mysql)) goto error;
+  if (mysql_init_character_set(mysql)) return STATE_MACHINE_FAILED;
 
   /* Save connection information */
-  if (!my_multi_malloc(key_memory_MYSQL, MYF(0), &mysql->host_info,
-                       (uint)strlen(host_info) + 1, &mysql->host,
-                       (uint)strlen(host) + 1, &mysql->unix_socket,
-                       unix_socket ? (uint)strlen(unix_socket) + 1 : (uint)1,
-                       &mysql->server_version,
-                       (uint)(server_version_end - (char *)net->read_pos + 1),
-                       NullS) ||
-      !(mysql->user = my_strdup(key_memory_MYSQL, user, MYF(0))) ||
-      !(mysql->passwd = my_strdup(key_memory_MYSQL, passwd, MYF(0)))) {
+  if (!my_multi_malloc(
+          key_memory_MYSQL, MYF(0), &mysql->host_info,
+          (uint)strlen(ctx->host_info) + 1, &mysql->host,
+          (uint)strlen(ctx->host) + 1, &mysql->unix_socket,
+          ctx->unix_socket ? (uint)strlen(ctx->unix_socket) + 1 : (uint)1,
+          &mysql->server_version,
+          (uint)(server_version_end - (char *)net->read_pos + 1), NullS) ||
+      !(mysql->user = my_strdup(key_memory_MYSQL, ctx->user, MYF(0))) ||
+      !(mysql->passwd = my_strdup(key_memory_MYSQL, ctx->passwd, MYF(0)))) {
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-    goto error;
+    return STATE_MACHINE_FAILED;
   }
-  my_stpcpy(mysql->host_info, host_info);
-  my_stpcpy(mysql->host, host);
-  if (unix_socket)
-    my_stpcpy(mysql->unix_socket, unix_socket);
+  my_stpcpy(mysql->host_info, ctx->host_info);
+  my_stpcpy(mysql->host, ctx->host);
+  if (ctx->unix_socket)
+    my_stpcpy(mysql->unix_socket, ctx->unix_socket);
   else
     mysql->unix_socket = 0;
   my_stpcpy(mysql->server_version, (char *)net->read_pos + 1);
-  mysql->port = port;
+  mysql->port = ctx->port;
 
   if (pkt_end >= end + SCRAMBLE_LENGTH - AUTH_PLUGIN_DATA_PART_1_LENGTH + 1)
 
@@ -4824,141 +6462,236 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
      to get a full continuous scramble. We've read all the header,
      and can overwrite it now.
     */
-    memmove(end - AUTH_PLUGIN_DATA_PART_1_LENGTH, scramble_data,
+    memmove(end - AUTH_PLUGIN_DATA_PART_1_LENGTH, ctx->scramble_data,
             AUTH_PLUGIN_DATA_PART_1_LENGTH);
-    scramble_data = end - AUTH_PLUGIN_DATA_PART_1_LENGTH;
+    ctx->scramble_data = end - AUTH_PLUGIN_DATA_PART_1_LENGTH;
     if (mysql->server_capabilities & CLIENT_PLUGIN_AUTH) {
-      scramble_data_len = pkt_scramble_len;
-      scramble_plugin = scramble_data + scramble_data_len;
-      if (scramble_data + scramble_data_len > pkt_end)
-        scramble_data_len = (int)(pkt_end - scramble_data);
+      ctx->scramble_data_len = pkt_scramble_len;
+      ctx->scramble_plugin = ctx->scramble_data + ctx->scramble_data_len;
+      /*
+       There is a possibility that we did not get a correct plugin name
+       for some reason. For example, the packet was malformed and some
+       of the fields had incorrect values. In such cases, we keep the
+       plugin name empty so that the default authentication plugin
+       gets used later on. Since we don't really know the plugin for which
+       the scramble_data was prepared, we can discard it and set it's length
+       to 0.
+      */
+      if (ctx->scramble_data + ctx->scramble_data_len > pkt_end) {
+        ctx->scramble_data = 0;
+        ctx->scramble_data_len = 0;
+        ctx->scramble_plugin = const_cast<char *>("");
+      }
     } else {
-      scramble_data_len = (int)(pkt_end - scramble_data);
-      scramble_plugin = caching_sha2_password_plugin_name;
+      ctx->scramble_data_len = (int)(pkt_end - ctx->scramble_data);
+      ctx->scramble_plugin = caching_sha2_password_plugin_name;
     }
   } else {
     set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
-    goto error;
+    return STATE_MACHINE_FAILED;
   }
+  ctx->state_function = csm_establish_ssl;
+  return STATE_MACHINE_CONTINUE;
+}
 
-  MYSQL_TRACE(INIT_PACKET_RECEIVED, mysql, (pkt_length, net->read_pos));
-  MYSQL_TRACE_STAGE(mysql, AUTHENTICATE);
+/**
+  Establish SSL if needed.
+*/
+static mysql_state_machine_status csm_establish_ssl(mysql_async_connect *ctx) {
+  DBUG_TRACE;
+  MYSQL *mysql = ctx->mysql;
+  /* This check happens to work for both sync and async. */
+  if (ctx->ssl_state == SSL_NONE) {
+    MYSQL_TRACE(INIT_PACKET_RECEIVED, mysql,
+                (ctx->pkt_length, mysql->net.read_pos));
+    MYSQL_TRACE_STAGE(mysql, AUTHENTICATE);
 
 #if defined(_WIN32)
-  if ((mysql->options.extension &&
-       mysql->options.extension->ssl_mode <= SSL_MODE_PREFERRED) &&
-      (mysql->options.protocol == MYSQL_PROTOCOL_MEMORY ||
-       mysql->options.protocol == MYSQL_PROTOCOL_PIPE)) {
-    mysql->options.extension->ssl_mode = SSL_MODE_DISABLED;
-  }
-#endif
-  /* try and bring up SSL if possible */
-  cli_calculate_client_flag(mysql, db, client_flag);
-
-  /*
-    Allocate separate buffer for scramble data if we are going
-    to attempt TLS connection. This would prevent a possible
-    overwrite through my_net_write.
-  */
-  if (scramble_data_len && mysql->options.extension &&
-      mysql->options.extension->ssl_mode != SSL_MODE_DISABLED) {
-    if (!(scramble_buffer = (char *)my_malloc(
-              key_memory_MYSQL_HANDSHAKE, scramble_data_len, MYF(MY_WME)))) {
-      set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-      goto error;
+    if ((mysql->options.extension &&
+         mysql->options.extension->ssl_mode <= SSL_MODE_PREFERRED) &&
+        (mysql->options.protocol == MYSQL_PROTOCOL_MEMORY ||
+         mysql->options.protocol == MYSQL_PROTOCOL_PIPE)) {
+      mysql->options.extension->ssl_mode = SSL_MODE_DISABLED;
     }
-    scramble_buffer_allocated = true;
-    memcpy(scramble_buffer, scramble_data, scramble_data_len);
+#endif
+    /* try and bring up SSL if possible */
+    cli_calculate_client_flag(mysql, ctx->db, ctx->client_flag);
+
+    /*
+      Allocate separate buffer for scramble data if we are going
+      to attempt TLS connection. This would prevent a possible
+      overwrite through my_net_write.
+    */
+    if (ctx->scramble_data_len && mysql->options.extension &&
+        mysql->options.extension->ssl_mode != SSL_MODE_DISABLED) {
+      if (!(ctx->scramble_buffer =
+                (char *)my_malloc(key_memory_MYSQL_HANDSHAKE,
+                                  ctx->scramble_data_len, MYF(MY_WME)))) {
+        set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+        return STATE_MACHINE_FAILED;
+      }
+      ctx->scramble_buffer_allocated = true;
+      memcpy(ctx->scramble_buffer, ctx->scramble_data, ctx->scramble_data_len);
+    } else {
+      ctx->scramble_buffer = ctx->scramble_data;
+    }
+  }
+  if (ctx->non_blocking) {
+    int ret;
+    if (cli_establish_ssl_nonblocking(mysql, &ret) == NET_ASYNC_NOT_READY) {
+      return STATE_MACHINE_WOULD_BLOCK;
+    }
+    if (ret) {
+      return STATE_MACHINE_FAILED;
+    }
   } else {
-    scramble_buffer = scramble_data;
+    if (cli_establish_ssl(mysql)) {
+      return STATE_MACHINE_FAILED;
+    }
   }
 
-  if (cli_establish_ssl(mysql)) goto error;
+  ctx->state_function = csm_authenticate;
+  return STATE_MACHINE_CONTINUE;
+}
 
-  /*
-    Part 2: invoke the plugin to send the authentication data to the server
-  */
-
-  if (run_plugin_auth(mysql, scramble_buffer, scramble_data_len,
-                      scramble_plugin, db))
-    goto error;
-
-  if (scramble_buffer_allocated == true) {
-    scramble_buffer_allocated = false;
-    my_free(scramble_buffer);
+/**
+  Invoke the authentication client plugin API to send the authentication
+  data to the server
+*/
+static mysql_state_machine_status csm_authenticate(mysql_async_connect *ctx) {
+  DBUG_TRACE;
+  MYSQL *mysql = ctx->mysql;
+  if (ctx->non_blocking) {
+    mysql_state_machine_status status = run_plugin_auth_nonblocking(
+        ctx->mysql, ctx->scramble_data, ctx->scramble_data_len,
+        ctx->scramble_plugin, ctx->db);
+    if (status != STATE_MACHINE_DONE) {
+      return status;
+    }
+  } else {
+    if (run_plugin_auth(mysql, ctx->scramble_buffer, ctx->scramble_data_len,
+                        ctx->scramble_plugin, ctx->db)) {
+      return STATE_MACHINE_FAILED;
+    }
   }
+
+  if (ctx->scramble_buffer_allocated) {
+    ctx->scramble_buffer_allocated = false;
+    my_free(ctx->scramble_buffer);
+    ctx->scramble_buffer = nullptr;
+  }
+
+  ctx->state_function = csm_prep_select_database;
+  return STATE_MACHINE_CONTINUE;
+}
+
+/**
+  Authenticated, set intial database if specified
+*/
+static mysql_state_machine_status csm_prep_select_database(
+    mysql_async_connect *ctx) {
+  DBUG_TRACE;
+  MYSQL *mysql = ctx->mysql;
+  NET *net = &mysql->net;
 
   MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
 
-  /*
-    Part 3: authenticated, finish the initialization of the connection
-  */
-
-  if (mysql->client_flag & CLIENT_COMPRESS) /* We will use compression */
-    net->compress = 1;
-
-#ifdef CHECK_LICENSE
-  if (check_license(mysql)) goto error;
-#endif
-
-  if (db && !mysql->db && mysql_select_db(mysql, db)) {
-    if (mysql->net.last_errno == CR_SERVER_LOST)
-      set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
-                               ER_CLIENT(CR_SERVER_LOST_EXTENDED),
-                               "Setting intital database", errno);
-    goto error;
-  }
-
-    /*
-       Using init_commands is not supported when connecting from within the
-       server.
-    */
+  /* We will use compression */
+  if ((mysql->client_flag & CLIENT_COMPRESS) ||
+      (mysql->client_flag & CLIENT_ZSTD_COMPRESSION_ALGORITHM)) {
+    net->compress = true;
+    uint compress_level;
+    enum enum_compression_algorithm algorithm =
+        mysql->client_flag & CLIENT_COMPRESS ? MYSQL_ZLIB : MYSQL_ZSTD;
+    if (mysql->options.extension &&
+        mysql->options.extension->zstd_compression_level)
+      compress_level = mysql->options.extension->zstd_compression_level;
+    else
+      compress_level = mysql_default_compression_level(algorithm);
 #ifndef MYSQL_SERVER
-  if (mysql->options.init_commands) {
-    char **ptr = mysql->options.init_commands->begin();
-    char **end_command = mysql->options.init_commands->end();
-
-    bool reconnect = mysql->reconnect;
-    mysql->reconnect = 0;
-
-    for (; ptr < end_command; ptr++) {
-      int status;
-
-      if (mysql_real_query(mysql, *ptr, (ulong)strlen(*ptr))) goto error;
-
-      do {
-        if (mysql->fields) {
-          MYSQL_RES *res;
-          if (!(res = cli_use_result(mysql))) goto error;
-          mysql_free_result(res);
-        }
-        if ((status = mysql_next_result(mysql)) > 0) goto error;
-      } while (status == 0);
+    NET_EXTENSION *ext = NET_EXTENSION_PTR(net);
+    DBUG_ASSERT(ext != nullptr);
+    mysql_compress_context_init(&ext->compress_ctx, algorithm, compress_level);
+#else
+    NET_SERVER *server_ext = static_cast<NET_SERVER *>(net->extension);
+    if (server_ext == nullptr) {
+      server_ext =
+          static_cast<NET_SERVER *>(MYSQL_EXTENSION_PTR(mysql)->server_extn);
+      net->extension = server_ext;
     }
-    mysql->reconnect = reconnect;
+    DBUG_ASSERT(server_ext != nullptr);
+    mysql_compress_context_init(&server_ext->compress_ctx, algorithm,
+                                compress_level);
+#endif
   }
+#ifdef CHECK_LICENSE
+  if (check_license(mysql)) return STATE_MACHINE_FAILED;
 #endif
 
-  DBUG_PRINT("exit", ("Mysql handler: %p", mysql));
-  DBUG_RETURN(mysql);
+#ifdef MYSQL_SERVER
+  return STATE_MACHINE_DONE;
+#else
+  ctx->state_function = csm_prep_init_commands;
+#endif
 
-error:
-  DBUG_PRINT("error", ("message: %u/%s (%s)", net->last_errno, net->sqlstate,
-                       net->last_error));
-  {
-    /* Free alloced memory */
-    end_server(mysql);
-    mysql_close_free(mysql);
-    if (!(client_flag & CLIENT_REMEMBER_OPTIONS))
-      mysql_close_free_options(mysql);
-    if (scramble_buffer_allocated) my_free(scramble_buffer);
-  }
-  DBUG_RETURN(0);
+  return STATE_MACHINE_CONTINUE;
 }
+
+#ifndef MYSQL_SERVER
+/**
+  Prepare to send a sequence of init commands.
+*/
+static mysql_state_machine_status csm_prep_init_commands(
+    mysql_async_connect *ctx) {
+  DBUG_TRACE;
+  MYSQL *mysql = ctx->mysql;
+  if (!mysql->options.init_commands) {
+    return STATE_MACHINE_DONE;
+  }
+
+  ctx->saved_reconnect = mysql->reconnect;
+  mysql->reconnect = false;
+  ctx->current_init_command = mysql->options.init_commands->begin();
+
+  ctx->state_function = csm_send_one_init_command;
+  return STATE_MACHINE_CONTINUE;
+}
+
+/**
+  Send an init command.  This is called once per init command until
+  they've all been run (or a failure occurs).
+*/
+static mysql_state_machine_status csm_send_one_init_command(
+    mysql_async_connect *ctx) {
+  DBUG_TRACE;
+  MYSQL *mysql = ctx->mysql;
+
+  if (mysql_real_query(mysql, *ctx->current_init_command,
+                       (ulong)strlen(*ctx->current_init_command)))
+    return STATE_MACHINE_FAILED;
+  int status;
+  do {
+    if (mysql->fields) {
+      MYSQL_RES *res;
+      if (!(res = cli_use_result(mysql))) return STATE_MACHINE_FAILED;
+      mysql_free_result(res);
+    }
+    if ((status = mysql_next_result(mysql)) > 0) return STATE_MACHINE_FAILED;
+  } while (status == 0);
+
+  ++ctx->current_init_command;
+  if (ctx->current_init_command < mysql->options.init_commands->end()) {
+    return STATE_MACHINE_CONTINUE;
+  }
+  mysql->reconnect = ctx->saved_reconnect;
+  DBUG_PRINT("exit", ("Mysql handler: %p", mysql));
+  return STATE_MACHINE_DONE;
+}
+#endif
 
 bool mysql_reconnect(MYSQL *mysql) {
   MYSQL tmp_mysql;
-  DBUG_ENTER("mysql_reconnect");
+  DBUG_TRACE;
   DBUG_ASSERT(mysql);
   DBUG_PRINT("enter", ("mysql->reconnect: %d", mysql->reconnect));
 
@@ -4967,13 +6700,17 @@ bool mysql_reconnect(MYSQL *mysql) {
     /* Allow reconnect next time */
     mysql->server_status &= ~SERVER_STATUS_IN_TRANS;
     set_mysql_error(mysql, CR_SERVER_GONE_ERROR, unknown_sqlstate);
-    DBUG_RETURN(1);
+    return true;
   }
   mysql_init(&tmp_mysql);
   mysql_close_free_options(&tmp_mysql);
   tmp_mysql.options = mysql->options;
   tmp_mysql.options.my_cnf_file = tmp_mysql.options.my_cnf_group = 0;
-
+#ifdef MYSQL_SERVER
+  MYSQL_EXTENSION_PTR(&tmp_mysql)->server_extn =
+      MYSQL_EXTENSION_PTR(mysql)->server_extn;
+  MYSQL_EXTENSION_PTR(mysql)->server_extn = nullptr;
+#endif
   if (!mysql_real_connect(&tmp_mysql, mysql->host, mysql->user, mysql->passwd,
                           mysql->db, mysql->port, mysql->unix_socket,
                           mysql->client_flag | CLIENT_REMEMBER_OPTIONS)) {
@@ -4982,7 +6719,7 @@ bool mysql_reconnect(MYSQL *mysql) {
     mysql->net.last_errno = tmp_mysql.net.last_errno;
     my_stpcpy(mysql->net.last_error, tmp_mysql.net.last_error);
     my_stpcpy(mysql->net.sqlstate, tmp_mysql.net.sqlstate);
-    DBUG_RETURN(1);
+    return true;
   }
   if (mysql_set_character_set(&tmp_mysql, mysql->charset->csname)) {
     DBUG_PRINT("error", ("mysql_set_character_set() failed"));
@@ -4991,11 +6728,11 @@ bool mysql_reconnect(MYSQL *mysql) {
     mysql->net.last_errno = tmp_mysql.net.last_errno;
     my_stpcpy(mysql->net.last_error, tmp_mysql.net.last_error);
     my_stpcpy(mysql->net.sqlstate, tmp_mysql.net.sqlstate);
-    DBUG_RETURN(1);
+    return true;
   }
 
   DBUG_PRINT("info", ("reconnect succeded"));
-  tmp_mysql.reconnect = 1;
+  tmp_mysql.reconnect = true;
   tmp_mysql.free_me = mysql->free_me;
 
   /* Move prepared statements (if any) over to the new mysql object */
@@ -5004,12 +6741,12 @@ bool mysql_reconnect(MYSQL *mysql) {
 
   /* Don't free options as these are now used in tmp_mysql */
   memset(&mysql->options, 0, sizeof(mysql->options));
-  mysql->free_me = 0;
+  mysql->free_me = false;
   mysql_close(mysql);
   *mysql = std::move(tmp_mysql);
-  net_clear(&mysql->net, 1);
+  net_clear(&mysql->net, true);
   mysql->affected_rows = ~(my_ulonglong)0;
-  DBUG_RETURN(0);
+  return false;
 }
 
 /**
@@ -5036,7 +6773,7 @@ bool mysql_reconnect(MYSQL *mysql) {
   @retval  0   Success.
 */
 int STDCALL mysql_binlog_open(MYSQL *mysql, MYSQL_RPL *rpl) {
-  DBUG_ENTER("mysql_binlog_open");
+  DBUG_TRACE;
   DBUG_ASSERT(mysql);
   DBUG_ASSERT(rpl);
 
@@ -5050,14 +6787,14 @@ int STDCALL mysql_binlog_open(MYSQL *mysql, MYSQL_RPL *rpl) {
   */
 
   if (!rpl->file_name) {
-    rpl->file_name = (char *)"";
+    rpl->file_name = const_cast<char *>("");
     rpl->file_name_length = 0;
   } else if (rpl->file_name_length == 0)
     rpl->file_name_length = strlen(rpl->file_name);
 
   if (rpl->file_name_length > UINT_MAX) {
     set_mysql_error(mysql, CR_FILE_NAME_TOO_LONG, unknown_sqlstate);
-    DBUG_RETURN(-1);
+    return -1;
   }
 
   if (rpl->flags & MYSQL_RPL_GTID) {
@@ -5076,7 +6813,7 @@ int STDCALL mysql_binlog_open(MYSQL *mysql, MYSQL_RPL *rpl) {
     if (!(command_buffer = (uchar *)my_malloc(PSI_NOT_INSTRUMENTED, alloc_size,
                                               MYF(MY_WME)))) {
       set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-      DBUG_RETURN(-1);
+      return -1;
     }
 
     uchar *ptr = command_buffer;
@@ -5118,7 +6855,7 @@ int STDCALL mysql_binlog_open(MYSQL *mysql, MYSQL_RPL *rpl) {
     if (!(command_buffer = (uchar *)my_malloc(PSI_NOT_INSTRUMENTED, alloc_size,
                                               MYF(MY_WME)))) {
       set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-      DBUG_RETURN(-1);
+      return -1;
     }
 
     uchar *ptr = command_buffer;
@@ -5142,12 +6879,12 @@ int STDCALL mysql_binlog_open(MYSQL *mysql, MYSQL_RPL *rpl) {
 
   if (simple_command(mysql, command, command_buffer, command_size, 1)) {
     my_free(command_buffer);
-    DBUG_RETURN(-1);
+    return -1;
   }
 
   my_free(command_buffer);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -5163,7 +6900,7 @@ int STDCALL mysql_binlog_open(MYSQL *mysql, MYSQL_RPL *rpl) {
   @retval  0     Success.
 */
 int STDCALL mysql_binlog_fetch(MYSQL *mysql, MYSQL_RPL *rpl) {
-  DBUG_ENTER("mysql_binlog_fetch");
+  DBUG_TRACE;
   DBUG_ASSERT(mysql);
   DBUG_ASSERT(rpl);
 
@@ -5175,12 +6912,12 @@ int STDCALL mysql_binlog_fetch(MYSQL *mysql, MYSQL_RPL *rpl) {
 
     /* Check if error packet. */
     if (packet_len == packet_error || packet_len == 0) {
-      DBUG_RETURN(-1);
+      return -1;
     }
     /* Check if EOF packet. */
     else if (packet_len < 8 && net->read_pos[0] == 254) {
       rpl->size = 0;
-      DBUG_RETURN(0);
+      return 0;
     }
 
     /* Normal packet. */
@@ -5192,7 +6929,7 @@ int STDCALL mysql_binlog_fetch(MYSQL *mysql, MYSQL_RPL *rpl) {
 
     rpl->buffer = net->read_pos;
     rpl->size = packet_len;
-    DBUG_RETURN(0);
+    return 0;
   }
 }
 
@@ -5203,7 +6940,7 @@ int STDCALL mysql_binlog_fetch(MYSQL *mysql, MYSQL_RPL *rpl) {
   @param  rpl    Replication stream information.
 */
 void STDCALL mysql_binlog_close(MYSQL *mysql, MYSQL_RPL *rpl) {
-  DBUG_ENTER("mysql_binlog_close");
+  DBUG_TRACE;
   DBUG_ASSERT(mysql);
   DBUG_ASSERT(rpl);
 
@@ -5211,8 +6948,6 @@ void STDCALL mysql_binlog_close(MYSQL *mysql, MYSQL_RPL *rpl) {
 
   rpl->buffer = 0;
   rpl->size = 0;
-
-  DBUG_VOID_RETURN;
 }
 
 /**************************************************************************
@@ -5221,15 +6956,15 @@ void STDCALL mysql_binlog_close(MYSQL *mysql, MYSQL_RPL *rpl) {
 
 int STDCALL mysql_select_db(MYSQL *mysql, const char *db) {
   int error;
-  DBUG_ENTER("mysql_select_db");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("db: '%s'", db));
 
   if ((error = simple_command(mysql, COM_INIT_DB, (const uchar *)db,
                               (ulong)strlen(db), 0)))
-    DBUG_RETURN(error);
+    return error;
   my_free(mysql->db);
   mysql->db = my_strdup(key_memory_MYSQL, db, MYF(MY_WME));
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*************************************************************************
@@ -5238,7 +6973,7 @@ int STDCALL mysql_select_db(MYSQL *mysql, const char *db) {
 *************************************************************************/
 
 void mysql_close_free_options(MYSQL *mysql) {
-  DBUG_ENTER("mysql_close_free_options");
+  DBUG_TRACE;
 
   my_free(mysql->options.user);
   my_free(mysql->options.host);
@@ -5269,10 +7004,11 @@ void mysql_close_free_options(MYSQL *mysql) {
     my_free(mysql->options.extension->default_auth);
     my_free(mysql->options.extension->server_public_key_path);
     delete mysql->options.extension->connection_attributes;
+    my_free(mysql->options.extension->compression_algorithm);
+    mysql->options.extension->total_configured_compression_algorithms = 0;
     my_free(mysql->options.extension);
   }
   memset(&mysql->options, 0, sizeof(mysql->options));
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -5291,6 +7027,14 @@ void mysql_close_free(MYSQL *mysql) {
     mysql_extension_free(static_cast<MYSQL_EXTENSION *>(mysql->extension));
 
   my_free(mysql->field_alloc);
+
+#if defined(HAVE_OPENSSL)
+  if (mysql->connector_fd)
+    free_vio_ssl_acceptor_fd(
+        reinterpret_cast<st_VioSSLFd *>(mysql->connector_fd));
+  mysql->connector_fd = nullptr;
+#endif /* HAVE_OPENSSL */
+
   mysql->field_alloc = nullptr;
 
   /* Clear pointers for better safety */
@@ -5357,7 +7101,7 @@ void mysql_detach_stmt_list(LIST **stmt_list MY_ATTRIBUTE((unused)),
   /* Reset connection handle in all prepared statements. */
   LIST *element = *stmt_list;
   char buff[MYSQL_ERRMSG_SIZE];
-  DBUG_ENTER("mysql_detach_stmt_list");
+  DBUG_TRACE;
 
   snprintf(buff, sizeof(buff) - 1, ER_CLIENT(CR_STMT_CLOSED), func_name);
   for (; element; element = element->next) {
@@ -5367,39 +7111,48 @@ void mysql_detach_stmt_list(LIST **stmt_list MY_ATTRIBUTE((unused)),
     /* No need to call list_delete for statement here */
   }
   *stmt_list = 0;
-  DBUG_VOID_RETURN;
+  return;
 #endif /* !MYSQL_SERVER */
 }
 
 void STDCALL mysql_close(MYSQL *mysql) {
-  DBUG_ENTER("mysql_close");
+  DBUG_TRACE;
   if (mysql) /* Some simple safety */
   {
     /* If connection is still up, send a QUIT message */
     if (mysql->net.vio != 0) {
       free_old_query(mysql);
       mysql->status = MYSQL_STATUS_READY; /* Force command */
-      simple_command(mysql, COM_QUIT, (uchar *)0, 0, 1);
-      mysql->reconnect = 0;
+      if (vio_is_blocking(mysql->net.vio)) {
+        simple_command(mysql, COM_QUIT, (uchar *)0, 0, 1);
+      } else {
+        /*
+          Best effort; try to toss a command on the wire, but we can't wait
+          to hear back.
+        */
+        bool err; /* unused */
+        simple_command_nonblocking(mysql, COM_QUIT, (uchar *)0, 0, 1, &err);
+      }
+
+      mysql->reconnect = false;
       end_server(mysql); /* Sets mysql->net.vio= 0 */
     }
-    mysql_close_free_options(mysql);
     mysql_close_free(mysql);
+    mysql_close_free_options(mysql);
     mysql_detach_stmt_list(&mysql->stmts, "mysql_close");
     if (mysql->free_me) {
       my_free(mysql);
     }
   }
-  DBUG_VOID_RETURN;
 }
 
 static bool cli_read_query_result(MYSQL *mysql) {
   uchar *pos;
   ulong field_count;
   ulong length;
-  DBUG_ENTER("cli_read_query_result");
+  DBUG_TRACE;
 
-  if ((length = cli_safe_read(mysql, NULL)) == packet_error) DBUG_RETURN(1);
+  if ((length = cli_safe_read(mysql, NULL)) == packet_error) return true;
   free_old_query(mysql); /* Free old result */
 #ifndef MYSQL_SERVER     /* Avoid warn of unused labels*/
 get_info:
@@ -5413,7 +7166,7 @@ get_info:
     else
       MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
 #endif
-    DBUG_RETURN(0);
+    return false;
   }
 #ifndef MYSQL_SERVER
   if (field_count == NULL_LENGTH) /* LOAD DATA LOCAL INFILE */
@@ -5424,7 +7177,7 @@ get_info:
 
     if (!(mysql->options.client_flag & CLIENT_LOCAL_FILES)) {
       set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
-      DBUG_RETURN(1);
+      return true;
     }
 
     error = handle_local_infile(mysql, (char *)pos);
@@ -5432,14 +7185,14 @@ get_info:
     MYSQL_TRACE_STAGE(mysql, WAIT_FOR_RESULT);
 
     if ((length = cli_safe_read(mysql, NULL)) == packet_error || error)
-      DBUG_RETURN(1);
+      return true;
     goto get_info; /* Get info packet */
   }
 #endif
   if (!(mysql->server_status & SERVER_STATUS_AUTOCOMMIT))
     mysql->server_status |= SERVER_STATUS_IN_TRANS;
 
-  if (read_com_query_metadata(mysql, pos, field_count)) DBUG_RETURN(1);
+  if (read_com_query_metadata(mysql, pos, field_count)) return true;
 
   mysql->status = MYSQL_STATUS_GET_RESULT;
   mysql->field_count = (uint)field_count;
@@ -5447,7 +7200,108 @@ get_info:
   MYSQL_TRACE_STAGE(mysql, WAIT_FOR_ROW);
 
   DBUG_PRINT("exit", ("ok"));
-  DBUG_RETURN(0);
+  return false;
+}
+static net_async_status cli_read_query_result_nonblocking(MYSQL *mysql) {
+  DBUG_TRACE;
+  NET *net = &mysql->net;
+  NET_ASYNC *net_async = NET_ASYNC_DATA(net);
+  uchar *pos = nullptr;
+  ulong field_count;
+  ulong length;
+
+  if (net_async->async_read_query_result_status ==
+      NET_ASYNC_READ_QUERY_RESULT_IDLE) {
+    net_async->async_read_query_result_status =
+        NET_ASYNC_READ_QUERY_RESULT_FIELD_COUNT;
+  }
+
+  if (net_async->async_read_query_result_status ==
+      NET_ASYNC_READ_QUERY_RESULT_FIELD_COUNT) {
+    net_async_status status =
+        cli_safe_read_nonblocking(mysql, nullptr, &length);
+    if (status == NET_ASYNC_NOT_READY) {
+      return NET_ASYNC_NOT_READY;
+    }
+    if (length == packet_error) {
+      net_async->async_read_query_result_status =
+          NET_ASYNC_READ_QUERY_RESULT_IDLE;
+      return NET_ASYNC_ERROR;
+    }
+    mysql->packet_length = length;
+
+    free_old_query(mysql); /* Free old result */
+#ifndef MYSQL_SERVER       /* Avoid warn of unused labels*/
+  get_info:
+#endif
+    pos = (uchar *)mysql->net.read_pos;
+    if ((field_count = net_field_length(&pos)) == 0) {
+      read_ok_ex(mysql, length);
+#if defined(CLIENT_PROTOCOL_TRACING)
+      if (mysql->server_status & SERVER_MORE_RESULTS_EXISTS)
+        MYSQL_TRACE_STAGE(mysql, WAIT_FOR_RESULT);
+      else
+        MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
+#endif
+      net_async->async_read_query_result_status =
+          NET_ASYNC_READ_QUERY_RESULT_IDLE;
+      return NET_ASYNC_COMPLETE;
+    }
+#ifndef MYSQL_SERVER
+    if (field_count == NULL_LENGTH) /* LOAD DATA LOCAL INFILE */
+    {
+      int error;
+
+      MYSQL_TRACE_STAGE(mysql, FILE_REQUEST);
+
+      if (!(mysql->options.client_flag & CLIENT_LOCAL_FILES)) {
+        set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+        net_async->async_read_query_result_status =
+            NET_ASYNC_READ_QUERY_RESULT_IDLE;
+        return NET_ASYNC_ERROR;
+      }
+
+      error = handle_local_infile(mysql, (char *)pos);
+
+      MYSQL_TRACE_STAGE(mysql, WAIT_FOR_RESULT);
+
+      /* TODO: Make LOAD DATA LOCAL INFILE asynchronous. */
+      if ((length = cli_safe_read(mysql, NULL)) == packet_error || error) {
+        net_async->async_read_query_result_status =
+            NET_ASYNC_READ_QUERY_RESULT_IDLE;
+        return NET_ASYNC_ERROR;
+      }
+      goto get_info; /* Get info packet */
+    }
+#endif
+    if (!(mysql->server_status & SERVER_STATUS_AUTOCOMMIT))
+      mysql->server_status |= SERVER_STATUS_IN_TRANS;
+
+    mysql->field_count = (uint)field_count;
+    net_async->async_read_query_result_status =
+        NET_ASYNC_READ_QUERY_RESULT_FIELD_INFO;
+  }
+
+  if (net_async->async_read_query_result_status ==
+      NET_ASYNC_READ_QUERY_RESULT_FIELD_INFO) {
+    int res;
+    net_async_status status = read_com_query_metadata_nonblocking(
+        mysql, pos, mysql->field_count, &res);
+    if (status == NET_ASYNC_NOT_READY) {
+      return NET_ASYNC_NOT_READY;
+    }
+
+    if (res) {
+      net_async->async_read_query_result_status =
+          NET_ASYNC_READ_QUERY_RESULT_IDLE;
+      return NET_ASYNC_ERROR;
+    }
+  }
+
+  mysql->status = MYSQL_STATUS_GET_RESULT;
+  DBUG_PRINT("exit", ("ok, %u", mysql->field_count));
+  net_async->async_read_query_result_status = NET_ASYNC_READ_QUERY_RESULT_IDLE;
+  return NET_ASYNC_COMPLETE;
 }
 
 /*
@@ -5459,28 +7313,128 @@ get_info:
 int STDCALL mysql_send_query(MYSQL *mysql, const char *query, ulong length) {
   STATE_INFO *info;
 
-  DBUG_ENTER("mysql_send_query");
+  DBUG_TRACE;
 
   if ((info = STATE_DATA(mysql)))
     free_state_change_info(static_cast<MYSQL_EXTENSION *>(mysql->extension));
 
-  DBUG_RETURN(simple_command(mysql, COM_QUERY, (uchar *)query, length, 1));
+  return simple_command(mysql, COM_QUERY, pointer_cast<const uchar *>(query),
+                        length, 1);
+}
+
+/**
+  Executes the SQL statement pointed by query. This API is called by
+  mysql_real_query_nonblocking to send query to server in asynchronous way.
+
+  @param[in]   mysql               connection handle
+  @param[in]   query               query string to be executed
+  @param[in]   length              length of query
+
+  @retval      NET_ASYNC_ERROR     query execution failed
+  @retval      NET_ASYNC_NOT_READY query not yet completed, call this API again
+  @retval      NET_ASYNC_COMPLETE  query execution finished
+*/
+net_async_status STDCALL mysql_send_query_nonblocking(MYSQL *mysql,
+                                                      const char *query,
+                                                      ulong length) {
+  DBUG_TRACE;
+  STATE_INFO *info;
+
+  if ((info = STATE_DATA(mysql)))
+    free_state_change_info(static_cast<MYSQL_EXTENSION *>(mysql->extension));
+
+  bool ret;
+  if (simple_command_nonblocking(mysql, COM_QUERY,
+                                 pointer_cast<const uchar *>(query), length, 1,
+                                 &ret) == NET_ASYNC_NOT_READY) {
+    return NET_ASYNC_NOT_READY;
+  }
+  if (ret)
+    return NET_ASYNC_ERROR;
+  else
+    return NET_ASYNC_COMPLETE;
 }
 
 int STDCALL mysql_real_query(MYSQL *mysql, const char *query, ulong length) {
   int retval;
-  DBUG_ENTER("mysql_real_query");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("handle: %p", mysql));
   DBUG_PRINT("query", ("Query = '%-.*s'", (int)length, query));
   DBUG_EXECUTE_IF("inject_ER_NET_READ_INTERRUPTED", {
     mysql->net.last_errno = ER_NET_READ_INTERRUPTED;
     DBUG_SET("-d,inject_ER_NET_READ_INTERRUPTED");
-    DBUG_RETURN(1);
+    return 1;
   });
 
-  if (mysql_send_query(mysql, query, length)) DBUG_RETURN(1);
+  if (mysql_send_query(mysql, query, length)) return 1;
   retval = (int)(*mysql->methods->read_query_result)(mysql);
-  DBUG_RETURN(retval);
+  return retval;
+}
+
+/**
+  Executes the SQL statement pointed by query. This sql statement length is set
+  in length parameter. query string can contain multiple sql statements
+  separated by semicolons. This function can return immediately with status set
+  to NET_ASYNC_NOT_READY, in this case client application is expected to call
+  this API until it returns NET_ASYNC_COMPLETE.
+
+  @param[in]   mysql               connection handle
+  @param[in]   query               query string to be executed
+  @param[in]   length              length of query
+
+  @retval      NET_ASYNC_ERROR     query execution failed
+  @retval      NET_ASYNC_NOT_READY query not yet completed, call this API again
+  @retval      NET_ASYNC_COMPLETE  query execution finished
+*/
+net_async_status STDCALL mysql_real_query_nonblocking(MYSQL *mysql,
+                                                      const char *query,
+                                                      ulong length) {
+  DBUG_TRACE;
+  DBUG_PRINT("enter", ("handle: %p", mysql));
+  DBUG_PRINT("query", ("Query = '%-.*s'", (int)length, query));
+  DBUG_EXECUTE_IF("inject_ER_NET_READ_INTERRUPTED", {
+    mysql->net.last_errno = ER_NET_READ_INTERRUPTED;
+    DBUG_SET("-d,inject_ER_NET_READ_INTERRUPTED");
+    return NET_ASYNC_ERROR;
+  });
+  MYSQL_ASYNC *async_context = ASYNC_DATA(mysql);
+  DBUG_ASSERT(async_context->async_op_status == ASYNC_OP_UNSET ||
+              async_context->async_op_status == ASYNC_OP_QUERY);
+
+  net_async_status status = NET_ASYNC_NOT_READY;
+  /* 1st phase: send query. */
+  if (async_context->async_query_state == QUERY_IDLE) {
+    async_context->async_query_length = length;
+    async_context->async_op_status = ASYNC_OP_QUERY;
+    async_context->async_query_state = QUERY_SENDING;
+  }
+
+  if (async_context->async_query_state == QUERY_SENDING) {
+    status = mysql_send_query_nonblocking(mysql, query, length);
+    if (status == NET_ASYNC_NOT_READY)
+      return NET_ASYNC_NOT_READY;
+    else if (status == NET_ASYNC_ERROR)
+      goto end;
+    async_context->async_query_state = QUERY_READING_RESULT;
+  }
+
+  /* 2nd phase: read query result (field count, field info) */
+  if (async_context->async_query_state == QUERY_READING_RESULT) {
+    status = (*mysql->methods->read_query_result_nonblocking)(mysql);
+    if (status == NET_ASYNC_NOT_READY)
+      return NET_ASYNC_NOT_READY;
+    else if (status == NET_ASYNC_ERROR)
+      goto end;
+  }
+
+end:
+  async_context->async_op_status = ASYNC_OP_UNSET;
+  async_context->async_query_state = QUERY_IDLE;
+  async_context->async_query_length = 0;
+  if (status == NET_ASYNC_ERROR)
+    return NET_ASYNC_ERROR;
+  else
+    return NET_ASYNC_COMPLETE;
 }
 
 /**************************************************************************
@@ -5490,16 +7444,16 @@ int STDCALL mysql_real_query(MYSQL *mysql, const char *query, ulong length) {
 
 MYSQL_RES *STDCALL mysql_store_result(MYSQL *mysql) {
   MYSQL_RES *result;
-  DBUG_ENTER("mysql_store_result");
+  DBUG_TRACE;
 
   /*
     Some queries (e.g. "CALL") may return an empty resultset.
     mysql->field_count is 0 in such cases.
   */
-  if (!mysql->field_count) DBUG_RETURN(0);
+  if (!mysql->field_count) return 0;
   if (mysql->status != MYSQL_STATUS_GET_RESULT) {
     set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
-    DBUG_RETURN(0);
+    return 0;
   }
   mysql->status = MYSQL_STATUS_READY; /* server is ready */
   if (!(result = (MYSQL_RES *)my_malloc(
@@ -5507,22 +7461,22 @@ MYSQL_RES *STDCALL mysql_store_result(MYSQL *mysql) {
             (uint)(sizeof(MYSQL_RES) + sizeof(ulong) * mysql->field_count),
             MYF(MY_WME | MY_ZEROFILL)))) {
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-    DBUG_RETURN(0);
+    return 0;
   }
   if (!(result->field_alloc = (MEM_ROOT *)my_malloc(
             key_memory_MYSQL, sizeof(MEM_ROOT), MYF(MY_WME | MY_ZEROFILL)))) {
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
     my_free(result);
-    DBUG_RETURN(0);
+    return 0;
   }
   result->methods = mysql->methods;
-  result->eof = 1; /* Marker for buffered */
+  result->eof = true; /* Marker for buffered */
   result->lengths = (ulong *)(result + 1);
   if (!(result->data = (*mysql->methods->read_rows)(mysql, mysql->fields,
                                                     mysql->field_count))) {
     my_free(result->field_alloc);
     my_free(result);
-    DBUG_RETURN(0);
+    return 0;
   }
   mysql->affected_rows = result->row_count = result->data->rows;
   result->data_cursor = result->data->data;
@@ -5534,7 +7488,89 @@ MYSQL_RES *STDCALL mysql_store_result(MYSQL *mysql) {
   mysql->fields = 0; /* fields is now in result */
   /* just in case this was mistakenly called after mysql_stmt_execute() */
   mysql->unbuffered_fetch_owner = 0;
-  DBUG_RETURN(result); /* Data fetched */
+  return result; /* Data fetched */
+}
+
+/**
+  This API reads all result set sent by server in an asynchronous way
+
+  @param[in]   mysql    connection handle
+  @param[in]   result   buffer which holds all result sets.
+
+  @retval      NET_ASYNC_NOT_READY    reading of result sets not complete
+  @retval      NET_ASYNC_COMPLETE     completed this asynchronous operation
+*/
+enum net_async_status STDCALL
+mysql_store_result_nonblocking(MYSQL *mysql, MYSQL_RES **result) {
+  DBUG_TRACE;
+  MYSQL_ASYNC *async_context = ASYNC_DATA(mysql);
+  *result = nullptr;
+
+  /*
+    Some queries (e.g. "CALL") may return an empty resultset.
+    mysql->field_count is 0 in such cases.
+  */
+  if (!mysql->field_count) {
+    goto end;
+  }
+  if (!async_context->async_store_result_result) {
+    if (mysql->status != MYSQL_STATUS_GET_RESULT) {
+      set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
+      goto end;
+    }
+    mysql->status = MYSQL_STATUS_READY; /* server is ready */
+
+    if (!(async_context->async_store_result_result = (MYSQL_RES *)my_malloc(
+              key_memory_MYSQL_RES,
+              (uint)(sizeof(MYSQL_RES) + sizeof(ulong) * mysql->field_count),
+              MYF(MY_WME | MY_ZEROFILL)))) {
+      set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+      goto end;
+    }
+    if (!(async_context->async_store_result_result->field_alloc =
+              (MEM_ROOT *)my_malloc(key_memory_MYSQL, sizeof(MEM_ROOT),
+                                    MYF(MY_WME | MY_ZEROFILL)))) {
+      set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+      my_free(async_context->async_store_result_result);
+      goto end;
+    }
+    async_context->async_store_result_result->methods = mysql->methods;
+    async_context->async_store_result_result->eof =
+        true; /* Marker for buffered */
+    async_context->async_store_result_result->lengths =
+        (ulong *)(async_context->async_store_result_result + 1);
+  }
+
+  if ((*mysql->methods->read_rows_nonblocking)(
+          mysql, mysql->fields, mysql->field_count,
+          &async_context->async_store_result_result->data) ==
+      NET_ASYNC_NOT_READY) {
+    return NET_ASYNC_NOT_READY;
+  }
+
+  if (!async_context->async_store_result_result->data) {
+    my_free(async_context->async_store_result_result->field_alloc);
+    my_free(async_context->async_store_result_result);
+    goto end;
+  }
+  mysql->affected_rows = async_context->async_store_result_result->row_count =
+      async_context->async_store_result_result->data->rows;
+  async_context->async_store_result_result->data_cursor =
+      async_context->async_store_result_result->data->data;
+  async_context->async_store_result_result->fields = mysql->fields;
+  *async_context->async_store_result_result->field_alloc =
+      std::move(*mysql->field_alloc);
+  async_context->async_store_result_result->field_count = mysql->field_count;
+  async_context->async_store_result_result->metadata =
+      mysql->resultset_metadata;
+  /* The rest of result members is zerofilled in my_malloc */
+  mysql->fields = 0; /* fields is now in result */
+  /* just in case this was mistakenly called after mysql_stmt_execute() */
+  mysql->unbuffered_fetch_owner = 0;
+  *result = async_context->async_store_result_result;
+end:
+  async_context->async_store_result_result = nullptr;
+  return NET_ASYNC_COMPLETE;
 }
 
 /**************************************************************************
@@ -5549,22 +7585,22 @@ MYSQL_RES *STDCALL mysql_store_result(MYSQL *mysql) {
 
 static MYSQL_RES *cli_use_result(MYSQL *mysql) {
   MYSQL_RES *result;
-  DBUG_ENTER("cli_use_result");
+  DBUG_TRACE;
 
   /*
     Some queries (e.g. "CALL") may return an empty resultset.
     mysql->field_count is 0 in such cases.
   */
-  if (!mysql->field_count) DBUG_RETURN(0);
+  if (!mysql->field_count) return 0;
   if (mysql->status != MYSQL_STATUS_GET_RESULT) {
     set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
-    DBUG_RETURN(0);
+    return 0;
   }
   if (!(result = (MYSQL_RES *)my_malloc(
             key_memory_MYSQL_RES,
             sizeof(*result) + sizeof(ulong) * mysql->field_count,
             MYF(MY_WME | MY_ZEROFILL))))
-    DBUG_RETURN(0);
+    return 0;
   result->lengths = (ulong *)(result + 1);
   result->methods = mysql->methods;
   if (!(result->row = (MYSQL_ROW)my_malloc(
@@ -5572,13 +7608,13 @@ static MYSQL_RES *cli_use_result(MYSQL *mysql) {
             sizeof(result->row[0]) * (mysql->field_count + 1),
             MYF(MY_WME)))) { /* Ptrs: to one row */
     my_free(result);
-    DBUG_RETURN(0);
+    return 0;
   }
   if (!(result->field_alloc = (MEM_ROOT *)my_malloc(
             key_memory_MYSQL, sizeof(MEM_ROOT), MYF(MY_WME | MY_ZEROFILL)))) {
     my_free(result->row);
     my_free(result);
-    DBUG_RETURN(0);
+    return 0;
   }
   result->fields = mysql->fields;
   *result->field_alloc = std::move(*mysql->field_alloc);
@@ -5590,7 +7626,7 @@ static MYSQL_RES *cli_use_result(MYSQL *mysql) {
   mysql->fields = 0; /* fields is now in result */
   mysql->status = MYSQL_STATUS_USE_RESULT;
   mysql->unbuffered_fetch_owner = &result->unbuffered_fetch_cancelled;
-  DBUG_RETURN(result); /* Data is read to be fetched */
+  return result; /* Data is read to be fetched */
 }
 
 /**************************************************************************
@@ -5598,7 +7634,7 @@ static MYSQL_RES *cli_use_result(MYSQL *mysql) {
 **************************************************************************/
 
 MYSQL_ROW STDCALL mysql_fetch_row(MYSQL_RES *res) {
-  DBUG_ENTER("mysql_fetch_row");
+  DBUG_TRACE;
   if (!res->data) { /* Unbufferred fetch */
     if (!res->eof) {
       MYSQL *mysql = res->handle;
@@ -5611,10 +7647,10 @@ MYSQL_ROW STDCALL mysql_fetch_row(MYSQL_RES *res) {
       } else if (!(read_one_row(mysql, res->field_count, res->row,
                                 res->lengths))) {
         res->row_count++;
-        DBUG_RETURN(res->current_row = res->row);
+        return res->current_row = res->row;
       }
       DBUG_PRINT("info", ("end of data"));
-      res->eof = 1;
+      res->eof = true;
       mysql->status = MYSQL_STATUS_READY;
       /*
         Reset only if owner points to us: there is a chance that somebody
@@ -5625,18 +7661,85 @@ MYSQL_ROW STDCALL mysql_fetch_row(MYSQL_RES *res) {
       /* Don't clear handle in mysql_free_result */
       res->handle = 0;
     }
-    DBUG_RETURN((MYSQL_ROW)NULL);
+    return (MYSQL_ROW)NULL;
   }
   {
     MYSQL_ROW tmp;
     if (!res->data_cursor) {
       DBUG_PRINT("info", ("end of data"));
-      DBUG_RETURN(res->current_row = (MYSQL_ROW)NULL);
+      return res->current_row = (MYSQL_ROW)NULL;
     }
     tmp = res->data_cursor->data;
     res->data_cursor = res->data_cursor->next;
-    DBUG_RETURN(res->current_row = tmp);
+    return res->current_row = tmp;
   }
+}
+/**
+  Reads next row of a result set in an asynchronous way.
+
+  @param[in]    res     buffer in which all rows are stored
+  @param[out]   row     return pointer to one row from result set
+
+  @retval      NET_ASYNC_NOT_READY fetch operation not complete, retry again
+  @retval      NET_ASYNC_COMPLETE  fetch operation complete
+*/
+net_async_status STDCALL mysql_fetch_row_nonblocking(MYSQL_RES *res,
+                                                     MYSQL_ROW *row) {
+  DBUG_TRACE;
+  MYSQL *mysql = res->handle;
+  *row = nullptr;
+
+  if (!res->data) { /* Unbufferred fetch */
+    if (!res->eof) {
+      if (mysql->status == MYSQL_STATUS_USE_RESULT) {
+        int ret;
+        if (read_one_row_nonblocking(mysql, res->field_count, res->row,
+                                     res->lengths,
+                                     &ret) == NET_ASYNC_NOT_READY) {
+          return NET_ASYNC_NOT_READY;
+        }
+
+        if (!ret) {
+          *row = res->current_row = res->row;
+          goto end;
+        }
+      }
+
+      set_mysql_error(mysql,
+                      res->unbuffered_fetch_cancelled ? CR_FETCH_CANCELED
+                                                      : CR_COMMANDS_OUT_OF_SYNC,
+                      unknown_sqlstate);
+      DBUG_PRINT("info", ("end of data"));
+      res->eof = true;
+      mysql->status = MYSQL_STATUS_READY;
+      /*
+        Reset only if owner points to us: there is a chance that
+        somebody started new query after mysql_stmt_close():
+      */
+      if (mysql->unbuffered_fetch_owner == &res->unbuffered_fetch_cancelled)
+        mysql->unbuffered_fetch_owner = 0;
+      /* Don't clear handle in mysql_free_result */
+      res->handle = 0;
+    }
+
+    *row = nullptr;
+    goto end;
+  }
+  {
+    MYSQL_ROW tmp;
+    if (!res->data_cursor) {
+      DBUG_PRINT("info", ("end of data"));
+      *row = nullptr;
+      goto end;
+    }
+    tmp = res->data_cursor->data;
+    res->data_cursor = res->data_cursor->next;
+    *row = res->current_row = tmp;
+    goto end;
+  }
+
+end:
+  return NET_ASYNC_COMPLETE;
 }
 
 /**************************************************************************
@@ -5656,27 +7759,27 @@ ulong *STDCALL mysql_fetch_lengths(MYSQL_RES *res) {
 
 int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
                           const void *arg) {
-  DBUG_ENTER("mysql_option");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("option: %d", (int)option));
   switch (option) {
     case MYSQL_OPT_CONNECT_TIMEOUT:
-      mysql->options.connect_timeout = *(uint *)arg;
+      mysql->options.connect_timeout = *static_cast<const uint *>(arg);
       break;
     case MYSQL_OPT_READ_TIMEOUT:
-      mysql->options.read_timeout = *(uint *)arg;
+      mysql->options.read_timeout = *static_cast<const uint *>(arg);
       break;
     case MYSQL_OPT_WRITE_TIMEOUT:
-      mysql->options.write_timeout = *(uint *)arg;
+      mysql->options.write_timeout = *static_cast<const uint *>(arg);
       break;
     case MYSQL_OPT_COMPRESS:
-      mysql->options.compress = 1; /* Remember for connect */
+      mysql->options.compress = true; /* Remember for connect */
       mysql->options.client_flag |= CLIENT_COMPRESS;
       break;
     case MYSQL_OPT_NAMED_PIPE: /* This option is depricated */
       mysql->options.protocol = MYSQL_PROTOCOL_PIPE; /* Force named pipe */
       break;
     case MYSQL_OPT_LOCAL_INFILE: /* Allow LOAD DATA LOCAL ?*/
-      if (!arg || (*(uint *)arg != 0))
+      if (!arg || (*static_cast<const uint *>(arg) != 0))
         mysql->options.client_flag |= CLIENT_LOCAL_FILES;
       else
         mysql->options.client_flag &= ~CLIENT_LOCAL_FILES;
@@ -5709,7 +7812,7 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
                     MYF(MY_WME));
       break;
     case MYSQL_OPT_PROTOCOL:
-      mysql->options.protocol = *(uint *)arg;
+      mysql->options.protocol = *static_cast<const uint *>(arg);
       break;
     case MYSQL_SHARED_MEMORY_BASE_NAME:
 #if defined(_WIN32)
@@ -5721,10 +7824,10 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
 #endif
       break;
     case MYSQL_REPORT_DATA_TRUNCATION:
-      mysql->options.report_data_truncation = *(bool *)arg;
+      mysql->options.report_data_truncation = *static_cast<const bool *>(arg);
       break;
     case MYSQL_OPT_RECONNECT:
-      mysql->reconnect = *(bool *)arg;
+      mysql->reconnect = *static_cast<const bool *>(arg);
       break;
     case MYSQL_OPT_BIND:
       my_free(mysql->options.bind_address);
@@ -5763,6 +7866,10 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
     case MYSQL_OPT_SSL_CIPHER:
       SET_OPTION(ssl_cipher, static_cast<const char *>(arg));
       break;
+    case MYSQL_OPT_TLS_CIPHERSUITES:
+      EXTENSION_SET_STRING(&mysql->options, tls_ciphersuites,
+                           static_cast<const char *>(arg));
+      break;
     case MYSQL_OPT_SSL_CRL:
       if (mysql->options.extension)
         my_free(mysql->options.extension->ssl_crl);
@@ -5785,28 +7892,28 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
                            static_cast<const char *>(arg));
       if ((mysql->options.extension->ssl_ctx_flags = process_tls_version(
                mysql->options.extension->tls_version)) == -1)
-        DBUG_RETURN(1);
+        return 1;
 #endif
       break;
     case MYSQL_OPT_SSL_FIPS_MODE: {
-#if defined(HAVE_OPENSSL) && !defined(HAVE_WOLFSSL)
+#if defined(HAVE_OPENSSL)
       char ssl_err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
       ENSURE_EXTENSIONS_PRESENT(&mysql->options);
-      mysql->options.extension->ssl_fips_mode = *(uint *)arg;
+      mysql->options.extension->ssl_fips_mode = *static_cast<const uint *>(arg);
       if (set_fips_mode(mysql->options.extension->ssl_fips_mode,
                         ssl_err_string) != 1) {
         DBUG_PRINT("error", ("fips mode set error %s:", ssl_err_string));
-        my_printf_error(CR_SSL_FIPS_MODE_ERR,
-                        "Set Fips mode ON/STRICT failed, detail: '%s'.", MYF(0),
-                        ssl_err_string);
-        DBUG_RETURN(1);
+        set_mysql_extended_error(
+            mysql, CR_SSL_FIPS_MODE_ERR, unknown_sqlstate,
+            "Set Fips mode ON/STRICT failed, detail: '%s'.", ssl_err_string);
+        return 1;
       }
-#endif  // defined(HAVE_OPENSSL) && !defined(HAVE_WOLFSSL)
+#endif  // defined(HAVE_OPENSSL)
     } break;
     case MYSQL_OPT_SSL_MODE:
 #if defined(HAVE_OPENSSL)
       ENSURE_EXTENSIONS_PRESENT(&mysql->options);
-      mysql->options.extension->ssl_mode = *(uint *)arg;
+      mysql->options.extension->ssl_mode = *static_cast<const uint *>(arg);
       if (mysql->options.extension->ssl_mode == SSL_MODE_VERIFY_IDENTITY)
         mysql->options.client_flag |= CLIENT_SSL_VERIFY_SERVER_CERT;
       else
@@ -5821,7 +7928,7 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
     case MYSQL_OPT_GET_SERVER_PUBLIC_KEY:
       ENSURE_EXTENSIONS_PRESENT(&mysql->options);
       mysql->options.extension->get_server_public_key =
-          (*(bool *)arg) ? true : false;
+          *static_cast<const bool *>(arg);
       break;
 
     case MYSQL_OPT_CONNECT_ATTR_RESET:
@@ -5842,11 +7949,11 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
               mysql->options.extension->connection_attributes->hash.find(key);
           if (it !=
               mysql->options.extension->connection_attributes->hash.end()) {
-            const string &key = it->first;
-            const string &value = it->second;
+            const string &attr_key = it->first;
+            const string &attr_value = it->second;
             mysql->options.extension->connection_attributes_length -=
-                get_length_store_length(key.size()) + key.size() +
-                get_length_store_length(value.size()) + value.size();
+                get_length_store_length(attr_key.size()) + attr_key.size() +
+                get_length_store_length(attr_value.size()) + attr_value.size();
 
             mysql->options.extension->connection_attributes->hash.erase(it);
           }
@@ -5856,14 +7963,14 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
     case MYSQL_ENABLE_CLEARTEXT_PLUGIN:
       ENSURE_EXTENSIONS_PRESENT(&mysql->options);
       mysql->options.extension->enable_cleartext_plugin =
-          (*(bool *)arg) ? true : false;
+          *static_cast<const bool *>(arg);
       break;
     case MYSQL_OPT_RETRY_COUNT:
       ENSURE_EXTENSIONS_PRESENT(&mysql->options);
-      mysql->options.extension->retry_count = (*(uint *)arg);
+      mysql->options.extension->retry_count = *static_cast<const uint *>(arg);
       break;
     case MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS:
-      if (*(bool *)arg)
+      if (*static_cast<const bool *>(arg))
         mysql->options.client_flag |= CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS;
       else
         mysql->options.client_flag &= ~CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS;
@@ -5871,26 +7978,68 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
 
     case MYSQL_OPT_MAX_ALLOWED_PACKET:
       if (mysql)
-        mysql->options.max_allowed_packet = (*(ulong *)arg);
+        mysql->options.max_allowed_packet = *static_cast<const ulong *>(arg);
       else
-        g_max_allowed_packet = (*(ulong *)arg);
+        g_max_allowed_packet = *static_cast<const ulong *>(arg);
       break;
 
     case MYSQL_OPT_NET_BUFFER_LENGTH:
-      g_net_buffer_length = (*(ulong *)arg);
+      g_net_buffer_length = *static_cast<const ulong *>(arg);
       break;
 
     case MYSQL_OPT_OPTIONAL_RESULTSET_METADATA:
-      if (*(bool *)arg)
+      if (*static_cast<const bool *>(arg))
         mysql->options.client_flag |= CLIENT_OPTIONAL_RESULTSET_METADATA;
       else
         mysql->options.client_flag &= ~CLIENT_OPTIONAL_RESULTSET_METADATA;
       break;
 
+    case MYSQL_OPT_COMPRESSION_ALGORITHMS: {
+      std::string compress_option(static_cast<const char *>(arg));
+      std::vector<std::string> list;
+      parse_compression_algorithms_list(compress_option, list);
+      ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+      mysql->options.extension->connection_compressed = true;
+      mysql->options.client_flag &=
+          ~(CLIENT_COMPRESS | CLIENT_ZSTD_COMPRESSION_ALGORITHM);
+      mysql->options.compress = false;
+      auto it = list.begin();
+      unsigned int cnt = 0;
+      while (it != list.end() && cnt < COMPRESSION_ALGORITHM_COUNT_MAX) {
+        std::string value = *it;
+        switch (get_compression_algorithm(value)) {
+          case enum_compression_algorithm::MYSQL_ZLIB:
+            mysql->options.client_flag |= CLIENT_COMPRESS;
+            mysql->options.compress = true;
+            break;
+          case enum_compression_algorithm::MYSQL_ZSTD:
+            mysql->options.client_flag |= CLIENT_ZSTD_COMPRESSION_ALGORITHM;
+            mysql->options.compress = true;
+            break;
+          case enum_compression_algorithm::MYSQL_UNCOMPRESSED:
+            mysql->options.extension->connection_compressed = false;
+            break;
+          case enum_compression_algorithm::MYSQL_INVALID:
+            break;  // report error
+        }
+        it++;
+        cnt++;
+      }
+      if (cnt)
+        EXTENSION_SET_STRING(&mysql->options, compression_algorithm,
+                             static_cast<const char *>(arg));
+      mysql->options.extension->total_configured_compression_algorithms = cnt;
+    } break;
+    case MYSQL_OPT_ZSTD_COMPRESSION_LEVEL:
+      ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+      mysql->options.extension->zstd_compression_level =
+          *static_cast<const unsigned int *>(arg);
+      break;
+
     default:
-      DBUG_RETURN(1);
+      return 1;
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -5915,11 +8064,11 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
   const char *
     MYSQL_READ_DEFAULT_FILE, MYSQL_READ_DEFAULT_GROUP,
     MYSQL_SET_CHARSET_DIR, MYSQL_SET_CHARSET_NAME,
-  MYSQL_SHARED_MEMORY_BASE_NAME, MYSQL_SET_CLIENT_IP, MYSQL_OPT_BIND,
-  MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH, MYSQL_OPT_SSL_KEY, MYSQL_OPT_SSL_CERT,
-  MYSQL_OPT_SSL_CA, MYSQL_OPT_SSL_CAPATH, MYSQL_OPT_SSL_CIPHER,
-  MYSQL_OPT_SSL_CRL, MYSQL_OPT_SSL_CRLPATH, MYSQL_OPT_TLS_VERSION,
-    MYSQL_SERVER_PUBLIC_KEY, MYSQL_OPT_SSL_FIPS_MODE
+    MYSQL_SHARED_MEMORY_BASE_NAME, MYSQL_SET_CLIENT_IP, MYSQL_OPT_BIND,
+    MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH, MYSQL_OPT_SSL_KEY, MYSQL_OPT_SSL_CERT,
+    MYSQL_OPT_SSL_CA, MYSQL_OPT_SSL_CAPATH, MYSQL_OPT_SSL_CIPHER,
+    MYSQL_OPT_TLS_CIPHERSUITES, MYSQL_OPT_SSL_CRL, MYSQL_OPT_SSL_CRLPATH,
+    MYSQL_OPT_TLS_VERSION, MYSQL_SERVER_PUBLIC_KEY, MYSQL_OPT_SSL_FIPS_MODE
 
   <none, error returned>
     MYSQL_OPT_NAMED_PIPE, MYSQL_OPT_CONNECT_ATTR_RESET,
@@ -5934,166 +8083,187 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
 
 int STDCALL mysql_get_option(MYSQL *mysql, enum mysql_option option,
                              const void *arg) {
-  DBUG_ENTER("mysql_option");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("option: %d", (int)option));
 
-  if (!arg) DBUG_RETURN(1);
+  if (!arg) return 1;
 
   switch (option) {
     case MYSQL_OPT_CONNECT_TIMEOUT:
-      *((uint *)arg) = mysql->options.connect_timeout;
+      *(const_cast<uint *>(static_cast<const uint *>(arg))) =
+          mysql->options.connect_timeout;
       break;
     case MYSQL_OPT_READ_TIMEOUT:
-      *((uint *)arg) = mysql->options.read_timeout;
+      *(const_cast<uint *>(static_cast<const uint *>(arg))) =
+          mysql->options.read_timeout;
       break;
     case MYSQL_OPT_WRITE_TIMEOUT:
-      *((uint *)arg) = mysql->options.write_timeout;
+      *(const_cast<uint *>(static_cast<const uint *>(arg))) =
+          mysql->options.write_timeout;
       break;
     case MYSQL_OPT_COMPRESS:
-      *((bool *)arg) = mysql->options.compress ? true : false;
+      *(const_cast<bool *>(static_cast<const bool *>(arg))) =
+          mysql->options.compress;
       break;
     case MYSQL_OPT_LOCAL_INFILE: /* Allow LOAD DATA LOCAL ?*/
-      *((uint *)arg) =
-          (mysql->options.client_flag & CLIENT_LOCAL_FILES) ? true : false;
+      *(const_cast<uint *>(static_cast<const uint *>(arg))) =
+          (mysql->options.client_flag & CLIENT_LOCAL_FILES) != 0;
       break;
     case MYSQL_READ_DEFAULT_FILE:
-      *((char **)arg) = mysql->options.my_cnf_file;
+      *(static_cast<char **>(const_cast<void *>(arg))) =
+          mysql->options.my_cnf_file;
       break;
     case MYSQL_READ_DEFAULT_GROUP:
-      *((char **)arg) = mysql->options.my_cnf_group;
+      *(static_cast<char **>(const_cast<void *>(arg))) =
+          mysql->options.my_cnf_group;
       break;
     case MYSQL_SET_CHARSET_DIR:
-      *((char **)arg) = mysql->options.charset_dir;
+      *(static_cast<char **>(const_cast<void *>(arg))) =
+          mysql->options.charset_dir;
       break;
     case MYSQL_SET_CHARSET_NAME:
-      *((char **)arg) = mysql->options.charset_name;
+      *(static_cast<char **>(const_cast<void *>(arg))) =
+          mysql->options.charset_name;
       break;
     case MYSQL_OPT_PROTOCOL:
-      *((uint *)arg) = mysql->options.protocol;
+      *(const_cast<uint *>(static_cast<const uint *>(arg))) =
+          mysql->options.protocol;
       break;
     case MYSQL_SHARED_MEMORY_BASE_NAME:
 #if defined(_WIN32)
-      *((char **)arg) = mysql->options.shared_memory_base_name;
+      *(static_cast<char **>(const_cast<void *>(arg))) =
+          mysql->options.shared_memory_base_name;
 #else
-      *((const char **)arg) = "";
+      *(static_cast<char **>(const_cast<void *>(arg))) = const_cast<char *>("");
 #endif
       break;
     case MYSQL_REPORT_DATA_TRUNCATION:
-      *((bool *)arg) = mysql->options.report_data_truncation;
+      *(const_cast<bool *>(static_cast<const bool *>(arg))) =
+          mysql->options.report_data_truncation;
       break;
     case MYSQL_OPT_RECONNECT:
-      *((bool *)arg) = mysql->reconnect;
+      *(const_cast<bool *>(static_cast<const bool *>(arg))) = mysql->reconnect;
       break;
     case MYSQL_OPT_BIND:
-      *((char **)arg) = mysql->options.bind_address;
+      *(static_cast<char **>(const_cast<void *>(arg))) =
+          mysql->options.bind_address;
       break;
     case MYSQL_OPT_SSL_MODE:
-      *((uint *)arg) =
+      *(const_cast<uint *>(static_cast<const uint *>(arg))) =
           mysql->options.extension ? mysql->options.extension->ssl_mode : 0;
       break;
     case MYSQL_OPT_SSL_FIPS_MODE:
-      *((uint *)arg) = mysql->options.extension
-                           ? mysql->options.extension->ssl_fips_mode
-                           : 0;
+      *(const_cast<uint *>(static_cast<const uint *>(arg))) =
+          mysql->options.extension ? mysql->options.extension->ssl_fips_mode
+                                   : 0;
       break;
     case MYSQL_PLUGIN_DIR:
-      *((char **)arg) = mysql->options.extension
-                            ? mysql->options.extension->plugin_dir
-                            : NULL;
+      *(static_cast<char **>(const_cast<void *>(arg))) =
+          mysql->options.extension ? mysql->options.extension->plugin_dir
+                                   : nullptr;
       break;
     case MYSQL_DEFAULT_AUTH:
-      *((char **)arg) = mysql->options.extension
-                            ? mysql->options.extension->default_auth
-                            : NULL;
+      *(static_cast<char **>(const_cast<void *>(arg))) =
+          mysql->options.extension ? mysql->options.extension->default_auth
+                                   : nullptr;
       break;
     case MYSQL_OPT_SSL_KEY:
-      *((char **)arg) = mysql->options.ssl_key;
+      *(static_cast<char **>(const_cast<void *>(arg))) = mysql->options.ssl_key;
       break;
     case MYSQL_OPT_SSL_CERT:
-      *((char **)arg) = mysql->options.ssl_cert;
+      *(static_cast<char **>(const_cast<void *>(arg))) =
+          mysql->options.ssl_cert;
       break;
     case MYSQL_OPT_SSL_CA:
-      *((char **)arg) = mysql->options.ssl_ca;
+      *(static_cast<char **>(const_cast<void *>(arg))) = mysql->options.ssl_ca;
       break;
     case MYSQL_OPT_SSL_CAPATH:
-      *((char **)arg) = mysql->options.ssl_capath;
+      *(static_cast<char **>(const_cast<void *>(arg))) =
+          mysql->options.ssl_capath;
       break;
     case MYSQL_OPT_SSL_CIPHER:
-      *((char **)arg) = mysql->options.ssl_cipher;
+      *(static_cast<char **>(const_cast<void *>(arg))) =
+          mysql->options.ssl_cipher;
+      break;
+    case MYSQL_OPT_TLS_CIPHERSUITES:
+      *(static_cast<char **>(const_cast<void *>(arg))) =
+          mysql->options.extension ? mysql->options.extension->tls_ciphersuites
+                                   : nullptr;
       break;
     case MYSQL_OPT_RETRY_COUNT:
-      *((uint *)arg) =
+      *(const_cast<uint *>(static_cast<const uint *>(arg))) =
           mysql->options.extension ? mysql->options.extension->retry_count : 1;
       break;
     case MYSQL_OPT_TLS_VERSION:
-      *((char **)arg) = mysql->options.extension
-                            ? mysql->options.extension->tls_version
-                            : NULL;
+      *(static_cast<char **>(const_cast<void *>(arg))) =
+          mysql->options.extension ? mysql->options.extension->tls_version
+                                   : nullptr;
       break;
     case MYSQL_OPT_SSL_CRL:
-      *((char **)arg) =
-          mysql->options.extension ? mysql->options.extension->ssl_crl : NULL;
+      *(static_cast<char **>(const_cast<void *>(arg))) =
+          mysql->options.extension ? mysql->options.extension->ssl_crl
+                                   : nullptr;
       break;
     case MYSQL_OPT_SSL_CRLPATH:
-      *((char **)arg) = mysql->options.extension
-                            ? mysql->options.extension->ssl_crlpath
-                            : NULL;
+      *(static_cast<char **>(const_cast<void *>(arg))) =
+          mysql->options.extension ? mysql->options.extension->ssl_crlpath
+                                   : nullptr;
       break;
     case MYSQL_SERVER_PUBLIC_KEY:
-      *((char **)arg) = mysql->options.extension
-                            ? mysql->options.extension->server_public_key_path
-                            : NULL;
+      *(static_cast<char **>(const_cast<void *>(arg))) =
+          mysql->options.extension
+              ? mysql->options.extension->server_public_key_path
+              : nullptr;
       break;
     case MYSQL_OPT_GET_SERVER_PUBLIC_KEY:
-      *((bool *)arg) = (mysql->options.extension &&
-                        mysql->options.extension->get_server_public_key)
-                           ? true
-                           : false;
+      *(const_cast<bool *>(static_cast<const bool *>(arg))) =
+          mysql->options.extension &&
+          mysql->options.extension->get_server_public_key;
       break;
     case MYSQL_ENABLE_CLEARTEXT_PLUGIN:
-      *((bool *)arg) = (mysql->options.extension &&
-                        mysql->options.extension->enable_cleartext_plugin)
-                           ? true
-                           : false;
+      *(const_cast<bool *>(static_cast<const bool *>(arg))) =
+          mysql->options.extension &&
+          mysql->options.extension->enable_cleartext_plugin;
       break;
     case MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS:
-      *((bool *)arg) =
-          (mysql->options.client_flag & CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS)
-              ? true
-              : false;
+      *(const_cast<bool *>(static_cast<const bool *>(arg))) =
+          (mysql->options.client_flag & CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS) !=
+          0;
       break;
 
     case MYSQL_OPT_MAX_ALLOWED_PACKET:
       if (mysql)
-        *((ulong *)arg) = mysql->options.max_allowed_packet;
+        *(const_cast<ulong *>(static_cast<const ulong *>(arg))) =
+            mysql->options.max_allowed_packet;
       else
-        *((ulong *)arg) = g_max_allowed_packet;
+        *(const_cast<ulong *>(static_cast<const ulong *>(arg))) =
+            g_max_allowed_packet;
       break;
 
     case MYSQL_OPT_NET_BUFFER_LENGTH:
-      *((ulong *)arg) = g_net_buffer_length;
+      *(const_cast<ulong *>(static_cast<const ulong *>(arg))) =
+          g_net_buffer_length;
       break;
 
     case MYSQL_OPT_OPTIONAL_RESULTSET_METADATA:
-      *((bool *)arg) =
-          (mysql->options.client_flag & CLIENT_OPTIONAL_RESULTSET_METADATA)
-              ? true
-              : false;
+      *(const_cast<bool *>(static_cast<const bool *>(arg))) =
+          (mysql->options.client_flag & CLIENT_OPTIONAL_RESULTSET_METADATA) !=
+          0;
       break;
 
-    case MYSQL_OPT_NAMED_PIPE:          /* This option is depricated */
+    case MYSQL_OPT_NAMED_PIPE:          /* This option is deprecated */
     case MYSQL_INIT_COMMAND:            /* Cumulative */
     case MYSQL_OPT_CONNECT_ATTR_RESET:  /* Cumulative */
     case MYSQL_OPT_CONNECT_ATTR_DELETE: /* Cumulative */
     default:
-      DBUG_RETURN(1);
+      return 1;
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int STDCALL mysql_options4(MYSQL *mysql, enum mysql_option option,
                            const void *arg1, const void *arg2) {
-  DBUG_ENTER("mysql_option");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("option: %d", (int)option));
 
   switch (option) {
@@ -6107,7 +8277,7 @@ int STDCALL mysql_options4(MYSQL *mysql, enum mysql_option option,
       /* we can't have a zero length key */
       if (!key_len) {
         set_mysql_error(mysql, CR_INVALID_PARAMETER_NO, unknown_sqlstate);
-        DBUG_RETURN(1);
+        return 1;
       }
 
       /* calculate the total storage length of the attribute */
@@ -6124,7 +8294,7 @@ int STDCALL mysql_options4(MYSQL *mysql, enum mysql_option option,
               mysql->options.extension->connection_attributes_length >
           MAX_CONNECTION_ATTR_STORAGE_LENGTH) {
         set_mysql_error(mysql, CR_INVALID_PARAMETER_NO, unknown_sqlstate);
-        DBUG_RETURN(1);
+        return 1;
       }
 
       if (!mysql->options.extension->connection_attributes) {
@@ -6132,7 +8302,7 @@ int STDCALL mysql_options4(MYSQL *mysql, enum mysql_option option,
             new (std::nothrow) My_hash();
         if (!mysql->options.extension->connection_attributes) {
           set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-          DBUG_RETURN(1);
+          return 1;
         }
       }
       if (!mysql->options.extension->connection_attributes->hash
@@ -6140,7 +8310,7 @@ int STDCALL mysql_options4(MYSQL *mysql, enum mysql_option option,
                .second) {
         /* can't insert the value */
         set_mysql_error(mysql, CR_DUPLICATE_CONNECTION_ATTR, unknown_sqlstate);
-        DBUG_RETURN(1);
+        return 1;
       }
 
       mysql->options.extension->connection_attributes_length +=
@@ -6150,9 +8320,9 @@ int STDCALL mysql_options4(MYSQL *mysql, enum mysql_option option,
     }
 
     default:
-      DBUG_RETURN(1);
+      return 1;
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /****************************************************************************
@@ -6360,12 +8530,12 @@ static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   int pkt_len;
   uchar *pkt;
 
-  DBUG_ENTER("native_password_auth_client");
+  DBUG_TRACE;
 
   /* read the scramble */
-  if ((pkt_len = vio->read_packet(vio, &pkt)) < 0) DBUG_RETURN(CR_ERROR);
+  if ((pkt_len = vio->read_packet(vio, &pkt)) < 0) return CR_ERROR;
 
-  if (pkt_len != SCRAMBLE_LENGTH + 1) DBUG_RETURN(CR_SERVER_HANDSHAKE_ERR);
+  if (pkt_len != SCRAMBLE_LENGTH + 1) return CR_SERVER_HANDSHAKE_ERR;
 
   /* save it in MYSQL */
   memcpy(mysql->scramble, pkt, SCRAMBLE_LENGTH);
@@ -6376,16 +8546,105 @@ static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
     DBUG_PRINT("info", ("sending scramble"));
     scramble(scrambled, (char *)pkt, mysql->passwd);
     if (vio->write_packet(vio, (uchar *)scrambled, SCRAMBLE_LENGTH))
-      DBUG_RETURN(CR_ERROR);
+      return CR_ERROR;
   } else {
     DBUG_PRINT("info", ("no password"));
     if (vio->write_packet(vio, 0, 0)) /* no password */
-      DBUG_RETURN(CR_ERROR);
+      return CR_ERROR;
   }
 
-  DBUG_RETURN(CR_OK);
+  return CR_OK;
 }
 
+/**
+  Client authentication plugin that does native MySQL authentication
+  in a nonblocking way.
+
+   @param[in]    vio    the channel to operate on
+   @param[in]    mysql  the MYSQL structure to operate on
+   @param[out]   result CR_OK : Success, CR_ERROR : error reading,
+                        CR_SERVER_HANDSHAKE_ERR : malformed handshake data
+
+   @retval     NET_ASYNC_NOT_READY  authentication not yet complete
+   @retval     NET_ASYNC_COMPLETE   authentication done
+*/
+static net_async_status native_password_auth_client_nonblocking(
+    MYSQL_PLUGIN_VIO *vio, MYSQL *mysql, int *result) {
+  DBUG_TRACE;
+  int io_result;
+  uchar *pkt;
+  mysql_async_auth *ctx = ASYNC_DATA(mysql)->connect_context->auth_context;
+
+  switch (static_cast<client_auth_native_password_plugin_status>(
+      ctx->client_auth_plugin_state)) {
+    case client_auth_native_password_plugin_status::NATIVE_READING_PASSWORD:
+      if (((MCPVIO_EXT *)vio)->mysql_change_user) {
+        /* mysql_change_user_nonblocking not implemented yet. */
+        DBUG_ASSERT(false);
+      } else {
+        /* read the scramble */
+        net_async_status status =
+            vio->read_packet_nonblocking(vio, &pkt, &io_result);
+        if (status == NET_ASYNC_NOT_READY) {
+          return NET_ASYNC_NOT_READY;
+        }
+
+        if (io_result < 0) {
+          *result = CR_ERROR;
+          return NET_ASYNC_COMPLETE;
+        }
+
+        if (io_result != SCRAMBLE_LENGTH + 1) {
+          *result = CR_SERVER_HANDSHAKE_ERR;
+          return NET_ASYNC_COMPLETE;
+        }
+
+        /* save it in MYSQL */
+        memcpy(mysql->scramble, pkt, SCRAMBLE_LENGTH);
+        mysql->scramble[SCRAMBLE_LENGTH] = 0;
+      }
+      ctx->client_auth_plugin_state = (int)
+          client_auth_native_password_plugin_status::NATIVE_WRITING_RESPONSE;
+
+      /* fallthrough */
+
+    case client_auth_native_password_plugin_status::NATIVE_WRITING_RESPONSE:
+      if (mysql->passwd[0]) {
+        char scrambled[SCRAMBLE_LENGTH + 1];
+        DBUG_PRINT("info", ("sending scramble"));
+        scramble(scrambled, (char *)pkt, mysql->passwd);
+        net_async_status status = vio->write_packet_nonblocking(
+            vio, (uchar *)scrambled, SCRAMBLE_LENGTH, &io_result);
+        if (status == NET_ASYNC_NOT_READY) {
+          return NET_ASYNC_NOT_READY;
+        }
+
+        if (io_result < 0) {
+          *result = CR_ERROR;
+          return NET_ASYNC_COMPLETE;
+        }
+      } else {
+        DBUG_PRINT("info", ("no password"));
+        net_async_status status = vio->write_packet_nonblocking(
+            vio, 0, 0, &io_result); /* no password */
+
+        if (status == NET_ASYNC_NOT_READY) {
+          return NET_ASYNC_NOT_READY;
+        }
+
+        if (io_result < 0) {
+          *result = CR_ERROR;
+          return NET_ASYNC_COMPLETE;
+        }
+      }
+      break;
+    default:
+      assert(0);
+  }
+
+  *result = CR_OK;
+  return NET_ASYNC_COMPLETE;
+}
 /* clang-format off */
 /**
   @page page_protocol_connection_phase_authentication_methods_clear_text_password Clear text client plugin

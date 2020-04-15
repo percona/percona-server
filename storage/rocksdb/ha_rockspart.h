@@ -23,11 +23,14 @@ class ha_rockspart : public native_part::Partition_base {
   ha_rockspart(handlerton *hton, TABLE_SHARE *table_arg)
       : Partition_base(hton, table_arg){};
 
-  ha_rockspart(handlerton *hton, TABLE_SHARE *share,
-               partition_info *part_info_arg, Partition_base *clone_arg,
-               MEM_ROOT *clone_mem_root_arg)
-      : Partition_base(hton, share, part_info_arg, clone_arg,
-                       clone_mem_root_arg) {}
+  ha_rockspart(handlerton *hton, TABLE_SHARE *table_arg,
+               partition_info *part_info,
+               native_part::Partition_base *clone_base,
+               MEM_ROOT *clone_mem_root)
+      : native_part::Partition_base(hton, table_arg, clone_base,
+                                    clone_mem_root) {
+    this->get_partition_handler()->set_part_info(part_info, true);
+  }
 
   ~ha_rockspart() override {}
 
@@ -35,6 +38,9 @@ class ha_rockspart : public native_part::Partition_base {
            const dd::Table *table_def) override;
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
              dd::Table *table_def) override;
+  enum row_type get_partition_row_type(const dd::Table *, uint) override {
+    return ROW_TYPE_NOT_USED;
+  }
 
  private:
   handler *get_file_handler(TABLE_SHARE *share, MEM_ROOT *alloc) const override;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -132,6 +132,7 @@ InnoDB:
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <limits>
 #include <map>
 #include <type_traits> /* std::is_trivially_default_constructible */
@@ -177,6 +178,7 @@ extern PSI_memory_key mem_key_clone;
 extern PSI_memory_key mem_key_dict_stats_bg_recalc_pool_t;
 extern PSI_memory_key mem_key_dict_stats_index_map_t;
 extern PSI_memory_key mem_key_dict_stats_n_diff_on_level;
+extern PSI_memory_key mem_key_redo_log_archive_queue_element;
 extern PSI_memory_key mem_key_other;
 extern PSI_memory_key mem_key_partitioning;
 extern PSI_memory_key mem_key_row_log_buf;
@@ -405,9 +407,10 @@ static constexpr size_t n_auto = UT_ARR_SIZE(auto_event_names);
 extern PSI_memory_key auto_event_keys[n_auto];
 extern PSI_memory_info pfs_info_auto[n_auto];
 
+/** gcc 5 fails to evalutate costexprs at compile time. */
+#if defined(__GNUG__) && (__GNUG__ == 5)
+
 /** Compute whether a string begins with a given prefix, compile-time.
-Has to work recursively due to C++11 constexpr constraints (C++14 is
-more flexible).
 @param[in]	a	first string, taken to be zero-terminated
 @param[in]	b	second string (prefix to search for)
 @param[in]	b_len	length in bytes of second string
@@ -420,8 +423,6 @@ constexpr bool ut_string_begins_with(const char *a, const char *b, size_t b_len,
 }
 
 /** Find the length of the filename without its file extension.
-Has to work recursively due to C++11 constexpr constraints (C++14 is
-more flexible).
 @param[in]	file	filename, with extension but without directory
 @param[in]	index	character index to start scanning for extension
                         separator at
@@ -434,8 +435,6 @@ constexpr size_t ut_len_without_extension(const char *file, size_t index = 0) {
 
 /** Retrieve a memory key (registered with PFS), given the file name of the
 caller.
-Has to work recursively due to C++11 constexpr constraints (C++14 is
-more flexible).
 @param[in]	file	portion of the filename - basename, with extension
 @param[in]	len	length of the filename to check for
 @param[in]	index	index of first PSI key to check
@@ -459,6 +458,74 @@ constexpr PSI_memory_key ut_new_get_key_by_file(const char *file) {
 }
 
 #define UT_NEW_THIS_FILE_PSI_KEY ut_new_get_key_by_file(MY_BASENAME)
+
+#else /* __GNUG__ == 5 */
+
+/** Compute whether a string begins with a given prefix, compile-time.
+@param[in]	a	first string, taken to be zero-terminated
+@param[in]	b	second string (prefix to search for)
+@param[in]	b_len	length in bytes of second string
+@return whether b is a prefix of a */
+constexpr bool ut_string_begins_with(const char *a, const char *b,
+                                     size_t b_len) {
+  for (size_t i = 0; i < b_len; ++i) {
+    if (a[i] != b[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/** Find the length of the filename without its file extension.
+@param[in]	file	filename, with extension but without directory
+@return length, in bytes */
+constexpr size_t ut_len_without_extension(const char *file) {
+  for (size_t i = 0;; ++i) {
+    if (file[i] == '\0' || file[i] == '.') {
+      return i;
+    }
+  }
+}
+
+/** Retrieve a memory key (registered with PFS), given the file name of the
+caller.
+@param[in]	file	portion of the filename - basename, with extension
+@param[in]	len	length of the filename to check for
+@return index to registered memory key or -1 if not found */
+constexpr int ut_new_get_key_by_base_file(const char *file, size_t len) {
+  for (size_t i = 0; i < n_auto; ++i) {
+    if (ut_string_begins_with(auto_event_names[i], file, len)) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+/** Retrieve a memory key (registered with PFS), given the file name of
+the caller.
+@param[in]	file	portion of the filename - basename, with extension
+@return index to memory key or -1 if not found */
+constexpr int ut_new_get_key_by_file(const char *file) {
+  return ut_new_get_key_by_base_file(file, ut_len_without_extension(file));
+}
+
+// Sending an expression through a template variable forces the compiler to
+// evaluate the expression at compile time (constexpr in itself has no such
+// guarantee, only that the compiler is allowed).
+template <int Value>
+struct force_constexpr {
+  static constexpr int value = Value;
+};
+
+#define UT_NEW_THIS_FILE_PSI_INDEX \
+  (force_constexpr<ut_new_get_key_by_file(MY_BASENAME)>::value)
+
+#define UT_NEW_THIS_FILE_PSI_KEY    \
+  (UT_NEW_THIS_FILE_PSI_INDEX == -1 \
+       ? PSI_NOT_INSTRUMENTED       \
+       : auto_event_keys[UT_NEW_THIS_FILE_PSI_INDEX])
+
+#endif /* __GNUG__ == 5 */
 
 #endif /* UNIV_PFS_MEMORY */
 
@@ -1044,7 +1111,7 @@ inline void ut_delete_array(T *ptr) {
 
 #else /* UNIV_PFS_MEMORY */
 
-  /* Fallbacks when memory tracing is disabled at compile time. */
+/* Fallbacks when memory tracing is disabled at compile time. */
 
 #define UT_NEW(expr, key) ::new (std::nothrow) expr
 #define UT_NEW_NOKEY(expr) ::new (std::nothrow) expr
@@ -1211,4 +1278,54 @@ class aligned_array_pointer : public aligned_memory<T_Type, T_Align_to> {
   size_t m_size;
 };
 
+inline void ut_free_func(byte *buf) { ut_free(buf); }
+
+using ut_unique_ptr = std::unique_ptr<byte, std::function<void(byte *)>>;
+
+inline ut_unique_ptr ut_make_unique_ptr_null() {
+  return ut_unique_ptr(nullptr, ut_free_func);
+}
+
+inline ut_unique_ptr ut_make_unique_ptr_nokey(const size_t size) {
+  return ut_unique_ptr(static_cast<byte *>(ut_malloc_nokey(size)),
+                       ut_free_func);
+}
+
+inline ut_unique_ptr ut_make_unique_ptr(const size_t size,
+                                        PSI_memory_key memory_key) {
+  return ut_unique_ptr(static_cast<byte *>(ut_malloc(size, memory_key)),
+                       ut_free_func);
+}
+
+inline ut_unique_ptr ut_make_unique_ptr_zalloc(const size_t size,
+                                               PSI_memory_key memory_key) {
+  return ut_unique_ptr(static_cast<byte *>(ut_zalloc(size, memory_key)),
+                       ut_free_func);
+}
+
+inline ut_unique_ptr ut_make_unique_ptr_zalloc_nokey(const size_t size) {
+  return ut_unique_ptr(static_cast<byte *>(ut_zalloc_nokey(size)),
+                       ut_free_func);
+}
+
+inline ut_unique_ptr ut_make_unique_ptr_zalloc_nokey_no_fatal(
+    const size_t size) {
+  return ut_unique_ptr(static_cast<byte *>(ut_zalloc_nokey_nofatal(size)),
+                       ut_free_func);
+}
+
+namespace ut {
+
+/** Specialization of basic_ostringstream which uses ut_allocator. Please note
+that it's .str() method returns std::basic_string which is not std::string, so
+it has similar API (in particular .c_str()), but you can't assign it to regular,
+std::string. */
+using ostringstream =
+    std::basic_ostringstream<char, std::char_traits<char>, ut_allocator<char>>;
+
+/** Specialization of vector which uses ut_allocator. */
+template <typename T>
+using vector = std::vector<T, ut_allocator<T>>;
+
+}  // namespace ut
 #endif /* ut0new_h */

@@ -41,9 +41,9 @@ while ($i <= $max) {
 ### Bulk load PK only ###
 SET rocksdb_bulk_load=1;
 INSERT INTO t1 SELECT * FROM t3 FORCE INDEX (PRIMARY) ORDER BY a;
-SELECT count(*) FROM t1 FORCE INDEX (PRIMARY);
-SELECT count(*) FROM t1 FORCE INDEX (b);
-SELECT count(*) FROM t1 FORCE INDEX (c);
+SELECT a FROM t1 FORCE INDEX (PRIMARY);
+SELECT b FROM t1 FORCE INDEX (b);
+SELECT c FROM t1 FORCE INDEX (c);
 SET rocksdb_bulk_load=0;
 SELECT * FROM t1 FORCE INDEX (PRIMARY);
 SELECT b FROM t1 FORCE INDEX (b);

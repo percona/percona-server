@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -359,7 +359,7 @@ static bool my_arguments_get_one_option(int optid, const struct my_option *,
       free_resources();
       exit(0);
   }
-  return 0;
+  return false;
 }
 }
 
@@ -380,7 +380,7 @@ int main(int argc, char *argv[]) {
   MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
 
   MY_INIT(argv[0]);
-  DBUG_ENTER("main");
+  DBUG_TRACE;
   DBUG_PROCESS(argv[0]);
 
   /* Parse options : Command Line/Config file */
@@ -648,5 +648,5 @@ end:
   umask(saved_umask);
   free_resources();
 
-  DBUG_RETURN(ret_val);
+  return ret_val;
 }

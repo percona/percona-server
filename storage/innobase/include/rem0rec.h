@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -172,7 +172,7 @@ void rec_set_instant_flag_new(rec_t *rec, bool flag);
 /** The following function tells if a new-style record is a node pointer.
  @return true if node pointer */
 UNIV_INLINE
-ibool rec_get_node_ptr_flag(const rec_t *rec) /*!< in: physical record */
+bool rec_get_node_ptr_flag(const rec_t *rec) /*!< in: physical record */
     MY_ATTRIBUTE((warn_unused_result));
 
 /** The following function is used to get the order number of an old-style
@@ -263,11 +263,10 @@ ulint rec_get_n_extern_new(
 /** The following function is used to get the offset to the nth
  data field in an old-style record.
  @return offset to the field */
-ulint rec_get_nth_field_offs_old(
-    const rec_t *rec, /*!< in: record */
-    ulint n,          /*!< in: index of the field */
-    ulint *len);      /*!< out: length of the field; UNIV_SQL_NULL
-                      if SQL null */
+ulint rec_get_nth_field_offs_old(const rec_t *rec, /*!< in: record */
+                                 ulint n,     /*!< in: index of the field */
+                                 ulint *len); /*!< out: length of the field;
+                                              UNIV_SQL_NULL if SQL null */
 
 /** Gets the value of the specified field in the record in old style.
 This is only used for record from instant index, which is clustered
@@ -591,9 +590,9 @@ ulint rec_get_converted_size_comp(
  @return size */
 UNIV_INLINE
 ulint rec_get_converted_size(
-    dict_index_t *index,    /*!< in: record descriptor */
-    const dtuple_t *dtuple, /*!< in: data tuple */
-    ulint n_ext)            /*!< in: number of externally stored columns */
+    const dict_index_t *index, /*!< in: record descriptor */
+    const dtuple_t *dtuple,    /*!< in: data tuple */
+    ulint n_ext)               /*!< in: number of externally stored columns */
     MY_ATTRIBUTE((warn_unused_result));
 #ifndef UNIV_HOTBACKUP
 /** Copies the first n fields of a physical record to a data tuple.

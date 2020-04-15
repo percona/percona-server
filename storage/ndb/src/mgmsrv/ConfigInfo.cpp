@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,9 @@
 #include <Bitmask.hpp>
 #include <ndb_opts.h>
 #include <ndb_version.h>
-
+#include <ConfigObject.hpp>
+#include <unordered_map>
+#include <string>
 
 #include <portlib/ndb_localtime.h>
 
@@ -65,14 +67,15 @@ ConfigInfo::m_sectionNameAliases[]={
   {0, 0}
 };
 
+// Also defines the order used in print_impl()/print()/print_xml().
 const char* 
 ConfigInfo::m_sectionNames[]={
   "SYSTEM",
   "COMPUTER",
 
-  DB_TOKEN,
-  MGM_TOKEN,
   API_TOKEN,
+  MGM_TOKEN,
+  DB_TOKEN,
 
   "TCP",
   "SHM"
@@ -434,6 +437,24 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0, 0 },
 
   {
+    CFG_NODE_DEDICATED,
+    "Dedicated",
+    DB_TOKEN,
+    "The node id for this node will only be handed out to connections that "
+    "explicitly request it. Data nodes that request 'any' nodeid will not be "
+    "able to use this one. Can be used when HostName is not enough to "
+    "distinguish different processes, and one runs several data nodes on same "
+    "host. There is typically no need to use this option since ven if one run "
+    "several data nodes on same host it is enough to always use --ndb-nodeid "
+    "option when starting data nodes even without this option. ",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true" },
+
+  {
     CFG_NODE_SYSTEM,
     "System",
     DB_TOKEN,
@@ -532,8 +553,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_NO_INDEX_OPS,
     "MaxNoOfConcurrentIndexOperations",
     DB_TOKEN,
-    "Total number of index operations that can execute simultaneously on one " DB_TOKEN_PRINT " node",
-    ConfigInfo::CI_USED,
+    "TransactionMemory",
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     "8K",
@@ -557,8 +578,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_NO_TRIGGER_OPS,
     "MaxNoOfFiredTriggers",
     DB_TOKEN,
-    "Total number of triggers that can fire simultaneously in one " DB_TOKEN_PRINT " node",
-    ConfigInfo::CI_USED,
+    "TransactionMemory",
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     "4000",
@@ -797,7 +818,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_MAX_DML_OPERATIONS_PER_TRANSACTION,
     "MaxDMLOperationsPerTransaction",
     DB_TOKEN,
-    "Max DML-operations in one transaction (0 == no limit)",
+    "Max DML-operations in one transaction",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
@@ -810,8 +831,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_NO_LOCAL_OPS,
     "MaxNoOfLocalOperations",
     DB_TOKEN,
-    "Max number of operation records defined in the local storage node",
-    ConfigInfo::CI_USED,
+    "TransactionMemory",
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     0,
@@ -822,8 +843,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_NO_LOCAL_SCANS,
     "MaxNoOfLocalScans",
     DB_TOKEN,
-    "Max number of fragment scans in parallel in the local storage node",
-    ConfigInfo::CI_USED,
+    "TransactionMemory",
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     0,
@@ -900,7 +921,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT64,
     "98M",
     "1M",
-    "1024G" },
+    "16384G" },
+
+  {
+    CFG_DB_TRANSACTION_MEM,
+    "TransactionMemory",
+    DB_TOKEN,
+    "Number bytes on each " DB_TOKEN_PRINT " node allocated for operations",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT64,
+    "0",
+    "0",
+    "16384G" },
 
   {
     CFG_DB_UNDO_INDEX_BUFFER,
@@ -960,7 +993,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT64,
     "64M",
     "4M",
-    "1024G" },
+    "16384G" },
 
   {
     CFG_DB_SGA,
@@ -970,11 +1003,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT64,
-#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
-    "20M",
-#else
     "128M",
-#endif
     "0",
     "65536G" }, // 32k pages * 32-bit i value
   
@@ -1471,6 +1500,23 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "1",
     "1" },
   
+  {
+    CFG_DB_ENABLE_MT_BACKUP,
+    "EnableMultithreadedBackup",
+    DB_TOKEN,
+    "Enable multi-threaded backup. If the cluster config permits, i.e. if"
+    " all nodes have at least 2 LDMs, all the LDM threads will participate"
+    " in backup. The backup will be written in the mt-backup file format,"
+    " which consists of one subdirectory per LDM thread, where"
+    " each subdirectory contains Ctl, Data and Log backup files.",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "1",
+    "0",
+    "1"
+  },
+
   { 
     CFG_DB_BACKUP_DATADIR,
     "BackupDataDir",
@@ -1562,7 +1608,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_BACKUP_MEM,
     "BackupMemory",
     DB_TOKEN,
-    "Total memory allocated for backups per node (in bytes)",
+    "sum of hardcoded BackupDataBufferSize(=2MB) and BackupLogBufferSize",
     ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
@@ -1574,7 +1620,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_BACKUP_DATA_BUFFER_MEM,
     "BackupDataBufferSize",
     DB_TOKEN,
-    "Default size of databuffer for a backup (in bytes)",
+    "hardcoded value of 2MB",
     ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
@@ -1598,7 +1644,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_BACKUP_WRITE_SIZE,
     "BackupWriteSize",
     DB_TOKEN,
-    "Default size of filesystem writes made by backup (in bytes)",
+    "hardcoded value of 256 KB",
     ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
@@ -1610,7 +1656,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_BACKUP_MAX_WRITE_SIZE,
     "BackupMaxWriteSize",
     DB_TOKEN,
-    "Max size of filesystem writes made by backup (in bytes)",
+    "hardcoded value of 2MB",
     ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
@@ -1626,7 +1672,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "25",
+    "5",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -1783,7 +1829,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     DB_TOKEN,
     "For ndbmtd, specify max no of execution threads",
     ConfigInfo::CI_USED,
-    false,
+    CI_RESTART_SYSTEM | CI_RESTART_INITIAL,
     ConfigInfo::CI_INT,
     "0",
     "2",
@@ -1844,7 +1890,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     DB_TOKEN,
     "Thread configuration",
     ConfigInfo::CI_USED,
-    false,
+    CI_RESTART_SYSTEM | CI_RESTART_INITIAL,
     ConfigInfo::CI_STRING,
     0,
     0,
@@ -2021,7 +2067,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_INT,
     "20",                    /* Default */
-    "0",                     /* Min */
+    "1",                     /* Min */
     STR_VALUE(MAX_INT_RNIL)  /* Max */
   },
 
@@ -2035,7 +2081,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_INT,
     "3",                     /* Default */
-    "0",                     /* Min */
+    "1",                     /* Min */
     STR_VALUE(MAX_INT_RNIL)  /* Max */
   },
 
@@ -2263,9 +2309,40 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "60",
+    "180",
     "0",
     STR_VALUE(MAX_INT_RNIL)
+  },
+
+  {
+    CFG_DB_MAX_DD_LATENCY,
+    "MaxDiskDataLatency",
+    DB_TOKEN,
+    "Maximum allowed mean latency of disk access in milliseconds."
+    "When this limit is reached we will start aborting transactions"
+    " to decrease pressure on IO susbsystem. 0 means this check is"
+    " not active",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    "8000"
+  },
+
+  {
+    CFG_DB_DD_USING_SAME_DISK,
+    "DiskDataUsingSameDisk",
+    DB_TOKEN,
+    "Set this to false if Disk data tablespaces uses their own disk"
+    " drives. This means that we can push checkpoints to tablespaces"
+    " at a higher rate than if disk drives are shared.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_BOOL,
+    "true",
+    "false",
+    "true"
   },
 
   {
@@ -2435,6 +2512,97 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "512"
   },
 
+  {
+    CFG_DB_RESERVED_INDEX_OPS,
+    "ReservedConcurrentIndexOperations",
+    DB_TOKEN,
+    "Number of simultaneous index operations that have dedicated resources on one " DB_TOKEN_PRINT " node",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0", // "2K",
+    "0",
+    STR_VALUE(MAX_INT_RNIL)
+  },
+
+  {
+    CFG_DB_RESERVED_TRIGGER_OPS,
+    "ReservedFiredTriggers",
+    DB_TOKEN,
+    "Number of triggers that have dedicated resources on one " DB_TOKEN_PRINT " node",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0", // "1000",
+    "0",
+    STR_VALUE(MAX_INT_RNIL)
+  },
+
+  {
+    CFG_DB_RESERVED_OPS,
+    "ReservedConcurrentOperations",
+    DB_TOKEN,
+    "Number of simultaneous operation that have dedicated resources in transaction coordinators on one " DB_TOKEN_PRINT " node",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0", // "32k",
+    "0",
+    STR_VALUE(MAX_INT_RNIL)
+  },
+
+  {
+    CFG_DB_RESERVED_LOCAL_SCANS,
+    "ReservedLocalScans",
+    DB_TOKEN,
+    "Number of simultaneous fragment scans that have dedicated resources on one " DB_TOKEN_PRINT " node",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    STR_VALUE(MAX_INT_RNIL)
+  },
+
+  {
+    CFG_DB_RESERVED_TRANSACTIONS,
+    "ReservedConcurrentTransactions",
+    DB_TOKEN,
+    "Number of simultaneous transactions that have dedicated resources on one " DB_TOKEN_PRINT " node",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0", // "1024",
+    "0",
+    STR_VALUE(MAX_INT_RNIL)
+  },
+
+  {
+    CFG_DB_RESERVED_SCANS,
+    "ReservedConcurrentScans",
+    DB_TOKEN,
+    "Number of simultaneous scans that have dedicated resources on one " DB_TOKEN_PRINT " node",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0", // "64",
+    "0",
+    "500"
+  },
+
+  {
+    CFG_DB_RESERVED_TRANS_BUFFER_MEM,
+    "ReservedTransactionBufferMemory",
+    DB_TOKEN,
+    "Dynamic buffer space (in bytes) for key and attribute data allocated for each " DB_TOKEN_PRINT " node",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0", // "256K",
+    "0",
+    STR_VALUE(MAX_INT_RNIL)
+  },
+
   /***************************************************************************
    * API
    ***************************************************************************/
@@ -2473,6 +2641,24 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_STRING,
     "",
     0, 0 },
+
+  {
+    CFG_NODE_DEDICATED,
+    "Dedicated",
+    API_TOKEN,
+    "The node id for this node will only be handed out to connections that "
+    "explicitly request it. Api client that request 'any' nodeid will not be "
+    "able to use this one. Can be used when HostName is not enough to "
+    "distinguish different processes, and one runs a server process like "
+    "mysqld on same host as some other ndb client programs and want to avoid "
+    "the client program steal a node id dedicated to mysqld while the mysqld "
+    "is not connected.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true" },
 
   {
     CFG_NODE_SYSTEM,
@@ -2774,6 +2960,23 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_STRING,
     "",
     0, 0 },
+
+  {
+    CFG_NODE_DEDICATED,
+    "Dedicated",
+    MGM_TOKEN,
+    "The node id for this node will only be handed out to connections that "
+    "explicitly request it. Management servers that request 'any' nodeid will "
+    "not be able to use this one. Can be used when HostName is not enough to "
+    "distinguish different processes, and one runs several management "
+    "servers on same host, which should typically only be the case in test "
+    "clusters.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true" },
 
   {
     CFG_NODE_DATADIR,
@@ -4221,6 +4424,16 @@ ConfigInfo::verify_enum(const Properties * section, const char* fname,
 }
 
 
+/*
+ * Get allowed values for enum parameters in a space separated list.
+ *
+ * It returns values in order of increasing numerical value to make it possible
+ * to map numerical value to string value.
+ *
+ * At least in the cases there enum values are consecutive and zero based,
+ * which is the case for ConfigInfo.
+ */
+
 void
 ConfigInfo::get_enum_values(const Properties * section, const char* fname,
                       BaseString& list) const {
@@ -4231,9 +4444,25 @@ ConfigInfo::get_enum_values(const Properties * section, const char* fname,
 
   const char* separator = "";
   Properties::Iterator it(values);
+  Vector<const char*> enum_names;
+  const char* fill = nullptr;
+  unsigned cnt = 0;
   for (const char* name = it.first(); name != NULL; name = it.next())
   {
-    list.appfmt("%s%s", separator, name);
+    Uint32 val;
+    values->get(name, &val);
+    enum_names.set(name, val, fill);
+    cnt++;
+  }
+  // Enum values should be consecutive starting at zero.
+  assert(enum_names.size() == cnt);
+  for (unsigned i = 0; i < enum_names.size(); i++)
+  {
+    if (enum_names[i] == nullptr)
+    {
+      continue;
+    }
+    list.appfmt("%s%s", separator, enum_names[i]);
     separator = " ";
   }
 }
@@ -4577,12 +4806,18 @@ void ConfigInfo::print_impl(const char* section_filter,
                             ConfigPrinter& printer) const {
   printer.start();
   /* Iterate through all sections */
-  Properties::Iterator it(&m_info);
-  for (const char* s = it.first(); s != NULL; s = it.next()) {
+  for (int i = 0; i < m_noOfSectionNames; i++)
+  {
+    const char* s = m_sectionNames[i];
     if (section_filter && strcmp(section_filter, s))
       continue; // Skip this section
 
     const Properties * sec = getInfo(s);
+    if (sec == nullptr)
+    {
+      // There was no such section
+      continue;
+    }
 
     if (is_internal_section(sec))
       continue; // Skip whole section
@@ -5235,30 +5470,86 @@ fixShmKey(InitConfigFileParser::Context & ctx, const char *)
 /**
  * DB Node rule: Check various constraints
  */
-static bool
-checkDbConstraints(InitConfigFileParser::Context & ctx, const char *){
+#define CHECK_RESERVED_LESS_THAN_OR_EQUAL_TO_MAX_NO_OF(name)           \
+  if (Reserved##name > MaxNoOf##name)                                  \
+  {                                                                    \
+    ctx.reportError("Reserved" #name " must be less than or equal to " \
+		    "MaxNoOf" #name " - [%s] starting at line: %d",    \
+		    ctx.fname, ctx.m_sectionLineno);                   \
+    ok = false;                                                        \
+  }
 
-  Uint32 t1 = 0, t2 = 0;
-  ctx.m_currentSection->get("MaxNoOfConcurrentOperations", &t1);
-  ctx.m_currentSection->get("MaxNoOfConcurrentTransactions", &t2);
+static bool
+checkDbConstraints(InitConfigFileParser::Context & ctx, const char *)
+{
+  bool ok = true;
+
+  Uint32 MaxDMLOperationsPerTransaction = ~Uint32(0);
+  Uint32 MaxNoOfConcurrentIndexOperations = 0;
+  Uint32 MaxNoOfConcurrentOperations = 0;
+  Uint32 MaxNoOfConcurrentScans = 0;
+  Uint32 MaxNoOfConcurrentTransactions = 0;
+  Uint32 MaxNoOfFiredTriggers = 0;
+  Uint32 MaxNoOfLocalScans = 0;
+  Uint32 ReservedConcurrentIndexOperations = 0;
+  Uint32 ReservedConcurrentOperations = 0;
+  Uint32 ReservedConcurrentScans = 0;
+  Uint32 ReservedConcurrentTransactions = 0;
+  Uint32 ReservedFiredTriggers = 0;
+  Uint32 ReservedLocalScans = 0;
+
+  ctx.m_currentSection->get("MaxDMLOperationsPerTransaction", &MaxDMLOperationsPerTransaction);
+  ctx.m_currentSection->get("MaxNoOfConcurrentIndexOperations", &MaxNoOfConcurrentIndexOperations);
+  ctx.m_currentSection->get("MaxNoOfConcurrentOperations", &MaxNoOfConcurrentOperations);
+  ctx.m_currentSection->get("MaxNoOfConcurrentScans", &MaxNoOfConcurrentScans);
+  ctx.m_currentSection->get("MaxNoOfConcurrentTransactions", &MaxNoOfConcurrentTransactions);
+  ctx.m_currentSection->get("MaxNoOfFiredTriggers", &MaxNoOfFiredTriggers);
+  ctx.m_currentSection->get("MaxNoOfLocalScans", &MaxNoOfLocalScans);
+  ctx.m_currentSection->get("ReservedConcurrentIndexOperations", &ReservedConcurrentIndexOperations);
+  ctx.m_currentSection->get("ReservedConcurrentOperations", &ReservedConcurrentOperations);
+  ctx.m_currentSection->get("ReservedConcurrentScans", &ReservedConcurrentScans);
+  ctx.m_currentSection->get("ReservedConcurrentTransactions", &ReservedConcurrentTransactions);
+  ctx.m_currentSection->get("ReservedFiredTriggers", &ReservedFiredTriggers);
+  ctx.m_currentSection->get("ReservedLocalScans", &ReservedLocalScans);
   
-  if (t1 < t2) {
+  if (MaxDMLOperationsPerTransaction != ~Uint32(0) &&
+      MaxNoOfConcurrentOperations < MaxDMLOperationsPerTransaction)
+  {
+    ctx.reportError("MaxDMLOperationsPerTransaction must not be greater than "
+		    "MaxNoOfConcurrentOperations - [%s] starting at line: %d",
+		    ctx.fname, ctx.m_sectionLineno);
+    ok = false;
+  }
+
+  if (MaxNoOfConcurrentOperations < MaxNoOfConcurrentTransactions)
+  {
     ctx.reportError("MaxNoOfConcurrentOperations must be greater than "
 		    "MaxNoOfConcurrentTransactions - [%s] starting at line: %d",
 		    ctx.fname, ctx.m_sectionLineno);
-    return false;
+    ok = false;
   }
+
+  CHECK_RESERVED_LESS_THAN_OR_EQUAL_TO_MAX_NO_OF(ConcurrentIndexOperations);
+  CHECK_RESERVED_LESS_THAN_OR_EQUAL_TO_MAX_NO_OF(ConcurrentOperations);
+  CHECK_RESERVED_LESS_THAN_OR_EQUAL_TO_MAX_NO_OF(ConcurrentScans);
+  CHECK_RESERVED_LESS_THAN_OR_EQUAL_TO_MAX_NO_OF(ConcurrentTransactions);
+  CHECK_RESERVED_LESS_THAN_OR_EQUAL_TO_MAX_NO_OF(FiredTriggers);
+  CHECK_RESERVED_LESS_THAN_OR_EQUAL_TO_MAX_NO_OF(LocalScans);
 
   Uint32 replicas = 0, otherReplicas;
   ctx.m_currentSection->get("NoOfReplicas", &replicas);
-  if(ctx.m_userProperties.get("NoOfReplicas", &otherReplicas)){
-    if(replicas != otherReplicas){
+  if (ctx.m_userProperties.get("NoOfReplicas", &otherReplicas))
+  {
+    if (replicas != otherReplicas)
+    {
       ctx.reportError("NoOfReplicas defined differently on different nodes"
 		      " - [%s] starting at line: %d",
 		      ctx.fname, ctx.m_sectionLineno);
-      return false;
+      ok = false;
     }
-  } else {
+  }
+  else
+  {
     ctx.m_userProperties.put("NoOfReplicas", replicas);
   }
 
@@ -5278,15 +5569,16 @@ checkDbConstraints(InitConfigFileParser::Context & ctx, const char *){
 
   Uint64 sum= (Uint64)noOfTables + noOfOrderedIndexes + noOfUniqueHashIndexes;
   
-  if (sum > ((Uint32)~0 - 2)) {
+  if (sum > ((Uint32)~0 - 2))
+  {
     ctx.reportError("The sum of MaxNoOfTables, MaxNoOfOrderedIndexes and"
 		    " MaxNoOfUniqueHashIndexes must not exceed %u - [%s]"
                     " starting at line: %d",
 		    ((Uint32)~0 - 2), ctx.fname, ctx.m_sectionLineno);
-    return false;
+    ok = false;
   } 
 
-  return true;
+  return ok;
 }
 
 #include <NdbThread.h>
@@ -5530,14 +5822,38 @@ checkTCPConstraints(InitConfigFileParser::Context & ctx, const char * data){
   
   const char * host;
   struct in_addr addr;
-  if(ctx.m_currentSection->get(data, &host) && strlen(host) && 
-     Ndb_getInAddr(&addr, host)){
-    ctx.reportError("Unable to lookup/illegal hostname %s"
-		    " - [%s] starting at line: %d",
-		    host, ctx.fname, ctx.m_sectionLineno);
-    return false;
+  static std::unordered_map<std::string, bool> host_map;
+  bool ret = true;
+
+  if (ctx.m_currentSection->get(data, &host) && (strlen(host) > 0))
+  {
+    /**
+     * First an attempt is made to look into the hash table for a hostname and
+     * only if it's not found, we call Ndb_getInAddr().
+     */
+    auto ent = host_map.find(host);
+    if (ent != host_map.end())
+    {
+      const bool valid_host = ent->second;
+      ret = valid_host;
+    }
+    else if (Ndb_getInAddr(&addr, host) == 0)
+    {
+      host_map[host] = true;
+    }
+    else
+    {
+      host_map[host] = false;
+      ret = false;
+    }
   }
-  return true;
+  if (!ret)
+  {
+    ctx.reportError("Unable to lookup/illegal hostname %s"
+              " - [%s] starting at line: %d",
+              host, ctx.fname, ctx.m_sectionLineno);
+  }
+  return ret;
 }
 
 static
@@ -5650,7 +5966,9 @@ fixDeprecated(InitConfigFileParser::Context & ctx, const char * data){
 }
 
 static bool
-saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
+saveInConfigValues(InitConfigFileParser::Context & ctx,
+                   const char * data)
+{
   const Properties * sec;
   if(!ctx.m_currentInfo->get(ctx.fname, &sec)){
     require(false);
@@ -5673,10 +5991,8 @@ saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
     Uint32 no = 0;
     ctx.m_userProperties.get("$Section", id, &no);
     ctx.m_userProperties.put("$Section", id, no+1, true);
-    
-    ctx.m_configValues.openSection(id, no);
-    ctx.m_configValues.put(CFG_TYPE_OF_SECTION, typeVal);
-    
+
+    ctx.m_configValues.createSection(id, typeVal);
     Properties::Iterator it(ctx.m_currentSection);
     for (const char* n = it.first(); n != NULL; n = it.next()) {
       const Properties * info;
@@ -6428,9 +6744,9 @@ saveSectionsInConfigValues(Vector<ConfigInfo::ConfigRuleSection>& notused,
     }
 
     assert(data_sz >> 32 == 0);
-    ctx.m_configValues.expand(keys, Uint32(data_sz));
   }
 
+  require(ctx.m_configValues.begin());
   for (const char * name = it.first(); name != 0; name = it.next())
   {
     PropertiesType pt;
@@ -6448,7 +6764,7 @@ saveSectionsInConfigValues(Vector<ConfigInfo::ConfigRuleSection>& notused,
       saveInConfigValues(ctx, 0);
     }
   }
-
+  require(ctx.m_configValues.commit(false));
   return true;
 }
 

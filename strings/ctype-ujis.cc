@@ -1,5 +1,5 @@
 /* Copyright (c) 2002 MySQL AB & tommy@valley.ne.jp
-   Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -44,6 +44,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "template_utils.h"
 
 static const uchar ctype_ujis[257] = {
     0,                                              /* For standard library */
@@ -280,7 +281,7 @@ static const uchar sort_order_ujis[] = {
 extern "C" {
 static uint ismbchar_ujis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                           const char *p, const char *e) {
-  return ((*(uchar *)(p) < 0x80)
+  return ((static_cast<uchar>(*p) < 0x80)
               ? 0
               : isujis(*(p)) && (e) - (p) > 1 && isujis(*((p) + 1))
                     ? 2
@@ -308,17 +309,17 @@ static uint mbcharlen_ujis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 static size_t my_well_formed_len_ujis(
     const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const char *beg,
     const char *end, size_t pos, int *error) {
-  const uchar *b = (uchar *)beg;
+  const uchar *b = pointer_cast<const uchar *>(beg);
 
-  for (*error = 0; pos && b < (uchar *)end; pos--, b++) {
-    char *chbeg;
+  for (*error = 0; pos && b < pointer_cast<const uchar *>(end); pos--, b++) {
+    const char *chbeg;
     uint ch = *b;
 
     if (ch <= 0x7F) /* one byte */
       continue;
 
-    chbeg = (char *)b++;
-    if (b >= (uchar *)end) /* need more bytes */
+    chbeg = pointer_cast<const char *>(b++);
+    if (b >= pointer_cast<const uchar *>(end)) /* need more bytes */
     {
       *error = 1;
       return (size_t)(chbeg - beg); /* unexpected EOL  */
@@ -334,7 +335,7 @@ static size_t my_well_formed_len_ujis(
     if (ch == 0x8F) /* [x8F][xA1-xFE][xA1-xFE] */
     {
       ch = *b++;
-      if (b >= (uchar *)end) {
+      if (b >= pointer_cast<const uchar *>(end)) {
         *error = 1;
         return (size_t)(chbeg - beg); /* unexpected EOL */
       }
@@ -346,7 +347,7 @@ static size_t my_well_formed_len_ujis(
     *error = 1;
     return (size_t)(chbeg - beg); /* invalid sequence */
   }
-  return (size_t)(b - (uchar *)beg);
+  return (size_t)(b - pointer_cast<const uchar *>(beg));
 }
 
 static size_t my_numcells_eucjp(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
@@ -35815,42 +35816,43 @@ CHARSET_INFO my_charset_ujis_japanese_ci = {
     0,                 /* min_sort_char */
     0xFEFE,            /* max_sort_char */
     ' ',               /* pad char      */
-    0,                 /* escape_with_backslash_is_dangerous */
+    false,             /* escape_with_backslash_is_dangerous */
     1,                 /* levels_for_compare */
     &my_charset_handler,
     &my_collation_ci_handler,
     PAD_SPACE};
 
-CHARSET_INFO my_charset_ujis_bin = {91,
-                                    0,
-                                    0, /* number       */
-                                    MY_CS_COMPILED | MY_CS_BINSORT, /* state */
-                                    "ujis",     /* cs name    */
-                                    "ujis_bin", /* name         */
-                                    "",         /* comment      */
-                                    NULL,       /* tailoring    */
-                                    NULL,       /* coll_param   */
-                                    ctype_ujis,
-                                    to_lower_ujis,
-                                    to_upper_ujis,
-                                    NULL,              /* sort_order   */
-                                    NULL,              /* uca          */
-                                    NULL,              /* tab_to_uni   */
-                                    NULL,              /* tab_from_uni */
-                                    &my_caseinfo_ujis, /* caseinfo     */
-                                    NULL,              /* state_map    */
-                                    NULL,              /* ident_map    */
-                                    1,                 /* strxfrm_multiply */
-                                    1,                 /* caseup_multiply  */
-                                    2,                 /* casedn_multiply  */
-                                    1,                 /* mbminlen     */
-                                    3,                 /* mbmaxlen     */
-                                    1,                 /* mbmaxlenlen  */
-                                    0,                 /* min_sort_char */
-                                    0xFEFE,            /* max_sort_char */
-                                    ' ',               /* pad char      */
-                                    0, /* escape_with_backslash_is_dangerous */
-                                    1, /* levels_for_compare */
-                                    &my_charset_handler,
-                                    &my_collation_mb_bin_handler,
-                                    PAD_SPACE};
+CHARSET_INFO my_charset_ujis_bin = {
+    91,
+    0,
+    0,                              /* number       */
+    MY_CS_COMPILED | MY_CS_BINSORT, /* state */
+    "ujis",                         /* cs name    */
+    "ujis_bin",                     /* name         */
+    "",                             /* comment      */
+    NULL,                           /* tailoring    */
+    NULL,                           /* coll_param   */
+    ctype_ujis,
+    to_lower_ujis,
+    to_upper_ujis,
+    NULL,              /* sort_order   */
+    NULL,              /* uca          */
+    NULL,              /* tab_to_uni   */
+    NULL,              /* tab_from_uni */
+    &my_caseinfo_ujis, /* caseinfo     */
+    NULL,              /* state_map    */
+    NULL,              /* ident_map    */
+    1,                 /* strxfrm_multiply */
+    1,                 /* caseup_multiply  */
+    2,                 /* casedn_multiply  */
+    1,                 /* mbminlen     */
+    3,                 /* mbmaxlen     */
+    1,                 /* mbmaxlenlen  */
+    0,                 /* min_sort_char */
+    0xFEFE,            /* max_sort_char */
+    ' ',               /* pad char      */
+    false,             /* escape_with_backslash_is_dangerous */
+    1,                 /* levels_for_compare */
+    &my_charset_handler,
+    &my_collation_mb_bin_handler,
+    PAD_SPACE};

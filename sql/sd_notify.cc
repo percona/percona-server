@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,6 +46,7 @@
 #include <mysqld_error.h>                            // error logging
 #include "my_sys.h"                                  // my_strerror
 #include "mysql/components/services/log_builtins.h"  // error logging
+#include "scope_guard.h"                             // scope_guard
 #include "sql/log.h"                                 // error logging
 
 namespace sysd {
@@ -76,14 +77,21 @@ void notify_connect() {
   NotifyGlobals::socket = socket(AF_UNIX, SOCK_DGRAM, 0);
 
   sockaddr_un addr;
+  socklen_t addrlen;
   memset(&addr, 0, sizeof(sockaddr_un));
   addr.sun_family = AF_UNIX;
-  strcpy(addr.sun_path, sockstr);
+  if (sockstr[0] != '@') {
+    strcpy(addr.sun_path, sockstr);
+    addrlen = offsetof(struct sockaddr_un, sun_path) + sockstrlen + 1;
+  } else {  // Abstract namespace socket
+    addr.sun_path[0] = '\0';
+    strncpy(&addr.sun_path[1], sockstr + 1, strlen(sockstr) - 1);
+    addrlen = offsetof(struct sockaddr_un, sun_path) + sockstrlen;
+  }
   int ret = -1;
   do {
-    ret =
-        connect(NotifyGlobals::socket,
-                reinterpret_cast<const sockaddr *>(&addr), sizeof(sockaddr_un));
+    ret = connect(NotifyGlobals::socket,
+                  reinterpret_cast<const sockaddr *>(&addr), addrlen);
   } while (ret == -1 && errno == EINTR);
   if (ret == -1) {
     char errbuf[512];
@@ -105,10 +113,19 @@ void notify() {
   const char *src = note.c_str();
   const char *end = src + note.size();
   ssize_t status = -1;
+
+  auto sg = create_scope_guard([&]() {
+    NotifyGlobals::fmt.str("");  // clear the fmt buffer for new notification
+  });
+
+#ifdef SYSD_DBUG
+  std::cout << "Send to systemd notify socket:\n" << note << std::endl;
+  if (NotifyGlobals::socket == -1) {
+    return;
+  }
+#endif /* SYSD_DBUG */
+
   while (true) {
-#ifndef DBUG_OFF
-    std::cout << "Send to systemd notify socket:\n" << src << std::endl;
-#endif /* not defined DBUG_OFF */
     size_t remaining = end - src;
     status = write(NotifyGlobals::socket, src, remaining);
     if (status == -1) {
@@ -128,7 +145,6 @@ void notify() {
     LogErr(WARNING_LEVEL, ER_SYSTEMD_NOTIFY_WRITE_FAILED,
            my_strerror(errbuf, sizeof(errbuf) - 1, errno));
   }
-  NotifyGlobals::fmt.str("");  // clear the fmt buffer for new notification
 }
 #endif /* not defined _WIN32 */
 }  // namespace sysd

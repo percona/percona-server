@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,6 @@
 #include "../../router/src/router_app.h"
 #include "../../routing/src/mysql_routing.h"
 #include "../../routing/src/utils.h"
-#include "cmd_exec.h"
 #include "gtest_consoleoutput.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/plugin.h"
@@ -46,13 +45,13 @@
 #include <WinSock2.h>
 #endif
 
-#include "gmock/gmock.h"
+#include <gmock/gmock.h>
 
+using mysql_harness::Path;
+using std::string;
 using ::testing::ContainerEq;
 using ::testing::HasSubstr;
 using ::testing::StrEq;
-using mysql_harness::Path;
-using std::string;
 
 string g_cwd;
 Path g_origin;
@@ -66,6 +65,7 @@ const string kDefaultRoutingConfigStrategy =
 class TestConfig : public ConsoleOutputTest {
  protected:
   virtual void SetUp() {
+    init_test_logger();
     set_origin(g_origin);
     ConsoleOutputTest::SetUp();
     config_path.reset(new Path(*config_dir));
@@ -227,6 +227,7 @@ class TestConfigThreadStackSize
       public testing::WithParamInterface<ThreadStackSizeInfo> {
  public:
   void SetUp() override {
+    init_test_logger();
     set_origin(g_origin);
     ConsoleOutputTest::SetUp();
     config_path.reset(new Path(g_cwd));
@@ -279,7 +280,6 @@ int main(int argc, char *argv[]) {
   init_windows_sockets();
   g_origin = Path(argv[0]).dirname();
   g_cwd = Path(argv[0]).dirname().str();
-  register_test_logger();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

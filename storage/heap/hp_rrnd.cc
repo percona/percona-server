@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,30 +35,30 @@
 
 int heap_rrnd(HP_INFO *info, uchar *record, HP_HEAP_POSITION *pos) {
   HP_SHARE *share = info->s;
-  DBUG_ENTER("heap_rrnd");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("info: %p  pos: %p", info, pos));
 
   info->lastinx = -1;
   if (!(info->current_ptr = pos->ptr)) {
     info->update = 0;
     set_my_errno(HA_ERR_END_OF_FILE);
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
+    return HA_ERR_END_OF_FILE;
   }
   if (get_chunk_status(&share->recordspace, info->current_ptr) !=
       CHUNK_STATUS_ACTIVE) {
     /* Treat deleted and linked chunks as deleted */
     info->update = HA_STATE_PREV_FOUND | HA_STATE_NEXT_FOUND;
     set_my_errno(HA_ERR_RECORD_DELETED);
-    DBUG_RETURN(HA_ERR_RECORD_DELETED);
+    return HA_ERR_RECORD_DELETED;
   }
   info->update = HA_STATE_PREV_FOUND | HA_STATE_NEXT_FOUND | HA_STATE_AKTIV;
   if (hp_extract_record(info, record, info->current_ptr))
-    DBUG_RETURN(my_errno());
+    return my_errno();
 
   // reposition scan state also
   info->current_record = pos->record_no;
 
   DBUG_PRINT("exit", ("found record at %p", info->current_ptr));
   info->current_hash_ptr = 0; /* Can't use rnext */
-  DBUG_RETURN(0);
+  return 0;
 } /* heap_rrnd */

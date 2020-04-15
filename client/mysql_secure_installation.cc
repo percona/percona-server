@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -107,8 +107,6 @@ static struct my_option my_connection_options[] = {
     /* End token */
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
-bool find_temporary_password(char **p);
-
 static void usage() {
   print_version();
   fprintf(stdout, ORACLE_WELCOME_COPYRIGHT_NOTICE("2013"));
@@ -162,7 +160,7 @@ static bool my_arguments_get_one_option(
 #endif
       break;
   }
-  return 0;
+  return false;
 }
 }
 
@@ -302,7 +300,7 @@ static bool validate_password_exists() {
 static int install_password_validation_component() {
   int reply;
   int component_set = 0;
-  char *strength = NULL;
+  const char *strength = NULL;
   bool option_read = false;
   reply= get_response((const char *) "\nVALIDATE PASSWORD COMPONENT can be "
                                      "used to test passwords\nand improve "
@@ -327,15 +325,15 @@ static int install_password_validation_component() {
    "Please enter 0 = LOW, 1 = MEDIUM and 2 = STRONG: ",'2');
         switch (reply) {
           case (int)'0':
-            strength = (char *)"LOW";
+            strength = "LOW";
             option_read = true;
             break;
           case (int)'1':
-            strength = (char *)"MEDIUM";
+            strength = "MEDIUM";
             option_read = true;
             break;
           case (int)'2':
-            strength = (char *)"STRONG";
+            strength = "STRONG";
             option_read = true;
             break;
           default:
@@ -357,7 +355,8 @@ static int install_password_validation_component() {
       end += mysql_real_escape_string_quote(&mysql, end, strength,
                                             (ulong)strength_length, '\'');
       *end++ = '\'';
-      if (!execute_query((const char **)&query, (unsigned int)(end - query)))
+      const char *query_const = query;
+      if (!execute_query(&query_const, (unsigned int)(end - query)))
         DBUG_PRINT("info", ("query success!"));
       my_free(query);
     } else
@@ -391,7 +390,8 @@ static void estimate_password_strength(char *password_string) {
                                         (ulong)password_length, '\'');
   *end++ = '\'';
   *end++ = ')';
-  if (!execute_query((const char **)&query, (unsigned int)(end - query))) {
+  const char *query_const = query;
+  if (!execute_query(&query_const, (unsigned int)(end - query))) {
     MYSQL_RES *result = mysql_store_result(&mysql);
     MYSQL_ROW row = mysql_fetch_row(result);
     printf("\nEstimated strength of the password: %s \n", row[0]);
@@ -526,7 +526,8 @@ static void set_opt_user_password(int component_set) {
       my_free(password2);
       password1 = NULL;
       password2 = NULL;
-      if (!execute_query((const char **)&query, (unsigned int)(end - query))) {
+      const char *query_const = query;
+      if (!execute_query(&query_const, (unsigned int)(end - query))) {
         my_free(query);
         break;
       } else
@@ -559,23 +560,11 @@ static int get_opt_user_password() {
       password = 0;
       mysql_close(con);
     } else {
-      /*
-        No password is provided and we cannot connect with a blank password.
-        Assume there is an ongoing deployment running and attempt to locate
-        the temporary password file.
-      */
-      char *temp_pass;
-      if (find_temporary_password(&temp_pass) == true) {
-        my_free(password);
-        password = temp_pass;
-        using_temporary_password = true;
-      } else {
-        char prompt[128];
-        snprintf(prompt, sizeof(prompt) - 1,
-                 "Enter password for user %s: ", opt_user);
-        // Request password from user
-        password = get_tty_password(prompt);
-      }
+      char prompt[128];
+      snprintf(prompt, sizeof(prompt) - 1,
+               "Enter password for user %s: ", opt_user);
+      // Request password from user
+      password = get_tty_password(prompt);
     }
     init_connection_options(&mysql);
   }  // if !password_provided
@@ -663,7 +652,8 @@ static void drop_users(MYSQL_RES *result) {
     end += mysql_real_escape_string_quote(&mysql, end, host_tmp,
                                           (ulong)host_length, '\'');
     *end++ = '\'';
-    if (!execute_query((const char **)&query, (unsigned int)(end - query)))
+    const char *query_const = query;
+    if (!execute_query(&query_const, (unsigned int)(end - query)))
       DBUG_PRINT("info", ("query success!"));
     my_free(query);
   }
@@ -765,70 +755,13 @@ static void reload_privilege_tables() {
     fprintf(stdout, "\n ... skipping.\n");
 }
 
-/**
-  Attempt to retrieve a password from the temporary password file
-  '.mysql_secret'.
- @param [out] p A pointer to a password in a newly allocated buffer or null
- @returns true if the password was successfully retrieved.
-*/
-
-bool find_temporary_password(char **p) {
-  const char *root_path = "/root";
-  const char *password_file_name = "/.mysql_secret";
-  *p = NULL;
-  const char *home = getenv("HOME");
-  if (home == NULL) home = root_path;
-
-  size_t home_len = strlen(home);
-  size_t path_len = home_len + strlen(password_file_name) + 1;
-  char *path = (char *)malloc(path_len);
-  memset(path, 0, path_len);
-
-  strcat(path, home);
-  strcat(path, password_file_name);
-  FILE *fp = fopen(path, "r");
-  if (fp == NULL) {
-    free(path);
-    return false;
-  }
-
-  /*
-    The format of the password file is
-    ['#'][bytes]['\n']['password bytes']['\n']|[EOF])
-  */
-  char header[256];
-  char password[64];
-  size_t password_len = 0;
-  /* Read header and skip it */
-  if (fgets(&header[0], sizeof(header), fp) == NULL || header[0] != '#')
-    goto error;
-
-  /* Read password */
-  if (fgets(&password[0], sizeof(password), fp) == NULL) goto error;
-
-  /* Remove terminating newline character if it exists */
-  password_len = strlen(&password[0]);
-  if (password[password_len - 1] == '\n') password[password_len - 1] = '\0';
-
-  *p = my_strdup(PSI_NOT_INSTRUMENTED, &password[0], MYF(MY_FAE));
-  fprintf(stdout, "Connecting to MySQL server using password in '%s'\n", path);
-
-  free(path);
-  return true;
-
-error:
-  fprintf(stdout, "The password file '%s' is corrupt! Skipping.\n", path);
-  if (path) free(path);
-  return false;
-}
-
 int main(int argc, char *argv[]) {
   int reply;
   int rc;
   int hadpass, component_set = 0;
 
   MY_INIT(argv[0]);
-  DBUG_ENTER("main");
+  DBUG_TRACE;
   DBUG_PROCESS(argv[0]);
   if (mysql_init(&mysql) == NULL) {
     printf("... Failed to initialize the MySQL client framework.\n");

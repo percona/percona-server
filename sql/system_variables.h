@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,6 +94,14 @@ enum use_secondary_engine {
   SECONDARY_ENGINE_OFF = 0,
   SECONDARY_ENGINE_ON = 1,
   SECONDARY_ENGINE_FORCED = 2
+};
+
+// Values for default_table_encryption
+enum enum_default_table_encryption {
+  DEFAULT_TABLE_ENC_OFF = 0,
+  DEFAULT_TABLE_ENC_ON = 1,
+  DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING = 2,
+  DEFAULT_TABLE_ENC_ONLINE_FROM_KEYRING_TO_UNENCRYPTED = 3
 };
 
 /* Bits for different SQL modes modes (including ANSI mode) */
@@ -393,6 +401,14 @@ struct System_variables {
   /** Used for controlling preparation of queries against secondary engine. */
   ulong use_secondary_engine;
 
+  /**
+    Used for controlling which statements to execute in a secondary
+    storage engine. Only queries with an estimated cost higher than
+    this value will be attempted executed in a secondary storage
+    engine.
+  */
+  double secondary_engine_cost_threshold;
+
   /** Used for controlling Group Replication consistency guarantees */
   ulong group_replication_consistency;
 
@@ -409,6 +425,32 @@ struct System_variables {
     in the replication topology.
   */
   uint32_t immediate_server_version;
+
+  /**
+    @sa Sys_var_print_identified_with_as_hex
+  */
+  bool print_identified_with_as_hex;
+
+  /**
+    Used to determine if the database or tablespace should be encrypted by
+    default.
+  */
+  ulong default_table_encryption;
+
+  /**
+    @sa Sys_var_show_create_table_skip_secondary_engine
+  */
+  bool show_create_table_skip_secondary_engine;
+
+  /**
+    @sa Sys_var_generated_random_password_length
+  */
+  uint32_t generated_random_password_length;
+
+  /**
+    @sa Sys_var_require_row_format
+  */
+  bool require_row_format;
 };
 
 /**
@@ -520,7 +562,8 @@ const int COUNT_GLOBAL_STATUS_VARS =
 void add_diff_to_status(System_status_var *to_var, System_status_var *from_var,
                         System_status_var *dec_var);
 
-void add_to_status(System_status_var *to_var, System_status_var *from_var,
-                   bool reset_from_var);
+void add_to_status(System_status_var *to_var, System_status_var *from_var);
+
+void reset_system_status_vars(System_status_var *status_vars);
 
 #endif  // SYSTEM_VARIABLES_INCLUDED

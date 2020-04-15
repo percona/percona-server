@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,8 @@
 
 #ifndef SIMULATEDBLOCK_H
 #define SIMULATEDBLOCK_H
+
+#include <new>
 
 #include <NdbTick.h>
 #include <kernel_types.h>
@@ -65,6 +67,9 @@
 #include <blocks/record_types.hpp>
 
 #include "Ndbinfo.hpp"
+#include "portlib/NdbMem.h"
+#include <ndb_global.h>
+#include "BlockThreadBitmask.hpp"
 
 struct CHARSET_INFO;
 
@@ -410,7 +415,7 @@ enum OverloadStatus
    live system.
 */
 
-class SimulatedBlock :
+class alignas(NDB_CL) SimulatedBlock :
   public SegmentUtils  /* SimulatedBlock implements the Interface */
 {
   friend class TraceLCP;
@@ -434,6 +439,36 @@ class SimulatedBlock :
 public:
   friend class BlockComponent;
   virtual ~SimulatedBlock();
+
+  static void * operator new (size_t sz)
+  {
+    void* ptr = NdbMem_AlignedAlloc(NDB_CL, sz);
+    require(ptr != NULL);
+#ifdef VM_TRACE
+#ifndef NDB_PURIFY
+#ifdef VM_TRACE
+    const int initValue = 0xf3;
+#else
+    const int initValue = 0x0;
+#endif
+
+    char* charptr = (char*)ptr;
+    const int p = (sz / 4096);
+    const int r = (sz % 4096);
+
+    for(int i = 0; i<p; i++)
+      memset(charptr+(i*4096), initValue, 4096);
+
+    if(r > 0)
+      memset(charptr+p*4096, initValue, r);
+#endif
+#endif
+    return ptr;
+  }
+  static void operator delete  ( void* ptr )
+  {
+    NdbMem_AlignedFree(ptr);
+  }
 
   static const Uint32 BOUNDED_DELAY = 0xFFFFFF00;
 protected:
@@ -561,9 +596,26 @@ public:
    *   thread running an instance any of the threads in blocks[]
    *   will have executed a signal
    */
-  void synchronize_threads_for_blocks(Signal*, const Uint32 blocks[],
-                                      const Callback&, JobBufferLevel = JBB);
+  void synchronize_threads(Signal * signal,
+                           const BlockThreadBitmask& threads,
+                           const Callback & cb,
+                           JobBufferLevel req_prio,
+                           JobBufferLevel conf_prio);
+
+  void synchronize_threads_for_blocks(
+           Signal*,
+           const Uint32 blocks[],
+           const Callback&,
+           JobBufferLevel req_prio = JBB,
+           JobBufferLevel conf_prio = ILLEGAL_JB_LEVEL);
   
+  /**
+   * This method will make sure that all external signals from nodes handled by
+   * transporters in current thread are processed.
+   * Should be called from a TRPMAN-worker.
+   */
+  void synchronize_external_signals(Signal* signal, const Callback& cb);
+
   /**
    * This method make sure that the path specified in blocks[]
    *   will be traversed before returning
@@ -590,8 +642,10 @@ public:
 private:
   struct SyncThreadRecord
   {
+    BlockThreadBitmask m_threads;
     Callback m_callback;
     Uint32 m_cnt;
+    Uint32 m_next;
     Uint32 nextPool;
   };
   typedef ArrayPool<SyncThreadRecord> SyncThreadRecord_pool;
@@ -599,6 +653,7 @@ private:
   SyncThreadRecord_pool c_syncThreadPool;
   void execSYNC_THREAD_REQ(Signal*);
   void execSYNC_THREAD_CONF(Signal*);
+  void sendSYNC_THREAD_REQ(Signal*, Ptr<SimulatedBlock::SyncThreadRecord>);
 
   void execSYNC_REQ(Signal*);
 
@@ -635,6 +690,7 @@ protected:
   void setNodeOverloadStatus(OverloadStatus new_status);
   void setSendNodeOverloadStatus(OverloadStatus new_status);
   void setNeighbourNode(NodeId node);
+  void setNoSend();
   void getPerformanceTimers(Uint64 &micros_sleep,
                             Uint64 &spin_time,
                             Uint64 &buffer_full_micros_sleep,
@@ -739,7 +795,7 @@ protected:
 			   SectionHandle* sections) const;
 
   /**
-   * EXECUTE_DIRECT comes in four variants.
+   * EXECUTE_DIRECT comes in five variants.
    *
    * EXECUTE_DIRECT_FN/2 with explicit function, not signal number, see above.
    *
@@ -747,7 +803,10 @@ protected:
    *
    * EXECUTE_DIRECT_MT/5 used when other block may be in another thread.
    *
-   * EXECUTE_DIRECT_SS/5 can pass sections in call to block in same thread.
+   * EXECUTE_DIRECT_WITH_RETURN/4 calls another block within same thread and
+   *   expects that result is passed in signal using prepareRETURN_DIRECT.
+   *
+   * EXECUTE_DIRECT_WITH_SECTIONS/5 with sections to block in same thread.
    */
   void EXECUTE_DIRECT(Uint32 block,
 		      Uint32 gsn,
@@ -762,11 +821,25 @@ protected:
 		         Signal* signal,
 		         Uint32 len,
                          Uint32 givenInstanceNo);
-  void EXECUTE_DIRECT_SS(Uint32 block,
-		         Uint32 gsn,
-		         Signal* signal,
-		         Uint32 len,
-                         SectionHandle* sections);
+  void EXECUTE_DIRECT_WITH_RETURN(Uint32 block,
+                                  Uint32 gsn,
+                                  Signal* signal,
+                                  Uint32 len);
+  void EXECUTE_DIRECT_WITH_SECTIONS(Uint32 block,
+                                    Uint32 gsn,
+                                    Signal* signal,
+                                    Uint32 len,
+                                    SectionHandle* sections);
+  /**
+   * prepareRETURN_DIRECT is used to pass a return signal
+   * direct back to caller of EXECUTE_DIRECT_WITH_RETURN.
+   *
+   * The call to prepareRETURN_DIRECT should be immediately followed by
+   * return and bring back control to caller of EXECUTE_DIRECT_WITH_RETURN.
+   */
+  void prepareRETURN_DIRECT(Uint32 gsn,
+                            Signal* signal,
+                            Uint32 len);
 
   class SectionSegmentPool& getSectionSegmentPool();
   void release(SegmentedSectionPtr & ptr);
@@ -779,7 +852,7 @@ protected:
   void releaseSections(struct SectionHandle&);
 
   bool import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len);
-  bool import(SegmentedSectionPtr& ptr, const Uint32* src, Uint32 len);
+  bool import(SegmentedSectionPtr& ptr, const Uint32* src, Uint32 len) const;
   bool import(SectionHandle * dst, LinearSectionPtr src[3],Uint32 cnt);
 
   bool appendToSection(Uint32& firstSegmentIVal, const Uint32* src, Uint32 len);
@@ -789,7 +862,8 @@ protected:
   void handle_invalid_sections_in_send_signal(const Signal*) const;
   void handle_lingering_sections_after_execute(const Signal*) const;
   void handle_invalid_fragmentInfo(Signal*) const;
-  void handle_send_failed(SendStatus, Signal*) const;
+  template<typename SecPtr>
+  void handle_send_failed(SendStatus, Signal*, Uint32, SecPtr[]) const;
   void handle_out_of_longsignal_memory(Signal*) const;
 
   /**
@@ -853,7 +927,8 @@ protected:
   /* If send size is > FRAGMENT_WORD_SIZE, fragments of this size
    * will be sent by the sendFragmentedSignal variants
    */
-  STATIC_CONST( FRAGMENT_WORD_SIZE = 240 );
+  static constexpr Uint32 FRAGMENT_WORD_SIZE = 240;
+  static constexpr Uint32 BATCH_FRAGMENT_WORD_SIZE = 240 * 8;
 
   void sendFragmentedSignal(BlockReference ref, 
 			    GlobalSignalNumber gsn, 
@@ -892,6 +967,46 @@ protected:
 			    Uint32 noOfSections,
 			    Callback & = TheEmptyCallback,
 			    Uint32 messageSize = FRAGMENT_WORD_SIZE);
+
+  void sendBatchedFragmentedSignal(BlockReference ref,
+                                   GlobalSignalNumber gsn,
+                                   Signal* signal,
+                                   Uint32 length,
+                                   JobBufferLevel jbuf,
+                                   SectionHandle * sections,
+                                   bool noRelease,
+                                         Callback & = TheEmptyCallback,
+                                   Uint32 messageSize = BATCH_FRAGMENT_WORD_SIZE);
+
+  void sendBatchedFragmentedSignal(NodeReceiverGroup rg,
+                                   GlobalSignalNumber gsn,
+                                   Signal* signal,
+                                   Uint32 length,
+                                   JobBufferLevel jbuf,
+                                   SectionHandle * sections,
+                                   bool noRelease,
+                                   Callback & = TheEmptyCallback,
+                                   Uint32 messageSize = BATCH_FRAGMENT_WORD_SIZE);
+
+  void sendBatchedFragmentedSignal(BlockReference ref,
+                                   GlobalSignalNumber gsn,
+                                   Signal* signal,
+                                   Uint32 length,
+                                   JobBufferLevel jbuf,
+                                   LinearSectionPtr ptr[3],
+                                   Uint32 noOfSections,
+                                   Callback & = TheEmptyCallback,
+                                   Uint32 messageSize = BATCH_FRAGMENT_WORD_SIZE);
+
+  void sendBatchedFragmentedSignal(NodeReceiverGroup rg,
+                                   GlobalSignalNumber gsn,
+                                   Signal* signal,
+                                   Uint32 length,
+                                   JobBufferLevel jbuf,
+                                   LinearSectionPtr ptr[3],
+                                   Uint32 noOfSections,
+                                   Callback & = TheEmptyCallback,
+                                   Uint32 messageSize = BATCH_FRAGMENT_WORD_SIZE);
 
   /**
    * simBlockNodeFailure
@@ -1195,7 +1310,7 @@ protected:
    */
   void infoEvent(const char * msg, ...) const
     ATTRIBUTE_FORMAT(printf, 2, 3);
-  void warningEvent(const char * msg, ...) const
+  void warningEvent(const char * msg, ...)
     ATTRIBUTE_FORMAT(printf, 2, 3);
   
   /**
@@ -1961,11 +2076,22 @@ SimulatedBlock::EXECUTE_DIRECT(Uint32 block,
 
 inline
 void
-SimulatedBlock::EXECUTE_DIRECT_SS(Uint32 block, 
-			          Uint32 gsn, 
-			          Signal* signal, 
-			          Uint32 len,
-                                  SectionHandle* sections)
+SimulatedBlock::EXECUTE_DIRECT_WITH_RETURN(Uint32 block,
+                                           Uint32 gsn,
+                                           Signal* signal,
+                                            Uint32 len)
+{
+  EXECUTE_DIRECT(block, gsn, signal, len);
+  // TODO check prepareRETURN_DIRECT have been called
+}
+
+inline
+void
+SimulatedBlock::EXECUTE_DIRECT_WITH_SECTIONS(Uint32 block,
+                                             Uint32 gsn,
+                                             Signal* signal,
+                                             Uint32 len,
+                                             SectionHandle* sections)
 {
   signal->header.m_noOfSections = sections->m_cnt;
   for (Uint32 i = 0; i < sections->m_cnt; i++)
@@ -1974,6 +2100,21 @@ SimulatedBlock::EXECUTE_DIRECT_SS(Uint32 block,
   }
   sections->clear();
   EXECUTE_DIRECT(block, gsn, signal, len);
+}
+
+inline
+void
+SimulatedBlock::prepareRETURN_DIRECT(Uint32 gsn,
+                                     Signal* signal,
+                                     Uint32 len)
+{
+  signal->setLength(len);
+  if (unlikely(gsn > MAX_GSN))
+  {
+    handle_execute_error(gsn);
+    return;
+  }
+  signal->header.theVerId_signalNumber = gsn;
 }
 
 // Do a consictency check before reusing a signal.

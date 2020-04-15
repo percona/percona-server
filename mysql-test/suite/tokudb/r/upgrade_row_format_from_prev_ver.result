@@ -7,47 +7,6 @@
 # Unzip the zip file.
 # Remove copied files
 # restart:<hidden args>
-# Execute mysql_upgrade
-mysql.columns_priv                                 OK
-mysql.component                                    OK
-mysql.db                                           OK
-mysql.default_roles                                OK
-mysql.engine_cost                                  OK
-mysql.func                                         OK
-mysql.general_log                                  OK
-mysql.global_grants                                OK
-mysql.gtid_executed                                OK
-mysql.help_category                                OK
-mysql.help_keyword                                 OK
-mysql.help_relation                                OK
-mysql.help_topic                                   OK
-mysql.innodb_index_stats                           OK
-mysql.innodb_table_stats                           OK
-mysql.ndb_binlog_index                             OK
-mysql.password_history                             OK
-mysql.plugin                                       OK
-mysql.procs_priv                                   OK
-mysql.proxies_priv                                 OK
-mysql.role_edges                                   OK
-mysql.server_cost                                  OK
-mysql.servers                                      OK
-mysql.slave_master_info                            OK
-mysql.slave_relay_log_info                         OK
-mysql.slave_worker_info                            OK
-mysql.slow_log                                     OK
-mysql.tables_priv                                  OK
-mysql.time_zone                                    OK
-mysql.time_zone_leap_second                        OK
-mysql.time_zone_name                               OK
-mysql.time_zone_transition                         OK
-mysql.time_zone_transition_type                    OK
-mysql.user                                         OK
-sys.sys_config                                     OK
-test.t_lzma                                        OK
-test.t_quicklz                                     OK
-test.t_snappy                                      OK
-test.t_uncompressed                                OK
-test.t_zlib                                        OK
 #########
 # Performing test specific validation
 ###
@@ -71,7 +30,7 @@ t_zlib_status_id.tokudb
 SHOW CREATE TABLE test.t_uncompressed;
 Table	Create Table
 t_uncompressed	CREATE TABLE `t_uncompressed` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=TokuDB DEFAULT CHARSET=latin1
 SELECT * FROM test.t_uncompressed ORDER BY a;
 a
@@ -84,7 +43,7 @@ Pattern "compression_method=0" found
 SHOW CREATE TABLE test.t_snappy;
 Table	Create Table
 t_snappy	CREATE TABLE `t_snappy` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=TokuDB DEFAULT CHARSET=latin1
 SELECT * FROM test.t_snappy ORDER BY a;
 a
@@ -97,7 +56,7 @@ Pattern "compression_method=7" found
 SHOW CREATE TABLE test.t_quicklz;
 Table	Create Table
 t_quicklz	CREATE TABLE `t_quicklz` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=TokuDB DEFAULT CHARSET=latin1
 SELECT * FROM test.t_quicklz ORDER BY a;
 a
@@ -110,7 +69,7 @@ Pattern "compression_method=9" found
 SHOW CREATE TABLE test.t_lzma;
 Table	Create Table
 t_lzma	CREATE TABLE `t_lzma` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=TokuDB DEFAULT CHARSET=latin1
 SELECT * FROM test.t_lzma ORDER BY a;
 a
@@ -123,7 +82,7 @@ Pattern "compression_method=10" found
 SHOW CREATE TABLE test.t_zlib;
 Table	Create Table
 t_zlib	CREATE TABLE `t_zlib` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=TokuDB DEFAULT CHARSET=latin1
 SELECT * FROM test.t_zlib ORDER BY a;
 a

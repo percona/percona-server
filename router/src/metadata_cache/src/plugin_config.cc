@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 
 #include "dim.h"
 #include "mysql/harness/logging/logging.h"
+IMPORT_LOG_FUNCTIONS()
 
 using mysqlrouter::ms_to_seconds_string;
 using mysqlrouter::string_format;
@@ -50,8 +51,11 @@ std::string MetadataCachePluginConfig::get_default(
       {"ttl", ms_to_seconds_string(metadata_cache::kDefaultMetadataTTL)},
       {"connect_timeout", to_string(metadata_cache::kDefaultConnectTimeout)},
       {"read_timeout", to_string(metadata_cache::kDefaultReadTimeout)},
+      {"router_id", "0"},
       {"thread_stack_size",
-       to_string(mysql_harness::kDefaultStackSizeInKiloBytes)}};
+       to_string(mysql_harness::kDefaultStackSizeInKiloBytes)},
+      {"use_gr_notifications", "0"},
+      {"cluster_type", "gr"}};
   auto it = defaults.find(option);
   if (it == defaults.end()) {
     return std::string();
@@ -67,13 +71,22 @@ bool MetadataCachePluginConfig::is_required(const std::string &option) const {
   return std::find(required.begin(), required.end(), option) != required.end();
 }
 
-std::string MetadataCachePluginConfig::get_group_replication_id() const {
+std::string MetadataCachePluginConfig::get_cluster_type_specific_id() const {
   if (metadata_cache_dynamic_state) {
     metadata_cache_dynamic_state->load();
-    return metadata_cache_dynamic_state->get_gr_id();
+    return metadata_cache_dynamic_state->get_cluster_type_specific_id();
   }
 
   return "";
+}
+
+unsigned MetadataCachePluginConfig::get_view_id() const {
+  if (metadata_cache_dynamic_state) {
+    metadata_cache_dynamic_state->load();
+    return metadata_cache_dynamic_state->get_view_id();
+  }
+
+  return 0;
 }
 
 std::vector<mysql_harness::TCPAddress>
@@ -82,15 +95,15 @@ MetadataCachePluginConfig::get_metadata_servers(
   std::vector<mysql_harness::TCPAddress> address_vector;
 
   auto add_metadata_server = [&](const std::string &address) {
-    std::pair<std::string, uint16_t> bind_info;
     mysqlrouter::URI u(address);
-    bind_info.first = u.host;
-    bind_info.second = u.port;
-    if (bind_info.second == 0) {
-      bind_info.second = default_port;
-    }
-    address_vector.push_back(
-        mysql_harness::TCPAddress(bind_info.first, bind_info.second));
+    if (u.port == 0) u.port = default_port;
+
+    // push_back calls TCPAddress ctor, which queries DNS in order to determine
+    // IP address familiy (IPv4 or IPv6)
+    log_debug("Adding metadata server '%s:%u', also querying DNS ...",
+              u.host.c_str(), u.port);
+    address_vector.push_back(mysql_harness::TCPAddress(u.host, u.port));
+    log_debug("Done adding metadata server '%s:%u'", u.host.c_str(), u.port);
   };
 
   if (metadata_cache_dynamic_state) {
@@ -108,7 +121,6 @@ MetadataCachePluginConfig::get_metadata_servers(
 
     auto metadata_servers =
         metadata_cache_dynamic_state->get_metadata_servers();
-    std::pair<std::string, uint16_t> bind_info;
 
     for (const auto &address : metadata_servers) {
       try {
@@ -140,12 +152,28 @@ MetadataCachePluginConfig::get_metadata_servers(
   return address_vector;
 }
 
-ClusterMetadataDynamicState *MetadataCachePluginConfig::get_dynamic_state() {
+mysqlrouter::ClusterType MetadataCachePluginConfig::get_cluster_type(
+    const mysql_harness::ConfigSection *section) {
+  std::string value = get_option_string(section, "cluster_type");
+  if (value == "rs") {
+    return mysqlrouter::ClusterType::RS_V2;
+  } else if (value == "gr") {
+    return mysqlrouter::ClusterType::GR_V2;
+  }
+
+  throw invalid_argument(get_log_prefix("cluster_type") + " is incorrect '" +
+                         value + "', expected 'rs' or 'gr'");
+}
+
+std::unique_ptr<ClusterMetadataDynamicState>
+MetadataCachePluginConfig::get_dynamic_state(
+    const mysql_harness::ConfigSection *section) {
   bool use_dynamic_state = mysql_harness::DIM::instance().is_DynamicState();
   if (!use_dynamic_state) {
     return nullptr;
   }
 
   auto &dynamic_state_base = mysql_harness::DIM::instance().get_DynamicState();
-  return new ClusterMetadataDynamicState(&dynamic_state_base);
+  return std::make_unique<ClusterMetadataDynamicState>(
+      &dynamic_state_base, get_cluster_type(section));
 }

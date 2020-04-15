@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ int decimal_str2bin(const char *str, int str_len,
     int retval;                               /* return value from str2dec() */
     decimal_t dec;                            /* intermediate representation */
     decimal_digit_t digits[9];                /* for dec->buf */
-    char *end = (char *) str + str_len;       
+    const char *end = str + str_len;
     
     assert(str != 0);   
     assert(bin != 0);
@@ -81,5 +81,5 @@ int decimal_bin2str(const void *bin, int bin_len,
     to_len = decimal_string_size(&dec);
     if(to_len > str_len) return E_DEC_OOM;   
     
-    return decimal2string(&dec, str, &to_len, 0, 0, 0);
+    return decimal2string(&dec, str, &to_len);
 }

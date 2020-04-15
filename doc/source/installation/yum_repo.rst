@@ -12,12 +12,15 @@ repositories and the `download page
 |Percona| :program:`yum` repository supports popular *RPM*-based
 operating systems, including the *Amazon Linux AMI*.
 
-The easiest way to install the *Percona Yum* repository is to install an *RPM* that configures :program:`yum` and installs the `Percona GPG key <https://www.percona.com/downloads/RPM-GPG-KEY-percona>`_.
+The easiest way to install the *Percona Yum* repository is to install an *RPM*
+that configures :program:`yum` and installs the `Percona GPG key
+<https://www.percona.com/downloads/RPM-GPG-KEY-percona>`_.
 
 Supported Releases:
 
 - *CentOS* 6 and *RHEL* 6 (Current Stable)
 - *CentOS* 7 and *RHEL* 7
+- *RHEL* 8
 - *Amazon Linux AMI* (works the same as *CentOS* 6)
 - *Amazon Linux* 2
 
@@ -40,6 +43,33 @@ Supported Releases:
 
 The *CentOS* repositories should work well with *Red Hat Enterprise
 Linux* too, provided that :program:`yum` is installed on the server.
+
+.. important::
+
+     *CentOS* 6 offers an outdated version of the ``curl`` library required by the
+     :ref:`keyring Vault plugin <keyring_vault_plugin>` of |Percona Server|. The
+     version of the ``curl`` library in *CentOS* 6, which depends on the ``nss``
+     library, is known to create memory corruption issues. This bug is `registered in
+     Red Hat Bugzilla <https://bugzilla.redhat.com/show_bug.cgi?id=1057388>`_. Its
+     current status is `CLOSED WONTFIX`.
+
+     If you intend to use the keyring Vault plugin of |Percona Server|
+     make sure that you use the latest version of the ``curl`` library.
+     We recommend that you `build it from source
+     <https://curl.haxx.se/docs/install.html>`_ configuring with
+     ``ssl`` but without ``nss``:
+
+     .. code-block:: bash
+
+        $ ./configuration --with-ssl --without-nss --prefix=<INSTALATION DIRECTORY>
+
+     As soon as you install ``curl``, make sure that |Percona Server| will use
+     this version.
+
+    .. seealso::
+
+       How to install curl and libcurl
+          https://curl.haxx.se/docs/install.html
 
 Supported Platforms:
 
@@ -78,20 +108,20 @@ Each of the |Percona Server| RPM packages have a particular purpose.
 Installing |Percona Server| from Percona ``yum`` repository
 ===========================================================
 
-lease add sudo to percona-release setup and yum install commands
+Please add sudo to percona-release setup and yum install commands
 
 
 |tip.run-all.root|
 
-1. Install the Percona repository 
-   
+1. Install the Percona repository
+
    You can install Percona yum repository by running the following command as a ``root`` user or with sudo:
 
    .. code-block:: bash
-        
+
       $ sudo yum install https://repo.percona.com/yum/percona-release-latest.noarch.rpm
 
-   You should see some output such as the following: 
+   You should see some output such as the following:
 
    .. code-block:: bash
 
@@ -147,15 +177,15 @@ Installing |Percona Server| using downloaded rpm packages
    7:
 
    .. code-block:: bash
- 
+
       $ wget https://www.percona.com/downloads/Percona-Server-8.0/Percona-Server-8.0.13-3/binary/redhat/7/x86_64/Percona-Server-8.0.13-3-r63dafaf-el7-x86_64-bundle.tar
 
 2. You should then unpack the bundle to get the packages: :bash:`tar xvf Percona-Server-8.0.13-3-r63dafaf-el7-x86_64-bundle.tar`
 
-   After you unpack the bundle you should see the following packages when running :bash:`ls *.rpm`:  
+   After you unpack the bundle you should see the following packages when running :bash:`ls *.rpm`:
 
    .. admonition:: Output
-   
+
       .. code-block:: guess
 
 	 percona-server-80-debuginfo-8.0.13-3.el7.x86_64.rpm
@@ -166,6 +196,14 @@ Installing |Percona Server| using downloaded rpm packages
 	 percona-server-shared-compat-80-8.0.13-3.el7.x86_64.rpm
 	 percona-server-test-80-8.0.13-3.el7.x86_64.rpm
 	 percona-server-tokudb-80-8.0.13-3.el7.x86_64.rpm
+
+  .. note::
+
+    For an RHEL 8 package installation, Percona Server requires the mysql module to be disabled.
+
+    .. code-block:: bash
+
+        $ sudo yum module disable mysql
 
 3. Now you can install |Percona Server| 8.0 by running:
 
@@ -259,7 +297,7 @@ To completely uninstall |Percona Server| you'll need to remove all the installed
       rm -rf /var/lib/mysql
       rm -f /etc/my.cnf
 
-.. warning:: 
+.. warning::
 
    This will remove all the packages and delete all the data files (databases,
    tables, logs, etc.), you might want to take a backup before doing this in
@@ -267,7 +305,7 @@ To completely uninstall |Percona Server| you'll need to remove all the installed
 
 .. rubric:: Footnotes
 
-.. [#f1] 
+.. [#f1]
 
 .. include:: ../.res/replace.program.txt
 .. include:: ../.res/replace.txt

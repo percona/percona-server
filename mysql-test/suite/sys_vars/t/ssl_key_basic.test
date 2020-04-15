@@ -22,7 +22,6 @@
 #                                                                             #
 ###############################################################################
 
--- source include/have_ssl.inc
 
 --echo '#---------------------BS_STVARS_049_01----------------------#'
 ####################################################################
@@ -37,7 +36,7 @@ SELECT COUNT(@@GLOBAL.ssl_key);
 #   Check if Value can set                                         #
 ####################################################################
 
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
+--error ER_WRONG_TYPE_FOR_VAR
 SET @@GLOBAL.ssl_key=1;
 --echo Expected error 'Read only variable'
 

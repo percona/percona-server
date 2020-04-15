@@ -37,7 +37,7 @@ ENGINE=NDB;
 
 ALTER TABLESPACE ts1
 ADD DATAFILE 'datafile02.dat'
-INITIAL_SIZE 8M;
+INITIAL_SIZE 12M;
 
 CREATE TABLE t1
   (c1 INT NOT NULL PRIMARY KEY, 
@@ -89,8 +89,6 @@ CREATE INDEX t1_i ON t1(c2, c3);
 #Bug 18039
 CREATE UNIQUE INDEX t1_i2 ON t1(c2);
 ALTER TABLE t1 ADD c4 TIMESTAMP;
-# Save the TIMESTAMP value of c4 for later masking of .result file
-let $c4_timestamp_value=`select c4 FROM t1 WHERE c1 = 1`;
 ALTER TABLE t1 ADD c5 DOUBLE;
 ALTER TABLE t1 ADD INDEX (c5);
 --disable_warnings
@@ -151,7 +149,7 @@ connection master;
 ALTER TABLE t1 CHANGE c1 c1 DOUBLE;
 ALTER TABLE t1 CHANGE c2 c2 DECIMAL(10,2);
 ALTER TABLE t1 DROP COLUMN c3;
-ALTER TABLE t1 CHANGE c4 c4 TEXT CHARACTER SET utf8;
+ALTER TABLE t1 CHANGE c4 c4 TEXT CHARACTER SET utf8mb4;
 ALTER TABLE t1 CHANGE c4 c4 BLOB;
 ALTER TABLE t1 CHANGE c4 c3 BLOB;
 set @b1 = 'b1';
@@ -163,7 +161,6 @@ UPDATE t1 SET c3=@b1 where c1 = 2;
 
 --disable_warnings
 SHOW CREATE TABLE t1;
---replace_result $c4_timestamp_value <c4_timestamp_value>
 --enable_warnings
 SELECT * FROM t1 ORDER BY c1 LIMIT 5;
 
@@ -172,7 +169,6 @@ SELECT * FROM t1 ORDER BY c1 LIMIT 5;
 connection slave;
 --disable_warnings
 SHOW CREATE TABLE t1;
---replace_result $c4_timestamp_value <c4_timestamp_value>
 --enable_warnings
 # Bug 18094
 SELECT * FROM t1 ORDER BY c1 LIMIT 5;
@@ -294,7 +290,38 @@ SELECT COUNT(*) FROM history;
 --echo ************ Restore the slave ************************
 connection slave;
 CREATE DATABASE tpcb;
+
+# Store initial counts of both detected and synchronized objects
+--let $initial_detected_count = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
+--let $initial_synced_count = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
+
 --source include/ndb_restore_slave_eoption.inc
+
+--disable_query_log
+# Set low interval so changes are detected quickly
+SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
+SET GLOBAL ndb_metadata_check_interval = 0;
+--enable_query_log
+
+# Wait until the following 7 object changes are detected:
+# Logfile group 'lg1'
+# Tablespace 'ts1'
+# Tablespace 'ts2'
+# Table 'tpcb.account'
+# Table 'tpcb.history'
+# Table 'tpcb.teller'
+# Table 'tpcb.branch'
+--let $expected_changes = 7
+--let $max_wait = 30
+--source wait_metadata_changes_detected.inc
+
+# Changes have been detected, reset value
+--disable_query_log ONCE
+SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
+
+# Wait until the changes detected have been synced
+--let $max_wait = 30
+--source wait_metadata_synced.inc
 
 --echo ***** Check a few slave restore values ***************
 connection slave;

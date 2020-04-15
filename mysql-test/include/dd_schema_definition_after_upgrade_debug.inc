@@ -23,28 +23,22 @@ if (!$VERSION)
 --echo # Restart the server against the unzipped datadir.
 --echo ########################################################################
 --let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_$VERSION.log
---exec echo "restart: --datadir=$MYSQLD_DATADIR_UPGRADE --log-error-verbosity=3 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---let $wait_counter= 3000
---source include/wait_until_connected_again.inc
-
---echo ########################################################################
---echo # Execute mysql_upgrade.
---echo ########################################################################
---source include/mysql_upgrade_preparation.inc
-  # Filter out ndb_binlog_index to mask differences due to running with or
-  # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+--let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR_UPGRADE --log-error-verbosity=3 --log-error=$MYSQLD_LOG
+--let $wait_counter= 10000
+--replace_result $MYSQLD_DATADIR_UPGRADE MYSQLD_DATADIR_UPGRADE $MYSQLD_LOG MYSQLD_LOG
+--source include/start_mysqld.inc
+--let $restart_parameters=
 --source include/mysql_upgrade_cleanup.inc
 
 --echo ########################################################################
 --echo # Verify that we can restart after upgrade.
 --echo ########################################################################
---exec echo "restart: --datadir=$MYSQLD_DATADIR_UPGRADE --log-error-verbosity=3 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---let $wait_counter= 3000
---source include/wait_until_connected_again.inc
+--let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR_UPGRADE --log-error-verbosity=3 --log-error=$MYSQLD_LOG
+--let $wait_counter= 10000
+--let $shutdown_server_timeout= 300
+--replace_result $MYSQLD_DATADIR_UPGRADE MYSQLD_DATADIR_UPGRADE $MYSQLD_LOG MYSQLD_LOG
+--source include/restart_mysqld.inc
+--let $restart_parameters=
 
 --echo ########################################################################
 --echo # Target schema ids for an upgrade from $VERSION should hold.
@@ -71,13 +65,15 @@ if (!$VERSION)
 --echo ########################################################################
 --let $actual_dd_props = $MYSQL_TMP_DIR/actual_dd_properties.txt
 --let $file = $actual_dd_props
---let $filter = 'id|root|MYSQLD_VERSION_LO'
+--let $filter = id|root|MYSQLD_VERSION_LO
 --source include/dd_schema_dd_properties.inc
 --diff_files $target_dd_props $actual_dd_props
 
 --echo ########################################################################
 --echo # Remove copied files and stop the server.
 --echo ########################################################################
+--let $wait_counter= 10000
+--let $shutdown_server_timeout= 300
 --source include/shutdown_mysqld.inc
 --remove_file $MYSQL_TMP_DIR/data_$VERSION.zip
 --remove_file $actual_table_defs

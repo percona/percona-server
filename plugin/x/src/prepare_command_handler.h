@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,14 +25,13 @@
 #ifndef PLUGIN_X_SRC_PREPARE_COMMAND_HANDLER_H_
 #define PLUGIN_X_SRC_PREPARE_COMMAND_HANDLER_H_
 
-#include <array>
+#include <cinttypes>
 #include <map>
-#include <vector>
 
-#include "mysql/com_data.h"
 #include "plugin/x/ngs/include/ngs/error_code.h"
-#include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
+#include "plugin/x/src/interface/sql_session.h"
+#include "plugin/x/src/prepare_param_handler.h"
 #include "plugin/x/src/query_string_builder.h"
 #include "plugin/x/src/xpl_resultset.h"
 
@@ -47,17 +46,13 @@ class Prepare_command_handler {
   using Close = Mysqlx::Cursor::Close;
   using Fetch = Mysqlx::Cursor::Fetch;
   using Message_type = Mysqlx::Prepare::Prepare::OneOfMessage::Type;
-  using Any = Mysqlx::Datatypes::Any;
-  using Arg_list = google::protobuf::RepeatedPtrField<Any>;
-  using Param_list = std::vector<PS_PARAM>;
-  using Placeholder_id_list = std::vector<uint32_t>;
-  using Param_value_list = std::vector<std::array<unsigned char, 18>>;
-  using Id_type = std::uint32_t;
+  using Placeholder_list = Prepare_param_handler::Placeholder_list;
+  using Id_type = uint32_t;
 
   struct Prepared_stmt_info {
     Id_type m_server_stmt_id;
     Message_type m_type;
-    Placeholder_id_list m_placeholder_ids;
+    Placeholder_list m_placeholders;
     uint32_t m_args_offset;
     bool m_is_table_model;
     bool m_has_cursor;
@@ -71,7 +66,7 @@ class Prepare_command_handler {
   };
   using Cursor_info_list = std::map<Id_type, Cursor_info>;
 
-  explicit Prepare_command_handler(ngs::Session_interface *session)
+  explicit Prepare_command_handler(iface::Session *session)
       : m_session{session} {}
 
   ngs::Error_code execute_prepare(const Prepare &msg);
@@ -101,30 +96,26 @@ class Prepare_command_handler {
 
  protected:
   ngs::Error_code build_query(const Prepare::OneOfMessage &msg,
-                              std::vector<uint32_t> *ids,
-                              uint32_t *args_offset);
+                              Placeholder_list *ids, uint32_t *args_offset);
+
+  Prepare_command_delegate::Notice_level get_notice_level_flags(
+      const Prepared_stmt_info *stmt_info) const;
+
   void send_notices(const Prepared_stmt_info *stmt_info,
-                    const ngs::Resultset_interface::Info &info,
+                    const iface::Resultset::Info &info,
                     const bool is_eof) const;
 
-  ngs::Error_code prepare_parameters(const Arg_list &args,
-                                     const Placeholder_id_list &phs,
-                                     Param_list *params,
-                                     Param_value_list *param_values);
-  ngs::Error_code check_argument_placeholder_consistency(
-      const Arg_list::size_type args_size, const Placeholder_id_list &phs,
-      const uint32_t args_offset);
-
   ngs::Error_code execute_execute_impl(const Execute &msg,
-                                       ngs::Resultset_interface &rset);
+                                       const Prepared_stmt_info &prep_stmt_info,
+                                       iface::Resultset *rset);
   ngs::Error_code execute_deallocate_impl(const Id_type client_stmt_id,
                                           const Prepared_stmt_info *stmt_info);
   ngs::Error_code execute_cursor_fetch_impl(const Id_type cursor_id,
                                             Cursor_info *cursor_info,
-                                            const uint64 fetch_rows);
+                                            const uint64_t fetch_rows);
 
  private:
-  ngs::Session_interface *m_session;
+  iface::Session *m_session;
   Query_string_builder m_qb{1024};
   Prepared_stmt_info_list m_prepared_stmt_info;
   Cursor_info_list m_cursors_info;

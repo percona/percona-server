@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,16 +49,16 @@
   @return length of directory part
  */
 size_t dirname_length(const char *name) {
-  char *pos, *gpos;
 #ifdef _WIN32
   CHARSET_INFO *fs = fs_character_set();
 #endif
+  const char *pos = name - 1;
 #ifdef FN_DEVCHAR
-  if ((pos = (char *)strrchr(name, FN_DEVCHAR)) == 0)
+  const char *devchar_pos = strrchr(name, FN_DEVCHAR);
+  if (devchar_pos != nullptr) pos = devchar_pos;
 #endif
-    pos = (char *)name - 1;
 
-  gpos = pos++;
+  const char *gpos = pos++;
   for (; *pos; pos++) /* Find last FN_LIBCHAR */
   {
 #ifdef _WIN32
@@ -70,7 +70,7 @@ size_t dirname_length(const char *name) {
 #endif
     if (is_directory_separator(*pos)) gpos = pos;
   }
-  return (size_t)(gpos + 1 - (char *)name);
+  return gpos + 1 - name;
 }
 
 /**
@@ -95,12 +95,12 @@ size_t dirname_length(const char *name) {
 
 size_t dirname_part(char *to, const char *name, size_t *to_res_length) {
   size_t length;
-  DBUG_ENTER("dirname_part");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("'%s'", name));
 
   length = dirname_length(name);
   *to_res_length = (size_t)(convert_dirname(to, name, name + length) - to);
-  DBUG_RETURN(length);
+  return length;
 } /* dirname */
 
 #ifndef FN_DEVCHAR
@@ -141,7 +141,7 @@ char *convert_dirname(char *to, const char *from, const char *from_end) {
 #ifdef _WIN32
   CHARSET_INFO *fs = fs_character_set();
 #endif
-  DBUG_ENTER("convert_dirname");
+  DBUG_TRACE;
 
   /* We use -2 here, becasue we need place for the last FN_LIBCHAR */
   if (!from_end || (from_end - from) > FN_REFLEN - 2)
@@ -179,5 +179,5 @@ char *convert_dirname(char *to, const char *from, const char *from_end) {
     *to++ = FN_LIBCHAR;
     *to = 0;
   }
-  DBUG_RETURN(to); /* Pointer to end of dir */
+  return to; /* Pointer to end of dir */
 } /* convert_dirname */

@@ -1,17 +1,10 @@
-#
-# MDEV-11759: Encryption code in MariaDB 10.1/10.2 causes compatibility problems
-#
-
-call mtr.add_suppression("InnoDB: The page \\[page id: space=[1-9][0-9]*, page number=[1-9][0-9]*\\] in file '.*test.t[123]\\.ibd' cannot be decrypted\\.");
-call mtr.add_suppression("failed to read or decrypt \\[page id: space=[1-9][0-9]*, page number=[1-9][0-9]*\\]");
-
-call mtr.add_suppression("\\[Error\\] InnoDB: Page is still encrypted");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Post - encryption checksum verification failed - decryption failed for space id");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Encryption can't find tablespace key, please check the keyring plugin is loaded\.");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Table is encrypted but encryption service or used key_id is not available\.  Can't continue reading table\.");
+call mtr.add_suppression("\\[InnoDB\\] Space to be marked as encrypted was not found for id");
+call mtr.add_suppression("\\[InnoDB\\] The page \\[page id: space=[1-9][0-9]*, page number=[1-9][0-9]*\\] in file '.*test.t[123]\\.ibd' cannot be decrypted\\.");
+call mtr.add_suppression("\\[InnoDB\\] Post - encryption checksum verification failed - decryption failed for space id");
+call mtr.add_suppression("\\[InnoDB\\] Encryption can't find tablespace key, please check the keyring plugin is loaded\.");
+call mtr.add_suppression("\\[InnoDB\\] Table test/t(1|3) is encrypted but decryption failed\. Seems that the encryption key fetched from keyring is not the correct one\. Are you using the correct keyring?");
 
 SET GLOBAL innodb_file_per_table = ON;
-#set global innodb_compression_algorithm = 1;
 
 --echo # Create and populate tables to be corrupted
 # Corruption of this table will cause post-encryption checksum validation to fail on decrypt.
@@ -19,8 +12,9 @@ CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT,c char(200)) ENGINE=In
 # Corruption of this table will NOT cause post-encryption checksum validation. However the innodb checksum validation will fail.
 # Post-encryption checksum is XORed with innodb checksum - so it is not possible to validate post-encryption checksum for zipped pages.
 CREATE TABLE t2 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT,c char(200)) ENGINE=InnoDB row_format=compressed ENCRYPTION='KEYRING';
---disable_warnings # Disabling warnings as punch hole get generate ones when compression is enabled and
-                   # filesystem is not supporting them
+# Disabling warnings as punch hole get generate ones when compression is enabled
+# and filesystem is not supporting them
+--disable_warnings
 # Corruption of this table will cause post-encryption checksum validation to fail on decrypt.
 CREATE TABLE t3 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT, c char(200)) ENGINE=InnoDB COMPRESSION="zlib" ENCRYPTION='KEYRING';
 --enable_warnings
@@ -56,17 +50,17 @@ let MYSQLD_DATADIR=`select @@datadir`;
 perl;
 open(FILE, "+<", "$ENV{MYSQLD_DATADIR}/test/t1.ibd") or die "open";
 binmode FILE;
-seek(FILE, $ENV{'INNODB_PAGE_SIZE'} * 3 + 38, SEEK_SET) or die "seek";
+seek(FILE, $ENV{'INNODB_PAGE_SIZE'} * 4 + 38, SEEK_SET) or die "seek";
 print FILE pack("H*", "c00lcafedeadb017");
 close FILE or die "close";
 open(FILE, "+<", "$ENV{MYSQLD_DATADIR}/test/t2.ibd") or die "open";
 binmode FILE;
-seek(FILE, $ENV{'INNODB_PAGE_SIZE'} * 3 + 38, SEEK_SET) or die "seek";
+seek(FILE, $ENV{'INNODB_PAGE_SIZE'} * 4 + 38, SEEK_SET) or die "seek";
 print FILE pack("H*", "c00lcafedeadb017");
 close FILE or die "close";
 open(FILE, "+<", "$ENV{MYSQLD_DATADIR}/test/t3.ibd") or die "open";
 binmode FILE;
-seek(FILE, $ENV{'INNODB_PAGE_SIZE'} * 3 + 46, SEEK_SET) or die "seek";
+seek(FILE, $ENV{'INNODB_PAGE_SIZE'} * 4 + 46, SEEK_SET) or die "seek";
 print FILE pack("H*", "c00lcafedeadb017");
 close FILE or die "close";
 EOF
@@ -125,17 +119,17 @@ SELECT * FROM t3;
 perl;
 open(FILE, "+<", "$ENV{MYSQLD_DATADIR}/test/t1.ibd") or die "open";
 binmode FILE;
-seek(FILE, $ENV{'INNODB_PAGE_SIZE'} * 3 + 26, SEEK_SET) or die "seek";
+seek(FILE, $ENV{'INNODB_PAGE_SIZE'} * 4 + 26, SEEK_SET) or die "seek";
 print FILE pack("H*", "c00lcafedeadb017");
 close FILE or die "close";
 open(FILE, "+<", "$ENV{MYSQLD_DATADIR}/test/t2.ibd") or die "open";
 binmode FILE;
-seek(FILE, $ENV{'INNODB_PAGE_SIZE'} * 3 + 26, SEEK_SET) or die "seek";
+seek(FILE, $ENV{'INNODB_PAGE_SIZE'} * 4 + 26, SEEK_SET) or die "seek";
 print FILE pack("H*", "c00lcafedeadb017");
 close FILE or die "close";
 open(FILE, "+<", "$ENV{MYSQLD_DATADIR}/test/t3.ibd") or die "open";
 binmode FILE;
-seek(FILE, $ENV{'INNODB_PAGE_SIZE'} * 3 + 38, SEEK_SET) or die "seek";
+seek(FILE, $ENV{'INNODB_PAGE_SIZE'} * 4 + 38, SEEK_SET) or die "seek";
 print FILE pack("H*", "c00lcafedeadb017");
 close FILE or die "close";
 EOF

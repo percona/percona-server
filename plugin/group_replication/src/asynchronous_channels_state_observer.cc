@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,11 @@ int Asynchronous_channels_state_observer::thread_start(
   if (is_plugin_auto_starting_on_non_bootstrap_member() &&
       strcmp(param->channel_name, "group_replication_recovery") != 0 &&
       strcmp(param->channel_name, "group_replication_applier") != 0) {
-    initiate_wait_on_start_process();
+    if (initiate_wait_on_start_process()) {
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SLAVE_THREAD_ERROR_ON_CLONE,
+                   "slave IO", param->channel_name);
+      return 1;
+    }
 
     if (group_member_mgr && local_member_info->get_recovery_status() ==
                                 Group_member_info::MEMBER_ONLINE) {
@@ -99,7 +103,11 @@ int Asynchronous_channels_state_observer::applier_start(
   if (is_plugin_auto_starting_on_non_bootstrap_member() &&
       strcmp(param->channel_name, "group_replication_recovery") != 0 &&
       strcmp(param->channel_name, "group_replication_applier") != 0) {
-    initiate_wait_on_start_process();
+    if (initiate_wait_on_start_process()) {
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SLAVE_THREAD_ERROR_ON_CLONE,
+                   "slave applier", param->channel_name);
+      return 1;
+    }
 
     if (group_member_mgr && local_member_info->get_recovery_status() ==
                                 Group_member_info::MEMBER_ONLINE) {
@@ -191,7 +199,12 @@ int Asynchronous_channels_state_observer::applier_log_event(
       - It should not contain 'ON DELETE/UPDATE CASCADE' referential action
     */
     for (uint table = 0; table < trans_param->number_of_tables; table++) {
+#if defined(GROUP_REPLICATION_WITH_ROCKSDB)
+      if (trans_param->tables_info[table].db_type != DB_TYPE_INNODB &&
+          trans_param->tables_info[table].db_type != DB_TYPE_ROCKSDB) {
+#else
       if (trans_param->tables_info[table].db_type != DB_TYPE_INNODB) {
+#endif
         LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_NEEDS_INNODB_TABLE,
                      trans_param->tables_info[table].table_name);
         out++;

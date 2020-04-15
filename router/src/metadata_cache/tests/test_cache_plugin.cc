@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@
 /**
  * Constants that are used throughout the test cases.
  */
-
+const unsigned kRouterId = 2;
 const std::string replication_group_id = "0000-0000-0001";
 const std::string kDefaultTestReplicaset_1 = "replicaset-1";  // replicaset-1
 const std::string kDefaultTestReplicaset_2 = "replicaset-2";  // replicaset-2
@@ -67,14 +67,14 @@ class MetadataCachePluginTest : public ::testing::Test {
   MockNG mf;
 
   MetadataCachePluginTest()
-      : mf(kDefaultMetadataUser, kDefaultMetadataPassword, 1, 1, 1,
-           kDefaultMetadataTTL) {}
+      : mf(kDefaultMetadataUser, kDefaultMetadataPassword, 1, 1, 1) {}
 
   void SetUp() override {
     std::vector<ManagedInstance> instance_vector_1;
     metadata_cache::MetadataCacheAPI::instance()->cache_init(
-        replication_group_id, metadata_server_vector, kDefaultMetadataUser,
-        kDefaultMetadataPassword, kDefaultMetadataTTL,
+        mysqlrouter::ClusterType::GR_V1, kRouterId, replication_group_id,
+        metadata_server_vector,
+        {kDefaultMetadataUser, kDefaultMetadataPassword}, kDefaultMetadataTTL,
         mysqlrouter::SSLOptions(), kDefaultMetadataReplicaset, 1, 1);
     metadata_cache::MetadataCacheAPI::instance()->cache_start();
     int count = 1;

@@ -83,8 +83,14 @@ class Properties_impl : public Properties {
  public:
   Properties_impl() = default;
 
+  Properties_impl(const Properties_impl &o)
+      : Properties(o), m_map(o.m_map), m_keys(o.m_keys) {}
+
   /* Constructor accepting a set of valid keys. */
-  Properties_impl(const std::set<String_type> &keys) : m_keys(keys) {}
+  Properties_impl(const std::set<String_type> &keys)
+      : Properties(), m_keys(keys) {}
+
+  Properties_impl &operator=(const Properties_impl &) = delete;
 
   virtual const Properties_impl *impl() const { return this; }
 

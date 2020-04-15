@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -55,6 +55,10 @@ Plugin_table table_replication_applier_configuration::m_table_def(
     /* Definition */
     "  CHANNEL_NAME CHAR(64) not null,\n"
     "  DESIRED_DELAY INTEGER not null,\n"
+    "  PRIVILEGE_CHECKS_USER TEXT CHARACTER SET utf8 COLLATE utf8_bin null"
+    "    COMMENT 'User name for the security context of the applier.',\n"
+    "  REQUIRE_ROW_FORMAT ENUM('YES', 'NO') not null COMMENT "
+    "    'Indicates whether the channel shall only accept row based events.',\n"
     "  PRIMARY KEY (CHANNEL_NAME) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -187,6 +191,7 @@ int table_replication_applier_configuration::index_next(void) {
 }
 
 int table_replication_applier_configuration::make_row(Master_info *mi) {
+  DBUG_TRACE;
   DBUG_ASSERT(mi != NULL);
   DBUG_ASSERT(mi->rli != NULL);
 
@@ -196,6 +201,29 @@ int table_replication_applier_configuration::make_row(Master_info *mi) {
   m_row.channel_name_length = mi->get_channel() ? strlen(mi->get_channel()) : 0;
   memcpy(m_row.channel_name, mi->get_channel(), m_row.channel_name_length);
   m_row.desired_delay = mi->rli->get_sql_delay();
+
+  std::ostringstream oss;
+
+  if (mi->rli->is_privilege_checks_user_corrupted())
+    oss << "<INVALID>" << std::flush;
+  else if (mi->rli->get_privilege_checks_username().length() != 0) {
+    std::string username{replace_all_in_str(
+        mi->rli->get_privilege_checks_username(), "'", "\\'")};
+
+    oss << "'" << username << "'@";
+
+    if (mi->rli->get_privilege_checks_hostname().length() != 0)
+      oss << "'" << mi->rli->get_privilege_checks_hostname() << "'";
+    else
+      oss << "%";
+
+    oss << std::flush;
+  }
+
+  m_row.privilege_checks_user.assign(oss.str());
+
+  m_row.requires_row_format =
+      mi->rli->is_row_format_required() ? PS_RPL_YES : PS_RPL_NO;
 
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
@@ -207,22 +235,12 @@ int table_replication_applier_configuration::read_row_values(TABLE *table,
                                                              unsigned char *buf,
                                                              Field **fields,
                                                              bool read_all) {
-  Field *f;
-
-  /*
-    Note:
-    There are no NULL columns in this table,
-    so there are no null bits reserved for NULL flags per column.
-    There are no VARCHAR columns either, so the record is not
-    in HA_OPTION_PACK_RECORD format as most other performance_schema tables.
-    When HA_OPTION_PACK_RECORD is not set,
-    the table record reserves an extra null byte, see open_binary_frm().
-  */
-
+  DBUG_TRACE;
+  /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);
   buf[0] = 0;
 
-  for (; (f = *fields); fields++) {
+  for (Field *f = nullptr; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
       switch (f->field_index) {
         case 0: /**channel_name*/
@@ -230,6 +248,17 @@ int table_replication_applier_configuration::read_row_values(TABLE *table,
           break;
         case 1: /** desired_delay */
           set_field_ulong(f, static_cast<ulong>(m_row.desired_delay));
+          break;
+        case 2: /**privilege_checks_user*/
+          if (m_row.privilege_checks_user.length() != 0)
+            set_field_text(f, m_row.privilege_checks_user.data(),
+                           m_row.privilege_checks_user.length(),
+                           &my_charset_utf8mb4_bin);
+          else
+            f->set_null();
+          break;
+        case 3: /** require_row_format */
+          set_field_enum(f, m_row.requires_row_format);
           break;
         default:
           DBUG_ASSERT(false);

@@ -1,7 +1,7 @@
 #ifndef SQL_REGEXP_REGEXP_ENGINE_H_
 #define SQL_REGEXP_REGEXP_ENGINE_H_
 
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,17 +25,16 @@
 
 #include <unicode/uregex.h>
 
+#include <stddef.h>
 #include <stdint.h>
 #include <string>
-#include <vector>
+#include <utility>
 
 #include "m_ctype.h"    // CHARSET_INFO.
 #include "my_config.h"  // WORDS_BIGENDIAN
-#include "my_dbug.h"
 #include "sql/current_thd.h"
 #include "sql/regexp/errors.h"
 #include "sql/sql_class.h"  // THD
-#include "sql_string.h"
 #include "template_utils.h"
 
 extern CHARSET_INFO my_charset_utf16le_general_ci;
@@ -170,15 +169,12 @@ class Regexp_engine {
                                 int occurrence);
 
   /**
-    Copies the portion of the subject string between the start of the match
-    and the end of the match into result.
+    The start of the match and its length.
 
-    @param[out] result A string we can write to. The character set
-    regexp_lib_charset is used.
-
-    @return A pointer to @p result.
+    @return The index of the first code point of the match, and the length of
+    the same.
   */
-  String *MatchedSubstring(String *result);
+  std::pair<int, int> MatchedSubstring();
 
   bool IsError() const { return U_FAILURE(m_error_code); }
   bool CheckError() const { return check_icu_status(m_error_code); }

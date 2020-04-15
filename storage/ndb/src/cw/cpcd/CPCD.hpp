@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,8 @@
 #include <Properties.hpp>
 #include <Vector.hpp>
 
+#include <cstdint>
+
 #ifdef _WIN32
 typedef DWORD pid_t;
 #endif
@@ -58,8 +60,6 @@ inline bool is_bad_pid(pid_t pid) {
 #endif
 enum ProcessStatus { STOPPED = 0, STARTING = 1, RUNNING = 2, STOPPING = 3 };
 
-enum ProcessType { PERMANENT = 0, TEMPORARY = 1 };
-
 /**
  *  @brief Error codes for CPCD requests
  */
@@ -71,6 +71,7 @@ enum RequestStatusCode {
   AlreadyStopped = 4
 };
 
+std::string getCpcdVersion();
 /**
  *  @class CPCD
  *  @brief Manages processes, letting them be controlled with a TCP connection.
@@ -103,6 +104,39 @@ class CPCD {
     enum RequestStatusCode m_status;
     char m_errorstring[256];
   };
+
+  /** @brief Defines processes statuses */
+  class ProcessType {
+   public:
+    enum Value { TEMPORARY, PERMANENT };
+
+    ProcessType() = default;
+
+    constexpr ProcessType(Value aType) : value(aType) {}
+
+    ProcessType(const char *aType) {
+      value =
+          (native_strcasecmp(aType, "temporary") == 0) ? TEMPORARY : PERMANENT;
+    }
+
+    operator Value() const { return value; }
+
+    explicit operator bool() = delete;
+
+    const char *c_str() {
+      switch (value) {
+        case TEMPORARY:
+          return "temporary";
+        case PERMANENT:
+          return "permanent";
+      }
+      return nullptr;
+    }
+
+   private:
+    Value value;
+  };
+
   /**
    *  @brief Manages a process
    */
@@ -117,13 +151,17 @@ class CPCD {
     /**
      * @brief Constructs and empty Process
      */
-    Process(const Properties &props, class CPCD *cpcd);
+    Process(const Properties &props, class CPCD *cpcd,
+            uintptr_t sessionid = 0);
     /**
      *  @brief Monitors the process
      *
      *  The process is started or stopped as needed.
      */
     void monitor();
+
+    /** @brief checks if sessionid allows process changes */
+    bool allowsChangeFromSession(uintptr_t sessionid) const;
 
     /**
      *  @brief Checks if the process is running or not
@@ -147,12 +185,16 @@ class CPCD {
      */
     int readPid();
 
+    /** @brief Returns operating system process identifier */
+
+    int getPid();
+
     /**
      *  @brief Writes the pid from stable storage
      *
      *  @return
      *          - 0 if successful
-                - -1 and sets errno if an error occured
+                - -1 and sets errno if an error occurred
      */
     int writePid(int pid);
 
@@ -172,6 +214,14 @@ class CPCD {
      *        protocol, and will not be changed if a processes is restarted.
      */
     int m_id;
+
+    /** Session Id to which the Process belongs
+     *
+     * @note Used to validate if requests are comming from the same session
+     *       that created these processes. Should apply to temporary processes
+     *       only.
+     */
+    uintptr_t m_sessionid;
 
     /** @brief The name shown to the user */
     BaseString m_name;
@@ -205,8 +255,9 @@ class CPCD {
      *
      *  Either set to "interactive" or "permanent".
      */
-    BaseString m_type;
-    ProcessType m_processType;
+    // BaseString m_type;
+    // ProcessType m_processType;
+    ProcessType m_type;
 
     /**
      *  @brief Working directory
@@ -254,6 +305,9 @@ class CPCD {
 
     /** @brief Status of the process */
     enum ProcessStatus m_status;
+
+    /** @brief Status of the process before it's status is logged */
+    enum ProcessStatus m_previous_monitored_status;
 
     /** @bried Indicator that process should be removed when STOPPED */
     bool m_remove_on_stopped;
@@ -332,9 +386,10 @@ class CPCD {
    *          - true if the addition was successful,
    *          - false if not
    *          - RequestStatus will be filled in with a suitable error
-   *            if an error occured.
+   *            if an error occurred.
    */
-  bool defineProcess(RequestStatus *rs, Process *arg);
+  bool defineProcess(const class Properties &args, uintptr_t sessionid,
+                     RequestStatus *rs, int *id);
 
   /** Removes a Process from the CPCD.
    *
@@ -344,9 +399,9 @@ class CPCD {
    *          - true if the removal was successful,
    *          - false if not
    *          - The RequestStatus will be filled in with a suitable error
-   *            if an error occured.
+   *            if an error occurred.
    */
-  bool undefineProcess(RequestStatus *rs, int id);
+  bool undefineProcess(const int id, uintptr_t sessionid, RequestStatus *rs);
 
   /** Marks a Process for starting.
    *
@@ -358,9 +413,9 @@ class CPCD {
    *          - true if the marking was successful
    *          - false if not
    *          - RequestStatus will be filled in with a suitable error
-   *            if an error occured.
+   *            if an error occurred.
    */
-  bool startProcess(RequestStatus *rs, int id);
+  bool startProcess(const int id, uintptr_t sessionid, RequestStatus *rs);
 
   /** Marks a Process for stopping.
    *
@@ -368,9 +423,9 @@ class CPCD {
    *          - true if the marking was successful
    *          - false if not
    *          - The RequestStatus will be filled in with a suitable error
-   *            if an error occured.
+   *            if an error occurred.
    */
-  bool stopProcess(RequestStatus *rs, int id);
+  bool stopProcess(const int id, uintptr_t sessionid, RequestStatus *rs);
 
   /** Generates a list of processes, and sends them to the CPCD client */
   bool listProcesses(RequestStatus *rs, MutexVector<const char *> &);

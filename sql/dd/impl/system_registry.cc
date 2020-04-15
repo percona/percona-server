@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,15 +22,19 @@
 
 #include "sql/dd/impl/system_registry.h"
 
-#include "sql/dd/impl/system_views/character_sets.h"  // Character_sets
+#include "sql/dd/impl/system_views/administrable_role_authorizations.h"
+#include "sql/dd/impl/system_views/applicable_roles.h"   // Applicable_roles
+#include "sql/dd/impl/system_views/character_sets.h"     // Character_sets
+#include "sql/dd/impl/system_views/check_constraints.h"  // Check_constraints
 #include "sql/dd/impl/system_views/collation_charset_applicability.h"  // Collati...
 #include "sql/dd/impl/system_views/collations.h"         // Collations
 #include "sql/dd/impl/system_views/column_statistics.h"  // Column_statistics
 #include "sql/dd/impl/system_views/columns.h"            // Columns
 #include "sql/dd/impl/system_views/compression_dictionary.h"  // Compression_dictionary
 #include "sql/dd/impl/system_views/compression_dictionary_tables.h"  // Compression_dictionary_tables
-#include "sql/dd/impl/system_views/events.h"                         // Events
-#include "sql/dd/impl/system_views/files.h"                          // Files
+#include "sql/dd/impl/system_views/enabled_roles.h"        // Enabled_roles
+#include "sql/dd/impl/system_views/events.h"               // Events
+#include "sql/dd/impl/system_views/files.h"                // Files
 #include "sql/dd/impl/system_views/innodb_datafiles.h"     // Innodb_datafiles
 #include "sql/dd/impl/system_views/innodb_fields.h"        // Innodb_fields
 #include "sql/dd/impl/system_views/innodb_foreign.h"       // Innodb_foreign
@@ -42,6 +46,9 @@
 #include "sql/dd/impl/system_views/partitions.h"        // Partitions
 #include "sql/dd/impl/system_views/referential_constraints.h"  // Referential_con...
 #include "sql/dd/impl/system_views/resource_groups.h"      // Resource_groups
+#include "sql/dd/impl/system_views/role_column_grants.h"   // Role_column_grant
+#include "sql/dd/impl/system_views/role_routine_grants.h"  // Role_routine_gran
+#include "sql/dd/impl/system_views/role_table_grants.h"    // Role_table_grants
 #include "sql/dd/impl/system_views/routines.h"             // Routines
 #include "sql/dd/impl/system_views/schemata.h"             // Schemata
 #include "sql/dd/impl/system_views/st_geometry_columns.h"  // st_geometry_columns
@@ -57,6 +64,7 @@
 
 #include "sql/dd/impl/tables/catalogs.h"              // Catalog
 #include "sql/dd/impl/tables/character_sets.h"        // Character_sets
+#include "sql/dd/impl/tables/check_constraints.h"     // Check_constraints
 #include "sql/dd/impl/tables/collations.h"            // Collations
 #include "sql/dd/impl/tables/column_statistics.h"     // Column_statistics
 #include "sql/dd/impl/tables/column_type_elements.h"  // Column_type_elements
@@ -156,6 +164,7 @@ void System_tables::add_remaining_dd_tables() {
 
   register_table<Catalogs>(core);
   register_table<Character_sets>(core);
+  register_table<Check_constraints>(core);
   register_table<Collations>(core);
   register_table<dd::tables::Column_statistics>(core);
   register_table<Column_type_elements>(core);
@@ -235,16 +244,22 @@ void System_tables::add_remaining_dd_tables() {
 void System_views::init() {
   // Register system views with the server.
   dd::System_views::Types is = dd::System_views::Types::INFORMATION_SCHEMA;
-  dd::System_views::Types is_non_dd =
-      dd::System_views::Types::INFORMATION_SCHEMA_NON_DD;
+  dd::System_views::Types non_dd_based_is =
+      dd::System_views::Types::NON_DD_BASED_INFORMATION_SCHEMA;
 
+  register_view<dd::system_views::Enabled_roles>(non_dd_based_is);
+  register_view<dd::system_views::Applicable_roles>(non_dd_based_is);
+  register_view<dd::system_views::Administrable_role_authorizations>(
+      non_dd_based_is);
   register_view<dd::system_views::Character_sets>(is);
+  register_view<dd::system_views::Check_constraints>(is);
   register_view<dd::system_views::Collations>(is);
   register_view<dd::system_views::Collation_charset_applicability>(is);
   register_view<dd::system_views::Columns>(is);
   register_view<dd::system_views::Column_statistics>(is);
-  register_view<dd::system_views::Compression_dictionary>(is_non_dd);
-  register_view<dd::system_views::Compression_dictionary_tables>(is_non_dd);
+  register_view<dd::system_views::Compression_dictionary>(non_dd_based_is);
+  register_view<dd::system_views::Compression_dictionary_tables>(
+      non_dd_based_is);
   register_view<dd::system_views::Events>(is);
   register_view<dd::system_views::Files>(is);
   register_view<dd::system_views::Innodb_datafiles>(is);
@@ -258,6 +273,9 @@ void System_views::init() {
   register_view<dd::system_views::Partitions>(is);
   register_view<dd::system_views::Referential_constraints>(is);
   register_view<dd::system_views::Resource_groups>(is);
+  register_view<dd::system_views::Role_column_grants>(non_dd_based_is);
+  register_view<dd::system_views::Role_routine_grants>(non_dd_based_is);
+  register_view<dd::system_views::Role_table_grants>(non_dd_based_is);
   register_view<dd::system_views::Routines>(is);
   register_view<dd::system_views::Schemata>(is);
   register_view<dd::system_views::Show_statistics>(is);

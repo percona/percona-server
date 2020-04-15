@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -473,7 +473,23 @@ DbUtil::execCONTINUEB(Signal* signal){
 void
 DbUtil::execNODE_FAILREP(Signal* signal){
   jamEntry();
-  const NodeFailRep * rep = (NodeFailRep*)signal->getDataPtr();
+  NodeFailRep * rep = (NodeFailRep*)signal->getDataPtr();
+  if(signal->getLength() == NodeFailRep::SignalLength)
+  {
+    ndbrequire(signal->getNoOfSections() == 1);
+    ndbrequire(ndbd_send_node_bitmask_in_section(
+        getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version));
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr, 0);
+    memset(rep->theNodes, 0, sizeof(rep->theNodes));
+    copy(rep->theNodes, ptr);
+    releaseSections(handle);
+  }
+  else
+  {
+    memset(rep->theNodes + NdbNodeBitmask48::Size, 0, _NDB_NBM_DIFF_BYTES);
+  }
   NdbNodeBitmask failed; 
   failed.assign(NdbNodeBitmask::Size, rep->theNodes);
 
@@ -887,44 +903,51 @@ void DbUtil::execDBINFO_SCANREQ(Signal *signal)
         c_pagePool.getSize(),
         c_pagePool.getEntrySize(),
         c_pagePool.getUsedHi(),
-        { 0,0,0,0 }},
+        { 0,0,0,0 },
+        0},
       { "Prepare",
         c_preparePool.getUsed(),
         c_preparePool.getSize(),
         c_preparePool.getEntrySize(),
         c_preparePool.getUsedHi(),
-        { 0,0,0,0 }},
+        { 0,0,0,0 },
+        0},
       { "Prepared Operation",
         c_preparedOperationPool.getUsed(),
         c_preparedOperationPool.getSize(),
         c_preparedOperationPool.getEntrySize(),
         c_preparedOperationPool.getUsedHi(),
-        { 0,0,0,0 }},
+        { 0,0,0,0 },
+        0},
       { "Operation",
         c_operationPool.getUsed(),
         c_operationPool.getSize(),
         c_operationPool.getEntrySize(),
         c_operationPool.getUsedHi(),
-        { 0,0,0,0 }},
+        { 0,0,0,0 },
+        0},
       { "Transaction",
         c_transactionPool.getUsed(),
         c_transactionPool.getSize(),
         c_transactionPool.getEntrySize(),
         c_transactionPool.getUsedHi(),
-        { 0,0,0,0 }},
+        { 0,0,0,0 },
+        0},
       { "Attribute Mapping",
         c_attrMappingPool.getUsed(),
         c_attrMappingPool.getSize(),
         c_attrMappingPool.getEntrySize(),
         c_attrMappingPool.getUsedHi(),
-        { 0,0,0,0 }},
+        { 0,0,0,0 },
+        0},
       { "Data Buffer",
         c_dataBufPool.getUsed(),
         c_dataBufPool.getSize(),
         c_dataBufPool.getEntrySize(),
         c_dataBufPool.getUsedHi(),
-        { 0,0,0,0 }},
-      { NULL, 0,0,0,0, { 0,0,0,0 }}
+        { 0,0,0,0 },
+        0},
+      { NULL, 0,0,0,0, { 0,0,0,0 }, 0}
     };
 
     const size_t num_config_params =
@@ -945,6 +968,8 @@ void DbUtil::execDBINFO_SCANREQ(Signal *signal)
       row.write_uint64(pools[pool].entry_size);
       for (size_t i = 0; i < num_config_params; i++)
         row.write_uint32(pools[pool].config_params[i]);
+      row.write_uint32(GET_RG(pools[pool].record_type));
+      row.write_uint32(GET_TID(pools[pool].record_type));
       ndbinfo_send_row(signal, req, row, rl);
       pool++;
       if (rl.need_break(req))

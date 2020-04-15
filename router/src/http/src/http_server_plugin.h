@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,11 +30,9 @@
 #include <thread>
 #include <vector>
 
-#include <event2/buffer.h>
-#include <event2/event.h>
-#include <event2/http.h>
-#include <event2/listener.h>
-#include <event2/util.h>
+#include <event2/event.h>  // event_base
+#include <event2/http.h>   // evhttp_new
+#include <event2/util.h>   // evutil_socket_t
 
 #include "mysqlrouter/http_server_component.h"
 #include "posix_re.h"
@@ -56,6 +54,8 @@ class HttpRequestRouter {
   void clear_default_route();
   void route(HttpRequest req);
 
+  void require_realm(const std::string &realm) { require_realm_ = realm; }
+
  private:
   struct RouterData {
     std::string url_regex_str;
@@ -65,6 +65,7 @@ class HttpRequestRouter {
   std::vector<RouterData> request_handlers_;
 
   std::unique_ptr<BaseRequestHandler> default_route_;
+  std::string require_realm_;
 
   std::mutex route_mtx_;
 };
@@ -88,7 +89,17 @@ class HttpRequestThread {
         ev_http(evhttp_new(ev_base.get()), &evhttp_free),
         ev_shutdown_timer(event_new(ev_base.get(), -1, EV_PERSIST,
                                     stop_eventloop, ev_base.get()),
-                          &event_free) {}
+                          &event_free) {
+    // enable all methods to allow the higher layers to handle them
+    //
+    // CONNECT, TRACE and OPTIONS are disabled by default if not explicitly
+    // enabled.
+    evhttp_set_allowed_methods(
+        ev_http.get(), EVHTTP_REQ_CONNECT | EVHTTP_REQ_DELETE | EVHTTP_REQ_GET |
+                           EVHTTP_REQ_HEAD | EVHTTP_REQ_OPTIONS |
+                           EVHTTP_REQ_PATCH | EVHTTP_REQ_POST | EVHTTP_REQ_PUT |
+                           EVHTTP_REQ_TRACE);
+  }
 
   harness_socket_t get_socket_fd() { return accept_fd_; }
 
@@ -112,36 +123,27 @@ class HttpServer {
   HttpServer(const HttpServer &) = delete;
   HttpServer &operator=(const HttpServer &) = delete;
 
-  HttpServer(HttpServer &&) = default;
-  HttpServer &operator=(HttpServer &&) = default;
+  HttpServer(HttpServer &&) = delete;
+  HttpServer &operator=(HttpServer &&) = delete;
 
   void join_all();
 
-  ~HttpServer() { join_all(); }
+  virtual ~HttpServer() { join_all(); }
 
-  void start(size_t max_threads);
+  virtual void start(size_t max_threads);
   void add_route(const std::string &url_regex,
                  std::unique_ptr<BaseRequestHandler> cb);
   void remove_route(const std::string &url_regex);
 
- private:
+  HttpRequestRouter &request_router() { return request_router_; }
+
+ protected:
   std::vector<HttpRequestThread> thread_contexts_;
   std::string address_;
   uint16_t port_;
   HttpRequestRouter request_router_;
 
   std::vector<std::thread> sys_threads_;
-};
-
-class HttpStaticFolderHandler : public BaseRequestHandler {
- public:
-  explicit HttpStaticFolderHandler(std::string static_basedir)
-      : static_basedir_(std::move(static_basedir)) {}
-
-  void handle_request(HttpRequest &req) override;
-
- private:
-  std::string static_basedir_;
 };
 
 #endif

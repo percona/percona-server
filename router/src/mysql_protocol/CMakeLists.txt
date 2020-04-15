@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -47,17 +47,11 @@ TARGET_INCLUDE_DIRECTORIES(mysql_protocol PRIVATE ${include_dirs})
 # INSTALL(FILES ${mysqlv10_headers}
 #   DESTINATION "include/${HARNESS_NAME}/mysql_protocol")
 
-IF(WIN32)
-  INSTALL(TARGETS mysql_protocol 
-    RUNTIME DESTINATION "lib"
-    COMPONENT Router)
-ENDIF()
-
 IF(WITH_UNIT_TESTS AND GMOCK_FOUND)
   ADD_LIBRARY(mysql_protocol_static STATIC ${SOURCE_FILES})
   TARGET_LINK_LIBRARIES(mysql_protocol_static router_lib)
-  TARGET_COMPILE_DEFINITIONS(mysql_protocol_static PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)
-  TARGET_INCLUDE_DIRECTORIES(mysql_protocol_static PRIVATE ${include_dirs})
+  TARGET_COMPILE_DEFINITIONS(mysql_protocol_static PUBLIC -Dmysql_protocol_DEFINE_STATIC=1)
+  TARGET_INCLUDE_DIRECTORIES(mysql_protocol_static PUBLIC ${include_dirs})
 
   ADD_SUBDIRECTORY(tests/)
 ENDIF()

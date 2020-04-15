@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 #ifndef NDB_POOL_HPP
 #define NDB_POOL_HPP
 
+#include <climits>
+
 #include <ndb_global.h>
 #include <kernel_types.h>
 
@@ -44,6 +46,8 @@
 #define RG_BITS 5
 #define RG_MASK ((1 << RG_BITS) - 1)
 #define MAKE_TID(TID,RG) Uint32((TID << RG_BITS) | RG)
+#define GET_RG(rt) (rt & RG_MASK)
+#define GET_TID(rt) (rt >> RG_BITS)
 
 /**
  * Page bits
@@ -64,18 +68,98 @@ struct Record_info
 };
 
 /**
- * Resource_limit
+  Contains both restrictions and current state of a resource groups page memory
+  usage.
  */
+
 struct Resource_limit
 {
+  static constexpr Uint32 HIGHEST_LIMIT = UINT32_MAX;
+
+  /**
+    Minimal number of pages dedicated for the resource group from shared global
+    page memory.
+
+    If set to zero it also indicates that the resource group have lower
+    priority than resource group with some dedicated pages.
+
+    The lower priority denies the resource group to use the last percentage of
+    shared global page memory.
+
+    See documentation for Resource_limits.
+  */
   Uint32 m_min;
+
+  /**
+    Maximal number of pages that the resource group may allocate from shared
+    global page memory.
+
+    If set to zero there is no restrictions caused by this member.
+  */
   Uint32 m_max;
+
+  /**
+    Number of pages currently in use by resource group.
+  */
   Uint32 m_curr;
+
+  /**
+    Number of pages currently reserved as spare.
+
+    These spare pages may be used in exceptional cases, and to use them one
+    need to call special allocations functions, see alloc_spare_page in
+    Ndbd_mem_manager.
+
+    See also m_spare_pct below.
+  */
   Uint32 m_spare;
+
+  /**
+    The number of dedicated pages that a resource do not use but made available
+    for other resources to use, using give_up_pages().
+   */
+  Uint32 m_lent;
+
+  /**
+    The number of pages this resource use from pages otherwise dedicated to
+    other resources, using take_pages().
+  */
+  Uint32 m_borrowed;
+
+  /**
+    A positive number identifying the resource group.
+  */
   Uint32 m_resource_id;
+
+  /**
+    Control how many spare pages there should be for each page in use.
+  */
   Uint32 m_spare_pct;
 };
 
+class Magic
+{
+public:
+  explicit Magic(Uint32 type_id) { m_magic = make(type_id); }
+  bool check(Uint32 type_id) { return match(m_magic, type_id); }
+  template<typename T> static bool check_ptr(const T* ptr) { return match(ptr->m_magic, T::TYPE_ID); }
+static bool match(Uint32 magic, Uint32 type_id);
+static Uint32 make(Uint32 type_id);
+private:
+  Uint32 m_magic;
+};
+
+inline Uint32 Magic::make(Uint32 type_id)
+{
+  return type_id ^ ((~type_id) << 16);
+}
+
+inline bool Magic::match(Uint32 magic, Uint32 type_id)
+{
+  return magic == make(type_id);
+}
+
+class Ndbd_mem_manager;
 struct Pool_context
 {
   Pool_context() {}
@@ -85,9 +169,10 @@ struct Pool_context
    * Get mem root
    */
   void* get_memroot() const;
+  Ndbd_mem_manager* get_mem_manager() const;
   
   /**
-   * Alloc consekutive pages
+   * Alloc consecutive pages
    *
    *   @param i   : out : i value of first page
    *   @return    : pointer to first page (NULL if failed)
@@ -129,6 +214,8 @@ struct Pool_context
    *   @param cnt : in : no of pages to release
    */
   void release_pages(Uint32 type_id, Uint32 i, Uint32 cnt);
+
+  void* get_valid_page(Uint32 page_num) const;
 
   /**
    * Abort

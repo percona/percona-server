@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@ Plugin_table table_ees_by_host_by_error::m_table_def(
     /* Name */
     "events_errors_summary_by_host_by_error",
     /* Definition */
-    "  HOST CHAR(60) collate utf8mb4_bin default null,\n"
+    "  HOST CHAR(255) CHARACTER SET ASCII default null,\n"
     "  ERROR_NUMBER INTEGER,\n"
     "  ERROR_NAME VARCHAR(64),\n"
     "  SQL_STATE VARCHAR(5),\n"

@@ -64,15 +64,10 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57_encrypted/data;
 --source include/shutdown_mysqld.inc
 
 --echo # Start the 8.0 server on 5.7 datadir
---let $restart_parameters = "restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 --innodb-encrypt-tables=ON --keyring_file_data=$MYSQL_TMP_DIR/data57_encrypted/mysecret_keyring --innodb_sys_tablespace_encrypt=ON $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD"
+--echo # PS-5333: Remove need for innodb_encrypt_tables to ON/FORCE when mysql.ibd is encrypted
+--let $restart_parameters = "restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 --keyring_file_data=$MYSQL_TMP_DIR/data57_encrypted/mysecret_keyring --innodb_sys_tablespace_encrypt=ON $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD"
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD KEYRING_PLUGIN_EARLY_LOAD
 --source include/start_mysqld.inc
-
---echo # Execute mysql_upgrade
-
---source include/mysql_upgrade_preparation.inc
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
---source include/mysql_upgrade_cleanup.inc
 
 SHOW CREATE TABLE test.t1;
 SHOW CREATE TABLE test.t2;
@@ -91,3 +86,7 @@ SHOW CREATE TABLE test.t6;
 --echo # Restart the server with default options.
 --let $restart_parameters=
 --source include/start_mysqld.inc
+
+--echo # PS-5333: Remove need for innodb_encrypt_tables to ON/FORCE when mysql.ibd is encrypted
+--let $restart_parameters="restart:--default_table_encryption=OFF"
+--source include/restart_mysqld.inc

@@ -1,5 +1,5 @@
 /* -*- C++ -*- */
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "binary_log_types.h"
+#include "field_types.h"  // enum_field_types
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "mysql_com.h"
@@ -103,7 +103,7 @@ class sp_label {
   };
 
   /// Name of the label.
-  LEX_STRING name;
+  LEX_CSTRING name;
 
   /// Instruction pointer of the label.
   uint ip;
@@ -115,7 +115,7 @@ class sp_label {
   class sp_pcontext *ctx;
 
  public:
-  sp_label(LEX_STRING _name, uint _ip, enum_type _type, sp_pcontext *_ctx)
+  sp_label(LEX_CSTRING _name, uint _ip, enum_type _type, sp_pcontext *_ctx)
       : name(_name), ip(_ip), type(_type), ctx(_ctx) {}
 };
 
@@ -347,10 +347,12 @@ class sp_pcontext {
   /// The function is called only at parsing time.
   ///
   /// @param name               Variable name.
+  /// @param name_len           Variable name length.
   /// @param current_scope_only A flag if we search only in current scope.
   ///
   /// @return instance of found SP-variable, or NULL if not found.
-  sp_variable *find_variable(LEX_STRING name, bool current_scope_only) const;
+  sp_variable *find_variable(const char *name, size_t name_len,
+                             bool current_scope_only) const;
 
   /// Find SP-variable by the offset in the root parsing context.
   ///
@@ -389,9 +391,9 @@ class sp_pcontext {
   // Labels.
   /////////////////////////////////////////////////////////////////////////
 
-  sp_label *push_label(THD *thd, LEX_STRING name, uint ip);
+  sp_label *push_label(THD *thd, LEX_CSTRING name, uint ip);
 
-  sp_label *find_label(LEX_STRING name);
+  sp_label *find_label(LEX_CSTRING name);
 
   sp_label *last_label() {
     sp_label *label = m_labels.head();

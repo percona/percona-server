@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,6 @@
 #include <sys/types.h>
 #include <memory>
 
-#include "binary_log_types.h"
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -77,7 +76,7 @@ namespace dd {
 */
 
 static void fill_dd_function_return_type(THD *thd, sp_head *sp, Function *sf) {
-  DBUG_ENTER("fill_dd_function_return_type");
+  DBUG_TRACE;
 
   Create_field *return_field = &sp->m_return_field_def;
   DBUG_ASSERT(return_field != NULL);
@@ -91,11 +90,11 @@ static void fill_dd_function_return_type(THD *thd, sp_head *sp, Function *sf) {
   TABLE_SHARE share;
   table.s = &share;
   table.in_use = thd;
-  table.s->db_low_byte_first = 1;
+  table.s->db_low_byte_first = true;
 
   // Reset result data type in utf8
   sf->set_result_data_type_utf8(
-      get_sql_type_by_create_field(&table, return_field));
+      get_sql_type_by_create_field(&table, *return_field));
 
   // Set result is_zerofill flag.
   sf->set_result_zerofill(return_field->is_zerofill);
@@ -130,8 +129,6 @@ static void fill_dd_function_return_type(THD *thd, sp_head *sp, Function *sf) {
 
   // Set result collation id.
   sf->set_result_collation_id(return_field->charset->number);
-
-  DBUG_VOID_RETURN;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -149,7 +146,7 @@ static void fill_dd_function_return_type(THD *thd, sp_head *sp, Function *sf) {
 
 static void fill_parameter_info_from_field(THD *thd, Create_field *field,
                                            dd::Parameter *param) {
-  DBUG_ENTER("fill_parameter_info_from_field");
+  DBUG_TRACE;
 
   // Set data type.
   param->set_data_type(get_new_field_type(field->sql_type));
@@ -160,10 +157,10 @@ static void fill_parameter_info_from_field(THD *thd, Create_field *field,
   TABLE_SHARE share;
   table.s = &share;
   table.in_use = thd;
-  table.s->db_low_byte_first = 1;
+  table.s->db_low_byte_first = true;
 
   // Reset data type in utf8
-  param->set_data_type_utf8(get_sql_type_by_create_field(&table, field));
+  param->set_data_type_utf8(get_sql_type_by_create_field(&table, *field));
 
   // Set is_zerofill flag.
   param->set_zerofill(field->is_zerofill);
@@ -214,8 +211,6 @@ static void fill_parameter_info_from_field(THD *thd, Create_field *field,
 
   // Set collation id.
   param->set_collation_id(field->charset->number);
-
-  DBUG_VOID_RETURN;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -235,7 +230,7 @@ static void fill_parameter_info_from_field(THD *thd, Create_field *field,
 
 static bool fill_routine_parameters_info(THD *thd, sp_head *sp,
                                          Routine *routine) {
-  DBUG_ENTER("fill_routine_parameters_info");
+  DBUG_TRACE;
 
   /*
     The return type of the stored function is listed as first parameter from
@@ -277,7 +272,7 @@ static bool fill_routine_parameters_info(THD *thd, sp_head *sp,
         break;
       default:
         DBUG_ASSERT(false); /* purecov: deadcode */
-        DBUG_RETURN(true);  /* purecov: deadcode */
+        return true;        /* purecov: deadcode */
     }
     param->set_mode(mode);
 
@@ -285,7 +280,7 @@ static bool fill_routine_parameters_info(THD *thd, sp_head *sp,
     fill_parameter_info_from_field(thd, field_def, param);
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -307,7 +302,7 @@ static bool fill_routine_parameters_info(THD *thd, sp_head *sp,
 static bool fill_dd_routine_info(THD *thd, const dd::Schema &schema,
                                  sp_head *sp, Routine *routine,
                                  const LEX_USER *definer) {
-  DBUG_ENTER("fill_dd_routine_info");
+  DBUG_TRACE;
 
   // Set name.
   routine->set_name(sp->m_name.str);
@@ -344,7 +339,7 @@ static bool fill_dd_routine_info(THD *thd, const dd::Schema &schema,
       break;
     default:
       DBUG_ASSERT(false); /* purecov: deadcode */
-      DBUG_RETURN(true);  /* purecov: deadcode */
+      return true;        /* purecov: deadcode */
   }
   routine->set_sql_data_access(daccess);
 
@@ -362,7 +357,7 @@ static bool fill_dd_routine_info(THD *thd, const dd::Schema &schema,
       break;
     default:
       DBUG_ASSERT(false); /* purecov: deadcode */
-      DBUG_RETURN(true);  /* purecov: deadcode */
+      return true;        /* purecov: deadcode */
   }
   routine->set_security_type(sec_type);
 
@@ -383,7 +378,7 @@ static bool fill_dd_routine_info(THD *thd, const dd::Schema &schema,
   const CHARSET_INFO *db_cs = NULL;
   if (get_default_db_collation(schema, &db_cs)) {
     DBUG_ASSERT(thd->is_error());
-    DBUG_RETURN(true);
+    return true;
   }
   if (db_cs == NULL) db_cs = thd->collation();
 
@@ -394,14 +389,14 @@ static bool fill_dd_routine_info(THD *thd, const dd::Schema &schema,
                                                    : "");
 
   // Fill routine parameters
-  DBUG_RETURN(fill_routine_parameters_info(thd, sp, routine));
+  return fill_routine_parameters_info(thd, sp, routine);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 bool create_routine(THD *thd, const Schema &schema, sp_head *sp,
                     const LEX_USER *definer) {
-  DBUG_ENTER("dd::create_routine");
+  DBUG_TRACE;
 
   bool error = false;
   // Create Function or Procedure object.
@@ -412,8 +407,7 @@ bool create_routine(THD *thd, const Schema &schema, sp_head *sp,
     fill_dd_function_return_type(thd, sp, func.get());
 
     // Fill routine object.
-    if (fill_dd_routine_info(thd, schema, sp, func.get(), definer))
-      DBUG_RETURN(true);
+    if (fill_dd_routine_info(thd, schema, sp, func.get(), definer)) return true;
 
     // Store routine metadata in DD table.
     enum_check_fields saved_check_for_truncated_fields =
@@ -425,8 +419,7 @@ bool create_routine(THD *thd, const Schema &schema, sp_head *sp,
     std::unique_ptr<Procedure> proc(schema.create_procedure(thd));
 
     // Fill routine object.
-    if (fill_dd_routine_info(thd, schema, sp, proc.get(), definer))
-      DBUG_RETURN(true);
+    if (fill_dd_routine_info(thd, schema, sp, proc.get(), definer)) return true;
 
     // Store routine metadata in DD table.
     enum_check_fields saved_check_for_truncated_fields =
@@ -436,13 +429,13 @@ bool create_routine(THD *thd, const Schema &schema, sp_head *sp,
     thd->check_for_truncated_fields = saved_check_for_truncated_fields;
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 bool alter_routine(THD *thd, Routine *routine, st_sp_chistics *chistics) {
-  DBUG_ENTER("dd::alter_routine");
+  DBUG_TRACE;
 
   // Set last altered time.
   routine->set_last_altered(
@@ -461,7 +454,7 @@ bool alter_routine(THD *thd, Routine *routine, st_sp_chistics *chistics) {
         break;
       default:
         DBUG_ASSERT(false); /* purecov: deadcode */
-        DBUG_RETURN(true);  /* purecov: deadcode */
+        return true;        /* purecov: deadcode */
     }
 
     routine->set_security_type(sec_type);
@@ -485,7 +478,7 @@ bool alter_routine(THD *thd, Routine *routine, st_sp_chistics *chistics) {
         break;
       default:
         DBUG_ASSERT(false); /* purecov: deadcode */
-        DBUG_RETURN(true);  /* purecov: deadcode */
+        return true;        /* purecov: deadcode */
     }
     routine->set_sql_data_access(daccess);
   }
@@ -494,7 +487,7 @@ bool alter_routine(THD *thd, Routine *routine, st_sp_chistics *chistics) {
   if (chistics->comment.str) routine->set_comment(chistics->comment.str);
 
   // Update routine.
-  DBUG_RETURN(thd->dd_client()->update(routine));
+  return thd->dd_client()->update(routine);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

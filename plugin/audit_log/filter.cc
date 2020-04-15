@@ -20,6 +20,7 @@
 #include "audit_log.h"
 #include "m_ctype.h"
 #include "map_helpers.h"
+#include "my_hostname.h"
 #include "my_sys.h"
 #include "my_user.h"
 #include "mysql/psi/mysql_rwlock.h"

@@ -4,7 +4,7 @@ call mtr.add_suppression("Column count of mysql\\.user is wrong\\. Expected [0-9
 
 ALTER TABLE mysql.user RENAME mysql.user_bak;
 
-CREATE TABLE mysql.user(Host char binary DEFAULT'',User char binary DEFAULT'',
+CREATE TABLE mysql.user(Host char COLLATE utf8_bin DEFAULT'',User char COLLATE utf8_bin DEFAULT'',
 Password char collate latin1_bin DEFAULT'',Select_priv enum('N','Y')COLLATE utf8_general_ci DEFAULT'N',
 Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
 Update_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',

@@ -22,7 +22,13 @@ SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES WHERE ID = conn
 ID	SPACE	PATH	SIZE	STATE	PURPOSE
 ID	4294501264	./#innodb_temp/temp_8.ibt	98304	ACTIVE	INTRINSIC
 ID	4294501265	./#innodb_temp/temp_9.ibt	114688	ACTIVE	USER
-SET GLOBAL innodb_encrypt_tables=ON;
+SELECT @@global.default_table_encryption;
+@@global.default_table_encryption
+OFF
+SET GLOBAL default_table_encryption=ON;
+SELECT @@global.default_table_encryption;
+@@global.default_table_encryption
+ON
 CREATE TEMPORARY TABLE test.t4(a INT, b BLOB);
 CREATE TEMPORARY TABLE test.t5(a INT, b BLOB);
 CREATE TABLE t6 like t1;
@@ -38,12 +44,15 @@ ID	4294501262	./#innodb_temp/temp_6.ibt	98304	ACTIVE	INTRINSIC ENCRYTPED
 ID	4294501263	./#innodb_temp/temp_7.ibt	114688	ACTIVE	USER ENCRYPTED
 ID	4294501264	./#innodb_temp/temp_8.ibt	98304	ACTIVE	INTRINSIC
 ID	4294501265	./#innodb_temp/temp_9.ibt	114688	ACTIVE	USER
-SET GLOBAL innodb_encrypt_tables=OFF;
+SELECT @@global.default_table_encryption;
+@@global.default_table_encryption
+ON
+SET GLOBAL default_table_encryption=OFF;
+SELECT @@global.default_table_encryption;
+@@global.default_table_encryption
+OFF
 DROP TABLE t3, t6;
 SET GLOBAL innodb_temp_tablespace_encrypt=ON;
-SELECT @@innodb_encrypt_tables;
-@@innodb_encrypt_tables
-OFF
 # Create a new connection.
 SELECT @@session.big_tables;
 @@session.big_tables
@@ -64,7 +73,13 @@ SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES WHERE ID = conn
 ID	SPACE	PATH	SIZE	STATE	PURPOSE
 ID	4294501260	./#innodb_temp/temp_4.ibt	98304	ACTIVE	INTRINSIC ENCRYTPED
 ID	4294501261	./#innodb_temp/temp_5.ibt	114688	ACTIVE	USER ENCRYPTED
-SET GLOBAL innodb_encrypt_tables=ON;
+SELECT @@global.default_table_encryption;
+@@global.default_table_encryption
+OFF
+SET GLOBAL default_table_encryption=ON;
+SELECT @@global.default_table_encryption;
+@@global.default_table_encryption
+ON
 CREATE TEMPORARY TABLE test.t4(a INT, b BLOB);
 CREATE TEMPORARY TABLE test.t5(a INT, b BLOB);
 CREATE TABLE t6 like t1;
@@ -78,20 +93,11 @@ SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES WHERE ID = conn
 ID	SPACE	PATH	SIZE	STATE	PURPOSE
 ID	4294501260	./#innodb_temp/temp_4.ibt	98304	ACTIVE	INTRINSIC ENCRYTPED
 ID	4294501261	./#innodb_temp/temp_5.ibt	147456	ACTIVE	USER ENCRYPTED
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
 SET GLOBAL innodb_temp_tablespace_encrypt=default;
-SET GLOBAL innodb_encrypt_tables=default;
+SET GLOBAL default_table_encryption=default;
 SET GLOBAL big_tables=default;
 DROP TABLE t3;
 DROP TABLE t6;
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
-ID	SPACE	PATH	SIZE	STATE	PURPOSE
-ID	4294501257	./#innodb_temp/temp_1.ibt	81920	INACTIVE	NONE
-ID	4294501258	./#innodb_temp/temp_2.ibt	81920	INACTIVE	NONE
-ID	4294501259	./#innodb_temp/temp_3.ibt	81920	INACTIVE	NONE
-ID	4294501260	./#innodb_temp/temp_4.ibt	81920	INACTIVE	NONE
-ID	4294501261	./#innodb_temp/temp_5.ibt	81920	INACTIVE	NONE
-ID	4294501262	./#innodb_temp/temp_6.ibt	81920	ACTIVE	INTRINSIC
-ID	4294501263	./#innodb_temp/temp_7.ibt	81920	INACTIVE	NONE
-ID	4294501264	./#innodb_temp/temp_8.ibt	81920	INACTIVE	NONE
-ID	4294501265	./#innodb_temp/temp_9.ibt	81920	INACTIVE	NONE
-ID	4294501266	./#innodb_temp/temp_10.ibt	98304	ACTIVE	INTRINSIC
+include/assert.inc [Active session temp tablespaces count should be 2]
+include/assert.inc [Inactive session temp tablespaces count should be 8]

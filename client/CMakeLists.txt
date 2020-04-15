@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,64 +20,78 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-)
+ADD_WSHADOW_WARNING()
+
+# We are not interesting in profiling clients.
+DISABLE_MISSING_PROFILE_WARNING()
+
+## Subdirectory with common client code.
 
 INCLUDE_DIRECTORIES(SYSTEM ${READLINE_INCLUDE_DIR})
 
-INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-
-## Subdirectory with common client code.
 ADD_SUBDIRECTORY(base)
 ## Subdirectory for mysqlpump code.
 ADD_SUBDIRECTORY(dump)
 
-INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-
-MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc ../sql-common/sql_string.cc pattern_matcher.cc)
-TARGET_LINK_LIBRARIES(mysql perconaserverclient)
-IF(UNIX)
-  TARGET_LINK_LIBRARIES(mysql ${MY_READLINE_LIBRARY})
-ENDIF(UNIX)
+MYSQL_ADD_EXECUTABLE(mysql
+  ${CMAKE_SOURCE_DIR}/sql-common/net_ns.cc
+  completion_hash.cc
+  mysql.cc
+  pattern_matcher.cc
+  readline.cc
+  LINK_LIBRARIES perconaserverclient client_base ${MY_READLINE_LIBRARY}
+  )
 
 IF(NOT WITHOUT_SERVER)
-  MYSQL_ADD_EXECUTABLE(mysql_upgrade upgrade/program.cc)
-  TARGET_LINK_LIBRARIES(mysql_upgrade perconaserverclient client_base mysqlcheck_core)
-  ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs GenSysSchema GenBootstrapPriv)
+  MYSQL_ADD_EXECUTABLE(mysql_upgrade
+    upgrade/program.cc
+    LINK_LIBRARIES perconaserverclient client_base
+    )
 ENDIF()
 
-SET(MYSQLTEST_SRC
-  mysqltest/mysqltest_expected_error.cc
-)
+# Enable inlining, to avoid stack overflow for some long regular expressions.
+IF(SOLARIS_SPARC AND CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
+  ADD_COMPILE_FLAGS(mysqltest/regular_expressions.cc
+    COMPILE_FLAGS "-xO3"
+    )
+ENDIF()
 
-MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc ${MYSQLTEST_SRC} COMPONENT Test)
-TARGET_LINK_LIBRARIES(mysqltest perconaserverclient regex)
-ADD_DEPENDENCIES(mysqltest GenError GenClientError)
-
-ADD_CONVENIENCE_LIBRARY(mysqlcheck_core check/mysqlcheck_core.cc)
-TARGET_LINK_LIBRARIES(mysqlcheck_core perconaserverclient)
-
-MYSQL_ADD_EXECUTABLE(mysqlcheck check/mysqlcheck.cc)
-TARGET_LINK_LIBRARIES(mysqlcheck mysqlcheck_core)
-
-MYSQL_ADD_EXECUTABLE(mysqldump mysqldump.cc)
-TARGET_LINK_LIBRARIES(mysqldump perconaserverclient)
-
-MYSQL_ADD_EXECUTABLE(mysqlimport mysqlimport.cc)
-SET_SOURCE_FILES_PROPERTIES(mysqlimport.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
-TARGET_LINK_LIBRARIES(mysqlimport perconaserverclient)
-
-MYSQL_ADD_EXECUTABLE(mysqlshow mysqlshow.cc)
-TARGET_LINK_LIBRARIES(mysqlshow perconaserverclient)
-
-MYSQL_ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc)
-SET(MYSQLBINLOG_LIB_SOURCES
-  ${CMAKE_SOURCE_DIR}/strings/decimal.cc
+MYSQL_ADD_EXECUTABLE(mysqltest
+  mysqltest.cc
+  mysqltest/error_names.cc
+  mysqltest/expected_errors.cc
+  mysqltest/expected_warnings.cc
+  mysqltest/logfile.cc
+  mysqltest/regular_expressions.cc
+  mysqltest/secondary_engine.cc
+  mysqltest/utils.cc
+  COMPONENT Test
+  DEPENDENCIES GenError GenClientError
+  ENABLE_EXPORTS
+  LINK_LIBRARIES perconaserverclient
+  )
+MYSQL_ADD_EXECUTABLE(mysqlcheck
+  check/mysqlcheck.cc
+  check/mysqlcheck_core.cc
+  LINK_LIBRARIES perconaserverclient
+  )
+MYSQL_ADD_EXECUTABLE(mysqldump
+  mysqldump.cc
+  LINK_LIBRARIES perconaserverclient
+  )
+MYSQL_ADD_EXECUTABLE(mysqlimport
+  mysqlimport.cc
+  LINK_LIBRARIES perconaserverclient
+  )
+MYSQL_ADD_EXECUTABLE(mysqlshow
+  mysqlshow.cc
+  LINK_LIBRARIES perconaserverclient
+  )
+MYSQL_ADD_EXECUTABLE(mysqlbinlog
+  mysqlbinlog.cc
   ${CMAKE_SOURCE_DIR}/sql/json_binary.cc
   ${CMAKE_SOURCE_DIR}/sql/json_dom.cc
-  ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
-  ${CMAKE_SOURCE_DIR}/sql/sql_time.cc
+  ${CMAKE_SOURCE_DIR}/sql/json_syntax_check.cc
   ${CMAKE_SOURCE_DIR}/sql/log_event.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_utility.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_gtid_sid_map.cc
@@ -90,40 +104,39 @@ SET(MYSQLBINLOG_LIB_SOURCES
   ${CMAKE_SOURCE_DIR}/sql/basic_istream.cc
   ${CMAKE_SOURCE_DIR}/sql/binlog_istream.cc
   ${CMAKE_SOURCE_DIR}/sql/binlog_reader.cc
-  ${CMAKE_SOURCE_DIR}/sql/rpl_cipher.cc
+  ${CMAKE_SOURCE_DIR}/sql/stream_cipher.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_log_encryption.cc
-)
-ADD_LIBRARY(mysqlbinlog_lib STATIC ${MYSQLBINLOG_LIB_SOURCES})
-ADD_DEPENDENCIES(mysqlbinlog_lib GenError)
-ADD_COMPILE_FLAGS(
-  mysqlbinlog.cc
-  ${MYSQLBINLOG_LIB_SOURCES}
-  COMPILE_FLAGS
-  "-I${CMAKE_SOURCE_DIR}/sql" "-DDISABLE_PSI_MUTEX"
-)
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/trx_boundary_parser.cpp
 
-TARGET_LINK_LIBRARIES(mysqlbinlog mysqlbinlog_lib)
-TARGET_LINK_LIBRARIES(mysqlbinlog perconaserverclient binlogevents_static)
+  DEPENDENCIES GenError
+  LINK_LIBRARIES perconaserverclient client_base binlogevents_static
+  )
 
-MYSQL_ADD_EXECUTABLE(mysqladmin mysqladmin.cc)
-TARGET_LINK_LIBRARIES(mysqladmin perconaserverclient)
+TARGET_COMPILE_DEFINITIONS(mysqlbinlog PRIVATE DISABLE_PSI_MUTEX)
+TARGET_INCLUDE_DIRECTORIES(mysqlbinlog PRIVATE ${CMAKE_SOURCE_DIR}/sql)
 
-MYSQL_ADD_EXECUTABLE(mysqlslap mysqlslap.cc)
-SET_SOURCE_FILES_PROPERTIES(mysqlslap.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
-TARGET_LINK_LIBRARIES(mysqlslap perconaserverclient)
-
-MYSQL_ADD_EXECUTABLE(mysql_config_editor mysql_config_editor.cc)
-TARGET_LINK_LIBRARIES(mysql_config_editor perconaserverclient)
-
-MYSQL_ADD_EXECUTABLE(mysql_secure_installation mysql_secure_installation.cc)
-TARGET_LINK_LIBRARIES(mysql_secure_installation perconaserverclient)
-
-MYSQL_ADD_EXECUTABLE(mysql_ssl_rsa_setup mysql_ssl_rsa_setup.cc path.cc logger.cc)
-TARGET_LINK_LIBRARIES(mysql_ssl_rsa_setup mysys mysys_ssl)
-# Bug in /usr/lib/gcc-snapshot/lib/libstdc++.so ??
-IF(CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL "9.0.0")
-  TARGET_LINK_LIBRARIES(mysql_ssl_rsa_setup -static-libstdc++)
-ENDIF()
+MYSQL_ADD_EXECUTABLE(mysqladmin
+  mysqladmin.cc
+  LINK_LIBRARIES perconaserverclient
+  )
+MYSQL_ADD_EXECUTABLE(mysqlslap
+  mysqlslap.cc
+  LINK_LIBRARIES perconaserverclient
+  )
+MYSQL_ADD_EXECUTABLE(mysql_config_editor
+  mysql_config_editor.cc
+  LINK_LIBRARIES perconaserverclient
+  )
+MYSQL_ADD_EXECUTABLE(mysql_secure_installation
+  mysql_secure_installation.cc
+  LINK_LIBRARIES perconaserverclient
+  )
+MYSQL_ADD_EXECUTABLE(mysql_ssl_rsa_setup
+  logger.cc
+  mysql_ssl_rsa_setup.cc
+  path.cc
+  LINK_LIBRARIES mysys
+  )
 
 # "WIN32" also covers 64 bit. "echo" is used in some files below "mysql-test/".
 IF(WIN32)

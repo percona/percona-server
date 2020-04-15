@@ -216,9 +216,24 @@ static int tokudb_set_product_name(void) {
   return r;
 }
 
+extern "C" {
+extern uint force_recovery;
+}
+
 static int tokudb_init_func(void *p) {
   TOKUDB_DBUG_ENTER("%p", p);
   int r;
+
+  int mode = force_recovery
+                 ? S_IRUSR | S_IRGRP | S_IROTH
+                 : S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
+
+  if (force_recovery != 0 && (!read_only || !super_read_only)) {
+    LogPluginErrMsg(ERROR_LEVEL, 0,
+                    "Not initialized because tokudb_force_only requires "
+                    "read_only and super_read_only");
+    goto error;
+  }
 
   // 3938: lock the handlerton's initialized status flag for writing
   rwlock_t_lock_write(tokudb_hton_initialized_lock);
@@ -477,8 +492,7 @@ static int tokudb_init_func(void *p) {
 
   db_env->set_check_thp(db_env, tokudb::sysvars::check_jemalloc);
 
-  r = db_env->open(db_env, tokudb_home, tokudb_init_flags,
-                   S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+  r = db_env->open(db_env, tokudb_home, tokudb_init_flags, mode);
 
   TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_INIT, "env opened:return=%d", r);
 
@@ -529,7 +543,7 @@ static int tokudb_init_func(void *p) {
   tokudb_primary_key_bytes_inserted = create_partitioned_counter();
 
 #if defined(TOKU_THDVAR_MEMALLOC_BUG) && TOKU_THDVAR_MEMALLOC_BUG
-  init_tree(&tokudb_map, 0, 0, 0, tokudb_map_pair_cmp, true, NULL, NULL);
+  init_tree(&tokudb_map, 0, 0, tokudb_map_pair_cmp, true, NULL, NULL);
 #endif  // defined(TOKU_THDVAR_MEMALLOC_BUG) && TOKU_THDVAR_MEMALLOC_BUG
 
   if (tokudb::sysvars::strip_frm_data) {
@@ -903,8 +917,7 @@ static int tokudb_xa_recover(TOKUDB_UNUSED(handlerton *hton),
   xids.resize(len);
 
   long num_returned = 0;
-  r = db_env->txn_xa_recover(db_env, &xids[0], len,
-                             &num_returned, DB_NEXT);
+  r = db_env->txn_xa_recover(db_env, &xids[0], len, &num_returned, DB_NEXT);
 
   uint count = 0;
   for (; count < num_returned; count++) {

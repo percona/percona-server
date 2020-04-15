@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -24,11 +24,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/mysql_cond_service.h>
 #include <mysql/components/services/mysql_mutex_service.h>
+#include <mysql/components/services/mysql_runtime_error_service.h>
 #include <mysql/components/services/mysql_rwlock_service.h>
 #include <stddef.h>
 #include <new>
 #include <stdexcept>  // std::exception subclasses
 
+#include <components/mysql_server/mysql_page_track.h>
 #include "audit_api_message_service_imp.h"
 #include "component_status_var_service.h"
 #include "component_sys_var_service.h"
@@ -36,13 +38,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "dynamic_loader_path_filter.h"
 #include "dynamic_loader_scheme_file.h"
 #include "host_application_signal_imp.h"
+#include "keyring_iterator_service_imp.h"
 #include "log_builtins_filter_imp.h"
 #include "log_builtins_imp.h"
 #include "my_inttypes.h"
-#include "my_sys.h"  // my_error
 #include "mysql_backup_lock.h"
 #include "mysql_clone_protocol.h"
+#include "mysql_connection_attributes_iterator_imp.h"
+#include "mysql_current_thread_reader_imp.h"
 #include "mysql_ongoing_transaction_query.h"
+#include "mysql_runtime_error_imp.h"
 #include "mysql_string_service.h"
 #include "mysqld_error.h"
 #include "persistent_dynamic_loader.h"
@@ -51,8 +56,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "server_component.h"
 #include "sql/auth/dynamic_privileges_impl.h"
 #include "sql/log.h"
+#include "sql/server_component/mysql_admin_session_imp.h"
 #include "sql/udf_registration_imp.h"
 #include "system_variable_source_imp.h"
+#include "udf_metadata_imp.h"
 
 // Must come after sql/log.h.
 #include "mysql/components/services/log_builtins.h"
@@ -240,9 +247,19 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, udf_registration_aggregate)
 mysql_udf_registration_imp::udf_register_aggregate,
     mysql_udf_registration_imp::udf_unregister END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_udf_metadata)
+mysql_udf_metadata_imp::argument_get, mysql_udf_metadata_imp::result_get,
+    mysql_udf_metadata_imp::argument_set,
+    mysql_udf_metadata_imp::result_set END_SERVICE_IMPLEMENTATION();
+
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, component_sys_variable_register)
 mysql_component_sys_variable_imp::register_variable,
     mysql_component_sys_variable_imp::get_variable END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_connection_attributes_iterator)
+mysql_connection_attributes_iterator_imp::init,
+    mysql_connection_attributes_iterator_imp::deinit,
+    mysql_connection_attributes_iterator_imp::get END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, component_sys_variable_unregister)
 mysql_component_sys_variable_imp::unregister_variable,
@@ -261,9 +278,12 @@ mysql_acquire_backup_lock,
     mysql_release_backup_lock END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, clone_protocol)
-mysql_clone_start_statement, mysql_clone_finish_statement, mysql_clone_connect,
+mysql_clone_start_statement, mysql_clone_finish_statement,
+    mysql_clone_get_charsets, mysql_clone_validate_charsets,
+    mysql_clone_get_configs, mysql_clone_validate_configs, mysql_clone_connect,
     mysql_clone_send_command, mysql_clone_get_response, mysql_clone_kill,
-    mysql_clone_disconnect, mysql_clone_get_command, mysql_clone_send_response,
+    mysql_clone_disconnect, mysql_clone_get_error, mysql_clone_get_command,
+    mysql_clone_send_response,
     mysql_clone_send_error END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_thd_security_context)
@@ -292,6 +312,26 @@ END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_audit_api_message)
 mysql_audit_api_message_imp::emit END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_page_track)
+Page_track_implementation::start, Page_track_implementation::stop,
+    Page_track_implementation::purge, Page_track_implementation::get_page_ids,
+    Page_track_implementation::get_num_page_ids,
+    Page_track_implementation::get_status END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_runtime_error)
+mysql_server_runtime_error_imp::emit END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_current_thread_reader)
+mysql_component_mysql_current_thread_reader_imp::get
+END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_keyring_iterator)
+mysql_keyring_iterator_imp::init, mysql_keyring_iterator_imp::deinit,
+    mysql_keyring_iterator_imp::get END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_admin_session)
+mysql_component_mysql_admin_session_imp::open END_SERVICE_IMPLEMENTATION();
 
 BEGIN_COMPONENT_PROVIDES(mysql_server)
 PROVIDES_SERVICE(mysql_server, registry),
@@ -323,6 +363,7 @@ PROVIDES_SERVICE(mysql_server, registry),
     PROVIDES_SERVICE(mysql_server, log_builtins_syseventlog),
     PROVIDES_SERVICE(mysql_server, udf_registration),
     PROVIDES_SERVICE(mysql_server, udf_registration_aggregate),
+    PROVIDES_SERVICE(mysql_server, mysql_udf_metadata),
     PROVIDES_SERVICE(mysql_server, component_sys_variable_register),
     PROVIDES_SERVICE(mysql_server, component_sys_variable_unregister),
     PROVIDES_SERVICE(mysql_server, mysql_cond_v1),
@@ -340,6 +381,12 @@ PROVIDES_SERVICE(mysql_server, registry),
     PROVIDES_SERVICE(mysql_server, mysql_ongoing_transactions_query),
     PROVIDES_SERVICE(mysql_server, host_application_signal),
     PROVIDES_SERVICE(mysql_server, mysql_audit_api_message),
+    PROVIDES_SERVICE(mysql_server, mysql_page_track),
+    PROVIDES_SERVICE(mysql_server, mysql_runtime_error),
+    PROVIDES_SERVICE(mysql_server, mysql_current_thread_reader),
+    PROVIDES_SERVICE(mysql_server, mysql_keyring_iterator),
+    PROVIDES_SERVICE(mysql_server, mysql_admin_session),
+    PROVIDES_SERVICE(mysql_server, mysql_connection_attributes_iterator),
     END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();
@@ -442,28 +489,35 @@ void mysql_components_handle_std_exception(const char *funcname) {
   try {
     throw;
   } catch (const std::bad_alloc &e) {
-    my_error(ER_STD_BAD_ALLOC_ERROR, MYF(0), e.what(), funcname);
+    mysql_error_service_printf(ER_STD_BAD_ALLOC_ERROR, MYF(0), e.what(),
+                               funcname);
   } catch (const std::domain_error &e) {
-    my_error(ER_STD_DOMAIN_ERROR, MYF(0), e.what(), funcname);
+    mysql_error_service_printf(ER_STD_DOMAIN_ERROR, MYF(0), e.what(), funcname);
   } catch (const std::length_error &e) {
-    my_error(ER_STD_LENGTH_ERROR, MYF(0), e.what(), funcname);
+    mysql_error_service_printf(ER_STD_LENGTH_ERROR, MYF(0), e.what(), funcname);
   } catch (const std::invalid_argument &e) {
-    my_error(ER_STD_INVALID_ARGUMENT, MYF(0), e.what(), funcname);
+    mysql_error_service_printf(ER_STD_INVALID_ARGUMENT, MYF(0), e.what(),
+                               funcname);
   } catch (const std::out_of_range &e) {
-    my_error(ER_STD_OUT_OF_RANGE_ERROR, MYF(0), e.what(), funcname);
+    mysql_error_service_printf(ER_STD_OUT_OF_RANGE_ERROR, MYF(0), e.what(),
+                               funcname);
   } catch (const std::overflow_error &e) {
-    my_error(ER_STD_OVERFLOW_ERROR, MYF(0), e.what(), funcname);
+    mysql_error_service_printf(ER_STD_OVERFLOW_ERROR, MYF(0), e.what(),
+                               funcname);
   } catch (const std::range_error &e) {
-    my_error(ER_STD_RANGE_ERROR, MYF(0), e.what(), funcname);
+    mysql_error_service_printf(ER_STD_RANGE_ERROR, MYF(0), e.what(), funcname);
   } catch (const std::underflow_error &e) {
-    my_error(ER_STD_UNDERFLOW_ERROR, MYF(0), e.what(), funcname);
+    mysql_error_service_printf(ER_STD_UNDERFLOW_ERROR, MYF(0), e.what(),
+                               funcname);
   } catch (const std::logic_error &e) {
-    my_error(ER_STD_LOGIC_ERROR, MYF(0), e.what(), funcname);
+    mysql_error_service_printf(ER_STD_LOGIC_ERROR, MYF(0), e.what(), funcname);
   } catch (const std::runtime_error &e) {
-    my_error(ER_STD_RUNTIME_ERROR, MYF(0), e.what(), funcname);
+    mysql_error_service_printf(ER_STD_RUNTIME_ERROR, MYF(0), e.what(),
+                               funcname);
   } catch (const std::exception &e) {
-    my_error(ER_STD_UNKNOWN_EXCEPTION, MYF(0), e.what(), funcname);
+    mysql_error_service_printf(ER_STD_UNKNOWN_EXCEPTION, MYF(0), e.what(),
+                               funcname);
   } catch (...) {
-    my_error(ER_UNKNOWN_ERROR, MYF(0));
+    mysql_error_service_printf(ER_UNKNOWN_ERROR, MYF(0));
   }
 }

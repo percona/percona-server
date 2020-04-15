@@ -1,3 +1,5 @@
 $KEYRING_PLUGIN_OPT
 $KEYRING_PLUGIN_EARLY_LOAD
 --keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring
+--default-table-encryption=OFF
+--table-encryption-privilege-check=OFF

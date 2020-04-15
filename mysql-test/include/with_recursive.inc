@@ -40,11 +40,16 @@ with recursive qn as
 select * from qn;
 
 --echo # UNION DISTINCT allowed
+--echo # Also demonstrates EXPLAIN FORMAT=TREE of recursive CTEs.
 
+let $query =
 with recursive qn as
   (select 1 from dual union
    select 1 from qn)
 select * from qn;
+
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
 
 --echo # No aggregation on the QN
 create table t1(b int);
@@ -129,14 +134,7 @@ with recursive qn as (
 select a+1 from qn where a<3)
 select * from qn;
 
---echo # no LIMIT as it's not pushed down to UNION members
---error ER_NOT_SUPPORTED_YET
-with recursive qn as (
-select 1 as a from dual union all
-select 1 from qn
-limit 10)
-select * from qn;
-
+--echo # No LIMIT inside recursive query block
 --error ER_NOT_SUPPORTED_YET
 with recursive qn as (
 select 1 as a from dual union all
@@ -775,6 +773,9 @@ set optimizer_switch='block_nested_loop=off';
 --replace_column 10 #
 eval explain $query order by path;
 eval $query order by path;
+
+--echo # Also demonstrates EXPLAIN FORMAT=TREE of recursive CTEs with joins.
+eval EXPLAIN FORMAT=tree $query order by path;
 
 --echo # Without ORDER BY order is different; it is deterministic as
 --echo # the CTE is the driving table (no BNL) but a user shouldn't

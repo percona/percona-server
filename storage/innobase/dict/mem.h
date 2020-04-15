@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -43,8 +43,9 @@ dict_table_t *dict_mem_table_create(
                       including virtual and non-virtual
                       columns */
     ulint n_v_cols,   /*!< in: number of virtual columns */
-    ulint flags,      /*!< in: table flags */
-    ulint flags2);    /*!< in: table flags2 */
+    ulint n_m_v_cols, /*!< in: number of multi-value virtual columns */
+    uint32_t flags,   /*!< in: table flags */
+    uint32_t flags2); /*!< in: table flags2 */
 /** Free a table memory object. */
 void dict_mem_table_free(dict_table_t *table); /*!< in: table */
 
@@ -71,19 +72,17 @@ void dict_mem_table_add_col(
 
 /** This function populates a dict_col_t memory structure with
  supplied information. */
-void dict_mem_fill_column_struct(
-    dict_col_t *column, /*!< out: column struct to be
-                        filled */
-    ulint col_pos,      /*!< in: column position */
-    ulint mtype,        /*!< in: main data type */
-    ulint prtype,       /*!< in: precise type */
-    ulint col_len);     /*!< in: column length */
+void dict_mem_fill_column_struct(dict_col_t *column, /*!< out: column struct to
+                                                     be filled */
+                                 ulint col_pos,      /*!< in: column position */
+                                 ulint mtype,        /*!< in: main data type */
+                                 ulint prtype,       /*!< in: precise type */
+                                 ulint col_len);     /*!< in: column length */
 /** Append 'name' to 'col_names'.  @see dict_table_t::col_names
  @return new column names array */
-const char *dict_add_col_name(
-    const char *col_names, /*!< in: existing column names, or
-                           NULL */
-    ulint cols,            /*!< in: number of existing columns */
-    const char *name,      /*!< in: new column name */
-    mem_heap_t *heap);     /*!< in: heap */
+const char *dict_add_col_name(const char *col_names, /*!< in: existing column
+                                                     names, or NULL */
+                              ulint cols, /*!< in: number of existing columns */
+                              const char *name,  /*!< in: new column name */
+                              mem_heap_t *heap); /*!< in: heap */
 #endif

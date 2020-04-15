@@ -1,0 +1,1 @@
+--loose-rocksdb-max-total-wal-size=1M --loose-rocksdb-wal-size-limit-mb=1

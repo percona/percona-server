@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -47,8 +47,8 @@ void compute_digest_hash(const sql_digest_storage *, unsigned char *) {}
 
 void reset_status_vars() {}
 
-std::pair<struct System_status_var *, bool> get_thd_status_var(THD *) {
-  return std::make_pair(nullptr, false);
+struct System_status_var *get_thd_status_var(THD *, bool *) {
+  return NULL;
 }
 
 unsigned int mysql_errno_to_sqlstate_index(unsigned int) { return 0; }
@@ -63,4 +63,8 @@ int mysql_plugin_registry_release(SERVICE_TYPE(registry) *
 int log_message(int, ...) {
   /* Do not pollute the unit test output with annoying messages. */
   return 0;
+}
+
+bool acl_is_utility_user(const char *, const char *, const char *) {
+  return false;
 }

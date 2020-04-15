@@ -1,20 +1,23 @@
 # Keyring_vault plugin and keyring_vault_config variable testing.
 
 --source include/have_keyring_vault_plugin.inc
+--source include/not_repeat.inc
 
-call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'Could not open file with credentials.'");
-call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'Could not read secret_mount_point from the configuration file.'");
-call mtr.add_suppression("\\[Error\\] Function 'keyring_vault' already exists");
-call mtr.add_suppression("\\[Error\\] Couldn't load plugin named 'keyring_vault' with soname 'keyring_vault.so'.");
+call mtr.add_suppression("Plugin keyring_vault reported: 'Could not open file with credentials.'");
+call mtr.add_suppression("Plugin keyring_vault reported: 'Could not read secret_mount_point from the configuration file.'");
+call mtr.add_suppression("Function 'keyring_vault' already exists");
+call mtr.add_suppression("Couldn't load plugin named 'keyring_vault' with soname 'keyring_vault.so'.");
 
-call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'keyring_vault initialization failure.");
+call mtr.add_suppression("Plugin keyring_vault reported: 'keyring_vault initialization failure.");
+call mtr.add_suppression("Plugin keyring_vault reported:.* Connection timed out");
+call mtr.add_suppression("Plugin keyring_vault reported: 'Could not retrieve list of keys from Vault.");
+call mtr.add_suppression("Plugin keyring_vault reported: 'Error while loading keyring content. The keyring might be malformed'");
+call mtr.add_suppression("Plugin keyring_vault reported: 'File '.*' not found");
+call mtr.add_suppression("Plugin keyring_vault reported: 'Could not read file with credentials.'");
+call mtr.add_suppression("Plugin keyring_vault reported: 'Cannot seek in file '/'");
+call mtr.add_suppression("Plugin keyring_vault reported: 'CURL returned this error code: 28 with error message : connect\\(\\) timed out!'");
 
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not retrieve list of keys from Vault. Vault has returned the following error\\(s\\): \\[\"permission denied\"\\]'");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Error while loading keyring content. The keyring might be malformed'");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'File '.*' not found");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not read file with credentials.'");
-
---source generate_default_conf_files.inc
+--source generate_default_mount_conf_files.inc
 --source is_vault_server_up.inc
 
 # Create mount points
@@ -90,4 +93,3 @@ DROP TABLE t1;
 --source mount_point_service.inc
 --echo
 --echo #End:
---remove_file $KEYRING_INVALID_TOKEN_CONF_FILE

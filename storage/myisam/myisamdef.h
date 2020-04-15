@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -245,9 +245,7 @@ struct MI_BIT_BUFF { /* Used for packing of record */
   uint error;
 };
 
-C_MODE_START
 typedef ICP_RESULT (*index_cond_func_t)(void *param);
-C_MODE_END
 
 struct MI_INFO {
   MYISAM_SHARE *s; /* Shared between open:s */
@@ -522,7 +520,8 @@ extern ulong myisam_pid;
 struct MI_KEY_PARAM {
   uint ref_length, key_length, n_ref_length, n_length, totlength,
       part_of_prev_key, prev_length, pack_marker;
-  uchar *key, *prev_key, *next_key_pos;
+  const uchar *key;
+  uchar *prev_key, *next_key_pos;
   bool store_not_null;
 };
 
@@ -558,20 +557,20 @@ extern uchar *_mi_find_half_pos(uint nod_flag, MI_KEYDEF *keyinfo, uchar *page,
                                 uchar *key, uint *return_key_length,
                                 uchar **after_key);
 extern int _mi_calc_static_key_length(MI_KEYDEF *keyinfo, uint nod_flag,
-                                      uchar *key_pos, uchar *org_key,
-                                      uchar *key_buff, uchar *key,
+                                      const uchar *key_pos, uchar *org_key,
+                                      uchar *key_buff, const uchar *key,
                                       MI_KEY_PARAM *s_temp);
 extern int _mi_calc_var_key_length(MI_KEYDEF *keyinfo, uint nod_flag,
-                                   uchar *key_pos, uchar *org_key,
-                                   uchar *key_buff, uchar *key,
+                                   const uchar *key_pos, uchar *org_key,
+                                   uchar *key_buff, const uchar *key,
                                    MI_KEY_PARAM *s_temp);
 extern int _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo, uint nod_flag,
-                                        uchar *key_pos, uchar *org_key,
-                                        uchar *prev_key, uchar *key,
+                                        const uchar *key_pos, uchar *org_key,
+                                        uchar *prev_key, const uchar *key,
                                         MI_KEY_PARAM *s_temp);
 extern int _mi_calc_bin_pack_key_length(MI_KEYDEF *keyinfo, uint nod_flag,
-                                        uchar *key_pos, uchar *org_key,
-                                        uchar *prev_key, uchar *key,
+                                        const uchar *key_pos, uchar *org_key,
+                                        uchar *prev_key, const uchar *key,
                                         MI_KEY_PARAM *s_temp);
 void _mi_store_static_key(MI_KEYDEF *keyinfo, uchar *key_pos,
                           MI_KEY_PARAM *s_temp);
@@ -601,7 +600,7 @@ extern int _mi_prefix_search(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
                              uchar **ret_pos, uchar *buff, bool *was_last_key);
 extern my_off_t _mi_kpos(uint nod_flag, uchar *after_key);
 extern void _mi_kpointer(MI_INFO *info, uchar *buff, my_off_t pos);
-extern my_off_t _mi_dpos(MI_INFO *info, uint nod_flag, uchar *after_key);
+extern my_off_t _mi_dpos(MI_INFO *info, uint nod_flag, const uchar *after_key);
 extern my_off_t _mi_rec_pos(MYISAM_SHARE *info, uchar *ptr);
 extern void _mi_dpointer(MI_INFO *info, uchar *buff, my_off_t pos);
 extern uint _mi_get_static_key(MI_KEYDEF *keyinfo, uint nod_flag, uchar **page,
@@ -615,9 +614,10 @@ extern uchar *_mi_get_last_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *keypos,
                                uint *return_key_length);
 extern uchar *_mi_get_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
                           uchar *key, uchar *keypos, uint *return_key_length);
-extern uint _mi_keylength(MI_KEYDEF *keyinfo, uchar *key);
-extern uint _mi_keylength_part(MI_KEYDEF *keyinfo, uchar *key, HA_KEYSEG *end);
-extern uchar *_mi_move_key(MI_KEYDEF *keyinfo, uchar *to, uchar *from);
+extern uint _mi_keylength(MI_KEYDEF *keyinfo, const uchar *key);
+extern uint _mi_keylength_part(MI_KEYDEF *keyinfo, const uchar *key,
+                               HA_KEYSEG *end);
+extern uchar *_mi_move_key(MI_KEYDEF *keyinfo, uchar *to, const uchar *from);
 extern int _mi_search_next(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
                            uint key_length, uint nextflag, my_off_t pos);
 extern int _mi_search_first(MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t pos);
@@ -632,8 +632,8 @@ extern int _mi_dispose(MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t pos,
 extern my_off_t _mi_new(MI_INFO *info, MI_KEYDEF *keyinfo, int level);
 extern uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key,
                          const uchar *record, my_off_t filepos);
-extern uint _mi_pack_key(MI_INFO *info, uint keynr, uchar *key, uchar *old,
-                         key_part_map keypart_map,
+extern uint _mi_pack_key(MI_INFO *info, uint keynr, uchar *key,
+                         const uchar *old, key_part_map keypart_map,
                          HA_KEYSEG **last_used_keyseg);
 extern int _mi_read_key_record(MI_INFO *info, my_off_t filepos, uchar *buf);
 extern int _mi_read_cache(IO_CACHE *info, uchar *buff, my_off_t pos,
@@ -648,7 +648,7 @@ extern uchar *mi_alloc_rec_buff(MI_INFO *, ulong, uchar **);
 #define mi_get_rec_buff_len(info, buf) \
   (*((uint32 *)(mi_get_rec_buff_ptr(info, buf))))
 
-extern ulong _mi_rec_unpack(MI_INFO *info, uchar *to, uchar *from,
+extern ulong _mi_rec_unpack(MI_INFO *info, uchar *to, const uchar *from,
                             ulong reclength);
 extern bool _mi_rec_check(MI_INFO *info, const uchar *record, uchar *packpos,
                           ulong packed_length, bool with_checkum);
@@ -842,7 +842,6 @@ extern thread_local st_keycache_thread_var *keycache_tls;
 #endif
 
 #ifdef HAVE_PSI_INTERFACE
-C_MODE_START
 extern PSI_mutex_key mi_key_mutex_MYISAM_SHARE_intern_lock,
     mi_key_mutex_MI_SORT_INFO_mutex, mi_key_mutex_MI_CHECK_print_msg;
 
@@ -858,10 +857,7 @@ extern PSI_file_key mi_key_file_datatmp, mi_key_file_dfile, mi_key_file_kfile,
 extern PSI_thread_key mi_key_thread_find_all_keys;
 
 void init_myisam_psi_keys();
-C_MODE_END
 #endif /* HAVE_PSI_INTERFACE */
-
-C_MODE_START
 
 extern PSI_memory_key mi_key_memory_MYISAM_SHARE;
 extern PSI_memory_key mi_key_memory_MI_INFO;
@@ -885,7 +881,5 @@ extern PSI_memory_key mi_key_memory_preload_buffer;
 extern PSI_memory_key mi_key_memory_stPageList_pages;
 extern PSI_memory_key mi_key_memory_keycache_thread_var;
 extern PSI_memory_key key_memory_QUEUE;
-
-C_MODE_END
 
 #endif  // STORAGE_MYISAM_MYISAMDEF_INCLUDED

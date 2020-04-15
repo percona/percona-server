@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 #include <sys/types.h>
 
 #include "my_sqlcommand.h"  // SQLCOM_LOCK_INSTANCE, SQLCOM_UNLOCK_INSTANCE
-#include "sql_cmd.h"        // Sql_cmd
+#include "sql/sql_cmd.h"    // Sql_cmd
 
 class THD;
 
@@ -89,26 +89,32 @@ bool check_backup_admin_privilege(THD *thd);
 
   @param[in] thd                Current thread context
   @param[in] lock_wait_timeout  How many seconds to wait before timeout.
+  @param[in] for_trx            true if MDL duration is MDL_TRANSACTION
+                                false if MDL duration is MDL_EXPLICIT
 
   @return Operation status.
     @retval false Success
     @retval true  Failure
 */
 
-bool acquire_exclusive_backup_lock(THD *thd, unsigned long lock_wait_timeout);
+bool acquire_exclusive_backup_lock(THD *thd, unsigned long lock_wait_timeout,
+                                   bool for_trx);
 
 /**
   Acquire shared Backup Lock.
 
   @param[in] thd                Current thread context
   @param[in] lock_wait_timeout  How many seconds to wait before timeout.
+  @param[in] for_trx            true if MDL duration is MDL_TRANSACTION
+                                false if MDL duration is MDL_EXPLICIT
 
   @return Operation status.
     @retval false Success
     @retval true  Failure
 */
 
-bool acquire_shared_backup_lock(THD *thd, unsigned long lock_wait_timeout);
+bool acquire_shared_backup_lock(THD *thd, unsigned long lock_wait_timeout,
+                                bool for_trx = true);
 
 /**
   Release Backup Lock if it was acquired.

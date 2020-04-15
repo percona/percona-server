@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -122,11 +122,12 @@ bool PFS_index_rpl_applier_status_by_coord_by_thread::match(Master_info *mi) {
     mysql_mutex_lock(&mi->rli->data_lock);
 
     if (mi->rli->slave_running) {
-      PSI_thread *psi = thd_get_psi(mi->rli->info_thd);
-      PFS_thread *pfs = reinterpret_cast<PFS_thread *>(psi);
-      if (pfs) {
-        row.thread_id = pfs->m_thread_internal_id;
+      PSI_thread *psi MY_ATTRIBUTE((unused)) = thd_get_psi(mi->rli->info_thd);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+      if (psi != nullptr) {
+        row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
       }
+#endif /* HAVE_PSI_THREAD_INTERFACE */
     }
 
     mysql_mutex_unlock(&mi->rli->data_lock);
@@ -273,12 +274,13 @@ int table_replication_applier_status_by_coordinator::make_row(Master_info *mi) {
   m_row.thread_id_is_null = true;
 
   if (mi->rli->slave_running) {
-    PSI_thread *psi = thd_get_psi(mi->rli->info_thd);
-    PFS_thread *pfs = reinterpret_cast<PFS_thread *>(psi);
-    if (pfs) {
-      m_row.thread_id = pfs->m_thread_internal_id;
+    PSI_thread *psi MY_ATTRIBUTE((unused)) = thd_get_psi(mi->rli->info_thd);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    if (psi != nullptr) {
+      m_row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
       m_row.thread_id_is_null = false;
     }
+#endif /* HAVE_PSI_THREAD_INTERFACE */
   }
 
   if (mi->rli->slave_running) {
@@ -295,7 +297,7 @@ int table_replication_applier_status_by_coordinator::make_row(Master_info *mi) {
 
   /** if error, set error message and timestamp */
   if (m_row.last_error_number) {
-    char *temp_store = (char *)mi->rli->last_error().message;
+    const char *temp_store = mi->rli->last_error().message;
     m_row.last_error_message_length = strlen(temp_store);
     memcpy(m_row.last_error_message, temp_store,
            m_row.last_error_message_length);

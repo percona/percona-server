@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,13 +41,14 @@
 #include "sql/tztime.h"
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/mock_field_timestamp.h"
+#include "unittest/gunit/mysys_util.h"
 #include "unittest/gunit/test_utils.h"
 
 namespace item_unittest {
 
-using ::testing::Return;
 using my_testing::Mock_error_handler;
 using my_testing::Server_initializer;
+using ::testing::Return;
 
 class ItemTest : public ::testing::Test {
  protected:
@@ -74,7 +75,18 @@ class Mock_field_long : public Field_long {
                    0,            // field_name_arg
                    false,        // zero_arg
                    false)        // unsigned_arg
-  {}
+  {
+    table = new Fake_TABLE(this);
+    ptr = table->record[0];
+
+    // Make it possible to write into this field
+    bitmap_set_bit(table->write_set, 0);
+  }
+
+  ~Mock_field_long() override {
+    delete static_cast<Fake_TABLE *>(table);
+    table = nullptr;
+  }
 
   // Avoid warning about hiding other overloaded versions of store().
   using Field_long::store;
@@ -107,7 +119,7 @@ class Mock_field_string : public Field_string {
     m_fake_tbl = new Fake_TABLE(this);
 
     // Allocate place for storing the field value
-    ptr = new uchar[length];
+    ptr = m_fake_tbl->record[0];
 
     // Make it possible to write into this field
     bitmap_set_bit(m_fake_tbl->write_set, 0);
@@ -120,8 +132,6 @@ class Mock_field_string : public Field_string {
   }
 
   ~Mock_field_string() {
-    delete[] ptr;
-    ptr = NULL;
     delete m_fake_tbl;
     m_fake_tbl = NULL;
   }
@@ -147,7 +157,7 @@ class Mock_field_varstring : public Field_varstring {
     m_fake_tbl = new Fake_TABLE(this);
 
     // Allocate place for storing the field value
-    ptr = new uchar[length + 1];
+    ptr = m_fake_tbl->record[0];
 
     // Make it possible to write into this field
     bitmap_set_bit(m_fake_tbl->write_set, 0);
@@ -160,8 +170,6 @@ class Mock_field_varstring : public Field_varstring {
   }
 
   ~Mock_field_varstring() {
-    delete[] ptr;
-    ptr = NULL;
     delete m_fake_tbl;
     m_fake_tbl = NULL;
   }
@@ -202,7 +210,7 @@ TEST_F(ItemTest, ItemInt) {
   EXPECT_TRUE(item_int->eq(item_int, true));
 
   String print_val;
-  item_int->print(&print_val, QT_ORDINARY);
+  item_int->print(thd(), &print_val, QT_ORDINARY);
   EXPECT_STREQ(stringbuf, print_val.c_ptr_safe());
 
   const uint precision = item_int->decimal_precision();
@@ -387,12 +395,12 @@ TEST_F(ItemTest, ItemFuncExportSet) {
     Bug#11765562 58545:
     EXPORT_SET() CAN BE USED TO MAKE ENTIRE SERVER COMPLETELY UNRESPONSIVE
    */
-  const ulong max_size = 1024;
-  const ulonglong repeat = max_size / 2;
+  const ulong max_packet_size = 1024;
+  const ulonglong repeat = max_packet_size / 2;
   Item *item_int_repeat = new Item_int(repeat);
   Item *string_x = new Item_string(STRING_WITH_LEN("x"), &my_charset_bin);
   String *const null_string = NULL;
-  thd()->variables.max_allowed_packet = max_size;
+  thd()->variables.max_allowed_packet = max_packet_size;
   {
     // Testing overflow caused by 'on-string'.
     Mock_error_handler error_handler(thd(), ER_WARN_ALLOWED_PACKET_OVERFLOWED);
@@ -507,7 +515,7 @@ TEST_F(ItemTest, ItemFuncSetUserVar) {
   Item_decimal *item_dec = new Item_decimal(val1, false);
   Item_string *item_str = new Item_string("1", 1, &my_charset_latin1);
 
-  LEX_STRING var_name = {C_STRING_WITH_LEN("a")};
+  LEX_CSTRING var_name = {STRING_WITH_LEN("a")};
   Item_func_set_user_var *user_var =
       new Item_func_set_user_var(var_name, item_str, false);
   EXPECT_FALSE(user_var->set_entry(thd(), true));
@@ -572,10 +580,10 @@ TEST_F(ItemTest, ItemFuncXor) {
   EXPECT_FALSE(item_xor_same->is_null());
 
   String print_buffer;
-  item_xor->print(&print_buffer, QT_ORDINARY);
+  item_xor->print(thd(), &print_buffer, QT_ORDINARY);
   EXPECT_STREQ("(0 xor 1)", print_buffer.c_ptr_safe());
 
-  Item *neg_xor = item_xor->neg_transformer(thd());
+  Item *neg_xor = item_xor->truth_transformer(thd(), Item::BOOL_NEGATED);
   EXPECT_FALSE(neg_xor->fix_fields(thd(), NULL));
   EXPECT_EQ(0, neg_xor->val_int());
   EXPECT_DOUBLE_EQ(0.0, neg_xor->val_real());
@@ -583,7 +591,7 @@ TEST_F(ItemTest, ItemFuncXor) {
   EXPECT_FALSE(neg_xor->is_null());
 
   print_buffer = String();
-  neg_xor->print(&print_buffer, QT_ORDINARY);
+  neg_xor->print(thd(), &print_buffer, QT_ORDINARY);
   EXPECT_STREQ("((not(0)) xor 1)", print_buffer.c_ptr_safe());
 
   Item_func_xor *item_xor_null = new Item_func_xor(item_zero, new Item_null());
@@ -598,9 +606,9 @@ TEST_F(ItemTest, ItemFuncXor) {
 */
 TEST_F(ItemTest, MysqlTimeCache) {
   String str_buff, *str;
-  MYSQL_TIME datetime6 = {
-      2011, 11, 7, 10, 20, 30, 123456, 0, MYSQL_TIMESTAMP_DATETIME};
-  MYSQL_TIME time6 = {0, 0, 0, 10, 20, 30, 123456, 0, MYSQL_TIMESTAMP_TIME};
+  MysqlTime datetime6(2011, 11, 7, 10, 20, 30, 123456, false,
+                      MYSQL_TIMESTAMP_DATETIME);
+  MysqlTime time6(0, 0, 0, 10, 20, 30, 123456, false, MYSQL_TIMESTAMP_TIME);
   struct timeval tv6 = {1320661230, 123456};
   const MYSQL_TIME *ltime;
   MYSQL_TIME_cache cache;
@@ -680,8 +688,8 @@ TEST_F(ItemTest, MysqlTimeCache) {
   /*
     Testing DATETIME(5)
   */
-  MYSQL_TIME datetime5 = {
-      2011, 11, 7, 10, 20, 30, 123450, 0, MYSQL_TIMESTAMP_DATETIME};
+  MysqlTime datetime5(2011, 11, 7, 10, 20, 30, 123450, false,
+                      MYSQL_TIMESTAMP_DATETIME);
   cache.set_datetime(&datetime5, 5);
   EXPECT_EQ(1840440237558456890LL, cache.val_packed());
   EXPECT_EQ(5, cache.decimals());
@@ -698,7 +706,7 @@ TEST_F(ItemTest, MysqlTimeCache) {
     Testing DATE.
     Initializing from MYSQL_TIME.
   */
-  MYSQL_TIME date = {2011, 11, 7, 0, 0, 0, 0, 0, MYSQL_TIMESTAMP_DATE};
+  MysqlTime date(2011, 11, 7, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATE);
   cache.set_date(&date);
   EXPECT_EQ(1840439528385413120LL, cache.val_packed());
   EXPECT_EQ(0, cache.decimals());
@@ -720,8 +728,8 @@ TEST_F(ItemTest, MysqlTimeCache) {
 
 extern "C" {
 // Verifies that Item_func_conv::val_str does not call my_strntoll()
-longlong fail_strntoll(const CHARSET_INFO *, const char *, size_t, int, char **,
-                       int *) {
+longlong fail_strntoll(const CHARSET_INFO *, const char *, size_t, int,
+                       const char **, int *) {
   ADD_FAILURE() << "Unexpected call";
   return 0;
 }
@@ -806,12 +814,12 @@ TEST_F(ItemTest, NormalizedPrint) {
   Item_null *item_null = new Item_null;
   {
     String s;
-    item_null->print(&s, QT_ORDINARY);
+    item_null->print(thd(), &s, QT_ORDINARY);
     EXPECT_STREQ("NULL", s.c_ptr());
   }
   {
     String s;
-    item_null->print(&s, QT_NORMALIZED_FORMAT);
+    item_null->print(thd(), &s, QT_NORMALIZED_FORMAT);
     EXPECT_STREQ("?", s.c_ptr());
   }
 }

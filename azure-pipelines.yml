@@ -13,8 +13,7 @@ jobs:
     CCACHE_COMPRESS: 1
     CCACHE_COMPRESSLEVEL: 9
     CCACHE_CPP2: 1
-    CCACHE_MAXSIZE: 4G
-    Agent.Source.Git.ShallowFetchDepth: 512
+    CCACHE_MAXSIZE: 2G
 
   strategy:
     matrix:
@@ -141,10 +140,12 @@ jobs:
           BuildType: RelWithDebInfo
 
   steps:
-  - checkout: self
-    submodules: true
   - script: |
+      uname -r
       df -Th
+      ls -l ..
+      pwd
+      ls -l
       CC=$(Compiler)-$(CompilerVer)
       if [[ "$(Compiler)" == "clang" ]]; then
         CXX=clang++-$(CompilerVer)
@@ -177,6 +178,7 @@ jobs:
       ccache --version
       ccache --print-config
       ccache --zero-stats
+      df -Th
 
       COMPILER_VER=$(CompilerVer)
       echo '##vso[task.setvariable variable=CompilerMajorVer]'${COMPILER_VER%.*}
@@ -187,7 +189,7 @@ jobs:
 
     displayName: '*** Install Build Dependencies'
 
-  - task: CacheBeta@1
+  - task: Cache@2
     continueOnError: true
     inputs:
       key: ccache | $(Agent.OS)-$(Compiler)-$(CompilerMajorVer)-$(BuildType) | $(Build.SourceVersion)
@@ -195,7 +197,7 @@ jobs:
       path: $(CCACHE_DIR)
     displayName: '*** Download/upload ccached files'
 
-  - task: CacheBeta@1
+  - task: Cache@2
     continueOnError: true
     inputs:
       key: $(BOOST_VERSION)
@@ -203,7 +205,17 @@ jobs:
       path: $(BOOST_DIR)
     displayName: '*** Download/upload $(BOOST_VERSION) libraries'
 
+  - checkout: self
+    fetchDepth: 32
+
   - script: |
+      df -Th
+      git submodule sync
+      git submodule update --init --force --depth=256
+    displayName: '*** Update git submodules'
+
+  - script: |
+      df -Th
       echo --- Set cmake parameters
       COMPILE_OPT+=(
         -DCMAKE_C_FLAGS_DEBUG=-g1
@@ -222,6 +234,7 @@ jobs:
         -DMYSQL_MAINTAINER_MODE=ON
         -DCMAKE_C_COMPILER_LAUNCHER=/usr/bin/ccache
         -DCMAKE_CXX_COMPILER_LAUNCHER=/usr/bin/ccache
+        -DMERGE_UNITTESTS=ON
         -DWITH_KEYRING_VAULT=ON
         -DWITH_PAM=ON
         -DWITH_TOKUDB=ON
@@ -239,7 +252,6 @@ jobs:
           -DWITH_ICU=system
           -DWITH_LZ4=system
           -DWITH_PROTOBUF=system
-          -DWITH_RE2=system
           -DWITH_ZLIB=system
           -DWITH_NUMA=ON
         "
@@ -249,7 +261,6 @@ jobs:
           -DWITH_ICU=bundled
           -DWITH_LZ4=bundled
           -DWITH_PROTOBUF=bundled
-          -DWITH_RE2=bundled
           -DWITH_ZLIB=bundled
           -DWITH_NUMA=OFF
           -DWITH_ARCHIVE_STORAGE_ENGINE=OFF
@@ -265,6 +276,7 @@ jobs:
       echo --- COMPILE_OPT=\"${COMPILE_OPT[@]}\"
       mkdir bin; cd bin
       CC=$CC CXX=$CXX cmake .. $CMAKE_OPT "${COMPILE_OPT[@]}" || exit 1
+      rm -f $(BOOST_DIR)/$(BOOST_VERSION).tar.gz
 
       CMAKE_TIME=$SECONDS
       echo --- CMake took $CMAKE_TIME seconds. Packages updated in $UPDATE_TIME seconds.
@@ -274,13 +286,15 @@ jobs:
     displayName: '*** CC=$(Compiler)-$(CompilerVer) cmake .. -DCMAKE_BUILD_TYPE=$(BuildType)'
 
   - script: |
+      df -Th
       cd bin
       make -j2 || exit 1
       ccache --show-stats
 
       BUILD_TIME=$SECONDS
       echo --- Total time $(($BUILD_TIME + $UPDATE_TIME + $CMAKE_TIME)) seconds. Build time $BUILD_TIME seconds. CMake took $CMAKE_TIME seconds. Packages updated in $UPDATE_TIME seconds.
-      rm -f $(Pipeline.Workspace)/boost/$(BOOST_VERSION).tar.gz
+      df -Th
+      rm -rf *
       df -Th
 
     displayName: '*** Compile'

@@ -3210,11 +3210,8 @@ void srv_worker_thread() {
                << srv_sched_priority_master << " the current priority is "
                << actual_priority;
 
-#ifdef UNIV_PFS_THREAD
-  THD *thd = create_thd(false, true, true, srv_worker_thread_key.m_value);
-#else
   THD *thd = create_thd(false, true, true, 0);
-#endif
+
   slot = srv_reserve_slot(SRV_WORKER);
 
   ut_a(srv_n_purge_threads > 1);
@@ -3447,12 +3444,7 @@ static void srv_purge_coordinator_suspend(
 /** Purge coordinator thread that schedules the purge tasks. */
 void srv_purge_coordinator_thread() {
   srv_slot_t *slot;
-
-#ifdef UNIV_PFS_THREAD
-  THD *thd = create_thd(false, true, true, srv_purge_thread_key.m_value);
-#else
   THD *thd = create_thd(false, true, true, 0);
-#endif
 
   ulint n_total_purged = ULINT_UNDEFINED;
 

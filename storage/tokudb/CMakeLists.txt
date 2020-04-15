@@ -101,8 +101,18 @@ IF(DEFINED TOKUDB_NOPATCH_CONFIG)
     ADD_DEFINITIONS("-DTOKUDB_NOPATCH_CONFIG=${TOKUDB_NOPATCH_CONFIG}")
 ENDIF()
 
-prepend_cflags_if_supported(-Wno-missing-field-initializers)
-append_cflags_if_supported(-Wno-vla)
+
+## PerconaFT sets "-Wmissing-format-attribute" what causes warnings in some MySQL include files
+prepend_cflags_if_supported(-Wno-missing-format-attribute)
+
+# "cmake/maintainer.cmake" sets "-Wvla" which causes warnings with PerconaFT
+remove_compile_flags(-Wvla)
+
+# Suppress warnings for gcc older than gcc-5 (for tokudb_status.h, ha_tokudb.cc, hatoku_hton.cc)
+IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
+  prepend_cflags_if_supported(-Wno-missing-field-initializers)
+ENDIF()
+
 
 IF (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/PerconaFT/")
     IF (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ft-index/")

@@ -34,6 +34,7 @@ struct Vault_key : public Key, public ISerialized_object
   virtual my_bool get_next_key(IKey **key);
   virtual my_bool has_next_key();
   virtual void create_key_signature() const;
+  virtual void xor_data(uchar *, size_t);
   virtual void xor_data();
 
 protected:

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -9,13 +9,21 @@ briefly in the InnoDB documentation. The contributions by Google are
 incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -487,6 +495,9 @@ buf_get_total_stat(
 
 		tot_stat->n_pages_not_made_young +=
 			buf_stat->n_pages_not_made_young;
+
+		tot_stat->buf_lru_flush_page_count +=
+		    buf_stat->buf_lru_flush_page_count;
 	}
 }
 
@@ -1797,7 +1808,7 @@ buf_pool_init_instance(
 
 		buf_pool->zip_hash = hash_create(2 * buf_pool->curr_size);
 
-		buf_pool->last_printout_time = ut_time();
+		buf_pool->last_printout_time = ut_time_monotonic();
 	}
 	/* 2. Initialize flushing fields
 	-------------------------------- */
@@ -2987,7 +2998,7 @@ calc_buf_pool_size:
 
 	/* enable AHI if needed */
 	if (btr_search_disabled) {
-		btr_search_enable();
+		btr_search_enable(true);
 		ib::info() << "Re-enabled adaptive hash index.";
 	}
 
@@ -3300,7 +3311,8 @@ This function may release the hash_lock and reacquire it.
 @param[in]	page_id		page id
 @param[in,out]	hash_lock	hash_lock currently latched
 @return NULL if watch set, block if the page is in the buffer pool */
-buf_page_t*
+MY_ATTRIBUTE((warn_unused_result))
+static buf_page_t*
 buf_pool_watch_set(
 	const page_id_t&	page_id,
 	rw_lock_t**		hash_lock)
@@ -3308,6 +3320,8 @@ buf_pool_watch_set(
 	buf_page_t*	bpage;
 	ulint		i;
 	buf_pool_t*	buf_pool = buf_pool_get(page_id);
+
+	ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 
 	ut_ad(*hash_lock == buf_page_hash_lock_get(buf_pool, page_id));
 
@@ -3533,7 +3547,7 @@ buf_page_peek_if_too_old(
 		it is 15 ms. This is known and fixing it would require to
 		increase buf_page_t::access_time from 32 to 64 bits. */
 		if (access_time > 0
-		    && ((ib_uint32_t) (ut_time_ms() - access_time))
+		    && ((ib_uint32_t) (ut_time_monotonic_ms() - access_time))
 		    >= buf_LRU_old_threshold_ms) {
 			return(TRUE);
 		}
@@ -3787,7 +3801,7 @@ got_block:
 		/* Let us wait until the read operation
 		completes */
 
-		const ib_uint64_t start_time =
+		const ib_time_monotonic_us_t start_time =
 		    trx_stats::start_io_read(trx, 0);
 		for (;;) {
 			enum buf_io_fix	io_fix;
@@ -4065,7 +4079,7 @@ buf_wait_for_read(
 
 		/* Wait until the read operation completes */
 
-		const ib_uint64_t start_time =
+		const ib_time_monotonic_us_t start_time =
 		    trx_stats::start_io_read(trx, 0);
 
 		for (;;) {
@@ -4197,6 +4211,7 @@ loop:
 
 		if (mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
 
+			mutex_enter(&buf_pool->LRU_list_mutex);
 			rw_lock_x_lock(hash_lock);
 
 			/* page_hash can be changed. */
@@ -4205,6 +4220,7 @@ loop:
 
 			block = (buf_block_t*) buf_pool_watch_set(
 				page_id, &hash_lock);
+			mutex_exit(&buf_pool->LRU_list_mutex);
 
 			if (block) {
 				/* We can release hash_lock after we
@@ -6212,17 +6228,6 @@ buf_all_freed_instance(
 	return(TRUE);
 }
 
-/**********************************************************************//**
-Refreshes the statistics used to print per-second averages. */
-void
-buf_refresh_io_stats(
-/*=================*/
-	buf_pool_t*	buf_pool)	/*!< in: buffer pool instance */
-{
-	buf_pool->last_printout_time = ut_time();
-	buf_pool->old_stat = buf_pool->stat;
-}
-
 /*********************************************************************//**
 Invalidates file pages in one buffer pool instance */
 static
@@ -7153,6 +7158,17 @@ buf_print_io(
 	}
 
 	ut_free(pool_info);
+}
+
+/**********************************************************************//**
+Refreshes the statistics used to print per-second averages. */
+void
+buf_refresh_io_stats(
+/*=================*/
+	buf_pool_t*	buf_pool)	/*!< in: buffer pool instance */
+{
+	buf_pool->last_printout_time = ut_time_monotonic();
+	buf_pool->old_stat = buf_pool->stat;
 }
 
 /**********************************************************************//**

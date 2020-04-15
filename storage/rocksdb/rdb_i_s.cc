@@ -25,6 +25,7 @@
 #include "sql_string.h" /* for now this must violate clang-format style as it */
                         /* is needed before sql_show.h */
 #include "sql_show.h"
+#include "debug_sync.h"
 
 /* RocksDB header files */
 #include "rocksdb/compaction_filter.h"
@@ -49,10 +50,10 @@ namespace myrocks {
   engine.
 */
 
-#define ROCKSDB_FIELD_INFO(_name_, _len_, _type_, _flag_)                      \
+#define ROCKSDB_FIELD_INFO(_name_, _len_, _type_, _flag_) \
   { _name_, _len_, _type_, 0, _flag_, nullptr, 0 }
 
-#define ROCKSDB_FIELD_INFO_END                                                 \
+#define ROCKSDB_FIELD_INFO_END \
   ROCKSDB_FIELD_INFO(nullptr, 0, MYSQL_TYPE_NULL, 0)
 
 /*
@@ -60,7 +61,7 @@ namespace myrocks {
  */
 namespace RDB_CFSTATS_FIELD {
 enum { CF_NAME = 0, STAT_TYPE, VALUE };
-} // namespace RDB_CFSTATS_FIELD
+}  // namespace RDB_CFSTATS_FIELD
 
 static ST_FIELD_INFO rdb_i_s_cfstats_fields_info[] = {
     ROCKSDB_FIELD_INFO("CF_NAME", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
@@ -68,10 +69,9 @@ static ST_FIELD_INFO rdb_i_s_cfstats_fields_info[] = {
     ROCKSDB_FIELD_INFO("VALUE", sizeof(uint64_t), MYSQL_TYPE_LONGLONG, 0),
     ROCKSDB_FIELD_INFO_END};
 
-static int rdb_i_s_cfstats_fill_table(my_core::THD *const thd,
-                                      my_core::TABLE_LIST *const tables,
-                                      my_core::Item *const cond
-                                      MY_ATTRIBUTE((__unused__))) {
+static int rdb_i_s_cfstats_fill_table(
+    my_core::THD *const thd, my_core::TABLE_LIST *const tables,
+    my_core::Item *const cond MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
   DBUG_ASSERT(tables != nullptr);
@@ -116,13 +116,16 @@ static int rdb_i_s_cfstats_fill_table(my_core::THD *const thd,
 
   for (const auto &cf_name : cf_manager.get_cf_names()) {
     DBUG_ASSERT(!cf_name.empty());
-    rocksdb::ColumnFamilyHandle *cfh = cf_manager.get_cf(cf_name);
-    if (cfh == nullptr) {
+    std::shared_ptr<rocksdb::ColumnFamilyHandle> cfh =
+        cf_manager.get_cf(cf_name);
+    if (!cfh) {
       continue;
     }
 
+    // It is safe if the CF is removed from cf_manager at
+    // this point. The CF handle object is valid and sufficient here.
     for (const auto &property : cf_properties) {
-      if (!rdb->GetIntProperty(cfh, property.first, &val)) {
+      if (!rdb->GetIntProperty(cfh.get(), property.first, &val)) {
         continue;
       }
 
@@ -164,17 +167,16 @@ static int rdb_i_s_cfstats_init(void *p) {
  */
 namespace RDB_DBSTATS_FIELD {
 enum { STAT_TYPE = 0, VALUE };
-} // namespace RDB_DBSTATS_FIELD
+}  // namespace RDB_DBSTATS_FIELD
 
 static ST_FIELD_INFO rdb_i_s_dbstats_fields_info[] = {
     ROCKSDB_FIELD_INFO("STAT_TYPE", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
     ROCKSDB_FIELD_INFO("VALUE", sizeof(uint64_t), MYSQL_TYPE_LONGLONG, 0),
     ROCKSDB_FIELD_INFO_END};
 
-static int rdb_i_s_dbstats_fill_table(my_core::THD *const thd,
-                                      my_core::TABLE_LIST *const tables,
-                                      my_core::Item *const cond
-                                      MY_ATTRIBUTE((__unused__))) {
+static int rdb_i_s_dbstats_fill_table(
+    my_core::THD *const thd, my_core::TABLE_LIST *const tables,
+    my_core::Item *const cond MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
   DBUG_ASSERT(tables != nullptr);
@@ -265,7 +267,7 @@ static int rdb_i_s_dbstats_init(void *const p) {
  */
 namespace RDB_PERF_CONTEXT_FIELD {
 enum { TABLE_SCHEMA = 0, TABLE_NAME, PARTITION_NAME, STAT_TYPE, VALUE };
-} // namespace RDB_PERF_CONTEXT_FIELD
+}  // namespace RDB_PERF_CONTEXT_FIELD
 
 static ST_FIELD_INFO rdb_i_s_perf_context_fields_info[] = {
     ROCKSDB_FIELD_INFO("TABLE_SCHEMA", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
@@ -276,10 +278,9 @@ static ST_FIELD_INFO rdb_i_s_perf_context_fields_info[] = {
     ROCKSDB_FIELD_INFO("VALUE", sizeof(uint64_t), MYSQL_TYPE_LONGLONG, 0),
     ROCKSDB_FIELD_INFO_END};
 
-static int rdb_i_s_perf_context_fill_table(my_core::THD *const thd,
-                                           my_core::TABLE_LIST *const tables,
-                                           my_core::Item *const cond
-                                           MY_ATTRIBUTE((__unused__))) {
+static int rdb_i_s_perf_context_fill_table(
+    my_core::THD *const thd, my_core::TABLE_LIST *const tables,
+    my_core::Item *const cond MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
   DBUG_ASSERT(thd != nullptr);
@@ -375,7 +376,7 @@ static int rdb_i_s_perf_context_init(void *const p) {
  */
 namespace RDB_PERF_CONTEXT_GLOBAL_FIELD {
 enum { STAT_TYPE = 0, VALUE };
-} // namespace RDB_PERF_CONTEXT_GLOBAL_FIELD
+}  // namespace RDB_PERF_CONTEXT_GLOBAL_FIELD
 
 static ST_FIELD_INFO rdb_i_s_perf_context_global_fields_info[] = {
     ROCKSDB_FIELD_INFO("STAT_TYPE", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
@@ -449,7 +450,7 @@ static int rdb_i_s_perf_context_global_init(void *const p) {
  */
 namespace RDB_CFOPTIONS_FIELD {
 enum { CF_NAME = 0, OPTION_TYPE, VALUE };
-} // namespace RDB_CFOPTIONS_FIELD
+}  // namespace RDB_CFOPTIONS_FIELD
 
 static ST_FIELD_INFO rdb_i_s_cfoptions_fields_info[] = {
     ROCKSDB_FIELD_INFO("CF_NAME", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
@@ -457,10 +458,9 @@ static ST_FIELD_INFO rdb_i_s_cfoptions_fields_info[] = {
     ROCKSDB_FIELD_INFO("VALUE", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
     ROCKSDB_FIELD_INFO_END};
 
-static int rdb_i_s_cfoptions_fill_table(my_core::THD *const thd,
-                                        my_core::TABLE_LIST *const tables,
-                                        my_core::Item *const cond
-                                        MY_ATTRIBUTE((__unused__))) {
+static int rdb_i_s_cfoptions_fill_table(
+    my_core::THD *const thd, my_core::TABLE_LIST *const tables,
+    my_core::Item *const cond MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
   DBUG_ASSERT(thd != nullptr);
@@ -617,20 +617,20 @@ static int rdb_i_s_cfoptions_fill_table(my_core::THD *const thd,
 
     // get COMPACTION_STYLE option
     switch (opts.compaction_style) {
-    case rocksdb::kCompactionStyleLevel:
-      val = "kCompactionStyleLevel";
-      break;
-    case rocksdb::kCompactionStyleUniversal:
-      val = "kCompactionStyleUniversal";
-      break;
-    case rocksdb::kCompactionStyleFIFO:
-      val = "kCompactionStyleFIFO";
-      break;
-    case rocksdb::kCompactionStyleNone:
-      val = "kCompactionStyleNone";
-      break;
-    default:
-      val = "NULL";
+      case rocksdb::kCompactionStyleLevel:
+        val = "kCompactionStyleLevel";
+        break;
+      case rocksdb::kCompactionStyleUniversal:
+        val = "kCompactionStyleUniversal";
+        break;
+      case rocksdb::kCompactionStyleFIFO:
+        val = "kCompactionStyleFIFO";
+        break;
+      case rocksdb::kCompactionStyleNone:
+        val = "kCompactionStyleNone";
+        break;
+      default:
+        val = "NULL";
     }
 
     cf_option_types.push_back({"COMPACTION_STYLE", val});
@@ -653,14 +653,14 @@ static int rdb_i_s_cfoptions_fill_table(my_core::THD *const thd,
     val.append("; STOP_STYLE=");
 
     switch (compac_opts.stop_style) {
-    case rocksdb::kCompactionStopStyleSimilarSize:
-      val.append("kCompactionStopStyleSimilarSize}");
-      break;
-    case rocksdb::kCompactionStopStyleTotalSize:
-      val.append("kCompactionStopStyleTotalSize}");
-      break;
-    default:
-      val.append("}");
+      case rocksdb::kCompactionStopStyleSimilarSize:
+        val.append("kCompactionStopStyleSimilarSize}");
+        break;
+      case rocksdb::kCompactionStopStyleTotalSize:
+        val.append("kCompactionStopStyleTotalSize}");
+        break;
+      default:
+        val.append("}");
     }
 
     cf_option_types.push_back({"COMPACTION_OPTIONS_UNIVERSAL", val});
@@ -674,7 +674,7 @@ static int rdb_i_s_cfoptions_fill_table(my_core::THD *const thd,
     std::vector<std::string> table_options =
         split_into_vector(opts.table_factory->GetPrintableTableOptions(), '\n');
 
-    for (auto option : table_options) {
+    for (std::string option : table_options) {
       option.erase(std::remove(option.begin(), option.end(), ' '),
                    option.end());
 
@@ -757,10 +757,9 @@ static int rdb_global_info_fill_row(my_core::THD *const thd,
   return my_core::schema_table_store_record(thd, tables->table);
 }
 
-static int rdb_i_s_global_info_fill_table(my_core::THD *const thd,
-                                          my_core::TABLE_LIST *const tables,
-                                          my_core::Item *const cond
-                                          MY_ATTRIBUTE((__unused__))) {
+static int rdb_i_s_global_info_fill_table(
+    my_core::THD *const thd, my_core::TABLE_LIST *const tables,
+    my_core::Item *const cond MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
   DBUG_ASSERT(thd != nullptr);
@@ -779,7 +778,7 @@ static int rdb_i_s_global_info_fill_table(my_core::THD *const thd,
   }
 
   /* max index info */
-  const Rdb_dict_manager *const dict_manager = rdb_get_dict_manager();
+  Rdb_dict_manager *const dict_manager = rdb_get_dict_manager();
   DBUG_ASSERT(dict_manager != nullptr);
 
   uint32_t max_index_id;
@@ -800,15 +799,22 @@ static int rdb_i_s_global_info_fill_table(my_core::THD *const thd,
   for (const auto &cf_handle : cf_manager.get_all_cf()) {
     DBUG_ASSERT(cf_handle != nullptr);
 
+    DBUG_EXECUTE_IF("information_schema_global_info", {
+      if (cf_handle->GetName() == "cf_primary_key") {
+        const char act[] =
+            "now signal ready_to_mark_cf_dropped_in_global_info "
+            "wait_for mark_cf_dropped_done_in_global_info";
+        DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+      }
+    });
+
     uint flags;
 
     if (!dict_manager->get_cf_flags(cf_handle->GetID(), &flags)) {
-      // NO_LINT_DEBUG
-      sql_print_error("RocksDB: Failed to get column family flags "
-                      "from CF with id = %u. MyRocks data dictionary may "
-                      "be corrupted.",
-                      cf_handle->GetID());
-      abort();
+      // If cf flags cannot be retrieved, set flags to 0. It can happen
+      // if the CF is dropped. flags is only used to print information
+      // here and so it doesn't affect functional correctness.
+      flags = 0;
     }
 
     snprintf(cf_id_buf, INT_BUF_LEN, "%u", cf_handle->GetID());
@@ -847,10 +853,9 @@ static int rdb_i_s_global_info_fill_table(my_core::THD *const thd,
 /*
   Support for INFORMATION_SCHEMA.ROCKSDB_COMPACTION_STATS dynamic table
  */
-static int rdb_i_s_compact_stats_fill_table(my_core::THD *thd,
-                                            my_core::TABLE_LIST *tables,
-                                            my_core::Item *cond
-                                            MY_ATTRIBUTE((__unused__))) {
+static int rdb_i_s_compact_stats_fill_table(
+    my_core::THD *thd, my_core::TABLE_LIST *tables,
+    my_core::Item *cond MY_ATTRIBUTE((__unused__))) {
   DBUG_ASSERT(thd != nullptr);
   DBUG_ASSERT(tables != nullptr);
 
@@ -873,16 +878,20 @@ static int rdb_i_s_compact_stats_fill_table(my_core::THD *thd,
 
   Rdb_cf_manager &cf_manager = rdb_get_cf_manager();
 
-  for (auto cf_name : cf_manager.get_cf_names()) {
-    rocksdb::ColumnFamilyHandle *cfh = cf_manager.get_cf(cf_name);
+  for (const auto &cf_name : cf_manager.get_cf_names()) {
+    std::shared_ptr<rocksdb::ColumnFamilyHandle> cfh =
+        cf_manager.get_cf(cf_name);
 
-    if (cfh == nullptr) {
+    if (!cfh) {
       continue;
     }
 
+    // It is safe if the CF is removed from cf_manager at
+    // this point. The CF handle object is valid and sufficient here.
     std::map<std::string, std::string> props;
     bool bool_ret MY_ATTRIBUTE((__unused__));
-    bool_ret = rdb->GetMapProperty(cfh, "rocksdb.cfstats", &props);
+    bool_ret = rdb->GetMapProperty(cfh.get(), "rocksdb.cfstats", &props);
+
     DBUG_ASSERT(bool_ret);
 
     const std::string prop_name_prefix = "compaction.";
@@ -925,7 +934,7 @@ static ST_FIELD_INFO rdb_i_s_compact_stats_fields_info[] = {
     ROCKSDB_FIELD_INFO("VALUE", sizeof(double), MYSQL_TYPE_DOUBLE, 0),
     ROCKSDB_FIELD_INFO_END};
 
-namespace // anonymous namespace = not visible outside this source file
+namespace  // anonymous namespace = not visible outside this source file
 {
 struct Rdb_ddl_scanner : public Rdb_tables_scanner {
   my_core::THD *m_thd;
@@ -933,7 +942,7 @@ struct Rdb_ddl_scanner : public Rdb_tables_scanner {
 
   int add_table(Rdb_tbl_def *tdef) override;
 };
-} // anonymous namespace
+}  // anonymous namespace
 
 /*
   Support for INFORMATION_SCHEMA.ROCKSDB_DDL dynamic table
@@ -953,7 +962,7 @@ enum {
   CF,
   AUTO_INCREMENT
 };
-} // namespace RDB_DDL_FIELD
+}  // namespace RDB_DDL_FIELD
 
 static ST_FIELD_INFO rdb_i_s_ddl_fields_info[] = {
     ROCKSDB_FIELD_INFO("TABLE_SCHEMA", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
@@ -1028,8 +1037,7 @@ int Rdb_ddl_scanner::add_table(Rdb_tbl_def *tdef) {
     }
 
     ret = my_core::schema_table_store_record(m_thd, m_table);
-    if (ret)
-      return ret;
+    if (ret) return ret;
   }
   return HA_EXIT_SUCCESS;
 }
@@ -1145,51 +1153,63 @@ static std::string rdb_filename_without_path(const std::string &path) {
 }
 
 /*
-  Support for INFORMATION_SCHEMA.ROCKSDB_INDEX_FILE_MAP dynamic table
+  Support for INFORMATION_SCHEMA.ROCKSDB_SST_PROPS dynamic table
  */
-namespace RDB_INDEX_FILE_MAP_FIELD {
+namespace RDB_SST_PROPS_FIELD {
 enum {
-  COLUMN_FAMILY = 0,
-  INDEX_NUMBER,
-  SST_NAME,
-  NUM_ROWS,
-  DATA_SIZE,
-  ENTRY_DELETES,
-  ENTRY_SINGLEDELETES,
-  ENTRY_MERGES,
-  ENTRY_OTHERS,
-  DISTINCT_KEYS_PREFIX
+  SST_NAME = 0,
+  COLUMN_FAMILY,
+  DATA_BLOCKS,
+  ENTRIES,
+  RAW_KEY_SIZE,
+  RAW_VALUE_SIZE,
+  DATA_BLOCK_SIZE,
+  INDEX_BLOCK_SIZE,
+  INDEX_PARTITIONS,
+  TOP_LEVEL_INDEX_SIZE,
+  FILTER_BLOCK_SIZE,
+  COMPRESSION_ALGO,
+  CREATION_TIME,
+  FILE_CREATION_TIME,
+  OLDEST_KEY_TIME,
+  FILTER_POLICY,
+  COMPRESSION_OPTIONS,
 };
-} // namespace RDB_INDEX_FILE_MAP_FIELD
+}  // namespace RDB_SST_PROPS_FIELD
 
-static ST_FIELD_INFO rdb_i_s_index_file_map_fields_info[] = {
-    /* The information_schema.rocksdb_index_file_map virtual table has four
-     * fields:
-     *   COLUMN_FAMILY => the index's column family contained in the SST file
-     *   INDEX_NUMBER => the index id contained in the SST file
-     *   SST_NAME => the name of the SST file containing some indexes
-     *   NUM_ROWS => the number of entries of this index id in this SST file
-     *   DATA_SIZE => the data size stored in this SST file for this index id */
-    ROCKSDB_FIELD_INFO("COLUMN_FAMILY", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
-    ROCKSDB_FIELD_INFO("INDEX_NUMBER", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
+static ST_FIELD_INFO rdb_i_s_sst_props_fields_info[] = {
     ROCKSDB_FIELD_INFO("SST_NAME", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
-    ROCKSDB_FIELD_INFO("NUM_ROWS", sizeof(int64_t), MYSQL_TYPE_LONGLONG, 0),
-    ROCKSDB_FIELD_INFO("DATA_SIZE", sizeof(int64_t), MYSQL_TYPE_LONGLONG, 0),
-    ROCKSDB_FIELD_INFO("ENTRY_DELETES", sizeof(int64_t), MYSQL_TYPE_LONGLONG,
+    ROCKSDB_FIELD_INFO("COLUMN_FAMILY", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
+    ROCKSDB_FIELD_INFO("DATA_BLOCKS", sizeof(int64_t), MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO("ENTRIES", sizeof(int64_t), MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO("RAW_KEY_SIZE", sizeof(int64_t), MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO("RAW_VALUE_SIZE", sizeof(int64_t), MYSQL_TYPE_LONGLONG,
                        0),
-    ROCKSDB_FIELD_INFO("ENTRY_SINGLEDELETES", sizeof(int64_t),
+    ROCKSDB_FIELD_INFO("DATA_BLOCK_SIZE", sizeof(int64_t), MYSQL_TYPE_LONGLONG,
+                       0),
+    ROCKSDB_FIELD_INFO("INDEX_BLOCK_SIZE", sizeof(int64_t), MYSQL_TYPE_LONGLONG,
+                       0),
+    ROCKSDB_FIELD_INFO("INDEX_PARTITIONS", sizeof(uint32_t), MYSQL_TYPE_LONG,
+                       0),
+    ROCKSDB_FIELD_INFO("TOP_LEVEL_INDEX_SIZE", sizeof(int64_t),
                        MYSQL_TYPE_LONGLONG, 0),
-    ROCKSDB_FIELD_INFO("ENTRY_MERGES", sizeof(int64_t), MYSQL_TYPE_LONGLONG, 0),
-    ROCKSDB_FIELD_INFO("ENTRY_OTHERS", sizeof(int64_t), MYSQL_TYPE_LONGLONG, 0),
-    ROCKSDB_FIELD_INFO("DISTINCT_KEYS_PREFIX", MAX_REF_PARTS * 25,
-                       MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("FILTER_BLOCK_SIZE", sizeof(int64_t),
+                       MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO("COMPRESSION_ALGO", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("CREATION_TIME", sizeof(int64_t), MYSQL_TYPE_LONGLONG,
+                       0),
+    ROCKSDB_FIELD_INFO("FILE_CREATION_TIME", sizeof(int64_t),
+                       MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO("OLDEST_KEY_TIME", sizeof(int64_t), MYSQL_TYPE_LONGLONG,
+                       0),
+    ROCKSDB_FIELD_INFO("FILTER_POLICY", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("COMPRESSION_OPTIONS", NAME_LEN + 1, MYSQL_TYPE_STRING,
+                       0),
     ROCKSDB_FIELD_INFO_END};
 
-/* Fill the information_schema.rocksdb_index_file_map virtual table */
-static int rdb_i_s_index_file_map_fill_table(my_core::THD *const thd,
-                                             my_core::TABLE_LIST *const tables,
-                                             my_core::Item *const cond
-                                             MY_ATTRIBUTE((__unused__))) {
+static int rdb_i_s_sst_props_fill_table(
+    my_core::THD *const thd, my_core::TABLE_LIST *const tables,
+    my_core::Item *const cond MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
   DBUG_ASSERT(thd != nullptr);
@@ -1221,7 +1241,180 @@ static int rdb_i_s_index_file_map_fill_table(my_core::THD *const thd,
     /* Grab the the properties of all the tables in the column family */
     rocksdb::TablePropertiesCollection table_props_collection;
     const rocksdb::Status s =
-        rdb->GetPropertiesOfAllTables(cf_handle, &table_props_collection);
+        rdb->GetPropertiesOfAllTables(cf_handle.get(), &table_props_collection);
+
+    if (!s.ok()) {
+      continue;
+    }
+
+    // It is safe if the CF is removed from cf_manager at
+    // this point. The CF handle object is valid and sufficient here.
+    /* Iterate over all the items in the collection, each of which contains a
+     * name and the actual properties */
+    for (const auto &props : table_props_collection) {
+      /* Add the SST name into the output */
+      const std::string sst_name = rdb_filename_without_path(props.first);
+
+      field[RDB_SST_PROPS_FIELD::SST_NAME]->store(
+          sst_name.data(), sst_name.size(), system_charset_info);
+
+      field[RDB_SST_PROPS_FIELD::COLUMN_FAMILY]->store(
+          props.second->column_family_id, true);
+      field[RDB_SST_PROPS_FIELD::DATA_BLOCKS]->store(
+          props.second->num_data_blocks, true);
+      field[RDB_SST_PROPS_FIELD::ENTRIES]->store(props.second->num_entries,
+                                                 true);
+      field[RDB_SST_PROPS_FIELD::RAW_KEY_SIZE]->store(
+          props.second->raw_key_size, true);
+      field[RDB_SST_PROPS_FIELD::RAW_VALUE_SIZE]->store(
+          props.second->raw_value_size, true);
+      field[RDB_SST_PROPS_FIELD::DATA_BLOCK_SIZE]->store(
+          props.second->data_size, true);
+      field[RDB_SST_PROPS_FIELD::INDEX_BLOCK_SIZE]->store(
+          props.second->index_size, true);
+      field[RDB_SST_PROPS_FIELD::INDEX_PARTITIONS]->store(
+          props.second->index_partitions, true);
+      field[RDB_SST_PROPS_FIELD::TOP_LEVEL_INDEX_SIZE]->store(
+          props.second->top_level_index_size, true);
+      field[RDB_SST_PROPS_FIELD::FILTER_BLOCK_SIZE]->store(
+          props.second->filter_size, true);
+      if (props.second->compression_name.empty()) {
+        field[RDB_SST_PROPS_FIELD::COMPRESSION_ALGO]->set_null();
+      } else {
+        field[RDB_SST_PROPS_FIELD::COMPRESSION_ALGO]->store(
+            props.second->compression_name.c_str(),
+            props.second->compression_name.size(), system_charset_info);
+      }
+      field[RDB_SST_PROPS_FIELD::CREATION_TIME]->store(
+          props.second->creation_time, true);
+      field[RDB_SST_PROPS_FIELD::FILE_CREATION_TIME]->store(
+          props.second->file_creation_time, true);
+      field[RDB_SST_PROPS_FIELD::OLDEST_KEY_TIME]->store(
+          props.second->oldest_key_time, true);
+      if (props.second->filter_policy_name.empty()) {
+        field[RDB_SST_PROPS_FIELD::FILTER_POLICY]->set_null();
+      } else {
+        field[RDB_SST_PROPS_FIELD::FILTER_POLICY]->store(
+            props.second->filter_policy_name.c_str(),
+            props.second->filter_policy_name.size(), system_charset_info);
+      }
+      if (props.second->compression_options.empty()) {
+        field[RDB_SST_PROPS_FIELD::COMPRESSION_OPTIONS]->set_null();
+      } else {
+        field[RDB_SST_PROPS_FIELD::COMPRESSION_OPTIONS]->store(
+            props.second->compression_options.c_str(),
+            props.second->compression_options.size(), system_charset_info);
+      }
+
+      /* Tell MySQL about this row in the virtual table */
+      ret = static_cast<int>(
+          my_core::schema_table_store_record(thd, tables->table));
+
+      if (ret != 0) {
+        DBUG_RETURN(ret);
+      }
+    }
+  }
+
+  DBUG_RETURN(ret);
+}
+
+/* Initialize the information_schema.rocksdb_sst_props virtual table */
+static int rdb_i_s_sst_props_init(void *const p) {
+  DBUG_ENTER_FUNC();
+
+  DBUG_ASSERT(p != nullptr);
+
+  my_core::ST_SCHEMA_TABLE *schema;
+
+  schema = (my_core::ST_SCHEMA_TABLE *)p;
+
+  schema->fields_info = rdb_i_s_sst_props_fields_info;
+  schema->fill_table = rdb_i_s_sst_props_fill_table;
+
+  DBUG_RETURN(0);
+}
+
+/*
+  Support for INFORMATION_SCHEMA.ROCKSDB_INDEX_FILE_MAP dynamic table
+ */
+namespace RDB_INDEX_FILE_MAP_FIELD {
+enum {
+  COLUMN_FAMILY = 0,
+  INDEX_NUMBER,
+  SST_NAME,
+  NUM_ROWS,
+  DATA_SIZE,
+  ENTRY_DELETES,
+  ENTRY_SINGLEDELETES,
+  ENTRY_MERGES,
+  ENTRY_OTHERS,
+  DISTINCT_KEYS_PREFIX
+};
+}  // namespace RDB_INDEX_FILE_MAP_FIELD
+
+static ST_FIELD_INFO rdb_i_s_index_file_map_fields_info[] = {
+    /* The information_schema.rocksdb_index_file_map virtual table has four
+     * fields:
+     *   COLUMN_FAMILY => the index's column family contained in the SST file
+     *   INDEX_NUMBER => the index id contained in the SST file
+     *   SST_NAME => the name of the SST file containing some indexes
+     *   NUM_ROWS => the number of entries of this index id in this SST file
+     *   DATA_SIZE => the data size stored in this SST file for this index id */
+    ROCKSDB_FIELD_INFO("COLUMN_FAMILY", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
+    ROCKSDB_FIELD_INFO("INDEX_NUMBER", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
+    ROCKSDB_FIELD_INFO("SST_NAME", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("NUM_ROWS", sizeof(int64_t), MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO("DATA_SIZE", sizeof(int64_t), MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO("ENTRY_DELETES", sizeof(int64_t), MYSQL_TYPE_LONGLONG,
+                       0),
+    ROCKSDB_FIELD_INFO("ENTRY_SINGLEDELETES", sizeof(int64_t),
+                       MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO("ENTRY_MERGES", sizeof(int64_t), MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO("ENTRY_OTHERS", sizeof(int64_t), MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO("DISTINCT_KEYS_PREFIX", MAX_REF_PARTS * 25,
+                       MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO_END};
+
+/* Fill the information_schema.rocksdb_index_file_map virtual table */
+static int rdb_i_s_index_file_map_fill_table(
+    my_core::THD *const thd, my_core::TABLE_LIST *const tables,
+    my_core::Item *const cond MY_ATTRIBUTE((__unused__))) {
+  DBUG_ENTER_FUNC();
+
+  DBUG_ASSERT(thd != nullptr);
+  DBUG_ASSERT(tables != nullptr);
+  DBUG_ASSERT(tables->table != nullptr);
+
+  int ret = 0;
+  Rdb_hton_init_state::Scoped_lock state_lock(*rdb_get_hton_init_state(),
+                                              false);
+  if (!rdb_get_hton_init_state()->initialized()) {
+    ret = ER_PLUGIN_IS_NOT_LOADED;
+    my_error(ret, MYF(0), rocksdb_hton_name);
+    DBUG_RETURN(ret);
+  }
+
+  Field **field = tables->table->field;
+  DBUG_ASSERT(field != nullptr);
+
+  /* Iterate over all the column families */
+  rocksdb::DB *const rdb = rdb_get_rocksdb_db();
+
+  if (!rdb) {
+    DBUG_RETURN(ret);
+  }
+
+  const Rdb_cf_manager &cf_manager = rdb_get_cf_manager();
+
+  for (const auto &cf_handle : cf_manager.get_all_cf()) {
+    /* Grab the the properties of all the tables in the column family */
+    rocksdb::TablePropertiesCollection table_props_collection;
+
+    // It is safe if the CF is removed from cf_manager at
+    // this point. The CF handle object is valid and sufficient here.
+    const rocksdb::Status s =
+        rdb->GetPropertiesOfAllTables(cf_handle.get(), &table_props_collection);
 
     if (!s.ok()) {
       continue;
@@ -1320,7 +1513,7 @@ static int rdb_i_s_index_file_map_init(void *const p) {
  */
 namespace RDB_LOCKS_FIELD {
 enum { COLUMN_FAMILY_ID = 0, TRANSACTION_ID, KEY, MODE };
-} // namespace RDB_LOCKS_FIELD
+}  // namespace RDB_LOCKS_FIELD
 
 static ST_FIELD_INFO rdb_i_s_lock_info_fields_info[] = {
     ROCKSDB_FIELD_INFO("COLUMN_FAMILY_ID", sizeof(uint32_t), MYSQL_TYPE_LONG,
@@ -1331,10 +1524,9 @@ static ST_FIELD_INFO rdb_i_s_lock_info_fields_info[] = {
     ROCKSDB_FIELD_INFO_END};
 
 /* Fill the information_schema.rocksdb_locks virtual table */
-static int rdb_i_s_lock_info_fill_table(my_core::THD *const thd,
-                                        my_core::TABLE_LIST *const tables,
-                                        my_core::Item *const cond
-                                        MY_ATTRIBUTE((__unused__))) {
+static int rdb_i_s_lock_info_fill_table(
+    my_core::THD *const thd, my_core::TABLE_LIST *const tables,
+    my_core::Item *const cond MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
   DBUG_ASSERT(thd != nullptr);
@@ -1427,7 +1619,7 @@ enum {
   THREAD_ID,
   QUERY
 };
-} // namespace RDB_TRX_FIELD
+}  // namespace RDB_TRX_FIELD
 
 static ST_FIELD_INFO rdb_i_s_trx_info_fields_info[] = {
     ROCKSDB_FIELD_INFO("TRANSACTION_ID", sizeof(ulonglong), MYSQL_TYPE_LONGLONG,
@@ -1453,10 +1645,9 @@ static ST_FIELD_INFO rdb_i_s_trx_info_fields_info[] = {
     ROCKSDB_FIELD_INFO_END};
 
 /* Fill the information_schema.rocksdb_trx virtual table */
-static int rdb_i_s_trx_info_fill_table(my_core::THD *const thd,
-                                       my_core::TABLE_LIST *const tables,
-                                       my_core::Item *const cond
-                                       MY_ATTRIBUTE((__unused__))) {
+static int rdb_i_s_trx_info_fill_table(
+    my_core::THD *const thd, my_core::TABLE_LIST *const tables,
+    my_core::Item *const cond MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
   DBUG_ASSERT(thd != nullptr);
@@ -1551,19 +1742,21 @@ static int rdb_i_s_trx_info_init(void *const p) {
 namespace RDB_DEADLOCK_FIELD {
 enum {
   DEADLOCK_ID = 0,
+  TIMESTAMP,
   TRANSACTION_ID,
   CF_NAME,
   WAITING_KEY,
   LOCK_TYPE,
   INDEX_NAME,
   TABLE_NAME,
-  ROLLED_BACK
+  ROLLED_BACK,
 };
-} // namespace RDB_TRX_FIELD
+}  // namespace RDB_DEADLOCK_FIELD
 
 static ST_FIELD_INFO rdb_i_s_deadlock_info_fields_info[] = {
     ROCKSDB_FIELD_INFO("DEADLOCK_ID", sizeof(ulonglong), MYSQL_TYPE_LONGLONG,
                        0),
+    ROCKSDB_FIELD_INFO("TIMESTAMP", sizeof(ulonglong), MYSQL_TYPE_LONGLONG, 0),
     ROCKSDB_FIELD_INFO("TRANSACTION_ID", sizeof(ulonglong), MYSQL_TYPE_LONGLONG,
                        0),
     ROCKSDB_FIELD_INFO("CF_NAME", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
@@ -1608,8 +1801,11 @@ static int rdb_i_s_deadlock_info_fill_table(
 
   ulonglong id = 0;
   for (const auto &info : all_dl_info) {
+    auto deadlock_time = info.deadlock_time;
     for (const auto &trx_info : info.path) {
       tables->table->field[RDB_DEADLOCK_FIELD::DEADLOCK_ID]->store(id, true);
+      tables->table->field[RDB_DEADLOCK_FIELD::TIMESTAMP]->store(deadlock_time,
+                                                                 true);
       tables->table->field[RDB_DEADLOCK_FIELD::TRANSACTION_ID]->store(
           trx_info.trx_id, true);
       tables->table->field[RDB_DEADLOCK_FIELD::CF_NAME]->store(
@@ -1800,6 +1996,22 @@ struct st_mysql_plugin rdb_i_s_ddl = {
     0,       /* flags */
 };
 
+struct st_mysql_plugin rdb_i_s_sst_props = {
+    MYSQL_INFORMATION_SCHEMA_PLUGIN,
+    &rdb_i_s_info,
+    "ROCKSDB_SST_PROPS",
+    "Facebook",
+    "RocksDB SST Properties",
+    PLUGIN_LICENSE_GPL,
+    rdb_i_s_sst_props_init,
+    rdb_i_s_deinit,
+    0x0001,  /* version number (0.1) */
+    nullptr, /* status variables */
+    nullptr, /* system variables */
+    nullptr, /* config options */
+    0,       /* flags */
+};
+
 struct st_mysql_plugin rdb_i_s_index_file_map = {
     MYSQL_INFORMATION_SCHEMA_PLUGIN,
     &rdb_i_s_info,
@@ -1863,4 +2075,4 @@ struct st_mysql_plugin rdb_i_s_deadlock_info = {
     nullptr, /* config options */
     0,       /* flags */
 };
-} // namespace myrocks
+}  // namespace myrocks

@@ -1,0 +1,146 @@
+--source include/have_innodb.inc
+--source include/linux.inc
+--source include/have_grep.inc
+--source include/have_debug_sync.inc
+--source include/not_embedded.inc
+
+#
+# Filesort temporary files
+#
+--let $encryption_mode = 0
+while($encryption_mode < 2)
+{
+  # Asserting expected values in the .opt file / provided via $restart_parameters
+  if($encryption_mode == 0)
+  {
+    --let $assert_text = Temporary file encryption must be enabled
+    --let $assert_cond = @@global.encrypt_tmp_files = 1
+    --source include/assert.inc
+    --let $assert_text = Sort buffer size must be 4M
+    --let $assert_cond = @@global.sort_buffer_size = 4*1048576
+    --source include/assert.inc
+  }
+  if($encryption_mode == 1)
+  {
+    --let $assert_text = Temporary file encryption must be disabled
+    --let $assert_cond = @@global.encrypt_tmp_files = 0
+    --source include/assert.inc
+    --let $assert_text = Sort buffer size must be 4M
+    --let $assert_cond = @@global.sort_buffer_size = 4*1048576
+    --source include/assert.inc
+  }
+
+  # Determining server temp dir where 'filesort()' temporary files will be
+  # created.
+  --let $tmp_dir = `SELECT @@global.tmpdir`
+
+  # Determining server PID file name.
+  --let $pid_file = `SELECT @@global.pid_file`
+
+  # Creating a temporary table for reading ids from a file.
+  CREATE TEMPORARY TABLE id_table(id INT UNSIGNED);
+
+  # Reading the server PID from $pid_file
+  --replace_result $pid_file <pid_file>
+  --eval LOAD DATA LOCAL INFILE '$pid_file' INTO TABLE id_table
+  --let $pid_no = `SELECT id FROM id_table`
+  TRUNCATE TABLE id_table;
+
+  # Creating a simple table.
+  CREATE TABLE t1(
+    id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
+    value CHAR(32) NOT NULL,
+    dummy VARCHAR(1024) NOT NULL
+  ) ENGINE=InnoDB;
+
+  # Filling the table with pseudo-random data based on MD5 hashes.
+  --let $length_multiplier = 16
+  eval INSERT INTO t1 VALUES (0, MD5(0), REPEAT(MD5(0), $length_multiplier));
+  --let $shift = 1
+  --let $n = 12
+  while($n)
+  {
+    eval INSERT INTO t1 SELECT $shift + id, MD5($shift + id), REPEAT(MD5($shift + id), $length_multiplier) FROM t1 ORDER BY id;
+    --let $shift = `SELECT $shift * 2`
+    --dec $n
+  }
+
+  # Establishing a new auxiliary connection.
+  --connect (con1,localhost,root,,)
+
+  # Making the server stop at 'after_find_all_keys' DEBUG_SYNC point
+  # (inside 'filesort()' after 'find_all_keys()')
+  # when executing the following 'SELECT sql_big_result' statement.
+  SET DEBUG_SYNC = 'after_find_all_keys SIGNAL after_find_all_keys_reached WAIT_FOR after_find_all_keys_signaled';
+  --send SELECT sql_big_result * FROM t1 ORDER BY dummy
+
+  # In the main connection waiting for the SELECT from the aux connection to
+  # reach 'after_find_all_keys' DEBUG_SYNC point and suspend.
+  --connection default
+  SET DEBUG_SYNC = 'now WAIT_FOR after_find_all_keys_reached';
+
+  # Looking for a file descriptor (symbolic link) from '/proc/$pid_no/fd'
+  # which points to a file in $tmp_dir and starts with 'MY'. For instance,
+  # lrwx------ 1 64  66 -> <build_dir>/mysql-test/var/tmp/mysqld.1/MYOi8yx9 (deleted)
+  # File descriptor number is extracted into $tmp_fd_no MTR variable.
+  # In 'ls':
+  # * "-o" means omit owner;
+  # * "-g" means omit group;
+  # * "--time-style='+'" means omit timestamp.
+  --let $awk_filter = {print \$4}
+  --let $fd_no_include_file = $MYSQL_TMP_DIR/fd_no_include_file.inc
+  --exec ls -og --time-style='+' /proc/$pid_no/fd | grep $tmp_dir/MY | awk '$awk_filter' > $fd_no_include_file
+  --replace_result $fd_no_include_file <fd_no_include_file>
+  --eval LOAD DATA LOCAL INFILE '$fd_no_include_file' INTO TABLE id_table
+  --remove_file $fd_no_include_file
+  --let $tmp_fd_no = `SELECT id FROM id_table`
+  TRUNCATE TABLE id_table;
+
+  # Asserting that 'filesort()' temp file contains / not contains one of the
+  # 'value' column hashes from 't1' table. '42' was randomly chosen.
+  # 'UPPER()' is needed as in the temp file keys are stored in upper case.
+  --let $assert_file = /proc/$pid_no/fd/$tmp_fd_no
+  --let $assert_select = `SELECT UPPER(MD5(42))`
+  if($encryption_mode == 0)
+  {
+    --let $assert_text = filesort() temporary file must not contain unencrypted key
+    --let $assert_count = 0
+  }
+  if($encryption_mode == 1)
+  {
+    --let $assert_text = filesort() temporary file must contain unencrypted key
+    --let $assert_count = 1
+  }
+  --source include/assert_grep.inc
+
+  # Letting SLECT from the aux connection continue execution.
+  SET DEBUG_SYNC = 'now SIGNAL after_find_all_keys_signaled';
+
+  # Finalizing execution of the SELECT in the aux connection.
+  --connection con1
+  --disable_result_log
+  --reap
+  --enable_result_log
+
+  # Closing aux connection.
+  # 'count_sessions.inc' is not needed as the server is restarted
+  --connection default
+  --disconnect con1
+
+  # Cleaning up.
+  DROP TABLE t1;
+  SET DEBUG_SYNC = 'RESET';
+
+  # Restarting the server with / without '--encrypt-tmp-files' enabled.
+  if($encryption_mode == 0)
+  {
+    --let $restart_parameters = restart: --encrypt-tmp-files=OFF
+  }
+  if($encryption_mode == 1)
+  {
+    --let $restart_parameters =
+  }
+  --source include/restart_mysqld.inc
+
+  --inc $encryption_mode
+}

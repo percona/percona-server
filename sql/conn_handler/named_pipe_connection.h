@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -34,8 +41,7 @@ class THD;
 class Named_pipe_listener
 {
   std::string m_pipe_name;
-  SECURITY_ATTRIBUTES m_sa_pipe_security;
-  SECURITY_DESCRIPTOR m_sd_pipe_descriptor;
+  SECURITY_ATTRIBUTES *mp_sa_pipe_security;
   HANDLE m_pipe_handle;
   char m_pipe_path_name[512];
   HANDLE h_connected_pipe;
@@ -49,7 +55,8 @@ public:
   */
   Named_pipe_listener(const std::string *pipe_name)
   : m_pipe_name(*pipe_name),
-    m_pipe_handle(INVALID_HANDLE_VALUE)
+    m_pipe_handle(INVALID_HANDLE_VALUE),
+    mp_sa_pipe_security(nullptr)
   { }
 
 
@@ -69,6 +76,15 @@ public:
                            details for processing this connection.
   */
   Channel_info* listen_for_connection_event();
+
+  /**
+  Set the Windows group name whose users have full access to new instances of
+  the named pipe
+
+  @retval false access set successfully.
+  true failed to change access.
+  */
+  bool update_named_pipe_full_access_group(const char *new_group_name);
 
   /**
     Close the listener

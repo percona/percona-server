@@ -1,13 +1,20 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
@@ -390,8 +397,16 @@ int Recovery_state_transfer::establish_donor_connection()
   {
     mysql_mutex_lock(&donor_selection_lock);
 
+    DBUG_EXECUTE_IF("gr_reset_max_connection_attempts_to_donors", {
+      if (donor_connection_retry_count == 3) {
+        const char act[] =
+            "now signal signal.connection_attempt_3 wait_for "
+            "signal.reset_recovery_retry_count_done";
+        DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      }
+    };);
     // max number of retries reached, abort
-    if (donor_connection_retry_count == max_connection_attempts_to_donors)
+    if (donor_connection_retry_count >= max_connection_attempts_to_donors)
     {
       log_message(MY_ERROR_LEVEL,
                   "Maximum number of retries when trying to "
@@ -650,7 +665,7 @@ int Recovery_state_transfer::start_recovery_donor_threads()
   DBUG_RETURN(error);
 }
 
-int Recovery_state_transfer::terminate_recovery_slave_threads()
+int Recovery_state_transfer::terminate_recovery_slave_threads(bool purge_logs)
 {
   DBUG_ENTER("Recovery_state_transfer::terminate_recovery_slave_threads");
 
@@ -669,8 +684,11 @@ int Recovery_state_transfer::terminate_recovery_slave_threads()
   }
   else
   {
-    //If there is no repository in place nothing happens
-    error= purge_recovery_slave_threads_repos();
+    if (purge_logs)
+    {
+      //If there is no repository in place nothing happens
+      error= purge_recovery_slave_threads_repos();
+    }
   }
 
   DBUG_RETURN(error);
@@ -717,14 +735,21 @@ int Recovery_state_transfer::state_transfer(THD *recovery_thd)
 
   while (!donor_transfer_finished && !recovery_aborted)
   {
-    //If an applier error happened: stop the receiver thread and purge the logs
+    /*
+      If an applier error happened: stop the slave threads.
+      We do not purge logs or reset channel configuration to
+      preserve the error information on performance schema
+      tables until the next recovery attempt.
+      Recovery_state_transfer::initialize_donor_connection() will
+      take care of that.
+    */
     if (donor_channel_thread_error)
     {
       //Unsubscribe the listener until it connects again.
       channel_observation_manager
           ->unregister_channel_observer(recovery_channel_observer);
 
-      if ((error= terminate_recovery_slave_threads()))
+      if ((error= terminate_recovery_slave_threads(false)))
       {
         /* purecov: begin inspected */
         log_message(MY_ERROR_LEVEL,
@@ -798,7 +823,8 @@ int Recovery_state_transfer::state_transfer(THD *recovery_thd)
 
   channel_observation_manager
       ->unregister_channel_observer(recovery_channel_observer);
-  terminate_recovery_slave_threads();
+  // do not purge logs if an error occur, keep the diagnose on SLAVE STATUS
+  terminate_recovery_slave_threads(!error);
   connected_to_donor= false;
 
   DBUG_RETURN(error);

@@ -1,16 +1,22 @@
 
 /*
- * Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
+ *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
@@ -107,7 +113,7 @@ public:
     ngs::Socket_interface::Shared_ptr socket = m_mock_socket;
     EXPECT_CALL(m_mock_socket_events, listen(socket, _)).WillOnce(Return(true));
 
-    ASSERT_TRUE(sut->setup_listener(NULL));
+    ASSERT_TRUE(sut->setup_listener(ngs::Listener_interface::On_connection()));
     ASSERT_TRUE(sut->get_state().is(ngs::State_listener_prepared));
 
     ASSERT_NO_FATAL_FAILURE(assert_and_clear_mocks());
@@ -141,7 +147,7 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_try_to_create_empty_unixsocket
 
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
-  ASSERT_FALSE(sut->setup_listener(NULL));
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
   ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
 #endif
 }
@@ -153,7 +159,7 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_try_to_create_unixsocket_with_
 
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
-  ASSERT_FALSE(sut->setup_listener(NULL));
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
   ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
 #endif
 }
@@ -167,7 +173,7 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_cant_create_a_lockfile) {
   EXPECT_CALL(*m_mock_system, get_pid()).WillOnce(Return(CURRENT_PID));
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
-  ASSERT_FALSE(sut->setup_listener(NULL));
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
   ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
 #endif
 }
@@ -183,7 +189,7 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_cant_open_existing_lockfile) {
   EXPECT_CALL(*m_mock_system, get_errno()).WillOnce(Return(EEXIST));
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
-  ASSERT_FALSE(sut->setup_listener(NULL));
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
   ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
 #endif
 }
@@ -200,7 +206,7 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_cant_read_existing_lockfile) {
   EXPECT_CALL(*m_mock_file, read(_,_)).WillOnce(Return(READ_ERR));
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
-  ASSERT_FALSE(sut->setup_listener(NULL));
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
   ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
 #endif
 }
@@ -218,7 +224,7 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_read_empty_lockfile) {
   EXPECT_CALL(*m_mock_file, close()).WillOnce(Return(0));
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
-  ASSERT_FALSE(sut->setup_listener(NULL));
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
   ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
 #endif
 }
@@ -236,7 +242,7 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_read_not_x_plugin_lockfile) {
   EXPECT_CALL(*m_mock_file, close()).WillOnce(Return(CLOSE_OK));
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
-  ASSERT_FALSE(sut->setup_listener(NULL));
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
   ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
 #endif
 }
@@ -260,7 +266,7 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_read_x_plugin_lockfile_but_can
   EXPECT_CALL(*m_mock_file, close()).WillOnce(Return(CLOSE_OK));
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
-  ASSERT_FALSE(sut->setup_listener(NULL));
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
   ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
 #endif
 }
@@ -284,7 +290,7 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_read_x_plugin_lockfile_same_pr
   EXPECT_CALL(*m_mock_system, unlink(StrEq(UNIX_SOCKET_LOCK_FILE))).WillOnce(Return(UNLINK_ERR));
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
-  ASSERT_FALSE(sut->setup_listener(NULL));
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
   ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
 #endif
 }
@@ -298,7 +304,7 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_write_x_plugin_lockfile_failed
   EXPECT_CALL(*m_mock_file,    write(_, _)).WillOnce(Return(WRITE_ERR));
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
-  ASSERT_FALSE(sut->setup_listener(NULL));
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
   ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
 #endif
 }
@@ -314,7 +320,7 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_fsync_x_plugin_lockfile_failed
   EXPECT_CALL(*m_mock_file,    fsync()).WillOnce(Return(FSYNC_ERR));
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
-  ASSERT_FALSE(sut->setup_listener(NULL));
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
   ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
 #endif
 }
@@ -331,7 +337,7 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_close_x_plugin_lockfile_failed
   EXPECT_CALL(*m_mock_file,    close()).WillOnce(Return(CLOSE_ERR));
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
-  ASSERT_FALSE(sut->setup_listener(NULL));
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
   ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
 #endif
 }
@@ -344,7 +350,7 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_create_socket_failed) {
   EXPECT_CALL(*m_mock_system, get_socket_error_and_message(_, _));
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
-  ASSERT_FALSE(sut->setup_listener(NULL));
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
   ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
 #endif
 }
@@ -364,7 +370,7 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_listen_failed) {
   EXPECT_CALL(*m_mock_socket, close()).Times(2); // first call in setup_listener
                                                  // second call in SUT destructor
 
-  ASSERT_FALSE(sut->setup_listener(NULL));
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
   ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
 #endif
 }
@@ -385,7 +391,7 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_event_regiester_failure) {
   ngs::Socket_interface::Shared_ptr socket = m_mock_socket;
   EXPECT_CALL(m_mock_socket_events, listen(socket, _)).WillOnce(Return(false));
 
-  ASSERT_FALSE(sut->setup_listener(NULL));
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
   ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
 
   // In SUT destructor
@@ -419,7 +425,7 @@ TEST_F(Listener_unix_socket_testsuite, unix_socket_unsupported) {
 
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
-  ASSERT_FALSE(sut->setup_listener(NULL));
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
   ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
 #endif
 }

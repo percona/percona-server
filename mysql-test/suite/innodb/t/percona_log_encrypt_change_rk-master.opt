@@ -1,0 +1,4 @@
+$KEYRING_PLUGIN_OPT
+$KEYRING_PLUGIN_EARLY_LOAD
+--loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring_change
+--innodb_redo_log_encrypt=KEYRING_KEY

@@ -11,6 +11,7 @@ call mtr.add_suppression("InnoDB: Tablespace open failed for.*bug16720368");
 call mtr.add_suppression("InnoDB: Failed to find tablespace.*bug16720368");
 call mtr.add_suppression("InnoDB: Header page contains inconsistent data in .*bug16720368.ibd");
 call mtr.add_suppression("InnoDB: Could not find.*test/bug16720368");
+call mtr.add_suppression("Trying to access missing tablespace [0-9]+");
 call mtr.add_suppression("Found 1 prepared XA transactions");
 call mtr.add_suppression("InnoDB: .*test.*bug16720368.*missing");
 call mtr.add_suppression("InnoDB: Operating system error.*in a file operation");

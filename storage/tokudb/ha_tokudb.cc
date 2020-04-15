@@ -1060,7 +1060,8 @@ static inline int tokudb_generate_row(DB* dest_db,
         }
 
         buff = (uchar *)dest_key->data;
-        assert_always(buff != NULL && max_key_len > 0);
+        assert_always(buff != nullptr);
+        assert_always(max_key_len > 0);
     } else {
         assert_unreachable();
     }
@@ -1315,7 +1316,7 @@ int ha_tokudb::open_main_dictionary(
             NULL,
             DB_BTREE,
             open_flags,
-            0);
+            is_read_only ? 0 : S_IWUSR);
     if (error) {
         goto exit;
     }
@@ -1378,7 +1379,7 @@ int ha_tokudb::open_secondary_dictionary(
     }
 
 
-    error = (*ptr)->open(*ptr, txn, newname, NULL, DB_BTREE, open_flags, 0);
+    error = (*ptr)->open(*ptr, txn, newname, NULL, DB_BTREE, open_flags, is_read_only ? 0 : S_IWUSR);
     if (error) {
         set_my_errno(error);
         goto cleanup;
@@ -1564,6 +1565,7 @@ exit:
 }
 
 int ha_tokudb::initialize_share(const char* name, int mode) {
+
     int error = 0;
     uint64_t num_rows = 0;
     DB_TXN* txn = NULL;
@@ -1617,6 +1619,7 @@ int ha_tokudb::initialize_share(const char* name, int mode) {
             hidden_primary_key,
             primary_key);
     if (error) { goto exit; }
+
 
     error = open_main_dictionary(name, mode == O_RDONLY, txn);
     if (error) {
@@ -1765,7 +1768,6 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
 
     transaction = NULL;
     cursor = NULL;
-
 
     /* Open primary key */
     hidden_primary_key = 0;
@@ -3301,15 +3303,17 @@ void ha_tokudb::start_bulk_insert(ha_rows rows) {
 int ha_tokudb::bulk_insert_poll(void* extra, float progress) {
     LOADER_CONTEXT context = (LOADER_CONTEXT)extra;
     if (thd_killed(context->thd)) {
-        sprintf(context->write_status_msg,
-                "The process has been killed, aborting bulk load.");
+        snprintf(context->write_status_msg,
+                 sizeof(context->write_status_msg),
+                 "The process has been killed, aborting bulk load.");
         return ER_ABORTING_CONNECTION;
     }
     float percentage = progress * 100;
-    sprintf(context->write_status_msg,
-            "Loading of data t %s about %.1f%% done",
-            context->ha->share->full_table_name(),
-            percentage);
+    snprintf(context->write_status_msg,
+             sizeof(context->write_status_msg),
+             "Loading of data t %s about %.1f%% done",
+             context->ha->share->full_table_name(),
+             percentage);
     thd_proc_info(context->thd, context->write_status_msg);
 #ifdef HA_TOKUDB_HAS_THD_PROGRESS
     thd_progress_report(context->thd, (unsigned long long)percentage, 100);
@@ -4079,7 +4083,7 @@ cleanup:
     if (error == DB_KEYEXIST) {
         error = HA_ERR_FOUND_DUPP_KEY;
     }
-    if (using_ignore) {
+    if (sub_trans) {
         // no point in recording error value of abort.
         // nothing we can do about it anyway and it is not what
         // we want to return.
@@ -8486,15 +8490,17 @@ cleanup:
 int ha_tokudb::tokudb_add_index_poll(void* extra, float progress) {
     LOADER_CONTEXT context = (LOADER_CONTEXT)extra;
     if (thd_killed(context->thd)) {
-        sprintf(context->write_status_msg,
-                "The process has been killed, aborting add index.");
+        snprintf(context->write_status_msg,
+                 sizeof(context->write_status_msg),
+                 "The process has been killed, aborting add index.");
         return ER_ABORTING_CONNECTION;
     }
     float percentage = progress * 100;
-    sprintf(context->write_status_msg,
-            "Adding of indexes to %s about %.1f%% done",
-            context->ha->share->full_table_name(),
-            percentage);
+    snprintf(context->write_status_msg,
+             sizeof(context->write_status_msg),
+             "Adding of indexes to %s about %.1f%% done",
+             context->ha->share->full_table_name(),
+             percentage);
     thd_proc_info(context->thd, context->write_status_msg);
 #ifdef HA_TOKUDB_HAS_THD_PROGRESS
     thd_progress_report(context->thd, (unsigned long long)percentage, 100);

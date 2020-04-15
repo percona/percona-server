@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, 2016, Percona Inc.
 
@@ -17,13 +17,21 @@ documentation. The contributions by Percona Inc. are incorporated with
 their permission, and subject to the conditions contained in the file
 COPYING.Percona.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -160,14 +168,11 @@ struct srv_stats_t {
 	/** Number of encryption_get_latest_key_version calls */
 	ulint_ctr_64_t		n_key_requests;
 
-	/** Number of log scrub operations */
-	//ulint_ctr_64_t		n_log_scrubs;
-
 	/** Number of spaces in keyrotation list */
 	ulint_ctr_64_t		key_rotation_list_length;
 
 	/** Number of log scrub operations */
-	ulint_ctr_64_t          n_log_scrubs;
+	ulint_ctr_64_t		n_log_scrubs;
 
 	/* Number of pages encrypted */
 	ulint_ctr_64_t          pages_encrypted;
@@ -355,12 +360,6 @@ extern ulong	srv_n_log_files;
 
 extern ulong	srv_redo_log_encrypt;
 
-enum redo_log_encrypt_enum {
-	REDO_LOG_ENCRYPT_OFF = 0,
-	REDO_LOG_ENCRYPT_MK = 1,
-	REDO_LOG_ENCRYPT_RK = 2,
-};
-
 /** At startup, this is the current redo log file size.
 During startup, if this is different from srv_log_file_size_requested
 (innodb_log_file_size), the redo log will be rebuilt and this size
@@ -544,7 +543,7 @@ extern bool	srv_buf_resize_thread_active;
 extern ibool	srv_dict_stats_thread_active;
 
 /* TRUE if enable log scrubbing */
-extern my_bool  srv_scrub_log;
+extern my_bool	srv_scrub_log;
 
 extern ulong	srv_n_spin_wait_rounds;
 extern ulong	srv_n_free_tickets_to_enter;
@@ -567,7 +566,7 @@ extern my_bool	srv_purge_view_update_only_debug;
 extern my_bool	srv_master_thread_disabled_debug;
 #endif /* UNIV_DEBUG */
 
-extern ulint	srv_fatal_semaphore_wait_threshold;
+extern ulong	srv_fatal_semaphore_wait_threshold;
 #define SRV_SEMAPHORE_WAIT_EXTENSION	7200
 extern ulint	srv_dml_needed_delay;
 extern lint	srv_kill_idle_transaction;
@@ -1053,6 +1052,19 @@ bool
 srv_is_undo_tablespace(
 	ulint	space_id);
 
+/** Enables master key redo encryption. 
+Doesn't depend on the srv_redo_log_encrypt variable, used by 
+SET innodb_redo_log_encrypt = MK. */
+bool srv_enable_redo_encryption_mk(THD* thd);
+
+/** Enables keyring key redo encryption. 
+Doesn't depend on the srv_redo_log_encrypt variable, used by 
+SET innodb_redo_log_encrypt = RK. */
+bool srv_enable_redo_encryption_rk(THD* thd);
+
+/** Enables redo log encryption based on srv_redo_log_encrypt. */
+bool srv_enable_redo_encryption(THD* thd);
+
 #ifdef UNIV_DEBUG
 /** Disables master thread. It's used by:
 	SET GLOBAL innodb_master_thread_disabled_debug = 1 (0).
@@ -1178,6 +1190,7 @@ struct export_var_t{
 						encrypted */
 	int64_t innodb_pages_decrypted;      /*!< Number of pages
 						decrypted */
+	int64_t innodb_redo_key_version;
 
 	/*!< Number of merge blocks encrypted */
 	int64_t innodb_n_merge_blocks_encrypted;
@@ -1196,13 +1209,13 @@ struct export_var_t{
 	int64_t innodb_encryption_key_requests;
 	int64_t innodb_key_rotation_list_length;
 
-        ulint innodb_scrub_page_reorganizations;
-        ulint innodb_scrub_page_splits;
-        ulint innodb_scrub_page_split_failures_underflow;
-        ulint innodb_scrub_page_split_failures_out_of_filespace;
-        ulint innodb_scrub_page_split_failures_missing_index;
-        ulint innodb_scrub_page_split_failures_unknown;
-        int64_t innodb_scrub_log;
+	ulint innodb_scrub_page_reorganizations;
+	ulint innodb_scrub_page_splits;
+	ulint innodb_scrub_page_split_failures_underflow;
+	ulint innodb_scrub_page_split_failures_out_of_filespace;
+	ulint innodb_scrub_page_split_failures_missing_index;
+	ulint innodb_scrub_page_split_failures_unknown;
+	int64_t innodb_scrub_log;
 };
 
 /** Thread slot in the thread table.  */
@@ -1214,7 +1227,7 @@ struct srv_slot_t{
 	ibool		suspended;		/*!< TRUE if the thread is
 						waiting for the event of this
 						slot */
-	ib_time_t	suspend_time;		/*!< time when the thread was
+	ib_time_monotonic_t	suspend_time;	/*!< time when the thread was
 						suspended. Initialized by
 						lock_wait_table_reserve_slot()
 						for lock wait */

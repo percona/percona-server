@@ -37,5 +37,23 @@ INSERT INTO t_innodb VALUES (1);
 include/check_slave_param.inc [Exec_Master_Log_Pos]
 UNLOCK BINLOG;
 # connection master
+# connection slave
+LOCK TABLES FOR BACKUP;
+# connection master
+INSERT INTO t_myisam VALUES (0);
+# connection slave
+STOP SLAVE SQL_THREAD;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+UNLOCK TABLES;
+# connection master
+# connection slave
+LOCK BINLOG FOR BACKUP;
+# connection master
+INSERT INTO t_innodb VALUES (1);
+# connection slave
+STOP SLAVE SQL_THREAD;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+UNLOCK BINLOG;
+# connection master
 DROP TABLE t_innodb, t_myisam;
 include/rpl_end.inc

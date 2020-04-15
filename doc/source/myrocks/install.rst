@@ -75,11 +75,10 @@ to properly enable the RocksDB (MyRocks) storage engine:
    Installing RocksDB engine...
    INFO: Successfully installed RocksDB engine plugin.
 
-.. note:: When you use the ``ps-admin`` script to enable Percona MyRocks,
-   it performs the following:
-
-   * Disables Transparent huge pages
-   * Installs and enables the RocksDB plugin
+.. note:: 
+        
+    Running the ``ps-admin`` script to enable Percona MyRocks also
+    installs and enables the RocksDB plugin.
 
 If the script returns no errors,
 Percona MyRocks should be successfully enabled on the server.

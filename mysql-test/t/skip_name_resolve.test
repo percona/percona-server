@@ -62,7 +62,7 @@ SET @@GLOBAL.skip_name_resolve=0;
 
 CREATE USER b20438524@'%' IDENTIFIED BY 'pwd';
 --echo # set some valid addresses
-UPDATE mysql.user SET host='localhost' WHERE user='b20438524';
+UPDATE mysql.user SET host='localhost1' WHERE user='b20438524';
 FLUSH PRIVILEGES;
 
 --echo # cleanup
@@ -71,8 +71,43 @@ FLUSH PRIVILEGES;
 
 --echo # must find the pattern
 --let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err
---let SEARCH_PATTERN='user' entry 'b20438524@localhost' ignored in --skip-name-resolve mode
+--let SEARCH_PATTERN='user' entry 'b20438524@localhost1' ignored in --skip-name-resolve mode
 source include/search_pattern_in_file.inc;
+
+
+--echo #
+--echo # Bug #23329861: WARNING ABOUT LOCALHOST WHEN USING SKIP-NAME-RESOLVE
+--echo #
+
+CREATE USER b20438524@'%' IDENTIFIED BY 'pwd';
+--echo # set some valid addresses
+UPDATE mysql.user SET host='localhost' WHERE user='b20438524';
+FLUSH PRIVILEGES;
+
+--echo # must not find the pattern
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN='user' entry 'b20438524@localhost' ignored in --skip-name-resolve mode
+source include/search_pattern.inc;
+
+DELETE FROM mysql.user WHERE user='b20438524';
+
+
+--echo #
+--echo # Bug #98908: Crash in ACL_PROXY_USER::check_validity with --skip-name-resolve=1
+--echo #             https://bugs.mysql.com/bug.php?id=98908
+--echo #
+
+CREATE USER IF NOT EXISTS ''@'';
+CREATE USER IF NOT EXISTS dba@'localhost' IDENTIFIED BY 'pass';
+GRANT PROXY ON dba@'localhost' TO ''@'';
+
+--let $restart_parameters=restart:--skip-name-resolve=1
+--source include/restart_mysqld.inc
+
+--exec $MYSQL $AUTH_PAM_OPT -udba -ppass -e "SHOW GRANTS;"
+
+DROP USER dba@'localhost';
+DROP USER ''@'';
 
 
 --echo End of 5.7 tests

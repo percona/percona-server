@@ -1,13 +1,20 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -498,8 +505,6 @@ Key_use* Optimize_table_order::find_best_ref(JOIN_TAB *tab,
               on the same index,
               (2) and that quick select uses more keyparts (i.e. it will
               scan equal/smaller interval then this ref(const))
-              (3) and E(#rows) for quick select is higher then our
-              estimate,
               Then use E(#rows) from quick select.
 
               One observation is that when there are multiple
@@ -515,11 +520,12 @@ Key_use* Optimize_table_order::find_best_ref(JOIN_TAB *tab,
               TODO: figure this out and adjust the plan choice if needed.
             */
             if (!table_deps && table->quick_keys.is_set(key) &&     // (1)
-                table->quick_key_parts[key] > cur_used_keyparts &&  // (2)
-                cur_fanout <= (double)table->quick_rows[key])        // (3)
+                table->quick_key_parts[key] > cur_used_keyparts)    // (2)
                 {
-                  cur_fanout= (double)table->quick_rows[key];
+                  trace_access_idx.add("chosen", false)
+                      .add_alnum("cause", "range_uses_more_keyparts");
                   is_dodgy= true;
+                  continue;
                 }
 
             tmp_fanout= cur_fanout;
@@ -4324,12 +4330,25 @@ void Optimize_table_order::advance_sj_state(
       The simple way to model this is to remove SJM-SCAN(...) fanout once
       we reach the point #2.
     */
-    pos->sjm_scan_need_tables=
-      emb_sj_nest->sj_inner_tables | 
-      emb_sj_nest->nested_join->sj_depends_on;
-    pos->sjm_scan_last_inner= idx;
-    Opt_trace_object(trace).add_alnum("strategy", "MaterializeScan").
-      add_alnum("choice", "deferred");
+    if (pos->sjm_scan_need_tables &&
+        emb_sj_nest != NULL &&
+        emb_sj_nest !=
+        join->positions[pos->sjm_scan_last_inner].table->emb_sj_nest)
+      /*
+        Prevent that inner tables of different semijoin nests are
+        interleaved for MaterializeScan.
+      */
+      pos->sjm_scan_need_tables= 0;
+    else
+    {
+      pos->sjm_scan_need_tables=
+        emb_sj_nest->sj_inner_tables |
+        emb_sj_nest->nested_join->sj_depends_on;
+      pos->sjm_scan_last_inner= idx;
+      Opt_trace_object(trace).add_alnum("strategy", "MaterializeScan").
+        add_alnum("choice", "deferred");
+    }
+
   }
   else if (sjm_strategy == SJ_OPT_MATERIALIZE_LOOKUP)
   {

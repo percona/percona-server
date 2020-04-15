@@ -7,6 +7,8 @@
 --source include/not_embedded.inc
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb.inc
+--source include/not_repeat.inc
+
 call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'keyring_vault initialization failure.");
 call mtr.add_suppression("\\[Error\\] Function 'keyring_vault' already exists");
@@ -25,7 +27,7 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Can't read encryption key from f
 call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot open table .* from the internal data dictionary of InnoDB though the .frm file for the table exists.*");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to decrypt encryption information, please confirm the master key was not changed.");
 
---source generate_default_conf_files.inc
+--source generate_default_mount_conf_files.inc
 --source is_vault_server_up.inc
 
 # Create mount points

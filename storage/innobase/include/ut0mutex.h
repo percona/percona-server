@@ -2,13 +2,21 @@
 
 Copyright (c) 2012, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -47,34 +55,34 @@ extern ulong	srv_force_recovery_crash;
 
 # ifdef HAVE_IB_LINUX_FUTEX
 UT_MUTEX_TYPE(TTASFutexMutex, GenericPolicy, FutexMutex);
-UT_MUTEX_TYPE(TTASFutexMutex, BlockMutexPolicy, BlockFutexMutex);
+UT_MUTEX_TYPE(TTASFutexMutex, AggregateMutexStatsPolicy, BlockFutexMutex);
 # endif /* HAVE_IB_LINUX_FUTEX */
 
 UT_MUTEX_TYPE(TTASMutex, GenericPolicy, SpinMutex);
-UT_MUTEX_TYPE(TTASMutex, BlockMutexPolicy, BlockSpinMutex);
+UT_MUTEX_TYPE(TTASMutex, AggregateMutexStatsPolicy, BlockSpinMutex);
 
 
 UT_MUTEX_TYPE(OSTrackMutex, GenericPolicy, SysMutex);
-UT_MUTEX_TYPE(OSTrackMutex, BlockMutexPolicy, BlockSysMutex);
+UT_MUTEX_TYPE(OSTrackMutex, AggregateMutexStatsPolicy, BlockSysMutex);
 
 UT_MUTEX_TYPE(TTASEventMutex, GenericPolicy, SyncArrayMutex);
-UT_MUTEX_TYPE(TTASEventMutex, BlockMutexPolicy, BlockSyncArrayMutex);
+UT_MUTEX_TYPE(TTASEventMutex, AggregateMutexStatsPolicy, BlockSyncArrayMutex);
 
 #else /* !UNIV_DEBUG */
 
 # ifdef HAVE_IB_LINUX_FUTEX
 UT_MUTEX_TYPE(TTASFutexMutex, GenericPolicy, FutexMutex);
-UT_MUTEX_TYPE(TTASFutexMutex, BlockMutexPolicy, BlockFutexMutex);
+UT_MUTEX_TYPE(TTASFutexMutex, AggregateMutexStatsPolicy, BlockFutexMutex);
 # endif /* HAVE_IB_LINUX_FUTEX */
 
 UT_MUTEX_TYPE(TTASMutex, GenericPolicy, SpinMutex);
-UT_MUTEX_TYPE(TTASMutex, BlockMutexPolicy, BlockSpinMutex);
+UT_MUTEX_TYPE(TTASMutex, AggregateMutexStatsPolicy, BlockSpinMutex);
 
 UT_MUTEX_TYPE(OSTrackMutex, GenericPolicy, SysMutex);
-UT_MUTEX_TYPE(OSTrackMutex, BlockMutexPolicy, BlockSysMutex);
+UT_MUTEX_TYPE(OSTrackMutex, AggregateMutexStatsPolicy, BlockSysMutex);
 
 UT_MUTEX_TYPE(TTASEventMutex, GenericPolicy, SyncArrayMutex);
-UT_MUTEX_TYPE(TTASEventMutex, BlockMutexPolicy, BlockSyncArrayMutex);
+UT_MUTEX_TYPE(TTASEventMutex, AggregateMutexStatsPolicy, BlockSyncArrayMutex);
 
 #endif /* !UNIV_DEBUG */
 

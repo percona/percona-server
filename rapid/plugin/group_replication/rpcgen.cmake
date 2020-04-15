@@ -1,13 +1,20 @@
 # Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
@@ -93,16 +100,9 @@ FOREACH(X xcom_vp)
       MESSAGE(FATAL_ERROR "Could not find rpcgen")
     ENDIF()
 
-    IF(NOT RPC_INCLUDE_DIR)
-      MESSAGE(FATAL_ERROR
-        "Could not find rpc/rpc.h in /usr/include or /usr/include/tirpc")
-    ENDIF()
-    MESSAGE(STATUS "RPC_INCLUDE_DIR ${RPC_INCLUDE_DIR}")
-    IF(RPC_INCLUDE_DIR STREQUAL "/usr/include/tirpc")
-      INCLUDE_DIRECTORIES(SYSTEM /usr/include/tirpc)
-      ADD_DEFINITIONS(-DHAVE_TIRPC)
-      SET(TIRPC_LIBRARY tirpc)
-    ENDIF()
+    MYSQL_CHECK_RPC()
+
+    MESSAGE(STATUS "RPC_INCLUDE_DIRS ${RPC_INCLUDE_DIRS}")
 
     # on unix systems try to generate them if needed
     ADD_CUSTOM_COMMAND(OUTPUT ${x_gen_h} ${x_gen_c} ${x_tmp_plat_h}

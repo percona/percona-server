@@ -1,14 +1,22 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -3859,21 +3867,27 @@ int
 row_merge_file_create_low(
 	const char*	path)
 {
-	int	fd;
+    int fd;
+    if (path == NULL) {
+      path = innobase_mysql_tmpdir();
+    }
 #ifdef UNIV_PFS_IO
 	/* This temp file open does not go through normal
 	file APIs, add instrumentation to register with
 	performance schema */
 	struct PSI_file_locker*	locker = NULL;
-	PSI_file_locker_state	state;
-	locker = PSI_FILE_CALL(get_thread_file_name_locker)(
-				&state, innodb_temp_file_key.m_value, PSI_FILE_OPEN,
-				"Innodb Merge Temp File", &locker);
-	if (locker != NULL) {
+	Datafile df;
+	df.make_filepath(path, "Innodb Merge Temp File", NO_EXT);
+
+        PSI_file_locker_state	state;
+        locker = PSI_FILE_CALL(get_thread_file_name_locker)(
+            &state, innodb_temp_file_key.m_value, PSI_FILE_OPEN, df.filepath(),
+            &locker);
+        if (locker != NULL) {
 		PSI_FILE_CALL(start_file_open_wait)(locker,
 						__FILE__,
 						__LINE__);
-	}
+        }
 #endif
 	fd = innobase_mysql_tmpfile(path);
 #ifdef UNIV_PFS_IO
@@ -4324,6 +4338,11 @@ row_merge_create_index(
 		this index, to ensure read consistency. */
 		ut_ad(index->trx_id == trx->id);
 	} else {
+		/* In case we were unable to assign an undo record for this index
+		we won't free index memory object */
+		if (err == DB_TOO_MANY_CONCURRENT_TRXS) {
+			dict_mem_index_free(index);
+		}
 		index = NULL;
 	}
 

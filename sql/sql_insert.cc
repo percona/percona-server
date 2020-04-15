@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -1631,6 +1638,14 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
 	    goto err;
 	  }
 	}
+	/*
+          If we convert INSERT operation internally to an UPDATE.
+          An INSERT operation may update table->vfield for BLOB fields,
+          So here we recalculate data for generated columns.
+	*/
+        if (table->vfield) {
+          update_generated_write_fields(table->write_set, table);
+        }
 	key_copy((uchar*) key,table->record[0],table->key_info+key_nr,0);
 	if ((error=(table->file->ha_index_read_idx_map(table->record[1],key_nr,
                                                        (uchar*) key, HA_WHOLE_KEY,
@@ -1655,6 +1670,12 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
           an error is returned
         */
 	DBUG_ASSERT(table->insert_values != NULL);
+        /*
+          The insert has failed, store the insert_id generated for
+          this row to be re-used for the next insert.
+        */
+        if (insert_id_for_cur_row > 0) prev_insert_id = insert_id_for_cur_row;
+
         store_record(table,insert_values);
         /*
           Special check for BLOB/GEOMETRY field in statements with
@@ -1816,6 +1837,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
           we just should not expose this fact to users by invoking
           ON UPDATE triggers.
 	*/
+
 	if (last_uniq_key(table,key_nr) &&
 	    !table->file->referenced_by_foreign_key() &&
             (!table->triggers || !table->triggers->has_delete_triggers()))
@@ -2625,7 +2647,17 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       table_field= ((Item_field *) item)->field;
       break;
     default:
-      table_field= NULL;
+      {
+        /*
+         If the expression is of temporal type having date and non-nullable,
+         a zero date is generated. If in strict mode, then zero date is
+         invalid. For such cases no default is generated.
+       */
+        table_field= NULL;
+        if (tmp_table_field->is_temporal_with_date() &&
+            thd->is_strict_mode() && !item->maybe_null)
+          tmp_table_field->flags|= NO_DEFAULT_VALUE_FLAG;
+      }
     }
 
     DBUG_ASSERT(tmp_table_field->gcol_info== NULL && tmp_table_field->stored_in_db);
@@ -2820,6 +2852,10 @@ int Query_result_create::prepare2()
         && !thd->is_current_stmt_binlog_format_row());
 
       TABLE const *const table = *tables;
+      create_table->table->set_binlog_drop_if_temp(
+        !thd->is_current_stmt_binlog_disabled()
+        && !thd->is_current_stmt_binlog_format_row());
+
       if (thd->is_current_stmt_binlog_format_row()  &&
           !table->s->tmp_table)
       {

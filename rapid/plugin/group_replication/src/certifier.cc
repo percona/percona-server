@@ -1,13 +1,20 @@
 /* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
@@ -24,6 +31,8 @@
 #include "sql_service_command.h"
 
 const std::string Certifier::GTID_EXTRACTED_NAME= "gtid_extracted";
+const std::string Certifier::CERTIFICATION_INFO_ERROR_NAME =
+    "certification_info_error";
 
 static void *launch_broadcast_thread(void* arg)
 {
@@ -1548,6 +1557,18 @@ int Certifier::set_certification_info(std::map<std::string, std::string> *cert_i
 {
   DBUG_ENTER("Certifier::set_certification_info");
   DBUG_ASSERT(cert_info != NULL);
+
+  if (cert_info->size() == 1) {
+    std::map<std::string, std::string>::iterator it =
+        cert_info->find(CERTIFICATION_INFO_ERROR_NAME);
+    if (it != cert_info->end()) {
+      log_message(MY_ERROR_LEVEL,
+                  "The certification information could not be set in this server: '%s'",
+                  it->second.c_str());
+      DBUG_RETURN(1);
+    }
+  }
+
   mysql_mutex_lock(&LOCK_certification_info);
 
   clear_certification_info();

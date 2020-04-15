@@ -12,10 +12,9 @@ Version Specific Information
   * :rn:`5.7.10-1`
 
     * Feature ported from |Percona Server| 5.6
-   
+
 System Variables
 ================
-
 
 .. variable:: innodb_use_global_flush_log_at_trx_commit
 
@@ -27,15 +26,31 @@ System Variables
    :default: True
    :range: True/False
 
-This variable is used to control the ability of the user to set the value of the global |MySQL| variable :variable:`innodb_flush_log_at_trx_commit`.
+This variable enables or disables the effect of the per-session value of
+the `innodb_flush_log_at_trx_commit` variable.
 
-If :variable:`innodb_use_global_flush_log_at_trx_commit` is set to ``0`` (False), the client can set the global |MySQL| variable, using: 
+If the global variable  `innodb_use_global_flush_log_at_trx_commit` is
+set to ``1``, the session uses the current
+global value of `innodb_flush_log_at_trx_commit`. This is the
+upstream-compatible mode. If the user attempts to change the
+`innodb_flush_log_at_trx_commit` value for a
+session, the session value is ignored.
+
+If the global variable `innodb_use_global_flush_log_at_trx_commit` is set to
+``0``, a user can modify the
+``innodb_flush_log_at_trx_commit`` per-session using the following command:
+
+.. code-block:: MySQL
+
+    SET SESSION innodb_flush_log_at_trx_commit=0
+
+This modification only affects the transactions in that session. Other sessions,
+if they have not been individually modified, continue to use the
+global `innodb_use_flush_log_at_trx_commit` value.
 
 .. code-block:: mysql
 
-  SET innodb_use_global_flush_log_at_trx_commit=N
-
-If :variable:`innodb_use_global_flush_log_at_trx_commit` is set to ``1`` (True), the user session will use the current value of :variable:`innodb_flush_log_at_trx_commit`, and the user cannot reset the value of the global variable using a ``SET`` command.
+  SET innodb_use_global_flush_log_at_trx_commit=1
 
 .. variable:: innodb_flush_method
 
@@ -52,27 +67,27 @@ This is an existing |MySQL| 5.7 system variable that has a new allowed value ``A
 
 The following values are allowed:
 
-  * ``fdatasync``: 
+  * ``fdatasync``:
     use ``fsync()`` to flush data, log, and parallel doublewrite files.
 
-  * ``O_SYNC``: 
+  * ``O_SYNC``:
     use ``O_SYNC`` to open and flush the log and parallel doublewrite files; use ``fsync()`` to flush the data files. Do not use ``fsync()`` to flush the parallel doublewrite file.
 
-  * ``O_DIRECT``: 
+  * ``O_DIRECT``:
     use O_DIRECT to open the data files and ``fsync()`` system call to flush data, log, and parallel doublewrite files.
 
   * ``O_DIRECT_NO_FSYNC``:
     use ``O_DIRECT`` to open the data files, but don't use ``fsync()`` system call to flush data, log, and parallel doublewrite files.
 
-  * ``ALL_O_DIRECT``: 
-    use ``O_DIRECT`` to open both data and log files, and use ``fsync()`` to flush the data files but not the log or parallel doublewrite files. This option is recommended when |InnoDB| log files are big (more than 8GB), otherwise there might be even a performance degradation. **Note**: When using this option on *ext4* filesystem variable `innodb_log_write_ahead_size <https://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html#sysvar_innodb_log_write_ahead_size>`_ should be set to 4096 (default log-block-size in *ext4*) in order to avoid the ``unaligned AIO/DIO`` warnings. 
+  * ``ALL_O_DIRECT``:
+    use ``O_DIRECT`` to open both data and log files, and use ``fsync()`` to flush the data files but not the log or parallel doublewrite files. This option is recommended when |InnoDB| log files are big (more than 8GB), otherwise there might be even a performance degradation. **Note**: When using this option on *ext4* filesystem variable `innodb_log_write_ahead_size <https://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html#sysvar_innodb_log_write_ahead_size>`_ should be set to 4096 (default log-block-size in *ext4*) in order to avoid the ``unaligned AIO/DIO`` warnings.
 
 Status Variables
 ----------------
 
-The following information has been added to ``SHOW ENGINE INNODB STATUS`` to confirm the checkpointing activity: 
+The following information has been added to ``SHOW ENGINE INNODB STATUS`` to confirm the checkpointing activity:
 
-.. code-block:: guess 
+.. code-block:: guess
 
   The max checkpoint age
   The current checkpoint age target

@@ -1,14 +1,22 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -47,7 +55,6 @@ Created 2/25/1997 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "log0log.h"
 #include "fil0fil.h"
-
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
 is enough space in the redo log before for that operation. This is
@@ -137,6 +144,8 @@ row_undo_ins_remove_clust_rec(
 		ut_a(success);
 	}
 
+	row_convert_impl_to_expl_if_needed(btr_cur, node);
+
 	if (btr_cur_optimistic_delete(btr_cur, 0, &mtr)) {
 		err = DB_SUCCESS;
 		goto func_exit;
@@ -190,7 +199,8 @@ row_undo_ins_remove_sec_low(
 				pessimistic descent down the index tree */
 	dict_index_t*	index,	/*!< in: index */
 	dtuple_t*	entry,	/*!< in: index entry to remove */
-	que_thr_t*	thr)	/*!< in: query thread */
+	que_thr_t*	thr,	/*!< in: query thread */
+	undo_node_t*	node)	/*!< in: undo node */
 {
 	btr_pcur_t		pcur;
 	btr_cur_t*		btr_cur;
@@ -198,6 +208,7 @@ row_undo_ins_remove_sec_low(
 	mtr_t			mtr;
 	enum row_search_result	search_result;
 	ibool			modify_leaf = false;
+	ulint			rec_deleted;
 
 	log_free_check();
 
@@ -243,16 +254,26 @@ row_undo_ins_remove_sec_low(
 		ut_error;
 	}
 
+	rec_deleted = rec_get_deleted_flag(btr_pcur_get_rec(&pcur),
+					   dict_table_is_comp(index->table));
+
 	if (search_result == ROW_FOUND && dict_index_is_spatial(index)) {
-		rec_t*	rec = btr_pcur_get_rec(&pcur);
-		if (rec_get_deleted_flag(rec,
-					 dict_table_is_comp(index->table))) {
+		if(rec_deleted) {
 			ib::error() << "Record found in index " << index->name
 				<< " is deleted marked on insert rollback.";
 		}
 	}
 
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
+
+	if (rec_deleted == 0) {
+		/* This record is not delete marked and has an implicit
+		lock on it. For delete marked record, INSERT has not
+		modified it yet and we don't have implicit lock on it.
+		We must convert to explicit if and only if we have
+		implicit lock on the record.*/
+		row_convert_impl_to_expl_if_needed(btr_cur, node);
+	}
 
 	if (modify_leaf) {
 		err = btr_cur_optimistic_delete(btr_cur, 0, &mtr)
@@ -284,14 +305,15 @@ row_undo_ins_remove_sec(
 /*====================*/
 	dict_index_t*	index,	/*!< in: index */
 	dtuple_t*	entry,	/*!< in: index entry to insert */
-	que_thr_t*	thr)	/*!< in: query thread */
+	que_thr_t*	thr,	/*!< in: query thread */
+	undo_node_t*	node)
 {
 	dberr_t	err;
 	ulint	n_tries	= 0;
 
 	/* Try first optimistic descent to the B-tree */
 
-	err = row_undo_ins_remove_sec_low(BTR_MODIFY_LEAF, index, entry, thr);
+	err = row_undo_ins_remove_sec_low(BTR_MODIFY_LEAF, index, entry, thr, node);
 
 	if (err == DB_SUCCESS) {
 
@@ -302,7 +324,7 @@ row_undo_ins_remove_sec(
 retry:
 	err = row_undo_ins_remove_sec_low(
 		BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE,
-		index, entry, thr);
+		index, entry, thr, node);
 
 	/* The delete operation may fail if we have little
 	file space left: TODO: easiest to crash the database
@@ -425,7 +447,7 @@ row_undo_ins_remove_sec_rec(
 			assume that the secondary index record does
 			not exist. */
 		} else {
-			err = row_undo_ins_remove_sec(index, entry, thr);
+			err = row_undo_ins_remove_sec(index, entry, thr, node);
 
 			if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
 				goto func_exit;

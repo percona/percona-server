@@ -54,6 +54,11 @@ typedef struct savepoint_info {
     bool in_sub_stmt;
 } *SP_INFO, SP_INFO_T;
 
+extern "C" {
+extern uint         force_recovery;
+}
+
+
 static handler* tokudb_create_handler(handlerton* hton,
                                       TABLE_SHARE* table,
                                       MEM_ROOT* mem_root);
@@ -268,6 +273,15 @@ static int tokudb_set_product_name(void) {
 }
 
 static int tokudb_init_func(void *p) {
+    int mode = force_recovery ? S_IRUSR|S_IRGRP|S_IROTH : S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH;
+
+    if(force_recovery != 0 && (!read_only || !super_read_only)) {
+            sql_print_error(
+                "%s is not initialized because tokudb_force_only requires read_only and super_read_only",
+                tokudb_hton_name);
+	    goto error;
+    }
+
     TOKUDB_DBUG_ENTER("%p", p);
     int r;
 
@@ -555,7 +569,7 @@ static int tokudb_init_func(void *p) {
         db_env,
         tokudb_home,
         tokudb_init_flags,
-        S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
+        mode);
 
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_INIT, "env opened:return=%d", r);
 
@@ -1012,6 +1026,7 @@ static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all) {
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "exit %d", r);
     TOKUDB_DBUG_RETURN(r);
 }
+
 
 static int tokudb_xa_recover(TOKUDB_UNUSED(handlerton* hton),
                              XID* xid_list,

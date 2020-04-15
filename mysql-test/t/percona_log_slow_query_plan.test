@@ -3,6 +3,8 @@
 #
 --source include/have_innodb.inc
 
+--source include/log_prepare.inc
+
 FLUSH STATUS;
 
 CREATE TABLE t1(
@@ -319,12 +321,6 @@ SELECT COUNT(*) FROM t1, t4 WHERE t1.a = t4.a GROUP BY t4.b;
 
 SHOW SESSION STATUS LIKE 'Created_tmp_tables';
 SHOW SESSION STATUS LIKE 'Created_tmp_disk_tables';
-
-SET SESSION log_slow_filter=default;
-
-SET SESSION long_query_time=default;
-SET SESSION min_examined_row_limit=default;
-SET SESSION log_slow_verbosity=default;
 
 DROP TABLE t1, t2, t3, t4;
 

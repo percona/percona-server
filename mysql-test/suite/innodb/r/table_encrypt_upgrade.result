@@ -1,0 +1,56 @@
+SET GLOBAL innodb_file_per_table = 1;
+SET DEBUG='+d,force_v2_encryption';
+CREATE TABLE t1(i INT,  c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1, "znmcg");
+INSERT INTO t1 VALUES (2, "prtsd");
+INSERT INTO t1 VALUES (3, "vlwfb");
+CREATE TABLE t2(i INT,  c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+INSERT INTO t2 VALUES (1, "znmcg");
+INSERT INTO t2 VALUES (2, "prtsd");
+INSERT INTO t2 VALUES (3, "vlwfb");
+SET DEBUG='';
+SELECT * FROM t1;
+i	c2
+1	znmcg
+2	prtsd
+3	vlwfb
+SELECT * FROM t2;
+i	c2
+1	znmcg
+2	prtsd
+3	vlwfb
+# check that t1 is created with V2 format
+Pattern "lCB" found
+Pattern "lCC" not found
+Pattern "znmcg" not found
+# check that t2 is created with V2 format
+Pattern "lCB" found
+Pattern "lCC" not found
+Pattern "znmcg" not found
+# rebuild t1
+ALTER TABLE t1 ENGINE = InnoDB ENCRYPTION="Y";
+FLUSH TABLES;
+# t1 uses the V3 format now and is still encrypted
+Pattern "lCB" not found
+Pattern "lCC" found
+Pattern "znmcg" not found
+# t2 still uses V2
+Pattern "lCB" found
+Pattern "lCC" not found
+Pattern "znmcg" not found
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+# t2 uses V3 now
+Pattern "lCB" not found
+Pattern "lCC" found
+Pattern "znmcg" not found
+# restart:<hidden args>
+SELECT * FROM t1;
+i	c2
+1	znmcg
+2	prtsd
+3	vlwfb
+# t1 uses the V3 format now and is still encrypted
+Pattern "lCB" not found
+Pattern "lCC" found
+Pattern "znmcg" not found
+DROP TABLE t1;

@@ -68,6 +68,7 @@ Performance Improvements
 
    performance/aio_page_requests
    performance/query_cache_enhance
+   performance/query_limit_records
    performance/innodb_numa_support
    performance/threadpool
    performance/xtradb_performance_improvements_for_io-bound_highly-concurrent_workloads
@@ -125,6 +126,9 @@ Management Improvements
    management/start_transaction_with_consistent_snapshot
    management/extended_show_grants
    management/data_at_rest_encryption
+   management/ssl-improvement
+   management/utility_user
+
 
 Diagnostics Improvements
 ========================
@@ -160,6 +164,7 @@ TokuDB
    tokudb/tokudb_background_analyze_table
    tokudb/tokudb_variables
    tokudb/tokudb_status_variables
+   tokudb/tokudb_fractal_tree_indexing
    tokudb/tokudb_troubleshooting
    tokudb/tokudb_performance_schema
    tokudb/toku_backup

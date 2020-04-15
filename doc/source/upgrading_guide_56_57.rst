@@ -146,7 +146,7 @@ You can now start the ``mysql`` service:
 
 and use ``mysql_upgrade`` to migrate to the new grant tables, it will rebuild the indexes needed and do the modifications needed: 
 
-.. note:: If you're using |TokuDB| storage engine you'll need re-enable the storage engine plugin by running the: ``ps_tokudb_admin --enable`` before running ``mysql_upgrade`` otherwise you'll get errors.
+.. note:: If you're using |TokuDB| storage engine you'll need re-enable the storage engine plugin by running the: ``ps-admin --enable-tokudb`` before running ``mysql_upgrade`` otherwise you'll get errors.
 
 .. code-block:: bash
 
@@ -326,7 +326,7 @@ As the schema of the grant table has changed, the server must be started without
 
 and use :file:`mysql_upgrade` to migrate to the new grant tables, it will rebuild the indexes needed and do the modifications needed: 
 
-.. note:: If you're using |TokuDB| storage engine you'll need re-enable the storage engine plugin by running the: ``ps_tokudb_admin --enable`` before running ``mysql_upgrade`` otherwise you'll get errors.
+.. note:: If you're using |TokuDB| storage engine you'll need re-enable the storage engine plugin by running the: ``ps-admin --enable-tokudb`` before running ``mysql_upgrade`` otherwise you'll get errors.
 
 .. code-block:: bash
 
@@ -337,3 +337,18 @@ After this is done, just restart the server as usual:
 .. code-block:: bash
 
   $ service mysql restart
+
+Performing a Distribution upgrade in-place on a System with installed Percona packages
+--------------------------------------------------------------------------------------------
+
+The recommended process for performing a distribution upgrade on a system with
+the Percona packages installed is the following:
+
+    1. Record the installed Percona packages
+    2. Backup the data and configurations
+    3. Uninstall the Percona packages without removing the configurations or
+       data
+    4. Perform the upgrade by following the distribution upgrade instructions
+    5. Reboot the system
+    6. Install the Percona packages intended for the upgraded version of the
+       distribution

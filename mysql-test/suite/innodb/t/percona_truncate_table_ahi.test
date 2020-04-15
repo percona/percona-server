@@ -1,0 +1,51 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+
+CREATE TABLE t1(a INT, b INT, KEY k1(b));
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3),(4,4),(5,5);
+CREATE TABLE t2 AS SELECT * FROM t1;
+FLUSH TABLES;
+
+SET GLOBAL innodb_limit_optimistic_insert_debug=2;
+SET GLOBAL innodb_adaptive_hash_index = OFF;
+
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+SELECT COUNT(*) FROM t1;
+
+SET DEBUG='+d, simulate_long_ahi';
+SET DEBUG_SYNC = 'truncate_table SIGNAL truncate_started WAIT_FOR resume_truncate';
+--send TRUNCATE TABLE t1;
+
+connect (con1,localhost,root,,);
+--connection con1
+--echo #connection con1
+SET DEBUG_SYNC = 'now WAIT_FOR truncate_started';
+SET DEBUG_SYNC = 'open_dict_table SIGNAL resume_truncate';
+SET @t_start:=unix_timestamp(now(6));
+SELECT * FROM t2;
+SET @t_end:=unix_timestamp(now(6));
+SET @duration:=@t_end-@t_start;
+
+--let $assert_text= The time taken for SELECT should be less than 5 seconds
+--let $assert_cond= [SELECT @duration] < 5
+--source include/assert.inc
+
+--connection default
+--echo # connection default
+--reap
+SET DEBUG_SYNC = 'RESET';
+--disconnect con1
+
+DROP TABLE t1;
+DROP TABLE t2;
+SET GLOBAL innodb_limit_optimistic_insert_debug=default;
+SET GLOBAL innodb_adaptive_hash_index = default;
+--source include/wait_until_count_sessions.inc

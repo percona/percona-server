@@ -1,0 +1,3 @@
+--slave_parallel_workers=8 --enforce-gtid-consistency --gtid-mode=ON --log-bin
+--log-slave-updates
+--debug_sync_timeout=20

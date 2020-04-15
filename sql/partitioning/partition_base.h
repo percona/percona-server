@@ -85,12 +85,6 @@ class Partition_base : public handler,
   bool m_new_parts_open_only;
   /** cached value of indexes_are_disabled(). */
   int m_indexes_are_disabled;
-  /*
-    If set, this object was created with Partition_base::clone and doesn't
-    "own" the m_part_info structure.
-  */
-  Partition_base *m_is_clone_of;
-  MEM_ROOT *      m_clone_mem_root;
 
   void init_handler_variables();
   /*
@@ -117,6 +111,14 @@ class Partition_base : public handler,
   /** keep track of partitions to call ha_reset */
   MY_BITMAP m_partitions_to_reset;
 
+  /** Used when Partiton_base is cloned. Specifically it is used to retrieve
+  each handler ref_length */
+  Partition_base* m_clone_base;
+  /** For clone operation, memory will be allocated from this mem_root instead
+  of TABLE->mem_root. The clone can be destroyed by optimizer immediately. So
+  this allows to release the memory used by cloned object quickly */
+  MEM_ROOT* m_clone_mem_root;
+
  public:
   handler *clone(const char *name, MEM_ROOT *mem_root)override = 0;
   /*
@@ -131,9 +133,10 @@ class Partition_base : public handler,
     -------------------------------------------------------------------------
   */
   Partition_base(handlerton *hton, TABLE_SHARE *table);
-  Partition_base(handlerton *hton, TABLE_SHARE *share,
-                 partition_info *part_info_arg, Partition_base *clone_arg,
-                 MEM_ROOT *clone_mem_root_arg);
+
+  Partition_base(handlerton *hton, TABLE_SHARE *table,
+                 Partition_base *clone_base, MEM_ROOT *clone_mem_root);
+
   ~Partition_base() override;
   bool init_with_fields() override;
   /*

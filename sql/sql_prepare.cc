@@ -1,13 +1,20 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -122,6 +129,7 @@ When one supplies long data for a placeholder:
 #include <sys/time.h>
 
 #include <algorithm>
+#include <limits>
 using std::max;
 using std::min;
 
@@ -1111,15 +1119,13 @@ bool Prepared_statement::insert_params_from_vars(List<LEX_STRING>& varnames,
   user_var_entry *entry;
   LEX_STRING *varname;
   List_iterator<LEX_STRING> var_it(varnames);
-  String buf;
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> buf;
   const String *val;
   size_t length= 0;
 
   DBUG_ENTER("insert_params_from_vars");
 
-  if (with_log && query->copy(m_query_string.str,
-                              m_query_string.length, default_charset_info))
-    DBUG_RETURN(1);
+  if (with_log) query->reserve(m_query_string.length + 32 * param_count);
 
   /* Protects thd->user_vars */
   mysql_mutex_lock(&thd->LOCK_thd_data);
@@ -1146,17 +1152,34 @@ bool Prepared_statement::insert_params_from_vars(List<LEX_STRING>& varnames,
       if (param->convert_str_value(thd))
         goto error;
 
-      if (query->replace(param->pos_in_query+length, 1, *val))
+     DBUG_ASSERT(param->pos_in_query > length);
+     size_t num_bytes = param->pos_in_query - length;
+     if (query->length() + num_bytes + val->length() >
+          std::numeric_limits<uint32>::max())
         goto error;
-      length+= val->length()-1;
+
+     if (query->append(m_query_string.str + length, num_bytes) ||
+          query->append(*val))
+        goto error;
+
+      length = param->pos_in_query + 1;
     }
     else
     {
-      if (param->set_from_user_var(thd, entry) ||
-          param->convert_str_value(thd))
+      if (param->set_from_user_var(thd, entry))
         goto error;
+
+       if (entry)
+         length+= entry->length();
+
+       if (length > std::numeric_limits<uint32>::max() ||
+           param->convert_str_value(thd))
+         goto error;
     }
   }
+  // If logging, take care of tail.
+  if (with_log)
+    query->append(m_query_string.str + length, m_query_string.length - length);
 
   mysql_mutex_unlock(&thd->LOCK_thd_data);
   DBUG_RETURN(0);
@@ -4169,6 +4192,14 @@ bool Ed_connection::execute_direct(Server_runnable *server_runnable)
     Reset it to point to the first result set instead.
   */
   m_current_rset= m_rsets;
+
+  /*
+    Reset rewritten (for password obfuscation etc.) query after
+    internal call from NDB etc.  Without this, a rewritten query
+    would get "stuck" in SHOW PROCESSLIST.
+  */
+  m_thd->rewritten_query.mem_free();
+  m_thd->reset_query_for_display();
 
   DBUG_RETURN(rc);
 }

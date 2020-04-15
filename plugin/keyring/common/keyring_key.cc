@@ -1,13 +1,20 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -185,13 +192,18 @@ size_t Key::get_key_pod_size() const
   return key_pod_size_aligned;
 }
 
+void Key::xor_data(uchar *data, size_t data_len) {
+  static const char *obfuscate_str = "*305=Ljt0*!@$Hnm(*-9-w;:";
+  for (uint i = 0, l = 0; i < data_len;
+       ++i, l = ((l + 1) % strlen(obfuscate_str)))
+    data[i] ^= obfuscate_str[l];
+}
+
 void Key::xor_data()
 {
   if (key == NULL)
     return;
-  static const char *obfuscate_str="*305=Ljt0*!@$Hnm(*-9-w;:";
-  for(uint i=0, l=0; i < key_len; ++i, l=((l+1) % strlen(obfuscate_str)))
-    key.get()[i]^= obfuscate_str[l];
+  xor_data(key.get(), key_len);
 }
 
 my_bool Key::is_key_id_valid()

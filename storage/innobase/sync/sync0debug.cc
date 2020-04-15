@@ -8,13 +8,21 @@ briefly in the InnoDB documentation. The contributions by Google are
 incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -520,6 +528,7 @@ LatchDebug::LatchDebug()
 	LEVEL_MAP_INSERT(SYNC_TREE_NODE);
 	LEVEL_MAP_INSERT(SYNC_TREE_NODE_FROM_HASH);
 	LEVEL_MAP_INSERT(SYNC_TREE_NODE_NEW);
+	LEVEL_MAP_INSERT(SYNC_ANALYZE_INDEX);
 	LEVEL_MAP_INSERT(SYNC_INDEX_TREE);
 	LEVEL_MAP_INSERT(SYNC_IBUF_PESS_INSERT_MUTEX);
 	LEVEL_MAP_INSERT(SYNC_IBUF_HEADER);
@@ -946,6 +955,11 @@ LatchDebug::check_order(
 		basic_check(latches, level, SYNC_TREE_NODE - 1);
 		break;
 
+	case SYNC_ANALYZE_INDEX:
+
+		basic_check(latches, level, SYNC_ANALYZE_INDEX - 1);
+		break;
+
 	case SYNC_IBUF_TREE_NODE:
 
 		ut_a(find(latches, SYNC_IBUF_INDEX_TREE) != 0
@@ -1356,7 +1370,7 @@ sync_latch_meta_init()
 			buf_pool_zip_free_mutex_key);
 
 	LATCH_ADD_MUTEX(BUF_POOL_ZIP_HASH, SYNC_BUF_ZIP_HASH,
-			buf_pool_zip_free_mutex_key);
+			buf_pool_zip_hash_mutex_key);
 
 	LATCH_ADD_MUTEX(BUF_POOL_FLUSH_STATE, SYNC_BUF_FLUSH_STATE,
 			buf_pool_flush_state_mutex_key);
@@ -1605,6 +1619,8 @@ sync_latch_meta_init()
 	LATCH_ADD_MUTEX(FIL_CRYPT_START_ROTATE_MUTEX, SYNC_NO_ORDER_CHECK,
 	    		PFS_NOT_INSTRUMENTED);
 
+	LATCH_ADD_MUTEX(ANALYZE_INDEX_MUTEX, SYNC_ANALYZE_INDEX,
+			analyze_index_mutex_key);
 
 	latch_id_t	id = LATCH_ID_NONE;
 

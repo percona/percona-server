@@ -22,6 +22,7 @@
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
 
+%undefine _missing_build_ids_terminate_build
 %global mysql_vendor Oracle and/or its affiliates
 %global percona_server_vendor Percona, Inc
 %global mysqldatadir /var/lib/mysql
@@ -44,7 +45,6 @@
 # By default a build will be done including the RocksDB
 %{!?with_rocksdb: %global rocksdb 1}
 
-
 # Pass path to mecab lib
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
 %{?with_mecab: %global mecab 1}
@@ -54,6 +54,7 @@
 
 %{!?with_systemd:                %global systemd 0}
 %{?el7:                          %global systemd 1}
+%{?el8:                          %global systemd 1}
 %{!?with_debuginfo:              %global nodebuginfo 0}
 %{!?product_suffix:              %global product_suffix -57}
 %{!?feature_set:                 %global feature_set community}
@@ -89,7 +90,7 @@
 %endif
 
 # Version for compat libs
-%if 0%{?rhel} == 7
+%if 0%{?rhel} > 6
 %global compatver             5.6.28
 %global percona_compatver     76.1
 %global compatlib             18
@@ -122,7 +123,7 @@
 %global license_files_server  %{src_dir}/LICENSE.mysql
 %global license_type          Commercial
 %else
-%global license_files_server  %{src_dir}/COPYING %{src_dir}/README
+%global license_files_server  %{src_dir}/README
 %global license_type          GPLv2
 %endif
 
@@ -209,6 +210,10 @@ Requires(preun):  /sbin/chkconfig
 Requires(preun):  /sbin/service
 %endif
 
+%if 0%{?rhel} == 8
+Obsoletes:      mariadb-connector-c-config
+%endif
+
 %description -n Percona-Server-server%{product_suffix}
 The Percona Server software delivers a very fast, multi-threaded, multi-user,
 and robust SQL (Structured Query Language) database server. Percona Server
@@ -239,6 +244,12 @@ For a description of Percona Server see http://www.percona.com/software/percona-
 %package -n Percona-Server-test%{product_suffix}
 Summary:        Test suite for the Percona Server
 Group:          Applications/Databases
+Requires:       Percona-Server-server%{product_suffix} = %{version}-%{release}
+%if 0%{?rhel} == 8
+Requires:       perl(Getopt::Long)
+Requires:       perl(Memoize)
+Requires:       perl(Time::HiRes)
+%endif
 Provides:       mysql-test = %{version}-%{release}
 Provides:       mysql-test%{?_isa} = %{version}-%{release}
 Conflicts:      Percona-SQL-test-50 Percona-Server-test-51 Percona-Server-test-55 Percona-Server-test-56
@@ -254,6 +265,7 @@ Group:          Applications/Databases
 Provides:       mysql-devel = %{version}-%{release}
 Provides:       mysql-devel%{?_isa} = %{version}-%{release}
 Conflicts:      Percona-SQL-devel-50 Percona-Server-devel-51 Percona-Server-devel-55 Percona-Server-devel-56
+Obsoletes:      mariadb-connector-c-devel
 %if 0%{?rhel} > 6
 Obsoletes:      mariadb-devel
 %endif
@@ -280,7 +292,7 @@ and applications need to dynamically load and use Percona Server.
 
 %if 0%{?compatlib}
 %package -n Percona-Server-shared-compat%{product_suffix}
-Summary:        Shared compat libraries for Percona Server %{compatver}--%{percona_compatver} database client applications
+Summary:        Shared compat libraries for Percona Server %{compatver}-%{percona_compatver} database client applications
 Group:          Applications/Databases
 Provides:       mysql-libs-compat = %{version}-%{release}
 Provides:       mysql-libs-compat%{?_isa} = %{version}-%{release}
@@ -542,6 +554,13 @@ rm -rf %{buildroot}%{_bindir}/mysql_embedded
 /usr/sbin/groupadd -g 27 -o -r mysql >/dev/null 2>&1 || :
 /usr/sbin/useradd -M %{!?el5:-N} -g mysql -o -r -d /var/lib/mysql -s /bin/false \
     -c "Percona Server" -u 27 mysql >/dev/null 2>&1 || :
+if [ "$1" = 1 ]; then
+  if [ -f %{_sysconfdir}/my.cnf ]; then
+    timestamp=$(date '+%Y%m%d-%H%M')
+    cp %{_sysconfdir}/my.cnf \
+    %{_sysconfdir}/my.cnf.rpmsave-${timestamp}
+  fi
+fi
 
 %post -n Percona-Server-server%{product_suffix}
 datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1)
@@ -560,6 +579,12 @@ fi
       /sbin/chkconfig --add mysql
   fi
 %endif
+
+if [ ! -d %{_datadir}/mysql ]; then
+    pushd %{_datadir}
+    ln -s percona-server mysql
+    popd
+fi
 
 %if 0%{?rhel} > 6
   MYCNF_PACKAGE="mariadb-libs"
@@ -630,6 +655,21 @@ echo "See http://www.percona.com/doc/percona-server/5.7/management/udf_percona_t
     /sbin/chkconfig --del mysql
   fi
 %endif
+if [ "$1" = 0 ]; then
+  timestamp=$(date '+%Y%m%d-%H%M')
+  if [ -L %{_datadir}/mysql ]; then
+      rm %{_datadir}/mysql
+  fi
+  if [ ! -L /etc/my.cnf ]; then
+    cp -p /etc/my.cnf /etc/my.cnf_backup-${timestamp}
+  else
+    realfile=$(readlink -f /etc/my.cnf)
+    cp "${realfile}" "${realfile}_backup-${timestamp}"
+  fi
+  cp -rp /etc/percona-server.conf.d /etc/percona-server.conf.d_backup-${timestamp}
+  cp -rp /etc/my.cnf.d /etc/my.cnf.d_backup-${timestamp}
+fi
+
 
 %postun -n Percona-Server-server%{product_suffix}
 %if 0%{?systemd}
@@ -782,6 +822,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/udf_example.so
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
@@ -802,6 +843,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/group_replication.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/udf_example.so
 %if 0%{?mecab}
 %{_libdir}/mysql/mecab
 %attr(755, root, root) %{_libdir}/mysql/plugin/libpluginmecab.so
@@ -896,8 +938,6 @@ fi
 %attr(755, root, root) %{_bindir}/mysqlpump
 %attr(755, root, root) %{_bindir}/mysqlshow
 %attr(755, root, root) %{_bindir}/mysqlslap
-%attr(755, root, root) %{_bindir}/mysql_config
-%attr(755, root, root) %{_bindir}/mysql_config-%{__isa_bits}
 %attr(755, root, root) %{_bindir}/mysql_config_editor
 
 %attr(644, root, root) %{_mandir}/man1/mysql.1*

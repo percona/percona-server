@@ -1,14 +1,22 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -1087,7 +1095,8 @@ static
 que_t*
 trx_roll_graph_build(
 /*=================*/
-	trx_t*	trx)	/*!< in/out: transaction */
+	trx_t*	trx,			/*!< in/out: transaction */
+	bool	partial_rollback)	/*!< in: partial rollback */
 {
 	mem_heap_t*	heap;
 	que_fork_t*	fork;
@@ -1101,7 +1110,7 @@ trx_roll_graph_build(
 
 	thr = que_thr_create(fork, heap, NULL);
 
-	thr->child = row_undo_node_create(trx, thr, heap);
+	thr->child = row_undo_node_create(trx, thr, heap, partial_rollback);
 
 	return(fork);
 }
@@ -1115,9 +1124,10 @@ que_thr_t*
 trx_rollback_start(
 /*===============*/
 	trx_t*		trx,		/*!< in: transaction */
-	ib_id_t		roll_limit)	/*!< in: rollback to undo no (for
+	ib_id_t		roll_limit,	/*!< in: rollback to undo no (for
 					partial undo), 0 if we are rolling back
 					the entire transaction */
+	bool		partial_rollback) /*!< in: partial rollback */
 {
 	ut_ad(trx_mutex_own(trx));
 
@@ -1135,7 +1145,7 @@ trx_rollback_start(
 
 	/* Build a 'query' graph which will perform the undo operations */
 
-	que_t*	roll_graph = trx_roll_graph_build(trx);
+	que_t*	roll_graph = trx_roll_graph_build(trx, partial_rollback);
 
 	trx->graph = roll_graph;
 
@@ -1212,7 +1222,9 @@ trx_rollback_step(
 
 		trx_commit_or_rollback_prepare(trx);
 
-		node->undo_thr = trx_rollback_start(trx, roll_limit);
+		node->undo_thr = trx_rollback_start(trx,
+						    roll_limit,
+						    node->partial);
 
 		trx_mutex_exit(trx);
 

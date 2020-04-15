@@ -1,13 +1,20 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
@@ -30,6 +37,7 @@
 #include "debug_sync.h"
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
+#include "mutex_lock.h"            // Mutex_lock
 
 #include <algorithm>
 using std::min;
@@ -395,10 +403,43 @@ err:
   DBUG_RETURN(ret);
 }
 
+bool Relay_log_info::mts_workers_queue_empty() const
+{
+  ulong ret= 0;
+
+  for (Slave_worker * const *it= workers.begin(); ret == 0 && it != workers.end(); ++it)
+  {
+    Slave_worker *worker= *it;
+    mysql_mutex_lock(&worker->jobs_lock);
+    ret+= worker->curr_jobs;
+    mysql_mutex_unlock(&worker->jobs_lock);
+  }
+  return ret == 0;
+}
+
+/* Checks if all in-flight stmts/trx can be safely rolled back */
+bool Relay_log_info::cannot_safely_rollback() const
+{
+  if (!is_parallel_exec())
+    return info_thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::SESSION);
+
+  bool ret= false;
+
+  for (Slave_worker * const *it= workers.begin(); !ret && it != workers.end(); ++it)
+  {
+    Slave_worker *worker= *it;
+    mysql_mutex_lock(&worker->jobs_lock);
+    ret= worker->info_thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::SESSION);
+    mysql_mutex_unlock(&worker->jobs_lock);
+  }
+  return ret;
+}
+
 static inline int add_relay_log(Relay_log_info* rli,LOG_INFO* linfo)
 {
   MY_STAT s;
   DBUG_ENTER("add_relay_log");
+  mysql_mutex_assert_owner(&rli->log_space_lock);
   if (!mysql_file_stat(key_file_relaylog,
                        linfo->log_file_name, &s, MYF(0)))
   {
@@ -418,6 +459,7 @@ int Relay_log_info::count_relay_log_space()
 {
   LOG_INFO flinfo;
   DBUG_ENTER("Relay_log_info::count_relay_log_space");
+  Mutex_lock lock(&log_space_lock);
   log_space_total= 0;
   if (relay_log.find_log_pos(&flinfo, NullS, 1))
   {
@@ -754,7 +796,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
 
   DEBUG_SYNC(thd, "begin_master_pos_wait");
 
-  set_timespec_nsec(&abstime, (ulonglong)timeout * 1000000000ULL);
+  set_timespec_nsec(&abstime, static_cast<ulonglong>(timeout * 1000000000ULL));
   mysql_mutex_lock(&data_lock);
   thd->ENTER_COND(&data_cond, &data_lock,
                   &stage_waiting_for_the_slave_thread_to_advance_position,
@@ -977,7 +1019,7 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, const Gtid_set* wait_gtid_set,
 
   DEBUG_SYNC(thd, "begin_wait_for_gtid_set");
 
-  set_timespec_nsec(&abstime, (ulonglong) timeout * 1000000000ULL);
+  set_timespec_nsec(&abstime, static_cast<ulonglong>(timeout * 1000000000ULL));
 
   mysql_mutex_lock(&data_lock);
   thd->ENTER_COND(&data_cond, &data_lock,
@@ -1304,7 +1346,15 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
   if (!inited)
   {
     DBUG_PRINT("info", ("inited == 0"));
-    if (error_on_rli_init_info)
+    if (error_on_rli_init_info ||
+        /*
+          mi->reset means that the channel was reset but still exists. Channel
+          shall have the index and the first relay log file.
+
+          Those files shall be remove in a following RESET SLAVE ALL (even when
+          channel was not inited again).
+        */
+        (mi->reset && delete_only))
     {
       ln_without_channel_name= relay_log.generate_name(opt_relay_logname,
                                                        "-relay-bin", buffer);
@@ -1393,13 +1443,6 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
     cur_log_fd= -1;
   }
 
-  if (relay_log.reset_logs(thd, delete_only))
-  {
-    *errmsg = "Failed during log reset";
-    error=1;
-    goto err;
-  }
-
   /**
     Clear the retrieved gtid set for this channel.
     global_sid_lock->wrlock() is needed.
@@ -1407,6 +1450,13 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
   global_sid_lock->wrlock();
   (const_cast<Gtid_set *>(get_gtid_set()))->clear();
   global_sid_lock->unlock();
+
+  if (relay_log.reset_logs(thd, delete_only))
+  {
+    *errmsg = "Failed during log reset";
+    error=1;
+    goto err;
+  }
 
   /* Save name of used relay log file */
   set_group_relay_log_name(relay_log.get_log_fname());
@@ -1875,6 +1925,7 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
       called before deleting the rows_query event.
     */
     info_thd->reset_query();
+    info_thd->reset_query_for_display();
     delete rows_query_ev;
     rows_query_ev= NULL;
     DBUG_EXECUTE_IF("after_deleting_the_rows_query_ev",
@@ -1897,11 +1948,14 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
     if (!xid_state->has_state(XID_STATE::XA_NOTR))
     {
       DBUG_ASSERT(DBUG_EVALUATE_IF("simulate_commit_failure",1,
-                                   xid_state->has_state(XID_STATE::XA_ACTIVE)));
+                                   xid_state->has_state(XID_STATE::XA_ACTIVE) ||
+                                   xid_state->has_state(XID_STATE::XA_IDLE)
+                                   ));
 
       xa_trans_force_rollback(thd);
       xid_state->reset();
       cleanup_trans_state(thd);
+      thd->rpl_unflag_detached_engine_ha_data();
     }
     thd->mdl_context.release_transactional_locks();
   }
@@ -2495,7 +2549,7 @@ void Relay_log_info::end_info()
   relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT,
                   true/*need_lock_log=true*/,
                   true/*need_lock_index=true*/);
-  relay_log.harvest_bytes_written(&log_space_total);
+  relay_log.harvest_bytes_written(this, true/*need_log_space_lock=true*/);
   /*
     Delete the slave's temporary tables from memory.
     In the future there will be other actions than this, to ensure persistance

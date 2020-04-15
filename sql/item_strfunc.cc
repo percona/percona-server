@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -28,7 +35,7 @@
 */
 
 /* May include caustic 3rd-party defs. Use early, so it can override nothing. */
-#include "sha2.h"
+#include <openssl/sha.h>
 
 #include "item_strfunc.h"
 
@@ -3708,6 +3715,7 @@ String *Item_func_rpad::val_str(String *str)
   char *to;
   /* must be longlong to avoid truncation */
   longlong count= args[1]->val_int();
+  /* Avoid modifying this string as it may affect args[0] */
   String *res= args[0]->val_str(str);
   String *rpad= args[2]->val_str(&rpad_str);
 
@@ -3751,10 +3759,15 @@ String *Item_func_rpad::val_str(String *str)
 
   const size_t res_char_length= res->numchars();
 
+  // String to pad is big enough
   if (count <= static_cast<longlong>(res_char_length))
-  {						// String to pad is big enough
-    res->length(res->charpos((int) count));	// Shorten result if longer
-    return (res);
+  {
+    int res_charpos= res->charpos((int)count);
+    if (tmp_value.alloc(res_charpos))
+      return NULL;
+    (void)tmp_value.copy(*res);
+    tmp_value.length(res_charpos); // Shorten result if longer
+    return &tmp_value;
   }
   const size_t pad_char_length= rpad->numchars();
 
@@ -3776,6 +3789,10 @@ String *Item_func_rpad::val_str(String *str)
   }
   /* Must be done before alloc_buffer */
   const size_t res_byte_length= res->length();
+  /*
+    alloc_buffer() doesn't modify 'res' because 'res' is guaranteed too short
+    at this stage.
+  */
   if (!(res= alloc_buffer(res, str, &tmp_value,
                           static_cast<size_t>(byte_count))))
   {
@@ -3836,6 +3853,7 @@ String *Item_func_lpad::val_str(String *str)
   /* must be longlong to avoid truncation */
   longlong count= args[1]->val_int();
   size_t byte_count;
+  /* Avoid modifying this string as it may affect args[0] */
   String *res= args[0]->val_str(&tmp_value);
   String *pad= args[2]->val_str(&lpad_str);
 
@@ -3876,8 +3894,12 @@ String *Item_func_lpad::val_str(String *str)
 
   if (count <= static_cast<longlong>(res_char_length))
   {
-    res->length(res->charpos((int) count));
-    return res;
+    int res_charpos= res->charpos((int)count);
+   if (tmp_value.alloc(res_charpos))
+     return NULL;
+   (void)tmp_value.copy(*res);
+   tmp_value.length(res_charpos); // Shorten result if longer
+   return &tmp_value;
   }
   
   pad_char_length= pad->numchars();

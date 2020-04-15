@@ -1,12 +1,19 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -624,24 +631,12 @@ bool set_and_validate_user_attributes(THD *thd,
      Str->uses_authentication_string_clause)
   {
     st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
-    /*
-      Validate hash string in following cases:
-        1. IDENTIFIED BY PASSWORD.
-        2. IDENTIFIED WITH .. AS 'auth_str' for ALTER USER statement
-           and its a replication slave thread
-    */
-    if (Str->uses_identified_by_password_clause ||
-        (Str->uses_authentication_string_clause &&
-        thd->lex->sql_command == SQLCOM_ALTER_USER &&
-        thd->slave_thread))
+    if (auth->validate_authentication_string((char*)Str->auth.str,
+                                             Str->auth.length))
     {
-      if (auth->validate_authentication_string((char*)Str->auth.str,
-                                               Str->auth.length))
-      {
-        my_error(ER_PASSWORD_FORMAT, MYF(0));
-        plugin_unlock(0, plugin);
-        return(1);
-      }
+      my_error(ER_PASSWORD_FORMAT, MYF(0));
+      plugin_unlock(0, plugin);
+      return(1);
     }
   }
   plugin_unlock(0, plugin);
@@ -687,6 +682,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   size_t new_password_len= strlen(new_password);
   size_t escaped_hash_str_len= 0;
   bool result= true, rollback_whole_statement= false;
+  sql_mode_t old_sql_mode= thd->variables.sql_mode;
   int ret;
 
   DBUG_ENTER("change_password");
@@ -779,15 +775,19 @@ bool change_password(THD *thd, const char *host, const char *user,
   thd->lex->alter_password.account_locked= false;
   thd->lex->alter_password.update_password_expired_fields= false;
 
+
   /*
-    When @@log-backward-compatible-user-definitions variable is ON
-    and its a slave thread, then the password is already hashed. So
-    do not generate another hash.
-  */
-  if (opt_log_builtin_as_identified_by_password &&
-      thd->slave_thread)
+    In case its a slave thread or a binlog applier thread, the password
+    is already hashed. Do not generate another hash!
+   */
+  if (thd->slave_thread || thd->is_binlog_applier())
+  {
+    /* Password is in hash form */
+    combo->uses_authentication_string_clause= true;
+    /* Password is not plain text */
     combo->uses_identified_by_clause= false;
-    
+  }
+
   if (set_and_validate_user_attributes(thd, combo, what_to_set,
                                        true, "SET PASSWORD"))
   {
@@ -796,7 +796,10 @@ bool change_password(THD *thd, const char *host, const char *user,
     goto end;
   }
 
-  ret= replace_user_table(thd, table, combo, 0, false, true, what_to_set);
+  thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
+  ret= replace_user_table(thd, table, combo, 0, false, false, what_to_set);
+  thd->variables.sql_mode= old_sql_mode;
+
   if (ret)
   {
     mysql_mutex_unlock(&acl_cache->lock);
@@ -1979,7 +1982,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
     }
 
     /* update the mysql.user table */
-    int ret= replace_user_table(thd, table, user_from, 0, false, true,
+    int ret= replace_user_table(thd, table, user_from, 0, false, false,
                                 what_to_alter);
     if (ret)
     {

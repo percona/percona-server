@@ -1,13 +1,20 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -645,4 +652,44 @@ private:
   Control_notification(Control_notification const&);
   Control_notification& operator=(Control_notification const&);
 };
+
+typedef void(xcom_expel_functor)(void);
+
+/**
+  Notification used to inform that the node has been expelled or is about
+  to be.
+*/
+class Expel_notification : public Parameterized_notification<false> {
+ public:
+  /**
+    Constructor for Expel_notification.
+    @param functor Pointer to a function that contains that actual core of
+    the execution.
+  */
+  explicit Expel_notification(xcom_expel_functor *functor);
+
+  /**
+    Destructor for Expel_notification.
+  */
+  ~Expel_notification();
+
+ private:
+  /**
+    Task implemented by this notification.
+  */
+  void do_execute();
+
+  /*
+    Pointer to a function that contains that actual core of the execution.
+  */
+  xcom_expel_functor *m_functor;
+
+  /*
+    Disabling the copy constructor and assignment operator.
+  */
+  Expel_notification(Expel_notification const &);
+  Expel_notification &operator=(Expel_notification const &);
+
+};
+
 #endif // GCS_XCOM_NOTIFICATION_INCLUDED

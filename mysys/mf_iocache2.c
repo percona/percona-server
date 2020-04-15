@@ -1,15 +1,27 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
    Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
    Copyright (c) 2010, 2017, MariaDB
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   Without limiting anything contained in the foregoing, this file,
+   which is part of C Driver for MySQL (Connector/C), is also subject to the
+   Universal FOSS Exception, version 1.0, a copy of which can be found at
+   http://oss.oracle.com/licenses/universal-foss-exception.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -24,6 +36,8 @@
 #include <m_string.h>
 #include <stdarg.h>
 #include <m_ctype.h>
+
+#include "mysql/psi/mysql_file.h"
 
 /*
   Copy contents of an IO_CACHE to a file.
@@ -105,14 +119,14 @@ my_off_t my_b_append_tell(IO_CACHE* info)
   */
   {
     volatile my_off_t save_pos;
-    save_pos= mysql_file_tell(info->file, MYF(0));
-    mysql_file_seek(info->file, (my_off_t)0, MY_SEEK_END,MYF(0));
+    save_pos = mysql_file_tell(info->file,MYF(0));
+    mysql_file_seek(info->file,(my_off_t)0,MY_SEEK_END,MYF(0));
     /*
       Save the value of my_tell in res so we can see it when studying coredump
     */
     DBUG_ASSERT(info->end_of_file - (info->append_read_pos-info->write_buffer)
-		== (res= mysql_file_tell(info->file, MYF(0))));
-    mysql_file_seek(info->file, save_pos, MY_SEEK_SET,MYF(0));
+		== (res=mysql_file_tell(info->file,MYF(0))));
+    mysql_file_seek(info->file,save_pos,MY_SEEK_SET,MYF(0));
   }
 #endif  
   res = info->end_of_file + (info->write_pos-info->append_read_pos);
@@ -212,7 +226,7 @@ size_t my_b_fill(IO_CACHE *info)
 
   if (info->seek_not_done)
   {					/* File touched, do seek */
-    if (mysql_file_seek(info->file, pos_in_file, MY_SEEK_SET,MYF(0)) ==
+    if (mysql_file_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(0)) ==
 	MY_FILEPOS_ERROR)
     {
       info->error= 0;
@@ -232,7 +246,7 @@ size_t my_b_fill(IO_CACHE *info)
   }
   DBUG_EXECUTE_IF ("simulate_my_b_fill_error",
                    {DBUG_SET("+d,simulate_file_read_error");});
-  if ((length= mysql_file_read(info->file, info->buffer, max_length,
+  if ((length= mysql_file_read(info->file,info->buffer,max_length,
                        info->myflags)) == (size_t) -1)
   {
     info->error= -1;

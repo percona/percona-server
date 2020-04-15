@@ -3,7 +3,8 @@ call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'keyring_va
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'File '' not found");
 
 --source include/have_keyring_vault_plugin.inc
---source generate_default_conf_files.inc
+--source include/not_repeat.inc
+--source generate_default_mount_conf_files.inc
 --source is_vault_server_up.inc
 
 # Create mount points

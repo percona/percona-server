@@ -1,13 +1,20 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
@@ -474,12 +481,12 @@ int channel_stop(Master_info *mi,
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
 
-  mi->channel_rdlock();
-
   int thread_mask= 0;
   int server_thd_mask= 0;
   int error= 0;
   bool thd_init= false;
+
+  mi->channel_wrlock();
   lock_slave_threads(mi);
 
   init_thread_mask(&server_thd_mask, mi, 0 /* not inverse*/);
@@ -617,11 +624,8 @@ bool channel_is_active(const char* channel, enum_channel_thread_types thd_type)
     DBUG_RETURN(false);
   }
 
-  mi->channel_rdlock();
-
   init_thread_mask(&thread_mask, mi, 0 /* not inverse*/);
 
-  mi->channel_unlock();
   channel_map.unlock();
 
   switch(thd_type)
@@ -655,8 +659,6 @@ int channel_get_thread_id(const char* channel,
     channel_map.unlock();
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
-
-  mi->channel_rdlock();
 
   switch(thd_type)
   {
@@ -741,10 +743,9 @@ int channel_get_thread_id(const char* channel,
       }
       break;
     default:
-      DBUG_RETURN(number_threads);
+      break;
   }
 
-  mi->channel_unlock();
   channel_map.unlock();
 
   DBUG_RETURN(number_threads);
@@ -764,7 +765,6 @@ long long channel_get_last_delivered_gno(const char* channel, int sidno)
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
 
-  mi->channel_rdlock();
   rpl_gno last_gno= 0;
 
   global_sid_lock->rdlock();
@@ -782,7 +782,6 @@ long long channel_get_last_delivered_gno(const char* channel, int sidno)
   my_free(retrieved_gtid_set_string);
 #endif
 
-  mi->channel_unlock();
   channel_map.unlock();
 
   DBUG_RETURN(last_gno);
@@ -800,15 +799,13 @@ int channel_add_executed_gtids_to_received_gtids(const char* channel)
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
 
-  mi->channel_rdlock();
-  channel_map.unlock();
   global_sid_lock->wrlock();
 
   enum_return_status return_status=
       mi->rli->add_gtid_set(gtid_state->get_executed_gtids());
 
   global_sid_lock->unlock();
-  mi->channel_unlock();
+  channel_map.unlock();
 
   DBUG_RETURN(return_status != RETURN_STATUS_OK);
 }
@@ -1012,8 +1009,6 @@ bool channel_is_stopping(const char* channel,
     DBUG_RETURN(false);
   }
 
-  mi->channel_rdlock();
-
   switch(thd_type)
   {
     case CHANNEL_NO_THD:
@@ -1028,7 +1023,6 @@ bool channel_is_stopping(const char* channel,
       DBUG_ASSERT(0);
   }
 
-  mi->channel_unlock();
   channel_map.unlock();
 
   DBUG_RETURN(is_stopping);
@@ -1044,9 +1038,7 @@ bool is_partial_transaction_on_channel_relay_log(const char *channel)
     channel_map.unlock();
     DBUG_RETURN(false);
   }
-  mi->channel_rdlock();
   bool ret= mi->transaction_parser.is_inside_transaction();
-  mi->channel_unlock();
   channel_map.unlock();
   DBUG_RETURN(ret);
 }

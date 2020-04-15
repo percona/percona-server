@@ -25,6 +25,10 @@ The MyRocks storage engine lacks the following features compared to InnoDB:
 
 * `Group Replication <https://dev.mysql.com/doc/refman/5.7/en/group-replication.html>`_
 
+* `Generated Columns <https://dev.mysql.com/doc/refman/5.7/en/create-table-generated-columns.html>`__
+
+* `Partial Update of LOB in InnoDB <https://mysqlserverteam.com/mysql-8-0-optimizing-small-partial-update-of-lob-in-innodb/>`_
+
 You should also consider the following:
 
 * :file:`*_bin` (e.g. ``latin1_bin``) or binary collation should be used
@@ -79,3 +83,5 @@ You should also consider the following:
   transactional resources, is an experimental feature in MyRocks: the 
   implementation is less tested, it may lack some functionality and be not as
   stable as in case of InnoDB.
+
+* MySQL has `spatial data types <https://dev.mysql.com/doc/refman/5.7/en/spatial-type-overview.html>`__ . These data types are not supported by MyRocks. 

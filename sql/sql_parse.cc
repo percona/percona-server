@@ -1,13 +1,20 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -136,7 +143,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
 static void sql_kill(THD *thd, my_thread_id id, bool only_kill_query);
 
 
-const LEX_STRING command_name[]={
+const LEX_STRING command_name[] MY_ATTRIBUTE((unused)) = {
   { C_STRING_WITH_LEN("Sleep") },
   { C_STRING_WITH_LEN("Quit") },
   { C_STRING_WITH_LEN("Init DB") },
@@ -1274,6 +1281,10 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     the slow log only if opt_log_slow_admin_statements is set.
   */
   thd->enable_slow_log= TRUE;
+  // Both this and the call THD::reset_for_next_command are required, even if
+  // clear_slow_extended ends up being called twice in common execution path
+  // between successive commands, because some COM_* skip one or another, i.e.
+  // COM_QUIT needs this one.
   thd->clear_slow_extended();
   thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
@@ -1999,6 +2010,9 @@ done:
   thd->m_statement_psi= NULL;
   thd->m_digest= NULL;
 
+  /* Prevent rewritten query from getting "stuck" in SHOW PROCESSLIST. */
+  thd->rewritten_query.mem_free();
+
   thd_manager->dec_thread_running();
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
 
@@ -2508,6 +2522,14 @@ bool lock_binlog_for_backup(THD *thd)
       thd->global_read_lock.is_acquired())
     DBUG_RETURN(false);
 
+  DBUG_EXECUTE_IF("delay_slave_worker_0", {
+    static const char act[]= "now WAIT_FOR signal.w1.wait_for_its_turn";
+    DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+
+    static const char act2[]= "now SIGNAL signal.lock_binlog_for_backup";
+    DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act2)));
+  });
+
   DBUG_RETURN(thd->backup_binlog_lock.acquire(thd));
 }
 
@@ -2605,6 +2627,8 @@ mysql_execute_command(THD *thd, bool first_level)
   TABLE_LIST *all_tables;
   /* most outer SELECT_LEX_UNIT of query */
   SELECT_LEX_UNIT *const unit= lex->unit;
+  // keep GTID violation state in order to roll it back on statement failure
+  bool gtid_consistency_violation_state = thd->has_gtid_consistency_violation;
   DBUG_ASSERT(select_lex->master_unit() == unit);
   struct system_variables *per_query_variables_backup= NULL;
 
@@ -2774,6 +2798,7 @@ mysql_execute_command(THD *thd, bool first_level)
     */
     if (deny_updates_if_read_only_option(thd, all_tables))
     {
+      thd->diff_access_denied_errors++;
       err_readonly(thd);
       DBUG_RETURN(-1);
     }
@@ -2867,6 +2892,7 @@ mysql_execute_command(THD *thd, bool first_level)
   if (thd->tx_read_only &&
       (sql_command_flags[lex->sql_command] & CF_DISALLOW_IN_RO_TRANS))
   {
+    thd->diff_access_denied_errors++;
     my_error(ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION, MYF(0));
     goto error;
   }
@@ -3466,6 +3492,10 @@ case SQLCOM_PREPARE:
       /* Push Strict_error_handler */
       if (!thd->lex->is_ignore() && thd->is_strict_mode())
         thd->push_internal_handler(&strict_handler);
+
+      Partition_in_shared_ts_error_handler partition_in_shared_ts_handler;
+      thd->push_internal_handler(&partition_in_shared_ts_handler);
+
       /* regular create */
       if (create_info.options & HA_LEX_CREATE_TABLE_LIKE)
       {
@@ -3479,6 +3509,9 @@ case SQLCOM_PREPARE:
         res= mysql_create_table(thd, create_table,
                                 &create_info, &alter_info);
       }
+
+      thd->pop_internal_handler();
+
       /* Pop Strict_error_handler */
       if (!thd->lex->is_ignore() && thd->is_strict_mode())
         thd->pop_internal_handler();
@@ -3658,7 +3691,10 @@ end_with_restore_list:
     client thread has locked tables
   */
   if (thd->locked_tables_mode ||
-      thd->in_active_multi_stmt_transaction() || thd->global_read_lock.is_acquired())
+      thd->in_active_multi_stmt_transaction() ||
+      thd->global_read_lock.is_acquired() ||
+      thd->backup_tables_lock.is_acquired() ||
+      thd->backup_binlog_lock.is_acquired())
   {
     my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
                ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
@@ -5299,6 +5335,7 @@ finish:
         thd->killed == THD::KILL_BAD_DATA)
     {
       thd->killed= THD::NOT_KILLED;
+      thd->reset_query_for_display();
     }
   }
 
@@ -5390,8 +5427,15 @@ finish:
   }
 #endif
 
-  if (!(res || thd->is_error()))
-    binlog_gtid_end_transaction(thd);
+  if (!res && !thd->is_error()) {      // if statement succeeded
+    binlog_gtid_end_transaction(thd);  // finalize GTID life-cycle
+    DEBUG_SYNC(thd, "persist_new_state_after_statement_succeeded");
+  } else if (!gtid_consistency_violation_state &&    // if the consistency state
+             thd->has_gtid_consistency_violation) {  // was set by the failing
+                                                     // statement
+    gtid_state->end_gtid_violating_transaction(thd);  // just roll it back
+    DEBUG_SYNC(thd, "restore_previous_state_after_statement_failed");
+  }
 
   DBUG_RETURN(res || thd->is_error());
 }
@@ -5795,15 +5839,18 @@ void mysql_parse(THD *thd, Parser_state *parser_state, bool update_userstat)
       {
         lex->safe_to_cache_query= false; // see comments below
 
-        MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi,
-                                 thd->rewritten_query.c_ptr_safe(),
-                                 thd->rewritten_query.length());
-      }
-      else
-      {
+        thd->set_query_for_display(thd->rewritten_query.c_ptr_safe(),
+                                   thd->rewritten_query.length());
+      } else if (thd->slave_thread) {
+        /*
+          In the slave, we add the information to pfs.events_statements_history,
+          but not to pfs.threads, as that is what the test suite expects.
+        */
         MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi,
                                  thd->query().str,
                                  thd->query().length);
+      } else {
+        thd->set_query_for_display(thd->query().str, thd->query().length);
       }
 
       if (!(opt_general_log_raw || thd->slave_thread))
@@ -5902,9 +5949,7 @@ void mysql_parse(THD *thd, Parser_state *parser_state, bool update_userstat)
         SQL injection, finding the source of the SQL injection is critical, so the
         design choice is to log the query text of broken queries (a).
       */
-      MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi,
-                               thd->query().str,
-                               thd->query().length);
+      thd->set_query_for_display(thd->query().str, thd->query().length);
 
       /* Instrument this broken statement as "statement/sql/error" */
       thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
@@ -5954,6 +5999,8 @@ void mysql_parse(THD *thd, Parser_state *parser_state, bool update_userstat)
     update_global_user_stats(thd, true, time(NULL));
 #endif
   }
+
+  DEBUG_SYNC(thd, "query_rewritten");
 
   DBUG_VOID_RETURN;
 }
@@ -6785,7 +6832,12 @@ static uint kill_one_thread(THD *thd, my_thread_id id, bool only_kill_query)
       slayage if both are string-equal.
     */
 
-    if ((thd->security_context()->check_access(SUPER_ACL)) ||
+    const bool is_utility_connection =
+        acl_is_utility_user(tmp->m_security_ctx->user().str,
+                            tmp->m_security_ctx->host().str,
+                            tmp->m_security_ctx->ip().str);
+
+    if (((thd->security_context()->check_access(SUPER_ACL)) && !is_utility_connection) ||
         thd->security_context()->user_matches(tmp->security_context()))
     {
       /* process the kill only if thread is not already undergoing any kill

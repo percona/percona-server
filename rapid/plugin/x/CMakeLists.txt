@@ -1,13 +1,20 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
@@ -93,13 +100,12 @@ ELSE()
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mysql
     ${CMAKE_CURRENT_BINARY_DIR}/generated
     ${SSL_INCLUDE_DIRS}
-    ${ZLIB_INCLUDE_DIR}
   )
 
   INCLUDE_DIRECTORIES(SYSTEM
     ${BOOST_INCLUDE_DIR}
     ${PROTOBUF_INCLUDE_DIRS}
-    ${LIBEVENT_INCLUDE_DIR}
+    ${LIBEVENT_INCLUDE_DIRS}
   )
 
   IF(XPLUGIN_NO_LITE_PROTOBUF)
@@ -141,7 +147,7 @@ ELSE()
     src/xpl_plugin.cc
     src/xpl_performance_schema.cc
     ${xplugin_SRC} ${xplugin_HDRS} ${xplugin_PROTOBUF_SRC} ${BOOST_LIB_SOURCES}
-    LINK_LIBRARIES ${xplugin_PROTOBUF_LIB} ${LIBEVENT_LIBRARY} ${LIBEVENT_LIBRARIES}
+    LINK_LIBRARIES ${xplugin_PROTOBUF_LIB} ${LIBEVENT_LIBRARIES}
     MODULE_ONLY MODULE_OUTPUT_NAME "mysqlx")
 
   IF(WITH_PROTOBUF STREQUAL "system")
@@ -150,7 +156,7 @@ ELSE()
 
   ADD_DEPENDENCIES(mysqlx GenError)
   IF (WITH_LIBEVENT STREQUAL "bundled")
-    ADD_DEPENDENCIES(mysqlx ${LIBEVENT_LIBRARY})
+    ADD_DEPENDENCIES(mysqlx ${LIBEVENT_LIBRARIES})
   ENDIF()
 
   IF(XPLUGIN_LOG_PROTOBUF)
@@ -214,7 +220,7 @@ ELSE()
       "NGS_DISABLE_LOGGING;USE_MYSQLX_FULL_PROTO")
   ENDIF()
 
-  TARGET_LINK_LIBRARIES(mysqlxtest mysys strings perconaserverclient)
+  TARGET_LINK_LIBRARIES(mysqlxtest mysys strings ${FORCE_SSL_SOLARIS} perconaserverclient)
   TARGET_LINK_LIBRARIES(mysqlxtest ${PROTOBUF_LIBRARY})
 
   IF(INSTALL_MYSQLTESTDIR)

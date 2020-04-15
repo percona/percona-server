@@ -2,13 +2,20 @@
    Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -162,7 +169,7 @@ void free_user_stats(USER_STATS* user_stats)
 }
 
 /* Free all memory for a my_hash table with THREAD_STATS entries */
-void free_thread_stats(THREAD_STATS* thread_stats)
+static void free_thread_stats(THREAD_STATS* thread_stats)
 {
   my_free((char *) thread_stats);
 }
@@ -198,8 +205,8 @@ void init_user_stats(USER_STATS *user_stats,
   DBUG_PRINT("info",
              ("Add user_stats entry for user %s - priv_user %s",
               user, priv_user));
-  strncpy(user_stats->user, user, sizeof(user_stats->user));
-  strncpy(user_stats->priv_user, priv_user, sizeof(user_stats->priv_user));
+  my_strncpy_trunc(user_stats->user, user, sizeof(user_stats->user));
+  my_strncpy_trunc(user_stats->priv_user, priv_user, sizeof(user_stats->priv_user));
 
   user_stats->user_len=               strlen(user_stats->user);
   user_stats->priv_user_len=          strlen(user_stats->priv_user);
@@ -313,7 +320,7 @@ void init_global_thread_stats(void)
 		   (my_hash_free_key) free_thread_stats, 0,
 		   key_memory_userstat_thread_stats))
   {
-    sql_print_error("Initializing global_client_stats failed.");
+    sql_print_error("Initializing global_thread_stats failed.");
     exit(1);
   }
 }
@@ -596,57 +603,62 @@ static void update_global_thread_stats_with_thread(THD* thd,
   thread_stats->empty_queries+=        thd->diff_empty_queries;
 }
 
-// Updates the global stats of a user or client
 void update_global_user_stats(THD* thd, bool create_user, time_t now)
 {
-  const char* user_string=
-    get_valid_user_string(thd->m_main_security_ctx.user().str);
-  const char* client_string= get_client_host(thd);
+	update_global_user_stats(thd, create_user, now, 
+                                 get_valid_user_string(thd->security_context()->user().str),
+                                 get_client_host(thd), thd->security_context()->ip().str);
+}
 
+// Updates the global stats of a user or client
+void update_global_user_stats(THD* thd, bool create_user, time_t now, const char* user_string, const char* client_string, const char* ip)
+{
   USER_STATS* user_stats;
   THREAD_STATS* thread_stats;
 
-  if (acl_is_utility_user(thd->security_context()->user().str,
-			  thd->security_context()->host().str,
-			  thd->security_context()->ip().str))
+  if (acl_is_utility_user(user_string, client_string, ip))
     return;
 
   mysql_mutex_lock(&LOCK_global_user_client_stats);
 
   // Update by user name
-  if ((user_stats = (USER_STATS *) my_hash_search(&global_user_stats,
-                                                  (uchar *) user_string,
-                                                  strlen(user_string))))
-  {
-    // Found user.
-    update_global_user_stats_with_user(thd, user_stats, now);
-  }
-  else
-  {
-    // Create the entry
-    if (create_user)
+  if (user_string != NULL) {
+    if ((user_stats = (USER_STATS *) my_hash_search(&global_user_stats,
+                                                    (uchar *) user_string,
+                                                    strlen(user_string))))
     {
-      increment_count_by_name(user_string, user_string,
-                              &global_user_stats, thd);
+      // Found user.
+      update_global_user_stats_with_user(thd, user_stats, now);
+    }
+    else
+    {
+      // Create the entry
+      if (create_user)
+      {
+        increment_count_by_name(user_string, user_string,
+                                &global_user_stats, thd);
+      }
     }
   }
 
   // Update by client IP
-  if ((user_stats = (USER_STATS *) my_hash_search(&global_client_stats,
-                                                  (uchar *) client_string,
-                                                  strlen(client_string))))
-  {
-    // Found by client IP
-    update_global_user_stats_with_user(thd, user_stats, now);
-  }
-  else
-  {
-    // Create the entry
-    if (create_user)
+  if (client_string != NULL) {
+    if ((user_stats = (USER_STATS *) my_hash_search(&global_client_stats,
+                                                    (uchar *) client_string,
+                                                    strlen(client_string))))
     {
-      increment_count_by_name(client_string,
-                              user_string,
-                              &global_client_stats, thd);
+      // Found by client IP
+      update_global_user_stats_with_user(thd, user_stats, now);
+    }
+    else
+    {
+      // Create the entry
+      if (create_user)
+      {
+        increment_count_by_name(client_string,
+                                user_string,
+                                &global_client_stats, thd);
+      }
     }
   }
 
@@ -1359,7 +1371,6 @@ static bool login_connection(THD *thd, bool extra_port_connection)
         VIO_TYPE_NAMEDPIPE)
       my_sleep(1000);       /* must wait after eof() */
 #endif
-    thd->diff_denied_connections++;
     DBUG_RETURN(1);
   }
   /* Connect completed, set read/write timeouts back to default */

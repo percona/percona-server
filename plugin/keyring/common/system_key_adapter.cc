@@ -16,6 +16,7 @@
 
 #include "system_key_adapter.h"
 #include "secure_string.h"
+#include "my_atomic.h"
 
 namespace keyring
 {
@@ -25,27 +26,62 @@ namespace keyring
   {
     Secure_ostringstream system_key_data_version_prefix_ss;
     system_key_data_version_prefix_ss << key_version << ':';
-    Secure_string system_key_data_version_prefix = system_key_data_version_prefix_ss.str();
-    system_key_data.allocate(system_key_data_version_prefix.length() + keyring_key->get_key_data_size());
+    Secure_string system_key_data_version_prefix =
+        system_key_data_version_prefix_ss.str();
+    size_t system_key_data_candidate_size = system_key_data_version_prefix.length() +
+                                            keyring_key->get_key_data_size();
+    uchar* system_key_data_candidate = new(std::nothrow) uchar[system_key_data_candidate_size];
+    if (system_key_data_candidate == NULL) {
+      return;
+    }
+    memcpy(system_key_data_candidate, system_key_data_version_prefix.c_str(),
+           system_key_data_version_prefix.length());
+    memcpy(
+        system_key_data_candidate + system_key_data_version_prefix.length(),
+        keyring_key->get_key_data(), keyring_key->get_key_data_size());
+    
+    // need to "de"-xor keying key data
+    keyring_key->xor_data(system_key_data_candidate + system_key_data_version_prefix.length(),
+                          keyring_key->get_key_data_size());
+    // next xor system key data as a whole
+    keyring_key->xor_data(system_key_data_candidate, system_key_data_candidate_size);
 
-    // need to "de"-xor keying key data to be able to add to it key version prefix
-    keyring_key->xor_data();
-    memcpy(system_key_data.get_key_data(), system_key_data_version_prefix.c_str(), system_key_data_version_prefix.length());
-    memcpy(system_key_data.get_key_data() + system_key_data_version_prefix.length(), keyring_key->get_key_data(),
-           keyring_key->get_key_data_size());
+    void *null_system_key_data= NULL;
+    void *addr= & this->system_key_data.key_data;
+    void * volatile * typed_addr= static_cast<void * volatile *>(addr);
 
-    size_t keyring_key_data_size = keyring_key->get_key_data_size();
-    uchar *keyring_key_data = keyring_key->release_key_data();
+    if (my_atomic_casptr(typed_addr, &null_system_key_data, system_key_data_candidate)) {
+      system_key_data.key_data_size = system_key_data_candidate_size;
+      DBUG_ASSERT(system_key_data.key_data == system_key_data_candidate);
+    } else {
+      delete []system_key_data_candidate; // too late - system key data was already constructed
+    }
+  }
 
-    // Using keyring_key's xor function to xor system key data, next
-    // restoring keyring key data
-    keyring_key->set_key_data(system_key_data.get_key_data(), system_key_data.get_key_data_size());
-    keyring_key->xor_data();
+  size_t System_key_adapter::get_key_data_size()
+  {
+    DBUG_ASSERT(keyring_key != NULL);
 
-    keyring_key->release_key_data();
-    keyring_key->set_key_data(keyring_key_data, keyring_key_data_size);
+    void *addr= & this->system_key_data.key_data;
+    void * volatile * typed_addr= static_cast<void * volatile *>(addr);
 
-    keyring_key->xor_data();
+    if (my_atomic_loadptr(typed_addr) == NULL)
+      construct_system_key_data();
+
+    return system_key_data.key_data_size;
+  }
+
+  uchar* System_key_adapter::get_key_data()
+  {
+    DBUG_ASSERT(keyring_key != NULL);
+
+    void *addr= & this->system_key_data.key_data;
+    void * volatile * typed_addr= static_cast<void * volatile *>(addr);
+
+    if (my_atomic_loadptr(typed_addr) == NULL)
+      construct_system_key_data();
+
+    return system_key_data.key_data;
   }
 
   System_key_adapter::System_key_data::System_key_data()
@@ -58,18 +94,6 @@ namespace keyring
     free();
   }
 
-  bool System_key_adapter::System_key_data::allocate(size_t key_data_size)
-  {
-    free();
-    key_data = new uchar[key_data_size];
-    if (key_data)
-    {
-      this->key_data_size = key_data_size;
-      return false;
-    }
-    return true;
-  }
-
   void System_key_adapter::System_key_data::free()
   {
     if (key_data)
@@ -80,15 +104,5 @@ namespace keyring
       key_data = NULL;
       key_data_size = 0;
     }
-  }
-
-  uchar* System_key_adapter::System_key_data::get_key_data()
-  {
-    return key_data;
-  }
-
-  size_t System_key_adapter::System_key_data::get_key_data_size()
-  {
-    return key_data_size;
   }
 } //namespace keyring

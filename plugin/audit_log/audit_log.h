@@ -26,6 +26,7 @@ extern PSI_memory_key key_memory_audit_log_buffer;
 extern PSI_memory_key key_memory_audit_log_accounts;
 extern PSI_memory_key key_memory_audit_log_databases;
 extern PSI_memory_key key_memory_audit_log_commands;
+extern int64 audit_log_buffer_size_overflow;
 
 #ifdef __cplusplus
 extern "C" {

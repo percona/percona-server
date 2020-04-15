@@ -80,7 +80,7 @@ log_slow_verbosity='microtime,innodb,query_plan':
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_1 pattern: ^# No InnoDB statistics available for this query$
 [log_grep.inc] lines:   2
-SET log_slow_verbosity='microtime';
+SET SESSION log_slow_verbosity='microtime';
 [log_start.inc] percona.slow_extended.log_slow_verbosity_2
 INSERT INTO t1 VALUE(1);
 [log_stop.inc] percona.slow_extended.log_slow_verbosity_2
@@ -117,7 +117,7 @@ log_slow_verbosity='microtime':
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_2 pattern: ^# No InnoDB statistics available for this query$
 [log_grep.inc] lines:   0
-SET log_slow_verbosity='microtime,query_plan';
+SET SESSION log_slow_verbosity='microtime,query_plan';
 [log_start.inc] percona.slow_extended.log_slow_verbosity_3
 INSERT INTO t1 VALUE(2);
 [log_stop.inc] percona.slow_extended.log_slow_verbosity_3
@@ -154,7 +154,4 @@ log_slow_verbosity='query_plan':
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_3 pattern: ^# No InnoDB statistics available for this query$
 [log_grep.inc] lines:   0
-SET SESSION log_slow_verbosity=default;
-SET SESSION long_query_time=default;
-SET SESSION min_examined_row_limit=default;
 DROP TABLE t1;

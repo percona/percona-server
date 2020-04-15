@@ -26,3 +26,4 @@
 --source include/restart_mysqld.inc
 
 --remove_file $MYSQLTEST_VARDIR/tmp/binlog_encryption_on_while_binlog_off.err
+--remove_file $MYSQL_TMP_DIR/mysecret_keyring

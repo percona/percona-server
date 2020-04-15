@@ -1,0 +1,34 @@
+#
+# PS-5541: Changed page tracking floods the error log with decryption errors
+#
+CREATE TABLE `joinit` (
+`i` int(11) NOT NULL AUTO_INCREMENT,
+`s` varchar(64) DEFAULT NULL,
+`t` time NOT NULL,
+`g` int(11) NOT NULL,
+PRIMARY KEY (`i`),
+KEY key_g (`g`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO joinit VALUES (NULL, uuid(), time(now()), FLOOR(1 + RAND() * 60));
+INSERT INTO joinit SELECT NULL, uuid(), time(now()), FLOOR(1 + RAND() * 60) FROM joinit;
+INSERT INTO joinit SELECT NULL, uuid(), time(now()), FLOOR(1 + RAND() * 60) FROM joinit;
+INSERT INTO joinit SELECT NULL, uuid(), time(now()), FLOOR(1 + RAND() * 60) FROM joinit;
+INSERT INTO joinit SELECT NULL, uuid(), time(now()), FLOOR(1 + RAND() * 60) FROM joinit;
+INSERT INTO joinit SELECT NULL, uuid(), time(now()), FLOOR(1 + RAND() * 60) FROM joinit;
+INSERT INTO joinit SELECT NULL, uuid(), time(now()), FLOOR(1 + RAND() * 60) FROM joinit;
+INSERT INTO joinit SELECT NULL, uuid(), time(now()), FLOOR(1 + RAND() * 60) FROM joinit;
+INSERT INTO joinit SELECT NULL, uuid(), time(now()), FLOOR(1 + RAND() * 60) FROM joinit;
+INSERT INTO joinit SELECT NULL, uuid(), time(now()), FLOOR(1 + RAND() * 60) FROM joinit;
+INSERT INTO joinit SELECT NULL, uuid(), time(now()), FLOOR(1 + RAND() * 60) FROM joinit;
+INSERT INTO joinit SELECT NULL, uuid(), time(now()), FLOOR(1 + RAND() * 60) FROM joinit;
+INSERT INTO joinit SELECT NULL, uuid(), time(now()), FLOOR(1 + RAND() * 60) FROM joinit;
+INSERT INTO joinit SELECT NULL, uuid(), time(now()), FLOOR(1 + RAND() * 60) FROM joinit;
+INSERT INTO joinit SELECT NULL, uuid(), time(now()), FLOOR(1 + RAND() * 60) FROM joinit;
+INSERT INTO joinit SELECT NULL, uuid(), time(now()), FLOOR(1 + RAND() * 60) FROM joinit;
+INSERT INTO joinit SELECT NULL, uuid(), time(now()), FLOOR(1 + RAND() * 60) FROM joinit;
+INSERT INTO joinit SELECT NULL, uuid(), time(now()), FLOOR(1 + RAND() * 60) FROM joinit;
+INSERT INTO joinit SELECT NULL, uuid(), time(now()), FLOOR(1 + RAND() * 60) FROM joinit;
+INSERT INTO joinit SELECT NULL, uuid(), time(now()), FLOOR(1 + RAND() * 60) FROM joinit;
+INSERT INTO joinit SELECT NULL, uuid(), time(now()), FLOOR(1 + RAND() * 60) FROM joinit;
+SELECT COUNT(*) AS count_innodb_changed_pages FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
+DROP TABLE joinit;

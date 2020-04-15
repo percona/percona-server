@@ -80,23 +80,22 @@ SELECT 5;
 [log_grep.inc] file: percona.slow_extended.innodb_2 pattern: ^# No InnoDB statistics available for this query$
 [log_grep.inc] lines:   2
 LOCK TABLE t1 WRITE;
+SET SESSION long_query_time=50000;
 SET SESSION long_query_time=0;
 SET SESSION log_slow_verbosity='microtime,innodb';
 [log_start.inc] percona.slow_extended.innodb_3
 LOCK TABLE t1 WRITE;
-SET SESSION long_query_time=5000;
-SET SESSION long_query_time=0;
 SELECT SLEEP(2);
 SLEEP(2)
 0
 UNLOCK TABLES;
 [log_stop.inc] percona.slow_extended.innodb_3
 [log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^# Schema: .+  Last_errno: \d+  Killed: \d+$
-[log_grep.inc] lines:   5
+[log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^#.*Rows_affected: \d+$
-[log_grep.inc] lines:   5
+[log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^# Bytes_sent: \d+.*$
-[log_grep.inc] lines:   5
+[log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^# InnoDB_trx_id: [0-9a-fA-F]+$
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^# Bytes_sent: \d+  Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+$
@@ -122,7 +121,7 @@ UNLOCK TABLES;
 [log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^#   InnoDB_pages_distinct: [1-9]\d*$
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^# No InnoDB statistics available for this query$
-[log_grep.inc] lines:   5
+[log_grep.inc] lines:   2
 UNLOCK TABLES;
 BEGIN;
 SELECT * FROM t2 FOR UPDATE;
@@ -130,19 +129,17 @@ a
 1
 [log_start.inc] percona.slow_extended.innodb_4
 DELETE FROM t2 WHERE a=2;
-SET SESSION long_query_time=5000;
-SET SESSION long_query_time=0;
 SELECT SLEEP(2);
 SLEEP(2)
 0
 COMMIT;
 [log_stop.inc] percona.slow_extended.innodb_4
 [log_grep.inc] file: percona.slow_extended.innodb_4 pattern: ^# Schema: .+  Last_errno: \d+  Killed: \d+$
-[log_grep.inc] lines:   5
+[log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.innodb_4 pattern: ^#.*Rows_affected: \d+$
-[log_grep.inc] lines:   5
+[log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.innodb_4 pattern: ^# Bytes_sent: \d+.*$
-[log_grep.inc] lines:   5
+[log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.innodb_4 pattern: ^# InnoDB_trx_id: [0-9a-fA-F]+$
 [log_grep.inc] lines:   1
 [log_grep.inc] file: percona.slow_extended.innodb_4 pattern: ^# Bytes_sent: \d+  Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+$
@@ -168,7 +165,8 @@ COMMIT;
 [log_grep.inc] file: percona.slow_extended.innodb_4 pattern: ^#   InnoDB_pages_distinct: [1-9]\d*$
 [log_grep.inc] lines:   1
 [log_grep.inc] file: percona.slow_extended.innodb_4 pattern: ^# No InnoDB statistics available for this query$
-[log_grep.inc] lines:   4
+[log_grep.inc] lines:   1
+SET SESSION long_query_time=0;
 #
 # PS-4788: Setting log_slow_verbosity and enabling the slow_query_log could lead to a server crash
 #

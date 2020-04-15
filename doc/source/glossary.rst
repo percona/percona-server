@@ -85,6 +85,7 @@
     Percona's branch of :term:`MySQL` with performance and management improvements.
 
     .. variable:: version_suffix
+
        :version 5.7.21-20: Implemented
        :cli: Yes
        :scope: Global
@@ -102,6 +103,7 @@
 	  SET GLOBAL version_suffix = '-new-suffix';
 
     .. variable:: version_comment
+
        :version 5.7.21-20: Implemented
        :cli: No
        :scope: Global

@@ -4,13 +4,20 @@
 /* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -566,10 +573,25 @@ public:
   virtual bool send_text(Protocol *protocol)= 0;
 };
 
-class Field: public Proto_field
+/*
+  An auxiliary class to solve the issue with gcc-9 '-Wdeprecated-copy'
+  warning.
+  Similarly to 'boost::noncopyable' this class has its assignment operator
+  private and undefined. However, in contrast, it has public well-defined
+  empty copy constructor.
+*/
+class nonassignable
 {
-  Field(const Item &);				/* Prevent use of these */
-  void operator=(Field &);
+protected:
+  nonassignable() {}
+  ~nonassignable() {}
+  nonassignable(const nonassignable&) {}
+private:  /* emphasize the following member is private */
+  nonassignable& operator=(const nonassignable&);
+};
+
+class Field: private nonassignable, public Proto_field
+{
 public:
 
   bool has_insert_default_function() const
@@ -3729,7 +3751,8 @@ protected:
 
 private:
   /**
-    In order to support update of virtual generated columns of blob type,
+    In order to support update of virtual generated columns and columns in
+    a Blackhole table of BLOB type,
     we need to allocate the space blob needs on server for old_row and
     new_row respectively. This variable is used to record the
     allocated blob space for old_row.
@@ -3941,9 +3964,10 @@ public:
   /**
     Mark that the BLOB stored in value should be copied before updating it.
 
-    When updating virtual generated columns we need to keep the old
-    'value' for BLOBs since this can be needed when the storage engine
-    does the update. During read of the record the old 'value' for the
+    When updating virtual generated columns or columns in a Blackhole table
+    we need to keep the old 'value' for BLOBs since this can be needed when
+    the storage engine does the update.
+    During read of the record the old 'value' for the
     BLOB is evaluated and stored in 'value'. This function is to be used
     to specify that we need to copy this BLOB 'value' into 'old_value'
     before we compute the new BLOB 'value'. For more information @see
@@ -3951,12 +3975,6 @@ public:
   */
   void set_keep_old_value(bool old_value_flag)
   {
-    /*
-      We should only need to keep a copy of the blob 'value' in the case
-      where this is a virtual genarated column (that is indexed).
-    */
-    DBUG_ASSERT(is_virtual_gcol());
-
     /*
       If set to true, ensure that 'value' is copied to 'old_value' when
       keep_old_value() is called.
@@ -3967,8 +3985,9 @@ public:
   /**
     Save the current BLOB value to avoid that it gets overwritten.
 
-    This is used when updating virtual generated columns that are
-    BLOBs. Some storage engines require that we have both the old and
+    This is used when updating virtual generated columns or columns in a
+    Blackhole table that are BLOBs.
+    Some storage engines require that we have both the old and
     new BLOB value for virtual generated columns that are indexed in
     order for the storage engine to be able to maintain the index. This
     function will transfer the buffer storing the current BLOB value
@@ -3993,17 +4012,16 @@ public:
     old value for the BLOB and use table->record[0] to read the new
     value.
 
+    Similarly, in case of Blackhole "old" BLOB values are not read by
+    the storage engine and therefore 'Field_blob' is not made to point to the
+    engine's internal buffer. Therefore, in order to avoid "old" BLOB data
+    corruption, it also needs to be saved in 'old_value'.
+
     This function must be called before we store the new BLOB value in
     this field object.
   */
   void keep_old_value()
   {
-    /*
-      We should only need to keep a copy of the blob value in the case
-      where this is a virtual genarated column (that is indexed).
-    */
-    DBUG_ASSERT(is_virtual_gcol());
-
     // Transfer ownership of the current BLOB value to old_value
     if (m_keep_old_value)
     {

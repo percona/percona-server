@@ -25,6 +25,11 @@ void Vault_key::xor_data()
   /* We do not xor data in keyring_vault */
 }
 
+void Vault_key::xor_data(uchar *, size_t)
+{
+  /* We do not xor data in keyring_vault */
+}
+
 uchar* Vault_key::get_key_data() const
 {
   return key.get();

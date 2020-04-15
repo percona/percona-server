@@ -1,14 +1,20 @@
 /* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or
-   modify it under the terms of the GNU General Public License as
-   published by the Free Software Foundation; version 2 of the
-   License.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
 
-   This program is distributed in the hope that it will be useful, but
-   WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-   General Public License for more details.
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -24,6 +30,13 @@ class Gtid_set;
 class Sid_map;
 class THD;
 
+/** Type of replication channel thread/transaction might be associated to*/
+enum enum_rpl_channel_type {
+  NO_CHANNEL_INFO = 0,       // No information exists about the channel
+  RPL_STANDARD_CHANNEL = 1,  // It is a standard replication channel
+  GR_APPLIER_CHANNEL = 2,    // It is a GR applier channel
+  GR_RECOVERY_CHANNEL = 3    // It is a GR recovery channel
+};
 
 /**
    This class is an interface for session consistency instrumentation
@@ -90,7 +103,7 @@ private:
    The last statement should return a set of GTIDs.
   */
   ulong m_curr_session_track_gtids;
-  
+
 protected:
 
   /*
@@ -228,13 +241,14 @@ class Rpl_thd_context
 private:
   Session_consistency_gtids_ctx m_session_gtids_ctx;
   Dependency_tracker_ctx m_dependency_tracker_ctx;
+  /** If this thread is a channel, what is its type*/
+  enum_rpl_channel_type rpl_channel_type;
 
-  // make these private
   Rpl_thd_context(const Rpl_thd_context& rsc);
   Rpl_thd_context& operator=(const Rpl_thd_context& rsc);
 public:
 
-  Rpl_thd_context() { }
+  Rpl_thd_context() : rpl_channel_type(NO_CHANNEL_INFO) {}
 
   inline Session_consistency_gtids_ctx& session_gtids_ctx()
   {
@@ -244,6 +258,12 @@ public:
   inline Dependency_tracker_ctx& dependency_tracker_ctx()
   {
     return m_dependency_tracker_ctx;
+  }
+
+  enum_rpl_channel_type get_rpl_channel_type() { return rpl_channel_type; }
+
+  void set_rpl_channel_type(enum_rpl_channel_type rpl_channel_type_arg) {
+    rpl_channel_type = rpl_channel_type_arg;
   }
 };
 

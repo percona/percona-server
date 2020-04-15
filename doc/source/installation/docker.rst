@@ -38,6 +38,15 @@ with the root password set to ``root``::
 
 .. note:: ``root`` is not a secure password.
 
+.. note::
+
+    The `docker stop` command sends a `TERM` signal. Docker waits 10 seconds
+    and sends a `KILL` signal. Very large instances cannot dump the data from
+    memory to disk in 10 seconds. If you plan to run a very large instance, add
+    the following option to the `docker run` command.
+
+    --stop-timeout 600
+
 Accessing the Percona Server Container
 --------------------------------------
 

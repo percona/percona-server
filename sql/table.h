@@ -4,13 +4,20 @@
 /* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -1492,20 +1499,6 @@ public:
   */
   void update_compressed_columns_info(const List<Create_field>& fields);
 
-private:
-  bool should_binlog_drop_if_temp_flag;
-
-public:
-  void set_binlog_drop_if_temp(bool should_binlog)
-  {
-    should_binlog_drop_if_temp_flag= should_binlog;
-  }
-
-  bool should_binlog_drop_if_temp(void) const
-  {
-    return should_binlog_drop_if_temp_flag;
-  }
-
   /**
    Check if table contains any records.
 
@@ -1515,12 +1508,34 @@ public:
    @returns  false for success, true for error
  */
  bool contains_records(THD *thd, bool *retval);
+private:
 
+  /**
+    This flag decides whether or not we should log the drop temporary table
+    command.
+  */
+  bool should_binlog_drop_if_temp_flag;
+
+public:
   /**
     Virtual fields of type BLOB have a flag m_keep_old_value. This flag is set
     to false for all such fields in this table.
   */
   void blobs_need_not_keep_old_value();
+
+  /**
+    Set the variable should_binlog_drop_if_temp_flag, so that
+    the logging of temporary tables can be decided.
+
+    @param should_binlog  the value to set flag should_binlog_drop_if_temp_flag
+  */
+  void set_binlog_drop_if_temp(bool should_binlog);
+
+  /**
+    @return whether should_binlog_drop_if_temp_flag flag is
+            set or not
+  */
+  bool should_binlog_drop_if_temp(void) const;
 };
 
 
@@ -1700,11 +1715,21 @@ typedef struct st_lex_alter {
   bool account_locked;
 } LEX_ALTER;
 
+/*
+  This structure holds the specifications related to
+  mysql user and the associated auth details.
+*/
 typedef struct	st_lex_user {
   LEX_CSTRING user;
   LEX_CSTRING host;
   LEX_CSTRING plugin;
   LEX_CSTRING auth;
+/*
+  The following flags are indicators for the SQL syntax used while
+  parsing CREATE/ALTER user. While other members are self-explanatory,
+  'uses_authentication_string_clause' signifies if the password is in
+  hash form (if the var was set to true) or not.
+*/
   bool uses_identified_by_clause;
   bool uses_identified_with_clause;
   bool uses_authentication_string_clause;

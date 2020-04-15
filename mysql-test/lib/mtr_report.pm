@@ -1,15 +1,22 @@
 # -*- cperl -*-
-# Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-# 
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
+# GNU General Public License, version 2.0, for more details.
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -32,7 +39,7 @@ our @EXPORT= qw(report_option mtr_print_line mtr_print_thick_line
 use mtr_match;
 use File::Spec;
 use My::Platform;
-use POSIX qw[ _exit ];
+use POSIX qw(_exit floor);
 use IO::Handle qw[ flush ];
 require "mtr_io.pl";
 use mtr_results;
@@ -40,6 +47,7 @@ use mtr_results;
 my $tot_real_time= 0;
 
 my $done_percentage= 0;
+my $tests_completed= 0;
 
 our $timestamp= 0;
 our $timediff= 0;
@@ -67,9 +75,11 @@ sub _name {
   return $name ? $name." " : undef;
 }
 
-sub _mtr_report_test_name ($)
+sub _mtr_report_test_name ($$)
 {
   my $tinfo= shift;
+  my $done_percentage= shift;
+
   my $tname= $tinfo->{name};
 
   return unless defined $verbose;
@@ -141,13 +151,13 @@ sub mtr_report_test ($) {
   {
     if ($tinfo->{'name'} && !$retry)
     {
-      $::remaining= $::remaining - 1;
-      $done_percentage = 100 - int (($::remaining * 100) /
-                                    ($::num_tests_for_report));
+      $tests_completed= $tests_completed + 1;
+      $done_percentage=
+        floor(($tests_completed / $::num_tests_for_report) * 100);
     }
   }
 
-  my $test_name = _mtr_report_test_name($tinfo);
+  my $test_name = _mtr_report_test_name($tinfo, $done_percentage);
 
   if ($result eq 'MTR_RES_FAILED'){
 

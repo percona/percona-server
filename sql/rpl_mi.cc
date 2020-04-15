@@ -1,13 +1,20 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -132,7 +139,8 @@ Master_info::Master_info(
    checksum_alg_before_fd(binary_log::BINLOG_CHECKSUM_ALG_UNDEF),
    retry_count(master_retry_count),
    mi_description_event(NULL),
-   auto_position(false)
+   auto_position(false),
+   reset(false)
 {
   host[0] = 0; user[0] = 0; bind_addr[0] = 0;
   password[0]= 0; start_password[0]= 0;
@@ -208,6 +216,7 @@ void Master_info::end_info()
   handler->end_info();
 
   inited = 0;
+  reset = true;
 
   DBUG_VOID_RETURN;
 }
@@ -246,16 +255,25 @@ int Master_info::flush_info(bool force)
   DBUG_ENTER("Master_info::flush_info");
   DBUG_PRINT("enter",("master_pos: %lu", (ulong) master_log_pos));
 
-  if (!inited)
+  bool skip_flushing = !inited;
+  /*
+    A Master_info of a channel that was inited and then reset must be flushed
+    into the repository or else its connection configuration will be lost in
+    case the server restarts before starting the channel again.
+  */
+  if (force && reset) skip_flushing= false;
+
+  if (skip_flushing)
     DBUG_RETURN(0);
 
   /*
     We update the sync_period at this point because only here we
     now that we are handling a master info. This needs to be
     update every time we call flush because the option maybe
-    dinamically set.
+    dynamically set.
   */
-  handler->set_sync_period(sync_masterinfo_period);
+  if (inited)
+    handler->set_sync_period(sync_masterinfo_period);
 
   if (write_info(handler))
     goto err;
@@ -306,6 +324,7 @@ int Master_info::mi_init_info()
   }
 
   inited= 1;
+  reset= false;
   if (flush_info(TRUE))
     goto err;
 

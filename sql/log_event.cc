@@ -1,16 +1,23 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
    Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
    Copyright (c) 2009, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -1037,10 +1044,8 @@ bool Log_event::write_footer(IO_CACHE* file)
     if (event_encrypter.encrypt_and_write(file, buf, BINLOG_CHECKSUM_LEN))
       return true;
   }
-  if (event_encrypter.is_encryption_enabled() &&
-      event_encrypter.finish(file))
-    return true;
-  return false;
+  return event_encrypter.is_encryption_enabled() &&
+      event_encrypter.finish(file);
 }
 
 
@@ -1146,7 +1151,7 @@ bool Log_event::write_header(IO_CACHE* file, size_t event_data_length)
 
   write_header_to_memory(header);
 
-  bool is_format_decription_and_need_checksum= need_checksum() &&
+  const bool is_format_description_and_need_checksum= need_checksum() &&
        ((common_header->flags & LOG_EVENT_BINLOG_IN_USE_F) != 0);
 
   /*
@@ -1160,7 +1165,7 @@ bool Log_event::write_header(IO_CACHE* file, size_t event_data_length)
     in case binlog encryption is turned on. 
   */
 
-  if (is_format_decription_and_need_checksum)
+  if (is_format_description_and_need_checksum)
   {
     common_header->flags&= ~LOG_EVENT_BINLOG_IN_USE_F;
     int2store(header + FLAGS_OFFSET, common_header->flags);
@@ -1168,7 +1173,7 @@ bool Log_event::write_header(IO_CACHE* file, size_t event_data_length)
   crc= my_checksum(crc, header, LOG_EVENT_HEADER_LEN);
 
   // restore IN_USE flag after calculating the checksum
-  if (is_format_decription_and_need_checksum)
+  if (is_format_description_and_need_checksum)
   {
     common_header->flags|= LOG_EVENT_BINLOG_IN_USE_F;
     int2store(header + FLAGS_OFFSET, common_header->flags);
@@ -4750,6 +4755,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   {
     thd->set_time(&(common_header->when));
     thd->set_query(query_arg, q_len_arg);
+    thd->set_query_for_display(query_arg, q_len_arg);
     thd->set_query_id(next_query_id());
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
     attach_temp_tables_worker(thd, rli);
@@ -4828,6 +4834,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
             to fix this if any refactoring happens here sometime.
           */
           thd->set_query(query_arg, q_len_arg);
+          thd->reset_query_for_display();
         }
       }
       if (time_zone_len)
@@ -5031,6 +5038,13 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     }
 
 compare_errors:
+    /* Parser errors shall be ignored when (GTID) skipping statements */
+    if (thd->is_error() &&
+        thd->get_stmt_da()->mysql_errno() == ER_PARSE_ERROR &&
+        gtid_pre_statement_checks(thd) == GTID_STATEMENT_SKIP)
+    {
+      thd->get_stmt_da()->reset_diagnostics_area();
+    }
     /*
       In the slave thread, we may sometimes execute some DROP / * 40005
       TEMPORARY * / TABLE that come from parts of binlogs (likely if we
@@ -5756,8 +5770,35 @@ bool Format_description_log_event::write(IO_CACHE* file)
     created= get_time();
   int4store(buff + ST_CREATED_OFFSET, static_cast<uint32>(created));
   buff[ST_COMMON_HEADER_LEN_OFFSET]= LOG_EVENT_HEADER_LEN;
-  memcpy((char*) buff+ST_COMMON_HEADER_LEN_OFFSET + 1,  &post_header_len.front(),
-         Binary_log_event::LOG_EVENT_TYPES);
+
+  size_t number_of_events;
+  int post_header_len_size = static_cast<int>(post_header_len.size());
+
+  if (post_header_len_size == Binary_log_event::LOG_EVENT_TYPES)
+    // Replicating between master and slave with same version.
+    // number_of_events will be same as Binary_log_event::LOG_EVENT_TYPES
+    number_of_events = Binary_log_event::LOG_EVENT_TYPES;
+  else if (post_header_len_size > Binary_log_event::LOG_EVENT_TYPES)
+    /*
+      Replicating between new master and old slave.
+      In that case there won't be any memory issues, as there won't be
+      any out of memory read.
+    */
+    number_of_events = Binary_log_event::LOG_EVENT_TYPES;
+  else
+    /*
+      Replicating between old master and new slave.
+      In that case it might lead to different number_of_events on master and
+      slave. When the relay log is rotated, the FDE from master is used to
+      create the FDE event on slave, which is being written here. In that case
+      we might end up reading more bytes as
+      post_header_len.size() < Binary_log_event::LOG_EVENT_TYPES;
+      casuing memory issues.
+    */
+    number_of_events = post_header_len_size;
+
+  memcpy((char*) buff + ST_COMMON_HEADER_LEN_OFFSET + 1,  &post_header_len.front(),
+          number_of_events);
   /*
     if checksum is requested
     record the checksum-algorithm descriptor next to
@@ -7794,7 +7835,9 @@ bool XA_prepare_log_event::do_commit(THD *thd)
     thd->lex->m_sql_cmd= new Sql_cmd_xa_commit(&xid, XA_ONE_PHASE);
     error= thd->lex->m_sql_cmd->execute(thd);
   }
-  error|= mysql_bin_log.gtid_end_transaction(thd);
+
+  if (!error)
+    error = mysql_bin_log.gtid_end_transaction(thd);
 
   return error;
 }
@@ -10035,17 +10078,13 @@ Rows_log_event::decide_row_lookup_algorithm_and_key()
                                       get_flags(COMPLETE_ROWS_F) &&
                                       !m_table->file->rpl_lookup_rows())))
   {
-    /**
-       Only TokuDB engine can satisfy delete/update row lookup optimization,
-       so we don't need to check engine type here.
-    */
     if (delete_update_lookup_condition &&
         table->s->primary_key == MAX_KEY)
     {
         if (!table->s->rfr_lookup_warning)
         {
           sql_print_warning("Slave: read free replication is disabled "
-                            "for tokudb table `%s.%s` "
+                            "for TokuDB/RocksDB table `%s.%s` "
                             "as it does not have implicit primary key, "
                             "continue with rows lookup",
                             print_slave_db_safe(table->s->db.str),
@@ -10165,7 +10204,7 @@ Rows_log_event::row_operations_scan_and_key_setup()
       DBUG_ASSERT (m_key_index < MAX_KEY);
       // Allocate buffer for key searches
       m_key= (uchar*)my_malloc(key_memory_log_event,
-                               MAX_KEY_LENGTH, MYF(MY_WME));
+                               m_key_info->key_length, MYF(MY_WME));
       if (!m_key)
         error= HA_ERR_OUT_OF_MEM;
       goto err;
@@ -11278,19 +11317,22 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
     /* A small test to verify that objects have consistent types */
     DBUG_ASSERT(sizeof(thd->variables.option_bits) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
-
+    DBUG_EXECUTE_IF("rows_log_event_before_open_table",
+                    {
+                      const char action[] = "now SIGNAL before_open_table WAIT_FOR go_ahead_sql";
+                      DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(action)));
+                    };);
     if (open_and_lock_tables(thd, rli->tables_to_lock, 0))
     {
-      uint actual_error= thd->get_stmt_da()->mysql_errno();
-      if (thd->is_slave_error || thd->is_fatal_error)
+      if (thd->is_error())
       {
+        uint actual_error= thd->get_stmt_da()->mysql_errno();
         if (ignored_error_code(actual_error))
         {
           if (log_warnings > 1)
             rli->report(WARNING_LEVEL, actual_error,
                         "Error executing row event: '%s'",
-                        (actual_error ? thd->get_stmt_da()->message_text() :
-                         "unexpected success or fatal error"));
+                        thd->get_stmt_da()->message_text());
           thd->get_stmt_da()->reset_condition_info(thd);
           clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
           error= 0;
@@ -11300,13 +11342,11 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         {
           rli->report(ERROR_LEVEL, actual_error,
                       "Error executing row event: '%s'",
-                      (actual_error ? thd->get_stmt_da()->message_text() :
-                       "unexpected success or fatal error"));
+                      thd->get_stmt_da()->message_text());
           thd->is_slave_error= 1;
-          const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
-          DBUG_RETURN(actual_error);
         }
       }
+      DBUG_RETURN(1);
     }
 
     /*
@@ -13664,6 +13704,7 @@ int Rows_query_log_event::do_apply_event(Relay_log_info const *rli)
   DBUG_ASSERT(rli->info_thd == thd);
   /* Set query for writing Rows_query log event into binlog later.*/
   thd->set_query(m_rows_query, strlen(m_rows_query));
+  thd->set_query_for_display(m_rows_query, strlen(m_rows_query));
 
   DBUG_ASSERT(rli->rows_query_ev == NULL);
 
@@ -14650,19 +14691,23 @@ bool View_change_log_event::write_data_map(IO_CACHE* file,
 /*
   Updates the certification info map.
 */
-void
-View_change_log_event::set_certification_info(std::map<std::string, std::string> *info)
-{
+void View_change_log_event::set_certification_info(
+    std::map<std::string, std::string> *info, size_t *event_size) {
   DBUG_ENTER("View_change_log_event::set_certification_database_snapshot");
   certification_info.clear();
 
+  *event_size = Binary_log_event::VIEW_CHANGE_HEADER_LEN;
   std::map<std::string, std::string>::iterator it;
   for(it= info->begin(); it != info->end(); ++it)
   {
     std::string key= it->first;
     std::string value= it->second;
     certification_info[key]= value;
+    *event_size += it->first.length() + it->second.length();
   }
+  *event_size +=
+      (ENCODED_CERT_INFO_KEY_SIZE_LEN + ENCODED_CERT_INFO_VALUE_LEN) *
+      certification_info.size();
 
   DBUG_VOID_RETURN;
 }

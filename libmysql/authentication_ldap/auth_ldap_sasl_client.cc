@@ -1,13 +1,20 @@
 /* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -128,6 +135,36 @@ int Sasl_client::initilize()
 {
   std::stringstream log_stream;
   int rc_sasl= SASL_FAIL;
+#ifdef _WIN32
+  char sasl_plugin_dir[MAX_PATH]= "";
+  int ret_executable_path= 0;
+  /**
+    Getting the current executable path, SASL SCRAM dll will be copied in executable path.
+    Using/Setting the path from cmake file may not work as during installation SASL SCRAM DLL may be
+    copied to any path based on installable path.
+  */
+  ret_executable_path= GetModuleFileName(NULL, sasl_plugin_dir, sizeof(sasl_plugin_dir));
+  if ((ret_executable_path == 0) || (ret_executable_path == sizeof(sasl_plugin_dir)))
+  {
+    log_error("sasl client initilize: failed to find executable path or buffer size for path is too small.");
+    goto EXIT;
+  }
+  char *pos= strrchr(sasl_plugin_dir, '\\');
+  if (pos != NULL)
+  {
+    *pos = '\0';
+  }
+  /**
+    Sasl SCRAM dll default search path is C:\CMU2,
+    This is the reason we have copied in the executable folder and setting the same
+    from the code.
+  */
+  sasl_set_path(SASL_PATH_TYPE_PLUGIN, sasl_plugin_dir);
+  log_stream << "Sasl_client::initilize sasl scrum plug-in path : "
+             << sasl_plugin_dir;
+  log_dbg(log_stream.str());
+  log_stream.clear();
+#endif
   strncpy(m_service_name, SASL_SERVICE_NAME, sizeof(m_service_name)-1);
   m_service_name[sizeof(m_service_name)-1]= '\0';
   /** Initialize client-side of SASL. */

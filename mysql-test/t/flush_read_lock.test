@@ -1492,6 +1492,7 @@ let $skip_3rd_check= ;
 --echo # 31.d.I) SET PASSWORD is incompatible with FTWRL as it changes data.
 create user mysqltest_u1;
 let $statement= ALTER USER 'mysqltest_u1' IDENTIFIED BY '';
+let $waitfor= ALTER USER 'mysqltest_u1'@'%' IDENTIFIED WITH 'mysql_native_password';
 let $cleanup_stmt1= ;
 --echo # Skip last part of compatibility testing as our helper debug
 --echo # sync-point doesn't work for SET statements.
@@ -1844,6 +1845,7 @@ xa end 'test1';
 xa prepare 'test1';
 --echo # Disconnect temporary connection
 disconnect con_tmp;
+--source include/wait_until_disconnected.inc
 --echo # Create temporary connection for XA transaction.
 connect (con_tmp,localhost,root,,);
 xa start 'test2';
@@ -1852,6 +1854,7 @@ xa end 'test2';
 xa prepare 'test2';
 --echo # Disconnect temporary connection
 disconnect con_tmp;
+--source include/wait_until_disconnected.inc
 --echo # Switching to connection '$con_aux1'.
 connection $con_aux1;
 flush tables with read lock;

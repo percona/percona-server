@@ -629,6 +629,15 @@ build_tarball(){
     TMPREL=$(echo ${TARFILE}| awk -F '-' '{print $4}')
     RELEASE=${TMPREL%.tar.gz}
     #
+    if [ -f /etc/redhat-release ]; then
+      if [ ${RHEL} = 6 ]; then
+        if [ ${ARCH} = x86_64 ]; then
+          source /opt/percona-devtoolset/enable
+        else
+          source /opt/rh/devtoolset-2/enable
+        fi
+      fi
+    fi
     export CFLAGS=$(rpm --eval %{optflags} | sed -e "s|march=i386|march=i686|g")
     export CXXFLAGS="${CFLAGS}"
     if [ "${YASSL}" = 0 ]; then

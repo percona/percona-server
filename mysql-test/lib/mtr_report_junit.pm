@@ -80,9 +80,7 @@ sub mtr_report_stats_junit {
 
       my $testcase = gen_testcase ($name, $tinfo->{name}, $testtime);
       if ($tinfo->{result} eq 'MTR_RES_FAILED') {
-        my $content = $tinfo->{logfile};
-        $content .= "\n" . $tinfo->{comment} if $tinfo->{comment};
-        my $failure = gen_failure ($tinfo->{result}, "Test failed", $content);
+        my $failure = gen_failure ($tinfo->{result}, "Test failed", "");
         push @{$testcase->{failure}}, $failure;
       }
 
@@ -92,6 +90,11 @@ sub mtr_report_stats_junit {
         my $skipped = gen_failure ($tinfo->{result}, $message, $message);
         push @{$testcase->{skipped}}, $skipped;
       }
+
+      my $content = $tinfo->{logfile};
+      $content .= "\n" . $tinfo->{comment} if $tinfo->{comment};
+      $testcase->{'system-out'} = {content => $content} if $content;
+
       push @testcases, $testcase;
     }
 

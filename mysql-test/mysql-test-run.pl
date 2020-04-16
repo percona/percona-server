@@ -6780,11 +6780,14 @@ sub run_ctest() {
   # Limit ctest execution time
   my $ctest_timeout= "--timeout @{[$opt_testcase_timeout * 60]}";
 
+  # Request Valgrind for unit tests if former was requested for other tests.
+  my $ctest_memcheck= $opt_valgrind_mysqld ? ' -T memcheck' : '';
+
   # Also silently ignore if we don't have ctest and didn't insist
   # Special override: also ignore in Pushbuild, some platforms may not have it
   # Now, run ctest and collect output
   $ENV{CTEST_OUTPUT_ON_FAILURE} = 1;
-  my $ctest_out= `ctest $ctest_vs $ctest_timeout 2>&1`;
+  my $ctest_out= `ctest $ctest_vs $ctest_timeout $ctest_memcheck 2>&1`;
   if ($? == $no_ctest && ($opt_ctest == -1 || defined $ENV{PB2WORKDIR})) {
     chdir($olddir);
     return;

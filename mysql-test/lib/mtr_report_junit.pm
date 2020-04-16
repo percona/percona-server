@@ -86,7 +86,7 @@ sub mtr_report_stats_junit {
         push @{$testcase->{failure}}, $failure;
       }
 
-      if ($tinfo->{result} eq 'MTR_RES_SKIPPED') {
+      if ($tinfo->{result} eq 'MTR_RES_SKIPPED' or $tinfo->{skip_detected_by_test}) {
         my $message = $tinfo->{comment} ? $tinfo->{comment} : 'unknown reason';
         # Failures and skips have the same structure
         my $skipped = gen_failure ($tinfo->{result}, $message, $message);

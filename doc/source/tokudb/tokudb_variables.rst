@@ -175,7 +175,7 @@ TokuDB Server Variables
      - Yes
      - Session, Global
      - Yes
-   * - :variable:`tokudb_data_dir`
+   * - :variable:`tokudb_datair`
      - Yes
      - Yes
      - Global
@@ -1462,6 +1462,11 @@ This variable specifies the directory where the |TokuDB| bulk loader stores
 temporary files. The bulk loader can create large temporary files while it is
 loading a table, so putting these temporary files on a disk separate from the
 data directory can be useful.
+
+For example, it can make sense to use a high-performance disk for the
+data directory and a very inexpensive disk for the temporary
+directory. The default location for TokuDB's temporary files is the
+MySQL data directory.
 
 :variable:`tokudb_load_save_space` determines whether the data is compressed or
 not. The error message ``ERROR 1030 (HY000): Got error 1 from storage engine``

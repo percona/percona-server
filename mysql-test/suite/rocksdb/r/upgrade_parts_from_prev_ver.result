@@ -1,3 +1,4 @@
+CALL mtr.add_suppression("Schema mismatch - Table test\.t1 is registered in RocksDB but does not have a corresponding DD table");
 #########
 # Begin upgrade testing with mysql_upgrade
 ###

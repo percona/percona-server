@@ -9,6 +9,8 @@
 # due to difference in path format.
 --source include/not_windows.inc
 
+CALL mtr.add_suppression("Schema mismatch - Table test\.t1 is registered in RocksDB but does not have a corresponding DD table");
+
 --source include/upgrade_from_prev_ver_suppressions.inc
 
 --let $ADDITIONAL_OPTS=

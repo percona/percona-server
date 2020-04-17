@@ -1026,6 +1026,7 @@ rocksdb_use_adaptive_mutex	OFF
 rocksdb_use_direct_io_for_flush_and_compaction	OFF
 rocksdb_use_direct_reads	OFF
 rocksdb_use_fsync	OFF
+rocksdb_validate_tables	1
 rocksdb_verify_row_debug_checksums	OFF
 rocksdb_wal_bytes_per_sync	0
 rocksdb_wal_dir	

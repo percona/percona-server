@@ -1124,10 +1124,12 @@ static bool should_print_encryption_clause(THD *thd, TABLE_SHARE *share,
     return true;
   }
 
-  // Decide if we need to print the clause.
+  // Decide if we need to print the clause. We do not print ENCRYPTION =
+  // ONLINE_KEYRING, as Encryption=ONLINE_KEYRING is not a create table option.
   bool table_is_encrypted = dd::is_encrypted(share->encrypt_type);
-  *print = table_is_encrypted ||
-           (schema->default_encryption() != table_is_encrypted);
+  *print = (table_is_encrypted ||
+            (schema->default_encryption() != table_is_encrypted)) &&
+           !dd::is_online_keyring_encrypted(share->encrypt_type.str);
 
   return false;
 }

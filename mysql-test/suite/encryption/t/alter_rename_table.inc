@@ -23,7 +23,21 @@ eval CREATE DATABASE sch2 DEFAULT ENCRYPTION='n';
 
 if ($alter_tablespace_name == 'ts1')
 {
-eval CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION=$table_encryption;
+  if ($table_encryption == "'keyring'")
+  {
+  # Keyring encryption and ONLINE_KEYRING encryption match, i.e.
+  # you can create a keyring encrypted table in ONLINE_KEYRING
+  # encrypted tablespace. Currently we only support ONLINE_KEYRING
+  # encrypted tablespace. It is not possible to create a KEYRING
+  # encrypted tablespace with ENCRYPTION='Keyring'.
+  SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+  eval CREATE TABLESPACE $alter_tablespace_name ADD DATAFILE 'ts1.ibd';
+  SET GLOBAL default_table_encryption=OFF;
+  }
+  if ($table_encryption != "'keyring'")
+  {
+  eval CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION=$table_encryption;
+  }
 }
 
 eval CREATE TABLE db1.fpt1 (f1 int) ENCRYPTION=$table_encryption;

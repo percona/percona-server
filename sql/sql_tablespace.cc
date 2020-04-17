@@ -483,11 +483,14 @@ bool Sql_cmd_create_tablespace::execute(THD *thd) {
         thd->variables.default_table_encryption == DEFAULT_TABLE_ENC_ON ||
         global_system_variables.default_table_encryption ==
             DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING;
-    // We set encrypt_type, which is later assigned to tablespace's DD
-    // encryption option to Y for online KEYRING encryption. This field is
-    // designed so the user could check if given table is encrypted or not. The
-    // details on how it is encrypted (KEYRING in this case) are left in SE.
-    encrypt_type = encrypt_tablespace ? "Y" : "N";
+    if (encrypt_tablespace) {
+      encrypt_type = (global_system_variables.default_table_encryption ==
+                      DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING)
+                         ? "ONLINE_KEYRING"
+                         : "Y";
+    } else {
+      encrypt_type = "N";
+    }
   }
 
   // check if default has been overwrriten. Note that ENCRYPTION='KEYRING' will

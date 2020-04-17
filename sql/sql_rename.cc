@@ -634,22 +634,27 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
       if (new_er.error) {
         return true;
       }
-      is_table_encrypted = new_er.value;
+      dd::String_type et;
+      is_table_encrypted = new_er.value.encrypted;
       if (!is_general_tablespace &&
           from_table->options().exists("encrypt_type")) {
-        dd::String_type et;
         (void)from_table->options().get("encrypt_type", &et);
         DBUG_ASSERT(et.empty() == false);
         is_table_encrypted = is_encrypted(et);
       }
 
+      bool is_online_encrypted =
+          et == "ONLINE_KEYRING" ||
+          new_er.value.encryption_option == "ONLINE_KEYRING";
+
       /*
         Check if we are allowed to move the table, if destination schema
         is changed and its default encryption differs from tables
-        encryption type.
+        encryption type. We skip checks if table is online encrypted.
       */
       if (from_schema->id() != to_schema->id() &&
-          to_schema->default_encryption() != is_table_encrypted) {
+          to_schema->default_encryption() != is_table_encrypted &&
+          !is_online_encrypted) {
         if (opt_table_encryption_privilege_check) {
           if (check_table_encryption_admin_access(thd)) {
             my_error(ER_CANNOT_SET_TABLE_ENCRYPTION, MYF(0));

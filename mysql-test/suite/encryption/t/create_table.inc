@@ -24,7 +24,11 @@ if ($use_tablespace == 'true')
     eval CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION=$table_encryption;
   }
 }
-eval CREATE DATABASE db1 DEFAULT ENCRYPTION=$database_encryption;
+
+if ($skip_create_database != 'true')
+{
+  eval CREATE DATABASE db1 DEFAULT ENCRYPTION=$database_encryption;
+}
 
 eval SET GLOBAL table_encryption_privilege_check=$privilege_check;
 if ($use_tablespace == 'true')

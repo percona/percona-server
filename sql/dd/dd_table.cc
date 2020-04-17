@@ -2701,13 +2701,13 @@ Encrypt_result is_system_tablespace_encrypted(THD *thd) {
 
   if (thd->mdl_context.acquire_lock(&system_mdl_request,
                                     thd->variables.lock_wait_timeout)) {
-    return {true, false};
+    return {true, {false, ""}};
   }
 
   // Acquire the tablespace object.
   const Tablespace *tsp = nullptr;
   if (thd->dd_client()->acquire("innodb_system", &tsp)) {
-    return {true, false};
+    return {true, {false, ""}};
   }
   DBUG_ASSERT(tsp);
 
@@ -2715,10 +2715,10 @@ Encrypt_result is_system_tablespace_encrypted(THD *thd) {
     String_type e;
     (void)tsp->options().get("encryption", &e);
     DBUG_ASSERT(!e.empty());
-    return {false, is_encrypted(e)};
+    return {false, {is_encrypted(e), e}};
   }
 
-  return {false, false};
+  return {false, {false, ""}};
 }
 
 /*
@@ -2735,7 +2735,8 @@ Encrypt_result is_system_tablespace_encrypted(THD *thd) {
 template <typename KEY>
 bool is_general_tablespace_and_encrypted(const KEY k, THD *thd,
                                          bool *is_encrypted_tablespace,
-                                         bool *is_general_tablespace) {
+                                         bool *is_general_tablespace,
+                                         String_type &encryption_option) {
   *is_encrypted_tablespace = false;
   *is_general_tablespace = false;
 
@@ -2774,6 +2775,7 @@ bool is_general_tablespace_and_encrypted(const KEY k, THD *thd,
     DBUG_ASSERT(e.empty() == false);
     *is_general_tablespace = true;
     *is_encrypted_tablespace = is_encrypted(e);
+    encryption_option = e;
   }
 
   return false;
@@ -2804,7 +2806,7 @@ Encrypt_result is_tablespace_encrypted(THD *thd, const Table &t,
   // There are no tablespaces used.
   if (tspids.size() == 0) {
     *is_general_tablespace = false;
-    return {false, false};
+    return {false, {false, ""}};
   }
 
   auto valid_end =
@@ -2814,17 +2816,19 @@ Encrypt_result is_tablespace_encrypted(THD *thd, const Table &t,
   auto unique_end = std::unique(tspids.begin(), valid_end);
 
   bool error = false;
+  String_type encryption_option;
   bool encrypted =
       std::any_of(tspids.begin(), unique_end, [&](const Object_id id) {
         bool is_encrypted = false;
         if (is_general_tablespace_and_encrypted(id, thd, &is_encrypted,
-                                                is_general_tablespace)) {
+                                                is_general_tablespace,
+                                                encryption_option)) {
           error = true;
           return false;
         }
         return is_encrypted;
       });
-  return {error, encrypted};
+  return {error, {encrypted, encryption_option}};
 }
 
 bool has_primary_key(const Table &t) {
@@ -2926,7 +2930,7 @@ Encrypt_result is_tablespace_encrypted(THD *thd, const HA_CREATE_INFO *ci,
   // If SE does not support encrypted tablespace, stop here.
   if (!(ci->db_type->flags & HTON_SUPPORTS_TABLE_ENCRYPTION)) {
     *is_general_tablespace = false;
-    return {false, false};
+    return {false, {false, ""}};
   }
 
   // Copy all tablespace names.
@@ -2935,14 +2939,14 @@ Encrypt_result is_tablespace_encrypted(THD *thd, const HA_CREATE_INFO *ci,
 
   Tablespace_type tt;
   if (ci->db_type->get_tablespace_type_by_name(ci->tablespace, &tt)) {
-    return {true, false};
+    return {false, {false, ""}};
   }
   if (ts_names.empty() ||  // If no explicit tablespace names used OR
       /* If user provided implicit tablespace 'innodb_file_per_table' */
       (ts_names.size() == 1 && ci->tablespace &&
        tt == Tablespace_type::SPACE_TYPE_IMPLICIT)) {
     *is_general_tablespace = false;
-    return {false, false};
+    return {false, {false, ""}};
   }
 
   /*
@@ -2950,6 +2954,7 @@ Encrypt_result is_tablespace_encrypted(THD *thd, const HA_CREATE_INFO *ci,
     encrypted.
   */
   bool error = false;
+  String_type encryption_option;
   bool encrypted = std::any_of(
       ts_names.begin(), ts_names.end(), [&](const String_type name) {
         bool is_encrypted = false;
@@ -2960,13 +2965,14 @@ Encrypt_result is_tablespace_encrypted(THD *thd, const HA_CREATE_INFO *ci,
         if (tt != Tablespace_type::SPACE_TYPE_TEMPORARY &&
             tt != Tablespace_type::SPACE_TYPE_IMPLICIT &&
             is_general_tablespace_and_encrypted(name, thd, &is_encrypted,
-                                                is_general_tablespace)) {
+                                                is_general_tablespace,
+                                                encryption_option)) {
           error = true;
           return false;
         }
         return is_encrypted;
       });
-  return {error, encrypted};
+  return {error, {encrypted, encryption_option}};
 }
 
 bool uses_general_tablespace(const Table &t) {

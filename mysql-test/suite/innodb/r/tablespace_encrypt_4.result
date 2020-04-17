@@ -22,15 +22,15 @@ SHOW WARNINGS;
 Level	Code	Message
 DROP TABLE t1;
 CREATE TABLE t1 (c int) TABLESPACE=encrypt_ts ENCRYPTION='n';
-ERROR HY000: Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+ERROR HY000: Request to create an 'unencrypted' table while using an 'encrypted' tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3825	Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+Error	3825	Request to create an 'unencrypted' table while using an 'encrypted' tablespace.
 CREATE TABLE t1 (c int) TABLESPACE=innodb_system ENCRYPTION='y';
-ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ERROR HY000: Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3825	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+Error	3825	Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
 CREATE TABLE t1 (c int) TABLESPACE=innodb_system ENCRYPTION='n';
 SHOW WARNINGS;
 Level	Code	Message
@@ -49,9 +49,9 @@ ALTER TABLE t1 TABLESPACE=encrypt_ts ENCRYPTION='Y', ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot alter encryption attribute by inplace algorithm.. Try ALGORITHM=COPY.
 #  Changing encryption type without explicit ENCRYPTION clause fails.
 ALTER TABLE t1 TABLESPACE=encrypt_ts, ALGORITHM=COPY;
-ERROR HY000: Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+ERROR HY000: Request to create an 'unencrypted' table while using an 'encrypted' tablespace.
 ALTER TABLE t1 TABLESPACE=encrypt_ts, ALGORITHM=INPLACE;
-ERROR HY000: Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+ERROR HY000: Request to create an 'unencrypted' table while using an 'encrypted' tablespace.
 DROP TABLE t1;
 CREATE TABLE t1 (c int) TABLESPACE=unencrypt_ts;
 ALTER TABLE t1 TABLESPACE=encrypt_ts ENCRYPTION='Y', ALGORITHM=COPY;
@@ -494,10 +494,10 @@ ALTER TABLE t1 ENCRYPTION='N';
 # Alter table to move a partition to general tablespace.
 ALTER TABLE t1 REORGANIZE PARTITION P2 INTO (
 PARTITION P2 VALUES LESS THAN (30) TABLESPACE=encrypt_ts);
-ERROR HY000: Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+ERROR HY000: Request to create an 'unencrypted' table while using an 'encrypted' tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3825	Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+Error	3825	Request to create an 'unencrypted' table while using an 'encrypted' tablespace.
 ALTER TABLE t1 REORGANIZE PARTITION P2 INTO (
 PARTITION P2 VALUES LESS THAN (30) TABLESPACE=unencrypt_ts);
 ERROR HY000: InnoDB : A partitioned table is not allowed in a shared tablespace.
@@ -529,10 +529,10 @@ t1	CREATE TABLE `t1` (
 # Alter table to add a new partition in general tablespace
 ALTER TABLE t1 ADD PARTITION (
 PARTITION p3 VALUES LESS THAN (40) tablespace=encrypt_ts);
-ERROR HY000: Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+ERROR HY000: Request to create an 'unencrypted' table while using an 'encrypted' tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3825	Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+Error	3825	Request to create an 'unencrypted' table while using an 'encrypted' tablespace.
 ALTER TABLE t1 ADD PARTITION (
 PARTITION p3 VALUES LESS THAN (40) tablespace=unencrypt_ts);
 ERROR HY000: InnoDB : A partitioned table is not allowed in a shared tablespace.

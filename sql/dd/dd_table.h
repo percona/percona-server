@@ -425,11 +425,83 @@ inline bool is_encrypted(const LEX_STRING &type) {
   return is_encrypted(String_type(type.str, type.length));
 }
 
-using Encrypt_result = ResultType<bool>;
+inline bool is_master_key_encrypted(const String_type &type) {
+  return (type.empty() == false &&
+          my_strcasecmp(system_charset_info, type.c_str(), "Y") == 0);
+}
+
+inline bool is_master_key_encrypted(const LEX_STRING &type) {
+  return is_master_key_encrypted(String_type(type.str, type.length));
+}
+
+inline bool is_online_keyring_encrypted(const String_type &type) {
+  return type.empty() == false &&
+         my_strcasecmp(system_charset_info, type.c_str(), "ONLINE_KEYRING") ==
+             0;
+}
+
+inline bool is_keyring_encrypted(const String_type &type) {
+  return (type.empty() == false &&
+          (my_strcasecmp(system_charset_info, type.c_str(), "KEYRING") == 0 ||
+           is_online_keyring_encrypted(type)));
+}
+
+// KEYRING and ONLINE_KEYRING are matching encryptions.
+inline bool does_encryptions_match(String_type encryption1,
+                                   String_type encryption2) {
+  DBUG_ASSERT(!encryption1.empty() && !encryption2.empty());
+  if (encryption1.empty() || encryption2.empty()) return false;
+
+  if (encryption1 == "ONLINE_KEYRING") encryption1 = "KEYRING";
+  if (encryption2 == "ONLINE_KEYRING") encryption2 = "KEYRING";
+
+  return my_strcasecmp(system_charset_info, encryption1.c_str(),
+                       encryption2.c_str()) == 0;
+}
+
+inline bool does_tablespaces_encryptions_match(
+    const String_type &tablespace1_encryption,
+    const String_type &tablespace2_encryption) {
+  DBUG_ASSERT(!tablespace1_encryption.empty() &&
+              !tablespace2_encryption.empty());
+
+  String_type tablespace1_enc_to_compare =
+      tablespace1_encryption == "ONLINE_KEYRING" ? "KEYRING"
+                                                 : tablespace1_encryption;
+  String_type tablespace2_enc_to_compare =
+      tablespace2_encryption == "ONLINE_KEYRING" ? "KEYRING"
+                                                 : tablespace2_encryption;
+
+  return my_strcasecmp(system_charset_info, tablespace1_enc_to_compare.c_str(),
+                       tablespace2_enc_to_compare.c_str()) == 0;
+}
+
+// KEYRING and ONLINE_KEYRING are matching encryptions.
+inline bool does_table_and_tablespace_encryption_match(
+    const String_type &table_encryption,
+    const String_type &tablespace_encryption) {
+  DBUG_ASSERT(!table_encryption.empty() && !tablespace_encryption.empty());
+
+  String_type tablespace_enc_to_compare =
+      tablespace_encryption == "ONLINE_KEYRING" ? "KEYRING"
+                                                : tablespace_encryption;
+  String_type table_enc_to_compare =
+      table_encryption == "ONLINE_KEYRING" ? "KEYRING" : table_encryption;
+
+  return my_strcasecmp(system_charset_info, tablespace_enc_to_compare.c_str(),
+                       table_enc_to_compare.c_str()) == 0;
+}
+
+struct TablespaceEncryption {
+  bool encrypted;
+  String_type encryption_option;
+};
+
+using Encrypt_result = ResultType<TablespaceEncryption>;
 Encrypt_result is_tablespace_encrypted(THD *thd, const dd::Table &t,
                                        bool *found_tablespace);
 
-using Encrypt_result = ResultType<bool>;
+using Encrypt_result = ResultType<TablespaceEncryption>;
 Encrypt_result is_tablespace_encrypted(THD *thd, const HA_CREATE_INFO *ci,
                                        bool *found_tablespace);
 

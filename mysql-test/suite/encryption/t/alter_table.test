@@ -40,6 +40,8 @@ connect (con1, localhost, u1);
 --source ./alter_table.inc
 --let alter_encryption='y'
 --source ./alter_table.inc
+--let alter_encryption='keyring'
+--source ./alter_table.inc
 
 --echo `````````````````````````````````````````````````````````
 --echo # Moving encrypted tablespace to unencrypted tablespace is rejected.
@@ -50,6 +52,31 @@ connect (con1, localhost, u1);
 --source ./alter_table.inc
 
 --let alter_encryption='y'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Moving Master Key encrypted table to Keyring
+--echo # encrypted tablespace is rejected.
+--let expected_error2=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--let expected_error4=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--let alter_encryption='keyring'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Moving encrypted tablespace to unencrypted tablespace is rejected.
+--let table_encryption='keyring'
+--let alter_encryption='n'
+--let expected_error2=ER_TARGET_TABLESPACE_UNENCRYPTED
+--let expected_error4=ER_TARGET_TABLESPACE_UNENCRYPTED
+--source ./alter_table.inc
+--echo `````````````````````````````````````````````````````````
+--echo # Moving Master Key encrypted table to Keyring
+--echo # encrypted tablespace is rejected.
+--let expected_error2=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--let expected_error4=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--let alter_encryption='y'
+--source ./alter_table.inc
+--let alter_encryption='keyring'
 --source ./alter_table.inc
 
 --echo `````````````````````````````````````````````````````````
@@ -61,6 +88,9 @@ connect (con1, localhost, u1);
 --source ./alter_table.inc
 --let alter_encryption='y'
 --source ./alter_table.inc
+--let alter_encryption='keyring'
+--source ./alter_table.inc
+
 
 --echo `````````````````````````````````````````````````````````
 --echo # Moving encrypted tablespace to unencrypted tablespace is rejected.
@@ -71,6 +101,33 @@ connect (con1, localhost, u1);
 --source ./alter_table.inc
 
 --let alter_encryption='y'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Moving Master Key encrypted table to Keyring
+--echo # encrypted tablespace is rejected.
+--let expected_error2=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--let expected_error4=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--let alter_encryption='keyring'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Moving encrypted tablespace to unencrypted tablespace is rejected.
+--let table_encryption='keyring'
+--let alter_encryption='n'
+--let expected_error2=ER_TARGET_TABLESPACE_UNENCRYPTED
+--let expected_error4=ER_TARGET_TABLESPACE_UNENCRYPTED
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Moving Keyring encrypted table to Master Key
+--echo # encrypted tablespace is rejected.
+--let expected_error2=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--let expected_error4=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--let alter_encryption='y'
+--source ./alter_table.inc
+
+--let alter_encryption='keyring'
 --source ./alter_table.inc
 
 --echo `````````````````````````````````````````````````````````
@@ -96,6 +153,19 @@ connect (con1, localhost, u1);
 --let has_grant=false
 
 --echo `````````````````````````````````````````````````````````
+--echo # Request to create KEYRING encrypted table to unencrypted database is rejected.
+--let expected_error1=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error2=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error3=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error4=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let alter_encryption='keyring'
+--source ./alter_table.inc
+
+--let has_grant=true
+--source ./alter_table.inc
+--let has_grant=false
+
+--echo `````````````````````````````````````````````````````````
 --echo # Moving encrypted tablespace to unencrypted tablespace is rejected.
 --let table_encryption='y'
 --let alter_encryption='n'
@@ -104,6 +174,24 @@ connect (con1, localhost, u1);
 --source ./alter_table.inc
 
 --let alter_encryption='y'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Moving KEYRING encrypted tablespace to unencrypted tablespace is rejected.
+--let table_encryption='keyring'
+--let alter_encryption='n'
+--let expected_error2=ER_TARGET_TABLESPACE_UNENCRYPTED
+--let expected_error4=ER_TARGET_TABLESPACE_UNENCRYPTED
+--source ./alter_table.inc
+--let alter_encryption='y'
+--echo # Moving between Master Key encrypted tablespace
+--echo # and file_per_table Keyring encrypted tablespace
+--echo # is allowed (given ENCRYPTION clause is provided).
+--let expected_error2=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--let expected_error4=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--source ./alter_table.inc
+
+--let alter_encryption='keyring'
 --source ./alter_table.inc
 
 --echo `````````````````````````````````````````````````````````
@@ -116,6 +204,9 @@ connect (con1, localhost, u1);
 --let alter_encryption='y'
 --source ./alter_table.inc
 
+--let alter_encryption='keyring'
+--source ./alter_table.inc
+
 --let expected_error1=ER_CANNOT_SET_TABLE_ENCRYPTION
 --let expected_error2=ER_TARGET_TABLESPACE_UNENCRYPTED
 --let expected_error3=ER_CANNOT_SET_TABLE_ENCRYPTION
@@ -124,19 +215,56 @@ connect (con1, localhost, u1);
 --let alter_encryption='n'
 --source ./alter_table.inc
 
+--let table_encryption='y'
+--let alter_encryption='n'
 --echo `````````````````````````````````````````````````````````
 --echo # Moving encrypted tablespace to unencrypted tablespace is rejected.
 --let has_grant=true
 --let expected_error2=ER_TARGET_TABLESPACE_UNENCRYPTED
 --let expected_error4=ER_TARGET_TABLESPACE_UNENCRYPTED
 --source ./alter_table.inc
-
 --let has_grant=false
+
 --let alter_encryption='y'
 --source ./alter_table.inc
 
 --echo `````````````````````````````````````````````````````````
---echo # Using 'innodb_system' tablespace
+--echo # Moving Master Key encrypted table to Keyring
+--echo # encrypted tablespace is rejected.
+--let expected_error2=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--let expected_error4=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--let alter_encryption='keyring'
+--source ./alter_table.inc
+
+--echo # Moving encrypted tablespace to unencrypted tablespace is rejected.
+--let table_encryption='keyring'
+--let alter_encryption='n'
+--let expected_error1=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error2=ER_TARGET_TABLESPACE_UNENCRYPTED
+--let expected_error3=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error4=ER_TARGET_TABLESPACE_UNENCRYPTED
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Moving encrypted tablespace to unencrypted tablespace is rejected.
+--let has_grant=true
+--let expected_error2=ER_TARGET_TABLESPACE_UNENCRYPTED
+--let expected_error4=ER_TARGET_TABLESPACE_UNENCRYPTED
+--source ./alter_table.inc
+--let has_grant=false
+
+--echo `````````````````````````````````````````````````````````
+--echo # Moving Keyring encrypted table to Master Key
+--echo # encrypted tablespace is rejected.
+--let alter_encryption='y'
+--let expected_error2=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--let expected_error4=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--source ./alter_table.inc
+--let alter_encryption='keyring'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Using 'innodb_system' tablespace not encrypted
 --let alter_tablespace_name=innodb_system
 --let expected_error1=0
 --let expected_error2=0
@@ -153,7 +281,8 @@ connect (con1, localhost, u1);
 --source ./alter_table.inc
 
 --echo `````````````````````````````````````````````````````````
---echo # Creating a encrypted table is rejected in system tablespace
+--echo # Creating an encrypted table is rejected in
+--echo # not encrypted system tablespace
 --let alter_encryption='y'
 --let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
 --let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
@@ -166,8 +295,54 @@ connect (con1, localhost, u1);
 --source ./alter_table.inc
 
 --echo `````````````````````````````````````````````````````````
---echo # Creating a encrypted table is rejected in system tablespace
+--echo # Creating an encrypted table is rejected in
+--echo # not encrypted system tablespace
 --let alter_encryption='y'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a keyring encrypted table is rejected in
+--echo # not encrypted system tablespace
+--let table_encryption='y'
+--let alter_encryption='keyring'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a keyring encrypted table is rejected in
+--echo # not encrypted system tablespace
+--let table_encryption='n'
+--let alter_encryption='keyring'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a mk encrypted table is rejected in
+--echo # not encrypted system tablespace
+--let table_encryption='keyring'
+--let alter_encryption='y'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Moving encrypted tablespace to unencrypted system
+--echo # tablespace is rejected.
+--let table_encryption='keyring'
+--let alter_encryption='n'
+--let expected_error2=ER_TARGET_TABLESPACE_UNENCRYPTED
+--let expected_error4=ER_TARGET_TABLESPACE_UNENCRYPTED
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Moving encrypted tablespace to unencrypted system
+--echo # tablespace is rejected.
+--let table_encryption='keyring'
+--let alter_encryption='keyring'
 --let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
 --let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
 --source ./alter_table.inc
@@ -181,7 +356,8 @@ connect (con1, localhost, u1);
 --source ./alter_table.inc
 
 --echo `````````````````````````````````````````````````````````
---echo # Creating a encrypted table is rejected in system tablespace
+--echo # Creating an encrypted table is rejected in
+--echo # not encrypted system tablespace
 --let alter_encryption='y'
 --let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
 --let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
@@ -194,8 +370,54 @@ connect (con1, localhost, u1);
 --source ./alter_table.inc
 
 --echo `````````````````````````````````````````````````````````
---echo # Creating a encrypted table is rejected in system tablespace
+--echo # Creating an encrypted table is rejected in
+--echo # not encrypted system tablespace
 --let alter_encryption='y'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a keyring encrypted table is rejected in
+--echo # not encrypted system tablespace
+--let table_encryption='y'
+--let alter_encryption='keyring'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a keyring encrypted table is rejected in
+--echo # not encrypted system tablespace
+--let table_encryption='n'
+--let alter_encryption='keyring'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a mk encrypted table is rejected in
+--echo # not encrypted system tablespace
+--let table_encryption='keyring'
+--let alter_encryption='y'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Moving encrypted tablespace to unencrypted sytem
+--echo # tablespace is rejected.
+--let table_encryption='keyring'
+--let alter_encryption='n'
+--let expected_error2=ER_TARGET_TABLESPACE_UNENCRYPTED
+--let expected_error4=ER_TARGET_TABLESPACE_UNENCRYPTED
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Moving encrypted tablespace to unencrypted system
+--echo # tablespace is rejected.
+--let table_encryption='keyring'
+--let alter_encryption='keyring'
 --let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
 --let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
 --source ./alter_table.inc
@@ -219,7 +441,8 @@ connect (con1, localhost, u1);
 --source ./alter_table.inc
 
 --echo `````````````````````````````````````````````````````````
---echo # Creating a encrypted table is rejected in system tablespace
+--echo # Creating an encrypted table is rejected in
+--echo # not encrypted system tablespace
 --let has_grant=true
 --let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
 --let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
@@ -233,11 +456,81 @@ connect (con1, localhost, u1);
 --source ./alter_table.inc
 
 --echo `````````````````````````````````````````````````````````
---echo # Creating a encrypted table is rejected in system tablespace
+--echo # Creating an encrypted table is rejected in
+--echo # not encrypted system tablespace
 --let alter_encryption='y'
 --let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
 --let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
 --source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create keyring encrypted table to unencrypted
+--echo # database is rejected.
+--let table_encryption='n'
+--let alter_encryption='keyring'
+--let expected_error1=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error3=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a keyring encrypted table is rejected in
+--echo # not encrypted system tablespace
+--let has_grant=true
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+--let has_grant=false
+
+--let table_encryption='keyring'
+--let alter_encryption='n'
+--let expected_error2=ER_TARGET_TABLESPACE_UNENCRYPTED
+--let expected_error4=ER_TARGET_TABLESPACE_UNENCRYPTED
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a keyring encrypted table is rejected
+--echo # in not encrypted system tablespace
+--let alter_encryption='keyring'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--let table_encryption='keyring'
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create encrypted table to unencrypted database is rejected.
+--let alter_encryption='y'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an encrypted table is rejected in not encrypted
+--echo # system tablespace.
+--let has_grant=true
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+--let has_grant=false
+
+--let table_encryption='y'
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create keyring encrypted table to unencrypted
+--echo # database is rejected.
+--let alter_encryption='keyring'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an encrypted table is rejected in not encrypted
+--echo # system tablespace.
+--let has_grant=true
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+--let has_grant=false
 
 --echo `````````````````````````````````````````````````````````
 --echo # table_encryption_privilege_check=ON and default per-db encryption ON
@@ -248,7 +541,8 @@ connect (con1, localhost, u1);
 --source ./alter_table.inc
 
 --echo `````````````````````````````````````````````````````````
---echo # Creating a encrypted table is rejected in system tablespace
+--echo # Creating an encrypted table is rejected in
+--echo # not encrypted system tablespace.
 --let alter_encryption='y'
 --let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
 --let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
@@ -271,11 +565,485 @@ connect (con1, localhost, u1);
 --let has_grant=false
 
 --echo `````````````````````````````````````````````````````````
---echo # Creating a encrypted table is rejected in system tablespace
+--echo # Creating an encrypted table is rejected in not encrypted
+--echo # system tablespace
 --let alter_encryption='y'
 --let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
 --let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
 --source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a keyring encrypted table is rejected in not
+--echo # encrypted system tablespace
+--let table_encryption='n'
+--let alter_encryption='keyring'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create unencrypted table under database with default
+--echo # encryption=ON is rejected.
+--let table_encryption='keyring'
+--let alter_encryption='n'
+--let expected_error1=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error2=ER_TARGET_TABLESPACE_UNENCRYPTED
+--let expected_error3=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error4=ER_TARGET_TABLESPACE_UNENCRYPTED
+--source ./alter_table.inc
+--let has_grant=true
+--let expected_error2=ER_TARGET_TABLESPACE_UNENCRYPTED
+--let expected_error4=ER_TARGET_TABLESPACE_UNENCRYPTED
+--source ./alter_table.inc
+--let has_grant=false
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a keyring encrypted table is rejected
+--echo # in system tablespace
+--let alter_encryption='keyring'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--let table_encryption='keyring'
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create encrypted table to
+--echo # to unencrypted system tablespace is rejected.
+--let alter_encryption='y'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an encrypted table is rejected in not encrypted
+--echo # system tablespace.
+--let has_grant=true
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+--let has_grant=false
+
+--let table_encryption='y'
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an encrypted table is rejected in not encrypted
+--echo # system tablespace.
+--let alter_encryption='keyring'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an encrypted table is rejected in not encrypted
+--echo # system tablespace.
+--let has_grant=true
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+--let has_grant=false
+
+--let table_encryption='keyring'
+--let alter_encryption='y'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an encrypted table is rejected in not encrypted
+--echo # system tablespace.
+--let has_grant=true
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+--let has_grant=false
+
+--echo `````````````````````````````````````````````````````````
+--echo # Using 'innodb_system' tablespace KEYRING encrypted
+--let alter_tablespace_name=innodb_system
+--let expected_error1=0
+--let expected_error2=0
+--let expected_error3=0
+--let expected_error4=0
+
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
+--let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
+--echo # Wait max 10 min for key encryption threads to encrypt all spaces
+--let $wait_timeout= 600
+# - 1 temporary tablespace
+--let $wait_condition=SELECT COUNT(*) = $tables_count - 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--source include/wait_condition.inc
+
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;
+
+--echo `````````````````````````````````````````````````````````
+--echo # table_encryption_privilege_check=OFF and default per-db encryption OFF
+--let privilege_check=false
+--let database_encryption='n'
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an unencrypted table is rejected in
+--echo # KEYRING encrypted system tablespace
+--let table_encryption='n'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--let alter_encryption='n'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a Master Key encrypted table is rejected in
+--echo # KEYRING encrypted system tablespace
+--let alter_encryption='y'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--let table_encryption='y'
+--let alter_encryption='n'
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an unencrypted table is rejected in
+--echo # KEYRING encrypted system tablespace
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a Master Key encrypted table is rejected in
+--echo # KEYRING encrypted system tablespace
+--let alter_encryption='y'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--let table_encryption='y'
+--let expected_error2=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--let expected_error4=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--let alter_encryption='keyring'
+--source ./alter_table.inc
+
+--let table_encryption='n'
+--let alter_encryption='keyring'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a mk encrypted table is rejected in
+--echo # keyring encrypted system tablespace
+--let table_encryption='keyring'
+--let alter_encryption='y'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an unencrypted table is rejected in
+--echo # KEYRING encrypted system tablespace
+--let table_encryption='keyring'
+--let alter_encryption='n'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--let table_encryption='keyring'
+--let alter_encryption='keyring'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # table_encryption_privilege_check=OFF and default per-db encryption ON
+--let database_encryption='y'
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an unencrypted table is rejected in
+--echo # KEYRING encrypted system tablespace
+--let table_encryption='n'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--let alter_encryption='n'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a Master Key encrypted table is rejected in
+--echo # KEYRING encrypted system tablespace
+--let alter_encryption='y'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--let table_encryption='y'
+--let alter_encryption='n'
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an unencrypted table is rejected in
+--echo # KEYRING encrypted system tablespace
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a Master Key encrypted table is rejected in
+--echo # KEYRING encrypted system tablespace
+--let alter_encryption='y'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--let table_encryption='y'
+--let expected_error2=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--let expected_error4=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--let alter_encryption='keyring'
+--source ./alter_table.inc
+
+--let table_encryption='n'
+--let alter_encryption='keyring'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a mk encrypted table is rejected in
+--echo # keyring encrypted system tablespace
+--let table_encryption='keyring'
+--let alter_encryption='y'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an unencrypted table is rejected in
+--echo # KEYRING encrypted system tablespace
+--let table_encryption='keyring'
+--let alter_encryption='n'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--let table_encryption='keyring'
+--let alter_encryption='keyring'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # table_encryption_privilege_check=ON and default per-db encryption OFF
+--let privilege_check=true
+--let database_encryption='n'
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an unencrypted table is rejected in
+--echo # KEYRING encrypted system tablespace
+--let table_encryption='n'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--let alter_encryption='n'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create encrypted table to unencrypted database is rejected.
+--let alter_encryption='y'
+--let expected_error1=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error3=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a Master Key encrypted table is rejected in
+--echo # KEYRING encrypted system tablespace
+--let has_grant=true
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+--let has_grant=false
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an unencrypted table is rejected in
+--echo # KEYRING encrypted system tablespace
+--let table_encryption='y'
+--let alter_encryption='n'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a Master Key encrypted table is rejected in
+--echo # KEYRING encrypted system tablespace
+--let alter_encryption='y'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create keyring encrypted table to unencrypted
+--echo # database is rejected.
+--let table_encryption='n'
+--let alter_encryption='keyring'
+--let expected_error1=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error2=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error3=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error4=ER_CANNOT_SET_TABLE_ENCRYPTION
+--source ./alter_table.inc
+
+--let has_grant=true
+--source ./alter_table.inc
+--let has_grant=false
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an unencrypted table is rejected in
+--echo # KEYRING encrypted system tablespace
+--let table_encryption='keyring'
+--let alter_encryption='n'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--let alter_encryption='keyring'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a mk encrypted table is rejected in
+--echo # keyring encrypted system tablespace
+--let table_encryption='keyring'
+--let alter_encryption='y'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a Master Key encrypted table is rejected in
+--echo # KEYRING encrypted system tablespace
+--let has_grant=true
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+--let has_grant=false
+
+--let table_encryption='y'
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create a keyring encrypted table to unencrypted
+--echo # database is rejected.
+--let alter_encryption='keyring'
+--let expected_error2=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--let expected_error4=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # table_encryption_privilege_check=ON and default per-db encryption ON
+--let database_encryption='y'
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an unencrypted table is rejected in
+--echo # KEYRING encrypted system tablespace
+--let table_encryption='n'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--let alter_encryption='n'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a Master Key encrypted table is rejected in
+--echo # KEYRING encrypted system tablespace
+--let alter_encryption='y'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create unencrypted table under database with default
+--echo # encryption=ON is rejected.
+--let table_encryption='y'
+--let alter_encryption='n'
+--let expected_error1=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error3=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+--let has_grant=true
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+--let has_grant=false
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a Master Key encrypted table is rejected in
+--echo # KEYRING encrypted system tablespace
+--let alter_encryption='y'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create keyring encrypted table to master key
+--echo # encrypted database is rejected.
+--let table_encryption='n'
+--let alter_encryption='keyring'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create unencrypted table under database with default
+--echo # encryption=ON is rejected.
+--let table_encryption='keyring'
+--let alter_encryption='n'
+--let expected_error1=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error3=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+--let has_grant=true
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+--let has_grant=false
+
+--let alter_encryption='keyring'
+--source ./alter_table.inc
+
+--let table_encryption='keyring'
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a Master Key encrypted table is rejected in
+--echo # KEYRING encrypted system tablespace
+--let alter_encryption='y'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a Master Key encrypted table is rejected in
+--echo # KEYRING encrypted system tablespace.
+--let has_grant=true
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+--let has_grant=false
+
+--let table_encryption='y'
+--echo `````````````````````````````````````````````````````````
+--echo # Moving Master Key encrypted table to Keyring
+--echo # encrypted tablespace is rejected.
+--let expected_error2=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--let expected_error4=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--let alter_encryption='keyring'
+--source ./alter_table.inc
+
+--echo # Creating a mk encrypted table is rejected in
+--echo # keyring encrypted system tablespace
+--let table_encryption='keyring'
+--let alter_encryption='y'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a Master Key encrypted table is rejected in
+--echo # KEYRING encrypted system tablespace
+--let has_grant=true
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+--let has_grant=false
+
+--echo # Decrypt innodb_system tablespace
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
+--echo # Wait max 10 min for key encryption threads to encrypt all spaces
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--source include/wait_condition.inc
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;
 
 --echo `````````````````````````````````````````````````````````
 --echo # Test using 'innodb_file_per_table'
@@ -295,11 +1063,23 @@ connect (con1, localhost, u1);
 --source ./alter_table.inc
 --let alter_encryption='y'
 --source ./alter_table.inc
+--let alter_encryption='keyring'
+--source ./alter_table.inc
 
 --let table_encryption='y'
 --let alter_encryption='n'
 --source ./alter_table.inc
 --let alter_encryption='y'
+--source ./alter_table.inc
+--let alter_encryption='keyring'
+--source ./alter_table.inc
+
+--let table_encryption='keyring'
+--let alter_encryption='n'
+--source ./alter_table.inc
+--let alter_encryption='y'
+--source ./alter_table.inc
+--let alter_encryption='keyring'
 --source ./alter_table.inc
 
 --echo `````````````````````````````````````````````````````````
@@ -311,11 +1091,23 @@ connect (con1, localhost, u1);
 --source ./alter_table.inc
 --let alter_encryption='y'
 --source ./alter_table.inc
+--let alter_encryption='keyring'
+--source ./alter_table.inc
 
 --let table_encryption='y'
 --let alter_encryption='n'
 --source ./alter_table.inc
 --let alter_encryption='y'
+--source ./alter_table.inc
+--let alter_encryption='keyring'
+--source ./alter_table.inc
+
+--let table_encryption='keyring'
+--let alter_encryption='n'
+--source ./alter_table.inc
+--let alter_encryption='y'
+--source ./alter_table.inc
+--let alter_encryption='keyring'
 --source ./alter_table.inc
 
 --echo `````````````````````````````````````````````````````````
@@ -340,10 +1132,41 @@ connect (con1, localhost, u1);
 --source ./alter_table.inc
 --let has_grant=false
 
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create encrypted table to database with default
+--echo # encryption=OFF is rejected.
+--let alter_encryption='keyring'
+--let expected_error1=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error2=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error3=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error4=ER_CANNOT_SET_TABLE_ENCRYPTION
+--source ./alter_table.inc
+--let has_grant=true
+--source ./alter_table.inc
+--let has_grant=false
+
 --let table_encryption='y'
 --let alter_encryption='n'
 --source ./alter_table.inc
 --let alter_encryption='y'
+--source ./alter_table.inc
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create KEYRING encrypted table to database
+--echo # with default encryption=OFF is rejected.
+--let alter_encryption='keyring'
+--source ./alter_table.inc
+
+--let table_encryption='keyring'
+--let alter_encryption='n'
+--source ./alter_table.inc
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create MASTER KEY encrypted  table to database
+--echo # with default encryption=OFF is rejected.
+--let alter_encryption='y'
+--source ./alter_table.inc
+
+
+--let alter_encryption='keyring'
 --source ./alter_table.inc
 
 --echo `````````````````````````````````````````````````````````
@@ -354,6 +1177,8 @@ connect (con1, localhost, u1);
 --let alter_encryption='n'
 --source ./alter_table.inc
 --let alter_encryption='y'
+--source ./alter_table.inc
+--let alter_encryption='keyring'
 --source ./alter_table.inc
 
 --echo `````````````````````````````````````````````````````````
@@ -374,8 +1199,483 @@ connect (con1, localhost, u1);
 --let alter_encryption='y'
 --source ./alter_table.inc
 
---echo # Cleanup
+--let alter_encryption='keyring'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create unencrypted table to database with default
+--echo # encryption=ON is rejected.
+--let alter_encryption='n'
+--let expected_error1=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error2=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error3=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error4=ER_CANNOT_SET_TABLE_ENCRYPTION
+--source ./alter_table.inc
+--let has_grant=true
+--source ./alter_table.inc
+--let has_grant=false
+
+--let table_encryption='keyring'
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create unencrypted table to database with default
+--echo # encryption=ON is rejected.
+--let alter_encryption='n'
+--let expected_error1=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error2=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error3=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error4=ER_CANNOT_SET_TABLE_ENCRYPTION
+--source ./alter_table.inc
+--let has_grant=true
+--source ./alter_table.inc
+--let has_grant=false
+--let alter_encryption='y'
+--source ./alter_table.inc
+--let alter_encryption='keyring'
+--source ./alter_table.inc
+
+--echo # Cleanup server started by MTR
 disconnect con1;
 connection default;
 DROP USER u1@localhost;
 SET GLOBAL debug= '-d,skip_table_encryption_admin_check_for_set';
+
+--echo # Here we are going to test Master Key encrypted system tablespace.
+--echo # For this we need to bootstap new server, as Master Key encryption
+--echo # is bootstrap only option.
+
+--echo # Stop the instance which was created by MTR
+connection default;
+let $MYSQLD_BASEDIR= `select @@basedir`;
+--source include/shutdown_mysqld.inc
+
+--let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/datadir1
+--let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql
+--let KEYRING_DATA="--keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring"
+--let ERROR_LOG=$MYSQL_TMP_DIR/sys_encrypt_err.log
+
+--echo # create bootstrap file
+write_file $BOOTSTRAP_SQL;
+CREATE DATABASE test;
+EOF
+
+--let BOOTSTRAP_CMD = $MYSQLD_CMD --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --innodb-sys-tablespace-encrypt=ON $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD $KEYRING_DATA > $MYSQLTEST_VARDIR/tmp/boot.log 2>&1
+
+--echo # Bootstrap new instance with encrypted system tablespace
+--exec $BOOTSTRAP_CMD
+
+--echo # Check Encryption header of ibdata1
+--let IBD_FILE=$MYSQLD_DATADIR1/ibdata1
+--source include/ibd_encryption_check.inc
+
+--echo # Start the instance with encrypted system tablespace
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=ON"
+--source include/start_mysqld.inc
+
+--echo # Pre-define user u1, which is used in different tests below.
+CREATE USER u1@localhost;
+GRANT ALL ON db1.* TO u1@localhost;
+GRANT ALL ON test.* TO u1@localhost;
+GRANT CREATE TABLESPACE, PROCESS, SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
+SET GLOBAL debug= '+d,skip_table_encryption_admin_check_for_set';
+connect (con1, localhost, u1);
+
+--echo `````````````````````````````````````````````````````````
+--echo # Using 'innodb_system' tablespace Master Key encrypted
+--let alter_tablespace_name=innodb_system
+--let expected_error1=0
+--let expected_error2=0
+--let expected_error3=0
+--let expected_error4=0
+
+
+--echo `````````````````````````````````````````````````````````
+--echo # table_encryption_privilege_check=OFF and default per-db encryption OFF
+--let privilege_check=false
+--let database_encryption='n'
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an unencrypted table is rejected in
+--echo # Master Key encrypted system tablespace
+--let table_encryption='n'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--let alter_encryption='n'
+--source ./alter_table.inc
+
+--let alter_encryption='y'
+--source ./alter_table.inc
+
+--let table_encryption='y'
+--let alter_encryption='n'
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an unencrypted table is rejected in
+--echo # Master Key encrypted system tablespace
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--let alter_encryption='y'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a Keyring encrypted table is rejected in
+--echo # Master Key encrypted system tablespace
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--let table_encryption='y'
+--let alter_encryption='keyring'
+--source ./alter_table.inc
+
+--echo # Creating a Keyring encrypted table is rejected in
+--echo # Master Key encrypted system tablespace
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--let table_encryption='n'
+--let alter_encryption='keyring'
+--source ./alter_table.inc
+
+# We need to set innodb_sys_tablespace_encrypt to RE_ENCRYPTING_TO_KEYRING
+# in order to be able to create ONLINE_KEYRING encrypted tablespaces.
+# When default_table_encryption == ONLINE_TO_KEYRING is set,
+# innodb_sys_tablespace_encrypt cannot be set to ON, as system tablespace
+# would get re-encrypted to keyring encryption when encryption threads get
+# turned on.
+SET GLOBAL innodb_sys_tablespace_encrypt=RE_ENCRYPTING_TO_KEYRING;
+--let table_encryption='keyring'
+--let alter_encryption='y'
+--echo # Moving Keyring encrypted table to Master Key
+--echo # encrypted tablespace is rejected.
+--let expected_error2=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--let expected_error4=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an unencrypted table is rejected in
+--echo # Master Key encrypted system tablespace
+--let table_encryption='keyring'
+--let alter_encryption='n'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a Keyring encrypted table is rejected in
+--echo # Master Key encrypted system tablespace
+--let table_encryption='keyring'
+--let alter_encryption='keyring'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+SET GLOBAL innodb_sys_tablespace_encrypt=ON;
+
+--echo `````````````````````````````````````````````````````````
+--echo # table_encryption_privilege_check=OFF and default per-db encryption ON
+--let database_encryption='y'
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an unencrypted table is rejected in
+--echo # Master Key encrypted system tablespace
+--let table_encryption='n'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--let alter_encryption='n'
+--source ./alter_table.inc
+
+--let alter_encryption='y'
+--source ./alter_table.inc
+
+--let table_encryption='y'
+--let alter_encryption='n'
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an unencrypted table is rejected in
+--echo # Master Key encrypted system tablespace
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--let alter_encryption='y'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a Keyring encrypted table is rejected in
+--echo # Master Key encrypted system tablespace
+--let table_encryption='y'
+--let alter_encryption='keyring'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a Keyring encrypted table is rejected in
+--echo # Master Key encrypted system tablespace
+--let table_encryption='n'
+--let alter_encryption='keyring'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+SET GLOBAL innodb_sys_tablespace_encrypt=RE_ENCRYPTING_TO_KEYRING;
+--let table_encryption='keyring'
+--let alter_encryption='y'
+--echo `````````````````````````````````````````````````````````
+--echo # Moving Keyring encrypted table to Master Key
+--echo # encrypted tablespace is rejected.
+--let expected_error2=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--let expected_error4=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an unencrypted table is rejected in
+--echo # Master Key encrypted system tablespace
+--let table_encryption='keyring'
+--let alter_encryption='n'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a Keyring encrypted table is rejected in
+--echo # Master Key encrypted system tablespace
+--let table_encryption='keyring'
+--let alter_encryption='keyring'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+SET GLOBAL innodb_sys_tablespace_encrypt=ON;
+
+--echo `````````````````````````````````````````````````````````
+--echo # table_encryption_privilege_check=ON and default per-db encryption OFF
+--let privilege_check=true
+--let database_encryption='n'
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an unencrypted table is rejected in
+--echo # Master Key encrypted system tablespace
+--let table_encryption='n'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--let alter_encryption='n'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create Master Key encrypted table to
+--echo # unencrypted database is rejected.
+--let alter_encryption='y'
+--let expected_error1=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error2=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error3=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error4=ER_CANNOT_SET_TABLE_ENCRYPTION
+--source ./alter_table.inc
+
+--let has_grant=true
+--source ./alter_table.inc
+--let has_grant=false
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an unencrypted table is rejected in
+--echo # Master Key encrypted system tablespace.
+--let table_encryption='y'
+--let alter_encryption='n'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Database privilege check is ignored as we neither
+--echo # change the database nor the ENCRYPTION clause.
+--let alter_encryption='y'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create keyring encrypted table to unencrypted
+--echo # database is rejected.
+--let table_encryption='n'
+--let alter_encryption='keyring'
+--let expected_error1=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error3=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a keyring encrypted table is rejected in
+--echo # Master Key encrypted system tablespace.
+--let has_grant=true
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+--let has_grant=false
+
+SET GLOBAL innodb_sys_tablespace_encrypt=RE_ENCRYPTING_TO_KEYRING;
+
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create unencrypted table in Master Key
+--echo # encrypted tablespace is rejected.
+--let table_encryption='keyring'
+--let alter_encryption='n'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--let alter_encryption='keyring'
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a keyring encrypted table is rejected in
+--echo # Master Key encrypted system tablespace.
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Moving Keyring encrypted table to Master Key
+--echo # encrypted tablespace is rejected.
+--let alter_encryption='y'
+--let expected_error2=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--let expected_error4=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--source ./alter_table.inc
+
+--let has_grant=true
+--let expected_error2=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--let expected_error4=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--source ./alter_table.inc
+--let has_grant=false
+
+SET GLOBAL innodb_sys_tablespace_encrypt=ON;
+
+--let table_encryption='y'
+--echo `````````````````````````````````````````````````````````
+--echo # Moving Keyring encrypted table to Master Key
+--echo # encrypted tablespace is rejected.
+--let alter_encryption='keyring'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a keyring encrypted table is rejected in
+--echo # Master Key encrypted system tablespace.
+--let has_grant=true
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+--let has_grant=false
+
+--echo `````````````````````````````````````````````````````````
+--echo # table_encryption_privilege_check=ON and default per-db encryption ON
+--let database_encryption='y'
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an unencrypted table is rejected in
+--echo # Master Key encrypted system tablespace
+--let table_encryption='n'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--let alter_encryption='n'
+--source ./alter_table.inc
+
+--let alter_encryption='y'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create unencrypted table under database with default
+--echo # encryption=ON is rejected.
+--let table_encryption='y'
+--let alter_encryption='n'
+--let expected_error1=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error3=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an unencrypted table is rejected in
+--echo # Master Key encrypted system tablespace
+--let has_grant=true
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+--let has_grant=false
+
+--let alter_encryption='y'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating an Keyring encrypted table is rejected in
+--echo # Master Key encrypted system tablespace
+--let table_encryption='n'
+--let alter_encryption='keyring'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+--echo # Creating an keyring encrypted table is rejected in
+--echo # Master Key encrypted system tablespace
+--let has_grant=true
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+--let has_grant=false
+
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create unencrypted table under database with default
+--echo # encryption=ON is rejected.
+SET GLOBAL innodb_sys_tablespace_encrypt=RE_ENCRYPTING_TO_KEYRING;
+--let table_encryption='keyring'
+--let alter_encryption='n'
+--let expected_error1=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error3=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+--let has_grant=true
+--echo # Creating an unencrypted table is rejected in
+--echo # Master Key encrypted system tablespace
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+--let has_grant=false
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a Keyring encrypted table is rejected in
+--echo # Master Key encrypted system tablespace
+--let alter_encryption='keyring'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Moving Keyring encrypted table to Master Key
+--echo # encrypted tablespace is rejected.
+--let table_encryption='keyring'
+--let alter_encryption='y'
+--let expected_error2=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--let expected_error4=ER_TARGET_TABLESPACE_ENCRYPTION_MISMATCH
+--source ./alter_table.inc
+SET GLOBAL innodb_sys_tablespace_encrypt=ON;
+
+--let table_encryption='y'
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a Keyring encrypted table is rejected in
+--echo # Master Key encrypted system tablespace
+--let alter_encryption='keyring'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a Keyring encrypted table is rejected in
+--echo # Master Key encrypted system tablespace
+--let has_grant=true
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+--let has_grant=false
+
+connection default;
+--source include/shutdown_mysqld.inc
+
+--echo # Start default MTR instance
+--let $restart_parameters=
+--source include/start_mysqld.inc
+
+--remove_file $BOOTSTRAP_SQL
+--force-rmdir $MYSQL_TMP_DIR/datadir1
+--remove_file $MYSQLTEST_VARDIR/tmp/boot.log

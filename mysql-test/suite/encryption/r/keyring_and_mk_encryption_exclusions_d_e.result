@@ -16,12 +16,6 @@ CREATE DATABASE db_2 DEFAULT ENCRYPTION='Y';
 ERROR HY000: Database default encryption cannot be set to Y (Master Key encryption) while default_table_encryption is set to ONLINE_TO_KEYRING. It does not make sense to create new Master Key encrypted tables if the intention is to re-encrypt them to KEYRING encryption.
 CREATE DATABASE db_2 DEFAULT ENCRYPTION='N';
 ERROR HY000: Database default encryption cannot be set to N (explicitly request for tables in database to be unencrypted) while default_table_encryption is set to ONLINE_TO_KEYRING. If you want to exclude table from being encrypted by encryption threads you can still do it while creating table. For that you need to explicitly specify ENCRYPTION='N' while creating a table.
-USE test;
-ALTER DATABASE db_1 DEFAULT ENCRYPTION='Y';
-ERROR HY000: Database default encryption cannot be set to Y (Master Key encryption) while default_table_encryption is set to ONLINE_TO_KEYRING. It does not make sense to create new Master Key encrypted tables if the intention is to re-encrypt them to KEYRING encryption.
-CREATE DATABASE db_1 DEFAULT ENCRYPTION='N';
-ERROR HY000: Database default encryption cannot be set to N (explicitly request for tables in database to be unencrypted) while default_table_encryption is set to ONLINE_TO_KEYRING. If you want to exclude table from being encrypted by encryption threads you can still do it while creating table. For that you need to explicitly specify ENCRYPTION='N' while creating a table.
-USE db_1;
 SET SESSION default_table_encryption=ON;
 CREATE DATABASE db_2;
 SHOW CREATE DATABASE db_2;
@@ -30,7 +24,7 @@ db_2	CREATE DATABASE `db_2` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8m
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 USE db_2;
 CREATE TABLE t1 (a varchar(255));
-ERROR HY000: InnoDB: ENCRYPTED='Y' not supported for table because online encryption to KEYRING is turned ON.
+DROP TABLE t1;
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 CREATE TABLE t1 (a varchar(255));
 CREATE DATABASE db_3 DEFAULT ENCRYPTION='N';

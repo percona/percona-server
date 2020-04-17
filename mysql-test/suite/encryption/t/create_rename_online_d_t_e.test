@@ -1,0 +1,401 @@
+--source include/have_debug.inc
+
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+CREATE DATABASE db_no_explicit_case;
+DROP DATABASE db_no_explicit_case;
+SET GLOBAL default_table_encryption=OFF;
+--echo # Create test databases for tests with user
+--echo # u1@localhost
+CREATE DATABASE db_n DEFAULT ENCRYPTION='N';
+CREATE DATABASE db_y DEFAULT ENCRYPTION='Y';
+CREATE DATABASE db_n_2 DEFAULT ENCRYPTION='N';
+CREATE DATABASE db_y_2 DEFAULT ENCRYPTION='Y';
+
+--echo # Pre-define user u1, which is used in different tests below.
+CREATE USER u1@localhost;
+GRANT ALL ON db_n.* TO u1@localhost;
+GRANT ALL ON db_y.* TO u1@localhost;
+GRANT ALL ON db_n_2.* TO u1@localhost;
+GRANT ALL ON db_y_2.* TO u1@localhost;
+GRANT CREATE TABLESPACE, PROCESS, SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
+SET GLOBAL debug= '+d,skip_table_encryption_admin_check_for_set';
+
+connect (con1, localhost, u1);
+
+SET GLOBAL table_encryption_privilege_check=false;
+
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+USE db_n;
+CREATE TABLE db_n.t1 (f1 int);
+CREATE TABLESPACE ts1;
+CREATE TABLE db_n.t1_ts1 (f1 int) TABLESPACE=ts1;
+
+--let $assert_text= db_n/t1 should have MIN_KEY_VERSION set to 1 (encrypted)
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE name=\\'db_n/t1\\']" = 1
+--source include/assert.inc
+--let $assert_text= ts1 should have MIN_KEY_VERSION set to 1 (encrypted)
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE name=\\'ts1\\']" = 1
+--source include/assert.inc
+
+DROP TABLE t1,t1_ts1;
+DROP TABLESPACE ts1;
+
+USE db_y;
+CREATE TABLE db_y.t1 (f1 int);
+CREATE TABLESPACE ts1;
+CREATE TABLE db_y.t1_ts1 (f1 int) TABLESPACE=ts1;
+
+--let $assert_text= db_y/t1 should have MIN_KEY_VERSION set to 1 (encrypted)
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE name=\\'db_y/t1\\']" = 1
+--source include/assert.inc
+--let $assert_text= ts1 should have MIN_KEY_VERSION set to 1 (encrypted)
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE name=\\'ts1\\']" = 1
+--source include/assert.inc
+
+DROP TABLE t1,t1_ts1;
+DROP TABLESPACE ts1;
+
+USE db_n;
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+CREATE TABLE db_n.t1 (f1 int);
+CREATE TABLESPACE ts1;
+CREATE TABLE db_n.t1_ts1 (f1 int) TABLESPACE=ts1;
+
+--let $assert_text= Make sure db_n/t1 is not present in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE name=\\'db_n/t1\\']" = 0
+--source include/assert.inc
+--let $assert_text= Make sure ts1 is not present in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE name=\\'ts1\\']" = 0
+--source include/assert.inc
+
+DROP TABLE t1,t1_ts1;
+DROP TABLESPACE ts1;
+
+USE db_y;
+CREATE TABLE db_y.t1 (f1 int);
+--echo # ts1 is unencrypted
+CREATE TABLESPACE ts1;
+--echo # t1_ts1 is encrypted as it inherits ENCRYPTION='Y' from
+--echo # database's DEFAULT ENCRYPTION='Y', thus it cannot be
+--echo # created in ts1 tablespace.
+--error ER_INVALID_ENCRYPTION_REQUEST
+CREATE TABLE db_y.t1_ts1 (f1 int) TABLESPACE=ts1;
+
+--let $assert_text= Make sure db_y/t1 is not present in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE name=\\'db_y/t1\\']" = 0
+--source include/assert.inc
+--let $assert_text= Make sure ts1 is not present in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE name=\\'ts1\\']" = 0
+--source include/assert.inc
+
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+
+SET GLOBAL table_encryption_privilege_check=true;
+
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+USE db_n;
+CREATE TABLE db_n.t1 (f1 int);
+CREATE TABLESPACE ts1;
+CREATE TABLE db_n.t1_ts1 (f1 int) TABLESPACE=ts1;
+
+--let $assert_text= db_n/t1 should have MIN_KEY_VERSION set to 1 (encrypted)
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE name=\\'db_n/t1\\']" = 1
+--source include/assert.inc
+--let $assert_text= ts1 should have MIN_KEY_VERSION set to 1 (encrypted)
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE name=\\'ts1\\']" = 1
+--source include/assert.inc
+
+DROP TABLE t1,t1_ts1;
+DROP TABLESPACE ts1;
+
+USE db_y;
+CREATE TABLE db_y.t1 (f1 int);
+CREATE TABLESPACE ts1;
+CREATE TABLE db_y.t1_ts1 (f1 int) TABLESPACE=ts1;
+
+--let $assert_text= db_y/t1 should have MIN_KEY_VERSION set to 1 (encrypted)
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE name=\\'db_y/t1\\']" = 1
+--source include/assert.inc
+--let $assert_text= ts1 should have MIN_KEY_VERSION set to 1 (encrypted)
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE name=\\'ts1\\']" = 1
+--source include/assert.inc
+
+DROP TABLE t1,t1_ts1;
+DROP TABLESPACE ts1;
+
+USE db_n;
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+CREATE TABLE db_n.t1 (f1 int);
+CREATE TABLESPACE ts1;
+CREATE TABLE db_n.t1_ts1 (f1 int) TABLESPACE=ts1;
+
+--let $assert_text= Make sure db_n/t1 is not present in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE name=\\'db_n/t1\\']" = 0
+--source include/assert.inc
+--let $assert_text= Make sure ts1 is not present in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE name=\\'ts1\\']" = 0
+--source include/assert.inc
+
+DROP TABLE t1,t1_ts1;
+DROP TABLESPACE ts1;
+
+USE db_y;
+CREATE TABLE db_y.t1 (f1 int);
+--echo # ts1 is unencrypted
+CREATE TABLESPACE ts1;
+--echo # t1_ts1 is encrypted as it inherits ENCRYPTION='Y' from
+--echo # database's DEFAULT ENCRYPTION='Y', thus it cannot be
+--echo # created in ts1 tablespace.
+--error ER_INVALID_ENCRYPTION_REQUEST
+CREATE TABLE db_y.t1_ts1 (f1 int) TABLESPACE=ts1;
+
+--let $assert_text= Make sure db_y/t1 is not present in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE name=\\'db_y/t1\\']" = 0
+--source include/assert.inc
+--let $assert_text= Make sure ts1 is not present in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE name=\\'ts1\\']" = 0
+--source include/assert.inc
+
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+
+--echo # Rename scenarios
+
+SET GLOBAL table_encryption_privilege_check=false;
+
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+
+--echo # DEFAULT ENCRYPTION='N' to DEFAULT ENCRYPTION='Y'
+
+USE db_n;
+CREATE TABLE db_n.t1 (f1 int);
+CREATE TABLE db_n.t2 (f1 int);
+CREATE TABLE db_n.t3 (f1 int);
+CREATE TABLESPACE ts1;
+CREATE TABLE db_n.t1_ts1 (f1 int) TABLESPACE=ts1;
+CREATE TABLE db_n.t2_ts1 (f1 int) TABLESPACE=ts1;
+CREATE TABLE db_n.t3_ts1 (f1 int) TABLESPACE=ts1;
+
+RENAME TABLE db_n.t1 TO db_y.t1_renamed;
+RENAME TABLE db_n.t1_ts1 TO db_y.t1_ts1_renamed;
+
+ALTER TABLE db_n.t2 RENAME db_y.t2_renamed;
+ALTER TABLE db_n.t2_ts1 RENAME db_y.t2_ts1_renamed;
+
+--echo # Rename in the same database
+RENAME TABLE db_n.t3 TO db_n.t3_renamed;
+RENAME TABLE db_n.t3_ts1 TO db_n.t3_ts1_renamed;
+ALTER TABLE db_n.t3_renamed RENAME db_y.t3_renamed_2;
+ALTER TABLE db_n.t3_ts1_renamed RENAME db_y.t3_ts1_renamed_2;
+
+DROP TABLE db_y.t1_renamed, db_y.t1_ts1_renamed;
+DROP TABLE db_y.t2_renamed, db_y.t2_ts1_renamed;
+DROP TABLE db_y.t3_renamed_2, db_y.t3_ts1_renamed_2; 
+DROP TABLESPACE ts1;
+
+--echo # DEFAULT ENCRYPTION='Y' to DEFAULT ENCRYPTION='N'
+
+USE db_y;
+CREATE TABLE db_y.t1 (f1 int);
+CREATE TABLE db_y.t2 (f1 int);
+CREATE TABLE db_y.t3 (f1 int);
+CREATE TABLESPACE ts2;
+CREATE TABLE db_y.t1_ts2 (f1 int) TABLESPACE=ts2;
+CREATE TABLE db_y.t2_ts2 (f1 int) TABLESPACE=ts2;
+CREATE TABLE db_y.t3_ts2 (f1 int) TABLESPACE=ts2;
+
+RENAME TABLE db_y.t1 TO db_n.t1_renamed;
+RENAME TABLE db_y.t1_ts2 TO db_n.t1_ts2_renamed;
+
+ALTER TABLE db_y.t2 RENAME db_n.t2_renamed;
+ALTER TABLE db_y.t2_ts2 RENAME db_n.t2_ts2_renamed;
+
+--echo # Rename in the same database
+RENAME TABLE db_y.t3 TO db_y.t3_renamed;
+RENAME TABLE db_y.t3_ts2 TO db_y.t3_ts2_renamed;
+ALTER TABLE db_y.t3_renamed RENAME db_y.t3_renamed_2;
+ALTER TABLE db_y.t3_ts2_renamed RENAME db_y.t3_ts2_renamed_2;
+
+DROP TABLE db_n.t1_renamed, db_n.t1_ts2_renamed;
+DROP TABLE db_n.t2_renamed, db_n.t2_ts2_renamed;
+DROP TABLE db_y.t3_renamed_2, db_y.t3_ts2_renamed_2;
+DROP TABLESPACE ts2;
+
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+
+--echo # DEFAULT ENCRYPTION='N' to DEFAULT ENCRYPTION='Y'
+
+USE db_n;
+CREATE TABLE db_n.t1 (f1 int);
+CREATE TABLE db_n.t2 (f1 int);
+CREATE TABLE db_n.t3 (f1 int);
+CREATE TABLESPACE ts1;
+CREATE TABLE db_n.t1_ts1 (f1 int) TABLESPACE=ts1;
+CREATE TABLE db_n.t2_ts1 (f1 int) TABLESPACE=ts1;
+CREATE TABLE db_n.t3_ts1 (f1 int) TABLESPACE=ts1;
+
+RENAME TABLE db_n.t1 TO db_y.t1_renamed;
+RENAME TABLE db_n.t1_ts1 TO db_y.t1_ts1_renamed;
+
+ALTER TABLE db_n.t2 RENAME db_y.t2_renamed;
+ALTER TABLE db_n.t2_ts1 RENAME db_y.t2_ts1_renamed;
+
+--echo # Rename in the same database
+RENAME TABLE db_n.t3 TO db_n.t3_renamed;
+RENAME TABLE db_n.t3_ts1 TO db_n.t3_ts1_renamed;
+
+ALTER TABLE db_n.t3_renamed RENAME db_n.t3_renamed_2;
+ALTER TABLE db_n.t3_ts1_renamed RENAME db_n.t3_ts1_renamed_2;
+
+DROP TABLE db_y.t1_renamed, db_y.t1_ts1_renamed;
+DROP TABLE db_y.t2_renamed, db_y.t2_ts1_renamed;
+DROP TABLE db_n.t3_renamed_2, db_n.t3_ts1_renamed_2;
+DROP TABLESPACE ts1;
+
+--echo # DEFAULT ENCRYPTION='Y' to DEFAULT ENCRYPTION='N'
+
+USE db_y;
+CREATE TABLE db_y.t1 (f1 int);
+CREATE TABLE db_y.t2 (f1 int);
+CREATE TABLESPACE ts2;
+--error ER_INVALID_ENCRYPTION_REQUEST
+CREATE TABLE db_y.t1_ts2 (f1 int) TABLESPACE=ts2;
+
+RENAME TABLE db_y.t1 TO db_n.t1_renamed;
+
+--echo # Rename in the same database
+RENAME TABLE db_y.t2 TO db_y.t2_renamed;
+
+DROP TABLE db_n.t1_renamed, db_y.t2_renamed;
+DROP TABLESPACE ts2;
+
+SET GLOBAL table_encryption_privilege_check=true;
+
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+
+--echo # DEFAULT ENCRYPTION='N' to DEFAULT ENCRYPTION='Y'
+
+USE db_n;
+CREATE TABLE db_n.t1 (f1 int);
+CREATE TABLE db_n.t2 (f1 int);
+CREATE TABLE db_n.t3 (f1 int);
+CREATE TABLESPACE ts1;
+CREATE TABLE db_n.t1_ts1 (f1 int) TABLESPACE=ts1;
+CREATE TABLE db_n.t2_ts1 (f1 int) TABLESPACE=ts1;
+CREATE TABLE db_n.t3_ts1 (f1 int) TABLESPACE=ts1;
+
+RENAME TABLE db_n.t1 TO db_y.t1_renamed;
+RENAME TABLE db_n.t1_ts1 TO db_y.t1_ts1_renamed;
+
+ALTER TABLE db_n.t2 RENAME db_y.t2_renamed;
+ALTER TABLE db_n.t2_ts1 RENAME db_y.t2_ts1_renamed;
+
+--echo # Rename in the same database
+RENAME TABLE db_n.t3 TO db_n.t3_renamed;
+RENAME TABLE db_n.t3_ts1 TO db_n.t3_ts1_renamed;
+ALTER TABLE db_n.t3_renamed RENAME db_n.t3_renamed_2;
+ALTER TABLE db_n.t3_ts1_renamed RENAME db_n.t3_ts1_renamed_2;
+
+DROP TABLE db_y.t1_renamed, db_y.t1_ts1_renamed;
+DROP TABLE db_y.t2_renamed, db_y.t2_ts1_renamed;
+DROP TABLE db_n.t3_renamed_2, db_n.t3_ts1_renamed_2;
+DROP TABLESPACE ts1;
+
+--echo # DEFAULT ENCRYPTION='Y' to DEFAULT ENCRYPTION='N'
+
+USE db_y;
+CREATE TABLE db_y.t1 (f1 int);
+CREATE TABLE db_y.t2 (f1 int);
+CREATE TABLE db_y.t3 (f1 int);
+CREATE TABLESPACE ts2;
+CREATE TABLE db_y.t1_ts2 (f1 int) TABLESPACE=ts2;
+CREATE TABLE db_y.t2_ts2 (f1 int) TABLESPACE=ts2;
+CREATE TABLE db_y.t3_ts2 (f1 int) TABLESPACE=ts2;
+
+RENAME TABLE db_y.t1 TO db_n.t1_renamed;
+RENAME TABLE db_y.t1_ts2 TO db_n.t1_ts2_renamed;
+
+#SET GLOBAL DEBUG="+d,trigger_assert";
+ALTER TABLE db_y.t2 RENAME db_n.t2_renamed;
+
+ALTER TABLE db_y.t2_ts2 RENAME db_n.t2_ts2_renamed;
+
+--echo # Rename in the same database
+RENAME TABLE db_y.t3 TO db_y.t3_renamed;
+RENAME TABLE db_y.t3_ts2 TO db_y.t3_ts2_renamed;
+ALTER TABLE db_y.t3_renamed RENAME db_y.t3_renamed_2;
+ALTER TABLE db_y.t3_ts2_renamed RENAME db_y.t3_ts2_renamed_2;
+
+DROP TABLE db_n.t1_renamed, db_n.t1_ts2_renamed;
+DROP TABLE db_n.t2_renamed, db_n.t2_ts2_renamed;
+DROP TABLE db_y.t3_renamed_2, db_y.t3_ts2_renamed_2;
+DROP TABLESPACE ts2;
+
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+
+--echo # DEFAULT ENCRYPTION='N' to DEFAULT ENCRYPTION='Y'
+
+USE db_n;
+CREATE TABLE db_n.t1 (f1 int);
+CREATE TABLE db_n.t2 (f1 int);
+CREATE TABLE db_n.t3 (f1 int);
+CREATE TABLESPACE ts1;
+CREATE TABLE db_n.t1_ts1 (f1 int) TABLESPACE=ts1;
+CREATE TABLE db_n.t2_ts1 (f1 int) TABLESPACE=ts1;
+CREATE TABLE db_n.t3_ts1 (f1 int) TABLESPACE=ts1;
+
+--error ER_CANNOT_SET_TABLE_ENCRYPTION
+RENAME TABLE db_n.t1 TO db_y.t1_renamed;
+--error ER_CANNOT_SET_TABLE_ENCRYPTION
+RENAME TABLE db_n.t1_ts1 TO db_y.t1_ts1_renamed;
+
+--error ER_CANNOT_SET_TABLE_ENCRYPTION
+ALTER TABLE db_n.t2 RENAME db_y.t2_renamed;
+--error ER_CANNOT_SET_TABLE_ENCRYPTION
+ALTER TABLE db_n.t2_ts1 RENAME db_y.t2_ts1_renamed;
+
+--echo # Rename in the same database
+RENAME TABLE db_n.t3 TO db_n.t3_renamed;
+RENAME TABLE db_n.t3_ts1 TO db_n.t3_ts1_renamed;
+
+ALTER TABLE db_n.t3_renamed RENAME db_n.t3_renamed_2;
+ALTER TABLE db_n.t3_ts1_renamed RENAME db_n.t3_ts1_renamed_2;
+
+DROP TABLE db_n.t1, db_n.t1_ts1;
+DROP TABLE db_n.t2, db_n.t2_ts1;
+DROP TABLE db_n.t3_renamed_2, db_n.t3_ts1_renamed_2;
+DROP TABLESPACE ts1;
+
+--echo # DEFAULT ENCRYPTION='Y' to DEFAULT ENCRYPTION='N'
+
+USE db_y;
+CREATE TABLE db_y.t1 (f1 int);
+CREATE TABLE db_y.t2 (f1 int);
+CREATE TABLE db_y.t3 (f1 int);
+CREATE TABLESPACE ts2;
+--error ER_INVALID_ENCRYPTION_REQUEST
+CREATE TABLE db_y.t1_ts2 (f1 int) TABLESPACE=ts2;
+
+--error ER_CANNOT_SET_TABLE_ENCRYPTION
+RENAME TABLE db_y.t1 TO db_n.t1_renamed;
+--error ER_CANNOT_SET_TABLE_ENCRYPTION
+ALTER TABLE db_y.t2 RENAME db_n.t2_renamed;
+
+--echo # Rename in the same database
+RENAME TABLE db_y.t2 TO db_y.t2_renamed;
+ALTER TABLE db_y.t3 RENAME db_y.t3_renamed;
+
+# cleanup
+--connection default
+DROP TABLE db_y.t1,db_y.t2_renamed;
+DROP TABLE db_y.t3_renamed;
+DROP TABLESPACE ts2;
+DROP DATABASE db_n;
+DROP DATABASE db_y;
+DROP DATABASE db_n_2;
+DROP DATABASE db_y_2;
+DROP USER u1@localhost;
+SET GLOBAL default_table_encryption=OFF;
+SET GLOBAL table_encryption_privilege_check=false;
+SET GLOBAL debug= '-d,skip_table_encryption_admin_check_for_set';

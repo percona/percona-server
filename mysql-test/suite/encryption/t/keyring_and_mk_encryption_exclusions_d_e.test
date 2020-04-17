@@ -24,16 +24,6 @@ CREATE DATABASE db_2 DEFAULT ENCRYPTION='Y';
 --error ER_DATABASE_ENCRYPTION_N_KEYRING_MISMATCH
 CREATE DATABASE db_2 DEFAULT ENCRYPTION='N';
 
-# It should not be possible to ATLER database DEFAULT_ENCRYPTION to Y/N while default_table_encryption is
-# equal to ONLINE_TO_KEYRING
-USE test;
---error ER_DATABASE_ENCRYPTION_MK_KEYRING_MISMATCH
-ALTER DATABASE db_1 DEFAULT ENCRYPTION='Y';
-
---error ER_DATABASE_ENCRYPTION_N_KEYRING_MISMATCH
-CREATE DATABASE db_1 DEFAULT ENCRYPTION='N';
-
-USE db_1;
 # Now let's create database with DEFAULT ENCRYPTION='Y' and then change the default_table_encryption to
 # ONLINE_TO_KEYRING
 
@@ -42,11 +32,12 @@ CREATE DATABASE db_2;
 SHOW CREATE DATABASE db_2;
 
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
-# Now we try to create a table in db_2 database that will inherit ENCRYPTION='Y' from db_2's DEFAULT ENCRYPTION.
-# This should fail - as it is not possible to create MK encrypted tables while ONLINE_TO_KEYRING is set.
+# Since default_table_encryption=ONLINE_TO_KEYRING overrides the database's DEFAULT ENCRYPTION
+# clause - it should be possible to create online encrypted table inside database with
+# DEFAULT ENCRYPTION='Y'
 USE db_2;
---error ER_KEYRING_ILLEGAL_ENCRYPTION_OPTION
 CREATE TABLE t1 (a varchar(255));
+DROP TABLE t1;
 
 # We should be able to create tables in this database when ONLINE_FROM_KEYRING_TO_UNENCRYPTED is set.
 # We are decrypting only ONLINE keyring encrypted tables - so it does not collide with creating new

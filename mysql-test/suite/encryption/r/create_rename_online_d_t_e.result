@@ -1,0 +1,287 @@
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+CREATE DATABASE db_no_explicit_case;
+DROP DATABASE db_no_explicit_case;
+SET GLOBAL default_table_encryption=OFF;
+# Create test databases for tests with user
+# u1@localhost
+CREATE DATABASE db_n DEFAULT ENCRYPTION='N';
+CREATE DATABASE db_y DEFAULT ENCRYPTION='Y';
+CREATE DATABASE db_n_2 DEFAULT ENCRYPTION='N';
+CREATE DATABASE db_y_2 DEFAULT ENCRYPTION='Y';
+# Pre-define user u1, which is used in different tests below.
+CREATE USER u1@localhost;
+GRANT ALL ON db_n.* TO u1@localhost;
+GRANT ALL ON db_y.* TO u1@localhost;
+GRANT ALL ON db_n_2.* TO u1@localhost;
+GRANT ALL ON db_y_2.* TO u1@localhost;
+GRANT CREATE TABLESPACE, PROCESS, SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
+SET GLOBAL debug= '+d,skip_table_encryption_admin_check_for_set';
+SET GLOBAL table_encryption_privilege_check=false;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+USE db_n;
+CREATE TABLE db_n.t1 (f1 int);
+CREATE TABLESPACE ts1;
+CREATE TABLE db_n.t1_ts1 (f1 int) TABLESPACE=ts1;
+include/assert.inc [db_n/t1 should have MIN_KEY_VERSION set to 1 (encrypted)]
+include/assert.inc [ts1 should have MIN_KEY_VERSION set to 1 (encrypted)]
+DROP TABLE t1,t1_ts1;
+DROP TABLESPACE ts1;
+USE db_y;
+CREATE TABLE db_y.t1 (f1 int);
+CREATE TABLESPACE ts1;
+CREATE TABLE db_y.t1_ts1 (f1 int) TABLESPACE=ts1;
+include/assert.inc [db_y/t1 should have MIN_KEY_VERSION set to 1 (encrypted)]
+include/assert.inc [ts1 should have MIN_KEY_VERSION set to 1 (encrypted)]
+DROP TABLE t1,t1_ts1;
+DROP TABLESPACE ts1;
+USE db_n;
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+CREATE TABLE db_n.t1 (f1 int);
+CREATE TABLESPACE ts1;
+CREATE TABLE db_n.t1_ts1 (f1 int) TABLESPACE=ts1;
+include/assert.inc [Make sure db_n/t1 is not present in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION]
+include/assert.inc [Make sure ts1 is not present in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION]
+DROP TABLE t1,t1_ts1;
+DROP TABLESPACE ts1;
+USE db_y;
+CREATE TABLE db_y.t1 (f1 int);
+# ts1 is unencrypted
+CREATE TABLESPACE ts1;
+# t1_ts1 is encrypted as it inherits ENCRYPTION='Y' from
+# database's DEFAULT ENCRYPTION='Y', thus it cannot be
+# created in ts1 tablespace.
+CREATE TABLE db_y.t1_ts1 (f1 int) TABLESPACE=ts1;
+ERROR HY000: Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
+include/assert.inc [Make sure db_y/t1 is not present in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION]
+include/assert.inc [Make sure ts1 is not present in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION]
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+SET GLOBAL table_encryption_privilege_check=true;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+USE db_n;
+CREATE TABLE db_n.t1 (f1 int);
+CREATE TABLESPACE ts1;
+CREATE TABLE db_n.t1_ts1 (f1 int) TABLESPACE=ts1;
+include/assert.inc [db_n/t1 should have MIN_KEY_VERSION set to 1 (encrypted)]
+include/assert.inc [ts1 should have MIN_KEY_VERSION set to 1 (encrypted)]
+DROP TABLE t1,t1_ts1;
+DROP TABLESPACE ts1;
+USE db_y;
+CREATE TABLE db_y.t1 (f1 int);
+CREATE TABLESPACE ts1;
+CREATE TABLE db_y.t1_ts1 (f1 int) TABLESPACE=ts1;
+include/assert.inc [db_y/t1 should have MIN_KEY_VERSION set to 1 (encrypted)]
+include/assert.inc [ts1 should have MIN_KEY_VERSION set to 1 (encrypted)]
+DROP TABLE t1,t1_ts1;
+DROP TABLESPACE ts1;
+USE db_n;
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+CREATE TABLE db_n.t1 (f1 int);
+CREATE TABLESPACE ts1;
+CREATE TABLE db_n.t1_ts1 (f1 int) TABLESPACE=ts1;
+include/assert.inc [Make sure db_n/t1 is not present in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION]
+include/assert.inc [Make sure ts1 is not present in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION]
+DROP TABLE t1,t1_ts1;
+DROP TABLESPACE ts1;
+USE db_y;
+CREATE TABLE db_y.t1 (f1 int);
+# ts1 is unencrypted
+CREATE TABLESPACE ts1;
+# t1_ts1 is encrypted as it inherits ENCRYPTION='Y' from
+# database's DEFAULT ENCRYPTION='Y', thus it cannot be
+# created in ts1 tablespace.
+CREATE TABLE db_y.t1_ts1 (f1 int) TABLESPACE=ts1;
+ERROR HY000: Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
+include/assert.inc [Make sure db_y/t1 is not present in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION]
+include/assert.inc [Make sure ts1 is not present in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION]
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+# Rename scenarios
+SET GLOBAL table_encryption_privilege_check=false;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+# DEFAULT ENCRYPTION='N' to DEFAULT ENCRYPTION='Y'
+USE db_n;
+CREATE TABLE db_n.t1 (f1 int);
+CREATE TABLE db_n.t2 (f1 int);
+CREATE TABLE db_n.t3 (f1 int);
+CREATE TABLESPACE ts1;
+CREATE TABLE db_n.t1_ts1 (f1 int) TABLESPACE=ts1;
+CREATE TABLE db_n.t2_ts1 (f1 int) TABLESPACE=ts1;
+CREATE TABLE db_n.t3_ts1 (f1 int) TABLESPACE=ts1;
+RENAME TABLE db_n.t1 TO db_y.t1_renamed;
+RENAME TABLE db_n.t1_ts1 TO db_y.t1_ts1_renamed;
+ALTER TABLE db_n.t2 RENAME db_y.t2_renamed;
+ALTER TABLE db_n.t2_ts1 RENAME db_y.t2_ts1_renamed;
+# Rename in the same database
+RENAME TABLE db_n.t3 TO db_n.t3_renamed;
+RENAME TABLE db_n.t3_ts1 TO db_n.t3_ts1_renamed;
+ALTER TABLE db_n.t3_renamed RENAME db_y.t3_renamed_2;
+ALTER TABLE db_n.t3_ts1_renamed RENAME db_y.t3_ts1_renamed_2;
+DROP TABLE db_y.t1_renamed, db_y.t1_ts1_renamed;
+DROP TABLE db_y.t2_renamed, db_y.t2_ts1_renamed;
+DROP TABLE db_y.t3_renamed_2, db_y.t3_ts1_renamed_2;
+DROP TABLESPACE ts1;
+# DEFAULT ENCRYPTION='Y' to DEFAULT ENCRYPTION='N'
+USE db_y;
+CREATE TABLE db_y.t1 (f1 int);
+CREATE TABLE db_y.t2 (f1 int);
+CREATE TABLE db_y.t3 (f1 int);
+CREATE TABLESPACE ts2;
+CREATE TABLE db_y.t1_ts2 (f1 int) TABLESPACE=ts2;
+CREATE TABLE db_y.t2_ts2 (f1 int) TABLESPACE=ts2;
+CREATE TABLE db_y.t3_ts2 (f1 int) TABLESPACE=ts2;
+RENAME TABLE db_y.t1 TO db_n.t1_renamed;
+RENAME TABLE db_y.t1_ts2 TO db_n.t1_ts2_renamed;
+ALTER TABLE db_y.t2 RENAME db_n.t2_renamed;
+ALTER TABLE db_y.t2_ts2 RENAME db_n.t2_ts2_renamed;
+# Rename in the same database
+RENAME TABLE db_y.t3 TO db_y.t3_renamed;
+RENAME TABLE db_y.t3_ts2 TO db_y.t3_ts2_renamed;
+ALTER TABLE db_y.t3_renamed RENAME db_y.t3_renamed_2;
+ALTER TABLE db_y.t3_ts2_renamed RENAME db_y.t3_ts2_renamed_2;
+DROP TABLE db_n.t1_renamed, db_n.t1_ts2_renamed;
+DROP TABLE db_n.t2_renamed, db_n.t2_ts2_renamed;
+DROP TABLE db_y.t3_renamed_2, db_y.t3_ts2_renamed_2;
+DROP TABLESPACE ts2;
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+# DEFAULT ENCRYPTION='N' to DEFAULT ENCRYPTION='Y'
+USE db_n;
+CREATE TABLE db_n.t1 (f1 int);
+CREATE TABLE db_n.t2 (f1 int);
+CREATE TABLE db_n.t3 (f1 int);
+CREATE TABLESPACE ts1;
+CREATE TABLE db_n.t1_ts1 (f1 int) TABLESPACE=ts1;
+CREATE TABLE db_n.t2_ts1 (f1 int) TABLESPACE=ts1;
+CREATE TABLE db_n.t3_ts1 (f1 int) TABLESPACE=ts1;
+RENAME TABLE db_n.t1 TO db_y.t1_renamed;
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+RENAME TABLE db_n.t1_ts1 TO db_y.t1_ts1_renamed;
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db_n.t2 RENAME db_y.t2_renamed;
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+ALTER TABLE db_n.t2_ts1 RENAME db_y.t2_ts1_renamed;
+Warnings:
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
+# Rename in the same database
+RENAME TABLE db_n.t3 TO db_n.t3_renamed;
+RENAME TABLE db_n.t3_ts1 TO db_n.t3_ts1_renamed;
+ALTER TABLE db_n.t3_renamed RENAME db_n.t3_renamed_2;
+ALTER TABLE db_n.t3_ts1_renamed RENAME db_n.t3_ts1_renamed_2;
+DROP TABLE db_y.t1_renamed, db_y.t1_ts1_renamed;
+DROP TABLE db_y.t2_renamed, db_y.t2_ts1_renamed;
+DROP TABLE db_n.t3_renamed_2, db_n.t3_ts1_renamed_2;
+DROP TABLESPACE ts1;
+# DEFAULT ENCRYPTION='Y' to DEFAULT ENCRYPTION='N'
+USE db_y;
+CREATE TABLE db_y.t1 (f1 int);
+CREATE TABLE db_y.t2 (f1 int);
+CREATE TABLESPACE ts2;
+CREATE TABLE db_y.t1_ts2 (f1 int) TABLESPACE=ts2;
+ERROR HY000: Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
+RENAME TABLE db_y.t1 TO db_n.t1_renamed;
+# Rename in the same database
+RENAME TABLE db_y.t2 TO db_y.t2_renamed;
+DROP TABLE db_n.t1_renamed, db_y.t2_renamed;
+DROP TABLESPACE ts2;
+SET GLOBAL table_encryption_privilege_check=true;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+# DEFAULT ENCRYPTION='N' to DEFAULT ENCRYPTION='Y'
+USE db_n;
+CREATE TABLE db_n.t1 (f1 int);
+CREATE TABLE db_n.t2 (f1 int);
+CREATE TABLE db_n.t3 (f1 int);
+CREATE TABLESPACE ts1;
+CREATE TABLE db_n.t1_ts1 (f1 int) TABLESPACE=ts1;
+CREATE TABLE db_n.t2_ts1 (f1 int) TABLESPACE=ts1;
+CREATE TABLE db_n.t3_ts1 (f1 int) TABLESPACE=ts1;
+RENAME TABLE db_n.t1 TO db_y.t1_renamed;
+RENAME TABLE db_n.t1_ts1 TO db_y.t1_ts1_renamed;
+ALTER TABLE db_n.t2 RENAME db_y.t2_renamed;
+ALTER TABLE db_n.t2_ts1 RENAME db_y.t2_ts1_renamed;
+# Rename in the same database
+RENAME TABLE db_n.t3 TO db_n.t3_renamed;
+RENAME TABLE db_n.t3_ts1 TO db_n.t3_ts1_renamed;
+ALTER TABLE db_n.t3_renamed RENAME db_n.t3_renamed_2;
+ALTER TABLE db_n.t3_ts1_renamed RENAME db_n.t3_ts1_renamed_2;
+DROP TABLE db_y.t1_renamed, db_y.t1_ts1_renamed;
+DROP TABLE db_y.t2_renamed, db_y.t2_ts1_renamed;
+DROP TABLE db_n.t3_renamed_2, db_n.t3_ts1_renamed_2;
+DROP TABLESPACE ts1;
+# DEFAULT ENCRYPTION='Y' to DEFAULT ENCRYPTION='N'
+USE db_y;
+CREATE TABLE db_y.t1 (f1 int);
+CREATE TABLE db_y.t2 (f1 int);
+CREATE TABLE db_y.t3 (f1 int);
+CREATE TABLESPACE ts2;
+CREATE TABLE db_y.t1_ts2 (f1 int) TABLESPACE=ts2;
+CREATE TABLE db_y.t2_ts2 (f1 int) TABLESPACE=ts2;
+CREATE TABLE db_y.t3_ts2 (f1 int) TABLESPACE=ts2;
+RENAME TABLE db_y.t1 TO db_n.t1_renamed;
+RENAME TABLE db_y.t1_ts2 TO db_n.t1_ts2_renamed;
+ALTER TABLE db_y.t2 RENAME db_n.t2_renamed;
+ALTER TABLE db_y.t2_ts2 RENAME db_n.t2_ts2_renamed;
+# Rename in the same database
+RENAME TABLE db_y.t3 TO db_y.t3_renamed;
+RENAME TABLE db_y.t3_ts2 TO db_y.t3_ts2_renamed;
+ALTER TABLE db_y.t3_renamed RENAME db_y.t3_renamed_2;
+ALTER TABLE db_y.t3_ts2_renamed RENAME db_y.t3_ts2_renamed_2;
+DROP TABLE db_n.t1_renamed, db_n.t1_ts2_renamed;
+DROP TABLE db_n.t2_renamed, db_n.t2_ts2_renamed;
+DROP TABLE db_y.t3_renamed_2, db_y.t3_ts2_renamed_2;
+DROP TABLESPACE ts2;
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+# DEFAULT ENCRYPTION='N' to DEFAULT ENCRYPTION='Y'
+USE db_n;
+CREATE TABLE db_n.t1 (f1 int);
+CREATE TABLE db_n.t2 (f1 int);
+CREATE TABLE db_n.t3 (f1 int);
+CREATE TABLESPACE ts1;
+CREATE TABLE db_n.t1_ts1 (f1 int) TABLESPACE=ts1;
+CREATE TABLE db_n.t2_ts1 (f1 int) TABLESPACE=ts1;
+CREATE TABLE db_n.t3_ts1 (f1 int) TABLESPACE=ts1;
+RENAME TABLE db_n.t1 TO db_y.t1_renamed;
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+RENAME TABLE db_n.t1_ts1 TO db_y.t1_ts1_renamed;
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+ALTER TABLE db_n.t2 RENAME db_y.t2_renamed;
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+ALTER TABLE db_n.t2_ts1 RENAME db_y.t2_ts1_renamed;
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+# Rename in the same database
+RENAME TABLE db_n.t3 TO db_n.t3_renamed;
+RENAME TABLE db_n.t3_ts1 TO db_n.t3_ts1_renamed;
+ALTER TABLE db_n.t3_renamed RENAME db_n.t3_renamed_2;
+ALTER TABLE db_n.t3_ts1_renamed RENAME db_n.t3_ts1_renamed_2;
+DROP TABLE db_n.t1, db_n.t1_ts1;
+DROP TABLE db_n.t2, db_n.t2_ts1;
+DROP TABLE db_n.t3_renamed_2, db_n.t3_ts1_renamed_2;
+DROP TABLESPACE ts1;
+# DEFAULT ENCRYPTION='Y' to DEFAULT ENCRYPTION='N'
+USE db_y;
+CREATE TABLE db_y.t1 (f1 int);
+CREATE TABLE db_y.t2 (f1 int);
+CREATE TABLE db_y.t3 (f1 int);
+CREATE TABLESPACE ts2;
+CREATE TABLE db_y.t1_ts2 (f1 int) TABLESPACE=ts2;
+ERROR HY000: Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
+RENAME TABLE db_y.t1 TO db_n.t1_renamed;
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+ALTER TABLE db_y.t2 RENAME db_n.t2_renamed;
+ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
+# Rename in the same database
+RENAME TABLE db_y.t2 TO db_y.t2_renamed;
+ALTER TABLE db_y.t3 RENAME db_y.t3_renamed;
+DROP TABLE db_y.t1,db_y.t2_renamed;
+DROP TABLE db_y.t3_renamed;
+DROP TABLESPACE ts2;
+DROP DATABASE db_n;
+DROP DATABASE db_y;
+DROP DATABASE db_n_2;
+DROP DATABASE db_y_2;
+DROP USER u1@localhost;
+SET GLOBAL default_table_encryption=OFF;
+SET GLOBAL table_encryption_privilege_check=false;
+SET GLOBAL debug= '-d,skip_table_encryption_admin_check_for_set';

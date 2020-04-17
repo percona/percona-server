@@ -23,7 +23,7 @@ create table t4_on_explicit_off (a int) engine=innodb encryption="N";
 Warnings:
 Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 create table t_unencrypted_tablespace (a text) tablespace ts_unencrypted1 ENGINE="InnoDB";
-ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ERROR HY000: Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
 SET GLOBAL table_encryption_privilege_check = ON;
 REVOKE TABLE_ENCRYPTION_ADMIN ON *.* FROM u1@localhost;
 create table t5_force_explicit_off (a int) engine=innodb encryption="N";
@@ -38,7 +38,7 @@ partition p1 values less than (20),
 partition p2 values less than (40) tablespace ts_encrypted2);
 ERROR HY000: InnoDB : A partitioned table is not allowed in a shared tablespace.
 create table t_unencrypted_tablespace (a text) tablespace ts_unencrypted1 ENGINE="InnoDB";
-ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ERROR HY000: Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
 SET GLOBAL table_encryption_privilege_check = OFF;
 ALTER DATABASE db1 DEFAULT ENCRYPTION='N';
 create table t5_off_explicit_off (a int) engine=innodb encryption="N";
@@ -48,7 +48,7 @@ engine=innodb tablespace ts_encrypted1
 partition by range (a) partitions 2 (
 partition p1 values less than (20),
 partition p2 values less than (40) tablespace ts_encrypted2);
-ERROR HY000: Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+ERROR HY000: Request to create an 'unencrypted' table while using an 'encrypted' tablespace.
 ALTER DATABASE db1 DEFAULT ENCRYPTION='Y';
 SET GLOBAL table_encryption_privilege_check = ON;
 insert into t1_default_explicit_on values (42);

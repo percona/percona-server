@@ -2780,7 +2780,8 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
     dd_tab->table().options().get("encrypt_type", &encrypt);
     if (!Encryption::is_none(encrypt.c_str())) {
       ut_ad(innobase_strcasecmp(encrypt.c_str(), "y") == 0 ||
-            innobase_strcasecmp(encrypt.c_str(), "keyring") == 0);
+            innobase_strcasecmp(encrypt.c_str(), "keyring") == 0 ||
+            innobase_strcasecmp(encrypt.c_str(), "online_keyring") == 0);
       is_encrypted = true;
     }
   }
@@ -6282,7 +6283,7 @@ bool dd_set_encryption_flag(THD *thd, const char *space_name,
     dd_space_flags |= (1U << FSP_FLAGS_POS_ENCRYPTION);
     dd_space->se_private_data().set(dd_space_key_strings[DD_SPACE_FLAGS],
                                     dd_space_flags);
-    dd_space->options().set("encryption", "Y");
+    dd_space->options().set("encryption", "ONLINE_KEYRING");
     return false;
   };
 

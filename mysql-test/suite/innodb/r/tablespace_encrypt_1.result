@@ -15,28 +15,28 @@ DROP TABLE IF EXISTS t1;
 SYSTEM TABLESPACE
 ---------------------------
 CREATE TABLE t1(c int) ENCRYPTION="Y" tablespace innodb_system ENGINE = InnoDB;
-ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ERROR HY000: Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3825	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+Error	3825	Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
 SET GLOBAL innodb_file_per_table = 0;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
 0
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
-ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ERROR HY000: Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3825	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+Error	3825	Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="N" ENGINE = InnoDB;
 SHOW WARNINGS;
 Level	Code	Message
 DROP TABLE t1;
 CREATE TABLE t1(c int) ENCRYPTION="Y" tablespace innodb_system ENGINE = InnoDB;
-ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ERROR HY000: Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3825	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+Error	3825	Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
 CREATE TABLE t1(c int) ENCRYPTION="N" tablespace innodb_system ENGINE = InnoDB;
 SHOW WARNINGS;
 Level	Code	Message
@@ -528,10 +528,10 @@ CREATE/ALTER TABLE IN GENERAL TABLESPACE
 CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE encrypt_ts ENCRYPTION="Y" ENGINE = InnoDB;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE encrypt_ts ENCRYPTION="N" ENGINE = InnoDB;
-ERROR HY000: Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+ERROR HY000: Request to create an 'unencrypted' table while using an 'encrypted' tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3825	Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+Error	3825	Request to create an 'unencrypted' table while using an 'encrypted' tablespace.
 CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE encrypt_ts ENCRYPTION="R" ENGINE = InnoDB;
 ERROR HY000: Invalid encryption option.
 SHOW WARNINGS;
@@ -541,7 +541,7 @@ Error	1031	Table storage engine for 't1' doesn't have this option
 CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE encrypt_ts ENCRYPTION='Y' ENGINE = InnoDB;
 ALTER TABLE t1 encryption='Y';
 ALTER TABLE t1 encryption='N';
-ERROR HY000: Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+ERROR HY000: Request to create an 'unencrypted' table while using an 'encrypted' tablespace.
 ALTER TABLE t1 encryption='R';
 ERROR HY000: Invalid encryption option.
 DROP TABLE t1;
@@ -549,21 +549,21 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
 CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE encrypt_ts ENCRYPTION="N" ENGINE = InnoDB;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE encrypt_ts ENCRYPTION="Y" ENGINE = InnoDB;
-ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ERROR HY000: Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3825	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+Error	3825	Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
 CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE encrypt_ts ENCRYPTION="R" ENGINE = InnoDB;
-ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ERROR HY000: Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3825	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+Error	3825	Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
 CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE encrypt_ts ENGINE = InnoDB;
 ALTER TABLE t1 encryption='Y';
-ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ERROR HY000: Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
 ALTER TABLE t1 encryption='N';
 ALTER TABLE t1 encryption='R';
-ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ERROR HY000: Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
 DROP TABLE t1;
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB TABLESPACE encrypt_ts ENCRYPTION='Y';

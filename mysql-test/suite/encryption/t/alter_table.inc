@@ -26,10 +26,32 @@
 --echo `````````````````````````````````````````````````````````
 
 eval CREATE DATABASE db1 DEFAULT ENCRYPTION=$database_encryption;
+if ($table_encryption == "'keyring'")
+{
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd';
+SET GLOBAL default_table_encryption=OFF;
+}
+if ($table_encryption != "'keyring'")
+{
 eval CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION=$table_encryption;
+}
+
 if ($alter_tablespace_name == 'ts1')
 {
-eval CREATE TABLESPACE $alter_tablespace_name ADD DATAFILE 'ts1.ibd' ENCRYPTION=$alter_encryption;
+  if ($alter_encryption == "'keyring'")
+  {
+  # Keyring encryption and ONLINE_KEYRING encryption match, i.e.
+  # you can create a keyring encrypted table in ONLINE_KEYRING
+  # encrypted tablespace.
+  SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+  eval CREATE TABLESPACE $alter_tablespace_name ADD DATAFILE 'ts1.ibd';
+  SET GLOBAL default_table_encryption=OFF;
+  }
+  if ($alter_encryption != "'keyring'")
+  {
+  eval CREATE TABLESPACE $alter_tablespace_name ADD DATAFILE 'ts1.ibd' ENCRYPTION=$alter_encryption;
+  }
 }
 eval CREATE TABLE db1.t1 (f1 int) ENCRYPTION=$table_encryption;
 eval CREATE TABLE db1.t2 (f1 int) ENCRYPTION=$table_encryption;

@@ -11,7 +11,7 @@ SELECT @@table_encryption_privilege_check;
 @@table_encryption_privilege_check
 0
 CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
-ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ERROR HY000: Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
 CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system;
 DROP TABLE t1;
 CREATE TABLE t2(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
@@ -20,7 +20,7 @@ DROP TABLE t2;
 # and table_encryption_privilege_check=ON
 SET GLOBAL table_encryption_privilege_check = ON;
 CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
-ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ERROR HY000: Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
 CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system;
 DROP TABLE t1;
 CREATE TABLE t2(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
@@ -31,9 +31,9 @@ ALTER DATABASE db1 DEFAULT ENCRYPTION='Y';
 SET GLOBAL table_encryption_privilege_check = OFF;
 USE db1;
 CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system;
-ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ERROR HY000: Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
 CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
-ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ERROR HY000: Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
 CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
 Warnings:
 Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
@@ -45,9 +45,9 @@ SELECT @@default_table_encryption;
 @@default_table_encryption
 OFF
 CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system;
-ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ERROR HY000: Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
 CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
-ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ERROR HY000: Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
 CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
 ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
 SET GLOBAL table_encryption_privilege_check = OFF;
@@ -96,9 +96,9 @@ GRANT CREATE TABLESPACE, PROCESS, SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
 # System is encrypted, test with DEFAULT ENCRYPTION=N
 # and table_encryption_privilege_check = OFF
 CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system;
-ERROR HY000: Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+ERROR HY000: Request to create an 'unencrypted' table while using an 'encrypted' tablespace.
 CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
-ERROR HY000: Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+ERROR HY000: Request to create an 'unencrypted' table while using an 'encrypted' tablespace.
 CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
 DROP TABLE t1;
 # System is encrypted, test with DEFAULT ENCRYPTION=Y
@@ -108,7 +108,7 @@ USE db1;
 CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system;
 DROP TABLE t1;
 CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
-ERROR HY000: Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+ERROR HY000: Request to create an 'unencrypted' table while using an 'encrypted' tablespace.
 CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
 DROP TABLE t1;
 # System is encrypted, test with DEFAULT ENCRYPTION=Y
@@ -118,7 +118,7 @@ USE db1;
 CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system;
 DROP TABLE t1;
 CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
-ERROR HY000: Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+ERROR HY000: Request to create an 'unencrypted' table while using an 'encrypted' tablespace.
 CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
 DROP TABLE t1;
 # System is encrypted, test with DEFAULT ENCRYPTION=N
@@ -127,9 +127,9 @@ ALTER DATABASE db1 DEFAULT ENCRYPTION='N';
 SET GLOBAL table_encryption_privilege_check = ON;
 USE db1;
 CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system;
-ERROR HY000: Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+ERROR HY000: Request to create an 'unencrypted' table while using an 'encrypted' tablespace.
 CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
-ERROR HY000: Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+ERROR HY000: Request to create an 'unencrypted' table while using an 'encrypted' tablespace.
 CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
 ERROR HY000: Table encryption differ from its database default encryption, and user doesn't have enough privilege.
 # System is encrypted, test with DEFAULT ENCRYPTION=Y
@@ -163,14 +163,14 @@ t4	CREATE TABLE `t4` (
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 # rebuild to a table unencrypted and in system should be disalowed
 ALTER TABLE t4 ALGORITHM=COPY, ENCRYPTION='N';
-ERROR HY000: Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+ERROR HY000: Request to create an 'unencrypted' table while using an 'encrypted' tablespace.
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
   `a` text
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 ALTER TABLE t4 ENCRYPTION='N';
-ERROR HY000: Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+ERROR HY000: Request to create an 'unencrypted' table while using an 'encrypted' tablespace.
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
@@ -207,7 +207,7 @@ Warnings:
 Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 INSERT INTO t5 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence is');
 ALTER TABLE t5 TABLESPACE=`innodb_system`;
-ERROR HY000: Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+ERROR HY000: Request to create an 'unencrypted' table while using an 'encrypted' tablespace.
 ALTER TABLE t5 TABLESPACE=`innodb_system`, ENCRYPTION='Y';
 # Move encrypted file_per_table to a table in encrypted system tablespace
 CREATE TABLE t6(a TEXT) ENCRYPTION='Y';
@@ -234,7 +234,7 @@ t3	CREATE TABLE `t3` (
   `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 CREATE TABLE t4 (a int) ENCRYPTION='N';
-ERROR HY000: Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+ERROR HY000: Request to create an 'unencrypted' table while using an 'encrypted' tablespace.
 # Must be successful
 CREATE TABLE t5 (a int) TABLESPACE = innodb_file_per_table, ENCRYPTION='Y';
 CREATE TABLE t6 (a int) TABLESPACE = innodb_file_per_table, ENCRYPTION='N';
@@ -247,7 +247,7 @@ CREATE TABLE t3 (a int);
 ALTER TABLE t2 TABLESPACE = innodb_file_per_table;
 ERROR HY000: Source tablespace is encrypted but target tablespace is not.
 ALTER TABLE t2 ENCRYPTION='N';
-ERROR HY000: Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+ERROR HY000: Request to create an 'unencrypted' table while using an 'encrypted' tablespace.
 # Explicit N should pass
 ALTER TABLE t2 TABLESPACE = innodb_file_per_table, ENCRYPTION='N';
 Warnings:
@@ -261,7 +261,7 @@ DROP TABLE t2;
 CREATE TABLESPACE tb01 ADD DATAFILE 'tb01.ibd' ENGINE=INNODB ENCRYPTION='N';
 CREATE TABLE t2 (a int);
 ALTER TABLE t2 TABLESPACE = tb01;
-ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ERROR HY000: Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
 ALTER TABLE t2 TABLESPACE = tb01, ENCRYPTION='N';
 ERROR HY000: Source tablespace is encrypted but target tablespace is not.
 DROP TABLESPACE tb01;
@@ -278,7 +278,7 @@ SET GLOBAL innodb_file_per_table = @save_innodb_file_per_table;
 CREATE TABLE t2 (a int) TABLESPACE = innodb_system;
 CREATE TABLESPACE tb01 ADD DATAFILE 'tb01.ibd';
 ALTER TABLE t2 TABLESPACE = tb01;
-ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ERROR HY000: Request to create an 'encrypted' table while using an 'unencrypted' tablespace.
 DROP TABLE t2;
 DROP TABLESPACE tb01;
 # 4. Move table from encrypted sys tablespace to encrypted tablespace

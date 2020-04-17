@@ -4466,7 +4466,10 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
   }
 
   /* Let the startup thread proceed now */
+  mysql_mutex_lock(&resume_encryption_cond_m);
+  shared_mdl_is_taken = true;
   mysql_cond_signal(&resume_encryption_cond);
+  mysql_mutex_unlock(&resume_encryption_cond_m);
 
   /* In following loop :
       - traverse every tablespace one by one and roll forward (un)encryption

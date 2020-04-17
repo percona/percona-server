@@ -824,9 +824,9 @@ IF (USE_LD_GOLD AND NOT (C_LD_LLD_RESULT AND CXX_LD_LLD_RESULT))
   CMAKE_POP_CHECK_STATE()
 ENDIF()
 
-# Linker/binutils bug in Fedora 28, undefined reference to symbol '__bss_start'
-# Similar bug on 32bit Ubuntu.
-IF(LINUX_FEDORA_28 OR LINUX_UBUNTU_16_04)
+# Linker/binutils bug in Fedora 28, Ubuntu 16.04, Debian 8 and Debian 9,
+# undefined reference to symbol '__bss_start'
+IF(LINUX_FEDORA_28 OR LINUX_UBUNTU_16_04 OR LINUX_DEBIAN_8 OR LINUX_DEBIAN_9)
   IF(NOT CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=lld" AND
       NOT CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=gold")
     STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -Wl,--copy-dt-needed-entries")

@@ -2,65 +2,68 @@
 
 #
 # Validate that the server starts when everything is okay, but detects errors
-# if a table exists in the data dictionary but not as an .frm or vice versa.
+# if a table exists in the RocksDB data dictionary but not in the MySQL data
+# dictionary or vice versa.
 # The default mode causes these failures to keep the server from starting, but
 # this is problematic for the test as a server start failure is not easily
 # trappable.  Instead use the mode where it will detect the problem and report
 # it in the log bug still start:  --rocksdb_validate_tables=2
 #
 
-CREATE TABLE t1 (pk int primary key) ENGINE=ROCKSDB;
-CREATE TABLE t2 (pk int primary key) ENGINE=ROCKSDB PARTITION BY KEY(pk) PARTITIONS 4;
+CALL mtr.add_suppression("Schema mismatch - Table test\.t.+ is registered in RocksDB but does not have a corresponding DD table");
+CALL mtr.add_suppression("Schema mismatch - A DD table exists for table test\.t1, but that table is not registered in RocksDB");
 
---source include/restart_mysqld.inc
+--let $MYSQLD_DATADIR= `select @@datadir`
 
+# Shut down and save MySQL DD without tables
 --source include/shutdown_mysqld.inc
+--copy_file $MYSQLD_DATADIR/mysql.ibd $MYSQL_TMP_DIR/mysql.ibd.no_tables
 
---let LOG=$MYSQLTEST_VARDIR/tmp/validate_datadic.err
-
-# Rename the file
---move_file $MYSQLTEST_VARDIR/mysqld.1/data/test/t1.frm $MYSQLTEST_VARDIR/mysqld.1/data/test/t1.frm.tmp
---move_file $MYSQLTEST_VARDIR/mysqld.1/data/test/t2.frm $MYSQLTEST_VARDIR/mysqld.1/data/test/t2.frm.tmp
-
-# Attempt to restart the server
---let $restart_parameters=restart:--log-error=$LOG --rocksdb_validate_tables=2
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---source include/start_mysqld.inc
-
-# We should now have an error message
---echo "Expect errors that we are missing two .frm files"
---let SEARCH_FILE=$LOG
---let SEARCH_PATTERN=Schema mismatch
---source include/search_pattern.inc
-
-# Now shut down again and rename one the .frm file back and make a copy of it
---source include/shutdown_mysqld.inc
-
-# Clear the log
---remove_file $LOG
-
-# Rename the file
---move_file $MYSQLTEST_VARDIR/mysqld.1/data/test/t1.frm.tmp $MYSQLTEST_VARDIR/mysqld.1/data/test/t1.frm
---move_file $MYSQLTEST_VARDIR/mysqld.1/data/test/t2.frm.tmp $MYSQLTEST_VARDIR/mysqld.1/data/test/t2.frm
---copy_file $MYSQLTEST_VARDIR/mysqld.1/data/test/t1.frm $MYSQLTEST_VARDIR/mysqld.1/data/test/t1_dummy.frm
-
-# Attempt to restart the server
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---source include/start_mysqld.inc
-
-# We should now have an error message for the second case
---echo "Expect an error that we have an extra .frm file"
---let SEARCH_FILE=$LOG
---let SEARCH_PATTERN=Schema mismatch
---source include/search_pattern.inc
-
-# Shut down an clean up
---source include/shutdown_mysqld.inc
-
---remove_file $LOG
---remove_file $MYSQLTEST_VARDIR/mysqld.1/data/test/t1_dummy.frm
-
+# Restart the server
 --let $restart_parameters=
 --source include/start_mysqld.inc
 
-DROP TABLE t1, t2;
+CREATE TABLE t1 (pk int primary key) ENGINE=ROCKSDB;
+CREATE TABLE t2 (pk int primary key) ENGINE=ROCKSDB PARTITION BY KEY(pk) PARTITIONS 4;
+
+# Shut down, save MySQL DD with t1 and t2 tables, and replace MySQL DD with no tables
+--source include/shutdown_mysqld.inc
+--copy_file $MYSQLD_DATADIR/mysql.ibd $MYSQL_TMP_DIR/mysql.ibd.t1_t2
+--move_file $MYSQL_TMP_DIR/mysql.ibd.no_tables $MYSQLD_DATADIR/mysql.ibd
+
+# Restart the server
+--let $restart_parameters=restart:--rocksdb_validate_tables=2
+--source include/start_mysqld.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: rocksdb.validate_datadic
+--let $assert_count = 2
+--let $assert_select = Schema mismatch - Table test\.t.+ is registered in RocksDB but does not have a corresponding DD table
+--let $assert_text = Expect 2 warnings that we are missing two DD tables
+--source include/assert_grep.inc
+
+# Shut down and replace MySQL DD with t1 and t2 tables
+--source include/shutdown_mysqld.inc
+--remove_file $MYSQLD_DATADIR/mysql.ibd
+--copy_file $MYSQL_TMP_DIR/mysql.ibd.t1_t2 $MYSQLD_DATADIR/mysql.ibd
+
+# Restart the server
+--source include/start_mysqld.inc
+
+DROP TABLE t1;
+
+# Shut down and replace MySQL DD with t1 and t2 tables (RocksDB DD has t1 removed now)
+--source include/shutdown_mysqld.inc
+--move_file $MYSQL_TMP_DIR/mysql.ibd.t1_t2 $MYSQLD_DATADIR/mysql.ibd
+
+# Restart the server
+--source include/start_mysqld.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: rocksdb.validate_datadic
+--let $assert_count = 1
+--let $assert_select = Schema mismatch - A DD table exists for table test\.t1, but that table is not registered in RocksDB
+--let $assert_text = Expect 1 warning that we are missing one RocksDB table
+--source include/assert_grep.inc
+
+DROP TABLE t2;

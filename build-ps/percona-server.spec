@@ -141,7 +141,6 @@ Source0:        http://www.percona.com/downloads/Percona-Server-8.0/Percona-Serv
 URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>
 Vendor:         %{percona_server_vendor}
-Source4:        my_config.h
 Source5:        mysql_config.sh
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
@@ -606,9 +605,6 @@ echo "%{_libdir}/mysql" > %{buildroot}%{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}
 
 # multiarch support
 %ifarch %{multiarchs}
-#  mv %{buildroot}/%{_includedir}/mysql/my_config.h \
-#   %{buildroot}/%{_includedir}/mysql/my_config_%{_arch}.h
-  install -p -m 0644 %{SOURCE4} %{buildroot}/%{_includedir}/mysql/my_config.h
   mv %{buildroot}/%{_bindir}/mysql_config %{buildroot}/%{_bindir}/mysql_config-%{__isa_bits}
   install -p -m 0755 %{SOURCE5} %{buildroot}/%{_bindir}/mysql_config
 %endif

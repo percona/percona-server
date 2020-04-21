@@ -550,6 +550,19 @@ rm -rf %{buildroot}%{_bindir}/mysql_embedded
   rm -r $(readlink var) var
 %endif
 
+%pretrans -n Percona-Server-server%{product_suffix}
+if [ -d %{_datadir}/mysql ]; then
+  MYCNF_PACKAGE=$(rpm -qi `rpm -qf /usr/share/mysql` | grep -m 1 Name | awk '{print $3}')
+fi
+if [ "$MYCNF_PACKAGE" == "mariadb-libs" -o "$MYCNF_PACKAGE" == "mysql-libs" -o "$MYCNF_PACKAGE" == "Percona-Server-server-57" ]; then
+  MODIFIED=$(rpm -Va "$MYCNF_PACKAGE" | grep '/usr/share/mysql' | awk '{print $1}' | grep -c 5)
+  if [ "$MODIFIED" == 1 ]; then
+    cp -r %{_datadir}/mysql %{_datadir}/mysql.old
+  fi
+else
+  cp -r %{_datadir}/mysql %{_datadir}/mysql.old
+fi
+
 %pre -n Percona-Server-server%{product_suffix}
 /usr/sbin/groupadd -g 27 -o -r mysql >/dev/null 2>&1 || :
 /usr/sbin/useradd -M %{!?el5:-N} -g mysql -o -r -d /var/lib/mysql -s /bin/false \
@@ -579,12 +592,6 @@ fi
       /sbin/chkconfig --add mysql
   fi
 %endif
-
-if [ ! -d %{_datadir}/mysql ]; then
-    pushd %{_datadir}
-    ln -s percona-server mysql
-    popd
-fi
 
 %if 0%{?rhel} > 6
   MYCNF_PACKAGE="mariadb-libs"
@@ -679,6 +686,11 @@ fi
     /sbin/service mysql condrestart >/dev/null 2>&1 || :
   fi
 %endif
+
+%posttrans -n Percona-Server-server%{product_suffix}
+if [ ! -d %{_datadir}/mysql ]; then
+    ln -s %{_datadir}/percona-server %{_datadir}/mysql
+fi
 
 %post -n Percona-Server-shared%{product_suffix} -p /sbin/ldconfig
 

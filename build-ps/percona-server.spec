@@ -672,6 +672,19 @@ rm -rf $RBR%{_bindir}/ps_tokudb_admin
 #  Post processing actions, i.e. when installed
 ##############################################################################
 
+%pretrans -n Percona-Server-server%{product_suffix}
+if [ -d %{_datadir}/mysql ]; then
+  MYCNF_PACKAGE=$(rpm -qi `rpm -qf /usr/share/mysql` | grep -m 1 Name | awk '{print $3}')
+fi
+if [ "$MYCNF_PACKAGE" == "mariadb-libs" -o "$MYCNF_PACKAGE" == "mysql-libs" -o "$MYCNF_PACKAGE" == "Percona-Server-server-57" ]; then
+  MODIFIED=$(rpm -Va "$MYCNF_PACKAGE" | grep '/usr/share/mysql' | awk '{print $1}' | grep -c 5)
+  if [ "$MODIFIED" == 1 ]; then
+    cp -r %{_datadir}/mysql %{_datadir}/mysql.old
+  fi
+else
+  cp -r %{_datadir}/mysql %{_datadir}/mysql.old
+fi
+
 %pre -n Percona-Server-server%{product_suffix}
 
 # ATTENTION: Parts of this are duplicated in the "triggerpostun" !
@@ -1176,6 +1189,11 @@ fi
 %if 0%{?systemd}
 %systemd_postun_with_restart mysqld
 %endif
+
+%posttrans -n Percona-Server-server%{product_suffix}
+if [ ! -d %{_datadir}/mysql ]; then
+    ln -s %{_datadir}/percona-server %{_datadir}/mysql
+fi
 
 # ----------------------------------------------------------------------
 # Clean up the BuildRoot after build is done

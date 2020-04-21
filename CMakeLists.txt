@@ -423,6 +423,15 @@ IF (ENABLE_GPROF AND NOT WIN32 AND NOT APPLE)
     "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} -pg")
 ENDIF()
 
+# Linker/binutils bug in Fedora 28, Ubuntu 16.04, Debian 8 and Debian 9,
+# undefined reference to symbol '__bss_start'
+IF(LINUX_FEDORA_28 OR LINUX_UBUNTU_16_04 OR LINUX_DEBIAN_8 OR LINUX_DEBIAN_9)
+  IF(NOT CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=lld" AND
+     NOT CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=gold")
+    STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -Wl,--copy-dt-needed-entries")
+  ENDIF()
+ENDIF()
+
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   OPTION(REPRODUCIBLE_BUILD "Take extra pains to make build result independent of build location and time" OFF)
 ENDIF()

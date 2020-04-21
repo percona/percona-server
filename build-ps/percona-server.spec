@@ -656,6 +656,19 @@ rm -rf %{buildroot}/%{_libdir}/libmysqlrouter_http.so
   rm -r $(readlink var) var
 %endif
 
+%pretrans -n percona-server-server
+if [ -d %{_datadir}/mysql ]; then
+  MYCNF_PACKAGE=$(rpm -qi `rpm -qf /usr/share/mysql` | grep -m 1 Name | awk '{print $3}')
+fi
+if [ "$MYCNF_PACKAGE" == "mariadb-libs" -o "$MYCNF_PACKAGE" == "mysql-libs" -o "$MYCNF_PACKAGE" == "Percona-Server-server-57" ]; then
+  MODIFIED=$(rpm -Va "$MYCNF_PACKAGE" | grep '/usr/share/mysql' | awk '{print $1}' | grep -c 5)
+  if [ "$MODIFIED" == 1 ]; then
+    cp -r %{_datadir}/mysql %{_datadir}/mysql.old
+  fi
+else
+  cp -r %{_datadir}/mysql %{_datadir}/mysql.old
+fi
+
 %pre -n percona-server-server
 /usr/sbin/groupadd -g 27 -o -r mysql >/dev/null 2>&1 || :
 /usr/sbin/useradd -M %{!?el5:-N} -g mysql -o -r -d /var/lib/mysql -s /bin/false \
@@ -710,6 +723,9 @@ echo "See http://www.percona.com/doc/percona-server/8.0/management/udf_percona_t
   fi
 %endif
 if [ "$1" = 0 ]; then
+  if [ -L %{_datadir}/mysql ]; then
+      rm %{_datadir}/mysql
+  fi
   if [ -f %{_sysconfdir}/my.cnf ]; then
     cp %{_sysconfdir}/my.cnf \
     %{_sysconfdir}/my.cnf.rpmsave
@@ -724,6 +740,11 @@ fi
     /sbin/service mysql condrestart >/dev/null 2>&1 || :
   fi
 %endif
+
+%posttrans -n percona-server-server
+if [ ! -d %{_datadir}/mysql ]; then
+    ln -s %{_datadir}/percona-server %{_datadir}/mysql
+fi
 
 %post -n percona-server-shared -p /sbin/ldconfig
 

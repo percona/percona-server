@@ -137,8 +137,6 @@ extern MY_UNI_CTYPE my_uni_ctype[256];
 
 /* Flags for strxfrm */
 #define MY_STRXFRM_PAD_TO_MAXLEN 0x00000080 /* if pad tail(for filesort) */
-/* for MyRocks packing, do NOT pad with spaces, follow < 8.0.2 behavior */
-#define MY_STRXFRM_NOPAD_WITH_SPACE 0x10000000
 
 typedef struct MY_UNI_IDX {
   uint16 from;

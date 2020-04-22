@@ -176,6 +176,11 @@ SET(TESTS
   my_rcu_lock
   )
 
+OPTION(WITH_FAILING_GUNIT_TESTS "Build deliberately failing GUint tests" OFF)
+IF (WITH_FAILING_GUNIT_TESTS)
+  LIST(APPEND TESTS junit_integration)
+ENDIF()
+
 SET(ALL_SMALL_TESTS)
 FOREACH(test ${TESTS})
   LIST(APPEND ALL_SMALL_TESTS ${test}-t.cc)

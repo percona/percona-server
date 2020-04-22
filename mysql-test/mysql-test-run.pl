@@ -7364,6 +7364,7 @@ sub run_ctest() {
   $ctest_report .= "Report from unit tests in $ctfile";
   $tinfo->{failures} = ($tinfo->{result} eq 'MTR_RES_FAILED');
 
+  $tinfo->{comment} .= "\n" . $ctest_out;
   mark_time_used('test');
   mtr_report_test($tinfo);
   chdir($olddir);

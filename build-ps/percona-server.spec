@@ -660,7 +660,7 @@ rm -rf %{buildroot}/%{_libdir}/libmysqlrouter_http.so
 %endif
 
 %pretrans -n percona-server-server
-if [ -d %{_datadir}/mysql ]; then
+if [ -d %{_datadir}/mysql ] && [ ! -L %{_datadir}/mysql ]; then
   MYCNF_PACKAGE=$(rpm -qi `rpm -qf /usr/share/mysql` | grep -m 1 Name | awk '{print $3}')
 fi
 
@@ -744,7 +744,7 @@ fi
 %endif
 
 %posttrans -n percona-server-server
-if [ ! -d %{_datadir}/mysql ]; then
+if [ ! -d %{_datadir}/mysql ] && [ ! -L %{_datadir}/mysql ]; then
     ln -s %{_datadir}/percona-server %{_datadir}/mysql
 fi
 

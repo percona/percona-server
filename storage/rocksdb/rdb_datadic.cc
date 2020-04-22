@@ -2801,8 +2801,7 @@ void Rdb_key_def::pack_with_varchar_encoding(
                                   : uint2korr(field->ptr);
   size_t xfrm_len = charset->coll->strnxfrm(
       charset, buf, fpi->m_max_image_len, field_var->char_length(),
-      field_var->ptr + field_var->length_bytes, value_length,
-      MY_STRXFRM_NOPAD_WITH_SPACE);
+      field_var->ptr + field_var->length_bytes, value_length, 0);
 
   /* Got a mem-comparable image in 'buf'. Now, produce varlength encoding */
   if (fpi->m_use_legacy_varbinary_format) {
@@ -2924,7 +2923,7 @@ void Rdb_key_def::pack_with_varchar_space_pad(
   const size_t xfrm_len = charset->coll->strnxfrm(
       charset, buf, fpi->m_max_image_len, field_var->char_length(),
       reinterpret_cast<const uchar *>(src),
-      std::min<size_t>(trimmed_len, max_xfrm_len), MY_STRXFRM_NOPAD_WITH_SPACE);
+      std::min<size_t>(trimmed_len, max_xfrm_len), 0);
 
   /* Got a mem-comparable image in 'buf'. Now, produce varlength encoding */
   uchar *const buf_end = buf + xfrm_len;
@@ -3622,7 +3621,7 @@ static void rdb_get_mem_comparable_space(const CHARSET_INFO *const cs,
 
       const size_t space_len =
           cs->coll->strnxfrm(cs, space.data(), sizeof(space), 1, space_mb,
-                             space_mb_len, MY_STRXFRM_NOPAD_WITH_SPACE);
+                             space_mb_len, 0);
       Rdb_charset_space_info *const info = new Rdb_charset_space_info;
       info->space_xfrm_len = space_len;
       info->space_mb_len = space_mb_len;

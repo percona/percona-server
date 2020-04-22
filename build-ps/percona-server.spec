@@ -660,13 +660,12 @@ rm -rf %{buildroot}/%{_libdir}/libmysqlrouter_http.so
 if [ -d %{_datadir}/mysql ]; then
   MYCNF_PACKAGE=$(rpm -qi `rpm -qf /usr/share/mysql` | grep -m 1 Name | awk '{print $3}')
 fi
-if [ "$MYCNF_PACKAGE" == "mariadb-libs" -o "$MYCNF_PACKAGE" == "mysql-libs" -o "$MYCNF_PACKAGE" == "Percona-Server-server-57" ]; then
+
+if [ "$MYCNF_PACKAGE" == "mariadb-libs" -o "$MYCNF_PACKAGE" == "mysql-libs" ]; then
   MODIFIED=$(rpm -Va "$MYCNF_PACKAGE" | grep '/usr/share/mysql' | awk '{print $1}' | grep -c 5)
   if [ "$MODIFIED" == 1 ]; then
     cp -r %{_datadir}/mysql %{_datadir}/mysql.old
   fi
-else
-  cp -r %{_datadir}/mysql %{_datadir}/mysql.old
 fi
 
 %pre -n percona-server-server

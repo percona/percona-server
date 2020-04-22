@@ -7426,7 +7426,11 @@ sub run_ctest() {
   # the MTR tests.
   mtr_report("Running ctest parallel=$opt_parallel");
   $ENV{CTEST_PARALLEL_LEVEL} = $opt_parallel;
-  my $ctest_out = `ctest --test-timeout $opt_ctest_timeout $ctest_vs 2>&1`;
+
+  # Request Valgrind for unit tests if former was requested for other tests.
+  my $ctest_memcheck= $opt_valgrind_mysqld ? ' -T memcheck' : '';
+
+  my $ctest_out = `ctest --test-timeout $opt_ctest_timeout $ctest_memcheck $ctest_vs 2>&1`;
   if ($? == $no_ctest && ($opt_ctest == -1 || defined $ENV{PB2WORKDIR})) {
     chdir($olddir);
     return;

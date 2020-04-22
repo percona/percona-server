@@ -371,6 +371,13 @@ MACRO(REPORT_CXX_FLAGS)
   ENDFOREACH()
 ENDMACRO()
 
+INCLUDE(CTest)
+# Explicitly disabling BUILD_TESTING set by just included CTest, since other
+# code is not ready to handle BUILD_TESTING set. If you try to remove the
+# directive and CMake configuration and reconfiguration finishes successfully,
+# remove the hack.
+SET(BUILD_TESTING OFF)
+
 # STRING(APPEND ...) from cmake VERSION 3.4
 MACRO(STRING_APPEND STRING_VAR INPUT)
   SET(${STRING_VAR} "${${STRING_VAR}}${INPUT}")

@@ -1,4 +1,3 @@
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
 id INT,
 fake_id INT,
@@ -30,11 +29,11 @@ include/assert.inc [Baseline sanity check: 0 rocksdb_covered_secondary_key_looku
 # Eligible for optimization.
 id	bigfield
 31	ddddddddddddddddddddddddddddddd
-include/assert.inc [Eligible for optimization.: 2 rocksdb_covered_secondary_key_lookups]
+include/assert.inc [Eligible for optimization.: 0 rocksdb_covered_secondary_key_lookups]
 # Eligible for optimization, access via fake_id only
 id	bigfield
 31	ddddddddddddddddddddddddddddddd
-include/assert.inc [Eligible for optimization, access via fake_id only: 2 rocksdb_covered_secondary_key_lookups]
+include/assert.inc [Eligible for optimization, access via fake_id only: 0 rocksdb_covered_secondary_key_lookups]
 # Not eligible for optimization, access via fake_id of big row.
 id	bigfield
 33	yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
@@ -42,7 +41,7 @@ include/assert.inc [Not eligible for optimization, access via fake_id of big row
 # Eligible for optimization.
 id	bigfield
 32	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-include/assert.inc [Eligible for optimization.: 1 rocksdb_covered_secondary_key_lookups]
+include/assert.inc [Eligible for optimization.: 0 rocksdb_covered_secondary_key_lookups]
 # Not eligible for optimization.
 id	bigfield
 33	yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
@@ -50,11 +49,11 @@ include/assert.inc [Not eligible for optimization.: 0 rocksdb_covered_secondary_
 # Eligible for optimization.
 id	bigfield
 8	bbbbbbbb
-include/assert.inc [Eligible for optimization.: 2 rocksdb_covered_secondary_key_lookups]
+include/assert.inc [Eligible for optimization.: 0 rocksdb_covered_secondary_key_lookups]
 # Eligible for optimization.
 id	bigfield
 24	cccccccccccccccccccccccc
-include/assert.inc [Eligible for optimization.: 2 rocksdb_covered_secondary_key_lookups]
+include/assert.inc [Eligible for optimization.: 0 rocksdb_covered_secondary_key_lookups]
 # Not eligible for optimization.
 id	bigfield
 128	zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
@@ -70,11 +69,11 @@ Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB
 # Charset record obviously shorter than the prefix
 a	b
 1	a
-include/assert.inc [Charset record obviously shorter than the prefix: 2 rocksdb_covered_secondary_key_lookups]
+include/assert.inc [Charset record obviously shorter than the prefix: 1 rocksdb_covered_secondary_key_lookups]
 # Charset record shorter than prefix
 a	b
 2	cc
-include/assert.inc [Charset record shorter than prefix: 2 rocksdb_covered_secondary_key_lookups]
+include/assert.inc [Charset record shorter than prefix: 1 rocksdb_covered_secondary_key_lookups]
 # Charset record with glyphs shorter than prefix
 a	b
 3	ŽŽ

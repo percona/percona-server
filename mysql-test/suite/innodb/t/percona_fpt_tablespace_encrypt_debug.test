@@ -1,0 +1,43 @@
+--source include/have_debug.inc
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+
+ALTER TABLESPACE `test/t1` ENCRYPTION='Y';
+
+SHOW CREATE TABLE t1;
+
+SET DEBUG='+d, skip_dd_table_access_check';
+
+--let $assert_text = t1 dd::Table should have encryption attribute set as 'Y'
+--let $assert_cond= "[SELECT COUNT(*) FROM mysql.tables WHERE NAME=\'t1\' AND options LIKE \'%encrypt_type=Y%\']" = 1
+--source include/assert.inc
+
+--let $assert_text = t1 dd::Tablespace should have encryption attribute set as 'Y'
+--let $assert_cond= "[SELECT COUNT(*) FROM mysql.tablespaces WHERE NAME=\'test/t1\' AND options LIKE \'%encryption=Y%\']" = 1
+--source include/assert.inc
+
+ALTER TABLESPACE `test/t1` ENCRYPTION='N';
+SHOW CREATE TABLE t1;
+
+--let $assert_text = t1 dd::Table should have encryption attribute set as 'N'
+--let $assert_cond= "[SELECT COUNT(*) FROM mysql.tables WHERE NAME=\'t1\' AND options LIKE \'%encrypt_type=N%\']" = 1
+--source include/assert.inc
+
+--let $assert_text = t1 dd::Tablespace should have encryption attribute set as 'N'
+--let $assert_cond= "[SELECT COUNT(*) FROM mysql.tablespaces WHERE NAME=\'test/t1\' AND options LIKE \'%encryption=N%\']" = 1
+--source include/assert.inc
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLESPACE `test/t1` RENAME TO `test/t2`;
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLESPACE `test/t1` RENAME TO `ts2`;
+
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLESPACE ts1 RENAME TO `test/t2`;
+DROP TABLESPACE ts1;
+
+DROP TABLE t1;

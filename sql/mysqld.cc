@@ -1302,6 +1302,8 @@ char *opt_mysql_tmpdir;
 
 bool encrypt_tmp_files;
 
+ulonglong tf_sequence_table_max_upper_bound = 0;
+
 /** name of reference on left expression in rewritten IN subquery */
 const char *in_left_expr_name = "<left expr>";
 

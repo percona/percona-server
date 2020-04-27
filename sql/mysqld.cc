@@ -4501,8 +4501,8 @@ int init_common_variables() {
       key_BINLOG_LOCK_binlog_end_pos, key_BINLOG_LOCK_sync,
       key_BINLOG_LOCK_sync_queue, key_BINLOG_LOCK_xids, key_BINLOG_COND_done,
       key_BINLOG_update_cond, key_BINLOG_prep_xids_cond, key_file_binlog,
-      key_file_binlog_index, key_file_binlog_cache,
-      key_file_binlog_index_cache);
+      key_file_binlog_index, key_file_binlog_cache, key_file_binlog_index_cache,
+      key_file_binlog_index_purge, key_file_binlog_index_crash_safe);
 #endif
 
   /*
@@ -5166,7 +5166,8 @@ static int flush_auto_options(const char *fname) {
   IO_CACHE io_cache;
   int result = 0;
 
-  if ((fd = my_open(fname, O_CREAT | O_RDWR, MYF(MY_WME))) < 0) {
+  if ((fd = mysql_file_open(key_file_auto_options, fname, O_CREAT | O_RDWR,
+                            MYF(MY_WME))) < 0) {
     LogErr(ERROR_LEVEL, ER_AUTO_OPTIONS_FAILED, "file", fname, my_errno());
     return 1;
   }
@@ -5175,7 +5176,7 @@ static int flush_auto_options(const char *fname) {
                     MYF(MY_WME))) {
     LogErr(ERROR_LEVEL, ER_AUTO_OPTIONS_FAILED, "a cache on ", fname,
            my_errno());
-    my_close(fd, MYF(MY_WME));
+    mysql_file_close(fd, MYF(MY_WME));
     return 1;
   }
 
@@ -5185,7 +5186,7 @@ static int flush_auto_options(const char *fname) {
 
   if (flush_io_cache(&io_cache) || my_sync(fd, MYF(MY_WME))) result = 1;
 
-  my_close(fd, MYF(MY_WME));
+  mysql_file_close(fd, MYF(MY_WME));
   end_io_cache(&io_cache);
   return result;
 }
@@ -11101,6 +11102,8 @@ static PSI_thread_info all_server_threads[]=
 
 PSI_file_key key_file_binlog;
 PSI_file_key key_file_binlog_index;
+PSI_file_key key_file_binlog_index_purge;
+PSI_file_key key_file_binlog_index_crash_safe;
 PSI_file_key key_file_dbopt;
 PSI_file_key key_file_ERRMSG;
 PSI_file_key key_select_to_file;
@@ -11121,8 +11124,12 @@ PSI_file_key key_file_relaylog;
 PSI_file_key key_file_relaylog_cache;
 PSI_file_key key_file_relaylog_index;
 PSI_file_key key_file_relaylog_index_cache;
+PSI_file_key key_file_relaylog_index_purge;
+PSI_file_key key_file_relaylog_index_crash_safe;
 PSI_file_key key_file_sdi;
 PSI_file_key key_file_hash_join;
+PSI_file_key key_file_auto_options;
+PSI_file_key key_file_temporary;
 
 /* clang-format off */
 static PSI_file_info all_server_files[]=
@@ -11131,10 +11138,14 @@ static PSI_file_info all_server_files[]=
   { &key_file_binlog_cache, "binlog_cache", 0, 0, PSI_DOCUMENT_ME},
   { &key_file_binlog_index, "binlog_index", 0, 0, PSI_DOCUMENT_ME},
   { &key_file_binlog_index_cache, "binlog_index_cache", 0, 0, PSI_DOCUMENT_ME},
+  { &key_file_binlog_index_purge, "binlog_index_purge", 0, 0, PSI_DOCUMENT_ME},
+  { &key_file_binlog_index_crash_safe, "binlog_index_crash_safe", 0, 0, PSI_DOCUMENT_ME},
   { &key_file_relaylog, "relaylog", 0, 0, PSI_DOCUMENT_ME},
   { &key_file_relaylog_cache, "relaylog_cache", 0, 0, PSI_DOCUMENT_ME},
   { &key_file_relaylog_index, "relaylog_index", 0, 0, PSI_DOCUMENT_ME},
   { &key_file_relaylog_index_cache, "relaylog_index_cache", 0, 0, PSI_DOCUMENT_ME},
+  { &key_file_relaylog_index_purge, "relaylog_index_purge", 0, 0, PSI_DOCUMENT_ME},
+  { &key_file_relaylog_index_crash_safe, "relaylog_index_crash_safe", 0, 0, PSI_DOCUMENT_ME},
   { &key_file_io_cache, "io_cache", 0, 0, PSI_DOCUMENT_ME},
   { &key_file_casetest, "casetest", 0, 0, PSI_DOCUMENT_ME},
   { &key_file_dbopt, "dbopt", 0, 0, PSI_DOCUMENT_ME},
@@ -11155,7 +11166,9 @@ static PSI_file_info all_server_files[]=
   { &key_file_trn, "trigger", 0, 0, PSI_DOCUMENT_ME},
   { &key_file_init, "init", 0, 0, PSI_DOCUMENT_ME},
   { &key_file_sdi, "SDI", 0, 0, PSI_DOCUMENT_ME},
-  { &key_file_hash_join, "hash_join", 0, 0, PSI_DOCUMENT_ME}
+  { &key_file_hash_join, "hash_join", 0, 0, PSI_DOCUMENT_ME},
+  { &key_file_auto_options, "auto_options", 0, 0, PSI_DOCUMENT_ME},
+  { &key_file_temporary, "temporary", 0, 0, PSI_DOCUMENT_ME}
 };
 /* clang-format on */
 #endif /* HAVE_PSI_INTERFACE */

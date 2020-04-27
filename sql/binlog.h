@@ -372,6 +372,10 @@ class MYSQL_BIN_LOG : public TC_LOG {
   PSI_file_key m_key_file_log_cache;
   /** The instrumentation key to use for opening a log index cache file. */
   PSI_file_key m_key_file_log_index_cache;
+  /** The instrumentation key to use for purging log index file. */
+  PSI_file_key m_key_file_log_index_purge;
+  /** The instrumentation key to use for crash safe log index file. */
+  PSI_file_key m_key_file_log_index_crash_safe;
 
   /* POSIX thread objects are inited by init_pthread_objects() */
   mysql_mutex_t LOCK_index;
@@ -520,7 +524,9 @@ class MYSQL_BIN_LOG : public TC_LOG {
       PSI_cond_key key_COND_done, PSI_cond_key key_update_cond,
       PSI_cond_key key_prep_xids_cond, PSI_file_key key_file_log,
       PSI_file_key key_file_log_index, PSI_file_key key_file_log_cache,
-      PSI_file_key key_file_log_index_cache) {
+      PSI_file_key key_file_log_index_cache,
+      PSI_file_key key_file_log_index_purge,
+      PSI_file_key key_file_log_index_crash_safe) {
     m_key_COND_done = key_COND_done;
 
     m_key_LOCK_commit_queue = key_LOCK_commit_queue;
@@ -540,6 +546,8 @@ class MYSQL_BIN_LOG : public TC_LOG {
     m_key_file_log_index = key_file_log_index;
     m_key_file_log_cache = key_file_log_cache;
     m_key_file_log_index_cache = key_file_log_index_cache;
+    m_key_file_log_index_purge = key_file_log_index_purge;
+    m_key_file_log_index_crash_safe = key_file_log_index_crash_safe;
   }
 
  public:

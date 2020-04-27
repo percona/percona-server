@@ -22,8 +22,10 @@ if (sum_number_of_bytes_write > 0, "MANY", "NONE") as SUM_NUMBER_OF_BYTES_WRITE
 from performance_schema.file_summary_by_instance
 where file_name like "%master-%" order by file_name;
 FILE_NAME	EVENT_NAME	COUNT_READ	COUNT_WRITE	SUM_NUMBER_OF_BYTES_READ	SUM_NUMBER_OF_BYTES_WRITE
+master-bin.~rec~	wait/io/file/sql/binlog_index_purge	NONE	MANY	NONE	MANY
 master-bin.000001	wait/io/file/sql/binlog	MANY	MANY	MANY	MANY
 master-bin.index	wait/io/file/sql/binlog_index	MANY	NONE	MANY	NONE
+master-bin.index_crash_safe	wait/io/file/sql/binlog_index_crash_safe	NONE	MANY	NONE	MANY
 select * from performance_schema.file_summary_by_instance
 where file_name like "%slave-%" order by file_name;
 FILE_NAME	EVENT_NAME	OBJECT_INSTANCE_BEGIN	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT	COUNT_READ	SUM_TIMER_READ	MIN_TIMER_READ	AVG_TIMER_READ	MAX_TIMER_READ	SUM_NUMBER_OF_BYTES_READ	COUNT_WRITE	SUM_TIMER_WRITE	MIN_TIMER_WRITE	AVG_TIMER_WRITE	MAX_TIMER_WRITE	SUM_NUMBER_OF_BYTES_WRITE	COUNT_MISC	SUM_TIMER_MISC	MIN_TIMER_MISC	AVG_TIMER_MISC	MAX_TIMER_MISC
@@ -38,8 +40,10 @@ if (sum_number_of_bytes_write > 0, "MANY", "NONE") as SUM_NUMBER_OF_BYTES_WRITE
 from performance_schema.file_summary_by_instance
 where event_name like "%binlog%" order by file_name;
 FILE_NAME	EVENT_NAME	COUNT_READ	COUNT_WRITE	SUM_NUMBER_OF_BYTES_READ	SUM_NUMBER_OF_BYTES_WRITE
+master-bin.~rec~	wait/io/file/sql/binlog_index_purge	NONE	MANY	NONE	MANY
 master-bin.000001	wait/io/file/sql/binlog	MANY	MANY	MANY	MANY
 master-bin.index	wait/io/file/sql/binlog_index	MANY	NONE	MANY	NONE
+master-bin.index_crash_safe	wait/io/file/sql/binlog_index_crash_safe	NONE	MANY	NONE	MANY
 select
 EVENT_NAME,
 if (count_read > 0, "MANY", "NONE") as COUNT_READ,
@@ -53,6 +57,8 @@ wait/io/file/sql/binlog	MANY	MANY	MANY	MANY
 wait/io/file/sql/binlog_cache	NONE	NONE	NONE	NONE
 wait/io/file/sql/binlog_index	MANY	NONE	MANY	NONE
 wait/io/file/sql/binlog_index_cache	NONE	NONE	NONE	NONE
+wait/io/file/sql/binlog_index_crash_safe	NONE	MANY	NONE	MANY
+wait/io/file/sql/binlog_index_purge	NONE	MANY	NONE	MANY
 select
 EVENT_NAME,
 if (count_star > 0, "MANY", "NONE") as COUNT_STAR
@@ -84,6 +90,8 @@ wait/io/file/sql/relaylog	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
 wait/io/file/sql/relaylog_cache	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
 wait/io/file/sql/relaylog_index	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
 wait/io/file/sql/relaylog_index_cache	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+wait/io/file/sql/relaylog_index_crash_safe	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+wait/io/file/sql/relaylog_index_purge	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
 select * from performance_schema.events_waits_summary_global_by_event_name
 where event_name like "%MYSQL_RELAY_LOG%"
   and event_name not like "%MYSQL_RELAY_LOG::update_cond"
@@ -119,11 +127,15 @@ where file_name like "%slave-%"
        or file_name like "%slave-relay-bin.000002")
 order by file_name;
 FILE_NAME	EVENT_NAME	COUNT_READ	COUNT_WRITE	SUM_NUMBER_OF_BYTES_READ	SUM_NUMBER_OF_BYTES_WRITE
+slave-bin.~rec~	wait/io/file/sql/binlog_index_purge	NONE	MANY	NONE	MANY
 slave-bin.000001	wait/io/file/sql/binlog	MANY	MANY	MANY	MANY
 slave-bin.index	wait/io/file/sql/binlog_index	MANY	NONE	MANY	NONE
+slave-bin.index_crash_safe	wait/io/file/sql/binlog_index_crash_safe	NONE	MANY	NONE	MANY
+slave-relay-bin.~rec~	wait/io/file/sql/relaylog_index_purge	NONE	MANY	NONE	MANY
 slave-relay-bin.000001	wait/io/file/sql/relaylog	MANY	MANY	MANY	MANY
 slave-relay-bin.000002	wait/io/file/sql/relaylog	MANY	MANY	MANY	MANY
 slave-relay-bin.index	wait/io/file/sql/binlog_index	MANY	NONE	MANY	NONE
+slave-relay-bin.index_crash_safe	wait/io/file/sql/relaylog_index_crash_safe	NONE	MANY	NONE	MANY
 "Expect a slave binlog + binlog_index"
 select
 substring(file_name, locate("slave-", file_name)) as FILE_NAME,
@@ -135,8 +147,10 @@ if (sum_number_of_bytes_write > 0, "MANY", "NONE") as SUM_NUMBER_OF_BYTES_WRITE
 from performance_schema.file_summary_by_instance
 where event_name like "%binlog%" order by file_name;
 FILE_NAME	EVENT_NAME	COUNT_READ	COUNT_WRITE	SUM_NUMBER_OF_BYTES_READ	SUM_NUMBER_OF_BYTES_WRITE
+slave-bin.~rec~	wait/io/file/sql/binlog_index_purge	NONE	MANY	NONE	MANY
 slave-bin.000001	wait/io/file/sql/binlog	MANY	MANY	MANY	MANY
 slave-bin.index	wait/io/file/sql/binlog_index	MANY	NONE	MANY	NONE
+slave-bin.index_crash_safe	wait/io/file/sql/binlog_index_crash_safe	NONE	MANY	NONE	MANY
 slave-relay-bin.index	wait/io/file/sql/binlog_index	MANY	NONE	MANY	NONE
 select
 EVENT_NAME,
@@ -151,6 +165,8 @@ wait/io/file/sql/binlog	MANY	MANY	MANY	MANY
 wait/io/file/sql/binlog_cache	NONE	NONE	NONE	NONE
 wait/io/file/sql/binlog_index	MANY	NONE	MANY	NONE
 wait/io/file/sql/binlog_index_cache	NONE	NONE	NONE	NONE
+wait/io/file/sql/binlog_index_crash_safe	NONE	MANY	NONE	MANY
+wait/io/file/sql/binlog_index_purge	NONE	MANY	NONE	MANY
 select
 EVENT_NAME,
 if (count_star > 0, "MANY", "NONE") as COUNT_STAR
@@ -186,8 +202,10 @@ where event_name like "%relaylog%"
        or file_name like "%slave-relay-bin.000002")
 order by file_name;
 FILE_NAME	EVENT_NAME	COUNT_READ	COUNT_WRITE	SUM_NUMBER_OF_BYTES_READ	SUM_NUMBER_OF_BYTES_WRITE
+slave-relay-bin.~rec~	wait/io/file/sql/relaylog_index_purge	NONE	MANY	NONE	MANY
 slave-relay-bin.000001	wait/io/file/sql/relaylog	MANY	MANY	MANY	MANY
 slave-relay-bin.000002	wait/io/file/sql/relaylog	MANY	MANY	MANY	MANY
+slave-relay-bin.index_crash_safe	wait/io/file/sql/relaylog_index_crash_safe	NONE	MANY	NONE	MANY
 select
 EVENT_NAME,
 if (count_read > 0, "MANY", "NONE") as COUNT_READ,
@@ -201,6 +219,8 @@ wait/io/file/sql/relaylog	MANY	MANY	MANY	MANY
 wait/io/file/sql/relaylog_cache	NONE	NONE	NONE	NONE
 wait/io/file/sql/relaylog_index	MANY	NONE	NONE	NONE
 wait/io/file/sql/relaylog_index_cache	NONE	NONE	NONE	NONE
+wait/io/file/sql/relaylog_index_crash_safe	NONE	MANY	NONE	MANY
+wait/io/file/sql/relaylog_index_purge	NONE	MANY	NONE	MANY
 select
 EVENT_NAME,
 if (count_star > 0, "MANY", "NONE") as COUNT_STAR

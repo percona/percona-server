@@ -643,13 +643,7 @@ SET GLOBAL READ_ONLY = 1;
 # Connection: u1_con (mysqltest_u1@localhost/events_test).
 #
 
-<<<<<<< HEAD
-CREATE EVENT e1 ON SCHEDULE AT '2030-01-01 00:00:00' DO SET @a = 1;
-||||||| merged common ancestors
-CREATE EVENT e1 ON SCHEDULE AT '2020-01-01 00:00:00' DO SET @a = 1;
-=======
 CREATE EVENT e1 ON SCHEDULE AT '2038-01-01 00:00:00' DO SET @a = 1;
->>>>>>> 2acf164f591dafa204a8867a0c4618f4aa420fe5^
 ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
 
 ALTER EVENT e1 COMMENT 'comment';
@@ -662,13 +656,7 @@ ERROR HY000: The MySQL server is running with the --read-only option so it canno
 # Connection: root_con (root@localhost/events_test).
 #
 
-<<<<<<< HEAD
-CREATE EVENT e1 ON SCHEDULE AT '2030-01-01 00:00:00' DO SET @a = 1;
-||||||| merged common ancestors
-CREATE EVENT e1 ON SCHEDULE AT '2020-01-01 00:00:00' DO SET @a = 1;
-=======
 CREATE EVENT e1 ON SCHEDULE AT '2038-01-01 00:00:00' DO SET @a = 1;
->>>>>>> 2acf164f591dafa204a8867a0c4618f4aa420fe5^
 
 ALTER EVENT e1 COMMENT 'comment';
 

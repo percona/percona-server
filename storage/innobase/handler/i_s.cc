@@ -41,6 +41,7 @@ Created July 18, 2007 Vasil Dimov
 
 #include <mysqld_error.h>
 #include <sql_acl.h>
+#include <string>
 
 #include <m_ctype.h>
 #include <hash.h>

@@ -896,16 +896,10 @@ static inline uint int_token(const char *str,uint length)
 */
 bool consume_comment(Lex_input_stream *lip, int remaining_recursions_permitted)
 {
-<<<<<<< HEAD
-  uchar c;
-||||||| merged common ancestors
-  reg1 uchar c;
-=======
   // only one level of nested comments are allowed
   DBUG_ASSERT(remaining_recursions_permitted == 0 ||
               remaining_recursions_permitted == 1);
-  reg1 uchar c;
->>>>>>> 2acf164f591dafa204a8867a0c4618f4aa420fe5^
+  uchar c;
   while (! lip->eof())
   {
     c= lip->yyGet();

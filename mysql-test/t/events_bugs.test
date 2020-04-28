@@ -1033,13 +1033,7 @@ SET GLOBAL READ_ONLY = 1;
 --echo
 
 --error ER_OPTION_PREVENTS_STATEMENT
-<<<<<<< HEAD
-CREATE EVENT e1 ON SCHEDULE AT '2030-01-01 00:00:00' DO SET @a = 1;
-||||||| merged common ancestors
-CREATE EVENT e1 ON SCHEDULE AT '2020-01-01 00:00:00' DO SET @a = 1;
-=======
 CREATE EVENT e1 ON SCHEDULE AT '2038-01-01 00:00:00' DO SET @a = 1;
->>>>>>> 2acf164f591dafa204a8867a0c4618f4aa420fe5^
 
 --echo
 
@@ -1063,13 +1057,7 @@ DROP EVENT e1;
 
 --echo
 
-<<<<<<< HEAD
-CREATE EVENT e1 ON SCHEDULE AT '2030-01-01 00:00:00' DO SET @a = 1;
-||||||| merged common ancestors
-CREATE EVENT e1 ON SCHEDULE AT '2020-01-01 00:00:00' DO SET @a = 1;
-=======
 CREATE EVENT e1 ON SCHEDULE AT '2038-01-01 00:00:00' DO SET @a = 1;
->>>>>>> 2acf164f591dafa204a8867a0c4618f4aa420fe5^
 
 --echo
 

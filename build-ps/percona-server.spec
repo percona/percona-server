@@ -552,7 +552,7 @@ rm -rf %{buildroot}%{_bindir}/mysql_embedded
 
 %pretrans -n Percona-Server-server%{product_suffix}
 if [ -d %{_datadir}/mysql ] && [ ! -L %{_datadir}/mysql ]; then
-  MYCNF_PACKAGE=$(rpm -qi `rpm -qf /usr/share/mysql` | grep -m 1 Name | awk '{print $3}')
+  MYCNF_PACKAGE=$(rpm -qf /usr/share/mysql --queryformat "%{NAME}")
 fi
 
 if [ "$MYCNF_PACKAGE" == "mariadb-libs" -o "$MYCNF_PACKAGE" == "mysql-libs" ]; then
@@ -687,6 +687,13 @@ fi
 %endif
 
 %posttrans -n Percona-Server-server%{product_suffix}
+if [ -d %{_datadir}/mysql ] && [ ! -L %{_datadir}/mysql ]; then
+  MYCNF_PACKAGE=$(rpm -qf /usr/share/mysql --queryformat "%{NAME}")
+  if [ "$MYCNF_PACKAGE" == "file %{_datadir}/mysql is not owned by any package" ]; then
+    mv %{_datadir}/mysql %{_datadir}/mysql.old
+  fi
+fi
+
 if [ ! -d %{_datadir}/mysql ] && [ ! -L %{_datadir}/mysql ]; then
     ln -s %{_datadir}/percona-server %{_datadir}/mysql
 fi

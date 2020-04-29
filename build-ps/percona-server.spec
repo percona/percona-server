@@ -242,7 +242,8 @@ Requires:       percona-server-client
 Provides:       MySQL-server%{?_isa} = %{version}-%{release}
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
-Conflicts:      Percona-SQL-server-50 Percona-Server-server-51 Percona-Server-server-55 Percona-Server-server-56 Percona-Server-server-57
+Obsoletes:      Percona-Server-server-57
+Conflicts:      Percona-SQL-server-50 Percona-Server-server-51 Percona-Server-server-55 Percona-Server-server-56
 
 %if 0%{?systemd}
 Requires(post):   systemd
@@ -279,7 +280,8 @@ Summary:        Percona Server - Client
 Group:          Applications/Databases
 Requires:       percona-server-shared
 Provides:       mysql-client MySQL-client mysql MySQL
-Conflicts:      Percona-SQL-client-50 Percona-Server-client-51 Percona-Server-client-55 Percona-Server-client-56 Percona-Server-client-57
+Obsoletes:      Percona-Server-client-57
+Conflicts:      Percona-SQL-client-50 Percona-Server-client-51 Percona-Server-client-55 Percona-Server-client-56
 
 %description -n percona-server-client
 This package contains the standard Percona Server client and administration tools.
@@ -318,12 +320,13 @@ Requires:       perl(Sys::Hostname)
 Requires:       perl(Time::HiRes)
 Requires:       perl(Time::localtime)
 Provides:       MySQL-test%{?_isa} = %{version}-%{release}
+Provides:       mysql-test = %{version}-%{release}
+Provides:       mysql-test%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-test < %{version}-%{release}
 Obsoletes:      mysql-test < %{version}-%{release}
 Obsoletes:      mariadb-test
-Provides:       mysql-test = %{version}-%{release}
-Provides:       mysql-test%{?_isa} = %{version}-%{release}
-Conflicts:      Percona-SQL-test-50 Percona-Server-test-51 Percona-Server-test-55 Percona-Server-test-56 Percona-Server-test-57
+Obsoletes:      Percona-Server-test-57
+Conflicts:      Percona-SQL-test-50 Percona-Server-test-51 Percona-Server-test-55 Percona-Server-test-56
 
 %description -n percona-server-test
 This package contains the Percona Server regression test suite.
@@ -335,7 +338,8 @@ Summary:        Percona Server - Development header files and libraries
 Group:          Applications/Databases
 Provides:       mysql-devel = %{version}-%{release}
 Provides:       mysql-devel%{?_isa} = %{version}-%{release}
-Conflicts:      Percona-SQL-devel-50 Percona-Server-devel-51 Percona-Server-devel-55 Percona-Server-devel-56 Percona-Server-devel-57
+Conflicts:      Percona-SQL-devel-50 Percona-Server-devel-51 Percona-Server-devel-55 Percona-Server-devel-56
+Obsoletes:      Percona-Server-devel-57
 Obsoletes:      mariadb-connector-c-devel
 %if 0%{?rhel} > 6
 Obsoletes:      mariadb-devel
@@ -353,6 +357,7 @@ Group:          Applications/Databases
 Provides:       mysql-libs = %{version}-%{release}
 Provides:       mysql-libs%{?_isa} = %{version}-%{release}
 Obsoletes:      mysql-libs < %{version}-%{release}
+Obsoletes:      Percona-Server-shared-57
 Provides:       mysql-shared
 Requires(pre):  percona-server-shared-compat
 
@@ -372,6 +377,7 @@ Provides:       libmysqlclient.so.18()(64bit)
 Provides:       libmysqlclient.so.18(libmysqlclient_16)(64bit)
 Provides:       libmysqlclient.so.18(libmysqlclient_18)(64bit)
 Obsoletes:      mariadb-libs
+Obsoletes:      Percona-Server-shared-compat-57
 %else
 Obsoletes:      mysql-libs
 %endif
@@ -379,7 +385,6 @@ Conflicts:      Percona-Server-shared-51
 Conflicts:      Percona-Server-shared-55
 Conflicts:      Percona-Server-shared-55
 Conflicts:      Percona-Server-shared-56
-Conflicts:      Percona-Server-shared-57
 
 %description -n percona-server-shared-compat
 This package contains the shared compat libraries for Percona Server %{compatver}-%{percona_compatver} client

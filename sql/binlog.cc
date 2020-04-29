@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -123,42 +123,6 @@ static SHOW_VAR binlog_status_vars_detail[]=
    (char *)&binlog_snapshot_position, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
   {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
-
-/**
-  Helper class to hold a mutex for the duration of the
-  block.
-
-  Eliminates the need for explicit unlocking of mutexes on, e.g.,
-  error returns.  On passing a null pointer, the sentry will not do
-  anything.
- */
-class Mutex_sentry
-{
-public:
-  Mutex_sentry(mysql_mutex_t *mutex)
-    : m_mutex(mutex)
-  {
-    if (m_mutex)
-      mysql_mutex_lock(mutex);
-  }
-
-  ~Mutex_sentry()
-  {
-    if (m_mutex)
-      mysql_mutex_unlock(m_mutex);
-#ifndef DBUG_OFF
-    m_mutex= 0;
-#endif
-  }
-
-private:
-  mysql_mutex_t *m_mutex;
-
-  // It's not allowed to copy this object in any way
-  Mutex_sentry(Mutex_sentry const&);
-  void operator=(Mutex_sentry const&);
-};
-
 
 /**
   Helper class to switch to a new thread and then go back to the previous one,
@@ -8487,7 +8451,36 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, THD *thd,
     DBUG_RETURN(error);
 
   // @todo make this work with the group log. /sven
-  binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
+  binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(thd);
+
+  /*
+    thd->cache_mngr may be uninitialized when first transaction resulted in an
+    incident. If there is no cache manager exists for the session, then we
+    create one, so that a GTID is generated and is written prior to flushing
+    the stmt_cache.
+  */
+  if (cache_mngr == NULL)
+  {
+    if (thd->binlog_setup_trx_data() ||
+        DBUG_EVALUATE_IF("simulate_cache_creation_failure", 1, 0))
+    {
+      enum_gtid_mode gtid_mode= get_gtid_mode(GTID_MODE_LOCK_NONE);
+      if (gtid_mode == GTID_MODE_ON || gtid_mode == GTID_MODE_ON_PERMISSIVE)
+      {
+        const char *mode= gtid_mode == GTID_MODE_ON ? "ON" : "ON_PERMISSIVE";
+        std::ostringstream message;
+
+        message << "Could not create IO cache while writing an incident event "
+                   "to the binary log for query: '"<< thd->query().str <<
+                   "'. Since GTID_MODE= " << mode <<", server is unable "
+                   "to proceed with logging.";
+        handle_binlog_flush_or_sync_error(thd, true, message.str().c_str());
+        DBUG_RETURN(true);
+      }
+    }
+    else
+      cache_mngr= thd_get_cache_mngr(thd);
+  }
 
 #ifndef DBUG_OFF
   if (DBUG_EVALUATE_IF("simulate_write_incident_event_into_binlog_directly",
@@ -10086,17 +10079,22 @@ static inline int call_after_sync_hook(THD *queue_head)
                        > Indicates false if LOCK_log is already acquired
                          by the thread (happens when we are handling flush
                          error)
+  @param message Message stating the reason of the failure
 
   @return void
 */
 void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
-                                                      bool need_lock_log)
+                                                      bool need_lock_log,
+                                                      const char* message)
 {
-  char errmsg[MYSQL_ERRMSG_SIZE];
-  sprintf(errmsg, "An error occurred during %s stage of the commit. "
-          "'binlog_error_action' is set to '%s'.",
-          thd->commit_error== THD::CE_FLUSH_ERROR ? "flush" : "sync",
-          binlog_error_action == ABORT_SERVER ? "ABORT_SERVER" : "IGNORE_ERROR");
+  char errmsg[MYSQL_ERRMSG_SIZE]= {0};
+  if (!message)
+    sprintf(errmsg, "An error occurred during %s stage of the commit. "
+            "'binlog_error_action' is set to '%s'.",
+            thd->commit_error== THD::CE_FLUSH_ERROR ? "flush" : "sync",
+            binlog_error_action == ABORT_SERVER ? "ABORT_SERVER" : "IGNORE_ERROR");
+  else
+    strncpy(errmsg, message, MYSQL_ERRMSG_SIZE-1);
   if (binlog_error_action == ABORT_SERVER)
   {
     char err_buff[MYSQL_ERRMSG_SIZE + 27];
@@ -10326,7 +10324,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd)
     /*
       Handle flush error (if any) after leader finishes it's flush stage.
     */
-    handle_binlog_flush_or_sync_error(thd, false /* need_lock_log */);
+    handle_binlog_flush_or_sync_error(thd, false /* need_lock_log */, NULL);
   }
 
   publish_coordinates_for_global_status();
@@ -10455,7 +10453,7 @@ commit_stage:
     Handle sync error after we release all locks in order to avoid deadlocks
   */
   if (sync_error)
-    handle_binlog_flush_or_sync_error(thd, true /* need_lock_log */);
+    handle_binlog_flush_or_sync_error(thd, true /* need_lock_log */, NULL);
 
   /* Commit done so signal all waiting threads */
   stage_manager.signal_done(final_queue);

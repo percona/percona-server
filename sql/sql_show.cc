@@ -3188,7 +3188,7 @@ static bool show_status_array(THD *thd, const char *wild,
                          &errors);
 
           if (!my_strcasecmp(system_charset_info, wild,
-                             gtid_mode.c_ptr())) {
+                             gtid_mode.c_ptr_safe())) {
             DEBUG_SYNC_C("before_show_gtid_executed");
           }
         });

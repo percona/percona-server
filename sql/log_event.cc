@@ -4920,17 +4920,11 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         if (thd->m_digest != NULL)
           thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
-<<<<<<< HEAD
-        mysql_parse(thd, &parser_state, true);
-||||||| merged common ancestors
-        mysql_parse(thd, &parser_state);
-=======
         /*
           Prevent "hanging" of previous rewritten query in SHOW PROCESSLIST.
         */
         thd->reset_rewritten_query();
-        mysql_parse(thd, &parser_state);
->>>>>>> 50cde9ffbc7
+        mysql_parse(thd, &parser_state, true);
 
         /*
           Transaction isolation level of pure row based replicated transactions
@@ -5231,7 +5225,7 @@ end:
     Prevent rewritten query from getting "stuck" in SHOW PROCESSLIST,
     and performance_schema.threads.
   */
-  thd->rewritten_query.mem_free();
+  thd->reset_rewritten_query();
   thd->reset_query_for_display();
 
   /*

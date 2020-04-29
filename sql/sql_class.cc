@@ -4711,7 +4711,8 @@ void THD::swap_rewritten_query(String& query_arg)
   m_rewritten_query.mem_free();
   m_rewritten_query.swap(query_arg);
   // The rewritten query should always be a valid C string, just in case.
-  (void) m_rewritten_query.c_ptr_safe();
+  DBUG_EVALUATE_IF("simulate_out_of_memory",
+                    (void) NULL, (void) m_rewritten_query.c_ptr_safe());
   mysql_mutex_unlock(&LOCK_thd_query);
 }
 

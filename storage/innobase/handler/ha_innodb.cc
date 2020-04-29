@@ -20401,28 +20401,10 @@ innodb_buffer_pool_evict_uncompressed(void)
 			ut_ad(block->in_unzip_LRU_list);
 			ut_ad(block->page.in_LRU_list);
 
-<<<<<<< HEAD
 			mutex_enter(&block->mutex);
 			all_evicted = buf_LRU_free_page(&block->page, false);
 
 			if (all_evicted) {
-||||||| merged common ancestors
-			if (!buf_LRU_free_page(&block->page, false)) {
-				all_evicted = false;
-			}
-=======
-			if (!buf_LRU_free_page(&block->page, false)) {
-				all_evicted = false;
-			} else {
-				/* buf_LRU_free_page() might release
-				buf_pool_mutex temporarily.
-				have to restart the unzip_LRU scan for
-				consistency. */
-				block = UT_LIST_GET_LAST(
-					buf_pool->unzip_LRU);
-				continue;
-			}
->>>>>>> 50cde9ffbc7
 
 				mutex_enter(&buf_pool->LRU_list_mutex);
 				block = UT_LIST_GET_LAST(buf_pool->unzip_LRU);

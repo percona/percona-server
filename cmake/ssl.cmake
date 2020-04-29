@@ -274,8 +274,7 @@ MACRO (MYSQL_CHECK_SSL)
       ENDIF()
       SET(SSL_INCLUDE_DIRS ${OPENSSL_INCLUDE_DIR})
       SET(SSL_INTERNAL_INCLUDE_DIRS "")
-<<<<<<< HEAD
-      SET(SSL_DEFINES "-DHAVE_OPENSSL")
+      STRING_APPEND(SSL_DEFINES " -DHAVE_OPENSSL")
       INCLUDE(CMakePushCheckState)
       cmake_push_check_state()
       SET(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
@@ -283,11 +282,6 @@ MACRO (MYSQL_CHECK_SSL)
       CHECK_SYMBOL_EXISTS(X509_check_host "openssl/x509v3.h" HAVE_X509_CHECK_HOST)
       CHECK_SYMBOL_EXISTS(X509_check_ip "openssl/x509v3.h" HAVE_X509_CHECK_IP)
       cmake_pop_check_state()
-||||||| merged common ancestors
-      SET(SSL_DEFINES "-DHAVE_OPENSSL")
-=======
-      STRING_APPEND(SSL_DEFINES " -DHAVE_OPENSSL")
->>>>>>> 50cde9ffbc7
     ELSE()
       RESET_SSL_VARIABLES()
       FATAL_SSL_NOT_FOUND_ERROR(

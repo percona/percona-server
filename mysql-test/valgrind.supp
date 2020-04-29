@@ -1216,7 +1216,6 @@
 }
 
 {
-<<<<<<< HEAD
    Spurious dlerror_run errors on main.udf
    Memcheck:Leak
    ...
@@ -1224,8 +1223,6 @@
 }
 
 {
-||||||| merged common ancestors
-=======
    OpenSSL leak 1 static SSL
    Memcheck:Leak
    match-leak-kinds: reachable
@@ -1329,7 +1326,6 @@
 }
 
 {
->>>>>>> 50cde9ffbc7
   OpenSSL still reachable.
   Memcheck:Leak
   match-leak-kinds: reachable

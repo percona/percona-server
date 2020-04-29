@@ -39,6 +39,8 @@ call mtr.add_suppression("InnoDB: Ignoring tablespace");
 call mtr.add_suppression("InnoDB: Failed to find tablespace for table");
 call mtr.add_suppression("InnoDB: Cannot calculate statistics for table");
 call mtr.add_suppression("InnoDB: Missing .ibd file for table");
+call mtr.add_suppression("InnoDB: Cannot save statistics for table");
+call mtr.add_suppression("InnoDB: Trying to access missing tablespace [0-9]+");
 --enable_query_log
 
 --echo # Shut down the server

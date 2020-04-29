@@ -643,6 +643,7 @@ static int element_comparator(void *null_arg MY_ATTRIBUTE((unused)), uchar *lhs,
   return (lkey < rkey ? -1 : (lkey > rkey ? 1 : 0));
 }
 
+#ifndef DBUG_OFF
 static my_bool is_tree_heap(uint index, QUEUE *queue)
 {
   uint left, right;
@@ -672,6 +673,7 @@ static my_bool is_queue_valid(QUEUE *queue)
 
   return is_tree_heap(1, queue);
 }
+#endif
 
 static void remove_queue_element_test()
 {

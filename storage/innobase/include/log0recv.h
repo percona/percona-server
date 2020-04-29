@@ -370,16 +370,7 @@ struct recv_dblwr_t {
   recv_dblwr_t() : deferred(), pages() {}
 
   /** Add a page frame to the doublewrite recovery buffer. */
-  void add(byte *page) { pages.push_back(page); }
-
-  /** Add a page frame to sys_list and the global list of double
-  write pages. The separate list is used to decrypt doublewrite
-  buffer pages of encrypted system tablespace
-  @param[in]	page	doublwrite buffer page */
-  void add_to_sys(byte *page) {
-    sys_pages.push_back(page);
-    pages.push_back(page);
-  }
+  void add(const byte *page) { pages.push_back(page); }
 
   /** Find a doublewrite copy of a page.
   @param[in]	space_id	tablespace identifier
@@ -388,7 +379,7 @@ struct recv_dblwr_t {
   @retval NULL if no page was found */
   const byte *find_page(space_id_t space_id, page_no_t page_no);
 
-  using List = std::list<byte *>;
+  using List = std::list<const byte *>;
 
   struct Page {
     /** Default constructor */
@@ -425,18 +416,6 @@ struct recv_dblwr_t {
 
   /** Recovered doublewrite buffer page frames */
   List pages;
-
-  /** Pages from system tablespace doublewrite buffer.
-  If encrypted, these pages should be decrypted with system tablespace
-  encryption key. Other pages from parallel double write buffer should
-  be decrypted with their respective tablespace encryption key */
-  List sys_pages;
-
-  /** Decrypt double write buffer pages if system tablespace is
-  encrypted. This function process only pages from sys_pages list.
-  Other pages from parallel doublewrite buffer will be decrypted after
-  tablespace objects are loaded. */
-  void decrypt_sys_dblwr_pages();
 
   // Disable copying
   recv_dblwr_t(const recv_dblwr_t &) = delete;

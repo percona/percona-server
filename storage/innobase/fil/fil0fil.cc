@@ -7753,21 +7753,6 @@ static bool fil_keyring_skip_encryption(const page_id_t &page_id) {
 @param[in]	space		table space */
 void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
                            fil_space_t *space) {
-  /* Explicit request to disable encryption */
-  if (req_type.is_encryption_disabled()) {
-    req_type.clear_encrypted();
-    return;
-  }
-
-  /* Don't encrypt pages of system tablespace upto
-  TRX_SYS_PAGE(including). The doublewrite buffer
-  header is on TRX_SYS_PAGE */
-  if (fsp_is_system_tablespace(space->id) && space->crypt_data == nullptr &&
-      page_id.page_no() <= FSP_TRX_SYS_PAGE_NO) {
-    req_type.clear_encrypted();
-    return;
-  }
-
   /* Don't encrypt page 0 of all tablespaces except redo log
   tablespace, all pages from the system tablespace. */
   if (space->encryption_type == Encryption::NONE ||

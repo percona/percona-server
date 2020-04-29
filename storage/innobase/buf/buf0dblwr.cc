@@ -39,7 +39,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
-#include "os0file.h"
 #include "page0zip.h"
 #include "srv0srv.h"
 #include "srv0start.h"
@@ -528,7 +527,7 @@ dberr_t buf_dblwr_init_or_load_pages(pfs_os_file_t file, const char *path) {
       }
 
     } else {
-      recv_dblwr.add_to_sys(page);
+      recv_dblwr.add(page);
     }
 
     page += univ_page_size.physical();
@@ -624,14 +623,9 @@ dberr_t buf_dblwr_init_or_load_pages(pfs_os_file_t file, const char *path) {
       return (DB_ERROR);
     }
 
-    byte zero_page[UNIV_PAGE_SIZE_MAX] = {0};
     for (page = recovery_buf; page < recovery_buf + size;
          page += UNIV_PAGE_SIZE) {
-      /* Skip all zero pages */
-      const ulint checksum = mach_read_from_4(page + FIL_PAGE_SPACE_OR_CHKSUM);
-
-      if (checksum != 0 || memcmp(page, zero_page, UNIV_PAGE_SIZE) != 0)
-        recv_dblwr.add(page);
+      recv_dblwr.add(page);
     }
     buf_parallel_dblwr_close();
   }
@@ -667,7 +661,7 @@ void buf_parallel_dblwr_finish_recovery() noexcept {
 @param[in]	page_no		Page number in the tablespace
 @param[in]	page		Page data to write */
 static void buf_dblwr_recover_page(page_no_t page_no_dblwr, fil_space_t *space,
-                                   page_no_t page_no, page_t *page) {
+                                   page_no_t page_no, const page_t *page) {
   byte *ptr;
   byte *read_buf;
 
@@ -721,13 +715,7 @@ static void buf_dblwr_recover_page(page_no_t page_no_dblwr, fil_space_t *space,
       BlockReporter dblwr_buf_page(true, page, page_size,
                                    fsp_is_checksum_disabled(space->id));
 
-      dberr_t err = DB_SUCCESS;
-
-      if (space->crypt_data ==
-          NULL)  // if it was crypt_data encrypted it was already decrypted
-        err = os_dblwr_decrypt_page(space, page);
-
-      if (err != DB_SUCCESS || dblwr_buf_page.is_corrupted()) {
+      if (dblwr_buf_page.is_corrupted()) {
         ib::error(ER_IB_MSG_107) << "Dump of the page:";
         buf_page_print(read_buf, page_size, BUF_PAGE_PRINT_NO_CRASH);
 
@@ -798,7 +786,7 @@ void buf_dblwr_process() {
 
   for (auto i = dblwr.pages.begin(); i != dblwr.pages.end();
        ++i, ++page_no_dblwr) {
-    byte *page = *i;
+    const byte *page = *i;
     page_no_t page_no = page_get_page_no(page);
     space_id_t space_id = page_get_space_id(page);
 
@@ -1070,50 +1058,6 @@ static void buf_dblwr_write_block_to_datafile(
   }
 }
 
-/** Encrypt a page in doublewerite buffer shard. The page is
-encrypted using its tablespace key.
-@param[in]	block		the buffer pool block for the page
-@param[in,out]	dblwr_page	in: unencrypted page
-out: encrypted page (if tablespace is
-encrypted */
-static void buf_dblwr_encrypt_page(const buf_block_t *block,
-                                   page_t *dblwr_page) {
-  const auto space_id = block->page.id.space();
-  fil_space_t *space = fil_space_acquire_silent(space_id);
-
-  if (space == nullptr) {
-    /* Tablespace dropped */
-    return;
-  }
-
-  byte *encrypted_buf = static_cast<byte *>(ut_zalloc_nokey(UNIV_PAGE_SIZE));
-  ut_a(encrypted_buf != nullptr);
-
-  const page_size_t page_size(space->flags);
-  const bool success =
-      os_dblwr_encrypt_page(space, dblwr_page, encrypted_buf, UNIV_PAGE_SIZE);
-
-  if (success) {
-    memcpy(dblwr_page, encrypted_buf, page_size.physical());
-  }
-
-  ut_free(encrypted_buf);
-
-  fil_space_release(space);
-}
-
-/* Disable encryption of Page 0 of any tablespace or if it is system
-tablespace, do not encrypt pages upto TRX_SYS_PAGE_NO (including).
-TRX_SYS_PAGE should be not encrypted because dblwr buffer is found
-from this page
-@param[in]	block	buffer block
-@return true if encryption should be disabled for the block, else false */
-static bool buf_dblwr_disable_encryption(const buf_block_t &block) noexcept {
-  return (block.page.id.page_no() == 0 ||
-          (block.page.id.space() == TRX_SYS_SPACE &&
-           block.page.id.page_no() <= TRX_SYS_PAGE_NO));
-}
-
 /** Flushes possible buffered writes from the specified partition of
 the doublewrite memory buffer to disk, and also wakes up the aio
 thread if simulated aio is used. It is very important to call this
@@ -1154,15 +1098,11 @@ void buf_dblwr_flush_buffered_writes(ulint dblwr_partition) noexcept {
 
   write_buf = dblwr_shard->write_buf;
 
-  const bool encrypt_parallel_dblwr = srv_parallel_dblwr_encrypt;
-
   for (ulint len2 = 0, i = 0; i < dblwr_shard->first_free;
        len2 += UNIV_PAGE_SIZE, i++) {
     const buf_block_t *block;
 
     block = reinterpret_cast<buf_block_t *>(dblwr_shard->buf_block_arr[i]);
-
-    page_t *dblwr_page = write_buf + len2;
 
     if (buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE ||
         block->page.zip.data) {
@@ -1177,14 +1117,7 @@ void buf_dblwr_flush_buffered_writes(ulint dblwr_partition) noexcept {
 
     /* Check that the page as written to the doublewrite
     buffer has sane LSN values. */
-    buf_dblwr_check_page_lsn(dblwr_page);
-
-    // it can be already encrypted by encryption threads
-    FilSpace space(TRX_SYS_SPACE);
-    if (encrypt_parallel_dblwr && space()->crypt_data == nullptr &&
-        !buf_dblwr_disable_encryption(*block)) {
-      buf_dblwr_encrypt_page(block, dblwr_page);
-    }
+    buf_dblwr_check_page_lsn(write_buf + len2);
   }
 
   len = dblwr_shard->first_free * UNIV_PAGE_SIZE;
@@ -1379,12 +1312,6 @@ retry:
   write it. This is so because we want to pad the remaining
   bytes in the doublewrite page with zeros. */
 
-  IORequest write_request(IORequest::WRITE);
-
-  if (buf_dblwr_disable_encryption(*(buf_block_t *)bpage)) {
-    write_request.disable_encryption();
-  }
-
   if (bpage->size.is_compressed()) {
     memcpy(buf_dblwr->write_buf + univ_page_size.physical() * i,
            bpage->zip.data, bpage->size.physical());
@@ -1393,7 +1320,7 @@ retry:
                bpage->size.physical(),
            0x0, univ_page_size.physical() - bpage->size.physical());
 
-    err = fil_io(write_request, true, page_id_t(TRX_SYS_SPACE, offset),
+    err = fil_io(IORequestWrite, true, page_id_t(TRX_SYS_SPACE, offset),
                  univ_page_size, 0, univ_page_size.physical(),
                  (void *)(buf_dblwr->write_buf + univ_page_size.physical() * i),
                  NULL);

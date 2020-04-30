@@ -1004,9 +1004,8 @@ static void buf_dblwr_check_block(
       /* TODO: validate also non-index pages */
       return;
     case FIL_PAGE_TYPE_ALLOCATED:
-      /* empty pages could be flushed by encryption threads
-         and scrubbing */
-      return;
+      /* empty pages should never be flushed */
+      break;
   }
 
   buf_dblwr_assert_on_corrupt_block(block);

@@ -585,10 +585,8 @@ void partition_info::set_show_version_string(String *packet) {
       /* No new functions in partition function */
       packet->append(STRING_WITH_LEN("\n/*!50100"));
     } else {
-      char buf[65];
-      char *buf_ptr = longlong10_to_str((longlong)version, buf, 10);
       packet->append(STRING_WITH_LEN("\n/*!"));
-      packet->append(buf, (size_t)(buf_ptr - buf));
+      packet->append_longlong(version);
     }
   }
 }
@@ -836,11 +834,7 @@ char *partition_info::find_duplicate_field() {
   @brief Get part_elem and part_id from partition name
 
   @param partition_name Name of partition to search for.
-  @param [out] file_name Partition file name (part after table name,
-                        @code
-                        #P#<part>[#SP#<subpart>]
-                        @endcode
-                        ), skipped if NULL.
+
   @param [out] part_id   Id of found partition or NOT_A_PARTITION_ID.
 
   @retval Pointer to part_elem of [sub]partition, if not found NULL
@@ -851,7 +845,6 @@ char *partition_info::find_duplicate_field() {
   the partition, but part_id will be NOT_A_PARTITION_ID and file_name not set.
 */
 partition_element *partition_info::get_part_elem(const char *partition_name,
-                                                 char *file_name,
                                                  uint32 *part_id) {
   List_iterator<partition_element> part_it(partitions);
   uint i = 0;
@@ -867,9 +860,6 @@ partition_element *partition_info::get_part_elem(const char *partition_name,
         partition_element *sub_part_elem = sub_part_it++;
         if (!my_strcasecmp(system_charset_info, sub_part_elem->partition_name,
                            partition_name)) {
-          if (file_name)
-            create_subpartition_name(file_name, "", part_elem->partition_name,
-                                     partition_name);
           *part_id = j + (i * num_subparts);
           return sub_part_elem;
         }
@@ -881,7 +871,6 @@ partition_element *partition_info::get_part_elem(const char *partition_name,
         return part_elem;
     } else if (!my_strcasecmp(system_charset_info, part_elem->partition_name,
                               partition_name)) {
-      if (file_name) create_partition_name(file_name, "", partition_name, true);
       *part_id = i;
       return part_elem;
     }
@@ -1253,7 +1242,7 @@ bool partition_info::compare_column_values(
 */
 
 bool partition_info::check_list_constants(THD *thd) {
-  uint i, size_entries, num_column_values;
+  uint size_entries, num_column_values;
   uint list_index = 0;
   part_elem_value *list_value;
   bool result = true;
@@ -1280,7 +1269,7 @@ bool partition_info::check_list_constants(THD *thd) {
     list.
   */
 
-  i = 0;
+  uint part_id = 0;
   do {
     part_def = list_func_it++;
     if (part_def->has_null_value) {
@@ -1289,12 +1278,12 @@ bool partition_info::check_list_constants(THD *thd) {
         goto end;
       }
       has_null_value = true;
-      has_null_part_id = i;
+      has_null_part_id = part_id;
       found_null = true;
     }
     List_iterator<part_elem_value> list_val_it1(part_def->list_val_list);
     while (list_val_it1++) num_list_values++;
-  } while (++i < num_parts);
+  } while (++part_id < num_parts);
   list_func_it.rewind();
   num_column_values = part_field_list.elements;
   size_entries = column_list
@@ -1309,19 +1298,19 @@ bool partition_info::check_list_constants(THD *thd) {
     part_column_list_val *loc_list_col_array;
     loc_list_col_array = (part_column_list_val *)ptr;
     list_col_array = (part_column_list_val *)ptr;
-    i = 0;
+    part_id = 0;
     do {
       part_def = list_func_it++;
       List_iterator<part_elem_value> list_val_it2(part_def->list_val_list);
       while ((list_value = list_val_it2++)) {
         part_column_list_val *col_val = list_value->col_val_array;
-        if (unlikely(fix_column_value_functions(thd, list_value, i))) {
+        if (unlikely(fix_column_value_functions(thd, list_value, part_id))) {
           return true;
         }
         memcpy(loc_list_col_array, (const void *)col_val, size_entries);
         loc_list_col_array += num_column_values;
       }
-    } while (++i < num_parts);
+    } while (++part_id < num_parts);
 
     varlen_sort(list_col_array,
                 list_col_array + num_list_values * num_column_values,
@@ -1337,7 +1326,7 @@ bool partition_info::check_list_constants(THD *thd) {
     }
   } else {
     list_array = (LIST_PART_ENTRY *)ptr;
-    i = 0;
+    part_id = 0;
     /*
       Fix to be able to reuse signed sort functions also for unsigned
       partition functions.
@@ -1351,9 +1340,9 @@ bool partition_info::check_list_constants(THD *thd) {
       while ((list_value = list_val_it2++)) {
         calc_value = list_value->value | type_add;
         list_array[list_index].list_value = calc_value;
-        list_array[list_index++].partition_id = i;
+        list_array[list_index++].partition_id = part_id;
       }
-    } while (++i < num_parts);
+    } while (++part_id < num_parts);
 
     LIST_PART_ENTRY *list_array_end = list_array + num_list_values;
     std::sort(list_array, list_array_end,
@@ -1650,7 +1639,7 @@ void partition_info::print_no_partition_found(THD *thd, TABLE *table_arg) {
       if (part_expr->null_value)
         buf_ptr = "NULL";
       else
-        longlong2str(err_value, buf, part_expr->unsigned_flag ? 10 : -10);
+        longlong10_to_str(err_value, buf, part_expr->unsigned_flag ? 10 : -10);
       dbug_tmp_restore_column_map(table_arg->read_set, old_map);
     }
     my_error(ER_NO_PARTITION_FOR_GIVEN_VALUE, MYF(0), buf_ptr);
@@ -2552,13 +2541,15 @@ bool partition_info::has_same_partitioning(partition_info *new_part_info) {
   }
 
   /* Check that it will use the same fields in KEY (fields) list. */
-  List_iterator<char> old_field_name_it(part_field_list);
-  List_iterator<char> new_field_name_it(new_part_info->part_field_list);
-  char *old_name, *new_name;
-  while ((old_name = old_field_name_it++)) {
-    new_name = new_field_name_it++;
-    if (!new_name || my_strcasecmp(system_charset_info, new_name, old_name))
-      return false;
+  {
+    List_iterator<char> old_field_name_it(part_field_list);
+    List_iterator<char> new_field_name_it(new_part_info->part_field_list);
+    char *old_name, *new_name;
+    while ((old_name = old_field_name_it++)) {
+      new_name = new_field_name_it++;
+      if (!new_name || my_strcasecmp(system_charset_info, new_name, old_name))
+        return false;
+    }
   }
 
   if (is_sub_partitioned()) {
@@ -2931,6 +2922,6 @@ bool partition_info::init_partition_bitmap(MY_BITMAP *bitmap,
     mem_alloc_error(bitmap_bytes);
     return true;
   }
-  bitmap_init(bitmap, bitmap_buf, bitmap_bits, false);
+  bitmap_init(bitmap, bitmap_buf, bitmap_bits);
   return false;
 }

@@ -492,16 +492,14 @@ static void set_param_int64(Item_param *param, uchar **pos, ulong len) {
 }
 
 static void set_param_float(Item_param *param, uchar **pos, ulong len) {
-  float data;
   if (len < 4) return;
-  float4get(&data, *pos);
+  float data = float4get(*pos);
   param->set_double((double)data);
 }
 
 static void set_param_double(Item_param *param, uchar **pos, ulong len) {
-  double data;
   if (len < 8) return;
-  float8get(&data, *pos);
+  double data = float8get(*pos);
   param->set_double(data);
 }
 
@@ -547,25 +545,33 @@ static void set_param_time(Item_param *param, uchar **pos, ulong len) {
 
 static void set_param_datetime(Item_param *param, uchar **pos, ulong len) {
   MYSQL_TIME tm;
+  enum_mysql_timestamp_type type = MYSQL_TIMESTAMP_DATETIME;
+  uchar *to = *pos;
 
-  if (len >= 4) {
-    uchar *to = *pos;
-
-    tm.neg = 0;
+  DBUG_ASSERT(len == 0 || len == 4 || len == 7 || len == 11 || len == 13);
+  if (len < 4) {
+    set_zero_time(&tm, MYSQL_TIMESTAMP_DATETIME);
+  } else {
+    tm.neg = false;
     tm.year = (uint)sint2korr(to);
     tm.month = (uint)to[2];
     tm.day = (uint)to[3];
-    if (len > 4) {
-      tm.hour = (uint)to[4];
-      tm.minute = (uint)to[5];
-      tm.second = (uint)to[6];
-    } else
-      tm.hour = tm.minute = tm.second = 0;
+  }
+  if (len >= 7) {
+    tm.hour = (uint)to[4];
+    tm.minute = (uint)to[5];
+    tm.second = (uint)to[6];
+  } else  // len == 4
+    tm.hour = tm.minute = tm.second = 0;
 
-    tm.second_part = (len > 7) ? (ulong)sint4korr(to + 7) : 0;
-  } else
-    set_zero_time(&tm, MYSQL_TIMESTAMP_DATETIME);
-  param->set_time(&tm, MYSQL_TIMESTAMP_DATETIME,
+  tm.second_part =
+      (len >= 11) ? static_cast<std::uint64_t>(sint4korr(to + 7)) : 0;
+
+  if (len >= 13) {
+    tm.time_zone_displacement = sint2korr(to + 11) * SECS_PER_MIN;
+    type = MYSQL_TIMESTAMP_DATETIME_TZ;
+  }
+  param->set_time(&tm, type,
                   MAX_DATETIME_FULL_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
 }
 
@@ -581,7 +587,7 @@ static void set_param_date(Item_param *param, uchar **pos, ulong len) {
 
     tm.hour = tm.minute = tm.second = 0;
     tm.second_part = 0;
-    tm.neg = 0;
+    tm.neg = false;
   } else
     set_zero_time(&tm, MYSQL_TIMESTAMP_DATE);
   param->set_time(&tm, MYSQL_TIMESTAMP_DATE,
@@ -948,11 +954,11 @@ bool Prepared_statement::insert_params_from_vars(List<LEX_STRING> &varnames,
     query->append(m_query_string.str + length, m_query_string.length - length);
 
   mysql_mutex_unlock(&thd->LOCK_thd_data);
-  return 0;
+  return false;
 
 error:
   mysql_mutex_unlock(&thd->LOCK_thd_data);
-  return 1;
+  return true;
 }
 
 /**
@@ -3182,7 +3188,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor) {
   if (!error) {
     // Execute
     if (open_cursor) {
-      lex->safe_to_cache_query = 0;
+      lex->safe_to_cache_query = false;
       // Initialize Query_result_send before opening the cursor
       if (thd->is_classic_protocol())
         result = new (m_arena.mem_root) Query_fetch_protocol_binary(thd);
@@ -3542,11 +3548,8 @@ bool Protocol_local::store_longlong(longlong value, bool, uint32) {
 
 bool Protocol_local::store_decimal(const my_decimal *value, uint prec,
                                    uint dec) {
-  char buf[DECIMAL_MAX_STR_LENGTH];
-  String str(buf, sizeof(buf), &my_charset_bin);
-  int rc;
-
-  rc = my_decimal2string(E_DEC_FATAL_ERROR, value, prec, dec, '0', &str);
+  StringBuffer<DECIMAL_MAX_STR_LENGTH> str;
+  const int rc = my_decimal2string(E_DEC_FATAL_ERROR, value, prec, dec, &str);
 
   if (rc) return true;
 
@@ -3706,7 +3709,7 @@ bool Protocol_local::start_result_metadata(uint elements, uint,
   start_row();
   m_send_metadata = true;
   m_rset = new (&m_rset_root) List<Ed_row>;
-  return 0;
+  return false;
 }
 
 bool Protocol_local::end_result_metadata() {

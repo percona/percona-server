@@ -162,6 +162,9 @@ int Primary_election_handler::execute_primary_election(
     }
 
     set_election_running(true);
+    if (!primary_uuid.compare(local_member_info->get_uuid())) {
+      print_gtid_info_in_log();
+    }
     if (!legacy_election) {
       std::string message;
       if (DEAD_OLD_PRIMARY == mode)
@@ -204,6 +207,41 @@ end:
   delete all_members_info;
   delete primary_member_info;
   return 0;
+}
+
+void Primary_election_handler::print_gtid_info_in_log() {
+  Replication_thread_api applier_channel("group_replication_applier");
+  std::string applier_retrieved_gtids;
+  std::string server_executed_gtids;
+  Sql_service_command_interface *sql_command_interface =
+      new Sql_service_command_interface();
+  if (sql_command_interface->establish_session_connection(
+          PSESSION_DEDICATED_THREAD, GROUPREPL_USER, get_plugin_pointer())) {
+    /* purecov: begin inspected */
+    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_CONN_INTERNAL_PLUGIN_FAIL);
+    goto err;
+    /* purecov: end */
+  }
+  if (sql_command_interface->get_server_gtid_executed(server_executed_gtids)) {
+    /* purecov: begin inspected */
+    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_GTID_EXECUTED_EXTRACT_ERROR);
+    goto err;
+    /* purecov: inspected */
+  }
+  if (applier_channel.get_retrieved_gtid_set(applier_retrieved_gtids)) {
+    /* purecov: begin inspected */
+    LogPluginErr(WARNING_LEVEL,
+                 ER_GRP_RPL_GTID_SET_EXTRACT_ERROR); /* purecov: inspected */
+    goto err;
+    /* purecov: end */
+  }
+  LogPluginErr(INFORMATION_LEVEL, ER_GR_ELECTED_PRIMARY_GTID_INFORMATION,
+               "gtid_executed", server_executed_gtids.c_str());
+  LogPluginErr(INFORMATION_LEVEL, ER_GR_ELECTED_PRIMARY_GTID_INFORMATION,
+               "applier channel received_transaction_set",
+               applier_retrieved_gtids.c_str());
+err:
+  delete sql_command_interface;
 }
 
 int Primary_election_handler::internal_primary_election(
@@ -374,10 +412,10 @@ bool Primary_election_handler::pick_primary_member(
     }
   }
 
-  if (the_primary == NULL) return 1;
+  if (the_primary == NULL) return true;
 
   primary_uuid.assign(the_primary->get_uuid());
-  return 0;
+  return false;
 }
 
 std::vector<Group_member_info *>::iterator

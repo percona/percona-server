@@ -26,6 +26,7 @@
 
 #include <mysql/components/services/log_builtins.h>
 #include "my_dbug.h"
+#include "mysqld_error.h"
 
 using std::string;
 
@@ -35,7 +36,8 @@ int Replication_thread_api::initialize_channel(
     char *ssl_key, char *ssl_crl, char *ssl_crlpath,
     bool ssl_verify_server_cert, int priority, int retry_count,
     bool preserve_logs, char *public_key_path, bool get_public_key,
-    char *compression_algorithm, uint zstd_compression_level) {
+    char *compression_algorithm, uint zstd_compression_level, char *tls_version,
+    char *tls_ciphersuites) {
   DBUG_TRACE;
   int error = 0;
 
@@ -69,7 +71,8 @@ int Replication_thread_api::initialize_channel(
 
   if (use_ssl || ssl_ca != NULL || ssl_capath != NULL || ssl_cert != NULL ||
       ssl_cipher != NULL || ssl_key != NULL || ssl_crl != NULL ||
-      ssl_crlpath != NULL || ssl_verify_server_cert) {
+      ssl_crlpath != NULL || ssl_verify_server_cert || tls_version != NULL ||
+      tls_ciphersuites != NULL) {
     ssl_info.use_ssl = use_ssl;
     ssl_info.ssl_ca_file_name = ssl_ca;
     ssl_info.ssl_ca_directory = ssl_capath;
@@ -79,6 +82,8 @@ int Replication_thread_api::initialize_channel(
     ssl_info.ssl_crl_file_name = ssl_crl;
     ssl_info.ssl_crl_directory = ssl_crlpath;
     ssl_info.ssl_verify_server_cert = ssl_verify_server_cert;
+    ssl_info.tls_version = tls_version;
+    ssl_info.tls_ciphersuites = tls_ciphersuites;
     info.ssl_info = &ssl_info;
   }
 
@@ -348,4 +353,9 @@ int Replication_thread_api::rpl_channel_stop_all(int threads_to_stop,
     }
   }
   return error;
+}
+
+int Replication_thread_api::rpl_binlog_dump_thread_kill() {
+  DBUG_TRACE;
+  return binlog_dump_thread_kill();
 }

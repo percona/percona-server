@@ -26,6 +26,7 @@ INCLUDE(CheckSymbolExists)
 INCLUDE(CheckCSourceRuns)
 
 SET(LINUX 1)
+SET(TARGET_OS_LINUX 1)
 
 IF(EXISTS "/etc/SuSE-release")
   SET(LINUX_SUSE 1)
@@ -41,6 +42,22 @@ IF(EXISTS "/etc/fedora-release")
   IF(FEDORA_RELEASE MATCHES "Fedora" AND
       FEDORA_RELEASE MATCHES "28")
     SET(LINUX_FEDORA_28 1)
+  ENDIF()
+ENDIF()
+
+IF(EXISTS "/etc/os-release")
+  FILE(READ "/etc/os-release" MY_OS_RELEASE)
+  IF(MY_OS_RELEASE MATCHES "Ubuntu" AND
+      MY_OS_RELEASE MATCHES "16.04")
+    SET(LINUX_UBUNTU_16_04 1)
+  ENDIF()
+  IF(MY_OS_RELEASE MATCHES "Debian")
+    IF(MY_OS_RELEASE MATCHES "jessie")
+      SET(LINUX_DEBIAN_8 1)
+    ENDIF()
+    IF(MY_OS_RELEASE MATCHES "stretch")
+      SET(LINUX_DEBIAN_9 1)
+    ENDIF()
   ENDIF()
 ENDIF()
 

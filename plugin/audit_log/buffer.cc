@@ -26,6 +26,7 @@
 #include "mysql/psi/psi_cond.h"
 #include "mysql/psi/psi_mutex.h"
 #include "mysql/service_mysql_alloc.h"
+#include "template_utils.h"
 #include "thr_mutex.h"
 
 struct audit_log_buffer_t {

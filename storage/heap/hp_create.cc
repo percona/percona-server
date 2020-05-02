@@ -24,6 +24,8 @@
 #include <sys/types.h>
 #include <time.h>
 
+#include <algorithm>
+
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
@@ -190,7 +192,8 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
       We store uchar* del_link inside the data area of deleted records,
       so the data length should be at least sizeof(uchar*)
     */
-    set_if_bigger(chunk_dataspace_length, sizeof(uchar **));
+    chunk_dataspace_length =
+        std::max(chunk_dataspace_length, static_cast<uint>(sizeof(uchar **)));
 
     if (is_variable_size) {
       chunk_length = chunk_dataspace_length + VARIABLE_REC_OVERHEAD;
@@ -307,8 +310,8 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
         keyseg->null_bit = 0;
         keyseg++;
 
-        init_tree(&keyinfo->rb_tree, 0, 0, sizeof(uchar *), keys_compare, 1,
-                  NULL, NULL);
+        init_tree(&keyinfo->rb_tree, 0, sizeof(uchar *), keys_compare, true,
+                  nullptr, nullptr);
         keyinfo->delete_key = hp_rb_delete_key;
         keyinfo->write_key = hp_rb_write_key;
       } else {
@@ -428,7 +431,7 @@ static inline void heap_try_free(HP_SHARE *share) {
   if (share->open_count == 0)
     hp_free(share);
   else
-    share->delete_on_close = 1;
+    share->delete_on_close = true;
 }
 
 int heap_delete_table(const char *name) {

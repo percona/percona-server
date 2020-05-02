@@ -113,6 +113,14 @@ ADD_DEFINITIONS(-DMYSQL_SERVER)
 ADD_DEFINITIONS(-DLOG_SUBSYSTEM_TAG="Repl")
 ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="group_replication")
 
+IF(GROUP_REPLICATION_WITH_ROCKSDB)
+  ADD_COMPILE_DEFINITIONS(src/observer_trans.cc src/asynchronous_channels_state_observer.cc
+                    COMPILE_DEFINITIONS "GROUP_REPLICATION_WITH_ROCKSDB")
+  MESSAGE(STATUS "GROUP_REPLICATION_WITH_ROCKSDB is turned on")
+ELSE()
+  MESSAGE(STATUS "GROUP_REPLICATION_WITH_ROCKSDB is turned off")
+ENDIF()
+
 IF(WITH_UNIT_TESTS)
   ADD_LIBRARY(gr_unit_test_resource STATIC
     src/gcs_plugin_messages.cc
@@ -135,7 +143,7 @@ MYSQL_ADD_PLUGIN(group_replication
   LINK_LIBRARIES
   ${LZ4_LIBRARY}
   ${SSL_LIBRARIES}
-  ${GCS_LIBRARY}
+  mysqlgcs
   MODULE_ONLY
   MODULE_OUTPUT_NAME "group_replication"
   )

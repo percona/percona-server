@@ -161,11 +161,17 @@ static bool check_if_pq_applicable(Opt_trace_context *trace, Sort_param *param,
 
 void Sort_param::decide_addon_fields(Filesort *file_sort, TABLE *table,
                                      ulong max_length_for_sort_data,
+                                     uint fixed_sort_length,
                                      bool force_sort_positions) {
   if (m_addon_fields_status != Addon_fields_status::unknown_status) {
     // Already decided.
     return;
   }
+
+  DBUG_EXECUTE_IF("filesort_force_sort_row_ids", {
+    m_addon_fields_status = Addon_fields_status::keep_rowid;
+    return;
+  });
 
   // Generally, prefer using addon fields (ie., sorting rows instead of just
   // row IDs) if we can.
@@ -191,7 +197,7 @@ void Sort_param::decide_addon_fields(Filesort *file_sort, TABLE *table,
       to sorted fields and get its total length in m_addon_length.
     */
     addon_fields = file_sort->get_addon_fields(
-        max_length_for_sort_data, table->field, m_fixed_sort_length,
+        max_length_for_sort_data, table->field, fixed_sort_length,
         &m_addon_fields_status, &m_addon_length, &m_packable_length);
   }
 }
@@ -208,7 +214,7 @@ void Sort_param::init_for_filesort(Filesort *file_sort,
 
   local_sortorder = sf_array;
 
-  decide_addon_fields(file_sort, table, max_length_for_sort_data,
+  decide_addon_fields(file_sort, table, max_length_for_sort_data, sortlen,
                       file_sort->m_force_sort_positions);
   if (using_addon_fields()) {
     fixed_res_length = m_addon_length;
@@ -568,7 +574,7 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
                                    READ_RECORD_BUFFER, MYF(MY_WME),
                                    encrypt_tmp_files))
       goto err;
-    if (reinit_io_cache(outfile, WRITE_CACHE, 0L, 0, 0)) goto err;
+    if (reinit_io_cache(outfile, WRITE_CACHE, 0L, false, false)) goto err;
 
     param->max_rows_per_buffer = static_cast<uint>(
         fs_info->max_size_in_bytes() / param->max_record_length());
@@ -583,7 +589,7 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
                         &num_chunks, &tempfile))
       goto err;
     if (flush_io_cache(&tempfile) ||
-        reinit_io_cache(&tempfile, READ_CACHE, 0L, 0, 0))
+        reinit_io_cache(&tempfile, READ_CACHE, 0L, false, false))
       goto err;
     if (merge_index(
             thd, param, merge_buf,
@@ -648,43 +654,12 @@ err:
     {
       my_off_t save_pos = outfile->pos_in_file;
       /* For following reads */
-      if (reinit_io_cache(outfile, READ_CACHE, 0L, 0, 0)) error = 1;
+      if (reinit_io_cache(outfile, READ_CACHE, 0L, false, false)) error = 1;
       outfile->end_of_file = save_pos;
     }
   }
   if (error) {
     DBUG_ASSERT(thd->is_error() || thd->killed);
-
-    /*
-      Guard against Bug#11745656 -- KILL QUERY should not send "server shutdown"
-      to client!
-    */
-    const char *cause = thd->killed
-                            ? ((thd->killed == THD::KILL_CONNECTION &&
-                                !connection_events_loop_aborted())
-                                   ? ER_THD_NONCONST(thd, THD::KILL_QUERY)
-                                   : ER_THD_NONCONST(thd, thd->killed))
-                            : thd->get_stmt_da()->message_text();
-    const char *msg = ER_THD(thd, ER_FILESORT_TERMINATED);
-
-    my_printf_error(ER_FILSORT_ABORT, "%s: %s", MYF(0), msg, cause);
-
-    if (thd->is_fatal_error()) {
-      LogEvent()
-          .type(LOG_TYPE_ERROR)
-          .subsys(LOG_SUBSYSTEM_TAG)
-          .prio(INFORMATION_LEVEL)
-          .errcode(ER_FILESORT_TERMINATED)
-          .user(thd->security_context()->priv_user())
-          .host(thd->security_context()->host_or_ip())
-          .thread_id(thd->thread_id())
-          .message(
-              "%s, host: %s, user: %s, thread: %u, error: %s, "
-              "query: %-.4096s",
-              msg, thd->security_context()->host_or_ip().str,
-              thd->security_context()->priv_user().str, thd->thread_id(), cause,
-              thd->query().str);
-    }
   } else
     thd->inc_status_sort_rows(num_rows_found);
 
@@ -803,7 +778,7 @@ void Filesort_info::read_chunk_descriptors(IO_CACHE *chunk_file, uint count) {
     if (rawmem == NULL) return; /* purecov: inspected */
   }
 
-  if (reinit_io_cache(chunk_file, READ_CACHE, 0L, 0, 0) ||
+  if (reinit_io_cache(chunk_file, READ_CACHE, 0L, false, false) ||
       my_b_read(chunk_file, static_cast<uchar *>(rawmem), length)) {
     my_free(rawmem); /* purecov: inspected */
     rawmem = NULL;   /* purecov: inspected */
@@ -843,7 +818,7 @@ static void dbug_print_record(TABLE *table, bool print_rowid) {
     }
 
     if (field->type() == MYSQL_TYPE_BIT)
-      (void)field->val_int_as_str(&tmp, 1);
+      (void)field->val_int_as_str(&tmp, true);
     else
       field->val_str(&tmp);
 
@@ -1339,7 +1314,7 @@ inline bool advance_overflows(size_t num_bytes, uchar *to_end, uchar **to) {
   Returns the length of the key, sans NULL indicator byte and varlength prefix,
   or UINT_MAX if the value would not provably fit within the given bounds.
 */
-size_t make_sortkey_from_field(Field *field, Nullable<size_t> dst_length,
+size_t make_sortkey_from_field(const Field *field, Nullable<size_t> dst_length,
                                uchar *to, uchar *to_end, bool *maybe_null) {
   bool is_varlen = !dst_length.has_value();
 
@@ -1564,7 +1539,7 @@ uint Sort_param::make_sortkey(Bounds_checked_array<uchar> dst,
     if (!sort_field->is_varlen) dst_length = sort_field->length;
     uint actual_length;
     if (sort_field->field) {
-      Field *field = sort_field->field;
+      const Field *field = sort_field->field;
       DBUG_ASSERT(sort_field->field_type == field->type());
 
       actual_length =
@@ -1695,7 +1670,7 @@ static void register_used_fields(Sort_param *param) {
 
   for (sort_field = param->local_sortorder.begin();
        sort_field != param->local_sortorder.end(); sort_field++) {
-    Field *field;
+    const Field *field;
     if ((field = sort_field->field)) {
       if (field->table == table) {
         bitmap_set_bit(bitmap, field->field_index);
@@ -1759,7 +1734,7 @@ static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort,
 
   if (param->using_addon_fields()) {
     sort_result->sorted_result_in_fsbuf = true;
-    return 0;
+    return false;
   }
 
   sort_result->sorted_result_in_fsbuf = false;
@@ -1769,7 +1744,7 @@ static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort,
   sort_result->sorted_result.reset(static_cast<uchar *>(my_malloc(
       key_memory_Filesort_info_record_pointers, buf_size, MYF(MY_WME))));
   if (!(to = sort_result->sorted_result.get()))
-    return 1; /* purecov: inspected */
+    return true; /* purecov: inspected */
   sort_result->sorted_result_end = sort_result->sorted_result.get() + buf_size;
 
   uint res_length = param->fixed_res_length;
@@ -1779,7 +1754,7 @@ static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort,
     memcpy(to, start_of_payload, res_length);
     to += res_length;
   }
-  return 0;
+  return false;
 }
 
 /**
@@ -2479,9 +2454,13 @@ Addon_fields *Filesort::get_addon_fields(
 }
 
 bool Filesort::using_addon_fields() {
-  m_sort_param.decide_addon_fields(this, qep_tab->table(),
-                                   m_thd->variables.max_length_for_sort_data,
-                                   m_force_sort_positions);
+  if (m_sort_param.m_addon_fields_status ==
+      Addon_fields_status::unknown_status) {
+    m_sort_param.decide_addon_fields(
+        this, qep_tab->table(), m_thd->variables.max_length_for_sort_data,
+        sortlength(m_thd, sortorder, m_sort_order_length),
+        m_force_sort_positions);
+  }
   return m_sort_param.using_addon_fields();
 }
 

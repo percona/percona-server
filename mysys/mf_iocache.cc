@@ -191,7 +191,7 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
   info->pos_in_file = seek_offset;
   info->pre_close = info->pre_read = info->post_read = 0;
   info->arg = 0;
-  info->alloced_buffer = 0;
+  info->alloced_buffer = false;
   info->buffer = 0;
   info->seek_not_done = false;
 
@@ -230,7 +230,7 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
       /* Trim cache size if the file is very small */
       if ((my_off_t)cachesize > end_of_file - seek_offset + IO_SIZE * 2 - 1) {
         cachesize = (size_t)(end_of_file - seek_offset) + IO_SIZE * 2 - 1;
-        use_async_io = 0; /* No need to use async */
+        use_async_io = false; /* No need to use async */
       }
     }
   }
@@ -256,7 +256,7 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
         info->write_buffer = info->buffer;
         if (type == SEQ_READ_APPEND)
           info->write_buffer = info->buffer + cachesize;
-        info->alloced_buffer = 1;
+        info->alloced_buffer = true;
         break; /* Enough memory found */
       }
       if (cachesize == min_cache) return 2; /* Can't alloc cache */
@@ -369,7 +369,7 @@ bool reinit_io_cache(IO_CACHE *info, enum cache_type type, my_off_t seek_offset,
     if (info->type == WRITE_CACHE && type == READ_CACHE)
       info->end_of_file = my_b_tell(info);
     /* flush cache if we want to reuse it */
-    if (!clear_cache && my_b_flush_io_cache(info, 1)) return 1;
+    if (!clear_cache && my_b_flush_io_cache(info, 1)) return true;
     info->pos_in_file = seek_offset;
     /* Better to do always do a seek */
     info->seek_not_done = true;
@@ -391,7 +391,7 @@ bool reinit_io_cache(IO_CACHE *info, enum cache_type type, my_off_t seek_offset,
   if (info->m_decryptor != nullptr)
     info->m_decryptor->set_stream_offset(seek_offset);
 
-  return 0;
+  return false;
 } /* reinit_io_cache */
 
 /*
@@ -1479,7 +1479,7 @@ int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock) {
       else
         info->error = 0;
       if (!append_cache) {
-        set_if_bigger(info->end_of_file, (pos_in_file + length));
+        info->end_of_file = std::max(info->end_of_file, (pos_in_file + length));
       } else {
         info->end_of_file += (info->write_pos - info->append_read_pos);
         DBUG_ASSERT(info->end_of_file == mysql_file_tell(info->file, MYF(0)));
@@ -1529,7 +1529,7 @@ int end_io_cache(IO_CACHE *info) {
     info->pre_close = 0;
   }
   if (info->alloced_buffer) {
-    info->alloced_buffer = 0;
+    info->alloced_buffer = false;
     if (info->file != -1) /* File doesn't exist */
       error = my_b_flush_io_cache(info, 1);
     my_free(info->buffer);
@@ -1569,7 +1569,8 @@ static int open_file(const char *fname, IO_CACHE *info, int cache_size) {
   int fd;
   if ((fd = my_open(fname, O_CREAT | O_RDWR, MYF(MY_WME))) < 0)
     die("Could not open %s", fname);
-  if (init_io_cache(info, fd, cache_size, SEQ_READ_APPEND, 0, 0, MYF(MY_WME)))
+  if (init_io_cache(info, fd, cache_size, SEQ_READ_APPEND, 0, false,
+                    MYF(MY_WME)))
     die("failed in init_io_cache()");
   return fd;
 }

@@ -76,7 +76,8 @@ class Replication_thread_api {
     @param get_public_key Preference to get public key if unavailable.
     @param compression_algorithm The compression algorithm
     @param zstd_compression_level The compression level
-
+    @param tls_version   TLS versions
+    @param tls_ciphersuites Permissible ciphersuites for TLS 1.3.
 
     @return the operation status
       @retval 0      OK
@@ -90,7 +91,8 @@ class Replication_thread_api {
                          int retry_count, bool preserve_logs,
                          char *public_key_path, bool get_public_key,
                          char *compression_algorithm,
-                         uint zstd_compression_level);
+                         uint zstd_compression_level, char *tls_version,
+                         char *tls_ciphersuites);
 
   /**
     Start the Applier/Receiver threads according to the given options.
@@ -316,6 +318,16 @@ class Replication_thread_api {
       @retval !=0    Error
   */
   static int rpl_channel_stop_all(int threads_to_stop, long timeout);
+
+  /**
+    Interface to kill binlog dump thread.
+    Kills binlog dump thread thus killing all slave connections.
+    @note binlog dump GTID thread is not killed as of now.
+
+    @return the operation status
+      @retval 0      OK
+  */
+  static int rpl_binlog_dump_thread_kill();
 
   /**
     Method to get the credentials configured for a channel

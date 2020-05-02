@@ -30,6 +30,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_time.h"
 #include "unittest/gunit/fake_table.h"
+#include "unittest/gunit/mysys_util.h"
 #include "unittest/gunit/test_utils.h"
 
 namespace field_unittests {
@@ -151,12 +152,11 @@ class Mock_protocol : public Protocol {
 };
 
 TEST_F(FieldTest, FieldTimef) {
-  uchar fieldBuf[6];
-  uchar nullPtr[1] = {0};
-  MYSQL_TIME time = {0, 0, 0, 12, 23, 12, 123400, false, MYSQL_TIMESTAMP_TIME};
+  uchar fieldBuf[7];
+  MysqlTime time(0, 0, 0, 12, 23, 12, 123400, false, MYSQL_TIMESTAMP_TIME);
 
   Field_timef *field = new (thd()->mem_root)
-      Field_timef(fieldBuf, nullPtr, false, Field::NONE, "f1", 4);
+      Field_timef(fieldBuf + 1, fieldBuf, false, Field::NONE, "f1", 4);
   // Test public member functions
   EXPECT_EQ(4UL, field->decimals());  // TS-TODO
   EXPECT_EQ(MYSQL_TYPE_TIME, field->type());
@@ -216,8 +216,7 @@ TEST_F(FieldTest, FieldTimef) {
   EXPECT_DOUBLE_EQ(122312.1234, field->val_real());  // Correct?
 
   MYSQL_TIME dateTime;
-  MYSQL_TIME bigTime = {
-      0, 0, 0, 123, 45, 45, 555500, false, MYSQL_TIMESTAMP_TIME};
+  MysqlTime bigTime(0, 0, 0, 123, 45, 45, 555500, false, MYSQL_TIMESTAMP_TIME);
   EXPECT_EQ(0, field->store_time(&bigTime, 4));
   EXPECT_FALSE(field->get_date(&dateTime, 0));
 
@@ -302,10 +301,9 @@ TEST_F(FieldTest, FieldTimef) {
 
 TEST_F(FieldTest, FieldTimefCompare) {
   const int nFields = 7;
-  uchar fieldBufs[nFields][6];
-  uchar nullPtrs[nFields];
+  uchar fieldBufs[nFields][7];
 
-  MYSQL_TIME times[nFields] = {
+  MysqlTime times[nFields] = {
       {0, 0, 0, 12, 23, 12, 100000, true, MYSQL_TIMESTAMP_TIME},
       {0, 0, 0, 0, 0, 0, 10000, true, MYSQL_TIMESTAMP_TIME},
       {0, 0, 0, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_TIME},
@@ -320,7 +318,7 @@ TEST_F(FieldTest, FieldTimefCompare) {
     char fieldName[3];
     sprintf(fieldName, "f%c", i);
     fields[i] = new (thd()->mem_root) Field_timef(
-        fieldBufs[i], nullPtrs + i, false, Field::NONE, fieldName, 6);
+        fieldBufs[i] + 1, fieldBufs[i], false, Field::NONE, fieldName, 6);
 
     longlong packed = TIME_to_longlong_packed(times[i]);
     EXPECT_EQ(0, fields[i]->store_packed(packed));
@@ -359,13 +357,11 @@ TEST_F(FieldTest, FieldTimefCompare) {
 }
 
 TEST_F(FieldTest, FieldTime) {
-  uchar fieldBuf[6];
-  uchar nullPtr[1] = {0};
-  MYSQL_TIME bigTime = {
-      0, 0, 0, 123, 45, 45, 555500, false, MYSQL_TIMESTAMP_TIME};
+  uchar fieldBuf[7];
+  MysqlTime bigTime(0, 0, 0, 123, 45, 45, 555500, false, MYSQL_TIMESTAMP_TIME);
 
   Field_time *field = new (thd()->mem_root)
-      Field_time(fieldBuf, nullPtr, false, Field::NONE, "f1");
+      Field_time(fieldBuf + 1, fieldBuf, false, Field::NONE, "f1");
   EXPECT_EQ(0, field->store_time(&bigTime, 4));
   MYSQL_TIME t;
   EXPECT_FALSE(field->get_time(&t));
@@ -416,7 +412,7 @@ TEST_F(FieldTest, CopyFieldSet) {
 
   Copy_field *cf = new (thd()->mem_root) Copy_field;
   cf->set(f_to, f_from, false);
-  cf->invoke_do_copy(cf);
+  cf->invoke_do_copy();
 
   // Copy_field DTOR is not invoked in all contexts, so we may leak memory.
   EXPECT_FALSE(cf->tmp.is_alloced());
@@ -568,7 +564,7 @@ TEST_F(FieldTest, MakeSortKey) {
   }
   {
     SCOPED_TRACE("Field_longlong");
-    Field_longlong fll(NULL, 64, NULL, '\0', Field::NONE, "", 0, true);
+    Field_longlong fll(NULL, 64, NULL, '\0', Field::NONE, "", false, true);
     test_integer_field(&fll);
   }
   {
@@ -591,6 +587,8 @@ TEST_F(FieldTest, MakeSortKey) {
     cs.state = MY_CHARSET_UNDEFINED;  // Avoid valgrind warning.
     cs.mbmaxlen = 1;
     Field_null fn(NULL, 0, Field::NONE, "", &cs);
+    EXPECT_TRUE(fn.real_maybe_null());
+    EXPECT_TRUE(fn.is_null());
     test_make_sort_key(&fn);
   }
   {

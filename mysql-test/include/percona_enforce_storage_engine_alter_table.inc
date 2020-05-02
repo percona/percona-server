@@ -31,5 +31,5 @@ eval ALTER TABLE $enforce_table MODIFY a INT, ALGORITHM=COPY;
 --echo After ALTER TABLE with ALGORITHM=COPY
 # Make sure table engine hasn't been changed
 # Make sure column definition has been changed
---let $enforce_column= int(11)
+--let $enforce_column= int
 --source include/percona_enforce_storage_engine_alter_table_assert.inc

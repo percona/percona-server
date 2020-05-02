@@ -35,6 +35,7 @@
 #include "client/mysqlbinlog.h"
 
 #include <fcntl.h>
+#include <inttypes.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -47,6 +48,7 @@
 #include "caching_sha2_passwordopt-vars.h"
 #include "client/client_priv.h"
 #include "compression.h"
+#include "libbinlogevents/include/trx_boundary_parser.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_default.h"
@@ -283,8 +285,8 @@ static const char *default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
 #endif
 static const char *load_default_groups[] = {"mysqlbinlog", "client", 0};
 
-static bool one_database = 0, disable_log_bin = 0;
-static bool opt_hexdump = 0;
+static bool one_database = false, disable_log_bin = false;
+static bool opt_hexdump = false;
 const char *base64_output_mode_names[] = {"NEVER", "AUTO", "UNSPEC",
                                           "DECODE-ROWS", NullS};
 TYPELIB base64_output_mode_typelib = {
@@ -292,7 +294,7 @@ TYPELIB base64_output_mode_typelib = {
     nullptr};
 static enum_base64_output_mode opt_base64_output_mode = BASE64_OUTPUT_UNSPEC;
 static char *opt_base64_output_mode_str = nullptr;
-static bool opt_remote_alias = 0;
+static bool opt_remote_alias = false;
 const char *remote_proto_names[] = {"BINLOG-DUMP-NON-GTIDS",
                                     "BINLOG-DUMP-GTIDS", NullS};
 TYPELIB remote_proto_typelib = {array_elements(remote_proto_names) - 1, "",
@@ -306,11 +308,11 @@ static char *opt_remote_proto_str = nullptr;
 static char *database = nullptr;
 static char *output_file = nullptr;
 static char *rewrite = nullptr;
-bool force_opt = 0, short_form = 0, idempotent_mode = 0;
+bool force_opt = false, short_form = false, idempotent_mode = false;
 static bool debug_info_flag, debug_check_flag;
-static bool force_if_open_opt = 1, raw_mode = 0;
-static bool to_last_remote_log = 0, stop_never = 0;
-static bool opt_verify_binlog_checksum = 1;
+static bool force_if_open_opt = true, raw_mode = false;
+static bool to_last_remote_log = false, stop_never = false;
+static bool opt_verify_binlog_checksum = true;
 static ulonglong offset = 0;
 static int64 stop_never_slave_server_id = -1;
 static int64 connection_server_id = -1;
@@ -373,8 +375,9 @@ enum Exit_status {
   Options that will be used to filter out events.
 */
 static char *opt_include_gtids_str = nullptr, *opt_exclude_gtids_str = nullptr;
-static bool opt_skip_gtids = 0;
+static bool opt_skip_gtids = false;
 static bool filter_based_on_gtids = false;
+static bool opt_require_row_format = false;
 
 /* It is set to true when BEGIN is found, and false when the transaction ends.
  */
@@ -1605,7 +1608,14 @@ static struct my_option my_long_options[] = {
      "inclusive. Default is 3.",
      &opt_zstd_compress_level, &opt_zstd_compress_level, 0, GET_UINT,
      REQUIRED_ARG, 3, 1, 22, 0, 0, 0},
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+    {"require-row-format", 0,
+     "Fail when printing an event that was not logged using row format or "
+     "other forbidden events like Load instructions or the creation/deletion "
+     "of temporary tables.",
+     &opt_require_row_format, &opt_require_row_format, 0, GET_BOOL, NO_ARG, 0,
+     0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+};
 
 /**
   Auxiliary function used by error() and warning().
@@ -1718,7 +1728,7 @@ static my_time_t convert_str_to_timestamp(const char *str) {
 
 extern "C" bool get_one_option(int optid, const struct my_option *opt,
                                char *argument) {
-  bool tty_password = 0;
+  bool tty_password = false;
   switch (optid) {
 #ifndef DBUG_OFF
     case '#':
@@ -1728,14 +1738,14 @@ extern "C" bool get_one_option(int optid, const struct my_option *opt,
 #include "sslopt-case.h"
 
     case 'd':
-      one_database = 1;
+      one_database = true;
       break;
     case OPT_REWRITE_DB: {
       char *from_db = argument, *p, *to_db;
       if (!(p = strstr(argument, "->"))) {
         sql_print_error(
             "Bad syntax in mysqlbinlog-rewrite-db - missing '->'!\n");
-        return 1;
+        return true;
       }
       to_db = p + 2;
       while (p > argument && my_isspace(mysqld_charset, p[-1])) p--;
@@ -1743,13 +1753,13 @@ extern "C" bool get_one_option(int optid, const struct my_option *opt,
       if (!*from_db) {
         sql_print_error(
             "Bad syntax in mysqlbinlog-rewrite-db - empty FROM db!\n");
-        return 1;
+        return true;
       }
       while (*to_db && my_isspace(mysqld_charset, *to_db)) to_db++;
       if (!*to_db) {
         sql_print_error(
             "Bad syntax in mysqlbinlog-rewrite-db - empty TO db!\n");
-        return 1;
+        return true;
       }
       /* Add the database to the mapping */
       map_mysqlbinlog_rewrite_db[from_db] = to_db;
@@ -1770,10 +1780,10 @@ extern "C" bool get_one_option(int optid, const struct my_option *opt,
         while (*argument) *argument++ = 'x'; /* Destroy argument */
         if (*start) start[1] = 0;            /* Cut length of argument */
       } else
-        tty_password = 1;
+        tty_password = true;
       break;
     case 'R':
-      opt_remote_alias = 1;
+      opt_remote_alias = true;
       opt_remote_proto = BINLOG_DUMP_NON_GTID;
       break;
     case OPT_REMOTE_PROTO:
@@ -1806,7 +1816,7 @@ extern "C" bool get_one_option(int optid, const struct my_option *opt,
       exit(0);
     case OPT_STOP_NEVER:
       /* wait-for-data implicitly sets to-last-log */
-      to_last_remote_log = 1;
+      to_last_remote_log = true;
       break;
     case '?':
       usage();
@@ -1822,7 +1832,7 @@ extern "C" bool get_one_option(int optid, const struct my_option *opt,
   }
   if (tty_password) pass = get_tty_password(NullS);
 
-  return 0;
+  return false;
 }
 
 static int parse_args(int *argc, char ***argv) {
@@ -1897,7 +1907,7 @@ static Exit_status safe_connect() {
     error("Failed on connect: %s", mysql_error(mysql));
     return ERROR_STOP;
   }
-  mysql->reconnect = 1;
+  mysql->reconnect = true;
   return OK_CONTINUE;
 }
 
@@ -1955,6 +1965,7 @@ static Exit_status dump_multiple_logs(int argc, char **argv) {
   print_event_info.base64_output_mode = opt_base64_output_mode;
   print_event_info.skip_gtids = opt_skip_gtids;
   print_event_info.print_table_metadata = opt_print_table_metadata;
+  print_event_info.require_row_format = opt_require_row_format;
 
   // Dump all logs.
   my_off_t save_stop_position = stop_position;
@@ -2200,6 +2211,10 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     return ERROR_STOP;
   }
 
+  Transaction_boundary_parser transaction_parser(
+      Transaction_boundary_parser::TRX_BOUNDARY_PARSER_RECEIVER);
+  transaction_parser.reset();
+
   for (;;) {
     if (mysql_binlog_fetch(mysql, &rpl))  // Error packet
     {
@@ -2327,6 +2342,27 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
           }
         }
         glob_description_event = dynamic_cast<Format_description_event &>(*ev);
+      }
+
+      if (opt_require_row_format) {
+        bool info_error{false};
+        binary_log::Log_event_basic_info log_event_info;
+        std::tie(info_error, log_event_info) = extract_log_event_basic_info(
+            (const char *)event_buf, event_len, &glob_description_event);
+
+        if (!info_error) {
+          transaction_parser.feed_event(log_event_info, false);
+          if (transaction_parser.check_row_logging_constraints(
+                  log_event_info)) {
+            error(
+                "Event being written violates the --require-row-format "
+                "parameter constraints.");
+            return ERROR_STOP;
+          }
+        } else {
+          error("Unexpected event being evaluated under --require-row-format.");
+          return ERROR_STOP;
+        }
       }
 
       if (raw_mode) {
@@ -2554,10 +2590,14 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
     return ERROR_STOP;
   }
 
+  Transaction_boundary_parser transaction_parser(
+      Transaction_boundary_parser::TRX_BOUNDARY_PARSER_APPLIER);
+  transaction_parser.reset();
+
   if (fdle != nullptr) {
     retval = process_event(print_event_info, fdle,
                            mysqlbinlog_file_reader.event_start_pos(), logname);
-    if (retval != OK_CONTINUE) goto end;
+    if (retval != OK_CONTINUE) return retval;
   }
 
   if (strcmp(logname, "-") == 0)
@@ -2590,26 +2630,44 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
            LOG_EVENT_BINLOG_IN_USE_F) ||
           mysqlbinlog_file_reader.get_error_type() ==
               Binlog_read_error::READ_EOF)
-        goto end;
+        return retval;
 
       error(
           "Could not read entry at offset %s: "
           "Error in log format or read error 1.",
           llstr(old_off, llbuff));
       error("%s", mysqlbinlog_file_reader.get_error_str());
-      goto err;
+      return ERROR_STOP;
     }
+
+    if (opt_require_row_format) {
+      bool info_error{false};
+      binary_log::Log_event_basic_info log_event_info;
+      std::tie(info_error, log_event_info) = extract_log_event_basic_info(ev);
+
+      if (!info_error) {
+        transaction_parser.feed_event(log_event_info, false);
+        if (transaction_parser.check_row_logging_constraints(log_event_info)) {
+          error(
+              "Event being written violates the --require-row-format "
+              "parameter constraints.");
+          delete ev;
+          return ERROR_STOP;
+        }
+      } else {
+        error("Unexpected event being evaluated under --require-row-format.");
+        delete ev;
+        return ERROR_STOP;
+      }
+    }
+
     if ((retval = process_event(print_event_info, ev, old_off, logname)) !=
         OK_CONTINUE)
-      goto end;
+      return retval;
   }
 
   /* NOTREACHED */
 
-err:
-  retval = ERROR_STOP;
-
-end:
   return retval;
 }
 
@@ -2827,6 +2885,10 @@ int main(int argc, char **argv) {
     fprintf(result_file,
             "/*!50700 SET @@SESSION.RBR_EXEC_MODE=IDEMPOTENT*/;\n\n");
 
+  if (opt_require_row_format) {
+    fprintf(result_file, "/*!80019 SET @@SESSION.REQUIRE_ROW_FORMAT=1*/;\n\n");
+  }
+
   retval = dump_multiple_logs(argc, argv);
 
   if (!raw_mode) {
@@ -2858,7 +2920,6 @@ int main(int argc, char **argv) {
   if (result_file && (result_file != stdout)) my_fclose(result_file, MYF(0));
   cleanup();
 
-  my_free_open_file_info();
   load_processor.destroy();
   /* We cannot free DBUG, it is used in global destructors after exit(). */
   my_end(my_end_arg | MY_DONT_FREE_DBUG);

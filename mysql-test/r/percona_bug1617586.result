@@ -5,12 +5,12 @@
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `field1` varchar(255) DEFAULT NULL,
-  `field2` int(11) DEFAULT NULL,
+  `field2` int DEFAULT NULL,
   `field3` datetime DEFAULT NULL,
   `field4` varchar(255) DEFAULT NULL,
-  `field5` int(11) DEFAULT NULL,
+  `field5` int DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `index_audits_on_field2` (`field2`),
   KEY `on_field4` (`field4`),

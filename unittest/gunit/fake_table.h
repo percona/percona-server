@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,8 +91,8 @@ class Fake_TABLE_SHARE : public TABLE_SHARE {
     path.str = const_cast<char *>(fakepath);
     path.length = strlen(path.str);
 
-    EXPECT_EQ(0, bitmap_init(&all_set, &all_set_buf, fields, false));
-    bitmap_set_above(&all_set, 0, 1);
+    EXPECT_EQ(0, bitmap_init(&all_set, &all_set_buf, fields));
+    bitmap_set_above(&all_set, 0, true);
   }
   ~Fake_TABLE_SHARE() {}
 };
@@ -107,6 +107,9 @@ class Fake_TABLE : public TABLE {
   KEY m_keys[max_keys];
   // make room for up to 8 keyparts per index
   KEY_PART_INFO m_key_part_infos[max_keys][8];
+
+  static const int max_record_length = MAX_FIELD_WIDTH * MAX_TABLE_COLUMNS;
+  uchar m_record[max_record_length];
 
   Fake_TABLE_LIST table_list;
   Fake_TABLE_SHARE table_share;
@@ -141,13 +144,15 @@ class Fake_TABLE : public TABLE {
     pos_in_table_list = &table_list;
     pos_in_table_list->select_lex = &select_lex;
     table_list.table = this;
-    EXPECT_EQ(0, bitmap_init(write_set, &write_set_buf, s->fields, false));
-    EXPECT_EQ(0, bitmap_init(read_set, &read_set_buf, s->fields, false));
+    EXPECT_EQ(0, bitmap_init(write_set, &write_set_buf, s->fields));
+    EXPECT_EQ(0, bitmap_init(read_set, &read_set_buf, s->fields));
 
     const_table = false;
     table_list.set_tableno(highest_table_id);
     highest_table_id = (highest_table_id + 1) % MAX_TABLES;
     key_info = &m_keys[0];
+    record[0] = &m_record[0];
+    memset(record[0], 0, max_record_length);
     for (int i = 0; i < max_keys; i++)
       key_info[i].key_part = m_key_part_infos[i];
     // We choose non-zero to avoid it working by coincidence.
@@ -230,13 +235,16 @@ class Fake_TABLE : public TABLE {
       : table_share(column_values.size()),
         mock_handler(static_cast<handlerton *>(NULL), &table_share) {
     field = m_field_array;
+    initialize();
     for (size_t i = 0; i < column_values.size(); ++i) {
       std::stringstream s;
       s << "field_" << i + 1;
       field[i] = new (*THR_MALLOC) Mock_field_long(s.str(), are_nullable);
       field[i]->table = this;
+      const ptrdiff_t field_offset = i * MAX_FIELD_WIDTH;
+      field[i]->ptr = record[0] + field_offset + 1;
+      if (are_nullable) field[i]->set_null_ptr(record[0] + field_offset, 1);
     }
-    initialize();
     int i = 0;
     for (auto column_value : column_values) {
       auto item = new Item_int(column_value);
@@ -273,6 +281,10 @@ class Fake_TABLE : public TABLE {
     new_field->table_name = &table_name;
     new_field->field_index = pos;
     bitmap_set_bit(read_set, pos);
+    const ptrdiff_t field_offset = pos * MAX_FIELD_WIDTH;
+    new_field->ptr = record[0] + field_offset + 1;
+    if (new_field->get_null_ptr() != nullptr)
+      new_field->set_null_ptr(record[0] + field_offset, 1);
   }
 };
 

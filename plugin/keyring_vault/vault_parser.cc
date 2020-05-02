@@ -87,7 +87,6 @@ bool Vault_parser::retrieve_value_from_map(const Secure_string &map,
          value_start_pos = Secure_string::npos,
          value_end_pos = Secure_string::npos;
   bool was_error = false;
-  const size_t start_tag_length = strlen(":\"");
 
   if ((key_tag_pos = map.find(key)) != Secure_string::npos &&
       (value_start_pos = map.find(":\"", key_tag_pos)) != Secure_string::npos &&

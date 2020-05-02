@@ -85,8 +85,8 @@ inline const char *addon_fields_text(Addon_fields_status afs) {
 
 /// Struct that holds information about a sort field.
 struct st_sort_field {
-  Field *field;  ///< Field to sort
-  Item *item;    ///< Item if not sorting fields
+  const Field *field;  ///< Field to sort
+  Item *item;          ///< Item if not sorting fields
 
   /// Length of sort field. Beware, can be 0xFFFFFFFFu (infinite)!
   uint length;
@@ -301,8 +301,13 @@ class Sort_param {
 
   /// Decide whether we are to use addon fields (sort rows instead of sorting
   /// row IDs or not). See using_addon_fields().
+  ///
+  /// fixed_sort_length is the number of bytes used for fixed-size fields.
+  /// Unlike m_fixed_sort_length (which can be set up after this), it does not
+  /// include the size of the row ID and of variable-length fields.
   void decide_addon_fields(Filesort *file_sort, TABLE *table,
-                           ulong max_length_for_sort_data, bool sort_positions);
+                           ulong max_length_for_sort_data,
+                           uint fixed_sort_length, bool sort_positions);
 
   /**
     Initialize this struct for filesort() usage.

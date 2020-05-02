@@ -22,8 +22,10 @@ insert into t1 values
 (4, 1),
 (5, 5);
 
+--disable_result_log
 --error ER_DUP_ENTRY
 alter table t1 add unique(a);
+--enable_result_log
 drop table t1;
 
 --echo #
@@ -55,3 +57,5 @@ CREATE TABLE t (a VARCHAR(255), PRIMARY KEY(a(2)), UNIQUE KEY (a(1))) engine=roc
 INSERT INTO t VALUES('a');
 CHECK TABLE t EXTENDED;
 DROP TABLE t;
+
+--remove_file $ddl

@@ -113,18 +113,21 @@
 
 #include <limits.h>
 #include <math.h>
+#include <stdint.h>
 #include <string.h>
 #include <algorithm>
+#include <type_traits>
+#include <utility>
 
+#include "integer_digits.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sys.h" /* for my_alloca */
 #include "myisampack.h"
 
-/*
+/**
   Internally decimal numbers are stored base 10^9 (see DIG_BASE below)
   So one variable of type decimal_digit_t is limited:
 
@@ -139,8 +142,11 @@
     len is the length of buf (length of allocated space) in decimal_digit_t's,
         not in bytes
 */
-typedef decimal_digit_t dec1;
-typedef longlong dec2;
+using dec1 = decimal_digit_t;
+/// A wider variant of dec1, to avoid overflow in intermediate results.
+using dec2 = int64_t;
+/// An unsigned type with the same width as dec1.
+using udec1 = std::make_unsigned<dec1>::type;
 
 #define DIG_PER_DEC1 9
 #define DIG_MASK 100000000
@@ -398,7 +404,7 @@ void max_decimal(int precision, int frac, decimal_t *to) {
   dec1 *buf = to->buf;
   DBUG_ASSERT(precision && precision >= frac);
 
-  to->sign = 0;
+  to->sign = false;
   if ((intpart = to->intg = (precision - frac))) {
     int firstdigits = intpart % DIG_PER_DEC1;
     if (firstdigits) *buf++ = powers10[firstdigits] - 1; /* get 9 99 999 ... */
@@ -414,19 +420,27 @@ void max_decimal(int precision, int frac, decimal_t *to) {
 
 static inline dec1 *remove_leading_zeroes(const decimal_t *from,
                                           int *intg_result) {
-  int intg = from->intg, i;
+  // Round up intg so that we don't need special handling of the first word.
+  int intg = ROUND_UP(from->intg) * DIG_PER_DEC1;
+
+  // Remove all the leading words that contain only zeros.
   dec1 *buf0 = from->buf;
-  i = ((intg - 1) % DIG_PER_DEC1) + 1;
   while (intg > 0 && *buf0 == 0) {
-    intg -= i;
-    i = DIG_PER_DEC1;
-    buf0++;
+    ++buf0;
+    intg -= DIG_PER_DEC1;
   }
+
+  // Now remove all the leading zeros in the first non-zero word, if there is a
+  // non-zero word.
   if (intg > 0) {
-    intg -= count_leading_zeroes((intg - 1) % DIG_PER_DEC1, *buf0);
+    const int digits = count_digits<udec1>(*buf0);
+    DBUG_ASSERT(digits <= DIG_PER_DEC1);
+    intg -= DIG_PER_DEC1 - digits;
     DBUG_ASSERT(intg > 0);
-  } else
-    intg = 0;
+  }
+
+  DBUG_ASSERT(intg >= 0);
+  DBUG_ASSERT(intg <= from->intg);
   *intg_result = intg;
   return buf0;
 }
@@ -474,35 +488,26 @@ int decimal_actual_fraction(const decimal_t *from) {
                         number of digits (sign counted and decimal point is
                         counted)
       fixed_decimals  - number digits after point.
-      filler          - character to fill gaps in case of fixed_precision > 0
 
   RETURN VALUE
     E_DEC_OK/E_DEC_TRUNCATED/E_DEC_OVERFLOW
 */
 
 int decimal2string(const decimal_t *from, char *to, int *to_len,
-                   int fixed_precision, int fixed_decimals, char filler) {
-  /* {intg_len, frac_len} output widths; {intg, frac} places in input */
-  int len, intg, frac = from->frac, i, intg_len, frac_len, fill;
-  /* number digits before decimal point */
-  int fixed_intg = (fixed_precision ? (fixed_precision - fixed_decimals) : 0);
-  int error = E_DEC_OK;
-  char *s = to;
-  dec1 *buf, *buf0 = from->buf, tmp;
-
+                   int fixed_precision, int fixed_decimals) {
   DBUG_ASSERT(*to_len >= 2 + from->sign);
 
-  /* removing leading zeroes */
-  buf0 = remove_leading_zeroes(from, &intg);
-  if (unlikely(intg + frac == 0)) {
-    intg = 1;
-    tmp = 0;
-    buf0 = &tmp;
-  }
+  int intg;
+  const dec1 *buf = remove_leading_zeroes(from, &intg);
 
-  if (!(intg_len = fixed_precision ? fixed_intg : intg)) intg_len = 1;
-  frac_len = fixed_precision ? fixed_decimals : frac;
-  len = from->sign + intg_len + MY_TEST(frac) + frac_len;
+  const int fixed_intg =
+      fixed_precision ? (fixed_precision - fixed_decimals) : 0;
+  // {intg_len, frac_len} output widths; {intg, frac} digits in input
+  int intg_len = std::max(1, fixed_precision ? fixed_intg : intg);
+  int frac = from->frac;
+  int frac_len = fixed_precision ? fixed_decimals : frac;
+  int len = from->sign + intg_len + (frac ? 1 : 0) + frac_len;
+  int error = E_DEC_OK;
   if (fixed_precision) {
     if (frac > fixed_decimals) {
       error = E_DEC_TRUNCATED;
@@ -512,15 +517,13 @@ int decimal2string(const decimal_t *from, char *to, int *to_len,
       error = E_DEC_OVERFLOW;
       intg = fixed_intg;
     }
-  } else if (unlikely(len > --*to_len)) /* reserve one byte for \0 */
+  } else if (len > --*to_len)  // reserve one byte for \0
   {
-    int j = len - *to_len; /* excess printable chars */
+    int j = len - *to_len;  // excess printable chars
     error = (frac && j <= frac + 1) ? E_DEC_TRUNCATED : E_DEC_OVERFLOW;
 
-    /*
-      If we need to cut more places than frac is wide, we'll end up
-      dropping the decimal point as well.  Account for this.
-    */
+    // If we need to cut more places than frac is wide, we'll end up
+    // dropping the decimal point as well. Account for this.
     if (frac && j >= frac + 1) j--;
 
     if (j > frac) {
@@ -529,45 +532,70 @@ int decimal2string(const decimal_t *from, char *to, int *to_len,
     } else
       frac -= j;
     frac_len = frac;
-    len = from->sign + intg_len + MY_TEST(frac) + frac_len;
+    len = from->sign + intg_len + (frac ? 1 : 0) + frac_len;
   }
   *to_len = len;
-  s[len] = 0;
+  to[len] = '\0';
 
-  if (from->sign) *s++ = '-';
+  if (from->sign) *to++ = '-';
 
-  if (frac) {
-    char *s1 = s + intg_len;
-    fill = frac_len - frac;
-    buf = buf0 + ROUND_UP(intg);
-    *s1++ = '.';
-    for (; frac > 0; frac -= DIG_PER_DEC1) {
-      dec1 x = *buf++;
-      for (i = MY_MIN(frac, DIG_PER_DEC1); i; i--) {
-        dec1 y = x / DIG_MASK;
-        *s1++ = '0' + (uchar)y;
-        x -= y * DIG_MASK;
-        x *= 10;
-      }
-    }
-    for (; fill > 0; fill--) *s1++ = filler;
+  // Prepend padding if a fixed precision was specified.
+  if (fixed_precision != 0) {
+    int fill = intg_len - intg;
+    if (intg == 0) fill--;  // symbol 0 before digital point
+    for (; fill > 0; fill--) *to++ = '0';
   }
 
-  fill = intg_len - intg;
-  if (intg == 0) fill--; /* symbol 0 before digital point */
-  for (; fill > 0; fill--) *s++ = filler;
-  if (intg) {
-    s += intg;
-    for (buf = buf0 + ROUND_UP(intg); intg > 0; intg -= DIG_PER_DEC1) {
-      dec1 x = *--buf;
-      for (i = MY_MIN(intg, DIG_PER_DEC1); i; i--) {
-        dec1 y = x / 10;
-        *--s = '0' + (uchar)(x - y * 10);
-        x = y;
+  // Write the integer part of the decimal.
+  if (intg != 0) {
+    // The first word might not contain a full DIG_PER_DEC1 digits.
+    const int digits_in_partial_word = intg % DIG_PER_DEC1;
+    if (digits_in_partial_word != 0) {
+      dec1 x = *buf++;
+
+      // Cut the value if it is too big to fit in the buffer.
+      if (x >= powers10[digits_in_partial_word]) {
+        DBUG_ASSERT(error == E_DEC_OVERFLOW);
+        x %= powers10[digits_in_partial_word];
       }
+
+      to = write_digits<udec1>(x, digits_in_partial_word, to);
+      intg -= digits_in_partial_word;
     }
-  } else
-    *s = '0';
+
+    while (intg > 0) {
+      to = write_digits<udec1>(*buf++, DIG_PER_DEC1, to);
+      intg -= DIG_PER_DEC1;
+    }
+    DBUG_ASSERT(intg == 0);
+  } else {
+    *to++ = '0';
+  }
+
+  // Write the fractional part of the decimal, if there is one.
+  if (frac != 0) {
+    const int fill = frac_len - frac;
+    *to++ = '.';
+
+    // Write DIG_PER_DEC1 digits for all the full words.
+    while (frac >= DIG_PER_DEC1) {
+      to = write_digits<udec1>(*buf++, DIG_PER_DEC1, to);
+      frac -= DIG_PER_DEC1;
+    }
+
+    DBUG_ASSERT(frac >= 0);
+    DBUG_ASSERT(frac < DIG_PER_DEC1);
+
+    // There can be a partial word at the end. Write only the most significant
+    // digits of that word.
+    if (frac > 0) {
+      to = write_digits<udec1>(div_by_pow10(*buf++, DIG_PER_DEC1 - frac), frac,
+                               to);
+    }
+
+    // Append padding if a fixed precision was specified.
+    for (int i = 0; i < fill; ++i) *to++ = '0';
+  }
 
   return error;
 }
@@ -708,8 +736,6 @@ int decimal_shift(decimal_t *dec, int shift) {
   int point = ROUND_UP(dec->intg) * DIG_PER_DEC1;
   /* new point position */
   int new_point = point + shift;
-  /* number of digits in result */
-  int digits_int, digits_frac;
   /* length of result and new fraction in big digits*/
   int new_len, new_frac_len;
   /* return code */
@@ -725,10 +751,9 @@ int decimal_shift(decimal_t *dec, int shift) {
     return E_DEC_OK;
   }
 
-  digits_int = new_point - beg;
-  set_if_bigger(digits_int, 0);
-  digits_frac = end - new_point;
-  set_if_bigger(digits_frac, 0);
+  /* number of digits in result */
+  int digits_int = std::max(new_point - beg, 0);
+  int digits_frac = std::max(end - new_point, 0);
 
   if ((new_len = ROUND_UP(digits_int) +
                  (new_frac_len = ROUND_UP(digits_frac))) > dec->len) {
@@ -1019,7 +1044,7 @@ int decimal2double(const decimal_t *from, double *to) {
   int len = sizeof(strbuf);
   int rc, error;
 
-  rc = decimal2string(from, strbuf, &len, 0, 0, 0);
+  rc = decimal2string(from, strbuf, &len);
   const char *end = strbuf + len;
 
   DBUG_PRINT("info", ("interm.: %s", strbuf));
@@ -1085,7 +1110,7 @@ static int ull2dec(ulonglong from, decimal_t *to) {
 }
 
 int ulonglong2decimal(ulonglong from, decimal_t *to) {
-  to->sign = 0;
+  to->sign = false;
   return ull2dec(from, to);
 }
 
@@ -1780,7 +1805,7 @@ int decimal_round(const decimal_t *from, decimal_t *to, int scale,
         dec1 *p0 = to->buf + frac0 + 1;
         to->intg = 1;
         to->frac = MY_MAX(scale, 0);
-        to->sign = 0;
+        to->sign = false;
         for (buf1 = to->buf; buf1 < p0; buf1++) *buf1 = 0;
         return E_DEC_OK;
       }
@@ -1797,50 +1822,6 @@ done:
   DBUG_ASSERT(to->intg <= (len * DIG_PER_DEC1));
   to->frac = scale;
   return error;
-}
-
-/*
-  Returns the size of the result of the operation
-
-  SYNOPSIS
-    decimal_result_size()
-      from1   - operand of the unary operation or first operand of the
-                binary operation
-      from2   - second operand of the binary operation
-      op      - operation. one char '+', '-', '*', '/' are allowed
-                others may be added later
-      param   - extra param to the operation. unused for '+', '-', '*'
-                scale increment for '/'
-
-  NOTE
-    returned valued may be larger than the actual buffer requred
-    in the operation, as decimal_result_size, by design, operates on
-    precision/scale values only and not on the actual decimal number
-
-  RETURN VALUE
-    size of to->buf array in dec1 elements. to get size in bytes
-    multiply by sizeof(dec1)
-*/
-
-int decimal_result_size(const decimal_t *from1, const decimal_t *from2, char op,
-                        int param) {
-  switch (op) {
-    case '-':
-      return ROUND_UP(MY_MAX(from1->intg, from2->intg)) +
-             ROUND_UP(MY_MAX(from1->frac, from2->frac));
-    case '+':
-      return ROUND_UP(MY_MAX(from1->intg, from2->intg) + 1) +
-             ROUND_UP(MY_MAX(from1->frac, from2->frac));
-    case '*':
-      return ROUND_UP(from1->intg + from2->intg) + ROUND_UP(from1->frac) +
-             ROUND_UP(from2->frac);
-    case '/':
-      return ROUND_UP(from1->intg + from2->intg + 1 + from1->frac +
-                      from2->frac + param);
-    default:
-      DBUG_ASSERT(0);
-  }
-  return -1; /* shut up the warning */
 }
 
 static int do_add(const decimal_t *from1, const decimal_t *from2,
@@ -1874,11 +1855,11 @@ static int do_add(const decimal_t *from1, const decimal_t *from2,
   to->frac = MY_MAX(from1->frac, from2->frac);
   to->intg = intg0 * DIG_PER_DEC1;
   if (unlikely(error)) {
-    set_if_smaller(to->frac, frac0 * DIG_PER_DEC1);
-    set_if_smaller(frac1, frac0);
-    set_if_smaller(frac2, frac0);
-    set_if_smaller(intg1, intg0);
-    set_if_smaller(intg2, intg0);
+    to->frac = std::min(to->frac, frac0 * DIG_PER_DEC1);
+    frac1 = std::min(frac1, frac0);
+    frac2 = std::min(frac2, frac0);
+    intg1 = std::min(intg1, intg0);
+    intg2 = std::min(intg2, intg0);
   }
 
   /* part 1 - max(frac) ... min (frac) */
@@ -1988,10 +1969,10 @@ static int do_sub(const decimal_t *from1, const decimal_t *from2,
   to->frac = MY_MAX(from1->frac, from2->frac);
   to->intg = intg1 * DIG_PER_DEC1;
   if (unlikely(error)) {
-    set_if_smaller(to->frac, frac0 * DIG_PER_DEC1);
-    set_if_smaller(frac1, frac0);
-    set_if_smaller(frac2, frac0);
-    set_if_smaller(intg2, intg1);
+    to->frac = std::min(to->frac, frac0 * DIG_PER_DEC1);
+    frac1 = std::min(frac1, frac0);
+    frac2 = std::min(frac2, frac0);
+    intg2 = std::min(intg2, intg1);
   }
   carry = 0;
 
@@ -2111,12 +2092,12 @@ int decimal_mul(const decimal_t *from_1, const decimal_t *from_2,
   FIX_INTG_FRAC_ERROR(to->len, intg0, frac0, error); /* bound size */
   to->sign = from1->sign != from2->sign;
   to->frac = from1->frac + from2->frac; /* store size in digits */
-  set_if_smaller(to->frac, DECIMAL_NOT_SPECIFIED);
+  to->frac = std::min(to->frac, DECIMAL_NOT_SPECIFIED);
   to->intg = intg0 * DIG_PER_DEC1;
 
   if (unlikely(error)) {
-    set_if_smaller(to->frac, frac0 * DIG_PER_DEC1);
-    set_if_smaller(to->intg, intg0 * DIG_PER_DEC1);
+    to->frac = std::min(to->frac, frac0 * DIG_PER_DEC1);
+    to->intg = std::min(to->intg, intg0 * DIG_PER_DEC1);
     if (unlikely(iii > intg0)) /* bounded integer-part */
     {
       iii -= intg0;
@@ -2311,7 +2292,7 @@ static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
     }
 
   len1 = (i = ROUND_UP(prec1)) + ROUND_UP(2 * frac2 + scale_incr + 1) + 1;
-  set_if_bigger(len1, 3);
+  len1 = std::max(len1, 3);
   if (!(tmp1 = (dec1 *)my_alloca(len1 * sizeof(dec1)))) return E_DEC_OOM;
   memcpy(tmp1, buf1, i * sizeof(dec1));
   memset(tmp1 + i, 0, (len1 - i) * sizeof(dec1));

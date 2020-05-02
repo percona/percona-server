@@ -12,17 +12,17 @@ USE test;
 SHOW CREATE TABLE INFORMATION_SCHEMA.PROCESSLIST;
 Table	Create Table
 PROCESSLIST	CREATE TEMPORARY TABLE `PROCESSLIST` (
-  `ID` bigint(21) unsigned NOT NULL DEFAULT '0',
+  `ID` bigint unsigned NOT NULL DEFAULT '0',
   `USER` varchar(32) NOT NULL DEFAULT '',
   `HOST` varchar(261) NOT NULL DEFAULT '',
   `DB` varchar(64) DEFAULT NULL,
   `COMMAND` varchar(16) NOT NULL DEFAULT '',
-  `TIME` int(7) NOT NULL DEFAULT '0',
+  `TIME` int NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
   `INFO` longtext,
-  `TIME_MS` bigint(21) NOT NULL DEFAULT '0',
-  `ROWS_SENT` bigint(21) unsigned NOT NULL DEFAULT '0',
-  `ROWS_EXAMINED` bigint(21) unsigned NOT NULL DEFAULT '0'
+  `TIME_MS` bigint NOT NULL DEFAULT '0',
+  `ROWS_SENT` bigint unsigned NOT NULL DEFAULT '0',
+  `ROWS_EXAMINED` bigint unsigned NOT NULL DEFAULT '0'
 ) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8
 # Ensure that the information about the own connection is correct.
 #--------------------------------------------------------------------------

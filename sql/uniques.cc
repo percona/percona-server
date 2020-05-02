@@ -195,8 +195,8 @@ static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
   Priority_queue<Merge_chunk *,
                  std::vector<Merge_chunk *, Malloc_allocator<Merge_chunk *>>,
                  decltype(greater)>
-  queue(greater,
-        Malloc_allocator<Merge_chunk *>(key_memory_Filesort_info_merge));
+      queue(greater,
+            Malloc_allocator<Merge_chunk *>(key_memory_Filesort_info_merge));
 
   if (queue.reserve(chunk_array.size())) return 1;
 
@@ -363,7 +363,7 @@ Unique::Unique(qsort2_cmp comp_func, void *comp_func_fixed_arg, uint size_arg,
       size(size_arg),
       elements(0) {
   my_b_clear(&file);
-  init_tree(&tree, /* default_alloc_size */ 0,
+  init_tree(&tree,
             /* memory_limit */ 0, size, comp_func,
             /* with_delete */ false,
             /* free_element */ nullptr, comp_func_fixed_arg);
@@ -661,7 +661,7 @@ void Unique::reset() {
   if (elements) {
     file_ptrs.clear();
     MY_ATTRIBUTE((unused))
-    int reinit_res = reinit_io_cache(&file, WRITE_CACHE, 0L, 0, 1);
+    int reinit_res = reinit_io_cache(&file, WRITE_CACHE, 0L, false, true);
     DBUG_ASSERT(reinit_res == 0);
   }
   /*
@@ -738,7 +738,7 @@ static bool merge_walk(uchar *merge_buffer, size_t merge_buffer_size,
                        IO_CACHE *file) {
   if (end <= begin ||
       merge_buffer_size < (ulong)(key_length * (end - begin + 1)))
-    return 1;
+    return true;
 
   Merge_chunk_compare_context compare_context = {compare, compare_arg};
   Priority_queue<Merge_chunk *,
@@ -746,7 +746,7 @@ static bool merge_walk(uchar *merge_buffer, size_t merge_buffer_size,
                  Merge_chunk_less>
       queue((Merge_chunk_less(compare_context)),
             (Malloc_allocator<Merge_chunk *>(key_memory_Unique_merge_buffer)));
-  if (queue.reserve(end - begin)) return 1;
+  if (queue.reserve(end - begin)) return true;
 
   /* we need space for one key when a piece of merge buffer is re-read */
   merge_buffer_size -= key_length;
@@ -867,9 +867,10 @@ bool Unique::walk(tree_walk_action action, void *walk_action_arg) {
     return tree_walk(&tree, action, walk_action_arg, left_root_right);
 
   /* flush current tree to the file to have some memory for merge buffer */
-  if (flush()) return 1;
-  if (flush_io_cache(&file) || reinit_io_cache(&file, READ_CACHE, 0L, 0, 0))
-    return 1;
+  if (flush()) return true;
+  if (flush_io_cache(&file) ||
+      reinit_io_cache(&file, READ_CACHE, 0L, false, false))
+    return true;
 
   /*
     Compute the size of the merge buffer used by merge_walk(). This buffer
@@ -882,7 +883,7 @@ bool Unique::walk(tree_walk_action action, void *walk_action_arg) {
 
   if (!(merge_buffer = (uchar *)my_malloc(key_memory_Unique_merge_buffer,
                                           merge_buffer_size, MYF(0))))
-    return 1;
+    return true;
   res = merge_walk(merge_buffer, merge_buffer_size, size, file_ptrs.begin(),
                    file_ptrs.end(), action, walk_action_arg, tree.compare,
                    tree.custom_arg, &file);
@@ -906,18 +907,18 @@ bool Unique::get(TABLE *table) {
                            size * tree.elements_in_tree, MYF(0)));
     if ((record_pointers = table->unique_result.sorted_result.get())) {
       (void)tree_walk(&tree, unique_write_to_ptrs, this, left_root_right);
-      return 0;
+      return false;
     }
   }
   /* Not enough memory; Save the result to file && free memory used by tree */
-  if (flush()) return 1;
+  if (flush()) return true;
 
   IO_CACHE *outfile = table->unique_result.io_cache;
   Merge_chunk *file_ptr = file_ptrs.begin();
   size_t num_chunks = file_ptrs.size();
   uchar *sort_memory;
   my_off_t save_pos;
-  bool error = 1;
+  bool error = true;
 
   /* Open cached file if it isn't open */
   DBUG_ASSERT(table->unique_result.io_cache == NULL);
@@ -928,8 +929,8 @@ bool Unique::get(TABLE *table) {
                    open_cached_file_encrypted(outfile, mysql_tmpdir,
                                               TEMP_PREFIX, READ_RECORD_BUFFER,
                                               MYF(MY_WME), encrypt_tmp_files)))
-    return 1;
-  if (reinit_io_cache(outfile, WRITE_CACHE, 0L, 0, 0) != 0) return 1;
+    return true;
+  if (reinit_io_cache(outfile, WRITE_CACHE, 0L, 0, 0) != 0) return true;
 
   MY_ATTRIBUTE((unused))
   int reinit_res = reinit_io_cache(outfile, WRITE_CACHE, 0L, 0, 0);
@@ -940,13 +941,13 @@ bool Unique::get(TABLE *table) {
   uniq_param.rec_length = size;
   uniq_param.max_keys_per_buffer =
       static_cast<uint>(max_in_memory_size / uniq_param.rec_length);
-  uniq_param.not_killable = 1;
+  uniq_param.not_killable = true;
 
   const size_t num_bytes =
       (uniq_param.max_keys_per_buffer + 1) * uniq_param.rec_length;
   if (!(sort_memory = (uchar *)my_malloc(key_memory_Unique_sort_buffer,
                                          num_bytes, MYF(0))))
-    return 1;
+    return true;
   uniq_param.unique_buff =
       sort_memory + (uniq_param.max_keys_per_buffer * uniq_param.rec_length);
 
@@ -960,20 +961,21 @@ bool Unique::get(TABLE *table) {
                       Merge_chunk_array(file_ptrs.begin(), file_ptrs.size()),
                       &num_chunks, &file))
     goto err;
-  if (flush_io_cache(&file) || reinit_io_cache(&file, READ_CACHE, 0L, 0, 0))
+  if (flush_io_cache(&file) ||
+      reinit_io_cache(&file, READ_CACHE, 0L, false, false))
     goto err;
   if (merge_buffers(table->in_use, &uniq_param, &file, outfile,
                     Sort_buffer(sort_memory, num_bytes), file_ptr,
                     Merge_chunk_array(file_ptr, num_chunks), 0))
     goto err;
-  error = 0;
+  error = false;
 err:
   my_free(sort_memory);
-  if (flush_io_cache(outfile)) error = 1;
+  if (flush_io_cache(outfile)) error = true;
 
   /* Setup io_cache for reading */
   save_pos = outfile->pos_in_file;
-  if (reinit_io_cache(outfile, READ_CACHE, 0L, 0, 0)) error = 1;
+  if (reinit_io_cache(outfile, READ_CACHE, 0L, false, false)) error = true;
   outfile->end_of_file = save_pos;
   return error;
 }

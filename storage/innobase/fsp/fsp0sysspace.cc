@@ -318,9 +318,9 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
 void SysTablespace::shutdown() {
   Tablespace::shutdown();
 
-  m_auto_extend_last_file = 0;
+  m_auto_extend_last_file = false;
   m_last_file_size_max = 0;
-  m_created_new_raw = 0;
+  m_created_new_raw = false;
   m_is_tablespace_full = false;
   m_sanity_checks_done = false;
 }
@@ -576,6 +576,8 @@ dberr_t SysTablespace::read_lsn_and_check_flags(lsn_t *flushed_lsn) {
     keyring_encryption_info.page0_has_crypt_data = true;
     keyring_encryption_info.keyring_encryption_min_key_version =
         crypt_data->min_key_version;
+    keyring_encryption_info.type = crypt_data->type;
+    keyring_encryption_info.private_version = crypt_data->private_version;
     fil_space_destroy_crypt_data(&crypt_data);
   }
 

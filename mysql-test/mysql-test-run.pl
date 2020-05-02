@@ -234,7 +234,8 @@ our $opt_xml_report;
 #
 # Suites run by default (i.e. when invoking ./mtr without parameters)
 #
-our $DEFAULT_SUITES = "auth_sec,binlog_gtid,binlog_nogtid,clone,collations,connection_control,encryption,federated,funcs_2,gcol,sysschema,gis,innodb,innodb_fts,innodb_gis,innodb_undo,innodb_zip,json,main,opt_trace,parts,perfschema,query_rewrite_plugins,rpl,rpl_gtid,rpl_nogtid,secondary_engine,service_status_var_registration,service_sys_var_registration,service_udf_registration,sys_vars,binlog,test_service_sql_api,test_services,x,"
+our $DEFAULT_SUITES = 
+  "auth_sec,binlog_gtid,binlog_nogtid,clone,collations,connection_control,encryption,federated,funcs_2,gcol,sysschema,gis,information_schema,innodb,innodb_fts,innodb_gis,innodb_undo,innodb_zip,json,main,opt_trace,parts,perfschema,query_rewrite_plugins,rpl,rpl_gtid,rpl_nogtid,secondary_engine,service_status_var_registration,service_sys_var_registration,service_udf_registration,sys_vars,binlog,test_service_sql_api,test_services,x,"
   # Percona suites
   ."audit_log,binlog_57_decryption,percona-pam-for-mysql,"
   ."data_masking,"
@@ -2736,8 +2737,9 @@ sub read_plugin_defs($) {
       $ENV{$plug_var}            = "";
       $ENV{ $plug_var . '_DIR' } = "";
       $ENV{ $plug_var . '_OPT' } = "";
-      $ENV{ $plug_var . '_LOAD' }     = "" if $plug_names;
-      $ENV{ $plug_var . '_LOAD_ADD' } = "" if $plug_names;
+      $ENV{ $plug_var . '_LOAD' }       = "" if $plug_names;
+      $ENV{ $plug_var . '_LOAD_EARLY' } = "" if $plug_names;
+      $ENV{ $plug_var . '_LOAD_ADD' }   = "" if $plug_names;
     }
   }
   close PLUGDEF;
@@ -2846,6 +2848,9 @@ sub environment_setup {
       my_find_bin($bindir, [ "runtime_output_directory", "bin" ], "ndb_mgm");
 
     $ENV{'NDB_WAITER'} = $exe_ndb_waiter;
+
+    $ENV{'NDB_MGMD'} =
+      my_find_bin($bindir, [ "runtime_output_directory", "libexec", "sbin", "bin" ], "ndb_mgmd");
 
     $ENV{'NDB_CONFIG'} =
       my_find_bin($bindir, [ "runtime_output_directory", "bin" ], "ndb_config");
@@ -3529,7 +3534,7 @@ sub ndbd_start {
   my $args;
   mtr_init_args(\$args);
   mtr_add_arg($args, "--defaults-file=%s",         $path_config_file);
-  mtr_add_arg($args, "--defaults-group-suffix=%s", $cluster->suffix());
+  mtr_add_arg($args, "--defaults-group-suffix=%s", $ndbd->after('cluster_config.ndbd'));
   mtr_add_arg($args, "--nodaemon");
 
   # > 5.0 { 'character-sets-dir' => \&fix_charset_dir },
@@ -4003,7 +4008,7 @@ sub mysql_install_db {
   }
 
   if (-f "include/mtr_test_data_timezone.sql") {
-    # Add the offical mysql system tables for a production system.
+    # Add the official mysql system tables in a production system.
     mtr_tofile($bootstrap_sql_file, "use mysql;\n");
 
     # Add test data for timezone - this is just a subset, on a real
@@ -4070,9 +4075,17 @@ sub mysql_install_db {
     mtr_appendfile_to_file($init_file, $bootstrap_sql_file);
   }
 
-  # Set blacklist option early so it works during bootstrap
-  $ENV{'TSAN_OPTIONS'} = "suppressions=${glob_mysql_test_dir}/tsan.supp"
-    if $opt_sanitize;
+  if ($opt_sanitize) {
+    if ($ENV{'TSAN_OPTIONS'}) {
+      # Don't want TSAN_OPTIONS to start with a leading separator. XSanitizer
+      # options are pretty relaxed about what to use as a
+      # separator: ',' ':' and ' ' all work.
+      $ENV{'TSAN_OPTIONS'} .= ",";
+    } else { $ENV{'TSAN_OPTIONS'} = ""; }
+    # Append TSAN_OPTIONS already present in the environment
+    # Set blacklist option early so it works during bootstrap
+    $ENV{'TSAN_OPTIONS'} .= "suppressions=${glob_mysql_test_dir}/tsan.supp"
+  }
 
   if ($opt_manual_boot_gdb) {
     # The configuration has been set up and user has been prompted for

@@ -18,11 +18,11 @@ COMMIT;
 # 1 Corrupt the page data - i.e. page after the header
 # restart
 SELECT * FROM t1;
-ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?' from InnoDB
+ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the' from InnoDB
 SELECT * FROM t2;
-ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?' from InnoDB
+ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the' from InnoDB
 SELECT * FROM t3;
-ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?' from InnoDB
+ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the' from InnoDB
 # let's check for the presense of the warning
 # Restore the original tables
 # restart
@@ -342,11 +342,11 @@ a	b	c
 # 2 Corrupt the page header - encryption key's version
 # restart
 SELECT * FROM t1;
-ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?' from InnoDB
+ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the' from InnoDB
 SELECT * FROM t2;
-ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?' from InnoDB
+ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the' from InnoDB
 SELECT * FROM t3;
-ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?' from InnoDB
+ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the' from InnoDB
 # Restore the original tables
 # restart
 DROP TABLE t1,t2,t3;

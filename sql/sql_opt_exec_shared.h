@@ -28,9 +28,9 @@
 #ifndef SQL_OPT_EXEC_SHARED_INCLUDED
 #define SQL_OPT_EXEC_SHARED_INCLUDED
 
-#include "item.h"
 #include "my_base.h"
 #include "my_dbug.h"
+#include "sql/item.h"
 
 class JOIN;
 class Item_func_match;
@@ -475,8 +475,14 @@ class QEP_shared_owner {
 
   JOIN *join() const { return m_qs ? m_qs->join() : nullptr; }
   void set_join(JOIN *j) { return m_qs->set_join(j); }
+
+  // NOTE: This index (and the associated map) is not the same as
+  // table_ref's index, which is the index in the original FROM list
+  // (before optimization).
   plan_idx idx() const { return m_qs->idx(); }
   void set_idx(plan_idx i) { return m_qs->set_idx(i); }
+  qep_tab_map idx_map() const { return qep_tab_map{1} << m_qs->idx(); }
+
   TABLE *table() const { return m_qs->table(); }
   POSITION *position() const { return m_qs->position(); }
   void set_position(POSITION *p) { return m_qs->set_position(p); }

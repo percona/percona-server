@@ -68,7 +68,7 @@ hex(a)
 0
 1
 alter table t1 add unique (a);
-ERROR 23000: Duplicate entry '' for key 'a'
+ERROR 23000: Duplicate entry '' for key 't1.a'
 drop table t1;
 create table t1 (a bit(2)) engine=innodb;
 insert into t1 values (b'00');

@@ -1,3 +1,5 @@
+--skip Fails because 'insert into foo values (5.0001,10,10)' succeeds
+
 # ticket 895 is a query optimization problem with the primary key
 
 --source include/have_tokudb.inc

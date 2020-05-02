@@ -34,30 +34,37 @@
 
 #include "sql/sql_union.h"
 
-#include "my_config.h"
-
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
+#include <algorithm>
+#include <atomic>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "memory_debugging.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
+#include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/basic_row_iterators.h"
+#include "sql/composite_iterators.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"     // DEBUG_SYNC
 #include "sql/error_handler.h"  // Strict_error_handler
 #include "sql/field.h"
-#include "sql/filesort.h"  // filesort_free_buffers
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/item_subselect.h"
 #include "sql/mem_root_array.h"
+#include "sql/mysqld.h"
 #include "sql/opt_explain.h"  // explain_no_table
 #include "sql/opt_explain_format.h"
 #include "sql/opt_trace.h"
@@ -67,18 +74,21 @@
 #include "sql/pfs_batch_mode.h"
 #include "sql/protocol.h"
 #include "sql/query_options.h"
-#include "sql/set_var.h"
+#include "sql/row_iterator.h"
 #include "sql/sql_base.h"  // fill_record
 #include "sql/sql_class.h"
+#include "sql/sql_cmd.h"
 #include "sql/sql_const.h"
+#include "sql/sql_error.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"  // JOIN
 #include "sql/sql_select.h"
-#include "sql/sql_tmp_table.h"   // tmp tables
+#include "sql/sql_tmp_table.h"  // tmp tables
+#include "sql/system_variables.h"
 #include "sql/table_function.h"  // Table_function
-#include "sql/thr_malloc.h"
+#include "sql/thd_raii.h"
 #include "sql/timing_iterator.h"
 #include "sql/window.h"  // Window
 #include "template_utils.h"
@@ -179,7 +189,7 @@ bool Query_result_union::create_result_table(
     return true;
   if (create_table) {
     table->file->ha_extra(HA_EXTRA_IGNORE_DUP_KEY);
-    if (table->hash_field) table->file->ha_index_init(0, 0);
+    if (table->hash_field) table->file->ha_index_init(0, false);
   }
   return false;
 }
@@ -441,16 +451,9 @@ bool SELECT_LEX_UNIT::prepare_fake_select_lex(THD *thd_arg) {
   return false;
 }
 
-bool SELECT_LEX_UNIT::can_materialize_directly_into_result(THD *thd) const {
+bool SELECT_LEX_UNIT::can_materialize_directly_into_result() const {
   // There's no point in doing this if we're not already trying to materialize.
   if (!is_union()) {
-    return false;
-  }
-
-  // For now, we don't accept LIMIT or OFFSET; this restriction could probably
-  // be lifted fairly easily in the future.
-  if (global_parameters()->get_offset(thd) != 0 ||
-      global_parameters()->get_limit(thd) != HA_POS_ERROR) {
     return false;
   }
 
@@ -804,6 +807,13 @@ bool SELECT_LEX_UNIT::optimize(THD *thd, TABLE *materialize_destination) {
                 fake_select_lex->having_cond() == NULL);
 
     if (fake_select_lex->optimize(thd)) return true;
+  } else if (saved_fake_select_lex != nullptr) {
+    // When GetTableIterator() sets up direct materialization, it looks for
+    // the value of global_parameters()'s LIMIT in unit->select_limit_cnt;
+    // so set unit->select_limit_cnt accordingly here. This is also done in
+    // the other branch above when there is a fake_select_lex.
+    if (set_limit(thd, saved_fake_select_lex))
+      return true; /* purecov: inspected */
   }
 
   query_result()->estimated_rowcount = estimated_rowcount;
@@ -827,7 +837,7 @@ bool SELECT_LEX_UNIT::optimize(THD *thd, TABLE *materialize_destination) {
     // has not been created, and treat the the lookup as non-const.
     create_iterators(thd);
   } else if (materialize_destination != nullptr &&
-             can_materialize_directly_into_result(thd)) {
+             can_materialize_directly_into_result()) {
     m_query_blocks_to_materialize = setup_materialization(
         thd, materialize_destination, /*union_distinct_only=*/false);
   } else {
@@ -1094,6 +1104,7 @@ bool SELECT_LEX_UNIT::explain(THD *explain_thd, const THD *query_thd) {
 bool SELECT_LEX_UNIT::clear_correlated_query_blocks() {
   for (SELECT_LEX *sl = first_select(); sl; sl = sl->next_select()) {
     sl->join->clear_corr_derived_tmp_tables();
+    sl->join->clear_sj_tmp_tables();
   }
   if (!m_with_clause) return false;
   for (auto el : m_with_clause->m_list->elements()) {
@@ -1645,7 +1656,7 @@ bool SELECT_LEX_UNIT::execute(THD *thd) {
         DBUG_ASSERT(fake_select_lex != NULL);
         if (table->file->ha_disable_indexes(HA_KEY_SWITCH_ALL))
           return true; /* purecov: inspected */
-        table->no_keyread = 1;
+        table->no_keyread = true;
       }
 
       if (status) return true;
@@ -1776,7 +1787,7 @@ void SELECT_LEX_UNIT::reinit_exec_mechanism() {
         but have to drop fixed flag to allow next fix_field of this field
         during re-executing
       */
-      field->fixed = 0;
+      field->fixed = false;
     }
   }
 #endif
@@ -1862,54 +1873,6 @@ const Query_result *SELECT_LEX_UNIT::recursive_result(
 
 bool SELECT_LEX_UNIT::mixed_union_operators() const {
   return union_distinct && union_distinct->next_select();
-}
-
-/**
-  Fix used tables information for a subquery after query transformations.
-  Most actions here involve re-resolving information for conditions
-  and items belonging to the subquery.
-  Notice that the usage information from underlying expressions is not
-  propagated to the subquery's predicate/table, as it belongs to inner layers
-  of the query operator structure.
-  However, when underlying expressions contain outer references into
-  a select_lex on this level, the relevant information must be updated
-  when these expressions are resolved.
-*/
-void SELECT_LEX_UNIT::fix_after_pullout(SELECT_LEX *parent_select,
-                                        SELECT_LEX *removed_select)
-
-{
-  /*
-    Go through all query specification objects of the subquery and re-resolve
-    all relevant expressions belonging to them.
-    Item_ident::fix_after_pullout() will update used_tables for the Item_ident
-    and also for its containing subqueries.
-  */
-  for (SELECT_LEX *sel = first_select(); sel; sel = sel->next_select()) {
-    if (sel->where_cond())
-      sel->where_cond()->fix_after_pullout(parent_select, removed_select);
-
-    if (sel->having_cond())
-      sel->having_cond()->fix_after_pullout(parent_select, removed_select);
-
-    List_iterator<Item> li(sel->item_list);
-    Item *item;
-    while ((item = li++))
-      item->fix_after_pullout(parent_select, removed_select);
-
-    /*
-      No need to call fix_after_pullout() for outer-join conditions, as these
-      cannot have outer references.
-    */
-
-    /* Re-resolve ORDER BY and GROUP BY fields */
-
-    for (ORDER *order = sel->order_list.first; order; order = order->next)
-      (*order->item)->fix_after_pullout(parent_select, removed_select);
-
-    for (ORDER *group = sel->group_list.first; group; group = group->next)
-      (*group->item)->fix_after_pullout(parent_select, removed_select);
-  }
 }
 
 bool SELECT_LEX_UNIT::walk(Item_processor processor, enum_walk walk,

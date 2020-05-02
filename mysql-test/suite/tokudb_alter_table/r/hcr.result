@@ -29,7 +29,7 @@ ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ versio
 show create table foo;
 Table	Create Table
 foo	CREATE TABLE `foo` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` varchar(10) DEFAULT NULL,
   `c` blob,
   KEY `b` (`b`)

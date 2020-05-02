@@ -101,8 +101,8 @@ namespace info_schema {
   Changes from version 80015.
 
   - WL#929 - CHECK CONSTRAINTS
-    New INFORMATION_SCHMEA table CHECK_CONSTRAINTS is introduced and
-    INFORMATION_SCHMEA.TABLE_CONSTRAINTS is modified to include check
+    New INFORMATION_SCHEMA table CHECK_CONSTRAINTS is introduced and
+    INFORMATION_SCHEMA.TABLE_CONSTRAINTS is modified to include check
     constraints defined on the table.
 
   - WL#12261 Control (enforce and disable) table encryption
@@ -124,7 +124,7 @@ namespace info_schema {
     Modifies the INFORMATION_SCHEMA.TABLES dynamic column definitions to
     return NULL, if it finds a view.
 
-  80018: Current
+  80018: Published in 8.0.18
   ------------------------------------
   Changes from version 80017:
 
@@ -143,11 +143,33 @@ namespace info_schema {
                   STATS FOR PARTITIONED TABLES
     This bug changes definition of I_S.STATISTICS.
 
-  80019: Next IS version number after the previous is public.
+  80019: Current
+  ------------------------------------
+  Changes from version 80018:
+
+  - WL#10895 INFORMATION_SCHEMA views for Roles.
+    Adds new system view definitions for roles.
+       INFORMATION_SCHEMA.APPLICABLE_ROLES;
+       INFORMATION_SCHEMA.ADMINISTRABLE_ROLE_AUTHORIZATIONS;
+       INFORMATION_SCHEMA.ENABLED_ROLES;
+       INFORMATION_SCHEMA.ROLE_TABLE_GRANTS;
+       INFORMATION_SCHEMA.ROLE_COLUMN_GRANTS;
+       INFORMATION_SCHEMA.ROLE_ROUTINE_GRANTS;
+
+  80020: Current
+  ------------------------------------
+  Changes from version 80019:
+
+  - Bug#29871530: MYSQL 8.0 INFORMATION_SCHEMA.EVENTS NOT
+                  OBSERVING CUSTOM TIMEZONE
+    This bug updates LAST_EXECUTED to include time zones in
+    I_S.EVENTS.
+
+  80021: Next IS version number after the previous is public.
   ------------------------------------
 */
 
-static const uint IS_DD_VERSION = 80018;
+static const uint IS_DD_VERSION = 80020;
 
 /**
   Initialize INFORMATION_SCHEMA system views.
@@ -159,6 +181,15 @@ static const uint IS_DD_VERSION = 80018;
 bool initialize(THD *thd);
 
 /**
+  Initialize non DD based INFORMATION_SCHEMA system views.
+
+  @param thd    Thread context.
+
+  @return       Upon failure, return true, otherwise false.
+*/
+bool init_non_dd_based_system_view(THD *thd);
+
+/**
   Create INFORMATION_SCHEMA system views.
 
   @param thd    Thread context.
@@ -167,15 +198,7 @@ bool initialize(THD *thd);
 */
 bool create_system_views(THD *thd);
 
-/** Create INFORMATION_SCHEMA views on non-DD tables like
-mysql.compression_dictionary and mysql.compression_dictionary_cols tables
-@param[in,out]    thd                   Session context
-@param[in]        store_i_s_version     when true, stores the I_S version
-                                        false doesn't store, used when I_S
-                                        tables are created on startup
-                                        mysql-8.0 to PS-8.0
-@return false on success, true on failure */
-bool create_non_dd_views(THD *thd, bool store_i_s_version);
+bool create_system_views(THD *thd, bool is_dd_based, bool only_comp_dict);
 
 /**
   Store the server I_S table metadata into dictionary, once during MySQL

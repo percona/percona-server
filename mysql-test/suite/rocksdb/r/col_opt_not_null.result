@@ -42,7 +42,7 @@ ERROR 22001: Data too long for column 'b' at row 1
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
 INSERT INTO t1 SELECT b255, b255, b255, b255, CONCAT('a',b255,b255), 'c' FROM t1;
-ERROR 23000: Duplicate entry 'c' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'c' for key 't1.PRIMARY'
 set session sql_mode=@orig_sql_mode;
 set session transaction_isolation=@orig_tx_iso;
 SELECT HEX(b), HEX(b0), HEX(b1), HEX(b20), HEX(b255), HEX(pk) FROM t1 ORDER BY pk;
@@ -67,7 +67,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c BINARY NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	binary(1)	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
@@ -85,7 +85,7 @@ c BINARY NOT NULL DEFAULT 0
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	binary(1)	NO		0x30	
 ALTER TABLE t1 ADD COLUMN err BINARY NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
@@ -220,7 +220,7 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c VARBINARY(64) NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	varbinary(64)	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
@@ -238,7 +238,7 @@ c VARBINARY(64) NOT NULL DEFAULT 'test'
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	varbinary(64)	NO		0x74657374	
 ALTER TABLE t1 ADD COLUMN err VARBINARY(64) NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
@@ -323,7 +323,7 @@ ERROR 42000: Display width out of range for column 'a' (max = 64)
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c BIT NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	bit(1)	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
@@ -341,7 +341,7 @@ c BIT NOT NULL DEFAULT 1
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	bit(1)	NO		b'1'	
 ALTER TABLE t1 ADD COLUMN err BIT NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
@@ -372,7 +372,7 @@ l LONGBLOB NOT NULL
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 b	blob	NO		NULL	
 b0	tinyblob	NO		NULL	
 b1	tinyblob	NO		NULL	
@@ -431,7 +431,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c BLOB NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	blob	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
@@ -459,7 +459,7 @@ Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'c' can't have a default value
 set session sql_mode=@orig_sql_mode;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	blob	NO		NULL	
 ALTER TABLE t1 ADD COLUMN err BLOB NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
@@ -478,7 +478,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c TINYBLOB NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	tinyblob	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
@@ -506,7 +506,7 @@ Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'c' can't have a default value
 set session sql_mode=@orig_sql_mode;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	tinyblob	NO		NULL	
 ALTER TABLE t1 ADD COLUMN err TINYBLOB NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
@@ -525,7 +525,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c MEDIUMBLOB NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	mediumblob	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
@@ -553,7 +553,7 @@ Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'c' can't have a default value
 set session sql_mode=@orig_sql_mode;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	mediumblob	NO		NULL	
 ALTER TABLE t1 ADD COLUMN err MEDIUMBLOB NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
@@ -572,7 +572,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c LONGBLOB NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	longblob	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
@@ -600,7 +600,7 @@ Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'c' can't have a default value
 set session sql_mode=@orig_sql_mode;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	longblob	NO		NULL	
 ALTER TABLE t1 ADD COLUMN err LONGBLOB NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
@@ -623,7 +623,7 @@ b2 BOOLEAN NOT NULL
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 b1	tinyint(1)	NO		NULL	
 b2	tinyint(1)	NO		NULL	
 INSERT INTO t1 (b1,b2) VALUES (1,TRUE);
@@ -704,7 +704,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c BOOL NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	tinyint(1)	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
@@ -722,7 +722,7 @@ c BOOL NOT NULL DEFAULT '0'
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	tinyint(1)	NO		0	
 ALTER TABLE t1 ADD COLUMN err BOOL NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
@@ -814,7 +814,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c CHAR NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	char(1)	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
@@ -832,7 +832,7 @@ c CHAR NOT NULL DEFAULT '_'
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	char(1)	NO		_	
 ALTER TABLE t1 ADD COLUMN err CHAR NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
@@ -992,7 +992,7 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c VARCHAR(64) NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	varchar(64)	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
@@ -1010,7 +1010,7 @@ c VARCHAR(64) NOT NULL DEFAULT 'test default'
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	varchar(64)	NO		test default	
 ALTER TABLE t1 ADD COLUMN err VARCHAR(64) NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
@@ -1035,14 +1035,16 @@ y YEAR NOT NULL,
 y4 YEAR(4) NOT NULL,
 pk DATETIME PRIMARY KEY
 ) ENGINE=rocksdb;
+Warnings:
+Warning	1287	'YEAR(4)' is deprecated and will be removed in a future release. Please use YEAR instead
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
 d	date	NO		NULL	
 dt	datetime	NO		NULL	
 ts	timestamp	NO		NULL	
 t	time	NO		NULL	
-y	year(4)	NO		NULL	
-y4	year(4)	NO		NULL	
+y	year	NO		NULL	
+y4	year	NO		NULL	
 pk	datetime	NO	PRI	NULL	
 SET @tm = '2012-04-09 05:27:00';
 INSERT INTO t1 (d,dt,ts,t,y,y4,pk) VALUES
@@ -1095,7 +1097,7 @@ SET TIMESTAMP=UNIX_TIMESTAMP('2013-12-12 12:12:12');
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c DATE NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	date	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
@@ -1113,7 +1115,7 @@ c DATE NOT NULL DEFAULT '2012-12-21'
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	date	NO		2012-12-21	
 ALTER TABLE t1 ADD COLUMN err DATE NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
@@ -1132,7 +1134,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c DATETIME NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	datetime	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
@@ -1150,7 +1152,7 @@ c DATETIME NOT NULL DEFAULT '2012-12-21 12:21:12'
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	datetime	NO		2012-12-21 12:21:12	
 ALTER TABLE t1 ADD COLUMN err DATETIME NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
@@ -1169,7 +1171,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c TIMESTAMP NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	timestamp	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
@@ -1187,7 +1189,7 @@ c TIMESTAMP NOT NULL DEFAULT '2012-12-21 12:21:12'
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	timestamp	NO		2012-12-21 12:21:12	
 ALTER TABLE t1 ADD COLUMN err TIMESTAMP NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
@@ -1206,7 +1208,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c TIME NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	time	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
@@ -1224,7 +1226,7 @@ c TIME NOT NULL DEFAULT '12:21:12'
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	time	NO		12:21:12	
 ALTER TABLE t1 ADD COLUMN err TIME NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
@@ -1243,8 +1245,8 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c YEAR NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
-c	year(4)	NO		NULL	
+pk	int	NO	PRI	NULL	auto_increment
+c	year	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
 INSERT INTO t1 (c) VALUES ('2012');
@@ -1261,8 +1263,8 @@ c YEAR NOT NULL DEFAULT '2012'
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
-c	year(4)	NO		2012	
+pk	int	NO	PRI	NULL	auto_increment
+c	year	NO		2012	
 ALTER TABLE t1 ADD COLUMN err YEAR NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
 INSERT INTO t1 (c) VALUES (NULL);
@@ -1278,10 +1280,12 @@ DROP TABLE t1;
 # YEAR(4) NOT NULL columns without a default
 #----------------------------------
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c YEAR(4) NOT NULL) ENGINE=rocksdb;
+Warnings:
+Warning	1287	'YEAR(4)' is deprecated and will be removed in a future release. Please use YEAR instead
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
-c	year(4)	NO		NULL	
+pk	int	NO	PRI	NULL	auto_increment
+c	year	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
 INSERT INTO t1 (c) VALUES ('12');
@@ -1296,10 +1300,12 @@ CREATE TABLE t1 (
 pk INT AUTO_INCREMENT PRIMARY KEY,
 c YEAR(4) NOT NULL DEFAULT '12'
 ) ENGINE=rocksdb;
+Warnings:
+Warning	1287	'YEAR(4)' is deprecated and will be removed in a future release. Please use YEAR instead
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
-c	year(4)	NO		2012	
+pk	int	NO	PRI	NULL	auto_increment
+c	year	NO		2012	
 ALTER TABLE t1 ADD COLUMN err YEAR(4) NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
 INSERT INTO t1 (c) VALUES (NULL);
@@ -1376,7 +1382,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c ENUM('test1','test2','test3') NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	enum('test1','test2','test3')	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
@@ -1394,7 +1400,7 @@ c ENUM('test1','test2','test3') NOT NULL DEFAULT 'test2'
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	enum('test1','test2','test3')	NO		test2	
 ALTER TABLE t1 ADD COLUMN err ENUM('test1','test2','test3') NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
@@ -1573,7 +1579,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c DECIMAL NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	decimal(10,0)	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
@@ -1595,7 +1601,7 @@ Warnings:
 Note	1265	Data truncated for column 'c' at row 1
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	decimal(10,0)	NO		1	
 ALTER TABLE t1 ADD COLUMN err DECIMAL NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
@@ -1616,7 +1622,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c NUMERIC NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	decimal(10,0)	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
@@ -1634,7 +1640,7 @@ c NUMERIC NOT NULL DEFAULT 0
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	decimal(10,0)	NO		0	
 ALTER TABLE t1 ADD COLUMN err NUMERIC NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
@@ -2029,7 +2035,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c FLOAT NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	float	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
@@ -2047,7 +2053,7 @@ c FLOAT NOT NULL DEFAULT 1.1
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	float	NO		1.1	
 ALTER TABLE t1 ADD COLUMN err FLOAT NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
@@ -2066,7 +2072,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c DOUBLE NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	double	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
@@ -2084,7 +2090,7 @@ c DOUBLE NOT NULL DEFAULT 0
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	double	NO		0	
 ALTER TABLE t1 ADD COLUMN err DOUBLE NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
@@ -2141,27 +2147,27 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-i	int(11)	NO		NULL	
-i0	int(11)	NO		NULL	
-i1	int(1)	NO		NULL	
-i20	int(20)	NO		NULL	
-t	tinyint(4)	NO		NULL	
-t0	tinyint(4)	NO		NULL	
+i	int	NO		NULL	
+i0	int	NO		NULL	
+i1	int	NO		NULL	
+i20	int	NO		NULL	
+t	tinyint	NO		NULL	
+t0	tinyint	NO		NULL	
 t1	tinyint(1)	NO		NULL	
-t20	tinyint(20)	NO		NULL	
-s	smallint(6)	NO		NULL	
-s0	smallint(6)	NO		NULL	
-s1	smallint(1)	NO		NULL	
-s20	smallint(20)	NO		NULL	
-m	mediumint(9)	NO		NULL	
-m0	mediumint(9)	NO		NULL	
-m1	mediumint(1)	NO		NULL	
-m20	mediumint(20)	NO		NULL	
-b	bigint(20)	NO		NULL	
-b0	bigint(20)	NO		NULL	
-b1	bigint(1)	NO		NULL	
-b20	bigint(20)	NO		NULL	
-pk	int(11)	NO	PRI	NULL	auto_increment
+t20	tinyint	NO		NULL	
+s	smallint	NO		NULL	
+s0	smallint	NO		NULL	
+s1	smallint	NO		NULL	
+s20	smallint	NO		NULL	
+m	mediumint	NO		NULL	
+m0	mediumint	NO		NULL	
+m1	mediumint	NO		NULL	
+m20	mediumint	NO		NULL	
+b	bigint	NO		NULL	
+b0	bigint	NO		NULL	
+b1	bigint	NO		NULL	
+b20	bigint	NO		NULL	
+pk	int	NO	PRI	NULL	auto_increment
 INSERT INTO t1 (i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20) VALUES (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20);
 INSERT INTO t1 (i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20) VALUES (0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);
 INSERT INTO t1 (i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20) VALUES (2147483647,2147483647,2147483647,2147483647,127,127,127,127,32767,32767,32767,32767,8388607,8388607,8388607,8388607,9223372036854775807,9223372036854775807,9223372036854775807,9223372036854775807);
@@ -2372,8 +2378,8 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c INT NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
-c	int(11)	NO		NULL	
+pk	int	NO	PRI	NULL	auto_increment
+c	int	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
 INSERT INTO t1 (c) VALUES (2147483647);
@@ -2390,8 +2396,8 @@ c INT NOT NULL DEFAULT 2147483647
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
-c	int(11)	NO		2147483647	
+pk	int	NO	PRI	NULL	auto_increment
+c	int	NO		2147483647	
 ALTER TABLE t1 ADD COLUMN err INT NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
 INSERT INTO t1 (c) VALUES (NULL);
@@ -2409,8 +2415,8 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c TINYINT NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
-c	tinyint(4)	NO		NULL	
+pk	int	NO	PRI	NULL	auto_increment
+c	tinyint	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
 INSERT INTO t1 (c) VALUES (127);
@@ -2427,8 +2433,8 @@ c TINYINT NOT NULL DEFAULT 127
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
-c	tinyint(4)	NO		127	
+pk	int	NO	PRI	NULL	auto_increment
+c	tinyint	NO		127	
 ALTER TABLE t1 ADD COLUMN err TINYINT NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
 INSERT INTO t1 (c) VALUES (NULL);
@@ -2446,8 +2452,8 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c SMALLINT NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
-c	smallint(6)	NO		NULL	
+pk	int	NO	PRI	NULL	auto_increment
+c	smallint	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
 INSERT INTO t1 (c) VALUES (0);
@@ -2464,8 +2470,8 @@ c SMALLINT NOT NULL DEFAULT 0
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
-c	smallint(6)	NO		0	
+pk	int	NO	PRI	NULL	auto_increment
+c	smallint	NO		0	
 ALTER TABLE t1 ADD COLUMN err SMALLINT NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
 INSERT INTO t1 (c) VALUES (NULL);
@@ -2483,8 +2489,8 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c MEDIUMINT NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
-c	mediumint(9)	NO		NULL	
+pk	int	NO	PRI	NULL	auto_increment
+c	mediumint	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
 INSERT INTO t1 (c) VALUES (1);
@@ -2501,8 +2507,8 @@ c MEDIUMINT NOT NULL DEFAULT 1
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
-c	mediumint(9)	NO		1	
+pk	int	NO	PRI	NULL	auto_increment
+c	mediumint	NO		1	
 ALTER TABLE t1 ADD COLUMN err MEDIUMINT NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
 INSERT INTO t1 (c) VALUES (NULL);
@@ -2520,8 +2526,8 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c BIGINT NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
-c	bigint(20)	NO		NULL	
+pk	int	NO	PRI	NULL	auto_increment
+c	bigint	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
 INSERT INTO t1 (c) VALUES (9223372036854775807);
@@ -2538,8 +2544,8 @@ c BIGINT NOT NULL DEFAULT 9223372036854775807
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
-c	bigint(20)	NO		9223372036854775807	
+pk	int	NO	PRI	NULL	auto_increment
+c	bigint	NO		9223372036854775807	
 ALTER TABLE t1 ADD COLUMN err BIGINT NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
 INSERT INTO t1 (c) VALUES (NULL);
@@ -2631,7 +2637,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c SET('test1','test2','test3') NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	set('test1','test2','test3')	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
@@ -2649,7 +2655,7 @@ c SET('test1','test2','test3') NOT NULL DEFAULT 'test2,test3'
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	set('test1','test2','test3')	NO		test2,test3	
 ALTER TABLE t1 ADD COLUMN err SET('test1','test2','test3') NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
@@ -2680,7 +2686,7 @@ l LONGTEXT NOT NULL
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 t	text	NO		NULL	
 t0	tinytext	NO		NULL	
 t1	tinytext	NO		NULL	
@@ -2738,7 +2744,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c TEXT NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	text	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
@@ -2766,7 +2772,7 @@ Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'c' can't have a default value
 set session sql_mode=@orig_sql_mode;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	text	NO		NULL	
 ALTER TABLE t1 ADD COLUMN err TEXT NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
@@ -2785,7 +2791,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c TINYTEXT NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	tinytext	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
@@ -2813,7 +2819,7 @@ Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'c' can't have a default value
 set session sql_mode=@orig_sql_mode;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	tinytext	NO		NULL	
 ALTER TABLE t1 ADD COLUMN err TINYTEXT NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
@@ -2832,7 +2838,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c MEDIUMTEXT NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	mediumtext	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
@@ -2860,7 +2866,7 @@ Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'c' can't have a default value
 set session sql_mode=@orig_sql_mode;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	mediumtext	NO		NULL	
 ALTER TABLE t1 ADD COLUMN err MEDIUMTEXT NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'
@@ -2879,7 +2885,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY, c LONGTEXT NOT NULL) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	longtext	NO		NULL	
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
@@ -2907,7 +2913,7 @@ Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'c' can't have a default value
 set session sql_mode=@orig_sql_mode;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 c	longtext	NO		NULL	
 ALTER TABLE t1 ADD COLUMN err LONGTEXT NOT NULL DEFAULT NULL;
 ERROR 42000: Invalid default value for 'err'

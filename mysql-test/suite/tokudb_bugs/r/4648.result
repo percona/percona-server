@@ -19,5 +19,5 @@ c1	c2	c3
 1	this is a test	NULL
 insert into t1 (c1,c2) values(2,'ttt');
 update t1 set c2 = 'ttt' where c1 = 1;
-ERROR 23000: Duplicate entry 'ttt' for key 'unique_c2'
+ERROR 23000: Duplicate entry 'ttt' for key 't1.unique_c2'
 DROP TABLE t1;

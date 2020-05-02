@@ -121,7 +121,7 @@ class Item_func_to_seconds final : public Item_int_func {
     /* This function was introduced in 5.5 */
     int output_version = std::max(*input_version, 50500);
     *input_version = output_version;
-    return 0;
+    return false;
   }
 
   /* Only meaningful with date part and optional time part */
@@ -390,7 +390,8 @@ class Item_func_dayname final : public Item_func_weekday {
   MY_LOCALE *locale;
 
  public:
-  Item_func_dayname(const POS &pos, Item *a) : Item_func_weekday(pos, a, 0) {}
+  Item_func_dayname(const POS &pos, Item *a)
+      : Item_func_weekday(pos, a, false) {}
   const char *func_name() const override { return "dayname"; }
   String *val_str(String *str) override;
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override {
@@ -467,6 +468,7 @@ class Item_func_unix_timestamp final : public Item_timeval_func {
       set_data_type_decimal(11 + dec, dec);
     } else {
       set_data_type_longlong();
+      decimals = 0;
       max_length = 11;
     }
     return false;
@@ -533,7 +535,7 @@ class Item_temporal_func : public Item_func {
     return &my_charset_bin;
   }
   Field *tmp_table_field(TABLE *table) override {
-    return tmp_table_field_from_field_type(table, 0);
+    return tmp_table_field_from_field_type(table, false);
   }
   uint time_precision() override {
     DBUG_ASSERT(fixed);
@@ -585,7 +587,7 @@ class Item_temporal_hybrid_func : public Item_str_func {
                                             : &my_charset_bin;
   }
   Field *tmp_table_field(TABLE *table) override {
-    return tmp_table_field_from_field_type(table, 0);
+    return tmp_table_field_from_field_type(table, false);
   }
   longlong val_int() override { return val_int_from_decimal(); }
   double val_real() override { return val_real_from_decimal(); }
@@ -796,7 +798,8 @@ class MYSQL_TIME_cache {
   /**
     Set time and time_packed from a DATETIME value.
   */
-  void set_datetime(MYSQL_TIME *ltime, uint8 dec_arg);
+  void set_datetime(MYSQL_TIME *ltime, uint8 dec_arg,
+                    const Time_zone *tz = nullptr);
   /**
     Set time and time_packed according to DATE value
     in "struct timeval" representation and its time zone.
@@ -959,12 +962,14 @@ class Item_datetime_literal final : public Item_datetime_func {
  public:
   /**
     Constructor for Item_datetime_literal.
-    @param ltime    DATETIME value.
-    @param dec_arg  number of fractional digits in ltime.
+    @param ltime   DATETIME value.
+    @param dec_arg Number of fractional digits in ltime.
+    @param tz      The current time zone, used for converting literals with
+                   time zone upon storage.
   */
-  Item_datetime_literal(MYSQL_TIME *ltime, uint dec_arg) {
+  Item_datetime_literal(MYSQL_TIME *ltime, uint dec_arg, const Time_zone *tz) {
     set_data_type_datetime(MY_MIN(dec_arg, DATETIME_MAX_DECIMALS));
-    cached_time.set_datetime(ltime, decimals);
+    cached_time.set_datetime(ltime, decimals, tz);
     fixed = true;
   }
   const char *func_name() const override { return "datetime_literal"; }
@@ -1280,7 +1285,9 @@ class Item_func_convert_tz final : public Item_datetime_func {
 
  public:
   Item_func_convert_tz(const POS &pos, Item *a, Item *b, Item *c)
-      : Item_datetime_func(pos, a, b, c), from_tz_cached(0), to_tz_cached(0) {}
+      : Item_datetime_func(pos, a, b, c),
+        from_tz_cached(false),
+        to_tz_cached(false) {}
   const char *func_name() const override { return "convert_tz"; }
   bool resolve_type(THD *) override;
   bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date) override;
@@ -1388,9 +1395,9 @@ class Item_extract final : public Item_int_func {
 
 class Item_typecast_date final : public Item_date_func {
  public:
-  Item_typecast_date(Item *a) : Item_date_func(a) { maybe_null = 1; }
+  Item_typecast_date(Item *a) : Item_date_func(a) { maybe_null = true; }
   Item_typecast_date(const POS &pos, Item *a) : Item_date_func(pos, a) {
-    maybe_null = 1;
+    maybe_null = true;
   }
 
   void print(const THD *thd, String *str,

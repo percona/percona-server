@@ -107,6 +107,7 @@ lock at the same time as multiple read locks.
 #include "mysql/psi/psi_stage.h"
 #include "mysql/psi/psi_table.h"
 #include "mysys/mysys_priv.h"
+#include "template_utils.h"
 #include "thr_lock.h"
 #include "thr_mutex.h"
 
@@ -344,9 +345,9 @@ void thr_lock_data_init(THR_LOCK *lock, THR_LOCK_DATA *data, void *param) {
 static inline bool has_old_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner) {
   for (; data; data = data->next) {
     if (thr_lock_owner_equal(data->owner, owner))
-      return 1; /* Already locked by thread */
+      return true; /* Already locked by thread */
   }
-  return 0;
+  return false;
 }
 
 static void wake_up_waiters(THR_LOCK *lock);
@@ -648,11 +649,11 @@ enum enum_thr_lock_result thr_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner,
     } else {
       DBUG_PRINT("info", ("write_wait.data: %p", lock->write_wait.data));
       if (!lock->write_wait.data) { /* no scheduled write locks */
-        bool concurrent_insert = 0;
+        bool concurrent_insert = false;
         if (lock_type == TL_WRITE_CONCURRENT_INSERT) {
-          concurrent_insert = 1;
+          concurrent_insert = true;
           if ((*lock->check_status)(data->status_param)) {
-            concurrent_insert = 0;
+            concurrent_insert = false;
             data->type = lock_type = thr_upgraded_concurrent_insert_lock;
           }
         }
@@ -677,7 +678,7 @@ enum enum_thr_lock_result thr_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner,
     wait_queue = &lock->write_wait;
   }
   /* Can't get lock yet;  Wait for it */
-  result = wait_for_lock(wait_queue, data, owner, 0, lock_wait_timeout);
+  result = wait_for_lock(wait_queue, data, owner, false, lock_wait_timeout);
   MYSQL_END_TABLE_LOCK_WAIT(locker);
   return result;
 end:
@@ -791,7 +792,7 @@ static void wake_up_waiters(THR_LOCK *lock) {
             DBUG_PRINT(
                 "info",
                 ("Freeing all read_locks because of max_write_lock_count"));
-            free_all_read_locks(lock, 0);
+            free_all_read_locks(lock, false);
             goto end;
           }
         }
@@ -842,7 +843,7 @@ static void wake_up_waiters(THR_LOCK *lock) {
       if (lock_type == TL_WRITE_CONCURRENT_INSERT &&
           (*lock->check_status)(data->status_param)) {
         data->type = TL_WRITE; /* Upgrade lock */
-        if (lock->read_wait.data) free_all_read_locks(lock, 0);
+        if (lock->read_wait.data) free_all_read_locks(lock, false);
         goto end;
       }
       do {
@@ -864,7 +865,7 @@ static void wake_up_waiters(THR_LOCK *lock) {
         free_all_read_locks(lock, (lock_type == TL_WRITE_CONCURRENT_INSERT ||
                                    lock_type == TL_WRITE_ALLOW_WRITE));
     } else if (!data && lock->read_wait.data)
-      free_all_read_locks(lock, 0);
+      free_all_read_locks(lock, false);
   }
 end:
   check_locks(lock, "after waking up waiters", 0);
@@ -1051,52 +1052,6 @@ void thr_abort_locks_for_thread(THR_LOCK *lock, my_thread_id thread_id) {
   mysql_mutex_unlock(&lock->mutex);
 }
 
-/*
-  Downgrade a WRITE_* to a lower WRITE level
-  SYNOPSIS
-    thr_downgrade_write_lock()
-    in_data                   Lock data of thread downgrading its lock
-    new_lock_type             New write lock type
-  RETURN VALUE
-    NONE
-  DESCRIPTION
-    This can be used to downgrade a lock already owned. When the downgrade
-    occurs also other waiters, both readers and writers can be allowed to
-    start.
-    The previous lock is often TL_WRITE_ONLY but can also be
-    TL_WRITE. The normal downgrade variants are:
-    TL_WRITE_ONLY => TL_WRITE after a short exclusive lock while holding a
-    write table lock
-    TL_WRITE_ONLY => TL_WRITE_ALLOW_WRITE After a short exclusive lock after
-    already earlier having dongraded lock to TL_WRITE_ALLOW_WRITE
-    The implementation is conservative and rather don't start rather than
-    go on unknown paths to start, the common cases are handled.
-
-    NOTE:
-    In its current implementation it is only allowed to downgrade from
-    TL_WRITE_ONLY. In this case there are no waiters. Thus no wake up
-    logic is required.
-*/
-
-void thr_downgrade_write_lock(THR_LOCK_DATA *in_data,
-                              enum thr_lock_type new_lock_type) {
-  THR_LOCK *lock = in_data->lock;
-#ifndef DBUG_OFF
-  enum thr_lock_type old_lock_type = in_data->type;
-#endif
-  DBUG_TRACE;
-
-  mysql_mutex_lock(&lock->mutex);
-  DBUG_ASSERT(old_lock_type == TL_WRITE_ONLY);
-  DBUG_ASSERT(old_lock_type > new_lock_type);
-  in_data->type = new_lock_type;
-  check_locks(lock, "after downgrading lock", 0);
-
-  mysql_mutex_unlock(&lock->mutex);
-}
-
-#include "my_sys.h"
-
 static void thr_print_lock(const char *name, struct st_lock_list *list) {
   THR_LOCK_DATA *data, **prev;
   uint count = 0;
@@ -1229,7 +1184,9 @@ static void test_update_status(void *param MY_ATTRIBUTE((unused))) {}
 static void test_copy_status(void *to MY_ATTRIBUTE((unused)),
                              void *from MY_ATTRIBUTE((unused))) {}
 
-static bool test_check_status(void *param MY_ATTRIBUTE((unused))) { return 0; }
+static bool test_check_status(void *param MY_ATTRIBUTE((unused))) {
+  return false;
+}
 
 static void *test_thread(void *arg) {
   int i, j, param = *((int *)arg);

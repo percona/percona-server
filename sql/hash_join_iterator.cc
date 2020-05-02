@@ -30,6 +30,7 @@
 #include <vector>
 
 #include "extra/lz4/my_xxhash.h"
+#include "field_types.h"
 #include "my_alloc.h"
 #include "my_bit.h"
 #include "my_bitmap.h"
@@ -43,7 +44,9 @@
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/row_iterator.h"
+#include "sql/sql_class.h"
 #include "sql/sql_executor.h"
+#include "sql/sql_optimizer.h"
 #include "sql/sql_select.h"
 #include "sql/table.h"
 
@@ -64,7 +67,7 @@ static std::vector<HashJoinCondition> ItemToHashJoinConditions(
 
 HashJoinIterator::HashJoinIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> build_input,
-    const std::vector<QEP_TAB *> &build_input_tables,
+    qep_tab_map build_input_tables,
     unique_ptr_destroy_only<RowIterator> probe_input,
     QEP_TAB *probe_input_table, size_t max_memory_available,
     const std::vector<Item_func_eq *> &join_conditions,
@@ -73,8 +76,8 @@ HashJoinIterator::HashJoinIterator(
       m_state(State::READING_ROW_FROM_PROBE_ITERATOR),
       m_build_input(move(build_input)),
       m_probe_input(move(probe_input)),
-      m_probe_input_table({probe_input_table}),
-      m_build_input_tables(build_input_tables),
+      m_probe_input_table(probe_input_table),
+      m_build_input_tables(probe_input_table->join(), build_input_tables),
       m_row_buffer(m_build_input_tables,
                    ItemToHashJoinConditions(join_conditions, thd->mem_root),
                    max_memory_available),
@@ -156,6 +159,20 @@ bool HashJoinIterator::InitRowBuffer() {
   return false;
 }
 
+// Mark that blobs should be copied for each table that contains at least one
+// geometry column.
+static void MarkCopyBlobsIfTableContainsGeometry(
+    const hash_join_buffer::TableCollection &table_collection) {
+  for (const hash_join_buffer::Table &table : table_collection.tables()) {
+    for (const hash_join_buffer::Column &col : table.columns) {
+      if (col.field_type == MYSQL_TYPE_GEOMETRY) {
+        table.qep_tab->table()->copy_blobs = true;
+        break;
+      }
+    }
+  }
+}
+
 bool HashJoinIterator::Init() {
   // Prepare to read the build input into the hash map.
   if (m_build_input->Init()) {
@@ -183,6 +200,17 @@ bool HashJoinIterator::Init() {
     my_error(ER_OUTOFMEMORY, MYF(0), upper_row_size);
     return true;  // oom
   }
+
+  // If any of the tables contains a geometry column, we must ensure that
+  // the geometry data is copied to the row buffer (see
+  // Field_geom::store_internal) instead of only setting the pointer to the
+  // data. This is needed if the hash join spills to disk; when we read a row
+  // back from chunk file, row data is stored in a temporary buffer. If not told
+  // otherwise, Field_geom::store_internal will only store the pointer to the
+  // data, and not the data itself. The data this field points to will then
+  // become invalid when the temporary buffer is used for something else.
+  MarkCopyBlobsIfTableContainsGeometry(m_probe_input_table);
+  MarkCopyBlobsIfTableContainsGeometry(m_build_input_tables);
 
   // Close any leftover files from previous iterations.
   m_chunk_files_on_disk.clear();
@@ -259,8 +287,7 @@ static bool WriteRowToChunk(
 }
 
 // Request the row ID for all tables where it should be kept.
-static void RequestRowId(
-    const Prealloced_array<hash_join_buffer::Table, 4> &tables) {
+void RequestRowId(const Prealloced_array<hash_join_buffer::Table, 4> &tables) {
   for (const hash_join_buffer::Table &it : tables) {
     TABLE *table = it.qep_tab->table();
     if (it.rowid_status == NEED_TO_CALL_POSITION_FOR_ROWID &&

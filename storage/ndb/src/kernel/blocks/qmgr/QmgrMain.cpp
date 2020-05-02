@@ -59,8 +59,19 @@
 
 #include <TransporterRegistry.hpp> // Get connect address
 
+#include "../dbdih/Dbdih.hpp"
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
+
+#if (defined(VM_TRACE) || defined(ERROR_INSERT))
+//#define DEBUG_ARBIT 1
+#endif
+
+#ifdef DEBUG_ARBIT
+#define DEB_ARBIT(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_ARBIT(arglist) do { } while (0)
+#endif
 
 //#define DEBUG_QMGR_START
 #ifdef DEBUG_QMGR_START
@@ -366,6 +377,10 @@ void Qmgr::execFAIL_REP(Signal* signal)
   const NodeId failNodeId = failRep->failNodeId;
   const FailRep::FailCause failCause = (FailRep::FailCause)failRep->failCause; 
   Uint32 failSource = failRep->getFailSourceNodeId(signal->length());
+  if (ERROR_INSERT_VALUE >= 951 && ERROR_INSERT_VALUE <= 960)
+  {
+    CRASH_INSERTION3();
+  }
   if (!failSource)
   {
     /* Failure source not included, use sender of signal as 'source' */
@@ -447,6 +462,7 @@ void Qmgr::execSTTOR(Signal* signal)
   case 1:
     initData(signal);
     g_eventLogger->info("Starting QMGR phase 1");
+    c_ndbcntr = (Ndbcntr*)globalData.getBlock(NDBCNTR);
     startphase1(signal);
     recompute_version_info(NodeInfo::DB);
     recompute_version_info(NodeInfo::API);
@@ -1188,11 +1204,6 @@ void Qmgr::execCM_REGREQ(Signal* signal)
     start_type = cmRegReq->start_type;
   }
 
-  if (startingVersion < NDBD_SPLIT_VERSION)
-  {
-    startingMysqlVersion = 0;
-  }
-  
   if (creadyDistCom == ZFALSE) {
     jam();
     /* NOT READY FOR DISTRIBUTED COMMUNICATION.*/
@@ -1302,30 +1313,9 @@ void Qmgr::execCM_REGREQ(Signal* signal)
      * while in single user mode.
      */
     // handle rolling upgrade
-    {
-      unsigned int get_major = getMajor(startingVersion);
-      unsigned int get_minor = getMinor(startingVersion);
-      unsigned int get_build = getBuild(startingVersion);
-
-      if (startingVersion < NDBD_QMGR_SINGLEUSER_VERSION_5) {
-        jam();
-
-        infoEvent("QMGR: detect upgrade: new node %u old version %u.%u.%u",
-          (unsigned int)addNodePtr.i, get_major, get_minor, get_build);
-        /** 
-         * The new node is old version, send ZINCOMPATIBLE_VERSION instead
-         * of ZSINGLE_USER_MODE.
-         */
-        sendCmRegrefLab(signal, Tblockref, CmRegRef::ZINCOMPATIBLE_VERSION,
-                        startingVersion);
-      } else {
-        jam();
-
-        sendCmRegrefLab(signal, Tblockref, CmRegRef::ZSINGLE_USER_MODE,
-                        startingVersion);
-      }//if
-    }
-
+    jam();
+    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZSINGLE_USER_MODE,
+                    startingVersion);
     return;
   }//if
 
@@ -1555,27 +1545,15 @@ void Qmgr::execCM_REGCONF(Signal* signal)
     return;
   }
 
-  if (!ndb_check_hb_order_version(cmRegConf->presidentVersion) &&
-      m_hb_order_config_used) {
+  if (!ndbd_upgrade_ok(cmRegConf->presidentVersion)) {
     jam();
     char buf[128];
-    BaseString::snprintf(buf,sizeof(buf), 
-			 "incompatible version own=0x%x other=0x%x, "
-			 "due to user-defined HeartbeatOrder, shutting down", 
-			 NDB_VERSION, cmRegConf->presidentVersion);
-    progError(__LINE__, NDBD_EXIT_UNSUPPORTED_VERSION, buf);  
+    BaseString::snprintf(buf,sizeof(buf),
+      "Not okay to upgrade from 0x%x, "
+      "shutting down",
+      cmRegConf->presidentVersion);
+    progError(__LINE__, NDBD_EXIT_UNSUPPORTED_VERSION, buf);
     return;
-  }
-
-  if (m_connectivity_check.m_enabled &&
-      !ndbd_connectivity_check(cmRegConf->presidentVersion))
-  {
-    jam();
-    m_connectivity_check.m_enabled = false;
-    ndbout_c("Disabling ConnectCheckIntervalDelay as president "
-             " does not support it");
-    infoEvent("Disabling ConnectCheckIntervalDelay as president "
-              " does not support it");
   }
 
   myNodePtr.i = getOwnNodeId();
@@ -1729,15 +1707,14 @@ retry:
       else if (packed_bitmask_length <= 2)
       {
         jam();
-        bool sendSourceId = ndbd_fail_rep_source_node((getNodeInfo(i)).m_version);
         c_clusterNodes.copyto(NdbNodeBitmask48::Size, rep->partitioned.partition_v1);
         sendSignal(ref, GSN_FAIL_REP, signal,
-                   length + (sendSourceId ? FailRep::SourceExtraLength : 0),
+                   length + FailRep::SourceExtraLength,
                    JBA);
       }
       else
       {
-        ndbrequire(false);
+        ndbabort();
       }
     }
     rep->failNodeId = nodeId;
@@ -1768,14 +1745,13 @@ retry:
     else if (packed_bitmask_length <= 2)
     {
       jam();
-      bool sendSourceId = ndbd_fail_rep_source_node((getNodeInfo(nodeId)).m_version);
       sendSignal(ref, GSN_FAIL_REP, signal,
-                 length + (sendSourceId ? FailRep::SourceExtraLength : 0),
+                 length + FailRep::SourceExtraLength,
                  JBB);
     }
     else
     {
-      ndbrequire(false);
+      ndbabort();
     }
     return;
   }
@@ -2449,16 +2425,6 @@ void Qmgr::execCM_NODEINFOCONF(Signal* signal)
   const Uint32 version = conf->version;
   Uint32 mysql_version = conf->mysql_version;
   Uint32 lqh_workers = conf->lqh_workers;
-  if (version < NDBD_SPLIT_VERSION)
-  {
-    jam();
-    mysql_version = 0;
-  }
-  if (version < NDBD_MT_LQH_VERSION)
-  {
-    jam();
-    lqh_workers = 0;
-  }
 
   NodeRecPtr nodePtr;  
   nodePtr.i = getOwnNodeId();
@@ -2533,13 +2499,9 @@ void Qmgr::execCM_NODEINFOREQ(Signal* signal)
   setNodeInfo(addNodePtr.i).m_version = req->version;
 
   Uint32 mysql_version = req->mysql_version;
-  if (req->version < NDBD_SPLIT_VERSION)
-    mysql_version = 0;
   setNodeInfo(addNodePtr.i).m_mysql_version = mysql_version;
 
   Uint32 lqh_workers = req->lqh_workers;
-  if (req->version < NDBD_MT_LQH_VERSION)
-    lqh_workers = 0;
   setNodeInfo(addNodePtr.i).m_lqh_workers = lqh_workers;
 
   c_maxDynamicId = req->dynamicId & 0xFFFF;
@@ -2612,7 +2574,6 @@ Qmgr::cmAddPrepare(Signal* signal, NodeRecPtr nodePtr, const NodeRec * self){
 void
 Qmgr::sendApiVersionRep(Signal* signal, NodeRecPtr nodePtr)
 {
-  if (getNodeInfo(nodePtr.i).m_version >= NDBD_NODE_VERSION_REP)
   {
     jam();
     Uint32 ref = calcQmgrBlockRef(nodePtr.i);
@@ -3150,6 +3111,7 @@ void Qmgr::initData(Signal* signal)
 
   arbitRec.method = (ArbitRec::Method)arbitMethod;
   arbitRec.state = ARBIT_NULL;          // start state for all nodes
+  DEB_ARBIT(("Arbit state = ARBIT_INIT init"));
   arbitRec.apiMask[0].clear();          // prepare for ARBIT_CFG
 
   Uint32 sum = 0;
@@ -3970,8 +3932,7 @@ Qmgr::execNF_COMPLETEREP(Signal* signal)
   for (nodePtr.i = 1; nodePtr.i < MAX_NODES; nodePtr.i++) 
   {
     ptrAss(nodePtr, nodeRec);
-    if (nodePtr.p->phase == ZAPI_ACTIVE && 
-        ndb_takeovertc(getNodeInfo(nodePtr.i).m_version))
+    if (nodePtr.p->phase == ZAPI_ACTIVE)
     {
       jamLine(nodePtr.i);
       sendSignal(nodePtr.p->blockRef, GSN_TAKE_OVERTCCONF, signal, 
@@ -3990,6 +3951,10 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
 {
   jamEntry();
   const DisconnectRep * const rep = (DisconnectRep *)&signal->theData[0];
+  if (ERROR_INSERT_VALUE >= 951 && ERROR_INSERT_VALUE <= 960)
+  {
+    CRASH_INSERTION3();
+  }
   const Uint32 nodeId = rep->nodeId;
   const Uint32 err = rep->err;
   const NodeInfo nodeInfo = getNodeInfo(nodeId);
@@ -4227,8 +4192,6 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
   const BlockReference ref = req->ref;
   
   Uint32 mysql_version = req->mysql_version;
-  if (version < NDBD_SPLIT_VERSION)
-    mysql_version = 0;
 
   NodeRecPtr apiNodePtr;
   apiNodePtr.i = refToNode(ref);
@@ -4263,17 +4226,8 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
   NodeInfo::NodeType type= getNodeInfo(apiNodePtr.i).getType();
   switch(type){
   case NodeInfo::API:
-    if (m_micro_gcp_enabled && !ndb_check_micro_gcp(version))
-    {
-      jam();
-      compatability_check = false;
-      extra = ": micro gcp enabled";
-    }
-    else
-    {
-      jam();
-      compatability_check = ndbCompatible_ndb_api(NDB_VERSION, version);
-    }
+    jam();
+    compatability_check = ndbCompatible_ndb_api(NDB_VERSION, version);
     break;
   case NodeInfo::MGM:
     compatability_check = ndbCompatible_ndb_mgmt(NDB_VERSION, version);
@@ -4286,6 +4240,11 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
     return;
   }
   
+  if (!ndbd_upgrade_ok(version))
+  {
+    compatability_check = false;
+  }
+
   if (!compatability_check) {
     jam();
     char buf[NDB_VERSION_STRING_BUF_SZ];
@@ -4360,8 +4319,7 @@ Qmgr::handleEnableComApiRegreq(Signal *signal, Uint32 node)
   signal->theData[1] = version;
   NodeReceiverGroup rg(QMGR, c_clusterNodes);
   rg.m_nodes.clear(getOwnNodeId());
-  sendVersionedDb(rg, GSN_NODE_VERSION_REP, signal, 2, JBB,
-                  NDBD_NODE_VERSION_REP);
+  sendSignal(rg, GSN_NODE_VERSION_REP, signal, 2, JBB);
 
   signal->theData[0] = node;
   EXECUTE_DIRECT(NDBCNTR, GSN_API_START_REP, signal, 1);
@@ -5199,7 +5157,7 @@ void Qmgr::execPREP_FAILCONF(Signal* signal)
     jam();
     /**
      * We're performing a system shutdown, 
-     * don't let artibtrator shut us down
+     * don't let arbitrator shut us down
      */
     return;
   }
@@ -5314,6 +5272,8 @@ void Qmgr::execPREP_FAILREF(Signal* signal)
   cfailedNodes = cprepFailedNodes;
 
   cfailureNr = cfailureNr + 1;
+  // Failure number may not wrap
+  ndbrequire(cfailureNr != 0);
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
     ptrAss(nodePtr, nodeRec);
     if (nodePtr.p->phase == ZRUNNING) {
@@ -5424,7 +5384,7 @@ void Qmgr::execCOMMIT_FAILREQ(Signal* signal)
         }
         else
         {
-          ndbrequire(false);
+          ndbabort();
         }
       }//if
     }//for
@@ -5654,7 +5614,7 @@ void Qmgr::execREAD_NODESREQ(Signal* signal)
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
 }//Qmgr::execREAD_NODESREQ()
 
@@ -5953,7 +5913,7 @@ Qmgr::sendPrepFailReqRef(Signal* signal,
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -6089,6 +6049,7 @@ Qmgr::handleArbitStart(Signal* signal)
   ndbrequire(cpresident == getOwnNodeId());
   ndbrequire(arbitRec.state == ARBIT_NULL);
   arbitRec.state = ARBIT_INIT;
+  DEB_ARBIT(("Arbit state = ARBIT_INIT from NULL"));
   arbitRec.newstate = true;
   startArbitThread(signal);
 }
@@ -6130,11 +6091,13 @@ Qmgr::handleArbitApiFail(Signal* signal, Uint16 nodeId)
     if (cpresident == getOwnNodeId()) {
       jam();
       arbitRec.state = ARBIT_INIT;
+      DEB_ARBIT(("Arbit state = ARBIT_INIT from RUN"));
       arbitRec.newstate = true;
       startArbitThread(signal);
     } else {
       jam();
       arbitRec.state = ARBIT_NULL;
+      DEB_ARBIT(("Arbit state = ARBIT_NULL from RUN"));
     }
     break;
   case ARBIT_CHOOSE:		// XXX too late
@@ -6175,6 +6138,7 @@ Qmgr::handleArbitNdbAdd(Signal* signal, Uint16 nodeId)
   case ARBIT_PREP2:
     jam();
     arbitRec.state = ARBIT_INIT;
+    DEB_ARBIT(("Arbit state = ARBIT_INIT from PREP2"));
     arbitRec.newstate = true;
     startArbitThread(signal);
     break;
@@ -6231,6 +6195,14 @@ Qmgr::handleArbitCheck(Signal* signal)
   Uint32 prev_alive_nodes = count_previously_alive_nodes();
   ndbrequire(cpresident == getOwnNodeId());
   NdbNodeBitmask survivorNodes;
+  /**
+   * computeArbitNdbMask will only count nodes in the state ZRUNNING, crashed
+   * nodes are thus not part of this set of nodes. The method
+   * count_previously_alive_nodes counts both nodes in ZRUNNING and in
+   * ZPREPARE_FAIL but deducts those that was previously not started to ensure
+   * that we don't rely on non-started nodes in our check for whether
+   * arbitration is required.
+   */
   computeArbitNdbMask(survivorNodes);
   {
     jam();
@@ -6246,6 +6218,7 @@ Qmgr::handleArbitCheck(Signal* signal)
       ndbout << "Requiring arbitration, even if there is no" 
              << " possible split."<< endl;
       sd->output = CheckNodeGroups::Partitioning;
+      DEB_ARBIT(("Arbit state = ARBIT_RUN in 943"));
       arbitRec.state = ARBIT_RUN;
     }
     switch (sd->output) {
@@ -6313,6 +6286,7 @@ Qmgr::handleArbitCheck(Signal* signal)
       break;
     }
     arbitRec.state = ARBIT_INIT;
+    DEB_ARBIT(("Arbit state = ARBIT_INIT from non-RUN WinGroups"));
     arbitRec.newstate = true;
     break;
   case ArbitCode::Partitioning:
@@ -6320,6 +6294,7 @@ Qmgr::handleArbitCheck(Signal* signal)
     {
       jam();
       arbitRec.state = ARBIT_CHOOSE;
+      DEB_ARBIT(("Arbit state = ARBIT_CHOOSE from RUN"));
       arbitRec.newstate = true;
       break;
     }
@@ -6338,6 +6313,7 @@ Qmgr::handleArbitCheck(Signal* signal)
   crashme:
     jam();
     arbitRec.state = ARBIT_CRASH;
+    DEB_ARBIT(("Arbit state = ARBIT_CRASH"));
     arbitRec.newstate = true;
     break;
   }
@@ -6481,6 +6457,7 @@ Qmgr::stateArbitInit(Signal* signal)
   }
   arbitRec.setTimestamp();  // Init arbitration timer 
   arbitRec.state = ARBIT_FIND;
+  DEB_ARBIT(("Arbit state = ARBIT_FIND"));
   arbitRec.newstate = true;
   stateArbitFind(signal);
 }
@@ -6511,6 +6488,7 @@ Qmgr::stateArbitFind(Signal* signal)
     // Don't select any API node as arbitrator
     arbitRec.node = 0;
     arbitRec.state = ARBIT_PREP1;
+    DEB_ARBIT(("Arbit state = ARBIT_PREP1"));
     arbitRec.newstate = true;
     stateArbitPrep(signal);
     return;
@@ -6533,6 +6511,7 @@ Qmgr::stateArbitFind(Signal* signal)
         ndbrequire(c_connectedNodes.get(aPtr.i));
         arbitRec.node = aPtr.i;
         arbitRec.state = ARBIT_PREP1;
+        DEB_ARBIT(("2:Arbit state = ARBIT_PREP1"));
         arbitRec.newstate = true;
         stateArbitPrep(signal);
         return;
@@ -6608,16 +6587,19 @@ Qmgr::stateArbitPrep(Signal* signal)
   if (arbitRec.code != 0) {			// error
     jam();
     arbitRec.state = ARBIT_INIT;
+    DEB_ARBIT(("Arbit state = ARBIT_INIT stateArbitPrep"));
     arbitRec.newstate = true;
     return;
   }
   if (arbitRec.recvMask.count() == 0) {		// recv all
     if (arbitRec.state == ARBIT_PREP1) {
       jam();
+      DEB_ARBIT(("Arbit state = ARBIT_PREP2 stateArbitPrep"));
       arbitRec.state = ARBIT_PREP2;
       arbitRec.newstate = true;
     } else {
       jam();
+      DEB_ARBIT(("Arbit state = ARBIT_START stateArbitPrep"));
       arbitRec.state = ARBIT_START;
       arbitRec.newstate = true;
       stateArbitStart(signal);
@@ -6627,6 +6609,7 @@ Qmgr::stateArbitPrep(Signal* signal)
   if (arbitRec.getTimediff() > getArbitTimeout()) {
     jam();
     arbitRec.state = ARBIT_INIT;
+    DEB_ARBIT(("Arbit state = ARBIT_INIT stateArbitPrep"));
     arbitRec.newstate = true;
     return;
   }
@@ -6665,6 +6648,7 @@ Qmgr::execARBIT_PREPREQ(Signal* signal)
     reportArbitEvent(signal, NDB_LE_ArbitState);
     arbitRec.state = ARBIT_RUN;
     arbitRec.newstate = true;
+    DEB_ARBIT(("Arbit state = ARBIT_RUN PrepAtRun"));
 
     // Non-president node logs.
     if (!c_connectedNodes.get(arbitRec.node))
@@ -6769,6 +6753,7 @@ Qmgr::stateArbitStart(Signal* signal)
 
     // Don't start arbitrator in API node => ARBIT_RUN
     arbitRec.state = ARBIT_RUN;
+    DEB_ARBIT(("Arbit state = ARBIT_RUN stateArbitStart"));
     arbitRec.newstate = true;
     return;
     break;
@@ -6795,10 +6780,12 @@ Qmgr::stateArbitStart(Signal* signal)
       if (arbitRec.code == ArbitCode::ApiStart) {
         jam();
         arbitRec.state = ARBIT_RUN;
+        DEB_ARBIT(("Arbit state = ARBIT_RUN stateArbitStart:Default"));
         arbitRec.newstate = true;
         return;
       }
       arbitRec.state = ARBIT_INIT;
+      DEB_ARBIT(("Arbit state = ARBIT_INIT stateArbitStart:Default"));
       arbitRec.newstate = true;
       return;
     }
@@ -6807,6 +6794,7 @@ Qmgr::stateArbitStart(Signal* signal)
       arbitRec.code = ArbitCode::ErrTimeout;
       reportArbitEvent(signal, NDB_LE_ArbitState);
       arbitRec.state = ARBIT_INIT;
+      DEB_ARBIT(("Arbit state = ARBIT_INIT stateArbitStart:Default timeout"));
       arbitRec.newstate = true;
       return;
     }
@@ -6925,6 +6913,7 @@ Qmgr::stateArbitChoose(Signal* signal)
 
       sendCommitFailReq(signal);        // start commit of failed nodes
       arbitRec.state = ARBIT_INIT;
+      DEB_ARBIT(("Arbit state = ARBIT_INIT stateArbitChoose"));
       arbitRec.newstate = true;
       return;
     }
@@ -6964,10 +6953,12 @@ Qmgr::stateArbitChoose(Signal* signal)
         jam();
         sendCommitFailReq(signal);        // start commit of failed nodes
         arbitRec.state = ARBIT_INIT;
+        DEB_ARBIT(("Arbit state = ARBIT_INIT stateArbitChoose:Default"));
         arbitRec.newstate = true;
         return;
       }
       arbitRec.state = ARBIT_CRASH;
+      DEB_ARBIT(("Arbit state = ARBIT_CRASH stateArbitChoose:Default"));
       arbitRec.newstate = true;
       stateArbitCrash(signal);		// do it at once
       return;
@@ -6979,6 +6970,7 @@ Qmgr::stateArbitChoose(Signal* signal)
       arbitRec.code = ArbitCode::ErrTimeout;
       reportArbitEvent(signal, NDB_LE_ArbitState);
       arbitRec.state = ARBIT_CRASH;
+      DEB_ARBIT(("Arbit state = ARBIT_CRASH stateArbitChoose:Def timeout"));
       arbitRec.newstate = true;
       stateArbitCrash(signal);		// do it at once
       return;
@@ -7072,16 +7064,31 @@ Qmgr::execARBIT_STOPREP(Signal* signal)
 Uint32
 Qmgr::count_previously_alive_nodes()
 {
+  /**
+   * This function is called as part of PREP_FAILCONF handling. This
+   * means that we are preparing a node failure. This means that
+   * NDBCNTR have not yet heard about the node failure and thus we
+   * can still use the method is_node_started to see whether the
+   * node was fully started before this failure.
+   *
+   * This method is called as part of arbitration check. A node is
+   * only counted as previously alive if the node was fully started.
+   *
+   * In addition we check that the node is a data node and that the
+   * QMGR node state is what we expect it to be if it was previously
+   * alive.
+   */
   Uint32 count = 0;
   NodeRecPtr aPtr;
   for (aPtr.i = 1; aPtr.i < MAX_NDB_NODES; aPtr.i++)
   {
-    jam();
     ptrAss(aPtr, nodeRec);
     if (getNodeInfo(aPtr.i).getType() == NodeInfo::DB &&
+        c_ndbcntr->is_node_started(aPtr.i) &&
         (aPtr.p->phase == ZRUNNING || aPtr.p->phase == ZPREPARE_FAIL))
     {
       jam();
+      jamLine(Uint16(aPtr.i));
       count++;
     }
   }
@@ -7096,7 +7103,9 @@ Qmgr::computeArbitNdbMask(NodeBitmaskPOD& aMask)
   for (aPtr.i = 1; aPtr.i < MAX_NDB_NODES; aPtr.i++) {
     jam();
     ptrAss(aPtr, nodeRec);
-    if (getNodeInfo(aPtr.i).getType() == NodeInfo::DB && aPtr.p->phase == ZRUNNING){
+    if (getNodeInfo(aPtr.i).getType() == NodeInfo::DB &&
+        aPtr.p->phase == ZRUNNING)
+    {
       jam();
       aMask.set(aPtr.i);
     }
@@ -7111,7 +7120,9 @@ Qmgr::computeArbitNdbMask(NdbNodeBitmaskPOD& aMask)
   for (aPtr.i = 1; aPtr.i < MAX_NDB_NODES; aPtr.i++) {
     jam();
     ptrAss(aPtr, nodeRec);
-    if (getNodeInfo(aPtr.i).getType() == NodeInfo::DB && aPtr.p->phase == ZRUNNING){
+    if (getNodeInfo(aPtr.i).getType() == NodeInfo::DB &&
+        aPtr.p->phase == ZRUNNING)
+    {
       jam();
       aMask.set(aPtr.i);
     }
@@ -7416,9 +7427,23 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
   if (refToBlock(req.senderRef) != QMGR) // request from management server
   {
     /* master */
-    if (getOwnNodeId() != cpresident)
+    Dbdih *dih = (Dbdih*)globalData.getBlock(DBDIH, instance());
+    bool is_dih_master = dih->is_master();
+    if (getOwnNodeId() != cpresident || !is_dih_master)
     {
       jam();
+      /**
+       * Either we are not president which leads to that we are not master
+       * in DIH, or we are president but hasn't yet seen our election to
+       * master in DIH. Either way we respond with NotMaster, if we are
+       * president and not master the response will lead to a retry which
+       * is likely to be successful.
+       */
+      if (getOwnNodeId() == cpresident)
+      {
+        jam();
+        g_eventLogger->info("President, but not master at ALLOC_NODEID_REQ");
+      }
       error = AllocNodeIdRef::NotMaster;
     }
     else if (!opAllocNodeIdReq.m_tracker.done())
@@ -8615,13 +8640,7 @@ Qmgr::execISOLATE_ORD(Signal* signal)
     {
       jam();
       BlockReference ref = calcQmgrBlockRef(nodeId);
-      if (!ndbd_isolate_ord(getNodeInfo(nodeId).m_version))
-      {
-        jam();
-        /* Node not able to handle ISOLATE_ORD, skip */
-        hitmen.clear(nodeId);
-      }
-      else if (ndbd_send_node_bitmask_in_section(getNodeInfo(nodeId).m_version))
+      if (ndbd_send_node_bitmask_in_section(getNodeInfo(nodeId).m_version))
       {
         jam();
         LinearSectionPtr lsptr[3];

@@ -35,6 +35,8 @@
 #include "client/dump/mysqldump_tool_chain_maker_options.h"
 #include "client/dump/sql_formatter.h"
 #include "client/dump/standard_writer.h"
+#include "client/dump/view.h"
+#include "m_ctype.h"
 
 using namespace Mysql::Tools::Dump;
 using std::placeholders::_1;
@@ -53,11 +55,34 @@ I_object_reader *Mysqldump_tool_chain_maker::create_chain(
            "MRG_MyISAM", rows_task->get_related_table()->get_type()))) {
     return NULL;
   }
-  if (!m_options->is_object_included_in_dump(
-          dynamic_cast<Abstract_data_object *>(
-              dump_task->get_related_db_object()))) {
+
+  Abstract_data_object *object =
+      dynamic_cast<Abstract_data_object *>(dump_task->get_related_db_object());
+  if (!m_options->is_object_included_in_dump(object)) {
     return NULL;
   }
+  /*
+    View dependency check is moved post filteration. This will ensure that
+    only filtered out views will be checked for their dependecies. This
+    allows mysqlpump to dump a database even when there exsits an invalid
+    view in another database which user is not interested to dump. I_S views
+    are skipped from this check.
+  */
+  if (object && (dynamic_cast<View *>(object) != NULL) &&
+      my_strcasecmp(&my_charset_latin1, object->get_schema().c_str(),
+                    INFORMATION_SCHEMA_DB_NAME)) {
+    Mysql::Tools::Base::Mysql_query_runner *runner = this->get_runner();
+    /* Check if view dependent objects exists */
+    if (runner->run_query(std::string("LOCK TABLES ") +
+                          this->get_quoted_object_full_name(
+                              object->get_schema(), object->get_name()) +
+                          " READ") != 0)
+      return NULL;
+    else
+      runner->run_query(std::string("UNLOCK TABLES"));
+    delete runner;
+  }
+
   if (m_main_object_reader == NULL) {
     I_output_writer *writer;
     if (m_options->m_result_file.has_value())

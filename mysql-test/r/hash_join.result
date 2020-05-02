@@ -916,38 +916,6 @@ SET join_buffer_size = 1024;
 SELECT STRAIGHT_JOIN COUNT(*) FROM t1 JOIN t2 ON t1.col1 = t2.col1;
 DROP TABLE t1, t2;
 SET join_buffer_size = DEFAULT;
-# See that the hints for hash join works as expected.
-CREATE TABLE t1 (col1 INTEGER);
-CREATE TABLE t2 (col1 INTEGER);
-# By default, hash join should be used.
-EXPLAIN FORMAT=tree SELECT t1.col1 FROM t1, t2;
-EXPLAIN
--> Inner hash join  (cost=0.70 rows=1)
-    -> Table scan on t2  (cost=0.35 rows=1)
-    -> Hash
-        -> Table scan on t1  (cost=0.35 rows=1)
-
-# Try disabling hash join using the hint.
-EXPLAIN FORMAT=tree SELECT /*+ NO_HASH_JOIN(t1, t2) */ t1.col1 FROM t1, t2;
-EXPLAIN
-<not executable by iterator executor>
-
-# Turn off hash join using the optimizer switch, and then enable it again
-# using the hint.
-SET optimizer_switch="hash_join=off";
-EXPLAIN FORMAT=tree SELECT t1.col1 FROM t1, t2;
-EXPLAIN
-<not executable by iterator executor>
-
-EXPLAIN FORMAT=tree SELECT /*+ HASH_JOIN(t1, t2) */ t1.col1 FROM t1, t2;
-EXPLAIN
--> Inner hash join  (cost=0.70 rows=1)
-    -> Table scan on t2  (cost=0.35 rows=1)
-    -> Hash
-        -> Table scan on t1  (cost=0.35 rows=1)
-
-SET optimizer_switch=DEFAULT;
-DROP TABLE t1, t2;
 #
 # Bug#29964536 WL#2241: ASSERTION FAILURE IN
 #              TEMPTABLE::HANDLER::POSITION() AT SRC/HANDLER.CC
@@ -1655,20 +1623,19 @@ FROM
 b AS subquery3_t1
 );
 EXPLAIN
--> Remove duplicate (subquery1_t1, table2, subquery1_t2) rows using temporary table (weedout)
-    -> Inner hash join (subquery1_t2.col_varchar = subquery1_t1.col_varchar)
-        -> Table scan on subquery1_t2  (cost=0.18 rows=2)
+-> Nested loop left join
+    -> Inner hash join (subquery1_t2.col_varchar = subquery1_t1.col_varchar)  (cost=0.80 rows=1)
+        -> Table scan on subquery1_t2  (cost=0.35 rows=2)
         -> Hash
-            -> Nested loop left join
-                -> Table scan on subquery1_t1  (cost=0.35 rows=1)
-                -> Nested loop inner join
-                    -> Filter: (subquery1_t1.col_varchar = lower(subquery3_t1.pk))  (cost=0.35 rows=1)
-                        -> Index scan on subquery3_t1 using PRIMARY  (cost=0.35 rows=1)
-                    -> Index lookup on table2 using <auto_key0> (col_varchar=subquery1_t1.col_varchar)
-                        -> Materialize
-                            -> Table scan on <temporary>
-                                -> Temporary table with deduplication
-                                    -> Table scan on subquery2_t1  (cost=0.45 rows=2)
+            -> Table scan on subquery1_t1  (cost=0.35 rows=1)
+    -> Nested loop semijoin
+        -> Index lookup on table2 using <auto_key0> (col_varchar=subquery1_t1.col_varchar)
+            -> Materialize
+                -> Table scan on <temporary>
+                    -> Temporary table with deduplication
+                        -> Table scan on subquery2_t1  (cost=0.45 rows=2)
+        -> Filter: (subquery1_t1.col_varchar = lower(subquery3_t1.pk))  (cost=0.18 rows=1)
+            -> Index scan on subquery3_t1 using PRIMARY  (cost=0.18 rows=1)
 
 SELECT
 table1.col_varchar
@@ -1850,4 +1817,41 @@ WHERE table1.col1 = 1
 LIMIT 50;
 col1	col1
 1	1
+DROP TABLE t1, t2;
+#
+# Bug#30306279 ASAN: MEMCPY-PARAM-OVERLAP NEAR
+#              EXTRACT_VALUE_FOR_HASH_JOIN
+#
+# Set up a test where geometry data is written to chunk files on disk.
+# Note that the test only fails with ASAN.
+CREATE TABLE t1 (col1 GEOMETRY);
+INSERT INTO t1 SELECT ST_GeomFromText(CONCAT('GEOMETRYCOLLECTION(POINT(1 1)',
+REPEAT(',POINT(1 1)', 100), ')'));
+INSERT INTO t1 SELECT ST_GeomFromText(CONCAT('GEOMETRYCOLLECTION(POINT(1 1)',
+REPEAT(',POINT(1 1)', 100), ')')) FROM t1;
+INSERT INTO t1 SELECT ST_GeomFromText(CONCAT('GEOMETRYCOLLECTION(POINT(1 1)',
+REPEAT(',POINT(1 1)', 100), ')')) FROM t1;
+SET join_buffer_size = 128;
+SELECT * FROM t1 a JOIN t1 b ON a.col1 = b.col1;
+SET join_buffer_size = DEFAULT;
+DROP TABLE t1;
+#
+# Bug#30535541 HASH JOIN DOES NOT HANDLE PAD SPACE COLLATIONS CORRECTLY
+#
+# Test that hash join compares strings that only differs in end spaces
+# equally in PAD SPACE collations.
+CREATE TABLE t1 (c VARCHAR(255) COLLATE utf8mb4_bin);
+CREATE TABLE t2 (c VARCHAR(255) COLLATE utf8mb4_bin);
+INSERT INTO t1 VALUES ('foo');
+INSERT INTO t2 VALUES ('foo ');
+EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t2 ON t1.c = t2.c;
+EXPLAIN
+-> Inner hash join (t2.c = t1.c)  (cost=0.70 rows=1)
+    -> Table scan on t2  (cost=0.35 rows=1)
+    -> Hash
+        -> Table scan on t1  (cost=0.35 rows=1)
+
+SELECT * FROM t1 JOIN t2 ON t1.c = t2.c;
+c	c
+foo	foo 
 DROP TABLE t1, t2;

@@ -492,7 +492,8 @@ malloc_unordered_map<std::string, st_bookmark *> *get_bookmark_hash(void) {
 
 /**
  @warning Make sure all errors reported to the log here are
- defined at least twice in share/errmsg-utf8.txt
+ defined in share/messages_to_error_log.txt as well as in
+ share/messages_to_clients.txt.
 
  @arg where_to  a combination of @ref REPORT_TO_USER and @ref REPORT_TO_LOG
  @arg error  the code for the mysql_error()
@@ -648,7 +649,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report,
   LEX_CSTRING dl_cstr = {dl->str, dl->length};
   if (check_valid_path(dl->str, dl->length) ||
       check_string_char_length(dl_cstr, "", NAME_CHAR_LEN, system_charset_info,
-                               1) ||
+                               true) ||
       plugin_dir_len + dl->length + 1 >= FN_REFLEN) {
     mysql_rwlock_unlock(&LOCK_system_variables_hash);
     mysql_mutex_unlock(&LOCK_plugin);
@@ -1764,7 +1765,7 @@ static bool register_builtin(st_mysql_plugin *plugin, st_plugin_int *tmp,
 
   plugin_hash[plugin->type]->emplace(to_string((*ptr)->name), *ptr);
 
-  return 0;
+  return false;
 }
 
 /**
@@ -2997,27 +2998,27 @@ void plugin_thdvar_init(THD *thd, bool enable_plugins) {
   plugin_ref old_temp_table_plugin = thd->variables.temp_table_plugin;
   DBUG_TRACE;
 
-  thd->variables.table_plugin = NULL;
-  thd->variables.temp_table_plugin = NULL;
+  thd->variables.table_plugin = nullptr;
+  thd->variables.temp_table_plugin = nullptr;
   cleanup_variables(thd, &thd->variables);
 
   mysql_mutex_lock(&LOCK_global_system_variables);
   thd->variables = global_system_variables;
-  thd->variables.table_plugin = NULL;
-  thd->variables.temp_table_plugin = NULL;
+  thd->variables.table_plugin = nullptr;
+  thd->variables.temp_table_plugin = nullptr;
 
   thd->variables.dynamic_variables_version = 0;
   thd->variables.dynamic_variables_size = 0;
-  thd->variables.dynamic_variables_ptr = 0;
+  thd->variables.dynamic_variables_ptr = nullptr;
 
   if (enable_plugins) {
     mysql_mutex_lock(&LOCK_plugin);
     thd->variables.table_plugin =
-        my_intern_plugin_lock(NULL, global_system_variables.table_plugin);
-    intern_plugin_unlock(NULL, old_table_plugin);
-    thd->variables.temp_table_plugin =
-        my_intern_plugin_lock(NULL, global_system_variables.temp_table_plugin);
-    intern_plugin_unlock(NULL, old_temp_table_plugin);
+        my_intern_plugin_lock(nullptr, global_system_variables.table_plugin);
+    intern_plugin_unlock(nullptr, old_table_plugin);
+    thd->variables.temp_table_plugin = my_intern_plugin_lock(
+        nullptr, global_system_variables.temp_table_plugin);
+    intern_plugin_unlock(nullptr, old_temp_table_plugin);
     mysql_mutex_unlock(&LOCK_plugin);
   }
   mysql_mutex_unlock(&LOCK_global_system_variables);
@@ -3160,7 +3161,9 @@ static void plugin_var_memalloc_free(struct System_variables *vars) {
 
 extern "C" bool get_one_plugin_option(int, const struct my_option *, char *);
 
-bool get_one_plugin_option(int, const struct my_option *, char *) { return 0; }
+bool get_one_plugin_option(int, const struct my_option *, char *) {
+  return false;
+}
 
 /**
   Creates a set of my_option objects associated with a specified plugin-
@@ -3468,7 +3471,7 @@ static bool check_if_option_is_deprecated(
   if (optid == -1) {
     push_deprecated_warn(NULL, opt->name, (opt->name + strlen("plugin-")));
   }
-  return 0;
+  return false;
 }
 
 /**

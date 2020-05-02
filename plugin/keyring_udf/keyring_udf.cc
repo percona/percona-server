@@ -20,21 +20,31 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <algorithm>  // std::min
+
 #include <stdio.h>
 #include <sys/types.h>
 #include <boost/optional/optional.hpp>
 #include <new>
 
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/udf_metadata.h>
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/plugin.h"
 #include "sql/current_thd.h"
 #include "sql/sql_class.h"  // THD
 
-#define MAX_KEYRING_UDF_KEY_LENGTH_IN_BITS 16384
-#define MAX_KEYRING_UDF_KEY_TEXT_LENGTH MAX_KEYRING_UDF_KEY_LENGTH_IN_BITS / 8
-#define KEYRING_UDF_KEY_TYPE_LENGTH 3
-
+#define MAX_KEYRING_UDF_KEY_LENGTH 16384
+#define MAX_KEYRING_UDF_KEY_TEXT_LENGTH MAX_KEYRING_UDF_KEY_LENGTH
+size_t KEYRING_UDF_KEY_TYPE_LENGTH = 128;
+namespace {
+SERVICE_TYPE(registry) *reg_srv = nullptr;
+SERVICE_TYPE(mysql_udf_metadata) *udf_metadata_service = nullptr;
+const char *utf8mb4 = "utf8mb4";
+char *charset = const_cast<char *>(utf8mb4);
+const char *type = "charset";
+}  // namespace
 #ifdef WIN32
 #define PLUGIN_EXPORT extern "C" __declspec(dllexport)
 #else
@@ -46,12 +56,23 @@ static bool is_keyring_udf_initialized = false;
 static int keyring_udf_init(void *) {
   DBUG_TRACE;
   is_keyring_udf_initialized = true;
+  reg_srv = mysql_plugin_registry_acquire();
+  my_h_service h_udf_metadata_service;
+  if (reg_srv->acquire("mysql_udf_metadata", &h_udf_metadata_service)) return 1;
+  udf_metadata_service = reinterpret_cast<SERVICE_TYPE(mysql_udf_metadata) *>(
+      h_udf_metadata_service);
+
   return 0;
 }
 
 static int keyring_udf_deinit(void *) {
   DBUG_TRACE;
   is_keyring_udf_initialized = false;
+  using udf_metadata_t = SERVICE_TYPE_NO_CONST(mysql_udf_metadata);
+  if (udf_metadata_service)
+    reg_srv->release(reinterpret_cast<my_h_service>(
+        const_cast<udf_metadata_t *>(udf_metadata_service)));
+  mysql_plugin_registry_release(reg_srv);
   return 0;
 }
 
@@ -199,7 +220,7 @@ static bool keyring_udf_func_init(
                                                 // passed to the function  it
                                                 // means that max_length stays
                                                 // default
-  initid->maybe_null = 1;
+  initid->maybe_null = true;
 
   if (size_of_memory_to_allocate != 0) {
     initid->ptr = new (std::nothrow) char[size_of_memory_to_allocate];
@@ -207,6 +228,11 @@ static bool keyring_udf_func_init(
       return true;
     else
       memset(initid->ptr, 0, size_of_memory_to_allocate);
+  }
+
+  for (uint index = 0; index < expected_arg_count; index++) {
+    udf_metadata_service->argument_set(args, type, index,
+                                       static_cast<void *>(charset));
   }
 
   return false;
@@ -233,6 +259,12 @@ long long keyring_key_store(UDF_INIT *, UDF_ARGS *args, unsigned char *,
   std::string current_user;
 
   if (get_current_user(&current_user)) {
+    *error = 1;
+    return 0;
+  }
+
+  if (strlen(args->args[2]) > MAX_KEYRING_UDF_KEY_TEXT_LENGTH) {
+    my_error(ER_CLIENT_KEYRING_UDF_KEY_TOO_LONG, MYF(0), "keyring_key_store");
     *error = 1;
     return 0;
   }
@@ -265,19 +297,44 @@ static bool fetch(const char *function_name, char *key_id, char **a_key,
     return true;
   }
 
-  DBUG_ASSERT((key == NULL && key_len == 0) ||
-              (key != NULL && key_len <= MAX_KEYRING_UDF_KEY_TEXT_LENGTH &&
-               key_type != NULL &&
-               strlen(key_type) <= KEYRING_UDF_KEY_TYPE_LENGTH));
+  if (key == nullptr && key_len > 0) {
+    my_error(ER_CLIENT_KEYRING_UDF_KEY_INVALID, MYF(0), function_name);
+    if (key_type != nullptr) my_free(key_type);
+    return true;
+  }
+
+  if (key_len > MAX_KEYRING_UDF_KEY_TEXT_LENGTH) {
+    my_error(ER_CLIENT_KEYRING_UDF_KEY_TOO_LONG, MYF(0), function_name);
+    if (key != nullptr) my_free(key);
+    if (key_type != nullptr) my_free(key_type);
+    return true;
+  }
+
+  if (key_len != 0) {
+    if (key_type == nullptr) {
+      my_error(ER_CLIENT_KEYRING_UDF_KEY_TYPE_INVALID, MYF(0), function_name);
+      if (key != nullptr) my_free(key);
+      return true;
+    }
+
+    if (strlen(key_type) > KEYRING_UDF_KEY_TYPE_LENGTH) {
+      my_error(ER_CLIENT_KEYRING_UDF_KEY_TYPE_TOO_LONG, MYF(0), function_name);
+      if (key != nullptr) my_free(key);
+      if (key_type != nullptr) my_free(key_type);
+      return true;
+    }
+  }
 
   if (a_key != NULL)
     *a_key = key;
   else
     my_free(key);
+
   if (a_key_type != NULL)
     *a_key_type = key_type;
   else
     my_free(key_type);
+
   if (a_key_len != NULL) *a_key_len = key_len;
 
   return false;
@@ -330,9 +387,11 @@ char *keyring_key_fetch(UDF_INIT *initid, UDF_ARGS *args, char *,
 PLUGIN_EXPORT
 bool keyring_key_type_fetch_init(UDF_INIT *initid, UDF_ARGS *args,
                                  char *message) {
-  return keyring_udf_func_init(initid, args, message, VALIDATE_KEY_ID,
-                               KEYRING_UDF_KEY_TYPE_LENGTH,
-                               KEYRING_UDF_KEY_TYPE_LENGTH);
+  return (keyring_udf_func_init(initid, args, message, VALIDATE_KEY_ID,
+                                KEYRING_UDF_KEY_TYPE_LENGTH,
+                                KEYRING_UDF_KEY_TYPE_LENGTH) ||
+          udf_metadata_service->result_set(initid, type,
+                                           static_cast<void *>(charset)));
 }
 
 PLUGIN_EXPORT
@@ -361,8 +420,9 @@ char *keyring_key_type_fetch(UDF_INIT *initid, UDF_ARGS *args, char *,
   }
 
   if (key_type != NULL) {
-    memcpy(initid->ptr, key_type, KEYRING_UDF_KEY_TYPE_LENGTH);
-    *length = KEYRING_UDF_KEY_TYPE_LENGTH;
+    memcpy(initid->ptr, key_type,
+           std::min(strlen(key_type), KEYRING_UDF_KEY_TYPE_LENGTH));
+    *length = std::min(strlen(key_type), KEYRING_UDF_KEY_TYPE_LENGTH);
     my_free(key_type);
   } else {
     *is_null = 1;

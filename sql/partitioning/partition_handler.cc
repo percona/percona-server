@@ -338,9 +338,7 @@ int Partition_handler::truncate_partition(dd::Table *table_def) {
   return truncate_partition_low(table_def);
 }
 
-int Partition_handler::exchange_partition(const char *partition_path,
-                                          const char *swap_table_path,
-                                          uint part_id,
+int Partition_handler::exchange_partition(uint part_id,
                                           dd::Table *part_table_def,
                                           dd::Table *swap_table_def) {
   handler *file = get_handler();
@@ -350,8 +348,7 @@ int Partition_handler::exchange_partition(const char *partition_path,
   DBUG_ASSERT(file->table_share->tmp_table != NO_TMP_TABLE ||
               file->m_lock_type != F_UNLCK);
   file->mark_trx_read_write();
-  return exchange_partition_low(partition_path, swap_table_path, part_id,
-                                part_table_def, swap_table_def);
+  return exchange_partition_low(part_id, part_table_def, swap_table_def);
 }
 
 /*
@@ -411,7 +408,7 @@ bool Partition_helper::open_partitioning(Partition_share *part_share) {
   DBUG_ASSERT(m_part_info == m_table->part_info);
   m_part_share = part_share;
   m_tot_parts = m_part_info->get_tot_partitions();
-  if (bitmap_init(&m_key_not_found_partitions, NULL, m_tot_parts, false)) {
+  if (bitmap_init(&m_key_not_found_partitions, NULL, m_tot_parts)) {
     return true;
   }
   bitmap_clear_all(&m_key_not_found_partitions);
@@ -1110,7 +1107,7 @@ int Partition_helper::copy_partitions(ulonglong *const deleted) {
     partitions to be copied. So we can use the normal handler rnd interface
     for reading.
   */
-  if ((result = m_handler->ha_rnd_init(1))) {
+  if ((result = m_handler->ha_rnd_init(true))) {
     return result;
   }
   while (true) {

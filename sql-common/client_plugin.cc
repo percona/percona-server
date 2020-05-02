@@ -47,6 +47,7 @@
 #include <sys/types.h>
 
 #include "errmsg.h"
+#include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
@@ -61,6 +62,7 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
 #include "sql_common.h"
+#include "template_utils.h"
 
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
@@ -103,7 +105,7 @@ struct st_client_plugin_int {
   struct st_mysql_client_plugin *plugin;
 };
 
-static bool initialized = 0;
+static bool initialized = false;
 static MEM_ROOT mem_root;
 
 static const char *plugin_declarations_sym =
@@ -287,7 +289,7 @@ static void load_env_plugins(MYSQL *mysql) {
   char *enable_cleartext_plugin = getenv("LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN");
 
   if (enable_cleartext_plugin && strchr("1Yy", enable_cleartext_plugin[0]))
-    libmysql_cleartext_plugin_enabled = 1;
+    libmysql_cleartext_plugin_enabled = true;
 
   /* no plugins to load */
   if (!s) return;
@@ -332,7 +334,7 @@ int mysql_client_plugin_init() {
 
   memset(&plugin_list, 0, sizeof(plugin_list));
 
-  initialized = 1;
+  initialized = true;
 
   mysql_mutex_lock(&LOCK_load_client_plugin);
 
@@ -366,7 +368,7 @@ void mysql_client_plugin_deinit() {
     }
 
   memset(&plugin_list, 0, sizeof(plugin_list));
-  initialized = 0;
+  initialized = false;
   free_root(&mem_root, MYF(0));
   mysql_mutex_destroy(&LOCK_load_client_plugin);
 }
@@ -403,6 +405,10 @@ struct st_mysql_client_plugin *mysql_load_plugin_v(MYSQL *mysql,
   void *sym, *dlhandle;
   struct st_mysql_client_plugin *plugin;
   const char *plugindir;
+  const CHARSET_INFO *cs = nullptr;
+  size_t len = (name ? strlen(name) : 0);
+  int well_formed_error;
+  size_t res = 0;
 #ifdef _WIN32
   char win_errormsg[2048];
 #endif
@@ -429,6 +435,31 @@ struct st_mysql_client_plugin *mysql_load_plugin_v(MYSQL *mysql,
     if (!plugindir) {
       plugindir = PLUGINDIR;
     }
+  }
+  if (mysql && mysql->charset)
+    cs = mysql->charset;
+  else
+    cs = &my_charset_utf8mb4_bin;
+  /* check if plugin name does not have any directory separator character */
+  if ((my_strcspn(cs, name, name + len, FN_DIRSEP, strlen(FN_DIRSEP))) < len) {
+    errmsg = "No paths allowed for shared library";
+    goto err;
+  }
+  /* check if plugin name does not exceed its maximum length */
+  res = cs->cset->well_formed_len(cs, name, name + len, NAME_CHAR_LEN,
+                                  &well_formed_error);
+
+  if (well_formed_error || len != res) {
+    errmsg = "Invalid plugin name";
+    goto err;
+  }
+  /*
+    check if length of(plugin_dir + plugin name) does not exceed its maximum
+    length
+  */
+  if ((strlen(plugindir) + len + 1) >= FN_REFLEN) {
+    errmsg = "Invalid path";
+    goto err;
   }
 
   /* Compile dll path */

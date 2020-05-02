@@ -1378,7 +1378,7 @@ Max size Secondary index: 16 * 8 bytes + PK = 256 bytes. */
   prebuilt->ins_sel_stmt = false;
   prebuilt->session = NULL;
 
-  prebuilt->fts_doc_id_in_read_set = 0;
+  prebuilt->fts_doc_id_in_read_set = false;
   prebuilt->blob_heap = NULL;
 
   prebuilt->skip_serializable_dd_view = false;
@@ -1953,7 +1953,11 @@ static dberr_t row_insert_for_mysql_using_cursor(const byte *mysql_rec,
     , with a latch. */
     dict_table_n_rows_inc(node->table);
 
-    srv_stats.n_rows_inserted.inc();
+    if (node->table->is_system_table) {
+      srv_stats.n_system_rows_inserted.inc();
+    } else {
+      srv_stats.n_rows_inserted.inc();
+    }
   }
 
   thr_get_trx(thr)->error_state = DB_SUCCESS;
@@ -2181,7 +2185,11 @@ run_again:
 
   que_thr_stop_for_mysql_no_error(thr, trx);
 
-  srv_stats.n_rows_inserted.inc();
+  if (table->is_system_table) {
+    srv_stats.n_system_rows_inserted.inc();
+  } else {
+    srv_stats.n_rows_inserted.inc();
+  }
 
   /* Not protected by dict_table_stats_lock() for performance
   reasons, we would rather get garbage in stat_n_rows (which is
@@ -2715,7 +2723,11 @@ static dberr_t row_del_upd_for_mysql_using_cursor(const byte *mysql_rec,
   if (node->is_delete) {
     if (err == DB_SUCCESS) {
       dict_table_n_rows_dec(prebuilt->table);
-      srv_stats.n_rows_deleted.inc();
+      if (node->table->is_system_table) {
+        srv_stats.n_system_rows_deleted.inc();
+      } else {
+        srv_stats.n_rows_deleted.inc();
+      }
     }
   }
 
@@ -2725,7 +2737,11 @@ static dberr_t row_del_upd_for_mysql_using_cursor(const byte *mysql_rec,
     err = row_update_for_mysql_using_cursor(node, delete_entries, thr);
 
     if (err == DB_SUCCESS) {
-      srv_stats.n_rows_updated.inc();
+      if (node->table->is_system_table) {
+        srv_stats.n_system_rows_updated.inc();
+      } else {
+        srv_stats.n_rows_updated.inc();
+      }
     }
   }
 
@@ -2903,9 +2919,17 @@ run_again:
     with a latch. */
     dict_table_n_rows_dec(prebuilt->table);
 
-    srv_stats.n_rows_deleted.inc();
+    if (table->is_system_table) {
+      srv_stats.n_system_rows_deleted.inc();
+    } else {
+      srv_stats.n_rows_deleted.inc();
+    }
   } else {
-    srv_stats.n_rows_updated.inc();
+    if (table->is_system_table) {
+      srv_stats.n_system_rows_updated.inc();
+    } else {
+      srv_stats.n_rows_updated.inc();
+    }
   }
 
   /* We update table statistics only if it is a DELETE or UPDATE
@@ -3160,9 +3184,17 @@ run_again:
     with a latch. */
     dict_table_n_rows_dec(table);
 
-    srv_stats.n_rows_deleted.add((size_t)trx->id, 1);
+    if (table->is_system_table) {
+      srv_stats.n_system_rows_deleted.add((size_t)trx->id, 1);
+    } else {
+      srv_stats.n_rows_deleted.add((size_t)trx->id, 1);
+    }
   } else {
-    srv_stats.n_rows_updated.add((size_t)trx->id, 1);
+    if (table->is_system_table) {
+      srv_stats.n_system_rows_updated.add((size_t)trx->id, 1);
+    } else {
+      srv_stats.n_rows_updated.add((size_t)trx->id, 1);
+    }
   }
 
   row_update_statistics_if_needed(table);
@@ -3541,85 +3573,66 @@ error_handling:
   return (err);
 }
 
-/** Scans a table create SQL string and adds to the data dictionary
- the foreign key constraints declared in the string. This function
- should be called after the indexes for a table have been created.
- Each foreign key constraint must be accompanied with indexes in
- bot participating tables. The indexes are allowed to contain more
+/** Loads foreign key constraints for the table being created. This
+ function should be called after the indexes for a table have been
+ created. Each foreign key constraint must be accompanied with indexes
+ in both participating tables. The indexes are allowed to contain more
  fields than mentioned in the constraint.
 
  @param[in]	trx		transaction
- @param[in]	sql_string	table create statement where
-                                 foreign keys are declared like:
-                                 FOREIGN KEY (a, b) REFERENCES table2(c, d),
-                                 table2 can be written also with the database
-                                 name before it: test.table2; the default
-                                 database id the database of parameter name
- @param[in]	sql_length	length of sql_string
  @param[in]	name		table full name in normalized form
- @param[in]	reject_fks	if TRUE, fail with error code
-                                 DB_CANNOT_ADD_CONSTRAINT if any
-                                 foreign keys are found.
  @param[in]	dd_table	MySQL dd::Table for the table
  @return error code or DB_SUCCESS */
-dberr_t row_table_add_foreign_constraints(trx_t *trx, const char *sql_string,
-                                          size_t sql_length, const char *name,
-                                          ibool reject_fks,
-                                          const dd::Table *dd_table) {
+dberr_t row_table_load_foreign_constraints(trx_t *trx, const char *name,
+                                           const dd::Table *dd_table) {
   dberr_t err;
 
   DBUG_TRACE;
 
   ut_ad(mutex_own(&dict_sys->mutex));
-  ut_a(sql_string);
 
   trx->op_info = "adding foreign keys";
 
   trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
-  err = dict_create_foreign_constraints(trx, sql_string, sql_length, name,
-                                        reject_fks);
-
-  DBUG_EXECUTE_IF("ib_table_add_foreign_fail", err = DB_DUPLICATE_KEY;);
-
   DEBUG_SYNC_C("table_add_foreign_constraints");
+
   /* Check like this shouldn't be done for table that doesn't
   have foreign keys but code still continues to run with void action.
   Disable it for intrinsic table at-least */
-  if (err == DB_SUCCESS) {
-    /* Check that also referencing constraints are ok */
-    dict_names_t fk_tables;
-    THD *thd = trx->mysql_thd;
 
-    dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
-    dd::cache::Dictionary_client::Auto_releaser releaser(client);
-    dict_table_t *table = dd_table_open_on_name_in_mem(name, true);
+  /* Check that also referencing constraints are ok */
+  dict_names_t fk_tables;
+  THD *thd = trx->mysql_thd;
 
-    err = dd_table_load_fk(client, name, nullptr, table, dd_table, thd, true,
-                           true, &fk_tables);
+  dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(client);
+  dict_table_t *table = dd_table_open_on_name_in_mem(name, true);
 
-    if (err != DB_SUCCESS) {
-      dd_table_close(table, NULL, NULL, true);
-      goto func_exit;
-    }
+  err = dd_table_load_fk(client, name, nullptr, table, dd_table, thd, true,
+                         true, &fk_tables);
 
-    /* Check whether virtual column or stored column affects
-    the foreign key constraint of the table. */
-
-    if (dict_foreigns_has_s_base_col(table->foreign_set, table)) {
-      dd_table_close(table, NULL, NULL, true);
-      err = DB_NO_FK_ON_S_BASE_COL;
-      goto func_exit;
-    }
-
-    /* Fill the virtual column set in foreign when
-    the table undergoes copy alter operation. */
-    dict_mem_table_free_foreign_vcol_set(table);
-    dict_mem_table_fill_foreign_vcol_set(table);
-
-    dd_open_fk_tables(fk_tables, true, thd);
+  if (err != DB_SUCCESS) {
     dd_table_close(table, NULL, NULL, true);
+    goto func_exit;
   }
+
+  /* Check whether virtual column or stored column affects
+  the foreign key constraint of the table. */
+
+  if (dict_foreigns_has_s_base_col(table->foreign_set, table)) {
+    dd_table_close(table, NULL, NULL, true);
+    err = DB_NO_FK_ON_S_BASE_COL;
+    goto func_exit;
+  }
+
+  /* Fill the virtual column set in foreign when
+  the table undergoes copy alter operation. */
+  dict_mem_table_free_foreign_vcol_set(table);
+  dict_mem_table_fill_foreign_vcol_set(table);
+
+  dd_open_fk_tables(fk_tables, true, thd);
+  dd_table_close(table, NULL, NULL, true);
 
 func_exit:
   trx->op_info = "";
@@ -4703,9 +4716,6 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
   dict_table_t *table = NULL;
   ibool dict_locked = FALSE;
   dberr_t err = DB_ERROR;
-  mem_heap_t *heap = NULL;
-  const char **constraints_to_drop = NULL;
-  ulint n_constraints_to_drop = 0;
   int retry;
 
   ut_a(old_name != NULL);
@@ -4741,22 +4751,6 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
                              << TROUBLESHOOTING_MSG;
 
     goto funct_exit;
-
-  } else if (new_is_tmp) {
-    /* MySQL is doing an ALTER TABLE command and it renames the
-    original table to a temporary table name. We want to preserve
-    the original foreign key constraint definitions despite the
-    name change. An exception is those constraints for which
-    the ALTER TABLE contained DROP FOREIGN KEY <foreign key id>.*/
-
-    heap = mem_heap_create(100);
-
-    err = dict_foreign_parse_drop_constraints(
-        heap, trx, table, &n_constraints_to_drop, &constraints_to_drop);
-
-    if (err != DB_SUCCESS) {
-      goto funct_exit;
-    }
   }
 
   /* Is a foreign key check running on this table? */
@@ -4916,10 +4910,6 @@ funct_exit:
     dd_table_close(table, thd, NULL, dict_locked);
   }
 
-  if (UNIV_LIKELY_NULL(heap)) {
-    mem_heap_free(heap);
-  }
-
   trx->op_info = "";
 
   return (err);
@@ -5040,7 +5030,7 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
   Parallel_reader::Config config(full_scan, index);
 
   // clang-format off
-  auto success = reader.add_scan(
+  dberr_t err = reader.add_scan(
     trx, config, [&](const Parallel_reader::Ctx* ctx) {
 
     const auto rec = ctx->m_rec;
@@ -5126,15 +5116,11 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
 
   // clang-format off
 
-  dberr_t err;
-
-  if (success) {
+  if (err == DB_SUCCESS) {
     prev_tuples.resize(max_threads);
     prev_blocks.resize(max_threads);
 
     err = reader.run();
-  } else {
-    err = DB_ERROR;
   }
 
   for (auto heap : heaps) {

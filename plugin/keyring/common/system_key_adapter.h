@@ -35,12 +35,17 @@ class System_key_adapter : public IKey {
 
   uint get_key_version() const noexcept { return key_version; }
 
-  virtual std::string *get_key_signature() const noexcept {
+  virtual std::string *get_key_signature() const {
     DBUG_ASSERT(keyring_key != nullptr);
     return keyring_key->get_key_signature();
   }
 
-  virtual std::string *get_key_type() {
+  virtual std::string *get_key_type_as_string() {
+    DBUG_ASSERT(keyring_key != nullptr);
+    return keyring_key->get_key_type_as_string();
+  }
+
+  virtual Key_type get_key_type() const {
     DBUG_ASSERT(keyring_key != nullptr);
     return keyring_key->get_key_type();
   }
@@ -77,9 +82,11 @@ class System_key_adapter : public IKey {
   virtual void xor_data(uchar *, size_t) noexcept { DBUG_ASSERT(false); }
   virtual void xor_data() noexcept { DBUG_ASSERT(false); }
   virtual void set_key_data(uchar *key_data, size_t key_data_size) {
+    DBUG_ASSERT(keyring_key != nullptr);
     keyring_key->set_key_data(key_data, key_data_size);
   }
   virtual void set_key_type(const std::string *key_type) {
+    DBUG_ASSERT(keyring_key != nullptr);
     keyring_key->set_key_type(key_type);
   }
   virtual bool load_from_buffer(uchar *buffer MY_ATTRIBUTE((unused)),
@@ -109,6 +116,12 @@ class System_key_adapter : public IKey {
   virtual bool is_key_length_valid() {
     DBUG_ASSERT(false);
     return false;
+  }
+
+ protected:
+  virtual void set_key_type_enum(const std::string *key_type) {
+    DBUG_ASSERT(keyring_key != nullptr);
+    keyring_key->set_key_type(key_type);
   }
 
  private:

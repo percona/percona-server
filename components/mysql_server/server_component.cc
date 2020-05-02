@@ -44,6 +44,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_inttypes.h"
 #include "mysql_backup_lock.h"
 #include "mysql_clone_protocol.h"
+#include "mysql_connection_attributes_iterator_imp.h"
 #include "mysql_current_thread_reader_imp.h"
 #include "mysql_ongoing_transaction_query.h"
 #include "mysql_runtime_error_imp.h"
@@ -55,8 +56,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "server_component.h"
 #include "sql/auth/dynamic_privileges_impl.h"
 #include "sql/log.h"
+#include "sql/server_component/mysql_admin_session_imp.h"
 #include "sql/udf_registration_imp.h"
 #include "system_variable_source_imp.h"
+#include "udf_metadata_imp.h"
 
 // Must come after sql/log.h.
 #include "mysql/components/services/log_builtins.h"
@@ -244,9 +247,19 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, udf_registration_aggregate)
 mysql_udf_registration_imp::udf_register_aggregate,
     mysql_udf_registration_imp::udf_unregister END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_udf_metadata)
+mysql_udf_metadata_imp::argument_get, mysql_udf_metadata_imp::result_get,
+    mysql_udf_metadata_imp::argument_set,
+    mysql_udf_metadata_imp::result_set END_SERVICE_IMPLEMENTATION();
+
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, component_sys_variable_register)
 mysql_component_sys_variable_imp::register_variable,
     mysql_component_sys_variable_imp::get_variable END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_connection_attributes_iterator)
+mysql_connection_attributes_iterator_imp::init,
+    mysql_connection_attributes_iterator_imp::deinit,
+    mysql_connection_attributes_iterator_imp::get END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, component_sys_variable_unregister)
 mysql_component_sys_variable_imp::unregister_variable,
@@ -317,6 +330,9 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_keyring_iterator)
 mysql_keyring_iterator_imp::init, mysql_keyring_iterator_imp::deinit,
     mysql_keyring_iterator_imp::get END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_admin_session)
+mysql_component_mysql_admin_session_imp::open END_SERVICE_IMPLEMENTATION();
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
 PROVIDES_SERVICE(mysql_server, registry),
     PROVIDES_SERVICE(mysql_server, registry_registration),
@@ -347,6 +363,7 @@ PROVIDES_SERVICE(mysql_server, registry),
     PROVIDES_SERVICE(mysql_server, log_builtins_syseventlog),
     PROVIDES_SERVICE(mysql_server, udf_registration),
     PROVIDES_SERVICE(mysql_server, udf_registration_aggregate),
+    PROVIDES_SERVICE(mysql_server, mysql_udf_metadata),
     PROVIDES_SERVICE(mysql_server, component_sys_variable_register),
     PROVIDES_SERVICE(mysql_server, component_sys_variable_unregister),
     PROVIDES_SERVICE(mysql_server, mysql_cond_v1),
@@ -368,6 +385,8 @@ PROVIDES_SERVICE(mysql_server, registry),
     PROVIDES_SERVICE(mysql_server, mysql_runtime_error),
     PROVIDES_SERVICE(mysql_server, mysql_current_thread_reader),
     PROVIDES_SERVICE(mysql_server, mysql_keyring_iterator),
+    PROVIDES_SERVICE(mysql_server, mysql_admin_session),
+    PROVIDES_SERVICE(mysql_server, mysql_connection_attributes_iterator),
     END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();

@@ -82,11 +82,9 @@ bool Locked_tables_list::init_locked_tables(THD *thd) {
       thd->update_lock_default.
     */
     new (dst_table_list)
-        TABLE_LIST(table, alias, src_table_list->table->reginfo.lock_type);
+        TABLE_LIST(table, db, db_len, table_name, table_name_len, alias,
+                   src_table_list->table->reginfo.lock_type);
 
-    dst_table_list->db = db;
-    dst_table_list->table_name = table_name;
-    dst_table_list->alias = alias;
     dst_table_list->mdl_request.ticket = src_table_list->mdl_request.ticket;
 
     /* Link last into the list of tables */
@@ -334,7 +332,7 @@ bool Locked_tables_list::reopen_tables(THD *thd) {
   thd->pop_diagnostics_area();
 
   if (reopen_count) {
-    thd->in_lock_tables = 1;
+    thd->in_lock_tables = true;
     /*
       We re-lock all tables with mysql_lock_tables() at once rather
       than locking one table at a time because of the case
@@ -348,7 +346,7 @@ bool Locked_tables_list::reopen_tables(THD *thd) {
     */
     lock =
         mysql_lock_tables(thd, m_reopen_array, reopen_count, MYSQL_OPEN_REOPEN);
-    thd->in_lock_tables = 0;
+    thd->in_lock_tables = false;
     if (lock == NULL ||
         (merged_lock = mysql_lock_merge(thd->lock, lock)) == NULL) {
       unlink_all_closed_tables(thd, lock, reopen_count);

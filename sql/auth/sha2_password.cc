@@ -65,7 +65,8 @@
 #include "sql/auth/sql_auth_cache.h" /* ACL_USER                    */
 #include "sql/auth/sql_authentication.h"
 #include "sql/protocol_classic.h" /* Protocol_classic            */
-#include "sql/sql_const.h"        /* MAX_FIELD_WIDTH             */
+#include "sql/sql_class.h"
+#include "sql/sql_const.h" /* MAX_FIELD_WIDTH             */
 #include "violite.h"
 
 class THD;
@@ -738,19 +739,6 @@ static MYSQL_PLUGIN caching_sha2_auth_plugin_ref;
 static int my_vio_is_secure(MYSQL_PLUGIN_VIO *vio) {
   MPVIO_EXT *mpvio = (MPVIO_EXT *)vio;
   return is_secure_transport(mpvio->protocol->get_vio()->type);
-}
-
-/**
-  Check if server has valid public key/private key
-  pair for RSA communication.
-
-  @return
-    @retval false RSA support is available
-    @retval true RSA support is not available
-*/
-bool caching_sha2_rsa_auth_status() {
-  return (!g_caching_sha2_rsa_keys->get_private_key() ||
-          !g_caching_sha2_rsa_keys->get_public_key());
 }
 
 /**

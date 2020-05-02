@@ -19,11 +19,13 @@
 #include <chrono>
 #include <regex>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 /* MySQL header files */
 #define LOG_COMPONENT_TAG "rocksdb"
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/psi/mysql_rwlock.h"
 
 #include "my_stacktrace.h"
 #include "sql_string.h"
@@ -69,7 +71,7 @@ namespace myrocks {
   The intent behind a SHIP_ASSERT() macro is to have a mechanism for validating
   invariants in retail builds. Traditionally assertions (such as macros defined
   in <cassert>) are evaluated for performance reasons only in debug builds and
-  become NOOP in retail builds when NDEBUG is defined.
+  become NOOP in retail builds when DBUG_OFF is defined.
 
   This macro is intended to validate the invariants which are critical for
   making sure that data corruption and data loss won't take place. Proper
@@ -80,12 +82,12 @@ namespace myrocks {
   Use the power of SHIP_ASSERT() wisely.
 */
 #ifndef SHIP_ASSERT
-#define SHIP_ASSERT(expr)                                                      \
-  do {                                                                         \
-    if (!(expr)) {                                                             \
-      my_safe_printf_stderr("\nShip assert failure: \'%s\'\n", #expr);         \
-      abort();                                                                 \
-    }                                                                          \
+#define SHIP_ASSERT(expr)                                              \
+  do {                                                                 \
+    if (!(expr)) {                                                     \
+      my_safe_printf_stderr("\nShip assert failure: \'%s\'\n", #expr); \
+      abort();                                                         \
+    }                                                                  \
   } while (0)
 #endif  // SHIP_ASSERT
 
@@ -103,7 +105,7 @@ namespace myrocks {
   a and b must be both true or both false.
 */
 #ifndef DBUG_ASSERT_IFF
-#define DBUG_ASSERT_IFF(a, b)                                                  \
+#define DBUG_ASSERT_IFF(a, b) \
   DBUG_ASSERT(static_cast<bool>(a) == static_cast<bool>(b))
 #endif
 
@@ -139,10 +141,10 @@ namespace myrocks {
   Macros to better convey the intent behind checking the results from locking
   and unlocking mutexes.
 */
-#define RDB_MUTEX_LOCK_CHECK(m)                                                \
+#define RDB_MUTEX_LOCK_CHECK(m) \
   rdb_check_mutex_call_result(__PRETTY_FUNCTION__, true, mysql_mutex_lock(&m))
-#define RDB_MUTEX_UNLOCK_CHECK(m)                                              \
-  rdb_check_mutex_call_result(__PRETTY_FUNCTION__, false,                      \
+#define RDB_MUTEX_UNLOCK_CHECK(m)                         \
+  rdb_check_mutex_call_result(__PRETTY_FUNCTION__, false, \
                               mysql_mutex_unlock(&m))
 
 /*
@@ -197,10 +199,8 @@ inline void rdb_trim_whitespace_from_edges(std::string &str) {
   if (start == std::string::npos && end == std::string::npos) {
     str.erase();
   } else {
-    if (end != std::string::npos)
-      str.erase(end + 1, std::string::npos);
-    if (start != std::string::npos)
-      str.erase(0, start);
+    if (end != std::string::npos) str.erase(end + 1, std::string::npos);
+    if (start != std::string::npos) str.erase(0, start);
   }
 }
 
@@ -308,9 +308,141 @@ std::string rdb_hexdump(const char *data, const std::size_t data_len,
  */
 bool rdb_database_exists(const std::string &db_name);
 
-void warn_about_bad_patterns(const char *regex, const char *name);
+class Regex_list_handler {
+ private:
+  const PSI_rwlock_key &m_key;
+
+  char m_delimiter;
+  std::string m_bad_pattern_str;
+  std::unique_ptr<const std::regex> m_pattern;
+
+  mutable mysql_rwlock_t m_rwlock;
+
+  Regex_list_handler(const Regex_list_handler &other) = delete;
+  Regex_list_handler &operator=(const Regex_list_handler &other) = delete;
+
+ public:
+  Regex_list_handler(const PSI_rwlock_key &key, char delimiter = ',')
+      : m_key(key),
+        m_delimiter(delimiter),
+        m_bad_pattern_str(""),
+        m_pattern(nullptr) {
+    mysql_rwlock_init(key, &m_rwlock);
+  }
+
+  ~Regex_list_handler() { mysql_rwlock_destroy(&m_rwlock); }
+
+  // Set the list of patterns
+  bool set_patterns(const std::string &patterns,
+                    std::regex_constants::syntax_option_type flags);
+
+  // See if a string matches at least one pattern
+  bool matches(const std::string &str) const;
+
+  // See the list of bad patterns
+  const std::string &bad_pattern() const { return m_bad_pattern_str; }
+};
+
+void warn_about_bad_patterns(const Regex_list_handler *regex_list_handler,
+                             const char *name);
 
 std::vector<std::string> split_into_vector(const std::string &input,
                                            char delimiter);
 
+/**
+  Helper class wrappers to meansure startup time
+  Warning: not thread safe. It is mainly designed to
+  be used during the server startup to collect stats
+  on startup function's exection time.
+
+Usage:
+  * member function: MyClass::func(args...)
+  *   Rdb_exec_time::record(
+  *     str, std::mem_fn(MyClass::func), &obj, args...);
+  * static function: static MyClass::fun(args...)
+  *   Rdb_exec_time::record(
+  *     str, &MyClass::func, args...);
+  *
+  * To report:
+  *   Rdb_exec_time::report();
+*/
+class Rdb_exec_time {
+ private:
+  std::unordered_map<std::string, uint64_t> entries_;
+
+  struct Auto_timer {
+    explicit Auto_timer(std::function<void(uint64_t &)> &&cb)
+        : start_(std::chrono::high_resolution_clock::now()), callback_(cb) {}
+
+    ~Auto_timer() {
+      auto end = std::chrono::high_resolution_clock::now();
+      uint64_t elapsed =
+          std::chrono::duration_cast<std::chrono::microseconds>(end - start_)
+              .count();
+
+      callback_(elapsed);
+    }
+
+    std::chrono::high_resolution_clock::time_point start_;
+    std::function<void(uint64_t &)> callback_;
+  };
+
+ public:
+  /**
+   * Currently overloaded functions are not cleanly supported as
+   * template (static_cast on the designated function is required
+   * so that compiler can select the right overloaded version,
+   * but the syntax is ugly). Boost has a lift API (BOOST_HOF_LIFT)
+   * which solves this problem but it only supports c++14 and
+   * we're currently on c++11. Until then, this API requires
+   * static cast on overloaded functions passed in as template param.
+   */
+  template <class Fn, class... Args>
+  auto exec(const std::string &key, const Fn &&fn, Args &&... args)
+      -> decltype(fn(args...)) {
+    Auto_timer timer([&](uint64_t &e) { entries_.emplace(key, e); });
+    return fn(args...);
+  }
+
+  void report() {
+    if (entries_.size() == 0) {
+      return;
+    }
+
+    std::string result = "\n{\n";
+    for (auto const &t : entries_) {
+      result += "  \"" + t.first + "\" : ";
+      result += std::to_string(t.second) + "\n";
+    }
+    entries_.clear();
+
+    result += "}";
+
+    LogPluginErrMsg(INFORMATION_LEVEL, 0, "rdb execution report (microsec): %s",
+                    result.c_str());
+  }
+};
+
+/*
+  Helper class to make sure cleanup always happens. Helpful for complicated
+  logic where there can be multiple exits/returns requiring cleanup
+ */
+class Ensure_cleanup {
+ public:
+  explicit Ensure_cleanup(std::function<void()> cleanup)
+      : m_cleanup(cleanup), m_skip_cleanup(false) {}
+
+  ~Ensure_cleanup() {
+    if (!m_skip_cleanup) {
+      m_cleanup();
+    }
+  }
+
+  // If you want to skip cleanup (such as when the operation is successful)
+  void skip() { m_skip_cleanup = true; }
+
+ private:
+  std::function<void()> m_cleanup;
+  bool m_skip_cleanup;
+};
 }  // namespace myrocks

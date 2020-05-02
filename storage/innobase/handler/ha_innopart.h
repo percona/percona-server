@@ -164,34 +164,12 @@ class Ha_innopart_share : public Partition_share {
     return (m_tot_parts);
   }
 
-  /* Static helper functions. */
-  /** Fold to lower case if windows or lower_case_table_names == 1.
-  @param[in,out]	s	String to fold.*/
-  static void partition_name_casedn_str(char *s);
-
-  /** Translate and append partition name.
-  @param[out]	to	String to write in filesystem charset
-  @param[in]	from	Name in system charset
-  @param[in]	sep	Separator
-  @param[in]	len	Max length of to buffer
-  @return	length of written string. */
-  static size_t append_sep_and_name(char *to, const char *from, const char *sep,
-                                    size_t len);
-
   /** Set up the virtual column template for partition table, and points
   all m_table_parts[]->vc_templ to it.
   @param[in]	table		MySQL TABLE object
   @param[in]	ib_table	InnoDB dict_table_t
   @param[in]	name		Table name (db/table_name) */
   void set_v_templ(TABLE *table, dict_table_t *ib_table, const char *name);
-
-  /** Create the postfix of a partitioned table name
-  @param[in,out]	partition_name	Buffer to write the postfix
-  @param[in]	size		Size of the buffer
-  @param[in]	dd_part		Partition
-  @return	the length of written postfix. */
-  static size_t create_partition_postfix(char *partition_name, size_t size,
-                                         const dd::Partition *dd_part);
 
  private:
   /** Disable default constructor. */
@@ -470,8 +448,6 @@ class ha_innopart : public ha_innobase,
   @return 0 or error code. */
   int repair(THD *thd, HA_CHECK_OPT *repair_opt) override;
 
-  uint referenced_by_foreign_key() override;
-
   void get_auto_increment(ulonglong offset, ulonglong increment,
                           ulonglong nb_desired_values, ulonglong *first_value,
                           ulonglong *nb_reserved_values) override;
@@ -508,8 +484,6 @@ class ha_innopart : public ha_innobase,
 
   int enable_indexes(uint mode) override { return (HA_ERR_WRONG_COMMAND); }
 
-  void free_foreign_key_create_info(char *str) override { ut_ad(0); }
-
   int ft_init() override {
     ut_ad(0);
     return (HA_ERR_WRONG_COMMAND);
@@ -536,27 +510,6 @@ class ha_innopart : public ha_innobase,
                            uint child_key_name_len) override {
     ut_ad(0);
     return (false);
-  }
-
-  // TODO: not yet supporting FK.
-  char *get_foreign_key_create_info() override { return (NULL); }
-
-  // TODO: not yet supporting FK.
-  int get_foreign_key_list(THD *thd,
-                           List<FOREIGN_KEY_INFO> *f_key_list) override {
-    return (0);
-  }
-
-  // TODO: not yet supporting FK.
-  int get_parent_foreign_key_list(THD *thd,
-                                  List<FOREIGN_KEY_INFO> *f_key_list) override {
-    return (0);
-  }
-
-  // TODO: not yet supporting FK.
-  int get_cascade_foreign_key_table_list(
-      THD *thd, List<st_handler_tablename> *fk_table_list) override {
-    return (0);
   }
 
   int read_range_next() override {
@@ -897,6 +850,31 @@ class ha_innopart : public ha_innobase,
                                  const uchar *key, key_part_map keypart_map,
                                  enum ha_rkey_function find_flag) override;
 
+  /** Initialize sampling.
+  @param[out] scan_ctx  A scan context created by this method that has to be
+  used in sample_next
+  @param[in]  sampling_percentage percentage of records that need to be
+  sampled
+  @param[in]  sampling_seed       random seed that the random generator will
+  use
+  @param[in]  sampling_method     sampling method to be used; currently only
+  SYSTEM sampling is supported
+  @return 0 for success, else one of the HA_xxx values in case of error. */
+  int sample_init(void *&scan_ctx, double sampling_percentage,
+                  int sampling_seed,
+                  enum_sampling_method sampling_method) override;
+
+  /** Get the next record for sampling.
+  @param[in]  scan_ctx  Scan context of the sampling
+  @param[in]  buf       buffer to place the read record
+  @return 0 for success, else one of the HA_xxx values in case of error. */
+  int sample_next(void *scan_ctx, uchar *buf) override;
+
+  /** End sampling.
+  @param[in] scan_ctx  Scan context of the sampling
+  @return 0 for success, else one of the HA_xxx values in case of error. */
+  int sample_end(void *scan_ctx) override;
+
   /** Initialize random read/scan of a specific partition.
   @param[in]	part_id		Partition to initialize.
   @param[in]	scan		True for scan else random access.
@@ -1041,10 +1019,6 @@ class ha_innopart : public ha_innobase,
 
   /** Exchange partition.
   Low-level primitive which implementation is provided here.
-  @param[in]	part_table_path	data file path of the
-                                  partitioned table
-  @param[in]	swap_table_path	data file path of the to be
-                                  swapped table
   @param[in]	part_id		The id of the partition to
                                   be exchanged
   @param[in,out]	part_table	partitioned table to be
@@ -1052,9 +1026,7 @@ class ha_innopart : public ha_innobase,
   @param[in,out]	swap_table	table to be exchanged
   @return	error number
   @retval	0	on success */
-  int exchange_partition_low(const char *part_table_path,
-                             const char *swap_table_path, uint part_id,
-                             dd::Table *part_table,
+  int exchange_partition_low(uint part_id, dd::Table *part_table,
                              dd::Table *swap_table) override;
 
   /** Access methods to protected areas in handler to avoid adding

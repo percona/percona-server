@@ -62,6 +62,8 @@
 #include <fcntl.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -347,7 +349,7 @@ static int _ft2_search_no_lock(FTB *ftb, FTB_WORD *ftbw, bool init_search) {
     FTB_EXPR *tmp;
 
     for (tmp = ftbw->max_docid_expr; tmp; tmp = tmp->up)
-      set_if_bigger(max_docid, tmp->max_docid);
+      max_docid = std::max(max_docid, tmp->max_docid);
 
     if (ftbw->docid[0] < max_docid) {
       sflag |= SEARCH_SAME;
@@ -410,7 +412,7 @@ static int _ft2_search_no_lock(FTB *ftb, FTB_WORD *ftbw, bool init_search) {
     ftbw->key_root = info->s->state.key_root[ftb->keynr];
     ftbw->keyinfo = info->s->keyinfo + ftb->keynr;
     ftbw->off = 0;
-    return _ft2_search_no_lock(ftb, ftbw, 0);
+    return _ft2_search_no_lock(ftb, ftbw, false);
   }
 
   /* matching key found */
@@ -482,7 +484,7 @@ static void _ftb_init_index_search(FT_INFO *ftb_base) {
            ftbe->up->flags |= FTB_FLAG_TRUNC, ftbe = ftbe->up) {
         if (ftbe->flags & FTB_FLAG_NO || /* 2 */
             ftbe->up->ythresh - ftbe->up->yweaks >
-                (uint)MY_TEST(ftbe->flags & FTB_FLAG_YES)) /* 1 */
+                ((ftbe->flags & FTB_FLAG_YES) ? 1 : 0)) /* 1 */
         {
           FTB_EXPR *top_ftbe = ftbe->up;
           ftbw->docid[0] = HA_OFFSET_ERROR;
@@ -497,14 +499,14 @@ static void _ftb_init_index_search(FT_INFO *ftb_base) {
       if (!ftbe) continue;
       /* 4 */
       if (!is_tree_inited(&ftb->no_dupes))
-        init_tree(&ftb->no_dupes, 0, 0, sizeof(my_off_t), _ftb_no_dupes_cmp, 0,
-                  0, 0);
+        init_tree(&ftb->no_dupes, 0, sizeof(my_off_t), _ftb_no_dupes_cmp, false,
+                  nullptr, nullptr);
       else
         reset_tree(&ftb->no_dupes);
     }
 
     ftbw->off = 0; /* in case of reinit */
-    if (_ft2_search(ftb, ftbw, 1)) return;
+    if (_ft2_search(ftb, ftbw, true)) return;
   }
   queue_fix(&ftb->queue);
 }
@@ -553,7 +555,7 @@ FT_INFO *ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
   if (!(ftb->queue.root = (uchar **)ftb->mem_root.Alloc(
             (ftb->queue.max_elements + 1) * sizeof(void *))))
     goto err;
-  reinit_queue(&ftb->queue, key_memory_QUEUE, ftb->queue.max_elements, 0, 0,
+  reinit_queue(&ftb->queue, key_memory_QUEUE, ftb->queue.max_elements, 0, false,
                FTB_WORD_cmp, 0);
   for (ftbw = ftb->last_word; ftbw; ftbw = ftbw->prev)
     queue_insert(&ftb->queue, (uchar *)ftbw);
@@ -566,7 +568,7 @@ FT_INFO *ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
               /* ORDER BY word, ndepth */
               int i = ha_compare_text(ftb->charset, (uchar *)a->word + 1,
                                       a->len - 1, (uchar *)b->word + 1,
-                                      b->len - 1, 0);
+                                      b->len - 1, false);
               if (i != 0) return i < 0;
               return a->ndepth < b->ndepth;
             });
@@ -769,7 +771,7 @@ extern "C" int ft_boolean_read_next(FT_INFO *ftb_base, char *record) {
       }
 
       /* update queue */
-      _ft2_search(ftb, ftbw, 0);
+      _ft2_search(ftb, ftbw, false);
       queue_replaced(&ftb->queue);
     }
 

@@ -1,4 +1,5 @@
 #include "vault_key.h"
+#include <string.h>
 #include <sstream>
 
 namespace keyring {
@@ -29,7 +30,18 @@ uchar *Vault_key::get_key_data() const { return key.get(); }
 
 size_t Vault_key::get_key_data_size() const { return key_len; }
 
-const std::string *Vault_key::get_key_type() const { return &this->key_type; }
+Key_type Vault_key::get_key_type() const {
+  if (strcasecmp(key_type.c_str(), "AES") == 0) return Key_type::aes;
+  if (strcasecmp(key_type.c_str(), "DSA") == 0) return Key_type::dsa;
+  if (strcasecmp(key_type.c_str(), "SECRET") == 0) return Key_type::secret;
+  return Key_type::unknown;
+}
+
+std::string *Vault_key::get_key_type_as_string() { return &this->key_type; }
+
+const std::string *Vault_key::get_key_type_as_string() const {
+  return &this->key_type;
+}
 
 void Vault_key::create_key_signature() const {
   if (key_id.empty()) return;

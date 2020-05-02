@@ -125,7 +125,7 @@ TEST_F(Keyring_vault_api_test, CheckIfInmemoryKeyIsNOTXORed) {
             expected_key_signature.length());
   uchar *key_data_fetched = fetched_key->get_key_data();
   size_t key_data_fetched_size = fetched_key->get_key_data_size();
-  EXPECT_STREQ("AES", fetched_key->get_key_type()->c_str());
+  EXPECT_STREQ("AES", fetched_key->get_key_type_as_string()->c_str());
   ASSERT_TRUE(memcmp(sample_key_data.c_str(), key_data_fetched,
                      key_data_fetched_size) == 0);
   ASSERT_TRUE(sample_key_data.length() == key_data_fetched_size);

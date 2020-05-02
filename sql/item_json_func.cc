@@ -27,7 +27,6 @@
 #include <string.h>
 
 #include <algorithm>  // std::fill
-#include <cstring>
 #include <memory>
 #include <new>
 #include <string>
@@ -35,15 +34,17 @@
 
 #include "field_types.h"  // enum_field_types
 #include "m_string.h"
-#include "my_compare.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_sys.h"
+#include "mysql/mysql_lex_string.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"  // Prealloced_array
 #include "sql/current_thd.h"   // current_thd
 #include "sql/field.h"
 #include "sql/item_cmpfunc.h"  // Item_func_like
+#include "sql/item_create.h"
 #include "sql/item_subselect.h"
 #include "sql/json_diff.h"
 #include "sql/json_dom.h"
@@ -58,7 +59,8 @@
 #include "sql/sql_exception_handler.h"  // handle_std_exception
 #include "sql/sql_time.h"               // field_type_to_timestamp_type
 #include "sql/table.h"
-#include "sql_lex.h"         // LEX
+#include "sql/thd_raii.h"
+#include "sql/thr_malloc.h"
 #include "table_function.h"  // save_json_to_field
 #include "template_utils.h"  // down_cast
 
@@ -377,15 +379,13 @@ static bool json_is_valid(Item **args, uint arg_idx, String *value,
   }
 }
 
-bool parse_path(String *path_value, bool forbid_wildcards,
+bool parse_path(const String &path_value, bool forbid_wildcards,
                 Json_path *json_path) {
-  DBUG_ASSERT(path_value);
-
-  const char *path_chars = path_value->ptr();
-  size_t path_length = path_value->length();
+  const char *path_chars = path_value.ptr();
+  size_t path_length = path_value.length();
   StringBuffer<STRING_BUFFER_USUAL_SIZE> res(&my_charset_utf8mb4_bin);
 
-  if (ensure_utf8mb4(*path_value, &res, &path_chars, &path_length, true)) {
+  if (ensure_utf8mb4(path_value, &res, &path_chars, &path_length, true)) {
     return true;
   }
 
@@ -505,10 +505,10 @@ bool Json_path_cache::parse_and_cache_path(Item **args, uint arg_idx,
     m_paths[cell.m_index].clear();
   }
 
-  String *path_value = arg->val_str(&m_path_value);
+  const String *path_value = arg->val_str(&m_path_value);
   bool null_value = (path_value == nullptr);
   if (!null_value &&
-      parse_path(path_value, forbid_wildcards, &m_paths[cell.m_index])) {
+      parse_path(*path_value, forbid_wildcards, &m_paths[cell.m_index])) {
     // oops, parsing failed
     cell.m_status = enum_path_status::ERROR;
     return true;
@@ -613,6 +613,8 @@ Item_func_json_schema_valid::Item_func_json_schema_valid(const POS &pos,
                                                          Item *a, Item *b)
     : Item_bool_func(pos, a, b) {}
 
+Item_func_json_schema_valid::~Item_func_json_schema_valid() = default;
+
 static bool do_json_schema_validation(
     Item *json_schema, Item *json_document, const char *func_name,
     const Json_schema_validator *cached_schema_validator, bool *null_value,
@@ -673,10 +675,25 @@ static bool do_json_schema_validation(
 bool Item_func_json_schema_valid::val_bool() {
   DBUG_ASSERT(fixed);
   bool validation_result = false;
-  if (do_json_schema_validation(args[0], args[1], func_name(),
-                                m_cached_schema_validator.get(), &null_value,
-                                &validation_result, nullptr)) {
-    return error_bool();
+
+  if (m_in_check_constraint_exec_ctx) {
+    Json_schema_validation_report validation_report;
+    if (do_json_schema_validation(args[0], args[1], func_name(),
+                                  m_cached_schema_validator.get(), &null_value,
+                                  &validation_result, &validation_report)) {
+      return error_bool();
+    }
+
+    if (!null_value && !validation_result) {
+      my_error(ER_JSON_SCHEMA_VALIDATION_ERROR_WITH_DETAILED_REPORT, MYF(0),
+               validation_report.human_readable_reason().c_str());
+    }
+  } else {
+    if (do_json_schema_validation(args[0], args[1], func_name(),
+                                  m_cached_schema_validator.get(), &null_value,
+                                  &validation_result, nullptr)) {
+      return error_bool();
+    }
   }
 
   DBUG_ASSERT(maybe_null || !null_value);
@@ -698,6 +715,9 @@ Item_func_json_schema_validation_report::
     Item_func_json_schema_validation_report(THD *thd, const POS &pos,
                                             PT_item_list *a)
     : Item_json_func(thd, pos, a) {}
+
+Item_func_json_schema_validation_report::
+    ~Item_func_json_schema_validation_report() = default;
 
 bool Item_func_json_schema_validation_report::val_json(Json_wrapper *wr) {
   DBUG_ASSERT(fixed);
@@ -1920,8 +1940,8 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr) {
       Json_array_ptr a(new (std::nothrow) Json_array());
       if (a == nullptr) return error_json(); /* purecov: inspected */
       const THD *thd = current_thd;
-      for (Json_wrapper &w : v) {
-        if (a->append_clone(w.to_dom(thd)))
+      for (Json_wrapper &ww : v) {
+        if (a->append_clone(ww.to_dom(thd)))
           return error_json(); /* purecov: inspected */
       }
       *wr = Json_wrapper(std::move(a));
@@ -3541,6 +3561,8 @@ Item_func_array_cast::Item_func_array_cast(const POS &pos, Item *a,
         len_arg, decimals, unsigned_flag));
 }
 
+Item_func_array_cast::~Item_func_array_cast() = default;
+
 bool Item_func_array_cast::val_json(Json_wrapper *wr) {
   try {
     String data_buf;
@@ -3564,6 +3586,13 @@ bool Item_func_array_cast::fix_fields(THD *thd, Item **ref) {
              "CREATE(non-SELECT)/ALTER TABLE or in general expressions");
     return true;
   }
+
+  if (m_result_array == nullptr) {
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
+    m_result_array.reset(::new (thd->mem_root) Json_array);
+    if (m_result_array == nullptr) return true;
+  }
+
   return Item_func::fix_fields(thd, ref);
 }
 
@@ -3691,12 +3720,25 @@ enum Item_result Item_func_array_cast::result_type() const {
   return INT_RESULT;
 }
 
+type_conversion_status Item_func_array_cast::save_in_field_inner(Field *field,
+                                                                 bool) {
+  // Array of any type is stored as JSON.
+  Json_wrapper wr;
+  if (val_json(&wr)) return TYPE_ERR_BAD_VALUE;
+
+  if (null_value) return set_field_to_null(field);
+
+  field->set_notnull();
+  return down_cast<Field_typed_array *>(field)->store_array(
+      &wr, m_result_array.get());
+}
+
 Field *Item_func_array_cast::tmp_table_field(TABLE *table) {
-  Field *fld = new (*THR_MALLOC) Field_typed_array(
+  auto array_field = new (*THR_MALLOC) Field_typed_array(
       data_type(), unsigned_flag, max_length, decimals, nullptr, nullptr, 0, 0,
       "", table->s, 4, collation.collation);
-  if (fld) fld->init(table);
-  return fld;
+  array_field->init(table);
+  return array_field;
 }
 
 void Item_func_array_cast::cleanup() {

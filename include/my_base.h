@@ -987,10 +987,12 @@ Information in the data-dictionary needs to be updated. */
 #define HA_ERR_WRONG_TABLE_NAME 206
 /** Path is too long for the OS */
 #define HA_ERR_TOO_LONG_PATH 207
+/** Histogram sampling initialization failed */
+#define HA_ERR_SAMPLING_INIT_FAILED 208
 /** Destination schema does not exist */
-#define HA_ERR_DEST_SCHEMA_NOT_EXIST 208
+#define HA_ERR_DEST_SCHEMA_NOT_EXIST 209
 /** Copy of last error number */
-#define HA_ERR_LAST 208
+#define HA_ERR_LAST 209
 
 /* Number of different errors */
 #define HA_ERR_ERRORS (HA_ERR_LAST - HA_ERR_FIRST + 1)
@@ -1140,11 +1142,7 @@ typedef my_off_t ha_rows;
 #define HA_POS_ERROR (~(ha_rows)0)
 #define HA_OFFSET_ERROR (~(my_off_t)0)
 
-#if SIZEOF_OFF_T == 4
-#define MAX_FILE_SIZE INT_MAX32
-#else
 #define MAX_FILE_SIZE LLONG_MAX
-#endif
 
 #define HA_VARCHAR_PACKLENGTH(field_length) ((field_length) < 256 ? 1 : 2)
 

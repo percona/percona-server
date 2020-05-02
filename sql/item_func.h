@@ -30,6 +30,7 @@
 #include <functional>
 
 #include "decimal.h"
+#include "field_types.h"
 #include "ft_global.h"
 #include "lex_string.h"
 #include "m_ctype.h"
@@ -39,7 +40,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
-#include "my_sys.h"
 #include "my_table_map.h"
 #include "my_thread_local.h"
 #include "my_time.h"
@@ -60,6 +60,7 @@
 #include "sql/table.h"
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
+#include "template_utils.h"
 
 class Json_wrapper;
 class PT_item_list;
@@ -188,6 +189,10 @@ class Item_func : public Item_result_field {
     SIN_FUNC,
     TAN_FUNC,
     COS_FUNC,
+    COT_FUNC,
+    DEGREES_FUNC,
+    RADIANS_FUNC,
+    EXP_FUNC,
     ASIN_FUNC,
     ATAN_FUNC,
     ACOS_FUNC,
@@ -214,7 +219,8 @@ class Item_func : public Item_result_field {
     LEAST_FUNC,
     JSON_CONTAINS,
     JSON_OVERLAPS,
-    MEMBER_OF_FUNC
+    MEMBER_OF_FUNC,
+    STRCMP_FUNC
   };
   enum optimize_type {
     OPTIMIZE_NONE,
@@ -355,7 +361,7 @@ class Item_func : public Item_result_field {
   void set_used_tables(table_map map) { used_tables_cache = map; }
   bool eq(const Item *item, bool binary_cmp) const override;
   virtual optimize_type select_optimize(const THD *) { return OPTIMIZE_NONE; }
-  virtual bool have_rev_func() const { return 0; }
+  virtual bool have_rev_func() const { return false; }
   virtual Item *key_item() const { return args[0]; }
   inline Item **arguments() const {
     DBUG_ASSERT(argument_count() > 0);
@@ -397,7 +403,6 @@ class Item_func : public Item_result_field {
   void signal_divide_by_null();
   void signal_invalid_argument_for_log();
   friend class udf_handler;
-  Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg) override;
   Item *get_tmp_table_item(THD *thd) override;
 
@@ -427,19 +432,7 @@ class Item_func : public Item_result_field {
     return agg_item_charsets_for_comparison(c, func_name(), items, nitems,
                                             item_sep);
   }
-  /*
-    Aggregate arguments for string result, when some comparison
-    is involved internally, e.g: REPLACE(a,b,c)
-    - convert to @@character_set_connection if all arguments are numbers
-    - disallow DERIVATION_NONE
-  */
-  bool agg_arg_charsets_for_string_result_with_comparison(DTCollation &c,
-                                                          Item **items,
-                                                          uint nitems,
-                                                          int item_sep = 1) {
-    return agg_item_charsets_for_string_result_with_comparison(
-        c, func_name(), items, nitems, item_sep);
-  }
+
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
   Item *transform(Item_transformer transformer, uchar *arg) override;
   Item *compile(Item_analyzer analyzer, uchar **arg_p,
@@ -808,11 +801,11 @@ class Item_func_num1 : public Item_func_numhybrid {
   }
   bool date_op(MYSQL_TIME *, my_time_flags_t) override {
     DBUG_ASSERT(0);
-    return 0;
+    return false;
   }
   bool time_op(MYSQL_TIME *) override {
     DBUG_ASSERT(0);
-    return 0;
+    return false;
   }
 };
 
@@ -837,11 +830,11 @@ class Item_num_op : public Item_func_numhybrid {
   }
   bool date_op(MYSQL_TIME *, my_time_flags_t) override {
     DBUG_ASSERT(0);
-    return 0;
+    return false;
   }
   bool time_op(MYSQL_TIME *) override {
     DBUG_ASSERT(0);
-    return 0;
+    return false;
   }
 };
 
@@ -1165,6 +1158,7 @@ class Item_func_exp final : public Item_dec_func {
   Item_func_exp(const POS &pos, Item *a) : Item_dec_func(pos, a) {}
   double val_real() override;
   const char *func_name() const override { return "exp"; }
+  enum Functype functype() const override { return EXP_FUNC; }
 };
 
 class Item_func_ln final : public Item_dec_func {
@@ -1268,6 +1262,7 @@ class Item_func_cot final : public Item_dec_func {
   Item_func_cot(const POS &pos, Item *a) : Item_dec_func(pos, a) {}
   double val_real() override;
   const char *func_name() const override { return "cot"; }
+  enum Functype functype() const override { return COT_FUNC; }
 };
 
 class Item_func_integer : public Item_int_func {
@@ -1280,8 +1275,7 @@ class Item_func_int_val : public Item_func_num1 {
  public:
   Item_func_int_val(Item *a) : Item_func_num1(a) {}
   Item_func_int_val(const POS &pos, Item *a) : Item_func_num1(pos, a) {}
-  void fix_num_length_and_dec() override;
-  void set_numeric_type() override;
+  bool resolve_type(THD *thd) override;
 };
 
 class Item_func_ceiling final : public Item_func_int_val {
@@ -1382,19 +1376,34 @@ class Item_func_sign final : public Item_int_func {
   bool resolve_type(THD *thd) override;
 };
 
-class Item_func_units final : public Item_real_func {
-  const char *name;
+// Common base class for the DEGREES and RADIANS functions.
+class Item_func_units : public Item_real_func {
   double mul, add;
 
+ protected:
+  Item_func_units(const POS &pos, Item *a, double mul_arg, double add_arg)
+      : Item_real_func(pos, a), mul(mul_arg), add(add_arg) {}
+
  public:
-  Item_func_units(const POS &pos, const char *name_arg, Item *a, double mul_arg,
-                  double add_arg)
-      : Item_real_func(pos, a), name(name_arg), mul(mul_arg), add(add_arg) {}
   double val_real() override;
-  const char *func_name() const override { return name; }
   bool resolve_type(THD *thd) override;
 };
 
+class Item_func_degrees final : public Item_func_units {
+ public:
+  Item_func_degrees(const POS &pos, Item *a)
+      : Item_func_units(pos, a, 180.0 / M_PI, 0.0) {}
+  const char *func_name() const override { return "degrees"; }
+  enum Functype functype() const override { return DEGREES_FUNC; }
+};
+
+class Item_func_radians final : public Item_func_units {
+ public:
+  Item_func_radians(const POS &pos, Item *a)
+      : Item_func_units(pos, a, M_PI / 180.0, 0.0) {}
+  const char *func_name() const override { return "radians"; }
+  enum Functype functype() const override { return RADIANS_FUNC; }
+};
 class Item_func_min_max : public Item_func_numhybrid {
  public:
   Item_func_min_max(const POS &pos, PT_item_list *opt_list, bool is_least_func)
@@ -1661,6 +1670,9 @@ class Item_func_find_in_set final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "find_in_set"; }
   bool resolve_type(THD *) override;
+  const CHARSET_INFO *compare_collation() const override {
+    return cmp_collation.collation;
+  }
 };
 
 /* Base class for all bit functions: '~', '|', '^', '&', '>>', '<<' */
@@ -3657,7 +3669,6 @@ class Item_func_sp final : public Item_func {
   sp_name *m_name;
   mutable sp_head *m_sp;
   TABLE *dummy_table;
-  uchar result_buf[64];
   /*
      The result field of the concrete stored function.
   */
@@ -3817,6 +3828,44 @@ class Item_func_version final : public Item_static_string_func {
   explicit Item_func_version(const POS &pos);
 
   bool itemize(Parse_context *pc, Item **res) override;
+};
+
+/**
+  Internal function used by INFORMATION_SCHEMA implementation to check
+  if a role is a mandatory role.
+*/
+
+class Item_func_internal_is_mandatory_role : public Item_int_func {
+ public:
+  Item_func_internal_is_mandatory_role(const POS &pos, Item *a, Item *b)
+      : Item_int_func(pos, a, b) {}
+  longlong val_int() override;
+  const char *func_name() const override {
+    return "internal_is_mandatory_role";
+  }
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  bool resolve_type(THD *) override {
+    maybe_null = true;
+    return false;
+  }
+};
+
+/**
+  Internal function used by INFORMATION_SCHEMA implementation to check
+  if a role is enabled.
+*/
+
+class Item_func_internal_is_enabled_role : public Item_int_func {
+ public:
+  Item_func_internal_is_enabled_role(const POS &pos, Item *a, Item *b)
+      : Item_int_func(pos, a, b) {}
+  longlong val_int() override;
+  const char *func_name() const override { return "internal_is_enabled_role"; }
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  bool resolve_type(THD *) override {
+    maybe_null = true;
+    return false;
+  }
 };
 
 Item *get_system_var(Parse_context *pc, enum_var_type var_type, LEX_STRING name,

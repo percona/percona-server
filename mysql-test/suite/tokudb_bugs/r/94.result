@@ -2,12 +2,12 @@ SET DEFAULT_STORAGE_ENGINE = 'tokudb';
 DROP TABLE IF EXISTS foo;
 create table foo (a varchar (100), primary key (a));
 insert into foo values ("a"),("B"),("c"),("D"),("e"),("F"),("A");
-ERROR 23000: Duplicate entry 'A' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'A' for key 'foo.PRIMARY'
 insert into foo values ("a"),("B"),("c"),("D"),("e"),("F");
 insert into foo values ("C");
-ERROR 23000: Duplicate entry 'C' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'C' for key 'foo.PRIMARY'
 insert into foo values ("d");
-ERROR 23000: Duplicate entry 'd' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'd' for key 'foo.PRIMARY'
 begin;
 update foo set a="C" where a="c";
 select * from foo;
@@ -74,18 +74,18 @@ a
 B
 c
 update foo set a = "d" where a="a";
-ERROR 23000: Duplicate entry 'd' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'd' for key 'foo.PRIMARY'
 update foo set a = "C" where a="a";
-ERROR 23000: Duplicate entry 'C' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'C' for key 'foo.PRIMARY'
 drop table foo;
 create table foo (a varchar (100), b int, primary key (a), key(b));
 insert into foo values ("a",1000),("B",1),("c",10000),("D",10),("e",109),("F",1),("A",1);
-ERROR 23000: Duplicate entry 'A' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'A' for key 'foo.PRIMARY'
 insert into foo values ("a",3),("B",1),("c",4),("D",2),("e",11),("F",8);
 insert into foo values ("C",1);
-ERROR 23000: Duplicate entry 'C' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'C' for key 'foo.PRIMARY'
 insert into foo values ("d",1);
-ERROR 23000: Duplicate entry 'd' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'd' for key 'foo.PRIMARY'
 begin;
 update foo set a="C" where a="c";
 select * from foo;
@@ -106,18 +106,18 @@ c	4
 F	8
 e	11
 update foo set a = "d" where a="a";
-ERROR 23000: Duplicate entry 'd' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'd' for key 'foo.PRIMARY'
 update foo set a = "C" where a="a";
-ERROR 23000: Duplicate entry 'C' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'C' for key 'foo.PRIMARY'
 drop table foo;
 create table foo (a varchar (100), b int, unique key (a), primary key(b));
 insert into foo values ("a",1000),("B",1),("c",10000),("D",10),("e",109),("F",1),("A",22);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 'foo.PRIMARY'
 insert into foo values ("a",3),("B",1),("c",4),("D",2),("e",11),("F",8);
 insert into foo values ("C",100);
-ERROR 23000: Duplicate entry 'C' for key 'a'
+ERROR 23000: Duplicate entry 'C' for key 'foo.a'
 insert into foo values ("d",100);
-ERROR 23000: Duplicate entry 'd' for key 'a'
+ERROR 23000: Duplicate entry 'd' for key 'foo.a'
 begin;
 update foo set a="C" where a="c";
 select * from foo;
@@ -138,9 +138,9 @@ D	2
 e	11
 F	8
 update foo set a = "d" where a="a";
-ERROR 23000: Duplicate entry 'd' for key 'a'
+ERROR 23000: Duplicate entry 'd' for key 'foo.a'
 update foo set a = "C" where a="a";
-ERROR 23000: Duplicate entry 'C' for key 'a'
+ERROR 23000: Duplicate entry 'C' for key 'foo.a'
 select * from foo where a="c";
 a	b
 c	4

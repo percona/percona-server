@@ -35,6 +35,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <stddef.h>
 
 #include "current_thd.h"
+#include "debug_sync.h"
 #include "mysqld.h"
 
 #include "dict0dd.h"
@@ -187,9 +188,20 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_clust_if_poss_lo
   } else {
     dberr_t err;
     ut_ad(mode == (BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE));
+
+    DBUG_EXECUTE_IF("pessimistic_row_purge_clust", {
+      if (!fsp_is_dd_tablespace(index->space)) {
+        const char act[] =
+            "now SIGNAL pessimistic_row_purge_clust_pause WAIT_FOR "
+            "pessimistic_row_purge_clust_continue";
+        DBUG_ASSERT(opt_debug_sync_timeout > 0);
+        DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      }
+    });
+
     btr_cur_pessimistic_delete(&err, FALSE, btr_pcur_get_btr_cur(&node->pcur),
                                0, false, node->trx_id, node->undo_no,
-                               node->rec_type, &mtr);
+                               node->rec_type, &mtr, &node->pcur);
 
     switch (err) {
       case DB_SUCCESS:
@@ -795,13 +807,10 @@ skip_secondaries:
 
       lob::BtrContext btr_ctx(&mtr, NULL, index, NULL, NULL, block);
 
-      lob::DeleteContext ctx(btr_ctx, field_ref, 0, false);
-
-      lob::ref_t lobref(field_ref);
+      lob::DeleteContext ctx(btr_ctx, field_ref, ufield->field_no, false);
 
       lob::purge(&ctx, index, node->modifier_trx_id,
-                 trx_undo_rec_get_undo_no(undo_rec), lobref, node->rec_type,
-                 ufield);
+                 trx_undo_rec_get_undo_no(undo_rec), node->rec_type, ufield);
 
       mtr_commit(&mtr);
     }

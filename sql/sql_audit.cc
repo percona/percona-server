@@ -604,6 +604,7 @@ int mysql_audit_table_access_notify(THD *thd, TABLE_LIST *table) {
       break;
     case SQLCOM_SELECT:
     case SQLCOM_HA_READ:
+    case SQLCOM_ANALYZE:
       set_table_access_subclass(&subclass, &subclass_name,
                                 AUDIT_EVENT(MYSQL_AUDIT_TABLE_ACCESS_READ));
       break;
@@ -1256,7 +1257,7 @@ static bool calc_class_mask(THD *, plugin_ref plugin, void *arg) {
   st_mysql_audit *data = plugin_data<st_mysql_audit *>(plugin);
   if (data)
     add_audit_mask(reinterpret_cast<unsigned long *>(arg), data->class_mask);
-  return 0;
+  return false;
 }
 
 /**

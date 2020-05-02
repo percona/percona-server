@@ -160,10 +160,10 @@ primary key (pk)
 ) engine=rocksdb;
 insert into t1 values ('a','a');
 insert into t1 values ('a ', 'a-space');
-ERROR 23000: Duplicate entry 'a ' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a ' for key 't1.PRIMARY'
 insert into t1 values('b  ', 'b-2x-space');
 insert into t1 values ('b', 'b');
-ERROR 23000: Duplicate entry 'b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b' for key 't1.PRIMARY'
 select pk, hex(pk), col1 from t1;
 pk	hex(pk)	col1
 a	61	a
@@ -178,7 +178,7 @@ a	61	a
 b  	622020	b-2x-space
 # Try longer values
 insert into t1 values (concat('a', repeat(' ',10)), 'a-10-x-space');
-ERROR 23000: Duplicate entry 'a          ' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          ' for key 't1.PRIMARY'
 insert into t1 values (concat('c', repeat(' ',10)), 'c-10-x-space');
 select * from t1;
 pk	col1
@@ -284,10 +284,10 @@ Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Pl
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 insert into t1 values ('a','a');
 insert into t1 values ('a ', 'a-space');
-ERROR 23000: Duplicate entry 'a ' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a ' for key 't1.PRIMARY'
 insert into t1 values('b  ', 'b-2x-space');
 insert into t1 values ('b', 'b');
-ERROR 23000: Duplicate entry 'b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b' for key 't1.PRIMARY'
 select pk, hex(pk), col1 from t1;
 pk	hex(pk)	col1
 a	61	a
@@ -302,7 +302,7 @@ a	61	a
 b  	622020	b-2x-space
 # Try longer values
 insert into t1 values (concat('a', repeat(' ',10)), 'a-10-x-space');
-ERROR 23000: Duplicate entry 'a          ' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          ' for key 't1.PRIMARY'
 insert into t1 values (concat('c', repeat(' ',10)), 'c-10-x-space');
 select * from t1;
 pk	col1
@@ -408,10 +408,10 @@ primary key (pk)
 ) engine=rocksdb;
 insert into t1 values ('a','a');
 insert into t1 values ('a ', 'a-space');
-ERROR 23000: Duplicate entry 'a ' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a ' for key 't1.PRIMARY'
 insert into t1 values('b  ', 'b-2x-space');
 insert into t1 values ('b', 'b');
-ERROR 23000: Duplicate entry 'b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b' for key 't1.PRIMARY'
 select pk, hex(pk), col1 from t1;
 pk	hex(pk)	col1
 a	0061	a
@@ -426,7 +426,7 @@ a	0061	a
 b  	006200200020	b-2x-space
 # Try longer values
 insert into t1 values (concat('a', repeat(' ',10)), 'a-10-x-space');
-ERROR 23000: Duplicate entry 'a          ' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          ' for key 't1.PRIMARY'
 insert into t1 values (concat('c', repeat(' ',10)), 'c-10-x-space');
 select * from t1;
 pk	col1
@@ -529,10 +529,10 @@ primary key (pk)
 ) engine=rocksdb;
 insert into t1 values ('a','a');
 insert into t1 values ('a ', 'a-space');
-ERROR 23000: Duplicate entry 'a ' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a ' for key 't1.PRIMARY'
 insert into t1 values('b  ', 'b-2x-space');
 insert into t1 values ('b', 'b');
-ERROR 23000: Duplicate entry 'b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b' for key 't1.PRIMARY'
 select pk, hex(pk), col1 from t1;
 pk	hex(pk)	col1
 a	61	a
@@ -547,7 +547,7 @@ a	61	a
 b  	622020	b-2x-space
 # Try longer values
 insert into t1 values (concat('a', repeat(' ',10)), 'a-10-x-space');
-ERROR 23000: Duplicate entry 'a          ' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          ' for key 't1.PRIMARY'
 insert into t1 values (concat('c', repeat(' ',10)), 'c-10-x-space');
 select * from t1;
 pk	col1
@@ -650,10 +650,10 @@ primary key (pk)
 ) engine=rocksdb;
 insert into t1 values ('a','a');
 insert into t1 values ('a ', 'a-space');
-ERROR 23000: Duplicate entry 'a ' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a ' for key 't1.PRIMARY'
 insert into t1 values('b  ', 'b-2x-space');
 insert into t1 values ('b', 'b');
-ERROR 23000: Duplicate entry 'b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b' for key 't1.PRIMARY'
 select pk, hex(pk), col1 from t1;
 pk	hex(pk)	col1
 a	0061	a
@@ -668,7 +668,7 @@ a	0061	a
 b  	006200200020	b-2x-space
 # Try longer values
 insert into t1 values (concat('a', repeat(' ',10)), 'a-10-x-space');
-ERROR 23000: Duplicate entry 'a          ' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          ' for key 't1.PRIMARY'
 insert into t1 values (concat('c', repeat(' ',10)), 'c-10-x-space');
 select * from t1;
 pk	col1

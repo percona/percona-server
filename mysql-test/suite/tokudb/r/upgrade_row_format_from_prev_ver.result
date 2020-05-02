@@ -30,7 +30,7 @@ t_zlib_status_id.tokudb
 SHOW CREATE TABLE test.t_uncompressed;
 Table	Create Table
 t_uncompressed	CREATE TABLE `t_uncompressed` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=TokuDB DEFAULT CHARSET=latin1
 SELECT * FROM test.t_uncompressed ORDER BY a;
 a
@@ -43,7 +43,7 @@ Pattern "compression_method=0" found
 SHOW CREATE TABLE test.t_snappy;
 Table	Create Table
 t_snappy	CREATE TABLE `t_snappy` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=TokuDB DEFAULT CHARSET=latin1
 SELECT * FROM test.t_snappy ORDER BY a;
 a
@@ -56,7 +56,7 @@ Pattern "compression_method=7" found
 SHOW CREATE TABLE test.t_quicklz;
 Table	Create Table
 t_quicklz	CREATE TABLE `t_quicklz` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=TokuDB DEFAULT CHARSET=latin1
 SELECT * FROM test.t_quicklz ORDER BY a;
 a
@@ -69,7 +69,7 @@ Pattern "compression_method=9" found
 SHOW CREATE TABLE test.t_lzma;
 Table	Create Table
 t_lzma	CREATE TABLE `t_lzma` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=TokuDB DEFAULT CHARSET=latin1
 SELECT * FROM test.t_lzma ORDER BY a;
 a
@@ -82,7 +82,7 @@ Pattern "compression_method=10" found
 SHOW CREATE TABLE test.t_zlib;
 Table	Create Table
 t_zlib	CREATE TABLE `t_zlib` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=TokuDB DEFAULT CHARSET=latin1
 SELECT * FROM test.t_zlib ORDER BY a;
 a

@@ -115,12 +115,6 @@ flag in the table object we return. */
 dict_table_t *dict_load_table(const char *name, bool cached,
                               dict_err_ignore_t ignore_err);
 
-/** Loads a table object based on the table id.
- @return table; NULL if table does not exist */
-dict_table_t *dict_load_table_on_id(
-    table_id_t table_id,           /*!< in: table id */
-    dict_err_ignore_t ignore_err); /*!< in: errors to ignore
-                                   when loading the table */
 /** This function is called when the database is booted.
  Loads system table index definitions except for the clustered index which
  is added to the dictionary cache at booting before calling this function. */
@@ -186,8 +180,10 @@ filepath by stripping the the table->name.m_name component suffix.
 @param[in]	filepath	filepath of tablespace */
 void dict_save_data_dir_path(dict_table_t *table, char *filepath);
 
-/** Load all tablespaces during upgrade */
-void dict_load_tablespaces_for_upgrade();
+/** Load all tablespaces during upgrade
+@return true - there is tablespace fully or partially
+               KEYRING v1 encrypted. */
+bool dict_load_tablespaces_for_upgrade();
 
 /* Comparator for missing_spaces. */
 struct space_compare {

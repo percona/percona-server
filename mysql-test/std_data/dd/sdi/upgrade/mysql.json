@@ -15,7 +15,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "properties",
@@ -248,7 +248,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "table_id",
@@ -281,7 +281,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -317,7 +317,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -524,7 +524,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "database_name",
@@ -665,7 +665,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -701,7 +701,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -737,7 +737,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -929,7 +929,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "database_name",
@@ -1142,7 +1142,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -1178,7 +1178,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -1420,7 +1420,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "id",
@@ -1453,7 +1453,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -1489,7 +1489,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -1525,7 +1525,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -1561,7 +1561,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -1597,7 +1597,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -1633,7 +1633,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -1669,7 +1669,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -1985,7 +1985,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "id",
@@ -2018,7 +2018,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -2378,7 +2378,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "id",
@@ -2411,7 +2411,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -2483,7 +2483,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 3,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -2555,7 +2555,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -2863,7 +2863,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "id",
@@ -2896,7 +2896,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -2932,7 +2932,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -2968,7 +2968,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -3431,7 +3431,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "id",
@@ -3464,7 +3464,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -3536,7 +3536,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -3608,7 +3608,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -3968,7 +3968,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "id",
@@ -4001,7 +4001,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -4037,7 +4037,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -4567,7 +4567,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "column_id",
@@ -4600,7 +4600,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -4636,7 +4636,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -4861,7 +4861,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "id",
@@ -4894,7 +4894,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -4930,7 +4930,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -5002,7 +5002,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -5307,7 +5307,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -5343,7 +5343,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -5379,7 +5379,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -5415,7 +5415,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -5451,7 +5451,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -6057,7 +6057,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -6643,7 +6643,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "id",
@@ -6676,7 +6676,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -6712,7 +6712,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -6964,7 +6964,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(11)",
+                "column_type_utf8": "int",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -7596,7 +7596,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -7632,7 +7632,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -7668,7 +7668,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -7704,7 +7704,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -8258,7 +8258,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "foreign_key_id",
@@ -8291,7 +8291,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -8327,7 +8327,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -8363,7 +8363,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -8695,7 +8695,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "id",
@@ -8728,7 +8728,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -8764,7 +8764,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -8800,7 +8800,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -9552,7 +9552,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "index_id",
@@ -9585,7 +9585,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -9621,7 +9621,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -9657,7 +9657,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -9693,7 +9693,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -10088,7 +10088,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "partition_id",
@@ -10121,7 +10121,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -10157,7 +10157,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -10265,7 +10265,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -10571,7 +10571,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "schema_name",
@@ -10748,7 +10748,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -10976,7 +10976,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "id",
@@ -11009,7 +11009,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -11045,7 +11045,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -11375,7 +11375,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -11519,7 +11519,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -11914,7 +11914,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "parameter_id",
@@ -11947,7 +11947,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -11983,7 +11983,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -12208,7 +12208,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "id",
@@ -12241,7 +12241,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -12277,7 +12277,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -12313,7 +12313,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -12703,7 +12703,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -12739,7 +12739,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -12775,7 +12775,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -12811,7 +12811,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -12847,7 +12847,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -13242,7 +13242,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "id",
@@ -13275,7 +13275,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -13464,7 +13464,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(11)",
+                "column_type_utf8": "int",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -13730,7 +13730,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "id",
@@ -13763,7 +13763,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -13799,7 +13799,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -14185,7 +14185,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -14221,7 +14221,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -14257,7 +14257,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -14293,7 +14293,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -14329,7 +14329,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -14816,7 +14816,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -14852,7 +14852,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -14888,7 +14888,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -15676,7 +15676,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "id",
@@ -15709,7 +15709,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -15745,7 +15745,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -15817,7 +15817,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -16323,7 +16323,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "id",
@@ -16356,7 +16356,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -16392,7 +16392,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -16572,7 +16572,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -17001,7 +17001,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "partition_id",
@@ -17034,7 +17034,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -17070,7 +17070,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "tinyint(3) unsigned",
+                "column_type_utf8": "tinyint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -17106,7 +17106,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "tinyint(3) unsigned",
+                "column_type_utf8": "tinyint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -17381,7 +17381,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "id",
@@ -17414,7 +17414,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -17450,7 +17450,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -17486,7 +17486,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -17522,7 +17522,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "smallint(5) unsigned",
+                "column_type_utf8": "smallint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -17774,7 +17774,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -17810,7 +17810,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -18310,7 +18310,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "schema_name",
@@ -18415,7 +18415,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -18451,7 +18451,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -18487,7 +18487,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -18523,7 +18523,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -18559,7 +18559,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -18595,7 +18595,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -18631,7 +18631,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -18667,7 +18667,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -19016,7 +19016,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "id",
@@ -19049,7 +19049,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -19085,7 +19085,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -19242,7 +19242,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -19339,7 +19339,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -19536,7 +19536,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -19572,7 +19572,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -20368,7 +20368,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -20404,7 +20404,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -20476,7 +20476,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -21219,7 +21219,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "tablespace_id",
@@ -21252,7 +21252,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -21288,7 +21288,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -21594,7 +21594,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "id",
@@ -21627,7 +21627,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -22030,7 +22030,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "id",
@@ -22063,7 +22063,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -22099,7 +22099,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -22220,7 +22220,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -22301,7 +22301,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -22686,7 +22686,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -22722,7 +22722,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -22758,7 +22758,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -23332,7 +23332,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "view_id",
@@ -23365,7 +23365,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -23714,7 +23714,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 2,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "view_id",
@@ -23747,7 +23747,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -24096,7 +24096,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "id",
@@ -24129,7 +24129,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -24165,7 +24165,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -24446,7 +24446,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "table_id",
@@ -24479,7 +24479,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -24515,7 +24515,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -24551,7 +24551,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 4,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -24778,7 +24778,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "component_id",
@@ -24811,7 +24811,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -24847,7 +24847,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -25054,7 +25054,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "Position",
@@ -25087,7 +25087,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -25159,7 +25159,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -25195,7 +25195,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -25231,7 +25231,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -25267,7 +25267,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -25303,7 +25303,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -25339,7 +25339,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -25375,7 +25375,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -25411,7 +25411,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -25447,7 +25447,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -25717,7 +25717,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "Host",
@@ -26182,7 +26182,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "Host",
@@ -27484,7 +27484,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "HOST",
@@ -27803,7 +27803,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "engine_name",
@@ -27872,7 +27872,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "int(11)",
+                "column_type_utf8": "int",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -28244,7 +28244,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "name",
@@ -28572,7 +28572,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "USER",
@@ -28900,7 +28900,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "source_uuid",
@@ -28969,7 +28969,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20)",
+                "column_type_utf8": "bigint",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -29005,7 +29005,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20)",
+                "column_type_utf8": "bigint",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -29176,7 +29176,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "help_category_id",
@@ -29209,7 +29209,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "smallint(5) unsigned",
+                "column_type_utf8": "smallint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -29281,7 +29281,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "smallint(5) unsigned",
+                "column_type_utf8": "smallint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -29526,7 +29526,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "help_keyword_id",
@@ -29559,7 +29559,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -29790,7 +29790,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "help_topic_id",
@@ -29823,7 +29823,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -29859,7 +29859,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -30023,7 +30023,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "help_topic_id",
@@ -30056,7 +30056,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -30128,7 +30128,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "smallint(5) unsigned",
+                "column_type_utf8": "smallint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -30459,7 +30459,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "name",
@@ -30692,7 +30692,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "Host",
@@ -31011,7 +31011,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "Host",
@@ -31583,7 +31583,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "Host",
@@ -32083,7 +32083,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "FROM_HOST",
@@ -32454,7 +32454,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "Server_name",
@@ -32667,7 +32667,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(4)",
+                "column_type_utf8": "int",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -32988,7 +32988,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "cost_name",
@@ -33343,7 +33343,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "Number_of_lines",
@@ -33376,7 +33376,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -33448,7 +33448,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -33592,7 +33592,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -33628,7 +33628,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -34060,7 +34060,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -34420,10 +34420,46 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
+            },
+            {
+                "name": "Tls_ciphersuites",
+                "type": 27,
+                "is_nullable": true,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hidden": 1,
+                "ordinal_position": 31,
+                "char_length": 65535,
+                "numeric_precision": 0,
+                "numeric_scale": 0,
+                "numeric_scale_null": true,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": false,
+                "default_value_null": true,
+                "srs_id_null": true,
+                "srs_id": 0,
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "Ciphersuites used for TLS 1.3 communication with the master server.",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "interval_count=0;",
+                "se_private_data": "table_id=X",
+                "column_key": 1,
+                "column_type_utf8": "text",
+                "elements": [],
+                "collation_id": X,
+                "is_explicit_collation": true
             },
             {
                 "name": "DB_TRX_ID",
@@ -34434,7 +34470,7 @@
                 "is_auto_increment": false,
                 "is_virtual": false,
                 "hidden": 2,
-                "ordinal_position": 31,
+                "ordinal_position": 32,
                 "char_length": 6,
                 "numeric_precision": 0,
                 "numeric_scale": 0,
@@ -34470,7 +34506,7 @@
                 "is_auto_increment": false,
                 "is_virtual": false,
                 "hidden": 2,
-                "ordinal_position": 32,
+                "ordinal_position": 33,
                 "char_length": 7,
                 "numeric_precision": 0,
                 "numeric_scale": 0,
@@ -34540,14 +34576,14 @@
                         "length": 4294967295,
                         "order": 2,
                         "hidden": true,
-                        "column_opx": 30
+                        "column_opx": 31
                     },
                     {
                         "ordinal_position": 3,
                         "length": 4294967295,
                         "order": 2,
                         "hidden": true,
-                        "column_opx": 31
+                        "column_opx": 32
                     },
                     {
                         "ordinal_position": 4,
@@ -34751,6 +34787,13 @@
                         "order": 2,
                         "hidden": true,
                         "column_opx": 29
+                    },
+                    {
+                        "ordinal_position": 33,
+                        "length": 4294967295,
+                        "order": 2,
+                        "hidden": true,
+                        "column_opx": 30
                     }
                 ],
                 "tablespace_ref": "mysql"
@@ -34780,7 +34823,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "Id",
@@ -34813,7 +34856,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -34885,7 +34928,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -34957,7 +35000,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -35029,7 +35072,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -35101,7 +35144,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -35137,7 +35180,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -35173,7 +35216,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -35486,7 +35529,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "Number_of_lines",
@@ -35519,7 +35562,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -35527,7 +35570,7 @@
             {
                 "name": "Relay_log_name",
                 "type": 27,
-                "is_nullable": false,
+                "is_nullable": true,
                 "is_zerofill": false,
                 "is_unsigned": false,
                 "is_auto_increment": false,
@@ -35540,8 +35583,8 @@
                 "numeric_scale_null": true,
                 "datetime_precision": 0,
                 "datetime_precision_null": 1,
-                "has_no_default": true,
-                "default_value_null": false,
+                "has_no_default": false,
+                "default_value_null": true,
                 "srs_id_null": true,
                 "srs_id": 0,
                 "default_value": "",
@@ -35558,12 +35601,12 @@
                 "column_type_utf8": "text",
                 "elements": [],
                 "collation_id": X,
-                "is_explicit_collation": false
+                "is_explicit_collation": true
             },
             {
                 "name": "Relay_log_pos",
                 "type": 9,
-                "is_nullable": false,
+                "is_nullable": true,
                 "is_zerofill": false,
                 "is_unsigned": true,
                 "is_auto_increment": false,
@@ -35576,8 +35619,8 @@
                 "numeric_scale_null": false,
                 "datetime_precision": 0,
                 "datetime_precision_null": 1,
-                "has_no_default": true,
-                "default_value_null": false,
+                "has_no_default": false,
+                "default_value_null": true,
                 "srs_id_null": true,
                 "srs_id": 0,
                 "default_value": "",
@@ -35591,7 +35634,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -35599,7 +35642,7 @@
             {
                 "name": "Master_log_name",
                 "type": 27,
-                "is_nullable": false,
+                "is_nullable": true,
                 "is_zerofill": false,
                 "is_unsigned": false,
                 "is_auto_increment": false,
@@ -35612,8 +35655,8 @@
                 "numeric_scale_null": true,
                 "datetime_precision": 0,
                 "datetime_precision_null": 1,
-                "has_no_default": true,
-                "default_value_null": false,
+                "has_no_default": false,
+                "default_value_null": true,
                 "srs_id_null": true,
                 "srs_id": 0,
                 "default_value": "",
@@ -35630,12 +35673,12 @@
                 "column_type_utf8": "text",
                 "elements": [],
                 "collation_id": X,
-                "is_explicit_collation": false
+                "is_explicit_collation": true
             },
             {
                 "name": "Master_log_pos",
                 "type": 9,
-                "is_nullable": false,
+                "is_nullable": true,
                 "is_zerofill": false,
                 "is_unsigned": true,
                 "is_auto_increment": false,
@@ -35648,8 +35691,8 @@
                 "numeric_scale_null": false,
                 "datetime_precision": 0,
                 "datetime_precision_null": 1,
-                "has_no_default": true,
-                "default_value_null": false,
+                "has_no_default": false,
+                "default_value_null": true,
                 "srs_id_null": true,
                 "srs_id": 0,
                 "default_value": "",
@@ -35663,7 +35706,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "bigint(20) unsigned",
+                "column_type_utf8": "bigint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -35671,7 +35714,7 @@
             {
                 "name": "Sql_delay",
                 "type": 4,
-                "is_nullable": false,
+                "is_nullable": true,
                 "is_zerofill": false,
                 "is_unsigned": false,
                 "is_auto_increment": false,
@@ -35684,8 +35727,8 @@
                 "numeric_scale_null": false,
                 "datetime_precision": 0,
                 "datetime_precision_null": 1,
-                "has_no_default": true,
-                "default_value_null": false,
+                "has_no_default": false,
+                "default_value_null": true,
                 "srs_id_null": true,
                 "srs_id": 0,
                 "default_value": "",
@@ -35699,7 +35742,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(11)",
+                "column_type_utf8": "int",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -35707,7 +35750,7 @@
             {
                 "name": "Number_of_workers",
                 "type": 4,
-                "is_nullable": false,
+                "is_nullable": true,
                 "is_zerofill": false,
                 "is_unsigned": true,
                 "is_auto_increment": false,
@@ -35720,8 +35763,8 @@
                 "numeric_scale_null": false,
                 "datetime_precision": 0,
                 "datetime_precision_null": 1,
-                "has_no_default": true,
-                "default_value_null": false,
+                "has_no_default": false,
+                "default_value_null": true,
                 "srs_id_null": true,
                 "srs_id": 0,
                 "default_value": "",
@@ -35735,7 +35778,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -35743,7 +35786,7 @@
             {
                 "name": "Id",
                 "type": 4,
-                "is_nullable": false,
+                "is_nullable": true,
                 "is_zerofill": false,
                 "is_unsigned": true,
                 "is_auto_increment": false,
@@ -35756,8 +35799,8 @@
                 "numeric_scale_null": false,
                 "datetime_precision": 0,
                 "datetime_precision_null": 1,
-                "has_no_default": true,
-                "default_value_null": false,
+                "has_no_default": false,
+                "default_value_null": true,
                 "srs_id_null": true,
                 "srs_id": 0,
                 "default_value": "",
@@ -35771,7 +35814,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -35885,6 +35928,42 @@
                 "is_explicit_collation": true
             },
             {
+                "name": "Require_row_format",
+                "type": 2,
+                "is_nullable": true,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hidden": 1,
+                "ordinal_position": 12,
+                "char_length": 1,
+                "numeric_precision": 3,
+                "numeric_scale": 0,
+                "numeric_scale_null": false,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": false,
+                "default_value_null": false,
+                "srs_id_null": true,
+                "srs_id": 0,
+                "default_value": "",
+                "default_value_utf8_null": false,
+                "default_value_utf8": "0",
+                "default_option": "",
+                "update_option": "",
+                "comment": "Indicates whether the channel shall only accept row based events.",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "interval_count=0;",
+                "se_private_data": "table_id=X",
+                "column_key": 1,
+                "column_type_utf8": "tinyint(1)",
+                "elements": [],
+                "collation_id": X,
+                "is_explicit_collation": false
+            },
+            {
                 "name": "DB_TRX_ID",
                 "type": 10,
                 "is_nullable": false,
@@ -35893,7 +35972,7 @@
                 "is_auto_increment": false,
                 "is_virtual": false,
                 "hidden": 2,
-                "ordinal_position": 12,
+                "ordinal_position": 13,
                 "char_length": 6,
                 "numeric_precision": 0,
                 "numeric_scale": 0,
@@ -35929,7 +36008,7 @@
                 "is_auto_increment": false,
                 "is_virtual": false,
                 "hidden": 2,
-                "ordinal_position": 13,
+                "ordinal_position": 14,
                 "char_length": 7,
                 "numeric_precision": 0,
                 "numeric_scale": 0,
@@ -35999,14 +36078,14 @@
                         "length": 4294967295,
                         "order": 2,
                         "hidden": true,
-                        "column_opx": 11
+                        "column_opx": 12
                     },
                     {
                         "ordinal_position": 3,
                         "length": 4294967295,
                         "order": 2,
                         "hidden": true,
-                        "column_opx": 12
+                        "column_opx": 13
                     },
                     {
                         "ordinal_position": 4,
@@ -36077,6 +36156,13 @@
                         "order": 2,
                         "hidden": true,
                         "column_opx": 10
+                    },
+                    {
+                        "ordinal_position": 14,
+                        "length": 4294967295,
+                        "order": 2,
+                        "hidden": true,
+                        "column_opx": 11
                     }
                 ],
                 "tablespace_ref": "mysql"
@@ -36106,7 +36192,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "Host",
@@ -36719,7 +36805,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "Time_zone_id",
@@ -36752,7 +36838,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -36961,7 +37047,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "Name",
@@ -37030,7 +37116,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -37194,7 +37280,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "Transition_time",
@@ -37227,7 +37313,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20)",
+                "column_type_utf8": "bigint",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -37263,7 +37349,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(11)",
+                "column_type_utf8": "int",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -37427,7 +37513,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "Time_zone_id",
@@ -37460,7 +37546,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -37496,7 +37582,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "bigint(20)",
+                "column_type_utf8": "bigint",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -37532,7 +37618,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -37703,7 +37789,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "Time_zone_id",
@@ -37736,7 +37822,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -37772,7 +37858,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "int(10) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -37808,7 +37894,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(11)",
+                "column_type_utf8": "int",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -37844,7 +37930,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint(3) unsigned",
+                "column_type_utf8": "tinyint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -38065,7 +38151,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "Host",
@@ -39615,7 +39701,7 @@
                 "is_virtual": false,
                 "hidden": 1,
                 "ordinal_position": 36,
-                "char_length": 11,
+                "char_length": 10,
                 "numeric_precision": 10,
                 "numeric_scale": 0,
                 "numeric_scale_null": false,
@@ -39636,7 +39722,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(11) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -39672,7 +39758,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(11) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -39708,7 +39794,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(11) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -39744,7 +39830,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "int(11) unsigned",
+                "column_type_utf8": "int unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -39933,7 +40019,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "smallint(5) unsigned",
+                "column_type_utf8": "smallint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -40104,7 +40190,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "smallint(5) unsigned",
+                "column_type_utf8": "smallint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -40140,7 +40226,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "smallint(5) unsigned",
+                "column_type_utf8": "smallint unsigned",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false

@@ -2377,7 +2377,7 @@ void pfs_register_thread_vc(const char *category, PSI_thread_info *info,
   Implementation of the file instrumentation interface.
   @sa PSI_v1::register_file.
 */
-void pfs_register_file_v1(const char *category, PSI_file_info_v1 *info,
+void pfs_register_file_vc(const char *category, PSI_file_info_v1 *info,
                           int count) {
   REGISTER_BODY_V1(PSI_file_key, file_instrument_prefix, register_file_class);
 }
@@ -2750,7 +2750,7 @@ void pfs_destroy_socket_v1(PSI_socket *socket) {
   Implementation of the file instrumentation interface.
   @sa PSI_v1::create_file.
 */
-void pfs_create_file_v1(PSI_file_key key, const char *name, File file) {
+void pfs_create_file_vc(PSI_file_key key, const char *name, File file) {
   if (!flag_global_instrumentation) {
     return;
   }
@@ -4057,7 +4057,7 @@ PSI_table_locker *pfs_start_table_lock_wait_v1(PSI_table_locker_state *state,
   Implementation of the file instrumentation interface.
   @sa PSI_v1::get_thread_file_name_locker.
 */
-PSI_file_locker *pfs_get_thread_file_name_locker_v1(
+PSI_file_locker *pfs_get_thread_file_name_locker_vc(
     PSI_file_locker_state *state, PSI_file_key key, PSI_file_operation op,
     const char *name, const void *) {
   DBUG_ASSERT(static_cast<int>(op) >= 0);
@@ -4067,17 +4067,45 @@ PSI_file_locker *pfs_get_thread_file_name_locker_v1(
   if (!flag_global_instrumentation) {
     return NULL;
   }
+
   PFS_file_class *klass = find_file_class(key);
   if (unlikely(klass == NULL)) {
-    return NULL;
-  }
-  if (!klass->m_enabled) {
     return NULL;
   }
 
   /* Needed for the LF_HASH */
   PFS_thread *pfs_thread = my_thread_get_THR_PFS();
   if (unlikely(pfs_thread == NULL)) {
+    return NULL;
+  }
+
+  if (op == PSI_FILE_DELETE) {
+    uint len = (uint)strlen(name);
+    PFS_file *pfs_file = find_file(pfs_thread, NULL, name, len);
+    /* For other operations, state->m_file is set by start_file_open_wait(). */
+    state->m_file = reinterpret_cast<PSI_file *>(pfs_file);
+
+    if (pfs_file) {
+      /*
+        To avoid a race condition on the filename, delete the filename
+        from the hash before the file is deleted by the file system.
+      */
+      delete_file_name(pfs_thread, pfs_file);
+      /*
+        Normally, end_file_close_wait() will destroy the file instrumentation
+        instance after the file is deleted. However, if the instrumentation
+        was disabled, then there's nothing else to do except destroy the
+        file instrumentation and return NULL.
+      */
+      if (!klass->m_enabled || !pfs_file->m_enabled) {
+        destroy_file(pfs_thread, pfs_file, false);
+        return NULL;
+      }
+    }
+  }
+
+  /* Instrumentation disabled, nothing to do. */
+  if (!klass->m_enabled) {
     return NULL;
   }
 
@@ -4125,7 +4153,10 @@ PSI_file_locker *pfs_get_thread_file_name_locker_v1(
   }
 
   state->m_flags = flags;
-  state->m_file = NULL;
+  if (op != PSI_FILE_DELETE) {
+    /* Set by start_file_open_wait(). */
+    state->m_file = NULL;
+  }
   state->m_name = name;
   state->m_class = klass;
   state->m_operation = op;
@@ -4136,7 +4167,7 @@ PSI_file_locker *pfs_get_thread_file_name_locker_v1(
   Implementation of the file instrumentation interface.
   @sa PSI_v1::get_thread_file_stream_locker.
 */
-PSI_file_locker *pfs_get_thread_file_stream_locker_v1(
+PSI_file_locker *pfs_get_thread_file_stream_locker_vc(
     PSI_file_locker_state *state, PSI_file *file, PSI_file_operation op) {
   PFS_file *pfs_file = reinterpret_cast<PFS_file *>(file);
   DBUG_ASSERT(static_cast<int>(op) >= 0);
@@ -4149,7 +4180,16 @@ PSI_file_locker *pfs_get_thread_file_stream_locker_v1(
   DBUG_ASSERT(pfs_file->m_class != NULL);
   PFS_file_class *klass = pfs_file->m_class;
 
-  if (!pfs_file->m_enabled) {
+  /*
+    Normally, end_file_close_wait() will release the file instrumentation
+    instance after the file is closed. However, if the instrumentation
+    was disabled, then there's nothing else to do except release the
+    file instance and return NULL.
+  */
+  if (!klass->m_enabled || !pfs_file->m_enabled) {
+    if (op == PSI_FILE_STREAM_CLOSE) {
+      release_file(pfs_file);
+    }
     return NULL;
   }
 
@@ -4224,7 +4264,7 @@ PSI_file_locker *pfs_get_thread_file_stream_locker_v1(
   Implementation of the file instrumentation interface.
   @sa PSI_v1::get_thread_file_descriptor_locker.
 */
-PSI_file_locker *pfs_get_thread_file_descriptor_locker_v1(
+PSI_file_locker *pfs_get_thread_file_descriptor_locker_vc(
     PSI_file_locker_state *state, File file, PSI_file_operation op) {
   int index = static_cast<int>(file);
   DBUG_ASSERT(static_cast<int>(op) >= 0);
@@ -4240,6 +4280,15 @@ PSI_file_locker *pfs_get_thread_file_descriptor_locker_v1(
     return NULL;
   }
 
+  /* Needed for the LF_HASH */
+  PFS_thread *pfs_thread = my_thread_get_THR_PFS();
+  if (unlikely(pfs_thread == NULL)) {
+    return NULL;
+  }
+
+  DBUG_ASSERT(pfs_file->m_class != NULL);
+  PFS_file_class *klass = pfs_file->m_class;
+
   /*
     We are about to close a file by descriptor number,
     and the calling code still holds the descriptor.
@@ -4250,18 +4299,33 @@ PSI_file_locker *pfs_get_thread_file_descriptor_locker_v1(
   */
   if (op == PSI_FILE_CLOSE) {
     file_handle_array[index] = NULL;
+    /*
+      Temporary filenames embed the file descriptor to ensure uniqueness.
+      To avoid a race on the filename when the descriptor is made available
+      by the file system, we must delete the filename from the filename hash
+      before the file is closed and the descriptor released.
+    */
+    if (pfs_file->m_temporary) {
+      delete_file_name(pfs_thread, pfs_file);
+    }
+    /*
+      Normally, end_file_close_wait() releases the pfs_file object after
+      the file is closed. However, if the instrumentation was disabled
+      prior to closing the file, then we must release or destroy the file
+      instrumentation before returning a NULL locker.
+    */
+    if (!klass->m_enabled || !pfs_file->m_enabled) {
+      if (pfs_file->m_temporary) {
+        destroy_file(pfs_thread, pfs_file, false);
+      } else {
+        release_file(pfs_file);
+      }
+      return NULL;
+    }
   }
 
-  if (!pfs_file->m_enabled) {
-    return NULL;
-  }
-
-  DBUG_ASSERT(pfs_file->m_class != NULL);
-  PFS_file_class *klass = pfs_file->m_class;
-
-  /* Needed for the LF_HASH */
-  PFS_thread *pfs_thread = my_thread_get_THR_PFS();
-  if (unlikely(pfs_thread == NULL)) {
+  /* Instrumentation disabled, nothing to do. */
+  if (!klass->m_enabled || !pfs_file->m_enabled) {
     return NULL;
   }
 
@@ -4341,7 +4405,7 @@ PSI_socket_locker *pfs_start_socket_wait_v1(PSI_socket_locker_state *state,
   DBUG_ASSERT(pfs_socket != NULL);
   DBUG_ASSERT(pfs_socket->m_class != NULL);
 
-  if (!pfs_socket->m_enabled || pfs_socket->m_idle) {
+  if (!pfs_socket->m_enabled) {
     return NULL;
   }
 
@@ -4367,7 +4431,7 @@ PSI_socket_locker *pfs_start_socket_wait_v1(PSI_socket_locker_state *state,
     state->m_thread = reinterpret_cast<PSI_thread *>(pfs_thread);
     flags = STATE_FLAG_THREAD;
 
-    if (pfs_socket->m_timed) {
+    if (pfs_socket->m_timed && !pfs_socket->m_idle) {
       timer_start = get_wait_timer();
       state->m_timer_start = timer_start;
       flags |= STATE_FLAG_TIMED;
@@ -4405,7 +4469,7 @@ PSI_socket_locker *pfs_start_socket_wait_v1(PSI_socket_locker_state *state,
       pfs_thread->m_events_waits_current++;
     }
   } else {
-    if (pfs_socket->m_timed) {
+    if (pfs_socket->m_timed && !pfs_socket->m_idle) {
       timer_start = get_wait_timer();
       state->m_timer_start = timer_start;
       flags = STATE_FLAG_TIMED;
@@ -4699,6 +4763,7 @@ void pfs_end_idle_wait_v1(PSI_idle_locker *locker) {
 
       wait->m_timer_end = timer_end;
       wait->m_end_event_id = thread->m_event_id;
+
       if (thread->m_flag_events_waits_history) {
         insert_events_waits_history(thread, wait);
       }
@@ -5160,18 +5225,18 @@ void pfs_end_table_lock_wait_v1(PSI_table_locker *locker) {
   table->m_has_lock_stats = true;
 }
 
-void pfs_start_file_wait_v1(PSI_file_locker *locker, size_t count,
+void pfs_start_file_wait_vc(PSI_file_locker *locker, size_t count,
                             const char *src_file, uint src_line);
 
-void pfs_end_file_wait_v1(PSI_file_locker *locker, size_t count);
+void pfs_end_file_wait_vc(PSI_file_locker *locker, size_t count);
 
 /**
   Implementation of the file instrumentation interface.
   @sa PSI_v1::start_file_open_wait.
 */
-void pfs_start_file_open_wait_v1(PSI_file_locker *locker, const char *src_file,
+void pfs_start_file_open_wait_vc(PSI_file_locker *locker, const char *src_file,
                                  uint src_line) {
-  pfs_start_file_wait_v1(locker, 0, src_file, src_line);
+  pfs_start_file_wait_vc(locker, 0, src_file, src_line);
 
   return;
 }
@@ -5180,7 +5245,7 @@ void pfs_start_file_open_wait_v1(PSI_file_locker *locker, const char *src_file,
   Implementation of the file instrumentation interface.
   @sa PSI_v1::end_file_open_wait.
 */
-PSI_file *pfs_end_file_open_wait_v1(PSI_file_locker *locker, void *result) {
+PSI_file *pfs_end_file_open_wait_vc(PSI_file_locker *locker, void *result) {
   PSI_file_locker_state *state =
       reinterpret_cast<PSI_file_locker_state *>(locker);
   DBUG_ASSERT(state != NULL);
@@ -5208,7 +5273,7 @@ PSI_file *pfs_end_file_open_wait_v1(PSI_file_locker *locker, void *result) {
       break;
   }
 
-  pfs_end_file_wait_v1(locker, 0);
+  pfs_end_file_wait_vc(locker, 0);
 
   return state->m_file;
 }
@@ -5217,7 +5282,7 @@ PSI_file *pfs_end_file_open_wait_v1(PSI_file_locker *locker, void *result) {
   Implementation of the file instrumentation interface.
   @sa PSI_v1::end_file_open_wait_and_bind_to_descriptor.
 */
-void pfs_end_file_open_wait_and_bind_to_descriptor_v1(PSI_file_locker *locker,
+void pfs_end_file_open_wait_and_bind_to_descriptor_vc(PSI_file_locker *locker,
                                                       File file) {
   PFS_file *pfs_file = NULL;
   int index = (int)file;
@@ -5234,7 +5299,7 @@ void pfs_end_file_open_wait_and_bind_to_descriptor_v1(PSI_file_locker *locker,
     state->m_file = reinterpret_cast<PSI_file *>(pfs_file);
   }
 
-  pfs_end_file_wait_v1(locker, 0);
+  pfs_end_file_wait_vc(locker, 0);
 
   if (likely(index >= 0)) {
     if (likely(index < file_handle_max)) {
@@ -5252,7 +5317,7 @@ void pfs_end_file_open_wait_and_bind_to_descriptor_v1(PSI_file_locker *locker,
   Implementation of the file instrumentation interface.
   @sa PSI_v1::end_temp_file_open_wait_and_bind_to_descriptor.
 */
-void pfs_end_temp_file_open_wait_and_bind_to_descriptor_v1(
+void pfs_end_temp_file_open_wait_and_bind_to_descriptor_vc(
     PSI_file_locker *locker, File file, const char *filename) {
   DBUG_ASSERT(filename != NULL);
   PSI_file_locker_state *state =
@@ -5261,7 +5326,7 @@ void pfs_end_temp_file_open_wait_and_bind_to_descriptor_v1(
 
   /* Set filename that was generated during creation of temporary file. */
   state->m_name = filename;
-  pfs_end_file_open_wait_and_bind_to_descriptor_v1(locker, file);
+  pfs_end_file_open_wait_and_bind_to_descriptor_vc(locker, file);
 
   PFS_file *pfs_file = reinterpret_cast<PFS_file *>(state->m_file);
   if (pfs_file != NULL) {
@@ -5273,7 +5338,7 @@ void pfs_end_temp_file_open_wait_and_bind_to_descriptor_v1(
   Implementation of the file instrumentation interface.
   @sa PSI_v1::start_file_wait.
 */
-void pfs_start_file_wait_v1(PSI_file_locker *locker, size_t count,
+void pfs_start_file_wait_vc(PSI_file_locker *locker, size_t count,
                             const char *src_file, uint src_line) {
   ulonglong timer_start = 0;
   PSI_file_locker_state *state =
@@ -5303,7 +5368,7 @@ void pfs_start_file_wait_v1(PSI_file_locker *locker, size_t count,
   Implementation of the file instrumentation interface.
   @sa PSI_v1::end_file_wait.
 */
-void pfs_end_file_wait_v1(PSI_file_locker *locker, size_t byte_count) {
+void pfs_end_file_wait_vc(PSI_file_locker *locker, size_t byte_count) {
   PSI_file_locker_state *state =
       reinterpret_cast<PSI_file_locker_state *>(locker);
   DBUG_ASSERT(state != NULL);
@@ -5413,33 +5478,26 @@ void pfs_end_file_wait_v1(PSI_file_locker *locker, size_t byte_count) {
   Implementation of the file instrumentation interface.
   @sa PSI_v1::start_file_close_wait.
 */
-void pfs_start_file_close_wait_v1(PSI_file_locker *locker, const char *src_file,
+void pfs_start_file_close_wait_vc(PSI_file_locker *locker, const char *src_file,
                                   uint src_line) {
-  PFS_thread *thread;
-  const char *name;
-  uint len;
-  PFS_file *pfs_file;
   PSI_file_locker_state *state =
       reinterpret_cast<PSI_file_locker_state *>(locker);
   DBUG_ASSERT(state != NULL);
 
   switch (state->m_operation) {
     case PSI_FILE_DELETE:
-      thread = reinterpret_cast<PFS_thread *>(state->m_thread);
-      name = state->m_name;
-      len = (uint)strlen(name);
-      pfs_file = find_or_create_file(thread, NULL, name, len, false);
-      state->m_file = reinterpret_cast<PSI_file *>(pfs_file);
+      /* state->m_file was set in get_thread_file_name_locker() */
       break;
     case PSI_FILE_STREAM_CLOSE:
     case PSI_FILE_CLOSE:
+      /* state->m_file was set in get_thread_file_descriptor_locker() */
       break;
     default:
       DBUG_ASSERT(false);
       break;
   }
 
-  pfs_start_file_wait_v1(locker, 0, src_file, src_line);
+  pfs_start_file_wait_vc(locker, 0, src_file, src_line);
 
   return;
 }
@@ -5448,24 +5506,26 @@ void pfs_start_file_close_wait_v1(PSI_file_locker *locker, const char *src_file,
   Implementation of the file instrumentation interface.
   @sa PSI_v1::end_file_close_wait.
 */
-void pfs_end_file_close_wait_v1(PSI_file_locker *locker, int rc) {
+void pfs_end_file_close_wait_vc(PSI_file_locker *locker, int rc) {
   PSI_file_locker_state *state =
       reinterpret_cast<PSI_file_locker_state *>(locker);
   DBUG_ASSERT(state != NULL);
+  PFS_file *file = reinterpret_cast<PFS_file *>(state->m_file);
 
-  pfs_end_file_wait_v1(locker, 0);
+  pfs_end_file_wait_vc(locker, 0);
 
   if (rc == 0) {
     PFS_thread *thread = reinterpret_cast<PFS_thread *>(state->m_thread);
-    PFS_file *file = reinterpret_cast<PFS_file *>(state->m_file);
-
-    /* Release or destroy the file if necessary */
+    /*
+      Release or destroy the file if necessary. For temporary or deleted
+      files, the file name has already been deleted from the cache.
+    */
     switch (state->m_operation) {
       case PSI_FILE_CLOSE:
         if (file != NULL) {
           if (file->m_temporary) {
             DBUG_ASSERT(file->m_file_stat.m_open_count <= 1);
-            destroy_file(thread, file);
+            destroy_file(thread, file, false);
           } else {
             release_file(file);
           }
@@ -5478,7 +5538,7 @@ void pfs_end_file_close_wait_v1(PSI_file_locker *locker, int rc) {
         break;
       case PSI_FILE_DELETE:
         if (file != NULL) {
-          destroy_file(thread, file);
+          destroy_file(thread, file, !file->m_temporary);
         }
         break;
       default:
@@ -5486,31 +5546,59 @@ void pfs_end_file_close_wait_v1(PSI_file_locker *locker, int rc) {
         break;
     }
   }
-  return;
+}
+
+/**
+  Implementation of the file instrumentation interface.
+  @sa PSI_v1::start_file_rename_wait.
+*/
+void pfs_start_file_rename_wait_vc(PSI_file_locker *locker,
+                                   size_t count MY_ATTRIBUTE((unused)),
+                                   const char *old_name MY_ATTRIBUTE((unused)),
+                                   const char *new_name MY_ATTRIBUTE((unused)),
+                                   const char *src_file, uint src_line) {
+  PSI_file_locker_state *state =
+      reinterpret_cast<PSI_file_locker_state *>(locker);
+  DBUG_ASSERT(state != NULL);
+
+  PFS_thread *thread = reinterpret_cast<PFS_thread *>(state->m_thread);
+  /*
+    To prevent a race on the old filename, delete the file from
+    the filename hash before renaming in the file system.
+  */
+  PFS_file *file = start_file_rename(thread, old_name);
+  state->m_file = reinterpret_cast<PSI_file *>(file);
+
+  pfs_start_file_wait_vc(locker, 0, src_file, src_line);
 }
 
 /**
   Implementation of the file instrumentation interface.
   @sa PSI_v1::end_file_rename_wait.
 */
-void pfs_end_file_rename_wait_v1(PSI_file_locker *locker, const char *old_name,
-                                 const char *new_name, int rc) {
+void pfs_end_file_rename_wait_vc(PSI_file_locker *locker,
+                                 const char *old_name MY_ATTRIBUTE((unused)),
+                                 const char *new_name MY_ATTRIBUTE((unused)),
+                                 int rc) {
   PSI_file_locker_state *state =
       reinterpret_cast<PSI_file_locker_state *>(locker);
   DBUG_ASSERT(state != NULL);
   DBUG_ASSERT(state->m_operation == PSI_FILE_RENAME);
 
-  if (rc == 0) {
-    PFS_thread *thread = reinterpret_cast<PFS_thread *>(state->m_thread);
-
-    uint old_len = (uint)strlen(old_name);
-    uint new_len = (uint)strlen(new_name);
-
-    find_and_rename_file(thread, old_name, old_len, new_name, new_len);
+  PFS_thread *thread = reinterpret_cast<PFS_thread *>(state->m_thread);
+  PFS_file *file = reinterpret_cast<PFS_file *>(state->m_file);
+  /*
+    If rename() was successful, then add the new name to the filename hash,
+    otherwise restore the old filename. If end_file_rename() fails, then
+    it will deallocate the file instrumentation.
+  */
+  if (file != NULL) {
+    if (end_file_rename(thread, file, new_name, rc) != 0) {
+      state->m_file = NULL;
+    }
   }
 
-  pfs_end_file_wait_v1(locker, 0);
-  return;
+  pfs_end_file_wait_vc(locker, 0);
 }
 
 PSI_stage_progress *pfs_start_stage_v1(PSI_stage_key key, const char *src_file,
@@ -8024,40 +8112,42 @@ SERVICE_IMPLEMENTATION(performance_schema, psi_cond_v1) = {
     pfs_signal_cond_v1,   pfs_broadcast_cond_v1, pfs_start_cond_wait_v1,
     pfs_end_cond_wait_v1};
 
-PSI_file_service_v1 pfs_file_service_v1 = {
+PSI_file_service_v2 pfs_file_service_v2 = {
     /* Old interface, for plugins. */
-    pfs_register_file_v1,
-    pfs_create_file_v1,
-    pfs_get_thread_file_name_locker_v1,
-    pfs_get_thread_file_stream_locker_v1,
-    pfs_get_thread_file_descriptor_locker_v1,
-    pfs_start_file_open_wait_v1,
-    pfs_end_file_open_wait_v1,
-    pfs_end_file_open_wait_and_bind_to_descriptor_v1,
-    pfs_end_temp_file_open_wait_and_bind_to_descriptor_v1,
-    pfs_start_file_wait_v1,
-    pfs_end_file_wait_v1,
-    pfs_start_file_close_wait_v1,
-    pfs_end_file_close_wait_v1,
-    pfs_end_file_rename_wait_v1};
+    pfs_register_file_vc,
+    pfs_create_file_vc,
+    pfs_get_thread_file_name_locker_vc,
+    pfs_get_thread_file_stream_locker_vc,
+    pfs_get_thread_file_descriptor_locker_vc,
+    pfs_start_file_open_wait_vc,
+    pfs_end_file_open_wait_vc,
+    pfs_end_file_open_wait_and_bind_to_descriptor_vc,
+    pfs_end_temp_file_open_wait_and_bind_to_descriptor_vc,
+    pfs_start_file_wait_vc,
+    pfs_end_file_wait_vc,
+    pfs_start_file_close_wait_vc,
+    pfs_end_file_close_wait_vc,
+    pfs_start_file_rename_wait_vc,
+    pfs_end_file_rename_wait_vc};
 
-SERVICE_TYPE(psi_file_v1)
-SERVICE_IMPLEMENTATION(performance_schema, psi_file_v1) = {
+SERVICE_TYPE(psi_file_v2)
+SERVICE_IMPLEMENTATION(performance_schema, psi_file_v2) = {
     /* New interface, for components. */
-    pfs_register_file_v1,
-    pfs_create_file_v1,
-    pfs_get_thread_file_name_locker_v1,
-    pfs_get_thread_file_stream_locker_v1,
-    pfs_get_thread_file_descriptor_locker_v1,
-    pfs_start_file_open_wait_v1,
-    pfs_end_file_open_wait_v1,
-    pfs_end_file_open_wait_and_bind_to_descriptor_v1,
-    pfs_end_temp_file_open_wait_and_bind_to_descriptor_v1,
-    pfs_start_file_wait_v1,
-    pfs_end_file_wait_v1,
-    pfs_start_file_close_wait_v1,
-    pfs_end_file_close_wait_v1,
-    pfs_end_file_rename_wait_v1};
+    pfs_register_file_vc,
+    pfs_create_file_vc,
+    pfs_get_thread_file_name_locker_vc,
+    pfs_get_thread_file_stream_locker_vc,
+    pfs_get_thread_file_descriptor_locker_vc,
+    pfs_start_file_open_wait_vc,
+    pfs_end_file_open_wait_vc,
+    pfs_end_file_open_wait_and_bind_to_descriptor_vc,
+    pfs_end_temp_file_open_wait_and_bind_to_descriptor_vc,
+    pfs_start_file_wait_vc,
+    pfs_end_file_wait_vc,
+    pfs_start_file_close_wait_vc,
+    pfs_end_file_close_wait_vc,
+    pfs_start_file_rename_wait_vc,
+    pfs_end_file_rename_wait_vc};
 
 PSI_socket_service_v1 pfs_socket_service_v1 = {
     /* Old interface, for plugins. */
@@ -8345,8 +8435,8 @@ static void *get_cond_interface(int version) {
 
 static void *get_file_interface(int version) {
   switch (version) {
-    case PSI_FILE_VERSION_1:
-      return &pfs_file_service_v1;
+    case PSI_FILE_VERSION_2:
+      return &pfs_file_service_v2;
     default:
       return NULL;
   }
@@ -8522,7 +8612,7 @@ struct PSI_transaction_bootstrap pfs_transaction_bootstrap = {
 BEGIN_COMPONENT_PROVIDES(performance_schema)
 PROVIDES_SERVICE(performance_schema, psi_cond_v1),
     PROVIDES_SERVICE(performance_schema, psi_error_v1),
-    PROVIDES_SERVICE(performance_schema, psi_file_v1),
+    PROVIDES_SERVICE(performance_schema, psi_file_v2),
     PROVIDES_SERVICE(performance_schema, psi_idle_v1),
     PROVIDES_SERVICE(performance_schema, psi_mdl_v1),
     PROVIDES_SERVICE(performance_schema, psi_memory_v1),

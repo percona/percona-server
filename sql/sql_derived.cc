@@ -29,6 +29,7 @@
 #include <sys/types.h>
 
 #include "lex_string.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
@@ -55,10 +56,9 @@
 #include "sql/sql_tmp_table.h"  // Tmp tables
 #include "sql/sql_union.h"      // Query_result_union
 #include "sql/sql_view.h"       // check_duplicate_names
-#include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/table_function.h"
-#include "sql/temp_table_param.h"
+#include "sql/thd_raii.h"
 #include "thr_lock.h"
 
 class Opt_trace_context;
@@ -203,7 +203,7 @@ TABLE *Common_table_expr::clone_tmp_table(THD *thd, TABLE_LIST *tl) {
   // In case this clone is used to fill the materialized table:
   bitmap_set_all(t->write_set);
   t->reginfo.lock_type = TL_WRITE;
-  t->copy_blobs = 1;
+  t->copy_blobs = true;
 
   tl->table = t;
   t->pos_in_table_list = tl;
@@ -314,8 +314,7 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
       my_error(ER_CTE_RECURSIVE_REQUIRES_UNION, MYF(0), alias);
       return true;
     }
-    if (derived->global_parameters()->is_ordered() ||
-        derived->global_parameters()->has_limit()) {
+    if (derived->global_parameters()->is_ordered()) {
       /*
         ORDER BY applied to the UNION causes the use of the union tmp
         table. The fake_select_lex would want to sort that table, which isn't
@@ -324,16 +323,16 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
         Another reason: allowing
         ORDER BY <condition using fulltext> would make the UNION tmp table be
         of MyISAM engine which recursive CTEs don't support.
-        LIMIT will mislead people; they'll possibly add it to an infinite
-        recursive query and think it will stop it, but it won't, as LIMIT
-        isn't quite pushed down to UNION parts (see Bug #79340). Moreover,
-        without ORDER BY the LIMIT theoretically returns unpredictable rows.
-        Instead of LIMIT, the user can have a counter column and use a WHERE
+        LIMIT is allowed and will stop the row generation after N rows.
+        However, without ORDER BY the CTE's content is ordered in an
+        unpredictable way, so LIMIT theoretically returns an unpredictable
+        subset of rows. Users are on their own.
+        Instead of LIMIT, users can have a counter column and use a WHERE
         on it, to control depth level, which sounds more intelligent than a
         limit.
       */
       my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-               "ORDER BY / LIMIT over UNION "
+               "ORDER BY over UNION "
                "in recursive Common Table Expression");
       return true;
     }
@@ -416,7 +415,7 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
                        !apply_semijoin ? SELECT_STRAIGHT_JOIN : 0, 0))
     return true;
 
-  if (check_duplicate_names(m_derived_column_names, derived->types, 0))
+  if (check_duplicate_names(m_derived_column_names, derived->types, false))
     return true;
 
   if (is_derived()) {
@@ -543,7 +542,7 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
     // will happen on that table, and is not set here.) create_result_table()
     // will figure out whether it wants to create it as the primary key or just
     // a regular index.
-    bool is_distinct = derived->can_materialize_directly_into_result(thd) &&
+    bool is_distinct = derived->can_materialize_directly_into_result() &&
                        derived->union_distinct != nullptr;
 
     bool rc = derived_result->create_result_table(
@@ -599,11 +598,10 @@ bool SELECT_LEX_UNIT::check_materialized_derived_query_blocks(THD *thd_arg) {
 
     // Set all selected fields to be read:
     // @todo Do not set fields that are not referenced from outer query
-    DBUG_ASSERT(thd_arg->mark_used_columns == MARK_COLUMNS_READ);
     List_iterator<Item> it(sl->all_fields);
     Item *item;
     Column_privilege_tracker tracker(thd_arg, SELECT_ACL);
-    Mark_field mf(thd_arg->mark_used_columns);
+    Mark_field mf(MARK_COLUMNS_READ);
     while ((item = it++)) {
       if (item->walk(&Item::check_column_privileges, enum_walk::PREFIX,
                      (uchar *)thd_arg))

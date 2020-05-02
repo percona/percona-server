@@ -271,6 +271,13 @@ bool wait_for_port_ready(uint16_t port, std::chrono::milliseconds timeout,
     std::shared_ptr<void> exit_close_socket(
         nullptr, [&](void *) { close_socket(sock_id); });
 
+#ifdef _WIN32
+    // On Windows if the port is not ready yet when we try the connect() first
+    // time it will block for 500ms (depends on the OS wide configuration) and
+    // retry again internally. Here we sleep for 100ms but will save this 500ms
+    // for most of the cases which is still a good deal
+    std::this_thread::sleep_for(100ms);
+#endif
     status = connect(sock_id, ainfo->ai_addr, ainfo->ai_addrlen);
     if (status < 0) {
       const auto step = std::min(timeout, MSEC_STEP);
@@ -363,20 +370,43 @@ bool find_in_file(const std::string &file_path,
 }
 
 std::string get_file_output(const std::string &file_name,
-                            const std::string &file_path) {
-  return get_file_output(file_path + "/" + file_name);
+                            const std::string &file_path,
+                            bool throw_on_error /*=false*/) {
+  return get_file_output(file_path + "/" + file_name, throw_on_error);
 }
 
-std::string get_file_output(const std::string &file_name) {
+std::string get_file_output(const std::string &file_name,
+                            bool throw_on_error /*=false*/) {
   Path file(file_name);
   std::ifstream in_file;
-  in_file.open(file.c_str(), std::ifstream::in);
-  if (!in_file) {
-    return "Could not open file " + file.str() + " for reading.";
+  in_file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+  try {
+    in_file.open(file.c_str(), std::ifstream::in);
+  } catch (const std::exception &e) {
+    const std::string msg =
+        "Could not open file '" + file.str() + "' for reading: ";
+    if (throw_on_error)
+      throw std::runtime_error(msg + e.what());
+    else
+      return "<THIS ERROR COMES FROM TEST FRAMEWORK'S get_file_output(), IT IS "
+             "NOT PART OF PROCESS OUTPUT: " +
+             msg + e.what() + ">";
   }
+  assert(in_file);
 
-  std::string result((std::istreambuf_iterator<char>(in_file)),
-                     std::istreambuf_iterator<char>());
+  std::string result;
+  try {
+    result.assign((std::istreambuf_iterator<char>(in_file)),
+                  std::istreambuf_iterator<char>());
+  } catch (const std::exception &e) {
+    const std::string msg = "Reading file '" + file.str() + "' failed: ";
+    if (throw_on_error)
+      throw std::runtime_error(msg + e.what());
+    else
+      return "<THIS ERROR COMES FROM TEST FRAMEWORK'S get_file_output(), IT IS "
+             "NOT PART OF PROCESS OUTPUT: " +
+             msg + e.what() + ">";
+  }
 
   return result;
 }

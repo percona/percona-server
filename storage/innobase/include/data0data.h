@@ -652,6 +652,8 @@ struct dfield_t {
   unsigned len; /*!< data length; UNIV_SQL_NULL if SQL null */
   dtype_t type; /*!< type of data */
 
+  bool is_virtual() const { return (type.is_virtual()); }
+
   void reset() {
     data = nullptr;
     ext = FALSE;
@@ -791,6 +793,18 @@ struct dtuple_t {
     ulint matched_fields{};
 
     return (compare(rec, index, offsets, &matched_fields));
+  }
+
+  /** Get number of externally stored fields.
+  @retval number of externally stored fields. */
+  inline ulint get_n_ext() const {
+    ulint n_ext = 0;
+    for (ulint i = 0; i < n_fields; ++i) {
+      if (dfield_is_ext(&fields[i])) {
+        n_ext++;
+      }
+    }
+    return (n_ext);
   }
 };
 

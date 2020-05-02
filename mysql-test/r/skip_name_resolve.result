@@ -49,6 +49,20 @@ DELETE FROM mysql.user WHERE user='b20438524';
 FLUSH PRIVILEGES;
 # must find the pattern
 Pattern "'user' entry 'b20438524@localhost1' ignored in --skip-name-resolve mode" found
+#
+# Bug #98908: Crash in ACL_PROXY_USER::check_validity with --skip-name-resolve=1
+#             https://bugs.mysql.com/bug.php?id=98908
+#
+CREATE USER IF NOT EXISTS ''@'';
+CREATE USER IF NOT EXISTS dba@'localhost' IDENTIFIED BY 'pass';
+GRANT PROXY ON dba@'localhost' TO ''@'';
+Warnings:
+Warning	1285	MySQL is started in --skip-name-resolve mode; you must restart it without this switch for this grant to work
+# restart:--skip-name-resolve=1
+Grants for dba@localhost
+GRANT USAGE ON *.* TO `dba`@`localhost`
+DROP USER dba@'localhost';
+DROP USER ''@'';
 End of 5.7 tests
 #
 # Bug #23329861: WARNING ABOUT LOCALHOST WHEN USING SKIP-NAME-RESOLVE

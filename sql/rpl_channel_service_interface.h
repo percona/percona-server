@@ -74,6 +74,7 @@ struct Channel_ssl_info {
   char *ssl_cipher;            // list of permissible ciphers to use for SSL
   int ssl_verify_server_cert;  // check the server's Common Name value
   char *tls_version;           // TLS version to use for SSL
+  char *tls_ciphersuites;      // list of permissible ciphersuites for TLS 1.3
 };
 
 void initialize_channel_ssl_info(Channel_ssl_info *channel_ssl_info);
@@ -188,6 +189,14 @@ int channel_start(const char *channel, Channel_connection_info *connection_info,
     @retval !=0    Error
 */
 int channel_stop(const char *channel, int threads_to_stop, long timeout);
+
+/**
+  Kills the Binlog Dump threads.
+
+  @return the operation status
+    @retval 0      OK
+*/
+int binlog_dump_thread_kill();
 
 /**
   Stops all the running channel threads according to the given options.

@@ -341,6 +341,16 @@ struct LEX_MASTER_INFO {
       retry_count_opt, auto_position, port_opt, get_public_key;
   char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
   char *ssl_crl, *ssl_crlpath, *tls_version;
+  /*
+    Ciphersuites used for TLS 1.3 communication with the master server.
+  */
+  enum enum_tls_ciphersuites {
+    UNSPECIFIED = 0,
+    SPECIFIED_NULL,
+    SPECIFIED_STRING
+  };
+  enum enum_tls_ciphersuites tls_ciphersuites;
+  char *tls_ciphersuites_string;
   char *public_key_path;
   char *relay_log_name;
   ulong relay_log_pos;
@@ -357,6 +367,11 @@ struct LEX_MASTER_INFO {
     a user.
    */
   const char *privilege_checks_username, *privilege_checks_hostname;
+  /**
+    Flag indicating if row format should be enforced for this channel event
+    stream.
+   */
+  int require_row_format;
 
   /// Initializes everything to zero/NULL/empty.
   void initialize();
@@ -802,7 +817,7 @@ class SELECT_LEX_UNIT {
     on information (in particular, whether the query blocks can run under
     the iterator executor or not) that is not available before optimize time.
    */
-  bool can_materialize_directly_into_result(THD *thd) const;
+  bool can_materialize_directly_into_result() const;
 
   bool prepare(THD *thd, Query_result *result, ulonglong added_options,
                ulonglong removed_options);
@@ -1345,6 +1360,19 @@ class SELECT_LEX {
 
   // Last table for LATERAL join, used by table functions
   TABLE_LIST *end_lateral_table;
+
+  /// If set, the query block is of the form VALUES row_list.
+  bool is_table_value_constructor{false};
+  /// The VALUES items of a table value constructor.
+  List<List<Item>> *row_value_list{nullptr};
+  bool resolve_table_value_constructor_values(THD *thd);
+
+  /// @returns true if this query block outputs at most one row.
+  bool source_table_is_one_row() const {
+    return (table_list.size() == 0 &&
+            (!is_table_value_constructor || row_value_list->size() == 1));
+  }
+
   /**
     @note the group_by and order_by lists below will probably be added to the
           constructor when the parser is converted into a true bottom-up design.
@@ -1654,14 +1682,17 @@ class SELECT_LEX {
                            enum_query_type query_type);
 
   /**
-    Print list of values to be inserted. Used in INSERT.
+    Print list of values, used in INSERT and for general VALUES clause.
 
     @param      thd          Thread handle
     @param[out] str          String of output
     @param      query_type   Options to print out string output
+    @param      values       List of values
+    @param      prefix       Prefix to print before each row in value list
+                             = nullptr: No prefix wanted
   */
-  void print_insert_values(const THD *thd, String *str,
-                           enum_query_type query_type);
+  void print_values(const THD *thd, String *str, enum_query_type query_type,
+                    List<List<Item>> values, const char *prefix);
 
   /**
     Print list of tables in FROM clause.
@@ -1878,6 +1909,7 @@ class SELECT_LEX {
   bool setup_wild(THD *thd);
   bool setup_order_final(THD *thd);
   bool setup_group(THD *thd);
+  void fix_after_pullout(SELECT_LEX *parent_select, SELECT_LEX *removed_select);
   void remove_redundant_subquery_clauses(THD *thd,
                                          int hidden_group_field_count);
   void repoint_contexts_of_join_nests(List<TABLE_LIST> join_list);
@@ -1899,6 +1931,7 @@ class SELECT_LEX {
 
   bool setup_conds(THD *thd);
   bool prepare(THD *thd);
+  bool prepare_values(THD *thd);
   bool optimize(THD *thd);
   void reset_nj_counters(List<TABLE_LIST> *join_list = NULL);
   bool check_only_full_group_by(THD *thd);

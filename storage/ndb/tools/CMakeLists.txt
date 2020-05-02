@@ -60,10 +60,10 @@ ADD_LIBRARY(ndbtools STATIC
   NdbImportCsvGram.cpp
   NdbImportUtil.cpp)
 
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+IF(MY_COMPILER_IS_GNU_OR_CLANG)
   # Suppress warnings for undefined identifiers in bison output
   ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.cpp
-                    COMPILE_FLAGS "-Wno-undef")
+    COMPILE_FLAGS "-Wno-undef")
 ENDIF()
 
 BISON_TARGET(ndb_import
@@ -79,48 +79,57 @@ ADD_CUSTOM_TARGET(GenBison_ndb_import DEPENDS ${BISON_ndb_import_OUTPUTS})
 MYSQL_ADD_EXECUTABLE(ndb_waiter
   waiter.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static ndbNDBT
   )
 MYSQL_ADD_EXECUTABLE(ndb_drop_table
   drop_tab.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static ndbNDBT
   )
 MYSQL_ADD_EXECUTABLE(ndb_delete_all
   delete_all.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static
   )
 MYSQL_ADD_EXECUTABLE(ndb_desc
   desc.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static ndbNDBT
   )
 MYSQL_ADD_EXECUTABLE(ndb_drop_index
   drop_index.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static ndbNDBT
   )
 MYSQL_ADD_EXECUTABLE(ndb_show_tables
   listTables.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static ndbNDBT
   )
 MYSQL_ADD_EXECUTABLE(ndb_select_all
   select_all.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static ndbNDBT
   )
 MYSQL_ADD_EXECUTABLE(ndb_select_count
   select_count.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static ndbNDBT
   )
 MYSQL_ADD_EXECUTABLE(ndb_perror
   ndb_perror.cpp
-  ${NDB_SOURCE_DIR}/src/mgmapi/mgmapi_error.cpp
-  ${NDB_SOURCE_DIR}/src/kernel/error/ndbd_exit_codes.cpp
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi/mgmapi_error.cpp
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/error/ndbd_exit_codes.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static
   )
 MYSQL_ADD_EXECUTABLE(ndb_restore
@@ -131,11 +140,13 @@ MYSQL_ADD_EXECUTABLE(ndb_restore
   restore/Restore.cpp
   ndb_lib_move_data.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static
   )
 MYSQL_ADD_EXECUTABLE(ndb_import
   ndb_import.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbtools ndbclient_static
   )
 
@@ -148,12 +159,14 @@ NDB_ADD_TEST(NdbImportCsv-t NdbImportCsv.cpp
 MYSQL_ADD_EXECUTABLE(ndb_config
   ndb_config.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static
   )
 # Build ndbinfo_sql and run it to create ndbinfo.sql
 MYSQL_ADD_EXECUTABLE(ndbinfo_sql
   ndbinfo_sql.cpp
   SKIP_INSTALL
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static
   )
 
@@ -165,16 +178,19 @@ ADD_CUSTOM_COMMAND(TARGET ndbinfo_sql POST_BUILD
 MYSQL_ADD_EXECUTABLE(ndb_index_stat
   ndb_index_stat.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static ndbNDBT
   )
 MYSQL_ADD_EXECUTABLE(ndbinfo_select_all
   ndbinfo_select_all.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static ndbNDBT
   )
 MYSQL_ADD_EXECUTABLE(ndb_blob_tool
   ndb_blob_tool.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static ndbNDBT
   )
 
@@ -182,6 +198,7 @@ MYSQL_ADD_EXECUTABLE(ndb_move_data
   ndb_move_data.cpp
   ndb_lib_move_data.cpp
   COMPONENT ClusterTools
+  ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static ndbNDBT
   )
 
@@ -200,8 +217,7 @@ IF(NOT WIN32 AND NOT SOLARIS)
     CHECK_LIBRARY_EXISTS("${NCURSESW_LIB}"
       stdscr "" NCURSES_HAS_STDSCR)
     IF(NOT NCURSES_HAS_STDSCR)
-      FIND_LIBRARY(NCURSES_TINFO_LIB
-                   NAMES tinfo)
+      FIND_LIBRARY(NCURSES_TINFO_LIB NAMES tinfo)
     ENDIF()
     MYSQL_ADD_EXECUTABLE(ndb_top
       ndb_top.cpp
@@ -211,9 +227,9 @@ IF(NOT WIN32 AND NOT SOLARIS)
       TARGET_LINK_LIBRARIES(ndb_top perconaserverclient ${NCURSESW_LIB})
     ELSE()
       TARGET_LINK_LIBRARIES(ndb_top
-                            perconaserverclient
-                            ${NCURSESW_LIB}
-                            ${NCURSES_TINFO_LIB})
+        perconaserverclient
+        ${NCURSESW_LIB}
+        ${NCURSES_TINFO_LIB})
     ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR
@@ -221,7 +237,7 @@ IF(NOT WIN32 AND NOT SOLARIS)
   ENDIF()
 ENDIF()
 
-if(NOT WIN32)
+IF(NOT WIN32)
   SET(TARGET_RUNTIME_OUTPUT_DIRECTORY
     ${CMAKE_BINARY_DIR}/runtime_output_directory)
   CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/ndb_error_reporter.pl
@@ -229,8 +245,8 @@ if(NOT WIN32)
   EXECUTE_PROCESS(COMMAND chmod +x
     ${TARGET_RUNTIME_OUTPUT_DIRECTORY}/ndb_error_reporter)
   INSTALL_SCRIPT(${TARGET_RUNTIME_OUTPUT_DIRECTORY}/ndb_error_reporter
-         DESTINATION ${INSTALL_BINDIR}
-         COMPONENT ClusterTools)
+    DESTINATION ${INSTALL_BINDIR}
+    COMPONENT ClusterTools)
 ENDIF()
 
 INSTALL(PROGRAMS ${CMAKE_CURRENT_SOURCE_DIR}/ndb_size.pl

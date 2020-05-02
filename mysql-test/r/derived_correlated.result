@@ -14,12 +14,12 @@ explain select * from t1 where
 where 2=(select 2 from (select t1.a) dt1))dt3)dt4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 5	DEPENDENT SUBQUERY	<derived6>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 6	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #6 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (0 <> (/* select#2 */ select count(0) from `test`.`t1` `t2` where true))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (0 <> (/* select#2 */ select count(0) from `test`.`t1` `t2` where (2 = (/* select#5 */ select 2 from (/* select#6 */ select `test`.`t1`.`a` AS `a`) `dt1`))))
 select * from t1 where
 (select count(*) from (select * from (select * from t1 t2
 where 2=(select 2 from (select t1.a) dt1))dt3)dt4);
@@ -897,9 +897,6 @@ trace
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
-                      "filtering_effect": [
-                      ],
-                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 2,
                       "cost": 0.45,
@@ -920,9 +917,6 @@ trace
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 2,
-                          "filtering_effect": [
-                          ],
-                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -946,9 +940,6 @@ trace
                           "considered_access_paths": [
                             {
                               "rows_to_scan": 2,
-                              "filtering_effect": [
-                              ],
-                              "final_filtering_effect": 1,
                               "access_type": "scan",
                               "using_join_cache": true,
                               "buffers_needed": 1,
@@ -1024,9 +1015,6 @@ trace
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 2,
-                          "filtering_effect": [
-                          ],
-                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -1074,9 +1062,6 @@ trace
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
-                      "filtering_effect": [
-                      ],
-                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 2,
                       "cost": 0.45,
@@ -1097,9 +1082,6 @@ trace
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
-                      "filtering_effect": [
-                      ],
-                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 2,
                       "cost": 0.45,
@@ -2406,9 +2388,6 @@ trace
                         "considered_access_paths": [
                           {
                             "rows_to_scan": 2,
-                            "filtering_effect": [
-                            ],
-                            "final_filtering_effect": 1,
                             "access_type": "scan",
                             "resulting_rows": 2,
                             "cost": 0.45,
@@ -2429,9 +2408,6 @@ trace
                             "considered_access_paths": [
                               {
                                 "rows_to_scan": 2,
-                                "filtering_effect": [
-                                ],
-                                "final_filtering_effect": 1,
                                 "access_type": "scan",
                                 "using_join_cache": true,
                                 "buffers_needed": 1,
@@ -2456,9 +2432,6 @@ trace
                         "considered_access_paths": [
                           {
                             "rows_to_scan": 2,
-                            "filtering_effect": [
-                            ],
-                            "final_filtering_effect": 1,
                             "access_type": "scan",
                             "resulting_rows": 2,
                             "cost": 0.45,
@@ -2568,9 +2541,6 @@ trace
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
-                      "filtering_effect": [
-                      ],
-                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 2,
                       "cost": 0.45,

@@ -176,14 +176,9 @@ static SELECT_LEX *build_query(const POS &pos, THD *thd,
                                                  NULL);                 // where
   if (query_specification == NULL) return NULL;
 
-  PT_query_expression_body_primary *query_expression_body_primary;
-  query_expression_body_primary =
-      new (thd->mem_root) PT_query_expression_body_primary(query_specification);
-  if (query_expression_body_primary == NULL) return NULL;
-
   PT_query_expression *query_expression;
   query_expression =
-      new (thd->mem_root) PT_query_expression(query_expression_body_primary);
+      new (thd->mem_root) PT_query_expression(query_specification);
   if (query_expression == NULL) return NULL;
 
   PT_subquery *sub_query;
@@ -256,14 +251,9 @@ static SELECT_LEX *build_query(const POS &pos, THD *thd,
                                                  where_clause);  // where
   if (query_specification2 == NULL) return NULL;
 
-  PT_query_expression_body_primary *query_expression_body_primary2;
-  query_expression_body_primary2 = new (thd->mem_root)
-      PT_query_expression_body_primary(query_specification2);
-  if (query_expression_body_primary2 == NULL) return NULL;
-
   PT_query_expression *query_expression2;
   query_expression2 =
-      new (thd->mem_root) PT_query_expression(query_expression_body_primary2);
+      new (thd->mem_root) PT_query_expression(query_specification2);
   if (query_expression2 == NULL) return NULL;
 
   LEX *lex = thd->lex;
@@ -299,6 +289,18 @@ SELECT_LEX *build_show_global_status(const POS &pos, THD *thd,
 SELECT_LEX *build_show_session_variables(const POS &pos, THD *thd,
                                          const String *wild, Item *where_cond) {
   static const LEX_CSTRING table_name = {STRING_WITH_LEN("session_variables")};
+
+  DBUG_EXECUTE_IF("catch_show_gtid_mode", {
+    String gtid_mode;
+    static const char *gm = "gtid\\_mode";
+    unsigned int errors;
+    gtid_mode.copy(gm, strlen(gm), &my_charset_latin1, wild->charset(),
+                   &errors);
+    if (!my_strcasecmp(wild->charset(), const_cast<String *>(wild)->c_ptr(),
+                       gtid_mode.c_ptr())) {
+      DEBUG_SYNC_C("before_show_gtid_executed");
+    }
+  });
 
   return build_query(pos, thd, SQLCOM_SHOW_VARIABLES, table_name, wild,
                      where_cond);

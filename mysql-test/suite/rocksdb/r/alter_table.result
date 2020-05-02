@@ -4,30 +4,30 @@ ALTER TABLE t1 ADD COLUMN b INT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk` int(11) NOT NULL,
-  `a` int(11) DEFAULT NULL,
+  `pk` int NOT NULL,
+  `a` int DEFAULT NULL,
   `c` char(8) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ALTER COLUMN a SET DEFAULT '0';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk` int(11) NOT NULL,
-  `a` int(11) DEFAULT '0',
+  `pk` int NOT NULL,
+  `a` int DEFAULT '0',
   `c` char(8) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ALTER a DROP DEFAULT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk` int(11) NOT NULL,
-  `a` int(11),
+  `pk` int NOT NULL,
+  `a` int,
   `c` char(8) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 CHANGE COLUMN b b1 CHAR(8) FIRST;
@@ -35,8 +35,8 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `b1` char(8) DEFAULT NULL,
-  `pk` int(11) NOT NULL,
-  `a` int(11),
+  `pk` int NOT NULL,
+  `a` int,
   `c` char(8) DEFAULT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -44,18 +44,18 @@ ALTER TABLE t1 CHANGE b1 b INT AFTER c;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk` int(11) NOT NULL,
-  `a` int(11),
+  `pk` int NOT NULL,
+  `a` int,
   `c` char(8) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 CHANGE b b CHAR(8);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk` int(11) NOT NULL,
-  `a` int(11),
+  `pk` int NOT NULL,
+  `a` int,
   `c` char(8) DEFAULT NULL,
   `b` char(8) DEFAULT NULL,
   PRIMARY KEY (`pk`)
@@ -64,10 +64,10 @@ ALTER TABLE t1 MODIFY COLUMN b INT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk` int(11) NOT NULL,
-  `a` int(11),
+  `pk` int NOT NULL,
+  `a` int,
   `c` char(8) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 MODIFY COLUMN b CHAR(8) FIRST;
@@ -75,8 +75,8 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `b` char(8) DEFAULT NULL,
-  `pk` int(11) NOT NULL,
-  `a` int(11),
+  `pk` int NOT NULL,
+  `a` int,
   `c` char(8) DEFAULT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -84,9 +84,9 @@ ALTER TABLE t1 MODIFY COLUMN b INT AFTER a;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk` int(11) NOT NULL,
-  `a` int(11),
-  `b` int(11) DEFAULT NULL,
+  `pk` int NOT NULL,
+  `a` int,
+  `b` int DEFAULT NULL,
   `c` char(8) DEFAULT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -94,8 +94,8 @@ ALTER TABLE t1 DROP COLUMN b;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk` int(11) NOT NULL,
-  `a` int(11),
+  `pk` int NOT NULL,
+  `a` int,
   `c` char(8) DEFAULT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -105,8 +105,8 @@ ERROR 42S02: Table 'test.t1' doesn't exist
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `pk` int(11) NOT NULL,
-  `a` int(11),
+  `pk` int NOT NULL,
+  `a` int,
   `c` char(8) DEFAULT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -116,9 +116,9 @@ INSERT INTO t1 VALUES (1,1,5),(2,2,2),(3,4,3);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk` int(11) NOT NULL,
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
+  `pk` int NOT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ORDER BY b ASC, a DESC, pk DESC;
@@ -127,9 +127,9 @@ Warning	1105	ORDER BY ignored as there is a user-defined clustered index in the 
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk` int(11) NOT NULL,
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
+  `pk` int NOT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
@@ -143,8 +143,8 @@ INSERT INTO t1 VALUES (1,5,'z','t');
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk` int(11) NOT NULL,
-  `a` int(11) DEFAULT NULL,
+  `pk` int NOT NULL,
+  `a` int DEFAULT NULL,
   `b` char(8) COLLATE latin1_general_cs DEFAULT NULL,
   `c` char(8) COLLATE latin1_general_cs DEFAULT NULL,
   PRIMARY KEY (`pk`)
@@ -155,8 +155,8 @@ Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Pl
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk` int(11) NOT NULL,
-  `a` int(11) DEFAULT NULL,
+  `pk` int NOT NULL,
+  `a` int DEFAULT NULL,
   `b` char(8) DEFAULT NULL,
   `c` char(8) DEFAULT NULL,
   PRIMARY KEY (`pk`)
@@ -165,8 +165,8 @@ ALTER TABLE t1 DEFAULT CHARACTER SET = latin1 COLLATE latin1_general_ci;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk` int(11) NOT NULL,
-  `a` int(11) DEFAULT NULL,
+  `pk` int NOT NULL,
+  `a` int DEFAULT NULL,
   `b` char(8) CHARACTER SET utf8 DEFAULT NULL,
   `c` char(8) CHARACTER SET utf8 DEFAULT NULL,
   PRIMARY KEY (`pk`)
@@ -175,8 +175,8 @@ ALTER TABLE t1 FORCE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk` int(11) NOT NULL,
-  `a` int(11) DEFAULT NULL,
+  `pk` int NOT NULL,
+  `a` int DEFAULT NULL,
   `b` char(8) CHARACTER SET utf8 DEFAULT NULL,
   `c` char(8) CHARACTER SET utf8 DEFAULT NULL,
   PRIMARY KEY (`pk`)

@@ -1010,7 +1010,6 @@ static int dial(server *s) {
            NDBG(s->port, u));
     set_connected(&s->con, CON_FD);
     alive(s);
-    server_detected(s);
     update_detected(get_site_def_rw());
   }
   FINALLY
@@ -1182,6 +1181,8 @@ static int read_bytes(connection_descriptor const *rfd, char *p, uint32_t n,
 
   TASK_BEGIN
 
+      (void)
+  s;
   ep->left = n;
   ep->bytes = (char *)p;
   while (ep->left > 0) {
@@ -1197,7 +1198,6 @@ static int read_bytes(connection_descriptor const *rfd, char *p, uint32_t n,
     } else {
       ep->bytes += nread;
       ep->left -= (uint32_t)nread;
-      if (s) server_detected(s);
     }
   }
   assert(ep->left == 0);
@@ -1231,6 +1231,9 @@ static int buffered_read_bytes(connection_descriptor const *rfd, srv_buf *buf,
   uint32_t nget = 0;
 
   TASK_BEGIN
+
+      (void)
+  s;
   ep->left = n;
   ep->bytes = (char *)p;
 
@@ -1267,7 +1270,6 @@ static int buffered_read_bytes(connection_descriptor const *rfd, srv_buf *buf,
         nget = get_srv_buf(buf, ep->bytes, ep->left);
         ep->bytes += nget;
         ep->left -= nget;
-        if (s) server_detected(s);
       }
     }
   }

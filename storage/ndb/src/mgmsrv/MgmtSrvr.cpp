@@ -863,15 +863,6 @@ MgmtSrvr::get_packed_config_from_node(NodeId nodeId,
   }
 
   const Uint32 version = node.m_info.m_version;
-
-  if (!ndbd_get_config_supported(version))
-  {
-    error.assfmt("Data node %d (version %d.%d.%d) does not support getting config. ",
-                 nodeId, ndbGetMajor(version),
-                 ndbGetMinor(version), ndbGetBuild(version));
-    DBUG_RETURN(false);
-  }
-
   bool v2_data_node = ndb_config_version_v2(version);
   INIT_SIGNAL_SENDER(ss,nodeId);
 
@@ -1179,8 +1170,6 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
 
       version = conf->version;
       mysql_version = conf->mysql_version;
-      if (version < NDBD_SPLIT_VERSION)
-	mysql_version = 0;
       struct in_addr in;
       in.s_addr= conf->m_inet_addr;
       *address= Ndb_inet_ntop(AF_INET,
@@ -1211,14 +1200,19 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
              len == 0); // only full length in ndbapi
       if (signal->header.m_noOfSections >= 1)
       {
+        len = signal->ptr[0].sz;
         if (BitmaskImpl::safe_get(len, signal->ptr[0].p, nodeId))
         {
           do_send = true;
         }
       }
-      else if (BitmaskImpl::safe_get(len, rep->theAllNodes, nodeId))
+      else
       {
-	do_send = true; // retry with other node
+        assert(len > 0);
+        if (BitmaskImpl::safe_get(len, rep->theAllNodes, nodeId))
+        {
+	  do_send = true; // retry with other node
+        }
       }
       continue;
     }
@@ -4044,6 +4038,13 @@ MgmtSrvr::find_node_type(NodeId node_id,
       }
       exact_match = true;
     }
+    unsigned dedicated_node = 0;
+    iter.get(CFG_NODE_DEDICATED, &dedicated_node);
+    if (dedicated_node && id != node_id)
+    {
+      // id is only handed out if explicitly requested.
+      continue;
+    }
     /*
       Insert this node in the nodes list sorted with the
       exact matches ahead of the open nodes
@@ -4888,7 +4889,8 @@ MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd,
 {
   DBUG_ENTER("MgmtSrvr::transporter_connect");
   TransporterRegistry* tr= theFacade->get_registry();
-  if (!tr->connect_server(sockfd, msg, close_with_reset))
+  bool dummy_log_failure = false;
+  if (!tr->connect_server(sockfd, msg, close_with_reset, dummy_log_failure))
     DBUG_RETURN(false);
 
   /**
@@ -5185,13 +5187,6 @@ MgmtSrvr::show_variables(NdbOut& out)
 void
 MgmtSrvr::make_sync_req(SignalSender& ss, Uint32 nodeId)
 {
-  const trp_node node = ss.getNodeInfo(nodeId);
-  if (!ndbd_sync_req_support(node.m_info.m_version))
-  {
-    /* The node hasn't got SYNC_REQ support */
-    return;
-  }
-
   /**
    * This subroutine is used to make a async request(error insert/dump)
    *   "more" syncronous, i.e increasing the likelyhood that

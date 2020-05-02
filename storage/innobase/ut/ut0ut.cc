@@ -439,6 +439,8 @@ const char *ut_strerr(dberr_t num) {
       return ("Table is being used in foreign key check");
     case DB_DATA_MISMATCH:
       return ("data mismatch");
+    case DB_SCHEMA_MISMATCH:
+      return ("schema mismatch");
     case DB_NOT_FOUND:
       return ("not found");
     case DB_ONLINE_LOG_TOO_BIG:
@@ -501,6 +503,8 @@ const char *ut_strerr(dberr_t num) {
           "OS");
     case DB_BTREE_LEVEL_LIMIT_EXCEEDED:
       return ("Btree level limit exceeded");
+    case DB_END_SAMPLE_READ:
+      return ("Sample reader has been requested to stop sampling");
 
     case DB_ERROR_UNSET:;
       /* Fall through. */

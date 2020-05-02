@@ -63,8 +63,9 @@ Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
       alter_index_visibility_list(mem_root,
                                   rhs.alter_index_visibility_list.begin(),
                                   rhs.alter_index_visibility_list.end()),
-      alter_state_list(mem_root, rhs.alter_state_list.begin(),
-                       rhs.alter_state_list.end()),
+      alter_constraint_enforcement_list(
+          mem_root, rhs.alter_constraint_enforcement_list.begin(),
+          rhs.alter_constraint_enforcement_list.end()),
       check_constraint_spec_list(mem_root,
                                  rhs.check_constraint_spec_list.begin(),
                                  rhs.check_constraint_spec_list.end()),
@@ -283,11 +284,11 @@ bool Sql_cmd_alter_table::execute(THD *thd) {
   DBUG_ASSERT(!(alter_info.flags & Alter_info::ALTER_ADMIN_PARTITION));
   if (check_access(thd, priv_needed, first_table->db,
                    &first_table->grant.privilege,
-                   &first_table->grant.m_internal, 0, 0) ||
+                   &first_table->grant.m_internal, false, false) ||
       check_access(thd, INSERT_ACL | CREATE_ACL, alter_info.new_db_name.str,
                    &priv,
                    NULL, /* Don't use first_tab->grant with sel_lex->db */
-                   0, 0))
+                   false, false))
     return true; /* purecov: inspected */
 
   /* If it is a merge table, check privileges for merge children. */
@@ -394,7 +395,7 @@ bool Sql_cmd_discard_import_tablespace::execute(THD *thd) {
   TABLE_LIST *table_list = select_lex->get_table_list();
 
   if (check_access(thd, ALTER_ACL, table_list->db, &table_list->grant.privilege,
-                   &table_list->grant.m_internal, 0, 0))
+                   &table_list->grant.m_internal, false, false))
     return true;
 
   if (check_grant(thd, ALTER_ACL, table_list, false, UINT_MAX, false))
@@ -441,7 +442,7 @@ bool Sql_cmd_secondary_load_unload::execute(THD *thd) {
   TABLE_LIST *table_list = thd->lex->select_lex->get_table_list();
 
   if (check_access(thd, ALTER_ACL, table_list->db, &table_list->grant.privilege,
-                   &table_list->grant.m_internal, 0, 0))
+                   &table_list->grant.m_internal, false, false))
     return true;
 
   if (check_grant(thd, ALTER_ACL, table_list, false, UINT_MAX, false))

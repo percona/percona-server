@@ -32,6 +32,7 @@
 #include <utility>
 #include <vector>
 
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
@@ -68,8 +69,7 @@
 #include "sql/error_handler.h"     // Internal_error_handler
 #include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/lock.h"  // lock_object_name
-#include "sql/log.h"
+#include "sql/lock.h"       // lock_object_name
 #include "sql/log_event.h"  // append_query_string
 #include "sql/mdl.h"
 #include "sql/mysqld.h"  // trust_function_creators
@@ -97,7 +97,6 @@
 #include "sql/transaction_info.h"
 #include "sql_string.h"
 #include "template_utils.h"
-#include "thr_lock.h"
 
 class sp_rcontext;
 
@@ -239,6 +238,20 @@ Stored_routine_creation_ctx *Stored_routine_creation_ctx::load_from_db(
   return new (thd->mem_root)
       Stored_routine_creation_ctx(client_cs, connection_cl, db_cl);
 }
+
+Stored_program_creation_ctx *Stored_routine_creation_ctx::clone(
+    MEM_ROOT *mem_root) {
+  return new (mem_root)
+      Stored_routine_creation_ctx(m_client_cs, m_connection_cl, m_db_cl);
+}
+
+Object_creation_ctx *Stored_routine_creation_ctx::create_backup_ctx(
+    THD *thd) const {
+  DBUG_TRACE;
+  return new (thd->mem_root) Stored_routine_creation_ctx(thd);
+}
+
+void Stored_routine_creation_ctx::delete_backup_ctx() { destroy(this); }
 
 /**
   Acquire Shared MDL lock on the routine object.
@@ -2047,7 +2060,7 @@ sp_head *sp_load_for_information_schema(THD *thd, LEX_CSTRING db_name,
   enum_sp_type type = is_dd_routine_type_function(routine)
                           ? enum_sp_type::FUNCTION
                           : enum_sp_type::PROCEDURE;
-  *free_sp_head = 0;
+  *free_sp_head = false;
   sp_cache **spc = (type == enum_sp_type::FUNCTION) ? &thd->sp_func_cache
                                                     : &thd->sp_proc_cache;
   sp_name sp_name_obj(
@@ -2103,7 +2116,7 @@ sp_head *sp_load_for_information_schema(THD *thd, LEX_CSTRING db_name,
   newlex.thd = thd;
   newlex.set_current_select(NULL);
   sp = sp_compile(thd, &defstr, routine->sql_mode(), creation_ctx);
-  *free_sp_head = 1;
+  *free_sp_head = true;
   thd->lex->sphead = NULL;
   lex_end(thd->lex);
   thd->lex = old_lex;
@@ -2397,7 +2410,7 @@ bool sp_check_name(LEX_STRING *ident) {
 
   LEX_CSTRING ident_cstr = {ident->str, ident->length};
   if (check_string_char_length(ident_cstr, "", NAME_CHAR_LEN,
-                               system_charset_info, 1)) {
+                               system_charset_info, true)) {
     my_error(ER_TOO_LONG_IDENT, MYF(0), ident->str);
     return true;
   }

@@ -60,6 +60,7 @@ rewriter           			plugin_output_directory REWRITER
 mysql_no_login     			plugin_output_directory MYSQL_NO_LOGIN    mysql_no_login
 test_udf_services  			plugin_output_directory TESTUDFSERVICES
 test_udf_services  			plugin_output_directory TESTUDFREGISTRATION test_udf_registration
+test_udf_services  			plugin_output_directory TESTUDFEXTENSIONSERVICES test_udf_extension_services
 group_replication  			plugin_output_directory GROUP_REPLICATION
 locking_service    			plugin_output_directory LOCKING_SERVICE
 version_token      			plugin_output_directory VERSION_TOKEN
@@ -112,6 +113,7 @@ pfs_example_plugin_employee    plugin_output_directory  PFS_EXAMPLE_PLUGIN_EMPLO
 component_pfs_example_component_population    plugin_output_directory PFS_EXAMPLE_COMPONENT_POPULATION
 
 component_test_udf_registration    plugin_output_directory  TEST_UDF_REGISTRATION
+component_test_udf_services    plugin_output_directory  TEST_UDF_SERVICES  component_test_udf_services
 component_audit_api_message_emit    plugin_output_directory  AUDIT_API_MESSAGE_EMIT component_audit_api_message_emit
 component_udf_reg_3_func   plugin_output_directory  UDF_REG_3_FUNC       component_udf_reg_3_func
 component_udf_reg_only_3_func plugin_output_directory UDF_REG_ONLY_3_FUNC component_udf_reg_only_3_func
@@ -149,4 +151,5 @@ tokudb_backup      plugin_output_directory  TOKUDB_BACKUP   tokudb_backup
 ha_rocksdb         plugin_output_directory  ROCKSDB         rocksdb,rocksdb_cfstats,rocksdb_dbstats,rocksdb_perf_context,rocksdb_perf_context_global,rocksdb_cf_options,rocksdb_compaction_stats,rocksdb_global_info,rocksdb_ddl,rocksdb_index_file_map,rocksdb_locks,rocksdb_trx,rocksdb_deadlock,rocksdb_sst_props
 auth_pam           plugin_output_directory                 AUTH_PAM
 auth_pam_compat    plugin_output_directory                 AUTH_PAM_COMPAT
+authentication_ldap_simple          plugin_output_directory  AUTH_LDAP             authentication_ldap_simple
 

@@ -92,9 +92,7 @@ const TABLE_FIELD_TYPE event_table_fields[ET_FIELD_COUNT] = {
      {STRING_WITH_LEN("char(93)")},
      {STRING_WITH_LEN("utf8")}},
     {{STRING_WITH_LEN("execute_at")}, {STRING_WITH_LEN("datetime")}, {NULL, 0}},
-    {{STRING_WITH_LEN("interval_value")},
-     {STRING_WITH_LEN("int(11)")},
-     {NULL, 0}},
+    {{STRING_WITH_LEN("interval_value")}, {STRING_WITH_LEN("int")}, {NULL, 0}},
     {{STRING_WITH_LEN("interval_field")},
      {STRING_WITH_LEN(
          "enum('YEAR','QUARTER','MONTH','DAY',"
@@ -136,7 +134,7 @@ const TABLE_FIELD_TYPE event_table_fields[ET_FIELD_COUNT] = {
     {{STRING_WITH_LEN("comment")},
      {STRING_WITH_LEN("char(64)")},
      {STRING_WITH_LEN("utf8")}},
-    {{STRING_WITH_LEN("originator")}, {STRING_WITH_LEN("int(10)")}, {NULL, 0}},
+    {{STRING_WITH_LEN("originator")}, {STRING_WITH_LEN("int")}, {NULL, 0}},
     {{STRING_WITH_LEN("time_zone")},
      {STRING_WITH_LEN("char(64)")},
      {STRING_WITH_LEN("latin1")}},
@@ -170,9 +168,7 @@ static const TABLE_FIELD_TYPE event_table_fields_old[ET_FIELD_COUNT] = {
      {STRING_WITH_LEN("char(77)")},
      {STRING_WITH_LEN("utf8")}},
     {{STRING_WITH_LEN("execute_at")}, {STRING_WITH_LEN("datetime")}, {NULL, 0}},
-    {{STRING_WITH_LEN("interval_value")},
-     {STRING_WITH_LEN("int(11)")},
-     {NULL, 0}},
+    {{STRING_WITH_LEN("interval_value")}, {STRING_WITH_LEN("int")}, {NULL, 0}},
     {{STRING_WITH_LEN("interval_field")},
      {STRING_WITH_LEN(
          "enum('YEAR','QUARTER','MONTH','DAY',"
@@ -214,7 +210,7 @@ static const TABLE_FIELD_TYPE event_table_fields_old[ET_FIELD_COUNT] = {
     {{STRING_WITH_LEN("comment")},
      {STRING_WITH_LEN("char(64)")},
      {STRING_WITH_LEN("utf8")}},
-    {{STRING_WITH_LEN("originator")}, {STRING_WITH_LEN("int(10)")}, {NULL, 0}},
+    {{STRING_WITH_LEN("originator")}, {STRING_WITH_LEN("int")}, {NULL, 0}},
     {{STRING_WITH_LEN("time_zone")},
      {STRING_WITH_LEN("char(64)")},
      {STRING_WITH_LEN("latin1")}},
@@ -568,9 +564,9 @@ bool migrate_events_to_dd(THD *thd) {
 
   // Initialize time zone support infrastructure since the information
   // is not available during upgrade.
-  my_tz_init(thd, default_tz_name, 0);
+  my_tz_init(thd, default_tz_name, false);
 
-  if (event_table->file->ha_index_init(0, 1)) {
+  if (event_table->file->ha_index_init(0, true)) {
     LogErr(ERROR_LEVEL, ER_EVENT_CANT_OPEN_TABLE_MYSQL_EVENT);
     goto err;
   }

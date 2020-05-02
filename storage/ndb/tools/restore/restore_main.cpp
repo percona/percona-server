@@ -122,7 +122,8 @@ static bool ga_skip_table_check = false;
 static bool ga_exclude_missing_columns = false;
 static bool ga_exclude_missing_tables = false;
 static bool opt_exclude_intermediate_sql_tables = true;
-#ifdef ERROR_INSERT 
+bool opt_include_stored_grants = false;
+#ifdef ERROR_INSERT
 static unsigned int _error_insert = 0;
 #endif
 static int _print = 0;
@@ -316,6 +317,11 @@ static struct my_option my_long_options[] =
     (uchar**) &opt_restore_privilege_tables,
     (uchar**) &opt_restore_privilege_tables, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "include-stored-grants", NDB_OPT_NOSHORT,
+    "Restore users and grants to ndb_sql_metadata table",
+    (uchar **) &opt_include_stored_grants,
+    (uchar**) &opt_include_stored_grants, 0,
+    GET_BOOL, OPT_ARG, false, 0, 0, 0, 0, 0 },
   { "exclude-missing-columns", NDB_OPT_NOSHORT,
     "Ignore columns present in backup but not in database",
     (uchar**) &ga_exclude_missing_columns,
@@ -2278,7 +2284,7 @@ main(int argc, char** argv)
     for (int part_id=1; part_id<=ga_part_count; part_id++)
     {
       NDB_THREAD_PRIO prio = NDB_THREAD_PRIO_MEAN;
-      uint stack_size = 64*1024;
+      uint stack_size = 128*1024;
       char name[20];
       snprintf (name, sizeof(name), "restore%d", part_id);
       RestoreThreadData *data = new RestoreThreadData(part_id, &barrier);

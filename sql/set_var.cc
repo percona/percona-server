@@ -178,7 +178,7 @@ bool check_priv(THD *thd, bool static_variable) {
               .first)) {
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
                "SUPER or SYSTEM_VARIABLES_ADMIN");
-      return 1;
+      return true;
     }
   } else {
     /*
@@ -191,10 +191,10 @@ bool check_priv(THD *thd, bool static_variable) {
               .first)) {
       my_error(ER_PERSIST_ONLY_ACCESS_DENIED_ERROR, MYF(0),
                "SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN");
-      return 1;
+      return true;
     }
   }
-  return 0;
+  return false;
 }
 
 /**
@@ -388,40 +388,6 @@ bool sys_var::set_default(THD *thd, set_var *var) {
     session_save_default(thd, var);
 
   bool ret = check(thd, var) || update(thd, var);
-  return ret;
-}
-
-bool sys_var::is_default(THD *, set_var *var) {
-  DBUG_TRACE;
-  bool ret = false;
-  longlong def = option.def_value;
-  switch (get_var_type()) {
-    case GET_INT:
-    case GET_UINT:
-    case GET_LONG:
-    case GET_ULONG:
-    case GET_LL:
-    case GET_ULL:
-    case GET_BOOL:
-    case GET_ENUM:
-    case GET_SET:
-    case GET_FLAGSET:
-    case GET_ASK_ADDR:
-      if (def == (longlong)var->save_result.ulonglong_value) ret = true;
-      break;
-    case GET_DOUBLE:
-      if ((double)def == (double)var->save_result.double_value) ret = true;
-      break;
-    case GET_STR_ALLOC:
-    case GET_STR:
-    case GET_NO_ARG:
-    case GET_PASSWORD:
-      if ((def == (longlong)var->save_result.string_value.str) ||
-          (((char *)def) &&
-           !strcmp((char *)def, var->save_result.string_value.str)))
-        ret = true;
-      break;
-  }
   return ret;
 }
 
@@ -834,7 +800,7 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened) {
           (setvar->type == OPT_PERSIST || setvar->type == OPT_PERSIST_ONLY)) {
         pv = Persisted_variables_cache::get_instance();
         /* update in-memory copy of persistent options */
-        pv->set_variable(thd, setvar);
+        if (pv->set_variable(thd, setvar)) return 1;
       }
     }
     /* flush all persistent options to a file */
@@ -1183,7 +1149,7 @@ int set_var_user::check(THD *) {
     Item_func_set_user_var can't substitute something else on its place =>
     0 can be passed as last argument (reference on item)
   */
-  return user_var_item->check(0) ? -1 : 0;
+  return user_var_item->check(false) ? -1 : 0;
 }
 
 /**

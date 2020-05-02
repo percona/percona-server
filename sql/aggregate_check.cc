@@ -178,13 +178,11 @@ bool Group_check::check_query(THD *thd) {
   ORDER *order = select->order_list.first;
 
   // Validate SELECT list
-  List_iterator<Item> select_exprs_it(select->item_list);
-  Item *expr;
   uint number_in_list = 1;
   const char *place = "SELECT list";
 
-  while ((expr = select_exprs_it++)) {
-    if (check_expression(thd, expr, true)) goto err;
+  for (Item &sel_expr : select->item_list) {
+    if (check_expression(thd, &sel_expr, true)) goto err;
     ++number_in_list;
   }
 
@@ -688,7 +686,7 @@ bool Group_check::is_in_fd(Item *item) {
   }
   for (uint j = 0; j < fd.size(); j++) {
     Item *const item2 = fd.at(j);
-    if (item2->eq(item, 0)) return true;
+    if (item2->eq(item, false)) return true;
     /*
       Say that we have view:
       create view v1 as select i, 2*i as z from t1; and we do:
@@ -702,7 +700,7 @@ bool Group_check::is_in_fd(Item *item) {
       reach to real_item() of v1.i.
     */
     Item *const real_it2 = item2->real_item();
-    if (real_it2 != item2 && real_it2->eq(item, 0)) return true;
+    if (real_it2 != item2 && real_it2->eq(item, false)) return true;
   }
   if (!search_in_underlying) return false;
   return is_in_fd_of_underlying(down_cast<Item_ident *>(item));
@@ -852,9 +850,9 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
 Item *Group_check::get_fd_equal(Item *item) {
   for (uint j = 0; j < fd.size(); j++) {
     Item *const item2 = fd.at(j);
-    if (item2->eq(item, 0)) return item2;
+    if (item2->eq(item, false)) return item2;
     Item *const real_it2 = item2->real_item();
-    if (real_it2 != item2 && real_it2->eq(item, 0)) return item2;
+    if (real_it2 != item2 && real_it2->eq(item, false)) return item2;
   }
   return nullptr;
 }

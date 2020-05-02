@@ -152,7 +152,7 @@ class HashJoinIterator final : public RowIterator {
   /// @param build_input
   ///   the iterator for the build input
   /// @param build_input_tables
-  ///   a list of all the tables in the build input. The tables are needed for
+  ///   a bitmap of all the tables in the build input. The tables are needed for
   ///   two things:
   ///   1) Accessing the columns when creating the join key during creation of
   ///   the hash table,
@@ -175,7 +175,7 @@ class HashJoinIterator final : public RowIterator {
   ///   whether the hash join can spill to disk. This is set to false in some
   ///   cases where we have a LIMIT in the query
   HashJoinIterator(THD *thd, unique_ptr_destroy_only<RowIterator> build_input,
-                   const std::vector<QEP_TAB *> &build_input_tables,
+                   qep_tab_map build_input_tables,
                    unique_ptr_destroy_only<RowIterator> probe_input,
                    QEP_TAB *probe_input_table, size_t max_memory_available,
                    const std::vector<Item_func_eq *> &join_conditions,
@@ -374,5 +374,11 @@ class HashJoinIterator final : public RowIterator {
   // the probe input is consumed.
   bool m_build_iterator_has_more_rows{true};
 };
+
+/// For each of the given tables, request that the row ID is filled in
+/// (the equivalent of calling file->position()) if needed.
+///
+/// @param tables The tables to request row IDs for.
+void RequestRowId(const Prealloced_array<hash_join_buffer::Table, 4> &tables);
 
 #endif  // SQL_HASH_JOIN_ITERATOR_H_

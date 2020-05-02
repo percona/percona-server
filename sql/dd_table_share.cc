@@ -443,7 +443,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
                                 "Please do \"ALTER TABLE `%s` FORCE\" to fix "
                                 "it!",
                                 share->table_name.str, share->table_name.str);
-            share->crashed = 1;  // Marker for CHECK TABLE
+            share->crashed = true;  // Marker for CHECK TABLE
             continue;
           }
 #endif
@@ -477,8 +477,9 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
 
       keyinfo->usable_key_parts = usable_parts;  // Filesort
 
-      set_if_bigger(share->max_key_length,
-                    keyinfo->key_length + keyinfo->user_defined_key_parts);
+      share->max_key_length =
+          std::max(share->max_key_length,
+                   keyinfo->key_length + keyinfo->user_defined_key_parts);
       share->total_key_length += keyinfo->key_length;
       /*
          MERGE tables do not have unique indexes. But every key could be
@@ -486,7 +487,8 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
          */
       if ((keyinfo->flags & HA_NOSAME) ||
           (ha_option & HA_ANY_INDEX_MAY_BE_UNIQUE))
-        set_if_bigger(share->max_unique_length, keyinfo->key_length);
+        share->max_unique_length =
+            std::max(share->max_unique_length, keyinfo->key_length);
 
       ++idx_it;
     }
@@ -543,7 +545,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
     // OOM error message already reported
     return true; /* purecov: inspected */
   }
-  bitmap_init(&share->all_set, bitmaps, share->fields, false);
+  bitmap_init(&share->all_set, bitmaps, share->fields);
   bitmap_set_all(&share->all_set);
 
   return false;
@@ -722,9 +724,10 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
 
   // Storage media flags
   if (table_options.exists("storage")) {
-    uint32 option_value = 0;
-    table_options.get("storage", &option_value);
-    share->default_storage_media = static_cast<ha_storage_media>(option_value);
+    uint32 storage_option_value = 0;
+    table_options.get("storage", &storage_option_value);
+    share->default_storage_media =
+        static_cast<ha_storage_media>(storage_option_value);
   } else
     share->default_storage_media = HA_SM_DEFAULT;
 
@@ -2118,7 +2121,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
     if (part_info->partitions.push_back(curr_part_elem, &share->mem_root))
       return true;
 
-    for (const dd::Partition *sub_part_obj : part_obj->sub_partitions()) {
+    for (const dd::Partition *sub_part_obj : part_obj->subpartitions()) {
       partition_element *curr_sub_part_elem =
           new (&share->mem_root) partition_element;
       if (!curr_sub_part_elem) {

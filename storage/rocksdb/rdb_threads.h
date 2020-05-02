@@ -18,13 +18,17 @@
 
 /* C++ standard header files */
 #include <atomic>
+#include <deque>
 #include <map>
 #include <string>
+#include <unordered_set>
+#include <utility>
 
 /* MySQL includes */
 #include "include/mysql/psi/mysql_thread.h"
 #include "mysql/psi/mysql_table.h"
 #include "mysql/thread_pool_priv.h"
+#include "sql/sql_class.h"
 
 /* MyRocks header files */
 #include "./rdb_utils.h"
@@ -46,10 +50,13 @@ class Rdb_thread {
  protected:
   mysql_mutex_t m_signal_mutex;
   mysql_cond_t m_signal_cond;
-  bool m_stop = false;
+
+  // TODO: When porting to 8.0 we should move to std::atomic
+  // instead of volatile
+  std::atomic<THD::killed_state> m_killed;
 
  public:
-  Rdb_thread() : m_run_once(false) {}
+  Rdb_thread() : m_run_once(false), m_killed(THD::NOT_KILLED) {}
 
 #ifdef HAVE_PSI_INTERFACE
   void init(my_core::PSI_mutex_key stop_bg_psi_mutex_key,
@@ -63,7 +70,7 @@ class Rdb_thread {
 
   virtual void run(void) = 0;
 
-  void signal(const bool &stop_thread = false);
+  void signal(const bool stop_thread = false);
 
   int join() { return my_thread_join(&m_handle, nullptr); }
 
@@ -87,7 +94,7 @@ class Rdb_background_thread : public Rdb_thread {
 
   void reset() {
     mysql_mutex_assert_owner(&m_signal_mutex);
-    m_stop = false;
+    m_killed = THD::NOT_KILLED;
     m_save_stats = false;
   }
 
@@ -103,12 +110,38 @@ class Rdb_background_thread : public Rdb_thread {
   }
 };
 
+class Rdb_index_stats_thread : public Rdb_thread {
+ private:
+  mysql_mutex_t m_is_mutex;
+  std::deque<std::reference_wrapper<const std::string>> m_requests;
+  std::unordered_set<std::string> m_tbl_names;
+
+  bool m_tid_set;
+  pid_t m_tid;
+
+ public:
+  Rdb_index_stats_thread() : m_tid_set(false), m_tid(0) {
+    mysql_mutex_init(0, &m_is_mutex, MY_MUTEX_INIT_FAST);
+  }
+
+  virtual ~Rdb_index_stats_thread() override {
+    mysql_mutex_destroy(&m_is_mutex);
+  }
+
+  virtual void run() override;
+  bool get_index_stats_request(std::string *tbl_name);
+  void add_index_stats_request(const std::string &tbl_name);
+  void clear_all_index_stats_requests();
+  size_t get_request_queue_size();
+  int renice(int nice_val);
+};
+
 class Rdb_manual_compaction_thread : public Rdb_thread {
  private:
   struct Manual_compaction_request {
     int mc_id;
     enum mc_state { INITED = 0, RUNNING } state;
-    rocksdb::ColumnFamilyHandle *cf;
+    std::shared_ptr<rocksdb::ColumnFamilyHandle> cf;
     rocksdb::Slice *start;
     rocksdb::Slice *limit;
     int concurrency = 0;
@@ -119,8 +152,16 @@ class Rdb_manual_compaction_thread : public Rdb_thread {
   std::map<int, Manual_compaction_request> m_requests;
 
  public:
+  Rdb_manual_compaction_thread() {
+    mysql_mutex_init(0, &m_mc_mutex, MY_MUTEX_INIT_FAST);
+  }
+
+  virtual ~Rdb_manual_compaction_thread() override {
+    mysql_mutex_destroy(&m_mc_mutex);
+  }
+
   virtual void run() override;
-  int request_manual_compaction(rocksdb::ColumnFamilyHandle *cf,
+  int request_manual_compaction(std::shared_ptr<rocksdb::ColumnFamilyHandle> cf,
                                 rocksdb::Slice *start, rocksdb::Slice *limit,
                                 int concurrency = 0);
   bool is_manual_compaction_finished(int mc_id);

@@ -25,6 +25,7 @@
 #include "mysql/plugin.h"
 #include "sql_string.h" /* for now this must violate clang-format style as it */
                         /* is needed before sql_show.h */
+#include "sql/debug_sync.h"
 #include "sql/sql_show.h"
 #include "sql/table.h"  // ST_FIELD_INFO
 
@@ -51,10 +52,10 @@ namespace myrocks {
   engine.
 */
 
-#define ROCKSDB_FIELD_INFO(_name_, _len_, _type_, _flag_)                      \
+#define ROCKSDB_FIELD_INFO(_name_, _len_, _type_, _flag_) \
   { _name_, _len_, _type_, 0, _flag_, nullptr, 0 }
 
-#define ROCKSDB_FIELD_INFO_END                                                 \
+#define ROCKSDB_FIELD_INFO_END \
   ROCKSDB_FIELD_INFO(nullptr, 0, MYSQL_TYPE_NULL, 0)
 
 /*
@@ -117,13 +118,16 @@ static int rdb_i_s_cfstats_fill_table(
 
   for (const auto &cf_name : cf_manager.get_cf_names()) {
     DBUG_ASSERT(!cf_name.empty());
-    rocksdb::ColumnFamilyHandle *cfh = cf_manager.get_cf(cf_name);
-    if (cfh == nullptr) {
+    std::shared_ptr<rocksdb::ColumnFamilyHandle> cfh =
+        cf_manager.get_cf(cf_name);
+    if (!cfh) {
       continue;
     }
 
+    // It is safe if the CF is removed from cf_manager at
+    // this point. The CF handle object is valid and sufficient here.
     for (const auto &property : cf_properties) {
-      if (!rdb->GetIntProperty(cfh, property.first, &val)) {
+      if (!rdb->GetIntProperty(cfh.get(), property.first, &val)) {
         continue;
       }
 
@@ -615,20 +619,20 @@ static int rdb_i_s_cfoptions_fill_table(
 
     // get COMPACTION_STYLE option
     switch (opts.compaction_style) {
-    case rocksdb::kCompactionStyleLevel:
-      val = "kCompactionStyleLevel";
-      break;
-    case rocksdb::kCompactionStyleUniversal:
-      val = "kCompactionStyleUniversal";
-      break;
-    case rocksdb::kCompactionStyleFIFO:
-      val = "kCompactionStyleFIFO";
-      break;
-    case rocksdb::kCompactionStyleNone:
-      val = "kCompactionStyleNone";
-      break;
-    default:
-      val = "NULL";
+      case rocksdb::kCompactionStyleLevel:
+        val = "kCompactionStyleLevel";
+        break;
+      case rocksdb::kCompactionStyleUniversal:
+        val = "kCompactionStyleUniversal";
+        break;
+      case rocksdb::kCompactionStyleFIFO:
+        val = "kCompactionStyleFIFO";
+        break;
+      case rocksdb::kCompactionStyleNone:
+        val = "kCompactionStyleNone";
+        break;
+      default:
+        val = "NULL";
     }
 
     cf_option_types.push_back({"COMPACTION_STYLE", val});
@@ -651,14 +655,14 @@ static int rdb_i_s_cfoptions_fill_table(
     val.append("; STOP_STYLE=");
 
     switch (compac_opts.stop_style) {
-    case rocksdb::kCompactionStopStyleSimilarSize:
-      val.append("kCompactionStopStyleSimilarSize}");
-      break;
-    case rocksdb::kCompactionStopStyleTotalSize:
-      val.append("kCompactionStopStyleTotalSize}");
-      break;
-    default:
-      val.append("}");
+      case rocksdb::kCompactionStopStyleSimilarSize:
+        val.append("kCompactionStopStyleSimilarSize}");
+        break;
+      case rocksdb::kCompactionStopStyleTotalSize:
+        val.append("kCompactionStopStyleTotalSize}");
+        break;
+      default:
+        val.append("}");
     }
 
     cf_option_types.push_back({"COMPACTION_OPTIONS_UNIVERSAL", val});
@@ -672,7 +676,7 @@ static int rdb_i_s_cfoptions_fill_table(
     std::vector<std::string> table_options =
         split_into_vector(opts.table_factory->GetPrintableTableOptions(), '\n');
 
-    for (auto option : table_options) {
+    for (std::string option : table_options) {
       option.erase(std::remove(option.begin(), option.end(), ' '),
                    option.end());
 
@@ -776,7 +780,7 @@ static int rdb_i_s_global_info_fill_table(
   }
 
   /* max index info */
-  const Rdb_dict_manager *const dict_manager = rdb_get_dict_manager();
+  Rdb_dict_manager *const dict_manager = rdb_get_dict_manager();
   DBUG_ASSERT(dict_manager != nullptr);
 
   uint32_t max_index_id;
@@ -797,14 +801,22 @@ static int rdb_i_s_global_info_fill_table(
   for (const auto &cf_handle : cf_manager.get_all_cf()) {
     DBUG_ASSERT(cf_handle != nullptr);
 
+    DBUG_EXECUTE_IF("information_schema_global_info", {
+      if (cf_handle->GetName() == "cf_primary_key") {
+        const char act[] =
+            "now signal ready_to_mark_cf_dropped_in_global_info "
+            "wait_for mark_cf_dropped_done_in_global_info";
+        DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+      }
+    });
+
     uint flags;
 
     if (!dict_manager->get_cf_flags(cf_handle->GetID(), &flags)) {
-      LogPluginErrMsg(ERROR_LEVEL, 0,
-                      "Failed to get column family flags from CF with id = %u. "
-                      "MyRocks data dictionary may be corrupted.",
-                      cf_handle->GetID());
-      abort();
+      // If cf flags cannot be retrieved, set flags to 0. It can happen
+      // if the CF is dropped. flags is only used to print information
+      // here and so it doesn't affect functional correctness.
+      flags = 0;
     }
 
     snprintf(cf_id_buf, INT_BUF_LEN, "%u", cf_handle->GetID());
@@ -868,16 +880,20 @@ static int rdb_i_s_compact_stats_fill_table(
 
   Rdb_cf_manager &cf_manager = rdb_get_cf_manager();
 
-  for (auto cf_name : cf_manager.get_cf_names()) {
-    rocksdb::ColumnFamilyHandle *cfh = cf_manager.get_cf(cf_name);
+  for (const auto &cf_name : cf_manager.get_cf_names()) {
+    std::shared_ptr<rocksdb::ColumnFamilyHandle> cfh =
+        cf_manager.get_cf(cf_name);
 
-    if (cfh == nullptr) {
+    if (!cfh) {
       continue;
     }
 
+    // It is safe if the CF is removed from cf_manager at
+    // this point. The CF handle object is valid and sufficient here.
     std::map<std::string, std::string> props;
     bool bool_ret MY_ATTRIBUTE((__unused__));
-    bool_ret = rdb->GetMapProperty(cfh, "rocksdb.cfstats", &props);
+    bool_ret = rdb->GetMapProperty(cfh.get(), "rocksdb.cfstats", &props);
+
     DBUG_ASSERT(bool_ret);
 
     const std::string prop_name_prefix = "compaction.";
@@ -1023,8 +1039,7 @@ int Rdb_ddl_scanner::add_table(Rdb_tbl_def *tdef) {
     }
 
     ret = my_core::schema_table_store_record(m_thd, m_table);
-    if (ret)
-      return ret;
+    if (ret) return ret;
   }
   return HA_EXIT_SUCCESS;
 }
@@ -1156,7 +1171,11 @@ enum {
   TOP_LEVEL_INDEX_SIZE,
   FILTER_BLOCK_SIZE,
   COMPRESSION_ALGO,
-  CREATION_TIME
+  CREATION_TIME,
+  FILE_CREATION_TIME,
+  OLDEST_KEY_TIME,
+  FILTER_POLICY,
+  COMPRESSION_OPTIONS,
 };
 }  // namespace RDB_SST_PROPS_FIELD
 
@@ -1180,6 +1199,13 @@ static ST_FIELD_INFO rdb_i_s_sst_props_fields_info[] = {
                        MYSQL_TYPE_LONGLONG, 0),
     ROCKSDB_FIELD_INFO("COMPRESSION_ALGO", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
     ROCKSDB_FIELD_INFO("CREATION_TIME", sizeof(int64_t), MYSQL_TYPE_LONGLONG,
+                       0),
+    ROCKSDB_FIELD_INFO("FILE_CREATION_TIME", sizeof(int64_t),
+                       MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO("OLDEST_KEY_TIME", sizeof(int64_t), MYSQL_TYPE_LONGLONG,
+                       0),
+    ROCKSDB_FIELD_INFO("FILTER_POLICY", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("COMPRESSION_OPTIONS", NAME_LEN + 1, MYSQL_TYPE_STRING,
                        0),
     ROCKSDB_FIELD_INFO_END};
 
@@ -1217,12 +1243,14 @@ static int rdb_i_s_sst_props_fill_table(
     /* Grab the the properties of all the tables in the column family */
     rocksdb::TablePropertiesCollection table_props_collection;
     const rocksdb::Status s =
-        rdb->GetPropertiesOfAllTables(cf_handle, &table_props_collection);
+        rdb->GetPropertiesOfAllTables(cf_handle.get(), &table_props_collection);
 
     if (!s.ok()) {
       continue;
     }
 
+    // It is safe if the CF is removed from cf_manager at
+    // this point. The CF handle object is valid and sufficient here.
     /* Iterate over all the items in the collection, each of which contains a
      * name and the actual properties */
     for (const auto &props : table_props_collection) {
@@ -1261,6 +1289,24 @@ static int rdb_i_s_sst_props_fill_table(
       }
       field[RDB_SST_PROPS_FIELD::CREATION_TIME]->store(
           props.second->creation_time, true);
+      field[RDB_SST_PROPS_FIELD::FILE_CREATION_TIME]->store(
+          props.second->file_creation_time, true);
+      field[RDB_SST_PROPS_FIELD::OLDEST_KEY_TIME]->store(
+          props.second->oldest_key_time, true);
+      if (props.second->filter_policy_name.empty()) {
+        field[RDB_SST_PROPS_FIELD::FILTER_POLICY]->set_null();
+      } else {
+        field[RDB_SST_PROPS_FIELD::FILTER_POLICY]->store(
+            props.second->filter_policy_name.c_str(),
+            props.second->filter_policy_name.size(), system_charset_info);
+      }
+      if (props.second->compression_options.empty()) {
+        field[RDB_SST_PROPS_FIELD::COMPRESSION_OPTIONS]->set_null();
+      } else {
+        field[RDB_SST_PROPS_FIELD::COMPRESSION_OPTIONS]->store(
+            props.second->compression_options.c_str(),
+            props.second->compression_options.size(), system_charset_info);
+      }
 
       /* Tell MySQL about this row in the virtual table */
       ret = static_cast<int>(
@@ -1366,8 +1412,11 @@ static int rdb_i_s_index_file_map_fill_table(
   for (const auto &cf_handle : cf_manager.get_all_cf()) {
     /* Grab the the properties of all the tables in the column family */
     rocksdb::TablePropertiesCollection table_props_collection;
+
+    // It is safe if the CF is removed from cf_manager at
+    // this point. The CF handle object is valid and sufficient here.
     const rocksdb::Status s =
-        rdb->GetPropertiesOfAllTables(cf_handle, &table_props_collection);
+        rdb->GetPropertiesOfAllTables(cf_handle.get(), &table_props_collection);
 
     if (!s.ok()) {
       continue;

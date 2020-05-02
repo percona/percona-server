@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <algorithm>
 #include <atomic>
 #include <map>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -36,6 +37,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mutex_lock.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -45,6 +47,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_sys.h"
 #include "mysql/components/service_implementation.h"
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -58,11 +61,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/key.h"
-#include "sql/log.h"  // error_log_print
 #include "sql/mysqld.h"
 #include "sql/records.h"
+#include "sql/row_iterator.h"
 #include "sql/sql_base.h"
-#include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/table.h"
@@ -71,6 +73,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql_string.h"
 #include "thr_lock.h"
 #include "thr_mutex.h"
+
+class THD;
 
 typedef std::string my_string;
 
@@ -82,11 +86,9 @@ enum enum_component_table_field {
 };
 
 static const TABLE_FIELD_TYPE component_table_fields[CT_FIELD_COUNT] = {
-    {{STRING_WITH_LEN("component_id")},
-     {STRING_WITH_LEN("int(10)")},
-     {NULL, 0}},
+    {{STRING_WITH_LEN("component_id")}, {STRING_WITH_LEN("int")}, {NULL, 0}},
     {{STRING_WITH_LEN("component_group_id")},
-     {STRING_WITH_LEN("int(10)")},
+     {STRING_WITH_LEN("int")},
      {NULL, 0}},
     {{STRING_WITH_LEN("component_urn")},
      {STRING_WITH_LEN("text")},
@@ -211,7 +213,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
     TABLE *component_table;
     int res;
 
-    mysql_persistent_dynamic_loader_imp::group_id = 0;
+    mysql_persistent_dynamic_loader_imp::s_group_id = 0;
 
     /* Open component table and scan read all records. */
     if (open_component_table(thd, TL_READ, &component_table, SELECT_ACL)) {
@@ -259,8 +261,8 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
       std::string component_urn(component_urn_str.ptr(),
                                 component_urn_str.length());
 
-      mysql_persistent_dynamic_loader_imp::group_id =
-          std::max(mysql_persistent_dynamic_loader_imp::group_id.load(),
+      mysql_persistent_dynamic_loader_imp::s_group_id =
+          std::max(mysql_persistent_dynamic_loader_imp::s_group_id.load(),
                    component_group_id);
 
       component_groups[component_group_id].push_back(component_urn);
@@ -342,7 +344,6 @@ bool mysql_persistent_dynamic_loader_imp::initialized() {
 DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
                    (void *thd_ptr, const char *urns[], int component_count)) {
   try {
-    int res;
     THD *thd = (THD *)thd_ptr;
 
     if (!mysql_persistent_dynamic_loader_imp::initialized()) {
@@ -366,7 +367,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
       return true;
     }
 
-    uint64 group_id = ++mysql_persistent_dynamic_loader_imp::group_id;
+    uint64 group_id = ++mysql_persistent_dynamic_loader_imp::s_group_id;
 
     /* Making a component_id_by_urn copy so, that if any error occurs it will
        be restored
@@ -392,15 +393,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
       component_table->field[CT_FIELD_COMPONENT_URN]->store(
           urns[i], strlen(urns[i]), system_charset);
 
-      /*
-        We do not replicate the INSTALL COMPONENT statement. Disable binlogging
-        of the insert into the component table, so that it is not replicated in
-        row based mode.
-      */
-      {
-        Disable_binlog_guard binlog_guard(thd);
-        res = component_table->file->ha_write_row(component_table->record[0]);
-      }
+      int res = component_table->file->ha_write_row(component_table->record[0]);
       if (res != 0) {
         my_error(ER_COMPONENT_MANIPULATE_ROW_FAILED, MYF(0), urns[i], res);
         component_table->file->ha_release_auto_increment();
@@ -460,8 +453,6 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
 
     MUTEX_LOCK(lock, &component_id_by_urn_mutex);
 
-    int res;
-
     TABLE *component_table;
     if (open_component_table(thd, TL_WRITE, &component_table, DELETE_ACL)) {
       my_error(ER_COMPONENT_TABLE_INCORRECT, MYF(0));
@@ -506,23 +497,14 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
                component_table->key_info->key_length);
 
       DEBUG_SYNC(thd, "before_ha_index_read_idx_map");
-      res = component_table->file->ha_index_read_idx_map(
+      int res = component_table->file->ha_index_read_idx_map(
           component_table->record[0], 0, key, HA_WHOLE_KEY, HA_READ_KEY_EXACT);
       if (res != 0) {
         my_error(ER_COMPONENT_MANIPULATE_ROW_FAILED, MYF(0), urns[i], res);
         return true;
       }
 
-      /*
-        We do not replicate the UNINSTALL COMPONENT statement. Disable
-        binlogging of the delete from the component table, so that it is not
-        replicated in row based mode.
-      */
-      {
-        Disable_binlog_guard binlog_guard(thd);
-        res = component_table->file->ha_delete_row(component_table->record[0]);
-      }
-
+      res = component_table->file->ha_delete_row(component_table->record[0]);
       if (res != 0) {
         my_error(ER_COMPONENT_MANIPULATE_ROW_FAILED, MYF(0), urns[i], res);
         return true;
@@ -547,7 +529,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
   return true;
 }
 
-std::atomic<uint64> mysql_persistent_dynamic_loader_imp::group_id;
+std::atomic<uint64> mysql_persistent_dynamic_loader_imp::s_group_id;
 std::map<my_string, uint64>
     mysql_persistent_dynamic_loader_imp::component_id_by_urn;
 bool mysql_persistent_dynamic_loader_imp::is_initialized = false;

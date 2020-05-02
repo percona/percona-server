@@ -925,7 +925,7 @@ static void dict_stats_analyze_index_level(
           rec_get_offsets(prev_rec, index, prev_rec_offsets, n_uniq, &heap);
 
       cmp_rec_rec_with_match(rec, prev_rec, rec_offsets, prev_rec_offsets,
-                             index, FALSE, &matched_fields);
+                             index, false, false, &matched_fields);
 
       for (i = matched_fields; i < n_uniq; i++) {
         if (n_diff_boundaries != NULL) {
@@ -1146,7 +1146,7 @@ ulint *dict_stats_scan_page(const rec_t **out_rec, ulint *offsets1,
     /* check whether rec != next_rec when looking at
     the first n_prefix fields */
     cmp_rec_rec_with_match(rec, next_rec, offsets_rec, offsets_next_rec, index,
-                           FALSE, &matched_fields);
+                           false, false, &matched_fields);
 
     if (matched_fields < n_prefix) {
       /* rec != next_rec, => rec is non-boring */
@@ -1987,8 +1987,8 @@ static dberr_t dict_stats_save_index_stat(dict_index_t *index, lint last_update,
                                           trx_t *trx) {
   dberr_t ret;
   pars_info_t *pinfo;
-  char db_utf8[MAX_DB_UTF8_LEN];
-  char table_utf8[MAX_TABLE_UTF8_LEN];
+  char db_utf8[dict_name::MAX_DB_UTF8_LEN];
+  char table_utf8[dict_name::MAX_TABLE_UTF8_LEN];
 
   ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
@@ -2095,8 +2095,8 @@ static dberr_t dict_stats_save(dict_table_t *table_orig,
   lint now;
   dberr_t ret;
   dict_table_t *table;
-  char db_utf8[MAX_DB_UTF8_LEN];
-  char table_utf8[MAX_TABLE_UTF8_LEN];
+  char db_utf8[dict_name::MAX_DB_UTF8_LEN];
+  char table_utf8[dict_name::MAX_TABLE_UTF8_LEN];
 
   if (!table_orig->is_readable()) {
     return (dict_stats_report_error(table_orig));
@@ -2508,8 +2508,8 @@ static ibool dict_stats_fetch_index_stats_step(
     and they should be digits */
     if (stat_name_len != PFX_LEN + 2 || num_ptr[0] < '0' || num_ptr[0] > '9' ||
         num_ptr[1] < '0' || num_ptr[1] > '9') {
-      char db_utf8[MAX_DB_UTF8_LEN];
-      char table_utf8[MAX_TABLE_UTF8_LEN];
+      char db_utf8[dict_name::MAX_DB_UTF8_LEN];
+      char table_utf8[dict_name::MAX_TABLE_UTF8_LEN];
 
       dict_fs2utf8(table->name.m_name, db_utf8, sizeof(db_utf8), table_utf8,
                    sizeof(table_utf8));
@@ -2534,8 +2534,8 @@ static ibool dict_stats_fetch_index_stats_step(
     ulint n_uniq = index->n_uniq;
 
     if (n_pfx == 0 || n_pfx > n_uniq) {
-      char db_utf8[MAX_DB_UTF8_LEN];
-      char table_utf8[MAX_TABLE_UTF8_LEN];
+      char db_utf8[dict_name::MAX_DB_UTF8_LEN];
+      char table_utf8[dict_name::MAX_TABLE_UTF8_LEN];
 
       dict_fs2utf8(table->name.m_name, db_utf8, sizeof(db_utf8), table_utf8,
                    sizeof(table_utf8));
@@ -2587,8 +2587,8 @@ static dberr_t dict_stats_fetch_from_ps(
   trx_t *trx;
   pars_info_t *pinfo;
   dberr_t ret;
-  char db_utf8[MAX_DB_UTF8_LEN];
-  char table_utf8[MAX_TABLE_UTF8_LEN];
+  char db_utf8[dict_name::MAX_DB_UTF8_LEN];
+  char table_utf8[dict_name::MAX_TABLE_UTF8_LEN];
 
   ut_ad(!mutex_own(&dict_sys->mutex));
 
@@ -2893,8 +2893,8 @@ dberr_t dict_stats_drop_index(
                               is returned */
     ulint errstr_sz)          /*!< in: size of the errstr buffer */
 {
-  char db_utf8[MAX_DB_UTF8_LEN];
-  char table_utf8[MAX_TABLE_UTF8_LEN];
+  char db_utf8[dict_name::MAX_DB_UTF8_LEN];
+  char table_utf8[dict_name::MAX_TABLE_UTF8_LEN];
   pars_info_t *pinfo;
   dberr_t ret;
 
@@ -3032,8 +3032,8 @@ dberr_t dict_stats_drop_table(
                               if != DB_SUCCESS is returned */
     ulint errstr_sz)          /*!< in: size of errstr buffer */
 {
-  char db_utf8[MAX_DB_UTF8_LEN];
-  char table_utf8[MAX_TABLE_UTF8_LEN];
+  char db_utf8[dict_name::MAX_DB_UTF8_LEN];
+  char table_utf8[dict_name::MAX_TABLE_UTF8_LEN];
   dberr_t ret;
 
   ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
@@ -3185,10 +3185,10 @@ dberr_t dict_stats_rename_table(
                           is returned */
     size_t errstr_sz)     /*!< in: errstr size */
 {
-  char old_db_utf8[MAX_DB_UTF8_LEN];
-  char new_db_utf8[MAX_DB_UTF8_LEN];
-  char old_table_utf8[MAX_TABLE_UTF8_LEN];
-  char new_table_utf8[MAX_TABLE_UTF8_LEN];
+  char old_db_utf8[dict_name::MAX_DB_UTF8_LEN];
+  char new_db_utf8[dict_name::MAX_DB_UTF8_LEN];
+  char old_table_utf8[dict_name::MAX_TABLE_UTF8_LEN];
+  char new_table_utf8[dict_name::MAX_TABLE_UTF8_LEN];
   dberr_t ret;
 
   ut_ad(!rw_lock_own(dict_operation_lock, RW_LOCK_X));
@@ -3317,8 +3317,8 @@ dberr_t dict_stats_rename_index(
 {
   rw_lock_x_lock(dict_operation_lock);
 
-  char dbname_utf8[MAX_DB_UTF8_LEN];
-  char tablename_utf8[MAX_TABLE_UTF8_LEN];
+  char dbname_utf8[dict_name::MAX_DB_UTF8_LEN];
+  char tablename_utf8[dict_name::MAX_TABLE_UTF8_LEN];
 
   dict_fs2utf8(table->name.m_name, dbname_utf8, sizeof(dbname_utf8),
                tablename_utf8, sizeof(tablename_utf8));

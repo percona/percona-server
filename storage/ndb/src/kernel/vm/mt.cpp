@@ -5247,22 +5247,23 @@ mt_get_send_buffer_bytes(NodeId node)
 void
 mt_getSendBufferLevel(Uint32 self, NodeId node, SB_LevelType &level)
 {
-  Resource_limit rl, rl_shared;
+  Resource_limit rl;
   const Uint32 page_size = thr_send_page::PGSIZE;
   thr_repository *rep = g_thr_repository;
   thr_repository::send_buffer *sb = &rep->m_send_buffers[node];
   const Uint64 current_node_send_buffer_size = sb->m_buffered_size + sb->m_sending_size;
   
+  /* Memory barrier to get a fresher value for rl.m_curr */
+  mb();
   rep->m_mm->get_resource_limit_nolock(RG_TRANSPORTER_BUFFERS, rl);
   Uint64 current_send_buffer_size = rl.m_min * page_size;
-  Uint64 current_used_send_buffer_size = rl.m_curr * page_size * 100;
+  Uint64 current_used_send_buffer_size = rl.m_curr * page_size;
   Uint64 current_percentage =
-    current_used_send_buffer_size / current_send_buffer_size;
+    (100 * current_used_send_buffer_size) / current_send_buffer_size;
 
   if (current_percentage >= 90)
   {
-    rep->m_mm->get_resource_limit(0, rl_shared);
-    Uint32 avail_shared = rl_shared.m_max - rl_shared.m_curr;
+    const Uint32 avail_shared = rep->m_mm->get_free_shared_nolock();
     if (rl.m_min + avail_shared > rl.m_max)
     {
       current_send_buffer_size = rl.m_max * page_size;
@@ -5424,7 +5425,7 @@ read_jba_state(thr_data *selfptr)
 
 static
 inline
-void
+bool
 check_for_input_from_ndbfs(struct thr_data* thr_ptr, Signal* signal)
 {
   /**
@@ -5443,9 +5444,12 @@ check_for_input_from_ndbfs(struct thr_data* thr_ptr, Signal* signal)
       Uint32 instance = blockToInstance(block);
       SimulatedBlock* b = globalData.getBlock(main, instance);
       b->executeFunction_async(GSN_SEND_PACKED, signal);
-      return;
+      if (signal->theData[0] == 1)
+        return true;
+      return false;
     }
   }
+  return false;
 }
 
 /* Check all job queues, return true only if all are empty. */
@@ -5455,7 +5459,8 @@ check_queues_empty(thr_data *selfptr)
   Uint32 thr_count = g_thr_repository->m_thread_count;
   if (selfptr->m_thr_no == 0)
   {
-    check_for_input_from_ndbfs(selfptr, selfptr->m_signal);
+    if (check_for_input_from_ndbfs(selfptr, selfptr->m_signal))
+      return false;
   }
   bool empty = read_jba_state(selfptr);
   if (!empty)

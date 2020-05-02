@@ -20,6 +20,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+ADD_WSHADOW_WARNING()
+
+# We are not interesting in profiling clients.
+DISABLE_MISSING_PROFILE_WARNING()
+
 ## Subdirectory with common client code.
 
 INCLUDE_DIRECTORIES(SYSTEM ${READLINE_INCLUDE_DIR})
@@ -101,6 +106,7 @@ MYSQL_ADD_EXECUTABLE(mysqlbinlog
   ${CMAKE_SOURCE_DIR}/sql/binlog_reader.cc
   ${CMAKE_SOURCE_DIR}/sql/stream_cipher.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_log_encryption.cc
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/trx_boundary_parser.cpp
 
   DEPENDENCIES GenError
   LINK_LIBRARIES perconaserverclient client_base binlogevents_static

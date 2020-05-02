@@ -9,7 +9,6 @@ IF(NOT GMOCK_FOUND OR NOT WITH_KEYRING_VAULT)
 ENDIF()
 
 CHECK_IF_LIB_FOUND(CURL "keyring_vault unit tests" FATAL_ERROR)
-CHECK_IF_CURL_DEPENDS_ON_RTMP("keyring_vault unit tests")
 
 message(STATUS "Building keyring_vault unittests")
 

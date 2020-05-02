@@ -20,6 +20,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+ADD_WSHADOW_WARNING()
+
 SET(CLIENT_API_FUNCTIONS
   mysql_affected_rows
   mysql_autocommit
@@ -318,6 +320,8 @@ IF(UNIX)
       MACOSX_RPATH ON 
       )
   ENDIF()
+
+  ADD_INSTALL_RPATH_FOR_OPENSSL(libmysql)
 
   GET_TARGET_PROPERTY(libmysql_link_flags libmysql LINK_FLAGS)
   IF(LINK_FLAG_NO_UNDEFINED)

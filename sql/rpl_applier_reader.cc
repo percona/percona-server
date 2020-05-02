@@ -158,6 +158,11 @@ Log_event *Rpl_applier_reader::read_next_event() {
   */
   mysql_mutex_assert_owner(&m_rli->data_lock);
 
+  DBUG_EXECUTE_IF("block_applier_updates", {
+    const char act[] =
+        "now SIGNAL applier_read_blocked WAIT_FOR resume_applier_read";
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
   DBUG_EXECUTE_IF("force_sql_thread_error", return nullptr;);
 
   if (m_reading_active_log &&
@@ -465,6 +470,9 @@ bool Rpl_applier_reader::purge_applied_logs() {
     controlled manner, until the next rotate.
 */
 void Rpl_applier_reader::disable_relay_log_space_limit_if_needed() {
+  // Skip the test if the flag is already true to avoid deadlocks
+  if (m_rli->sql_force_rotate_relay && m_rli->ignore_log_space_limit) return;
+
   mysql_mutex_lock(&m_rli->log_space_lock);
 
   /*

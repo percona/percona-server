@@ -29,8 +29,9 @@
 #include <algorithm>
 #include <atomic>
 #include <memory>
-#include <new>
+#include <utility>
 
+#include "field_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_alloc.h"
@@ -97,6 +98,7 @@
 #include "sql/table.h"                     // TABLE
 #include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #include "sql/temp_table_param.h"
+#include "sql/thd_raii.h"
 #include "sql/timing_iterator.h"
 #include "sql/transaction_info.h"
 #include "sql/trigger_def.h"
@@ -126,10 +128,10 @@ bool Sql_cmd_update::precheck(THD *thd) {
       if (tr->is_derived() || tr->uses_materialization())
         tr->grant.privilege = SELECT_ACL;
       else if ((check_access(thd, UPDATE_ACL, tr->db, &tr->grant.privilege,
-                             &tr->grant.m_internal, 0, 1) ||
+                             &tr->grant.m_internal, false, true) ||
                 check_grant(thd, UPDATE_ACL, tr, false, 1, true)) &&
                (check_access(thd, SELECT_ACL, tr->db, &tr->grant.privilege,
-                             &tr->grant.m_internal, 0, 0) ||
+                             &tr->grant.m_internal, false, false) ||
                 check_grant(thd, SELECT_ACL, tr, false, 1, false)))
         return true;
     }
@@ -693,18 +695,21 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           DBUG_ASSERT(!thd->is_error());
           thd->inc_examined_row_count(1);
 
-          bool skip_record;
-          if (qep_tab.skip_record(thd, &skip_record)) {
-            error = 1;
-            /*
-             Don't try unlocking the row if skip_record reported an error since
-             in this case the transaction might have been rolled back already.
-            */
-            break;
-          }
-          if (skip_record) {
-            table->file->unlock_row();
-            continue;
+          if (qep_tab.condition() != nullptr) {
+            const bool skip_record = qep_tab.condition()->val_int() == 0;
+            if (thd->is_error()) {
+              error = 1;
+              /*
+                Don't try unlocking the row if skip_record reported an error
+                since in this case the transaction might have been rolled back
+                already.
+              */
+              break;
+            }
+            if (skip_record) {
+              table->file->unlock_row();
+              continue;
+            }
           }
           if (table->file->was_semi_consistent_read())
             continue; /* repeat the read of the same row if it still exists */
@@ -730,7 +735,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         iterator.reset();
 
         // Change reader to use tempfile
-        if (reinit_io_cache(tempfile, READ_CACHE, 0L, 0, 0))
+        if (reinit_io_cache(tempfile, READ_CACHE, 0L, false, false))
           error = 1; /* purecov: inspected */
 
         if (error >= 0) {
@@ -807,16 +812,18 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         error = iterator->Read();
         if (error || thd->killed) break;
         thd->inc_examined_row_count(1);
-        bool skip_record;
-        if (qep_tab.skip_record(thd, &skip_record)) {
-          error = 1;
-          break;
-        }
-        if (skip_record) {
-          table->file
-              ->unlock_row();  // Row failed condition check, release lock
-          thd->get_stmt_da()->inc_current_row_for_condition();
-          continue;
+        if (qep_tab.condition() != nullptr) {
+          const bool skip_record = qep_tab.condition()->val_int() == 0;
+          if (thd->is_error()) {
+            error = 1;
+            break;
+          }
+          if (skip_record) {
+            table->file
+                ->unlock_row();  // Row failed condition check, release lock
+            thd->get_stmt_da()->inc_current_row_for_condition();
+            continue;
+          }
         }
         DBUG_ASSERT(!thd->is_error());
 
@@ -826,7 +833,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         table->clear_partial_update_diffs();
 
         store_record(table, record[1]);
-      bool is_row_changed = false;
+        bool is_row_changed = false;
         if (fill_record_n_invoke_before_triggers(
                 thd, &update, *update_field_list, *update_value_list, table,
                 TRG_EVENT_UPDATE, 0, false, &is_row_changed)) {
@@ -846,26 +853,26 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
               break;
             }
           }
-        /*
-          Existing rows in table should normally satisfy CHECK constraints. So
-          it should be safe to check constraints only for rows that has really
-          changed (i.e. after compare_records()).
+          /*
+            Existing rows in table should normally satisfy CHECK constraints. So
+            it should be safe to check constraints only for rows that has really
+            changed (i.e. after compare_records()).
 
-          In future, once addition/enabling of CHECK constraints without their
-          validation is supported, we might encounter old rows which do not
-          satisfy CHECK constraints currently enabled. However, rejecting no-op
-          updates to such invalid pre-existing rows won't make them valid and is
-          probably going to be confusing for users. So it makes sense to stick
-          to current behavior.
-        */
-        if (invoke_table_check_constraints(thd, table)) {
-          if (thd->is_error()) {
-            error = 1;
-            break;
+            In future, once addition/enabling of CHECK constraints without their
+            validation is supported, we might encounter old rows which do not
+            satisfy CHECK constraints currently enabled. However, rejecting
+            no-op updates to such invalid pre-existing rows won't make them
+            valid and is probably going to be confusing for users. So it makes
+            sense to stick to current behavior.
+          */
+          if (invoke_table_check_constraints(thd, table)) {
+            if (thd->is_error()) {
+              error = 1;
+              break;
+            }
+            // continue when IGNORE clause is used.
+            continue;
           }
-          // continue when IGNORE clause is used.
-          continue;
-        }
 
           if (will_batch) {
             /*
@@ -1535,7 +1542,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
 
   for (TABLE_LIST *tr = select->leaf_tables; tr; tr = tr->next_leaf) {
     if (tr->updating) {
-      TABLE_LIST *duplicate = unique_table(tr, select->leaf_tables, 0);
+      TABLE_LIST *duplicate = unique_table(tr, select->leaf_tables, false);
       if (duplicate != NULL) {
         update_non_unique_table_error(select->leaf_tables, "UPDATE", duplicate);
         return true;
@@ -1619,7 +1626,7 @@ bool Sql_cmd_update::execute_inner(THD *thd) {
 */
 
 bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
-  SQL_I_List<TABLE_LIST> update;
+  SQL_I_List<TABLE_LIST> update_list;
   List_iterator_fast<Item> field_it(*fields);
   List_iterator_fast<Item> value_it(*values);
   DBUG_TRACE;
@@ -1669,7 +1676,7 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
     Don't use key read on tables that are updated
   */
 
-  update.empty();
+  update_list.empty();
   for (TABLE_LIST *tr = leaves; tr; tr = tr->next_leaf) {
     /* TODO: add support of view of join support */
     if (tables_to_update & tr->map()) {
@@ -1678,9 +1685,9 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
 
       TABLE *const table = tr->table;
 
-      update.link_in_list(dup, &dup->next_local);
+      update_list.link_in_list(dup, &dup->next_local);
       tr->shared = dup->shared = update_table_count++;
-      table->no_keyread = 1;
+      table->no_keyread = true;
       table->covering_keys.clear_all();
       table->pos_in_table_list = dup;
       if (table->triggers &&
@@ -1695,8 +1702,8 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
     }
   }
 
-  update_table_count = update.elements;
-  update_tables = update.first;
+  update_table_count = update_list.elements;
+  update_tables = update_list.first;
 
   tmp_tables = (TABLE **)thd->mem_calloc(sizeof(TABLE *) * update_table_count);
   if (tmp_tables == NULL) return true;
@@ -1735,8 +1742,8 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
   /* Allocate copy fields */
   max_fields = 0;
   for (uint i = 0; i < update_table_count; i++)
-    set_if_bigger(max_fields,
-                  fields_for_table[i]->elements + select->leaf_table_count);
+    max_fields = std::max(max_fields, size_t(fields_for_table[i]->elements +
+                                             select->leaf_table_count));
   copy_field = new (thd->mem_root) Copy_field[max_fields];
 
   for (TABLE_LIST *ref = leaves; ref != NULL; ref = ref->next_leaf) {
@@ -1815,7 +1822,7 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
 static bool safe_update_on_fly(JOIN_TAB *join_tab, TABLE_LIST *table_ref,
                                TABLE_LIST *all_tables) {
   TABLE *table = join_tab->table();
-  if (unique_table(table_ref, all_tables, 0)) return 0;
+  if (unique_table(table_ref, all_tables, false)) return false;
   switch (join_tab->type()) {
     case JT_SYSTEM:
     case JT_CONST:
@@ -1917,19 +1924,20 @@ bool Query_result_update::optimize() {
             before-update value;
             consider this flow of a nested loop join:
             read a row from main_table and:
-            - init ref access (cp_buffer_from_ref() in RefIterator):
+            - init ref access (construct_lookup_ref() in RefIterator):
               copy referenced value from main_table into 2nd table's ref buffer
             - look up a first row in 2nd table (RefIterator::Read())
               - if it joins, update row of main_table on the fly
             - look up a second row in 2nd table (again RefIterator::Read()).
-            Because cp_buffer_from_ref() is not called again, the before-update
-            value of the row of main_table is still in the 2nd table's ref
-            buffer. So the lookup is not influenced by the just-done update of
-            main_table.
+            Because construct_lookup_ref() is not called again, the
+            before-update value of the row of main_table is still in the 2nd
+            table's ref buffer. So the lookup is not influenced by the just-done
+            update of main_table.
           */
           if (tab > join->join_tab + 1) {
-            for (uint i = 0; i < tab->ref().key_parts; i++) {
-              Item *ref_item = tab->ref().items[i];
+            for (uint key_part_idx = 0; key_part_idx < tab->ref().key_parts;
+                 key_part_idx++) {
+              Item *ref_item = tab->ref().items[key_part_idx];
               if ((table_ref->map() & ref_item->used_tables()) != 0)
                 ref_item->walk(&Item::add_field_to_set_processor,
                                enum_walk::SUBQUERY_POSTFIX,
@@ -2021,12 +2029,12 @@ bool Query_result_update::optimize() {
 
       Field_string *field = new (thd->mem_root) Field_string(
           tbl->file->ref_length, false, tbl->alias, &my_charset_bin);
-      if (!field) return 1;
+      if (!field) return true;
       field->init(tbl);
       Item_field *ifield = new (thd->mem_root) Item_field(field);
-      if (!ifield) return 1;
-      ifield->maybe_null = 0;
-      if (temp_fields.push_back(ifield)) return 1;
+      if (!ifield) return true;
+      ifield->maybe_null = false;
+      if (temp_fields.push_back(ifield)) return true;
     } while ((tbl = tbl_it++));
 
     temp_fields.concat(fields_for_table[cnt]);
@@ -2041,9 +2049,9 @@ bool Query_result_update::optimize() {
     tmp_param->group_parts = 1;
     tmp_param->group_length = table->file->ref_length;
     tmp_tables[cnt] =
-        create_tmp_table(thd, tmp_param, temp_fields, &group, 0, 0,
+        create_tmp_table(thd, tmp_param, temp_fields, &group, false, false,
                          TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR, "");
-    if (!tmp_tables[cnt]) return 1;
+    if (!tmp_tables[cnt]) return true;
 
     /*
       Pass a table triggers pointer (Table_trigger_dispatcher *) from
@@ -2054,13 +2062,13 @@ bool Query_result_update::optimize() {
     */
     tmp_tables[cnt]->triggers = table->triggers;
   }
-  return 0;
+  return false;
 }
 
 void Query_result_update::cleanup(THD *thd) {
   TABLE_LIST *table;
   for (table = update_tables; table; table = table->next_local) {
-    table->table->no_cache = 0;
+    table->table->no_cache = false;
   }
 
   if (tmp_tables) {
@@ -2346,7 +2354,7 @@ bool Query_result_update::do_updates(THD *thd) {
     if (table == table_to_update) continue;  // Already updated
     org_updated = updated_rows;
     tmp_table = tmp_tables[cur_table->shared];
-    if ((local_error = table->file->ha_rnd_init(0))) {
+    if ((local_error = table->file->ha_rnd_init(false))) {
       if (table->file->is_fatal_error(local_error))
         error_flags |= ME_FATALERROR;
 
@@ -2356,7 +2364,7 @@ bool Query_result_update::do_updates(THD *thd) {
 
     check_opt_it.rewind();
     while (TABLE *tbl = check_opt_it++) {
-      if (tbl->file->ha_rnd_init(1))
+      if (tbl->file->ha_rnd_init(true))
         // No known handler error code present, print_error makes no sense
         goto err;
     }
@@ -2370,11 +2378,11 @@ bool Query_result_update::do_updates(THD *thd) {
     Copy_field *copy_field_ptr = copy_field, *copy_field_end;
     for (; *field; field++) {
       Item_field *item = (Item_field *)field_it++;
-      (copy_field_ptr++)->set(item->field, *field, 0);
+      (copy_field_ptr++)->set(item->field, *field, false);
     }
     copy_field_end = copy_field_ptr;
 
-    if ((local_error = tmp_table->file->ha_rnd_init(1))) {
+    if ((local_error = tmp_table->file->ha_rnd_init(true))) {
       if (table->file->is_fatal_error(local_error))
         error_flags |= ME_FATALERROR;
 
@@ -2420,7 +2428,7 @@ bool Query_result_update::do_updates(THD *thd) {
       /* Copy data from temporary table to current table */
       for (copy_field_ptr = copy_field; copy_field_ptr != copy_field_end;
            copy_field_ptr++)
-        copy_field_ptr->invoke_do_copy(copy_field_ptr);
+        copy_field_ptr->invoke_do_copy();
 
       if (thd->is_error()) goto err;
 

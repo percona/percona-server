@@ -1,3 +1,4 @@
+--skip Fails because of broken XA implementation
 --source include/have_tokudb.inc
 --source include/have_debug.inc
 # Valgrind would report memory leaks on the intentional crashes

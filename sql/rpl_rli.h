@@ -64,7 +64,8 @@
 #include "sql/rpl_info.h"         // Rpl_info
 #include "sql/rpl_mts_submode.h"  // enum_mts_parallel_type
 #include "sql/rpl_slave_until_options.h"
-#include "sql/rpl_tblmap.h"   // table_mapping
+#include "sql/rpl_tblmap.h"  // table_mapping
+#include "sql/rpl_trx_boundary_parser.h"
 #include "sql/rpl_utility.h"  // Deferred_log_events
 #include "sql/sql_class.h"    // THD
 #include "sql/system_variables.h"
@@ -201,6 +202,13 @@ class Relay_log_info : public Rpl_info {
       `LOAD DATA`event.
      */
     LOAD_DATA_EVENT_NOT_ALLOWED
+  };
+
+  enum class enum_require_row_status : int {
+    /** Function ended successfully */
+    SUCCESS = 0,
+    /** Value for `privilege_checks_user` is not empty */
+    PRIV_CHECKS_USER_NOT_NULL
   };
 
   /*
@@ -542,6 +550,31 @@ class Relay_log_info : public Rpl_info {
    */
   enum_priv_checks_status initialize_applier_security_context();
 
+  /**
+    Returns whether the slave is running in row mode only.
+
+    @return true if row_format_required is active, false otherwise.
+   */
+  bool is_row_format_required() const;
+
+  /**
+    Sets the flag that tells whether or not the slave is running in row mode
+    only.
+
+    @param require_row the flag value.
+
+     @return a status code describing the state of the data initialization.
+   */
+  void set_require_row_format(bool require_row);
+
+  /*
+    This will be used to verify transactions boundaries of events being applied
+
+    Its output is used to detect when events were not logged using row based
+    logging.
+  */
+  Replication_transaction_boundary_parser transaction_parser;
+
   /*
     Let's call a group (of events) :
       - a transaction
@@ -656,6 +689,15 @@ class Relay_log_info : public Rpl_info {
    */
   bool m_privilege_checks_user_corrupted;
 
+  /**
+   Tells if the slave is only accepting events logged with row based logging.
+   It also blocks
+     Operations with temporary table creation/deletion
+     Operations with LOAD DATA
+     Events: INTVAR_EVENT, RAND_EVENT, USER_VAR_EVENT
+  */
+  bool m_require_row_format;
+
  public:
   bool is_relay_log_truncated() { return m_relay_log_truncated; }
 
@@ -726,14 +768,14 @@ class Relay_log_info : public Rpl_info {
     temporarily forget about the constraint.
   */
   ulonglong log_space_limit, log_space_total;
-  bool ignore_log_space_limit;
+  std::atomic<bool> ignore_log_space_limit;
 
   /*
     Used by the SQL thread to instructs the IO thread to rotate
     the logs when the SQL thread needs to purge to release some
     disk space.
    */
-  bool sql_force_rotate_relay;
+  std::atomic<bool> sql_force_rotate_relay;
 
   time_t last_master_timestamp;
 
@@ -1388,6 +1430,26 @@ class Relay_log_info : public Rpl_info {
   int rli_init_info(bool skip_received_gtid_set_recovery = false);
   void end_info();
   int flush_info(bool force = false);
+  /**
+   Clears from `this` Relay_log_info object all attribute values that are
+   not to be kept.
+
+   @returns true if there were a problem with clearing the data and false
+            otherwise.
+   */
+  bool clear_info();
+  /**
+   Checks if the underlying `Rpl_info` handler holds information for the fields
+   to be kept between slave resets, while the other fields were cleared.
+
+   @param previous_result the result return from invoking the `check_info`
+                          method on `this` object.
+
+   @returns function success state represented by the `enum_return_check`
+            enumeration.
+   */
+  enum_return_check check_if_info_was_cleared(
+      const enum_return_check &previous_result) const;
   int flush_current_log();
   void set_master_info(Master_info *info);
 
@@ -1703,11 +1765,16 @@ class Relay_log_info : public Rpl_info {
   static const int PRIV_CHECKS_HOSTNAME_LENGTH = 255;
 
   /*
+    Represents line number in relay_log.info to save REQUIRE_ROW_FORMAT
+  */
+  static const int LINES_IN_RELAY_LOG_INFO_WITH_REQUIRE_ROW_FORMAT = 11;
+
+  /*
     Total lines in relay_log.info.
     This has to be updated every time a member is added or removed.
   */
   static const int MAXIMUM_LINES_IN_RELAY_LOG_INFO_FILE =
-      LINES_IN_RELAY_LOG_INFO_WITH_PRIV_CHECKS_HOSTNAME;
+      LINES_IN_RELAY_LOG_INFO_WITH_REQUIRE_ROW_FORMAT;
 
   bool read_info(Rpl_info_handler *from);
   bool write_info(Rpl_info_handler *to);
@@ -1898,6 +1965,16 @@ class Relay_log_info : public Rpl_info {
   @return true if the status is `SUCCESS` and false otherwise.
  */
 bool operator!(Relay_log_info::enum_priv_checks_status status);
+
+/**
+  Negation operator for `enum_require_row_status`, to facilitate validation
+  against `SUCCESS`. To test for error status, use the `!!` idiom.
+
+  @param status the status code to check against `SUCCESS`
+
+  @return true if the status is `SUCCESS` and false otherwise.
+ */
+bool operator!(Relay_log_info::enum_require_row_status status);
 
 bool mysql_show_relaylog_events(THD *thd);
 

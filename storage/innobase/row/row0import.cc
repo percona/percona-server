@@ -54,6 +54,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0quiesce.h"
 #include "row0sel.h"
 #include "row0upd.h"
+#include "sql/mysqld.h"
 #include "srv0start.h"
 #include "ut0new.h"
 #include "zlob0first.h"
@@ -62,8 +63,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "my_aes.h"
 #include "my_dbug.h"
-
-extern bool lower_case_file_system;
 
 /** The size of the buffer to use for IO. Note: os_file_read() doesn't expect
 reads to fail. If you set the buffer size to be greater than a multiple of the
@@ -216,7 +215,7 @@ struct row_import {
  public:
   dict_table_t *m_table; /*!< Table instance */
 
-  ulint m_version; /*!< Version of config file */
+  uint32_t m_version; /*!< Version of config file */
 
   byte *m_hostname;   /*!< Hostname where the
                       tablespace was exported */
@@ -1072,9 +1071,8 @@ dberr_t row_import::match_index_columns(THD *thd, const dict_index_t *index)
   for (ulint i = 0; i < index->n_fields; ++i, ++field, ++cfg_field) {
     if (strcmp(field->name(), cfg_field->name()) != 0) {
       ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-              "Index field name %s doesn't match"
-              " tablespace metadata field name %s"
-              " for field position %lu",
+              "Index field name %s doesn't match tablespace metadata"
+              " field name %s for field position %lu",
               field->name(), cfg_field->name(), (ulong)i);
 
       err = DB_ERROR;
@@ -1082,9 +1080,8 @@ dberr_t row_import::match_index_columns(THD *thd, const dict_index_t *index)
 
     if (cfg_field->prefix_len != field->prefix_len) {
       ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-              "Index %s field %s prefix len %lu"
-              " doesn't match metadata file value"
-              " %lu",
+              "Index %s field %s prefix len %lu doesn't match metadata"
+              " file value %lu",
               index->name(), field->name(), (ulong)field->prefix_len,
               (ulong)cfg_field->prefix_len);
 
@@ -1093,13 +1090,25 @@ dberr_t row_import::match_index_columns(THD *thd, const dict_index_t *index)
 
     if (cfg_field->fixed_len != field->fixed_len) {
       ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-              "Index %s field %s fixed len %lu"
-              " doesn't match metadata file value"
-              " %lu",
+              "Index %s field %s fixed len %lu doesn't match metadata"
+              " file value %lu",
               index->name(), field->name(), (ulong)field->fixed_len,
               (ulong)cfg_field->fixed_len);
 
       err = DB_ERROR;
+    }
+
+    constexpr char asc[] = "ascending";
+    constexpr char desc[] = "descending";
+
+    if (cfg_field->is_ascending != field->is_ascending) {
+      ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+              "Index %s field %s is %s which does not match metadata"
+              " file which is %s",
+              index->name(), field->name(), (field->is_ascending ? asc : desc),
+              (cfg_field->is_ascending ? asc : desc));
+
+      err = DB_SCHEMA_MISMATCH;
     }
   }
 
@@ -1244,22 +1253,29 @@ matches the in memory table definition.
 dberr_t row_import::match_schema(THD *thd,
                                  const dd::Table *dd_table) UNIV_NOTHROW {
   /* Do some simple checks. */
-  const auto relevant_flags = m_flags & ~DICT_TF_MASK_DATA_DIR;
-  const auto relevant_table_flags = m_table->flags & ~DICT_TF_MASK_DATA_DIR;
 
-  if (relevant_flags != relevant_table_flags) {
-    if (dict_tf_to_row_format_string(relevant_flags) !=
-        dict_tf_to_row_format_string(relevant_table_flags)) {
+  if (m_flags != m_table->flags) {
+    if (dict_tf_to_row_format_string(m_flags) !=
+        dict_tf_to_row_format_string(m_table->flags)) {
       ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
               "Table flags don't match, server table has %s"
               " and the meta-data file has %s",
-              (const char *)dict_tf_to_row_format_string(relevant_table_flags),
-              (const char *)dict_tf_to_row_format_string(relevant_flags));
+              (const char *)dict_tf_to_row_format_string(m_table->flags),
+              (const char *)dict_tf_to_row_format_string(m_flags));
+    } else if (DICT_TF_HAS_DATA_DIR(m_flags) !=
+               DICT_TF_HAS_DATA_DIR(m_table->flags)) {
+      /* If the meta-data flag is set for data_dir, but table flag is not set
+      for data_dir or vice versa then return error. */
+      ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+              "Table data_dir flag don't match, server table has data_dir "
+              "flag = %lu and the meta-data file has data_dir flag = %lu",
+              (ulint)DICT_TF_HAS_DATA_DIR(m_table->flags),
+              (ulint)DICT_TF_HAS_DATA_DIR(m_flags));
     } else {
       ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
               "Table flags don't match, server table has 0x%x "
               "and the meta-data file has 0x%x",
-              relevant_table_flags, relevant_flags);
+              m_table->flags, m_flags);
     }
     return (DB_ERROR);
   } else if (m_table->n_cols != m_n_cols) {
@@ -1569,6 +1585,8 @@ dberr_t IndexPurge::garbage_collect() UNIV_NOTHROW {
   /* Open the persistent cursor and start the mini-transaction. */
 
   open();
+  import_ctx_t import_ctx = {false};
+  m_pcur.import_ctx = &import_ctx;
 
   while ((err = next()) == DB_SUCCESS) {
     rec_t *rec = btr_pcur_get_rec(&m_pcur);
@@ -1584,6 +1602,12 @@ dberr_t IndexPurge::garbage_collect() UNIV_NOTHROW {
   /* Close the persistent cursor and commit the mini-transaction. */
 
   close();
+  if (m_pcur.import_ctx->is_error == true) {
+    m_pcur.import_ctx = nullptr;
+    return DB_TABLE_CORRUPT;
+  }
+
+  m_pcur.import_ctx = nullptr;
 
   return (err == DB_END_OF_INDEX ? DB_SUCCESS : err);
 }
@@ -2222,8 +2246,12 @@ static void row_import_discard_changes(
 
   prebuilt->trx->error_index = NULL;
 
-  ib::info(ER_IB_MSG_945) << "Discarding tablespace of table "
-                          << prebuilt->table->name << ": " << ut_strerr(err);
+  ib::info(ER_IB_MSG_945) << "Failed to import tablespace of table '"
+                          << prebuilt->table->name.m_name
+                          << (err == DB_UNSUPPORTED
+                                  ? "': the CFG file version is "
+                                  : "': ")
+                          << ut_strerr(err);
 
   if (trx->dict_operation_lock_mode != RW_X_LATCH) {
     ut_a(trx->dict_operation_lock_mode == 0);
@@ -2540,7 +2568,14 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
         row_index_t *index, /*!< Index being read in */
         row_import *cfg)    /*!< in/out: meta-data read */
 {
-  byte row[sizeof(ib_uint32_t) * 3];
+  /* v4 row will have prefix_len, fixed_len, is_ascending, name length */
+  byte row[sizeof(ib_uint32_t) * 4];
+  size_t row_len = sizeof(row);
+  if (cfg->m_version < IB_EXPORT_CFG_VERSION_V4) {
+    /* v3 row will have prefix_len, fixed_len, name length */
+    row_len = sizeof(ib_uint32_t) * 3;
+  }
+
   ulint n_fields = index->m_n_fields;
 
   index->m_fields = UT_NEW_ARRAY_NOKEY(dict_field_t, n_fields);
@@ -2564,7 +2599,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     DBUG_EXECUTE_IF("ib_import_io_read_error_1",
                     (void)fseek(file, 0L, SEEK_END););
 
-    if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
+    if (fread(row, 1, row_len, file) != row_len) {
       ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
                   strerror(errno), "while reading index fields.");
 
@@ -2576,6 +2611,16 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
     field->fixed_len = mach_read_from_4(ptr);
     ptr += sizeof(ib_uint32_t);
+
+    if (cfg->m_version >= IB_EXPORT_CFG_VERSION_V4) {
+      field->is_ascending = mach_read_from_4(ptr);
+      ptr += sizeof(ib_uint32_t);
+    } else {
+      /* Previous to CFG version 4 the DESC key was not recorded.
+      Assume the index column is ascending.
+      This flag became available in v8.0. */
+      field->is_ascending = true;
+    }
 
     /* Include the NUL byte in the length. */
     ulint len = mach_read_from_4(ptr);
@@ -3234,6 +3279,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_import_read_meta_data(
 
     case IB_EXPORT_CFG_VERSION_V2:
     case IB_EXPORT_CFG_VERSION_V3:
+    case IB_EXPORT_CFG_VERSION_V4:
       err = row_import_read_v1(file, thd, &cfg);
 
       if (err == DB_SUCCESS) {
@@ -3248,80 +3294,11 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_import_read_meta_data(
       cfg.m_is_keyring_encrypted = true;
       return (row_import_read_v1(file, thd, &cfg));
     default:
-      ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
-              "Unsupported meta-data version number (%lu),"
-              " file ignored",
-              (ulong)cfg.m_version);
+      my_error(ER_IMP_INCOMPATIBLE_CFG_VERSION, MYF(0), table->name.m_name,
+               unsigned{cfg.m_version}, unsigned{IB_EXPORT_CFG_VERSION_V4});
   }
 
-  return (DB_ERROR);
-}
-
-/** It is possible that the import is coming from the versions 8.0.14-16 where
-partition ibd/cfg/cfp names are in lower case. Rename the ibd/cfg/cfp file name
-according to the table name in the dictionary
-@param[in]	table	InnoDB table object
-@param[in]	suffix  suffix of the file */
-static void rename_disk_filename_if_necessary(dict_table_t *table,
-                                              const ib_file_suffix suffix) {
-  ut_ad(suffix == IBD || suffix == CFP || suffix == CFG);
-
-  /* Rename is required only in specific scenario */
-  if (!dict_table_is_partition(table) ||
-      !(innobase_get_lower_case_table_names() == 1) || lower_case_file_system) {
-    return;
-  }
-
-  char existing_cfp_file_path[OS_FILE_MAX_PATH];
-  char new_cfp_file_path[OS_FILE_MAX_PATH];
-  char *dict_file_path = nullptr;
-
-  os_file_type_t type;
-  bool exists = false;
-  std::string datadir_path = dict_table_get_datadir(table);
-
-  /* Get the file name from the dictionary. */
-  if (suffix != CFP) {
-    dict_file_path =
-        Fil_path::make(datadir_path, table->name.m_name, suffix, true);
-  } else {
-    srv_get_encryption_data_filename(table, existing_cfp_file_path,
-                                     sizeof(existing_cfp_file_path));
-    dict_file_path = existing_cfp_file_path;
-  }
-
-  /* If file doesn't exists, check if file exists in lower case. */
-  if (!os_file_status(dict_file_path, &exists, &type) || !exists) {
-    exists = false;
-    char *disk_file_path = nullptr;
-
-    if (suffix != CFP) {
-      char lower_case_table_name[OS_FILE_MAX_PATH];
-      strcpy(lower_case_table_name, table->name.m_name);
-      innobase_casedn_str(lower_case_table_name);
-      disk_file_path =
-          Fil_path::make(datadir_path, lower_case_table_name, suffix, true);
-    } else {
-      srv_get_encryption_data_filename(table, new_cfp_file_path,
-                                       sizeof(new_cfp_file_path), true);
-      disk_file_path = new_cfp_file_path;
-    }
-
-    /* Check and rename the file according to dictionary name */
-    if (os_file_status(disk_file_path, &exists, &type) && exists) {
-      if (!os_file_rename_func(disk_file_path, dict_file_path)) {
-        /* Rename failed . Do nothing */
-      }
-    }
-
-    if (suffix != CFP) {
-      ut_free(disk_file_path);
-    }
-  }
-
-  if (suffix != CFP) {
-    ut_free(dict_file_path);
-  }
+  return (DB_UNSUPPORTED);
 }
 
 /**
@@ -3341,12 +3318,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   dd_get_meta_data_filename(table, table_def, name, sizeof(name));
 
-  FILE *file = fopen(name, "rb");
+  fil_adjust_name_import(table, name, CFG);
 
-  if (file == nullptr) {
-    rename_disk_filename_if_necessary(table, CFG);
-    file = fopen(name, "rb");
-  }
+  FILE *file = fopen(name, "rb");
 
   if (file == NULL) {
     char msg[BUFSIZ];
@@ -3479,12 +3453,9 @@ static dberr_t row_import_read_cfp(dict_table_t *table, THD *thd,
 
   srv_get_encryption_data_filename(table, name, sizeof(name));
 
-  FILE *file = fopen(name, "rb");
+  fil_adjust_name_import(table, name, CFP);
 
-  if (file == nullptr) {
-    rename_disk_filename_if_necessary(table, CFP);
-    file = fopen(name, "rb");
-  }
+  FILE *file = fopen(name, "rb");
 
   if (file != NULL) {
     import.m_cfp_missing = false;
@@ -3591,6 +3562,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   rw_lock_s_lock_func(dict_operation_lock, 0, __FILE__, __LINE__);
 
   row_import cfg;
+  ulint space_flags = 0;
 
   /* Read CFP file */
   if (dd_is_table_in_encrypted_tablespace(table)) {
@@ -3617,9 +3589,6 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
             table->encryption_iv != nullptr);
     }
   }
-
-  /* Check and rename ibd file if necessary */
-  rename_disk_filename_if_necessary(table, IBD);
 
   /* Read CFG file */
   err = row_import_read_cfg(table, table_def, trx->mysql_thd, cfg);
@@ -3677,6 +3646,21 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
       if (err == DB_SUCCESS) {
         err = cfg.set_root_by_heuristic();
       }
+    }
+
+    space_flags = fetchIndexRootPages.get_space_flags();
+
+    /* If the fsp flag is set for data_dir, but table flag is not set
+    for data_dir or vice versa then return error. */
+    if (err == DB_SUCCESS && FSP_FLAGS_HAS_DATA_DIR(space_flags) !=
+                                 DICT_TF_HAS_DATA_DIR(table->flags)) {
+      ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+              "Table data_dir flag don't match, server table has data_dir"
+              " flag = %lu and .ibd file has data_dir flag = %lu",
+              (ulint)DICT_TF_HAS_DATA_DIR(table->flags),
+              (ulint)FSP_FLAGS_HAS_DATA_DIR(space_flags));
+      err = DB_ERROR;
+      return (row_import_error(prebuilt, trx, err));
     }
   } else {
     rw_lock_s_unlock_gen(dict_operation_lock, 0);
@@ -3774,8 +3758,8 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
 
   Keyring_encryption_info keyring_encryption_info;
 
-  std::string tablespace_name;
-  dd_filename_to_spacename(table->name.m_name, &tablespace_name);
+  std::string tablespace_name(table->name.m_name);
+  dict_name::convert_to_space(tablespace_name);
 
   err = fil_ibd_open(true, FIL_TYPE_IMPORT, table->space, fsp_flags,
                      tablespace_name.c_str(), table->name.m_name, filepath,
@@ -3852,6 +3836,10 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   if (err != DB_SUCCESS) {
     return (row_import_error(prebuilt, trx, err));
   }
+
+  DBUG_EXECUTE_IF("ib_import_page_corrupt",
+                  row_index_t *i_index = cfg.get_index(index->name);
+                  ++i_index->m_stats.m_n_purge_failed;);
 
   if (err != DB_SUCCESS) {
     return (row_import_error(prebuilt, trx, err));

@@ -79,6 +79,8 @@ Database: information_schema
 +---------------------------------------+
 |                Tables                 |
 +---------------------------------------+
+| ADMINISTRABLE_ROLE_AUTHORIZATIONS     |
+| APPLICABLE_ROLES                      |
 | CHARACTER_SETS                        |
 | CHECK_CONSTRAINTS                     |
 | CLIENT_STATISTICS                     |
@@ -89,6 +91,7 @@ Database: information_schema
 | COLUMN_STATISTICS                     |
 | COMPRESSION_DICTIONARY                |
 | COMPRESSION_DICTIONARY_TABLES         |
+| ENABLED_ROLES                         |
 | ENGINES                               |
 | EVENTS                                |
 | FILES                                 |
@@ -138,6 +141,9 @@ Database: information_schema
 | PROFILING                             |
 | REFERENTIAL_CONSTRAINTS               |
 | RESOURCE_GROUPS                       |
+| ROLE_COLUMN_GRANTS                    |
+| ROLE_ROUTINE_GRANTS                   |
+| ROLE_TABLE_GRANTS                     |
 | ROUTINES                              |
 | SCHEMATA                              |
 | SCHEMA_PRIVILEGES                     |
@@ -163,6 +169,8 @@ Database: INFORMATION_SCHEMA
 +---------------------------------------+
 |                Tables                 |
 +---------------------------------------+
+| ADMINISTRABLE_ROLE_AUTHORIZATIONS     |
+| APPLICABLE_ROLES                      |
 | CHARACTER_SETS                        |
 | CHECK_CONSTRAINTS                     |
 | CLIENT_STATISTICS                     |
@@ -173,6 +181,7 @@ Database: INFORMATION_SCHEMA
 | COLUMN_STATISTICS                     |
 | COMPRESSION_DICTIONARY                |
 | COMPRESSION_DICTIONARY_TABLES         |
+| ENABLED_ROLES                         |
 | ENGINES                               |
 | EVENTS                                |
 | FILES                                 |
@@ -222,6 +231,9 @@ Database: INFORMATION_SCHEMA
 | PROFILING                             |
 | REFERENTIAL_CONSTRAINTS               |
 | RESOURCE_GROUPS                       |
+| ROLE_COLUMN_GRANTS                    |
+| ROLE_ROUTINE_GRANTS                   |
+| ROLE_TABLE_GRANTS                     |
 | ROUTINES                              |
 | SCHEMATA                              |
 | SCHEMA_PRIVILEGES                     |

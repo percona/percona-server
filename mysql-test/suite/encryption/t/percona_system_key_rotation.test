@@ -1,6 +1,9 @@
 --echo # Check that only percona_innodb key can be rotated with rotate_system_key. This part of the test needs updating
 --echo # each time a new system key is added.
 
+# Create KEYRING encrypted table, so it would generated percona-0 key, that we can rotate
+CREATE TABLE t1 (a VARCHAR(255)) ENCRYPTION='KEYRING';
+
 --let $assert_text= It should not be possible to rotate key percona_key
 --let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_key\\"\\) = 0]" = 1
 --source include/assert.inc
@@ -38,14 +41,16 @@
 --source include/assert.inc
 
 --let $assert_text= It should be possible to rotate key percona_innodb
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb\\"\\) = 1]" = 1
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
 --source include/assert.inc
 
 UNINSTALL PLUGIN keyring_file;
 
 --let $assert_text= It should not be possible to rotate key percona_innodb without keyring_file installed
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb\\"\\) = 0]" = 1
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 0]" = 1
 --source include/assert.inc
+
+DROP TABLE t1;
 
 # cleanup, restore keyring_file and keyring_file_data variable
 --let $restart_parameters=restart:

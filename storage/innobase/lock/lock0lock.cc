@@ -2332,7 +2332,7 @@ static void lock_grant_cats(hash_table_t *hash, lock_t *in_lock,
     const auto trx = lock->trx;
     int32_t age_compensate = 0;
 
-    for (const auto new_granted_lock : new_granted) {
+    for (const auto &new_granted_lock : new_granted) {
       if (lock->trx == new_granted_lock.first->trx) {
         age_compensate += trx->age + 1;
       }
@@ -2348,7 +2348,7 @@ static void lock_grant_cats(hash_table_t *hash, lock_t *in_lock,
     const auto trx = lock->trx;
     int32_t age_compensate = 0;
 
-    for (const auto wait_lock : waiting) {
+    for (const auto &wait_lock : waiting) {
       if (wait_lock.first->is_waiting() && lock->trx == wait_lock.first->trx) {
         age_compensate -= trx->age + 1;
       }
@@ -5672,6 +5672,21 @@ static void lock_rec_convert_impl_to_expl_for_trx(
   and avoid this whole shaky reasoning. */
   trx_mutex_enter(trx);
 
+#ifdef UNIV_DEBUG
+  if (index->is_clustered()) {
+    mem_heap_t *heap = NULL;
+    ulint offsets_[REC_OFFS_NORMAL_SIZE];
+    if (!offsets) {
+      rec_offs_init(offsets_);
+      offsets = rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED, &heap);
+    }
+    auto implicit_owner_id = lock_clust_rec_some_has_impl(rec, index, offsets);
+    ut_a(implicit_owner_id == trx->id);
+    if (heap != NULL) {
+      mem_heap_free(heap);
+    }
+  }
+#endif
   ut_ad(!trx_state_eq(trx, TRX_STATE_NOT_STARTED));
 
   if (!trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY) &&

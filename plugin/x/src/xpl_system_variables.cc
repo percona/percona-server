@@ -24,7 +24,11 @@
 
 #include "plugin/x/src/xpl_system_variables.h"
 
-#include "my_sys.h"
+#include <stdlib.h>
+
+#include <cstdint>
+
+#include "my_sys.h"  // NOLINT(build/include_subdir)
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 
@@ -42,6 +46,9 @@ char *Plugin_system_variables::bind_address;
 uint32_t Plugin_system_variables::m_interactive_timeout;
 uint32_t Plugin_system_variables::m_document_id_unique_prefix;
 bool Plugin_system_variables::m_enable_hello_notice;
+
+Set_variable Plugin_system_variables::m_compression_algorithms{
+    {"DEFLATE_STREAM", "LZ4_MESSAGE", "ZSTD_STREAM", nullptr}};
 
 Ssl_config Plugin_system_variables::ssl_config;
 

@@ -14,7 +14,7 @@
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(10) unsigned NOT NULL,
+  `a` int unsigned NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=TokuDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (`a`)

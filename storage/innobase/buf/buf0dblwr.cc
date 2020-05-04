@@ -1395,7 +1395,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   success = os_file_set_size(parallel_dblwr_buf.path, parallel_dblwr_buf.file,
                              0, size, srv_read_only_mode, true);
   if (!success) {
-    buf_parallel_dblwr_free(true);
+    buf_parallel_dblwr_destroy();
     return (DB_ERROR);
   }
   ut_ad(os_file_get_size(parallel_dblwr_buf.file) == size);
@@ -1431,7 +1431,7 @@ dberr_t buf_parallel_dblwr_create(void) noexcept {
         ut_malloc((1 + srv_doublewrite_batch_size) * UNIV_PAGE_SIZE,
                   mem_key_parallel_doublewrite));
     if (!dblwr_shard->write_buf_unaligned) {
-      buf_parallel_dblwr_free(true);
+      buf_parallel_dblwr_destroy();
       return (DB_OUT_OF_MEMORY);
     }
     dblwr_shard->write_buf = static_cast<byte *>(
@@ -1440,7 +1440,7 @@ dberr_t buf_parallel_dblwr_create(void) noexcept {
         ut_zalloc(srv_doublewrite_batch_size * sizeof(void *),
                   mem_key_parallel_doublewrite));
     if (!dblwr_shard->buf_block_arr) {
-      buf_parallel_dblwr_free(true);
+      buf_parallel_dblwr_destroy();
       return (DB_OUT_OF_MEMORY);
     }
 
@@ -1452,10 +1452,9 @@ dberr_t buf_parallel_dblwr_create(void) noexcept {
   return (DB_SUCCESS);
 }
 
-/** Cleanup parallel doublewrite memory structures and optionally close and
-delete the doublewrite buffer file too.
-@param	delete_file	whether to close and delete the buffer file too  */
-void buf_parallel_dblwr_free(bool delete_file) noexcept {
+/** Close and delete the doublewrite buffer file and free its memory data
+structure. */
+void buf_parallel_dblwr_destroy() {
   for (ulint i = 0; i < buf_parallel_dblwr_shard_num(); i++) {
     struct parallel_dblwr_shard_t *dblwr_shard = &parallel_dblwr_buf.shard[i];
 
@@ -1467,10 +1466,8 @@ void buf_parallel_dblwr_free(bool delete_file) noexcept {
     ut_free(dblwr_shard->buf_block_arr);
   }
 
-  if (delete_file) {
-    buf_parallel_dblwr_close();
-    buf_parallel_dblwr_delete();
-  }
+  buf_parallel_dblwr_close();
+  buf_parallel_dblwr_delete();
 
   ut_free(parallel_dblwr_buf.path);
   parallel_dblwr_buf.path = nullptr;

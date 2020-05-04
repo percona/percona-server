@@ -3655,6 +3655,7 @@ static lsn_t srv_shutdown_log() {
     auto err = fil_write_flushed_lsn(lsn);
     ut_a(err == DB_SUCCESS);
   }
+  buf_parallel_dblwr_destroy();
 
   buf_must_be_all_freed();
   ut_a(lsn == log_get_lsn(*log_sys));

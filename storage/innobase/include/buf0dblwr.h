@@ -169,10 +169,9 @@ dberr_t buf_parallel_dblwr_create(void) noexcept;
 computed. It is up to the caller to ensure that this called at safe point */
 void buf_parallel_dblwr_delete(void) noexcept;
 
-/** Cleanup parallel doublewrite memory structures and optionally close and
-delete the doublewrite buffer file too.
-@param	delete_file	whether to close and delete the buffer file too  */
-void buf_parallel_dblwr_free(bool delete_file) noexcept;
+/** Close and delete the doublewrite buffer file and free its memory data
+structure. */
+void buf_parallel_dblwr_destroy();
 
 /** Release any unused parallel doublewrite pages and free their underlying
 buffer at the end of crash recovery */

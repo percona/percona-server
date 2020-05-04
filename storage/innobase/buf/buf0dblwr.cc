@@ -565,7 +565,7 @@ dberr_t buf_dblwr_init_or_load_pages(pfs_os_file_t file, const char *path) {
     ut_ad(!reset_space_ids);
 
     os_file_set_nocache(parallel_dblwr_buf.file, parallel_dblwr_buf.path,
-                        "open", false);
+                        "open");
 
     os_offset_t size = os_file_get_size(parallel_dblwr_buf.file);
 
@@ -1147,7 +1147,20 @@ void buf_dblwr_flush_buffered_writes(ulint dblwr_partition) noexcept {
   srv_stats.dblwr_pages_written.add(dblwr_shard->first_free);
   srv_stats.dblwr_writes.inc();
 
-  if (parallel_dblwr_buf.needs_flush) os_file_flush(parallel_dblwr_buf.file);
+  /* Now flush the doublewrite buffer data to disk, unless
+  innodb_flush_method is one of O_SYNC, O_DIRECT_NO_FSYNC, or
+  ALL_O_DIRECT. */
+  switch (srv_unix_file_flush_method) {
+    case SRV_UNIX_NOSYNC:
+    case SRV_UNIX_O_DSYNC:
+    case SRV_UNIX_O_DIRECT_NO_FSYNC:
+      break;
+    case SRV_UNIX_FSYNC:
+    case SRV_UNIX_LITTLESYNC:
+    case SRV_UNIX_O_DIRECT:
+      os_file_flush(parallel_dblwr_buf.file);
+      break;
+  }
 
   /* We know that the writes have been flushed to disk now
   and in recovery we will find them in the doublewrite buffer
@@ -1376,20 +1389,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     return (DB_ERROR);
   }
 
-  const bool o_direct_set = os_file_set_nocache(
-      parallel_dblwr_buf.file, parallel_dblwr_buf.path, "create", false);
-  switch (srv_unix_file_flush_method) {
-    case SRV_UNIX_NOSYNC:
-    case SRV_UNIX_O_DSYNC:
-    case SRV_UNIX_O_DIRECT_NO_FSYNC:
-      parallel_dblwr_buf.needs_flush = !o_direct_set;
-      break;
-    case SRV_UNIX_FSYNC:
-    case SRV_UNIX_LITTLESYNC:
-    case SRV_UNIX_O_DIRECT:
-      parallel_dblwr_buf.needs_flush = true;
-      break;
-  }
+  os_file_set_nocache(parallel_dblwr_buf.file, parallel_dblwr_buf.path,
+                      "create");
 
   success = os_file_set_size(parallel_dblwr_buf.path, parallel_dblwr_buf.file,
                              0, size, srv_read_only_mode, true);

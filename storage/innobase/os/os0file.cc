@@ -3591,8 +3591,9 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
 
   } while (retry);
 
-  /* We disable OS caching (O_DIRECT) only on data files. For clone we
-  need to set O_DIRECT even for read_only mode. */
+  /* Do fsync() on log and parallel doublewrite files
+  when setting O_DIRECT fails.
+  See log_io_complete() and buf_dblwr_flush_buffered_writes() */
 
   if ((!read_only || type == OS_CLONE_DATA_FILE) && *success &&
       (type == OS_DATA_FILE || type == OS_CLONE_DATA_FILE) &&
@@ -5781,13 +5782,10 @@ static bool os_file_handle_error_no_exit(const char *name,
 @param[in]	file_name	file name, used in the diagnostic message
 @param[in]	operation_name	"open" or "create"; used in the diagnostic
                                 message
-@param[in]	failure_warning	if true (the default), the failure to disable
-caching is diagnosed at warning severity, and at note severity otherwise
 @return true if operation is success and false */
 bool os_file_set_nocache(int fd MY_ATTRIBUTE((unused)),
                          const char *file_name MY_ATTRIBUTE((unused)),
-                         const char *operation_name MY_ATTRIBUTE((unused)),
-                         bool failure_warning MY_ATTRIBUTE((unused))) {
+                         const char *operation_name MY_ATTRIBUTE((unused))) {
 /* some versions of Solaris may not have DIRECTIO_ON */
 #if defined(UNIV_SOLARIS) && defined(DIRECTIO_ON)
   if (directio(fd, DIRECTIO_ON) == -1) {
@@ -5808,7 +5806,7 @@ bool os_file_set_nocache(int fd MY_ATTRIBUTE((unused)),
       if (!warning_message_printed) {
         warning_message_printed = true;
 #ifdef UNIV_LINUX
-        ib::warn_or_info(ER_IB_MSG_824, failure_warning)
+        ib::warn(ER_IB_MSG_824)
             << "Failed to set O_DIRECT on file" << file_name << "; "
             << operation_name << ": " << strerror(errno_save)
             << ", "
@@ -5824,10 +5822,9 @@ bool os_file_set_nocache(int fd MY_ATTRIBUTE((unused)),
 #ifndef UNIV_LINUX
     short_warning:
 #endif
-      ib::warn_or_info(ER_IB_MSG_825, failure_warning)
-          << "Failed to set O_DIRECT on file " << file_name << "; "
-          << operation_name << " : " << strerror(errno_save)
-          << ", continuing anyway.";
+      ib::warn(ER_IB_MSG_825) << "Failed to set O_DIRECT on file " << file_name
+                              << "; " << operation_name << " : "
+                              << strerror(errno_save) << ", continuing anyway.";
     }
     return false;
   }

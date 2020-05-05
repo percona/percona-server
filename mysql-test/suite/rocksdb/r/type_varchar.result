@@ -406,6 +406,9 @@ pk varchar(64) CHARACTER SET ucs2 COLLATE ucs2_bin,
 col1 varchar(64),
 primary key (pk)
 ) engine=rocksdb;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_bin' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 insert into t1 values ('a','a');
 insert into t1 values ('a ', 'a-space');
 ERROR 23000: Duplicate entry 'a ' for key 't1.PRIMARY'
@@ -443,6 +446,9 @@ col1 varchar(64) CHARACTER SET ucs2 COLLATE ucs2_bin,
 col2 varchar(64),
 key (col1)
 ) engine=rocksdb;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_bin' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 insert into t1 values (0, 'ab', 'a-b');
 insert into t1 values (1, 'a ', 'a-space');
 insert into t1 values (2, 'a',  'a');

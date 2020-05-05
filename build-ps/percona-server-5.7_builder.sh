@@ -728,6 +728,14 @@ build_tarball(){
         fi
     fi
     
+    if [ -f /etc/redhat-release ]; then
+        READLINE_VER_TMP=$(yum list installed|grep -i readline-devel|head -n1|awk '{print $2}'|awk -F "." '{print $1}')
+    else
+        READLINE_VER_TMP=$(dpkg -l|grep -i libreadline-dev|head -n1|awk '{print $3}'|awk -F "." '{print $1}')
+    fi
+    export READLINE_VER=".readline${READLINE_VER_TMP}"
+
+
     build_mecab_lib
     build_mecab_dict
     MECAB_INSTALL_DIR="${WORKDIR}/mecab-install"

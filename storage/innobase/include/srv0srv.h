@@ -2,7 +2,7 @@
 
 Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009, Google Inc.
-Copyright (c) 2009, 2016, Percona Inc.
+Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -364,10 +364,6 @@ extern char *srv_buf_dump_filename;
 and/or load it during startup. */
 extern bool srv_buffer_pool_dump_at_shutdown;
 extern bool srv_buffer_pool_load_at_startup;
-
-/** Path to the parallel doublewrite buffer */
-#define SRV_PARALLEL_DOUBLEWRITE_PATH_DEFAULT "xb_doublewrite"
-extern char *srv_parallel_doublewrite_path;
 
 /* Whether to disable file system cache if it is defined */
 extern bool srv_disable_sort_file_cache;

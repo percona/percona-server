@@ -2,7 +2,6 @@
 
 Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
-Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -3716,14 +3715,7 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
 
       /* Check if the redo log from an older known redo log
       version is from a clean shutdown. */
-      err = recv_log_recover_pre_8_0_4(log, checkpoint_no, checkpoint_lsn);
-
-      if (err == DB_SUCCESS) {
-        buf_parallel_dblwr_finish_recovery();
-        buf_parallel_dblwr_delete();
-      }
-
-      return (err);
+      return (recv_log_recover_pre_8_0_4(log, checkpoint_no, checkpoint_lsn));
 
     default:
       ib::error(ER_IB_MSG_733, ulong{log.format},
@@ -3764,10 +3756,6 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
 
   recovered_lsn = recv_sys->recovered_lsn;
 
-  if (!recv_needed_recovery) {
-    buf_parallel_dblwr_finish_recovery();
-    buf_parallel_dblwr_delete();
-  }
 
   ut_a(recv_needed_recovery || checkpoint_lsn == recovered_lsn);
 

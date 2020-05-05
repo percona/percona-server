@@ -2,7 +2,7 @@
 
 Copyright (c) 1996, 2019, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, Google Inc.
-Copyright (c) 2009, 2016, Percona Inc.
+Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -2533,10 +2533,6 @@ files_checked:
 
     purge_queue = trx_sys_init_at_db_start();
 
-    /* Create the per-buffer pool instance doublewrite buffers */
-    err = buf_parallel_dblwr_create();
-    if (err != DB_SUCCESS) return (srv_init_abort(err));
-
     /* The purge system needs to create the purge view and
     therefore requires that the trx_sys is inited. */
 
@@ -2593,18 +2589,9 @@ files_checked:
 
     err = recv_recovery_from_checkpoint_start(*log_sys, flushed_lsn);
 
-    /* Doublewrite-recovered pages should have been either
-    processed, either it should have been impossible to process
-    them due to a missing tablespace or innodb_force_recovery
-    setting, or server being read-only, or instance being
-    corrupted. */
-    ut_ad(
-        recv_sys->dblwr.pages.empty() || err == DB_TABLESPACE_NOT_FOUND ||
-        (err == DB_SUCCESS && (srv_force_recovery >= SRV_FORCE_NO_LOG_REDO)) ||
-        err == DB_ERROR || err == DB_CORRUPTION || err == DB_READ_ONLY);
-    buf_parallel_dblwr_finish_recovery();
-
     arch_page_sys->post_recovery_init();
+
+    recv_sys->dblwr.pages.clear();
 
     if (err == DB_SUCCESS) {
       /* Initialize the change buffer. */
@@ -2632,9 +2619,6 @@ files_checked:
     if (!srv_read_only_mode) {
       log_start_background_threads(*log_sys);
     }
-
-    err = buf_parallel_dblwr_create();
-    if (err != DB_SUCCESS) return (srv_init_abort(err));
 
     if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
       /* Apply the hashed log records to the
@@ -3655,8 +3639,6 @@ static lsn_t srv_shutdown_log() {
     auto err = fil_write_flushed_lsn(lsn);
     ut_a(err == DB_SUCCESS);
   }
-  buf_parallel_dblwr_destroy();
-
   buf_must_be_all_freed();
   ut_a(lsn == log_get_lsn(*log_sys));
 

@@ -170,3 +170,6 @@ innodb.percona_sys_tablespace_encrypt : BUG#0 Temporary disabled for 8.0.20 merg
 innodb.percona_sys_tablespace_encrypt_dblwr : BUG#0 Temporary disabled for 8.0.20 merge
 sys_vars.innodb_parallel_dblwr_encrypt_basic : BUG#0 Temporary disabled for 8.0.20 merge
 sys_vars.innodb_sys_tablespace_encrypt_basic : BUG#0 Temporary disabled for 8.0.20 merge
+
+sys_vars.innodb_parallel_doublewrite_path_basic : BUG#0 Temporary disabled for 8.0.20 merge
+innodb.percona_doublewrite : BUG#0 Temporary disabled for 8.0.20 merge

@@ -2,7 +2,7 @@
 
 Copyright (c) 2000, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
-Copyright (c) 2009, 2016, Percona Inc.
+Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -798,7 +798,6 @@ static PSI_file_info all_innodb_files[] = {
     PSI_KEY(innodb_data_file, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(innodb_log_file, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(innodb_bmp_file, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(innodb_parallel_dblwrite_file, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(innodb_temp_file, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(innodb_arch_file, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(innodb_clone_file, 0, 0, PSI_DOCUMENT_ME),
@@ -4872,14 +4871,6 @@ static int innodb_init_params() {
   if (!is_filename_allowed(srv_buf_dump_filename, strlen(srv_buf_dump_filename),
                            FALSE)) {
     log_errlog(ERROR_LEVEL, ER_INNODB_ILLEGAL_COLON_IN_POOL);
-    return HA_ERR_INITIALIZATION;
-  }
-
-  if (!is_filename_allowed(srv_parallel_doublewrite_path,
-                           strlen(srv_parallel_doublewrite_path), false)) {
-    sql_print_error(
-        "InnoDB: innodb_parallel_doublewrite_path cannot have "
-        "colon (:) in the file name.");
     return HA_ERR_INITIALIZATION;
   }
 
@@ -22888,7 +22879,7 @@ static MYSQL_SYSVAR_ULONG(
     doublewrite_batch_size, srv_doublewrite_batch_size,
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
     "Number of pages reserved in doublewrite buffer for batch flushing", NULL,
-    NULL, 120, 1, MAX_DOUBLEWRITE_BATCH_SIZE, 0);
+    NULL, 120, 1, 127, 0);
 
 #ifdef UNIV_LINUX
 
@@ -23829,13 +23820,6 @@ static MYSQL_SYSVAR_ENUM(
     "except for the deletion.",
     nullptr, nullptr, 0, &corrupt_table_action_typelib);
 
-static MYSQL_SYSVAR_STR(
-    parallel_doublewrite_path, srv_parallel_doublewrite_path,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-    "Path to the parallel doublewrite file. If a relative path or a filename "
-    "only is given, it's relative to the server data directory.",
-    nullptr, nullptr, SRV_PARALLEL_DOUBLEWRITE_PATH_DEFAULT);
-
 static MYSQL_SYSVAR_UINT(
     compressed_columns_zip_level, srv_compressed_columns_zip_level,
     PLUGIN_VAR_RQCMDARG,
@@ -24129,7 +24113,6 @@ static SYS_VAR *innobase_system_variables[] = {
 #endif /* UNIV_DEBUG */
     MYSQL_SYSVAR(parallel_read_threads),
     MYSQL_SYSVAR(corrupt_table_action),
-    MYSQL_SYSVAR(parallel_doublewrite_path),
     MYSQL_SYSVAR(compressed_columns_zip_level),
     MYSQL_SYSVAR(compressed_columns_threshold),
     MYSQL_SYSVAR(ft_ignore_stopwords),

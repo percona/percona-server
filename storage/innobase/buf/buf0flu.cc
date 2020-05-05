@@ -1209,7 +1209,7 @@ static void buf_flush_write_block_low(buf_page_t *bpage, buf_flush_t flush_type,
     buf_dblwr_write_single_page(bpage, sync);
   } else {
     ut_ad(!sync);
-    buf_dblwr_add_to_batch(bpage, flush_type);
+    buf_dblwr_add_to_batch(bpage);
   }
 
   /* When doing single page flushing the IO is done synchronously
@@ -1347,8 +1347,7 @@ ibool buf_flush_page(buf_pool_t *buf_pool, buf_page_t *bpage,
         /* avoiding deadlock possibility involves
         doublewrite buffer, should flush it, because
         it might hold the another block->lock. */
-        buf_dblwr_flush_buffered_writes(
-            buf_parallel_dblwr_partition(bpage, flush_type));
+        buf_dblwr_flush_buffered_writes();
       } else {
         buf_dblwr_sync_datafiles();
       }
@@ -2018,8 +2017,7 @@ static void buf_flush_end(buf_pool_t *buf_pool, buf_flush_t flush_type,
   mutex_exit(&buf_pool->flush_state_mutex);
 
   if (!srv_read_only_mode && flushed_page_count) {
-    buf_dblwr_flush_buffered_writes(
-        buf_parallel_dblwr_partition(buf_pool, flush_type));
+    buf_dblwr_flush_buffered_writes();
   } else {
     os_aio_simulated_wake_handler_threads();
   }
@@ -2103,7 +2101,7 @@ NOTE: The calling thread is not allowed to own any latches on pages!
 @return true if a batch was queued successfully for each buffer pool
 instance. false if another batch of same type was already running in
 at least one of the buffer pool instance */
-static bool buf_flush_lists(ulint min_n, lsn_t lsn_limit, ulint *n_processed) {
+bool buf_flush_lists(ulint min_n, lsn_t lsn_limit, ulint *n_processed) {
   ulint n_flushed = 0;
   bool success = true;
 
@@ -2169,8 +2167,6 @@ bool buf_flush_single_page_from_LRU(buf_pool_t *buf_pool) {
   ulint scanned;
   buf_page_t *bpage;
   ibool freed;
-
-  ut_ad(srv_empty_free_list_algorithm == SRV_EMPTY_FREE_LIST_LEGACY);
 
   mutex_enter(&buf_pool->LRU_list_mutex);
 
@@ -3339,8 +3335,9 @@ static void buf_flush_page_cleaner_thread() {
   }
 }
 
-/** Signal the page cleaner to flush and wait until it and the LRU manager
-clean the buffer pool. */
+/** Synchronously flush dirty blocks from the end of the flush list of all
+ buffer pool instances. NOTE: The calling thread is not allowed to own any
+ latches on pages! */
 void buf_flush_sync_all_buf_pools(void) {
   bool success;
   ulint n_pages;

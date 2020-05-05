@@ -711,15 +711,18 @@ build_tarball(){
     export CFLAGS=$(rpm --eval %{optflags} | sed -e "s|march=i386|march=i686|g")
     export CXXFLAGS="${CFLAGS}"
     if [ -f /etc/redhat-release ]; then
+        READLINE_VER_TMP=$(yum list installed|grep -i readline-devel|head -n1|awk '{print $2}'|awk -F "." '{print $1}')
         SSL_VER_TMP=$(yum list installed|grep -i openssl|head -n1|awk '{print $2}'|awk -F "-" '{print $1}'|sed 's/\.//g'|sed 's/[a-z]$//' | awk -F':' '{print $2}')
         if [ -z "${SSL_VER_TMP}" ]; then
             SSL_VER_TMP=$(yum list installed|grep -i openssl|head -n1|awk '{print $2}'|awk -F "-" '{print $1}'|sed 's/\.//g'|sed 's/[a-z]$//')
         fi
         export SSL_VER=".ssl${SSL_VER_TMP}"
     else
+        READLINE_VER_TMP=$(dpkg -l|grep -i libreadline-dev|head -n1|awk '{print $3}'|awk -F "." '{print $1}')
         SSL_VER_TMP=$(dpkg -l|grep -i libssl|grep -v "libssl\-"|head -n1|awk '{print $2}'|awk -F ":" '{print $1}'|sed 's/libssl/ssl/g'|sed 's/\.//g')
         export SSL_VER=".${SSL_VER_TMP}"
     fi
+    export READLINE_VER=".readline${READLINE_VER_TMP}"
 
     build_mecab_lib
     build_mecab_dict

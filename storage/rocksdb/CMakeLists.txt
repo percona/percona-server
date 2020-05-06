@@ -35,6 +35,18 @@ IF ((CMAKE_CXX_COMPILER_ID STREQUAL GNU) AND
   RETURN ()
 ENDIF ()
 
+# Suppress warnings for gcc-9
+IF(CMAKE_COMPILER_IS_GNUCXX AND
+   (CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL 9.0 OR CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 9.0))
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-copy -Wno-redundant-move -Wno-pessimizing-move -Wno-sign-compare")
+ENDIF()
+
+# Suppress warnings for clang-8
+IF((CMAKE_CXX_COMPILER_ID MATCHES "Clang") AND
+   (CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL 8.0 OR CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 8.0))
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-defaulted-function-deleted")
+ENDIF()
+
 # Relax unused variable warnings for release modes
 MY_CHECK_CXX_COMPILER_FLAG("-Wunused-variable" HAVE_UNUSED_VARIABLE)
 IF(HAVE_UNUSED_VARIABLE)

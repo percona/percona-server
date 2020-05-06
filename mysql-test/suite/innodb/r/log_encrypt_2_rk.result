@@ -21,15 +21,15 @@ INSERT INTO t1 VALUES(6, "ggggg");
 INSERT INTO t1 VALUES(7, "hhhhh");
 INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
 SELECT * FROM t1 LIMIT 10;
 c1	c2
 0	aaaaa
@@ -54,6 +54,9 @@ c1	c2
 7	hhhhh
 8	iiiii
 9	jjjjj
+SELECT rotate_system_key("percona_redo");
+rotate_system_key("percona_redo")
+1
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
@@ -67,15 +70,15 @@ INSERT INTO t1 VALUES(6, "ggggg");
 INSERT INTO t1 VALUES(7, "hhhhh");
 INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
 # Kill and restart:<hidden args>
 SELECT * FROM t1 LIMIT 10;
 c1	c2
@@ -89,6 +92,7 @@ c1	c2
 7	hhhhh
 8	iiiii
 9	jjjjj
+INSERT INTO t1 SELECT * FROM t1;
 DROP TABLE t1;
 SET block_encryption_mode = 'aes-256-cbc';
 CREATE DATABASE tde_db;

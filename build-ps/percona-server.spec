@@ -123,7 +123,7 @@
 %global license_files_server  %{src_dir}/LICENSE.mysql
 %global license_type          Commercial
 %else
-%global license_files_server  %{src_dir}/COPYING %{src_dir}/README
+%global license_files_server  %{src_dir}/README
 %global license_type          GPLv2
 %endif
 
@@ -259,6 +259,7 @@ Group:          Applications/Databases
 Provides:       mysql-devel = %{version}-%{release}
 Provides:       mysql-devel%{?_isa} = %{version}-%{release}
 Conflicts:      Percona-SQL-devel-50 Percona-Server-devel-51 Percona-Server-devel-55 Percona-Server-devel-56
+Obsoletes:      mariadb-connector-c-devel
 %if 0%{?rhel} > 6
 Obsoletes:      mariadb-devel
 %endif
@@ -960,8 +961,6 @@ fi
 %attr(755, root, root) %{_bindir}/mysqlpump
 %attr(755, root, root) %{_bindir}/mysqlshow
 %attr(755, root, root) %{_bindir}/mysqlslap
-%attr(755, root, root) %{_bindir}/mysql_config
-%attr(755, root, root) %{_bindir}/mysql_config-%{__isa_bits}
 %attr(755, root, root) %{_bindir}/mysql_config_editor
 
 %attr(644, root, root) %{_mandir}/man1/mysql.1*

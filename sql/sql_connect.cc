@@ -2,13 +2,20 @@
    Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -162,7 +169,7 @@ void free_user_stats(USER_STATS* user_stats)
 }
 
 /* Free all memory for a my_hash table with THREAD_STATS entries */
-void free_thread_stats(THREAD_STATS* thread_stats)
+static void free_thread_stats(THREAD_STATS* thread_stats)
 {
   my_free((char *) thread_stats);
 }
@@ -198,8 +205,8 @@ void init_user_stats(USER_STATS *user_stats,
   DBUG_PRINT("info",
              ("Add user_stats entry for user %s - priv_user %s",
               user, priv_user));
-  strncpy(user_stats->user, user, sizeof(user_stats->user));
-  strncpy(user_stats->priv_user, priv_user, sizeof(user_stats->priv_user));
+  my_strncpy_trunc(user_stats->user, user, sizeof(user_stats->user));
+  my_strncpy_trunc(user_stats->priv_user, priv_user, sizeof(user_stats->priv_user));
 
   user_stats->user_len=               strlen(user_stats->user);
   user_stats->priv_user_len=          strlen(user_stats->priv_user);
@@ -313,7 +320,7 @@ void init_global_thread_stats(void)
 		   (my_hash_free_key) free_thread_stats, 0,
 		   key_memory_userstat_thread_stats))
   {
-    sql_print_error("Initializing global_client_stats failed.");
+    sql_print_error("Initializing global_thread_stats failed.");
     exit(1);
   }
 }

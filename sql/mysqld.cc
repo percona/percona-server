@@ -1,13 +1,20 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -42,6 +49,11 @@
 #endif
 #ifdef HAVE_ARPA_INET_H
 # include <arpa/inet.h>
+#endif
+
+#include <sys/types.h>
+#ifdef HAVE_SYS_MMAN_H
+#include <sys/mman.h>
 #endif
 
 #include "sql_parse.h"    // test_if_data_home_dir
@@ -147,7 +159,7 @@
 #include "item_strfunc.h"               // Item_func_uuid
 #include "handler.h"
 
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
 #include <openssl/crypto.h>
 #endif
 
@@ -166,11 +178,6 @@ using std::max;
 using std::vector;
 
 #define mysqld_charset &my_charset_latin1
-
-#if defined(HAVE_SOLARIS_LARGE_PAGES) && defined(__GNUC__)
-extern "C" int getpagesizes(size_t *, int);
-extern "C" int memcntl(caddr_t, size_t, int, caddr_t, int, int);
-#endif
 
 #ifdef HAVE_FPU_CONTROL_H
 # include <fpu_control.h>
@@ -785,7 +792,7 @@ static char **remaining_argv;
 int orig_argc;
 char **orig_argv;
 
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
 bool init_rsa_keys(void);
 void deinit_rsa_keys(void);
 int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff);
@@ -3630,7 +3637,6 @@ int warn_self_signed_ca()
     if (warn_one(opt_ssl_ca))
       return 1;
   }
-#ifndef HAVE_YASSL
   if (opt_ssl_capath && opt_ssl_capath[0])
   {
     /* We have ssl-capath. So search all files in the dir */
@@ -3668,7 +3674,6 @@ int warn_self_signed_ca()
     ca_dir= 0;
     memset(&file_path, 0, sizeof(file_path));
   }
-#endif /* HAVE_YASSL */
   return ret_val;
 }
 
@@ -3677,7 +3682,6 @@ int warn_self_signed_ca()
 static int init_ssl()
 {
 #ifdef HAVE_OPENSSL
-#ifndef HAVE_YASSL
   int fips_mode= FIPS_mode();
   if (fips_mode != 0)
   {
@@ -3692,7 +3696,6 @@ static int init_ssl()
 #else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   OPENSSL_malloc_init();
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-#endif
   ssl_start();
 #ifndef EMBEDDED_LIBRARY
 
@@ -3704,10 +3707,8 @@ static int init_ssl()
                             "Trying to enable SSL support using them.",
                             DEFAULT_SSL_CA_CERT, DEFAULT_SSL_SERVER_CERT,
                             DEFAULT_SSL_SERVER_KEY);
-#ifndef HAVE_YASSL
     if (do_auto_cert_generation(auto_detection_status) == false)
       return 1;
-#endif
 
     enum enum_ssl_init_error error= SSL_INITERR_NOERROR;
     long ssl_ctx_flags= process_tls_version(opt_tls_version);
@@ -3726,26 +3727,10 @@ static int init_ssl()
         No real need for opt_use_ssl to be enabled in bootstrap mode,
         but we want the SSL materal generation and/or validation (if supplied).
         So we keep it on.
-
-        For yaSSL (since it can't auto-generate the certs from inside the
-        server) we need to hush the warning if in bootstrap mode, as in
-        that mode the server won't be listening for connections and thus
-        the lack of SSL material makes no real difference.
-        However if the user specified any of the --ssl options we keep the
-        warning as it's showing problems with the values supplied.
-
-        For openssl, we don't hush the option since it would indicate a failure
-        in auto-generation, bad key material explicitly specified or
-        auto-generation disabled explcitly while SSL is still on.
       */
-#ifdef HAVE_YASSL
-      if (!opt_bootstrap || SSL_ARTIFACTS_NOT_FOUND != auto_detection_status)
-#endif
-      {
-        sql_print_warning("Failed to set up SSL because of the"
-                          " following SSL library error: %s",
-                          sslGetErrString(error));
-      }
+      sql_print_warning("Failed to set up SSL because of the"
+                        " following SSL library error: %s",
+                        sslGetErrString(error));
       opt_use_ssl = 0;
       have_ssl= SHOW_OPTION_DISABLED;
     }
@@ -3768,10 +3753,8 @@ static int init_ssl()
 #endif /* ! EMBEDDED_LIBRARY */
   if (des_key_file)
     load_des_key_file(des_key_file);
-#ifndef HAVE_YASSL
   if (init_rsa_keys())
     return 1;
-#endif
 #endif /* HAVE_OPENSSL */
   return 0;
 }
@@ -3789,9 +3772,7 @@ static void end_ssl()
     ssl_acceptor_fd= 0;
   }
 #endif /* ! EMBEDDED_LIBRARY */
-#ifndef HAVE_YASSL
   deinit_rsa_keys();
-#endif
 #endif /* HAVE_OPENSSL */
 }
 
@@ -4041,8 +4022,9 @@ initialize_storage_engine(char *se_name, const char *se_kind,
       Need to unlock as global_system_variables.table_plugin
       was acquired during plugin_init()
     */
-    plugin_unlock(0, *dest_plugin);
-    *dest_plugin= plugin;
+    plugin_ref old_dest_plugin = *dest_plugin;
+    *dest_plugin = plugin;
+    plugin_unlock(0, old_dest_plugin);
   }
   return false;
 }
@@ -4139,9 +4121,6 @@ static int init_server_components()
     if (open_error_log(errorlog_filename_buff, false))
       unireg_abort(MYSQLD_ABORT_EXIT);
 
-#ifdef _WIN32
-    FreeConsole();        // Remove window
-#endif
   }
   else
   {
@@ -7090,16 +7069,6 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff)
 }
 
 
-#ifdef HAVE_YASSL
-
-static char *
-my_asn1_time_to_string(ASN1_TIME *time, char *buf, size_t len)
-{
-  return yaSSL_ASN1_TIME_to_string(time, buf, len);
-}
-
-#else /* openssl */
-
 static char *
 my_asn1_time_to_string(ASN1_TIME *time, char *buf, size_t len)
 {
@@ -7125,8 +7094,6 @@ end:
   BIO_free(bio);
   return res;
 }
-
-#endif
 
 
 /**
@@ -7211,7 +7178,8 @@ show_ssl_get_server_not_after(THD *thd, SHOW_VAR *var, char *buff)
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
 
 #ifdef HAVE_POOL_OF_THREADS
-int show_threadpool_idle_threads(THD *thd, SHOW_VAR *var, char *buff)
+static int
+show_threadpool_idle_threads(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_INT;
   var->value= buff;
@@ -7376,9 +7344,7 @@ SHOW_VAR status_vars[]= {
   {"Ssl_version",              (char*) &show_ssl_get_version,                          SHOW_FUNC,              SHOW_SCOPE_ALL},
   {"Ssl_server_not_before",    (char*) &show_ssl_get_server_not_before,                SHOW_FUNC,              SHOW_SCOPE_ALL},
   {"Ssl_server_not_after",     (char*) &show_ssl_get_server_not_after,                 SHOW_FUNC,              SHOW_SCOPE_ALL},
-#ifndef HAVE_YASSL
   {"Rsa_public_key",           (char*) &show_rsa_public_key,                           SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
-#endif
 #endif
 #endif /* HAVE_OPENSSL */
   {"Table_locks_immediate",    (char*) &locks_immediate,                               SHOW_LONG,              SHOW_SCOPE_GLOBAL},
@@ -7774,11 +7740,6 @@ mysqld_get_one_option(int optid,
       One can disable SSL later by using --skip-ssl or --ssl=0.
     */
     opt_use_ssl= true;
-#ifdef HAVE_YASSL
-    /* crl has no effect in yaSSL. */
-    opt_ssl_crl= NULL;
-    opt_ssl_crlpath= NULL;
-#endif /* HAVE_YASSL */   
     break;
 #endif /* HAVE_OPENSSL */
 #ifndef EMBEDDED_LIBRARY
@@ -8217,11 +8178,6 @@ mysql_getopt_value(const char *keyname, size_t key_length,
 }
 
 C_MODE_END
-
-/* defined in sys_vars.cc */
-extern void init_log_slow_verbosity();
-extern void init_slow_query_log_use_global_control();
-extern void init_log_slow_sp_statements();
 
 /**
   Ensure all the deprecared options with 1 possible value are
@@ -9193,6 +9149,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_RELAYLOG_LOCK_xids, "MYSQL_RELAY_LOG::LOCK_xids", 0},
   { &key_hash_filo_lock, "hash_filo::lock", 0},
   { &Gtid_set::key_gtid_executed_free_intervals_mutex, "Gtid_set::gtid_executed::free_intervals_mutex", 0 },
+  { &key_LOCK_bloom_filter, "Bloom_filter", 0},
   { &key_LOCK_crypt, "LOCK_crypt", PSI_FLAG_GLOBAL},
   { &key_LOCK_error_log, "LOCK_error_log", PSI_FLAG_GLOBAL},
   { &key_LOCK_global_user_client_stats,

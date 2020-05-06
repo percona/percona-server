@@ -1,8 +1,11 @@
 CREATE DATABASE tde_db;
 USE tde_db;
 SET GLOBAL innodb_redo_log_encrypt = KEYRING_KEY;
+Warnings:
+Warning	11008	InnoDB: Redo log cannot be encrypted if the keyring plugin is not loaded.
 SHOW WARNINGS;
 Level	Code	Message
+Warning	11008	InnoDB: Redo log cannot be encrypted if the keyring plugin is not loaded.
 CREATE TABLE tde_db.t4 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
 INSERT INTO t4 (a, b) VALUES (1, REPEAT('a', 6*512*512));
 SELECT a,LEFT(b,10) FROM tde_db.t4;
@@ -19,7 +22,7 @@ USE tde_db;
 # Starting server with keyring plugin
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-keyring_key
+KEYRING_KEY
 INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
 ERROR HY000: Function 'keyring_file' already exists
 UNINSTALL PLUGIN keyring_file;
@@ -27,17 +30,17 @@ UNINSTALL PLUGIN keyring_file;
 SET GLOBAL innodb_redo_log_encrypt = 0;
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-off
+OFF
 INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
 ERROR HY000: Function 'keyring_file' already exists
 UNINSTALL PLUGIN keyring_file;
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-keyring_key
-SET GLOBAL innodb_redo_log_encrypt = 1;
+KEYRING_KEY
+SET GLOBAL innodb_redo_log_encrypt = KEYRING_KEY;
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-master_key
+KEYRING_KEY
 CREATE TABLE tde_db.t1 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
 INSERT INTO t1 (a, b) VALUES (1, REPEAT('a', 6*512*512));
 SELECT a,LEFT(b,10) FROM tde_db.t1;
@@ -52,7 +55,7 @@ a	LEFT(b,10)
 SET GLOBAL innodb_redo_log_encrypt = 0;
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-off
+OFF
 CREATE TABLE tde_db.t3 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
 INSERT INTO t3 (a, b) VALUES (1, REPEAT('a', 6*512*512));
 SELECT a,LEFT(b,10) FROM tde_db.t3;
@@ -80,12 +83,12 @@ a	LEFT(b,10)
 DROP TABLE tde_db.t1,tde_db.t2,tde_db.t3,tde_db.t4;
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-off
+OFF
 CREATE TABLE tde_db.t1 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
 CREATE TABLE tde_db.t2 (a BIGINT PRIMARY KEY, b LONGBLOB)
 ENCRYPTION='Y' ENGINE=InnoDB;
 START TRANSACTION;
-SET GLOBAL innodb_redo_log_encrypt = 1;
+SET GLOBAL innodb_redo_log_encrypt = KEYRING_KEY;
 INSERT INTO t1 (a, b) VALUES (1, REPEAT('a', 6*512*512));
 INSERT INTO t2 (a, b) VALUES (1, REPEAT('a', 6*512*512));
 SELECT a,LEFT(b,10) FROM tde_db.t1;
@@ -112,7 +115,7 @@ START TRANSACTION;
 SET GLOBAL innodb_redo_log_encrypt = 0;
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-off
+OFF
 INSERT INTO t3 (a, b) VALUES (1, REPEAT('a', 6*512*512));
 INSERT INTO t4 (a, b) VALUES (1, REPEAT('a', 6*512*512));
 SELECT a,LEFT(b,10) FROM tde_db.t3;
@@ -154,7 +157,7 @@ a	LEFT(b,10)
 SET GLOBAL innodb_redo_log_encrypt = 0;
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-off
+OFF
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 SELECT a,LEFT(b,10) FROM tde_db.t1;
 a	LEFT(b,10)
@@ -171,7 +174,7 @@ a	LEFT(b,10)
 SET GLOBAL innodb_redo_log_encrypt = KEYRING_KEY;
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-keyring_key
+KEYRING_KEY
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 SELECT a,LEFT(b,10) FROM tde_db.t1;
 a	LEFT(b,10)
@@ -191,17 +194,17 @@ FLUSH PRIVILEGES;
 # In connection 1 - with encryptnonprivuser
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-keyring_key
+KEYRING_KEY
 SET GLOBAL innodb_redo_log_encrypt = 0;
 ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-keyring_key
+KEYRING_KEY
 SET GLOBAL innodb_redo_log_encrypt = KEYRING_KEY;
 ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-keyring_key
+KEYRING_KEY
 # In connection default
 UNINSTALL PLUGIN keyring_file;
 DROP TABLE tde_db.t1,tde_db.t2,tde_db.t3,tde_db.t4;

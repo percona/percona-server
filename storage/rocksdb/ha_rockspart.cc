@@ -117,3 +117,12 @@ const char **ha_rockspart::bas_ext() const {
   static const char *null_ext = nullptr;
   return &null_ext;
 }
+
+/** Get partition row type
+@param[in] Id of partition for which row type to be retrieved
+@return Partition row type */
+enum row_type ha_rockspart::get_partition_row_type(
+        uint part_id)
+{
+  return get_row_type();
+}

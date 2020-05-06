@@ -10,14 +10,21 @@ documentation. The contributions by Percona Inc. are incorporated with
 their permission, and subject to the conditions contained in the file
 COPYING.Percona.
 
-This program is free software; you can redistribute it and/or modify it
-under the terms of the GNU General Public License as published by the
-Free Software Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
-Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -355,6 +362,10 @@ static const char ENCRYPTION_KEY_MAGIC_V1[] = "lCA";
 version. */
 static const char ENCRYPTION_KEY_MAGIC_V2[] = "lCB";
 
+/** Encryption magic bytes for 5.7.28+, it's for checking the encryption information
+version. */
+static const char ENCRYPTION_KEY_MAGIC_V3[] = "lCC";
+
 static const char ENCRYPTION_KEY_MAGIC_PS_V1[] = "PSA";
 
 /** Encryption magic bytes for rotated redo log encryption, it's for checking the 
@@ -433,6 +444,9 @@ struct Encryption {
 
 		/** Version in > 5.7.11 */
 		ENCRYPTION_VERSION_2 = 1,
+
+		/** Version in > 5.7.29 */
+		ENCRYPTION_VERSION_3 = 2,
 	};
 
 	/** Default constructor */
@@ -2194,11 +2208,8 @@ future.
 @param[in]	advice	advice for access pattern
 @return true if success */
 bool
-os_file_advise(
-	pfs_os_file_t   file,   /*!< in, own: handle to a file */
-	os_offset_t     offset, /*!< in: file region offset  */
-	os_offset_t     len,    /*!< in: file region length  */
-	ulint		advice);/*!< in: advice for access pattern */
+os_file_advise(pfs_os_file_t file, os_offset_t offset, os_offset_t len,
+               ulint advice);
 
 /** Gets a file size.
 @param[in]	file		handle to a file

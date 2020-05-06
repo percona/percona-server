@@ -1,2 +1,3 @@
 --max_allowed_packet=1M
 --slave_max_allowed_packet=1G
+--master-retry-count=0

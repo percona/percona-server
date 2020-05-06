@@ -186,7 +186,6 @@ static int  create_worker(thread_group_t *thread_group);
 static void *worker_main(void *param);
 static void check_stall(thread_group_t *thread_group);
 static void connection_abort(connection_t *connection);
-void tp_post_kill_notification(THD *thd);
 static void set_wait_timeout(connection_t *connection);
 static void set_next_timeout_check(ulonglong abstime);
 static void print_pool_blocked_message(bool);
@@ -1345,7 +1344,8 @@ bool Thread_pool_connection_handler::add_connection(Channel_info *channel_info)
 
   if (unlikely(!connection))
   {
-    thd->get_protocol_classic()->end_net();
+    // channel will be closed by send_error_and_close_channel()
+    thd->get_protocol_classic()->get_vio()->inactive= TRUE;
     delete thd;
     channel_info->send_error_and_close_channel(ER_OUT_OF_RESOURCES, 0, false);
     DBUG_RETURN(true);

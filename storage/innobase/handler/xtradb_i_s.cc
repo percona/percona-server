@@ -795,7 +795,7 @@ static
 int
 xtradb_i_s_dict_fill_sys_zip_dict_cols(
 	THD*		thd,		/*!< in: thread */
-	ulint		table_id,	/*!< in: table ID */
+	table_id_t	table_id,	/*!< in: table ID */
 	ulint		column_pos,	/*!< in: column position */
 	ulint		dict_id,	/*!< in: dict ID */
 	TABLE*		table_to_fill)	/*!< in/out: fill this table */
@@ -847,7 +847,7 @@ xtradb_i_s_sys_zip_dict_cols_fill_table(
 
 	while (rec) {
 		const char*	err_msg;
-		ulint table_id;
+		table_id_t table_id;
 		ulint column_pos;
 		ulint dict_id;
 

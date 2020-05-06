@@ -1,14 +1,22 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -3302,6 +3310,17 @@ ha_innopart::records_in_range(
 	DBUG_ENTER("ha_innopart::records_in_range");
 	DBUG_PRINT("info", ("keynr %u min %p max %p", keynr, min_key, max_key));
 
+	ha_rows ret = innodb_records_in_range(ha_thd());
+	if (ret) {
+		DBUG_RETURN(ret);
+	}
+	if (table->force_index) {
+		const ha_rows force_rows = innodb_force_index_records_in_range(ha_thd());
+		if (force_rows) {
+			DBUG_RETURN(force_rows);
+		}
+	}
+
 	ut_a(m_prebuilt->trx == thd_to_trx(ha_thd()));
 
 	m_prebuilt->trx->op_info = (char*)"estimating records in index range";
@@ -4372,6 +4391,16 @@ ha_innopart::get_auto_increment(
 		first_value,
 		nb_reserved_values);
 	DBUG_VOID_RETURN;
+}
+
+/** Get partition row type
+@param[in] Id of partition for which row type to be retrieved
+@return Partition row type */
+enum row_type ha_innopart::get_partition_row_type(
+        uint part_id)
+{
+	set_partition(part_id);
+	return get_row_type();
 }
 
 /** Compares two 'refs'.

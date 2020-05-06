@@ -1,13 +1,20 @@
 /* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software Foundation,
@@ -319,7 +326,7 @@
   @c mysql_unix_socket_connect connects to the unix domain socket.
 */
 #ifndef __WIN__
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_FILE_INTERFACE
   #define mysql_unix_socket_connect(K, N, F) \
     inline_mysql_unix_socket_connect(K, __FILE__, __LINE__, N, F)
 #else
@@ -1084,28 +1091,27 @@ inline_mysql_file_open(
 #ifndef __WIN__
 static inline File
 inline_mysql_unix_socket_connect(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_FILE_INTERFACE
   PSI_file_key key, const char *src_file, uint src_line,
 #endif
   const char *filename, myf myFlags)
 {
   File file;
-#ifdef HAVE_PSI_INTERFACE
-  struct PSI_file_locker *locker= NULL;
+#ifdef HAVE_PSI_FILE_INTERFACE
+  struct PSI_file_locker *locker;
   PSI_file_locker_state state;
-  if (likely(PSI_server != NULL))
+  locker= PSI_FILE_CALL(get_thread_file_name_locker)
+    (&state, key, PSI_FILE_OPEN, filename, &locker);
+  if (likely(locker != NULL))
   {
-    locker= PSI_server->get_thread_file_name_locker(&state, key, PSI_FILE_OPEN,
-                                                    filename, &locker);
-    if (likely(locker != NULL))
-      PSI_server->start_file_open_wait(locker, src_file, src_line);
+    PSI_FILE_CALL(start_file_open_wait)(locker, src_file, src_line);
+    file= my_unix_socket_connect(filename, myFlags);
+    PSI_FILE_CALL(end_file_open_wait_and_bind_to_descriptor)(locker, file);
+    return file;
   }
 #endif
-  file = my_unix_socket_connect(filename, myFlags);
-#ifdef HAVE_PSI_INTERFACE
-  if (likely(locker != NULL))
-    PSI_server->end_file_open_wait_and_bind_to_descriptor(locker, file);
-#endif
+
+  file= my_unix_socket_connect(filename, myFlags);
   return file;
 }
 #endif

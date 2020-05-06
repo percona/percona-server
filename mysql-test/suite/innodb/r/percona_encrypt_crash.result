@@ -1,0 +1,20 @@
+#
+# PS-5791 : crash recovery bug ut_dbg_assertion_failed "encryption.m_type == Encryption::AES"
+#
+CREATE TABLE  t1 ( c0 INT(66) AUTO_INCREMENT,  c1 CHAR(30),  c2 INT,  c3 INT,  c4 INT,  c5 INT,  c6 INT, INDEX tt_10_pi0(c2, c1 DESC, c3, c0 ASC), INDEX tt_10_pi1(c0, c2 ASC, c1), INDEX tt_10_pi2(c2, c3 ASC, c1 DESC, c0 ASC) ) ENCRYPTION='Y' ROW_FORMAT=COMPRESSED ENGINE=INNODB;
+INSERT INTO t1  ( c0 ,c1 ,c2 ,c3 ,c4 ,c5 ,c6 ) VALUES( NULL, '3lazDfSvHi5tZwJz4ty', 58681, 41060, 1443, 81905, 95283 );
+INSERT INTO t1  ( c0 ,c1 ,c2 ,c3 ,c4 ,c5 ,c6 ) VALUES( 22809, 'eroroeGp1shzGoGjNpPcbbcaePtyCA', 44355, 91818, 16660, 33917, 12727 );
+SET GLOBAL innodb_buf_flush_list_now=ON;
+SET GLOBAL innodb_log_checkpoint_now=ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug=true;
+SET GLOBAL innodb_master_thread_disabled_debug=true;
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+INSERT INTO t1  ( c0 ,c1 ,c2 ,c3 ,c4 ,c5 ,c6 ) VALUES( 27906, 'YyjVvM736Yv6DypI', 52002, 51934, 41805, 94851, 1200 );
+# Kill and restart
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+3
+DROP TABLE t1;

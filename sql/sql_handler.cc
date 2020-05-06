@@ -1,13 +1,20 @@
-/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
@@ -380,6 +387,15 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *hash_tables)
   */
   hash_tables->table->open_by_handler= 1;
 
+  /*
+    Generated column expressions have been resolved using the MEM_ROOT of the
+    current HANDLER statement, which is cleared when the statement has finished.
+    Clean up the expressions so that subsequent HANDLER ... READ calls don't
+    access data allocated on a cleared MEM_ROOT. The generated column
+    expressions have to be re-resolved on each HANDLER ... READ call.
+  */
+  hash_tables->table->cleanup_gc_items();
+
   DBUG_PRINT("exit",("OK"));
   DBUG_RETURN(FALSE);
 }
@@ -679,6 +695,14 @@ retry:
 
   table->file->init_table_handle_for_HANDLER();
 
+  /*
+    Resolve the generated column expressions. They have to be cleaned up before
+    returning, since the resolved expressions may point to memory allocated on
+    the MEM_ROOT of the current HANDLER ... READ statement, which will be
+    cleared when the statement has completed.
+  */
+  if (table->refix_gc_items(thd)) goto err;
+
   for (num_rows=0; num_rows < select_limit_cnt; )
   {
     switch (mode) {
@@ -845,6 +869,7 @@ ok:
   trans_commit_stmt(thd);
   mysql_unlock_tables(thd,lock);
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
+  table->cleanup_gc_items();
   my_eof(thd);
   DBUG_PRINT("exit",("OK"));
   DBUG_RETURN(FALSE);
@@ -852,6 +877,7 @@ ok:
 err:
   trans_rollback_stmt(thd);
   mysql_unlock_tables(thd,lock);
+  table->cleanup_gc_items();
 err1:
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
 err0:

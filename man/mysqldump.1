@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/17/2019
+.\"      Date: 03/23/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "12/17/2019" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "03/23/2020" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -292,7 +292,8 @@ shell> \fBmysqldump [options] \-\-result\-file=dump\&.sql\fR
 .\}
 .sp .5v
 .RE
-Performance and Scalability Considerations.PP
+Performance and Scalability Considerations
+.PP
 mysqldump
 advantages include the convenience and flexibility of viewing or even editing the output before restoring\&. You can clone databases for development and DBA work, or produce slight variations of an existing database for testing\&. It is not intended as a fast or scalable solution for backing up substantial amounts of data\&. With large data sizes, even if the backup step takes a reasonable time, restoring the data can be very slow because replaying the SQL statements involves disk I/O for insertion, index creation, and so on\&.
 .PP
@@ -348,7 +349,8 @@ option\&.
 For additional information about
 \fBmysqldump\fR, see
 Section\ \&7.4, \(lqUsing mysqldump for Backups\(rq\&.
-Invocation Syntax.PP
+Invocation Syntax
+.PP
 There are in general three ways to use
 \fBmysqldump\fR\(emin order to dump a set of one or more tables, a set of one or more complete databases, or an entire MySQL server\(emas shown here:
 .sp
@@ -375,7 +377,8 @@ To see a list of the options your version of
 \fBmysqldump\fR
 supports, issue the command
 \fBmysqldump \-\-help\fR\&.
-Option Syntax \- Alphabetical Summary.PP
+Option Syntax \- Alphabetical Summary
+.PP
 \fBmysqldump\fR
 supports the following options, which can be specified on the command line or in the
 [mysqldump]
@@ -383,7 +386,8 @@ and
 [client]
 groups of an option file\&. For information about option files used by MySQL programs, see
 Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
-Connection Options.PP
+Connection Options
+.PP
 The
 \fBmysqldump\fR
 command logs into a MySQL server to extract information\&. The following options specify how to connect to the MySQL server, either on the same machine or a remote system\&.
@@ -745,7 +749,8 @@ This option was added in MySQL 5\&.7\&.10\&.
 .sp
 The user name of the MySQL account to use for connecting to the server\&.
 .RE
-Option\-File Options.PP
+Option\-File Options
+.PP
 These options are used to control which option files to read\&.
 .sp
 .RS 4
@@ -862,7 +867,8 @@ Print the program name and all options that it gets from option files\&.
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
-DDL Options.PP
+DDL Options
+.PP
 Usage scenarios for
 \fBmysqldump\fR
 include setting up an entire new MySQL instance (including database tables), and replacing data inside an existing instance with existing databases and tables\&. The following options let you specify which things to tear down and set up when restoring a dump, by encoding various DDL statements within the dump file\&.
@@ -1033,7 +1039,8 @@ statements rather than
 INSERT
 statements\&.
 .RE
-Debug Options.PP
+Debug Options
+.PP
 The following options print debugging information, encode debugging information in the dump file, or let the dump operation proceed regardless of potential problems\&.
 .sp
 .RS 4
@@ -1080,6 +1087,11 @@ Write a debugging log\&. A typical
 string is
 d:t:o,\fIfile_name\fR\&. The default value is
 d:t:o,/tmp/mysqldump\&.trace\&.
+.sp
+This option is available only if MySQL was built using
+\fBWITH_DEBUG\fR\&. MySQL release binaries provided by Oracle are
+\fInot\fR
+built using this option\&.
 .RE
 .sp
 .RS 4
@@ -1093,6 +1105,11 @@ d:t:o,/tmp/mysqldump\&.trace\&.
 \fB\-\-debug\-check\fR
 .sp
 Print some debugging information when the program exits\&.
+.sp
+This option is available only if MySQL was built using
+\fBWITH_DEBUG\fR\&. MySQL release binaries provided by Oracle are
+\fInot\fR
+built using this option\&.
 .RE
 .sp
 .RS 4
@@ -1106,6 +1123,11 @@ Print some debugging information when the program exits\&.
 \fB\-\-debug\-info\fR
 .sp
 Print debugging information and memory and CPU usage statistics when the program exits\&.
+.sp
+This option is available only if MySQL was built using
+\fBWITH_DEBUG\fR\&. MySQL release binaries provided by Oracle are
+\fInot\fR
+built using this option\&.
 .RE
 .sp
 .RS 4
@@ -1216,7 +1238,8 @@ option\&.
 .sp
 Verbose mode\&. Print more information about what the program does\&.
 .RE
-Help Options.PP
+Help Options
+.PP
 The following options display information about the
 \fBmysqldump\fR
 command itself\&.
@@ -1248,7 +1271,8 @@ Display a help message and exit\&.
 .sp
 Display version information and exit\&.
 .RE
-Internationalization Options.PP
+Internationalization Options
+.PP
 The following options change how the
 \fBmysqldump\fR
 command represents character data with national language settings\&.
@@ -1320,7 +1344,8 @@ SET NAMES
 statement, use
 \fB\-\-skip\-set\-charset\fR\&.
 .RE
-Replication Options.PP
+Replication Options
+.PP
 The
 \fBmysqldump\fR
 command is frequently used to create an empty instance, or an instance including data, on a slave server in a replication configuration\&. The following options apply to dumping and restoring data on replication master and slave servers\&.
@@ -1630,7 +1655,8 @@ issues DML instructions for the system tables which use the non\-transactional M
 .sp .5v
 .RE
 .RE
-Format Options.PP
+Format Options
+.PP
 The following options specify how to represent the entire dump file or certain kinds of data in the dump file\&. They also control whether certain optional information is written to the dump file\&.
 .sp
 .RS 4
@@ -2015,7 +2041,8 @@ Collation="latin1_swedish_ci" Create_options="" Comment="" />
 .RE
 .\}
 .RE
-Filtering Options.PP
+Filtering Options
+.PP
 The following options control which kinds of schema objects are written to the dump file: by category, such as triggers or events; by name, for example, choosing which databases and tables to dump; or even filtering rows from the table data using a
 WHERE
 clause\&.
@@ -2249,7 +2276,8 @@ Examples:
 .RE
 .\}
 .RE
-Performance Options.PP
+Performance Options
+.PP
 The following options are the most relevant for the performance particularly of the restore operations\&. For large data sets, restore operation (processing the
 INSERT
 statements in the dump file) is the most time\-consuming part\&. When it is urgent to restore data quickly, plan and test the performance of this stage in advance\&. For restore times measured in hours, you might prefer an alternative backup and restore solution, such as
@@ -2413,7 +2441,8 @@ See the description for the
 \fB\-\-opt\fR
 option\&.
 .RE
-Transactional Options.PP
+Transactional Options
+.PP
 The following options trade off the performance of the dump operation, against the reliability and consistency of the exported data\&.
 .sp
 .RS 4
@@ -2699,7 +2728,8 @@ When you selectively enable or disable the effect of a group option, order is im
 would not have the intended effect; it is the same as
 \fB\-\-skip\-opt\fR
 by itself\&.
-Examples.PP
+Examples
+.PP
 To make a backup of an entire database:
 .sp
 .if n \{\
@@ -2874,7 +2904,8 @@ for all features except index disabling and table locking, use
 \fB\-\-disable\-keys\fR
 \fB\-\-lock\-tables\fR\&.
 .RE
-Restrictions.PP
+Restrictions
+.PP
 \fBmysqldump\fR
 does not dump the
 INFORMATION_SCHEMA,
@@ -2920,7 +2951,7 @@ for a workaround\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

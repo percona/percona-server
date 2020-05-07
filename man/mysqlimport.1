@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlimport\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/17/2019
+.\"      Date: 03/23/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLIMPORT\FR" "1" "12/17/2019" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLIMPORT\FR" "1" "03/23/2020" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -162,6 +162,11 @@ Write a debugging log\&. A typical
 string is
 d:t:o,\fIfile_name\fR\&. The default is
 d:t:o\&.
+.sp
+This option is available only if MySQL was built using
+\fBWITH_DEBUG\fR\&. MySQL release binaries provided by Oracle are
+\fInot\fR
+built using this option\&.
 .RE
 .sp
 .RS 4
@@ -175,6 +180,11 @@ d:t:o\&.
 \fB\-\-debug\-check\fR
 .sp
 Print some debugging information when the program exits\&.
+.sp
+This option is available only if MySQL was built using
+\fBWITH_DEBUG\fR\&. MySQL release binaries provided by Oracle are
+\fInot\fR
+built using this option\&.
 .RE
 .sp
 .RS 4
@@ -188,6 +198,11 @@ Print some debugging information when the program exits\&.
 \fB\-\-debug\-info\fR
 .sp
 Print debugging information and memory and CPU usage statistics when the program exits\&.
+.sp
+This option is available only if MySQL was built using
+\fBWITH_DEBUG\fR\&. MySQL release binaries provided by Oracle are
+\fInot\fR
+built using this option\&.
 .RE
 .sp
 .RS 4
@@ -462,8 +477,14 @@ Section\ \&13.2.6, \(lqLOAD DATA Statement\(rq\&.
 .sp
 By default, files are read by the server on the server host\&. With this option,
 \fBmysqlimport\fR
-reads input files locally on the client host\&. Enabling local data loading also requires that the server permits it; see
-Section\ \&6.1.6, \(lqSecurity Issues with LOAD DATA LOCAL\(rq
+reads input files locally on the client host\&.
+.sp
+Successful use of
+LOCAL
+load operations within
+\fBmysqlimport\fR
+also requires that the server permits local loading; see
+Section\ \&6.1.6, \(lqSecurity Considerations for LOAD DATA LOCAL\(rq
 .RE
 .sp
 .RS 4
@@ -929,7 +950,7 @@ shell> \fBmysql \-e \*(AqSELECT * FROM imptest\*(Aq test\fR
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

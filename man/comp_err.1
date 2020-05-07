@@ -2,12 +2,12 @@
 .\"     Title: \fBcomp_err\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/17/2019
+.\"      Date: 03/23/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBCOMP_ERR\FR" "1" "12/17/2019" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBCOMP_ERR\FR" "1" "03/23/2020" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -43,12 +43,12 @@ to determine the error messages to display for different error codes\&.
 \fBcomp_err\fR
 normally is run automatically when MySQL is built\&. It compiles the
 errmsg\&.sys
-file from the text file located at
+file from the text\-format error information file located at
 sql/share/errmsg\-utf8\&.txt
 in MySQL source distributions\&.
 .PP
 \fBcomp_err\fR
-also generates
+also generates the
 mysqld_error\&.h,
 mysqld_ername\&.h, and
 sql_state\&.h
@@ -143,7 +143,7 @@ Print some debugging information when the program exits\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-header_file=\fR\fB\fIfile_name\fR\fR,
+\fB\-\-header\-file=\fR\fB\fIfile_name\fR\fR,
 \fB\-H \fR\fB\fIfile_name\fR\fR
 .sp
 The name of the error header file\&. The default is
@@ -158,10 +158,10 @@ mysqld_error\&.h\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-in_file=\fR\fB\fIfile_name\fR\fR,
+\fB\-\-in\-file=\fR\fB\fIfile_name\fR\fR,
 \fB\-F \fR\fB\fIfile_name\fR\fR
 .sp
-The name of the input file\&. The default is
+The name of the input file that defines error messages\&. The default is
 \&.\&./sql/share/errmsg\-utf8\&.txt\&.
 .RE
 .sp
@@ -173,7 +173,7 @@ The name of the input file\&. The default is
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-name_file=\fR\fB\fIfile_name\fR\fR,
+\fB\-\-name\-file=\fR\fB\fIfile_name\fR\fR,
 \fB\-N \fR\fB\fIfile_name\fR\fR
 .sp
 The name of the error name file\&. The default is
@@ -188,7 +188,7 @@ mysqld_ername\&.h\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-out_dir=\fR\fB\fIdir_name\fR\fR,
+\fB\-\-out\-dir=\fR\fB\fIdir_name\fR\fR,
 \fB\-D \fR\fB\fIdir_name\fR\fR
 .sp
 The name of the output base directory\&. The default is
@@ -203,7 +203,7 @@ The name of the output base directory\&. The default is
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-out_file=\fR\fB\fIfile_name\fR\fR,
+\fB\-\-out\-file=\fR\fB\fIfile_name\fR\fR,
 \fB\-O \fR\fB\fIfile_name\fR\fR
 .sp
 The name of the output file\&. The default is
@@ -218,7 +218,7 @@ errmsg\&.sys\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-statefile=\fR\fB\fIfile_name\fR\fR,
+\fB\-\-state\-file=\fR\fB\fIfile_name\fR\fR,
 \fB\-S \fR\fB\fIfile_name\fR\fR
 .sp
 The name for the SQLSTATE header file\&. The default is
@@ -241,7 +241,7 @@ Display version information and exit\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

@@ -4,6 +4,8 @@
 
 --source include/master-slave.inc
 
+CALL mtr.add_suppression('You need to use --log-bin to make --binlog-format work.');
+
 --connection master
 CREATE DATABASE db_1;
 CREATE DATABASE db_2;

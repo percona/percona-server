@@ -238,6 +238,7 @@ Requires:       shadow-utils
 Requires:       net-tools
 Requires(pre):  percona-server-shared
 Requires:       percona-server-client
+Requires:       openssl
 Provides:       MySQL-server%{?_isa} = %{version}-%{release}
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}

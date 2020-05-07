@@ -190,7 +190,8 @@ Pre-Depends: percona-server-common (= ${binary:Version}),
              debconf (>= 0.2.17)
 Depends: percona-server-client (= ${binary:Version}),
          ${shlibs:Depends}, ${misc:Depends},
-         psmisc
+         psmisc,
+         openssl
 Provides: mysql-server,
           virtual-mysql-server, virtual-mysql-server-core,
           mysql-server-8.0, mysql-server-core-8.0, mysql-community-server-core

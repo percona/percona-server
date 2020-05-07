@@ -6,7 +6,7 @@ Encrypting the System Tablespace
 
 |Percona Server| supports system tablespace encryption. The InnoDB system
 tablespace may be encrypted with the Master key encryption or may use keyring
-encryption with encryption threads. 
+encryption with ``Advanced Encryption Key Rotation``. 
 
 .. seealso::
 

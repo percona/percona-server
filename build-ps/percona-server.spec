@@ -295,6 +295,7 @@ Summary:        Percona Server: a very fast and reliable SQL database server
 Group:          Applications/Databases
 Requires:       %{distro_requires} Percona-Server-shared%{product_suffix} Percona-Server-client%{product_suffix}
 Requires:       perl(Data::Dumper)
+Requires:       openssl
 %if 0%{?systemd}
 Requires(post):   systemd
 Requires(preun):  systemd

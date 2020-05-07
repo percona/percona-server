@@ -94,8 +94,22 @@ If you only used the |MyRocks| storage engine in |Percona Server| |version.prev|
 
    $ apt-get install percona-server-rocksdb
 
+.. deprecated:: 8.0.16-7
 
-The installation script will *NOT* run automatically :command:`mysql_upgrade` as
+The :command:`mysql_upgrade` was deprecated as of |Percona Server|
+8.0.16-7. The functionality was moved to the `mysqld` binary which automatically
+runs the upgrade process, if needed. If you attempt to run `mysql_upgrade`,
+no operation happens and a message stating, "The mysql_upgrade client is now
+deprecated. The actions executed by the upgrade client are now done by the
+server."
+
+.. seealso::
+
+    `MySQL Upgrade Process Upgrades
+    <https://dev.mysql.com/doc/refman/8.0/en/upgrading-what-is-upgraded.html>`__
+
+If you are upgrading to a |Percona Server| version before 8.0.16-7, the
+installation script will *NOT* run automatically :command:`mysql_upgrade` as
 it was the case in previous versions. You'll need to run the command manually
 and restart the service after it's finished.
 
@@ -126,7 +140,7 @@ Having done the full backup (and dump if possible), stop the server:
 
 .. note::
 
-   If you're running *RHEL*/*CentOS* system with `systemd
+   If you are running *RHEL*/*CentOS* system with `systemd
    <http://freedesktop.org/wiki/Software/systemd/>`_ as the default system and
    service manager you can invoke the above command with :program:`systemctl`
    instead of :program:`service`. Currently both are supported.
@@ -200,15 +214,23 @@ reinstall the plugins if necessary.
    upgrade/install process completes you can move the old configuration file
    back (after you remove all the unsupported system variables).
 
-You can now start the ``mysql`` service using :bash:`service mysql start` and
+.. deprecated:: 8.0.16-7
+
+The :command:`mysql_upgrade` was deprecated as of |Percona Server|
+8.0.16-7. The functionality was moved to the `mysqld` binary which automatically
+runs the upgrade process, if needed. If you attempt to run `mysql_upgrade`,
+no operation happens and a message stating, "The mysql_upgrade client is now
+deprecated. The actions executed by the upgrade client are now done by the
+server."
+
+.. seealso::
+
+    `MySQL Upgrade Process Upgrades
+    <https://dev.mysql.com/doc/refman/8.0/en/upgrading-what-is-upgraded.html>`__
+
+If you are upgrading to a |Percona Server| version before 8.0.16-7, you can start the ``mysql`` service using :bash:`service mysql start` and
 using ``mysql_upgrade`` to migrate to the new grant tables, it will rebuild the
 indexes needed and do the modifications needed:
-
-.. note::
-
-   If you're using |TokuDB| storage engine you'll need re-enable the storage
-   engine plugin by running the: |ps-admin.enable-tokudb| before running
-   ``mysql_upgrade`` otherwise you'll get errors.
 
 .. code-block:: bash
 
@@ -301,12 +323,26 @@ install ``percona-server-tokudb-8.0.13-3.stretch_amd64.deb`` if you want
 
 .. warning::
 
-   When installing packages manually like this, you'll need to make sure to
-   resolve all the dependencies and install missing packages yourself. At least
+   When installing packages manually, you must resolve all the dependencies and install missing packages yourself. At least
    the following packages should be installed before installing |Percona Server| 8.0: ``libmecab2``, ``libjemalloc1``, ``zlib1g-dev``, and ``libaio1``.
 
-The installation script will not run automatically :command:`mysql_upgrade`, so
-you'll need to run it yourself and restart the service afterwards.
+.. deprecated:: 8.0.16-7
+
+The :command:`mysql_upgrade` was deprecated as of |Percona Server|
+8.0.16-7. The functionality was moved to the `mysqld` binary which automatically
+runs the upgrade process, if needed. If you attempt to run `mysql_upgrade`,
+no operation happens and a message stating, "The mysql_upgrade client is now
+deprecated. The actions executed by the upgrade client are now done by the
+server."
+
+.. seealso::
+
+    `MySQL Upgrade Process Upgrades
+    <https://dev.mysql.com/doc/refman/8.0/en/upgrading-what-is-upgraded.html>`__
+
+If you are upgrading to a |Percona Server| version before 8.0.16-7, the
+installation script will not run automatically :command:`mysql_upgrade`, so
+you must run it yourself and restart the service afterwards.
 
 RPM-based distributions
 -----------------------
@@ -384,22 +420,31 @@ To install all the packages (for debugging, testing, etc.) you should run:
 
 .. note::
 
-   When installing packages manually like this, you'll need to make sure to
+   When installing packages manually like this, you must
    resolve all the dependencies and install missing packages yourself.
 
-Once installed, proceed to modify your configuration file - :file:`my.cnf` - and install the plugins if necessary. If you're using |TokuDB| storage engine you'll need to comment out all the |TokuDB| specific variables in your configuration file(s) before starting the server, otherwise server won't be able to start. *RHEL*/*CentOS* 7 automatically backs up the previous configuration file to :file:`/etc/my.cnf.rpmsave` and installs the default :file:`my.cnf`. After upgrade/install process completes you can move the old configuration file back (after you remove all the unsupported system variables).
+Once installed, proceed to modify your configuration file - :file:`my.cnf` - and install the plugins if necessary. If you are using |TokuDB| storage engine you must comment out all the |TokuDB| specific variables in your configuration file(s) before starting the server, otherwise server will not start. *RHEL*/*CentOS* 7 automatically backs up the previous configuration file to :file:`/etc/my.cnf.rpmsave` and installs the default :file:`my.cnf`. After upgrade/install process completes you can move the old configuration file back (after you remove all the unsupported system variables).
 
 As the schema of the grant table has changed, the server must be started without reading them: :bash:`service mysql start`
 
-Then, use :file:`mysql_upgrade` to migrate to the new grant tables. It will
+.. deprecated:: 8.0.16-7
+
+The :command:`mysql_upgrade` was deprecated as of |Percona Server|
+8.0.16-7. The functionality was moved to the `mysqld` binary which automatically
+runs the upgrade process, if needed. If you attempt to run `mysql_upgrade`,
+no operation happens and a message stating, "The mysql_upgrade client is now
+deprecated. The actions executed by the upgrade client are now done by the
+server."
+
+.. seealso::
+
+    `MySQL Upgrade Process Upgrades
+    <https://dev.mysql.com/doc/refman/8.0/en/upgrading-what-is-upgraded.html>`__
+
+If you are upgrading to a |Percona Server| version before 8.0.16-7, then, use
+:file:`mysql_upgrade` to migrate to the new grant tables. It will
 rebuild the indexes needed and do the modifications needed:
 :bash:`mysql_upgrade`
-
-.. note::
-
-   If you're using |TokuDB| storage engine you'll need re-enable the storage
-   engine plugin by running the: |ps-admin.enable-tokudb| before running
-   ``mysql_upgrade`` otherwise you'll get errors.
 
 After this is done, just restart the server as usual: |service.mysql.restart|
 

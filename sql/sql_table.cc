@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -2743,7 +2750,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 #endif
   }
   DEBUG_SYNC(thd, "rm_table_no_locks_before_binlog");
-  thd->thread_specific_used= thd->thread_specific_used || tmp_table_deleted;
+  thd->thread_specific_used= true;
   error= 0;
 err:
   if (wrong_tables.length())
@@ -2980,7 +2987,7 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
   */
   size_t path_length= build_table_filename(path, sizeof(path) - 1, db,
                                            table_name, reg_ext, flags);
-  strncpy(frm_path, path, sizeof(frm_path) - 1);
+  my_strncpy_trunc(frm_path, path, sizeof(frm_path) - 1);
   path[path_length - reg_ext_length]= '\0';  // Remove reg_ext
   if (flags & NO_HA_TABLE)
   {
@@ -6559,6 +6566,9 @@ static bool has_index_def_changed(Alter_inplace_info *ha_alter_info,
   const KEY_PART_INFO *key_part, *new_part, *end;
   const Create_field *new_field;
   Alter_info *alter_info= ha_alter_info->alter_info;
+
+  DBUG_EXECUTE_IF("assert_index_def_has_no_pack_flag",
+      DBUG_ASSERT(!(table_key->flags & (HA_PACK_KEY | HA_BINARY_PACK_KEY))););
 
   /* Check that the key types are compatible between old and new tables. */
   if ((table_key->algorithm != new_key->algorithm) ||
@@ -11249,6 +11259,11 @@ err:
   DBUG_RETURN(TRUE);
 }
 
+// Return true if ENCRYPTION clause requests for table encryption.
+static inline bool is_encrypted(const std::string type) {
+  return (type.empty() == false && type != "" && type != "N" && type != "n");
+}
+
 /**
   @brief Check if the table can be created in the specified storage engine.
 
@@ -11355,6 +11370,16 @@ static bool check_engine(THD *thd, const char *db_name,
       ha_resolve_storage_engine_name(*new_engine), "COMPRESSED COLUMNS");
     *new_engine= 0;
     DBUG_RETURN(true);
+  }
+
+  // Check if the storage engine supports encryption.
+  if (create_info->encrypt_type.str &&
+      is_encrypted(create_info->encrypt_type.str) &&
+      !((*new_engine)->flags & HTON_SUPPORTS_TABLE_ENCRYPTION))
+  {
+     my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+	      ha_resolve_storage_engine_name(*new_engine), "ENCRYPTION");
+     DBUG_RETURN(true);
   }
 
   DBUG_RETURN(false);

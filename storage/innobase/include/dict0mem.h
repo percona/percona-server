@@ -1,15 +1,23 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -1330,6 +1338,9 @@ if table->memcached_sync_count == DICT_TABLE_IN_DDL means there's DDL running on
 the table, DML from memcached will be blocked. */
 #define DICT_TABLE_IN_DDL -1
 
+typedef ib_bpmutex_t AutoIncMutex;
+typedef ib_mutex_t AnalyzeIndexMutex;
+
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
 struct dict_table_t {
@@ -1572,7 +1583,7 @@ struct dict_table_t {
 	unsigned				stat_initialized:1;
 
 	/** Timestamp of last recalc of the stats. */
-	ib_time_t				stats_last_recalc;
+	ib_time_monotonic_t				stats_last_recalc;
 
 	/** The two bits below are set in the 'stat_persistent' member. They
 	have the following meaning:
@@ -1681,7 +1692,7 @@ struct dict_table_t {
 	volatile os_once::state_t		autoinc_mutex_created;
 
 	/** Mutex protecting the autoincrement counter. */
-	ib_mutex_t*				autoinc_mutex;
+	AutoIncMutex*				autoinc_mutex;
 
 	/** Autoinc counter value to give to the next inserted row. */
 	ib_uint64_t				autoinc;
@@ -1699,6 +1710,12 @@ struct dict_table_t {
 	const trx_t*				autoinc_trx;
 
 	/* @} */
+
+	/** Creation state of analyze_index member */
+	volatile os_once::state_t	analyze_index_mutex_created;
+
+	/** Mutex protecting the index during analyze. */
+	AnalyzeIndexMutex*			analyze_index_mutex;
 
 	/** Count of how many handles are opened to this table from memcached.
 	DDL on the table is NOT allowed until this count goes to zero. If
@@ -1793,6 +1810,31 @@ struct dict_foreign_add_to_referenced_table {
 		}
 	}
 };
+
+/** Request for lazy creation of the analyze index mutex of a given table.
+@param[in,out]	table	table whose mutex is to be created. */
+inline
+void
+dict_table_analyze_index_create_lazy(
+	dict_table_t*	table)
+{
+	table->analyze_index_mutex = NULL;
+	table->analyze_index_mutex_created = os_once::NEVER_DONE;
+}
+
+/** Destroy the analyze index mutex of the given table.
+@param[in,out]	table	table whose mutex to destroy */
+inline
+void
+dict_table_analyze_index_destroy(
+	dict_table_t*	table)
+{
+	if (table->analyze_index_mutex_created == os_once::DONE
+	    && table->analyze_index_mutex != NULL) {
+		mutex_free(table->analyze_index_mutex);
+		UT_DELETE(table->analyze_index_mutex);
+	}
+}
 
 /** Destroy the autoinc latch of the given table.
 This function is only called from either single threaded environment

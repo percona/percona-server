@@ -1,13 +1,20 @@
-/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -761,7 +768,7 @@ static Sys_var_int32 Sys_binlog_max_flush_queue_time(
        CMD_LINE(REQUIRED_ARG, OPT_BINLOG_MAX_FLUSH_QUEUE_TIME),
        VALID_RANGE(0, 100000), DEFAULT(0), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
-       DEPRECATED(""));
+       DEPRECATED_VAR(""));
 
 static Sys_var_long Sys_binlog_group_commit_sync_delay(
        "binlog_group_commit_sync_delay",
@@ -1580,7 +1587,7 @@ static Sys_var_ulong Sys_delayed_insert_limit(
        GLOBAL_VAR(delayed_insert_limit), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, ULONG_MAX), DEFAULT(DELAYED_LIMIT), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
-       DEPRECATED(""));
+       DEPRECATED_VAR(""));
 
 static Sys_var_ulong Sys_delayed_insert_timeout(
        "delayed_insert_timeout",
@@ -1590,7 +1597,7 @@ static Sys_var_ulong Sys_delayed_insert_timeout(
        GLOBAL_VAR(delayed_insert_timeout), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, LONG_TIMEOUT), DEFAULT(DELAYED_WAIT_TIMEOUT),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(0), DEPRECATED(""));
+       ON_UPDATE(0), DEPRECATED_VAR(""));
 
 static Sys_var_ulong Sys_delayed_queue_size(
        "delayed_queue_size",
@@ -1601,7 +1608,7 @@ static Sys_var_ulong Sys_delayed_queue_size(
        GLOBAL_VAR(delayed_queue_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, ULONG_MAX), DEFAULT(DELAYED_QUEUE_SIZE), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
-       DEPRECATED(""));
+       DEPRECATED_VAR(""));
 
 #ifndef EMBEDDED_LIBRARY
 static const char *event_scheduler_names[]= { "OFF", "ON", "DISABLED", NullS };
@@ -1698,7 +1705,7 @@ static Sys_var_ulong Sys_max_binlog_files(
        GLOBAL_VAR(max_binlog_files),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 102400), DEFAULT(0),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(0), DEPRECATED(""));
+       ON_UPDATE(0), DEPRECATED_VAR(""));
 
 static Sys_var_ulong Sys_max_slowlog_size(
        "max_slowlog_size",
@@ -2130,7 +2137,7 @@ static Sys_var_ulong Sys_log_warnings(
        CMD_LINE(OPT_ARG, 'W'),
        VALID_RANGE(0, 2), DEFAULT(2), BLOCK_SIZE(1), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(update_log_warnings),
-       DEPRECATED("log_error_verbosity"));
+       DEPRECATED_VAR("log_error_verbosity"));
 
 static bool update_log_error_verbosity(sys_var *self, THD *thd,
                                        enum_var_type type)
@@ -2500,7 +2507,7 @@ static Sys_var_ulong Sys_max_insert_delayed_threads(
        NO_CMD_LINE, VALID_RANGE(0, 16384), DEFAULT(20),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_max_delayed_threads), ON_UPDATE(0),
-       DEPRECATED(""));
+       DEPRECATED_VAR(""));
 
 static Sys_var_ulong Sys_max_delayed_threads(
        "max_delayed_threads",
@@ -2511,7 +2518,7 @@ static Sys_var_ulong Sys_max_delayed_threads(
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 16384), DEFAULT(20),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_max_delayed_threads), ON_UPDATE(0),
-       DEPRECATED(""));
+       DEPRECATED_VAR(""));
 
 static Sys_var_ulong Sys_max_error_count(
        "max_error_count",
@@ -2532,7 +2539,7 @@ static Sys_var_ulong Sys_metadata_locks_cache_size(
        READ_ONLY GLOBAL_VAR(mdl_locks_cache_size_unused),
        CMD_LINE(REQUIRED_ARG, OPT_MDL_CACHE_SIZE),
        VALID_RANGE(1, 1024*1024), DEFAULT(1024), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
+       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED_VAR(""));
 
 static ulong mdl_locks_hash_partitions_unused;
 static Sys_var_ulong Sys_metadata_locks_hash_instances(
@@ -2540,7 +2547,7 @@ static Sys_var_ulong Sys_metadata_locks_hash_instances(
        READ_ONLY GLOBAL_VAR(mdl_locks_hash_partitions_unused),
        CMD_LINE(REQUIRED_ARG, OPT_MDL_HASH_INSTANCES),
        VALID_RANGE(1, 1024), DEFAULT(8), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
+       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED_VAR(""));
 
 // relies on DBUG_ASSERT(sizeof(my_thread_id) == 4);
 static Sys_var_uint Sys_pseudo_thread_id(
@@ -2670,7 +2677,7 @@ static Sys_var_ulong Sys_max_tmp_tables(
        "Maximum number of temporary tables a client can keep open at a time",
        SESSION_VAR(max_tmp_tables), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, ULONG_MAX), DEFAULT(32), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
+       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED_VAR(""));
 
 static Sys_var_ulong Sys_max_write_lock_count(
        "max_write_lock_count",
@@ -3410,7 +3417,7 @@ static Sys_var_ulong Sys_multi_range_count(
        SESSION_VAR(multi_range_count), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, ULONG_MAX), DEFAULT(256), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
-       DEPRECATED(""));
+       DEPRECATED_VAR(""));
 
 static bool fix_thd_mem_root(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -3568,7 +3575,7 @@ static Sys_var_ulong Sys_query_cache_size(
        GLOBAL_VAR(query_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(1024U*1024U), BLOCK_SIZE(1024),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_query_cache_size), DEPRECATED(""));
+       ON_UPDATE(fix_query_cache_size), DEPRECATED_VAR(""));
 
 static Sys_var_mybool Sys_query_cache_strip_comments(
        "query_cache_strip_comments", "Enable and disable optimisation \"strip comment for query cache\" - optimisation strip all comments from query while search query result in query cache",
@@ -3582,7 +3589,7 @@ static Sys_var_ulong Sys_query_cache_limit(
        GLOBAL_VAR(query_cache.query_cache_limit), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(1024*1024), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL),
-       DEPRECATED(""));
+       DEPRECATED_VAR(""));
 
 static bool fix_qcache_min_res_unit(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -3597,7 +3604,7 @@ static Sys_var_ulong Sys_query_cache_min_res_unit(
        GLOBAL_VAR(query_cache_min_res_unit), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(QUERY_CACHE_MIN_RESULT_DATA_SIZE),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_qcache_min_res_unit), DEPRECATED(""));
+       ON_UPDATE(fix_qcache_min_res_unit), DEPRECATED_VAR(""));
 
 static const char *query_cache_type_names[]= { "OFF", "ON", "DEMAND", 0 };
 static bool check_query_cache_type(sys_var *self, THD *thd, set_var *var)
@@ -3623,7 +3630,7 @@ static Sys_var_enum Sys_query_cache_type(
        "This variable is deprecated and will be removed in a future release.",
        SESSION_VAR(query_cache_type), CMD_LINE(REQUIRED_ARG),
        query_cache_type_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_query_cache_type), ON_UPDATE(NULL), DEPRECATED(""));
+       ON_CHECK(check_query_cache_type), ON_UPDATE(NULL), DEPRECATED_VAR(""));
 
 static Sys_var_mybool Sys_query_cache_wlock_invalidate(
        "query_cache_wlock_invalidate",
@@ -3631,7 +3638,7 @@ static Sys_var_mybool Sys_query_cache_wlock_invalidate(
        "This variable is deprecated and will be removed in a future release.",
        SESSION_VAR(query_cache_wlock_invalidate), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
-       ON_UPDATE(NULL), DEPRECATED(""));
+       ON_UPDATE(NULL), DEPRECATED_VAR(""));
 
 static bool
 on_check_opt_secure_auth(sys_var *self, THD *thd, set_var *var)
@@ -4141,11 +4148,7 @@ static Sys_var_charptr Sys_tls_version(
        "tls_version",
        "TLS version, permitted values are TLSv1, TLSv1.1, TLSv1.2(Only for openssl)",
        READ_ONLY GLOBAL_VAR(opt_tls_version), SSL_OPT(OPT_TLS_VERSION),
-#ifdef HAVE_YASSL
-       IN_FS_CHARSET, "TLSv1,TLSv1.1");
-#else
        IN_FS_CHARSET, "TLSv1,TLSv1.1,TLSv1.2");
-#endif
 
 static Sys_var_charptr Sys_ssl_cert(
        "ssl_cert", "X509 cert in PEM format (implies --ssl)",
@@ -4174,7 +4177,7 @@ static Sys_var_charptr Sys_ssl_crlpath(
        READ_ONLY GLOBAL_VAR(opt_ssl_crlpath), SSL_OPT(OPT_SSL_CRLPATH),
        IN_FS_CHARSET, DEFAULT(0));
 
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
 static Sys_var_mybool Sys_auto_generate_certs(
        "auto_generate_certs",
        "Auto generate SSL certificates at server startup if --ssl is set to "
@@ -4188,7 +4191,7 @@ static Sys_var_mybool Sys_auto_generate_certs(
        ON_CHECK(NULL),
        ON_UPDATE(NULL),
        NULL);
-#endif /* HAVE_OPENSSL && !HAVE_YASSL */
+#endif /* HAVE_OPENSSL */
 
 // why ENUM and not BOOL ?
 static const char *updatable_views_with_limit_names[]= {"NO", "YES", 0};
@@ -4206,7 +4209,7 @@ static Sys_var_mybool Sys_sync_frm(
        "sync_frm", "Sync .frm files to disk on creation",
        GLOBAL_VAR(opt_sync_frm), CMD_LINE(OPT_ARG),
        DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
+       ON_CHECK(0), ON_UPDATE(0), DEPRECATED_VAR(""));
 
 static char *system_time_zone_ptr;
 static Sys_var_charptr Sys_system_time_zone(
@@ -4524,7 +4527,7 @@ static Sys_var_tx_isolation Sys_tx_isolation(
        tx_isolation_names, DEFAULT(ISO_REPEATABLE_READ),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_transaction_isolation),
        ON_UPDATE(update_transaction_isolation),
-       DEPRECATED("'@@transaction_isolation'"));
+       DEPRECATED_VAR("'@@transaction_isolation'"));
 
 
 // NO_CMD_LINE
@@ -4648,7 +4651,7 @@ static Sys_var_tx_read_only Sys_tx_read_only(
        UNTRACKED_DEFAULT SESSION_VAR(tx_read_only), NO_CMD_LINE, DEFAULT(0),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_transaction_read_only),
        ON_UPDATE(update_transaction_read_only),
-       DEPRECATED("'@@transaction_read_only'"));
+       DEPRECATED_VAR("'@@transaction_read_only'"));
 
 
 static Sys_var_tx_read_only Sys_transaction_read_only(
@@ -4766,7 +4769,7 @@ static Sys_var_charptr Sys_date_format(
        CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
        DEFAULT(known_date_time_formats[ISO_FORMAT].date_format),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
-       DEPRECATED(""));
+       DEPRECATED_VAR(""));
 
 static Sys_var_charptr Sys_datetime_format(
        "datetime_format", "The DATETIME format (ignored)",
@@ -4774,7 +4777,7 @@ static Sys_var_charptr Sys_datetime_format(
        CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
        DEFAULT(known_date_time_formats[ISO_FORMAT].datetime_format),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
-       DEPRECATED(""));
+       DEPRECATED_VAR(""));
 
 static Sys_var_charptr Sys_time_format(
        "time_format", "The TIME format (ignored)",
@@ -4782,7 +4785,7 @@ static Sys_var_charptr Sys_time_format(
        CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
        DEFAULT(known_date_time_formats[ISO_FORMAT].time_format),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
-       DEPRECATED(""));
+       DEPRECATED_VAR(""));
 
 static bool fix_autocommit(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -4972,13 +4975,13 @@ static Sys_var_bit Sys_profiling(
        "profiling", "profiling",
        SESSION_VAR(option_bits), NO_CMD_LINE, OPTION_PROFILING,
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(0), DEPRECATED(""));
+       ON_UPDATE(0), DEPRECATED_VAR(""));
 
 static Sys_var_ulong Sys_profiling_history_size(
        "profiling_history_size", "Limit of query profiling memory",
        SESSION_VAR(profiling_history_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 100), DEFAULT(15), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
+       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED_VAR(""));
 #endif
 
 static Sys_var_harows Sys_select_limit(
@@ -5385,7 +5388,7 @@ static Sys_var_have Sys_have_openssl(
 static Sys_var_have Sys_have_profiling(
        "have_profiling", "have_profiling",
        READ_ONLY GLOBAL_VAR(have_profiling), NO_CMD_LINE, NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
+       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED_VAR(""));
 
 static Sys_var_have Sys_have_backup_locks(
        "have_backup_locks", "have_backup_locks",
@@ -5405,7 +5408,7 @@ static Sys_var_have Sys_have_query_cache(
        "This variable is deprecated and will be removed in a future release.",
        READ_ONLY GLOBAL_VAR(have_query_cache), NO_CMD_LINE,
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL),
-       DEPRECATED(""));
+       DEPRECATED_VAR(""));
 
 static Sys_var_have Sys_have_rtree_keys(
        "have_rtree_keys", "have_rtree_keys",
@@ -5423,8 +5426,9 @@ static Sys_var_have Sys_have_statement_timeout(
        "have_statement_timeout", "have_statement_timeout",
        READ_ONLY GLOBAL_VAR(have_statement_timeout), NO_CMD_LINE);
 
-const char *log_slow_filter_name[]= { "qc_miss", "full_scan", "full_join",
-                                      "tmp_table", "tmp_table_on_disk", "filesort", "filesort_on_disk", 0};
+static const char *log_slow_filter_name[]= { "qc_miss", "full_scan", "full_join",
+                                             "tmp_table", "tmp_table_on_disk",
+                                             "filesort", "filesort_on_disk", 0};
 static Sys_var_set Sys_log_slow_filter(
        "log_slow_filter",
        "Log only the queries that followed certain execution plan. "
@@ -5454,7 +5458,7 @@ static Sys_var_double sys_slow_query_log_always_write_time(
        VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(10),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
        ON_UPDATE(update_slow_query_log_always_write_time));
-const char* log_slow_verbosity_name[] = { 
+static const char* log_slow_verbosity_name[] = {
   "microtime", "query_plan", "innodb", 
   "profiling", "profiling_use_getrusage", 
   "minimal", "standard", "full", 0
@@ -5471,12 +5475,12 @@ static ulonglong update_log_slow_verbosity_replace(ulonglong value, ulonglong wh
 static void update_log_slow_verbosity(ulonglong* value_ptr)
 {
   ulonglong &value    = *value_ptr;
-  ulonglong microtime= 1ULL << SLOG_V_MICROTIME;
-  ulonglong query_plan= 1ULL << SLOG_V_QUERY_PLAN;
-  ulonglong innodb= 1ULL << SLOG_V_INNODB;
-  ulonglong minimal= 1ULL << SLOG_V_MINIMAL;
-  ulonglong standard= 1ULL << SLOG_V_STANDARD;
-  ulonglong full= 1ULL << SLOG_V_FULL;
+  static const ulonglong microtime= 1ULL << SLOG_V_MICROTIME;
+  static const ulonglong query_plan= 1ULL << SLOG_V_QUERY_PLAN;
+  static const ulonglong innodb= 1ULL << SLOG_V_INNODB;
+  static const ulonglong minimal= 1ULL << SLOG_V_MINIMAL;
+  static const ulonglong standard= 1ULL << SLOG_V_STANDARD;
+  static const ulonglong full= 1ULL << SLOG_V_FULL;
   value= update_log_slow_verbosity_replace(value,minimal,microtime);
   value= update_log_slow_verbosity_replace(value,standard,microtime | query_plan);
   value= update_log_slow_verbosity_replace(value,full,microtime | query_plan | innodb);
@@ -5550,7 +5554,45 @@ void init_log_slow_verbosity()
 {
   update_slow_query_log_use_global_control(0,0,OPT_GLOBAL);
 }
-static Sys_var_set Sys_slow_query_log_use_global_control(
+
+/**
+  Specialized class that handles "none" value of
+  slow_query_log_use_global_control_set variable.
+  When "none" only value is detected, it is rewriten to empty
+  causing set to be cleared.
+*/
+class Sys_var_set_none: public Sys_var_set {
+public:
+  Sys_var_set_none(const char *name_arg,
+        const char *comment, int flag_args, ptrdiff_t off, size_t size,
+        CMD_LINE getopt, const char *values[], ulonglong def_val, PolyLock *lock =
+        0, enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
+        on_check_function on_check_func = 0,
+        on_update_function on_update_func = 0, const char *substitute = 0)
+    : Sys_var_set(name_arg, comment, flag_args, off, size, getopt, values,
+          def_val, lock, binlog_status_arg, on_check_func, on_update_func,
+          substitute)
+  {
+  }
+
+  virtual bool do_check(THD *thd, set_var *var)
+  {
+    if (var->value->result_type() == STRING_RESULT) {
+      char buff[STRING_BUFFER_USUAL_SIZE];
+      String str(buff, sizeof(buff), system_charset_info);
+
+      String *res = var->value->val_str(&str);
+      if (res
+          && (res->length() > 0)
+          && (0 == my_strcasecmp(system_charset_info, res->ptr(), "none"))) {
+        var->value = new Item_string("", 0, system_charset_info);
+      }
+    }
+    return Sys_var_set::do_check(thd, var);
+  }
+};
+
+static Sys_var_set_none Sys_slow_query_log_use_global_control(
        "slow_query_log_use_global_control",
        "Choose flags, wich always use the global variables. Multiple flags "
        "allowed in a comma-separated string. [none, log_slow_filter, "
@@ -5562,7 +5604,7 @@ static Sys_var_set Sys_slow_query_log_use_global_control(
         NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(update_slow_query_log_use_global_control));
 
-const char* slow_query_log_rate_name[]= {"session", "query", 0};
+static const char* slow_query_log_rate_name[]= {"session", "query", 0};
 static Sys_var_enum Sys_slow_query_log_rate_type(
        "log_slow_rate_type",
        "Choose the log_slow_rate_limit behavior: session or query. "
@@ -6425,7 +6467,7 @@ static Sys_var_mybool Sys_avoid_temporal_upgrade(
         CMD_LINE(OPT_ARG, OPT_AVOID_TEMPORAL_UPGRADE),
         DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
         ON_CHECK(0), ON_UPDATE(0),
-        DEPRECATED(""));
+        DEPRECATED_VAR(""));
 
 static Sys_var_mybool Sys_show_old_temporals(
        "show_old_temporals",
@@ -6437,7 +6479,7 @@ static Sys_var_mybool Sys_show_old_temporals(
         CMD_LINE(OPT_ARG, OPT_SHOW_OLD_TEMPORALS),
         DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
         ON_CHECK(0), ON_UPDATE(0),
-        DEPRECATED(""));
+        DEPRECATED_VAR(""));
 
 static Sys_var_charptr Sys_disabled_storage_engines(
        "disabled_storage_engines",

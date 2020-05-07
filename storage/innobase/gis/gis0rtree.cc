@@ -1,14 +1,22 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -1470,7 +1478,9 @@ rtr_page_copy_rec_list_end_no_locks(
 						   ULINT_UNDEFINED, &heap);
 			cmp = cmp_rec_rec_with_match(cur1_rec, cur_rec,
 						     offsets1, offsets2,
-						     index, FALSE,
+						     index,
+						     page_is_spatial_non_leaf(cur1_rec, index),
+						     false,
 						     &cur_matched_fields);
 			if (cmp < 0) {
 				page_cur_move_to_prev(&page_cur);
@@ -1589,7 +1599,9 @@ rtr_page_copy_rec_list_start_no_locks(
 						   ULINT_UNDEFINED, &heap);
 			cmp = cmp_rec_rec_with_match(cur1_rec, cur_rec,
 						     offsets1, offsets2,
-						     index, FALSE,
+						     index,
+						     page_is_spatial_non_leaf(cur1_rec, index),
+						     false,
 						     &cur_matched_fields);
 			if (cmp < 0) {
 				page_cur_move_to_prev(&page_cur);

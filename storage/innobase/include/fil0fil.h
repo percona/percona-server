@@ -2,13 +2,21 @@
 
 Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -51,6 +59,8 @@ Created 10/25/1995 Heikki Tuuri
 //#include "fil0crypt.h" //TODO:Robert This should be removed, when fil_space_crypt_t will be moved to appropriate place
 /** Structure containing encryption specification */
 struct fil_space_crypt_t;
+
+struct redo_log_key;
 
 #define REDO_LOG_ENCRYPT_NO_VERSION 0
 
@@ -255,6 +265,8 @@ struct fil_space_t {
 
 	/** Encrypt key version*/
 	ulint			encryption_key_version;
+	/** Only used for redo log encryption: the currently active key handle */
+	redo_log_key*           encryption_redo_key;
 
 	/** Encrypt initial vector */
         byte			encryption_iv[ENCRYPTION_KEY_LEN];
@@ -1766,25 +1778,15 @@ fil_get_compression(
 @param[in] algorithm		Encryption algorithm
 @param[in] key			Encryption key
 @param[in] iv			Encryption iv
+@param[in] acquire_mutex	if true acquire fil_sys mutex, else false
 @return DB_SUCCESS or error code */
-/*
 dberr_t
 fil_set_encryption(
 	ulint			space_id,
 	Encryption::Type	algorithm,
 	byte*			key,
 	byte*			iv,
-        ulint                   key_version,
-        fil_encryption_t        encryption)
-	MY_ATTRIBUTE((warn_unused_result));
-*/
-dberr_t
-fil_set_encryption(
-	ulint			space_id,
-	Encryption::Type	algorithm,
-	byte*			key,
-	byte*			iv,
-        bool aquire_mutex = true)
+	bool			acquire_mutex = true)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /**
@@ -1859,11 +1861,13 @@ fil_names_clear(
 
 /** Enable encryption of temporary tablespace
 @param[in,out]	space	tablespace object
+@param[in]	enable	true to enable encryption, false to disable
 @return DB_SUCCESS on success, DB_ERROR on failure */
 MY_NODISCARD
 dberr_t
 fil_temp_update_encryption(
-	fil_space_t*	space);
+	fil_space_t*	space,
+	bool		enable);
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
 /**

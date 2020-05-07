@@ -4,13 +4,20 @@
 /* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -566,10 +573,25 @@ public:
   virtual bool send_text(Protocol *protocol)= 0;
 };
 
-class Field: public Proto_field
+/*
+  An auxiliary class to solve the issue with gcc-9 '-Wdeprecated-copy'
+  warning.
+  Similarly to 'boost::noncopyable' this class has its assignment operator
+  private and undefined. However, in contrast, it has public well-defined
+  empty copy constructor.
+*/
+class nonassignable
 {
-  Field(const Item &);				/* Prevent use of these */
-  void operator=(Field &);
+protected:
+  nonassignable() {}
+  ~nonassignable() {}
+  nonassignable(const nonassignable&) {}
+private:  /* emphasize the following member is private */
+  nonassignable& operator=(const nonassignable&);
+};
+
+class Field: private nonassignable, public Proto_field
+{
 public:
 
   bool has_insert_default_function() const

@@ -2,13 +2,21 @@
 
 Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -1361,20 +1369,23 @@ the error log if more than two seconds have been spent already.
 @param[out]	mon_value_was	previous srv_print_innodb_monitor value
 @param[out]	started_monitor	whether InnoDB monitor print has been requested
 */
-static void
-buf_LRU_handle_lack_of_free_blocks(ulint	     n_iterations,
-				   ut_monotonic_time started_ms,
-				   ulint flush_failures, bool *mon_value_was,
-				   bool *started_monitor) {
-	static ut_monotonic_time last_printout_ms = {0};
+static
+void
+buf_LRU_handle_lack_of_free_blocks(ulint n_iterations, ib_time_monotonic_ms_t started_ms,
+				   ulint flush_failures,
+				   bool *mon_value_was,
+				   bool *started_monitor)
+{
+	static ib_time_monotonic_ms_t last_printout_ms = 0;
 
 	/* Legacy algorithm started warning after at least 2 seconds, we
 	emulate	this. */
-	const ut_monotonic_time current_ms = ut_monotonic_time_ms();
+	const ib_time_monotonic_ms_t current_ms = ut_time_monotonic_ms();
 
-	if ((current_ms.ms > started_ms.ms + 2000) &&
-	    (current_ms.ms > last_printout_ms.ms + 2000) &&
-	    srv_buf_pool_old_size == srv_buf_pool_size) {
+	if ((current_ms > started_ms + 2000)
+	    && (current_ms > last_printout_ms + 2000)
+	    && srv_buf_pool_old_size == srv_buf_pool_size) {
+
 		ib::warn() << "Difficult to find free blocks in the buffer pool"
 			" (" << n_iterations << " search iterations)! "
 			   << flush_failures << " failed attempts to"
@@ -1447,7 +1458,7 @@ buf_LRU_get_free_block(
 	ulint		flush_failures	= 0;
 	bool		mon_value_was	= false;
 	bool		started_monitor	= false;
-	ut_monotonic_time started_ms = {0};
+	ib_time_monotonic_ms_t started_ms = 0;
 
 	ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 
@@ -1490,8 +1501,8 @@ loop:
 		return(block);
 	}
 
-	if (!started_ms.ms)
-		started_ms = ut_monotonic_time_ms();
+	if (!started_ms)
+		started_ms = ut_time_monotonic_ms();
 
 	MONITOR_INC( MONITOR_LRU_GET_FREE_LOOPS );
 

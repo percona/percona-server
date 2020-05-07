@@ -3,13 +3,21 @@
 Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -354,7 +362,7 @@ buf_parallel_dblwr_make_path(void)
 
 	if (is_absolute_path(srv_parallel_doublewrite_path)) {
 
-		strncpy(path, srv_parallel_doublewrite_path, sizeof(path));
+		my_strncpy_trunc(path, srv_parallel_doublewrite_path, sizeof(path));
 	} else {
 
 		/* A relative path to the parallel doublewrite file is based
@@ -1331,8 +1339,13 @@ buf_dblwr_flush_buffered_writes(
 	      * srv_doublewrite_batch_size * UNIV_PAGE_SIZE);
 #endif
 
-	os_file_write(io_req, parallel_dblwr_buf.path, parallel_dblwr_buf.file,
-		      write_buf, file_pos, len);
+	dberr_t err = os_file_write(io_req, parallel_dblwr_buf.path,
+				    parallel_dblwr_buf.file, write_buf,
+				    file_pos, len);
+	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
+		ib::fatal() << "Parallel doublewrite buffer write failed, "
+			"crashing the server to avoid data loss";
+	}
 
 	ut_ad(dblwr_shard->first_free <= srv_doublewrite_batch_size);
 
@@ -1640,6 +1653,10 @@ the disk file.
 dberr_t
 buf_parallel_dblwr_create(void)
 {
+	if (!srv_use_doublewrite_buf) {
+		return(DB_SUCCESS);
+	}
+
 	if (!parallel_dblwr_buf.file.is_closed() || srv_read_only_mode) {
 
 		ut_ad(parallel_dblwr_buf.recovery_buf_unaligned == NULL);

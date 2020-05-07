@@ -1,7 +1,5 @@
 
 -- source include/not_embedded.inc
-# Disabled until https://bugs.mysql.com/bug.php?id=78224 is fixed.
--- source include/not_valgrind.inc
 
 --echo #
 --echo # WL#7755  mysqlpump: Extend mysqldump functionalities

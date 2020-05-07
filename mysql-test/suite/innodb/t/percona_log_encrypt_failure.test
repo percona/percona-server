@@ -1,0 +1,18 @@
+--disable_query_log
+call mtr.add_suppression("New log files created");
+--enable_query_log
+
+--let MYSQLD_DATADIR=`SELECT @@datadir`
+--let MYSQLD_LOG=$MYSQL_TMP_DIR/server.log
+--source include/shutdown_mysqld.inc
+
+--let NEW_CMD=$MYSQLD $extra_args --datadir=$MYSQLD_DATADIR --innodb_redo_log_encrypt=MASTER_KEY >$MYSQLD_LOG 2>&1;
+--error 1
+--exec $NEW_CMD
+
+--let SEARCH_FILE=$MYSQLD_LOG
+--let SEARCH_PATTERN=Redo log encryption is enabled, but keyring plugin is not loaded.
+--source include/search_pattern.inc
+
+--source include/start_mysqld.inc
+--remove_file $MYSQLD_LOG

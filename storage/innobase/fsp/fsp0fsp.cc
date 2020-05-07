@@ -2,13 +2,21 @@
 
 Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -978,17 +986,23 @@ fsp_header_fill_encryption_info(
 	/* Write magic header. */
 	if (version == Encryption::ENCRYPTION_VERSION_1) {
 		memcpy(ptr, ENCRYPTION_KEY_MAGIC_V1, ENCRYPTION_MAGIC_SIZE);
-	} else {
+	} else if (version == Encryption::ENCRYPTION_VERSION_2) {
 		memcpy(ptr, ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE);
+	} else {
+		memcpy(ptr, ENCRYPTION_KEY_MAGIC_V3, ENCRYPTION_MAGIC_SIZE);
 	}
 	ptr += ENCRYPTION_MAGIC_SIZE;
 
 	/* Write master key id. */
 	mach_write_to_4(ptr, master_key_id);
-	ptr += sizeof(ulint);
+	if (version == Encryption::ENCRYPTION_VERSION_3) {
+	  ptr += sizeof(uint32);
+	} else {
+	  ptr += sizeof(ulint);
+	}
 
 	/* Write server uuid. */
-	if (version == Encryption::ENCRYPTION_VERSION_2) {
+	if (version != Encryption::ENCRYPTION_VERSION_1) {
 		memcpy(ptr, Encryption::uuid, ENCRYPTION_SERVER_UUID_LEN);
 		ptr += ENCRYPTION_SERVER_UUID_LEN;
 		/* We should never write empty UUID. Only exemption is for
@@ -1078,6 +1092,9 @@ fsp_header_write_encryption(
 			     ENCRYPTION_MAGIC_SIZE) == 0
 		      || memcmp(page + offset,
 				ENCRYPTION_KEY_MAGIC_V2,
+				ENCRYPTION_MAGIC_SIZE) == 0
+		      || memcmp(page + offset,
+				ENCRYPTION_KEY_MAGIC_V3,
 				ENCRYPTION_MAGIC_SIZE) == 0);
 		return(true);
 	}
@@ -1139,7 +1156,8 @@ fsp_enable_encryption(
 
 	memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE_V2);
 
-	if (!fsp_header_fill_encryption_info(space->encryption_key, space->encryption_iv, encrypt_info)) {
+	if (!fsp_header_fill_encryption_info(
+		space->encryption_key, space->encryption_iv, encrypt_info)) {
 		return(false);
 	}
 
@@ -1161,12 +1179,17 @@ fsp_enable_encryption(
 			 space->flags, MLOG_4BYTES, &mtr);
 
 	ulint offset = fsp_header_get_encryption_offset(page_size);
-	ut_ad(offset != 0 && offset < UNIV_PAGE_SIZE);
+	ut_ad(offset != 0);
+	ut_ad(offset < UNIV_PAGE_SIZE);
 
 	mlog_write_string(page + offset,
 			  encrypt_info,
 			  ENCRYPTION_INFO_SIZE_V2,
 			  &mtr);
+
+	fsp_flags_set_encryption(space->flags);
+	mlog_write_ulint(page + FSP_HEADER_OFFSET + FSP_SPACE_FLAGS,
+			 space->flags, MLOG_4BYTES, &mtr);
 
 	mtr_commit(&mtr);
 
@@ -1351,13 +1374,17 @@ fsp_header_decode_encryption_info(
 	if (memcmp(ptr, ENCRYPTION_KEY_MAGIC_V1,
 		     ENCRYPTION_MAGIC_SIZE) == 0) {
 		version = Encryption::ENCRYPTION_VERSION_1;
-	} else {
+	} else if (memcmp(ptr, ENCRYPTION_KEY_MAGIC_V2,
+		     ENCRYPTION_MAGIC_SIZE) == 0) {
 		version = Encryption::ENCRYPTION_VERSION_2;
+	} else {
+		version = Encryption::ENCRYPTION_VERSION_3;
 	}
 
 	/* Check magic. */
-	if (version == Encryption::ENCRYPTION_VERSION_2
-	    && memcmp(ptr, ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE) != 0) {
+	if (version >= Encryption::ENCRYPTION_VERSION_2
+	    && memcmp(ptr, ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE) != 0
+	    && memcmp(ptr, ENCRYPTION_KEY_MAGIC_V3, ENCRYPTION_MAGIC_SIZE) != 0) {
 		/* We ignore report error for recovery,
 		since the encryption info maybe hasn't writen
 		into datafile when the table is newly created. */
@@ -1371,10 +1398,14 @@ fsp_header_decode_encryption_info(
 
 	/* Get master key id. */
 	master_key_id = mach_read_from_4(ptr);
-	ptr += sizeof(ulint);
+	if (version == Encryption::ENCRYPTION_VERSION_3) {
+		ptr += sizeof(uint32);
+	} else {
+		ptr += sizeof(ulint);
+	}
 
 	/* Get server uuid. */
-	if (version == Encryption::ENCRYPTION_VERSION_2) {
+	if (version >= Encryption::ENCRYPTION_VERSION_2) {
 		memset(srv_uuid, 0, ENCRYPTION_SERVER_UUID_LEN + 1);
 		memcpy(srv_uuid, ptr, ENCRYPTION_SERVER_UUID_LEN);
 		ptr += ENCRYPTION_SERVER_UUID_LEN;

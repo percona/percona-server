@@ -3,13 +3,21 @@
 Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -360,6 +368,17 @@ dict_table_autoinc_unlock(
 /*======================*/
 	dict_table_t*	table);	/*!< in/out: table */
 
+/** Acquire the analyze index lock.
+@param[in]	table table whose analyze_index latch to lock */
+void
+dict_table_analyze_index_lock(
+	dict_table_t*	table);
+
+/** Release the analyze index lock.
+@param[in]	table table whose analyze_index latch to unlock */
+void
+dict_table_analyze_index_unlock(
+	dict_table_t*	table);
 #endif /* !UNIV_HOTBACKUP */
 /**********************************************************************//**
 Adds system columns to a table object. */
@@ -2200,10 +2219,10 @@ dict_create_zip_dict(
 @retval	DB_RECORD_NOT_FOUND	if not found */
 dberr_t
 dict_get_dictionary_id_by_key(
-	ulint	table_id,	/*!< in: table id */
-	ulint	column_pos,	/*!< in: column position */
-	ulint*	dict_id,	/*!< out: zip_dict id */
-	bool	dict_locked);	/*!< in: true if data dictionary locked */
+	table_id_t	table_id,	/*!< in: table id */
+	ulint		column_pos,	/*!< in: column position */
+	ulint*		dict_id,	/*!< out: zip_dict id */
+	bool		dict_locked);	/*!< in: true if data dictionary locked */
 
 
 /** Get compression dictionary info (name and data) for the given id.
@@ -2213,7 +2232,7 @@ Must be freed with mem_free().
 @retval	DB_RECORD_NOT_FOUND	if not found */
 dberr_t
 dict_get_dictionary_info_by_id(
-	ulint	dict_id,	/*!< in: table name */
+	ulint	dict_id,	/*!< in: dictionary id */
 	char**	name,		/*!< out: dictionary name */
 	ulint*	name_len,	/*!< out: dictionary name length*/
 	char**	data,		/*!< out: dictionary data */

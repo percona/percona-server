@@ -1,13 +1,20 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -868,6 +875,58 @@ int Query_result_delete::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   DBUG_RETURN(0);
 }
 
+/**
+  Test that the two strings are equal, accoding to the lower_case_table_names
+  setting.
+
+  @param  a     A table or database name
+  @param  b     A table or database name
+  @retval bool  True if the two names are equal
+*/
+static bool db_or_table_name_equals(const char* a, const char *b) {
+  return lower_case_table_names ?
+    my_strcasecmp(files_charset_info, a, b) == 0 :
+    strcmp(a, b) == 0;
+}
+
+/**
+  Test that the subject table (of DELETE) has a cascade foreign key
+  parent present in the query.
+
+  @param  thd        thread handle
+  @param  table      table to be checked (must be updatable base table)
+  @param  table_list List of tables to check against
+
+  @retval bool       True if cascade parent found.
+*/
+static bool has_cascade_dependency(THD *thd, const TABLE_LIST &table,
+                                   TABLE_LIST *table_list)
+{
+  DBUG_ASSERT(&table == const_cast<TABLE_LIST &>(table).updatable_base_table());
+
+  List <st_handler_tablename> fk_table_list;
+  List_iterator<st_handler_tablename> fk_table_list_it(fk_table_list);
+
+  table.table->file->get_cascade_foreign_key_table_list(thd, &fk_table_list);
+
+  st_handler_tablename *tbl_name;
+  while ((tbl_name= fk_table_list_it++))
+  {
+    for (TABLE_LIST* curr= table_list; curr; curr= curr->next_local)
+    {
+      const bool same_table_name= 
+        db_or_table_name_equals(curr->table_name, tbl_name->tablename);
+      const bool same_db_name=
+        db_or_table_name_equals(curr->db, tbl_name->db);
+      if (same_table_name && same_db_name)
+      {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
 
 bool Query_result_delete::initialize_tables(JOIN *join)
 {
@@ -893,7 +952,8 @@ bool Query_result_delete::initialize_tables(JOIN *join)
     TABLE_LIST *const ref= walk->correspondent_table->updatable_base_table();
     delete_table_map|= ref->map();
     if (delete_while_scanning &&
-        unique_table(thd, ref, join->tables_list, false))
+        (unique_table(thd, ref, join->tables_list, false) ||
+         has_cascade_dependency(thd, *ref, join->tables_list)))
     {
       /*
         If the table being deleted from is also referenced in the query,
@@ -1347,6 +1407,7 @@ bool Query_result_delete::send_eof()
         thd->clear_error();
       else
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
+      thd->thread_specific_used= TRUE;
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query().str, thd->query().length,
                             transactional_table_map != 0, FALSE, FALSE,

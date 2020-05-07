@@ -3,13 +3,21 @@
 Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -750,7 +758,7 @@ dict_table_autoinc_alloc(
 	void*	table_void)
 {
 	dict_table_t*	table = static_cast<dict_table_t*>(table_void);
-	table->autoinc_mutex = UT_NEW_NOKEY(ib_mutex_t());
+	table->autoinc_mutex = UT_NEW_NOKEY(AutoIncMutex());
 	ut_a(table->autoinc_mutex != NULL);
 	mutex_create(LATCH_ID_AUTOINC, table->autoinc_mutex);
 }
@@ -913,6 +921,43 @@ dict_table_autoinc_unlock(
 	dict_table_t*	table)	/*!< in/out: table */
 {
 	mutex_exit(table->autoinc_mutex);
+}
+
+/** Create and initialize the analyze index lock for a given table.
+This lock is used to serialize two concurrent analyze index operations
+@param[in]	table_void	table whose analyze_index latch to create */
+static
+void
+dict_table_analyze_index_alloc(
+	void*	table_void)
+{
+	dict_table_t*	table = static_cast<dict_table_t*>(table_void);
+	table->analyze_index_mutex = UT_NEW_NOKEY(AnalyzeIndexMutex());
+	ut_a(table->analyze_index_mutex != NULL);
+	mutex_create(LATCH_ID_ANALYZE_INDEX_MUTEX, table->analyze_index_mutex);
+}
+
+/** Acquire the analyze index lock.
+@param[in]	table table whose analyze_index latch to lock */
+void
+dict_table_analyze_index_lock(
+	dict_table_t*	table)
+{
+	os_once::do_or_wait_for_done(
+		&table->analyze_index_mutex_created,
+		dict_table_analyze_index_alloc, table);
+
+	mutex_enter(table->analyze_index_mutex);
+}
+
+/** Release the analyze index lock.
+@param[in]	table table whose analyze_index latch to unlock */
+void
+dict_table_analyze_index_unlock(
+	dict_table_t*	table)
+{
+	ut_a(table->analyze_index_mutex != NULL);
+	mutex_exit(table->analyze_index_mutex);
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -6076,7 +6121,8 @@ dict_table_set_corrupt_by_space(
 	dict_table_t*	table;
 	bool		found = false;
 
-	ut_a(space_id != 0 && space_id < SRV_LOG_SPACE_FIRST_ID);
+	ut_a(space_id != 0);
+	ut_a(space_id < SRV_LOG_SPACE_FIRST_ID);
 
 	if (need_mutex)
 		mutex_enter(&(dict_sys->mutex));
@@ -7257,10 +7303,10 @@ dict_create_zip_dict(
 @retval	DB_RECORD_NOT_FOUND	if not found */
 dberr_t
 dict_get_dictionary_id_by_key(
-	ulint	table_id,	/*!< in: table id */
-	ulint	column_pos,	/*!< in: column position */
-	ulint*	dict_id,	/*!< out: zip_dict id */
-	bool	dict_locked)	/*!< in: true if data dictionary locked */
+	table_id_t	table_id,	/*!< in: table id */
+	ulint		column_pos,	/*!< in: column position */
+	ulint*		dict_id,	/*!< out: zip_dict id */
+	bool		dict_locked)	/*!< in: true if data dictionary locked */
 {
 	dberr_t		err = DB_SUCCESS;
 	trx_t*		trx;
@@ -7303,7 +7349,7 @@ Must be freed with mem_free().
 @retval	DB_RECORD_NOT_FOUND	if not found */
 dberr_t
 dict_get_dictionary_info_by_id(
-	ulint	dict_id,	/*!< in: table name */
+	ulint	dict_id,	/*!< in: dictionary id */
 	char**	name,		/*!< out: dictionary name */
 	ulint*	name_len,	/*!< out: dictionary name length*/
 	char**	data,		/*!< out: dictionary data */

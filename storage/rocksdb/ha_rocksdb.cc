@@ -3106,10 +3106,10 @@ static int rocksdb_close_connection(handlerton *const hton, THD *const thd) {
  * be used as a rocksdb transaction name
  */
 static std::string rdb_xid_to_string(const XID &src) {
-  DBUG_ASSERT(src.get_gtrid_length() >= 0 &&
-              src.get_gtrid_length() <= MAXGTRIDSIZE);
-  DBUG_ASSERT(src.get_bqual_length() >= 0 &&
-              src.get_bqual_length() <= MAXBQUALSIZE);
+  DBUG_ASSERT(src.get_gtrid_length() >= 0);
+  DBUG_ASSERT(src.get_gtrid_length() <= MAXGTRIDSIZE);
+  DBUG_ASSERT(src.get_bqual_length() >= 0);
+  DBUG_ASSERT(src.get_bqual_length() <= MAXBQUALSIZE);
 
   std::string buf;
   buf.reserve(RDB_XIDHDR_LEN + src.get_gtrid_length() + src.get_bqual_length());
@@ -3291,10 +3291,10 @@ static void rdb_xid_from_string(const std::string &src, XID *const dst) {
   dst->set_bqual_length(src.at(offset));
   offset += RDB_BQUAL_SZ;
 
-  DBUG_ASSERT(dst->get_gtrid_length() >= 0 &&
-              dst->get_gtrid_length() <= MAXGTRIDSIZE);
-  DBUG_ASSERT(dst->get_bqual_length() >= 0 &&
-              dst->get_bqual_length() <= MAXBQUALSIZE);
+  DBUG_ASSERT(dst->get_gtrid_length() >= 0);
+  DBUG_ASSERT(dst->get_gtrid_length() <= MAXGTRIDSIZE);
+  DBUG_ASSERT(dst->get_bqual_length() >= 0);
+  DBUG_ASSERT(dst->get_bqual_length() <= MAXBQUALSIZE);
 
   const std::string &tmp_data = src.substr(
       RDB_XIDHDR_LEN, (dst->get_gtrid_length()) + (dst->get_bqual_length()));
@@ -7420,8 +7420,9 @@ ulong ha_rocksdb::index_flags(bool &pk_can_be_decoded,
   ulong base_flags = HA_READ_NEXT | // doesn't seem to be used
                      HA_READ_ORDER | HA_READ_RANGE | HA_READ_PREV;
 
-  if (check_keyread_allowed(pk_can_be_decoded, table_share, inx, part,
-                            all_parts))
+  bool res = check_keyread_allowed(pk_can_be_decoded, table_share, inx, part,
+                                   all_parts);
+  if (res)
     base_flags |= HA_KEYREAD_ONLY;
 
   if (inx == table_share->primary_key) {
@@ -7431,7 +7432,8 @@ ulong ha_rocksdb::index_flags(bool &pk_can_be_decoded,
       plans.
     */
     base_flags |= HA_KEYREAD_ONLY;
-  } else {
+  } else if (res) {
+    /* We can do ICP only if we are able to decode the key (res == true) */
     /*
       We can Index Condition Pushdown any key except the primary. With primary
       key, we get (pk, record) pair immediately, there is no place to put the
@@ -13081,13 +13083,28 @@ static int rocksdb_validate_update_cf_options(
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "rocksdb_update_cf_options", str);
     return HA_EXIT_FAILURE;
   }
-  // Loop through option_map and create missing column families
-  for (Rdb_cf_options::Name_to_config_t::iterator it = option_map.begin();
-       it != option_map.end(); ++it) {
-    if (!cf_manager.get_or_create_cf(rdb, it->first,
-                                     !rocksdb_no_create_column_family)) {
-      return HA_EXIT_FAILURE;
+  // Loop through option_map and check if all specified CFs exist.
+  std::vector<const std::string *> unknown_cfs;
+  for (const auto &option : option_map) {
+    if (!cf_manager.get_cf(option.first)) {
+      unknown_cfs.push_back(&(option.first));
     }
+  }
+
+  if (!unknown_cfs.empty()) {
+    std::string err(str);
+    err.append(" Unknown CF: ");
+    bool first = true;
+    for (const auto cf : unknown_cfs) {
+      if (first)
+        first = false;
+      else
+        err.append(", ");
+      err.append(*cf);
+    }
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "rocksdb_update_cf_options",
+             err.c_str());
+    return HA_EXIT_FAILURE;
   }
   return HA_EXIT_SUCCESS;
 }
@@ -13111,7 +13128,8 @@ static void rocksdb_set_update_cf_options(
   // Reset the pointers regardless of how much success we had with updating
   // the CF options. This will results in consistent behavior and avoids
   // dealing with cases when only a subset of CF-s was successfully updated.
-  *reinterpret_cast<char **>(var_ptr) = my_strdup(0, val, MYF(0));
+  *static_cast<const char **>(var_ptr) =
+      *static_cast<const char *const *>(save);
 
   // Do the real work of applying the changes.
   Rdb_cf_options::Name_to_config_t option_map;

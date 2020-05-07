@@ -1,0 +1,10 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: bash
+    steps:
+      - run:
+          name: Run a placeholder script returning success
+          command: |
+            echo "I'm returning success"

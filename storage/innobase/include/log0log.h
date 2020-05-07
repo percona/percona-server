@@ -9,13 +9,21 @@ briefly in the InnoDB documentation. The contributions by Google are
 incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -51,6 +59,8 @@ struct log_t;
 
 /** Redo log group */
 struct log_group_t;
+
+extern uint srv_redo_log_key_version;
 
 /** Magic value to use instead of log checksums when they are disabled */
 #define LOG_NO_CHECKSUM_MAGIC 0xDEADBEEFUL
@@ -142,6 +152,18 @@ Closes the log.
 lsn_t
 log_close(void);
 
+enum redo_log_encrypt_enum {
+	REDO_LOG_ENCRYPT_OFF = 0,
+	REDO_LOG_ENCRYPT_MK = 1,
+	REDO_LOG_ENCRYPT_RK = 2,
+};
+
+extern redo_log_encrypt_enum existing_redo_encryption_mode;
+
+const char* log_encrypt_name(redo_log_encrypt_enum val);
+
+void log_rotate_default_key();
+
 /** Write the encryption info into the log file header(the 3rd block).
 It just need to flush the file header block with current master key.
 @param[in]	key	encryption key
@@ -151,7 +173,8 @@ It just need to flush the file header block with current master key.
 bool
 log_write_encryption(
 	byte*	key,
-	byte*	iv);
+	byte*	iv,
+	redo_log_encrypt_enum redo_log_encrypt);
 
 /** Rotate the redo log encryption
  * It will re-encrypt the redo log encryption metadata and write it to
@@ -160,9 +183,13 @@ log_write_encryption(
 bool
 log_rotate_encryption();
 
+/* Checks if there is a new redo key when using keyring encryption. */
+void
+log_check_new_key_version();
+
 /** Enables redo log encryption. */
 void
-log_enable_encryption_if_set();
+redo_rotate_default_master_key();
 /************************************************************//**
 Gets the current lsn.
 @return current lsn */
@@ -875,11 +902,10 @@ struct log_t{
 
 /* log scrubbing speed, in bytes/sec */
 extern ulonglong innodb_scrub_log_speed;
-
 /** Event to wake up log_scrub_thread */
-extern os_event_t       log_scrub_event;
+extern os_event_t log_scrub_event;
 /** Whether log_scrub_thread is active */
-extern bool             log_scrub_thread_active;
+extern bool log_scrub_thread_active;
 
 /** Calculate the offset of an lsn within a log group.
 @param[in]	lsn	log sequence number

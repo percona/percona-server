@@ -8,7 +8,7 @@
 
 SELECT @@global.innodb_semaphore_wait_timeout_debug;
 
-set global innodb_semaphore_wait_timeout_debug = 10;
+SET GLOBAL innodb_semaphore_wait_timeout_debug = 10;
 SELECT @@global.innodb_semaphore_wait_timeout_debug;
 
 SET GLOBAL innodb_semaphore_wait_timeout_debug = 200;

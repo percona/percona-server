@@ -17,13 +17,21 @@ documentation. The contributions by Percona Inc. are incorporated with
 their permission, and subject to the conditions contained in the file
 COPYING.Percona.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -465,23 +473,36 @@ create_log_files(
 	ut_a(fil_validate());
 	ut_a(log_space != NULL);
 
-      /* Once the redo log is set to be encrypted,
-        initialize encryption information. */
-       if (srv_redo_log_encrypt != REDO_LOG_ENCRYPT_OFF) {
-               if (!Encryption::check_keyring()) {
-                       ib::error()
-                               << "Redo log encryption is enabled,"
-                               << " but keyring plugin is not loaded.";
+	/* Once the redo log is set to be encrypted,
+	   initialize encryption information. */
+	if (srv_redo_log_encrypt != REDO_LOG_ENCRYPT_OFF) {
+		if (!Encryption::check_keyring()) {
+			ib::error()
+				<< "Redo log encryption is enabled,"
+				<< " but keyring plugin is not loaded.";
 
-                       return(DB_ERROR);
-               }
+			return(DB_ERROR);
+		}
 
-               log_space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
-               err = fil_set_encryption(log_space->id,
-                                        Encryption::AES,
-                                        NULL,
-                                        NULL);
-               ut_ad(err == DB_SUCCESS);
+		Encryption::Type alg = srv_redo_log_encrypt == REDO_LOG_ENCRYPT_RK
+		       ? Encryption::KEYRING : Encryption::AES;
+
+		log_space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
+
+		redo_log_key* mkey = redo_log_key_mgr.generate_new_key_without_storing();
+		err = fil_set_encryption(log_space->id,
+					 alg,
+					 reinterpret_cast<byte*>(mkey->key),
+					 NULL);
+
+		if (err != DB_SUCCESS) {
+			ib::error() << "Failed to encrypt redo log tablespace.";
+			return(DB_ERROR);
+		}
+
+		log_space->encryption_redo_key = mkey;
+		log_space->encryption_key_version = REDO_LOG_ENCRYPT_NO_VERSION;
+		ut_ad(err == DB_SUCCESS);
        }
 
 
@@ -524,8 +545,8 @@ create_log_files(
 	if redo log is set with encryption. */
 	if (FSP_FLAGS_GET_ENCRYPTION(log_space->flags)) {
 		if (!log_write_encryption(log_space->encryption_key,
-					  log_space->encryption_iv
-					  )) {
+					  log_space->encryption_iv,
+					  static_cast<redo_log_encrypt_enum>(srv_redo_log_encrypt))) {
 			return(DB_ERROR);
 		}
 	}
@@ -707,7 +728,12 @@ srv_undo_tablespace_read_encryption(
  	/* Return if the encryption metadata is empty. */
 	if (memcmp(first_page + offset,
 		   ENCRYPTION_KEY_MAGIC_V2,
-		   ENCRYPTION_MAGIC_SIZE) != 0) {
+		   ENCRYPTION_MAGIC_SIZE) != 0
+	    &&
+	    memcmp(first_page + offset,
+		   ENCRYPTION_KEY_MAGIC_V3,
+		   ENCRYPTION_MAGIC_SIZE) != 0
+	    ) {
 		ut_free(first_page_buf);
 		return(DB_SUCCESS);
 	}
@@ -1450,6 +1476,12 @@ srv_shutdown_all_bg_threads()
 
 			if (srv_n_fil_crypt_threads_started) {
 				os_event_set(fil_crypt_threads_event);
+			}
+
+			/* Stop srv_redo_log_follow_thread thread */
+			if (srv_redo_log_thread_started) {
+				os_event_reset(srv_redo_log_tracked_event);
+				os_event_set(srv_checkpoint_completed_event);
 			}
 		}
 
@@ -2526,6 +2558,8 @@ files_checked:
 		if (err == DB_SUCCESS) {
 			/* Initialize the change buffer. */
 			err = dict_boot();
+			DBUG_EXECUTE_IF("ib_dic_boot_error",
+					err = DB_ERROR;);
 		}
 
 		if (err != DB_SUCCESS) {

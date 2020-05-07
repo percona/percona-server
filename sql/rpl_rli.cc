@@ -1,13 +1,20 @@
 /* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
@@ -394,6 +401,38 @@ bool Relay_log_info::mts_finalize_recovery()
 
 err:
   DBUG_RETURN(ret);
+}
+
+bool Relay_log_info::mts_workers_queue_empty() const
+{
+  ulong ret= 0;
+
+  for (Slave_worker * const *it= workers.begin(); ret == 0 && it != workers.end(); ++it)
+  {
+    Slave_worker *worker= *it;
+    mysql_mutex_lock(&worker->jobs_lock);
+    ret+= worker->curr_jobs;
+    mysql_mutex_unlock(&worker->jobs_lock);
+  }
+  return ret == 0;
+}
+
+/* Checks if all in-flight stmts/trx can be safely rolled back */
+bool Relay_log_info::cannot_safely_rollback() const
+{
+  if (!is_parallel_exec())
+    return info_thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::SESSION);
+
+  bool ret= false;
+
+  for (Slave_worker * const *it= workers.begin(); !ret && it != workers.end(); ++it)
+  {
+    Slave_worker *worker= *it;
+    mysql_mutex_lock(&worker->jobs_lock);
+    ret= worker->info_thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::SESSION);
+    mysql_mutex_unlock(&worker->jobs_lock);
+  }
+  return ret;
 }
 
 static inline int add_relay_log(Relay_log_info* rli,LOG_INFO* linfo)
@@ -1886,6 +1925,7 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
       called before deleting the rows_query event.
     */
     info_thd->reset_query();
+    info_thd->reset_query_for_display();
     delete rows_query_ev;
     rows_query_ev= NULL;
     DBUG_EXECUTE_IF("after_deleting_the_rows_query_ev",

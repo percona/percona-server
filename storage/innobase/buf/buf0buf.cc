@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -9,13 +9,21 @@ briefly in the InnoDB documentation. The contributions by Google are
 incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -1797,7 +1805,7 @@ buf_pool_init_instance(
 
 		buf_pool->zip_hash = hash_create(2 * buf_pool->curr_size);
 
-		buf_pool->last_printout_time = ut_time();
+		buf_pool->last_printout_time = ut_time_monotonic();
 	}
 	/* 2. Initialize flushing fields
 	-------------------------------- */
@@ -2987,7 +2995,7 @@ calc_buf_pool_size:
 
 	/* enable AHI if needed */
 	if (btr_search_disabled) {
-		btr_search_enable();
+		btr_search_enable(true);
 		ib::info() << "Re-enabled adaptive hash index.";
 	}
 
@@ -3536,7 +3544,7 @@ buf_page_peek_if_too_old(
 		it is 15 ms. This is known and fixing it would require to
 		increase buf_page_t::access_time from 32 to 64 bits. */
 		if (access_time > 0
-		    && ((ib_uint32_t) (ut_time_ms() - access_time))
+		    && ((ib_uint32_t) (ut_time_monotonic_ms() - access_time))
 		    >= buf_LRU_old_threshold_ms) {
 			return(TRUE);
 		}
@@ -3790,7 +3798,7 @@ got_block:
 		/* Let us wait until the read operation
 		completes */
 
-		const ib_uint64_t start_time =
+		const ib_time_monotonic_us_t start_time =
 		    trx_stats::start_io_read(trx, 0);
 		for (;;) {
 			enum buf_io_fix	io_fix;
@@ -4068,7 +4076,7 @@ buf_wait_for_read(
 
 		/* Wait until the read operation completes */
 
-		const ib_uint64_t start_time =
+		const ib_time_monotonic_us_t start_time =
 		    trx_stats::start_io_read(trx, 0);
 
 		for (;;) {
@@ -6217,17 +6225,6 @@ buf_all_freed_instance(
 	return(TRUE);
 }
 
-/**********************************************************************//**
-Refreshes the statistics used to print per-second averages. */
-void
-buf_refresh_io_stats(
-/*=================*/
-	buf_pool_t*	buf_pool)	/*!< in: buffer pool instance */
-{
-	buf_pool->last_printout_time = ut_time();
-	buf_pool->old_stat = buf_pool->stat;
-}
-
 /*********************************************************************//**
 Invalidates file pages in one buffer pool instance */
 static
@@ -7158,6 +7155,17 @@ buf_print_io(
 	}
 
 	ut_free(pool_info);
+}
+
+/**********************************************************************//**
+Refreshes the statistics used to print per-second averages. */
+void
+buf_refresh_io_stats(
+/*=================*/
+	buf_pool_t*	buf_pool)	/*!< in: buffer pool instance */
+{
+	buf_pool->last_printout_time = ut_time_monotonic();
+	buf_pool->old_stat = buf_pool->stat;
 }
 
 /**********************************************************************//**

@@ -17,6 +17,7 @@ jobs:
 
   strategy:
     matrix:
+      # clang-5 and newer compilers
       Clang-10 Debug:
         Compiler: clang
         CompilerVer: 10
@@ -27,21 +28,10 @@ jobs:
         CompilerVer: 10
         BuildType: RelWithDebInfo
 
-      GCC-9 Debug:
-        Compiler: gcc
+      Clang-9 Debug:
+        Compiler: clang
         CompilerVer: 9
         BuildType: Debug
-
-      GCC-9 Release:
-        Compiler: gcc
-        CompilerVer: 9
-        BuildType: RelWithDebInfo
-
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Clang-9 Debug:
-          Compiler: clang
-          CompilerVer: 9
-          BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
         Clang-9 Release:
@@ -49,25 +39,83 @@ jobs:
           CompilerVer: 9
           BuildType: RelWithDebInfo
 
-      GCC-8 Debug:
-        Compiler: gcc
-        CompilerVer: 8
-        BuildType: Debug
-
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        GCC-8 Release:
-          Compiler: gcc
+        Clang-8 Debug:
+          Compiler: clang
           CompilerVer: 8
-          BuildType: RelWithDebInfo
-
-      Clang-8 Debug:
-        Compiler: clang
-        CompilerVer: 8
-        BuildType: Debug
+          BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
         Clang-8 Release:
           Compiler: clang
+          CompilerVer: 8
+          BuildType: RelWithDebInfo
+
+      Clang-7 Debug:
+        Compiler: clang
+        CompilerVer: 7
+        BuildType: Debug
+
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        Clang-7 Release:
+          Compiler: clang
+          CompilerVer: 7
+          BuildType: RelWithDebInfo
+
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        Clang-6 Debug:
+          Compiler: clang
+          CompilerVer: 6.0
+          BuildType: Debug
+
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        Clang-6 Release:
+          Compiler: clang
+          CompilerVer: 6.0
+          BuildType: RelWithDebInfo
+
+      Clang-5 Debug:
+        Compiler: clang
+        CompilerVer: 5.0
+        BuildType: Debug
+
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        Clang-5 Release:
+          Compiler: clang
+          CompilerVer: 5.0
+          BuildType: RelWithDebInfo
+
+      # gcc-5 and newer compilers
+      GCC-10 Debug:
+        Compiler: gcc
+        CompilerVer: 10
+        BuildType: Debug
+
+      GCC-10 Release:
+        Compiler: gcc
+        CompilerVer: 10
+        BuildType: RelWithDebInfo
+
+      GCC-9 Debug:
+        Compiler: gcc
+        CompilerVer: 9
+        BuildType: Debug
+
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        GCC-9 Release:
+          Compiler: gcc
+          CompilerVer: 9
+          BuildType: RelWithDebInfo
+
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        GCC-8 Debug:
+          Compiler: gcc
+          CompilerVer: 8
+          BuildType: Debug
+
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        GCC-8 Release:
+          Compiler: gcc
           CompilerVer: 8
           BuildType: RelWithDebInfo
 
@@ -79,17 +127,6 @@ jobs:
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
         GCC-7 Release:
           Compiler: gcc
-          CompilerVer: 7
-          BuildType: RelWithDebInfo
-
-      Clang-7 Debug:
-        Compiler: clang
-        CompilerVer: 7
-        BuildType: Debug
-
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Clang-7 Release:
-          Compiler: clang
           CompilerVer: 7
           BuildType: RelWithDebInfo
 
@@ -105,18 +142,6 @@ jobs:
           CompilerVer: 6
           BuildType: RelWithDebInfo
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Clang-6 Debug:
-          Compiler: clang
-          CompilerVer: 6.0
-          BuildType: Debug
-
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Clang-6 Release:
-          Compiler: clang
-          CompilerVer: 6.0
-          BuildType: RelWithDebInfo
-
       GCC-5 Debug:
         Compiler: gcc
         CompilerVer: 5
@@ -128,16 +153,6 @@ jobs:
           CompilerVer: 5
           BuildType: RelWithDebInfo
 
-      Clang-5 Debug:
-        Compiler: clang
-        CompilerVer: 5.0
-        BuildType: Debug
-
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Clang-5 Release:
-          Compiler: clang
-          CompilerVer: 5.0
-          BuildType: RelWithDebInfo
 
   steps:
   - script: |

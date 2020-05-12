@@ -193,6 +193,7 @@ Requires:       grep
 Requires:       procps
 Requires:       shadow-utils
 Requires:       net-tools
+Requires:       openssl
 Requires(pre):  Percona-Server-shared%{product_suffix}
 Requires:       Percona-Server-client%{product_suffix}
 Provides:       MySQL-server%{?_isa} = %{version}-%{release}

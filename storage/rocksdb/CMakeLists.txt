@@ -75,6 +75,10 @@ IF(HAVE_SCHED_GETCPU)
   ADD_DEFINITIONS(-DHAVE_SCHED_GETCPU=1 -DROCKSDB_SCHED_GETCPU_PRESENT)
 ENDIF()
 
+# use my_rocksdb for rocksdb namespace to avoid conflicts with other rocksdb
+# copies in plugins
+ADD_DEFINITIONS(-DROCKSDB_NAMESPACE=my_rocksdb)
+
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mpclmul")
 SET(CMAKE_REQUIRED_FLAGS "${CMAKE_CXX_FLAGS} --std=c++11")
 INCLUDE(CheckCXXSourceCompiles)

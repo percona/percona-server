@@ -249,6 +249,7 @@ jobs:
         -DMYSQL_MAINTAINER_MODE=ON
         -DCMAKE_C_COMPILER_LAUNCHER=/usr/bin/ccache
         -DCMAKE_CXX_COMPILER_LAUNCHER=/usr/bin/ccache
+        -DMERGE_UNITTESTS=ON
         -DWITH_KEYRING_VAULT=ON
         -DWITH_PAM=ON
         -DWITH_TOKUDB=ON

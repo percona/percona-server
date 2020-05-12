@@ -1496,7 +1496,8 @@ dberr_t buf_parallel_dblwr_create(void) noexcept {
     return (DB_SUCCESS);
   }
 
-  memset(parallel_dblwr_buf.shard, 0, sizeof(parallel_dblwr_buf.shard));
+  memset(static_cast<void *>(parallel_dblwr_buf.shard), 0,
+         sizeof(parallel_dblwr_buf.shard));
 
   dberr_t err = buf_parallel_dblwr_file_create();
   if (err != DB_SUCCESS) {

@@ -66,7 +66,7 @@ class Rpl_applier_reader::Stage_controller {
   }
 
   void enter_stage() {
-    DBUG_ASSERT(m_state = LOCKED);
+    DBUG_ASSERT(m_state == LOCKED);
     m_thd->ENTER_COND(m_cond, m_mutex, &m_new_stage, &m_old_stage);
     m_state = IN_STAGE;
   }

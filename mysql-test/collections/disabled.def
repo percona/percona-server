@@ -96,14 +96,9 @@ rocksdb.level_serializable : BUG#0 MyRocks does not yet support ISO serializable
 rocksdb.slow_query_log : BUG#26 MYR-26
 # 8.0
 rocksdb.allow_to_start_after_corruption : BUG#4584 PS-4584
-rocksdb.skip_validate_tmp_table : BUG#4218 PS-4218
-rocksdb.validate_datadic : BUG#4218 PS-4218
 
 # rocksdb_rpl suite tests
 rocksdb_rpl.rpl_rocksdb_snapshot : BUG#0 LOCK BINLOG FOR BACKUP
-
-# rocksdb_sys_vars suite tests
-rocksdb_sys_vars.rocksdb_validate_tables_basic : BUG#0 disabled until validation is figured out
 
 # tokudb suite tests
 tokudb.mvcc-19 : BUG#0 tokutek

@@ -2420,7 +2420,7 @@ purge_archived_logs(
 		if (dirnamelen + strlen(fileinfo.name) + 2 > OS_FILE_MAX_PATH)
 			continue;
 
-		snprintf(archived_log_filename + dirnamelen, OS_FILE_MAX_PATH,
+		snprintf(archived_log_filename + dirnamelen, OS_FILE_MAX_PATH - dirnamelen,
 				"%s", fileinfo.name);
 
 		if (before_no) {

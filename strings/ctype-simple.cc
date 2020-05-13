@@ -1494,7 +1494,8 @@ uint my_strxfrm_flag_normalize(uint flags) {
 
 size_t my_strxfrm_pad(const CHARSET_INFO *cs, uchar *str, uchar *frmend,
                       uchar *strend, uint nweights, uint flags) {
-  if (nweights && frmend < strend && !(flags & MY_STRXFRM_NOPAD_WITH_SPACE)) {
+  if (nweights && frmend < strend) {
+    // PAD SPACE behavior.
     uint fill_length = MY_MIN((uint)(strend - frmend), nweights * cs->mbminlen);
     cs->cset->fill(cs, (char *)frmend, fill_length, cs->pad_char);
     frmend += fill_length;

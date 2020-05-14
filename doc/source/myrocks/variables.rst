@@ -1892,7 +1892,7 @@ Resets MyRocks internal statistics dynamically
 
 .. variable:: rocksdb_rollback_on_timeout
 
-   :version 5.7.30-33: Implemented
+   :version 8.0.20-11: Implemented
    :cli: ``--rocksdb-rollback-on-timeout``
    :dyn: Yes
    :scope: Global

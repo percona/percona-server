@@ -6,22 +6,7 @@ Installing |Percona Server| on *Debian* and *Ubuntu*
 
 Ready-to-use packages are available from the |Percona Server| software repositories and the `download page <http://www.percona.com/downloads/Percona-Server-5.6/>`_.
 
-Supported Releases:
-
-* Debian:
-
- * 8.0 (jessie)
- * 9.0 (stretch)
-
-* Ubuntu:
-
- * 16.04LTS (xenial) 
- * 18.04 (bionic)
-
-Supported Platforms:
-
- * x86
- * x86_64 (also known as ``amd64``)
+Specific information on the supported platforms, products, and versions is described in `Percona Software and Platform Lifecycle <https://www.percona.com/services/policies/percona-software-platform-lifecycle#mysql>`_.
 
 What's in each DEB package?
 ===========================

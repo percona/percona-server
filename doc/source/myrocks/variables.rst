@@ -2364,7 +2364,7 @@ Disabled by default.
   :vartype: Numeric
   :default: ``1``
 
-Specifies whether to verify that MySQL ``.frm`` files match MyRocks tables.
+Specifies whether to verify that MySQL data dictionary is equal to the MyRocks data dictionary.
 
 * ``0``: do not verify.
 * ``1``: verify and fail on error (default).

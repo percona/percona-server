@@ -63,6 +63,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_blind_delete_primary_key`
+     - Yes
+     - Yes
+     - Global, Session
    * - :variable:`rocksdb_block_cache_size`
      - Yes
      - Yes
@@ -658,6 +662,23 @@ Allowed range of values is from ``-1`` to ``64``.  Maximum depends on the
 :variable:`rocksdb_max_background_compactions` variable. This variable was
 replaced with :variable:`rocksdb_max_background_jobs`, which automatically
 decides how many threads to allocate towards flush/compaction.
+
+
+.. variable:: rocksdb_blind_delete_primary_key
+
+   :version 8.0.20-11: Implemented
+   :cli: ``--rocksdb-blind-delete-primary-key``
+   :dyn: Yes
+   :scope: Global, Session
+   :vartype: Boolean
+   :default: ``OFF``
+
+Skips verifying if rows exists before executing deletes. The following conditions
+must be met:
+
+* The variable is enabled
+* Only a single table listed in the ``DELETE`` statement
+* The table has only a primary key with no secondary keys
 
 .. variable:: rocksdb_block_cache_size
 

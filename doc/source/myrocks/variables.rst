@@ -419,6 +419,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global
+   * - :variable:`rocksdb_read_free_rpl`
+     - Yes
+     - Yes
+     - Global
    * - :variable:`rocksdb_read_free_rpl_tables`
      - Yes
      - Yes
@@ -1912,6 +1916,24 @@ via memtable flushes and compaction.
 Default value is ``0`` (write rate is not limited).
 Allowed range is up to ``9223372036854775807``.
 
+.. variable:: rocksdb_read_free_rpl
+
+  :version 8.0.20-11: Implemented
+  :cli: ``--rocksdb-read-free-rpl``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Enum
+  :default: ``OFF``
+
+Use read-free replication, which allows no row lookup during
+replication, on the slave. 
+
+The options are the following:
+
+* OFF - Disables the variable
+* PK_SK - Enables the variable on all tables with a primary key
+* PK_ONLY - Enables the variable on tables where the only key is the primary key
+            
 .. variable:: rocksdb_read_free_rpl_tables
 
   :cli: ``--rocksdb-read-free-rpl-tables``

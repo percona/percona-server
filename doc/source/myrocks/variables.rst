@@ -315,6 +315,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_master_skip_tx_api`
+     - Yes
+     - Yes
+     - Global, Session
    * - :variable:`rocksdb_max_background_compactions`
      - Yes
      - Yes
@@ -1532,6 +1536,23 @@ Allowed range is up to ``18446744073709551615``.
 
 This variable can be used to disable automatic/timed WAL flushing and instead
 rely on the application to do the flushing.
+
+.. variable:: rocksdb_master_skip_tx_api
+
+   :version 8.0.20-11: Implemented
+   :cli: ``--rocksdb-master-skip-tx-api``
+   :dyn: Yes
+   :scope: Global, Session
+   :vartype: Boolean
+   :default: ``OFF``
+
+When enabled, uses the WriteBatch API, which is faster. The session does not
+hold any lock on row access. This variable is not effective on slave.
+
+.. note::
+
+    Due to the disabled row locks, improper use of the variable can cause data 
+    corruption or inconsistency.
 
 .. variable:: rocksdb_max_background_compactions
 

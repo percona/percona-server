@@ -487,7 +487,27 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_table_stats_background_thread_nice_value`
+     - Yes
+     - Yes
+     - Global
+   * - :variable:`rocksdb_table_stats_max_num_rows_scanned`
+     - Yes
+     - Yes
+     - Global
+   * - :variable:`rocksdb_table_stats_recalc_threshold_count`
+     - Yes
+     - Yes
+     - Global
+   * - :variable:`rocksdb_table_stats_recalc_threshold_pct`
+     - Yes
+     - Yes
+     - Global
    * - :variable:`rocksdb_table_stats_sampling_pct`
+     - Yes
+     - Yes
+     - Global
+   * - :variable:`rocksdb_table_stats_use_table_scan`
      - Yes
      - Yes
      - Global
@@ -498,6 +518,10 @@ Also, all variables can exist in one or both of the following scopes:
    * - :variable:`rocksdb_two_write_queues`
      - Yes
      - No
+     - Global
+   * - :variable:`rocksdb_trace_block_cache_access`
+     - Yes
+     - Yes
      - Global
    * - :variable:`rocksdb_trace_sst_api`
      - Yes
@@ -2129,6 +2153,62 @@ Specifies the number if table caches.
 The default value is ``6``.
 The allowed range is from ``0`` to ``19``.
 
+.. variable:: rocksdb_table_stats_background_thread_nice_value
+
+   :version 5.7.30-33: Implemented
+   :cli: ``--rocksdb-table-stats-background-thread-nice-value``
+   :dyn: Yes
+   :scope: Global
+   :vartype: Numeric
+   :default: ``19``
+   
+The nice value for index stats.
+The minimum = -20 (THREAD_PRIO_MIN)
+The maximum = 19 (THREAD_PRIO_MAX)
+
+.. variable:: rocksdb_table_stats_max_num_rows_scanned
+
+   :version 5.7.30-33: Implemented
+   :cli: ``--rocksdb-table-stats-max-num-rows-scanned``
+   :dyn: Yes
+   :scope: Global
+   :vartype: Numeric
+   :default: ``0``
+ 
+The maximum number of rows to scan in a table scan based on
+a cardinality calculation.
+The minimum is ``0`` (every modification triggers a stats recalculation).
+The maximum is ``18,446,744,073,709,551,615``.
+
+.. variable:: rocksdb_table_stats_recalc_threshold_count
+
+   :version 5.7.30-33: Implemented
+   :cli: ``--rocksdb-table-stats-recalc-threshold-count``
+   :dyn: Yes
+   :scope: Global
+   :vartype: Numeric
+   :default: ``100``
+
+The number of modified rows to trigger a stats recalculation. This is a
+dependent variable for stats recalculation. 
+The minimum is ``0``.
+The maximum is ``18,446,744,073,709,551,615``.
+
+.. variable:: rocksdb_table_stats_recalc_threshold_pct
+
+   :version 5.7.30-33: Implemented
+   :cli: ``--rocksdb-table-stats-recalc-threshold-pct``
+   :dyn: Yes
+   :scope: Global
+   :vartype: Numeric
+   :default: ``10``
+
+The percentage of the number of modified rows over the total number of rows
+to trigger stats recalculations. This is a dependent variable for stats
+recalculation.
+The minimum value is ``0`` 
+The maximum value is ``100`` (RDB_TBL_STATS_RECALC_THRESHOLD_PCT_MAX).
+
 .. variable:: rocksdb_table_stats_sampling_pct
 
   :cli: ``--rocksdb-table-stats-sampling-pct``
@@ -2142,6 +2222,18 @@ when collecting statistics about table properties.
 Default value is ``10``.
 Allowed range is from ``0`` to ``100``.
 
+.. variable:: rocksdb_table_stats_use_table_scan
+   
+  :version 5.7.30-33: Implemented
+  :cli: ``--rocksdb-table-stats-use-table-scan``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Boolean
+  :default: ``FALSE``
+
+Enables table-scan-based index calculations. 
+The default value is ``FALSE``.
+
 .. variable:: rocksdb_tmpdir
 
   :cli: ``--rocksdb-tmpdir``
@@ -2151,6 +2243,22 @@ Allowed range is from ``0`` to ``100``.
   :default:
 
 Specifies the path to the directory for temporary files during DDL operations.
+
+.. variable:: rocksdb_trace_block_cache_access
+
+   :version 5.7.30-33: Implemented
+   :cli: ``--rocksdb-trace-block-cache-access``
+   :dyn: Yes
+   :scope: Global
+   :vartype: String
+   :default: ``""`` 
+   
+Defines the block cache trace option string. The format is 
+"sampling frequency: max_trace_file_size:trace_file_name." The
+sampling frequency value and max_trace_file_size value 
+are positive integers. The block accesses are saved to 
+the ``rocksdb_datadir/block_cache_traces/trace_file_name``.
+The default value is ``""``, an empty string.
 
 .. variable:: rocksdb_trace_sst_api
 

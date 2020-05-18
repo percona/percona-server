@@ -833,19 +833,12 @@ fil_node_open_file(
 			ut_error;
 		}
 
-		/* Validate the flags but do not compare the data directory
-		flag, in case this tablespace was relocated. */
-		const unsigned relevant_space_flags
-			= space->flags & ~FSP_FLAGS_MASK_DATA_DIR;
-		const unsigned relevant_flags
-			= flags & ~FSP_FLAGS_MASK_DATA_DIR;
-		if (UNIV_UNLIKELY(relevant_space_flags != relevant_flags)) {
+		if (UNIV_UNLIKELY(space->flags != flags)) {
 			fprintf(stderr,
-				"InnoDB: Error: table flags are 0x%x"
+				"InnoDB: Error: table flags are 0x%lx"
 				" in the data dictionary\n"
-				"InnoDB: but the flags in file %s are 0x%x!\n",
-				relevant_space_flags, node->name,
-				relevant_flags);
+				"InnoDB: but the flags in file %s are 0x%lx!\n",
+				space->flags, node->name, flags);
 
 			ut_error;
 		}

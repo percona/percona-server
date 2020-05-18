@@ -16,16 +16,12 @@ all_filters = [
     re.compile('(\[Note\] Found \d+ prepared transaction\(s\) in \w+)')),
 ]
 
-active_filters = filter(lambda f: f[0] in desired_filters, all_filters)
+active_filters = [f for f in all_filters if f[0] in desired_filters]
 
-results = set()
 with open(log_path) as log:
   for line in log:
     line = line.strip()
     for f in active_filters:
       match = f[1].search(line)
       if match:
-        results.add("**found '%s' log entry**" % f[0])
-
-for res in results:
-  print res
+        print("**found '%s' log entry**" % f[0])

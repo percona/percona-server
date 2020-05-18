@@ -1545,6 +1545,7 @@ int READ_INFO::read_field()
 
   for (;;)
   {
+    bool escaped_mb= false;
     while ( to < end_of_buff)
     {
       chr = GET;
@@ -1566,7 +1567,22 @@ int READ_INFO::read_field()
          */
         if (escape_char != enclosed_char || chr == escape_char)
         {
-          *to++ = (uchar) unescape((char) chr);
+          uint ml= my_mbcharlen(read_charset, chr);
+          /*
+            For escaped multibyte character, push back the first byte,
+            and will handle it below.
+            Because multibyte character's second byte is possible to be
+            0x5C, per Query_result_export::send_data, both head byte and
+            tail byte are escaped for such characters. So mark it if the
+            head byte is escaped and will handle it below.
+          */
+          if (ml == 1)
+            *to++= (uchar) unescape((char) chr);
+          else
+          {
+            escaped_mb= true;
+            PUSH(chr);
+          }
           continue;
         }
         PUSH(chr);
@@ -1635,7 +1651,10 @@ int READ_INFO::read_field()
       uint ml= my_mbcharlen(read_charset, chr);
       if (ml == 0)
       {
-        error= 1;
+        *to= '\0';
+        my_error(ER_INVALID_CHARACTER_STRING, MYF(0),
+                 read_charset->csname, buffer);
+        error= true;
         return 1;
       }
 
@@ -1644,13 +1663,6 @@ int READ_INFO::read_field()
       {
         uchar* p= to;
         *to++ = chr;
-
-        ml= my_mbcharlen(read_charset, chr);
-        if (ml == 0)
-        {
-          error= 1;
-          return 1;
-        }
 
         for (uint i= 1; i < ml; i++) 
         {
@@ -1664,8 +1676,16 @@ int READ_INFO::read_field()
             to-= i;
             goto found_eof;
           }
+          else if (chr == escape_char && escaped_mb)
+          {
+            // Unescape the second byte if it is escaped.
+            chr= GET;
+            chr= (uchar) unescape((char) chr);
+          }
           *to++ = chr;
         }
+        if (escaped_mb)
+          escaped_mb= false;
         if (my_ismbchar(read_charset,
                         (const char *)p,
                         (const char *)to))
@@ -1675,6 +1695,12 @@ int READ_INFO::read_field()
         chr= GET;
       }
 #endif
+      else if (ml > 1)
+      {
+        // Buffer is too small, exit while loop, and reallocate.
+        PUSH(chr);
+        break;
+      }
       *to++ = (uchar) chr;
     }
     /*
@@ -1682,7 +1708,7 @@ int READ_INFO::read_field()
     */
     if (!(new_buffer=(uchar*) my_realloc((char*) buffer,buff_length+1+IO_SIZE,
 					MYF(MY_WME))))
-      return (error=1);
+      return (error=true);
     to=new_buffer + (to-buffer);
     buffer=new_buffer;
     buff_length+=IO_SIZE;

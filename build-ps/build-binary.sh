@@ -163,7 +163,7 @@ else
     REVISION=""
 fi
 PRODUCT_FULL="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
-PRODUCT_FULL="$PRODUCT_FULL${BUILD_COMMENT:-}-$TAG$(uname -s)${DIST_NAME:-}.$TARGET${SSL_VER:-}"
+PRODUCT_FULL="$PRODUCT_FULL${BUILD_COMMENT:-}-$TAG$(uname -s)${DIST_NAME:-}.$TARGET${GLIBC_VER:-}"
 COMMENT="Percona Server (GPL), Release ${MYSQL_VERSION_EXTRA#-}"
 COMMENT="$COMMENT, Revision $REVISION${BUILD_COMMENT:-}"
 
@@ -283,6 +283,89 @@ fi
         cp COPYING "$INSTALLDIR/usr/local/$PRODUCT_FULL/COPYING-jemalloc"
     )
     fi
+)
+
+# Patch needed libraries
+(
+    cd "$INSTALLDIR/usr/local/$PRODUCT_FULL"
+    if [ ! -d lib/private ]; then
+        mkdir -p lib/private
+    fi
+
+    LIBLIST="libcrypto.so libssl.so libreadline.so libtinfo.so libsasl2.so libcurl.so libldap liblber libssh libbrotlidec.so libbrotlicommon.so libgssapi_krb5.so libkrb5.so libkrb5support.so libk5crypto.so librtmp.so libgssapi.so libcrypt.so libfreebl3.so libssl3.so libsmime3.so libnss3.so libnssutil3.so libplds4.so libplc4.so libnspr4.so libssl3.so libplds4.so"
+    DIRLIST="bin lib lib/private lib/plugin"
+
+    LIBPATH=""
+
+    function gather_libs {
+        local elf_path=$1
+        for lib in $LIBLIST; do
+            for elf in $(find $elf_path -maxdepth 1 -exec file {} \; | grep 'ELF ' | cut -d':' -f1); do
+                IFS=$'\n'
+                for libfromelf in $(ldd $elf | grep $lib | awk '{print $3}'); do
+                    if [ ! -f lib/private/$(basename $(readlink -f $libfromelf)) ] && [ ! -L lib/$(basename $(readlink -f $libfromelf)) ]; then
+                        echo "Copying lib $(basename $(readlink -f $libfromelf))"
+                        cp $(readlink -f $libfromelf) lib/private
+
+                        echo "Symlinking lib $(basename $(readlink -f $libfromelf))"
+                        cd lib
+                        ln -s private/$(basename $(readlink -f $libfromelf)) $(basename $(readlink -f $libfromelf))
+                        cd -
+                        
+                        LIBPATH+=" $(echo $libfromelf | grep -v $(pwd))"
+                    fi
+                done
+                unset IFS
+            done
+        done
+    }
+
+    function set_runpath {
+        # Set proper runpath for bins but check before doing anything
+        local elf_path=$1
+        local r_path=$2
+        for elf in $(find $elf_path -maxdepth 1 -exec file {} \; | grep 'ELF ' | cut -d':' -f1); do
+            echo "Checking LD_RUNPATH for $elf"
+            if [ -z $(patchelf --print-rpath $elf) ]; then
+                echo "Changing RUNPATH for $elf"
+                patchelf --set-rpath $r_path $elf
+            fi
+        done
+    }
+
+    function replace_libs {
+        local elf_path=$1
+        for libpath_sorted in $LIBPATH; do
+            for elf in $(find $elf_path -maxdepth 1 -exec file {} \; | grep 'ELF ' | cut -d':' -f1); do
+                LDD=$(ldd $elf | grep $libpath_sorted|head -n1|awk '{print $1}')
+                if [[ ! -z $LDD  ]]; then
+                    echo "Replacing lib $(basename $(readlink -f $libpath_sorted)) for $elf"
+                    patchelf --replace-needed $LDD $(basename $(readlink -f $libpath_sorted)) $elf
+                fi
+                # Add if present in LDD to NEEDED
+                if [[ ! -z $LDD ]] && [[ -z "$(readelf -d $elf | grep $(basename $libpath_sorted | awk -F'.' '{print $1}'))" ]]; then
+                    patchelf --add-needed $(basename $(readlink -f $libpath_sorted)) $elf
+                fi
+            done
+        done
+    }
+
+    # Gather libs
+    for DIR in $DIRLIST; do
+        gather_libs $DIR
+    done
+
+    # Set proper runpath
+    set_runpath bin '$ORIGIN/../lib/private/'
+    set_runpath lib '$ORIGIN/private/'
+    set_runpath lib/plugin '$ORIGIN/../private/'
+    set_runpath lib/private '$ORIGIN'
+
+    # Replace libs
+    for DIR in $DIRLIST; do
+        replace_libs $DIR
+    done
+
 )
 
 # Package the archive

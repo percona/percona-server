@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_upgrade\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/17/2019
+.\"      Date: 03/23/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_UPGRADE\FR" "1" "12/17/2019" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL_UPGRADE\FR" "1" "03/23/2020" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -378,7 +378,6 @@ in the data directory\&. This is used to quickly check whether all tables have b
 \fB\-\-force\fR
 option\&.
 .PP
-As of MySQL 5\&.7\&.2,
 \fBmysql_upgrade\fR
 checks
 mysql\&.user
@@ -390,9 +389,11 @@ or
 \*(Aqmysql_old_password\*(Aq
 depending on the hash format of the
 Password
-column value\&. As of MySQL 5\&.7\&.5, support for pre\-4\&.1 password hashing and
+column value\&.
+.PP
+Support for pre\-4\&.1 password hashing and
 mysql_old_password
-was removed, so
+has been removed, so
 \fBmysql_upgrade\fR
 sets empty
 plugin
@@ -406,7 +407,7 @@ does not upgrade the contents of the time zone tables or help tables\&. For upgr
 Section\ \&5.1.12, \(lqMySQL Server Time Zone Support\(rq, and
 Section\ \&5.1.13, \(lqServer-Side Help Support\(rq\&.
 .PP
-As of MySQL 5\&.7\&.7, unless invoked with the
+Unless invoked with the
 \fB\-\-skip\-sys\-schema\fR
 option,
 \fBmysql_upgrade\fR
@@ -434,13 +435,12 @@ To upgrade in this case, remove or rename the existing
 sys
 schema first\&.
 .PP
-In MySQL 5\&.7\&.9 and later,
 \fBmysql_upgrade\fR
 checks for partitioned
 InnoDB
 tables that were created using the generic partitioning handler and attempts to upgrade them to
 InnoDB
-native partitioning (used in MySQL 5\&.7\&.6 and later)\&. (Bug #76734, Bug #20727344) Also beginning with MySQL 5\&.7\&.9, you can upgrade such tables individually in the
+native partitioning\&. (Bug #76734, Bug #20727344) You can upgrade such tables individually in the
 \fBmysql\fR
 client using the
 ALTER TABLE \&.\&.\&. UPGRADE PARTITIONING
@@ -465,19 +465,6 @@ Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
 \fB\-\-help\fR
 .sp
 Display a short help message and exit\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-basedir=\fR\fB\fIdir_name\fR\fR
-.sp
-The path to the MySQL installation directory\&. This option was removed in MySQL 5\&.7\&.2\&.
 .RE
 .sp
 .RS 4
@@ -520,19 +507,6 @@ Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .sp
 Compress all information sent between the client and the server if possible\&. See
 Section\ \&4.2.5, \(lqConnection Compression Control\(rq\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-datadir=\fR\fB\fIdir_name\fR\fR
-.sp
-The path to the data directory\&. This option was removed in MySQL 5\&.7\&.2\&.
 .RE
 .sp
 .RS 4
@@ -991,20 +965,6 @@ This option was added in MySQL 5\&.7\&.10\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-tmpdir=\fR\fB\fIdir_name\fR\fR,
-\fB\-t \fR\fB\fIdir_name\fR\fR
-.sp
-The path name of the directory to use for creating temporary files\&. This option was removed in MySQL 5\&.7\&.5 due to a reimplementation that no longer uses temporary files\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 \fB\-\-upgrade\-system\-tables\fR,
 \fB\-s\fR
 .sp
@@ -1084,7 +1044,7 @@ When the server is running with global transaction identifiers (GTIDs) enabled (
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

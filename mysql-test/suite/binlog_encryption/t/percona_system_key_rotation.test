@@ -2,6 +2,8 @@
 --echo # with rotate_system_key. This part of the test needs updating
 --echo # each time a new system key is added.
 
+CALL mtr.add_suppression('You need to use --log-bin to make --binlog-format work.');
+
 --let $assert_text= It should not be possible to rotate key percona_binlog:
 --let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_binlog:\\"\\) = 0]" = 1
 --source include/assert.inc

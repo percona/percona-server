@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_install_db\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/17/2019
+.\"      Date: 03/23/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_INSTALL_DB\FR" "1" "12/17/2019" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL_INSTALL_DB\FR" "1" "03/23/2020" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -127,24 +127,11 @@ It creates an administrative account\&. Older versions of
 \fBmysql_install_db\fR
 may create anonymous\-user accounts\&.
 .RE
+Secure\-by\-Default Deployment
 .PP
-Before MySQL 5\&.7\&.5,
-\fBmysql_install_db\fR
-is a Perl script and requires that Perl be installed\&. As of 5\&.7\&.5,
-\fBmysql_install_db\fR
-is written in C++ and supplied in binary distributions as an executable binary\&. In addition, a number of new options were added and old options removed\&. If you find that an option does not work as you expect, be sure to check which options apply in your version of
-\fBmysql_install_db\fR
-(invoke it with the
-\fB\-\-help\fR
-option)\&.
-Secure\-by\-Default Deployment.PP
 Current versions of
 \fBmysql_install_db\fR
-produce a MySQL deployment that is secure by default\&. It is recommended that you use
-\fBmysql_install_db\fR
-from MySQL 5\&.7\&.5 or up for best security, but version\-dependent information about security characteristics is included here for completeness (secure\-by\-default deployment was introduced in stages in MySQL 5\&.7)\&.
-.PP
-MySQL 5\&.7\&.5 and up is secure by default, with these characteristics:
+produce a MySQL deployment that is secure by default, with these characteristics:
 .sp
 .RS 4
 .ie n \{\
@@ -221,112 +208,6 @@ The
 option is available to suppress random password generation\&.
 .RE
 .PP
-MySQL 5\&.7\&.4 is secure by default, with these characteristics:
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-A single administrative account named
-\*(Aqroot\*(Aq@\*(Aqlocalhost\*(Aq
-is created with a randomly generated password, which is marked expired\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-No anonymous\-user accounts are created\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-No
-test
-database accessible by all users is created\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-The
-\fB\-\-skip\-random\-passwords\fR
-option is available to suppress random password generation, and to create a
-test
-database\&.
-.RE
-.PP
-MySQL 5\&.7\&.3 and earlier are not secure by default, with these characteristics:
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-Multiple administrative
-root
-accounts are created with no password\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-Anonymous\-user accounts are created\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-A
-test
-database accessible by all users is created\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-The
-\fB\-\-random\-passwords\fR
-option is available to generate random passwords for administrative accounts and mark them expired, and to not create anonymous\-user accounts\&.
-.RE
-.PP
 If
 \fBmysql_install_db\fR
 generates a random administative password, it writes the password to a file and displays the file name\&. The password entry includes a timestamp to indicate when it was written\&. By default, the file is
@@ -367,20 +248,9 @@ root
 password again as part of ensuring secure deployment\&.
 .sp .5v
 .RE
-Invocation Syntax.PP
-Several changes to
-\fBmysql_install_db\fR
-were made in MySQL 5\&.7\&.5 that affect the invocation syntax\&. Change location to the MySQL installation directory and use the command appropriate to your version of MySQL:
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-Invocation syntax for MySQL 5\&.7\&.5 and up:
+Invocation Syntax
+.PP
+Change location to the MySQL installation directory and use this invocation syntax:
 .sp
 .if n \{\
 .RS 4
@@ -391,7 +261,7 @@ shell> \fBbin/mysql_install_db \-\-datadir=\fR\fB\fIpath/to/datadir\fR\fR\fB [\f
 .if n \{\
 .RE
 .\}
-.sp
+.PP
 The
 \fB\-\-datadir\fR
 option is mandatory\&.
@@ -425,28 +295,6 @@ If the data directory does not exist but
 fails, you must remove any partially created data directory before running
 \fBmysql_install_db\fR
 again\&.
-.RE
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-Invocation syntax before MySQL 5\&.7\&.5:
-.sp
-.if n \{\
-.RS 4
-.\}
-.nf
-shell> \fBscripts/mysql_install_db [\fR\fB\fIoptions\fR\fR\fB]\fR
-.fi
-.if n \{\
-.RE
-.\}
 .RE
 .PP
 Because the MySQL server,
@@ -540,18 +388,13 @@ to point to the system temporary directory (usually
 /tmp)\&.
 .sp .5v
 .RE
-Administrative Account Creation.PP
+Administrative Account Creation
+.PP
 \fBmysql_install_db\fR
 creates an administrative account named
 \*(Aqroot\*(Aq@\*(Aqlocalhost\*(Aq
-by default\&. (Before MySQL 5\&.7\&.4,
-\fBmysql_install_db\fR
-creates additional
-root
-accounts, such as
-\*(Aqroot\*(Aq@\*(Aq127\&.0\&.0\&.1\*(Aq\&. This is no longer done\&.)
+by default\&.
 .PP
-As of MySQL 5\&.7\&.5,
 \fBmysql_install_db\fR
 provides options that enable you to control several aspects of the administrative account:
 .sp
@@ -616,31 +459,13 @@ plugin
 column value to set the authentication plugin\&. The default value is
 mysql_native_password\&. The value can be changed using the
 \fB\-\-admin\-auth\-plugin\fR
-option in MySQL 5\&.7\&.5 and up (as noted previously), or by setting the
-default_authentication_plugin
-system variable in MySQL 5\&.7\&.2 to 5\&.7\&.4\&.
-Default my\&.cnf File.PP
-As of MySQL 5\&.7\&.5,
+option\&.
+Default my\&.cnf File
+.PP
 \fBmysql_install_db\fR
 creates no default
 my\&.cnf
 file\&.
-.PP
-Before MySQL 5\&.7\&.5,
-\fBmysql_install_db\fR
-creates a default option file named
-my\&.cnf
-in the base installation directory\&. This file is created from a template included in the distribution package named
-my\-default\&.cnf\&. You can find the template in or under the base installation directory\&. When started using
-\fBmysqld_safe\fR, the server uses
-my\&.cnf
-file by default\&. If
-my\&.cnf
-already exists,
-\fBmysql_install_db\fR
-assumes it to be in use and writes a new file named
-my\-new\&.cnf
-instead\&.
 .if n \{\
 .sp
 .\}
@@ -665,17 +490,13 @@ sql_mode
 system variable to
 NO_ENGINE_SUBSTITUTION,STRICT_TRANS_TABLES\&. This setting produces a server configuration that results in errors rather than warnings for bad data in operations that modify transactional tables\&. See
 Section\ \&5.1.10, \(lqServer SQL Modes\(rq\&.
-Command Options.PP
+Command Options
+.PP
 \fBmysql_install_db\fR
 supports the following options, which can be specified on the command line or in the
 [mysql_install_db]
 group of an option file\&. For information about option files used by MySQL programs, see
 Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
-.PP
-Before MySQL 5\&.7\&.5,
-\fBmysql_install_db\fR
-passes unrecognized options to
-\fBmysqld\fR\&.
 .sp
 .RS 4
 .ie n \{\
@@ -790,21 +611,6 @@ and out\-of\-source builds\&. Set this to the location of the directory where th
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-cross\-bootstrap\fR
-.sp
-For internal use\&. This option is used for building system tables on one host intended for another\&.
-.sp
-This option was removed in MySQL 5\&.7\&.5\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 \fB\-\-datadir=\fR\fB\fIdir_name\fR\fR
 .sp
 The path to the MySQL data directory\&. Only the last component of the path name is created if it does not exist; the parent directory must already exist or an error occurs\&.
@@ -820,9 +626,9 @@ The path to the MySQL data directory\&. Only the last component of the path name
 \fBNote\fR
 .ps -1
 .br
-As of MySQL 5\&.7\&.5, the
+The
 \fB\-\-datadir\fR
-option is mandatory and the data directory must not already exist\&. (It remains true that the parent directory must exist\&.)
+option is mandatory and the data directory must not already exist\&.
 .sp .5v
 .RE
 .RE
@@ -924,45 +730,10 @@ command\-line client, including support for multiple\-line C\-style comments and
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-force\fR
-.sp
-Cause
-\fBmysql_install_db\fR
-to run even if DNS does not work\&. Grant table entries normally created using host names will use IP addresses instead\&.
-.sp
-This option was removed in MySQL 5\&.7\&.5\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 \fB\-\-insecure\fR
 .sp
 Do not generate a random password for the adminstrative account\&.
-.if n \{\
 .sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
-The
-\fB\-\-insecure\fR
-option was added in MySQL 5\&.7\&.5, replacing the
-\fB\-\-skip\-random\-passwords\fR
-option\&.
-.sp .5v
-.RE
 If
 \fB\-\-insecure\fR
 is
@@ -983,31 +754,6 @@ file; otherwise, if you run
 \fBmysql_secure_installation\fR, that command may see the file and expire the
 root
 password again as part of ensuring secure deployment\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-keep\-my\-cnf\fR
-.sp
-Tell
-\fBmysql_install_db\fR
-to preserve any existing
-my\&.cnf
-file and not create a new default
-my\&.cnf
-file\&.
-.sp
-This option was added in MySQL 5\&.7\&.4 and removed in 5\&.7\&.5\&. As of 5\&.7\&.5,
-\fBmysql_install_db\fR
-does not create a default
-my\&.cnf
-file\&.
 .RE
 .sp
 .RS 4
@@ -1041,22 +787,6 @@ The directory where error messages are located\&. The value is used together wit
 \fB\-\-lc\-messages\fR
 to produce the location for the error message file\&. See
 Section\ \&10.12, \(lqSetting the Error Message Language\(rq\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-ldata=\fR\fB\fIdir_name\fR\fR
-.sp
-A synonym for
-\fB\-\-datadir\fR\&.
-.sp
-This option was removed in MySQL 5\&.7\&.5\&.
 .RE
 .sp
 .RS 4
@@ -1220,9 +950,7 @@ In
 .\}
 \fB\-\-no\-defaults\fR
 .sp
-Before MySQL 5\&.7\&.5, do not read any option files\&. If program startup fails due to reading unknown options from an option file,
-\fB\-\-no\-defaults\fR
-can be used to prevent them from being read\&. For behavior of this option as of MySQL 5\&.7\&.5, see the description of
+For behavior of this option, see the description of
 \fB\-\-defaults\fR\&.
 .sp
 For additional information about this and other option\-file options, see
@@ -1251,314 +979,14 @@ $HOME/\&.mysql_secret\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-random\-passwords\fR
-.if n \{\
-.sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
-This option was removed in MySQL 5\&.7\&.4 and replaced with
-\fB\-\-skip\-random\-passwords\fR, which was in turn removed in MySQL 5\&.7\&.5 and replaced with
-\fB\-\-insecure\fR\&.
-.sp .5v
-.RE
-On Unix platforms, this option provides for more secure MySQL installation\&. Invoking
-\fBmysql_install_db\fR
-with
-\fB\-\-random\-passwords\fR
-causes it to perform the following actions in addition to its normal operation:
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-The installation process creates a random password, assigns it to the initial MySQL
-root
-accounts, and marks the password expired for those accounts\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-The initial random
-root
-password is written to the
-\&.mysql_secret
-file in the directory named by the
-HOME
-environment variable\&. Depending on operating system, using a command such as
-\fBsudo\fR
-may cause the value of
-HOME
-to refer to the home directory of the
-root
-system user\&.
-\&.mysql_secret
-is created with mode 600 to be accessible only to the operating system user for whom it is created\&.
-.sp
-If
-\&.mysql_secret
-already exists, the new password information is appended to it\&. Each password entry includes a timestamp to indicate when it was written\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-No anonymous\-user MySQL accounts are created\&.
-.RE
-.sp
-As a result of these actions, it is necessary after installation to start the server, connect as
-root
-using the password written to the
-\&.mysql_secret
-file, and specify a new
-root
-password\&. Until this is done,
-root
-cannot do anything else\&. This must be done for each
-root
-account you intend to use\&. To change the password, you can use the
-SET PASSWORD
-statement (for example, with the
-\fBmysql\fR
-client)\&. You can also use
-\fBmysqladmin\fR
-or
-\fBmysql_secure_installation\fR\&.
-.sp
-New install operations (not upgrades) using RPM packages and Solaris PKG packages invoke
-\fBmysql_install_db\fR
-with the
-\fB\-\-random\-passwords\fR
-option\&. (Install operations using RPMs for Unbreakable Linux Network are unaffected because they do not use
-\fBmysql_install_db\fR\&.)
-.sp
-For install operations using a binary
-\&.tar\&.gz
-distribution or a source distribution, you can invoke
-\fBmysql_install_db\fR
-with the
-\fB\-\-random\-passwords\fR
-option manually to make your MySQL installation more secure\&. This is recommended, particularly for sites with sensitive data\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-rpm\fR
-.sp
-For internal use\&. This option is used during the MySQL installation process for install operations performed using RPM packages\&.
-.sp
-This option was removed in MySQL 5\&.7\&.5\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-skip\-name\-resolve\fR
-.sp
-Use IP addresses rather than host names when creating grant table entries\&. This option can be useful if your DNS does not work\&.
-.sp
-This option was removed in MySQL 5\&.7\&.5\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-skip\-random\-passwords\fR
-.if n \{\
-.sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
-The
-\fB\-\-skip\-random\-passwords\fR
-option was added in MySQL 5\&.7\&.4, replacing the
-\fB\-\-random\-passwords\fR
-option\&.
-\fB\-\-skip\-random\-passwords\fR
-was in turn removed in MySQL 5\&.7\&.5 and replaced with
-\fB\-\-insecure\fR\&.
-.sp .5v
-.RE
-As of MySQL 5\&.7\&.4, MySQL deployments produced using
-\fBmysql_install_db\fR
-are secure by default\&. When invoked
-\fIwithout\fR
-the
-\fB\-\-skip\-random\-passwords\fR
-option,
-\fBmysql_install_db\fR
-uses these default deployment characteristics:
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-The installation process creates a single
-root
-account,
-\*(Aqroot\*(Aq@\*(Aqlocalhost\*(Aq, automatically generates a random password for this account, and marks the password expired\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-The initial random
-root
-password is written to the
-\&.mysql_secret
-file in the home directory of the effective user running the script\&.
-\&.mysql_secret
-is created with mode 600 to be accessible only to the operating system user for whom it is created\&.
-.sp
-If
-\&.mysql_secret
-already exists, the new password information is appended to it\&. Each password entry includes a timestamp to indicate when it was written\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-No anonymous\-user MySQL accounts are created\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-No
-test
-database is created\&.
-.RE
-.sp
-As a result of these actions, it is necessary after installation to start the server, connect as
-root
-using the password written to the
-\&.mysql_secret
-file, and specify a new
-root
-password\&. Until this is done, the administrative account cannot be used for anything else\&. To change the password, you can use the
-SET PASSWORD
-statement (for example, with the
-\fBmysql\fR
-client)\&. You can also use
-\fBmysqladmin\fR
-or
-\fBmysql_secure_installation\fR\&.
-.sp
-To produce a MySQL deployment that is not secure by default, you must explicitly specify the
-\fB\-\-skip\-random\-passwords\fR
-option when you invoke
-\fBmysql_install_db\fR\&. With this option,
-\fBmysql_install_db\fR
-performs the following actions:
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-No random password is generated for the
-\*(Aqroot\*(Aq@\*(Aqlocalhost\*(Aq
-account\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-A
-test
-database is created that is accessible by any user\&.
-.RE
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 \fB\-\-skip\-sys\-schema\fR
 .sp
-As of MySQL 5\&.7\&.7,
 \fBmysql_install_db\fR
 installs the
 sys
 schema\&. The
 \fB\-\-skip\-sys\-schema\fR
-option suppresses this behavior\&. This option was added in MySQL 5\&.7\&.7\&.
+option suppresses this behavior\&.
 .RE
 .sp
 .RS 4
@@ -1628,26 +1056,10 @@ invokes to start the server in bootstrap mode\&.
 .sp
 Display version information and exit\&.
 .RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-windows\fR
-.sp
-For internal use\&. This option is used for creating Windows distributions\&. It is a deprecated alias for
-\fB\-\-cross\-bootstrap\fR
-.sp
-This option was removed in MySQL 5\&.7\&.5\&.
-.RE
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

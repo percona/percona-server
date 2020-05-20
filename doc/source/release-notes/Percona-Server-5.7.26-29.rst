@@ -89,7 +89,6 @@ Bugs Fixed
   assertion. Bug fixed :psbug:`3410` (upstream :mysqlbug:`82940`).
 
 Other bugs fixed:
-:psbug:`5537`,
 :psbug:`5007` (upstream :mysqlbug:`93164`),
 :psbug:`5018`,
 :psbug:`5561`,

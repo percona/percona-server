@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlpump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/17/2019
+.\"      Date: 03/23/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLPUMP\FR" "1" "12/17/2019" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLPUMP\FR" "1" "03/23/2020" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -240,7 +240,8 @@ shell> \fBmysqlpump [options] \-\-result\-file=dump\&.sql\fR
 .\}
 .sp .5v
 .RE
-mysqlpump Invocation Syntax.PP
+mysqlpump Invocation Syntax
+.PP
 By default,
 \fBmysqlpump\fR
 dumps all databases (with certain exceptions noted in
@@ -340,13 +341,21 @@ To see a list of the options
 \fBmysqlpump\fR
 supports, issue the command
 \fBmysqlpump \-\-help\fR\&.
-mysqlpump Option Summary.PP
+mysqlpump Option Summary
+.PP
 \fBmysqlpump\fR
 supports the following options, which can be specified on the command line or in the
 [mysqlpump]
 and
 [client]
-groups of an option file\&. For information about option files used by MySQL programs, see
+groups of an option file\&. (Prior to MySQL 5\&.7\&.30,
+\fBmysqlpump\fR
+read the
+[mysql_dump]
+group rather than
+[mysqlpump]\&. As of 5\&.7\&.30,
+[mysql_dump]
+is still accepted but is deprecated\&.) For information about option files used by MySQL programs, see
 Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
 mysqlpump Option Descriptions
 .sp
@@ -629,6 +638,11 @@ Write a debugging log\&. A typical
 string is
 d:t:o,\fIfile_name\fR\&. The default is
 d:t:O,/tmp/mysqlpump\&.trace\&.
+.sp
+This option is available only if MySQL was built using
+\fBWITH_DEBUG\fR\&. MySQL release binaries provided by Oracle are
+\fInot\fR
+built using this option\&.
 .RE
 .sp
 .RS 4
@@ -642,6 +656,11 @@ d:t:O,/tmp/mysqlpump\&.trace\&.
 \fB\-\-debug\-check\fR
 .sp
 Print some debugging information when the program exits\&.
+.sp
+This option is available only if MySQL was built using
+\fBWITH_DEBUG\fR\&. MySQL release binaries provided by Oracle are
+\fInot\fR
+built using this option\&.
 .RE
 .sp
 .RS 4
@@ -656,6 +675,11 @@ Print some debugging information when the program exits\&.
 \fB\-T\fR
 .sp
 Print debugging information and memory and CPU usage statistics when the program exits\&.
+.sp
+This option is available only if MySQL was built using
+\fBWITH_DEBUG\fR\&. MySQL release binaries provided by Oracle are
+\fInot\fR
+built using this option\&.
 .RE
 .sp
 .RS 4
@@ -1946,7 +1970,8 @@ This option is enabled by default; use
 \fB\-\-skip\-watch\-progress\fR
 to disable it\&.
 .RE
-mysqlpump Object Selection.PP
+mysqlpump Object Selection
+.PP
 \fBmysqlpump\fR
 has a set of inclusion and exclusion options that enable filtering of several object types and provide flexible control over which objects to dump:
 .sp
@@ -2196,7 +2221,8 @@ to treat all name arguments as names of databases to dump\&. It is equivalent to
 \fB\-\-include\-databases\fR
 option that names the same databases\&.
 .RE
-mysqlpump Parallel Processing.PP
+mysqlpump Parallel Processing
+.PP
 \fBmysqlpump\fR
 can use parallelism to achieve concurrent processing\&. You can select concurrency between databases (to dump multiple databases simultaneously) and within databases (to dump multiple objects from a given database simultaneously)\&.
 .PP
@@ -2362,7 +2388,8 @@ shell> \fBmysqlpump \-\-single\-transaction \-\-default\-parallelism=0\fR
 .\}
 .sp .5v
 .RE
-mysqlpump Restrictions.PP
+mysqlpump Restrictions
+.PP
 \fBmysqlpump\fR
 does not dump the
 INFORMATION_SCHEMA,
@@ -2414,7 +2441,7 @@ shell> \fBmysqlpump mysql user db \&.\&.\&.\fR
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

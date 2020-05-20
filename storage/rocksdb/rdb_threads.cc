@@ -16,21 +16,29 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation // gcc: Class implementation
+#pragma implementation  // gcc: Class implementation
 #endif
 
 /* The C++ file's header */
 #include "./rdb_threads.h"
 
+/* MySQL header files */
+#include "sql_class.h"
+
 namespace myrocks {
 
 void *Rdb_thread::thread_func(void *const thread_ptr) {
   DBUG_ASSERT(thread_ptr != nullptr);
+  my_thread_init();
   Rdb_thread *const thread = static_cast<Rdb_thread *>(thread_ptr);
+
   if (!thread->m_run_once.exchange(true)) {
     thread->run();
+
     thread->uninit();
   }
+
+  my_thread_end();
   return nullptr;
 }
 
@@ -39,7 +47,7 @@ void Rdb_thread::init(
     my_core::PSI_mutex_key stop_bg_psi_mutex_key,
     my_core::PSI_cond_key stop_bg_psi_cond_key
 #endif
-    ) {
+) {
   DBUG_ASSERT(!m_run_once);
   mysql_mutex_init(stop_bg_psi_mutex_key, &m_signal_mutex, MY_MUTEX_INIT_FAST);
   mysql_cond_init(stop_bg_psi_cond_key, &m_signal_cond);
@@ -55,7 +63,7 @@ int Rdb_thread::create_thread(const std::string &thread_name
                               ,
                               PSI_thread_key background_psi_thread_key
 #endif
-                              ) {
+) {
   DBUG_ASSERT(!thread_name.empty());
 
   int err = mysql_thread_create(background_psi_thread_key, &m_handle, nullptr,
@@ -64,11 +72,11 @@ int Rdb_thread::create_thread(const std::string &thread_name
   return err;
 }
 
-void Rdb_thread::signal(const bool &stop_thread) {
+void Rdb_thread::signal(const bool stop_thread) {
   RDB_MUTEX_LOCK_CHECK(m_signal_mutex);
 
   if (stop_thread) {
-    m_stop = true;
+    m_killed = THD::KILL_CONNECTION;
   }
 
   mysql_cond_signal(&m_signal_cond);
@@ -76,4 +84,4 @@ void Rdb_thread::signal(const bool &stop_thread) {
   RDB_MUTEX_UNLOCK_CHECK(m_signal_mutex);
 }
 
-} // namespace myrocks
+}  // namespace myrocks

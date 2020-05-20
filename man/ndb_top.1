@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_top\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/17/2019
+.\"      Date: 03/23/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_TOP\FR" "1" "12/17/2019" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_TOP\FR" "1" "03/23/2020" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -134,7 +134,7 @@ The following table includes all options that are specific to the NDB Cluster pr
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.298.\ \&Command\-line options for the ndb_top program
+.B Table\ \&21.262.\ \&Command\-line options for the ndb_top program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -163,9 +163,9 @@ l l l
 l l l.
 T{
 .PP
---color,
+\fB--color\fR,
 .PP
--c
+\fB \fR\fB-c\fR\fB \fR
 T}:T{
 Show ASCII graphs in color; use --skip-colors to disable
 T}:T{
@@ -174,9 +174,9 @@ ADDED: NDB 7.6.3
 T}
 T{
 .PP
---graph,
+\fB--graph\fR,
 .PP
--g
+\fB \fR\fB-g\fR\fB \fR
 T}:T{
 Display data using graphs; use --skip-graphs to disable
 T}:T{
@@ -185,9 +185,9 @@ ADDED: NDB 7.6.3
 T}
 T{
 .PP
---help,
+\fB--help\fR,
 .PP
--?
+\fB \fR\fB-?\fR\fB \fR
 T}:T{
 Show program usage information
 T}:T{
@@ -196,9 +196,9 @@ ADDED: NDB 7.6.3
 T}
 T{
 .PP
---host[=name],
+\fB--host[=name]\fR,
 .PP
--h
+\fB \fR\fB-h\fR\fB \fR
 T}:T{
 Host name or IP address of MySQL Server to connect to
 T}:T{
@@ -207,9 +207,9 @@ ADDED: NDB 7.6.3
 T}
 T{
 .PP
---measured-load,
+\fB--measured-load\fR,
 .PP
--m
+\fB \fR\fB-m\fR\fB \fR
 T}:T{
 Show measured load by thread
 T}:T{
@@ -218,9 +218,9 @@ ADDED: NDB 7.6.3
 T}
 T{
 .PP
---node-id[=#],
+\fB--node-id[=#]\fR,
 .PP
--n
+\fB \fR\fB-n\fR\fB \fR
 T}:T{
 Watch node having this node ID
 T}:T{
@@ -229,9 +229,9 @@ ADDED: NDB 7.6.3
 T}
 T{
 .PP
---os-load,
+\fB--os-load\fR,
 .PP
--o
+\fB \fR\fB-o\fR\fB \fR
 T}:T{
 Show load measured by operating system
 T}:T{
@@ -240,9 +240,9 @@ ADDED: NDB 7.6.3
 T}
 T{
 .PP
---passwd[=password],
+\fB--passwd[=password]\fR,
 .PP
--p
+\fB \fR\fB-p\fR\fB \fR
 T}:T{
 Connect using this password
 T}:T{
@@ -253,9 +253,9 @@ REMOVED: NDB 7.6.4
 T}
 T{
 .PP
---password[=password],
+\fB--password[=password]\fR,
 .PP
--p
+\fB \fR\fB-p\fR\fB \fR
 T}:T{
 Connect using this password
 T}:T{
@@ -264,12 +264,12 @@ ADDED: NDB 7.6.6
 T}
 T{
 .PP
---port[=#],
+\fB--port[=#]\fR,
 .PP
--t
+\fB-t\fR
 (<=7.6.5),
 .PP
--P
+\fB-P\fR
 (>=7.6.6)
 T}:T{
 Port number to use when connecting to MySQL Server
@@ -279,9 +279,9 @@ ADDED: NDB 7.6.3
 T}
 T{
 .PP
---sleep-time[=seconds],
+\fB--sleep-time[=seconds]\fR,
 .PP
--s
+\fB \fR\fB-s\fR\fB \fR
 T}:T{
 Time to wait between display refreshes, in seconds
 T}:T{
@@ -294,16 +294,16 @@ T{
 .PP
 \fB \fR\fB-S\fR\fB \fR
 T}:T{
-Socket file to use for connection.
+Socket file to use for connection
 T}:T{
 .PP
 ADDED: NDB 7.6.6
 T}
 T{
 .PP
---sort,
+\fB--sort\fR,
 .PP
--r
+\fB \fR\fB-r\fR\fB \fR
 T}:T{
 Sort threads by usage; use --skip-sort to disable
 T}:T{
@@ -312,12 +312,12 @@ ADDED: NDB 7.6.3
 T}
 T{
 .PP
---text,
+\fB--text\fR,
 .PP
--x
+\fB-x\fR
 (<=7.6.5),
 .PP
--t
+\fB-t\fR
 (>=7.6.6)
 T}:T{
 Display data using text
@@ -327,9 +327,9 @@ ADDED: NDB 7.6.3
 T}
 T{
 .PP
---user[=name],
+\fB--user[=name]\fR,
 .PP
--u
+\fB \fR\fB-u\fR\fB \fR
 T}:T{
 Connect as this MySQL user
 T}:T{
@@ -1140,7 +1140,7 @@ Display from ndb_top, running in a
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

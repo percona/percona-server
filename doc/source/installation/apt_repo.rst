@@ -58,7 +58,7 @@ Installing |Percona Server| from Percona ``apt`` repository
 
       $ sudo dpkg -i percona-release_latest.$(lsb_release -sc)_all.deb
 
-   Once you install this package the Percona repositories should be added. You can check the repository setup in the :file:`/etc/apt/sources.list.d/percona-release.list` file.
+   Once you install this package, the Percona repositories should be added. You can check the repository setup in the :file:`/etc/apt/sources.list.d/percona-original-release.list` file.
 
 3. Remember to update the local cache:
 
@@ -89,13 +89,12 @@ Percona offers pre-release builds from the testing repository. To enable it add 
 Apt-Pinning the packages
 ------------------------
 
-In some cases you might need to "pin" the selected packages to avoid the upgrades from the distribution repositories. You'll need to make a new file :file:`/etc/apt/preferences.d/00percona.pref` and add the following lines in it: ::
+In some cases, you might need to `pin <https://wiki.debian.org/AptConfiguration?action=show&redirect=AptPinning>`_ the selected packages to avoid upgrades from the distribution repositories. Create a new file :file:`/etc/apt/preferences.d/00percona.pref` and add the following lines: ::
 
   Package: *
   Pin: release o=Percona Development Team
   Pin-Priority: 1001
 
-For more information about the pinning you can check the official `debian wiki <http://wiki.debian.org/AptPreferences>`_.
 
 .. _standalone_deb:
 
@@ -145,6 +144,95 @@ This will install all the packages from the bundle. Another option is to downloa
 .. warning::
 
   When installing packages manually like this, you'll need to make sure to resolve all the dependencies and install missing packages yourself. Following packages will need to be installed before you can manually install Percona Server: ``mysql-common``, ``libjemalloc1``, ``libaio1`` and ``libmecab2``
+
+.. rubric:: AppArmor settings
+
+AppArmor is a kernel-integrated system which controls how applications access the file system by creating application profiles. If the installation of MySQL adds an AppArmor profile, you can find the profile in the following locations:
+
+* /etc/apparmor.d/usr.sbin.mysqld
+* /etc/apparmor.d/local/usr.sbin.mysqld
+
+The ``local`` version contains only comments. Add any changes specific for the server to the ``local`` file. 
+
+The ``usr.sbin.mysqld`` file has the following settings:
+
+.. sourcecode:: text
+
+    #include <tunables/global>
+
+    /usr/sbin/mysqld {
+      ...
+      # Allow data dir access
+      /var/lib/mysql/ r,
+      /var/lib/mysql/** rwk,
+
+      # Allow data files dir access
+        /var/lib/mysql-files/ r,
+        /var/lib/mysql-files/** rwk,
+
+      # Allow keyring dir access
+        /var/lib/mysql-keyring/ r,
+        /var/lib/mysql-keyring/** rwk,
+
+      # Allow log file access
+        /var/log/mysql/ r,
+        /var/log/mysql/** rw,
+      ...
+    }
+
+The settings govern how the files are accessed. For example, the data file directory access gives read (r) access to a directory and read, write, and lock access (rwk) to all directories and files underneath ``/mysql/``.
+
+You should download the `apparmor-utils` package when you are working with existing AppArmor profiles. The utilities allow you to edit a profile without stopping AppArmor or removing the profile.
+
+Before you edit a profile, change the profile to ``complain`` mode:
+
+.. sourcecode:: bash
+
+      # aa-complain /usr/sbin/mysqld
+      setting /usr/sbin/mysqld to complain mode
+
+In complain mode, you can edit the profile to add settings because you have relocated the data directory: ``/<volume>/dev/percona/data``:
+
+   .. code-block:: text
+
+        /<volume>/percona/data/ r,
+        /<volume>/percona/data/** rwk,
+        
+
+    You may need to reload AppArmor or reload the specific AppArmor profile to apply the changes. 
+
+You can also modify the ``/etc/apparmor.d/tunables/alias`` file as follows:
+
+    .. code-block:: text
+    
+        alias /var/lib/mysql -> /volume/percona/data/
+
+To reload one profile, run the following command:
+
+.. sourcecode:: bash
+
+    $ sudo apparmor_parser -r /etc/apparmor.d/usr.sbin.mysqld
+        
+Restart AppArmor with the following command:
+
+..  code-block:: bash
+
+    $ sudo systemctl restart apparmor
+    
+You can also disable AppArmor, but this action is not recommended. For earlier Ubuntu systems, prior to 16.04, use the following command:
+
+.. code-block:: bash
+
+    $ sudo systemctl stop apparmor
+    $ sudo update-rc.d -f apparmor remove
+
+For later Ubuntu systems, use the following:
+
+.. sourcecode:: bash
+
+    $ sudo sudo systemctl stop apparmor
+    $ sudo systemctl disable apparmor
+
 
 
 Running |Percona Server|

@@ -58,21 +58,22 @@ Installing |Percona Server| from Percona ``apt`` repository
 
       $ wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb
 
-2. Install the downloaded package with :program:`dpkg`. To do that, run the following commands as root or with :program:`sudo`:
+3. Install the downloaded package with :program:`dpkg`. To do that, run the following commands as root or with :program:`sudo`:
 
    .. code-block:: bash
 
       $ sudo dpkg -i percona-release_latest.$(lsb_release -sc)_all.deb
 
-   Once you install this package the Percona repositories should be added. You can check the repository setup in the :file:`/etc/apt/sources.list.d/percona-release.list` file.
-
-3. Remember to update the local cache:
+  
+4. Remember to update the local cache:
 
    .. code-block:: bash
 
       $ sudo apt-get update
+      
+   Once you install this package the Percona repositories should be added. You can check the repository setup in the :file:`/etc/apt/sources.list.d/percona-release.list` file.
 
-4. After that you can install the server package:
+5. After that you can install the server package:
 
    .. code-block:: bash
 
@@ -81,6 +82,16 @@ Installing |Percona Server| from Percona ``apt`` repository
 .. note::
 
   |Percona Server| 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the |TokuDB| storage in the :ref:`tokudb_installation` guide.
+  
+The |Percona Server| distribution contains several useful User Defined Functions (UDF) from Percona Toolkit. After the installation completes, run the following commands to create these functions:
+
+.. code-block:: bash
+
+    mysql -e "CREATE FUNCTION fnvla_64 RETURNS INTEGER SONAME 'libfnvla_udf.so'"
+    mysql -e "CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME 'libfnv_udf.so'"
+    mysql -e "CREATE FUNCTION murmur_hash RETURNS INTEGER SONAME 'libmurmur_udf.so'"
+    
+For more details on the UDFs, see `Percona Toolkit UDFS <https://www.percona.com/doc/percona-server/5.7/management/udf_percona_toolkit.html>`_.
 
 Percona ``apt`` Testing repository
 ----------------------------------

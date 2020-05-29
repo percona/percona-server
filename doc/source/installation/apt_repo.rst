@@ -75,6 +75,8 @@ Installing |Percona Server| from Percona ``apt`` repository
 .. note::
 
   |Percona Server| 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the |TokuDB| storage in the :ref:`tokudb_installation` guide.
+  
+The process installs the |Percona Server| packages, common files, and client packages.
 
 Percona ``apt`` Testing repository
 ----------------------------------

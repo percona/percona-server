@@ -448,6 +448,9 @@ extern bool srv_undo_log_encrypt;
 /** Enable or disable encryption of temporary tablespace.*/
 extern bool srv_tmp_tablespace_encrypt;
 
+/** Enable this option to encrypt system tablespace at bootstrap. */
+extern bool srv_sys_tablespace_encrypt;
+
 /** Maximum number of recently truncated undo tablespace IDs for
 the same undo number. */
 extern const size_t CONCURRENT_UNDO_TRUNCATE_LIMIT;

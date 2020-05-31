@@ -187,6 +187,9 @@ unsigned long long srv_max_undo_tablespace_size;
 /** Enable or disable encryption of temporary tablespace.*/
 bool srv_tmp_tablespace_encrypt;
 
+/** Option to enable encryption of system tablespace. */
+bool srv_sys_tablespace_encrypt;
+
 /** Default undo tablespace size in UNIV_PAGEs count (10MB). */
 const page_no_t SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
     ((1024 * 1024) * 10) / UNIV_PAGE_SIZE_DEF;

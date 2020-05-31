@@ -1996,6 +1996,66 @@ static lsn_t srv_prepare_to_delete_redo_log_files(ulint n_files) {
   return (flushed_lsn);
 }
 
+/** Enable encryption of system tablespace if requested. At
+startup load the encryption information from first datafile
+to tablespace object
+@return DB_SUCCESS on succes, others on failure */
+static dberr_t srv_sys_enable_encryption(bool create_new_db) {
+  fil_space_t *space = fil_space_get(TRX_SYS_SPACE);
+  dberr_t err = DB_SUCCESS;
+
+  // Fail startup if sys space is encrypted with crypt_data v1
+  // This should only happen on upgrade
+  if (srv_sys_space.keyring_encryption_info.page0_has_crypt_data &&
+      srv_sys_space.keyring_encryption_info.type != CRYPT_SCHEME_UNENCRYPTED &&
+      srv_sys_space.keyring_encryption_info.private_version == 1) {
+    ib::error(ER_UPGRADE_KEYRING_V1_ENCRYPTION);
+    return (DB_ERROR);
+  }
+
+  if (create_new_db && srv_sys_tablespace_encrypt) {
+    fsp_flags_set_encryption(space->flags);
+    srv_sys_space.set_flags(space->flags);
+
+    err = fil_set_encryption(space->id, Encryption::AES, nullptr, nullptr);
+    ut_ad(err == DB_SUCCESS);
+  } else {
+    const auto fsp_flags = srv_sys_space.m_files.begin()->flags();
+    const bool is_encrypted = FSP_FLAGS_GET_ENCRYPTION(fsp_flags);
+
+    if (is_encrypted && !srv_sys_tablespace_encrypt &&
+        !srv_sys_space.keyring_encryption_info.page0_has_crypt_data) {
+      ib::error() << "The system tablespace is encrypted but"
+                  << " --innodb_sys_tablespace_encrypt is"
+                  << " OFF. Enable the option and start server";
+      return (DB_ERROR);
+    }
+
+    if (!is_encrypted && srv_sys_tablespace_encrypt &&
+        !srv_sys_space.keyring_encryption_info.page0_has_crypt_data) {
+      ib::error() << "The system tablespace is not encrypted but"
+                  << " --innodb_sys_tablespace_encrypt is"
+                  << " ON. This instance was not bootstrapped"
+                  << " with --innodb_sys_tablespace_encrypt=ON."
+                  << " Disable this option and start server";
+      return (DB_ERROR);
+    }
+
+    if (is_encrypted &&
+        !srv_sys_space.keyring_encryption_info.page0_has_crypt_data) {
+      fsp_flags_set_encryption(space->flags);
+      srv_sys_space.set_flags(space->flags);
+
+      err = fil_set_encryption(space->id, Encryption::AES,
+                               srv_sys_space.m_files.begin()->m_encryption_key,
+                               srv_sys_space.m_files.begin()->m_encryption_iv);
+      ut_ad(err == DB_SUCCESS);
+    }
+  }
+
+  return (err);
+}
+
 dberr_t srv_start(bool create_new_db) {
   lsn_t flushed_lsn;
 
@@ -2325,6 +2385,8 @@ dberr_t srv_start(bool create_new_db) {
 
   switch (err) {
     case DB_SUCCESS:
+      err = srv_sys_enable_encryption(create_new_db);
+      if (err != DB_SUCCESS) return (srv_init_abort(err));
       break;
     case DB_CANNOT_OPEN_FILE:
       ib::error(ER_IB_MSG_1134);

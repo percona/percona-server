@@ -463,6 +463,9 @@ extern bool srv_undo_log_encrypt;
 /** Enable or disable encryption of temporary tablespace.*/
 extern bool srv_tmp_tablespace_encrypt;
 
+/** Enable this option to encrypt system tablespace at bootstrap. */
+extern bool srv_sys_tablespace_encrypt;
+
 /** Whether the redo log tracking is currently enabled. Note that it is
 possible for the log tracker thread to be running and the tracking to be
 disabled */

@@ -7748,6 +7748,18 @@ static bool fil_keyring_skip_encryption(const page_id_t &page_id) {
 @param[in]	space		table space */
 void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
                            fil_space_t *space) {
+  // TODO: now that dblwr doesn't exist in sys , should we encrypt all pages?
+  // Or is there performance impact by encrypting TRX_SYS_PAGE which is
+  // modified on every trx commit (binlog position is written)
+
+  /* Don't encrypt pages of system tablespace upto TRX_SYS_PAGE(including). The
+  doublewrite buffer header is on TRX_SYS_PAGE */
+  if (fsp_is_system_tablespace(space->id) && space->crypt_data == nullptr &&
+      page_id.page_no() <= FSP_TRX_SYS_PAGE_NO) {
+    req_type.clear_encrypted();
+    return;
+  }
+
   /* Don't encrypt page 0 of all tablespaces except redo log
   tablespace, all pages from the system tablespace. */
   if (space->encryption_type == Encryption::NONE ||

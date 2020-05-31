@@ -1557,6 +1557,54 @@ static dberr_t recreate_redo_files(lsn_t &flushed_lsn) {
   return DB_SUCCESS;
 }
 
+/** Enable encryption of system tablespace if requested. At
+startup load the encryption information from first datafile
+to tablespace object
+@return DB_SUCCESS on succes, others on failure */
+static dberr_t srv_sys_enable_encryption(bool create_new_db) {
+  fil_space_t *space = fil_space_get(TRX_SYS_SPACE);
+  dberr_t err = DB_SUCCESS;
+
+  if (create_new_db && srv_sys_tablespace_encrypt) {
+    fsp_flags_set_encryption(space->flags);
+    srv_sys_space.set_flags(space->flags);
+
+    err = fil_set_encryption(space->id, Encryption::AES, nullptr, nullptr);
+    ut_ad(err == DB_SUCCESS);
+  } else {
+    const auto fsp_flags = srv_sys_space.m_files.begin()->flags();
+    const bool is_encrypted = FSP_FLAGS_GET_ENCRYPTION(fsp_flags);
+
+    if (is_encrypted && !srv_sys_tablespace_encrypt) {
+      ib::error() << "The system tablespace is encrypted but"
+                  << " --innodb_sys_tablespace_encrypt is"
+                  << " OFF. Enable the option and start server";
+      return (DB_ERROR);
+    }
+
+    if (!is_encrypted && srv_sys_tablespace_encrypt) {
+      ib::error() << "The system tablespace is not encrypted but"
+                  << " --innodb_sys_tablespace_encrypt is"
+                  << " ON. This instance was not bootstrapped"
+                  << " with --innodb_sys_tablespace_encrypt=ON."
+                  << " Disable this option and start server";
+      return (DB_ERROR);
+    }
+
+    if (is_encrypted) {
+      fsp_flags_set_encryption(space->flags);
+      srv_sys_space.set_flags(space->flags);
+
+      err = fil_set_encryption(space->id, Encryption::AES,
+                               srv_sys_space.m_files.begin()->m_encryption_key,
+                               srv_sys_space.m_files.begin()->m_encryption_iv);
+      ut_ad(err == DB_SUCCESS);
+    }
+  }
+
+  return (err);
+}
+
 dberr_t srv_start(bool create_new_db) {
   page_no_t sum_of_data_file_sizes;
   page_no_t tablespace_size_in_header;
@@ -1840,6 +1888,8 @@ dberr_t srv_start(bool create_new_db) {
 
   switch (err) {
     case DB_SUCCESS:
+      err = srv_sys_enable_encryption(create_new_db);
+      if (err != DB_SUCCESS) return (srv_init_abort(err));
       break;
     case DB_CANNOT_OPEN_FILE:
       ib::error(ER_IB_MSG_1134);

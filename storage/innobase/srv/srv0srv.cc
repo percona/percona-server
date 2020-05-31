@@ -200,6 +200,9 @@ unsigned long long srv_max_undo_tablespace_size;
 /** Enable or disable encryption of temporary tablespace.*/
 bool srv_tmp_tablespace_encrypt;
 
+/** Option to enable encryption of system tablespace. */
+bool srv_sys_tablespace_encrypt;
+
 /** Maximum number of recently truncated undo tablespace IDs for
 the same undo number. */
 const size_t CONCURRENT_UNDO_TRUNCATE_LIMIT =

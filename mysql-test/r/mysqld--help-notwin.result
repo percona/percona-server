@@ -607,8 +607,8 @@ The following options may be given as the first argument:
  mrr_cost_based, materialization, semijoin, loosescan,
  firstmatch, subquery_materialization_cost_based,
  block_nested_loop, batched_key_access,
- use_index_extensions} and val is one of {on, off,
- default}
+ use_index_extensions, favor_range_scan} and val is one of
+ {on, off, default}
  --optimizer-trace=name 
  Controls tracing of the Optimizer:
  optimizer_trace=option=val[,option=val...], where option

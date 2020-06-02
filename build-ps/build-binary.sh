@@ -291,6 +291,10 @@ fi
     #PS-4854 Percona Server for MySQL tarball without AGPLv3 dependency/license
     find $PRODUCT_FULL -type f -name 'COPYING.AGPLv3' -delete
     $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL.tar.gz" $PRODUCT_FULL
+
+    rm -rf $PRODUCT_FULL/mysql-test 2> /dev/null
+    find $PRODUCT_FULL -type f -exec file '{}' \; | grep ': ELF ' | cut -d':' -f1 | xargs strip --strip-unneeded
+    $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL-minimal.tar.gz" $PRODUCT_FULL
 )
 
 # Clean up

@@ -102,6 +102,30 @@ Version Specific Information
 System Variables
 ================
 
+.. variable:: thread_handling
+
+    :cli: Yes
+    :conf: Yes
+    :scope: Global
+    :dyn: No
+    :vartype: String
+    :default: one-thread-per-connection
+    
+This variable defines how the server handles threads for connections from the client.
+
+.. list-table::
+    :widths: 30 30
+    :header-rows: 1
+    
+    * - Values
+      - Description
+    * - one-thread-per-connection
+      - One thread handles all requests for a connection
+    * - pool-of-threads
+      - A thread pool handles requests for all connections
+    * - no-threads
+      - A single thread for all connections for debugging mode
+
 .. variable:: thread_pool_idle_timeout
 
      :cli: Yes

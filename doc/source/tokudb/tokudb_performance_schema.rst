@@ -1,7 +1,7 @@
 .. _tokudb_performance_schema:
 
 =======================================
-|TokuDB| Performance Schema Integration
+TokuDB Performance Schema Integration
 =======================================
 
 |TokuDB| is integrated with `Performance Schema

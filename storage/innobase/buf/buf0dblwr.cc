@@ -995,9 +995,9 @@ void Double_write::check_block(const buf_block_t *block) noexcept {
       return;
 
     case FIL_PAGE_TYPE_ALLOCATED:
-      /* Empty pages should never be flushed. Unless we are creating the
-      legacy doublewrite buffer.  */
-      break;
+      /* Empty pages could be flushed by encryption threads
+      and scrubbing */
+      return;
   }
 
   croak(block);

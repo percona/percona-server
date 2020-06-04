@@ -1,7 +1,7 @@
 .. _innodb_io_page:
 
 ===================================
- Improved |InnoDB| I/O Scalability
+ Improved InnoDB I/O Scalability
 ===================================
 
 Because |InnoDB| is a complex storage engine it must be configured properly in

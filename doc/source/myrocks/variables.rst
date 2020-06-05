@@ -223,7 +223,11 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
-   * - :variable:`rocksdb_enable_iterate_bounds`
+     * - :variable:`rocksdb_enable_insert_with_update_caching`
+     - Yes
+     - Yes
+     - Global
+    * - :variable:`rocksdb_enable_iterate_bounds`
      - Yes
      - Yes
      - Global, Local
@@ -1264,6 +1268,20 @@ Enabled by default.
 If disabled, bulk loading uses the normal write path via the memtable
 and does not require keys to be inserted in any order.
 
+The default value is ``TRUE``.
+
+.. variable:: rocksdb_enable_insert_with_update_caching
+
+   :version 5.7.30-33: Implemented
+   :cli: ``--rocksdb-enable-insert-with-update-caching``
+   :dyn: Yes
+   :scope: Global
+   :vartype: Boolean
+   :default: ``ON``
+
+Specifies whether to enable optimization where the read is cached from a 
+failed insertion attempt in INSERT ON DUPLICATE KEY UPDATE.
+
 .. variable:: rocksdb_enable_iterate_bounds
 
   :version 8.0.20-11: Implemented
@@ -1274,8 +1292,6 @@ and does not require keys to be inserted in any order.
   :default: ``TRUE``
 
 Enables the rocksdb iterator upper bounds and lower bounds in read options.
-
-The default value is ``TRUE``.
 
 .. variable:: rocksdb_enable_remove_orphaned_dropped_cfs
 

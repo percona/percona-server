@@ -1,7 +1,7 @@
 .. _innodb_show_status:
 
 ====================================
-Extended Show Engine |InnoDB| Status
+Extended Show Engine InnoDB Status
 ====================================
 
 This feature reorganizes the output of ``SHOW ENGINE INNODB STATUS``

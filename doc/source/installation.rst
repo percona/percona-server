@@ -42,17 +42,33 @@ Installing |Percona Server| from a Binary Tarball
 |Percona Server| offers multiple tarballs depending on the *OpenSSL* library available in the distribution:
 
  * ssl100 - for *Debian* prior to 9 and *Ubuntu* prior to 14.04 versions (``libssl.so.1.0.0 => /usr/lib/x86_64-linux-gnu/libssl.so.1.0.0``);
- * ssl101 - for *CentOS* 6 and *CentOS* 7 (``libssl.so.10 => /usr/lib64/libssl.so.10``);
- * ssl102 - for *Debian* 9 and *Ubuntu* versions starting from 14.04 (``libssl.so.1.1 => /usr/lib/libssl.so.1.1``);
+ * ssl101 - for *CentOS* 6 (``libssl.so.10 => /usr/lib64/libssl.so.10``);
+ * ssl102 - for *CentOS* 7, *Debian* 9, and *Ubuntu* versions starting from 14.04 (``libssl.so.1.1 => /usr/lib/libssl.so.1.1``);
  * ssl1:111 - for *CentOS* 8 and *RedHat* 8 (``libssl.so.1.1 => /usr/lib64/libssl.so.1.1.1b``);
 
-You can download the binary tarballs from the ``Linux - Generic`` `section <https://www.percona.com/downloads/Percona-Server-5.7/LATEST/binary/tarball/>`_ on the download page.
+.. note::
 
-Fetch and extract the correct binary tarball. For example for *Debian Wheezy*:
+        The list is a guide. To find which libssl.so files are available on your
+        system you should run the following in Ubuntu or Debian:
+
+        .. code-block:: bash
+
+            $ locate libssl | grep "^/usr/lib/"
+
+        In CentOS, run the following command: 
+
+        .. code-block:: bash
+
+            $ ldconfig -p | grep ssl
+
+Download the appropriate binary tarball from the ``Linux - Generic`` `section <https://www.percona.com/downloads/Percona-Server-5.6/LATEST/binary/tarball/>`_ on the download page.
+
+Fetch and extract the correct binary
+tarball. For example for *CentOS* 8:
 
 .. code-block:: bash
 
-  $ wget https://www.percona.com/downloads/Percona-Server-LATEST/Percona-Server-5.7.18-14/binary/tarball/Percona-Server-5.7.18-14-Linux.x86_64.ssl100.tar.gz
+  $ wget https://www.percona.com/downloads/Percona-Server-LATEST/Percona-Server-5.7.30-33/binary/tarball/Percona-Server-5.7.30-33-Linux.x86_64.ssl1:111.tar.gz
 
 
 .. _installing_from_source_tarball:

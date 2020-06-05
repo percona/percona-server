@@ -3586,6 +3586,10 @@ extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused))) {
       case SIGHUP:
         if (!connection_events_loop_aborted()) {
           int not_used;
+          DBUG_EXECUTE_IF("simulate_sighup_print_status", {
+            printf("\nStatus information:\n\n");
+            fflush(stdout);
+          });
           handle_reload_request(
               nullptr,
               (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST | REFRESH_GRANT |

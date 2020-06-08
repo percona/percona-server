@@ -96,12 +96,12 @@ For more details on the UDFs, see `Percona Toolkit UDFS <https://www.percona.com
 Percona ``apt`` Testing repository
 ----------------------------------
 
-Percona offers pre-release builds from the testing repository. To enable it add the just uncomment the testing repository lines in the Percona repository definition in your repository file (default :file:`/etc/apt/sources.list.d/percona-release.list`). It should looks like this (in this example ``VERSION`` is the name of your distribution): ::
+Percona offers pre-release builds from the testing repository. To enable it, run
+|percona-release| with the ``testing`` argument. |tip.run-this.root|.
 
-  # Testing & pre-release packages
-  #
-  deb http://repo.percona.com/apt VERSION testing
-  deb-src http://repo.percona.com/apt VERSION testing
+.. code-block:: bash
+
+    $ sudo percona-release enable original testing
 
 Apt-Pinning the packages
 ------------------------
@@ -163,27 +163,48 @@ This will install all the packages from the bundle. Another option is to downloa
 
   When installing packages manually like this, you'll need to make sure to resolve all the dependencies and install missing packages yourself. Following packages will need to be installed before you can manually install Percona Server: ``mysql-common``, ``libjemalloc1``, ``libaio1`` and ``libmecab2``
 
+The following table lists the default locations for files:
+
+.. list-table::
+    :widths: 30 30
+    :header-rows: 1
+
+    * - Files
+      - Location
+    * - `mysqld` server
+      - :file:`/usr/sbin`
+    * - Configuration
+      - :file:`/etc/mysql/my.cnf`
+    * - Data directory
+      - :file:`/var/lib/mysql`
+    * - Logs
+      - :file:`/var/log/mysql`
+
+.. note::
+
+  *Debian* and *Ubuntu* installation does not automatically create a special
+  ``debian-sys-maint`` user which can be used by the control scripts to control
+  the |Percona Server| ``mysqld`` and ``mysqld_safe`` services like it was the
+  case with previous |Percona Server| versions. If you still require this user you must create the user manually.
 
 Running |Percona Server|
 ========================
 
-|Percona Server| stores the data files in :file:`/var/lib/mysql/` by default. You can find the configuration file that is used to manage |Percona Server| in :file:`/etc/mysql/my.cnf`.
-
-.. note::
-
-  *Debian* and *Ubuntu* installation doesn't automatically create a special ``debian-sys-maint`` user which can be used by the control scripts to control the |Percona Server| ``mysqld`` and ``mysqld_safe`` services like it was the case with previous |Percona Server| versions. If you still require this user you'll need to create it manually.
+The following procedure runs the |Percona Server|:
 
 1. Starting the service
 
-   |Percona Server| is started automatically after it gets installed unless it encounters errors during the installation process. You can also manually start it by running:
+   |Percona Server| starts automatically after installation unless the server
+   encounters errors during the installation process. You can also manually
+   start it by running the following command:
 
    .. code-block:: bash
 
      $ sudo service mysql start
 
-2. Confirming that service is running
+2. Confirming the service is running
 
-   You can check the service status by running:
+   You can verify the service status by running the following command:
 
    .. code-block:: bash
 
@@ -191,7 +212,7 @@ Running |Percona Server|
 
 3. Stopping the service
 
-   You can stop the service by running:
+   You can stop the service by running the following command:
 
    .. code-block:: bash
 
@@ -199,7 +220,7 @@ Running |Percona Server|
 
 4. Restarting the service
 
-   You can restart the service by running:
+   You can restart the service by running the following command:
 
    .. code-block:: bash
 
@@ -207,7 +228,7 @@ Running |Percona Server|
 
 .. note::
 
-  *Debian* 8.0 (jessie) and *Ubuntu* 15.04 (vivid) come with `systemd <http://freedesktop.org/wiki/Software/systemd/>`_ as the default system and service manager so you can invoke all the above commands with ``sytemctl`` instead of ``service``. Currently both are supported.
+  *Debian* 8.0 (jessie) and *Ubuntu* 16.04(Xenial) come with `systemd <http://freedesktop.org/wiki/Software/systemd/>`_ as the default system and service manager so you can invoke all the above commands with ``sytemctl`` instead of ``service``. Currently, both are supported.
 
 Uninstalling |Percona Server|
 =============================
@@ -233,3 +254,6 @@ To uninstall |Percona Server| you'll need to remove all the installed packages. 
    .. code-block:: bash
 
      $ sudo apt-get purge percona-server*
+
+.. include:: ../.res/replace.txt
+.. include:: ../.res/replace.program.txt

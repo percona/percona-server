@@ -5,6 +5,8 @@
 # file to notify user that although encrypt_binlog in on, there is no binlog file to
 # encrypt and only relay logs will get encrypted.
 
+CALL mtr.add_suppression('You need to use --log-bin to make --binlog-format work.');
+
 --let $restart_hide_args=1
 --let $restart_parameters=restart:--log-error=$MYSQLTEST_VARDIR/tmp/binlog_encryption_on_while_binlog_off.err --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --encrypt-binlog=1 --master-verify-checksum=1
 --source include/restart_mysqld.inc

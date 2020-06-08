@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -122,7 +122,7 @@ void append_user(THD *thd, String *str, LEX_USER *user, bool comma= true,
           /*
             With old_passwords == 2 the scrambled password will be binary.
           */
-          DBUG_ASSERT(thd->variables.old_passwords = 2);
+          DBUG_ASSERT(thd->variables.old_passwords == 2);
           str->append("<secret>");
         }
         str->append("'");
@@ -1515,22 +1515,32 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists)
 
   if (some_users_created || (if_not_exists && !thd->is_error()))
   {
-    String *rlb= &thd->rewritten_query;
-    rlb->mem_free();
-    mysql_rewrite_create_alter_user(thd, rlb, &extra_users);
+    /*
+      Rewrite CREATE USER statements to use password hashes instead
+      of <secret> style obfuscation so it can be used in binlog. We
+      are rewriting to a private string rather than the public one on
+      the THD (thd->m_rewritten_query). This will save us from having
+      to acquire the lock to update the string on the THD. As
+      slow-logging (if enabled) will happen later and use the string
+      on the THD, the slow log will not contain the local rewrite
+      we're doing here, but the original one.
+    */
+    String rlb;
+
+    mysql_rewrite_create_alter_user(thd, &rlb, &extra_users);
 
     int ret= commit_owned_gtid_by_partial_command(thd);
 
     if (ret == 1)
     {
-      if (!thd->rewritten_query.length())
+      if (!rlb.length())
         result|= write_bin_log(thd, false, thd->query().str, thd->query().length,
                                transactional_tables);
-      else
-        result|= write_bin_log(thd, false,
-                               thd->rewritten_query.c_ptr_safe(),
-                               thd->rewritten_query.length(),
+      else {
+        result|= write_bin_log(thd, false, rlb.c_ptr_safe(), rlb.length(),
                                transactional_tables);
+        thd->swap_rewritten_query(rlb); // must come last!
+      }
     }
     else if (ret == -1)
       result|= -1;
@@ -1847,6 +1857,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
   bool is_privileged_user= false;
   bool rollback_whole_statement= false;
   std::set<LEX_USER *> extra_users;
+  std::set<LEX_USER *> reset_users;
   Acl_table_intact table_intact;
 
   DBUG_ENTER("mysql_alter_user");
@@ -1996,6 +2007,8 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
                   false);
       continue;
     }
+    if (what_to_alter & RESOURCE_ATTR)
+      reset_users.insert(tmp_user_from);
     some_user_altered= true;
     update_sctx_cache(thd->security_context(), acl_user,
                       user_from->alter_status.update_password_expired_column);
@@ -2014,20 +2027,29 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
 
   if (some_user_altered || (if_exists && !thd->is_error()))
   {
-    /* do query rewrite for ALTER USER */
-    String *rlb= &thd->rewritten_query;
-    rlb->mem_free();
-    mysql_rewrite_create_alter_user(thd, rlb, &extra_users);
+    /*
+      Rewrite ALTER USER statements to use password hashes instead
+      of <secret> style obfuscation so it can be used in binlog. We
+      are rewriting to a private string rather than the public one on
+      the THD (thd->m_rewritten_query). This will save us from having
+      to acquire the lock to update the string on the THD. As
+      slow-logging (if enabled) will happen later and use the string
+      on the THD, the slow log will not contain the local rewrite
+      we're doing here, but the original one.
+    */
+    String rlb;
+
+    mysql_rewrite_create_alter_user(thd, &rlb, &extra_users);
 
     int ret= commit_owned_gtid_by_partial_command(thd);
     if (ret == 1)
-      result|= (write_bin_log(thd, false,
-                              thd->rewritten_query.c_ptr_safe(),
-                              thd->rewritten_query.length(),
+      result|= (write_bin_log(thd, false, rlb.c_ptr_safe(), rlb.length(),
                               table->file->has_transactions()) != 0);
 
     else if (ret == -1)
       result|= -1;
+
+    thd->swap_rewritten_query(rlb); // must come last!
   }
 
   lock.unlock();
@@ -2038,7 +2060,17 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
                                    rollback_whole_statement);
 
   if (some_user_altered && !result)
+  {
+    std::set<LEX_USER *>::iterator one_user;
+    LEX_USER *ext_user;
+    for (one_user= reset_users.begin(); one_user != reset_users.end(); one_user++)
+    {
+      LEX_USER *user= *one_user;
+      if ((ext_user= get_current_user(thd, user)))
+        reset_mqh(ext_user, false);
+    }
     acl_notify_htons(thd, thd->query().str, thd->query().length);
+  }
 
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -2049,5 +2081,3 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
 
 
 #endif
-
-

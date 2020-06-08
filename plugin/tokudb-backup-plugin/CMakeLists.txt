@@ -26,23 +26,21 @@ IF(NOT TOKUDB_OK OR NOT HAVE_O_DIRECT OR NOT HAVE_CLOCK_MONOTONIC OR APPLE)
   RETURN()
 ENDIF()
 
+# check that compiler supports cxx11 and set options
+INCLUDE (check_stdcxx11)
+IF (!HAVE_STDCXX11)
+  MESSAGE (${MYROCKS_STATUS_MODE} "${CMAKE_CXX_COMPILER} doesn't support -std=c++11, you need one that does. Not building tokudb-backup-plugin")
+  RETURN ()
+ENDIF ()
+
 # disable -Wvla
-include(CheckCCompilerFlag)
-include(CheckCXXCompilerFlag)
-macro(append_cflags_if_supported)
-  foreach(flag ${ARGN})
-    string(REGEX REPLACE "-" "_" temp_flag ${flag})
-    check_c_compiler_flag(${flag} HAVE_C_${temp_flag})
-    if (HAVE_C_${temp_flag})
-      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${flag}")
-    endif ()
-    check_cxx_compiler_flag(${flag} HAVE_CXX_${temp_flag})
-    if (HAVE_CXX_${temp_flag})
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag}")
-    endif ()
-  endforeach(flag)
-endmacro(append_cflags_if_supported)
 append_cflags_if_supported(-Wno-vla)
+
+# compiler_options.cmake sets "-D_FORTIFY_SOURCE=2" for clang what causes
+# "error: redefinition of 'read'" for "Percona-TokuBackup/backup/backup.cc"
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  STRING (REPLACE "-D_FORTIFY_SOURCE=2" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
+ENDIF()
 
 IF(DEFINED TOKUDB_BACKUP_PLUGIN_VERSION)
   ADD_DEFINITIONS("-DTOKUDB_BACKUP_PLUGIN_VERSION=${TOKUDB_BACKUP_PLUGIN_VERSION}")

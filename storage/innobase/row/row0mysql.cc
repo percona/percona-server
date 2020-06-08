@@ -2914,8 +2914,7 @@ row_update_for_mysql_using_cursor(
 			if (!dict_index_is_auto_gen_clust(index)) {
 				err = row_ins_clust_index_entry(
 					index, entry, thr,
-					node->upd_ext
-					? node->upd_ext->n_ext : 0,
+					entry->get_n_ext(),
 					true);
 			}
 		} else {
@@ -2941,7 +2940,7 @@ row_update_for_mysql_using_cursor(
 
 			err = row_ins_clust_index_entry(
 				index, entry, thr,
-				node->upd_ext ? node->upd_ext->n_ext : 0,
+				entry->get_n_ext(),
 				false);
 			/* Commit the open mtr as we are processing UPDATE. */
 			if (index->last_ins_cur) {

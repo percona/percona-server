@@ -1,0 +1,5 @@
+--sync_binlog=0
+--binlog_format=row
+--slave-exec-mode=strict
+--loose-rocksdb_perf_context_level=3
+--slave_parallel_workers=8

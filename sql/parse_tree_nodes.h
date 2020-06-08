@@ -2042,9 +2042,8 @@ class PT_alter_instance final : public Parse_tree_root {
 
  public:
   explicit PT_alter_instance(
-      enum alter_instance_action_enum alter_instance_action,
-      const LEX_CSTRING &channel)
-      : sql_cmd(alter_instance_action, channel) {}
+      enum alter_instance_action_enum alter_instance_action, const LEX_CSTRING &channel, uint key_id)
+      : sql_cmd(alter_instance_action, channel, key_id) {}
 
   Sql_cmd *make_cmd(THD *thd) override;
 };

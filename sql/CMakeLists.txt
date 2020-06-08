@@ -402,7 +402,6 @@ SET(SQL_SHARED_SOURCES
   item_func.cc
   item_pfs_func.cc
   item_json_func.cc
-  item_keyring_func.cc
   item_regexp_func.cc
   item_row.cc
   item_strfunc.cc

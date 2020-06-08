@@ -58,12 +58,8 @@ c1	c2
 7	hhhhh
 8	iiiii
 9	jjjjj
-SELECT rotate_system_key("percona_redo");
-rotate_system_key("percona_redo")
-1
-SELECT rotate_system_key("percona_redo");
-rotate_system_key("percona_redo")
-1
+ALTER INSTANCE ROTATE REDO SYSTEM KEY;
+ALTER INSTANCE ROTATE REDO SYSTEM KEY;
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;

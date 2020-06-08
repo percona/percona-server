@@ -6,7 +6,21 @@ CREATE USER 'regular_user'@'localhost' IDENTIFIED BY 'pass';
 --connect (regular_user_con,localhost,regular_user,pass,test)
 
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
-SELECT rotate_system_key("percona_binlog");
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
+
+--connection default
+--echo # Grant ENCRYPTION_KEY_ADMIN privilege to regular_user. This should be enough to
+--echo # be able to rotate system key.
+
+GRANT ENCRYPTION_KEY_ADMIN ON *.* TO regular_user@localhost;
+
+--connection regular_user_con
+
+CREATE TABLE t1 (a VARCHAR(255)) ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=0;
+
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
+
+DROP TABLE t1;
 
 --connection default
 --disconnect regular_user_con

@@ -16349,11 +16349,40 @@ alter_instance_action:
           {
             if (is_identifier($2, "INNODB"))
             {
-              $$= NEW_PTN PT_alter_instance(ROTATE_INNODB_MASTER_KEY, EMPTY_CSTR);
+              $$= NEW_PTN PT_alter_instance(ROTATE_INNODB_MASTER_KEY, EMPTY_CSTR, 0);
             }
             else if (is_identifier($2, "BINLOG"))
             {
-              $$= NEW_PTN PT_alter_instance(ROTATE_BINLOG_MASTER_KEY, EMPTY_CSTR);
+              $$= NEW_PTN PT_alter_instance(ROTATE_BINLOG_MASTER_KEY, EMPTY_CSTR, 0);
+            }
+            else
+            {
+              YYTHD->syntax_error_at(@2);
+              MYSQL_YYABORT;
+            }
+          }
+          | ROTATE_SYM ident_or_text SYSTEM_SYM KEY_SYM ulong_num
+          {
+            if (is_identifier($2, "INNODB"))
+            {
+              if ($5 > UINT_MAX32 - 1)
+              {
+                my_error(ER_SYSTEM_KEY_ROTATION_MAX_KEY_ID_EXCEEDED, MYF(0));
+                MYSQL_YYABORT;
+              }
+              $$= NEW_PTN PT_alter_instance(ROTATE_INNODB_SYSTEM_KEY, EMPTY_CSTR, $5);
+            }
+            else
+            {
+              YYTHD->syntax_error_at(@2);
+              MYSQL_YYABORT;
+            }
+          }
+          | ROTATE_SYM ident_or_text SYSTEM_SYM KEY_SYM
+          {
+            if (is_identifier($2, "REDO"))
+            {
+              $$= NEW_PTN PT_alter_instance(ROTATE_REDO_SYSTEM_KEY, EMPTY_CSTR, 0);
             }
             else
             {
@@ -16363,17 +16392,17 @@ alter_instance_action:
           }
         | RELOAD TLS_SYM
           {
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR, to_lex_cstring("mysql_main"));
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR, to_lex_cstring("mysql_main"), 0);
           }
         | RELOAD TLS_SYM NO_SYM ROLLBACK_SYM ON_SYM ERROR_SYM
           {
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS, to_lex_cstring("mysql_main"));
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS, to_lex_cstring("mysql_main"), 0);
           }
         | RELOAD TLS_SYM FOR_SYM CHANNEL_SYM ident {
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR, to_lex_cstring($5));
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR, to_lex_cstring($5), 0);
           }
         | RELOAD TLS_SYM FOR_SYM CHANNEL_SYM ident NO_SYM ROLLBACK_SYM ON_SYM ERROR_SYM {
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS, to_lex_cstring($5));
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS, to_lex_cstring($5), 0);
           }
         | ENABLE_SYM ident ident
           {
@@ -16388,7 +16417,7 @@ alter_instance_action:
               YYTHD->syntax_error_at(@3);
               MYSQL_YYABORT;
             }
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_ENABLE_INNODB_REDO, EMPTY_CSTR);
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_ENABLE_INNODB_REDO, EMPTY_CSTR, 0);
           }
         | DISABLE_SYM ident ident
           {
@@ -16403,10 +16432,10 @@ alter_instance_action:
               YYTHD->syntax_error_at(@3);
               MYSQL_YYABORT;
             }
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_DISABLE_INNODB_REDO, EMPTY_CSTR);
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_DISABLE_INNODB_REDO, EMPTY_CSTR, 0);
           }
         | RELOAD KEYRING_SYM {
-            $$ = NEW_PTN PT_alter_instance(RELOAD_KEYRING, EMPTY_CSTR);
+            $$ = NEW_PTN PT_alter_instance(RELOAD_KEYRING, EMPTY_CSTR, 0);
           }
         ;
 

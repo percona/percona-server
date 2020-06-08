@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_mgm\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/27/2019
+.\"      Date: 03/06/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_MGM\FR" "1" "09/27/2019" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_MGM\FR" "1" "03/06/2020" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -76,7 +76,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.292.\ \&Command\-line options for the ndb_mgm program
+.B Table\ \&18.219.\ \&Command\-line options for the ndb_mgm program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -93,7 +93,7 @@ l l l
 l l l.
 T{
 .PP
---connect-retries=#
+\fB \fR\fB--connect-retries=#\fR\fB \fR
 T}:T{
 Set the number of times to retry a connection before giving up; 0 means
               1 attempt only (and no retries)
@@ -103,9 +103,9 @@ ADDED: NDB 7.4.9
 T}
 T{
 .PP
---try-reconnect=#,
+\fB--try-reconnect=#\fR,
 .PP
--t
+\fB \fR\fB-t\fR\fB \fR
 T}:T{
 Set the number of times to retry a connection before giving up; synonym
               for --connect-retries
@@ -115,14 +115,14 @@ DEPRECATED: NDB 7.4.9
 T}
 T{
 .PP
---execute=name,
+\fB--execute=name\fR,
 .PP
--e
+\fB \fR\fB-e\fR\fB \fR
 T}:T{
 Execute command and exit
 T}:T{
 .PP
-All MySQL 5.6 based releases
+(Supported in all MySQL 5.6 based releases)
 T}
 .TE
 .sp 1
@@ -336,7 +336,7 @@ Section\ \&18.5.2, \(lqCommands in the NDB Cluster Management Client\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

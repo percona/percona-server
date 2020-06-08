@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1510,9 +1510,22 @@ unpack_fields(MYSQL *mysql, MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
     /* old protocol, for backward compatibility */
     for (row=data->data; row ; row = row->next,field++)
     {
+      /*
+       If any of the row->data[] below is NULL, it can result in a
+       crash. Error out early as it indicates a malformed packet.
+       For data[0], data[1] and data[5], strmake_root will handle
+       NULL values.
+      */
+      if (!row->data[2] || !row->data[3] || !row->data[4])
+      {
+        free_rows(data);
+        set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+        DBUG_RETURN(0);
+      }
+
       cli_fetch_lengths(&lengths[0], row->data, default_value ? 6 : 5);
-      field->org_table= field->table=  strdup_root(alloc,(char*) row->data[0]);
-      field->name=   strdup_root(alloc,(char*) row->data[1]);
+      field->org_table= field->table=  strmake_root(alloc,(char*) row->data[0], lengths[0]);
+      field->name=   strmake_root(alloc,(char*) row->data[1], lengths[1]);
       field->length= (uint) uint3korr(row->data[2]);
       field->type=   (enum enum_field_types) (uchar) row->data[3][0];
 
@@ -1537,7 +1550,7 @@ unpack_fields(MYSQL *mysql, MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
         field->flags|= NUM_FLAG;
       if (default_value && row->data[5])
       {
-        field->def=strdup_root(alloc,(char*) row->data[5]);
+        field->def= strmake_root(alloc,(char*) row->data[5], lengths[5]);
 	field->def_length= lengths[5];
       }
       else
@@ -4105,8 +4118,21 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     {
       scramble_data_len= pkt_scramble_len;
       scramble_plugin= scramble_data + scramble_data_len;
+      /*
+       There is a possibility that we did not get a correct plugin name
+       for some reason. For example, the packet was malformed and some
+       of the fields had incorrect values. In such cases, we keep the
+       plugin name empty so that the default authentication plugin
+       gets used later on. Since we don't really know the plugin for which
+       the scramble_data was prepared, we can discard it and set it's length
+       to 0.
+      */
       if (scramble_data + scramble_data_len > pkt_end)
-        scramble_data_len= pkt_end - scramble_data;
+      {
+        scramble_plugin= (char*)"";
+        scramble_data= 0;
+        scramble_data_len= 0;
+      }
     }
     else
     {

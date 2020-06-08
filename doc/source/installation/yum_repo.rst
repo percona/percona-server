@@ -8,20 +8,7 @@ Ready-to-use packages are available from the |Percona Server| software repositor
 
 The easiest way to install the *Percona Yum* repository is to install an *RPM* that configures :program:`yum` and installs the `Percona GPG key <https://www.percona.com/downloads/RPM-GPG-KEY-percona>`_.
 
-Supported Releases:
-
- * *CentOS* 6 and *RHEL* 6 (Current Stable) [#f1]_
-
- * *CentOS* 7 and *RHEL* 7
-
- * *Amazon Linux AMI* (works the same as *CentOS* 6)
-
-The *CentOS* repositories should work well with *Red Hat Enterprise Linux* too, provided that :program:`yum` is installed on the server.
-
-Supported Platforms:
-
- * x86
- * x86_64 (also known as ``amd64``)
+Specific information on the supported platforms, products, and versions are described in `Percona Software and Platform Lifecycle <https://www.percona.com/services/policies/percona-software-platform-lifecycle#mysql>`_.
 
 What's in each RPM package?
 ===========================
@@ -45,13 +32,13 @@ The ``Percona-Server-test-56`` package includes the test suite for |Percona Serv
 Installing |Percona Server| from Percona ``yum`` repository
 ===========================================================
 
-1. Install the Percona repository 
-   
+1. Install the Percona repository
+
    You can install Percona yum repository by running the following command as a ``root`` user or with sudo:
 
    .. code-block:: bash
 
-      $ yum install https://repo.percona.com/yum/percona-release-latest.noarch.rpm 
+      $ yum install https://repo.percona.com/yum/percona-release-latest.noarch.rpm
 
 
    .. admonition:: Output example
@@ -73,8 +60,8 @@ Installing |Percona Server| from Percona ``yum`` repository
 
 
 2. Testing the repository
-   
-   Make sure packages are now available from the repository, by executing the following command: 
+
+   Make sure packages are now available from the repository, by executing the following command:
 
    .. code-block:: bash
 
@@ -116,16 +103,16 @@ Installing |Percona Server| using downloaded rpm packages
 1. Download the packages of the desired series for your architecture from the `download page <http://www.percona.com/downloads/Percona-Server-5.6/>`_. The easiest way is to download bundle which contains all the packages. Following example will download |Percona Server| 5.6.25-73.1 release packages for *CentOS* 6:
 
    .. code-block:: bash
- 
-     wget https://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-5.6.25-73.1/binary/redhat/6/x86_64/Percona-Server-5.6.25-73.1-r07b797f-el6-x86_64-bundle.tar 
+
+     wget https://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-5.6.25-73.1/binary/redhat/6/x86_64/Percona-Server-5.6.25-73.1-r07b797f-el6-x86_64-bundle.tar
 
 2. You should then unpack the bundle to get the packages:
 
    .. code-block:: bash
 
      tar xvf Percona-Server-5.6.25-73.1-r07b797f-el6-x86_64-bundle.tar
-    
-   After you unpack the bundle you should see the following packages:  
+
+   After you unpack the bundle you should see the following packages:
 
    .. code-block:: bash
 
@@ -157,14 +144,39 @@ This will install only packages required to run the |Percona Server|. To install
 
    When installing packages manually like this, you'll need to make sure to resolve all the dependencies and install missing packages yourself.
 
+The following table lists the default locations for files:
+
+.. list-table::
+    :widths: 30 30
+    :header-rows: 1
+
+    * - Files
+      - Location
+    * - mysqld server
+      - :file:`/usr/bin`
+    * - Configuration
+      - :file:`/etc/my.cnf`
+    * - Data directory
+      - :file:`/var/lib/mysql`
+    * - Logs
+      - :file:`/var/log/mysqld.log`
+
+You can use the following command to locate the Data directory:
+
+.. code-block:: bash
+
+    grep datadir /etc/my.cnf
+
+    datadir=/var/lib/mysql
+
+
 Running |Percona Server|
 ========================
 
-|Percona Server| stores the data files in :file:`/var/lib/mysql/` by default. You can find the configuration file that is used to manage |Percona Server| in :file:`/etc/my.cnf`. 
-
 1. Starting the service
 
-   |Percona Server| isn't started automatically on *RHEL* and *CentOS* after it gets installed. You should start it by running:
+   |Percona Server| does not start automatically on *RHEL* and *CentOS* after
+   the installation. You should start the server by running:
 
    .. code-block:: bash
 
@@ -209,7 +221,7 @@ To completely uninstall |Percona Server| you'll need to remove all the installed
 
      service mysql stop
 
-2. Remove the packages 
+2. Remove the packages
 
    .. code-block:: bash
 
@@ -222,10 +234,8 @@ To completely uninstall |Percona Server| you'll need to remove all the installed
      rm -rf /var/lib/mysql
      rm -f /etc/my.cnf
 
-.. warning:: 
+.. warning::
 
   This will remove all the packages and delete all the data files (databases, tables, logs, etc.), you might want to take a backup before doing this in case you need the data.
 
-.. rubric:: Footnotes
 
-.. [#f1] "Current Stable": We support only the current stable RHEL6/CentOS6 release, because there is no official (i.e. RedHat provided) method to support or download the latest OpenSSL on RHEL/CentOS versions prior to 6.5. Similarly, and also as a result thereof, there is no official Percona way to support the latest Percona Server builds on RHEL/CentOS versions prior to 6.5. Additionally, many users will need to upgrade to OpenSSL 1.0.1g or later (due to the `Heartbleed vulnerability <http://www.percona.com/resources/ceo-customer-advisory-heartbleed>`_), and this OpenSSL version is not available for download from any official RHEL/Centos repository for versions 6.4 and prior. For any officially unsupported system, src.rpm packages may be used to rebuild Percona Server for any environment. Please contact our `support service <http://www.percona.com/products/mysql-support>`_ if you require further information on this.

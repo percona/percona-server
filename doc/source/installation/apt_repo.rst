@@ -6,22 +6,7 @@ Installing |Percona Server| on *Debian* and *Ubuntu*
 
 Ready-to-use packages are available from the |Percona Server| software repositories and the `download page <http://www.percona.com/downloads/Percona-Server-5.6/>`_.
 
-Supported Releases:
-
-* Debian:
-
- * 8.0 (jessie)
- * 9.0 (stretch)
-
-* Ubuntu:
-
- * 16.04LTS (xenial)
- * 18.04 (bionic)
-
-Supported Platforms:
-
- * x86
- * x86_64 (also known as ``amd64``)
+Specific information on the supported platforms, products, and versions is described in `Percona Software and Platform Lifecycle <https://www.percona.com/services/policies/percona-software-platform-lifecycle#mysql>`_.
 
 What's in each DEB package?
 ===========================
@@ -45,13 +30,19 @@ The ``libperconaserverclient18.1`` package contains the client shared library. T
 Installing |Percona Server| from Percona ``apt`` repository
 ===========================================================
 
-1. Fetch the repository packages from Percona web:
+1. Install ``GnuPG``, the GNU Privacy Guard:
+
+   .. code-block:: bash
+
+      $ sudo apt-get install gnupg2
+   
+2. Fetch the repository packages from Percona web: 
 
    .. code-block:: bash
 
       $ wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb
 
-2. Install the downloaded package with :program:`dpkg`. To do that, run the following commands as root or with :program:`sudo`:
+3. Install the downloaded package with :program:`dpkg`. To do that, run the following commands as root or with :program:`sudo`:
 
    .. code-block:: bash
 
@@ -59,13 +50,13 @@ Installing |Percona Server| from Percona ``apt`` repository
 
    Once you install this package the Percona repositories should be added. You can check the repository setup in the :file:`/etc/apt/sources.list.d/percona-release.list` file.
 
-3. Remember to update the local cache:
+4. Remember to update the local cache:
 
    .. code-block:: bash
 
       $ sudo apt-get update
 
-4. After that you can install the server package:
+5. After that you can install the server package:
 
    .. code-block:: bash
 
@@ -77,10 +68,7 @@ Percona ``apt`` Testing repository
 
 Percona offers pre-release builds from the testing repository. To enable it add the just uncomment the testing repository lines in the Percona repository definition in your repository file (default :file:`/etc/apt/sources.list.d/percona-release.list`). It should looks like this (in this example ``VERSION`` is the name of your distribution): ::
 
-  # Testing & pre-release packages
-  #
-  deb http://repo.percona.com/apt VERSION testing
-  deb-src http://repo.percona.com/apt VERSION testing
+$ sudo percona-release enable original testing
 
 Apt-Pinning the packages
 ------------------------
@@ -149,7 +137,7 @@ You can install |Percona Server| with a non-interactive script using the followi
 * `debconf-set-selections <https://manpages.ubuntu.com/manpages/bionic/en/man1/debconf-get-selections.1.html>`_ - inserts values into the debconf database
 
 .. note::
-
+ 
     If needed, you can return the contents of the debconf database with the following statement:
 
     .. code-block:: bash
@@ -211,6 +199,23 @@ The following example script installs the server and secures the installation.
 
     service mysql stop
     service mysql start
+
+The following table lists the default locations for files:
+
+.. list-table::
+    :widths: 30 30
+    :header-rows: 1
+
+    * - Files
+      - Location
+    * - `mysqld` server
+      - :file:`/usr/sbin`
+    * - Configuration
+      - :file:`/etc/mysql/my.cnf`
+    * - Data directory
+      - :file:`/var/lib/mysql`
+    * - Logs
+      - :file:`/var/log/mysql`
 
 Running |Percona Server|
 ========================

@@ -424,4 +424,4 @@ Related Reading
 
   * `log_slow_filter Usage <http://www.mysqlperformanceblog.com/2008/09/22/finding-what-created_tmp_disk_tables-with-log_slow_filter/>`_
 
-  * `Blueprint in Launchpad <https://blueprints.launchpad.net/percona-server/+spec/microseconds-in-query-log>`_
+  * `Added microseconds to the slow query log event time <https://jira.percona.com/browse/PS-1136>`_

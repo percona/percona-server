@@ -376,6 +376,7 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
 
   /** Thread instrumentation flag. */
   bool m_enabled;
+  bool m_disable_instrumentation;
   /** Current wait event in the event stack. */
   PFS_events_waits *m_events_waits_current;
   /** Event ID counter */

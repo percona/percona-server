@@ -23486,6 +23486,11 @@ static MYSQL_SYSVAR_BOOL(
     "Enable this option at bootstrap to encrypt system tablespace.", nullptr,
     nullptr, false);
 
+static MYSQL_SYSVAR_BOOL(
+    parallel_dblwr_encrypt, srv_parallel_dblwr_encrypt, PLUGIN_VAR_OPCMDARG,
+    "Enable or disable encryption of parallel doublewrite buffer file.",
+    nullptr, nullptr, false);
+
 static MYSQL_SYSVAR_STR(
     undo_directory, srv_undo_dir,
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
@@ -23982,6 +23987,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(temp_data_file_path),
     MYSQL_SYSVAR(temp_tablespace_encrypt),
     MYSQL_SYSVAR(sys_tablespace_encrypt),
+    MYSQL_SYSVAR(parallel_dblwr_encrypt),
     MYSQL_SYSVAR(data_home_dir),
     MYSQL_SYSVAR(doublewrite),
     MYSQL_SYSVAR(doublewrite_dir),

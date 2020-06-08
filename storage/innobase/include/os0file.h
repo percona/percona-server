@@ -90,6 +90,10 @@ extern bool default_master_key_used;
 /** File offset in bytes */
 typedef ib_uint64_t os_offset_t;
 
+/** Free a page after sync IO
+@param[in,out]	block		The block to free/release */
+void os_free_block(file::Block *block) noexcept;
+
 namespace file {
 /** Blocks for doing IO, used in the transparent compression
 and encryption code. */
@@ -102,6 +106,11 @@ struct Block {
   byte pad[INNOBASE_CACHE_LINE_SIZE - sizeof(ulint)];
   lock_word_t m_in_use;
 };
+
+struct Block_deleter {
+  void operator()(Block *ptr) const noexcept { os_free_block(ptr); }
+};
+
 }  // namespace file
 
 #ifdef _WIN32
@@ -2040,12 +2049,16 @@ class Dir_Walker {
 @return pointer to page */
 file::Block *os_alloc_block() noexcept;
 
-/** Free a page after sync IO
-@param[in,out]	block		The block to free/release */
-void os_free_block(file::Block *block) noexcept;
-
 /** Submit buffered AIO requests on the given segment to the kernel. */
 void os_aio_dispatch_read_array_submit();
+
+/** Encrypt a page content when write it to disk.
+@param[in]      type    IO flags
+@param[out]     buf     buffer to read or write
+@param[in,out]  n       number of bytes to read/write, starting from
+                        offset
+@return pointer to the encrypted page */
+file::Block *os_file_encrypt_page(const IORequest &type, void *&buf, ulint *n);
 
 #include "os0file.ic"
 #endif /* UNIV_NONINL */

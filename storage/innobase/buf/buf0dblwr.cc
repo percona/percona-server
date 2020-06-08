@@ -37,6 +37,7 @@ Atomic writes handling. */
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "ut0mpmcbq.h"
+#include "os0enc.h"
 
 #include <iomanip>
 #include <iostream>
@@ -359,7 +360,8 @@ class Double_write {
     void *frame{};
     uint32_t len{};
 
-    prepare(bpage, &frame, &len);
+    file::Block_ptr enc_block;
+    prepare(bpage, &frame, &len, enc_block);
 
     ut_a(len <= univ_page_size.physical());
 
@@ -528,10 +530,14 @@ class Double_write {
   static void single_write(Segment *segment, const buf_page_t *bpage) noexcept;
 
   /** Extract the data and length to write to the doublewrite file
-  @param[in]	bpage		          Page to write
-  @param[out]	ptr		            Start of buffer to write
-  @param[out]	len		            Length of the data to write */
-  static void prepare(const buf_page_t *bpage, void **ptr, uint32_t *len)
+  @param[in]	bpage		Page to write
+  @param[out]	ptr		Start of buffer to write
+  @param[out]	len		Length of the data to write
+  @param[out]	enc_block	if innodb_parallel_dblwr_encrypt is true,
+  then encrypted block is returned and the ptr is set to the encrypted
+  frame and len to encrypted length */
+  static void prepare(const buf_page_t *bpage, void **ptr, uint32_t *len,
+                      file::Block_ptr &enc_block)
       noexcept;
 
   /** Free the data structures. */
@@ -780,8 +786,8 @@ Double_write::~Double_write() noexcept {
   os_event_destroy(m_event);
 }
 
-void Double_write::prepare(const buf_page_t *bpage, void **ptr,
-                           uint32_t *len) noexcept {
+void Double_write::prepare(const buf_page_t *bpage, void **ptr, uint32_t *len,
+                           file::Block_ptr &enc_block) noexcept {
   auto block = reinterpret_cast<const buf_block_t *>(bpage);
   auto state = buf_block_get_state(block);
 
@@ -814,6 +820,17 @@ void Double_write::prepare(const buf_page_t *bpage, void **ptr,
 
     *len = bpage->size.logical();
   }
+
+  if (srv_parallel_dblwr_encrypt) {
+    page_t *in_page = static_cast<page_t *>(*ptr);
+    ulint enc_block_len = 0;
+    bool success = os_dblwr_encrypt_page(block->page.id.space(), in_page,
+                                         enc_block, enc_block_len);
+    if (success) {
+      *ptr = ut_align(enc_block.get()->m_ptr, os_io_ptr_align);
+      *len = enc_block_len;
+    }
+  }
 }
 
 void Double_write::single_write(Segment *segment,
@@ -821,7 +838,8 @@ void Double_write::single_write(Segment *segment,
   uint32_t len{};
   void *frame{};
 
-  prepare(bpage, &frame, &len);
+  file::Block_ptr enc_block;
+  prepare(bpage, &frame, &len, enc_block);
 
   ut_ad(len <= univ_page_size.physical());
 
@@ -1861,7 +1879,7 @@ bool dblwr::v1::is_inside(page_no_t page_no) noexcept {
 @param[in]	page		            Data to write to <space, page_no>
 @return true if page was restored to the tablespace */
 static bool dblwr_recover_page(page_no_t dblwr_page_no, fil_space_t *space,
-                               page_no_t page_no, const byte *page) noexcept {
+                               page_no_t page_no, byte *page) noexcept {
   /* For cloned database double write pages should be ignored. However,
   given the control flow, we read the pages in anyway but don't recover
   from the pages we read in. */
@@ -1910,13 +1928,18 @@ static bool dblwr_recover_page(page_no_t dblwr_page_no, fil_space_t *space,
   BlockReporter dblwr_page(true, page, page_size,
                            fsp_is_checksum_disabled(space->id));
 
+  DBUG_EXECUTE_IF("force_dblwr_decryption",
+                  Encryption::dblwr_decrypt_page(space, page););
+
   if (data_file_page.is_corrupted()) {
     ib::info(ER_IB_MSG_DBLWR_1315) << "Database page corruption or"
                                    << " a failed file read of page " << page_id
                                    << ". Trying to recover it from the"
                                    << " doublewrite file.";
 
-    if (dblwr_page.is_corrupted()) {
+    bool success = Encryption::dblwr_decrypt_page(space, page);
+
+    if (!success || dblwr_page.is_corrupted()) {
       ib::error(ER_IB_MSG_DBLWR_1304);
 
       buf_page_print(buffer.begin(), page_size, BUF_PAGE_PRINT_NO_CRASH);

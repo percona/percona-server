@@ -128,7 +128,7 @@ static const size_t MAX_BLOCKS = 128;
 #define BUFFER_BLOCK_SIZE ((ulint)(UNIV_PAGE_SIZE * 1.3))
 
 /** Disk sector size of aligning write buffer for DIRECT_IO */
-static ulint os_io_ptr_align = UNIV_SECTOR_SIZE;
+ulint os_io_ptr_align = UNIV_SECTOR_SIZE;
 
 /** Set to true when default master key is used. This variable
 main purpose is to avoid extra Encryption::get_master_key() when there
@@ -2159,7 +2159,7 @@ static file::Block *os_file_compress_page(IORequest &type, void *&buf,
 @param[in,out]	n		number of bytes to read/write, starting from
                                 offset
 @return pointer to the encrypted page */
-static file::Block *os_file_encrypt_page(const IORequest &type, void *&buf,
+file::Block *os_file_encrypt_page(const IORequest &type, void *&buf,
                                          ulint *n) {
   byte *encrypted_page;
   ulint encrypted_len = *n;

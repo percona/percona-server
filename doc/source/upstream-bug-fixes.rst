@@ -20,7 +20,6 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 |:Upstream Bug: :mysqlbug:`92850` - Bad select+order by+limit performance in 5.7                              |
 |:JIRA bug: :psbug:`4949`                                                                                     |
 |:Upstream State: Verified (checked on 2019-05-21)                                                            |
->>>>>>> c2096a2d57a4a724f26ede5e94ee41d834731705
 |:Fix Released: :rn:`5.7.25-28`                                                                               |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+

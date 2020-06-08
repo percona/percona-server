@@ -2914,8 +2914,7 @@ row_update_for_mysql_using_cursor(
 			if (!dict_index_is_auto_gen_clust(index)) {
 				err = row_ins_clust_index_entry(
 					index, entry, thr,
-					node->upd_ext
-					? node->upd_ext->n_ext : 0,
+					entry->get_n_ext(),
 					true);
 			}
 		} else {
@@ -2941,7 +2940,7 @@ row_update_for_mysql_using_cursor(
 
 			err = row_ins_clust_index_entry(
 				index, entry, thr,
-				node->upd_ext ? node->upd_ext->n_ext : 0,
+				entry->get_n_ext(),
 				false);
 			/* Commit the open mtr as we are processing UPDATE. */
 			if (index->last_ins_cur) {
@@ -4517,33 +4516,6 @@ row_discard_tablespace(
 
 	if (err != DB_SUCCESS) {
 		return(err);
-	}
-
-	/* For encrypted table, before we discard the tablespace,
-	we need save the encryption information into table, otherwise,
-	this information will be lost in fil_discard_tablespace along
-	with fil_space_free(). */
-	if (dict_table_is_encrypted(table)) {
-		ut_ad(table->encryption_key == NULL
-		      && table->encryption_iv == NULL);
-
-		table->encryption_key =
-			static_cast<byte*>(mem_heap_alloc(table->heap,
-							  ENCRYPTION_KEY_LEN));
-
-		table->encryption_iv =
-			static_cast<byte*>(mem_heap_alloc(table->heap,
-							  ENCRYPTION_KEY_LEN));
-
-		fil_space_t*	space = fil_space_get(table->space);
-		ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
-
-		memcpy(table->encryption_key,
-		       space->encryption_key,
-		       ENCRYPTION_KEY_LEN);
-		memcpy(table->encryption_iv,
-		       space->encryption_iv,
-		       ENCRYPTION_KEY_LEN);
 	}
 
 	/* Discard the physical file that is used for the tablespace. */

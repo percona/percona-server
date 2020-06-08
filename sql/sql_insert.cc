@@ -1670,6 +1670,12 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
           an error is returned
         */
 	DBUG_ASSERT(table->insert_values != NULL);
+        /*
+          The insert has failed, store the insert_id generated for
+          this row to be re-used for the next insert.
+        */
+        if (insert_id_for_cur_row > 0) prev_insert_id = insert_id_for_cur_row;
+
         store_record(table,insert_values);
         /*
           Special check for BLOB/GEOMETRY field in statements with
@@ -2190,6 +2196,8 @@ int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   if (duplicate_handling == DUP_UPDATE)
     table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
 
+  /* Decide the logging format prior to preparing table/record metadata */
+  res= res || thd->decide_logging_format(table_list);
   if (!res)
   {
      prepare_triggers_for_insert_stmt(table);

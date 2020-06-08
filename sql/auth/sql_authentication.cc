@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -625,6 +625,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
   int2store(end + 5, protocol->get_client_capabilities() >> 16);
   end[7]= data_len;
   DBUG_EXECUTE_IF("poison_srv_handshake_scramble_len", end[7]= -100;);
+  DBUG_EXECUTE_IF("increase_srv_handshake_scramble_len", end[7]= 50;);
   memset(end + 8, 0, 10);
   end+= 18;
   /* write scramble tail */
@@ -665,11 +666,18 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
   DBUG_ENTER("send_plugin_request_packet");
   mpvio->status= MPVIO_EXT::FAILURE; // the status is no longer RESTART
 
-  const char *client_auth_plugin=
-    ((st_mysql_auth *) (plugin_decl(mpvio->plugin)->info))->client_auth_plugin;
+  std::string client_auth_plugin(
+      ((st_mysql_auth *)(plugin_decl(mpvio->plugin)->info))
+          ->client_auth_plugin);
 
-  DBUG_ASSERT(client_auth_plugin);
+  DBUG_ASSERT(client_auth_plugin.c_str());
 
+  DBUG_EXECUTE_IF("invalidate_client_auth_plugin", {
+    client_auth_plugin.clear();
+    client_auth_plugin = std::string("..") + std::string(FN_DIRSEP) +
+                         std::string("..") + std::string(FN_DIRSEP) +
+                         std::string("mysql_native_password");
+  });
   /*
     If we're dealing with an older client we can't just send a change plugin
     packet to re-initiate the authentication handshake, because the client 
@@ -689,11 +697,11 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
   }
 
   DBUG_PRINT("info", ("requesting client to use the %s plugin", 
-                      client_auth_plugin));
+                      client_auth_plugin.c_str()));
   DBUG_RETURN(net_write_command(mpvio->protocol->get_net(),
                                 switch_plugin_request_buf[0],
-                                (uchar*) client_auth_plugin,
-                                strlen(client_auth_plugin) + 1,
+                                (uchar*) client_auth_plugin.c_str(),
+                                client_auth_plugin.size() + 1,
                                 (uchar*) data, data_len));
 }
 
@@ -2929,7 +2937,7 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   char stage2[CRYPT_MAX_PASSWORD_SIZE + 1];
   String scramble_response_packet;
   int cipher_length= 0;
-  unsigned char plain_text[MAX_CIPHER_LENGTH + 1];
+  unsigned char plain_text[MAX_CIPHER_LENGTH + 1]= "";
   RSA *private_key= NULL;
   RSA *public_key= NULL;
 

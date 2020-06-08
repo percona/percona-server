@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "vio_priv.h"
+#include "my_openssl.h"
 
 #ifdef HAVE_OPENSSL
 
@@ -434,7 +435,8 @@ void ssl_start()
   {
     ssl_initialized= TRUE;
 
-    SSL_library_init();
+    mysql_OPENSSL_init();
+
     OpenSSL_add_all_algorithms();
     SSL_load_error_strings();
 
@@ -496,7 +498,12 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
 {
   DH *dh;
   struct st_VioSSLFd *ssl_fd;
-  long ssl_ctx_options= SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
+  /* MySQL 5.7 supports TLS up to v1.2, explicitly disable TLSv1.3. */
+  long ssl_ctx_options= SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3
+#ifdef HAVE_TLSv13
+                        | SSL_OP_NO_TLSv1_3
+#endif /* HAVE_TLSv13 */
+                        ;
   int ret_set_cipherlist= 0;
   char cipher_list[SSL_CIPHER_LIST_SIZE]= {0};
 #if (OPENSSL_VERSION_NUMBER < 0x10002000L)
@@ -529,6 +536,9 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
                     SSL_OP_NO_TLSv1 |
                     SSL_OP_NO_TLSv1_1
                     | SSL_OP_NO_TLSv1_2
+#ifdef HAVE_TLSv13
+                    | SSL_OP_NO_TLSv1_3
+#endif /* HAVE_TLSv13 */
                     | SSL_OP_NO_TICKET
                    );
   if (!(ssl_fd= ((struct st_VioSSLFd*)
@@ -548,6 +558,21 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
   }
 
   SSL_CTX_set_options(ssl_fd->ssl_context, ssl_ctx_options);
+
+#ifdef HAVE_TLSv13
+  /*
+    MySQL 5.7 doesn't support TLSv1.3 - set empty TLSv1.3 ciphersuites.
+  */
+  if (0 == SSL_CTX_set_ciphersuites(ssl_fd->ssl_context, ""))
+  {
+    *error = SSL_INITERR_CIPHERS;
+    DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
+    report_errors();
+    SSL_CTX_free(ssl_fd->ssl_context);
+    my_free(ssl_fd);
+    DBUG_RETURN(0);
+  }
+#endif /* HAVE_TLSv13 */
 
   /*
     We explicitly prohibit weak ciphers.

@@ -3,7 +3,6 @@
 --source include/force_restart.inc
 --source include/master-slave.inc
 --source include/have_binlog_format_statement.inc
---source include/only_mts_slave_parallel_workers.inc
 
 #
 # Proving correct error reporting by Worker in condition of the failing query
@@ -15,6 +14,7 @@
 # via replication
 
 --connection slave
+--source include/only_mts_slave_parallel_workers.inc
 call mtr.add_suppression("Slave SQL: Worker.*failed executing transaction");
 call mtr.add_suppression("Slave SQL:.*The slave coordinator and worker threads are stopped");
 

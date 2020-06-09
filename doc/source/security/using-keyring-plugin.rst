@@ -19,7 +19,7 @@ To install the plugin, follow the `installing and uninstalling plugins
 <https://dev.mysql.com/doc/refman/8.0/en/plugin-loading.html>`__ instructions.
 
 Loading the Keyring Plugin
---------------------------------------------------------------------------------
+================================================================================
 
 You should load the plugin at server startup with the ``-early-plugin-load``
 option to enable keyrings.
@@ -29,7 +29,7 @@ recovery for encrypted tables. Also, the redo log and undo log encryption cannot
 be used without ``--early-plugin-load``. The normal plugin load happens too late
 in startup. 
 
-To use the keyring_vault, you can add this option to your configuration file:
+To use the `keyring_vault` plugin, you can add this option to your configuration file:
 
 .. code-block:: guess
 
@@ -51,26 +51,27 @@ You could also run the following command which loads the keyring_file plugin:
 
 .. warning::
 
-    Only one keyring plugin should be enabled at a time. Enabling multiple
-    keyring plugins is not supported and may result in data loss.
+    Only one keyring plugin should be enabled at a time: either `keyring_file`
+    or `keyring_vault`. Enabling multiple keyring plugins is not supported and
+    may result in data loss.
 
 .. note::
 
-     If server is started with different plugins loaded early, the
-     ``--early-plugin-load`` option should contain the plugin names in a
-     double-quoted list with each plugin name separated by a semicolon. The
-     use of double quotes ensures the semicolons do not create issues when the
-     list is executed in a script.
+   If the server is started with different plugins loaded early, the
+   ``--early-plugin-load`` option should contain the plugin names in a
+   double-quoted list with each plugin name separated by a semicolon. The
+   use of double quotes ensures the semicolons do not create issues when the
+   list is executed in a script.
 
 .. seealso::
 
    |MySQL| Documentation:
       - `Installing a Keyring Plugin
         <https://dev.mysql.com/doc/refman/8.0/en/keyring-installation.html>`__
-      - `The ` --early-plugin-load Option
+      - `--early-plugin-load option
         <https://dev.mysql.com/doc/refman/8.0/en/server-options.html#option_mysqld_early-plugin-load>`__
 
-Apart from installing the plugin you also must set the
+Apart from installing the plugin, you also must set the
 :variable:`keyring_vault_config` variable to point to the keyring_vault
 configuration file.
 
@@ -96,8 +97,8 @@ This is an example of a configuration file: ::
 
 .. warning::
 
-    Each ``secret_mount_point`` must be used by only one server. If multiple
-    server use the same secret_mount_point, the behavior is unpredictable.
+   Each ``secret_mount_point`` must be used by only one server. If multiple
+   servers use the same secret_mount_point, the behavior is unpredictable.
 
 The first time a key is fetched from a `keyring`, the `keyring_vault`
 communicates with the Vault server to retrieve the key type and data.
@@ -153,8 +154,7 @@ default value is ``15``. The allowed range is from ``0`` to ``86400``. The
 timeout can be also disabled to wait an infinite amount of time by setting
 this variable to ``0``.
 
-.. seealso::
+.. admonition:: Related information
 
-    :ref:`vault`
-
-    :ref:`rotating-master-key`
+   - :ref:`vault`
+   - :ref:`rotating-master-key`

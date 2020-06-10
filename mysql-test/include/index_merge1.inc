@@ -434,7 +434,7 @@ explain select * from t0,t1 where t0.key1 = 5 and
 --echo # Fix for bug#1974
 if ($index_merge_random_rows_in_EXPLAIN)
 {
-  --replace_column 10 #
+  --replace_column 10 # 11 #
 }
 explain select * from t0,t1 where t0.key1 < 3 and
   (t1.key1 = t0.key1 or t1.key8 = t0.key1);

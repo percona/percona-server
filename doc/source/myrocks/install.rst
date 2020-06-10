@@ -19,21 +19,6 @@ that can be enabled as a plugin for Percona Server 5.7 and later versions.
 Installing Percona MyRocks
 ==========================
 
-Percona provides packages for most popular 64-bit Linux distributions:
-
-* Debian 8 ("jessie")
-* Debian 9 ("stretch")
-* Ubuntu 14.04 LTS (Trusty Tahr)
-* Ubuntu 16.04 LTS (Xenial Xerus)
-* Ubuntu 16.10 (Yakkety Yak)
-* Ubuntu 17.04 (Zesty Zapus)
-* Red Hat Enterprise Linux or CentOS 6 (Santiago)
-* Red Hat Enterprise Linux or CentOS 7 (Maipo)
-
-.. note:: Percona MyRocks should work on other DEB-based and RPM-based systems
-   (for example, Oracle Linux and Amazon Linux AMI),
-   but it is tested only on those listed above.
-
 It is recommended to install Percona software from official repositories:
 
 1. Configure Percona repositories as described in

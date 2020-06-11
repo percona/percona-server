@@ -517,7 +517,7 @@ void fil_crypt_set_rotation_iops(uint val);
 
 /*********************************************************************
 Adjust encrypt tables
-@param[in]  val   New setting for innodb-encrypt-tables
+@param[in]	val		New setting for innodb-encrypt-tables
 @param[in]      is_server_starting - true if server is starting */
 bool fil_crypt_set_encrypt_tables(enum_default_table_encryption val, bool is_server_starting);
 

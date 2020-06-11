@@ -41,7 +41,8 @@ SHOW WARNINGS;
 Level	Code	Message
 set innodb_default_encryption_key_id = 1;
 drop table t1,t2;
+SET GLOBAL innodb_encryption_threads = 0;
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SET GLOBAL innodb_encryption_threads=4;
-SET GLOBAL default_table_encryption = OFF;
 SET GLOBAL innodb_encryption_threads = 0;
+SET GLOBAL default_table_encryption = OFF;

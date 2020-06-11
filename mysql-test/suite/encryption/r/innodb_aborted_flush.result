@@ -12,8 +12,8 @@ include/assert.inc [Make sure all tables have encrypted flag disabled]
 SET GLOBAL debug="+d,fail_encryption_flag_update_on_t3";
 # Enable encryption
 SET GLOBAL innodb_encryption_rotate_key_age=15;
-SET GLOBAL innodb_encryption_threads = 4;
 SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads = 4;
 # Wait for all tables to get encrypted
 include/assert.inc [Make sure only t3's encryption flag is not set (ignore temporary tablepsace, which is never encrypted with keyring)]
 # Disable encryption
@@ -40,6 +40,7 @@ include/assert.inc [Make sure only t3's encryption flag is not set (ignore tempo
 # Wait for all tables to get encrypted
 include/assert.inc [Make sure all tablespaces have encryption flag set (ignore temporary tablespace)]
 DROP TABLE t1,t2,t3,t4;
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SET GLOBAL innodb_encryption_threads=4;
 SET GLOBAL innodb_encryption_threads=0;

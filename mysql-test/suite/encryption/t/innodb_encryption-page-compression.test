@@ -78,8 +78,8 @@ let $wait_condition= select count > 0 from information_schema.innodb_metrics WHE
 
 --source include/restart_mysqld.inc
 
-SET GLOBAL innodb_encryption_threads = 4;
 SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads = 4;
 
 update innodb_page_compressed1 set c1 = c1 + 1;
 update innodb_page_compressed2 set c1 = c1 + 1;
@@ -117,13 +117,17 @@ drop table innodb_page_compressed8;
 drop table innodb_page_compressed9;
 
 # Decrypt all tables
+SET GLOBAL innodb_encryption_threads = 0;
 SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads = 4;
 --let $wait_timeout= 600
 --let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
 --source include/wait_condition.inc
 
 # reset system
 --disable_query_log
+SET GLOBAL innodb_encryption_threads = 0;
 EVAL SET GLOBAL default_table_encryption = $default_table_encryption_orig;
+SET GLOBAL innodb_encryption_threads = 4;
 EVAL SET GLOBAL innodb_encryption_threads = $innodb_encryption_threads_orig;
 --enable_query_log

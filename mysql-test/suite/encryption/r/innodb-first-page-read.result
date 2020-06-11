@@ -1,4 +1,5 @@
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
 SET GLOBAL innodb_file_per_table = ON;
 create database innodb_test;
 use innodb_test;
@@ -54,7 +55,8 @@ commit;
 # restart
 include/assert.inc [number of page 0 should be greater than 0]
 include/assert.inc [number of page 0 read should be less than number of tables in both innodb_test and mysql databases]
-set global default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
 # wait until tables are decrypted
 include/assert.inc [number of page 0 read should be less than number of tables in both innodb_test and mysql databases]
 # restart and see number of pages 0 read
@@ -69,5 +71,5 @@ c1	b
 include/assert.inc [innodb_pages0_read should be increased only by one]
 drop database innodb_test;
 include/assert.inc [All the tables should to be unencrypted]
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=OFF;
-SET GLOBAL innodb_encryption_threads=4;

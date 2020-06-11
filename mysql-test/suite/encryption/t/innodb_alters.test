@@ -1,6 +1,3 @@
-let $default_table_encryption_orig = `SELECT @@default_table_encryption`;
-let $innodb_encryption_threads_orig = `SELECT @@innodb_encryption_threads`;
-
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval SET @@global.keyring_file_data="$MYSQL_TMP_DIR/mysecret_keyring";
 
@@ -185,7 +182,9 @@ SHOW CREATE TABLE t3;
 
 --echo # Now decrypt t3. It should it should still be possible to change the ENCRYPTION_KEY_ID.
 
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
 
 --echo #Wait for all tables to get decrypted (apart from t2, t_rk_with_encryption_key_id, t_alter_to_rk)
 --let $wait_timeout= 600
@@ -203,7 +202,9 @@ SHOW CREATE TABLE t3;
 
 --echo # After the re-encryption t3 should get encrypted with key 5
 
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
 
 --echo #Wait for all tables to get encrypted (apart from t1 and temporary)
 --let $wait_timeout= 600
@@ -240,8 +241,8 @@ SHOW CREATE TABLE t4;
 --source include/assert.inc
 
 --echo # Encrypt all tables and check if t4 got encrypted with ENCRYPTION KEY 6
-SET GLOBAL innodb_encryption_threads=4;
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
 
 --let encrypted_tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
 --echo #Wait for all tables to get encrypted (apart from t1 and temporary)
@@ -255,11 +256,13 @@ SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 
 drop table t1,t2,t3,t4,t_rk_with_encryption_key_id,t_alter_to_rk,t_alter_encryption_key_id;
 
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
 
 --let $wait_timeout= 600
 --let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
 --source include/wait_condition.inc
 
-EVAL SET GLOBAL default_table_encryption = $default_table_encryption_orig;
-EVAL SET GLOBAL innodb_encryption_threads = $innodb_encryption_threads_orig;
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;

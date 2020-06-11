@@ -14,6 +14,7 @@ INSERT t1_in_ts1 VALUES (REPEAT('foobarsecret', 12));
 INSERT t1_in_ts2 VALUES (REPEAT('tempsecret', 12));
 INSERT t1_in_ts3 VALUES (REPEAT('dummysecret', 12));
 INSERT t1_in_ts4 VALUES (REPEAT('soooosecret', 12));
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 SET GLOBAL innodb_encryption_threads=4;
 include/assert.inc [table ts4 should not be encrypted]
@@ -52,10 +53,12 @@ include/assert.inc [All tables should be still encrypted with key version 4 at m
 # Make sure ts4 is still unencrypted
 include/assert.inc [Tablespace ts4 should stay unencrypted]
 # Now turn off the encryption.
-SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
-SET GLOBAL innodb_encryption_rotate_key_age = 2;
-SET GLOBAL default_table_encryption=OFF;
 SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
+SET GLOBAL innodb_encryption_rotate_key_age = 2;
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;
 DROP TABLE t1_in_ts1, t1_in_ts2, t1_in_ts3, t1_in_ts4, t1_in_ts5;
 DROP TABLESPACE ts1;
 DROP TABLESPACE ts2;

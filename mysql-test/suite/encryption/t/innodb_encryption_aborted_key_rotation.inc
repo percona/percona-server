@@ -101,7 +101,9 @@ SET GLOBAL debug="-d,set_number_of_t1_pages_to_rotate_to_100";
 --let SEARCH_FILE=$t1_IBD
 --source include/search_pattern_in_file.inc
 
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
 
 --let $wait_timeout= 600
 --echo # All tables should get decrypted, apart from t1.

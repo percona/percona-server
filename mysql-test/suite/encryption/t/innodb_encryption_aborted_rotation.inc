@@ -60,8 +60,8 @@ if (!$is_mk_encrypted)
 SET GLOBAL debug="+d,rotate_only_first_x_pages_from_t1";
 
 --echo # Start rotation unnencrypted => encrypted (tables do not have crypt data stored in page 0)
-SET GLOBAL innodb_encryption_threads = 4;
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads = 4;
 
 --let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
 
@@ -121,7 +121,9 @@ if (!$is_t1_compressed)
 --echo # Enable rotation of only first 100 pages
 SET GLOBAL debug="+d,rotate_only_first_x_pages_from_t1";
 
+SET GLOBAL innodb_encryption_threads = 0;
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads = 4;
 
 --let $wait_timeout= 600
 # All tables should get unencrypted, apart from t1. tables_count - 2 - because t1 will only have half of the pages unencrypted =>
@@ -173,7 +175,9 @@ if (!$is_t1_compressed)
 --echo # Enable rotation of only first 100 pages
 SET GLOBAL debug="+d,rotate_only_first_x_pages_from_t1";
 
+SET GLOBAL innodb_encryption_threads = 0;
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads = 4;
 
 --let $wait_timeout= 600
 # All tables should get unencrypted, apart from t1 and temporary tablespace.
@@ -235,7 +239,9 @@ if (!$is_t1_compressed)
 SET GLOBAL debug="+d,crash_on_t1_flush_after_dd_update";
 
 --source include/expect_crash.inc
+SET GLOBAL innodb_encryption_threads = 0;
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads = 4;
 --source include/wait_until_disconnected.inc
 
 # The server crashed after but t1's pages have been flushed to disk by encryption thread
@@ -364,11 +370,13 @@ DROP TABLE t1;
 DROP PROCEDURE innodb_insert_proc;
 
 # decrypt all the tables
+SET GLOBAL innodb_encryption_threads = 0;
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads = 4;
 
 --let $wait_timeout= 600
 --let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
 --source include/wait_condition.inc
 
-SET GLOBAL default_table_encryption=OFF;
 SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;

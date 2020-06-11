@@ -135,6 +135,8 @@ drop table innodb_compact;
 drop table innodb_dynamic;
 drop table innodb_compressed;
 drop table innodb_redundant;
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
 SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;

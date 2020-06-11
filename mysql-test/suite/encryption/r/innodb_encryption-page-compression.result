@@ -120,8 +120,8 @@ innodb_page_compressed9 for export;
 unlock tables;
 # Wait until dirty pages are compressed and encrypted
 # restart
-SET GLOBAL innodb_encryption_threads = 4;
 SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads = 4;
 update innodb_page_compressed1 set c1 = c1 + 1;
 update innodb_page_compressed2 set c1 = c1 + 1;
 update innodb_page_compressed3 set c1 = c1 + 1;
@@ -148,4 +148,6 @@ drop table innodb_page_compressed6;
 drop table innodb_page_compressed7;
 drop table innodb_page_compressed8;
 drop table innodb_page_compressed9;
+SET GLOBAL innodb_encryption_threads = 0;
 SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads = 4;

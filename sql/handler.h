@@ -1897,7 +1897,7 @@ using fix_tablespaces_empty_uuid_t = bool (*)(void);
  default_table_encryption variable according to the parameter.
  @param value for innodb's copy of default_table_encryption
 */
-using fix_default_table_encryption_t = void (*)(ulong);
+using fix_default_table_encryption_t = bool (*)(ulong, bool);
 
 /**
  @brief

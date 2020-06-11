@@ -14,32 +14,57 @@ insert t2 values (repeat('tempsecret', 12));
 insert t3 values (repeat('dummysecret', 12));
 insert t4 values (repeat('verysecret', 12));
 # Wait max 10 min for key encryption threads to encrypt all spaces, apart from temp tablespace
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption = OFF;
+SET GLOBAL innodb_encryption_threads=4;
 include/assert.inc [Make sure all tables stay encrypted, apart from temporary tablespace]
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption = ON;
+SET GLOBAL innodb_encryption_threads=4;
 include/assert.inc [Make sure all tables stay encrypted, apart from temporary tablespace]
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
 include/assert.inc [Make sure all tables stay encrypted, apart from temporary tablespace]
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption = OFF;
+SET GLOBAL innodb_encryption_threads=4;
 # Rotation of percona_innodb-0 to version 2.
 ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption = ON;
+SET GLOBAL innodb_encryption_threads=4;
 # Rotation of percona_innodb-0 to version 3.
 ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
 # Rotation of percona_innodb-0 to version 4.
 ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
 # Rotation of percona_innodb-0 to version 5.
 ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
 # Rotation of percona_innodb-0 to version 6.
 ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
 # Wait max 10 min for key encryption threads to decrypt all spaces
-SET GLOBAL default_table_encryption = OFF;
-include/assert.inc [Make sure all tables stay decrypted]
-SET GLOBAL default_table_encryption = ON;
-include/assert.inc [Make sure all tables stay decrypted]
-DROP TABLES t1,t2,t3,t4;
-SET GLOBAL default_table_encryption = OFF;
 SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption = OFF;
+SET GLOBAL innodb_encryption_threads=4;
+include/assert.inc [Make sure all tables stay decrypted]
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption = ON;
+SET GLOBAL innodb_encryption_threads=4;
+include/assert.inc [Make sure all tables stay decrypted]
+# PS-6987. Make sure that default_table_encryption cannot be altered while innodb_encryption_threads > 0.
+SET GLOBAL default_table_encryption=OFF;
+ERROR HY000: In order to change default_table_encryption, disable encryption threads. Please set number of innodb_encryption_threads to 0.
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+ERROR HY000: In order to change default_table_encryption, disable encryption threads. Please set number of innodb_encryption_threads to 0.
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+ERROR HY000: In order to change default_table_encryption, disable encryption threads. Please set number of innodb_encryption_threads to 0.
+DROP TABLES t1,t2,t3,t4;
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption = OFF;
 UNINSTALL PLUGIN keyring_file;

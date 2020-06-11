@@ -1,2 +1,3 @@
+--slave-parallel-workers=2
 --master-info-repository=TABLE
 --relay-log-info-repository=TABLE

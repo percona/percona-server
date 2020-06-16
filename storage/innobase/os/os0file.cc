@@ -705,6 +705,13 @@ class AIO {
   [[nodiscard]] dberr_t init_linux_native_aio();
 #endif /* LINUX_NATIVE_AIO */
 
+  /** Submit buffered AIO requests on the array to the kernel.
+  (low level function).
+  @param[in] acquire_mutex specifies whether to lock array mutex
+  @param[in] array for which to submit IO */
+  static void os_aio_dispatch_read_array_submit_low_for_array(
+      bool acquire_mutex MY_ATTRIBUTE((unused)), const AIO *arr);
+
  private:
   typedef std::vector<Slot> Slots;
 
@@ -2581,11 +2588,23 @@ static dberr_t os_aio_linux_handler(ulint global_segment, fil_node_t **m1,
 @param[in] acquire_mutex specifies whether to lock array mutex */
 void AIO::os_aio_dispatch_read_array_submit_low(
     bool acquire_mutex [[maybe_unused]]) {
+  os_aio_dispatch_read_array_submit_low_for_array(acquire_mutex, s_reads);
+  if (s_ibuf != nullptr) {
+    os_aio_dispatch_read_array_submit_low_for_array(acquire_mutex, s_ibuf);
+  }
+}
+
+/** Submit buffered AIO requests on the array to the kernel.
+(low level function).
+@param[in] acquire_mutex specifies whether to lock array mutex
+@param[in] array for which to submit IO */
+void AIO::os_aio_dispatch_read_array_submit_low_for_array(
+    bool acquire_mutex MY_ATTRIBUTE((unused)), const AIO *arr) {
   if (!srv_use_native_aio) {
     return;
   }
 #if defined(LINUX_NATIVE_AIO)
-  AIO *array = AIO::s_reads;
+  const AIO *array = arr;
   ulint total_submitted = 0;
   if (acquire_mutex) array->acquire();
   /* Submit aio requests buffered on all segments. */
@@ -2663,7 +2682,7 @@ bool AIO::linux_dispatch(Slot *slot, bool should_buffer) {
   ulint io_ctx_index = slot->pos / slots_per_segment;
 
   if (should_buffer) {
-    ut_ad(this == s_reads);
+    ut_ad(this == s_reads || this == s_ibuf);
 
     acquire();
     /* There are m_slots.size() elements in m_pending,
@@ -2680,7 +2699,7 @@ bool AIO::linux_dispatch(Slot *slot, bool should_buffer) {
     m_pending[n] = iocb;
     ++count;
     if (count == slots_per_segment) {
-      AIO::os_aio_dispatch_read_array_submit_low(false);
+      AIO::os_aio_dispatch_read_array_submit_low_for_array(false, this);
     }
     release();
     return (true);

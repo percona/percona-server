@@ -54,3 +54,12 @@ Type: select
 Choices: Use existent my.cnf (RECOMMENDED), Use NEW my.cnf
 Description: Select which my.cnf should be used
  It was detected that there is my.cnf file on the system. Probably it comes from previous setup. Please decide should it be replaced or not.
+
+Template: percona-server-server/lowercase-table-names
+Type: select
+Choices: Enabled, Disabled
+Description: Enable lowercase table names
+ If enabled, this setting makes MySQL store table names in lowercase, and comparisons will not be case sensitive.
+ .
+ This setting must be enabled before the database is initialized
+ The change will be written to the file /etc/mysql/mysql.conf.d/lowercase-table-names.cnf

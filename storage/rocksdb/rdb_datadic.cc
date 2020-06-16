@@ -4270,12 +4270,12 @@ time_t Rdb_tbl_def::get_create_time() {
     char path[FN_REFLEN];
     snprintf(path, sizeof(path), "%s/%s/%s%s", mysql_data_home,
              m_dbname.c_str(), m_tablename.c_str(), reg_ext);
-    unpack_filename(path,path);
+    unpack_filename(path, path);
     MY_STAT f_stat;
     if (my_stat(path, &f_stat, MYF(0)))
       create_time = f_stat.st_ctime;
     else
-      create_time = 0; // will be shown as SQL NULL
+      create_time = 0;  // will be shown as SQL NULL
     m_create_time = create_time;
   }
   return create_time;

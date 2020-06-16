@@ -870,7 +870,7 @@ static MYSQL_THDVAR_UINT(default_encryption_key_id, PLUGIN_VAR_RQCMDARG,
                          "Default encryption key id used for table encryption.",
                          default_encryption_key_id_validate,
                          default_encryption_key_id_update,
-                         FIL_DEFAULT_ENCRYPTION_KEY, 0, UINT_MAX32, 0);
+                         FIL_DEFAULT_ENCRYPTION_KEY, 0, UINT_MAX32 - 1, 0);
 
 uint get_global_default_encryption_key_id_value() {
   return THDVAR(NULL, default_encryption_key_id);

@@ -1,3 +1,66 @@
---skip Not implemented
-
 SELECT @@global.innodb_default_encryption_key_id;
+
+--let $error_log=$MYSQL_TMP_DIR/my_restart.err
+
+--let $restart_parameters=restart:--default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4 --innodb-default-encryption-key-id=4294967295 --log-error=$error_log
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/restart_mysqld.inc
+
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$error_log
+--let SEARCH_PATTERN=\[Server\] option 'innodb-default-encryption-key-id': unsigned value 4294967295 adjusted to 4294967294\.
+--source include/search_pattern_in_file.inc
+
+--let $restart_parameters=restart:--default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4 --innodb-default-encryption-key-id=-1 --log-error=$error_log
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/restart_mysqld.inc
+
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$error_log
+--let SEARCH_PATTERN=\[Server\] option 'innodb-default-encryption-key-id': value -1 adjusted to 0\.
+--source include/search_pattern_in_file.inc
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET innodb_default_encryption_key_id=4294967295;
+--error ER_WRONG_VALUE_FOR_VAR
+SET innodb_default_encryption_key_id=-1;
+
+SET innodb_default_encryption_key_id=0;
+
+--error ER_ENCRYPTION_KEY_ID_MAX_EXCEEDED
+CREATE TABLE t_exceeded_id (a varchar(255)) ENCRYPTION_KEY_ID=4294967295;
+
+--error ER_PARSE_ERROR
+CREATE TABLE t_below_0 (a varchar(255)) ENCRYPTION_KEY_ID=-1;
+
+CREATE TABLE t_MAX (a varchar(255)) ENCRYPTION_KEY_ID=4294967294;
+CREATE TABLE t_MIN (a varchar(255)) ENCRYPTION_KEY_ID=0;
+
+--error ER_ENCRYPTION_KEY_ID_MAX_EXCEEDED
+ALTER TABLE t_MAX ENCRYPTION_KEY_ID=4294967295;
+--error ER_PARSE_ERROR
+ALTER TABLE t_MIN ENCRYPTION_KEY_ID=-1;
+
+--error ER_ENCRYPTION_KEY_ID_MAX_EXCEEDED
+CREATE TABLESPACE ts_exceeded_id ENCRYPTION_KEY_ID=4294967295;
+
+--error ER_PARSE_ERROR
+CREATE TABLESPACE ts_below_0 ENCRYPTION_KEY_ID=-1;
+
+CREATE TABLESPACE ts_MAX ENCRYPTION_KEY_ID=4294967294;
+CREATE TABLESPACE ts_MIN ENCRYPTION_KEY_ID=0;
+
+--error ER_ENCRYPTION_KEY_ID_MAX_EXCEEDED
+ALTER TABLESPACE ts_MAX ENCRYPTION_KEY_ID=4294967295;
+--error ER_PARSE_ERROR
+ALTER TABLESPACE ts_MIN ENCRYPTION_KEY_ID=-1;
+
+DROP TABLE t_MAX,t_MIN;
+DROP TABLESPACE ts_MAX;
+DROP TABLESPACE ts_MIN;
+
+# restart with default options
+--let $restart_parameters=
+--source include/restart_mysqld.inc
+
+--remove_file $error_log

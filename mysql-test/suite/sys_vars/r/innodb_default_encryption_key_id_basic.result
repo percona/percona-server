@@ -1,3 +1,34 @@
 SELECT @@global.innodb_default_encryption_key_id;
 @@global.innodb_default_encryption_key_id
 0
+# restart:--default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4 --innodb-default-encryption-key-id=4294967295 --log-error=MYSQL_TMP_DIR/my_restart.err
+# restart:--default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4 --innodb-default-encryption-key-id=-1 --log-error=MYSQL_TMP_DIR/my_restart.err
+SET innodb_default_encryption_key_id=4294967295;
+ERROR 42000: Variable 'innodb_default_encryption_key_id' can't be set to the value of '4294967295'
+SET innodb_default_encryption_key_id=-1;
+ERROR 42000: Variable 'innodb_default_encryption_key_id' can't be set to the value of '-1'
+SET innodb_default_encryption_key_id=0;
+CREATE TABLE t_exceeded_id (a varchar(255)) ENCRYPTION_KEY_ID=4294967295;
+ERROR HY000: InnoDB system key id cannot have value greater than 4294967294
+CREATE TABLE t_below_0 (a varchar(255)) ENCRYPTION_KEY_ID=-1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 1
+CREATE TABLE t_MAX (a varchar(255)) ENCRYPTION_KEY_ID=4294967294;
+CREATE TABLE t_MIN (a varchar(255)) ENCRYPTION_KEY_ID=0;
+ALTER TABLE t_MAX ENCRYPTION_KEY_ID=4294967295;
+ERROR HY000: InnoDB system key id cannot have value greater than 4294967294
+ALTER TABLE t_MIN ENCRYPTION_KEY_ID=-1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 1
+CREATE TABLESPACE ts_exceeded_id ENCRYPTION_KEY_ID=4294967295;
+ERROR HY000: InnoDB system key id cannot have value greater than 4294967294
+CREATE TABLESPACE ts_below_0 ENCRYPTION_KEY_ID=-1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 1
+CREATE TABLESPACE ts_MAX ENCRYPTION_KEY_ID=4294967294;
+CREATE TABLESPACE ts_MIN ENCRYPTION_KEY_ID=0;
+ALTER TABLESPACE ts_MAX ENCRYPTION_KEY_ID=4294967295;
+ERROR HY000: InnoDB system key id cannot have value greater than 4294967294
+ALTER TABLESPACE ts_MIN ENCRYPTION_KEY_ID=-1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 1
+DROP TABLE t_MAX,t_MIN;
+DROP TABLESPACE ts_MAX;
+DROP TABLESPACE ts_MIN;
+# restart

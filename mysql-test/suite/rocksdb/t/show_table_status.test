@@ -1,5 +1,4 @@
 --source include/have_rocksdb.inc
---source include/have_partition.inc
 # 
 # SHOW TABLE STATUS statement
 #
@@ -163,7 +162,7 @@ drop table t1, t2;
 --echo #
 --echo # Check how it works for partitioned tables
 --echo #
-create table t1 (pk int primary key) partition by hash(pk) partitions 2;
+create table t1 (pk int primary key) engine=rocksdb partition by hash(pk) partitions 2;
 insert into t1 values (1);
 
 select create_time IS NOT NULL , update_time IS NOT NULL

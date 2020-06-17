@@ -1,0 +1,2 @@
+--loose-rocksdb_debug_optimizer_n_rows=2500
+--loose-rocksdb_debug_cardinality_multiplier=10

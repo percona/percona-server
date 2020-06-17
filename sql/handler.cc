@@ -7829,6 +7829,7 @@ int handler::compare_key_in_buffer(const uchar *buf) const {
   // Reset the field offsets.
   if (diff != 0) move_key_field_offsets(end_range, range_key_part, -diff);
 
+  // This change is necessary for MyRocks PS-7116.
   if (range_scan_direction == RANGE_SCAN_DESC) cmp = -cmp;
 
   return cmp;

@@ -15074,6 +15074,7 @@ int QUICK_SKIP_SCAN_SELECT::get_next() {
   head->column_bitmaps_set_no_signal(&column_bitmap, head->write_set);
   do {
     if (!is_prefix_valid) {
+      // This change is necessary for MyRocks PS-7116.
       head->file->set_end_range(NULL, handler::RANGE_SCAN_ASC);
 
       if (!seen_first_key) {

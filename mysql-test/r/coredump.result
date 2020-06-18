@@ -1,0 +1,22 @@
+call mtr.add_suppression("Started with --core-file and --coredumper. --coredumper will take precedence.");
+call mtr.add_suppression("Attempting backtrace. You can use the following information to");
+Testing coredumper file with .cnf on name
+Testing coredumper file with too long path
+Testing coredumper file with too long filename
+Testing coredumper file with invalid path
+Testing coredumper file with path without write rights
+Restart with core-file and coredumper enabled
+# restart:--core-file --coredumper
+include/assert_grep.inc [Checking warning 'Started with --core-file and --coredumper. --coredumper will take precedence.']
+Sending kill signal 11 to mysqld ...
+Testing coredumper tried to write file
+Testing coredumper wrote a file
+core
+Restart with coredumper set to specific filename
+# restart:--coredumper=MYSQLD_DATADIR/mycore
+Sending kill signal 11 to mysqld ...
+Testing coredumper wrote a file
+mycore
+# restart:
+include/assert_grep.inc [Checking MySQL wrote Build ID]
+include/assert_grep.inc [Checking MySQL wrote Server Version]

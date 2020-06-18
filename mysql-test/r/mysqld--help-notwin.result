@@ -276,6 +276,9 @@ The following options may be given as the first argument:
  --console           Write error output on screen; don't remove the console
  window on windows.
  --core-file         Write core on errors.
+ --coredumper[=name] Use coredumper library to generate coredumps. Specify a
+ path for coredump otherwise it will be generated on
+ datadir
  --create-admin-listener-thread 
  Use a dedicated thread for listening incoming connections
  on admin interface
@@ -388,6 +391,9 @@ The following options may be given as the first argument:
  after changing this variable
  --ft-query-expansion-limit=# 
  Number of best matches to use for query expansion
+ --ft-query-extra-word-chars 
+ If enabled, all non-whitespace characters are considered
+ word symbols for full text search queries
  --ft-stopword-file=name 
  Use stopwords from this file instead of built-in list
  --gdb               Set up signals usable for debugging.
@@ -1662,6 +1668,7 @@ connect-timeout 10
 connection-memory-chunk-size 8192
 connection-memory-limit 18446744073709551615
 console FALSE
+coredumper (No default value)
 create-admin-listener-thread FALSE
 cte-max-recursion-depth 1000
 daemonize FALSE
@@ -1692,6 +1699,7 @@ ft-boolean-syntax + -><()~*:""&|
 ft-max-word-len 84
 ft-min-word-len 4
 ft-query-expansion-limit 20
+ft-query-extra-word-chars FALSE
 ft-stopword-file (No default value)
 gdb FALSE
 general-log FALSE

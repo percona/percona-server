@@ -3577,9 +3577,6 @@ static void srv_shutdown_page_cleaners() {
   ut_a(srv_shutdown_state.load() == SRV_SHUTDOWN_MASTER_STOP);
   ut_a(!srv_master_thread_is_active());
 
-  ut_ad(buf_flush_active_lru_managers() == srv_buf_pool_instances ||
-        buf_flush_active_lru_managers() == 0);
-
   srv_shutdown_state.store(SRV_SHUTDOWN_FLUSH_PHASE);
 
   /* We force DD to flush table buffers, so they have opportunity
@@ -3600,6 +3597,8 @@ static void srv_shutdown_page_cleaners() {
     os_event_set(buf_flush_event);
     os_thread_sleep(SHUTDOWN_SLEEP_TIME_US);
   }
+
+  ut_ad(buf_flush_active_lru_managers() == 0);
 
   for (uint32_t count = 0;; ++count) {
     const ulint pending_io = buf_pool_check_no_pending_io();

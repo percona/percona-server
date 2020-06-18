@@ -7,6 +7,9 @@
 [submodule "storage/rocksdb/rocksdb"]
 	path = storage/rocksdb/rocksdb
 	url = https://github.com/percona/rocksdb.git
+[submodule "extra/coredumper"]
+	path = extra/coredumper
+	url = https://github.com/Percona-Lab/coredumper.git
 [submodule "storage/rocksdb/rocksdb_plugins/zenfs"]
 	path = storage/rocksdb/rocksdb_plugins/zenfs
 	url = https://github.com/westerndigitalcorporation/zenfs.git

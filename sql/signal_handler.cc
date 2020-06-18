@@ -41,6 +41,7 @@
 #include "my_stacktrace.h"
 #include "my_sys.h"
 #include "my_time.h"
+#include "mysql_version.h"
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
@@ -305,6 +306,9 @@ static void print_fatal_signal(int sig, siginfo_t *info [[maybe_unused]]) {
   my_safe_printf_stderr("BuildID[sha1]=%s\n", server_build_id);
 #endif
 
+  my_safe_printf_stderr("Server Version: %s %s\n\n", server_version,
+                        MYSQL_COMPILATION_COMMENT);
+
 #ifdef HAVE_STACKTRACE
   THD *thd = current_thd;
 
@@ -403,8 +407,23 @@ void handle_fatal_signal(int sig, siginfo_t *info [[maybe_unused]],
     (*g_fatal_callback)(sig, info, ucontext);
 
   if ((test_flags & TEST_CORE_ON_SIGNAL) != 0) {
-    my_safe_printf_stderr("%s", "Writing a core file\n");
-    my_write_core(sig);
+#if HAVE_LIBCOREDUMPER
+    if (opt_libcoredumper) {
+      if (opt_libcoredumper_path != NULL) {
+        if (!validate_libcoredumper_path(opt_libcoredumper_path)) {
+          my_safe_printf_stderr("%s", "Changing path to datadir\n");
+          opt_libcoredumper_path = NULL;
+        }
+      }
+      my_safe_printf_stderr("%s", "Writing a core file using lib coredumper\n");
+      my_write_libcoredumper(sig, opt_libcoredumper_path, time(nullptr));
+    } else {
+#endif
+      my_safe_printf_stderr("%s", "Writing a core file\n");
+      my_write_core(sig);
+#if HAVE_LIBCOREDUMPER
+    }
+#endif
   }
 
 #ifndef _WIN32

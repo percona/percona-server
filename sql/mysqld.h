@@ -962,6 +962,7 @@ enum options_mysqld
   OPT_SSL_KEY,
   OPT_UPDATE_LOG,
   OPT_WANT_CORE,
+  OPT_COREDUMPER,
   OPT_LOG_ERROR,
   OPT_MAX_LONG_DATA_SIZE,
   OPT_EARLY_PLUGIN_LOAD,
@@ -1081,4 +1082,8 @@ static inline THD *_current_thd(void)
 bool update_named_pipe_full_access_group(const char *new_group_name);
 #endif
 
+/* coredumper */
+extern bool  opt_libcoredumper;
+extern char *opt_libcoredumper_path;
+bool         validate_libcoredumper_path(char *opt_libcoredumper_path);
 #endif /* MYSQLD_INCLUDED */

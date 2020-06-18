@@ -809,6 +809,11 @@ extern LEX_STRING opt_mandatory_roles;
 extern bool opt_mandatory_roles_cache;
 extern bool opt_always_activate_granted_roles;
 
+/* coredumper */
+extern bool opt_libcoredumper;
+extern char *opt_libcoredumper_path;
+bool validate_libcoredumper_path(char *opt_libcoredumper_path);
+
 extern mysql_component_t mysql_component_mysql_server;
 extern mysql_component_t mysql_component_performance_schema;
 /* This variable is a registry handler, defined in mysql_server component and

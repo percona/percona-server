@@ -1225,6 +1225,7 @@ uint host_cache_size;
 ulong log_error_verbosity = 3;  // have a non-zero value during early start-up
 bool opt_keyring_migration_to_component = false;
 bool opt_keyring_migration_from_component = false;
+bool opt_libcoredumper, opt_corefile = 0;
 bool opt_persist_sensitive_variables_in_plaintext{true};
 int argc_cached;
 char **argv_cached;
@@ -1552,6 +1553,7 @@ SHOW_COMP_OPTION have_compress;
 SHOW_COMP_OPTION have_profiling;
 SHOW_COMP_OPTION have_statement_timeout = SHOW_OPTION_DISABLED;
 
+char *opt_libcoredumper_path = NULL;
 /* Thread specific variables */
 
 thread_local MEM_ROOT **THR_MALLOC = nullptr;
@@ -8412,6 +8414,25 @@ static int init_server_components() {
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
+  if (opt_libcoredumper) {
+#if HAVE_LIBCOREDUMPER
+    if (opt_corefile) {
+      sql_print_warning(
+          "Started with --core-file and --coredumper. "
+          "--coredumper will take precedence.");
+    }
+    if (opt_libcoredumper_path != NULL) {
+      if (!validate_libcoredumper_path(opt_libcoredumper_path)) {
+        unireg_abort(MYSQLD_ABORT_EXIT);
+      }
+    }
+#else
+    sql_print_warning(
+        "This version of MySQL has not been compiled with "
+        "libcoredumper support, ignoring --coredumper argument");
+#endif
+  }
+
   /* We have to initialize the storage engines before CSV logging */
   if (ha_init()) {
     LogErr(ERROR_LEVEL, ER_CANT_INIT_DBS);
@@ -10527,6 +10548,14 @@ struct my_option my_long_early_options[] = {
      "Validate the server configuration specified by the user.",
      &opt_validate_config, &opt_validate_config, nullptr, GET_BOOL, NO_ARG, 0,
      0, 0, nullptr, 0, nullptr},
+    {"coredumper", OPT_COREDUMPER,
+     "Use coredumper library to generate coredumps. Specify a path for "
+     "coredump "
+     "otherwise it will be generated on datadir",
+     &opt_libcoredumper_path, &opt_libcoredumper_path, 0, GET_STR, OPT_ARG, 0,
+     0, 0, 0, 0, 0},
+    {"gdb", 0, "Set up signals usable for debugging.", &opt_debugging,
+     &opt_debugging, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
 
@@ -10608,10 +10637,6 @@ struct my_option my_long_options[] = {
      "--skip-external-locking.",
      &opt_external_locking, &opt_external_locking, nullptr, GET_BOOL, NO_ARG, 0,
      0, 0, nullptr, 0, nullptr},
-    /* We must always support the next option to make scripts like mysqltest
-       easier to do */
-    {"gdb", 0, "Set up signals usable for debugging.", &opt_debugging,
-     &opt_debugging, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #if defined(HAVE_LINUX_LARGE_PAGES) || defined(HAVE_SOLARIS_LARGE_PAGES)
     {"super-large-pages", 0, "Enable support for super large pages.",
      &opt_super_large_pages, &opt_super_large_pages, nullptr, GET_BOOL, OPT_ARG,
@@ -11178,6 +11203,59 @@ static int show_replica_open_temp_tables(THD *, SHOW_VAR *var, char *buf) {
   *((int *)buf) = atomic_replica_open_temp_tables;
   return 0;
 }
+bool validate_libcoredumper_path(char *libcoredumper_path) {
+  /* validate path */
+  if (!is_valid_log_name(
+          libcoredumper_path,
+          strlen(libcoredumper_path))) {  // filename contain .cnf or .ini on it
+    sql_print_error("Variable --coredumper cannot be set to value %s",
+                    libcoredumper_path);
+    return false;
+  }
+  char libcoredumper_dir[FN_REFLEN];
+  size_t libcoredumper_dir_length;
+  size_t opt_libcoredumper_path_length = strlen(libcoredumper_path);
+  (void)dirname_part(libcoredumper_dir, libcoredumper_path,
+                     &libcoredumper_dir_length);
+
+  if (!libcoredumper_dir_length) {
+    sql_print_error("Error processing --coredumper path: %s",
+                    libcoredumper_path);
+    return false;
+  }
+  size_t libcoredumper_file_length =
+      opt_libcoredumper_path_length - libcoredumper_dir_length;
+  if (libcoredumper_file_length == 0)  // path is a directory
+  {
+    libcoredumper_file_length = 19;  // file is set to core.yyyymmddhhmmss
+  } else {
+    libcoredumper_file_length += 15;  // file gets .yyyymmddhhmmss appended
+  }
+  if (opt_libcoredumper_path_length > FN_REFLEN) {  // path is too long
+    sql_print_error("Variable --coredumper set to a too long path");
+    return false;
+  }
+  if (libcoredumper_file_length > FN_LEN) {  // filename is too long
+    sql_print_error("Variable --coredumper set to a too long filename");
+    return false;
+  }
+  if (my_access(libcoredumper_dir, F_OK)) {
+    sql_print_error("Directory specified at --coredumper: %s does not exist",
+                    libcoredumper_dir);
+    return false;
+  }
+  if (my_access(libcoredumper_dir, (F_OK | W_OK))) {
+    sql_print_error("Directory specified at --coredumper: %s is not writable",
+                    libcoredumper_dir);
+    return false;
+  }
+  if (libcoredumper_dir_length ==
+      strlen(libcoredumper_path)) {  // only dirname was specified, append core
+                                     // to libcoredumper_path
+    strcat(libcoredumper_path, "core");
+  }
+  return true;
+}
 
 static int show_tls_library_version(THD *, SHOW_VAR *var, char *buff) {
 #if OPENSSL_VERSION_NUMBER <= 0x10100000L
@@ -11260,6 +11338,10 @@ int show_deprecated_use_fk_on_non_standard_key_last_timestamp(THD *,
   return 0;
 }
 }  // namespace
+
+/*
+  Variables shown by SHOW STATUS in alphabetical order
+*/
 
 SHOW_VAR status_vars[] = {
     {"Aborted_clients", (char *)&aborted_threads, SHOW_LONG, SHOW_SCOPE_GLOBAL},
@@ -12277,6 +12359,11 @@ bool mysqld_get_one_option(int optid,
       break;
     case (int)OPT_WANT_CORE:
       test_flags |= TEST_CORE_ON_SIGNAL;
+      opt_corefile = (argument != disabled_my_option);
+      break;
+    case (int)OPT_COREDUMPER:
+      test_flags |= TEST_CORE_ON_SIGNAL;
+      opt_libcoredumper = (argument != disabled_my_option);
       break;
     case (int)OPT_SKIP_STACK_TRACE:
       test_flags |= TEST_NO_STACKTRACE;

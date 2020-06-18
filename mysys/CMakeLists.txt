@@ -186,6 +186,10 @@ IF(FREEBSD)
   ADD_COMPILE_FLAGS(stacktrace.cc COMPILE_FLAGS ${LIBUNWIND_CFLAGS})
 ENDIF()
 
+IF (WITH_COREDUMPER)
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/extra/coredumper/include)
+ENDIF()
+
 ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES}
   LINK_LIBRARIES
   mytime
@@ -213,6 +217,9 @@ ENDIF()
 # Need explicit pthread for gcc -fsanitize=address
 IF(CMAKE_USE_PTHREADS_INIT AND CMAKE_C_FLAGS MATCHES "-fsanitize=")
   TARGET_LINK_LIBRARIES(mysys pthread)
+ENDIF()
+IF (WITH_COREDUMPER)
+  TARGET_LINK_LIBRARIES(mysys coredumper)
 ENDIF()
 # Needed to resolve OpenSSL dependency on Windows
 IF(WIN32)

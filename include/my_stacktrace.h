@@ -58,6 +58,9 @@ void my_create_minidump(const char *name, HANDLE process, DWORD pid);
 #endif /* HAVE_BACKTRACE || _WIN32 || HAVE_EXT_BACKTRACE */
 
 void my_write_core(int sig);
+#if HAVE_LIBCOREDUMPER
+void my_write_libcoredumper(int sig, char *path, time_t curr_time);
+#endif
 
 /**
   Async-signal-safe utility functions used by signal handler routines.

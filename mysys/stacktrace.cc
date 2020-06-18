@@ -60,6 +60,11 @@
 #ifndef _WIN32
 #include <signal.h>
 
+#if HAVE_LIBCOREDUMPER
+#include <coredumper/coredumper.h>
+#include "my_io.h"
+#endif
+
 #include "my_thread.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -295,7 +300,6 @@ static void my_demangle_symbols(char **addrs, int n) {
 }
 
 #endif /* HAVE_ABI_CXA_DEMANGLE */
-
 void my_print_stacktrace(const uchar *stack_bottom, ulong thread_stack) {
 #if defined(__FreeBSD__)
   static char procname_buffer[2048];
@@ -333,6 +337,29 @@ void my_print_stacktrace(const uchar *stack_bottom, ulong thread_stack) {
 }
 #endif /* HAVE_EXT_BACKTRACE || HAVE_BACKTRACE */
 #endif /* HAVE_STACKTRACE */
+
+#if HAVE_LIBCOREDUMPER
+/* Produce a lib coredumper for the thread */
+void my_write_libcoredumper(int sig, char *path, time_t curr_time) {
+  int ret = 0;
+  char suffix[FN_REFLEN];
+  char core[FN_REFLEN];
+  struct tm *timeinfo = gmtime(&curr_time);
+  my_safe_printf_stderr("PATH: %s\n\n", path);
+  if (path == NULL)
+    strcpy(core, "core");
+  else
+    strcpy(core, path);
+  sprintf(suffix, ".%d%02d%02d%02d%02d%02d", (1900 + timeinfo->tm_year),
+          timeinfo->tm_mon, timeinfo->tm_mday, timeinfo->tm_hour,
+          timeinfo->tm_min, timeinfo->tm_sec);
+  strcat(core, suffix);
+  ret = WriteCoreDump(core);
+  if (ret != 0) {
+    my_safe_printf_stderr("Error writting coredump: %d Signal: %d\n", ret, sig);
+  }
+}
+#endif
 
 /* Produce a core for the thread */
 void my_write_core(int sig) {

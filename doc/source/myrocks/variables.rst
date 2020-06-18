@@ -324,6 +324,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global
+   * - :variable:`rocksdb_max_bottom_pri_background_compactions`
+     - Yes
+     - No
+     - Global
    * - :variable:`rocksdb_max_latest_deadlocks`
      - Yes
      - Yes
@@ -1579,35 +1583,37 @@ rely on the application to do the flushing.
 
   :version 5.7.19-17: Implemented
   :version 5.7.20-18: Replaced by :variable:`rocksdb_max_background_jobs`
+  :version 5.7.31-34: Re-implemented
   :cli: ``--rocksdb-max-background-compactions``
   :dyn: Yes
   :scope: Global
   :vartype: Numeric
-  :default: ``1``
+  :default: ``-1``
 
-Specifies the maximum number of concurrent background compaction threads,
-submitted to the low-priority thread pool.
-Default value is ``1``. Allowed range is up to ``64``.
+Sets DBOptions:: max_background_compactions for RocksDB.
+Default value is ``-1``. Allowed range is up to ``64``.
 This variable has been replaced in |Percona Server| :rn:`5.7.20-18`
 by :variable:`rocksdb_max_background_jobs`, which automatically decides how
 many threads to allocate towards flush/compaction.
+This variable has been re-implemented in |Percona Server| 5.7.31-34.
 
 .. variable:: rocksdb_max_background_flushes
 
   :version 5.7.19-17: Implemented
   :version 5.7.20-18: Replaced by :variable:`rocksdb_max_background_jobs`
+  :version 5.7.31-34: Re-implemented
   :cli: ``--rocksdb-max-background-flushes``
   :dyn: No
   :scope: Global
   :vartype: Numeric
-  :default: ``1``
+  :default: ``-1``
 
-Specifies the maximum number of concurrent background memtable flush threads,
-submitted to the high-priority thread-pool.
-Default value is ``1``. Allowed range is up to ``64``.
+Sets DBOptions:: max_background_flushes for RocksDB.
+Default value is ``-1``. Allowed range is up to ``64``.
 This variable has been replaced in |Percona Server| :rn:`5.7.20-18`
 by :variable:`rocksdb_max_background_jobs`, which automatically decides how
 many threads to allocate towards flush/compaction.
+This variable has been re-implemented in |Percona Server| 5.7.31-34.
 
 .. variable:: rocksdb_max_background_jobs
 
@@ -1626,6 +1632,18 @@ the maximum number of background jobs. It automatically decides
 how many threads to allocate towards flush/compaction. It was implemented to
 reduce the number of (confusing) options users and can tweak and push the
 responsibility down to RocksDB level.
+
+.. variable:: rocksdb_max_bottom_pri_background_compactions
+
+  :version: 5.7.31-34: Implemented
+  :cli: ``--rocksdb_max_bottom_pri_background_compactions``
+  :dyn: No
+  :vartype: Unsigned Integer
+  :default: ``0``
+
+Creates a specified number of threads, sets a lower CPU priority, and letting compactions use them. The maximum compaction concurrency is capped by ``rocksdb_max_background_compactions`` or ``rocksdb_max_background_jobs``
+
+The minimum value is ``0`` and the maximum value is ``64``.
 
 .. variable:: rocksdb_max_latest_deadlocks
 

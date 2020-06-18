@@ -62,6 +62,10 @@ MYSQL_ADD_EXECUTABLE(mysqltest
 
 DOWNGRADE_STRINGOP_WARNINGS(mysqltest)
 
+IF (WITH_COREDUMPER)
+  TARGET_LINK_LIBRARIES(mysqltest coredumper)
+ENDIF()
+
 MYSQL_ADD_EXECUTABLE(mysqlcheck
   check/mysqlcheck.cc
   check/mysqlcheck_core.cc

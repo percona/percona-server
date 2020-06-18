@@ -362,6 +362,8 @@
 #endif
 
 #define SO_EXT "@CMAKE_SHARED_MODULE_SUFFIX@"
+/* coredumper library */
+#cmakedefine01 HAVE_LIBCOREDUMPER
 
 
 /* From libmysql/CMakeLists.txt */

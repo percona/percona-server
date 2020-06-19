@@ -93,6 +93,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <regex>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -174,6 +175,7 @@ ACL_USER acl_utility_user;
 static LEX_STRING acl_utility_user_name, acl_utility_user_host_name;
 static bool acl_utility_user_initialized = false;
 static std::vector<std::string> acl_utility_user_schema_access;
+static std::vector<std::string> uu_dynamic_privileges;
 
 static void acl_free_utility_user();
 
@@ -1439,6 +1441,42 @@ exit:
   return db_access & host_access;
 }
 
+/*
+ Parse utility-user-dynamic-privileges parameter.
+*/
+static bool setup_utility_user_dynamic_privileges() {
+  if (!utility_user_dynamic_privileges) {
+    // no dynamic privileges provided
+    return false;
+  }
+
+  std::string privileges(utility_user_dynamic_privileges);
+
+  // check if the string is valid
+  std::regex validate_regex("(\\s*[A-Za-z0-9_]+\\s*,*)*\\s*[A-Za-z0-9_]+\\s*",
+                            std::regex::nosubs);
+  if (!std::regex_match(privileges, validate_regex)) {
+    sql_print_error(
+        "Wrong format of --utility-user-dynamic-privileges parameter value: %s",
+        utility_user_dynamic_privileges);
+    return true;
+  }
+
+  // split it into tokens and trim
+  std::regex split_regex("[^,\\s][^,]*[^,\\s]");
+  for (auto it = std::sregex_iterator(privileges.begin(), privileges.end(),
+                                      split_regex);
+       it != std::sregex_iterator(); ++it) {
+    // Unfortunately there is a bug related to std::regex_constants::icase
+    // https://stackoverflow.com/questions/37757863/c11-regexicase-inconsistent-behavior
+    auto s = it->str();
+    std::for_each(s.begin(), s.end(), [](char &c) { c = ::toupper(c); });
+    uu_dynamic_privileges.push_back(s);
+  }
+
+  return false;
+}
+
 int caching_sha2_password_generate(char *outbuf, unsigned int *buflen,
                                    const char *inbuf, unsigned int inbuflen);
 
@@ -1548,6 +1586,10 @@ static bool acl_init_utility_user(bool check_no_resolve) {
     goto cleanup;
   }
 
+  if (setup_utility_user_dynamic_privileges()) {
+    goto cleanup;
+  }
+
   assert(utility_user_privileges <= UINT_MAX32);
   acl_utility_user.access = utility_user_privileges & UINT_MAX32;
   if (acl_utility_user.access) {
@@ -1564,6 +1606,20 @@ static bool acl_init_utility_user(bool check_no_resolve) {
         "Utility user '%s'@'%s' in use with basic "
         "access rights.",
         acl_utility_user.user, acl_utility_user.host.get_host());
+  }
+
+  if (!uu_dynamic_privileges.empty()) {
+    std::stringstream oss;
+    bool first = true;
+    for (const auto &item : uu_dynamic_privileges) {
+      oss << (first ? "" : ",") << item;
+      first = false;
+    }
+
+    sql_print_information(
+        "Utility user '%s'@'%s' in use with dynamic privileges '%s'.",
+        acl_utility_user.user, acl_utility_user.host.get_host(),
+        oss.str().c_str());
   }
 
   acl_utility_user.ssl_type = SSL_TYPE_NONE;
@@ -1630,6 +1686,23 @@ static void acl_free_utility_user() {
     memset(static_cast<void *>(&acl_utility_user), 0, sizeof(acl_utility_user));
     acl_utility_user_initialized = false;
   }
+}
+
+bool acl_utility_user_has_global_grant(const std::string &privilege) {
+  if (!utility_user_dynamic_privileges) {
+    return false;
+  }
+
+  // std::regex (..., std::regex_constants::icase) would fit here perfectly,
+  // but unfortunately there is a bug related to std::regex_constants::icase
+  // https://stackoverflow.com/questions/37757863/c11-regexicase-inconsistent-behavior
+  auto tmp_str = privilege;
+  std::for_each(tmp_str.begin(), tmp_str.end(),
+                [](char &c) { c = ::toupper(c); });
+
+  auto it = std::find(uu_dynamic_privileges.begin(),
+                      uu_dynamic_privileges.end(), tmp_str);
+  return it != uu_dynamic_privileges.end();
 }
 
 /*

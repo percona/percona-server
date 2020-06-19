@@ -413,6 +413,7 @@ extern char *utility_user;
 extern char *utility_user_password;
 extern char *utility_user_schema_access;
 extern ulonglong utility_user_privileges;
+extern char *utility_user_dynamic_privileges;
 
 extern bool persisted_globals_load;
 extern bool opt_keyring_operations;

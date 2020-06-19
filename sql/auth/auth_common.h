@@ -825,6 +825,7 @@ int fill_schema_column_privileges(THD *thd, Table_ref *tables, Item *cond);
 const ACL_internal_schema_access *get_cached_schema_access(
     GRANT_INTERNAL_INFO *grant_internal_info, const char *schema_name);
 bool acl_is_utility_user(const char *user, const char *host, const char *ip);
+bool acl_utility_user_has_global_grant(const std::string &privilege);
 
 bool lock_tables_precheck(THD *thd, Table_ref *tables);
 bool create_table_precheck(THD *thd, Table_ref *tables,

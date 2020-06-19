@@ -130,7 +130,7 @@ bool Connection::connect(const std::string &bind_dn,
 
 std::size_t Connection::get_idx_pool() const { return index_; }
 
-bool Connection::is_snipped() const { return snipped_; };
+bool Connection::is_snipped() const { return snipped_; }
 
 bool Connection::is_zombie() {
   std::lock_guard<std::mutex> lock(conn_mutex_);

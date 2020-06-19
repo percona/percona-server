@@ -261,6 +261,8 @@ static const char *command_array[] = {"SELECT",
                                       "EVENT",
                                       "TRIGGER",
                                       "CREATE TABLESPACE",
+                                      "CREATE_ROLE",
+                                      "DROP_ROLE",
                                       NullS};
 
 TYPELIB utility_user_privileges_typelib = {array_elements(command_array) - 1,

@@ -244,8 +244,78 @@ connection default;
 
 --error ER_KILL_DENIED_ERROR
 --eval KILL $conn_id
-
-disconnect frank;
-
 REVOKE PROXY ON 'frank'@'%' FROM 'root'@'localhost';
+
+
+# PS-7127: Utility user cannot update password of the user having SYSTEM_USER privilege.
+--connection default
+CREATE USER u1 IDENTIFIED BY 'password';
+GRANT ALL ON *.* TO u1 WITH GRANT OPTION;
+
+--connection frank
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER USER 'u1'@'%' IDENTIFIED BY 'newpass';
+--disconnect frank
+
+--connection default
+# Restart the server with utility user having SYSTEM_USER privilege
+--let $restart_parameters = restart:--utility-user-dynamic-privileges=SYSTEM_USER
+--source include/restart_mysqld.inc
+
+connect (frank,localhost,frank,password,mysql);
+--connection frank
+ALTER USER 'u1'@'%' IDENTIFIED BY 'newpass';
+--disconnect frank
+
+--connection default
+# Try again, but this time check if lowercase works as well
+--let $restart_parameters = restart:--utility-user-dynamic-privileges=sYstem_USEr
+--source include/restart_mysqld.inc
+
+connect (frank,localhost,frank,password,mysql);
+--connection frank
+ALTER USER 'u1'@'%' IDENTIFIED BY 'newpass2';
+
+DROP USER u1;
+--disconnect frank
+
+# Test --utility-user-dynamic-privileges value parsing
+
+--connection default
+--source include/shutdown_mysqld.inc
+
+# OK - multiple privileges
+--let $utility_user_dynamic_privileges = SYSTEM_USER,PRIVILEGE_1,PRIVILEGE2,PRIVILEGE4
+--let $expected_log_message = Utility user 'frank'@'%' in use with dynamic privileges 'SYSTEM_USER,PRIVILEGE_1,PRIVILEGE2,PRIVILEGE4'.
+--source ../include/utility_user_validate_dynamic_privileges.inc
+
+# OK - lowercase
+--let $utility_user_dynamic_privileges = system_user,privilege_2
+--let $expected_log_message = Utility user 'frank'@'%' in use with dynamic privileges 'SYSTEM_USER,PRIVILEGE_2'.
+--source ../include/utility_user_validate_dynamic_privileges.inc
+
+# OK - multiple comma
+--let $utility_user_dynamic_privileges = SYSTEM_USER,,,,,PRIVILEGE_3
+--let $expected_log_message = Utility user 'frank'@'%' in use with dynamic privileges 'SYSTEM_USER,PRIVILEGE_3'.
+--source ../include/utility_user_validate_dynamic_privileges.inc
+
+# Malformed - comma at the end
+--let $utility_user_dynamic_privileges = SYSTEM_USER,PRIVILEGE_1,
+--let $expected_log_message = Wrong format of --utility-user-dynamic-privileges parameter value: SYSTEM_USER,PRIVILEGE_1,
+--source ../include/utility_user_validate_dynamic_privileges.inc
+
+# Malformed - comma at the beginning
+--let $utility_user_dynamic_privileges = ,SYSTEM_USER,PRIVILEGE_1
+--let $expected_log_message = Wrong format of --utility-user-dynamic-privileges parameter value: ,SYSTEM_USER,PRIVILEGE_1
+--source ../include/utility_user_validate_dynamic_privileges.inc
+
+# Malformed - wrong separator
+--let $utility_user_dynamic_privileges = SYSTEM_USER;PRIVILEGE_1
+--let $expected_log_message = Wrong format of --utility-user-dynamic-privileges parameter value: SYSTEM_USER;PRIVILEGE_1
+--source ../include/utility_user_validate_dynamic_privileges.inc
+
+--source include/start_mysqld.inc
+
+# cleanup
+--connection default
 --source include/wait_until_count_sessions.inc

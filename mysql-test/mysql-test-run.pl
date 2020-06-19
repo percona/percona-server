@@ -93,6 +93,7 @@ use File::Copy;
 use File::Find;
 use File::Temp qw/tempdir/;
 use File::Spec::Functions qw/splitdir/;
+use My::Constants;
 use My::Platform;
 use My::SafeProcess;
 use My::ConfigFactory;
@@ -4669,7 +4670,7 @@ sub run_testcase ($) {
       elsif ( $res == 62 )
       {
 	# Testcase itself tell us to skip this one
-	$tinfo->{skip_detected_by_test}= 1;
+	$tinfo->{skip_reason} = MTR_SKIP_BY_TEST;
 	# Try to get reason from test log file
 	find_testcase_skipped_reason($tinfo);
 	mtr_report_test_skipped($tinfo);

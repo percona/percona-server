@@ -24,6 +24,7 @@ use strict;
 use warnings;
 use Sys::Hostname;
 use POSIX qw(strftime);
+use My::Constants;
 use base qw(Exporter);
 
 our @EXPORT= qw(mtr_report_stats_junit mtr_junit_supported);
@@ -51,6 +52,11 @@ sub mtr_report_stats_junit {
 
   foreach my $tinfo (@$tests) {
     my $suite;
+
+    # Exclude from report tests which are deliberately skipped by framework
+    # because of non matching environment for it to run.
+    next if ($tinfo->{skip} and defined $tinfo->{skip_reason} and
+             $tinfo->{skip_reason} eq MTR_SKIP_BY_FRAMEWORK);
 
     if ($tinfo->{name} =~ /^([^\.]+)\./) {
       $suite = $1;
@@ -84,7 +90,9 @@ sub mtr_report_stats_junit {
         push @{$testcase->{failure}}, $failure;
       }
 
-      if ($tinfo->{result} eq 'MTR_RES_SKIPPED' or $tinfo->{skip_detected_by_test}) {
+      if ($tinfo->{result} eq 'MTR_RES_SKIPPED' or 
+          (defined $tinfo->{skip_reason} and
+           $tinfo->{skip_reason} eq MTR_SKIP_BY_TEST)) {
         my $message = $tinfo->{comment} ? $tinfo->{comment} : 'unknown reason';
         # Failures and skips have the same structure
         my $skipped = gen_failure ($tinfo->{result}, $message, $message);

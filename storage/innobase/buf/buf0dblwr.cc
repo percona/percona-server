@@ -1746,7 +1746,9 @@ dberr_t dblwr::open(bool create_new_db) noexcept {
   uint32_t segments_per_file{};
 
   if (dblwr::n_files == 0) {
-    dblwr::n_files = 2;
+    dblwr::n_files = std::max(2UL, srv_buf_pool_instances * 2);
+  } else if (dblwr::n_files > srv_buf_pool_instances * 2) {
+    dblwr::n_files = srv_buf_pool_instances * 2;
   }
 
   ib::info(ER_IB_MSG_DBLWR_1324)
@@ -1759,7 +1761,7 @@ dberr_t dblwr::open(bool create_new_db) noexcept {
   ib::info(ER_IB_MSG_DBLWR_1323)
       << "Double write buffer pages per instance: " << dblwr::n_pages;
 
-  if (Double_write::s_n_instances < dblwr::n_files) {
+  if (Double_write::s_n_instances <= dblwr::n_files) {
     segments_per_file = 1;
     Double_write::s_files.resize(Double_write::s_n_instances);
   } else {

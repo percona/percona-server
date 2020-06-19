@@ -74,6 +74,7 @@ Flexibility Improvements
    flexibility/innodb_fts_improvements
    flexibility/binlogging_replication_improvements
    flexibility/extended_set_var
+   flexibility/sequence_table
 
 Reliability Improvements
 ================================================================================

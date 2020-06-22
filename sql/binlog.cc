@@ -4720,7 +4720,7 @@ bool MYSQL_BIN_LOG::open_binlog(
     DBUG_EXECUTE_IF("fault_injection_registering_index", {
       if (my_b_inited(&purge_index_file)) {
         end_io_cache(&purge_index_file);
-        my_close(purge_index_file.file, MYF(0));
+        mysql_file_close(purge_index_file.file, MYF(0));
       }
     });
 
@@ -5650,8 +5650,9 @@ int MYSQL_BIN_LOG::open_crash_safe_index_file() {
     myf flags = MY_WME | MY_NABP | MY_WAIT_IF_FULL;
     if (is_relay_log) flags = flags | MY_REPORT_WAITING_IF_FULL;
 
-    if ((file = my_open(crash_safe_index_file_name, O_RDWR | O_CREAT,
-                        MYF(MY_WME))) < 0 ||
+    if ((file = mysql_file_open(m_key_file_log_index_crash_safe,
+                                crash_safe_index_file_name, O_RDWR | O_CREAT,
+                                MYF(MY_WME))) < 0 ||
         init_io_cache(&crash_safe_index_file, file, IO_SIZE, WRITE_CACHE, 0,
                       false, flags)) {
       error = 1;
@@ -5679,7 +5680,7 @@ int MYSQL_BIN_LOG::close_crash_safe_index_file() {
 
   if (my_b_inited(&crash_safe_index_file)) {
     end_io_cache(&crash_safe_index_file);
-    error = my_close(crash_safe_index_file.file, MYF(0));
+    error = mysql_file_close(crash_safe_index_file.file, MYF(0));
   }
   crash_safe_index_file = IO_CACHE();
 
@@ -5914,8 +5915,9 @@ int MYSQL_BIN_LOG::open_purge_index_file(bool destroy) {
     myf flags = MY_WME | MY_NABP | MY_WAIT_IF_FULL;
     if (is_relay_log) flags = flags | MY_REPORT_WAITING_IF_FULL;
 
-    if ((file = my_open(purge_index_file_name, O_RDWR | O_CREAT, MYF(MY_WME))) <
-            0 ||
+    if ((file =
+             mysql_file_open(m_key_file_log_index_purge, purge_index_file_name,
+                             O_RDWR | O_CREAT, MYF(MY_WME))) < 0 ||
         init_io_cache(&purge_index_file, file, IO_SIZE,
                       (destroy ? WRITE_CACHE : READ_CACHE), 0, false, flags)) {
       error = 1;
@@ -5932,7 +5934,7 @@ int MYSQL_BIN_LOG::close_purge_index_file() {
 
   if (my_b_inited(&purge_index_file)) {
     end_io_cache(&purge_index_file);
-    error = my_close(purge_index_file.file, MYF(0));
+    error = mysql_file_close(purge_index_file.file, MYF(0));
   }
   my_delete(purge_index_file_name, MYF(0));
   new (&purge_index_file) IO_CACHE();

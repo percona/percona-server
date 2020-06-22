@@ -128,9 +128,7 @@ void init_rocksdb_psi_keys() {
   mysql_rwlock_register(category, all_rocksdb_rwlocks, count);
 
   count = array_elements(all_rocksdb_conds);
-  // TODO Disabling PFS for conditions due to the bug
-  // https://github.com/MySQLOnRocksDB/mysql-5.6/issues/92
-  // PSI_server->register_cond(category, all_rocksdb_conds, count);
+  mysql_cond_register(category, all_rocksdb_conds, count);
 
   count = array_elements(all_rocksdb_stages);
   mysql_stage_register(category, all_rocksdb_stages, count);

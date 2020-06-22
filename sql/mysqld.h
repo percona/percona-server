@@ -520,6 +520,8 @@ extern PSI_thread_key key_thread_handle_con_admin_sockets;
 
 extern PSI_file_key key_file_binlog;
 extern PSI_file_key key_file_binlog_index;
+extern PSI_file_key key_file_binlog_index_purge;
+extern PSI_file_key key_file_binlog_index_crash_safe;
 extern PSI_file_key key_file_dbopt;
 extern PSI_file_key key_file_ERRMSG;
 extern PSI_file_key key_select_to_file;
@@ -540,8 +542,12 @@ extern PSI_file_key key_file_relaylog;
 extern PSI_file_key key_file_relaylog_cache;
 extern PSI_file_key key_file_relaylog_index;
 extern PSI_file_key key_file_relaylog_index_cache;
+extern PSI_file_key key_file_relaylog_index_purge;
+extern PSI_file_key key_file_relaylog_index_crash_safe;
 extern PSI_file_key key_file_sdi;
 extern PSI_file_key key_file_hash_join;
+extern PSI_file_key key_file_auto_options;
+extern PSI_file_key key_file_temporary;
 
 extern PSI_socket_key key_socket_tcpip;
 extern PSI_socket_key key_socket_unix;

@@ -2306,11 +2306,22 @@ char *generate_partition_syntax(partition_info *part_info, uint *buf_length,
   partition_element *part_elem;
   int err = 0;
   List_iterator<partition_element> part_it(part_info->partitions);
+  const char *path = mysql_tmpdir;
+  char fname[FN_REFLEN];
   File fptr;
   char *buf = NULL;  // Return buffer
   DBUG_TRACE;
 
-  if (!(fptr = mysql_tmpfile("psy"))) {
+  DBUG_ASSERT(path != NULL);
+  /* Name buffer should have enough size for path and prefix. */
+  DBUG_ASSERT((strlen(path) + 3) <= FN_REFLEN);
+
+  if (!(fptr = mysql_file_create_temp(key_file_temporary, fname, path, "psy",
+#ifdef _WIN32
+                                      O_TRUNC | O_SEQUENTIAL |
+#endif
+                                          O_CREAT | O_EXCL | O_RDWR,
+                                      UNLINK_FILE, MYF(MY_WME)))) {
     return NULL;
   }
   err += add_space(fptr);

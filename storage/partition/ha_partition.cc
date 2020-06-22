@@ -857,7 +857,7 @@ int ha_partition::analyze(THD *thd, HA_CHECK_OPT *check_opt)
   {
     /* If this is ANALYZE TABLE that will not force table definition cache
        eviction, update statistics for the partition handler. */
-    this->info(HA_STATUS_CONST | HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
+    this->info(HA_STATUS_CONST | HA_STATUS_NO_LOCK);
   }
 
   DBUG_RETURN(result);

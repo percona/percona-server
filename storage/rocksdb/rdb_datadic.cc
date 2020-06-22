@@ -137,7 +137,7 @@ int Rdb_convert_to_record_key_decoder::decode(
   uint field_offset = field->ptr - table->record[0];
   *offset = field_offset;
   uint null_offset = field->null_offset();
-  bool maybe_null = field->real_maybe_null();
+  bool maybe_null = field->is_nullable();
 
   field->move_field(buf + field_offset,
                     maybe_null ? buf + null_offset : nullptr, field->null_bit);
@@ -534,7 +534,7 @@ void Rdb_key_def::setup(const TABLE *const tbl,
           }
         }
 
-        if (field && field->real_maybe_null()) max_len += 1;  // NULL-byte
+        if (field && field->is_nullable()) max_len += 1;  // NULL-byte
 
         m_pack_info[dst_i].setup(this, field, keyno_to_set, keypart_to_set,
                                  key_part ? key_part->length : 0);
@@ -571,7 +571,7 @@ void Rdb_key_def::setup(const TABLE *const tbl,
                           m_ttl_column.c_str()) == 0) {
           DBUG_ASSERT(field->real_type() == MYSQL_TYPE_LONGLONG);
           DBUG_ASSERT(field->key_type() == HA_KEYTYPE_ULONGLONG);
-          DBUG_ASSERT(!field->real_maybe_null());
+          DBUG_ASSERT(!field->is_nullable());
           m_ttl_pk_key_part_offset = dst_i;
         }
 
@@ -700,8 +700,7 @@ uint Rdb_key_def::extract_ttl_col(const TABLE *const table_arg,
       if (my_strcasecmp(system_charset_info, field->field_name,
                         ttl_col_str.c_str()) == 0 &&
           field->real_type() == MYSQL_TYPE_LONGLONG &&
-          field->key_type() == HA_KEYTYPE_ULONGLONG &&
-          !field->real_maybe_null()) {
+          field->key_type() == HA_KEYTYPE_ULONGLONG && !field->is_nullable()) {
         *ttl_column = ttl_col_str;
         *ttl_field_index = i;
         found = true;
@@ -1233,7 +1232,7 @@ uchar *Rdb_key_def::pack_field(Field *const field, Rdb_field_packing *pack_info,
                                uchar *const pack_buffer,
                                Rdb_string_writer *const unpack_info,
                                uint *const n_null_fields) const {
-  if (field->real_maybe_null()) {
+  if (field->is_nullable()) {
     DBUG_ASSERT(is_storage_available(tuple - packed_tuple, 1));
     if (field->is_real_null()) {
       /* NULL value. store '\0' so that it sorts before non-NULL values */
@@ -1396,7 +1395,7 @@ uint Rdb_key_def::pack_record(const TABLE *const tbl, uchar *const pack_buffer,
 
     uint field_offset = field->ptr - tbl->record[0];
     uint null_offset = field->null_offset(tbl->record[0]);
-    bool maybe_null = field->real_maybe_null();
+    bool maybe_null = field->is_nullable();
 
     field->move_field(
         const_cast<uchar *>(record) + field_offset,
@@ -3842,7 +3841,7 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
   m_keynr = keynr_arg;
   m_key_part = key_part_arg;
 
-  m_maybe_null = field ? field->real_maybe_null() : false;
+  m_maybe_null = field ? field->is_nullable() : false;
   m_unpack_func = nullptr;
   m_make_unpack_info_func = nullptr;
   m_unpack_data_len = 0;

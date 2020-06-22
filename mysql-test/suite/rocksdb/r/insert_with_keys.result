@@ -83,6 +83,8 @@ INSERT IGNORE INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
 Warnings:
 Warning	1062	Duplicate entry '1-a' for key 't1.a'
 INSERT INTO t1 (a,b) VALUES (1,'a'),(12345,'z') ON DUPLICATE KEY UPDATE a = a+VALUES(a);
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 SELECT a,b FROM t1;
 a	b
 100	a

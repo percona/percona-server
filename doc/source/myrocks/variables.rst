@@ -223,11 +223,11 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
-     * - :variable:`rocksdb_enable_insert_with_update_caching`
+   * - :variable:`rocksdb_enable_insert_with_update_caching`
      - Yes
      - Yes
      - Global
-    * - :variable:`rocksdb_enable_iterate_bounds`
+   * - :variable:`rocksdb_enable_iterate_bounds`
      - Yes
      - Yes
      - Global, Local
@@ -346,6 +346,10 @@ Also, all variables can exist in one or both of the following scopes:
    * - :variable:`rocksdb_max_background_jobs`
      - Yes
      - Yes
+     - Global
+   * - :variable:`rocksdb_max_bottom_pri_background_compactions`
+     - Yes
+     - No
      - Global
    * - :variable:`rocksdb_max_latest_deadlocks`
      - Yes
@@ -1155,7 +1159,7 @@ This variable is a no-op in non-debug builds.
 For debugging purposes only.  Overrides the TTL of
 records to ``now()`` + :variable:`debug_ttl_rec_ts`.
 The value can be +/- to simulate a record inserted in the past vs a record
-inserted in the "future". A value of ``0`` denotes that the
+inserted in the  future . A value of ``0`` denotes that the
 variable is not set.
 This variable is a no-op in non-debug builds.
 
@@ -1170,7 +1174,7 @@ This variable is a no-op in non-debug builds.
 For debugging purposes only.  Sets the snapshot during
 compaction to ``now()`` + :variable:`rocksdb_debug_set_ttl_snapshot_ts`.
 The value can be +/- to simulate a snapshot in the past vs a
-snapshot created in the "future". A value of ``0`` denotes
+snapshot created in the  future . A value of ``0`` denotes
 that the variable is not set. This variable is a no-op in
 non-debug builds.
 
@@ -1213,9 +1217,9 @@ Allowed range is from ``0`` to ``18446744073709551615``.
   :dyn: Yes
   :scope: Global
   :vartype: String
-  :default: ""
+  :default:   
 
-Deletes the column family by name. The default value is "", an empty 
+Deletes the column family by name. The default value is   , an empty 
 string.
 
 For example: ::
@@ -1659,15 +1663,14 @@ hold any lock on row access. This variable is not effective on slave.
   :dyn: Yes
   :scope: Global
   :vartype: Numeric
-  :default: ``1``
+  :default: ``-1``
 
-Specifies the maximum number of concurrent background compaction threads,
-submitted to the low-priority thread pool.  Default value is ``1``. Allowed
-range is up to ``64``.  This variable has been replaced with
-:variable:`rocksdb_max_background_jobs`, which automatically decides how many
-threads to allocate towards flush/compaction.
-
-Replaced with :variable:`rocksdb_max_background_jobs`
+Sets DBOptions:: max_background_compactions for RocksDB.
+The default value is ``-1`` The allowed range is ``-1`` to ``64``.
+This variable was replaced 
+by :variable:`rocksdb_max_background_jobs`, which automatically decides how
+many threads to allocate towards flush/compaction.
+This variable was re-implemented in |Percona Server| 8.0.20-11.
 
 .. variable:: rocksdb_max_background_flushes
 
@@ -1675,15 +1678,14 @@ Replaced with :variable:`rocksdb_max_background_jobs`
   :dyn: No
   :scope: Global
   :vartype: Numeric
-  :default: ``1``
+  :default: ``-1``
 
-Specifies the maximum number of concurrent background memtable flush
-threads, submitted to the high-priority thread-pool.  Default value is
-``1``. Allowed range is up to ``64``.  This variable has been replaced
-with :variable:`rocksdb_max_background_jobs`, which automatically
-decides how many threads to allocate towards flush/compaction.
-
-Replaced with :variable:`rocksdb_max_background_jobs`
+Sets DBOptions:: max_background_flushes for RocksDB.
+The default value is ``-1``. The allowed range is ``-1`` to ``64``.
+This variable has been replaced 
+by :variable:`rocksdb_max_background_jobs`, which automatically decides how
+many threads to allocate towards flush/compaction.
+This variable was re-implemented in |Percona Server| 8.0.20-11.
 
 .. variable:: rocksdb_max_background_jobs
 
@@ -1700,6 +1702,17 @@ the maximum number of background jobs. It automatically decides
 how many threads to allocate towards flush/compaction. It was implemented to
 reduce the number of (confusing) options users and can tweak and push the
 responsibility down to RocksDB level.
+
+.. variable:: rocksdb_max_bottom_pri_background_compactions
+
+  :cli: ``--rocksdb_max_bottom_pri_background_compactions``
+  :dyn: No
+  :vartype: Unsigned Integer
+  :default: ``0``
+
+Creates a specified number of threads, sets a lower CPU priority, and letting compactions use them. The maximum compaction concurrency is capped by ``rocksdb_max_background_compactions`` or ``rocksdb_max_background_jobs``
+
+The minimum value is ``0`` and the maximum value is ``64``.
 
 .. variable:: rocksdb_max_latest_deadlocks
 
@@ -2326,14 +2339,14 @@ Specifies the path to the directory for temporary files during DDL operations.
    :dyn: Yes
    :scope: Global
    :vartype: String
-   :default: ``""`` 
+   :default: ``  `` 
    
 Defines the block cache trace option string. The format is 
-"sampling frequency: max_trace_file_size:trace_file_name." The
+ sampling frequency: max_trace_file_size:trace_file_name.  The
 sampling frequency value and max_trace_file_size value 
 are positive integers. The block accesses are saved to 
 the ``rocksdb_datadir/block_cache_traces/trace_file_name``.
-The default value is ``""``, an empty string.
+The default value is ``  ``, an empty string.
 
 .. variable:: rocksdb_trace_sst_api
 

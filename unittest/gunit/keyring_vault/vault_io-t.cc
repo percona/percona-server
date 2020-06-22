@@ -26,7 +26,7 @@ using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::StrEq;
 
-std::string credential_file_url = "./keyring_vault.conf";
+std::string credential_file_url = "./keyring_vault_vault_io.conf";
 
 class Vault_io_test : public ::testing::Test {
  protected:
@@ -642,7 +642,7 @@ int main(int argc, char **argv) {
 
   keyring::ILogger *logger = new keyring::Mock_logger();
   keyring::Vault_mount vault_mount(curl, logger);
-  std::string mount_point_path = "cicd/" + uuid;
+  std::string mount_point_path = "cicd/" + uuid + "_vault_io";
   if (generate_credential_file(keyring__vault_io_unittest::credential_file_url,
                                CORRECT, mount_point_path)) {
     std::cout << "Could not generate credential file" << std::endl;

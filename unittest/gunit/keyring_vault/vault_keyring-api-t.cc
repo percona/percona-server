@@ -33,7 +33,7 @@ namespace keyring__api_unittest {
 using ::testing::StrEq;
 using namespace keyring;
 
-std::string credential_file_url = "./keyring_vault.conf";
+std::string credential_file_url = "./keyring_vault_vault_keyring_api.conf";
 
 class Keyring_vault_api_test : public ::testing::Test {
  public:
@@ -533,7 +533,7 @@ int main(int argc, char **argv) {
   // create unique secret mount point for this test suite
   keyring::Vault_mount vault_mount(curl, logger);
 
-  std::string mount_point_path = "cicd/" + uuid;
+  std::string mount_point_path = "cicd/" + uuid + "_vault_keyring_api";
   if (generate_credential_file(keyring__api_unittest::credential_file_url,
                                CORRECT, mount_point_path)) {
     std::cout << "Could not generate credential file" << std::endl;

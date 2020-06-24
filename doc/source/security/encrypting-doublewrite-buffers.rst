@@ -10,9 +10,9 @@ When the InnoDB system tablespace is encrypted, the ``doublewrite buffer`` pages
 are encrypted as well. The key which was used to encrypt the InnoDB system
 tablespace is also used to encrypt the doublewrite buffer.
 
-|Percona Server| encrypts the ``parallel doublewrite buffer`` with the respective
+|Percona Server| encrypts the ``doublewrite buffer`` with the respective
 tablespace keys. Only encrypted tablespace pages are written as encrypted in the
-parallel doublewrite buffer. Unencrypted tablespace pages will be written as
+doublewrite buffer. Unencrypted tablespace pages will be written as
 unencrypted.
 
  .. variable:: innodb_parallel_dblwr_encrypt
@@ -23,8 +23,8 @@ unencrypted.
     :vartype: Boolean
     :default: ``OFF``
 
-Enables the encryption of the parallel doublewrite buffer. For encryption, uses
-the key of the tablespace where the parallel doublewrite buffer is used.
+Enables the encryption of the doublewrite buffer. For encryption, uses
+the key of the tablespace where the doublewrite buffer is used.
 
 .. seealso::
 

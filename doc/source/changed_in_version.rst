@@ -27,7 +27,7 @@ Performance
 - :ref:`threadpool`
 - :ref:`ps.buffer-pool.free-list.priority-refill`
 - :ref:`lru_manager_threads`
-- :ref:`parallel_doublewrite_buffer`
+
 
 Flexibility
 --------------------------------------------------------------------------------

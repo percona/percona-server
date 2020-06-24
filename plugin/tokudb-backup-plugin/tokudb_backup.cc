@@ -223,7 +223,7 @@ static int tokudb_backup_exclude_copy_fun(const char *source_file,
   if (exclude_extra->re) {
     std::cmatch matches;
     if (exclude_extra->re) {
-      if (std::regex_match(source_file, matches, *exclude_extra->re)) {
+      if (std::regex_search(source_file, matches, *exclude_extra->re)) {
         LogPluginErrMsg(INFORMATION_LEVEL, 0, "tokudb backup exclude %s\n",
                         source_file);
         r = 1;

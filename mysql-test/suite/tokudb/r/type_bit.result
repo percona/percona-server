@@ -280,6 +280,7 @@ a+0	b+0
 68	454
 set @@max_length_for_sort_data=0;
 Warnings:
+Warning	1287	'@@max_length_for_sort_data' is deprecated and will be removed in a future release.
 Warning	1292	Truncated incorrect max_length_for_sort_data value: '0'
 select a+0, b+0 from t1 where a > 40 and a < 70 order by 2;
 a+0	b+0
@@ -339,16 +340,16 @@ a+0	b+0	c+0
 4	1	100
 select a+0, b+0, c+0 from t1 order by b desc;
 a+0	b+0	c+0
-2	1	4
 1	1	100
-4	1	100
-4	0	3
-4	0	23
-4	0	54
-56	0	22
+2	1	4
 23	0	1
+4	0	23
+4	0	3
 4	0	34
+4	0	54
+4	1	100
 4	NULL	1
+56	0	22
 select a+0, b+0, c+0 from t1 order by c;
 a+0	b+0	c+0
 4	NULL	1

@@ -545,7 +545,7 @@ static void marshall_update(tokudb::buffer &b, Item *lhs_item, Item *rhs_item,
   // compute the update info
   uint32_t field_type;
   uint32_t field_null_num = 0;
-  if (lhs_field->real_maybe_null()) {
+  if (lhs_field->is_nullable()) {
     uint32_t field_num = lhs_field->field_index;
     field_null_num =
         ((field_num / 8) * 8 + get_null_bit_position(lhs_field->null_bit)) + 1;

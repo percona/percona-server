@@ -10915,6 +10915,9 @@ ER_REDO_ENCRYPTION_CANT_FETCH_DEFAULT_KEY
 ER_REDO_ENCRYPTION_CANT_UPGRADE_OLD_VERSION
   eng "Upgrade cannot continue as redo is encrypted with old, experimental version of KEYRING encryption. Please perform slow shutdown and remove old redo log files before upgrading."
 
+ER_IB_MSG_DEPRECATED_INNODB_PARALLEL_DOUBLEWRITE_PATH
+  eng "Setting Percona-specific INNODB_PARALLEL_DOUBLEWRITE_PATH is deprecated and has no effect. Use INNODB_DOUBLEWRITE_DIR instead."
+
 #
 # End of Percona Server 8.0 server error log messages
 #

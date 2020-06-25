@@ -2653,11 +2653,7 @@ static char **new_mysql_completion(const char *text, int start, int end);
   if not.
 */
 
-#if defined(USE_NEW_XLINE_INTERFACE)
-static int fake_magic_space(int, int);
-char *no_completion(const char *, int)
-#elif defined(USE_LIBEDIT_INTERFACE)
-static int fake_magic_space(int, int);
+#if defined(USE_NEW_XLINE_INTERFACE) || defined(USE_LIBEDIT_INTERFACE)
 char *no_completion(const char *, int)
 #else
 char *no_completion()
@@ -2678,11 +2674,7 @@ static int not_in_history(const char *line) {
   return 1;
 }
 
-#if defined(USE_NEW_XLINE_INTERFACE)
 static int fake_magic_space(int, int)
-#else
-static int fake_magic_space(int, int)
-#endif
 {
   rl_insert(1, ' ');
   return 0;

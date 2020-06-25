@@ -338,7 +338,7 @@ fi
 # Check if RocksDB plugin available on the system
 if [ ${ENABLE_ROCKSDB} = 1 ]; then
   printf "Checking if RocksDB plugin is available for installation ...\n"
-  for ha_rocksdb_loc in "${SCRIPT_PWD%/*}/lib/mysql/plugin" "/usr/lib64/mysql/plugin" "/usr/lib/mysql/plugin"; do
+  for ha_rocksdb_loc in "${SCRIPT_PWD%/*}/lib/plugin" "/usr/lib64/mysql/plugin" "/usr/lib/mysql/plugin"; do
     if [ -r "${ha_rocksdb_loc}/ha_rocksdb.so" ]; then
       HAROCKSDB_LOCATION="${ha_rocksdb_loc}/ha_rocksdb.so"
       break

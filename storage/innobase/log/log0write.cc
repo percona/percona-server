@@ -2726,10 +2726,20 @@ bool log_read_encryption() {
   const page_id_t page_id(log_space_id, 0);
   byte *log_block_buf_ptr;
   byte *log_block_buf;
+<<<<<<< HEAD
   byte key[ENCRYPTION_KEY_LEN];
   byte iv[ENCRYPTION_KEY_LEN];
   char uuid[ENCRYPTION_SERVER_UUID_LEN + 1];
   memset(uuid, 0, ENCRYPTION_SERVER_UUID_LEN + 1);
+||||||| ea7d2e2d16a
+  byte key[ENCRYPTION_KEY_LEN];
+  byte iv[ENCRYPTION_KEY_LEN];
+  fil_space_t *space = fil_space_get(log_space_id);
+=======
+  byte key[Encryption::KEY_LEN];
+  byte iv[Encryption::KEY_LEN];
+  fil_space_t *space = fil_space_get(log_space_id);
+>>>>>>> mysql-8.0.20
   dberr_t err;
 
   log_block_buf_ptr =
@@ -2743,6 +2753,7 @@ bool log_read_encryption() {
 
   ut_a(err == DB_SUCCESS);
 
+<<<<<<< HEAD
   bool encryption_magic = false;
   bool encrypted_log = false;
   redo_log_key *mkey = nullptr;
@@ -2787,6 +2798,13 @@ bool log_read_encryption() {
 
   if (memcmp(log_block_buf + LOG_HEADER_CREATOR_END, ENCRYPTION_KEY_MAGIC_V3,
              ENCRYPTION_MAGIC_SIZE) == 0) {
+||||||| ea7d2e2d16a
+  if (memcmp(log_block_buf + LOG_HEADER_CREATOR_END, ENCRYPTION_KEY_MAGIC_V3,
+             ENCRYPTION_MAGIC_SIZE) == 0) {
+=======
+  if (memcmp(log_block_buf + LOG_HEADER_CREATOR_END, Encryption::KEY_MAGIC_V3,
+             Encryption::MAGIC_SIZE) == 0) {
+>>>>>>> mysql-8.0.20
     /* Make sure the keyring is loaded. */
     encryption_magic = true;
     existing_redo_encryption_mode = REDO_LOG_ENCRYPT_MK;
@@ -2866,16 +2884,16 @@ bool log_read_encryption() {
 
 bool log_file_header_fill_encryption(byte *buf, byte *key, byte *iv,
                                      bool is_boot, bool encrypt_key) {
-  byte encryption_info[ENCRYPTION_INFO_SIZE];
+  byte encryption_info[Encryption::INFO_SIZE];
 
   if (!Encryption::fill_encryption_info(key, iv, encryption_info, is_boot,
                                         encrypt_key)) {
     return (false);
   }
 
-  ut_a(LOG_HEADER_CREATOR_END + ENCRYPTION_INFO_SIZE < OS_FILE_LOG_BLOCK_SIZE);
+  ut_a(LOG_HEADER_CREATOR_END + Encryption::INFO_SIZE < OS_FILE_LOG_BLOCK_SIZE);
 
-  memcpy(buf + LOG_HEADER_CREATOR_END, encryption_info, ENCRYPTION_INFO_SIZE);
+  memcpy(buf + LOG_HEADER_CREATOR_END, encryption_info, Encryption::INFO_SIZE);
 
   return (true);
 }
@@ -2990,10 +3008,18 @@ void log_rotate_default_key() {
   /* If the redo log space is using default key, rotate it.
   We also need the server_uuid initialized. */
   if (space->encryption_type != Encryption::NONE &&
+<<<<<<< HEAD
       Encryption::s_master_key_id == ENCRYPTION_DEFAULT_MASTER_KEY_ID &&
       !srv_read_only_mode &&
       (srv_redo_log_encrypt == REDO_LOG_ENCRYPT_MK ||
        srv_redo_log_encrypt == REDO_LOG_ENCRYPT_ON)) {
+||||||| ea7d2e2d16a
+      Encryption::s_master_key_id == ENCRYPTION_DEFAULT_MASTER_KEY_ID &&
+      !srv_read_only_mode && strlen(server_uuid) > 0) {
+=======
+      Encryption::get_master_key_id() == Encryption::DEFAULT_MASTER_KEY_ID &&
+      !srv_read_only_mode && strlen(server_uuid) > 0) {
+>>>>>>> mysql-8.0.20
     ut_a(FSP_FLAGS_GET_ENCRYPTION(space->flags));
     ut_a(strlen(server_uuid) > 0);
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -197,12 +197,12 @@ static void sync_array_validate(sync_array_t *arr) /*!< in: sync wait array */
 
   sync_array_enter(arr);
 
-  for (ulint i = 0; i < arr->n_cells; i++) {
+  for (ulint i = 0; i < arr->next_free_slot; i++) {
     const sync_cell_t *cell;
 
     cell = &arr->cells[i];
 
-    if (cell->latch.mutex != NULL) {
+    if (cell->latch.mutex != nullptr) {
       count++;
     }
   }
@@ -320,7 +320,7 @@ sync_cell_t *sync_array_reserve_cell(
 
     // We should return NULL and if there is more than
     // one sync array, try another sync array instance.
-    return (NULL);
+    return (nullptr);
   }
 
   ++arr->res_count;
@@ -331,7 +331,7 @@ sync_cell_t *sync_array_reserve_cell(
   ++arr->n_reserved;
 
   /* Reserve the cell. */
-  ut_ad(cell->latch.mutex == NULL);
+  ut_ad(cell->latch.mutex == nullptr);
 
   cell->request_type = type;
 
@@ -371,11 +371,11 @@ void sync_array_free_cell(
 {
   sync_array_enter(arr);
 
-  ut_a(cell->latch.mutex != NULL);
+  ut_a(cell->latch.mutex != nullptr);
 
   cell->waiting = false;
   cell->signal_count = 0;
-  cell->latch.mutex = NULL;
+  cell->latch.mutex = nullptr;
 
   /* Setup the list of free slots in the array */
   cell->line = arr->first_free_slot;
@@ -391,7 +391,7 @@ void sync_array_free_cell(
       cell = sync_array_get_nth_cell(arr, i);
 
       ut_ad(!cell->waiting);
-      ut_ad(cell->latch.mutex == 0);
+      ut_ad(cell->latch.mutex == nullptr);
       ut_ad(cell->signal_count == 0);
     }
 #endif /* UNIV_DEBUG */
@@ -400,7 +400,7 @@ void sync_array_free_cell(
   }
   sync_array_exit(arr);
 
-  cell = 0;
+  cell = nullptr;
 }
 
 /** This function should be called when a thread starts to wait on
@@ -446,7 +446,7 @@ void sync_array_wait_event(
 
   sync_array_free_cell(arr, cell);
 
-  cell = 0;
+  cell = nullptr;
 }
 
 /** Reports info of a wait array cell. */
@@ -470,7 +470,7 @@ static void sync_array_cell_print(FILE *file, /*!< in: file where to print */
     const WaitMutex::MutexPolicy &policy = mutex->policy();
 #ifdef UNIV_DEBUG
     const char *name = policy.get_enter_filename();
-    if (name == NULL) {
+    if (name == nullptr) {
       /* The mutex might have been released. */
       name = "NULL";
     }
@@ -494,7 +494,7 @@ static void sync_array_cell_print(FILE *file, /*!< in: file where to print */
     const BlockWaitMutex::MutexPolicy &policy = mutex->policy();
 #ifdef UNIV_DEBUG
     const char *name = policy.get_enter_filename();
-    if (name == NULL) {
+    if (name == nullptr) {
       /* The mutex might have been released. */
       name = "NULL";
     }
@@ -531,13 +531,11 @@ static void sync_array_cell_print(FILE *file, /*!< in: file where to print */
 
     if (writer != RW_LOCK_NOT_LOCKED) {
       fprintf(file,
-              "a writer (thread id " UINT64PF
-              ") has"
-              " reserved it in mode %s",
-              (uint64_t)(rwlock->writer_thread),
+              "a writer (thread id " UINT64PF ") has reserved it in mode %s\n",
+              (uint64_t)(rwlock->writer_thread.load()),
               writer == RW_LOCK_X
-                  ? " exclusive\n"
-                  : writer == RW_LOCK_SX ? " SX\n" : " wait exclusive\n");
+                  ? "exclusive"
+                  : (writer == RW_LOCK_SX ? "SX" : "wait exclusive"));
     }
 
     fprintf(file,
@@ -566,19 +564,17 @@ static sync_cell_t *sync_array_find_thread(
     sync_array_t *arr,     /*!< in: wait array */
     os_thread_id_t thread) /*!< in: thread id */
 {
-  ulint i;
-
-  for (i = 0; i < arr->n_cells; i++) {
+  for (ulint i = 0; i <= arr->next_free_slot; i++) {
     sync_cell_t *cell;
 
     cell = sync_array_get_nth_cell(arr, i);
 
-    if (cell->latch.mutex != NULL && os_thread_eq(cell->thread_id, thread)) {
+    if (cell->latch.mutex != nullptr && os_thread_eq(cell->thread_id, thread)) {
       return (cell); /* Found */
     }
   }
 
-  return (NULL); /* Not found */
+  return (nullptr); /* Not found */
 }
 
 /** Recursion step for deadlock detection.
@@ -649,7 +645,7 @@ static bool sync_array_detect_deadlock(
   ut_a(arr);
   ut_a(start);
   ut_a(cell);
-  ut_ad(cell->latch.mutex != 0);
+  ut_ad(cell->latch.mutex != nullptr);
   ut_ad(os_thread_get_curr_id() == start->thread_id);
   ut_ad(depth < 100);
 
@@ -682,7 +678,7 @@ static bool sync_array_detect_deadlock(
 
           name = policy.get_enter_filename();
 
-          if (name == NULL) {
+          if (name == nullptr) {
             /* The mutex might have been
             released. */
             name = "NULL";
@@ -732,7 +728,7 @@ static bool sync_array_detect_deadlock(
 
           name = policy.get_enter_filename();
 
-          if (name == NULL) {
+          if (name == nullptr) {
             /* The mutex might have been
             released. */
             name = "NULL";
@@ -763,7 +759,7 @@ static bool sync_array_detect_deadlock(
 
       lock = cell->latch.lock;
 
-      for (debug = UT_LIST_GET_FIRST(lock->debug_list); debug != NULL;
+      for (debug = UT_LIST_GET_FIRST(lock->debug_list); debug != nullptr;
            debug = UT_LIST_GET_NEXT(list, debug)) {
         thread = debug->thread_id;
 
@@ -800,7 +796,7 @@ static bool sync_array_detect_deadlock(
 
       lock = cell->latch.lock;
 
-      for (debug = UT_LIST_GET_FIRST(lock->debug_list); debug != 0;
+      for (debug = UT_LIST_GET_FIRST(lock->debug_list); debug != nullptr;
            debug = UT_LIST_GET_NEXT(list, debug)) {
         thread = debug->thread_id;
 
@@ -834,7 +830,7 @@ static bool sync_array_detect_deadlock(
 
       lock = cell->latch.lock;
 
-      for (debug = UT_LIST_GET_FIRST(lock->debug_list); debug != 0;
+      for (debug = UT_LIST_GET_FIRST(lock->debug_list); debug != nullptr;
            debug = UT_LIST_GET_NEXT(list, debug)) {
         thread = debug->thread_id;
 
@@ -953,7 +949,7 @@ static void sync_array_wake_threads_if_sema_free_low(
 
     cell = sync_array_get_nth_cell(arr, i);
 
-    if (cell->latch.mutex != 0 && sync_arr_cell_can_wake_up(cell)) {
+    if (cell->latch.mutex != nullptr && sync_arr_cell_can_wake_up(cell)) {
       os_event_t event;
 
       event = sync_cell_get_event(cell);
@@ -988,7 +984,7 @@ static bool sync_array_print_long_waits_low(
 {
   ulint fatal_timeout = srv_fatal_semaphore_wait_threshold;
   ibool fatal = FALSE;
-  double longest_diff = 0;
+  uint64_t longest_diff = 0;
 
   /* For huge tables, skip the check during CHECK TABLE etc... */
   if (fatal_timeout > SRV_SEMAPHORE_WAIT_EXTENSION) {
@@ -1007,7 +1003,7 @@ static bool sync_array_print_long_waits_low(
 #define SYNC_ARRAY_TIMEOUT 240
 #endif
 
-  for (ulint i = 0; i < arr->n_cells; i++) {
+  for (ulint i = 0; i < arr->next_free_slot; i++) {
     sync_cell_t *cell;
     void *latch;
 
@@ -1015,7 +1011,7 @@ static bool sync_array_print_long_waits_low(
 
     latch = cell->latch.mutex;
 
-    if (latch == NULL || !cell->waiting) {
+    if (latch == nullptr || !cell->waiting) {
       continue;
     }
 
@@ -1124,7 +1120,7 @@ static void sync_array_print_info_low(
 
     cell = sync_array_get_nth_cell(arr, i);
 
-    if (cell->latch.mutex != 0) {
+    if (cell->latch.mutex != nullptr) {
       count++;
       sync_array_cell_print(file, cell);
     }
@@ -1147,7 +1143,7 @@ static void sync_array_print_info(FILE *file, /*!< in: file where to print */
 void sync_array_init(ulint n_threads) /*!< in: Number of slots to
                                       create in all arrays */
 {
-  ut_a(sync_wait_array == NULL);
+  ut_a(sync_wait_array == nullptr);
   ut_a(srv_sync_array_size > 0);
   ut_a(n_threads > 0);
 
@@ -1169,7 +1165,7 @@ void sync_array_close(void) {
   }
 
   UT_DELETE_ARRAY(sync_wait_array);
-  sync_wait_array = NULL;
+  sync_wait_array = nullptr;
 }
 
 /** Print info about the sync array(s). */

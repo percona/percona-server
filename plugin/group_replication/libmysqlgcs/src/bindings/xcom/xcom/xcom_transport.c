@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_vp_str.h"
 #include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
 #ifdef WIN32
 // In OpenSSL before 1.1.0, we need this first.
 #include <winsock2.h>
@@ -67,7 +67,7 @@
 #include <openssl/ssl.h>
 
 #endif
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_ssl_transport.h"
 #endif
 
@@ -935,7 +935,7 @@ int tcp_server(task_arg arg) {
   TASK_END;
 }
 
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
 #define SSL_CONNECT(con, hostname)                                   \
   {                                                                  \
     result ret;                                                      \
@@ -1001,7 +1001,7 @@ static int dial(server *s) {
     }
 
     unblock_fd(s->con.fd);
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
     if (xcom_use_ssl()) {
       SSL_CONNECT(s->con, s->srv);
     }
@@ -1754,6 +1754,7 @@ void update_servers(site_def *s, cargo_type operation) {
       if (get_ip_and_port(addr, name, &port)) {
         G_INFO("Error parsing ip:port for new server. Incorrect value is %s",
                addr ? addr : "unknown");
+        free(name);
         continue;
       }
 
@@ -1875,7 +1876,7 @@ static int client_dial(char *srv, xcom_port port, connection_descriptor *con) {
     }
 
     unblock_fd(con->fd);
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
     if (xcom_use_ssl()) {
       SSL_CONNECT((*con), srv);
     }
@@ -1903,7 +1904,7 @@ int client_task(task_arg arg) {
 
   ep->s = (envelope *)get_void_arg(arg);
   ep->c_descriptor.fd = -1;
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
   ep->c_descriptor.ssl_fd = 0;
 #endif
   ep->buf = 0;
@@ -1917,7 +1918,7 @@ int client_task(task_arg arg) {
     }
   }
 
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
   if (xcom_use_ssl()) {
     SSL_CONNECT(ep->c_descriptor, ep->s->srv);
   }
@@ -1978,7 +1979,7 @@ int client_task(task_arg arg) {
 }
 /* purecov: end */
 
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
 void ssl_free_con(connection_descriptor *con) {
   SSL_free(con->ssl_fd);
   con->ssl_fd = NULL;
@@ -2001,7 +2002,7 @@ void close_connection(connection_descriptor *con) {
 void shutdown_connection(connection_descriptor *con) {
   /* printstack(1); */
   ADD_EVENTS(add_event(string_arg("con->fd")); add_event(int_arg(con->fd)););
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
   ssl_shutdown_con(con);
 #endif
   close_connection(con);
@@ -2009,7 +2010,7 @@ void shutdown_connection(connection_descriptor *con) {
 
 void reset_connection(connection_descriptor *con) {
   con->fd = -1;
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
   con->ssl_fd = 0;
 #endif
   set_connected(con, CON_NULL);

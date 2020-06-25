@@ -21,7 +21,13 @@ VARIABLE_NAME LIKE '%slave%') AND
 (VARIABLE_NAME NOT LIKE 'innodb%')
 ORDER BY VARIABLE_NAME;
 
+<<<<<<< HEAD
 include/assert.inc ['Expect 86 variables in the table.']
+||||||| ea7d2e2d16a
+include/assert.inc ['Expect 83 variables in the table.']
+=======
+include/assert.inc ['Expect 85 variables in the table.']
+>>>>>>> mysql-8.0.20
 
 # Test SET PERSIST_ONLY
 SET PERSIST_ONLY binlog_cache_size = @@GLOBAL.binlog_cache_size;
@@ -48,6 +54,8 @@ SET PERSIST_ONLY binlog_rows_query_log_events = @@GLOBAL.binlog_rows_query_log_e
 SET PERSIST_ONLY binlog_skip_flush_commands = @@GLOBAL.binlog_skip_flush_commands;
 SET PERSIST_ONLY binlog_space_limit = @@GLOBAL.binlog_space_limit;
 SET PERSIST_ONLY binlog_stmt_cache_size = @@GLOBAL.binlog_stmt_cache_size;
+SET PERSIST_ONLY binlog_transaction_compression = @@GLOBAL.binlog_transaction_compression;
+SET PERSIST_ONLY binlog_transaction_compression_level_zstd = @@GLOBAL.binlog_transaction_compression_level_zstd;
 SET PERSIST_ONLY binlog_transaction_dependency_history_size = @@GLOBAL.binlog_transaction_dependency_history_size;
 SET PERSIST_ONLY binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
 SET PERSIST_ONLY enforce_gtid_consistency = @@GLOBAL.enforce_gtid_consistency;
@@ -164,6 +172,8 @@ RESET PERSIST binlog_rows_query_log_events;
 RESET PERSIST binlog_skip_flush_commands;
 RESET PERSIST binlog_space_limit;
 RESET PERSIST binlog_stmt_cache_size;
+RESET PERSIST binlog_transaction_compression;
+RESET PERSIST binlog_transaction_compression_level_zstd;
 RESET PERSIST binlog_transaction_dependency_history_size;
 RESET PERSIST binlog_transaction_dependency_tracking;
 RESET PERSIST enforce_gtid_consistency;

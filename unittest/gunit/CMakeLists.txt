@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -205,6 +205,7 @@ SET(SERVER_TESTS
   gis_is_simple
   gis_isvalid
   gis_relops
+  gis_rtree_support
   gis_srs
   gis_wkb_parser
   gis_wkb_writer
@@ -306,7 +307,8 @@ SET_TARGET_PROPERTIES(sqlgunitlib
 MYSQL_ADD_EXECUTABLE(merge_small_tests-t ${ALL_SMALL_TESTS}
   ENABLE_EXPORTS
   ADD_TEST merge_small_tests)
-TARGET_LINK_LIBRARIES(merge_small_tests-t sqlgunitlib gunit_small)
+TARGET_LINK_LIBRARIES(merge_small_tests-t
+  sqlgunitlib gunit_small)
 
 IF(WIN32)
   LIST(APPEND ALL_LARGE_TESTS ../../sql/nt_servc.cc)
@@ -365,4 +367,4 @@ ADD_SUBDIRECTORY(group_replication)
 ADD_SUBDIRECTORY(libmysqlgcs)
 ADD_SUBDIRECTORY(keyring_vault)
 ADD_SUBDIRECTORY(temptable)
-
+ADD_SUBDIRECTORY(binlogevents)

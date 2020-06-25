@@ -21,7 +21,13 @@ VARIABLE_NAME LIKE '%slave%') AND
 (VARIABLE_NAME NOT LIKE 'innodb%')
 ORDER BY VARIABLE_NAME;
 
+<<<<<<< HEAD
 include/assert.inc ['Expect 86 variables in the table.']
+||||||| ea7d2e2d16a
+include/assert.inc ['Expect 83 variables in the table.']
+=======
+include/assert.inc ['Expect 85 variables in the table.']
+>>>>>>> mysql-8.0.20
 
 # Test SET PERSIST
 SET PERSIST binlog_cache_size = @@GLOBAL.binlog_cache_size;
@@ -52,6 +58,8 @@ SET PERSIST binlog_skip_flush_commands = @@GLOBAL.binlog_skip_flush_commands;
 SET PERSIST binlog_space_limit = @@GLOBAL.binlog_space_limit;
 ERROR HY000: Variable 'binlog_space_limit' is a read only variable
 SET PERSIST binlog_stmt_cache_size = @@GLOBAL.binlog_stmt_cache_size;
+SET PERSIST binlog_transaction_compression = @@GLOBAL.binlog_transaction_compression;
+SET PERSIST binlog_transaction_compression_level_zstd = @@GLOBAL.binlog_transaction_compression_level_zstd;
 SET PERSIST binlog_transaction_dependency_history_size = @@GLOBAL.binlog_transaction_dependency_history_size;
 SET PERSIST binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
 SET PERSIST enforce_gtid_consistency = @@GLOBAL.enforce_gtid_consistency;
@@ -137,16 +145,32 @@ SET PERSIST sync_master_info = @@GLOBAL.sync_master_info;
 SET PERSIST sync_relay_log = @@GLOBAL.sync_relay_log;
 SET PERSIST sync_relay_log_info = @@GLOBAL.sync_relay_log_info;
 
+<<<<<<< HEAD
 include/assert.inc ['Expect 66 persisted variables in persisted_variables table.']
+||||||| ea7d2e2d16a
+include/assert.inc ['Expect 65 persisted variables in persisted_variables table.']
+=======
+include/assert.inc ['Expect 67 persisted variables in persisted_variables table.']
+>>>>>>> mysql-8.0.20
 
 ############################################################
 # 2. Restart server, it must preserve the persisted variable
 #    settings. Verify persisted configuration.
 # restart
 
+<<<<<<< HEAD
 include/assert.inc ['Expect 66 persisted variables in persisted_variables table.']
 include/assert.inc ['Expect 66 persisted variables shown as PERSISTED in variables_info table.']
 include/assert.inc ['Expect 66 persisted variables with matching persisted and global values.']
+||||||| ea7d2e2d16a
+include/assert.inc ['Expect 65 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 65 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc ['Expect 65 persisted variables with matching persisted and global values.']
+=======
+include/assert.inc ['Expect 67 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 67 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc ['Expect 67 persisted variables with matching persisted and global values.']
+>>>>>>> mysql-8.0.20
 
 ############################################################
 # 3. Test RESET PERSIST IF EXISTS. Verify persisted variable
@@ -180,6 +204,8 @@ RESET PERSIST IF EXISTS binlog_space_limit;
 Warnings:
 Warning	3615	Variable binlog_space_limit does not exist in persisted config file
 RESET PERSIST IF EXISTS binlog_stmt_cache_size;
+RESET PERSIST IF EXISTS binlog_transaction_compression;
+RESET PERSIST IF EXISTS binlog_transaction_compression_level_zstd;
 RESET PERSIST IF EXISTS binlog_transaction_dependency_history_size;
 RESET PERSIST IF EXISTS binlog_transaction_dependency_tracking;
 RESET PERSIST IF EXISTS enforce_gtid_consistency;

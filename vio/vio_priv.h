@@ -38,11 +38,16 @@
 
 extern PSI_memory_key key_memory_vio;
 extern PSI_memory_key key_memory_vio_read_buffer;
+<<<<<<< HEAD
 extern PSI_memory_key key_memory_vio_proxy_networks;
 
 #ifdef HAVE_OPENSSL
+||||||| ea7d2e2d16a
+
+#ifdef HAVE_OPENSSL
+=======
+>>>>>>> mysql-8.0.20
 extern PSI_memory_key key_memory_vio_ssl_fd;
-#endif
 
 #ifdef _WIN32
 size_t vio_read_pipe(Vio *vio, uchar *buf, size_t size);
@@ -63,7 +68,6 @@ bool vio_buff_has_data(Vio *vio);
 int vio_socket_io_wait(Vio *vio, enum enum_vio_io_event event);
 int vio_socket_timeout(Vio *vio, uint which, bool old_mode);
 
-#ifdef HAVE_OPENSSL
 size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size);
 size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size);
 
@@ -71,7 +75,5 @@ size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size);
 int vio_ssl_shutdown(Vio *vio, int how);
 void vio_ssl_delete(Vio *vio);
 bool vio_ssl_has_data(Vio *vio);
-
-#endif /* HAVE_OPENSSL */
 
 #endif /* VIO_PRIV_INCLUDED */

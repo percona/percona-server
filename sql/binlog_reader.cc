@@ -200,7 +200,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
 
   DBUG_TRACE;
 
-  DBUG_ASSERT(fde != 0);
+  DBUG_ASSERT(fde != nullptr);
   DBUG_PRINT("info", ("binlog_version: %d", fde->binlog_version));
   DBUG_DUMP("data", buffer, event_len);
 
@@ -375,9 +375,16 @@ Binlog_read_error::Error_type binlog_event_deserialize(
     case binary_log::PARTIAL_UPDATE_ROWS_EVENT:
       ev = new Update_rows_log_event(buf, fde);
       break;
+<<<<<<< HEAD
     case binary_log::START_5_7_ENCRYPTION_EVENT:
       ev = new Start_encryption_log_event(buf, fde);
       break;
+||||||| ea7d2e2d16a
+=======
+    case binary_log::TRANSACTION_PAYLOAD_EVENT:
+      ev = new Transaction_payload_log_event(buf, fde);
+      break;
+>>>>>>> mysql-8.0.20
     default:
       /*
         Create an object of Ignorable_log_event for unrecognized sub-class.

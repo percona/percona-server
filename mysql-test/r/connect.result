@@ -383,4 +383,9 @@ Variable_name	Value
 Aborted_connects	4
 DROP USER 'new1'@'localhost';
 DROP DATABASE test1;
+<<<<<<< HEAD
 set global log_error_verbosity= STARTVAL;
+||||||| ea7d2e2d16a
+=======
+# restart:
+>>>>>>> mysql-8.0.20

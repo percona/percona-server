@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -89,7 +89,7 @@ inline uchar fts_get_word(const CHARSET_INFO *cs, bool extra_word_chars,
   uint length;
   int mbl;
 
-  info->yesno = (FTB_YES == ' ') ? 1 : (info->quot != 0);
+  info->yesno = (FTB_YES == ' ') ? 1 : (info->quot != nullptr);
   info->weight_adjust = info->wasign = 0;
   info->type = FT_TOKEN_EOF;
 
@@ -146,7 +146,7 @@ inline uchar fts_get_word(const CHARSET_INFO *cs, bool extra_word_chars,
       }
 
       info->prev = *doc;
-      info->yesno = (FTB_YES == ' ') ? 1 : (info->quot != 0);
+      info->yesno = (FTB_YES == ' ') ? 1 : (info->quot != nullptr);
       info->weight_adjust = info->wasign = 0;
     }
 

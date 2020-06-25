@@ -65,6 +65,12 @@ TEST_F(FatalSignalDeathTest, Segfault) {
   /* AddressSanitizer */
   EXPECT_DEATH_IF_SUPPORTED(*pint = 42, ".*ASAN:(DEADLYSIGNAL|SIGSEGV).*");
 #else
+<<<<<<< HEAD
+||||||| ea7d2e2d16a
+  int *pint = NULL;
+=======
+  int *pint = nullptr;
+>>>>>>> mysql-8.0.20
   /*
    On most platforms we get SIGSEGV == 11, but SIGBUS == 10 is also possible.
    And on Mac OsX we can get SIGILL == 4 (but only in optmized mode).
@@ -136,7 +142,7 @@ TEST(PrintUtilities, Itoa) {
 TEST(PrintUtilities, Printf) {
   char buff[512];
   char sprintfbuff[512];
-  const char *null_str = NULL;
+  const char *null_str = nullptr;
 
   my_safe_snprintf(buff, sizeof(buff), "hello");
   EXPECT_STREQ("hello", buff);

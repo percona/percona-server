@@ -189,7 +189,7 @@ void bitmap_free(MY_BITMAP *map) {
     if (map->mutex) mysql_mutex_destroy(map->mutex);
 
     my_free(map->bitmap);
-    map->bitmap = 0;
+    map->bitmap = nullptr;
   }
 }
 

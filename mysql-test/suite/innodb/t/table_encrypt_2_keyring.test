@@ -4,8 +4,8 @@
 
 --source include/no_valgrind_without_big.inc
 
---let $keyring1_restart_param=restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT
---let $keyring2_restart_param=restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 $KEYRING_PLUGIN_OPT
+--let $keyring1_restart_param=restart: $KEYRING_PLUGIN_EARLY_LOAD --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT
+--let $keyring2_restart_param=restart: $KEYRING_PLUGIN_EARLY_LOAD --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 $KEYRING_PLUGIN_OPT
 
 call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring plugin is loaded.");

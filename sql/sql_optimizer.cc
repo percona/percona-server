@@ -2958,22 +2958,10 @@ bool JOIN::get_best_combination() {
   if (select_lex->outer_join) make_outerjoin_info();
 
   // sjm is no longer needed, trash it. To reuse it, reset its members!
-<<<<<<< HEAD
-  List_iterator<TABLE_LIST> sj_list_it(select_lex->sj_nests);
-  TABLE_LIST *sj_nest;
-  while ((sj_nest = sj_list_it++))
+  for (TABLE_LIST *sj_nest : select_lex->sj_nests) {
     TRASH(static_cast<void *>(&sj_nest->nested_join->sjm),
           sizeof(sj_nest->nested_join->sjm));
-||||||| ea7d2e2d16a
-  List_iterator<TABLE_LIST> sj_list_it(select_lex->sj_nests);
-  TABLE_LIST *sj_nest;
-  while ((sj_nest = sj_list_it++))
-    TRASH(&sj_nest->nested_join->sjm, sizeof(sj_nest->nested_join->sjm));
-=======
-  for (TABLE_LIST *sj_nest : select_lex->sj_nests) {
-    TRASH(&sj_nest->nested_join->sjm, sizeof(sj_nest->nested_join->sjm));
   }
->>>>>>> mysql-8.0.20
 
   return false;
 }

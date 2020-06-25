@@ -443,13 +443,7 @@ void warn_about_deprecated_binary(THD *thd)
   1. We do not accept any reduce/reduce conflicts
   2. We should not introduce new shift/reduce conflicts any more.
 */
-<<<<<<< HEAD
-%expect 94
-||||||| ea7d2e2d16a
-%expect 91
-=======
-%expect 63
->>>>>>> mysql-8.0.20
+%expect 66
 
 /*
    MAINTAINER:
@@ -1263,21 +1257,21 @@ void warn_about_deprecated_binary(THD *thd)
 /*
    Tokens from Percona Server 5.7 and older
 */
-%token<lexer.keyword> CHANGED_PAGE_BITMAPS_SYM
-%token<lexer.keyword> CLIENT_STATS_SYM
-%token CLUSTERING_SYM
-%token<lexer.keyword> COMPRESSION_DICTIONARY_SYM
-%token<lexer.keyword> INDEX_STATS_SYM
-%token<lexer.keyword> TABLE_STATS_SYM
-%token<lexer.keyword> THREAD_STATS_SYM
-%token<lexer.keyword> USER_STATS_SYM
-%token<lexer.keyword> ENCRYPTION_KEY_ID_SYM
+%token<lexer.keyword> CHANGED_PAGE_BITMAPS_SYM 1300
+%token<lexer.keyword> CLIENT_STATS_SYM 1301
+%token CLUSTERING_SYM 1302
+%token<lexer.keyword> COMPRESSION_DICTIONARY_SYM 1303
+%token<lexer.keyword> INDEX_STATS_SYM 1304
+%token<lexer.keyword> TABLE_STATS_SYM 1305
+%token<lexer.keyword> THREAD_STATS_SYM 1306
+%token<lexer.keyword> USER_STATS_SYM 1307
+%token<lexer.keyword> ENCRYPTION_KEY_ID_SYM 1308
 
 /*
    Tokens from Percona Server 8.0
 */
-%token<lexer.keyword> EFFECTIVE_SYM
-%token  SEQUENCE_TABLE_SYM
+%token<lexer.keyword> EFFECTIVE_SYM 1350
+%token  SEQUENCE_TABLE_SYM 1351
 
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents

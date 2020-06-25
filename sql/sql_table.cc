@@ -13328,19 +13328,9 @@ static bool upgrade_old_temporal_types(THD *thd, Alter_info *alter_info) {
     if (!(temporal_field = new (thd->mem_root) Create_field()) ||
         temporal_field->init(thd, def->field_name, sql_type, nullptr, nullptr,
                              (def->flags & NOT_NULL_FLAG), default_value,
-<<<<<<< HEAD
-                             update_value, &def->comment, def->change, NULL,
+                             update_value, &def->comment, def->change, nullptr,
                              nullptr, false, 0, &def->zip_dict_name, nullptr,
                              nullptr, def->m_srid, def->hidden, def->is_array))
-||||||| ea7d2e2d16a
-                             update_value, &def->comment, def->change, NULL,
-                             NULL, false, 0, NULL, nullptr, def->m_srid,
-                             def->hidden, def->is_array))
-=======
-                             update_value, &def->comment, def->change, nullptr,
-                             nullptr, false, 0, nullptr, nullptr, def->m_srid,
-                             def->hidden, def->is_array))
->>>>>>> mysql-8.0.20
       return true;
 
     temporal_field->field = def->field;

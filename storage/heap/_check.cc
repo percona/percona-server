@@ -189,13 +189,7 @@ static int check_one_rb_key(HP_INFO *info, uint keynr, ulong records,
     do {
       memcpy(&recpos, key + (*keydef->get_key_length)(keydef, key),
              sizeof(uchar *));
-<<<<<<< HEAD
-      key_length = hp_rb_make_key(keydef, info->recbuf, recpos, 0, true);
-||||||| ea7d2e2d16a
-      key_length = hp_rb_make_key(keydef, info->recbuf, recpos, 0);
-=======
-      key_length = hp_rb_make_key(keydef, info->recbuf, recpos, nullptr);
->>>>>>> mysql-8.0.20
+      key_length = hp_rb_make_key(keydef, info->recbuf, recpos, nullptr, true);
       if (ha_key_cmp(keydef->seg, (uchar *)info->recbuf, (uchar *)key,
                      key_length, SEARCH_FIND | SEARCH_SAME, not_used)) {
         error = 1;

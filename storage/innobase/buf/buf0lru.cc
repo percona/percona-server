@@ -1388,8 +1388,7 @@ loop:
           (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE &&
            srv_shutdown_state.load() != SRV_SHUTDOWN_CLEANUP));
   }
-  if (buf_pool->init_flush[BUF_FLUSH_LRU] && srv_use_doublewrite_buf &&
-      buf_dblwr != NULL) {
+  if (buf_pool->init_flush[BUF_FLUSH_LRU] && dblwr::enabled) {
     /* If there is an LRU flush happening in the background then we
     wait for it to end instead of trying a single page flush. If,
     however, we are not using doublewrite buffer then it is better to

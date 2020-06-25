@@ -45,7 +45,7 @@ static inline bool is_slave_applier(const THD &thd) {
 
 static inline bool pretend_for_slave(const THD &thd) {
   return is_slave_applier(thd) &&
-         (thd.rli_slave->rows_query_ev || thd.query().str == NULL);
+         (thd.rli_slave->rows_query_ev || thd.query().str == nullptr);
 }
 
 /* Static declarations for handlerton */
@@ -109,26 +109,14 @@ int ha_blackhole::write_row(uchar *) {
 int ha_blackhole::update_row(const uchar *, uchar *) {
   DBUG_TRACE;
   THD *thd = ha_thd();
-<<<<<<< HEAD
   if (pretend_for_slave(*thd)) return 0;
-||||||| ea7d2e2d16a
-  if (is_slave_applier(thd) && thd->query().str == NULL) return 0;
-=======
-  if (is_slave_applier(thd) && thd->query().str == nullptr) return 0;
->>>>>>> mysql-8.0.20
   return HA_ERR_WRONG_COMMAND;
 }
 
 int ha_blackhole::delete_row(const uchar *) {
   DBUG_TRACE;
   THD *thd = ha_thd();
-<<<<<<< HEAD
   if (pretend_for_slave(*thd)) return 0;
-||||||| ea7d2e2d16a
-  if (is_slave_applier(thd) && thd->query().str == NULL) return 0;
-=======
-  if (is_slave_applier(thd) && thd->query().str == nullptr) return 0;
->>>>>>> mysql-8.0.20
   return HA_ERR_WRONG_COMMAND;
 }
 
@@ -141,7 +129,6 @@ int ha_blackhole::rnd_next(uchar *) {
   int rc;
   DBUG_TRACE;
   THD *thd = ha_thd();
-<<<<<<< HEAD
   if (pretend_for_slave(*thd)) {
     /*
       Unlike a normal storage engine (e.g. 'InnoDB') in which
@@ -184,11 +171,6 @@ int ha_blackhole::rnd_next(uchar *) {
         }
       }
 
-||||||| ea7d2e2d16a
-  if (is_slave_applier(thd) && thd->query().str == NULL)
-=======
-  if (is_slave_applier(thd) && thd->query().str == nullptr)
->>>>>>> mysql-8.0.20
     rc = 0;
   } else
     rc = HA_ERR_END_OF_FILE;
@@ -256,13 +238,7 @@ int ha_blackhole::index_read_map(uchar *, const uchar *, key_part_map,
   int rc;
   DBUG_TRACE;
   THD *thd = ha_thd();
-<<<<<<< HEAD
   if (pretend_for_slave(*thd))
-||||||| ea7d2e2d16a
-  if (is_slave_applier(thd) && thd->query().str == NULL)
-=======
-  if (is_slave_applier(thd) && thd->query().str == nullptr)
->>>>>>> mysql-8.0.20
     rc = 0;
   else
     rc = HA_ERR_END_OF_FILE;
@@ -274,13 +250,7 @@ int ha_blackhole::index_read_idx_map(uchar *, uint, const uchar *, key_part_map,
   int rc;
   DBUG_TRACE;
   THD *thd = ha_thd();
-<<<<<<< HEAD
   if (pretend_for_slave(*thd))
-||||||| ea7d2e2d16a
-  if (is_slave_applier(thd) && thd->query().str == NULL)
-=======
-  if (is_slave_applier(thd) && thd->query().str == nullptr)
->>>>>>> mysql-8.0.20
     rc = 0;
   else
     rc = HA_ERR_END_OF_FILE;
@@ -291,13 +261,7 @@ int ha_blackhole::index_read_last_map(uchar *, const uchar *, key_part_map) {
   int rc;
   DBUG_TRACE;
   THD *thd = ha_thd();
-<<<<<<< HEAD
   if (pretend_for_slave(*thd))
-||||||| ea7d2e2d16a
-  if (is_slave_applier(thd) && thd->query().str == NULL)
-=======
-  if (is_slave_applier(thd) && thd->query().str == nullptr)
->>>>>>> mysql-8.0.20
     rc = 0;
   else
     rc = HA_ERR_END_OF_FILE;

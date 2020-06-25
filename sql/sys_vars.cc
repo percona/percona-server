@@ -149,16 +149,10 @@
 #include "storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
-<<<<<<< HEAD
 #define MAX_CONNECTIONS 100000
 
-TYPELIB bool_typelib = {array_elements(bool_values) - 1, "", bool_values, 0};
-||||||| ea7d2e2d16a
-TYPELIB bool_typelib = {array_elements(bool_values) - 1, "", bool_values, 0};
-=======
 TYPELIB bool_typelib = {array_elements(bool_values) - 1, "", bool_values,
                         nullptr};
->>>>>>> mysql-8.0.20
 
 static bool update_buffer_size(THD *, KEY_CACHE *key_cache,
                                ptrdiff_t offset MY_ATTRIBUTE((unused)),
@@ -1962,14 +1956,8 @@ static Sys_var_enum Sys_delay_key_write(
     "delay_key_write", "Type of DELAY_KEY_WRITE",
     GLOBAL_VAR(delay_key_write_options), CMD_LINE(OPT_ARG),
     delay_key_write_names, DEFAULT(DELAY_KEY_WRITE_ON), NO_MUTEX_GUARD,
-<<<<<<< HEAD
     NOT_IN_BINLOG, ON_CHECK(check_delay_key_write),
     ON_UPDATE(fix_delay_key_write));
-||||||| ea7d2e2d16a
-    NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(fix_delay_key_write));
-=======
-    NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(fix_delay_key_write));
->>>>>>> mysql-8.0.20
 
 static Sys_var_ulong Sys_delayed_insert_limit(
     "delayed_insert_limit",
@@ -2598,20 +2586,12 @@ static Sys_var_ulong Sys_log_error_verbosity(
     "3, log errors, warnings, and notes. "
     "Messages sent to the client are unaffected by this setting.",
     GLOBAL_VAR(log_error_verbosity), CMD_LINE(REQUIRED_ARG), VALID_RANGE(1, 3),
-<<<<<<< HEAD
-    DEFAULT(2), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-    ON_UPDATE(update_log_error_verbosity), NULL,
+    DEFAULT(2), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(update_log_error_verbosity), nullptr,
     /* 1. my_init_signals() allows to use setrlimit() which can generate
        LogErr() that depends on log_error_verbosity
        2. my_init_signals() was moved before sys_var::PARSE_NORMAL */
     sys_var::PARSE_EARLY);
-||||||| ea7d2e2d16a
-    DEFAULT(2), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-    ON_UPDATE(update_log_error_verbosity));
-=======
-    DEFAULT(2), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
-    ON_UPDATE(update_log_error_verbosity));
->>>>>>> mysql-8.0.20
 
 static Sys_var_enum Sys_log_timestamps(
     "log_timestamps",
@@ -2792,20 +2772,10 @@ static Sys_var_ulong Sys_max_binlog_size(
 
 static Sys_var_ulong Sys_max_connections(
     "max_connections", "The number of simultaneous clients allowed",
-<<<<<<< HEAD
     GLOBAL_VAR(max_connections), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(1, MAX_CONNECTIONS), DEFAULT(MAX_CONNECTIONS_DEFAULT),
-    BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
-    NULL,
-||||||| ea7d2e2d16a
-    GLOBAL_VAR(max_connections), CMD_LINE(REQUIRED_ARG), VALID_RANGE(1, 100000),
-    DEFAULT(MAX_CONNECTIONS_DEFAULT), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), NULL,
-=======
-    GLOBAL_VAR(max_connections), CMD_LINE(REQUIRED_ARG), VALID_RANGE(1, 100000),
-    DEFAULT(MAX_CONNECTIONS_DEFAULT), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr), nullptr,
->>>>>>> mysql-8.0.20
+    BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(nullptr), nullptr,
     /* max_connections is used as a sizing hint by the performance schema. */
     sys_var::PARSE_EARLY);
 
@@ -3181,22 +3151,10 @@ constexpr size_t max_mem_sz = std::numeric_limits<size_t>::max();
 static Sys_var_ulonglong Sys_histogram_generation_max_mem_size(
     "histogram_generation_max_mem_size",
     "Maximum amount of memory available for generating histograms",
-<<<<<<< HEAD
     HINT_UPDATEABLE SESSION_VAR(histogram_generation_max_mem_size),
     CMD_LINE(REQUIRED_ARG), VALID_RANGE(1000000, max_mem_sz), DEFAULT(20000000),
     BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_session_admin),
-    ON_UPDATE(NULL));
-||||||| ea7d2e2d16a
-    SESSION_VAR(histogram_generation_max_mem_size), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(1000000, max_mem_sz), DEFAULT(20000000), BLOCK_SIZE(1),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_session_admin),
-    ON_UPDATE(NULL));
-=======
-    SESSION_VAR(histogram_generation_max_mem_size), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(1000000, max_mem_sz), DEFAULT(20000000), BLOCK_SIZE(1),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_session_admin),
     ON_UPDATE(nullptr));
->>>>>>> mysql-8.0.20
 
 /*
   Need at least 400Kb to get through bootstrap.
@@ -3721,7 +3679,6 @@ static Sys_var_ulong Sys_trans_prealloc_size(
     BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
     ON_UPDATE(fix_trans_mem_root));
 
-<<<<<<< HEAD
 static const char *thread_handling_names[] = {"one-thread-per-connection",
                                               "no-threads",
 #ifdef HAVE_POOL_OF_THREADS
@@ -3736,13 +3693,6 @@ static const char *thread_handling_names[] = {"one-thread-per-connection",
 #define DEFAULT_THREAD_HANDLING 0
 #endif
 
-||||||| ea7d2e2d16a
-static const char *thread_handling_names[] = {
-    "one-thread-per-connection", "no-threads", "loaded-dynamically", 0};
-=======
-static const char *thread_handling_names[] = {
-    "one-thread-per-connection", "no-threads", "loaded-dynamically", nullptr};
->>>>>>> mysql-8.0.20
 static Sys_var_enum Sys_thread_handling(
     "thread_handling",
     "Define threads usage for handling queries, one of "
@@ -7268,17 +7218,9 @@ static Sys_var_enum_default_table_encryption Sys_default_table_encryption(
     "Database and tablespace are created with this default encryption property "
     "unless the user specifies an explicit encryption property.",
     HINT_UPDATEABLE SESSION_VAR(default_table_encryption), CMD_LINE(OPT_ARG),
-<<<<<<< HEAD
     default_table_encryption_type_names, DEFAULT(DEFAULT_TABLE_ENC_OFF),
     NO_MUTEX_GUARD, IN_BINLOG,
     ON_CHECK(check_set_default_table_encryption_access));
-||||||| ea7d2e2d16a
-    DEFAULT(false), NO_MUTEX_GUARD, IN_BINLOG,
-    ON_CHECK(check_set_default_table_encryption_access), ON_UPDATE(0));
-=======
-    DEFAULT(false), NO_MUTEX_GUARD, IN_BINLOG,
-    ON_CHECK(check_set_default_table_encryption_access), ON_UPDATE(nullptr));
->>>>>>> mysql-8.0.20
 
 static bool check_set_table_encryption_privilege_access(sys_var *, THD *thd,
                                                         set_var *) {

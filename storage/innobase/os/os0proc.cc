@@ -170,29 +170,15 @@ skip:
   /* Align block size to system page size */
   ut_ad(ut_is_2pow(size));
   size = *n = ut_2pow_round(*n + (size - 1), size);
-<<<<<<< HEAD
   ptr =
-      mmap(NULL, size, PROT_READ | PROT_WRITE,
+      mmap(nullptr, size, PROT_READ | PROT_WRITE,
            MAP_PRIVATE | OS_MAP_ANON | (populate ? OS_MAP_POPULATE : 0), -1, 0);
-||||||| ea7d2e2d16a
-  ptr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | OS_MAP_ANON, -1,
-             0);
-=======
-  ptr = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | OS_MAP_ANON,
-             -1, 0);
->>>>>>> mysql-8.0.20
   if (UNIV_UNLIKELY(ptr == (void *)-1)) {
     ib::error(ER_IB_MSG_856) << "mmap(" << size
                              << " bytes) failed;"
                                 " errno "
                              << errno;
-<<<<<<< HEAD
     return nullptr;
-||||||| ea7d2e2d16a
-    ptr = NULL;
-=======
-    ptr = nullptr;
->>>>>>> mysql-8.0.20
   } else {
     os_atomic_increment_ulint(&os_total_large_mem_allocated, size);
     UNIV_MEM_ALLOC(ptr, size);

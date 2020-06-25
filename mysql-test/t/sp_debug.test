@@ -99,11 +99,6 @@ CREATE PROCEDURE `tèst-db`.test() SELECT 1;
 DROP DATABASE `tèst-db`;
 SET DEBUG='-d,simulate_lctn_two_case_for_schema_case_compare';
 SET NAMES default;
-<<<<<<< HEAD
-
---source include/wait_until_count_sessions.inc
-||||||| ea7d2e2d16a
-=======
 
 --echo
 --echo #############################################################
@@ -116,9 +111,6 @@ SET NAMES default;
 --echo #
 --echo #############################################################
 --echo
-
-# Save the initial number of concurrent sessions
---source include/count_sessions.inc
 
 CREATE SCHEMA testdb;
 
@@ -361,4 +353,3 @@ DROP SCHEMA testdb;
 
 # Wait till all disconnects are completed.
 --source include/wait_until_count_sessions.inc
->>>>>>> mysql-8.0.20

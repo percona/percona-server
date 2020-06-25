@@ -1807,14 +1807,8 @@ bool close_temporary_tables(THD *thd) {
       slave_closed_temp_tables++;
     }
 
-<<<<<<< HEAD
-    thd->temporary_tables = 0;
-    mysql_mutex_unlock(&thd->LOCK_temporary_tables);
-||||||| ea7d2e2d16a
-    thd->temporary_tables = 0;
-=======
     thd->temporary_tables = nullptr;
->>>>>>> mysql-8.0.20
+    mysql_mutex_unlock(&thd->LOCK_temporary_tables);
     if (thd->slave_thread) {
       atomic_slave_open_temp_tables -= slave_closed_temp_tables;
       thd->rli_slave->get_c_rli()->atomic_channel_open_temp_tables -=
@@ -2030,7 +2024,7 @@ bool close_temporary_tables(THD *thd) {
       slave_closed_temp_tables++;
     }
   }
-  thd->temporary_tables = 0;
+  thd->temporary_tables = nullptr;
   mysql_mutex_unlock(&thd->LOCK_temporary_tables);
   lex->drop_temporary = sav_drop_temp;
   lex->sql_command = sav_sql_command;
@@ -2039,12 +2033,6 @@ bool close_temporary_tables(THD *thd) {
     thd->variables.option_bits &=
         ~OPTION_QUOTE_SHOW_CREATE; /* restore option */
 
-<<<<<<< HEAD
-||||||| ea7d2e2d16a
-  thd->temporary_tables = 0;
-=======
-  thd->temporary_tables = nullptr;
->>>>>>> mysql-8.0.20
   if (thd->slave_thread) {
     atomic_slave_open_temp_tables -= slave_closed_temp_tables;
     thd->rli_slave->get_c_rli()->atomic_channel_open_temp_tables -=
@@ -10147,12 +10135,13 @@ inline Column_node *Const_ordered_table_node::get_const_column_node(
 
 class Join_node : public And_node {
  public:
-  Join_node(List<TABLE_LIST> *join_list, Item *cond, const ORDER *order);
+  Join_node(const mem_root_deque<TABLE_LIST *> *join_list, Item *cond,
+            const ORDER *order);
   Join_node(const TABLE_LIST *table, Item *cond, const ORDER *order);
   bool is_ordered() const;
 
  private:
-  void add_join_list(List<TABLE_LIST> *join_list);
+  void add_join_list(const mem_root_deque<TABLE_LIST *> *join_list);
   Const_ordered_table_node *add_table(const TABLE *table);
   Const_ordered_table_node *get_const_ordered_table_node(const TABLE *table);
   Column_node *get_ordered_column_node(const Field *field);
@@ -10167,11 +10156,10 @@ class Join_node : public And_node {
   ulong max_sort_length;
 };
 
-inline void Join_node::add_join_list(List<TABLE_LIST> *join_list) {
-  List_iterator<TABLE_LIST> it(*join_list);
-  TABLE_LIST *table = join_list->head();
-  Item *join_cond = table->join_cond();
-  while ((table = it++))
+inline void Join_node::add_join_list(
+    const mem_root_deque<TABLE_LIST *> *join_list) {
+  Item *join_cond = join_list->front()->join_cond();
+  for (auto table : *join_list)
     if (table->nested_join)
       add_join_list(&table->nested_join->join_list);
     else
@@ -10187,9 +10175,9 @@ inline Const_ordered_table_node *Join_node::add_table(const TABLE *table) {
   return tableNode;
 }
 
-inline Join_node::Join_node(List<TABLE_LIST> *join_list, Item *cond,
-                            const ORDER *order) {
-  DBUG_ASSERT(!join_list->is_empty());
+inline Join_node::Join_node(const mem_root_deque<TABLE_LIST *> *join_list,
+                            Item *cond, const ORDER *order) {
+  DBUG_ASSERT(!join_list->empty());
   max_sort_length = current_thd->variables.max_sort_length;
   add_join_list(join_list);
   add_ordered_columns(order);
@@ -10362,15 +10350,15 @@ bool Join_node::is_ordered() const {
   @retval false not deterministic
   @retval true deterministic
  */
-bool is_order_deterministic(List<TABLE_LIST> *join_list, Item *cond,
-                            ORDER *order) {
+bool is_order_deterministic(const mem_root_deque<TABLE_LIST *> *join_list,
+                            Item *cond, ORDER *order) {
   /*
     join_list->is_empty() means this is a UNION with a global LIMIT,
     always mark such statements as non-deterministic, although it
     might be deterministic for some cases (for example, UNION DISTINCT
     with ORDER BY a unique key of both side of the UNION).
   */
-  if (join_list->is_empty()) return false;
+  if (join_list->empty()) return false;
 
   Join_node root(join_list, cond, order);
   return root.is_ordered();

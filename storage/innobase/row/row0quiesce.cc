@@ -665,15 +665,7 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
     lint new_size = mem_heap_get_size(table->heap);
     dict_sys->size += new_size - old_size;
 
-<<<<<<< HEAD
-    ut_ad(space != NULL && FSP_FLAGS_GET_ENCRYPTION(space->flags));
-||||||| ea7d2e2d16a
-    fil_space_t *space = fil_space_get(table->space);
-    ut_ad(space != NULL && FSP_FLAGS_GET_ENCRYPTION(space->flags));
-=======
-    fil_space_t *space = fil_space_get(table->space);
     ut_ad(space != nullptr && FSP_FLAGS_GET_ENCRYPTION(space->flags));
->>>>>>> mysql-8.0.20
 
     memcpy(table->encryption_key, space->encryption_key, Encryption::KEY_LEN);
     memcpy(table->encryption_iv, space->encryption_iv, Encryption::KEY_LEN);

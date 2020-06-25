@@ -399,7 +399,6 @@ static dberr_t btr_pessimistic_scrub(btr_scrub_t *scrub_data,
   mem_heap_t *heap = NULL;
   dtuple_t *entry = NULL;
   ulint *offsets = NULL;
-  ulint n_ext = 0;
   ulint flags = BTR_MODIFY_TREE;
 
   /**
@@ -416,8 +415,8 @@ static dberr_t btr_pessimistic_scrub(btr_scrub_t *scrub_data,
     /* The page is the root page
      * NOTE: ibuf_reset_free_bits is called inside
      * btr_root_raise_and_insert */
-    rec = btr_root_raise_and_insert(flags, &cursor, &offsets, &heap, entry,
-                                    n_ext, mtr);
+    rec =
+        btr_root_raise_and_insert(flags, &cursor, &offsets, &heap, entry, mtr);
   } else {
     /* We play safe and reset the free bits
      * NOTE: need to call this prior to btr_page_split_and_insert */
@@ -428,8 +427,8 @@ static dberr_t btr_pessimistic_scrub(btr_scrub_t *scrub_data,
       }
     }
 
-    rec = btr_page_split_and_insert(flags, &cursor, &offsets, &heap, entry,
-                                    n_ext, mtr);
+    rec =
+        btr_page_split_and_insert(flags, &cursor, &offsets, &heap, entry, mtr);
   }
 
   if (heap) {

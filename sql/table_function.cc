@@ -856,7 +856,8 @@ table_map Table_function_sequence::used_tables() {
   return m_source->used_tables();
 }
 
-bool Table_function_sequence::print(String *str, enum_query_type query_type) {
+bool Table_function_sequence::print(String *str,
+                                    enum_query_type query_type) const {
   if (str->append(STRING_WITH_LEN("sequence_table("))) return true;
   m_source->print(thd, str, query_type);
   if (thd->is_error()) return true;
@@ -899,7 +900,7 @@ void Table_function_sequence::do_cleanup() {
 
 ulonglong Table_function_sequence::calculate_upper_bound() const {
   ulonglong res = 0;
-  if (!m_source->is_null_value()) {
+  if (!m_source->is_null()) {
     if (m_source->unsigned_flag) {
       res = m_source->val_uint();
     } else {

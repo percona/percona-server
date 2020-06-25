@@ -216,14 +216,8 @@ static int fts_parse_query_internal(
   const CHARSET_INFO *cs = param->cs;
   uchar **start = reinterpret_cast<uchar **>(&query);
   uchar *end = reinterpret_cast<uchar *>(query + len);
-<<<<<<< HEAD
-  FT_WORD w = {NULL, 0, 0};
-  const bool extra_word_chars = thd_get_ft_query_extra_word_chars();
-||||||| ea7d2e2d16a
-  FT_WORD w = {NULL, 0, 0};
-=======
   FT_WORD w = {nullptr, 0, 0};
->>>>>>> mysql-8.0.20
+  const bool extra_word_chars = thd_get_ft_query_extra_word_chars();
 
   info.prev = ' ';
   info.quot = nullptr;

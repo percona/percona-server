@@ -469,14 +469,6 @@ void recv_sys_close() {
   if (recv_sys->flush_end != nullptr) {
     os_event_destroy(recv_sys->flush_end);
   }
-<<<<<<< HEAD
-||||||| ea7d2e2d16a
-
-  ut_ad(!recv_writer_is_active());
-  mutex_free(&recv_sys->writer_mutex);
-=======
-
->>>>>>> mysql-8.0.20
 #endif /* !UNIV_HOTBACKUP */
 
   UT_DELETE(recv_sys->dblwr);
@@ -485,9 +477,6 @@ void recv_sys_close() {
   call_destructor(&recv_sys->missing_ids);
 
   mutex_free(&recv_sys->mutex);
-
-  ut_ad(!recv_writer_is_active());
-  mutex_free(&recv_sys->writer_mutex);
 
   ut_free(recv_sys);
   recv_sys = nullptr;
@@ -766,155 +755,6 @@ void MetadataRecover::store() {
   mutex_exit(&dict_persist->mutex);
 }
 
-<<<<<<< HEAD
-||||||| ea7d2e2d16a
-/** recv_writer thread tasked with flushing dirty pages from the buffer
-pools. */
-static void recv_writer_thread() {
-  ut_ad(!srv_read_only_mode);
-
-  /* The code flow is as follows:
-  Step 1: In recv_recovery_from_checkpoint_start().
-  Step 2: This recv_writer thread is started.
-  Step 3: In recv_recovery_from_checkpoint_finish().
-  Step 4: Wait for recv_writer thread to complete.
-  Step 5: Assert that recv_writer thread is not active anymore.
-
-  It is possible that the thread that is started in step 2,
-  becomes active only after step 4 and hence the assert in
-  step 5 fails.  So mark this thread active only if necessary. */
-  mutex_enter(&recv_sys->writer_mutex);
-
-  if (!recv_recovery_on) {
-    mutex_exit(&recv_sys->writer_mutex);
-    return;
-  }
-  mutex_exit(&recv_sys->writer_mutex);
-
-  while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
-    os_thread_sleep(100000);
-
-    mutex_enter(&recv_sys->writer_mutex);
-
-    if (!recv_recovery_on) {
-      mutex_exit(&recv_sys->writer_mutex);
-      break;
-    }
-
-    if (log_test != nullptr) {
-      mutex_exit(&recv_sys->writer_mutex);
-      continue;
-    }
-
-    /* Flush pages from end of LRU if required */
-    os_event_reset(recv_sys->flush_end);
-    recv_sys->flush_type = BUF_FLUSH_LRU;
-    os_event_set(recv_sys->flush_start);
-    os_event_wait(recv_sys->flush_end);
-
-    mutex_exit(&recv_sys->writer_mutex);
-  }
-}
-
-#if 0
-/** recv_writer thread tasked with flushing dirty pages from the buffer
-pools. */
-static
-void
-recv_writer_thread()
-{
-	ut_ad(!srv_read_only_mode);
-
-	/* The code flow is as follows:
-	Step 1: In recv_recovery_from_checkpoint_start().
-	Step 2: This recv_writer thread is started.
-	Step 3: In recv_recovery_from_checkpoint_finish().
-	Step 4: Wait for recv_writer thread to complete.
-	Step 5: Assert that recv_writer thread is not active anymore.
-
-	It is possible that the thread that is started in step 2,
-	becomes active only after step 4 and hence the assert in
-	step 5 fails.  So mark this thread active only if necessary. */
-	mutex_enter(&recv_sys->writer_mutex);
-
-	if (!recv_recovery_on) {
-		mutex_exit(&recv_sys->writer_mutex);
-		return;
-	}
-	mutex_exit(&recv_sys->writer_mutex);
-
-	while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
-
-		os_thread_sleep(100000);
-
-		mutex_enter(&recv_sys->writer_mutex);
-
-		if (!recv_recovery_on) {
-			mutex_exit(&recv_sys->writer_mutex);
-			break;
-		}
-
-		/* Flush pages from end of LRU if required */
-		os_event_reset(recv_sys->flush_end);
-		recv_sys->flush_type = BUF_FLUSH_LRU;
-		os_event_set(recv_sys->flush_start);
-		os_event_wait(recv_sys->flush_end);
-
-		mutex_exit(&recv_sys->writer_mutex);
-	}
-}
-#endif
-
-=======
-/** recv_writer thread tasked with flushing dirty pages from the buffer
-pools. */
-static void recv_writer_thread() {
-  ut_ad(!srv_read_only_mode);
-
-  /* The code flow is as follows:
-  Step 1: In recv_recovery_from_checkpoint_start().
-  Step 2: This recv_writer thread is started.
-  Step 3: In recv_recovery_from_checkpoint_finish().
-  Step 4: Wait for recv_writer thread to complete.
-  Step 5: Assert that recv_writer thread is not active anymore.
-
-  It is possible that the thread that is started in step 2,
-  becomes active only after step 4 and hence the assert in
-  step 5 fails.  So mark this thread active only if necessary. */
-  mutex_enter(&recv_sys->writer_mutex);
-
-  if (!recv_recovery_on) {
-    mutex_exit(&recv_sys->writer_mutex);
-    return;
-  }
-  mutex_exit(&recv_sys->writer_mutex);
-
-  while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
-    os_thread_sleep(100000);
-
-    mutex_enter(&recv_sys->writer_mutex);
-
-    if (!recv_recovery_on) {
-      mutex_exit(&recv_sys->writer_mutex);
-      break;
-    }
-
-    if (log_test != nullptr) {
-      mutex_exit(&recv_sys->writer_mutex);
-      continue;
-    }
-
-    /* Flush pages from end of LRU if required */
-    os_event_reset(recv_sys->flush_end);
-    recv_sys->flush_type = BUF_FLUSH_LRU;
-    os_event_set(recv_sys->flush_start);
-    os_event_wait(recv_sys->flush_end);
-
-    mutex_exit(&recv_sys->writer_mutex);
-  }
-}
-
->>>>>>> mysql-8.0.20
 /** Frees the recovery system. */
 void recv_sys_free() {
   mutex_enter(&recv_sys->mutex);
@@ -1695,25 +1535,13 @@ specified.
                                 a page log record should not be applied
 @param[in]	parsed_bytes	Number of bytes parsed so far
 @return log record end, nullptr if not a complete record */
-<<<<<<< HEAD
 static byte *recv_parse_or_apply_log_rec_body(mlog_id_t type, byte *ptr,
                                               byte *end_ptr,
                                               space_id_t space_id,
                                               page_no_t page_no, bool apply,
                                               buf_block_t *block, mtr_t *mtr,
                                               ulint parsed_bytes) {
-  ut_ad(!block == !mtr);
-||||||| ea7d2e2d16a
-static byte *recv_parse_or_apply_log_rec_body(
-    mlog_id_t type, byte *ptr, byte *end_ptr, space_id_t space_id,
-    page_no_t page_no, buf_block_t *block, mtr_t *mtr, ulint parsed_bytes) {
-  ut_ad(!block == !mtr);
-=======
-static byte *recv_parse_or_apply_log_rec_body(
-    mlog_id_t type, byte *ptr, byte *end_ptr, space_id_t space_id,
-    page_no_t page_no, buf_block_t *block, mtr_t *mtr, ulint parsed_bytes) {
   bool applying_redo = (block != nullptr);
->>>>>>> mysql-8.0.20
 
   switch (type) {
 #ifndef UNIV_HOTBACKUP
@@ -1781,27 +1609,12 @@ static byte *recv_parse_or_apply_log_rec_body(
 #ifdef UNIV_HOTBACKUP
       if (recv_recovery_on && meb_is_space_loaded(space_id)) {
 #endif /* UNIV_HOTBACKUP */
-<<<<<<< HEAD
         /* For encrypted tablespace, we need to get the
         encryption key information before the page 0 is
         recovered. Otherwise, redo will not find the key
         to decrypt the data pages. */
 
-        if (page_no == 0 &&
-||||||| ea7d2e2d16a
-        /* For encrypted tablespace, we need to get the
-        encryption key information before the page 0 is
-        recovered. Otherwise, redo will not find the key
-        to decrypt the data pages. */
-
-        if (page_no == 0 && !fsp_is_system_or_temp_tablespace(space_id) &&
-=======
-        /* For encrypted tablespace, we need to get the encryption key
-        information before the page 0 is recovered. Otherwise, redo will not
-        find the key to decrypt the data pages. */
         if (page_no == 0 && !applying_redo &&
-            !fsp_is_system_or_temp_tablespace(space_id) &&
->>>>>>> mysql-8.0.20
             /* For cloned db header page has the encryption information. */
             !recv_sys->is_cloned_db) {
           byte *ptr_copy = ptr;
@@ -1810,23 +1623,23 @@ static byte *recv_parse_or_apply_log_rec_body(
           ptr_copy += 2;
           if (end_ptr < ptr_copy + len) return NULL;
 
-          if (memcmp(ptr_copy, ENCRYPTION_KEY_MAGIC_V1,
-                     ENCRYPTION_MAGIC_SIZE) == 0 ||
-              memcmp(ptr_copy, ENCRYPTION_KEY_MAGIC_V2,
-                     ENCRYPTION_MAGIC_SIZE) == 0 ||
-              memcmp(ptr_copy, ENCRYPTION_KEY_MAGIC_V3,
-                     ENCRYPTION_MAGIC_SIZE) == 0) {
+          if (memcmp(ptr_copy, Encryption::KEY_MAGIC_V1,
+                     Encryption::MAGIC_SIZE) == 0 ||
+              memcmp(ptr_copy, Encryption::KEY_MAGIC_V2,
+                     Encryption::MAGIC_SIZE) == 0 ||
+              memcmp(ptr_copy, Encryption::KEY_MAGIC_V3,
+                     Encryption::MAGIC_SIZE) == 0) {
             if (fsp_is_system_or_temp_tablespace(space_id)) {
               break;
             }
             return (
                 fil_tablespace_redo_encryption(ptr, end_ptr, space_id, apply));
-          } else if (memcmp(ptr_copy, ENCRYPTION_KEY_MAGIC_PS_V1,
-                            ENCRYPTION_MAGIC_SIZE) == 0 &&
+          } else if (memcmp(ptr_copy, Encryption::KEY_MAGIC_PS_V1,
+                            Encryption::MAGIC_SIZE) == 0 &&
                      apply) {
             return (fil_parse_write_crypt_data_v1(space_id, ptr, end_ptr, len));
-          } else if (memcmp(ptr_copy, ENCRYPTION_KEY_MAGIC_PS_V2,
-                            ENCRYPTION_MAGIC_SIZE) == 0 &&
+          } else if (memcmp(ptr_copy, Encryption::KEY_MAGIC_PS_V2,
+                            Encryption::MAGIC_SIZE) == 0 &&
                      apply) {
             return (fil_parse_write_crypt_data_v2(space_id, ptr, end_ptr, len));
           }
@@ -3769,33 +3582,7 @@ static void recv_init_crash_recovery() {
   ib::info(ER_IB_MSG_726);
   ib::info(ER_IB_MSG_727);
 
-<<<<<<< HEAD
-  buf_dblwr_process();
-||||||| ea7d2e2d16a
-  buf_dblwr_process();
-
-  if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
-    /* Spawn the background thread to flush dirty pages
-    from the buffer pools. */
-
-    srv_threads.m_recv_writer =
-        os_thread_create(recv_writer_thread_key, recv_writer_thread);
-
-    srv_threads.m_recv_writer.start();
-  }
-=======
   recv_sys->dblwr->recover();
-
-  if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
-    /* Spawn the background thread to flush dirty pages
-    from the buffer pools. */
-
-    srv_threads.m_recv_writer =
-        os_thread_create(recv_writer_thread_key, recv_writer_thread);
-
-    srv_threads.m_recv_writer.start();
-  }
->>>>>>> mysql-8.0.20
 }
 #endif /* !UNIV_HOTBACKUP */
 

@@ -139,29 +139,15 @@ static bool insert_pat_inited = false, debug_info_flag = false,
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection, *mysql = nullptr;
 static DYNAMIC_STRING insert_pat;
-<<<<<<< HEAD
-static char *opt_password = 0, *current_user = 0, *current_host = 0, *path = 0,
-            *fields_terminated = 0, *lines_terminated = 0, *enclosed = 0,
-            *opt_enclosed = 0, *escaped = 0, *where = 0,
-            *opt_compatible_mode_str = 0, *opt_ignore_error = 0,
-            *log_error_file = NULL;
-#ifndef DBUG_OFF
-static char *start_sql_file = nullptr, *finish_sql_file = nullptr;
-#endif
-||||||| ea7d2e2d16a
-static char *opt_password = 0, *current_user = 0, *current_host = 0, *path = 0,
-            *fields_terminated = 0, *lines_terminated = 0, *enclosed = 0,
-            *opt_enclosed = 0, *escaped = 0, *where = 0,
-            *opt_compatible_mode_str = 0, *opt_ignore_error = 0,
-            *log_error_file = NULL;
-=======
 static char *opt_password = nullptr, *current_user = nullptr,
             *current_host = nullptr, *path = nullptr,
             *fields_terminated = nullptr, *lines_terminated = nullptr,
             *enclosed = nullptr, *opt_enclosed = nullptr, *escaped = nullptr,
             *where = nullptr, *opt_compatible_mode_str = nullptr,
             *opt_ignore_error = nullptr, *log_error_file = nullptr;
->>>>>>> mysql-8.0.20
+#ifndef DBUG_OFF
+static char *start_sql_file = nullptr, *finish_sql_file = nullptr;
+#endif
 static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 static bool ansi_mode = false;  ///< Force the "ANSI" SQL_MODE.
 /* Server supports character_set_results session variable? */
@@ -256,18 +242,12 @@ static struct my_option my_long_options[] = {
     {"all-tablespaces", 'Y', "Dump all the tablespaces.", &opt_alltspcs,
      &opt_alltspcs, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"no-tablespaces", 'y', "Do not dump any tablespace information.",
-<<<<<<< HEAD
-     &opt_notspcs, &opt_notspcs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_notspcs, &opt_notspcs, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"add-drop-compression-dictionary", OPT_DROP_COMPRESSION_DICTIONARY,
      "Add a DROP COMPRESSION_DICTIONARY before each create.",
      &opt_drop_compression_dictionary, &opt_drop_compression_dictionary, 0,
-     GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-||||||| ea7d2e2d16a
-     &opt_notspcs, &opt_notspcs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-=======
-     &opt_notspcs, &opt_notspcs, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
-     nullptr},
->>>>>>> mysql-8.0.20
+     GET_BOOL, NO_ARG, 1, 0, 0, nullptr, 0, nullptr},
     {"add-drop-database", OPT_DROP_DATABASE,
      "Add a DROP DATABASE before each create.", &opt_drop_database,
      &opt_drop_database, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
@@ -375,31 +355,20 @@ static struct my_option my_long_options[] = {
      "- don't forget to read about --single-transaction below). In all cases "
      "any action on logs will happen at the exact moment of the dump."
      "Option automatically turns --lock-tables off.",
-<<<<<<< HEAD
-     &opt_slave_data, &opt_slave_data, 0, GET_UINT, OPT_ARG, 0, 0,
-     MYSQL_OPT_SLAVE_DATA_COMMENTED_SQL, 0, 0, 0},
+     &opt_slave_data, &opt_slave_data, nullptr, GET_UINT, OPT_ARG, 0, 0,
+     MYSQL_OPT_SLAVE_DATA_COMMENTED_SQL, nullptr, 0, nullptr},
     {"enable-compressed-columns", OPT_ENABLE_COMPRESSED_COLUMNS,
      "Enable compressed columns extensions.", &opt_compressed_columns,
-     &opt_compressed_columns, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_compressed_columns, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"enable-compressed-columns-with-dictionaries",
      OPT_ENABLE_COMPRESSED_COLUMNS_WITH_DICTIONARIES,
      "Enable dictionaries for compressed columns extensions.",
      &opt_compressed_columns_with_dictionaries,
-     &opt_compressed_columns_with_dictionaries, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
-     0, 0},
-    {"events", 'E', "Dump events.", &opt_events, &opt_events, 0, GET_BOOL,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
-||||||| ea7d2e2d16a
-     &opt_slave_data, &opt_slave_data, 0, GET_UINT, OPT_ARG, 0, 0,
-     MYSQL_OPT_SLAVE_DATA_COMMENTED_SQL, 0, 0, 0},
-    {"events", 'E', "Dump events.", &opt_events, &opt_events, 0, GET_BOOL,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
-=======
-     &opt_slave_data, &opt_slave_data, nullptr, GET_UINT, OPT_ARG, 0, 0,
-     MYSQL_OPT_SLAVE_DATA_COMMENTED_SQL, nullptr, 0, nullptr},
+     &opt_compressed_columns_with_dictionaries, nullptr, GET_BOOL, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr},
     {"events", 'E', "Dump events.", &opt_events, &opt_events, nullptr, GET_BOOL,
      NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
->>>>>>> mysql-8.0.20
     {"extended-insert", 'e',
      "Use multiple-row INSERT syntax that include several VALUES lists.",
      &extended_insert, &extended_insert, nullptr, GET_BOOL, NO_ARG, 1, 0, 0,
@@ -466,21 +435,13 @@ static struct my_option my_long_options[] = {
     {"include-master-host-port", OPT_MYSQLDUMP_INCLUDE_MASTER_HOST_PORT,
      "Adds 'MASTER_HOST=<host>, MASTER_PORT=<port>' to 'CHANGE MASTER TO..' "
      "in dump produced with --dump-slave.",
-<<<<<<< HEAD
-     &opt_include_master_host_port, &opt_include_master_host_port, 0, GET_BOOL,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_include_master_host_port, &opt_include_master_host_port, nullptr,
+     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"innodb-optimize-keys", OPT_INNODB_OPTIMIZE_KEYS,
      "Use InnoDB fast index creation by creating secondary indexes after "
      "dumping the data.",
-     &opt_innodb_optimize_keys, &opt_innodb_optimize_keys, 0, GET_BOOL, NO_ARG,
-     0, 0, 0, 0, 0, 0},
-||||||| ea7d2e2d16a
-     &opt_include_master_host_port, &opt_include_master_host_port, 0, GET_BOOL,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
-=======
-     &opt_include_master_host_port, &opt_include_master_host_port, nullptr,
-     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
->>>>>>> mysql-8.0.20
+     &opt_innodb_optimize_keys, &opt_innodb_optimize_keys, nullptr, GET_BOOL,
+     NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"insert-ignore", OPT_INSERT_IGNORE, "Insert rows with INSERT IGNORE.",
      &opt_ignore, &opt_ignore, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
@@ -492,23 +453,15 @@ static struct my_option my_long_options[] = {
      "Locks all tables across all databases. This "
      "is achieved by taking a global read lock for the duration of the whole "
      "dump. Automatically turns --single-transaction and --lock-tables off.",
-<<<<<<< HEAD
-     &opt_lock_all_tables, &opt_lock_all_tables, 0, GET_BOOL, NO_ARG, 0, 0, 0,
-     0, 0, 0},
+     &opt_lock_all_tables, &opt_lock_all_tables, nullptr, GET_BOOL, NO_ARG, 0,
+     0, 0, nullptr, 0, nullptr},
     {"lock-for-backup", OPT_LOCK_FOR_BACKUP,
      "Use lightweight metadata locks "
      "to block updates to non-transactional tables and DDL to all tables. "
      "This works only with --single-transaction, otherwise this option is "
      "automatically converted to --lock-all-tables.",
-     &opt_lock_for_backup, &opt_lock_for_backup, 0, GET_BOOL, NO_ARG, 0, 0, 0,
-     0, 0, 0},
-||||||| ea7d2e2d16a
-     &opt_lock_all_tables, &opt_lock_all_tables, 0, GET_BOOL, NO_ARG, 0, 0, 0,
-     0, 0, 0},
-=======
-     &opt_lock_all_tables, &opt_lock_all_tables, nullptr, GET_BOOL, NO_ARG, 0,
+     &opt_lock_for_backup, &opt_lock_for_backup, nullptr, GET_BOOL, NO_ARG, 0,
      0, 0, nullptr, 0, nullptr},
->>>>>>> mysql-8.0.20
     {"lock-tables", 'l', "Lock all tables for read.", &lock_tables,
      &lock_tables, nullptr, GET_BOOL, NO_ARG, 1, 0, 0, nullptr, 0, nullptr},
     {"log-error", OPT_ERROR_LOG_FILE,
@@ -565,19 +518,12 @@ static struct my_option my_long_options[] = {
      "Sorts each table's rows by primary key, or first unique key, if such a "
      "key exists.  Useful when dumping a MyISAM table to be loaded into an "
      "InnoDB table, but will make the dump itself take considerably longer.",
-<<<<<<< HEAD
-     &opt_order_by_primary, &opt_order_by_primary, 0, GET_BOOL, NO_ARG, 0, 0, 0,
-     0, 0, 0},
-    {"order-by-primary-desc", OPT_ORDER_BY_PRIMARY_DESC,
-     "Taking backup ORDER BY primary key DESC.", &opt_order_by_primary_desc,
-     &opt_order_by_primary_desc, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-||||||| ea7d2e2d16a
-     &opt_order_by_primary, &opt_order_by_primary, 0, GET_BOOL, NO_ARG, 0, 0, 0,
-     0, 0, 0},
-=======
      &opt_order_by_primary, &opt_order_by_primary, nullptr, GET_BOOL, NO_ARG, 0,
      0, 0, nullptr, 0, nullptr},
->>>>>>> mysql-8.0.20
+    {"order-by-primary-desc", OPT_ORDER_BY_PRIMARY_DESC,
+     "Taking backup ORDER BY primary key DESC.", &opt_order_by_primary_desc,
+     &opt_order_by_primary_desc, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"password", 'p',
      "Password to use when connecting to server. If password is not given it's "
      "solicited on the tty.",
@@ -658,30 +604,22 @@ static struct my_option my_long_options[] = {
      nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
     {"socket", 'S', "The socket file to use for connection.",
-<<<<<<< HEAD
-     &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR, REQUIRED_ARG, 0, 0,
-     0, 0, 0, 0},
+     &opt_mysql_unix_port, &opt_mysql_unix_port, nullptr, GET_STR, REQUIRED_ARG,
+     0, 0, 0, nullptr, 0, nullptr},
 #ifndef DBUG_OFF
     {"start-sql-file", OPT_START_SQL_FILE,
      "Execute SQL statements from the file at the mysqldump start. "
      "Each line has to contain one statement terminated with a semicolon. "
      "Line length limit is 1023 characters.",
-     &start_sql_file, &start_sql_file, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
-     0},
+     &start_sql_file, &start_sql_file, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"finish-sql-file", OPT_FINISH_SQL_FILE,
      "Execute SQL statements from the file at the mysqldump finish. "
      "Each line has to contain one statement terminated  with a semicolon. "
      "Line length limit is 1023 characters.",
-     &finish_sql_file, &finish_sql_file, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
-     0, 0},
+     &finish_sql_file, &finish_sql_file, nullptr, GET_STR, REQUIRED_ARG, 0, 0,
+     0, nullptr, 0, nullptr},
 #endif  // DEBUF_OFF
-||||||| ea7d2e2d16a
-     &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR, REQUIRED_ARG, 0, 0,
-     0, 0, 0, 0},
-=======
-     &opt_mysql_unix_port, &opt_mysql_unix_port, nullptr, GET_STR, REQUIRED_ARG,
-     0, 0, 0, nullptr, 0, nullptr},
->>>>>>> mysql-8.0.20
 #include "caching_sha2_passwordopt-longopts.h"
 #include "sslopt-longopts.h"
 
@@ -3398,18 +3336,12 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
   result_table = quote_name(table, table_buff, true);
   opt_quoted_table = quote_name(table, table_buff2, false);
 
-<<<<<<< HEAD
   const bool has_pk =
       (opt_innodb_optimize_keys && !strcmp(table_type, "InnoDB"))
           ? has_primary_key(table)
           : false;
 
-  if (!opt_xml && !mysql_query_with_error_report(mysql, 0, query_buff)) {
-||||||| ea7d2e2d16a
-  if (!opt_xml && !mysql_query_with_error_report(mysql, 0, query_buff)) {
-=======
   if (!opt_xml && !mysql_query_with_error_report(mysql, nullptr, query_buff)) {
->>>>>>> mysql-8.0.20
     /* using SHOW CREATE statement */
     if (!opt_no_create_info && !skip_ddl) {
       /* Make an sql-file, if path was given iow. option -T was given */
@@ -3451,17 +3383,7 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
         */
         print_optional_drop_table(sql_file, db, table, opt_quoted_table);
 
-<<<<<<< HEAD
-        char *scv_buff = NULL;
-||||||| ea7d2e2d16a
-      field = mysql_fetch_field_direct(result, 0);
-      if (strcmp(field->name, "View") == 0) {
-        char *scv_buff = NULL;
-=======
-      field = mysql_fetch_field_direct(result, 0);
-      if (strcmp(field->name, "View") == 0) {
         char *scv_buff = nullptr;
->>>>>>> mysql-8.0.20
         uint64_t n_cols;
 
         verbose_msg("-- It's a view, create dummy view\n");
@@ -6055,16 +5977,8 @@ bool is_infoschema_db(const char *db) {
     the table unsorted, rather than exit without dumping the data.
 */
 
-<<<<<<< HEAD
 static char *primary_key_fields(const char *table_name, const bool desc) {
-  MYSQL_RES *res = NULL;
-||||||| ea7d2e2d16a
-static char *primary_key_fields(const char *table_name) {
-  MYSQL_RES *res = NULL;
-=======
-static char *primary_key_fields(const char *table_name) {
   MYSQL_RES *res = nullptr;
->>>>>>> mysql-8.0.20
   MYSQL_ROW row;
   /* SHOW KEYS FROM + table name * 2 (escaped) + 2 quotes + \0 */
   char show_keys_buff[15 + NAME_LEN * 2 + 3];

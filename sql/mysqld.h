@@ -640,13 +640,9 @@ extern PSI_stage_info stage_suspending;
 extern PSI_stage_info stage_starting;
 extern PSI_stage_info stage_waiting_for_no_channel_reference;
 extern PSI_stage_info stage_hook_begin_trans;
-<<<<<<< HEAD
-extern PSI_stage_info stage_restoring_secondary_keys;
-||||||| ea7d2e2d16a
-=======
 extern PSI_stage_info stage_binlog_transaction_compress;
 extern PSI_stage_info stage_binlog_transaction_decompress;
->>>>>>> mysql-8.0.20
+extern PSI_stage_info stage_restoring_secondary_keys;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 /**
   Statement instrumentation keys (sql).

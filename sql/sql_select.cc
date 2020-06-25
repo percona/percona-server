@@ -1793,14 +1793,8 @@ void JOIN::cleanup_item_list(List<Item> &items) const {
 bool SELECT_LEX::optimize(THD *thd) {
   DBUG_TRACE;
 
-<<<<<<< HEAD
   DBUG_ASSERT(master_unit()->cleaned == SELECT_LEX_UNIT::UC_DIRTY);
-  DBUG_ASSERT(join == NULL);
-||||||| ea7d2e2d16a
-  DBUG_ASSERT(join == NULL);
-=======
   DBUG_ASSERT(join == nullptr);
->>>>>>> mysql-8.0.20
   JOIN *const join_local = new (thd->mem_root) JOIN(thd, this);
   if (!join_local) return true; /* purecov: inspected */
 

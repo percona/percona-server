@@ -5342,17 +5342,9 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
   bool add_fts_doc_id = false;
   bool add_fts_doc_id_idx = false;
   bool add_fts_idx = false;
-<<<<<<< HEAD
-  dict_s_col_list *s_cols = NULL;
-  mem_heap_t *s_heap = NULL;
-  ulint encrypt_flag = 0;
-||||||| ea7d2e2d16a
-  dict_s_col_list *s_cols = NULL;
-  mem_heap_t *s_heap = NULL;
-=======
   dict_s_col_list *s_cols = nullptr;
   mem_heap_t *s_heap = nullptr;
->>>>>>> mysql-8.0.20
+  ulint encrypt_flag = 0;
 
   DBUG_TRACE;
   DBUG_ASSERT(!ha_alter_info->handler_ctx);

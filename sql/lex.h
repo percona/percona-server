@@ -42,28 +42,12 @@
 #define HINT_COMMENT_STARTER "/*+"
 #define HINT_COMMENT_TERMINATOR "*/"
 
-#define SYM(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_KEYWORDS, false
-#define SYM_FN(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_FUNCTIONS, false
-#define SYM_HK(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_HINTABLE_KEYWORDS, false
-#define SYM_H(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_HINTS, false
+#define SYM(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_KEYWORDS
+#define SYM_FN(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_FUNCTIONS
+#define SYM_HK(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_HINTABLE_KEYWORDS
+#define SYM_H(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_HINTS
 
-/*
- * Percona defined tokens are located together with upstream tokens
- * in sql_yacc.yy. However we put them at the end of the token list, after
- * hints tokens (sql_hints.yy). When we add add Percona token to the digest
- * generator input buffer, we need to adjust its value (shift it up)
- * to not clash with adjusted (shifted up) hint tockens.
- * That is why we need to detect Percona tokens (following macro)
- *
- * Example:
- * EFFECTIVE_SYM in sql_yacc.h is 1001.
- * But hint tag RESOURCE_GROUP after applying shift in Hint_scanner::add_hint_token_digest()
- * is 1001 as well. So these 2 would result with the same token in digest
- * generator input. To prevent this we detect Percona token and adjust its value
- * before adding to digest generator input (Lex_input_stream::add_digest_token())
- * Read comments in get_lex_token.cc for additional info.
- */
-#define SYM_PERCONA(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_KEYWORDS, true
+#define SYM_PERCONA(T, A) SYM(T, A)
 
 /*
   Symbols are broken into separated arrays to allow field names with

@@ -336,8 +336,7 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
     share->auto_key = create_info->auto_key;
     share->auto_key_type = create_info->auto_key_type;
     share->auto_increment = create_info->auto_increment;
-<<<<<<< HEAD
-    share->create_time = (long)time((time_t *)0);
+    share->create_time = (long)time((time_t *)nullptr);
     share->fixed_data_length = fixed_data_length;
     share->fixed_column_count = fixed_column_count;
     share->blobs = create_info->blobs;
@@ -356,11 +355,6 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
       share->recordspace.offset_link = 1 << 22;
       share->recordspace.offset_status = chunk_dataspace_length;
     }
-||||||| ea7d2e2d16a
-    share->create_time = (long)time((time_t *)0);
-=======
-    share->create_time = (long)time((time_t *)nullptr);
->>>>>>> mysql-8.0.20
     /* Must be allocated separately for rename to work */
     if (!(share->name = my_strdup(hp_key_memory_HP_SHARE, name, MYF(0)))) {
       my_free(share);

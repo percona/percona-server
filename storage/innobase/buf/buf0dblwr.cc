@@ -1,13 +1,7 @@
 /*****************************************************************************
 
-<<<<<<< HEAD
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
-Copyright (c) 2016, Percona Inc. All Rights Reserved.
-||||||| ea7d2e2d16a
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
-=======
 Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
->>>>>>> mysql-8.0.20
+Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -242,78 +236,8 @@ class Double_write {
     /** @return number of active elements. */
     uint32_t size() const noexcept { return m_size; }
 
-<<<<<<< HEAD
-/**
-At database startup initializes the doublewrite buffer memory structure if
-we already have a doublewrite buffer created in the data files. If we are
-upgrading to an InnoDB version which supports multiple tablespaces, then this
-function performs the necessary update operations. If we are in a crash
-recovery, this function loads the pages from double write buffer into memory.
-@param[in]	file		File handle
-@param[in]	path		Path name of file
-@return DB_SUCCESS or error code */
-dberr_t buf_dblwr_init_or_load_pages(pfs_os_file_t file, const char *path) {
-  byte *buf;
-  byte *page;
-  page_no_t block1;
-  page_no_t block2;
-  space_id_t space_id;
-  byte *read_buf;
-  byte *doublewrite;
-  byte *unaligned_read_buf;
-  ibool reset_space_ids = FALSE;
-  recv_dblwr_t &recv_dblwr = recv_sys->dblwr;
-
-  if (srv_read_only_mode) {
-    ib::info() << "Skipping doublewrite buffer processing due to "
-                  "InnoDB running in read only mode";
-    return (DB_SUCCESS);
-  }
-
-  /* We do the file i/o past the buffer pool */
-
-  unaligned_read_buf = static_cast<byte *>(ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
-
-  read_buf = static_cast<byte *>(ut_align(unaligned_read_buf, UNIV_PAGE_SIZE));
-
-  /* Read the trx sys header to check if we are using the doublewrite
-  buffer */
-  dberr_t err;
-||||||| ea7d2e2d16a
-/**
-At database startup initializes the doublewrite buffer memory structure if
-we already have a doublewrite buffer created in the data files. If we are
-upgrading to an InnoDB version which supports multiple tablespaces, then this
-function performs the necessary update operations. If we are in a crash
-recovery, this function loads the pages from double write buffer into memory.
-@param[in]	file		File handle
-@param[in]	path		Path name of file
-@return DB_SUCCESS or error code */
-dberr_t buf_dblwr_init_or_load_pages(pfs_os_file_t file, const char *path) {
-  byte *buf;
-  byte *page;
-  page_no_t block1;
-  page_no_t block2;
-  space_id_t space_id;
-  byte *read_buf;
-  byte *doublewrite;
-  byte *unaligned_read_buf;
-  ibool reset_space_ids = FALSE;
-  recv_dblwr_t &recv_dblwr = recv_sys->dblwr;
-
-  /* We do the file i/o past the buffer pool */
-
-  unaligned_read_buf = static_cast<byte *>(ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
-
-  read_buf = static_cast<byte *>(ut_align(unaligned_read_buf, UNIV_PAGE_SIZE));
-
-  /* Read the trx sys header to check if we are using the doublewrite
-  buffer */
-  dberr_t err;
-=======
     /** @return the capacity of the collection. */
     uint32_t capacity() const noexcept { return m_pages.capacity(); }
->>>>>>> mysql-8.0.20
 
     using Pages = std::vector<buf_page_t *>;
 
@@ -1414,6 +1338,12 @@ bool Double_write::create_v1(page_no_t &page_no1,
 
 dberr_t Double_write::load(dblwr::File &file, recv::Pages *pages) noexcept {
   os_offset_t size = os_file_get_size(file.m_pfs);
+
+  if (srv_read_only_mode) {
+    ib::info() << "Skipping doublewrite buffer processing due to "
+                  "InnoDB running in read only mode";
+    return (DB_SUCCESS);
+  }
 
   if (size == 0) {
     /* Double write buffer is empty. */

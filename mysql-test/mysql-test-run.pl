@@ -673,22 +673,10 @@ sub main {
   # Read definitions from include/plugin.defs
   read_plugin_defs("include/plugin.defs");
 
-<<<<<<< HEAD
-  # Also read from any plugin local or suite specific plugin.defs
-  my $plugin_def =
-    "$basedir/internal/cloud/mysql-test/suite/*/plugin.defs " .
-    "suite/*/plugin.defs " .
-    "$basedir/plugin/*/tests/mtr/plugin.defs ";
-||||||| ea7d2e2d16a
-  # Also read from any plugin local or suite specific plugin.defs
-  my $plugin_def =
-    "$basedir/internal/cloud/mysql-test/suite/*/plugin.defs " .
-    "suite/*/plugin.defs ";
-=======
+  my $plugin_def = "$basedir/plugin/*/tests/mtr/plugin.defs";
   # Also read from plugin.defs files in internal and internal/cloud if they exist
->>>>>>> mysql-8.0.20
 
-  my $plugin_def = "$basedir/internal/mysql-test/include/plugin.defs"
+  $plugin_def = $plugin_def." "."$basedir/internal/mysql-test/include/plugin.defs"
     if (-e "$basedir/internal/mysql-test/include/plugin.defs");
 
   $plugin_def = $plugin_def." "."$basedir/internal/cloud/mysql-test/include/plugin.defs"

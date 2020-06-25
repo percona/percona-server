@@ -1085,14 +1085,8 @@ retry:
   false positives while buf_pool_clear_hash_index() is executing. */
   assert_block_ahi_valid(block);
 
-<<<<<<< HEAD
-  if (index == NULL) {
-    assert_block_ahi_empty(block);
-||||||| ea7d2e2d16a
-  if (index == NULL) {
-=======
   if (index == nullptr) {
->>>>>>> mysql-8.0.20
+    assert_block_ahi_empty(block);
     return;
   }
 

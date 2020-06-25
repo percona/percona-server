@@ -1325,24 +1325,12 @@ class buf_page_t {
   unsigned freed_page_clock : 31;
 
   /* @} */
-<<<<<<< HEAD
-  unsigned access_time; /*!< time of first access, or
-                        0 if the block was never accessed
-                        in the buffer pool. Protected by
-                        block mutex */
-  bool is_corrupt;
-  bool encrypted; /*!< page is still encrypted */
-||||||| ea7d2e2d16a
-  unsigned access_time; /*!< time of first access, or
-                        0 if the block was never accessed
-                        in the buffer pool. Protected by
-                        block mutex */
-=======
   /** Time of first access, or 0 if the block was never accessed in the
   buffer pool. Protected by block mutex */
   unsigned access_time;
 
->>>>>>> mysql-8.0.20
+  bool is_corrupt;
+  bool encrypted; /*!< page is still encrypted */
 #ifdef UNIV_DEBUG
   /** This is set to TRUE when fsp frees a page in buffer pool;
   protected by buf_pool->zip_mutex or buf_block_t::mutex. */
@@ -1705,72 +1693,6 @@ struct buf_buddy_free_t {
 
 /** @brief The buffer pool statistics structure. */
 struct buf_pool_stat_t {
-<<<<<<< HEAD
-  ulint n_page_gets;            /*!< number of page gets performed;
-                                also successful searches through
-                                the adaptive hash index are
-                                counted as page gets; this field
-                                is NOT protected by the buffer
-                                pool mutex */
-  ulint n_pages_read;           /*!< number of read operations. Accessed
-                                atomically. */
-  ulint n_pages_written;        /*!< number of write operations. Accessed
-                                atomically. */
-  ulint n_pages_created;        /*!< number of pages created
-                                in the pool with no read. Accessed
-                                atomically. */
-  ulint n_ra_pages_read_rnd;    /*!< number of pages read in
-                            as part of random read ahead. Not protected. */
-  ulint n_ra_pages_read;        /*!< number of pages read in
-                                as part of read ahead. Not protected. */
-  ulint n_ra_pages_evicted;     /*!< number of read ahead
-                             pages that are evicted without
-                             being accessed. Protected by LRU_list_mutex. */
-  ulint n_pages_made_young;     /*!< number of pages made young, in
-                            calls to buf_LRU_make_block_young(). Protected
-                            by LRU_list_mutex. */
-  ulint n_pages_not_made_young; /*!< number of pages not made
-                        young because the first access
-                        was not long enough ago, in
-                        buf_page_peek_if_too_old(). Not protected. */
-  ulint LRU_bytes;              /*!< LRU size in bytes. Protected by
-                                LRU_list_mutex. */
-  ulint flush_list_bytes;       /*!< flush_list size in bytes.
-                               Protected by flush_list_mutex */
-  ulint buf_lru_flush_page_count;
-||||||| ea7d2e2d16a
-  ulint n_page_gets;            /*!< number of page gets performed;
-                                also successful searches through
-                                the adaptive hash index are
-                                counted as page gets; this field
-                                is NOT protected by the buffer
-                                pool mutex */
-  ulint n_pages_read;           /*!< number of read operations. Accessed
-                                atomically. */
-  ulint n_pages_written;        /*!< number of write operations. Accessed
-                                atomically. */
-  ulint n_pages_created;        /*!< number of pages created
-                                in the pool with no read. Accessed
-                                atomically. */
-  ulint n_ra_pages_read_rnd;    /*!< number of pages read in
-                            as part of random read ahead. Not protected. */
-  ulint n_ra_pages_read;        /*!< number of pages read in
-                                as part of read ahead. Not protected. */
-  ulint n_ra_pages_evicted;     /*!< number of read ahead
-                             pages that are evicted without
-                             being accessed. Protected by LRU_list_mutex. */
-  ulint n_pages_made_young;     /*!< number of pages made young, in
-                            calls to buf_LRU_make_block_young(). Protected
-                            by LRU_list_mutex. */
-  ulint n_pages_not_made_young; /*!< number of pages not made
-                        young because the first access
-                        was not long enough ago, in
-                        buf_page_peek_if_too_old(). Not protected. */
-  ulint LRU_bytes;              /*!< LRU size in bytes. Protected by
-                                LRU_list_mutex. */
-  ulint flush_list_bytes;       /*!< flush_list size in bytes.
-                               Protected by flush_list_mutex */
-=======
   using Shards = Counter::Shards<64>;
 
   /** Number of page gets performed; also successful searches through the
@@ -1811,6 +1733,8 @@ struct buf_pool_stat_t {
   /** Flush_list size in bytes.  Protected by flush_list_mutex */
   uint64_t flush_list_bytes;
 
+  ulint buf_lru_flush_page_count;
+
   static void copy(buf_pool_stat_t &dst, const buf_pool_stat_t &src) noexcept {
     Counter::copy(dst.m_n_page_gets, src.m_n_page_gets);
 
@@ -1833,6 +1757,8 @@ struct buf_pool_stat_t {
     dst.LRU_bytes = src.LRU_bytes;
 
     dst.flush_list_bytes = src.flush_list_bytes;
+
+    dst.buf_lru_flush_page_count = src.buf_lru_flush_page_count;
   }
 
   void reset() {
@@ -1848,8 +1774,8 @@ struct buf_pool_stat_t {
     n_pages_not_made_young = 0;
     LRU_bytes = 0;
     flush_list_bytes = 0;
+    buf_lru_flush_page_count = 0;
   }
->>>>>>> mysql-8.0.20
 };
 
 /** Statistics of buddy blocks of a given size. */

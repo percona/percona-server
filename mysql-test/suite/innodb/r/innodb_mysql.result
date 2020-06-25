@@ -445,15 +445,6 @@ name	dept
 rs5	cs10
 rs5	cs9
 DELETE FROM t1;
-<<<<<<< HEAD
-||||||| ea7d2e2d16a
-# Masking (#) number in "rows" column of the following EXPLAIN output, as it may vary (bug#47746).
-EXPLAIN SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	name	name	82	const	#	100.00	Using index
-Warnings:
-Note	1003	/* select#1 */ select distinct `test`.`t1`.`name` AS `name`,`test`.`t1`.`dept` AS `dept` from `test`.`t1` where (`test`.`t1`.`name` = 'rs5')
-=======
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
@@ -463,7 +454,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	name	name	82	const	#	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`name` AS `name`,`test`.`t1`.`dept` AS `dept` from `test`.`t1` where (`test`.`t1`.`name` = 'rs5')
->>>>>>> mysql-8.0.20
 SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
 name	dept
 DROP TABLE t1;

@@ -1200,14 +1200,8 @@ int PFS_status_variable_cache::do_materialize_all(THD *unsafe_thd) {
   }
 
   /* Get and lock a validated THD from the thread manager. */
-<<<<<<< HEAD
-  if ((m_safe_thd = get_THD(unsafe_thd)) != NULL) {
-    DEBUG_SYNC(m_current_thd, "materialize_session_status_array_THD_locked");
-||||||| ea7d2e2d16a
-  if ((m_safe_thd = get_THD(unsafe_thd)) != NULL) {
-=======
   if ((m_safe_thd = get_THD(unsafe_thd)) != nullptr) {
->>>>>>> mysql-8.0.20
+    DEBUG_SYNC(m_current_thd, "materialize_session_status_array_THD_locked");
     /*
       Build the status variable cache using the SHOW_VAR array as a reference.
       Use the status values from the THD protected by the thread manager lock.

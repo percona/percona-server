@@ -681,16 +681,10 @@ void buf_read_ibuf_merge_pages(bool sync, const space_id_t *space_ids,
     if (err == DB_TABLESPACE_DELETED) {
       /* We have deleted or are deleting the single-table
       tablespace: remove the entries for that page */
-<<<<<<< HEAD
-      ibuf_merge_or_delete_for_page(NULL, page_id, &page_size, FALSE);
+      ibuf_merge_or_delete_for_page(nullptr, page_id, &page_size, FALSE);
     } else if (err == DB_IO_DECRYPT_FAIL) {
       ib::error() << "Failed to read or decrypt " << page_id
                   << " for change buffer merge";
-||||||| ea7d2e2d16a
-      ibuf_merge_or_delete_for_page(NULL, page_id, &page_size, FALSE);
-=======
-      ibuf_merge_or_delete_for_page(nullptr, page_id, &page_size, FALSE);
->>>>>>> mysql-8.0.20
     }
   }
 

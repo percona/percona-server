@@ -53,22 +53,8 @@ int heap_delete(HP_INFO *info, const uchar *record) {
   }
 
   info->update = HA_STATE_DELETED;
-<<<<<<< HEAD
   hp_free_chunks(&share->recordspace, pos);
-  info->current_hash_ptr = 0;
-||||||| ea7d2e2d16a
-  *((uchar **)pos) = share->del_link;
-  share->del_link = pos;
-  pos[share->reclength] = 0; /* Record deleted */
-  share->deleted++;
-  info->current_hash_ptr = 0;
-=======
-  *((uchar **)pos) = share->del_link;
-  share->del_link = pos;
-  pos[share->reclength] = 0; /* Record deleted */
-  share->deleted++;
   info->current_hash_ptr = nullptr;
->>>>>>> mysql-8.0.20
 #if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
   DBUG_EXECUTE("check_heap", heap_check_heap(info, 0););
 #endif

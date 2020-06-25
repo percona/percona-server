@@ -91,7 +91,7 @@ extern os_event_t fil_crypt_threads_event;
 struct key_struct {
   uint key_version;                      /*!< Version of the key */
   uint key_length;                       /*!< Key length */
-  unsigned char key[ENCRYPTION_KEY_LEN]; /*!< Cached key
+  unsigned char key[Encryption::KEY_LEN]; /*!< Cached key
                                           (that is L in CRYPT_SCHEME_1) */
 };
 
@@ -117,7 +117,7 @@ struct Cached_key {
 
   ~Cached_key() {
     if (key != NULL) {
-      memset_s(key, ENCRYPTION_KEY_LEN, 0, ENCRYPTION_KEY_LEN);
+      memset_s(key, Encryption::KEY_LEN, 0, Encryption::KEY_LEN);
       my_free(key);
     }
   }
@@ -176,7 +176,7 @@ struct fil_space_crypt_t {
 
     for (std::list<byte *>::iterator iter = fetched_keys.begin();
          iter != fetched_keys.end(); iter++) {
-      memset_s(*iter, ENCRYPTION_KEY_LEN, 0, ENCRYPTION_KEY_LEN);
+      memset_s(*iter, Encryption::KEY_LEN, 0, Encryption::KEY_LEN);
       my_free(*iter);
     }
     rotate_state.destroy_flush_observer();
@@ -227,8 +227,8 @@ struct fil_space_crypt_t {
       this->tablespace_key = NULL;
     } else {
       if (this->tablespace_key == NULL)
-        this->tablespace_key = (byte *)ut_malloc_nokey(ENCRYPTION_KEY_LEN);
-      memcpy(this->tablespace_key, tablespace_key, ENCRYPTION_KEY_LEN);
+        this->tablespace_key = (byte *)ut_malloc_nokey(Encryption::KEY_LEN);
+      memcpy(this->tablespace_key, tablespace_key, Encryption::KEY_LEN);
     }
   }
 
@@ -288,7 +288,7 @@ struct fil_space_crypt_t {
   // Here we store which magic we read : 1 - PSA, 2 - PSB.
   size_t private_version{2};
 
-  char uuid[ENCRYPTION_SERVER_UUID_LEN + 1];
+  char uuid[Encryption::SERVER_UUID_LEN + 1];
 };
 
 /** Status info about encryption */
@@ -328,7 +328,7 @@ struct fil_space_scrub_status_t {
 
 struct redo_log_key final {
   uint version;
-  char key[ENCRYPTION_KEY_LEN];
+  char key[Encryption::KEY_LEN];
   ulint read_count;
   ulint write_count;
   bool present;

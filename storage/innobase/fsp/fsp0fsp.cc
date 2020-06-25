@@ -979,9 +979,9 @@ bool fsp_header_rotate_encryption(fil_space_t *space, byte *encrypt_info,
 @param[in]	space_id	tablespace id
 @return true if success */
 bool fsp_enable_encryption(fil_space_t *space) {
-  byte encrypt_info[ENCRYPTION_INFO_SIZE];
+  byte encrypt_info[Encryption::INFO_SIZE];
 
-  memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
+  memset(encrypt_info, 0, Encryption::INFO_SIZE);
 
   if (!Encryption::fill_encryption_info(space->encryption_key,
                                         space->encryption_iv, encrypt_info,
@@ -1009,7 +1009,7 @@ bool fsp_enable_encryption(fil_space_t *space) {
   ut_ad(offset != 0);
   ut_ad(offset < UNIV_PAGE_SIZE);
 
-  mlog_write_string(page + offset, encrypt_info, ENCRYPTION_INFO_SIZE, &mtr);
+  mlog_write_string(page + offset, encrypt_info, Encryption::INFO_SIZE, &mtr);
 
   mtr_commit(&mtr);
 

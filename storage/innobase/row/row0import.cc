@@ -3793,13 +3793,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   fil_space_set_imported() to declare it a persistent tablespace. */
 
   uint32_t fsp_flags = dict_tf_to_fsp_flags(table->flags);
-<<<<<<< HEAD
   if (table->encryption_key != nullptr || cfg.m_is_keyring_encrypted) {
-||||||| ea7d2e2d16a
-  if (table->encryption_key != NULL) {
-=======
-  if (table->encryption_key != nullptr) {
->>>>>>> mysql-8.0.20
     fsp_flags_set_encryption(fsp_flags);
   }
 

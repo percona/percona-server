@@ -177,7 +177,7 @@ send call tde_db.populate_t_non_encrypt();
 
 --connection default
 --echo # kill and restart the server
-let $restart_parameters = $KEYRING_RESTART_PARAM;
+--let $restart_parameters = $KEYRING_RESTART_PARAM
 --sleep 3
 --let $_server_id= `SELECT @@server_id`
 --let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
@@ -235,7 +235,7 @@ send call tde_db.delete_t_encrypt();
 
 --connection default
 --echo # kill and restart the server
-let $restart_parameters = $KEYRING_RESTART_PARAM;
+--let $restart_parameters = $KEYRING_RESTART_PARAM
 --sleep 3
 
 --let $_server_id= `SELECT @@server_id`
@@ -291,8 +291,8 @@ send call tde_db.read_t_encrypt();
 
 --connection default
 --echo # kill and restart the server
-let $restart_parameters = $KEYRING_RESTART_PARAM;
-let $restart_hide_args=1;
+--let $restart_parameters = $KEYRING_RESTART_PARAM
+--let $restart_hide_args = 1
 --sleep 1
 --source include/kill_and_restart_mysqld.inc
 
@@ -322,7 +322,7 @@ SELECT 1;
 
 #--connection default
 #--echo # kill and restart the server
-#let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT ;
+#let $restart_parameters = restart: $KEYRING_PLUGIN_EARLY_LOAD --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT ;
 #--sleep 3
 #--source include/kill_and_restart_mysqld.inc
 #--disconnect con1
@@ -341,6 +341,6 @@ DROP DATABASE tde_db;
 
 # Cleanup
 --echo # restart server without keyring
-let $restart_parameters = restart: ;
+--let $restart_parameters = restart:
 --source include/restart_mysqld.inc
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;

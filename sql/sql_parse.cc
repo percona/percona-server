@@ -5711,19 +5711,9 @@ bool Alter_info::add_field(
     if (key_part_spec == nullptr || key_parts.push_back(key_part_spec))
       return true;
     Key_spec *key = new (thd->mem_root)
-<<<<<<< HEAD
         Key_spec(thd->mem_root, key_type, NULL_CSTR, &default_key_create_info,
                  false, true, key_parts);
-    if (key == NULL || key_list.push_back(key)) return true;
-||||||| ea7d2e2d16a
-        Key_spec(thd->mem_root, KEYTYPE_UNIQUE, NULL_CSTR,
-                 &default_key_create_info, false, true, key_parts);
-    if (key == NULL || key_list.push_back(key)) return true;
-=======
-        Key_spec(thd->mem_root, KEYTYPE_UNIQUE, NULL_CSTR,
-                 &default_key_create_info, false, true, key_parts);
     if (key == nullptr || key_list.push_back(key)) return true;
->>>>>>> mysql-8.0.20
   }
 
   if (default_value) {

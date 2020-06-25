@@ -1098,16 +1098,8 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
   stats.block_size = UNIV_PAGE_SIZE;
 
   /* Only if the table has an AUTOINC column. */
-<<<<<<< HEAD
-  if (m_prebuilt->table != NULL && !m_prebuilt->table->file_unreadable &&
-      table->found_next_number_field != NULL) {
-||||||| ea7d2e2d16a
-  if (m_prebuilt->table != NULL && !m_prebuilt->table->ibd_file_missing &&
-      table->found_next_number_field != NULL) {
-=======
-  if (m_prebuilt->table != nullptr && !m_prebuilt->table->ibd_file_missing &&
+  if (m_prebuilt->table != nullptr && !m_prebuilt->table->file_unreadable &&
       table->found_next_number_field != nullptr) {
->>>>>>> mysql-8.0.20
     int error;
 
     /* Since a table can already be "open" in InnoDB's internal

@@ -4888,19 +4888,13 @@ ST_FIELD_INFO processlist_fields_info[] = {
     {"TIME", 7, MYSQL_TYPE_LONG, 0, 0, "Time", 0},
     {"STATE", 64, MYSQL_TYPE_STRING, 0, 1, "State", 0},
     {"INFO", PROCESS_LIST_INFO_WIDTH, MYSQL_TYPE_STRING, 0, 1, "Info", 0},
-<<<<<<< HEAD
     {"TIME_MS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0,
      "Time_ms", 0},
     {"ROWS_SENT", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
      MY_I_S_UNSIGNED, "Rows_sent", 0},
     {"ROWS_EXAMINED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
      MY_I_S_UNSIGNED, "Rows_examined", 0},
-    {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, 0}};
-||||||| ea7d2e2d16a
-    {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, 0}};
-=======
     {nullptr, 0, MYSQL_TYPE_STRING, 0, 0, nullptr, 0}};
->>>>>>> mysql-8.0.20
 
 ST_FIELD_INFO plugin_fields_info[] = {
     {"PLUGIN_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Name", 0},
@@ -4963,46 +4957,17 @@ extern ST_FIELD_INFO optimizer_trace_info[];
 */
 
 ST_SCHEMA_TABLE schema_tables[] = {
-<<<<<<< HEAD
-    {"COLUMN_PRIVILEGES", column_privileges_fields_info, create_schema_table,
-     fill_schema_column_privileges, nullptr, nullptr, -1, -1, false, 0},
-    {"ENGINES", engines_fields_info, create_schema_table, fill_schema_engines,
-     make_old_format, nullptr, -1, -1, false, 0},
-    {"CLIENT_STATISTICS", client_stats_fields_info, create_schema_table,
-     fill_schema_client_stats, make_old_format, nullptr, -1, -1, false, 0},
-    {"INDEX_STATISTICS", index_stats_fields_info, create_schema_table,
-     fill_schema_index_stats, make_old_format, nullptr, -1, -1, false, 0},
-    {"GLOBAL_TEMPORARY_TABLES", temporary_table_fields_info,
-     create_schema_table, fill_global_temporary_tables,
-     make_temporary_tables_old_format, nullptr, 2, 3, false, 0},
-    {"OPEN_TABLES", open_tables_fields_info, create_schema_table,
-     fill_open_tables, make_old_format, nullptr, -1, -1, true, 0},
-    {"OPTIMIZER_TRACE", optimizer_trace_info, create_schema_table,
-     fill_optimizer_trace_info, nullptr, nullptr, -1, -1, false, 0},
-    {"PLUGINS", plugin_fields_info, create_schema_table, fill_plugins,
-     make_old_format, nullptr, -1, -1, false, 0},
-    {"PROCESSLIST", processlist_fields_info, create_schema_table,
-     fill_schema_processlist, make_old_format, nullptr, -1, -1, false, 0},
-    {"PROFILING", query_profile_statistics_info, create_schema_table,
-||||||| ea7d2e2d16a
-    {"COLUMN_PRIVILEGES", column_privileges_fields_info, create_schema_table,
-     fill_schema_column_privileges, nullptr, nullptr, -1, -1, false, 0},
-    {"ENGINES", engines_fields_info, create_schema_table, fill_schema_engines,
-     make_old_format, nullptr, -1, -1, false, 0},
-    {"OPEN_TABLES", open_tables_fields_info, create_schema_table,
-     fill_open_tables, make_old_format, nullptr, -1, -1, true, 0},
-    {"OPTIMIZER_TRACE", optimizer_trace_info, create_schema_table,
-     fill_optimizer_trace_info, nullptr, nullptr, -1, -1, false, 0},
-    {"PLUGINS", plugin_fields_info, create_schema_table, fill_plugins,
-     make_old_format, nullptr, -1, -1, false, 0},
-    {"PROCESSLIST", processlist_fields_info, create_schema_table,
-     fill_schema_processlist, make_old_format, nullptr, -1, -1, false, 0},
-    {"PROFILING", query_profile_statistics_info, create_schema_table,
-=======
     {"COLUMN_PRIVILEGES", column_privileges_fields_info,
      fill_schema_column_privileges, nullptr, nullptr, false},
     {"ENGINES", engines_fields_info, fill_schema_engines, make_old_format,
      nullptr, false},
+    {"CLIENT_STATISTICS", client_stats_fields_info, fill_schema_client_stats,
+     make_old_format, nullptr, false},
+    {"INDEX_STATISTICS", index_stats_fields_info, fill_schema_index_stats,
+     make_old_format, nullptr, false},
+    {"GLOBAL_TEMPORARY_TABLES", temporary_table_fields_info,
+     fill_global_temporary_tables, make_temporary_tables_old_format, nullptr,
+     false},
     {"OPEN_TABLES", open_tables_fields_info, fill_open_tables, make_old_format,
      nullptr, true},
     {"OPTIMIZER_TRACE", optimizer_trace_info, fill_optimizer_trace_info,
@@ -5012,52 +4977,7 @@ ST_SCHEMA_TABLE schema_tables[] = {
     {"PROCESSLIST", processlist_fields_info, fill_schema_processlist,
      make_old_format, nullptr, false},
     {"PROFILING", query_profile_statistics_info,
->>>>>>> mysql-8.0.20
      fill_query_profile_statistics_info, make_profile_table_for_show, nullptr,
-<<<<<<< HEAD
-     -1, -1, false, 0},
-    {"SCHEMA_PRIVILEGES", schema_privileges_fields_info, create_schema_table,
-     fill_schema_schema_privileges, nullptr, nullptr, -1, -1, false, 0},
-    {"TABLESPACES", tablespaces_fields_info, create_schema_table,
-     hton_fill_schema_table, nullptr, nullptr, -1, -1, false, 0},
-    {"TABLE_PRIVILEGES", table_privileges_fields_info, create_schema_table,
-     fill_schema_table_privileges, nullptr, nullptr, -1, -1, false, 0},
-    {"USER_PRIVILEGES", user_privileges_fields_info, create_schema_table,
-     fill_schema_user_privileges, nullptr, nullptr, -1, -1, false, 0},
-    {"TMP_TABLE_COLUMNS", tmp_table_columns_fields_info, create_schema_table,
-     show_temporary_tables, make_tmp_table_columns_format,
-     get_schema_tmp_table_columns_record, -1, -1, true, 0},
-    {"TMP_TABLE_KEYS", tmp_table_keys_fields_info, create_schema_table,
-     show_temporary_tables, make_old_format, get_schema_tmp_table_keys_record,
-     -1, -1, true, 0},
-    {"TABLE_STATISTICS", table_stats_fields_info, create_schema_table,
-     fill_schema_table_stats, make_old_format, nullptr, -1, -1, false, 0},
-    {"TEMPORARY_TABLES", temporary_table_fields_info, create_schema_table,
-     fill_temporary_tables, make_temporary_tables_old_format, nullptr, 2, 3,
-     false, 0},
-    {"THREAD_STATISTICS", thread_stats_fields_info, create_schema_table,
-     fill_schema_thread_stats, make_old_format, nullptr, -1, -1, false, 0},
-    {"USER_STATISTICS", user_stats_fields_info, create_schema_table,
-     fill_schema_user_stats, make_old_format, nullptr, -1, -1, false, 0},
-    {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 0, 0, false, 0}};
-||||||| ea7d2e2d16a
-     -1, -1, false, 0},
-    {"SCHEMA_PRIVILEGES", schema_privileges_fields_info, create_schema_table,
-     fill_schema_schema_privileges, nullptr, nullptr, -1, -1, false, 0},
-    {"TABLESPACES", tablespaces_fields_info, create_schema_table,
-     hton_fill_schema_table, nullptr, nullptr, -1, -1, false, 0},
-    {"TABLE_PRIVILEGES", table_privileges_fields_info, create_schema_table,
-     fill_schema_table_privileges, nullptr, nullptr, -1, -1, false, 0},
-    {"USER_PRIVILEGES", user_privileges_fields_info, create_schema_table,
-     fill_schema_user_privileges, nullptr, nullptr, -1, -1, false, 0},
-    {"TMP_TABLE_COLUMNS", tmp_table_columns_fields_info, create_schema_table,
-     show_temporary_tables, make_tmp_table_columns_format,
-     get_schema_tmp_table_columns_record, -1, -1, true, 0},
-    {"TMP_TABLE_KEYS", tmp_table_keys_fields_info, create_schema_table,
-     show_temporary_tables, make_old_format, get_schema_tmp_table_keys_record,
-     -1, -1, true, 0},
-    {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 0, 0, false, 0}};
-=======
      false},
     {"SCHEMA_PRIVILEGES", schema_privileges_fields_info,
      fill_schema_schema_privileges, nullptr, nullptr, false},
@@ -5071,8 +4991,15 @@ ST_SCHEMA_TABLE schema_tables[] = {
      make_tmp_table_columns_format, get_schema_tmp_table_columns_record, true},
     {"TMP_TABLE_KEYS", tmp_table_keys_fields_info, show_temporary_tables,
      make_old_format, get_schema_tmp_table_keys_record, true},
+    {"TABLE_STATISTICS", table_stats_fields_info, fill_schema_table_stats,
+     make_old_format, nullptr, false},
+    {"TEMPORARY_TABLES", temporary_table_fields_info, fill_temporary_tables,
+     make_temporary_tables_old_format, nullptr, false},
+    {"THREAD_STATISTICS", thread_stats_fields_info, fill_schema_thread_stats,
+     make_old_format, nullptr, false},
+    {"USER_STATISTICS", user_stats_fields_info, fill_schema_user_stats,
+     make_old_format, nullptr, false},
     {nullptr, nullptr, nullptr, nullptr, nullptr, false}};
->>>>>>> mysql-8.0.20
 
 int initialize_schema_table(st_plugin_int *plugin) {
   ST_SCHEMA_TABLE *schema_table;

@@ -4068,7 +4068,7 @@ bool get_first_partition_name(THD *thd, Partition_handler *part_handler,
   LEX *old_lex = thd->lex;
   LEX lex;
   SELECT_LEX_UNIT unit(CTX_NONE);
-  SELECT_LEX select(nullptr, nullptr);
+  SELECT_LEX select(thd->mem_root, nullptr, nullptr);
   lex.new_static_query(&unit, &select);
   thd->lex = &lex;
 

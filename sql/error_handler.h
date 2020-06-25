@@ -209,14 +209,7 @@ class View_error_handler : public Internal_error_handler {
 };
 
 /**
-<<<<<<< HEAD
-  This internal handler is used to trap ER_NO_SUCH_TABLE and
-  ER_BAD_DB_ERROR.
-||||||| ea7d2e2d16a
-  This internal handler is used to trap ER_NO_SUCH_TABLE.
-=======
   This internal handler is used to trap ER_NO_SUCH_TABLE and ER_BAD_DB_ERROR.
->>>>>>> mysql-8.0.20
 */
 
 class No_such_table_error_handler : public Internal_error_handler {
@@ -226,13 +219,7 @@ class No_such_table_error_handler : public Internal_error_handler {
   virtual bool handle_condition(THD *, uint sql_errno, const char *,
                                 Sql_condition::enum_severity_level *,
                                 const char *) {
-<<<<<<< HEAD
-    if (sql_errno == ER_NO_SUCH_TABLE || sql_errno == ER_BAD_DB_ERROR) {
-||||||| ea7d2e2d16a
-    if (sql_errno == ER_NO_SUCH_TABLE) {
-=======
     if (sql_errno == ER_BAD_DB_ERROR || sql_errno == ER_NO_SUCH_TABLE) {
->>>>>>> mysql-8.0.20
       m_handled_errors++;
       return true;
     }

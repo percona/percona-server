@@ -180,16 +180,10 @@ void thd_increment_bytes_sent(size_t length) {
 
 void thd_increment_bytes_received(size_t length) {
   THD *thd = current_thd;
-<<<<<<< HEAD
-  if (likely(thd != NULL)) {
+  if (likely(thd != nullptr)) {
     thd->status_var.bytes_received += length;
     thd->bytes_received += length;
   }
-||||||| ea7d2e2d16a
-  if (likely(thd != NULL)) thd->status_var.bytes_received += length;
-=======
-  if (likely(thd != nullptr)) thd->status_var.bytes_received += length;
->>>>>>> mysql-8.0.20
 }
 
 partition_info *thd_get_work_part_info(THD *thd) { return thd->work_part_info; }

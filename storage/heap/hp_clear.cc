@@ -37,29 +37,11 @@ void heap_clear(HP_INFO *info) { hp_clear(info->s); }
 void hp_clear(HP_SHARE *info) {
   DBUG_TRACE;
 
-<<<<<<< HEAD
   hp_clear_dataspace(&info->recordspace);
-||||||| ea7d2e2d16a
-  if (info->block.levels)
-    (void)hp_free_level(&info->block, info->block.levels, info->block.root,
-                        (uchar *)0);
-  info->block.levels = 0;
-=======
-  if (info->block.levels)
-    (void)hp_free_level(&info->block, info->block.levels, info->block.root,
-                        (uchar *)nullptr);
-  info->block.levels = 0;
->>>>>>> mysql-8.0.20
   hp_clear_keys(info);
   info->records = 0;
   info->blength = 1;
   info->changed = 0;
-<<<<<<< HEAD
-||||||| ea7d2e2d16a
-  info->del_link = 0;
-=======
-  info->del_link = nullptr;
->>>>>>> mysql-8.0.20
 }
 
 /*

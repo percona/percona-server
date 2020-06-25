@@ -654,17 +654,9 @@ static bool row_vers_non_vc_index_entry_match(dict_index_t *index,
 @param[in]	heap		heap used to build virtual dtuple
 @param[in]	prebuilt	compress_heap must be taken from here */
 static void row_vers_build_clust_v_col(dtuple_t *row, dict_index_t *clust_index,
-<<<<<<< HEAD
                                        dict_index_t *index, mem_heap_t *heap,
                                        row_prebuilt_t *prebuilt) {
-  mem_heap_t *local_heap = NULL;
-||||||| ea7d2e2d16a
-                                       dict_index_t *index, mem_heap_t *heap) {
-  mem_heap_t *local_heap = NULL;
-=======
-                                       dict_index_t *index, mem_heap_t *heap) {
   mem_heap_t *local_heap = nullptr;
->>>>>>> mysql-8.0.20
   for (ulint i = 0; i < dict_index_get_n_fields(index); i++) {
     const dict_field_t *ind_field = index->get_field(i);
 
@@ -674,15 +666,8 @@ static void row_vers_build_clust_v_col(dtuple_t *row, dict_index_t *clust_index,
       col = reinterpret_cast<const dict_v_col_t *>(ind_field->col);
 
       innobase_get_computed_value(row, col, clust_index, &local_heap, heap,
-<<<<<<< HEAD
-                                  NULL, current_thd, NULL, NULL, NULL, NULL,
-                                  prebuilt);
-||||||| ea7d2e2d16a
-                                  NULL, current_thd, NULL, NULL, NULL, NULL);
-=======
                                   nullptr, current_thd, nullptr, nullptr,
-                                  nullptr, nullptr);
->>>>>>> mysql-8.0.20
+                                  nullptr, nullptr, prebuilt);
     }
   }
 
@@ -967,16 +952,8 @@ static const dtuple_t *row_vers_build_cur_vrow(
     bool in_purge, const rec_t *rec, dict_index_t *clust_index,
     ulint **clust_offsets, dict_index_t *index, const dtuple_t *ientry,
     roll_ptr_t roll_ptr, trx_id_t trx_id, mem_heap_t *heap, mem_heap_t *v_heap,
-<<<<<<< HEAD
     mtr_t *mtr, row_prebuilt_t *prebuilt) {
-  const dtuple_t *cur_vrow = NULL;
-||||||| ea7d2e2d16a
-    mtr_t *mtr) {
-  const dtuple_t *cur_vrow = NULL;
-=======
-    mtr_t *mtr) {
   const dtuple_t *cur_vrow = nullptr;
->>>>>>> mysql-8.0.20
 
   roll_ptr_t t_roll_ptr =
       row_get_rec_roll_ptr(rec, clust_index, *clust_offsets);

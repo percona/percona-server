@@ -96,7 +96,6 @@ def	information_schema	COLUMN_STATISTICS	SCHEMA_NAME	1	NULL	NO	varchar	64	192	NU
 def	information_schema	COLUMN_STATISTICS	TABLE_NAME	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	COLUMN_STATISTICS	COLUMN_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	COLUMN_STATISTICS	HISTOGRAM	4	NULL	NO	json	NULL	NULL	NULL	NULL	NULL	NULL	NULL	json			select			NULL
-<<<<<<< HEAD
 def	information_schema	COMPRESSION_DICTIONARY	DICT_VERSION	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select			NULL
 def	information_schema	COMPRESSION_DICTIONARY	DICT_NAME	2	NULL	NO	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_general_ci	varchar(64)			select			NULL
 def	information_schema	COMPRESSION_DICTIONARY	DICT_DATA	3	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob			select			NULL
@@ -104,15 +103,8 @@ def	information_schema	COMPRESSION_DICTIONARY_TABLES	TABLE_SCHEMA	1	NULL	NO	varc
 def	information_schema	COMPRESSION_DICTIONARY_TABLES	TABLE_NAME	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	COMPRESSION_DICTIONARY_TABLES	COLUMN_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	COMPRESSION_DICTIONARY_TABLES	DICT_NAME	4	NULL	NO	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_general_ci	varchar(64)			select			NULL
-def	information_schema	ENABLED_ROLES	ROLE_NAME	1	NULL	YES	varchar	255	765	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select			NULL
-def	information_schema	ENABLED_ROLES	ROLE_HOST	2	NULL	YES	varchar	255	765	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select			NULL
-||||||| ea7d2e2d16a
-def	information_schema	ENABLED_ROLES	ROLE_NAME	1	NULL	YES	varchar	255	765	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select			NULL
-def	information_schema	ENABLED_ROLES	ROLE_HOST	2	NULL	YES	varchar	255	765	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select			NULL
-=======
 def	information_schema	ENABLED_ROLES	ROLE_NAME	1	NULL	YES	varchar	255	1020	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(255)			select			NULL
 def	information_schema	ENABLED_ROLES	ROLE_HOST	2	NULL	YES	varchar	255	1020	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(255)			select			NULL
->>>>>>> mysql-8.0.20
 def	information_schema	ENABLED_ROLES	IS_DEFAULT	3	NULL	YES	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
 def	information_schema	ENABLED_ROLES	IS_MANDATORY	4		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
 def	information_schema	ENGINES	ENGINE	1		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
@@ -183,7 +175,6 @@ def	information_schema	FILES	CHECK_TIME	35	NULL	YES	binary	0	0	NULL	NULL	NULL	NU
 def	information_schema	FILES	CHECKSUM	36	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	STATUS	37	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
 def	information_schema	FILES	EXTRA	38	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
-<<<<<<< HEAD
 def	information_schema	GLOBAL_TEMPORARY_TABLES	SESSION_ID	1		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint			select			NULL
 def	information_schema	GLOBAL_TEMPORARY_TABLES	TABLE_SCHEMA	2		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	GLOBAL_TEMPORARY_TABLES	TABLE_NAME	3		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
@@ -199,12 +190,7 @@ def	information_schema	INDEX_STATISTICS	TABLE_SCHEMA	1		NO	varchar	64	192	NULL	N
 def	information_schema	INDEX_STATISTICS	TABLE_NAME	2		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(192)			select			NULL
 def	information_schema	INDEX_STATISTICS	INDEX_NAME	3		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(192)			select			NULL
 def	information_schema	INDEX_STATISTICS	ROWS_READ	4		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned			select			NULL
-def	information_schema	KEYWORDS	WORD	1	NULL	YES	varchar	29	87	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(29)			select			NULL
-||||||| ea7d2e2d16a
-def	information_schema	KEYWORDS	WORD	1	NULL	YES	varchar	29	87	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(29)			select			NULL
-=======
 def	information_schema	KEYWORDS	WORD	1	NULL	YES	varchar	31	124	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(31)			select			NULL
->>>>>>> mysql-8.0.20
 def	information_schema	KEYWORDS	RESERVED	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select			NULL
 def	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_CATALOG	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
@@ -735,7 +721,6 @@ NULL	information_schema	COLUMNS	SRS_ID	int	NULL	NULL	NULL	NULL	int unsigned
 3.0000	information_schema	COLUMN_STATISTICS	TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	COLUMN_STATISTICS	COLUMN_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 NULL	information_schema	COLUMN_STATISTICS	HISTOGRAM	json	NULL	NULL	NULL	NULL	json
-<<<<<<< HEAD
 NULL	information_schema	COMPRESSION_DICTIONARY	DICT_VERSION	int	NULL	NULL	NULL	NULL	int unsigned
 4.0000	information_schema	COMPRESSION_DICTIONARY	DICT_NAME	varchar	64	256	utf8mb4	utf8mb4_general_ci	varchar(64)
 1.0000	information_schema	COMPRESSION_DICTIONARY	DICT_DATA	blob	65535	65535	NULL	NULL	blob
@@ -743,15 +728,8 @@ NULL	information_schema	COMPRESSION_DICTIONARY	DICT_VERSION	int	NULL	NULL	NULL	N
 3.0000	information_schema	COMPRESSION_DICTIONARY_TABLES	TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	COMPRESSION_DICTIONARY_TABLES	COLUMN_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 4.0000	information_schema	COMPRESSION_DICTIONARY_TABLES	DICT_NAME	varchar	64	256	utf8mb4	utf8mb4_general_ci	varchar(64)
-3.0000	information_schema	ENABLED_ROLES	ROLE_NAME	varchar	255	765	utf8	utf8_general_ci	varchar(255)
-3.0000	information_schema	ENABLED_ROLES	ROLE_HOST	varchar	255	765	utf8	utf8_general_ci	varchar(255)
-||||||| ea7d2e2d16a
-3.0000	information_schema	ENABLED_ROLES	ROLE_NAME	varchar	255	765	utf8	utf8_general_ci	varchar(255)
-3.0000	information_schema	ENABLED_ROLES	ROLE_HOST	varchar	255	765	utf8	utf8_general_ci	varchar(255)
-=======
 4.0000	information_schema	ENABLED_ROLES	ROLE_NAME	varchar	255	1020	utf8mb4	utf8mb4_0900_ai_ci	varchar(255)
 4.0000	information_schema	ENABLED_ROLES	ROLE_HOST	varchar	255	1020	utf8mb4	utf8mb4_0900_ai_ci	varchar(255)
->>>>>>> mysql-8.0.20
 3.0000	information_schema	ENABLED_ROLES	IS_DEFAULT	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 3.0000	information_schema	ENABLED_ROLES	IS_MANDATORY	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 3.0476	information_schema	ENGINES	ENGINE	varchar	21	64	utf8	utf8_general_ci	varchar(64)
@@ -822,7 +800,6 @@ NULL	information_schema	FILES	CHECK_TIME	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	CHECKSUM	binary	0	0	NULL	NULL	binary(0)
 3.0000	information_schema	FILES	STATUS	varchar	256	768	utf8	utf8_general_ci	varchar(256)
 3.0000	information_schema	FILES	EXTRA	varchar	256	768	utf8	utf8_general_ci	varchar(256)
-<<<<<<< HEAD
 NULL	information_schema	GLOBAL_TEMPORARY_TABLES	SESSION_ID	bigint	NULL	NULL	NULL	NULL	bigint
 3.0476	information_schema	GLOBAL_TEMPORARY_TABLES	TABLE_SCHEMA	varchar	21	64	utf8	utf8_general_ci	varchar(64)
 3.0476	information_schema	GLOBAL_TEMPORARY_TABLES	TABLE_NAME	varchar	21	64	utf8	utf8_general_ci	varchar(64)
@@ -838,12 +815,7 @@ NULL	information_schema	GLOBAL_TEMPORARY_TABLES	UPDATE_TIME	datetime	NULL	NULL	N
 3.0000	information_schema	INDEX_STATISTICS	TABLE_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(192)
 3.0000	information_schema	INDEX_STATISTICS	INDEX_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(192)
 NULL	information_schema	INDEX_STATISTICS	ROWS_READ	bigint	NULL	NULL	NULL	NULL	bigint unsigned
-3.0000	information_schema	KEYWORDS	WORD	varchar	29	87	utf8	utf8_general_ci	varchar(29)
-||||||| ea7d2e2d16a
-3.0000	information_schema	KEYWORDS	WORD	varchar	29	87	utf8	utf8_general_ci	varchar(29)
-=======
 4.0000	information_schema	KEYWORDS	WORD	varchar	31	124	utf8mb4	utf8mb4_0900_ai_ci	varchar(31)
->>>>>>> mysql-8.0.20
 NULL	information_schema	KEYWORDS	RESERVED	int	NULL	NULL	NULL	NULL	int
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)

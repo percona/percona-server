@@ -2116,16 +2116,8 @@ sp_head *sp_start_parsing(THD *thd, enum_sp_type sp_type, sp_name *sp_name) {
   init_sql_alloc(key_memory_sp_head_main_root, &own_root, MEM_ROOT_BLOCK_SIZE,
                  MEM_ROOT_PREALLOC);
 
-<<<<<<< HEAD
   void *rawmem = own_root.Alloc_aligned(sizeof(sp_head), alignof(sp_head));
-  if (!rawmem) return NULL;
-||||||| ea7d2e2d16a
-  void *rawmem = own_root.Alloc(sizeof(sp_head));
-  if (!rawmem) return NULL;
-=======
-  void *rawmem = own_root.Alloc(sizeof(sp_head));
   if (!rawmem) return nullptr;
->>>>>>> mysql-8.0.20
 
   sp_head *sp = new (rawmem) sp_head(std::move(own_root), sp_type);
 

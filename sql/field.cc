@@ -68,22 +68,10 @@
 #include "sql/mysqld.h"  // log_10
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"
-<<<<<<< HEAD
-#include "sql/rpl_rli.h"    // Relay_log_info
-#include "sql/rpl_slave.h"  // rpl_master_has_bug
-#include "sql/rpl_utility.h"
-#include "sql/spatial.h"  // Geometry
-#include "sql/sql_base.h"
-||||||| ea7d2e2d16a
-#include "sql/rpl_rli.h"    // Relay_log_info
-#include "sql/rpl_slave.h"  // rpl_master_has_bug
-#include "sql/rpl_utility.h"
-#include "sql/spatial.h"                // Geometry
-=======
 #include "sql/rpl_rli.h"                // Relay_log_info
 #include "sql/rpl_slave.h"              // rpl_master_has_bug
 #include "sql/spatial.h"                // Geometry
->>>>>>> mysql-8.0.20
+#include "sql/sql_base.h"
 #include "sql/sql_class.h"              // THD
 #include "sql/sql_exception_handler.h"  // handle_std_exception
 #include "sql/sql_lex.h"
@@ -222,18 +210,10 @@ bool charset_prevents_inplace(const Field_str &from, const Create_field &to) {
 bool change_prevents_inplace(const Field_str &from, const Create_field &to) {
   return sql_type_prevents_inplace(from, to) ||
          length_prevents_inplace(from, to) ||
-<<<<<<< HEAD
          // Changing column format to/from compressed or changing associated
          // compression dictionary must result in table rebuild
          from.has_different_compression_attributes_with(to) ||
-         charset_prevents_inplace(from, to) ||
-         collation_prevents_inplace(from, to);
-||||||| ea7d2e2d16a
-         charset_prevents_inplace(from, to) ||
-         collation_prevents_inplace(from, to);
-=======
          charset_prevents_inplace(from, to);
->>>>>>> mysql-8.0.20
 }
 }  // namespace
 
@@ -7410,16 +7390,8 @@ uint Field_blob::is_equal(const Create_field *new_field) const {
   // equality so would be redundant here.
   if (new_field->sql_type != get_blob_type_from_length(max_data_length()) ||
       new_field->pack_length() != pack_length() ||
-<<<<<<< HEAD
       charset_prevents_inplace(*this, *new_field) ||
-      has_different_compression_attributes_with(*new_field) ||
-      collation_prevents_inplace(*this, *new_field)) {
-||||||| ea7d2e2d16a
-      charset_prevents_inplace(*this, *new_field) ||
-      collation_prevents_inplace(*this, *new_field)) {
-=======
-      charset_prevents_inplace(*this, *new_field)) {
->>>>>>> mysql-8.0.20
+      has_different_compression_attributes_with(*new_field)) {
     return IS_EQUAL_NO;
   }
 

@@ -426,20 +426,10 @@ void PROFILING::finish_current_query() {
     status_change("ending", nullptr, nullptr, 0);
 
     if ((enabled) && /* ON at start? */
-<<<<<<< HEAD
         (((thd->variables.option_bits & OPTION_PROFILING) != 0) ||
          ((thd->variables.log_slow_verbosity & (1ULL << SLOG_V_PROFILING)) !=
           0)) && /* and ON at end? */
-        (current->m_query_source.str != NULL) &&
-||||||| ea7d2e2d16a
-        ((thd->variables.option_bits & OPTION_PROFILING) !=
-         0) && /* and ON at end? */
-        (current->m_query_source.str != NULL) &&
-=======
-        ((thd->variables.option_bits & OPTION_PROFILING) !=
-         0) && /* and ON at end? */
         (current->m_query_source.str != nullptr) &&
->>>>>>> mysql-8.0.20
         (!current->entries.is_empty())) {
       current->profiling_query_id = next_profile_id(); /* assign an id */
 

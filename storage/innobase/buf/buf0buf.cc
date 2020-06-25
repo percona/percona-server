@@ -875,16 +875,8 @@ itself succeeded.
 bool buf_pool_t::allocate_chunk(ulonglong mem_size, buf_chunk_t *chunk,
                                 bool populate) {
   ut_ad(mutex_own(&chunks_mutex));
-<<<<<<< HEAD
   chunk->mem = allocator.allocate_large(mem_size, &chunk->mem_pfx, populate);
-  if (chunk->mem == NULL) {
-||||||| ea7d2e2d16a
-  chunk->mem = allocator.allocate_large(mem_size, &chunk->mem_pfx);
-  if (chunk->mem == NULL) {
-=======
-  chunk->mem = allocator.allocate_large(mem_size, &chunk->mem_pfx);
   if (chunk->mem == nullptr) {
->>>>>>> mysql-8.0.20
     return false;
   }
   /* Dump core without large memory buffers */
@@ -1011,16 +1003,8 @@ static buf_chunk_t *buf_chunk_init(
 
   DBUG_EXECUTE_IF("ib_buf_chunk_init_fails", return (nullptr););
 
-<<<<<<< HEAD
   if (!buf_pool->allocate_chunk(mem_size, chunk, populate)) {
-    return (NULL);
-||||||| ea7d2e2d16a
-  if (!buf_pool->allocate_chunk(mem_size, chunk)) {
-    return (NULL);
-=======
-  if (!buf_pool->allocate_chunk(mem_size, chunk)) {
     return (nullptr);
->>>>>>> mysql-8.0.20
   }
 
 #ifdef HAVE_LIBNUMA
@@ -4328,22 +4312,8 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
 
   buf_page_mutex_exit(block);
 
-<<<<<<< HEAD
-  ut_ad(!ibuf_inside(mtr) || ibuf_page(block->page.id, block->page.size, NULL));
-||||||| ea7d2e2d16a
-  if (fetch_mode != Page_fetch::SCAN) {
-    buf_page_make_young_if_needed(&block->page);
-  }
-
-  ut_ad(!ibuf_inside(mtr) || ibuf_page(block->page.id, block->page.size, NULL));
-=======
-  if (fetch_mode != Page_fetch::SCAN) {
-    buf_page_make_young_if_needed(&block->page);
-  }
-
   ut_ad(!ibuf_inside(mtr) ||
         ibuf_page(block->page.id, block->page.size, nullptr));
->>>>>>> mysql-8.0.20
 
   bool success;
   mtr_memo_type_t fix_type;
@@ -4363,22 +4333,9 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
       ut_error; /* RW_SX_LATCH is not implemented yet */
   }
 
-<<<<<<< HEAD
   if (UNIV_UNLIKELY(!success)) {
-||||||| ea7d2e2d16a
-  if (!success) {
-    buf_page_mutex_enter(block);
-=======
-  if (!success) {
->>>>>>> mysql-8.0.20
     buf_block_buf_fix_dec(block);
-<<<<<<< HEAD
 
-||||||| ea7d2e2d16a
-    buf_page_mutex_exit(block);
-
-=======
->>>>>>> mysql-8.0.20
     return (false);
   }
 

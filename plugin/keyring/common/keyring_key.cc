@@ -188,15 +188,7 @@ size_t Key::get_key_pod_size() const {
   return key_pod_size_aligned;
 }
 
-<<<<<<< HEAD
 void Key::xor_data(uchar *data, size_t data_len) {
-||||||| ea7d2e2d16a
-void Key::xor_data() {
-  if (key == NULL) return;
-=======
-void Key::xor_data() {
-  if (key == nullptr) return;
->>>>>>> mysql-8.0.20
   static const char *obfuscate_str = "*305=Ljt0*!@$Hnm(*-9-w;:";
   for (size_t i = 0, l = 0; i < data_len;
        ++i, l = ((l + 1) % strlen(obfuscate_str)))
@@ -204,7 +196,7 @@ void Key::xor_data() {
 }
 
 void Key::xor_data() {
-  if (key == NULL) return;
+  if (key == nullptr) return;
   xor_data(key.get(), key_len);
 }
 

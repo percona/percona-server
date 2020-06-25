@@ -4,10 +4,7 @@ call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Function 'keyring_file' alread
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Couldn't load plugin named 'keyring_file' with soname 'keyring_file.*'.");
 call mtr.add_suppression("Plugin keyring_file reported");
 SET @@global.keyring_file_data="MYSQL_TMP_DIR/keyring";
-CREATE TABLE t1(c1 int) ENGINE=InnoDB ENCRYPTION="KEYRING";
-DROP TABLE t1;
 # restart:<hidden args>
-DROP TABLE IF EXISTS t1;
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
@@ -165,4 +162,5 @@ DROP TABLE encrypted1;
 DROP TABLE not_encrypted1;
 DROP TABLE encrypted2;
 DROP TABLE not_encrypted2;
+# restart:<hidden args>
 SET GLOBAL innodb_file_per_table=1;

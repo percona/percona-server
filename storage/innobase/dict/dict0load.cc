@@ -1356,25 +1356,17 @@ std::pair<bool, space_id_t> dict_check_sys_tablespaces(bool validate) {
     */
     if (fsp_is_system_or_temp_tablespace(space_id) ||
         fsp_is_undo_tablespace(space_id) ||
-<<<<<<< HEAD
         !fsp_is_shared_tablespace(fsp_flags)) {
       continue;
     }
 
     // For tables in cache check if they contain crypt_data in page0
-    if (fil_space_exists_in_mem(space_id, space_name, false, true, NULL, 0)) {
+    if (fil_space_exists_in_mem(space_id, space_name, false, true, nullptr,
+                                0)) {
       if (is_space_keyring_v1_encrypted(space_id)) {
         mtr_commit(&mtr);
         return std::make_pair(true, 0);  // will cause upgrade to fail
       }
-||||||| ea7d2e2d16a
-        !fsp_is_shared_tablespace(fsp_flags) ||
-        fil_space_exists_in_mem(space_id, space_name, false, true, NULL, 0)) {
-=======
-        !fsp_is_shared_tablespace(fsp_flags) ||
-        fil_space_exists_in_mem(space_id, space_name, false, true, nullptr,
-                                0)) {
->>>>>>> mysql-8.0.20
       continue;
     }
 

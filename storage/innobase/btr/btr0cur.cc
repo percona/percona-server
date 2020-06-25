@@ -399,13 +399,7 @@ bool btr_cur_optimistic_latch_leaves(buf_block_t *block,
             left_page_no) {
           /* adjust buf_fix_count */
           buf_block_buf_fix_dec(block);
-<<<<<<< HEAD
 
-||||||| ea7d2e2d16a
-          buf_page_mutex_exit(block);
-
-=======
->>>>>>> mysql-8.0.20
           *latch_mode = mode;
           return (true);
         } else {
@@ -1003,9 +997,8 @@ retry_page_get:
                            line, mtr, false, &err);
   tree_blocks[n_blocks] = block;
 
-<<<<<<< HEAD
   if (err == DB_IO_DECRYPT_FAIL) {
-    ut_ad(block == NULL);
+    ut_ad(block == nullptr);
     ib::warn(ER_XB_MSG_4, index->table_name);
     page_cursor->block = 0;
     page_cursor->rec = 0;
@@ -1016,7 +1009,7 @@ retry_page_get:
     goto func_exit;
   }
 
-  if (block == NULL) {
+  if (block == nullptr) {
     SRV_CORRUPT_TABLE_CHECK(fetch == Page_fetch::IF_IN_POOL ||
                                 fetch == Page_fetch::IF_IN_POOL_OR_WATCH,
                             {
@@ -1029,11 +1022,6 @@ retry_page_get:
                               goto func_exit;
                             });
 
-||||||| ea7d2e2d16a
-  if (block == NULL) {
-=======
-  if (block == nullptr) {
->>>>>>> mysql-8.0.20
     /* This must be a search to perform an insert/delete
     mark/ delete; try using the insert/delete buffer */
 
@@ -1116,15 +1104,9 @@ retry_page_get:
       ut_ad(prev_n_blocks < leftmost_from_level);
 
       prev_tree_savepoints[prev_n_blocks] = mtr_set_savepoint(mtr);
-      get_block =
-          buf_page_get_gen(page_id_t(page_id.space(), left_page_no), page_size,
-<<<<<<< HEAD
-                           rw_latch, NULL, fetch, file, line, mtr, false, &err);
-||||||| ea7d2e2d16a
-                           rw_latch, NULL, fetch, file, line, mtr);
-=======
-                           rw_latch, nullptr, fetch, file, line, mtr);
->>>>>>> mysql-8.0.20
+      get_block = buf_page_get_gen(page_id_t(page_id.space(), left_page_no),
+                                   page_size, rw_latch, nullptr, fetch, file,
+                                   line, mtr, false, &err);
       prev_tree_blocks[prev_n_blocks] = get_block;
       prev_n_blocks++;
 
@@ -1138,8 +1120,7 @@ retry_page_get:
                                    tree_blocks[n_blocks]);
 
     tree_savepoints[n_blocks] = mtr_set_savepoint(mtr);
-<<<<<<< HEAD
-    block = buf_page_get_gen(page_id, page_size, rw_latch, NULL, fetch, file,
+    block = buf_page_get_gen(page_id, page_size, rw_latch, nullptr, fetch, file,
                              line, mtr, false, &err);
 
     if (err == DB_IO_DECRYPT_FAIL) {
@@ -1152,13 +1133,6 @@ retry_page_get:
       index->table->set_file_unreadable();
       goto func_exit;
     }
-||||||| ea7d2e2d16a
-    block = buf_page_get_gen(page_id, page_size, rw_latch, NULL, fetch, file,
-                             line, mtr);
-=======
-    block = buf_page_get_gen(page_id, page_size, rw_latch, nullptr, fetch, file,
-                             line, mtr);
->>>>>>> mysql-8.0.20
     tree_blocks[n_blocks] = block;
   }
 
@@ -2075,17 +2049,9 @@ dberr_t btr_cur_open_at_index_side_func(
     }
 
     tree_savepoints[n_blocks] = mtr_set_savepoint(mtr);
-<<<<<<< HEAD
     block =
-        buf_page_get_gen(page_id, page_size, rw_latch, NULL,
+        buf_page_get_gen(page_id, page_size, rw_latch, nullptr,
                          cursor->m_fetch_mode, file, line, mtr, false, &err);
-||||||| ea7d2e2d16a
-    block = buf_page_get_gen(page_id, page_size, rw_latch, NULL,
-                             cursor->m_fetch_mode, file, line, mtr);
-=======
-    block = buf_page_get_gen(page_id, page_size, rw_latch, nullptr,
-                             cursor->m_fetch_mode, file, line, mtr);
->>>>>>> mysql-8.0.20
     tree_blocks[n_blocks] = block;
 
     if (err == DB_IO_DECRYPT_FAIL) {
@@ -2505,17 +2471,9 @@ bool btr_cur_open_at_rnd_pos_func(
     }
 
     tree_savepoints[n_blocks] = mtr_set_savepoint(mtr);
-<<<<<<< HEAD
     block =
-        buf_page_get_gen(page_id, page_size, rw_latch, NULL,
+        buf_page_get_gen(page_id, page_size, rw_latch, nullptr,
                          cursor->m_fetch_mode, file, line, mtr, false, &err);
-||||||| ea7d2e2d16a
-    block = buf_page_get_gen(page_id, page_size, rw_latch, NULL,
-                             cursor->m_fetch_mode, file, line, mtr);
-=======
-    block = buf_page_get_gen(page_id, page_size, rw_latch, nullptr,
-                             cursor->m_fetch_mode, file, line, mtr);
->>>>>>> mysql-8.0.20
     tree_blocks[n_blocks] = block;
 
     ut_ad((block != NULL) == (err == DB_SUCCESS));
@@ -5123,8 +5081,7 @@ static int64_t btr_estimate_n_rows_in_range_on_level(
     attempting to read a page that is no longer part of
     the B-tree. We pass Page_fetch::POSSIBLY_FREED in order to
     silence a debug assertion about this. */
-<<<<<<< HEAD
-    block = buf_page_get_gen(page_id, page_size, RW_S_LATCH, NULL,
+    block = buf_page_get_gen(page_id, page_size, RW_S_LATCH, nullptr,
                              Page_fetch::POSSIBLY_FREED, __FILE__, __LINE__,
                              &mtr, false, &err);
 
@@ -5136,15 +5093,6 @@ static int64_t btr_estimate_n_rows_in_range_on_level(
       mtr_commit(&mtr);
       goto inexact;
     }
-||||||| ea7d2e2d16a
-    block =
-        buf_page_get_gen(page_id, page_size, RW_S_LATCH, NULL,
-                         Page_fetch::POSSIBLY_FREED, __FILE__, __LINE__, &mtr);
-=======
-    block =
-        buf_page_get_gen(page_id, page_size, RW_S_LATCH, nullptr,
-                         Page_fetch::POSSIBLY_FREED, __FILE__, __LINE__, &mtr);
->>>>>>> mysql-8.0.20
 
     page = buf_block_get_frame(block);
 

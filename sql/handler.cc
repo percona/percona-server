@@ -2822,18 +2822,10 @@ void HA_CREATE_INFO::init_create_options_from_share(const TABLE_SHARE *share,
 handler *handler::clone(const char *name, MEM_ROOT *mem_root) {
   DBUG_TRACE;
 
-<<<<<<< HEAD
   handler *new_handler =
       table ? get_new_handler(table->s, (table->s->m_part_info != nullptr),
                               mem_root, ht)
             : nullptr;
-||||||| ea7d2e2d16a
-  handler *new_handler =
-      get_new_handler(table->s, (table->s->m_part_info != NULL), mem_root, ht);
-=======
-  handler *new_handler = get_new_handler(
-      table->s, (table->s->m_part_info != nullptr), mem_root, ht);
->>>>>>> mysql-8.0.20
 
   if (!new_handler) return nullptr;
   if (new_handler->set_ha_share_ref(ha_share)) goto err;
@@ -2854,14 +2846,8 @@ handler *handler::clone(const char *name, MEM_ROOT *mem_root) {
     the same table instance. The ha_open call is not cachable for clone.
   */
   if (new_handler->ha_open(table, name, table->db_stat,
-<<<<<<< HEAD
                            HA_OPEN_IGNORE_IF_LOCKED,
                            table->get_tmp_dd_table_ptr()))
-||||||| ea7d2e2d16a
-                           HA_OPEN_IGNORE_IF_LOCKED, NULL))
-=======
-                           HA_OPEN_IGNORE_IF_LOCKED, nullptr))
->>>>>>> mysql-8.0.20
     goto err;
 
   return new_handler;
@@ -8295,15 +8281,9 @@ int handler::ha_delete_row(const uchar *buf) {
                       { error = delete_row(buf); })
 
   if (unlikely(error)) return error;
-<<<<<<< HEAD
-  if (unlikely((error = binlog_log_row(table, buf, 0, log_func)))) return error;
-  rows_changed++;
-||||||| ea7d2e2d16a
-  if (unlikely((error = binlog_log_row(table, buf, 0, log_func)))) return error;
-=======
   if (unlikely((error = binlog_log_row(table, buf, nullptr, log_func))))
     return error;
->>>>>>> mysql-8.0.20
+  rows_changed++;
   return 0;
 }
 

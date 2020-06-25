@@ -1683,14 +1683,8 @@ class Get_access_maps : public boost::default_bfs_visitor {
                       m_effective_grants);
 
     /* Add user function access */
-<<<<<<< HEAD
-    get_sp_access_map(&acl_user, m_sp_map, func_priv_hash.get(),
+    get_sp_access_map(&acl_user, m_func_map, func_priv_hash.get(),
                       m_effective_grants);
-||||||| ea7d2e2d16a
-    get_sp_access_map(&acl_user, m_sp_map, func_priv_hash.get());
-=======
-    get_sp_access_map(&acl_user, m_func_map, func_priv_hash.get());
->>>>>>> mysql-8.0.20
 
     /* Add dynamic privileges */
     get_dynamic_privileges(&acl_user, m_dynamic_acl);

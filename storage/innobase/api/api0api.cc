@@ -235,16 +235,8 @@ static dict_table_t *ib_lookup_table_by_name(
 
   table = dict_table_get_low(name);
 
-<<<<<<< HEAD
-  if (table != NULL && table->file_unreadable) {
-    table = NULL;
-||||||| ea7d2e2d16a
-  if (table != NULL && table->ibd_file_missing) {
-    table = NULL;
-=======
-  if (table != nullptr && table->ibd_file_missing) {
+  if (table != nullptr && table->file_unreadable) {
     table = nullptr;
->>>>>>> mysql-8.0.20
   }
 
   return (table);

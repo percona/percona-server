@@ -238,20 +238,10 @@ static dberr_t row_sel_sec_rec_is_for_clust_rec(
       row = row_build(ROW_COPY_POINTERS, clust_index, clust_rec, clust_offs,
                       nullptr, nullptr, nullptr, &ext, heap);
 
-      vfield = innobase_get_computed_value(row, v_col, clust_index, &heap, heap,
-<<<<<<< HEAD
-                                           NULL, thr_get_trx(thr)->mysql_thd,
-                                           thr->prebuilt->m_mysql_table, NULL,
-                                           nullptr, nullptr, thr->prebuilt);
-||||||| ea7d2e2d16a
-                                           NULL, thr_get_trx(thr)->mysql_thd,
-                                           thr->prebuilt->m_mysql_table, NULL,
-                                           NULL, NULL);
-=======
-                                           nullptr, thr_get_trx(thr)->mysql_thd,
-                                           thr->prebuilt->m_mysql_table,
-                                           nullptr, nullptr, nullptr);
->>>>>>> mysql-8.0.20
+      vfield = innobase_get_computed_value(
+          row, v_col, clust_index, &heap, heap, nullptr,
+          thr_get_trx(thr)->mysql_thd, thr->prebuilt->m_mysql_table, nullptr,
+          nullptr, nullptr, thr->prebuilt);
 
       if (vfield == nullptr) {
         /* This may happen e.g. when this statement is executed in
@@ -1056,16 +1046,8 @@ retry:
         page_id_t page_id(dict_index_get_space(index), page_no);
 
         cur_block = buf_page_get_gen(
-<<<<<<< HEAD
-            page_id, dict_table_page_size(index->table), RW_X_LATCH, NULL,
-            Page_fetch::NORMAL, __FILE__, __LINE__, mtr, false, &err);
-||||||| ea7d2e2d16a
-            page_id, dict_table_page_size(index->table), RW_X_LATCH, NULL,
-            Page_fetch::NORMAL, __FILE__, __LINE__, mtr);
-=======
             page_id, dict_table_page_size(index->table), RW_X_LATCH, nullptr,
-            Page_fetch::NORMAL, __FILE__, __LINE__, mtr);
->>>>>>> mysql-8.0.20
+            Page_fetch::NORMAL, __FILE__, __LINE__, mtr, false, &err);
       } else {
         mtr_start(mtr);
         goto func_end;
@@ -2903,16 +2885,8 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_sel_store_mysql_field_func(
     ut_a(rec_field_not_null_not_add_col_def(len));
 
     row_sel_field_store_in_mysql_format(mysql_rec + templ->mysql_col_offset,
-<<<<<<< HEAD
-                                        templ, index, field_no, data, len,
-                                        prebuilt, ULINT_UNDEFINED);
-||||||| ea7d2e2d16a
-                                        templ, index, field_no, data, len,
-                                        ULINT_UNDEFINED);
-=======
                                         templ, rec_index, field_no, data, len,
-                                        ULINT_UNDEFINED);
->>>>>>> mysql-8.0.20
+                                        prebuilt, ULINT_UNDEFINED);
 
     if (heap != blob_heap) {
       mem_heap_free(heap);
@@ -2967,16 +2941,8 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_sel_store_mysql_field_func(
     }
 
     row_sel_field_store_in_mysql_format(mysql_rec + templ->mysql_col_offset,
-<<<<<<< HEAD
-                                        templ, index, field_no, data, len,
-                                        prebuilt, sec_field_no);
-||||||| ea7d2e2d16a
-                                        templ, index, field_no, data, len,
-                                        sec_field_no);
-=======
                                         templ, rec_index, field_no, data, len,
-                                        sec_field_no);
->>>>>>> mysql-8.0.20
+                                        prebuilt, sec_field_no);
   }
 
   ut_ad(rec_field_not_null_not_add_col_def(len));
@@ -3093,14 +3059,8 @@ bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
     /* We should never deliver column prefixes to MySQL,
     except for evaluating innobase_index_cond() or
     row_search_end_range_check(). */
-<<<<<<< HEAD
-    ut_ad(index->get_field(field_no)->prefix_len == 0 ||
+    ut_ad(rec_index->get_field(field_no)->prefix_len == 0 ||
           templ->rec_field_is_prefix);
-||||||| ea7d2e2d16a
-    ut_ad(index->get_field(field_no)->prefix_len == 0);
-=======
-    ut_ad(rec_index->get_field(field_no)->prefix_len == 0);
->>>>>>> mysql-8.0.20
 
     if (clust_templ_for_sec) {
       std::vector<const dict_col_t *>::iterator it;
@@ -3235,15 +3195,9 @@ dberr_t Row_sel_get_clust_rec_for_mysql::operator()(
   dberr_t err;
   trx_t *trx;
 
-<<<<<<< HEAD
   srv_sec_rec_cluster_reads.fetch_add(1, std::memory_order_relaxed);
 
-  *out_rec = NULL;
-||||||| ea7d2e2d16a
-  *out_rec = NULL;
-=======
   *out_rec = nullptr;
->>>>>>> mysql-8.0.20
   trx = thr_get_trx(thr);
 
   row_build_row_ref_in_tuple(prebuilt->clust_ref, rec, sec_index, *offsets,

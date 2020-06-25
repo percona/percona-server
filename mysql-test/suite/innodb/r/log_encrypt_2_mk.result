@@ -1,24 +1,6 @@
 SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
 Variable_name	Value
-<<<<<<< HEAD:mysql-test/suite/innodb/r/log_encrypt_2_mk.result
-innodb_redo_log_encrypt	OFF
-CREATE TABLE t1(c1 int) ENGINE=InnoDB ENCRYPTION="Y";
-DROP TABLE t1;
-SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
-Variable_name	Value
 innodb_redo_log_encrypt	MASTER_KEY
-||||||| ea7d2e2d16a:mysql-test/suite/innodb/r/log_encrypt_2.result
-innodb_redo_log_encrypt	OFF
-CREATE TABLE t1(c1 int) ENGINE=InnoDB ENCRYPTION="Y";
-DROP TABLE t1;
-SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
-Variable_name	Value
-innodb_redo_log_encrypt	ON
-DROP TABLE IF EXISTS t1;
-=======
-innodb_redo_log_encrypt	ON
-DROP TABLE IF EXISTS t1;
->>>>>>> mysql-8.0.20:mysql-test/suite/innodb/r/log_encrypt_2.result
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
@@ -61,7 +43,6 @@ c1	c2
 7	hhhhh
 8	iiiii
 9	jjjjj
-# restart:
 SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
 Variable_name	Value
 innodb_redo_log_encrypt	MASTER_KEY
@@ -90,7 +71,6 @@ INSERT INTO t1 VALUES(6, "ggggg");
 INSERT INTO t1 VALUES(7, "hhhhh");
 INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
-<<<<<<< HEAD:mysql-test/suite/innodb/r/log_encrypt_2_mk.result
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
@@ -101,11 +81,6 @@ INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 # Kill and restart:<hidden args>
-||||||| ea7d2e2d16a:mysql-test/suite/innodb/r/log_encrypt_2.result
-# Kill the server
-=======
-# Kill and restart:
->>>>>>> mysql-8.0.20:mysql-test/suite/innodb/r/log_encrypt_2.result
 SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
 Variable_name	Value
 innodb_redo_log_encrypt	MASTER_KEY
@@ -179,5 +154,4 @@ c1	c2
 3	NULL
 4	NULL
 DROP DATABASE tde_db;
-# restart:
 SET GLOBAL innodb_file_per_table=1;

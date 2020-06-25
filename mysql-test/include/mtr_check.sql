@@ -147,17 +147,13 @@ BEGIN
   -- INSTALL/UNINSTALL command
   SELECT * FROM INFORMATION_SCHEMA.PLUGINS;
 
-<<<<<<< HEAD
-  -- Dump all created compression dictionaries
-  SELECT * FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY ORDER BY DICT_NAME;
-
-||||||| ea7d2e2d16a
-=======
   -- Leave InnoDB metrics in the same state
   SELECT name, status FROM INFORMATION_SCHEMA.INNODB_METRICS
     ORDER BY name;
 
->>>>>>> mysql-8.0.20
+  -- Dump all created compression dictionaries
+  SELECT * FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY ORDER BY DICT_NAME;
+
   SHOW GLOBAL STATUS LIKE 'slave_open_temp_tables';
 
   -- Check for number of active connections before & after the test run.

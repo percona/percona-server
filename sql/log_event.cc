@@ -1,13 +1,7 @@
 /*
-<<<<<<< HEAD
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
    Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
    Copyright (c) 2009, 2016, MariaDB
-||||||| ea7d2e2d16a
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
-=======
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
->>>>>>> mysql-8.0.20
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -982,14 +976,10 @@ const char *Log_event::get_type_str(Log_event_type type) {
       return "XA_prepare";
     case binary_log::PARTIAL_UPDATE_ROWS_EVENT:
       return "Update_rows_partial";
-<<<<<<< HEAD
-    case binary_log::START_5_7_ENCRYPTION_EVENT:
-      return "Start_5_7_encryption";
-||||||| ea7d2e2d16a
-=======
     case binary_log::TRANSACTION_PAYLOAD_EVENT:
       return "Transaction_payload";
->>>>>>> mysql-8.0.20
+    case binary_log::START_5_7_ENCRYPTION_EVENT:
+      return "Start_5_7_encryption";
     default:
       return "Unknown"; /* impossible */
   }
@@ -4826,17 +4816,11 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
           query_start_status = thd->status_var;
         }
 
-<<<<<<< HEAD
-        mysql_parse(thd, &parser_state, true);
-||||||| ea7d2e2d16a
-        mysql_parse(thd, &parser_state);
-=======
         /*
           Prevent "hanging" of previous rewritten query in SHOW PROCESSLIST.
         */
         thd->reset_rewritten_query();
-        mysql_parse(thd, &parser_state);
->>>>>>> mysql-8.0.20
+        mysql_parse(thd, &parser_state, true);
 
         enum_sql_command command = thd->lex->sql_command;
 
@@ -5139,7 +5123,7 @@ end:
     Prevent rewritten query from getting "stuck" in SHOW PROCESSLIST,
     and performance_schema.threads.
   */
-  thd->rewritten_query.mem_free();
+  thd->reset_rewritten_query();
   thd->reset_query_for_display();
 
   /*

@@ -105,14 +105,8 @@ ADD_CUSTOM_COMMAND(
   DEPENDS gen_keyword_list
 )
 
-<<<<<<< HEAD
 ADD_DEFINITIONS(-DMYSQL_SERVER -DHAVE_POOL_OF_THREADS)
-||||||| ea7d2e2d16a
-ADD_DEFINITIONS(-DMYSQL_SERVER)
-=======
-ADD_DEFINITIONS(-DMYSQL_SERVER)
 ADD_SUBDIRECTORY(server_component)
->>>>>>> mysql-8.0.20
 
 SET(DD_SOURCES
   dd/collection.cc

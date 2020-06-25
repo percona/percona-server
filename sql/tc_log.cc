@@ -1,12 +1,6 @@
-<<<<<<< HEAD
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
    Copyright (c) 2009, 2013, Monty Program Ab
    Copyright (C) 2012 Percona Inc.
-||||||| ea7d2e2d16a
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
-=======
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
->>>>>>> mysql-8.0.20
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,

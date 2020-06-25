@@ -4172,19 +4172,9 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   int pkt_len;
   String scramble_response_packet;
   int cipher_length = 0;
-<<<<<<< HEAD
   unsigned char plain_text[MAX_CIPHER_LENGTH + 1] = "";
-  RSA *private_key = NULL;
-  RSA *public_key = NULL;
-||||||| ea7d2e2d16a
-  unsigned char plain_text[MAX_CIPHER_LENGTH + 1];
-  RSA *private_key = NULL;
-  RSA *public_key = NULL;
-=======
-  unsigned char plain_text[MAX_CIPHER_LENGTH + 1];
   RSA *private_key = nullptr;
   RSA *public_key = nullptr;
->>>>>>> mysql-8.0.20
 
   DBUG_TRACE;
 

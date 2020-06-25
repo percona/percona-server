@@ -4,8 +4,8 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_debug.inc
 
---let $restart_parameters="$KEYRING_RESTART_PARAM"
---let $restart_hide_args= 1
+--let $restart_parameters = $KEYRING_RESTART_PARAM
+--let $restart_hide_args = 1
 --source include/restart_mysqld.inc
 
 
@@ -91,8 +91,8 @@ if($source_db != $dest_db) {
 	eval DROP TABLE $dest_db.t1;
 }
 
---let $restart_parameters="$KEYRING_RESTART_PARAM"
---let $restart_hide_args= 1
+--let $restart_parameters = $KEYRING_RESTART_PARAM
+--let $restart_hide_args = 1
 --source include/restart_mysqld.inc
 
 --source include/wait_until_connected_again.inc
@@ -180,6 +180,7 @@ eval ALTER TABLE $dest_db.t1 IMPORT TABLESPACE;
 eval DROP TABLE IF EXISTS $dest_db.t1;
 eval DROP TABLE IF EXISTS $source_db.t1;
 --enable_query_log
+--remove_files_wildcard $MYSQLD_DATADIR/$dest_db/ t1.*
 --remove_file $MYSQLD_DATADIR/t1.cfg_back
 --remove_file $MYSQLD_DATADIR/t1.cfp_back
 --remove_file $MYSQLD_DATADIR/t1.ibd_back

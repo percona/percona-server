@@ -3,16 +3,8 @@ call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '' failed, t
 # restart
 Bug #21472634
 RUN show processlist;
-<<<<<<< HEAD
 Id	User	Host	db	Command		State	Info		
-4	event_scheduler	localhost	null	Daemon	Waiting on empty queue	null
-||||||| ea7d2e2d16a
-Id	User	Host	db	Command		State	Info
-4	event_scheduler	localhost	null	Daemon	Waiting on empty queue	null
-=======
-Id	User	Host	db	Command		State	Info
 5	event_scheduler	localhost	null	Daemon	Waiting on empty queue	null
->>>>>>> mysql-8.0.20
 $PROC_1_ID	root	localhost	test	Sleep		null
 $PROC_2_ID	x_root	localhost	null	Query	null	PLUGIN: show processlist
 0 rows affected

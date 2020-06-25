@@ -195,13 +195,7 @@ static que_t *trx_purge_graph_build(trx_t *trx, ulint n_purge_threads) {
     row_prebuilt_t *const prebuilt =
         static_cast<row_prebuilt_t *>(mem_heap_zalloc(heap, sizeof(*prebuilt)));
 
-<<<<<<< HEAD
     thr = que_thr_create(fork, heap, prebuilt);
-||||||| ea7d2e2d16a
-    thr = que_thr_create(fork, heap, NULL);
-=======
-    thr = que_thr_create(fork, heap, nullptr);
->>>>>>> mysql-8.0.20
 
     thr->child = row_purge_node_create(thr, heap);
   }

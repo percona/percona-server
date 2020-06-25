@@ -402,8 +402,7 @@ Datafile::ValidateOutput Datafile::validate_to_dd(space_id_t space_id,
   /* Validate this single-table-tablespace with the data dictionary,
   but do not compare the DATA_DIR flag, in case the tablespace was
   remotely located. */
-<<<<<<< HEAD
-  output = validate_first_page(space_id, 0, for_import);
+  output = validate_first_page(space_id, nullptr, for_import);
   if (output.error != DB_SUCCESS) {
     return (output);
   }
@@ -437,15 +436,6 @@ Datafile::ValidateOutput Datafile::validate_to_dd(space_id_t space_id,
     // exclude encryption flag from validation
     fsp_flags_unset_encryption(m_flags);
     fsp_flags_unset_encryption(flags);
-||||||| ea7d2e2d16a
-  err = validate_first_page(space_id, 0, for_import);
-  if (err != DB_SUCCESS) {
-    return (err);
-=======
-  err = validate_first_page(space_id, nullptr, for_import);
-  if (err != DB_SUCCESS) {
-    return (err);
->>>>>>> mysql-8.0.20
   }
 
   if (m_space_id == space_id && FSP_FLAGS_ARE_NOT_SET(flags) &&
@@ -517,13 +507,7 @@ Datafile::ValidateOutput Datafile::validate_for_recovery(space_id_t space_id) {
   ut_ad(!srv_read_only_mode);
   ut_ad(is_open());
 
-<<<<<<< HEAD
-  output = validate_first_page(space_id, 0, false);
-||||||| ea7d2e2d16a
-  err = validate_first_page(space_id, 0, false);
-=======
-  err = validate_first_page(space_id, nullptr, false);
->>>>>>> mysql-8.0.20
+  output = validate_first_page(space_id, nullptr, false);
 
   switch (output.error) {
     case DB_SUCCESS:
@@ -569,26 +553,12 @@ Datafile::ValidateOutput Datafile::validate_for_recovery(space_id_t space_id) {
 
       /* Free the previously read first page and then re-validate. */
       free_first_page();
-<<<<<<< HEAD
-      output = validate_first_page(space_id, 0, false);
-||||||| ea7d2e2d16a
-      err = validate_first_page(space_id, 0, false);
-=======
-      err = validate_first_page(space_id, nullptr, false);
->>>>>>> mysql-8.0.20
+      output = validate_first_page(space_id, nullptr, false);
   }
 
-<<<<<<< HEAD
   if (output.error == DB_SUCCESS ||
       output.error == DB_INVALID_ENCRYPTION_META) {
-    set_name(NULL);
-||||||| ea7d2e2d16a
-  if (err == DB_SUCCESS || err == DB_INVALID_ENCRYPTION_META) {
-    set_name(NULL);
-=======
-  if (err == DB_SUCCESS || err == DB_INVALID_ENCRYPTION_META) {
     set_name(nullptr);
->>>>>>> mysql-8.0.20
   }
 
   return (output);
@@ -612,14 +582,8 @@ Datafile::ValidateOutput Datafile::validate_first_page(space_id_t space_id,
                                                        bool for_import) {
   char *prev_name;
   char *prev_filepath;
-<<<<<<< HEAD
-  const char *error_txt = NULL;
-  ValidateOutput output;
-||||||| ea7d2e2d16a
-  const char *error_txt = NULL;
-=======
   const char *error_txt = nullptr;
->>>>>>> mysql-8.0.20
+  ValidateOutput output;
 
   m_is_valid = true;
 
@@ -748,29 +712,19 @@ Datafile::ValidateOutput Datafile::validate_first_page(space_id_t space_id,
   first page can be decrypt by master key, otherwise, this table
   can't be open. And for importing, we skip checking it. */
   if (FSP_FLAGS_GET_ENCRYPTION(m_flags) && !for_import) {
-<<<<<<< HEAD
     if (crypt_data == nullptr) {
       if (m_encryption_key == nullptr) {
         m_encryption_key =
-            static_cast<byte *>(ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
+            static_cast<byte *>(ut_zalloc_nokey(Encryption::KEY_LEN));
       }
       if (m_encryption_iv == nullptr) {
         m_encryption_iv =
-            static_cast<byte *>(ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
+            static_cast<byte *>(ut_zalloc_nokey(Encryption::KEY_LEN));
       }
-||||||| ea7d2e2d16a
-    m_encryption_key = static_cast<byte *>(ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
-    m_encryption_iv = static_cast<byte *>(ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
-=======
-    m_encryption_key =
-        static_cast<byte *>(ut_zalloc_nokey(Encryption::KEY_LEN));
-    m_encryption_iv = static_cast<byte *>(ut_zalloc_nokey(Encryption::KEY_LEN));
->>>>>>> mysql-8.0.20
 #ifdef UNIV_ENCRYPT_DEBUG
       fprintf(stderr, "Got from file " SPACE_ID_PFS ":", m_space_id);
 #endif
 
-<<<<<<< HEAD
       if (!fsp_header_get_encryption_key(m_flags, m_encryption_key,
                                          m_encryption_iv, m_first_page)) {
         ib::error(ER_IB_MSG_401)
@@ -782,8 +736,8 @@ Datafile::ValidateOutput Datafile::validate_first_page(space_id_t space_id,
         free_first_page();
         ut_free(m_encryption_key);
         ut_free(m_encryption_iv);
-        m_encryption_key = NULL;
-        m_encryption_iv = NULL;
+        m_encryption_key = nullptr;
+        m_encryption_iv = nullptr;
         output.error = DB_INVALID_ENCRYPTION_META;
         return (output);
       } else {
@@ -791,46 +745,14 @@ Datafile::ValidateOutput Datafile::validate_first_page(space_id_t space_id,
                                 << m_filepath << " successfully, encryption"
                                 << " of this tablespace enabled.";
         if (recv_recovery_is_on() && memcmp(m_encryption_key, m_encryption_iv,
-                                            ENCRYPTION_KEY_LEN) == 0) {
+                                            Encryption::KEY_LEN) == 0) {
           ut_free(m_encryption_key);
           ut_free(m_encryption_iv);
-          m_encryption_key = NULL;
-          m_encryption_iv = NULL;
+          m_encryption_key = nullptr;
+          m_encryption_iv = nullptr;
         }
       }
-||||||| ea7d2e2d16a
-    if (!fsp_header_get_encryption_key(m_flags, m_encryption_key,
-                                       m_encryption_iv, m_first_page)) {
-      ib::error(ER_IB_MSG_401)
-          << "Encryption information in datafile: " << m_filepath
-          << " can't be decrypted, please confirm the "
-             "keyfile is match and keyring plugin is loaded.";
-
-      m_is_valid = false;
-      free_first_page();
-      ut_free(m_encryption_key);
-      ut_free(m_encryption_iv);
-      m_encryption_key = NULL;
-      m_encryption_iv = NULL;
-      return (DB_INVALID_ENCRYPTION_META);
-=======
-    if (!fsp_header_get_encryption_key(m_flags, m_encryption_key,
-                                       m_encryption_iv, m_first_page)) {
-      ib::error(ER_IB_MSG_401)
-          << "Encryption information in datafile: " << m_filepath
-          << " can't be decrypted, please confirm the "
-             "keyfile is match and keyring plugin is loaded.";
-
-      m_is_valid = false;
-      free_first_page();
-      ut_free(m_encryption_key);
-      ut_free(m_encryption_iv);
-      m_encryption_key = nullptr;
-      m_encryption_iv = nullptr;
-      return (DB_INVALID_ENCRYPTION_META);
->>>>>>> mysql-8.0.20
     } else {
-<<<<<<< HEAD
       // for version 1 and encrypted table we will fail the upgrade.
       if (crypt_data->private_version == 2 && !crypt_data->key_found) {
         ut_ad(m_filename != nullptr);
@@ -843,31 +765,6 @@ Datafile::ValidateOutput Datafile::validate_first_page(space_id_t space_id,
         output.error = DB_INVALID_ENCRYPTION_META;
         return output;
       }
-||||||| ea7d2e2d16a
-      ib::info(ER_IB_MSG_402) << "Read encryption metadata from " << m_filepath
-                              << " successfully, encryption"
-                              << " of this tablespace enabled.";
-    }
-
-    if (recv_recovery_is_on() &&
-        memcmp(m_encryption_key, m_encryption_iv, ENCRYPTION_KEY_LEN) == 0) {
-      ut_free(m_encryption_key);
-      ut_free(m_encryption_iv);
-      m_encryption_key = NULL;
-      m_encryption_iv = NULL;
-=======
-      ib::info(ER_IB_MSG_402) << "Read encryption metadata from " << m_filepath
-                              << " successfully, encryption"
-                              << " of this tablespace enabled.";
-    }
-
-    if (recv_recovery_is_on() &&
-        memcmp(m_encryption_key, m_encryption_iv, Encryption::KEY_LEN) == 0) {
-      ut_free(m_encryption_key);
-      ut_free(m_encryption_iv);
-      m_encryption_key = nullptr;
-      m_encryption_iv = nullptr;
->>>>>>> mysql-8.0.20
     }
   }
 #ifndef UNIV_HOTBACKUP

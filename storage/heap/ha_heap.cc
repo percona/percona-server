@@ -785,14 +785,8 @@ int ha_heap::create(const char *name, TABLE *table_arg,
                                          : 0);
     error = heap_create(name, &hp_create_info, &internal_share, &created);
     my_free(hp_create_info.keydef);
-<<<<<<< HEAD
     my_free(hp_create_info.columndef);
-    DBUG_ASSERT(file == 0);
-||||||| ea7d2e2d16a
-    DBUG_ASSERT(file == 0);
-=======
     DBUG_ASSERT(file == nullptr);
->>>>>>> mysql-8.0.20
   }
 
   DBUG_PRINT("heap_api", ("this=%p %s; return=%d", this,

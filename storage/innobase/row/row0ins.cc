@@ -877,19 +877,9 @@ static void row_ins_foreign_fill_virtual(trx_t *trx, upd_node_t *cascade,
       continue;
     }
 
-<<<<<<< HEAD
-    dfield_t *vfield = innobase_get_computed_value(
-        update->old_vrow, col, index, &v_heap, update->heap, NULL, thd, NULL,
-        NULL, NULL, NULL, prebuilt);
-||||||| ea7d2e2d16a
-    dfield_t *vfield = innobase_get_computed_value(update->old_vrow, col, index,
-                                                   &v_heap, update->heap, NULL,
-                                                   thd, NULL, NULL, NULL, NULL);
-=======
     dfield_t *vfield = innobase_get_computed_value(
         update->old_vrow, col, index, &v_heap, update->heap, nullptr, thd,
-        nullptr, nullptr, nullptr, nullptr);
->>>>>>> mysql-8.0.20
+        nullptr, nullptr, nullptr, nullptr, prebuilt);
 
     if (vfield == nullptr) {
       *err = DB_COMPUTE_VALUE_FAILED;
@@ -912,16 +902,8 @@ static void row_ins_foreign_fill_virtual(trx_t *trx, upd_node_t *cascade,
 
     if (!node->is_delete && (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE)) {
       dfield_t *new_vfield = innobase_get_computed_value(
-<<<<<<< HEAD
-          update->old_vrow, col, index, &v_heap, update->heap, NULL, thd, NULL,
-          NULL, node->update, foreign, prebuilt);
-||||||| ea7d2e2d16a
-          update->old_vrow, col, index, &v_heap, update->heap, NULL, thd, NULL,
-          NULL, node->update, foreign);
-=======
           update->old_vrow, col, index, &v_heap, update->heap, nullptr, thd,
-          nullptr, nullptr, node->update, foreign);
->>>>>>> mysql-8.0.20
+          nullptr, nullptr, node->update, foreign, prebuilt);
 
       if (new_vfield == nullptr) {
         *err = DB_COMPUTE_VALUE_FAILED;
@@ -1492,16 +1474,8 @@ dberr_t row_ins_check_foreign_constraint(
     check_index = foreign->foreign_index;
   }
 
-<<<<<<< HEAD
-  if (check_table == NULL || !check_table->is_readable() ||
-      check_index == NULL) {
-||||||| ea7d2e2d16a
-  if (check_table == NULL || check_table->ibd_file_missing ||
-      check_index == NULL) {
-=======
-  if (check_table == nullptr || check_table->ibd_file_missing ||
+  if (check_table == nullptr || !check_table->is_readable() ||
       check_index == nullptr) {
->>>>>>> mysql-8.0.20
     if (!srv_read_only_mode && check_ref) {
       FILE *ef = dict_foreign_err_file;
 

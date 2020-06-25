@@ -53,7 +53,7 @@ TEST_F(FatalSignalDeathTest, Abort) {
 }
 
 TEST_F(FatalSignalDeathTest, Segfault) {
-  int *pint = NULL;
+  int *pint = nullptr;
 #if defined(_WIN32)
   /*
    After upgrading from gtest 1.5 to 1.6 this segfault is no longer
@@ -65,12 +65,6 @@ TEST_F(FatalSignalDeathTest, Segfault) {
   /* AddressSanitizer */
   EXPECT_DEATH_IF_SUPPORTED(*pint = 42, ".*ASAN:(DEADLYSIGNAL|SIGSEGV).*");
 #else
-<<<<<<< HEAD
-||||||| ea7d2e2d16a
-  int *pint = NULL;
-=======
-  int *pint = nullptr;
->>>>>>> mysql-8.0.20
   /*
    On most platforms we get SIGSEGV == 11, but SIGBUS == 10 is also possible.
    And on Mac OsX we can get SIGILL == 4 (but only in optmized mode).

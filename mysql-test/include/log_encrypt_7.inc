@@ -15,10 +15,12 @@ call mtr.add_suppression("\\[Warning\\] .* Ignoring tablespace .* because it cou
 call mtr.add_suppression("\\[ERROR\\] .* Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[ERROR\\] .* Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
 call mtr.add_suppression("\\[ERROR\\] .* Can't set redo log tablespace to be encrypted.");
+call mtr.add_suppression("Check keyring plugin fail, please check the keyring plugin is loaded.");
+call mtr.add_suppression("Redo log cannot be encrypted if the keyring plugin is not loaded.");
 --enable_query_log
 
 #Enable redo log encryption, should report error in server log, since keyring is not loaded.
-SET GLOBAL innodb_redo_log_encrypt = ON;
+eval SET GLOBAL innodb_redo_log_encrypt = $redo_log_encrypt_mode;
 
 # Create a table with encryption, should fail since keyring is not
 # loaded.
@@ -33,15 +35,11 @@ ALTER TABLE t1 ENCRYPTION="Y", algorithm=copy;
 let $old_innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 let $old_innodb_redo_log_encrypt = `SELECT @@innodb_redo_log_encrypt`;
 
---disable_warnings
-DROP DATABASE IF EXISTS tde_db;
 CREATE DATABASE tde_db;
 USE tde_db;
---enable_warnings
-# Server is not started with keyring plugin and run innodb_redo_log_encrypt=ON
-# Expected Result : Variable is ignored.
-# bug : expect warning or error
-SET GLOBAL innodb_redo_log_encrypt = ON;
+# Server is not started with keyring plugin and run innodb_redo_log_encrypt=$redo_log_encrypt_mode
+# Expected Result : expect warning and a logged error
+eval SET GLOBAL innodb_redo_log_encrypt = $redo_log_encrypt_mode;
 
 SHOW WARNINGS;
 --let $wait_condition=SELECT @@global.innodb_redo_log_encrypt = 0
@@ -56,7 +54,5 @@ SELECT a,LEFT(b,10) FROM tde_db.t4;
 DROP TABLE tde_db.t4;
 
 
---disable_warnings
 DROP TABLE test.t1;
 DROP DATABASE tde_db;
---enable_warnings

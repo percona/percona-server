@@ -748,22 +748,10 @@ static uint read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
   uint count;
   uint length;
 
-<<<<<<< HEAD
-  if ((count = (uint)MY_MIN((ha_rows)buffpek->max_keys, buffpek->count))) {
+  if ((count = (uint)std::min<ha_rows>(buffpek->max_keys, buffpek->count))) {
     if (mysql_encryption_file_pread(fromfile, (uchar *)buffpek->base,
                                     (length = sort_length * count),
                                     buffpek->file_pos, MYF_RW))
-||||||| ea7d2e2d16a
-  if ((count = (uint)MY_MIN((ha_rows)buffpek->max_keys, buffpek->count))) {
-    if (mysql_file_pread(fromfile->file, (uchar *)buffpek->base,
-                         (length = sort_length * count), buffpek->file_pos,
-                         MYF_RW))
-=======
-  if ((count = std::min<ha_rows>(buffpek->max_keys, buffpek->count))) {
-    if (mysql_file_pread(fromfile->file, (uchar *)buffpek->base,
-                         (length = sort_length * count), buffpek->file_pos,
-                         MYF_RW))
->>>>>>> mysql-8.0.20
       return ((uint)-1); /* purecov: inspected */
     buffpek->key = buffpek->base;
     buffpek->file_pos += length; /* New filepos */

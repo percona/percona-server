@@ -244,22 +244,10 @@ ENDIF()
 
 # LDAP authentication SASL client plugin
 ADD_SUBDIRECTORY(authentication_ldap)
-<<<<<<< HEAD
-  
+
 # Merge several convenience libraries into one big perconaserverclient
 MERGE_CONVENIENCE_LIBRARIES(perconaserverclient ${LIBS_TO_MERGE} COMPONENT Development)
 TARGET_LINK_LIBRARIES(perconaserverclient PRIVATE ${LIBS_TO_LINK})
-||||||| ea7d2e2d16a
-  
-# Merge several convenience libraries into one big mysqlclient
-MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE} COMPONENT Development)
-TARGET_LINK_LIBRARIES(mysqlclient PRIVATE ${LIBS_TO_LINK})
-=======
-
-# Merge several convenience libraries into one big mysqlclient
-MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE} COMPONENT Development)
-TARGET_LINK_LIBRARIES(mysqlclient PRIVATE ${LIBS_TO_LINK})
->>>>>>> mysql-8.0.20
 
 # Visual Studio users need debug  static library for debug projects
 IF(MSVC)

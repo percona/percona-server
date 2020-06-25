@@ -757,26 +757,16 @@ static page_t *ibuf_bitmap_get_map_page_func(const page_id_t &page_id,
   dberr_t error = DB_SUCCESS;
 
   block = buf_page_get_gen(ibuf_bitmap_page_no_calc(page_id, page_size),
-                           page_size, RW_X_LATCH, NULL, Page_fetch::NORMAL,
+                           page_size, RW_X_LATCH, nullptr, Page_fetch::NORMAL,
                            file, line, mtr, false, &error);
 
   if (err != nullptr) {
     *err = error;
   }
 
-<<<<<<< HEAD
   if (error != DB_SUCCESS) {
     return nullptr;
   }
-||||||| ea7d2e2d16a
-  block =
-      buf_page_get_gen(ibuf_bitmap_page_no_calc(page_id, page_size), page_size,
-                       RW_X_LATCH, NULL, Page_fetch::NORMAL, file, line, mtr);
-=======
-  block = buf_page_get_gen(ibuf_bitmap_page_no_calc(page_id, page_size),
-                           page_size, RW_X_LATCH, nullptr, Page_fetch::NORMAL,
-                           file, line, mtr);
->>>>>>> mysql-8.0.20
 
   buf_block_dbg_add_level(block, SYNC_IBUF_BITMAP);
 

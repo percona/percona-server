@@ -874,32 +874,6 @@ static MY_ATTRIBUTE((warn_unused_result)) buf_block_t *btr_free_root_check(
   ut_ad(index_id != BTR_FREED_INDEX_ID);
 
   buf_block_t *block = buf_page_get(page_id, page_size, RW_X_LATCH, mtr);
-<<<<<<< HEAD
-||||||| ea7d2e2d16a
-  buf_block_dbg_add_level(block, SYNC_TREE_NODE);
-
-  if (fil_page_index_page_check(block->frame) &&
-      index_id == btr_page_get_index_id(block->frame)) {
-    /* This should be a root page.
-    It should not be possible to reassign the same
-    index_id for some other index in the tablespace. */
-    ut_ad(page_is_root(block->frame));
-  } else {
-    block = NULL;
-  }
-=======
-  buf_block_dbg_add_level(block, SYNC_TREE_NODE);
-
-  if (fil_page_index_page_check(block->frame) &&
-      index_id == btr_page_get_index_id(block->frame)) {
-    /* This should be a root page.
-    It should not be possible to reassign the same
-    index_id for some other index in the tablespace. */
-    ut_ad(page_is_root(block->frame));
-  } else {
-    block = nullptr;
-  }
->>>>>>> mysql-8.0.20
 
   if (block) {
     buf_block_dbg_add_level(block, SYNC_TREE_NODE);
@@ -911,7 +885,7 @@ static MY_ATTRIBUTE((warn_unused_result)) buf_block_t *btr_free_root_check(
       index_id for some other index in the tablespace. */
       ut_ad(page_is_root(block->frame));
     } else {
-      block = NULL;
+      block = nullptr;
     }
   }
   return (block);

@@ -2801,8 +2801,8 @@ bool srv_enable_redo_encryption_mk(THD *thd) {
   if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
     return false;
   }
-  byte key[ENCRYPTION_KEY_LEN];
-  byte iv[ENCRYPTION_KEY_LEN];
+  byte key[Encryption::KEY_LEN];
+  byte iv[Encryption::KEY_LEN];
 
   Encryption::random_value(iv);
   Encryption::random_value(key);
@@ -2861,19 +2861,9 @@ bool srv_enable_redo_encryption_rk(THD *thd) {
     return false;
   }
 
-<<<<<<< HEAD
-  byte key[ENCRYPTION_KEY_LEN];
-  byte iv[ENCRYPTION_KEY_LEN];
-  uint version;
-||||||| ea7d2e2d16a
-  dberr_t err;
-  byte key[ENCRYPTION_KEY_LEN];
-  byte iv[ENCRYPTION_KEY_LEN];
-=======
-  dberr_t err;
   byte key[Encryption::KEY_LEN];
   byte iv[Encryption::KEY_LEN];
->>>>>>> mysql-8.0.20
+  uint version;
 
   Encryption::random_value(iv);
 
@@ -2895,7 +2885,7 @@ bool srv_enable_redo_encryption_rk(THD *thd) {
 
   version = mkey->version;
   srv_redo_log_key_version = version;
-  memcpy(key, mkey->key, ENCRYPTION_KEY_LEN);
+  memcpy(key, mkey->key, Encryption::KEY_LEN);
 
 #ifdef UNIV_ENCRYPT_DEBUG
   fprintf(stderr, "Fetched redo key: %s.\n", key);
@@ -2915,7 +2905,7 @@ bool srv_enable_redo_encryption_rk(THD *thd) {
   space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
   space->encryption_key_version = version;
   space->encryption_redo_key_uuid.reset(
-      new (std::nothrow) char[ENCRYPTION_SERVER_UUID_LEN + 1]);
+      new (std::nothrow) char[Encryption::SERVER_UUID_LEN + 1]);
   if (space->encryption_redo_key_uuid.get() == nullptr) {
     if (thd != nullptr) {
       ib::error(ER_IB_MSG_1244);
@@ -2926,7 +2916,7 @@ bool srv_enable_redo_encryption_rk(THD *thd) {
   }
 
   memcpy(space->encryption_redo_key_uuid.get(), server_uuid,
-         ENCRYPTION_SERVER_UUID_LEN + 1);
+         Encryption::SERVER_UUID_LEN + 1);
   dberr_t err = fil_set_encryption(space->id, Encryption::KEYRING, key, iv);
 
   if (err != DB_SUCCESS) {

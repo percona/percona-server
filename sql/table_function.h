@@ -441,7 +441,7 @@ class Table_function_sequence final : public Table_function {
       true  on error
       false on success
   */
-  virtual bool print(String *str, enum_query_type query_type) override;
+  virtual bool print(String *str, enum_query_type query_type) const override;
 
   virtual bool walk(Item_processor processor, enum_walk walk,
                     uchar *arg) override;

@@ -515,16 +515,9 @@ static ibool row_merge_fts_doc_tokenize(
 
     /* Ignore string whose character number is less than
     "fts_min_token_size" or more than "fts_max_token_size" */
-<<<<<<< HEAD
-    if (!fts_check_token(&str, NULL, is_ngram, NULL, t_ctx->ignore_stopwords)) {
-      if (parser != NULL) {
-||||||| ea7d2e2d16a
-    if (!fts_check_token(&str, NULL, is_ngram, NULL)) {
-      if (parser != NULL) {
-=======
-    if (!fts_check_token(&str, nullptr, is_ngram, nullptr)) {
+    if (!fts_check_token(&str, nullptr, is_ngram, nullptr,
+                         t_ctx->ignore_stopwords)) {
       if (parser != nullptr) {
->>>>>>> mysql-8.0.20
         UT_LIST_REMOVE(t_ctx->fts_token_list, fts_token);
         ut_free(fts_token);
       } else {
@@ -542,19 +535,9 @@ static ibool row_merge_fts_doc_tokenize(
 
     /* if "cached_stopword" is defined, ignore words in the
     stopword list */
-<<<<<<< HEAD
     if (!fts_check_token(&str, t_ctx->cached_stopword, is_ngram, doc->charset,
                          t_ctx->ignore_stopwords)) {
-      if (parser != NULL) {
-||||||| ea7d2e2d16a
-    if (!fts_check_token(&str, t_ctx->cached_stopword, is_ngram,
-                         doc->charset)) {
-      if (parser != NULL) {
-=======
-    if (!fts_check_token(&str, t_ctx->cached_stopword, is_ngram,
-                         doc->charset)) {
       if (parser != nullptr) {
->>>>>>> mysql-8.0.20
         UT_LIST_REMOVE(t_ctx->fts_token_list, fts_token);
         ut_free(fts_token);
       } else {
@@ -744,18 +727,8 @@ static void fts_parallel_tokenization_thread(fts_psort_t *psort_info) {
   dberr_t error = DB_SUCCESS;
   THD *thd = psort_info->psort_common->trx->mysql_thd;
 
-<<<<<<< HEAD
   ut_ad(thd != nullptr);
   const char *path = thd_innodb_tmpdir(thd);
-||||||| ea7d2e2d16a
-  ut_ad(psort_info->psort_common->trx->mysql_thd != NULL);
-  const char *path =
-      thd_innodb_tmpdir(psort_info->psort_common->trx->mysql_thd);
-=======
-  ut_ad(psort_info->psort_common->trx->mysql_thd != nullptr);
-  const char *path =
-      thd_innodb_tmpdir(psort_info->psort_common->trx->mysql_thd);
->>>>>>> mysql-8.0.20
 
   ut_ad(psort_info);
 

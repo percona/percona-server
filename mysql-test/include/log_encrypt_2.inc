@@ -3,45 +3,12 @@
 
 --source include/no_valgrind_without_big.inc
 
-SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
-
-<<<<<<< HEAD:mysql-test/include/log_encrypt_2.inc
-CREATE TABLE t1(c1 int) ENGINE=InnoDB ENCRYPTION="Y";
-
-DROP TABLE t1;
-
 # Restart the server with keyring loaded
---let restart_parameters="restart:$KEYRING_PARAMS --innodb_redo_log_encrypt=$redo_log_mode"
+--let $restart_parameters= restart: $KEYRING_PARAMS
 --source include/restart_mysqld_no_echo.inc
 
 SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
 
-||||||| ea7d2e2d16a:mysql-test/suite/innodb/t/log_encrypt_2.test
-CREATE TABLE t1(c1 int) ENGINE=InnoDB ENCRYPTION="Y";
-
-DROP TABLE t1;
-
-# Restart the server with keyring loaded
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- send_shutdown
--- source include/wait_until_disconnected.inc
---exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 $KEYRING_PLUGIN_OPT --innodb_redo_log_encrypt=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-
-SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
-=======
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
->>>>>>> mysql-8.0.20:mysql-test/suite/innodb/t/log_encrypt_2.test
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 
 SET GLOBAL innodb_file_per_table = 1;
@@ -74,23 +41,8 @@ INSERT INTO t1 SELECT * FROM t1;
 SELECT * FROM t1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
-<<<<<<< HEAD:mysql-test/include/log_encrypt_2.inc
---let restart_parameters="restart:$KEYRING_PARAMS --innodb_redo_log_encrypt=$redo_log_mode"
+--let $restart_parameters= restart: $KEYRING_PARAMS
 --source include/restart_mysqld_no_echo.inc
-||||||| ea7d2e2d16a:mysql-test/suite/innodb/t/log_encrypt_2.test
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- send_shutdown
--- source include/wait_until_disconnected.inc
---exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 $KEYRING_PLUGIN_OPT --innodb_redo_log_encrypt=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-=======
---let $restart_parameters= restart:
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
---replace_regex /\.dll/.so/
---source include/restart_mysqld.inc
->>>>>>> mysql-8.0.20:mysql-test/suite/innodb/t/log_encrypt_2.test
 
 SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
 
@@ -158,47 +110,21 @@ INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 
 # Restart to confirm the encryption info can be retrieved properly.
-<<<<<<< HEAD:mysql-test/include/log_encrypt_2.inc
---let restart_parameters="restart:$KEYRING_PARAMS --innodb_redo_log_encrypt=$redo_log_mode"
+--let $restart_parameters= restart: $KEYRING_PARAMS
 --let $restart_hide_args = 1
 --source include/kill_and_restart_mysqld.inc
-||||||| ea7d2e2d16a:mysql-test/suite/innodb/t/log_encrypt_2.test
---source include/kill_mysqld.inc
---exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 $KEYRING_PLUGIN_OPT --innodb_redo_log_encrypt=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-=======
-
---let $restart_parameters= restart:
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
---replace_regex /\.dll/.so/
---source include/kill_and_restart_mysqld.inc
->>>>>>> mysql-8.0.20:mysql-test/suite/innodb/t/log_encrypt_2.test
 
 SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
 
 SELECT * FROM t1 LIMIT 10;
 
-<<<<<<< HEAD:mysql-test/include/log_encrypt_2.inc
-let $restart_parameters = restart: $KEYRING_PARAMS --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
---replace_regex /\.dll/.so/
+--let $restart_parameters = restart: $KEYRING_PARAMS --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log
 --source include/restart_mysqld_no_echo.inc
 
 INSERT INTO t1 SELECT * FROM t1;
 DROP TABLE t1;
 
-let $restart_parameters = restart: $KEYRING_PARAMS --general-log --log-output=FILE --innodb_redo_log_encrypt=$redo_log_mode --general_log_file=$MYSQL_TMP_DIR/keyring_query_log;
-||||||| ea7d2e2d16a:mysql-test/suite/innodb/t/log_encrypt_2.test
-
-
-let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log $KEYRING_PLUGIN_OPT --innodb_redo_log_encrypt=ON;
-=======
---let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log $KEYRING_PLUGIN_OPT --innodb_redo_log_encrypt=ON
->>>>>>> mysql-8.0.20:mysql-test/suite/innodb/t/log_encrypt_2.test
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
---replace_regex /\.dll/.so/
+--let $restart_parameters = restart: $KEYRING_PARAMS --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log
 --source include/restart_mysqld_no_echo.inc
 
 SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
@@ -234,10 +160,8 @@ INSERT INTO tde_db.t1 VALUES(4, null);
 SELECT * FROM tde_db.t1 LIMIT 10;
 DROP DATABASE tde_db;
 #
---let $restart_parameters = restart:
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
---replace_regex /\.dll/.so/
---source include/restart_mysqld.inc
+--let $restart_parameters = restart: $KEYRING_PARAMS
+--source include/restart_mysqld_no_echo.inc
 
 # Cleanup
 --remove_file $MYSQL_TMP_DIR/keyring_query_log

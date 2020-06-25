@@ -225,7 +225,7 @@ struct crypt_info_t {
   Encryption::Type encryption_type;
 
   /** Encryption key */
-  byte encryption_key[ENCRYPTION_KEY_LEN];
+  byte encryption_key[Encryption::KEY_LEN];
 
   /** Encryption key length*/
   ulint encryption_klen;
@@ -247,8 +247,8 @@ void log_tmp_enable_encryption_if_set() {
   if (srv_encrypt_online_alter_logs) {
     if (crypt_info.encryption_type == Encryption::NONE) {
       crypt_info.encryption_type = Encryption::AES;
-      crypt_info.encryption_klen = ENCRYPTION_KEY_LEN;
-      my_rand_buffer(crypt_info.encryption_key, ENCRYPTION_KEY_LEN);
+      crypt_info.encryption_klen = Encryption::KEY_LEN;
+      my_rand_buffer(crypt_info.encryption_key, Encryption::KEY_LEN);
     }
   }
 }
@@ -2314,16 +2314,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
   dtuple_t *entry = row_build_index_entry_low(row, nullptr, index, heap,
                                               ROW_BUILD_FOR_INSERT);
   upd_t *update = row_upd_build_difference_binary(
-<<<<<<< HEAD
-      index, entry, btr_pcur_get_rec(&pcur), cur_offsets, false, NULL, heap,
-      dup->table, thr->prebuilt, &error);
-||||||| ea7d2e2d16a
-      index, entry, btr_pcur_get_rec(&pcur), cur_offsets, false, NULL, heap,
-      dup->table, &error);
-=======
       index, entry, btr_pcur_get_rec(&pcur), cur_offsets, false, nullptr, heap,
-      dup->table, &error);
->>>>>>> mysql-8.0.20
+      dup->table, thr->prebuilt, &error);
   if (error != DB_SUCCESS) {
     goto func_exit;
   }
@@ -2953,7 +2945,6 @@ next_block:
     byte *buf = index->online_log->head.block;
 
     err = os_file_read_no_error_handling_int_fd(
-<<<<<<< HEAD
         request, index->online_log->path, index->online_log->fd, buf, ofs, srv_sort_buf_size, nullptr);
 
     /* If encryption is enabled decrypt buffer after reading it
@@ -2969,13 +2960,6 @@ next_block:
       srv_stats.n_rowlog_blocks_decrypted.inc();
       memcpy(buf, index->online_log->crypt_head, srv_sort_buf_size);
     }
-||||||| ea7d2e2d16a
-        request, index->online_log->path, index->online_log->fd,
-        index->online_log->head.block, ofs, srv_sort_buf_size, NULL);
-=======
-        request, index->online_log->path, index->online_log->fd,
-        index->online_log->head.block, ofs, srv_sort_buf_size, nullptr);
->>>>>>> mysql-8.0.20
 
     if (err != DB_SUCCESS) {
       ib::error(ER_IB_MSG_961) << "Unable to read temporary file"
@@ -3761,7 +3745,6 @@ next_block:
     byte *buf = index->online_log->head.block;
 
     dberr_t err = os_file_read_no_error_handling_int_fd(
-<<<<<<< HEAD
         request, index->online_log->path, index->online_log->fd, buf, ofs, srv_sort_buf_size, nullptr);
 
     /* If encryption is enabled decrypt buffer after reading it
@@ -3777,13 +3760,6 @@ next_block:
       srv_stats.n_rowlog_blocks_decrypted.inc();
       memcpy(buf, index->online_log->crypt_head, srv_sort_buf_size);
     }
-||||||| ea7d2e2d16a
-        request, index->online_log->path, index->online_log->fd,
-        index->online_log->head.block, ofs, srv_sort_buf_size, NULL);
-=======
-        request, index->online_log->path, index->online_log->fd,
-        index->online_log->head.block, ofs, srv_sort_buf_size, nullptr);
->>>>>>> mysql-8.0.20
 
     if (err != DB_SUCCESS) {
       ib::error(ER_IB_MSG_963) << "Unable to read temporary file"

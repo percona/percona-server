@@ -2341,21 +2341,13 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
     }
 
     get_mandatory_roles(&mandatory_roles);
-<<<<<<< HEAD
-    while ((user = user_list++) != 0) {
-
-    if (acl_is_utility_user(user->user.str, user->host.str,
-                            nullptr)) {
-      log_user(thd, &wrong_users, user, wrong_users.length() > 0);
-      result = true;
-      continue;
-    }
-
-||||||| ea7d2e2d16a
-    while ((user = user_list++) != 0) {
-=======
     while ((user = user_list++) != nullptr) {
->>>>>>> mysql-8.0.20
+      if (acl_is_utility_user(user->user.str, user->host.str, nullptr)) {
+        log_user(thd, &wrong_users, user, wrong_users.length() > 0);
+        result = true;
+        continue;
+      }
+
       if (std::find_if(mandatory_roles.begin(), mandatory_roles.end(),
                        [&](Role_id &id) -> bool {
                          Role_id id2(user->user, user->host);

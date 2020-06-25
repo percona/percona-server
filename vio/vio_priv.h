@@ -38,15 +38,8 @@
 
 extern PSI_memory_key key_memory_vio;
 extern PSI_memory_key key_memory_vio_read_buffer;
-<<<<<<< HEAD
 extern PSI_memory_key key_memory_vio_proxy_networks;
 
-#ifdef HAVE_OPENSSL
-||||||| ea7d2e2d16a
-
-#ifdef HAVE_OPENSSL
-=======
->>>>>>> mysql-8.0.20
 extern PSI_memory_key key_memory_vio_ssl_fd;
 
 #ifdef _WIN32

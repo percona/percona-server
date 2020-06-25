@@ -2335,65 +2335,24 @@ cleanup:
 
   return result;
 }
-<<<<<<< HEAD
-int runBug33793(NDBT_Context *ctx, NDBT_Step *step) {
-  // int result = NDBT_OK;
-||||||| ea7d2e2d16a
-int 
-runBug33793(NDBT_Context* ctx, NDBT_Step* step)
-{
-  //int result = NDBT_OK;
-=======
 
-int
-checkCanStopAllButOneNodeInGroup(NDBT_Context * ctx, NDBT_Step *step)
-{
+int checkCanStopAllButOneNodeInGroup(NDBT_Context *ctx, NDBT_Step *step) {
   NdbRestarter restarter;
   Vector<int> node_groups;
   int replicas;
   restarter.getNodeGroups(node_groups, &replicas);
 
-  if(restarter.getMaxConcurrentNodeFailures() <= replicas - 1)
-  {
+  if (restarter.getMaxConcurrentNodeFailures() <= replicas - 1) {
     printf("SKIPPING - Cluster configuration not supported for this test.\n");
     return NDBT_SKIPPED;
   }
   return NDBT_OK;
 }
 
-
-int 
-runBug33793(NDBT_Context* ctx, NDBT_Step* step)
-{
->>>>>>> mysql-8.0.20
+int runBug33793(NDBT_Context *ctx, NDBT_Step *step) {
   int loops = ctx->getNumLoops();
   NdbRestarter restarter;
-<<<<<<< HEAD
-  // Restart all but one node in a node group
-  int numNodesToRestart =
-      (restarter.getNumDbNodes() / restarter.getNumNodeGroups()) - 1;
 
-  if ((restarter.getNumDbNodes() < 2) ||
-      (numNodesToRestart > restarter.getMaxConcurrentNodeFailures())) {
-    printf(
-        "SKIPPING the test since the test attempts to restart more than"
-        " half of the data nodes");
-    return NDBT_OK;
-  }
-||||||| ea7d2e2d16a
-  // Restart all but one node in a node group
-  int numNodesToRestart = (restarter.getNumDbNodes() / restarter.getNumNodeGroups()) - 1;
-  
-  if ((restarter.getNumDbNodes() < 2) ||
-      (numNodesToRestart > restarter.getMaxConcurrentNodeFailures()))
-  {
-    printf("SKIPPING the test since the test attempts to restart more than"
-           " half of the data nodes");
-    return NDBT_OK;
-  }
-=======
-
->>>>>>> mysql-8.0.20
   // This should really wait for applier to start...10s is likely enough
   NdbSleep_SecSleep(10);
 
@@ -5146,14 +5105,8 @@ TESTCASE("StallingSubscriber",
   INITIALIZER(runCreateEvent);
   STEP(errorInjectStalling);
 }
-<<<<<<< HEAD
 TESTCASE("Bug33793", "") {
-||||||| ea7d2e2d16a
-TESTCASE("Bug33793", ""){
-=======
-TESTCASE("Bug33793", ""){
   INITIALIZER(checkCanStopAllButOneNodeInGroup);
->>>>>>> mysql-8.0.20
   INITIALIZER(runCreateEvent);
   STEP(runEventListenerUntilStopped);
   STEP(runBug33793);

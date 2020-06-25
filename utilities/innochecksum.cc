@@ -1224,16 +1224,10 @@ static struct my_option innochecksum_options[] = {
      0, nullptr},
 #endif /* !DBUG_OFF */
     {"count", 'c', "Print the count of pages in the file and exits.",
-<<<<<<< HEAD
-     &just_count, &just_count, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"format_info", 'f', "Display information about the file format and exit",
-     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-||||||| ea7d2e2d16a
-     &just_count, &just_count, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-=======
      &just_count, &just_count, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
->>>>>>> mysql-8.0.20
+    {"format_info", 'f', "Display information about the file format and exit",
+     0, 0, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"start_page", 's', "Start on this page number (0 based).", &start_page,
      &start_page, nullptr, GET_ULL, REQUIRED_ARG, 0, 0, ULLONG_MAX, nullptr, 1,
      nullptr},

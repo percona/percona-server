@@ -2831,11 +2831,6 @@ class THD : public MDL_context_owner,
   // We don't want to load/unload plugins for unit tests.
   bool m_enable_plugins;
 
-<<<<<<< HEAD
-  explicit THD(bool enable_plugins = true);
-||||||| ea7d2e2d16a
-  THD(bool enable_plugins = true);
-=======
   /**
      Used by some transformations that need Item:transform to make a permanent
      transform. Will be voided by WL#6570.
@@ -2859,8 +2854,7 @@ class THD : public MDL_context_owner,
     ~Permanent_transform() { m_thd->m_permanent_transform = m_old_value; }
   };
 
-  THD(bool enable_plugins = true);
->>>>>>> mysql-8.0.20
+  explicit THD(bool enable_plugins = true);
 
   /*
     The THD dtor is effectively split in two:

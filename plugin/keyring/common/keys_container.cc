@@ -156,18 +156,10 @@ bool Keys_container::remove_key_from_hash(IKey *key) {
 
 bool Keys_container::remove_key(IKey *key) {
   IKey *fetched_key_to_delete = get_key_from_hash(key);
-<<<<<<< HEAD
   // removing system keys is forbidden
-  if (fetched_key_to_delete == NULL ||
+  if (fetched_key_to_delete == nullptr ||
       system_keys_container->is_system_key(fetched_key_to_delete) ||
       flush_to_backup() || remove_key_from_hash(fetched_key_to_delete))
-||||||| ea7d2e2d16a
-  if (fetched_key_to_delete == NULL || flush_to_backup() ||
-      remove_key_from_hash(fetched_key_to_delete))
-=======
-  if (fetched_key_to_delete == nullptr || flush_to_backup() ||
-      remove_key_from_hash(fetched_key_to_delete))
->>>>>>> mysql-8.0.20
     return true;
   if (flush_to_storage(fetched_key_to_delete, REMOVE_KEY)) {
     // reinsert the key
@@ -195,15 +187,9 @@ bool Keys_container::load_keys_from_keyring_storage() {
         delete key_loaded;
         break;
       }
-<<<<<<< HEAD
       system_keys_container->store_or_update_if_system_key_with_version(
           key_loaded);
-      key_loaded = NULL;
-||||||| ea7d2e2d16a
-      key_loaded = NULL;
-=======
       key_loaded = nullptr;
->>>>>>> mysql-8.0.20
     }
     delete serialized_keys;
     serialized_keys = nullptr;

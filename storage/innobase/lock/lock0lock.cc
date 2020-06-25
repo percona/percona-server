@@ -2063,95 +2063,7 @@ static void lock_rec_grant_by_heap_no(lock_t *in_lock, ulint heap_no) {
 
       granted.push_back(wait_lock);
     } else {
-<<<<<<< HEAD
-      lock_update_wait_for_edge(lock, blocking_lock);
-      add_age += age;
-    }
-  }
-
-  ut_ad(!granted_all.empty());
-
-  ++lock_sys->mark_age_updated;
-
-  if (in_lock->is_waiting()) {
-    sub_age -= in_trx->age + 1;
-  }
-
-  for (const auto &elem : granted) {
-    auto lock = elem.first;
-    const auto trx = lock->trx;
-    int32_t age_compensate = 0;
-
-    for (const auto &new_granted_lock : new_granted) {
-      if (lock->trx == new_granted_lock.first->trx) {
-        age_compensate += trx->age + 1;
-      }
-    }
-
-    if (lock->trx != in_trx) {
-      lock_update_trx_age(trx, sub_age + age_compensate);
-    }
-  }
-
-  for (const auto &elem : new_granted) {
-    auto lock = elem.first;
-    const auto trx = lock->trx;
-    int32_t age_compensate = 0;
-
-    for (const auto &wait_lock : waiting) {
-      if (wait_lock.first->is_waiting() && lock->trx == wait_lock.first->trx) {
-        age_compensate -= trx->age + 1;
-      }
-    }
-
-    if (lock->trx != in_trx) {
-      lock_update_trx_age(trx, add_age + age_compensate);
-||||||| ea7d2e2d16a
-      lock_update_wait_for_edge(lock, blocking_lock);
-      add_age += age;
-    }
-  }
-
-  ut_ad(!granted_all.empty());
-
-  ++lock_sys->mark_age_updated;
-
-  if (in_lock->is_waiting()) {
-    sub_age -= in_trx->age + 1;
-  }
-
-  for (const auto &elem : granted) {
-    auto lock = elem.first;
-    const auto trx = lock->trx;
-    int32_t age_compensate = 0;
-
-    for (const auto new_granted_lock : new_granted) {
-      if (lock->trx == new_granted_lock.first->trx) {
-        age_compensate += trx->age + 1;
-      }
-    }
-
-    if (lock->trx != in_trx) {
-      lock_update_trx_age(trx, sub_age + age_compensate);
-    }
-  }
-
-  for (const auto &elem : new_granted) {
-    auto lock = elem.first;
-    const auto trx = lock->trx;
-    int32_t age_compensate = 0;
-
-    for (const auto wait_lock : waiting) {
-      if (wait_lock.first->is_waiting() && lock->trx == wait_lock.first->trx) {
-        age_compensate -= trx->age + 1;
-      }
-    }
-
-    if (lock->trx != in_trx) {
-      lock_update_trx_age(trx, add_age + age_compensate);
-=======
       lock_update_wait_for_edge(wait_lock, blocking_lock);
->>>>>>> mysql-8.0.20
     }
   }
 }
@@ -5237,7 +5149,6 @@ static void lock_rec_block_validate(space_id_t space_id, page_no_t page_no) {
     dberr_t err = DB_SUCCESS;
     mtr_start(&mtr);
 
-<<<<<<< HEAD
     block = buf_page_get_gen(page_id_t(space_id, page_no),
                              page_size_t(space->flags), RW_X_LATCH, nullptr,
                              Page_fetch::POSSIBLY_FREED, __FILE__, __LINE__,
@@ -5248,15 +5159,6 @@ static void lock_rec_block_validate(space_id_t space_id, page_no_t page_no) {
                   << space->name << " space_id " << space_id << " page_no "
                   << page_no << " err " << err;
     }
-||||||| ea7d2e2d16a
-    block = buf_page_get_gen(
-        page_id_t(space_id, page_no), page_size_t(space->flags), RW_X_LATCH,
-        NULL, Page_fetch::POSSIBLY_FREED, __FILE__, __LINE__, &mtr);
-=======
-    block = buf_page_get_gen(
-        page_id_t(space_id, page_no), page_size_t(space->flags), RW_X_LATCH,
-        nullptr, Page_fetch::POSSIBLY_FREED, __FILE__, __LINE__, &mtr);
->>>>>>> mysql-8.0.20
 
     buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 

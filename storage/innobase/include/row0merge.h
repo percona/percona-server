@@ -287,17 +287,9 @@ ALTER TABLE. If not NULL, stage->begin_phase_sort() will be called initially
 and then stage->inc() will be called for each record processed.
 @return DB_SUCCESS or error code */
 dberr_t row_merge_sort(trx_t *trx, const row_merge_dup_t *dup,
-<<<<<<< HEAD
                        merge_file_t *file, row_merge_block_t *block,
                        row_merge_block_t *crypt_block, space_id_t space_id,
                        int *tmpfd, ut_stage_alter_t *stage = nullptr);
-||||||| ea7d2e2d16a
-                       merge_file_t *file, row_merge_block_t *block, int *tmpfd,
-                       ut_stage_alter_t *stage = NULL);
-=======
-                       merge_file_t *file, row_merge_block_t *block, int *tmpfd,
-                       ut_stage_alter_t *stage = nullptr);
->>>>>>> mysql-8.0.20
 
 /** Allocate a sort buffer.
  @return own: sort buffer */

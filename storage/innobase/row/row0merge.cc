@@ -287,17 +287,9 @@ and then stage->inc() will be called for each record that is processed.
 @return DB_SUCCESS or error number */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_merge_insert_index_tuples(
     trx_t *trx, dict_index_t *index, const dict_table_t *old_table, int fd,
-<<<<<<< HEAD
     row_merge_block_t *block, row_merge_block_t *crypt_block,
     space_id_t space_id, const row_merge_buf_t *row_buf, BtrBulk *btr_bulk,
-    ut_stage_alter_t *stage = NULL);
-||||||| ea7d2e2d16a
-    row_merge_block_t *block, const row_merge_buf_t *row_buf, BtrBulk *btr_bulk,
-    ut_stage_alter_t *stage = NULL);
-=======
-    row_merge_block_t *block, const row_merge_buf_t *row_buf, BtrBulk *btr_bulk,
     ut_stage_alter_t *stage = nullptr);
->>>>>>> mysql-8.0.20
 
 /** Encode an index record. */
 static void row_merge_buf_encode(
@@ -1410,16 +1402,8 @@ static byte *row_merge_write_rec(
     record to the head of the new block. */
     memcpy(b, buf[0], avail_size);
 
-<<<<<<< HEAD
     if (!row_merge_write(fd, (*foffs)++, block, crypt_block, space_id)) {
-      return (NULL);
-||||||| ea7d2e2d16a
-    if (!row_merge_write(fd, (*foffs)++, block)) {
-      return (NULL);
-=======
-    if (!row_merge_write(fd, (*foffs)++, block)) {
       return (nullptr);
->>>>>>> mysql-8.0.20
     }
 
     UNIV_MEM_INVALID(&block[0], srv_sort_buf_size);
@@ -1469,16 +1453,8 @@ static byte *row_merge_write_eof(
   memset(b, 0xff, &block[srv_sort_buf_size] - b);
 #endif /* UNIV_DEBUG_VALGRIND */
 
-<<<<<<< HEAD
   if (!row_merge_write(fd, (*foffs)++, block, crypt_block, space_id)) {
-    return NULL;
-||||||| ea7d2e2d16a
-  if (!row_merge_write(fd, (*foffs)++, block)) {
-    return NULL;
-=======
-  if (!row_merge_write(fd, (*foffs)++, block)) {
     return nullptr;
->>>>>>> mysql-8.0.20
   }
 
   UNIV_MEM_INVALID(&block[0], srv_sort_buf_size);
@@ -1674,32 +1650,14 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
         merge_file_t *files, const ulint *key_numbers, ulint n_index,
         const dtuple_t *add_cols, const dict_add_v_col_t *add_v,
         const ulint *col_map, ulint add_autoinc, ib_sequence_t &sequence,
-<<<<<<< HEAD
         row_merge_block_t *block, row_merge_block_t *crypt_block,
         bool skip_pk_sort, int *tmpfd, ut_stage_alter_t *stage,
         struct TABLE *eval_table, row_prebuilt_t *prebuilt) {
-  dict_index_t *clust_index;      /* Clustered index */
-  mem_heap_t *row_heap;           /* Heap memory to create
-                                  clustered index tuples */
-  row_merge_buf_t **merge_buf;    /* Temporary list for records*/
-  mem_heap_t *v_heap = NULL;      /* Heap memory to process large
-||||||| ea7d2e2d16a
-        row_merge_block_t *block, bool skip_pk_sort, int *tmpfd,
-        ut_stage_alter_t *stage, struct TABLE *eval_table) {
-  dict_index_t *clust_index;      /* Clustered index */
-  mem_heap_t *row_heap;           /* Heap memory to create
-                                  clustered index tuples */
-  row_merge_buf_t **merge_buf;    /* Temporary list for records*/
-  mem_heap_t *v_heap = NULL;      /* Heap memory to process large
-=======
-        row_merge_block_t *block, bool skip_pk_sort, int *tmpfd,
-        ut_stage_alter_t *stage, struct TABLE *eval_table) {
   dict_index_t *clust_index;         /* Clustered index */
   mem_heap_t *row_heap;              /* Heap memory to create
                                      clustered index tuples */
   row_merge_buf_t **merge_buf;       /* Temporary list for records*/
   mem_heap_t *v_heap = nullptr;      /* Heap memory to process large
->>>>>>> mysql-8.0.20
                                   data for virtual column */
   btr_pcur_t pcur;                   /* Cursor on the clustered
                                      index */
@@ -2327,17 +2285,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
             clust_btr_bulk->latch();
           }
 
-<<<<<<< HEAD
           err = row_merge_insert_index_tuples(
               trx, index[i], old_table, -1, nullptr, nullptr, new_table->space,
               buf, clust_btr_bulk);
-||||||| ea7d2e2d16a
-          err = row_merge_insert_index_tuples(trx, index[i], old_table, -1,
-                                              NULL, buf, clust_btr_bulk);
-=======
-          err = row_merge_insert_index_tuples(trx, index[i], old_table, -1,
-                                              nullptr, buf, clust_btr_bulk);
->>>>>>> mysql-8.0.20
 
           if (row == nullptr) {
             err = clust_btr_bulk->finish(err);
@@ -2426,17 +2376,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
           BtrBulk btr_bulk(index[i], trx->id, observer);
           err = btr_bulk.init();
           if (err == DB_SUCCESS) {
-<<<<<<< HEAD
             err = row_merge_insert_index_tuples(
                 trx, index[i], old_table, -1, nullptr, nullptr,
                 new_table->space, buf, &btr_bulk);
-||||||| ea7d2e2d16a
-            err = row_merge_insert_index_tuples(trx, index[i], old_table, -1,
-                                                NULL, buf, &btr_bulk);
-=======
-            err = row_merge_insert_index_tuples(trx, index[i], old_table, -1,
-                                                nullptr, buf, &btr_bulk);
->>>>>>> mysql-8.0.20
 
             err = btr_bulk.finish(err);
           }
@@ -2863,18 +2805,10 @@ done0:
   (*foffs0)++;
 
   mem_heap_free(heap);
-<<<<<<< HEAD
   return row_merge_write_eof(
-                  &block[2 * srv_sort_buf_size],
-                  crypt_block ? &crypt_block[2 * srv_sort_buf_size] : nullptr,
-                  space_id, b2, of->fd, &of->offset) != NULL;
-||||||| ea7d2e2d16a
-  return row_merge_write_eof(&block[2 * srv_sort_buf_size], b2, of->fd,
-                             &of->offset) != NULL;
-=======
-  return row_merge_write_eof(&block[2 * srv_sort_buf_size], b2, of->fd,
-                             &of->offset) != nullptr;
->>>>>>> mysql-8.0.20
+             &block[2 * srv_sort_buf_size],
+             crypt_block ? &crypt_block[2 * srv_sort_buf_size] : nullptr,
+             space_id, b2, of->fd, &of->offset) != nullptr;
 }
 
 /** Merge disk files.
@@ -3924,26 +3858,12 @@ dberr_t row_merge_build_indexes(
   /* Reset the MySQL row buffer that is used when reporting duplicate keys. */
   innobase_rec_reset(table);
 
-<<<<<<< HEAD
-  if (table->in_use->is_error()) {
-    error = DB_COMPUTE_VALUE_FAILED;
-    goto func_exit;
-  }
-
   if (!old_table->is_readable() || !new_table->is_readable()) {
     error = DB_IO_DECRYPT_FAIL;
     ib::warn(ER_XB_MSG_4, table->s->table_name.str);
     goto func_exit;
   }
 
-||||||| ea7d2e2d16a
-  if (table->in_use->is_error()) {
-    error = DB_COMPUTE_VALUE_FAILED;
-    goto func_exit;
-  }
-
-=======
->>>>>>> mysql-8.0.20
   /* Read clustered index of the table and create files for
   secondary index entries for merge sort */
   error = row_merge_read_clustered_index(
@@ -4039,19 +3959,9 @@ dberr_t row_merge_build_indexes(
         BtrBulk btr_bulk(sort_idx, trx->id, flush_observer);
         error = btr_bulk.init();
         if (error == DB_SUCCESS) {
-<<<<<<< HEAD
           error = row_merge_insert_index_tuples(
               trx, sort_idx, old_table, merge_files[i].fd, block, crypt_block,
-              new_table->space, NULL, &btr_bulk, stage);
-||||||| ea7d2e2d16a
-          error = row_merge_insert_index_tuples(trx, sort_idx, old_table,
-                                                merge_files[i].fd, block, NULL,
-                                                &btr_bulk, stage);
-=======
-          error = row_merge_insert_index_tuples(trx, sort_idx, old_table,
-                                                merge_files[i].fd, block,
-                                                nullptr, &btr_bulk, stage);
->>>>>>> mysql-8.0.20
+              new_table->space, nullptr, &btr_bulk, stage);
 
           error = btr_bulk.finish(error);
         }

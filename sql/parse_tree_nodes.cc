@@ -997,18 +997,10 @@ Sql_cmd *PT_call::make_cmd(THD *thd) {
 
   Parse_context pc(thd, lex->current_select());
 
-<<<<<<< HEAD
   if (m_opt_hints != nullptr && m_opt_hints->contextualize(&pc)) return nullptr;
 
-  if (opt_expr_list != NULL && opt_expr_list->contextualize(&pc))
-    return NULL; /* purecov: inspected */
-||||||| ea7d2e2d16a
-  if (opt_expr_list != NULL && opt_expr_list->contextualize(&pc))
-    return NULL; /* purecov: inspected */
-=======
   if (opt_expr_list != nullptr && opt_expr_list->contextualize(&pc))
     return nullptr; /* purecov: inspected */
->>>>>>> mysql-8.0.20
 
   lex->sql_command = SQLCOM_CALL;
 
@@ -2309,16 +2301,10 @@ Sql_cmd *PT_check_table_stmt::make_cmd(THD *thd) {
     return nullptr;
   }
 
-<<<<<<< HEAD
   Parse_context pc(thd, select);
 
   if (m_opt_hints != nullptr && m_opt_hints->contextualize(&pc)) return nullptr;
 
-  lex->check_opt.init();
-||||||| ea7d2e2d16a
-  lex->check_opt.init();
-=======
->>>>>>> mysql-8.0.20
   lex->check_opt.flags |= m_flags;
   lex->check_opt.sql_flags |= m_sql_flags;
   if (select->add_tables(thd, m_table_list, TL_OPTION_UPDATING, TL_UNLOCK,
@@ -2336,17 +2322,11 @@ Sql_cmd *PT_optimize_table_stmt::make_cmd(THD *thd) {
   SELECT_LEX *const select = lex->current_select();
 
   lex->no_write_to_binlog = m_no_write_to_binlog;
-<<<<<<< HEAD
-  lex->check_opt.init();
 
   Parse_context pc(thd, select);
 
   if (m_opt_hints != nullptr && m_opt_hints->contextualize(&pc)) return nullptr;
 
-||||||| ea7d2e2d16a
-  lex->check_opt.init();
-=======
->>>>>>> mysql-8.0.20
   if (select->add_tables(thd, m_table_list, TL_OPTION_UPDATING, TL_UNLOCK,
                          MDL_SHARED_READ))
     return nullptr;

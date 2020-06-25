@@ -197,5 +197,5 @@ SELECT 1;
 1
 DROP DATABASE tde_db;
 # restart server without keyring
-# restart: 
+# restart:
 SET GLOBAL innodb_file_per_table=1;

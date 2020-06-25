@@ -1046,17 +1046,9 @@ static MYSQL_THDVAR_BOOL(strict_mode, PLUGIN_VAR_OPCMDARG,
                          "Use strict mode when evaluating create options.",
                          nullptr, nullptr, TRUE);
 
-<<<<<<< HEAD
 static MYSQL_THDVAR_BOOL(ft_enable_stopword,
                          PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
-                         "Create FTS index with stopword.", NULL, NULL,
-||||||| ea7d2e2d16a
-static MYSQL_THDVAR_BOOL(ft_enable_stopword, PLUGIN_VAR_OPCMDARG,
-                         "Create FTS index with stopword.", NULL, NULL,
-=======
-static MYSQL_THDVAR_BOOL(ft_enable_stopword, PLUGIN_VAR_OPCMDARG,
                          "Create FTS index with stopword.", nullptr, nullptr,
->>>>>>> mysql-8.0.20
                          /* default */ TRUE);
 
 static MYSQL_THDVAR_ULONG(lock_wait_timeout,
@@ -2683,16 +2675,12 @@ dberr_t Compression::validate(const char *algorithm) {
 }
 
 #ifndef UNIV_HOTBACKUP
-<<<<<<< HEAD
-bool Encryption::is_empty(const char *algorithm) {
+bool Encryption::is_empty(const char *algorithm) noexcept {
   /* nullptr is the same as empty */
   return algorithm == nullptr;
 }
 
-/** Check if the string is "" or "n".
-@param[in]      algorithm       Encryption algorithm to check
-@return true if no algorithm requested */
-bool Encryption::is_none(const char *algorithm) {
+bool Encryption::is_none(const char *algorithm) noexcept {
   return Encryption::is_empty(algorithm) ||
          innobase_strcasecmp(algorithm, "n") == 0;
 }
@@ -2700,7 +2688,7 @@ bool Encryption::is_none(const char *algorithm) {
 /** Check if the string is "y" or "Y".
 @param[in]      algorithm       Encryption algorithm to check
 @return true if no algorithm requested */
-bool Encryption::is_master_key_encryption(const char *algorithm) {
+bool Encryption::is_master_key_encryption(const char *algorithm) noexcept {
   return innobase_strcasecmp(algorithm, "y") == 0;
 }
 
@@ -2712,35 +2700,21 @@ bool Encryption::none_explicitly_specified(bool explicit_encryption,
   if (explicit_encryption) {
     ut_ad(algorithm != nullptr);
     return innobase_strcasecmp(algorithm, "n") == 0;
-||||||| ea7d2e2d16a
-/** Check if the string is "" or "n".
-@param[in]      algorithm       Encryption algorithm to check
-@return true if no algorithm requested */
-bool Encryption::is_none(const char *algorithm) {
-  /* NULL is the same as NONE */
-  if (algorithm == NULL || innobase_strcasecmp(algorithm, "n") == 0) {
-    return (true);
-=======
-bool Encryption::is_none(const char *algorithm) noexcept {
-  /* NULL is the same as NONE */
-  if (algorithm == nullptr || innobase_strcasecmp(algorithm, "n") == 0) {
-    return (true);
->>>>>>> mysql-8.0.20
   }
   return false;
 }
 
-bool Encryption::is_keyring(const char *algoritm) {
-  return (algoritm != NULL && innobase_strcasecmp(algoritm, "keyring") == 0);
+bool Encryption::is_keyring(const char *algoritm) noexcept {
+  return (algoritm != nullptr && innobase_strcasecmp(algoritm, "keyring") == 0);
 }
 
-bool Encryption::is_online_encryption_on() {
+bool Encryption::is_online_encryption_on() noexcept {
   return srv_default_table_encryption == DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING;
 }
 
 // This for now excludes MK encryption ...
 bool Encryption::should_be_keyring_encrypted(bool explicit_encryption,
-                                             const char *algorithm) {
+                                             const char *algorithm) noexcept {
   return !none_explicitly_specified(explicit_encryption, algorithm) &&
          (is_keyring(algorithm) ||
           (!Encryption::is_master_key_encryption(algorithm) &&
@@ -2764,19 +2738,7 @@ dberr_t Encryption::set_algorithm(const char *option,
   return (DB_SUCCESS);
 }
 
-<<<<<<< HEAD
-/** Check for supported ENCRYPT := (Y | N | KEYRING) supported values
-@param[in]	option		Encryption option
-@return DB_SUCCESS or DB_UNSUPPORTED */
-dberr_t Encryption::validate(const char *option) {
-||||||| ea7d2e2d16a
-/** Check for supported ENCRYPT := (Y | N) supported values
-@param[in]	option		Encryption option
-@return DB_SUCCESS or DB_UNSUPPORTED */
-dberr_t Encryption::validate(const char *option) {
-=======
 dberr_t Encryption::validate(const char *option) noexcept {
->>>>>>> mysql-8.0.20
   Encryption encryption;
 
   return (encryption.set_algorithm(option, &encryption));
@@ -2785,7 +2747,7 @@ dberr_t Encryption::validate(const char *option) noexcept {
 /** Check for supported ENCRYPT := (Y | N) supported values
 @param[in]	option		Encryption option
 @return DB_SUCCESS or DB_UNSUPPORTED */
-dberr_t Encryption::validate_for_tablespace(const char *option) {
+dberr_t Encryption::validate_for_tablespace(const char *option) noexcept {
   if (innobase_strcasecmp(option, "KEYRING") == 0) {
     return DB_UNSUPPORTED;
   }
@@ -3396,15 +3358,9 @@ static int innodb_init_abort() {
 @param[in,out]	tablespaces	predefined tablespaces created by the DDSE
 @return 0 on success, 1 on failure */
 static int innobase_init_files(dict_init_mode_t dict_init_mode,
-<<<<<<< HEAD
                                List<const Plugin_tablespace> *tablespaces,
-                               bool &is_dd_encrypted);
-||||||| ea7d2e2d16a
-                               List<const Plugin_tablespace> *tablespaces);
-=======
-                               List<const Plugin_tablespace> *tablespaces)
+                               bool &is_dd_encrypted)
     MY_ATTRIBUTE((warn_unused_result));
->>>>>>> mysql-8.0.20
 
 /** Initialize InnoDB for being used to store the DD tables.
 Create the required files according to the dict_init_mode.
@@ -4441,7 +4397,7 @@ bool innobase_fix_tablespaces_empty_uuid() {
   srv_is_uuid_ready = true;
 #endif /* UNIV_DEBUG */
 
-  if (Encryption::s_master_key_id == 0) {
+  if (Encryption::get_master_key_id() == 0) {
     /* We have to call srv_enable_redo_encryption during every startup, to
        report errors generated in this function correctly. Without this call
        here, some illegal configurations, such as enabling encryption without a
@@ -4465,7 +4421,7 @@ bool innobase_fix_tablespaces_empty_uuid() {
   /* We only need to handle the case when an encrypted tablespace
   is created at startup. If it is > 1, it means we already have fixed
   the UUID */
-  if (Encryption::s_master_key_id > 1) {
+  if (Encryption::get_master_key_id() > 1) {
     return (false);
   }
 
@@ -7469,15 +7425,9 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   For intrinsic table, get it from session private data */
   ib_table = thd_to_innodb_session(thd)->lookup_table_handler(norm_name);
 
-<<<<<<< HEAD
-  if (ib_table == NULL) {
+  if (ib_table == nullptr) {
     DEBUG_SYNC_C("ha_innobase_open");
 
-||||||| ea7d2e2d16a
-  if (ib_table == NULL) {
-=======
-  if (ib_table == nullptr) {
->>>>>>> mysql-8.0.20
     mutex_enter(&dict_sys->mutex);
     ib_table = dict_table_check_if_in_cache_low(norm_name);
     if (ib_table != nullptr) {
@@ -7609,19 +7559,11 @@ int ha_innobase::open(const char *name, int, uint open_flags,
 
   /* For encrypted table, check if the encryption info in data
   file can't be retrieved properly, mark it as corrupted. */
-<<<<<<< HEAD
-  if (ib_table != NULL &&
+  if (ib_table != nullptr &&
       (dd_is_table_in_encrypted_tablespace(ib_table) ||
        (ib_table->keyring_encryption_info.page0_has_crypt_data &&
         ib_table->keyring_encryption_info.is_encryption_in_progress())) &&
       ib_table->file_unreadable && !dict_table_is_discarded(ib_table)) {
-||||||| ea7d2e2d16a
-  if (ib_table != NULL && dd_is_table_in_encrypted_tablespace(ib_table) &&
-      ib_table->ibd_file_missing && !dict_table_is_discarded(ib_table)) {
-=======
-  if (ib_table != nullptr && dd_is_table_in_encrypted_tablespace(ib_table) &&
-      ib_table->ibd_file_missing && !dict_table_is_discarded(ib_table)) {
->>>>>>> mysql-8.0.20
     /* Mark this table as corrupted, so the drop table
     or force recovery can still use it, but not others. */
     FilSpace space;
@@ -7642,20 +7584,12 @@ int ha_innobase::open(const char *name, int, uint open_flags,
       error = HA_ERR_TABLE_CORRUPT;
     }
     dict_table_close(ib_table, FALSE, FALSE);
-<<<<<<< HEAD
-    ib_table = NULL;
-||||||| ea7d2e2d16a
-    ib_table = NULL;
-
-=======
     ib_table = nullptr;
 
->>>>>>> mysql-8.0.20
     free_share(m_share);
     return error;
   }
 
-<<<<<<< HEAD
   // if (space() == NULL) {
   // int ret_err= HA_ERR_TABLE_CORRUPT;
   // if (ib_table->keyring_encryption_info.keyring_encryption_key_is_missing ||
@@ -7675,12 +7609,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   //}
   //}
 
-  if (NULL == ib_table) {
-||||||| ea7d2e2d16a
-  if (NULL == ib_table) {
-=======
   if (nullptr == ib_table) {
->>>>>>> mysql-8.0.20
     ib::warn(ER_IB_MSG_557)
         << "Cannot open table " << norm_name << TROUBLESHOOTING_MSG;
 
@@ -7903,16 +7832,8 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   stats.block_size = UNIV_PAGE_SIZE;
 
   /* Only if the table has an AUTOINC column. */
-<<<<<<< HEAD
-  if (m_prebuilt->table != NULL && m_prebuilt->table->is_readable() &&
-      table->found_next_number_field != NULL) {
-||||||| ea7d2e2d16a
-  if (m_prebuilt->table != NULL && !m_prebuilt->table->ibd_file_missing &&
-      table->found_next_number_field != NULL) {
-=======
-  if (m_prebuilt->table != nullptr && !m_prebuilt->table->ibd_file_missing &&
+  if (m_prebuilt->table != nullptr && m_prebuilt->table->is_readable() &&
       table->found_next_number_field != nullptr) {
->>>>>>> mysql-8.0.20
     dict_table_t *ib_table = m_prebuilt->table;
 
     dict_table_autoinc_lock(ib_table);
@@ -12203,61 +12124,9 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
       algorithm = nullptr;
     }
 
-<<<<<<< HEAD
     KeyringEncryptionKeyIdInfo keyring_encryption_key_id(
         m_create_info->was_encryption_key_id_set,
         m_create_info->encryption_key_id);
-||||||| ea7d2e2d16a
-    if (err == DB_SUCCESS) {
-      const char *encrypt = m_create_info->encrypt_type.str;
-      if (!Encryption::is_none(encrypt) &&
-          (m_flags2 & DICT_TF2_USE_FILE_PER_TABLE)) {
-        /* Set the encryption flag. */
-        byte *master_key = NULL;
-        ulint master_key_id;
-
-        /* Check if keyring is ready. */
-        Encryption::get_master_key(&master_key_id, &master_key);
-
-        if (master_key == NULL) {
-          my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
-          err = DB_UNSUPPORTED;
-          dict_mem_table_free(table);
-        } else {
-          my_free(master_key);
-          /* This flag will be used for setting
-          encryption flag for file-per-table
-          tablespace. */
-          DICT_TF2_FLAG_SET(table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE);
-        }
-      }
-    }
-=======
-    if (err == DB_SUCCESS) {
-      const char *encrypt = m_create_info->encrypt_type.str;
-      if (!Encryption::is_none(encrypt) &&
-          (m_flags2 & DICT_TF2_USE_FILE_PER_TABLE)) {
-        /* Set the encryption flag. */
-        byte *master_key = nullptr;
-        ulint master_key_id;
-
-        /* Check if keyring is ready. */
-        Encryption::get_master_key(&master_key_id, &master_key);
-
-        if (master_key == nullptr) {
-          my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
-          err = DB_UNSUPPORTED;
-          dict_mem_table_free(table);
-        } else {
-          my_free(master_key);
-          /* This flag will be used for setting
-          encryption flag for file-per-table
-          tablespace. */
-          DICT_TF2_FLAG_SET(table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE);
-        }
-      }
-    }
->>>>>>> mysql-8.0.20
 
     if (err == DB_SUCCESS) {
       err = row_create_table_for_mysql(table, algorithm, m_trx,
@@ -13376,13 +13245,6 @@ static bool innobase_ddse_dict_init(
   DBUG_ASSERT(tables && tables->is_empty());
   DBUG_ASSERT(tablespaces && tablespaces->is_empty());
 
-<<<<<<< HEAD
-  bool is_dd_encrypted{false};
-
-  if (innobase_init_files(dict_init_mode, tablespaces, is_dd_encrypted)) {
-||||||| ea7d2e2d16a
-  if (innobase_init_files(dict_init_mode, tablespaces)) {
-=======
   if (dblwr::enabled) {
     if (innobase_doublewrite_dir != nullptr && *innobase_doublewrite_dir != 0) {
       dblwr::dir.assign(innobase_doublewrite_dir);
@@ -13405,8 +13267,9 @@ static bool innobase_ddse_dict_init(
     ib::info(ER_IB_MSG_DBLWR_1305) << "Atomic write disabled";
   }
 
-  if (innobase_init_files(dict_init_mode, tablespaces)) {
->>>>>>> mysql-8.0.20
+  bool is_dd_encrypted{false};
+
+  if (innobase_init_files(dict_init_mode, tablespaces, is_dd_encrypted)) {
     return true;
   }
 
@@ -22091,30 +21954,13 @@ static float innobase_fts_find_ranking(FT_INFO *fts_hdl, uchar *, uint) {
 }
 
 #ifdef UNIV_DEBUG
-<<<<<<< HEAD
-static bool innodb_background_drop_list_empty = TRUE;
-static bool innodb_purge_run_now = TRUE;
-static bool innodb_purge_stop_now = TRUE;
-static bool innodb_log_checkpoint_now = TRUE;
-static bool innodb_log_checkpoint_fuzzy_now = TRUE;
-static bool innodb_buf_flush_list_now = TRUE;
-static bool innodb_track_redo_log_now = true;
-||||||| ea7d2e2d16a
-static bool innodb_background_drop_list_empty = TRUE;
-static bool innodb_purge_run_now = TRUE;
-static bool innodb_purge_stop_now = TRUE;
-static bool innodb_log_checkpoint_now = TRUE;
-static bool innodb_log_checkpoint_fuzzy_now = TRUE;
-static bool innodb_buf_flush_list_now = TRUE;
-=======
 static bool innodb_background_drop_list_empty = true;
 static bool innodb_purge_run_now = true;
 static bool innodb_purge_stop_now = true;
 static bool innodb_log_checkpoint_now = true;
 static bool innodb_buf_flush_list_now = true;
 static bool innodb_log_checkpoint_fuzzy_now = true;
-
->>>>>>> mysql-8.0.20
+static bool innodb_track_redo_log_now = true;
 static uint innodb_merge_threshold_set_all_debug =
     DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
 
@@ -22808,24 +22654,6 @@ static MYSQL_SYSVAR_UINT(
     " cache by the specified value dynamically, at the time.",
     nullptr, innodb_merge_threshold_set_all_debug_update,
     DICT_INDEX_MERGE_THRESHOLD_DEFAULT, 1, 50, 0);
-<<<<<<< HEAD
-||||||| ea7d2e2d16a
-
-static MYSQL_SYSVAR_ULONG(
-    semaphore_wait_timeout_debug, srv_fatal_semaphore_wait_threshold,
-    PLUGIN_VAR_RQCMDARG,
-    "Number of seconds that a semaphore can be held. If semaphore wait crosses"
-    "this value, server will crash",
-    NULL, NULL, 600, 100, 600, 0);
-=======
-
-static MYSQL_SYSVAR_ULONG(
-    semaphore_wait_timeout_debug, srv_fatal_semaphore_wait_threshold,
-    PLUGIN_VAR_RQCMDARG,
-    "Number of seconds that a semaphore can be held. If semaphore wait crosses"
-    "this value, server will crash",
-    nullptr, nullptr, 600, 100, 600, 0);
->>>>>>> mysql-8.0.20
 #endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_ULONG(
@@ -23077,26 +22905,6 @@ static MYSQL_SYSVAR_ULONG(page_hash_locks, srv_n_page_hash_locks,
                           "Number of rw_locks protecting buffer pool "
                           "page_hash. Rounded up to the next power of 2",
                           nullptr, nullptr, 16, 1, MAX_PAGE_HASH_LOCKS, 0);
-#endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
-
-// clang-format off
-static MYSQL_SYSVAR_BOOL(
-    doublewrite, dblwr::enabled, PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-    "Enable InnoDB doublewrite buffer (enabled by default)."
-    " Disable with --skip-innodb-doublewrite.",
-    nullptr, nullptr, TRUE);
-
-static MYSQL_SYSVAR_STR(
-    doublewrite_dir, innobase_doublewrite_dir, PLUGIN_VAR_READONLY,
-    "Use a separate directory for the doublewrite buffer files, ", NULL, NULL,
-    NULL);
-
-static MYSQL_SYSVAR_ULONG(
-<<<<<<< HEAD
-    doublewrite_batch_size, srv_doublewrite_batch_size,
-    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
-    "Number of pages reserved in doublewrite buffer for batch flushing", NULL,
-    NULL, 120, 1, 127, 0);
 
 #ifdef UNIV_LINUX
 
@@ -23142,15 +22950,21 @@ static MYSQL_SYSVAR_ULONG(cleaner_max_flush_time, srv_cleaner_max_flush_time,
                           "flush iteration by the page "
                           "cleaner thread in miliseconds",
                           NULL, NULL, 1000, 0, ~0UL, 0);
+#endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
 
-#endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
-||||||| ea7d2e2d16a
-    doublewrite_batch_size, srv_doublewrite_batch_size,
-    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
-    "Number of pages reserved in doublewrite buffer for batch flushing", NULL,
-    NULL, 120, 1, 127, 0);
-#endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
-=======
+// clang-format off
+static MYSQL_SYSVAR_BOOL(
+    doublewrite, dblwr::enabled, PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+    "Enable InnoDB doublewrite buffer (enabled by default)."
+    " Disable with --skip-innodb-doublewrite.",
+    nullptr, nullptr, TRUE);
+
+static MYSQL_SYSVAR_STR(
+    doublewrite_dir, innobase_doublewrite_dir, PLUGIN_VAR_READONLY,
+    "Use a separate directory for the doublewrite buffer files, ", NULL, NULL,
+    NULL);
+
+static MYSQL_SYSVAR_ULONG(
     doublewrite_pages, dblwr::n_pages,
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
     "Number of double write pages per thread" , NULL, NULL, 0, 0, 512, 0);
@@ -23166,7 +22980,6 @@ static MYSQL_SYSVAR_ULONG(
     "Number of double write pages to write in a batch", NULL, NULL,
     0, 0, 256, 0);
 // clang-format on
->>>>>>> mysql-8.0.20
 
 static MYSQL_SYSVAR_ENUM(
     cleaner_lsn_age_factor, srv_cleaner_lsn_age_factor, PLUGIN_VAR_OPCMDARG,
@@ -24314,8 +24127,6 @@ static SYS_VAR *innobase_system_variables[] = {
 #endif /* UNIV_DEBUG */
 #if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
     MYSQL_SYSVAR(page_hash_locks),
-<<<<<<< HEAD
-    MYSQL_SYSVAR(doublewrite_batch_size),
 #ifdef UNIV_LINUX
     MYSQL_SYSVAR(sched_priority_purge),
     MYSQL_SYSVAR(sched_priority_io),
@@ -24325,10 +24136,6 @@ static SYS_VAR *innobase_system_variables[] = {
 #endif /* UNIV_LINUX */
     MYSQL_SYSVAR(cleaner_max_lru_time),
     MYSQL_SYSVAR(cleaner_max_flush_time),
-||||||| ea7d2e2d16a
-    MYSQL_SYSVAR(doublewrite_batch_size),
-=======
->>>>>>> mysql-8.0.20
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
     MYSQL_SYSVAR(status_output),
     MYSQL_SYSVAR(status_output_locks),
@@ -24367,7 +24174,6 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(ddl_log_crash_reset_debug),
 #endif /* UNIV_DEBUG */
     MYSQL_SYSVAR(parallel_read_threads),
-<<<<<<< HEAD
     MYSQL_SYSVAR(corrupt_table_action),
     MYSQL_SYSVAR(compressed_columns_zip_level),
     MYSQL_SYSVAR(compressed_columns_threshold),
@@ -24386,28 +24192,15 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(scrub_log_speed),
     MYSQL_SYSVAR(records_in_range),
     MYSQL_SYSVAR(force_index_records_in_range),
-    NULL};
-||||||| ea7d2e2d16a
-    NULL};
-=======
     nullptr};
->>>>>>> mysql-8.0.20
 
 mysql_declare_plugin(innobase){
     MYSQL_STORAGE_ENGINE_PLUGIN,
     &innobase_storage_engine,
     innobase_hton_name,
-<<<<<<< HEAD
-    plugin_author,
+    PLUGIN_AUTHOR_ORACLE,
     "Percona-XtraDB, Supports transactions, row-level locking, and foreign "
     "keys",
-||||||| ea7d2e2d16a
-    plugin_author,
-    "Supports transactions, row-level locking, and foreign keys",
-=======
-    PLUGIN_AUTHOR_ORACLE,
-    "Supports transactions, row-level locking, and foreign keys",
->>>>>>> mysql-8.0.20
     PLUGIN_LICENSE_GPL,
     innodb_init, /* Plugin Init */
     nullptr,     /* Plugin Check uninstall */

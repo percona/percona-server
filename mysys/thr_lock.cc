@@ -409,15 +409,9 @@ static enum enum_thr_lock_result wait_for_lock(struct st_lock_list *wait,
     ourselves to call it before_lock_wait once before starting to wait
     and once after the thread has exited the wait loop.
    */
-<<<<<<< HEAD
   bool use_wait_callbacks;
-  if ((!is_killed_hook(NULL) || in_wait_list) && before_lock_wait) {
+  if ((!is_killed_hook(nullptr) || in_wait_list) && before_lock_wait) {
     use_wait_callbacks = true;
-||||||| ea7d2e2d16a
-  if ((!is_killed_hook(NULL) || in_wait_list) && before_lock_wait)
-=======
-  if ((!is_killed_hook(nullptr) || in_wait_list) && before_lock_wait)
->>>>>>> mysql-8.0.20
     (*before_lock_wait)();
   } else {
     use_wait_callbacks = false;

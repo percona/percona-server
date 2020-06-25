@@ -457,7 +457,6 @@ static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
     ut_ad(mkey->version == REDO_LOG_ENCRYPT_NO_VERSION);
 
     fsp_flags_set_encryption(log_space->flags);
-<<<<<<< HEAD
     err = fil_set_encryption(log_space->id, alg,
                              reinterpret_cast<byte *>(mkey->key), nullptr);
     if (err != DB_SUCCESS) {
@@ -473,11 +472,6 @@ static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
     // we do not have server_uuid yet
     ut_ad(log_space->encryption_redo_key_uuid == nullptr);
 
-||||||| ea7d2e2d16a
-    err = fil_set_encryption(log_space->id, Encryption::AES, NULL, NULL);
-=======
-    err = fil_set_encryption(log_space->id, Encryption::AES, nullptr, nullptr);
->>>>>>> mysql-8.0.20
     ut_ad(err == DB_SUCCESS);
   }
 
@@ -769,42 +763,24 @@ static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
   }
 
   /* Return if the encryption metadata is empty. */
-<<<<<<< HEAD
-  if (memcmp(first_page + offset, ENCRYPTION_KEY_MAGIC_V3,
-             ENCRYPTION_MAGIC_SIZE) != 0 &&
+  if (memcmp(first_page + offset, Encryption::KEY_MAGIC_V3,
+             Encryption::MAGIC_SIZE) != 0 &&
       /* PS 5.7 undo encryption upgrade */
       !(srv_is_upgrade_mode &&
-        memcmp(first_page + offset, ENCRYPTION_KEY_MAGIC_V2,
-               ENCRYPTION_MAGIC_SIZE) == 0) &&
+        memcmp(first_page + offset, Encryption::KEY_MAGIC_V2,
+               Encryption::MAGIC_SIZE) == 0) &&
       (crypt_data == nullptr || crypt_data->min_key_version == 0)) {
-||||||| ea7d2e2d16a
-  if (memcmp(first_page + offset, ENCRYPTION_KEY_MAGIC_V3,
-             ENCRYPTION_MAGIC_SIZE) != 0) {
-=======
-  if (memcmp(first_page + offset, Encryption::KEY_MAGIC_V3,
-             Encryption::MAGIC_SIZE) != 0) {
->>>>>>> mysql-8.0.20
     ut_free(first_page_buf);
     return (DB_SUCCESS);
   }
 
-<<<<<<< HEAD
-  byte key[ENCRYPTION_KEY_LEN];
-  byte iv[ENCRYPTION_KEY_LEN];
+  byte key[Encryption::KEY_LEN];
+  byte iv[Encryption::KEY_LEN];
   if (crypt_data) {
     fsp_flags_set_encryption(space->flags);
     err = fil_set_encryption(space->id, Encryption::KEYRING, NULL,
                              crypt_data->iv);
   } else if (fsp_header_get_encryption_key(space->flags, key, iv, first_page)) {
-||||||| ea7d2e2d16a
-  byte key[ENCRYPTION_KEY_LEN];
-  byte iv[ENCRYPTION_KEY_LEN];
-  if (fsp_header_get_encryption_key(space->flags, key, iv, first_page)) {
-=======
-  byte key[Encryption::KEY_LEN];
-  byte iv[Encryption::KEY_LEN];
-  if (fsp_header_get_encryption_key(space->flags, key, iv, first_page)) {
->>>>>>> mysql-8.0.20
     fsp_flags_set_encryption(space->flags);
     err = fil_set_encryption(space->id, Encryption::AES, key, iv);
     ut_ad(err == DB_SUCCESS);

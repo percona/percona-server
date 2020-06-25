@@ -2693,21 +2693,9 @@ static void initialize_readline(char *name) {
   rl_readline_name = name;
 
   /* Tell the completer that we want a crack first. */
-<<<<<<< HEAD
 #if defined(USE_NEW_XLINE_INTERFACE)
-  rl_attempted_completion_function =
-      (rl_completion_func_t *)&new_mysql_completion;
-  rl_completion_entry_function = (rl_compentry_func_t *)&no_completion;
-||||||| ea7d2e2d16a
-#if defined(USE_NEW_EDITLINE_INTERFACE)
-  rl_attempted_completion_function =
-      (rl_completion_func_t *)&new_mysql_completion;
-  rl_completion_entry_function = (rl_compentry_func_t *)&no_completion;
-=======
-#if defined(USE_NEW_EDITLINE_INTERFACE)
   rl_attempted_completion_function = &new_mysql_completion;
   rl_completion_entry_function = &no_completion;
->>>>>>> mysql-8.0.20
 
   rl_add_defun("magic-space", &fake_magic_space, -1);
 #elif defined(USE_LIBEDIT_INTERFACE)

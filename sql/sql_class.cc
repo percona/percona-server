@@ -1,12 +1,6 @@
 /*
-<<<<<<< HEAD
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
-   Copyright (c) 2016, Percona Inc. All Rights Reserved.
-||||||| ea7d2e2d16a
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
-=======
    Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
->>>>>>> mysql-8.0.20
+   Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1748,19 +1742,9 @@ void THD::shutdown_active_vio() {
   DBUG_TRACE;
   mysql_mutex_assert_owner(&LOCK_thd_data);
   if (active_vio) {
-<<<<<<< HEAD
     vio_shutdown(active_vio, SHUT_RDWR);
-    active_vio = 0;
-    m_SSL = NULL;
-||||||| ea7d2e2d16a
-    vio_shutdown(active_vio);
-    active_vio = 0;
-    m_SSL = NULL;
-=======
-    vio_shutdown(active_vio);
     active_vio = nullptr;
     m_SSL = nullptr;
->>>>>>> mysql-8.0.20
   }
 }
 

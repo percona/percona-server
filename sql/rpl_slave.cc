@@ -7341,17 +7341,11 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
   ulonglong original_commit_timestamp = 0;
   bool info_error{false};
   binary_log::Log_event_basic_info log_event_info;
-<<<<<<< HEAD
-  Log_event_type event_type =
-      (Log_event_type) static_cast<uchar>(buf[EVENT_TYPE_OFFSET]);
-||||||| ea7d2e2d16a
-  Log_event_type event_type = (Log_event_type)buf[EVENT_TYPE_OFFSET];
-=======
   ulonglong compressed_transaction_bytes = 0;
   ulonglong uncompressed_transaction_bytes = 0;
   auto compression_type = binary_log::transaction::compression::type::NONE;
-  Log_event_type event_type = (Log_event_type)buf[EVENT_TYPE_OFFSET];
->>>>>>> mysql-8.0.20
+  Log_event_type event_type =
+      (Log_event_type) static_cast<uchar>(buf[EVENT_TYPE_OFFSET]);
 
   DBUG_ASSERT(checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_OFF ||
               checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_UNDEF ||

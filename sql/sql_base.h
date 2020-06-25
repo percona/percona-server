@@ -298,8 +298,8 @@ bool open_temporary_tables(THD *thd, TABLE_LIST *tl_list);
 bool open_temporary_table(THD *thd, TABLE_LIST *tl);
 
 bool is_equal(const LEX_CSTRING *a, const LEX_CSTRING *b) noexcept;
-bool is_order_deterministic(List<TABLE_LIST> *join_list, Item *cond,
-                            ORDER *order);
+bool is_order_deterministic(const mem_root_deque<TABLE_LIST *> *join_list,
+                            Item *cond, ORDER *order);
 bool is_order_deterministic(TABLE_LIST *table, Item *cond, ORDER *order);
 
 /* Functions to work with system tables. */

@@ -919,16 +919,8 @@ upd_t *row_upd_build_difference_binary(
       dfield = dtuple_get_nth_v_field(entry, i);
 
       dfield_t *vfield = innobase_get_computed_value(
-<<<<<<< HEAD
-          update->old_vrow, col, index, &v_heap, heap, NULL, thd, mysql_table,
-          nullptr, nullptr, nullptr, prebuilt);
-||||||| ea7d2e2d16a
-          update->old_vrow, col, index, &v_heap, heap, NULL, thd, mysql_table,
-          NULL, NULL, NULL);
-=======
           update->old_vrow, col, index, &v_heap, heap, nullptr, thd,
-          mysql_table, nullptr, nullptr, nullptr);
->>>>>>> mysql-8.0.20
+          mysql_table, nullptr, nullptr, nullptr, prebuilt);
 
       if (vfield == nullptr) {
         *error = DB_COMPUTE_VALUE_FAILED;
@@ -1858,16 +1850,8 @@ void row_upd_eval_new_vals(upd_t *update) /*!< in/out: update vector */
                                 mysql table object when user thread invokes
                                 dml and for compress heap */
 static void row_upd_store_v_row(upd_node_t *node, const upd_t *update, THD *thd,
-<<<<<<< HEAD
                                 row_prebuilt_t *prebuilt) {
-  mem_heap_t *heap = NULL;
-||||||| ea7d2e2d16a
-                                TABLE *mysql_table) {
-  mem_heap_t *heap = NULL;
-=======
-                                TABLE *mysql_table) {
   mem_heap_t *heap = nullptr;
->>>>>>> mysql-8.0.20
   dict_index_t *index = node->table->first_index();
   TABLE *const mysql_table = prebuilt ? prebuilt->m_mysql_table : nullptr;
 
@@ -1921,15 +1905,8 @@ static void row_upd_store_v_row(upd_node_t *node, const upd_t *update, THD *thd,
           /* Need to compute, this happens when
           deleting row */
           innobase_get_computed_value(node->row, col, index, &heap, node->heap,
-<<<<<<< HEAD
                                       nullptr, thd, mysql_table, nullptr,
                                       nullptr, nullptr, prebuilt);
-||||||| ea7d2e2d16a
-                                      NULL, thd, mysql_table, NULL, NULL, NULL);
-=======
-                                      nullptr, thd, mysql_table, nullptr,
-                                      nullptr, nullptr);
->>>>>>> mysql-8.0.20
         }
       }
     }
@@ -1988,16 +1965,8 @@ void row_upd_store_row(trx_t *trx, upd_node_t *node, THD *thd,
                         nullptr, nullptr, ext, node->heap);
 
   if (node->table->n_v_cols) {
-<<<<<<< HEAD
-    row_upd_store_v_row(node, node->is_delete ? NULL : node->update, thd,
-                        prebuilt);
-||||||| ea7d2e2d16a
-    row_upd_store_v_row(node, node->is_delete ? NULL : node->update, thd,
-                        mysql_table);
-=======
     row_upd_store_v_row(node, node->is_delete ? nullptr : node->update, thd,
-                        mysql_table);
->>>>>>> mysql-8.0.20
+                        prebuilt);
   }
 
   if (node->is_delete) {
@@ -2388,13 +2357,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 #ifdef UNIV_DEBUG
       mtr_commit(&mtr);
       mtr_start(&mtr);
-<<<<<<< HEAD
-      ut_ad(btr_validate_index(index, 0, false) == DB_SUCCESS);
-||||||| ea7d2e2d16a
-      ut_ad(btr_validate_index(index, 0, false));
-=======
-      ut_ad(btr_validate_index(index, nullptr, false));
->>>>>>> mysql-8.0.20
+      ut_ad(btr_validate_index(index, nullptr, false) == DB_SUCCESS);
       ut_ad(0);
 #endif /* UNIV_DEBUG */
       break;
@@ -2990,15 +2953,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_upd_del_mark_clust_rec(
   /* Store row because we have to build also the secondary index
   entries */
 
-<<<<<<< HEAD
   row_upd_store_row(trx, node, thr_get_trx(thr)->mysql_thd, thr->prebuilt);
-||||||| ea7d2e2d16a
-  row_upd_store_row(trx, node, thr_get_trx(thr)->mysql_thd,
-                    thr->prebuilt ? thr->prebuilt->m_mysql_table : NULL);
-=======
-  row_upd_store_row(trx, node, thr_get_trx(thr)->mysql_thd,
-                    thr->prebuilt ? thr->prebuilt->m_mysql_table : nullptr);
->>>>>>> mysql-8.0.20
 
   /* Mark the clustered index record deleted; we do not have to check
   locks, because we assume that we have an x-lock on the record */
@@ -3139,15 +3094,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     goto exit_func;
   }
 
-<<<<<<< HEAD
   row_upd_store_row(trx, node, trx->mysql_thd, thr->prebuilt);
-||||||| ea7d2e2d16a
-  row_upd_store_row(trx, node, trx->mysql_thd,
-                    thr->prebuilt ? thr->prebuilt->m_mysql_table : NULL);
-=======
-  row_upd_store_row(trx, node, trx->mysql_thd,
-                    thr->prebuilt ? thr->prebuilt->m_mysql_table : nullptr);
->>>>>>> mysql-8.0.20
 
   if (row_upd_changes_ord_field_binary(index, node->update, thr, node->row,
                                        node->ext, nullptr)) {

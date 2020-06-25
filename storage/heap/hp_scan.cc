@@ -66,17 +66,9 @@ int heap_scan(HP_INFO *info, uchar *record) {
     return HA_ERR_RECORD_DELETED;
   }
   info->update = HA_STATE_PREV_FOUND | HA_STATE_NEXT_FOUND | HA_STATE_AKTIV;
-<<<<<<< HEAD
   if (hp_extract_record(info, record, info->current_ptr)) {
     return my_errno();
   }
-  info->current_hash_ptr = 0; /* Can't use read_next */
-||||||| ea7d2e2d16a
-  memcpy(record, info->current_ptr, (size_t)share->reclength);
-  info->current_hash_ptr = 0; /* Can't use read_next */
-=======
-  memcpy(record, info->current_ptr, (size_t)share->reclength);
   info->current_hash_ptr = nullptr; /* Can't use read_next */
->>>>>>> mysql-8.0.20
   return 0;
 } /* heap_scan */

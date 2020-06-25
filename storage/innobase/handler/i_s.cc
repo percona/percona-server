@@ -6789,43 +6789,7 @@ static int i_s_dict_fill_innodb_tablespaces(
 
   OK(fields[INNODB_TABLESPACES_SPACE_VESION]->store(space_version, true));
 
-<<<<<<< HEAD
   char *filepath = i_s_get_filepath(space_id, flags, name);
-||||||| ea7d2e2d16a
-  char *filepath = NULL;
-  if (FSP_FLAGS_HAS_DATA_DIR(flags) || FSP_FLAGS_GET_SHARED(flags)) {
-    mutex_enter(&dict_sys->mutex);
-    filepath = fil_space_get_first_path(space_id);
-    mutex_exit(&dict_sys->mutex);
-  }
-
-  if (filepath == NULL) {
-    if (strstr(name, dict_sys_t::s_file_per_table_name) != 0) {
-      mutex_enter(&dict_sys->mutex);
-      filepath = fil_space_get_first_path(space_id);
-      mutex_exit(&dict_sys->mutex);
-    } else {
-      filepath = Fil_path::make_ibd_from_table_name(name);
-    }
-  }
-=======
-  char *filepath = nullptr;
-  if (FSP_FLAGS_HAS_DATA_DIR(flags) || FSP_FLAGS_GET_SHARED(flags)) {
-    mutex_enter(&dict_sys->mutex);
-    filepath = fil_space_get_first_path(space_id);
-    mutex_exit(&dict_sys->mutex);
-  }
-
-  if (filepath == nullptr) {
-    if (strstr(name, dict_sys_t::s_file_per_table_name) != nullptr) {
-      mutex_enter(&dict_sys->mutex);
-      filepath = fil_space_get_first_path(space_id);
-      mutex_exit(&dict_sys->mutex);
-    } else {
-      filepath = Fil_path::make_ibd_from_table_name(name);
-    }
-  }
->>>>>>> mysql-8.0.20
 
   os_file_stat_t stat;
   os_file_size_t file;

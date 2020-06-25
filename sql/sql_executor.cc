@@ -3856,9 +3856,13 @@ int RefIterator<false>::Read() {  // Forward read.
       table()->set_no_row();
       return -1;
     }
-
+    int error = table()->file->prepare_index_key_scan_map(
+        m_ref->key_buff, make_prev_keypart_map(m_ref->key_parts));
+    if (error) {
+      return HandleError(error);
+    }
     pair<uchar *, key_part_map> key_buff_and_map = FindKeyBufferAndMap(m_ref);
-    int error = table()->file->ha_index_read_map(
+    error = table()->file->ha_index_read_map(
         table()->record[0], key_buff_and_map.first, key_buff_and_map.second,
         HA_READ_KEY_EXACT);
     if (error) {
@@ -4202,86 +4206,6 @@ vector<string> RefOrNullIterator::DebugString() const {
   return {str};
 }
 
-<<<<<<< HEAD
-// Doxygen gets confused by the explicit specializations.
-
-//! @cond
-template <>
-int RefIterator<false>::Read() {  // Forward read.
-  if (m_first_record_since_init) {
-    m_first_record_since_init = false;
-
-    /*
-      a = b can never return true if a or b is NULL, so if we're asked
-      to do such a lookup, we can say there won't be a match without even
-      checking the index. This is “late NULLs filtering” (as opposed to
-      “early NULLs filtering”, which propagates the IS NOT NULL constraint
-      further back to the other table so we don't even get the request).
-      See the internals manual for more details.
-     */
-    if (m_ref->impossible_null_ref()) {
-      DBUG_PRINT("info", ("RefIterator null_rejected"));
-      table()->set_no_row();
-      return -1;
-    }
-    if (construct_lookup_ref(thd(), table(), m_ref)) {
-      table()->set_no_row();
-      return -1;
-    }
-    int error = table()->file->prepare_index_key_scan_map(
-        m_ref->key_buff, make_prev_keypart_map(m_ref->key_parts));
-    if (error) {
-      return HandleError(error);
-    }
-    error = table()->file->ha_index_read_map(
-        table()->record[0], m_ref->key_buff,
-        make_prev_keypart_map(m_ref->key_parts), HA_READ_KEY_EXACT);
-    if (error) {
-      return HandleError(error);
-    }
-  } else {
-    int error = table()->file->ha_index_next_same(
-        table()->record[0], m_ref->key_buff, m_ref->key_length);
-    if (error) {
-      return HandleError(error);
-||||||| ea7d2e2d16a
-// Doxygen gets confused by the explicit specializations.
-
-//! @cond
-template <>
-int RefIterator<false>::Read() {  // Forward read.
-  if (m_first_record_since_init) {
-    m_first_record_since_init = false;
-
-    /*
-      a = b can never return true if a or b is NULL, so if we're asked
-      to do such a lookup, we can say there won't be a match without even
-      checking the index. This is “late NULLs filtering” (as opposed to
-      “early NULLs filtering”, which propagates the IS NOT NULL constraint
-      further back to the other table so we don't even get the request).
-      See the internals manual for more details.
-     */
-    if (m_ref->impossible_null_ref()) {
-      DBUG_PRINT("info", ("RefIterator null_rejected"));
-      table()->set_no_row();
-      return -1;
-    }
-    if (construct_lookup_ref(thd(), table(), m_ref)) {
-      table()->set_no_row();
-      return -1;
-    }
-    int error = table()->file->ha_index_read_map(
-        table()->record[0], m_ref->key_buff,
-        make_prev_keypart_map(m_ref->key_parts), HA_READ_KEY_EXACT);
-    if (error) {
-      return HandleError(error);
-    }
-  } else {
-    int error = table()->file->ha_index_next_same(
-        table()->record[0], m_ref->key_buff, m_ref->key_length);
-    if (error) {
-      return HandleError(error);
-=======
 AlternativeIterator::AlternativeIterator(
     THD *thd, TABLE *table, QEP_TAB *qep_tab, ha_rows *examined_rows,
     unique_ptr_destroy_only<RowIterator> source, TABLE_REF *ref)
@@ -4297,7 +4221,6 @@ AlternativeIterator::AlternativeIterator(
     bool *cond_guard = ref->cond_guards[key_part_idx];
     if (cond_guard != nullptr) {
       m_applicable_cond_guards.push_back(cond_guard);
->>>>>>> mysql-8.0.20
     }
   }
   DBUG_ASSERT(!m_applicable_cond_guards.empty());

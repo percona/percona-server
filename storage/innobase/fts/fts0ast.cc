@@ -100,20 +100,10 @@ fts_ast_node_t *fts_ast_create_node_term(
   fts_ast_state_t *state = static_cast<fts_ast_state_t *>(arg);
   ulint len = ptr->len;
   ulint cur_pos = 0;
-<<<<<<< HEAD
-  fts_ast_node_t *node = NULL;
-  fts_ast_node_t *node_list = NULL;
-  fts_ast_node_t *first_node = NULL;
-  const bool extra_word_chars = thd_get_ft_query_extra_word_chars();
-||||||| ea7d2e2d16a
-  fts_ast_node_t *node = NULL;
-  fts_ast_node_t *node_list = NULL;
-  fts_ast_node_t *first_node = NULL;
-=======
   fts_ast_node_t *node = nullptr;
   fts_ast_node_t *node_list = nullptr;
   fts_ast_node_t *first_node = nullptr;
->>>>>>> mysql-8.0.20
+  const bool extra_word_chars = thd_get_ft_query_extra_word_chars();
 
   /* Scan the incoming string and filter out any "non-word" characters */
   while (cur_pos < len) {

@@ -1,13 +1,7 @@
 /*****************************************************************************
 
-<<<<<<< HEAD
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
-Copyright (c) 2016, Percona Inc. All Rights Reserved.
-||||||| ea7d2e2d16a
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
-=======
 Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
->>>>>>> mysql-8.0.20
+Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1211,38 +1205,7 @@ static void buf_flush_write_block_low(buf_page_t *bpage, buf_flush_t flush_type,
 
   dberr_t err = dblwr::write(flush_type, bpage, sync);
 
-<<<<<<< HEAD
-  /* When doing single page flushing the IO is done synchronously
-  and we flush the changes to disk only for the tablespace we
-  are working on. */
-  if (sync) {
-    ut_ad(flush_type == BUF_FLUSH_SINGLE_PAGE);
-    fil_flush(bpage->id.space());
-
-#ifdef UNIV_DEBUG
-    dberr_t err =
-#endif
-        /* true means we want to evict this page from the
-        LRU list as well. */
-        buf_page_io_complete(bpage, true);
-
-    ut_ad(err == DB_SUCCESS);
-  }
-||||||| ea7d2e2d16a
-  /* When doing single page flushing the IO is done synchronously
-  and we flush the changes to disk only for the tablespace we
-  are working on. */
-  if (sync) {
-    ut_ad(flush_type == BUF_FLUSH_SINGLE_PAGE);
-    fil_flush(bpage->id.space());
-
-    /* true means we want to evict this page from the
-    LRU list as well. */
-    buf_page_io_complete(bpage, true);
-  }
-=======
   ut_a(err == DB_SUCCESS);
->>>>>>> mysql-8.0.20
 
   /* Increment the counter of I/O operations used
   for selecting LRU policy. */
@@ -2028,20 +1991,13 @@ static void buf_flush_end(buf_pool_t *buf_pool, buf_flush_t flush_type,
 
   mutex_exit(&buf_pool->flush_state_mutex);
 
-<<<<<<< HEAD
-  if (!srv_read_only_mode && flushed_page_count) {
-    buf_dblwr_flush_buffered_writes();
-||||||| ea7d2e2d16a
-  if (!srv_read_only_mode) {
-    buf_dblwr_flush_buffered_writes();
-=======
   if (!srv_read_only_mode) {
     if (dblwr::enabled) {
-      dblwr::force_flush(flush_type, buf_pool_index(buf_pool));
+      if (flushed_page_count != 0)
+        dblwr::force_flush(flush_type, buf_pool_index(buf_pool));
     } else {
       buf_flush_sync_datafiles();
     }
->>>>>>> mysql-8.0.20
   } else {
     os_aio_simulated_wake_handler_threads();
   }
@@ -2096,16 +2052,8 @@ bool buf_flush_do_batch(buf_pool_t *buf_pool, buf_flush_t type, ulint min_n,
 
   buf_flush_end(buf_pool, type, res.first);
 
-<<<<<<< HEAD
-  if (n_processed != NULL) {
-    *n_processed = res.first + res.second;
-||||||| ea7d2e2d16a
-  if (n_processed != NULL) {
-    *n_processed = page_count;
-=======
   if (n_processed != nullptr) {
-    *n_processed = page_count;
->>>>>>> mysql-8.0.20
+    *n_processed = res.first + res.second;
   }
 
   return (true);
@@ -2891,14 +2839,6 @@ static bool buf_flush_page_cleaner_set_priority(int priority) {
 #ifdef UNIV_DEBUG
 /** Loop used to disable page cleaner and LRU manager threads. */
 static void buf_flush_page_cleaner_disabled_loop(void) {
-<<<<<<< HEAD
-||||||| ea7d2e2d16a
-  ut_ad(page_cleaner != NULL);
-
-=======
-  ut_ad(page_cleaner != nullptr);
-
->>>>>>> mysql-8.0.20
   if (!innodb_page_cleaner_disabled_debug) {
     /* We return to avoid entering and exiting mutex. */
     return;
@@ -3306,16 +3246,8 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
   considering end of that batch as a finish of our final
   sweep and we'll come out of the loop leaving behind dirty pages
   in the flush_list */
-<<<<<<< HEAD
-  buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
-  ut_ad(buf_flush_active_lru_managers() == 0);
-||||||| ea7d2e2d16a
-  buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
-  buf_flush_wait_LRU_batch_end();
-=======
   buf_flush_wait_batch_end(nullptr, BUF_FLUSH_LIST);
-  buf_flush_wait_LRU_batch_end();
->>>>>>> mysql-8.0.20
+  ut_ad(buf_flush_active_lru_managers() == 0);
 
   bool success;
 
@@ -3330,15 +3262,7 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
 
     n_flushed = n_flushed_list;
 
-<<<<<<< HEAD
-    buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
-||||||| ea7d2e2d16a
-    buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
-    buf_flush_wait_LRU_batch_end();
-=======
     buf_flush_wait_batch_end(nullptr, BUF_FLUSH_LIST);
-    buf_flush_wait_LRU_batch_end();
->>>>>>> mysql-8.0.20
 
   } while (!success || n_flushed > 0);
 

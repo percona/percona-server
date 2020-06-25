@@ -57,13 +57,7 @@ INSERT INTO rplvars (varname, varvalue)
 # If this count differs, it means a variable has been added or removed.
 # In that case, this testcase needs to be updated accordingly.
 --echo
-<<<<<<< HEAD
---let $expected=86
-||||||| ea7d2e2d16a
---let $expected=83
-=======
---let $expected=85
->>>>>>> mysql-8.0.20
+--let $expected=88
 --let $assert_text= 'Expect $expected variables in the table.'
 --let $assert_cond= [SELECT COUNT(*) as count FROM rplvars, count, 1] = $expected
 --source include/assert.inc
@@ -86,13 +80,7 @@ while ( $varid <= $countvars )
 }
 
 --echo
-<<<<<<< HEAD
---let $expected=66
-||||||| ea7d2e2d16a
---let $expected=65
-=======
---let $expected=67
->>>>>>> mysql-8.0.20
+--let $expected=68
 --let $assert_text= 'Expect $expected persisted variables in persisted_variables table.'
 --let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $expected
 --source include/assert.inc

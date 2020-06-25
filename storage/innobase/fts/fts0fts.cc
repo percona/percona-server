@@ -1022,17 +1022,9 @@ static fts_tokenizer_word_t *fts_tokenizer_word_get(
   ut_ad(current_thd != nullptr);
   /* If it is a stopword, do not index it */
   if (!fts_check_token(text, cache->stopword_info.cached_stopword,
-<<<<<<< HEAD
                        index_cache->index->is_ngram, index_cache->charset,
                        thd_has_ft_ignore_stopwords(current_thd))) {
-    return (NULL);
-||||||| ea7d2e2d16a
-                       index_cache->index->is_ngram, index_cache->charset)) {
-    return (NULL);
-=======
-                       index_cache->index->is_ngram, index_cache->charset)) {
     return (nullptr);
->>>>>>> mysql-8.0.20
   }
 
   /* Check if we found a match, if not then add word to tree. */
@@ -1836,15 +1828,9 @@ static dict_table_t *fts_create_one_common_table(trx_t *trx,
                            DATA_NOT_NULL, FTS_CONFIG_TABLE_VALUE_COL_LEN);
   }
 
-<<<<<<< HEAD
-  error =
-      row_create_table_for_mysql(new_table, NULL, trx, FIL_ENCRYPTION_DEFAULT,
-                                 KeyringEncryptionKeyIdInfo());
-||||||| ea7d2e2d16a
-  error = row_create_table_for_mysql(new_table, NULL, trx);
-=======
-  error = row_create_table_for_mysql(new_table, nullptr, trx);
->>>>>>> mysql-8.0.20
+  error = row_create_table_for_mysql(new_table, nullptr, trx,
+                                     FIL_ENCRYPTION_DEFAULT,
+                                     KeyringEncryptionKeyIdInfo());
 
   if (error == DB_SUCCESS) {
     dict_index_t *index = dict_mem_index_create(
@@ -2039,15 +2025,9 @@ static dict_table_t *fts_create_one_index_table(trx_t *trx,
                          (DATA_MTYPE_MAX << 16) | DATA_UNSIGNED | DATA_NOT_NULL,
                          FTS_INDEX_ILIST_LEN);
 
-<<<<<<< HEAD
-  error =
-      row_create_table_for_mysql(new_table, NULL, trx, FIL_ENCRYPTION_DEFAULT,
-                                 KeyringEncryptionKeyIdInfo());
-||||||| ea7d2e2d16a
-  error = row_create_table_for_mysql(new_table, NULL, trx);
-=======
-  error = row_create_table_for_mysql(new_table, nullptr, trx);
->>>>>>> mysql-8.0.20
+  error = row_create_table_for_mysql(new_table, nullptr, trx,
+                                     FIL_ENCRYPTION_DEFAULT,
+                                     KeyringEncryptionKeyIdInfo());
 
   if (error == DB_SUCCESS) {
     dict_index_t *index = dict_mem_index_create(
@@ -4509,16 +4489,8 @@ or greater than fts_max_token_size.
 @retval	true	if it is not stopword and length in range
 @retval	false	if it is stopword or lenght not in range */
 bool fts_check_token(const fts_string_t *token, const ib_rbt_t *stopwords,
-<<<<<<< HEAD
                      bool is_ngram, const CHARSET_INFO *cs, bool skip) {
-  ut_ad(cs != NULL || stopwords == NULL);
-||||||| ea7d2e2d16a
-                     bool is_ngram, const CHARSET_INFO *cs) {
-  ut_ad(cs != NULL || stopwords == NULL);
-=======
-                     bool is_ngram, const CHARSET_INFO *cs) {
   ut_ad(cs != nullptr || stopwords == nullptr);
->>>>>>> mysql-8.0.20
 
   if (skip) {
     return (true);
@@ -4612,16 +4584,9 @@ static void fts_add_token(fts_doc_t *result_doc, fts_string_t str,
   /* Ignore string whose character number is less than
   "fts_min_token_size" or more than "fts_max_token_size" */
 
-<<<<<<< HEAD
   ut_ad(current_thd != nullptr);
   if (fts_check_token(&str, nullptr, result_doc->is_ngram, result_doc->charset,
                       thd_has_ft_ignore_stopwords(current_thd))) {
-||||||| ea7d2e2d16a
-  if (fts_check_token(&str, NULL, result_doc->is_ngram, result_doc->charset)) {
-=======
-  if (fts_check_token(&str, nullptr, result_doc->is_ngram,
-                      result_doc->charset)) {
->>>>>>> mysql-8.0.20
     mem_heap_t *heap;
     fts_string_t t_str;
     fts_token_t *token;

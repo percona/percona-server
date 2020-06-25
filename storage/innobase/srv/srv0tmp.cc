@@ -178,8 +178,8 @@ void Tablespace::decrypt() {
   if (!is_encrypted()) {
     return;
   }
-  byte encryption_info[ENCRYPTION_INFO_SIZE];
-  memset(encryption_info, 0, ENCRYPTION_INFO_SIZE);
+  byte encryption_info[Encryption::INFO_SIZE];
+  memset(encryption_info, 0, Encryption::INFO_SIZE);
 
   fil_space_t *space = fil_space_get(m_space_id);
 

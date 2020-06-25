@@ -849,15 +849,9 @@ class Binary_log_event {
     ROWS_HEADER_LEN_V2 = 10,
     TRANSACTION_CONTEXT_HEADER_LEN = 18,
     VIEW_CHANGE_HEADER_LEN = 52,
-<<<<<<< HEAD
-    XA_PREPARE_HEADER_LEN = 0,
-    START_5_7_ENCRYPTION_HEADER_LEN = 0
-||||||| ea7d2e2d16a
-    XA_PREPARE_HEADER_LEN = 0
-=======
     XA_PREPARE_HEADER_LEN = 0,
     TRANSACTION_PAYLOAD_HEADER_LEN = 0,
->>>>>>> mysql-8.0.20
+    START_5_7_ENCRYPTION_HEADER_LEN = 0
   };  // end enum_post_header_length
  protected:
   /**

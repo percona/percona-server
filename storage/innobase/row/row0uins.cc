@@ -327,16 +327,8 @@ static void row_undo_ins_parse_undo_rec(undo_node_t *node, THD *thd,
   node->table = dd_table_open_on_id(table_id, thd, mdl, false, true);
 
   /* Skip the UNDO if we can't find the table or the .ibd file. */
-<<<<<<< HEAD
-  if (node->table == NULL) {
-  } else if (node->table->file_unreadable) {
-||||||| ea7d2e2d16a
-  if (node->table == NULL) {
-  } else if (node->table->ibd_file_missing) {
-=======
   if (node->table == nullptr) {
-  } else if (node->table->ibd_file_missing) {
->>>>>>> mysql-8.0.20
+  } else if (node->table->file_unreadable) {
   close_table:
     dd_table_close(node->table, thd, mdl, false);
 

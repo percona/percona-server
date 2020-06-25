@@ -316,19 +316,6 @@ occupied by the field structs or the tuple struct is not counted.
 MY_NODISCARD
 UNIV_INLINE
 ulint dtuple_get_data_size(const dtuple_t *tuple, ulint comp);
-<<<<<<< HEAD
-/** Computes the number of externally stored fields in a data tuple.
- @return number of fields */
-MY_NODISCARD
-UNIV_INLINE
-ulint dtuple_get_n_ext(const dtuple_t *tuple); /*!< in: tuple */
-||||||| ea7d2e2d16a
-/** Computes the number of externally stored fields in a data tuple.
- @return number of fields */
-UNIV_INLINE
-ulint dtuple_get_n_ext(const dtuple_t *tuple); /*!< in: tuple */
-=======
->>>>>>> mysql-8.0.20
 /** Compare two data tuples.
 @param[in] tuple1 first data tuple
 @param[in] tuple2 second data tuple

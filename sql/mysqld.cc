@@ -8206,29 +8206,19 @@ struct my_option my_long_early_options[] = {
      nullptr, 0, nullptr},
     {"validate-config", 0,
      "Validate the server configuration specified by the user.",
-<<<<<<< HEAD
-     &opt_validate_config, &opt_validate_config, 0, GET_BOOL, NO_ARG, 0, 0, 0,
-     0, 0, 0},
-    {"core-file", OPT_WANT_CORE, "Write core on errors.", 0, 0, 0, GET_NO_ARG,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_validate_config, &opt_validate_config, nullptr, GET_BOOL, NO_ARG, 0,
+     0, 0, nullptr, 0, nullptr},
+    {"core-file", OPT_WANT_CORE, "Write core on errors.", 0, 0, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"skip-stack-trace", OPT_SKIP_STACK_TRACE,
-     "Don't print a stack trace on failure.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
-     0, 0, 0, 0},
+     "Don't print a stack trace on failure.", 0, 0, nullptr, GET_NO_ARG, NO_ARG,
+     0, 0, 0, nullptr, 0, nullptr},
     /* We must always support the next option to make scripts like mysqltest
        easier to do */
     {"gdb", 0, "Set up signals usable for debugging.", &opt_debugging,
-     &opt_debugging, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
-||||||| ea7d2e2d16a
-     &opt_validate_config, &opt_validate_config, 0, GET_BOOL, NO_ARG, 0, 0, 0,
-     0, 0, 0},
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
-=======
-     &opt_validate_config, &opt_validate_config, nullptr, GET_BOOL, NO_ARG, 0,
-     0, 0, nullptr, 0, nullptr},
+     &opt_debugging, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
->>>>>>> mysql-8.0.20
 
 /**
   System variables are automatically command-line options (few
@@ -8290,18 +8280,8 @@ struct my_option my_long_options[] = {
     {"console", OPT_CONSOLE,
      "Write error output on screen; don't remove the console window on "
      "windows.",
-<<<<<<< HEAD
-     &opt_console, &opt_console, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-||||||| ea7d2e2d16a
-     &opt_console, &opt_console, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"core-file", OPT_WANT_CORE, "Write core on errors.", 0, 0, 0, GET_NO_ARG,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
-=======
      &opt_console, &opt_console, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
-    {"core-file", OPT_WANT_CORE, "Write core on errors.", nullptr, nullptr,
-     nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
->>>>>>> mysql-8.0.20
     /* default-storage-engine should have "MyISAM" as def_value. Instead
        of initializing it here it is done in init_common_variables() due
        to a compiler bug in Sun Studio compiler. */
@@ -8327,24 +8307,8 @@ struct my_option my_long_options[] = {
      "default).  With this option enabled you can run myisamchk to test "
      "(not repair) tables while the MySQL server is running. Disable with "
      "--skip-external-locking.",
-<<<<<<< HEAD
-     &opt_external_locking, &opt_external_locking, 0, GET_BOOL, NO_ARG, 0, 0, 0,
-     0, 0, 0},
-||||||| ea7d2e2d16a
-     &opt_external_locking, &opt_external_locking, 0, GET_BOOL, NO_ARG, 0, 0, 0,
-     0, 0, 0},
-    /* We must always support the next option to make scripts like mysqltest
-       easier to do */
-    {"gdb", 0, "Set up signals usable for debugging.", &opt_debugging,
-     &opt_debugging, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-=======
      &opt_external_locking, &opt_external_locking, nullptr, GET_BOOL, NO_ARG, 0,
      0, 0, nullptr, 0, nullptr},
-    /* We must always support the next option to make scripts like mysqltest
-       easier to do */
-    {"gdb", 0, "Set up signals usable for debugging.", &opt_debugging,
-     &opt_debugging, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
->>>>>>> mysql-8.0.20
 #if defined(HAVE_LINUX_LARGE_PAGES) || defined(HAVE_SOLARIS_LARGE_PAGES)
     {"super-large-pages", 0, "Enable support for super large pages.",
      &opt_super_large_pages, &opt_super_large_pages, nullptr, GET_BOOL, OPT_ARG,
@@ -8505,22 +8469,8 @@ struct my_option my_long_options[] = {
      nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
     {"skip-slave-start", 0, "If set, slave is not autostarted.",
-<<<<<<< HEAD
-     &opt_skip_slave_start, &opt_skip_slave_start, 0, GET_BOOL, NO_ARG, 0, 0, 0,
-     0, 0, 0},
-||||||| ea7d2e2d16a
-     &opt_skip_slave_start, &opt_skip_slave_start, 0, GET_BOOL, NO_ARG, 0, 0, 0,
-     0, 0, 0},
-    {"skip-stack-trace", OPT_SKIP_STACK_TRACE,
-     "Don't print a stack trace on failure.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
-     0, 0, 0, 0},
-=======
      &opt_skip_slave_start, &opt_skip_slave_start, nullptr, GET_BOOL, NO_ARG, 0,
      0, 0, nullptr, 0, nullptr},
-    {"skip-stack-trace", OPT_SKIP_STACK_TRACE,
-     "Don't print a stack trace on failure.", nullptr, nullptr, nullptr,
-     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
->>>>>>> mysql-8.0.20
 #if defined(_WIN32)
     {"slow-start-timeout", 0,
      "Maximum number of milliseconds that the service control manager should "
@@ -8622,7 +8572,6 @@ struct my_option my_long_options[] = {
      &opt_upgrade_mode, &opt_upgrade_mode, &upgrade_mode_typelib, GET_ENUM,
      REQUIRED_ARG, UPGRADE_AUTO, 0, 0, nullptr, 0, nullptr},
 
-<<<<<<< HEAD
     {"utility_user", 0,
      "Specifies a MySQL user that will be added to the "
      "internal list of users and recognized as the utility user.",
@@ -8643,13 +8592,8 @@ struct my_option my_long_options[] = {
      &utility_user_schema_access, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
      0},
 
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
-||||||| ea7d2e2d16a
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
-=======
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
->>>>>>> mysql-8.0.20
 
 static int show_queries(THD *thd, SHOW_VAR *var, char *) {
   var->type = SHOW_LONGLONG;
@@ -9655,110 +9599,10 @@ static int mysql_init_variables() {
   shared_memory_base_name = default_shared_memory_base_name;
 #endif
 
-<<<<<<< HEAD
   have_backup_locks = SHOW_OPTION_YES;
   have_backup_safe_binlog_info = SHOW_OPTION_YES;
   have_snapshot_cloning = SHOW_OPTION_YES;
 
-#if defined(_WIN32) || defined(APPLE_XCODE)
-  /* Allow Win32 users to move MySQL anywhere */
-  char prg_dev[LIBLEN];
-  my_path(prg_dev, my_progname, nullptr);
-
-  // On windows or Xcode the basedir will always be one level up from where
-  // the executable is located. E.g. <basedir>/bin/mysqld.exe in a
-  // package, or <basedir>/runtime_output_directory/<buildconfig>/mysqld.exe
-  // for a sandbox build.
-  strcat(prg_dev, "/../");  // Remove containing directory to get base dir
-  cleanup_dirname(mysql_home, prg_dev);
-
-  // New layout: <cmake_binary_dir>/runtime_output_directory/<buildconfig>/
-  char cmake_binary_dir[FN_REFLEN];
-  size_t dlen = 0;
-  dirname_part(cmake_binary_dir, mysql_home, &dlen);
-  if (dlen > 26U &&
-      (!strcmp(cmake_binary_dir + (dlen - 26), "/runtime_output_directory/") ||
-       !strcmp(cmake_binary_dir + (dlen - 26),
-               "\\runtime_output_directory\\"))) {
-    mysql_home[strlen(mysql_home) - 1] = '\0';  // remove trailing
-    dirname_part(cmake_binary_dir, mysql_home, &dlen);
-    strmake(mysql_home, cmake_binary_dir, sizeof(mysql_home) - 1);
-  }
-  // The sql_print_information below outputs nothing ??
-  // fprintf(stderr, "mysql_home %s\n", mysql_home);
-  // fflush(stderr);
-#else
-  const char *tmpenv = getenv("MY_BASEDIR_VERSION");
-  if (tmpenv != nullptr) {
-    strmake(mysql_home, tmpenv, sizeof(mysql_home) - 1);
-  } else {
-    char progdir[FN_REFLEN];
-    size_t dlen = 0;
-    dirname_part(progdir, my_progname, &dlen);
-    if (dlen > 26U &&
-        !strcmp(progdir + (dlen - 26), "/runtime_output_directory/")) {
-      char cmake_binary_dir[FN_REFLEN];
-      progdir[strlen(progdir) - 1] = '\0';  // remove trailing "/"
-      dirname_part(cmake_binary_dir, progdir, &dlen);
-      strmake(mysql_home, cmake_binary_dir, sizeof(mysql_home) - 1);
-    } else {
-      strcat(progdir, "/../");
-      cleanup_dirname(mysql_home, progdir);
-    }
-  }
-#endif
-
-||||||| ea7d2e2d16a
-#if defined(_WIN32) || defined(APPLE_XCODE)
-  /* Allow Win32 users to move MySQL anywhere */
-  char prg_dev[LIBLEN];
-  my_path(prg_dev, my_progname, nullptr);
-
-  // On windows or Xcode the basedir will always be one level up from where
-  // the executable is located. E.g. <basedir>/bin/mysqld.exe in a
-  // package, or <basedir>/runtime_output_directory/<buildconfig>/mysqld.exe
-  // for a sandbox build.
-  strcat(prg_dev, "/../");  // Remove containing directory to get base dir
-  cleanup_dirname(mysql_home, prg_dev);
-
-  // New layout: <cmake_binary_dir>/runtime_output_directory/<buildconfig>/
-  char cmake_binary_dir[FN_REFLEN];
-  size_t dlen = 0;
-  dirname_part(cmake_binary_dir, mysql_home, &dlen);
-  if (dlen > 26U &&
-      (!strcmp(cmake_binary_dir + (dlen - 26), "/runtime_output_directory/") ||
-       !strcmp(cmake_binary_dir + (dlen - 26),
-               "\\runtime_output_directory\\"))) {
-    mysql_home[strlen(mysql_home) - 1] = '\0';  // remove trailing
-    dirname_part(cmake_binary_dir, mysql_home, &dlen);
-    strmake(mysql_home, cmake_binary_dir, sizeof(mysql_home) - 1);
-  }
-  // The sql_print_information below outputs nothing ??
-  // fprintf(stderr, "mysql_home %s\n", mysql_home);
-  // fflush(stderr);
-#else
-  const char *tmpenv = getenv("MY_BASEDIR_VERSION");
-  if (tmpenv != nullptr) {
-    strmake(mysql_home, tmpenv, sizeof(mysql_home) - 1);
-  } else {
-    char progdir[FN_REFLEN];
-    size_t dlen = 0;
-    dirname_part(progdir, my_progname, &dlen);
-    if (dlen > 26U &&
-        !strcmp(progdir + (dlen - 26), "/runtime_output_directory/")) {
-      char cmake_binary_dir[FN_REFLEN];
-      progdir[strlen(progdir) - 1] = '\0';  // remove trailing "/"
-      dirname_part(cmake_binary_dir, progdir, &dlen);
-      strmake(mysql_home, cmake_binary_dir, sizeof(mysql_home) - 1);
-    } else {
-      strcat(progdir, "/../");
-      cleanup_dirname(mysql_home, progdir);
-    }
-  }
-#endif
-
-=======
->>>>>>> mysql-8.0.20
   return 0;
 }
 
@@ -9894,16 +9738,8 @@ bool mysqld_get_one_option(int optid,
       }
       break;
     case 'L':
-<<<<<<< HEAD
-      push_deprecated_warn(NULL, "--language/-l", "'--lc-messages-dir'");
-    // fallthrough
-||||||| ea7d2e2d16a
-      push_deprecated_warn(NULL, "--language/-l", "'--lc-messages-dir'");
-      /* Note:  fall-through */
-=======
       push_deprecated_warn(nullptr, "--language/-l", "'--lc-messages-dir'");
-      /* Note:  fall-through */
->>>>>>> mysql-8.0.20
+    // fallthrough
     case OPT_LC_MESSAGES_DIRECTORY:
       strmake(lc_messages_dir, argument, sizeof(lc_messages_dir) - 1);
       lc_messages_dir_ptr = lc_messages_dir;
@@ -11545,13 +11381,9 @@ PSI_stage_info stage_suspending= { 0, "Suspending", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_starting= { 0, "starting", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_waiting_for_no_channel_reference= { 0, "Waiting for no channel reference.", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_hook_begin_trans= { 0, "Executing hook on transaction begin.", 0, PSI_DOCUMENT_ME};
-<<<<<<< HEAD
-PSI_stage_info stage_restoring_secondary_keys= { 0, "restoring secondary keys", 0, PSI_DOCUMENT_ME};
-||||||| ea7d2e2d16a
-=======
 PSI_stage_info stage_binlog_transaction_compress= { 0, "Compressing transaction changes.", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_binlog_transaction_decompress= { 0, "Decompressing transaction changes.", 0, PSI_DOCUMENT_ME};
->>>>>>> mysql-8.0.20
+PSI_stage_info stage_restoring_secondary_keys= { 0, "restoring secondary keys", 0, PSI_DOCUMENT_ME};
 /* clang-format on */
 
 extern PSI_stage_info stage_waiting_for_disk_space;
@@ -11643,16 +11475,10 @@ PSI_stage_info *all_server_stages[] = {
     &stage_starting,
     &stage_waiting_for_no_channel_reference,
     &stage_hook_begin_trans,
-<<<<<<< HEAD
-    &stage_waiting_for_disk_space,
-    &stage_restoring_secondary_keys};
-||||||| ea7d2e2d16a
-    &stage_waiting_for_disk_space};
-=======
     &stage_waiting_for_disk_space,
     &stage_binlog_transaction_compress,
-    &stage_binlog_transaction_decompress};
->>>>>>> mysql-8.0.20
+    &stage_binlog_transaction_decompress,
+    &stage_restoring_secondary_keys};
 
 PSI_socket_key key_socket_tcpip;
 PSI_socket_key key_socket_unix;

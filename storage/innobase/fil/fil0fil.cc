@@ -8282,14 +8282,7 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
   /* We an try to recover the page from the double write buffer if
   the decompression fails or the page is corrupt. */
 
-<<<<<<< HEAD
-  ut_a(req_type.is_dblwr_recover() || err == DB_SUCCESS ||
-       err == DB_IO_DECRYPT_FAIL);
-||||||| ea7d2e2d16a
-  ut_a(req_type.is_dblwr_recover() || err == DB_SUCCESS);
-=======
-  ut_a(req_type.is_dblwr() || err == DB_SUCCESS);
->>>>>>> mysql-8.0.20
+  ut_a(req_type.is_dblwr() || err == DB_SUCCESS || err == DB_IO_DECRYPT_FAIL);
 
   if (sync) {
     /* The i/o operation is already completed when we return from
@@ -8386,9 +8379,8 @@ void fil_aio_wait(ulint segment) {
 
       /* async single page writes from the dblwr buffer don't have
       access to the page */
-<<<<<<< HEAD
-      if (message != nullptr) {
-        buf_page_t *bpage = static_cast<buf_page_t *>(message);
+      if (m2 != nullptr) {
+        buf_page_t *bpage = static_cast<buf_page_t *>(m2);
         if (!bpage) {
           return;
         }
@@ -8411,13 +8403,6 @@ void fil_aio_wait(ulint segment) {
           }
           fil_space_release_for_io(space);
         }
-||||||| ea7d2e2d16a
-      if (message != nullptr) {
-        buf_page_io_complete(static_cast<buf_page_t *>(message));
-=======
-      if (m2 != nullptr) {
-        buf_page_io_complete(static_cast<buf_page_t *>(m2));
->>>>>>> mysql-8.0.20
       }
       return;
     case FIL_TYPE_LOG:
@@ -8973,23 +8958,13 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
     dberr_t err;
 
     /* For encrypted table, set encryption information. */
-<<<<<<< HEAD
-||||||| ea7d2e2d16a
-    if (iter.m_encryption_key != nullptr && offset != 0) {
-      read_request.encryption_key(iter.m_encryption_key, ENCRYPTION_KEY_LEN,
-                                  iter.m_encryption_iv);
-=======
-    if (iter.m_encryption_key != nullptr && offset != 0) {
-      read_request.encryption_key(iter.m_encryption_key, Encryption::KEY_LEN,
-                                  iter.m_encryption_iv);
->>>>>>> mysql-8.0.20
 
     if ((iter.m_encryption_key != NULL || encrypted_with_keyring) &&
         offset != 0) {
       read_request.encryption_key(
           encrypted_with_keyring ? iter.m_crypt_data->tablespace_key
                                  : iter.m_encryption_key,
-          ENCRYPTION_KEY_LEN, false,
+          Encryption::KEY_LEN, false,
           encrypted_with_keyring ? iter.m_crypt_data->iv : iter.m_encryption_iv,
           0, iter.m_encryption_key_id,
           encrypted_with_keyring ? iter.m_crypt_data->tablespace_key : nullptr,
@@ -9042,28 +9017,16 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
     IORequest write_request(write_type);
 
     /* For encrypted table, set encryption information. */
-<<<<<<< HEAD
     if (iter.m_encryption_key != NULL && offset != 0 &&
         iter.m_crypt_data == NULL) {
-      write_request.encryption_key(iter.m_encryption_key, ENCRYPTION_KEY_LEN,
+      write_request.encryption_key(iter.m_encryption_key, Encryption::KEY_LEN,
                                    false, iter.m_encryption_iv,
                                    iter.m_encryption_key_version,
                                    iter.m_encryption_key_id, nullptr, nullptr);
-||||||| ea7d2e2d16a
-    if (iter.m_encryption_key != nullptr && offset != 0) {
-      write_request.encryption_key(iter.m_encryption_key, ENCRYPTION_KEY_LEN,
-                                   iter.m_encryption_iv);
-
-=======
-    if (iter.m_encryption_key != nullptr && offset != 0) {
-      write_request.encryption_key(iter.m_encryption_key, Encryption::KEY_LEN,
-                                   iter.m_encryption_iv);
-
->>>>>>> mysql-8.0.20
       write_request.encryption_algorithm(Encryption::AES);
     } else if (offset != 0 && iter.m_crypt_data) {
       write_request.encryption_key(
-          iter.m_encryption_key, ENCRYPTION_KEY_LEN, false,
+          iter.m_encryption_key, Encryption::KEY_LEN, false,
           iter.m_encryption_iv, iter.m_encryption_key_version,
           iter.m_crypt_data->key_id, nullptr, iter.m_crypt_data->uuid);
 
@@ -9670,8 +9633,8 @@ bool encryption_rotate_low(fil_space_t *space) {
 
     mtr_x_lock_space(space, &mtr);
 
-    byte encrypt_info[ENCRYPTION_INFO_SIZE];
-    memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
+    byte encrypt_info[Encryption::INFO_SIZE];
+    memset(encrypt_info, 0, Encryption::INFO_SIZE);
 
     if (!fsp_header_rotate_encryption(space, encrypt_info, &mtr)) {
       success = false;
@@ -9715,14 +9678,6 @@ dberr_t fil_reset_encryption(space_id_t space_id) {
 @param[in,out]	shard		Rotate the keys in this shard
 @return true if the re-encrypt succeeds */
 bool Fil_system::encryption_rotate_in_a_shard(Fil_shard *shard) {
-<<<<<<< HEAD
-||||||| ea7d2e2d16a
-  byte encrypt_info[ENCRYPTION_INFO_SIZE];
-
-=======
-  byte encrypt_info[Encryption::INFO_SIZE];
-
->>>>>>> mysql-8.0.20
   for (auto &elem : shard->m_spaces) {
     auto space = elem.second;
 
@@ -9751,44 +9706,12 @@ bool Fil_system::encryption_rotate_in_a_shard(Fil_shard *shard) {
       continue;
     }
 
-<<<<<<< HEAD
     /* Skip the temporary tablespace when it's in default key status,
     since it's the first server startup after bootstrap, and the
     server uuid is not ready yet. */
     if (fsp_is_system_temporary(space->id) &&
-        Encryption::s_master_key_id == ENCRYPTION_DEFAULT_MASTER_KEY_ID)
+        Encryption::get_master_key_id() == Encryption::DEFAULT_MASTER_KEY_ID)
       continue;
-||||||| ea7d2e2d16a
-    /* Rotate the encrypted tablespaces. */
-    if (space->encryption_type != Encryption::NONE) {
-      memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
-
-      /* Take MDL on UNDO tablespace to make it mutually exclusive with
-      UNDO tablespace truncation. For other tablespaces MDL is not required
-      here. */
-      MDL_ticket *mdl_ticket = nullptr;
-      if (fsp_is_undo_tablespace(space->id)) {
-        THD *thd = current_thd;
-        while (
-            acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout)) {
-          os_thread_sleep(20);
-        }
-=======
-    /* Rotate the encrypted tablespaces. */
-    if (space->encryption_type != Encryption::NONE) {
-      memset(encrypt_info, 0, Encryption::INFO_SIZE);
-
-      /* Take MDL on UNDO tablespace to make it mutually exclusive with
-      UNDO tablespace truncation. For other tablespaces MDL is not required
-      here. */
-      MDL_ticket *mdl_ticket = nullptr;
-      if (fsp_is_undo_tablespace(space->id)) {
-        THD *thd = current_thd;
-        while (
-            acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout)) {
-          os_thread_sleep(20);
-        }
->>>>>>> mysql-8.0.20
 
     /* Take MDL on UNDO tablespace to make it mutually exclusive with
     UNDO tablespace truncation. For other tablespaces MDL is not required

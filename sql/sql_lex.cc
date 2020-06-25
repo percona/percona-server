@@ -26,11 +26,6 @@
 
 #include "sql/sql_lex.h"
 
-#define LEX_TOKEN_WITH_DEFINITION
-#include "sql/lex_token.h"
-#include "sql/lex.h"
-
-
 #include <limits.h>
 #include <stdlib.h>
 #include <algorithm>  // find_if, iter_swap, reverse
@@ -90,14 +85,8 @@ sys_var *trg_new_row_fake_var = (sys_var *)0x01;
 /**
   LEX_STRING constant for null-string to be used in parser and other places.
 */
-<<<<<<< HEAD
-const LEX_STRING null_lex_str = {NULL, 0};
-const LEX_CSTRING null_lex_cstr = {nullptr, 0};
-||||||| ea7d2e2d16a
-const LEX_STRING null_lex_str = {NULL, 0};
-=======
 const LEX_STRING null_lex_str = {nullptr, 0};
->>>>>>> mysql-8.0.20
+const LEX_CSTRING null_lex_cstr = {nullptr, 0};
 /**
   Mapping from enum values in enum_binlog_stmt_unsafe to error codes.
 
@@ -383,24 +372,8 @@ void Lex_input_stream::body_utf8_append_literal(THD *thd, const LEX_STRING *txt,
 }
 
 void Lex_input_stream::add_digest_token(uint token, Lexer_yystype *yylval) {
-<<<<<<< HEAD
-  if (m_digest != NULL) {
-    /*
-     * Adjust Percona's token value to avoid clash with hint tokens.
-     * See sql/lex.h for additonal info
-     */
-    if(lex_token_array[token].m_percona_token) {
-      m_digest = digest_add_token(m_digest, TOK_PERCONA_ADJUST(token), yylval);
-    } else {
-      m_digest = digest_add_token(m_digest, token, yylval);
-    }
-||||||| ea7d2e2d16a
-  if (m_digest != NULL) {
-    m_digest = digest_add_token(m_digest, token, yylval);
-=======
   if (m_digest != nullptr) {
     m_digest = digest_add_token(m_digest, token, yylval);
->>>>>>> mysql-8.0.20
   }
 }
 

@@ -118,26 +118,8 @@
 #cmakedefine HAVE_HTONLL 1
 #cmakedefine HAVE_MEMSET_S 1
 #cmakedefine HAVE_EPOLL 1
-<<<<<<< HEAD
-/* #cmakedefine HAVE_EVENT_PORTS 1 */
-#cmakedefine HAVE_INET_NTOP 1
-#cmakedefine HAVE_WORKING_KQUEUE 1
-#cmakedefine HAVE_TIMERADD 1
-#cmakedefine HAVE_TIMERCLEAR 1
-#cmakedefine HAVE_TIMERCMP 1
-#cmakedefine HAVE_TIMERISSET 1
 #cmakedefine HAVE_X509_CHECK_HOST 1
 #cmakedefine HAVE_X509_CHECK_IP 1
-||||||| ea7d2e2d16a
-/* #cmakedefine HAVE_EVENT_PORTS 1 */
-#cmakedefine HAVE_INET_NTOP 1
-#cmakedefine HAVE_WORKING_KQUEUE 1
-#cmakedefine HAVE_TIMERADD 1
-#cmakedefine HAVE_TIMERCLEAR 1
-#cmakedefine HAVE_TIMERCMP 1
-#cmakedefine HAVE_TIMERISSET 1
-=======
->>>>>>> mysql-8.0.20
 
 /* WL2373 */
 #cmakedefine HAVE_SYS_TIME_H 1

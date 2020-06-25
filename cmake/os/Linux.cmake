@@ -51,12 +51,14 @@ ENDIF()
 
 IF(EXISTS "/etc/os-release")
   FILE(READ "/etc/os-release" MY_OS_RELEASE)
-  IF(MY_OS_RELEASE MATCHES "Ubuntu" AND
-      MY_OS_RELEASE MATCHES "16.04")
-    SET(LINUX_UBUNTU_16_04 1)
+  IF(MY_OS_RELEASE MATCHES "Ubuntu")
+    SET(LINUX_UBUNTU 1)
+    IF(MY_OS_RELEASE MATCHES "16.04")
+      SET(LINUX_UBUNTU_16_04 1)
+    ENDIF()
   ENDIF()
-<<<<<<< HEAD
   IF(MY_OS_RELEASE MATCHES "Debian")
+    SET(LINUX_DEBIAN 1)
     IF(MY_OS_RELEASE MATCHES "jessie")
       SET(LINUX_DEBIAN_8 1)
     ENDIF()
@@ -64,14 +66,6 @@ IF(EXISTS "/etc/os-release")
       SET(LINUX_DEBIAN_9 1)
     ENDIF()
   ENDIF()
-||||||| ea7d2e2d16a
-=======
-  IF(MY_OS_RELEASE MATCHES "Debian")
-    SET(LINUX_DEBIAN 1)
-  ELSEIF(MY_OS_RELEASE MATCHES "Ubuntu")
-    SET(LINUX_UBUNTU 1)
-  ENDIF()
->>>>>>> mysql-8.0.20
 ENDIF()
 
 # We require at least GCC 5.3 or Clang 3.4.

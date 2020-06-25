@@ -404,7 +404,7 @@ void bitmap_intersect(MY_BITMAP *map, const MY_BITMAP *map2) {
 
   DBUG_ASSERT(map->bitmap && map2->bitmap);
 
-  end = to + MY_MIN(len, len2);
+  end = to + std::min(len, len2);
   for (; to < end; to++, from++) *to &= *from;
 
   if (len >= len2) map->bitmap[len2 - 1] &= ~map2->last_word_mask;

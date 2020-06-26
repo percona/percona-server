@@ -386,6 +386,16 @@ the system.
    :column READ_VIEW_UPPER_LIMIT_TRX_ID: This is the highest transactions ID at the time the view was created. This means that it should not see newer transactions with IDs bigger than or equal to that value.
    :column READ_VIEW_LOW_LIMIT_TRX_ID: This is the latest committed transaction ID at the time the oldest view was created. This means that it should see all transactions with IDs smaller than or equal to that value.
 
+.. note::
+
+    Starting with |Percona Server| 8.0.20-11, in ``INFORMATION_SCHEMA.XTRADB_READ_VIEW``, the data type for the following columns is changed from ``VARCHAR(18)`` to ``BIGINT UNSIGNED``:
+
+    * ``READ_VIEW_LOW_LIMIT_TRX_NUMBER`` 
+    * ``READ_VIEW_UPPER_LIMIT_TRX_ID`` 
+    * ``READ_VIWE_LOW_LIMIT_TRX_ID`` 
+    
+The columns contain 64-bit integers, which is too large for ``VARCHAR(18)``.
+
 The following table contains information about the memory usage for
 InnoDB/XtraDB hash tables.
 

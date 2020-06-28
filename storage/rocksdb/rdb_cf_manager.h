@@ -75,7 +75,7 @@ class Rdb_cf_manager {
 
   /*
     Used by CREATE TABLE.
-    - cf_name=nullptr means use default column family
+    - cf_name requires non-empty string
     - create=true means create cf if missing, otherwise return nullptr
   */
   std::shared_ptr<rocksdb::ColumnFamilyHandle> get_or_create_cf(

@@ -147,6 +147,7 @@ void meb_print_page_header(const page_t *page) {
 //#ifndef UNIV_HOTBACKUP
 PSI_memory_key mem_log_recv_page_hash_key;
 PSI_memory_key mem_log_recv_space_hash_key;
+PSI_memory_key mem_log_recv_crypt_data_hash_key;
 //#endif /* !UNIV_HOTBACKUP */
 
 /** true when recv_init_crash_recovery() has been called. */
@@ -647,6 +648,10 @@ void recv_sys_init() {
   recv_sys->metadata_recover =
       ut::new_withkey<MetadataRecover>(UT_NEW_THIS_FILE_PSI_KEY);
 
+  using CryptDatas = recv_sys_t::CryptDatas;
+  recv_sys->crypt_datas = ut::new_withkey<CryptDatas>(
+      ut::make_psi_memory_key(mem_log_recv_space_hash_key));
+
   mutex_exit(&recv_sys->mutex);
 }
 
@@ -839,6 +844,7 @@ static void recv_writer_thread() {
 /** Frees the recovery system. */
 void recv_sys_free() {
   if (!recv_sys) return;
+  if (!recv_sys->crypt_datas) return;
 
   mutex_enter(&recv_sys->mutex);
 
@@ -874,6 +880,13 @@ void recv_sys_free() {
     ut::delete_(recv_sys->keys);
     recv_sys->keys = nullptr;
   }
+
+  for (auto &crypt_data : *recv_sys->crypt_datas) {
+    ut::delete_(crypt_data.second);
+  }
+
+  ut::delete_(recv_sys->crypt_datas);
+  recv_sys->crypt_datas = nullptr;
 
   mutex_exit(&recv_sys->mutex);
 }
@@ -1778,7 +1791,8 @@ static byte *recv_parse_or_apply_log_rec_body(
           } else if (memcmp(ptr_copy, Encryption::KEY_MAGIC_PS_V3,
                             Encryption::MAGIC_SIZE) == 0 &&
                      !recv_sys->apply_log_recs) {
-            return (fil_parse_write_crypt_data_v3(space_id, ptr, end_ptr, len));
+            return (fil_parse_write_crypt_data_v3(space_id, ptr, end_ptr, len,
+                                                  recv_needed_recovery));
           }
 
           if (fsp_is_system_or_temp_tablespace(space_id)) {
@@ -4027,7 +4041,6 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
   lsn_t recovered_lsn;
 
   recovered_lsn = recv_sys->recovered_lsn;
-
 
   ut_a(recv_needed_recovery || checkpoint_lsn == recovered_lsn);
 

@@ -10468,6 +10468,23 @@ dberr_t Fil_system::open_for_recovery(space_id_t space_id) {
       fil_tablespace_encryption_init(space);
     }
 
+    if (recv_sys->crypt_datas != nullptr &&
+        recv_sys->crypt_datas->count(space_id) > 0) {
+      if (space->crypt_data != nullptr) {
+        fil_space_destroy_crypt_data(&space->crypt_data);
+      }
+      space->crypt_data = (*recv_sys->crypt_datas)[space_id];
+      recv_sys->crypt_datas->erase(space_id);
+
+      dberr_t err = fil_set_encryption(space->id, Encryption::KEYRING, nullptr,
+                                       space->crypt_data->iv);
+
+      if (err != DB_SUCCESS) {
+        ib::error(ER_IB_MSG_343) << "Can't set encryption information"
+                                 << " for tablespace" << space->name << "!";
+      }
+    }
+
     if (!recv_sys->dblwr->empty()) {
       err = recv_sys->dblwr->recover(space);
 

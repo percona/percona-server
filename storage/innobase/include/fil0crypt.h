@@ -89,8 +89,8 @@ extern os_event_t fil_crypt_threads_event;
 
 /* Cached L or key for given key_version */
 struct key_struct {
-  uint key_version;                      /*!< Version of the key */
-  uint key_length;                       /*!< Key length */
+  uint key_version;                       /*!< Version of the key */
+  uint key_length;                        /*!< Key length */
   unsigned char key[Encryption::KEY_LEN]; /*!< Cached key
                                           (that is L in CRYPT_SCHEME_1) */
 };
@@ -169,9 +169,7 @@ struct fil_space_crypt_t {
   has been zero-initialized. */
   fil_space_crypt_t(uint new_min_key_version, uint new_key_id, const char *uuid,
                     fil_encryption_t new_encryption,
-                    Crypt_key_operation key_operation,
-                    Encryption_rotation encryption_rotation =
-                        Encryption_rotation::NO_ROTATION);
+                    Crypt_key_operation key_operation);
 
   /** Destructor */
   ~fil_space_crypt_t() {
@@ -221,11 +219,9 @@ struct fil_space_crypt_t {
   @param[in,out]	mtr	mini-transaction
   @param[in]	        a_min_key_verion min key version used in encryption
   @param[in]            a_max_key_verion max key version used in encryption
-  @param[in]            a_type encryption type
-  @param[in]            current_encryption_rotation - encryption rotation */
+  @param[in]            a_type encryption type */
   void write_page0(const fil_space_t *space, byte *page0, mtr_t *mtr,
-                   uint a_min_key_version, uint a_max_key_version, uint a_type,
-                   Encryption_rotation current_encryption_rotation);
+                   uint a_min_key_version, uint a_max_key_version, uint a_type);
 
   void set_tablespace_key(const uchar *tablespace_key) {
     if (tablespace_key == NULL) {

@@ -50,7 +50,15 @@ extern ulint os_io_ptr_align;
 
 enum class Encryption_rotation : std::uint8_t {
   NO_ROTATION,
-  MASTER_KEY_TO_KEYRING
+  /** For Master Key encrypted pages use the tablespace key to read.
+   * Use the crypt_data's key when writing (encrypting). */
+  MASTER_KEY_TO_KEYRING,
+  /** Encrypt all the pages that go through I/O level */
+  ENCRYPTING,
+  /** Do not encrypt pages that go through I/O level.
+   * When encryption threads decrypt pages, they just pass I/O level
+   * unencrypted (the encryption is disabled). */
+  DECRYPTING
 };
 
 /** Encryption algorithm. */

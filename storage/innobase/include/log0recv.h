@@ -49,6 +49,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 class MetadataRecover;
 class PersistentTableMetadata;
+struct fil_space_crypt_t;
 
 /** Check the 4-byte checksum to the trailer checksum field of a log
 block.
@@ -80,12 +81,12 @@ void recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn, lsn_t end_lsn,
 @param[in]	end_ptr		end of the buffer
 @param[out]	space_id	tablespace identifier
 @param[out]	page_no		page number
-@param[in]	apply		whether to apply the record
+@param[in]	online_log	true if we process online DDL log
 @param[out]	body		start of log record body
 @return length of the record, or 0 if the record was not complete */
 ulint recv_parse_log_rec(mlog_id_t *type, byte *ptr, byte *end_ptr,
-                         space_id_t *space_id, page_no_t *page_no, bool apply,
-                         byte **body);
+                         space_id_t *space_id, page_no_t *page_no,
+                         bool online_log, byte **body);
 
 #ifdef UNIV_HOTBACKUP
 
@@ -391,12 +392,9 @@ class MetadataRecover {
   @param[in]	version		table dynamic metadata version
   @param[in]	ptr		redo log start
   @param[in]	end		end of redo log
-  @param[in]    apply           if false, this is coming from changed page
-                                tracking and changes should be parsed only
   @retval ptr to next redo log record, NULL if this log record
   was truncated */
-  byte *parseMetadataLog(table_id_t id, uint64_t version, byte *ptr, byte *end,
-                         bool apply);
+  byte *parseMetadataLog(table_id_t id, uint64_t version, byte *ptr, byte *end);
 
   /** Apply the collected persistent dynamic metadata to in-memory
   table objects */
@@ -574,6 +572,17 @@ struct recv_sys_t {
 
   /** Encryption Key information per tablespace ID */
   Encryption_Keys *keys;
+
+  /** Map of crypt_data harvested during processing the redo logs. If crypt_data
+   * exists in redo log and the space it belongs to, does not yet exist in the
+   * system (create for the space exists only in redo) - we put the crypt_data
+   * into this map. Later when redo for creating the space gets proceed and
+   * space gets opened in open_for_recovery we assign the crypt_data from this
+   * map to this newly created space */
+  using CryptDatas =
+      std::unordered_map<space_id_t, fil_space_crypt_t *, std::hash<space_id_t>,
+                         std::equal_to<space_id_t>>;
+  CryptDatas *crypt_datas;
 
   void set_corrupt_log() { found_corrupt_log = true; }
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,10 @@ INCLUDE(CheckCSourceRuns)
 SET(LINUX 1)
 SET(TARGET_OS_LINUX 1)
 
+# OS display name (version_compile_os etc).
+# Used by the test suite to ignore bugs on some platforms.
+SET(SYSTEM_TYPE "Linux")
+
 IF(EXISTS "/etc/SuSE-release")
   SET(LINUX_SUSE 1)
 ENDIF()
@@ -47,11 +51,14 @@ ENDIF()
 
 IF(EXISTS "/etc/os-release")
   FILE(READ "/etc/os-release" MY_OS_RELEASE)
-  IF(MY_OS_RELEASE MATCHES "Ubuntu" AND
-      MY_OS_RELEASE MATCHES "16.04")
-    SET(LINUX_UBUNTU_16_04 1)
+  IF(MY_OS_RELEASE MATCHES "Ubuntu")
+    SET(LINUX_UBUNTU 1)
+    IF(MY_OS_RELEASE MATCHES "16.04")
+      SET(LINUX_UBUNTU_16_04 1)
+    ENDIF()
   ENDIF()
   IF(MY_OS_RELEASE MATCHES "Debian")
+    SET(LINUX_DEBIAN 1)
     IF(MY_OS_RELEASE MATCHES "jessie")
       SET(LINUX_DEBIAN_8 1)
     ENDIF()

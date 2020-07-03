@@ -505,30 +505,31 @@ SET @var = '2019-01-01 00:00:00';
 EXECUTE stmt USING @var;
 DEALLOCATE PREPARE stmt;
 
---echo #
---echo # Bug#97682 - Handler fails to trigger on Error 1049 or SQLSTATE 42000 or plain sqlexception
---echo #
 
+--echo #
+--echo # Bug#30561920 - Handler fails to trigger on error 1049 or SQLSTATE 42000
+--echo #                or plain SQLEXCEPTION
+--echo #
 DELIMITER |;
-
-CREATE FUNCTION handler_func() RETURNS INTEGER
+CREATE FUNCTION func1() RETURNS INT
 BEGIN
   DECLARE EXIT HANDLER FOR SQLEXCEPTION RETURN NULL;
-  SELECT fake_col INTO @a FROM fake_table;
+  SELECT * INTO @a FROM fake_table;
 RETURN 1;
 END|
 
-CREATE FUNCTION handler_func2() RETURNS INTEGER
+CREATE FUNCTION func2() RETURNS INT
 BEGIN
   DECLARE EXIT HANDLER FOR SQLEXCEPTION RETURN NULL;
-  SELECT fake_col INTO @a FROM fake_db.fake_table;
+  SELECT * INTO @a FROM fake_db.fake_table;
 RETURN 1;
 END|
-
 DELIMITER ;|
 
-SELECT handler_func();
-SELECT handler_func2();
+SELECT func1();
+--echo # Without fix, exit handler is not triggered and unknown DB error
+--echo # is reported.
+SELECT func2();
 
-DROP FUNCTION handler_func;
-DROP FUNCTION handler_func2;
+DROP FUNCTION func1;
+DROP FUNCTION func2;

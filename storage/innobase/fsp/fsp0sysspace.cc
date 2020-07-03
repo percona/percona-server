@@ -39,7 +39,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef UNIV_HOTBACKUP
 #include "ha_prototypes.h"
 #include "mem0mem.h"
-#include "my_inttypes.h"
+
 /** The server header file is included to access opt_initialize global variable.
 If server passes the option for create/open DB to SE, we should remove such
 direct reference to server header and global variable */
@@ -515,8 +515,6 @@ dberr_t SysTablespace::open_file(Datafile &file) {
 @param[out]	flushed_lsn	the value of FIL_PAGE_FILE_FLUSH_LSN
 @return DB_SUCCESS or error code */
 dberr_t SysTablespace::read_lsn_and_check_flags(lsn_t *flushed_lsn) {
-  dberr_t err;
-
   /* Only relevant for the system tablespace. */
   ut_ad(space_id() == TRX_SYS_SPACE);
 
@@ -525,7 +523,8 @@ dberr_t SysTablespace::read_lsn_and_check_flags(lsn_t *flushed_lsn) {
   ut_a(it->m_exists);
   ut_ad(it->m_handle.m_file != OS_FILE_CLOSED);
 
-  err = it->read_first_page(m_ignore_read_only ? false : srv_read_only_mode);
+  dberr_t err =
+      it->read_first_page(m_ignore_read_only ? false : srv_read_only_mode);
 
   if (err != DB_SUCCESS) {
     return (err);
@@ -533,13 +532,13 @@ dberr_t SysTablespace::read_lsn_and_check_flags(lsn_t *flushed_lsn) {
 
   ut_a(it->order() == 0);
 
-  err = buf_dblwr_init_or_load_pages(it->handle(), it->filepath());
+  err = recv_sys->dblwr->load();
+
   if (err != DB_SUCCESS) {
     return (err);
   }
 
-  /* Check the contents of the first page of the
-  first datafile. */
+  /* Check the contents of the first page of the first datafile. */
   for (int retry = 0; retry < 2; ++retry) {
     err = it->validate_first_page(it->m_space_id, flushed_lsn, false).error;
 
@@ -814,7 +813,7 @@ dberr_t SysTablespace::open_or_create(bool is_temp, bool create_new_db,
                                       page_no_t *sum_new_sizes,
                                       lsn_t *flush_lsn) {
   dberr_t err = DB_SUCCESS;
-  fil_space_t *space = NULL;
+  fil_space_t *space = nullptr;
 
   ut_ad(!m_files.empty());
 
@@ -863,11 +862,11 @@ dberr_t SysTablespace::open_or_create(bool is_temp, bool create_new_db,
     the tablespace should be on the same medium. */
 
     if (fil_fusionio_enable_atomic_write(it->m_handle)) {
-      if (srv_use_doublewrite_buf) {
+      if (dblwr::enabled) {
         ib::info(ER_IB_MSG_456) << "FusionIO atomic IO enabled,"
                                    " disabling the double write buffer";
 
-        srv_use_doublewrite_buf = false;
+        dblwr::enabled = false;
       }
 
       it->m_atomic_write = true;

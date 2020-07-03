@@ -216,6 +216,4 @@ const char *dict_process_sys_zip_dict(mem_heap_t *heap,
                                       const char **name, ulint *name_len,
                                       const char **data, ulint *data_len);
 
-#include "dict0load.ic"
-
 #endif

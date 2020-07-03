@@ -1417,5 +1417,5 @@ ALTER INSTANCE ROTATE INNODB MASTER KEY;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or ENCRYPTION_KEY_ADMIN privilege(s) for this operation
 DROP USER encryption_admin@localhost;
 DROP TABLE t1;
-# restart:
+# restart:<hidden args>
 SET GLOBAL innodb_file_per_table=1;

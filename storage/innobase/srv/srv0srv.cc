@@ -1,8 +1,8 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
-Copyright (c) 2009, 2016, Percona Inc.
+Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -68,10 +68,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0online.h"
 #include "log0recv.h"
 #include "mem0mem.h"
-#include "my_compiler.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
-#include "my_psi_config.h"
 #include "os0proc.h"
 #include "os0thread-create.h"
 #include "pars0pars.h"
@@ -81,6 +77,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql/current_thd.h"
 #include "sql_thd_internal_api.h"
 #include "srv0mon.h"
+
+#include "my_dbug.h"
+#include "my_psi_config.h"
+
 #endif /* !UNIV_HOTBACKUP */
 #include "srv0srv.h"
 #include "srv0start.h"
@@ -137,15 +137,18 @@ const char *srv_main_thread_op_info = "";
 /* The following three are dir paths which are catenated before file
 names, where the file name itself may also contain a path */
 
-char *srv_data_home = NULL;
+char *srv_data_home = nullptr;
 
-/* The innodb_directories variable value. This a list of directories
+/** Separate directory for doublewrite files, if it is not NULL */
+char *srv_doublewrite_dir = NULL;
+
+/** The innodb_directories variable value. This a list of directories
 deliminated by ';', i.e the FIL_PATH_SEPARATOR. */
-char *srv_innodb_directories = NULL;
+char *srv_innodb_directories = nullptr;
 
 /** Undo tablespace directories.  This can be multiple paths
 separated by ';' and can also be absolute paths. */
-char *srv_undo_dir = NULL;
+char *srv_undo_dir = nullptr;
 
 /** The number of implicit undo tablespaces to use for rollback
 segments. */
@@ -215,16 +218,12 @@ bool high_level_read_only;
 /** Number of threads to use for parallel reads. */
 ulong srv_parallel_read_threads;
 
-/* If this flag is TRUE, then we will use the native aio of the
+/** If this flag is true, then we will use the native aio of the
 OS (provided we compiled Innobase with it in), otherwise we will
-use simulated aio we build below with threads.
-Currently we support native aio on windows and linux */
-#ifdef _WIN32
-bool srv_use_native_aio = TRUE; /* enabled by default on Windows */
-#else
-bool srv_use_native_aio;
-#endif
-bool srv_numa_interleave = FALSE;
+use simulated aio we build below with threads. */
+bool srv_use_native_aio = false;
+
+bool srv_numa_interleave = false;
 
 /** Whether the redo log tracking is currently enabled. Note that it is
 possible for the log tracker thread to be running and the tracking to be
@@ -248,7 +247,7 @@ static os_event_t srv_master_thread_disabled_event;
 #endif /* UNIV_DEBUG */
 
 /*------------------------- LOG FILES ------------------------ */
-char *srv_log_group_home_dir = NULL;
+char *srv_log_group_home_dir = nullptr;
 
 /** Enable or disable Encrypt of REDO tablespace. */
 ulong srv_redo_log_encrypt = 0;
@@ -618,14 +617,6 @@ bool srv_stats_include_delete_marked = FALSE;
 unsigned long long srv_stats_persistent_sample_pages = 20;
 bool srv_stats_auto_recalc = TRUE;
 
-ibool srv_use_doublewrite_buf = TRUE;
-
-/** doublewrite buffer is 1MB is size i.e.: it can hold 128 16K pages.
-The following parameter is the size of the buffer that is used for
-batch flushing i.e.: LRU flushing and flush_list flushing. The rest
-of the pages are used for single page flushing. */
-ulong srv_doublewrite_batch_size = 120;
-
 ulong srv_replication_delay = 0;
 
 ulint srv_pass_corrupt_table = 0; /* 0:disable 1:enable */
@@ -826,7 +817,7 @@ struct srv_sys_t {
                                of overall server activity */
 };
 
-static srv_sys_t *srv_sys = NULL;
+static srv_sys_t *srv_sys = nullptr;
 
 /** Event to signal the monitor thread. */
 os_event_t srv_monitor_event;
@@ -847,9 +838,6 @@ char *srv_buf_dump_filename;
 and/or load it during startup. */
 bool srv_buffer_pool_dump_at_shutdown = true;
 bool srv_buffer_pool_load_at_startup = true;
-
-/** Path to the parallel doublewrite buffer */
-char *srv_parallel_doublewrite_path;
 
 /** Slot index in the srv_sys->sys_threads array for the purge thread. */
 static const ulint SRV_PURGE_SLOT = 1;
@@ -987,7 +975,7 @@ static srv_thread_type srv_slot_get_type(
 static srv_slot_t *srv_reserve_slot(
     srv_thread_type type) /*!< in: type of the thread */
 {
-  srv_slot_t *slot = 0;
+  srv_slot_t *slot = nullptr;
 
   srv_sys_mutex_enter();
 
@@ -1218,18 +1206,18 @@ static void srv_init(void) {
     for (ulint i = 0; i < srv_sys->n_sys_threads; ++i) {
       srv_slot_t *slot = &srv_sys->sys_threads[i];
 
-      slot->event = os_event_create(0);
+      slot->event = os_event_create(nullptr);
 
       slot->in_use = false;
 
       ut_a(slot->event);
     }
 
-    srv_error_event = os_event_create(0);
+    srv_error_event = os_event_create(nullptr);
 
-    srv_monitor_event = os_event_create(0);
+    srv_monitor_event = os_event_create(nullptr);
 
-    srv_buf_dump_event = os_event_create(0);
+    srv_buf_dump_event = os_event_create(nullptr);
 
     buf_flush_event = os_event_create("buf_flush_event");
 
@@ -1241,9 +1229,9 @@ static void srv_init(void) {
     os_event_set(srv_redo_log_tracked_event);
   }
 
-  srv_buf_resize_event = os_event_create(0);
+  srv_buf_resize_event = os_event_create(nullptr);
 
-  ut_d(srv_master_thread_disabled_event = os_event_create(0));
+  ut_d(srv_master_thread_disabled_event = os_event_create(nullptr));
 
   /* page_zip_stat_per_index_mutex is acquired from:
   1. page_zip_compress() (after SYNC_FSP)
@@ -1294,14 +1282,14 @@ void srv_free(void) {
 
 #ifdef UNIV_DEBUG
   os_event_destroy(srv_master_thread_disabled_event);
-  srv_master_thread_disabled_event = NULL;
+  srv_master_thread_disabled_event = nullptr;
 #endif /* UNIV_DEBUG */
 
   trx_i_s_cache_free(trx_i_s_cache);
 
   ut_free(srv_sys);
 
-  srv_sys = 0;
+  srv_sys = nullptr;
 
   if (srv_threads.m_lru_managers != nullptr) {
     for (size_t i = 0; i < srv_threads.m_lru_managers_n; ++i) {
@@ -1683,7 +1671,8 @@ void srv_export_innodb_status(void) {
 
   export_vars.innodb_data_written = srv_stats.data_written;
 
-  export_vars.innodb_buffer_pool_read_requests = stat.n_page_gets;
+  export_vars.innodb_buffer_pool_read_requests =
+      Counter::total(stat.m_n_page_gets);
 
   export_vars.innodb_buffer_pool_write_requests =
       srv_stats.buf_pool_write_requests;
@@ -1970,8 +1959,8 @@ loop:
         last_srv_print_monitor = TRUE;
       }
 
-      if (!srv_printf_innodb_monitor(stderr, MUTEX_NOWAIT(mutex_skipped), NULL,
-                                     NULL)) {
+      if (!srv_printf_innodb_monitor(stderr, MUTEX_NOWAIT(mutex_skipped),
+                                     nullptr, nullptr)) {
         mutex_skipped++;
       } else {
         /* Reset the counter */
@@ -1988,7 +1977,8 @@ loop:
       mutex_enter(&srv_monitor_file_mutex);
       rewind(srv_monitor_file);
       if (!srv_printf_innodb_monitor(srv_monitor_file,
-                                     MUTEX_NOWAIT(mutex_skipped), NULL, NULL)) {
+                                     MUTEX_NOWAIT(mutex_skipped), nullptr,
+                                     nullptr)) {
         mutex_skipped++;
       } else {
         mutex_skipped = 0;
@@ -2016,8 +2006,8 @@ void srv_error_monitor_thread() {
   os_thread_id_t waiter = os_thread_get_curr_id();
   os_thread_id_t old_waiter = waiter;
   /* the semaphore that is being waited for */
-  const void *sema = NULL;
-  const void *old_sema = NULL;
+  const void *sema = nullptr;
+  const void *old_sema = nullptr;
 
   ut_ad(!srv_read_only_mode);
 
@@ -2304,7 +2294,7 @@ static void srv_master_do_disabled_loop(void) {
 void srv_master_thread_disabled_debug_update(THD *thd, SYS_VAR *var,
                                              void *var_ptr, const void *save) {
   /* This method is protected by mutex, as every SET GLOBAL .. */
-  ut_ad(srv_master_thread_disabled_event != NULL);
+  ut_ad(srv_master_thread_disabled_event != nullptr);
 
   const bool disable = *static_cast<const bool *>(save);
 
@@ -2738,10 +2728,12 @@ void undo_rotate_default_master_key() {
   /* If the undo log space is using default key, rotate
   it. We need the server_uuid initialized, otherwise,
   the keyname will not contains server uuid. */
-  if (Encryption::s_master_key_id != 0 || srv_read_only_mode ||
+  if (Encryption::get_master_key_id() != 0 || srv_read_only_mode ||
       strlen(server_uuid) == 0) {
     return;
   }
+
+  DBUG_EXECUTE_IF("skip_rotating_default_master_key", return;);
 
   undo::spaces->s_lock();
   for (auto undo_space : undo::spaces->m_spaces) {
@@ -2753,7 +2745,7 @@ void undo_rotate_default_master_key() {
       continue;
     }
 
-    byte encrypt_info[ENCRYPTION_INFO_SIZE];
+    byte encrypt_info[Encryption::INFO_SIZE];
     mtr_t mtr;
 
     ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
@@ -2766,7 +2758,7 @@ void undo_rotate_default_master_key() {
 
     mtr_x_lock_space(space, &mtr);
 
-    memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
+    memset(encrypt_info, 0, Encryption::INFO_SIZE);
 
     if (!fsp_header_rotate_encryption(space, encrypt_info, &mtr)) {
       ib::error(ER_IB_MSG_1056, undo_space->space_name());
@@ -2816,8 +2808,8 @@ bool srv_enable_redo_encryption_mk(THD *thd) {
   if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
     return false;
   }
-  byte key[ENCRYPTION_KEY_LEN];
-  byte iv[ENCRYPTION_KEY_LEN];
+  byte key[Encryption::KEY_LEN];
+  byte iv[Encryption::KEY_LEN];
 
   Encryption::random_value(iv);
   Encryption::random_value(key);
@@ -2876,8 +2868,8 @@ bool srv_enable_redo_encryption_rk(THD *thd) {
     return false;
   }
 
-  byte key[ENCRYPTION_KEY_LEN];
-  byte iv[ENCRYPTION_KEY_LEN];
+  byte key[Encryption::KEY_LEN];
+  byte iv[Encryption::KEY_LEN];
   uint version;
 
   Encryption::random_value(iv);
@@ -2900,7 +2892,7 @@ bool srv_enable_redo_encryption_rk(THD *thd) {
 
   version = mkey->version;
   srv_redo_log_key_version = version;
-  memcpy(key, mkey->key, ENCRYPTION_KEY_LEN);
+  memcpy(key, mkey->key, Encryption::KEY_LEN);
 
 #ifdef UNIV_ENCRYPT_DEBUG
   fprintf(stderr, "Fetched redo key: %s.\n", key);
@@ -2920,7 +2912,7 @@ bool srv_enable_redo_encryption_rk(THD *thd) {
   space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
   space->encryption_key_version = version;
   space->encryption_redo_key_uuid.reset(
-      new (std::nothrow) char[ENCRYPTION_SERVER_UUID_LEN + 1]);
+      new (std::nothrow) char[Encryption::SERVER_UUID_LEN + 1]);
   if (space->encryption_redo_key_uuid.get() == nullptr) {
     if (thd != nullptr) {
       ib::error(ER_IB_MSG_1244);
@@ -2931,7 +2923,7 @@ bool srv_enable_redo_encryption_rk(THD *thd) {
   }
 
   memcpy(space->encryption_redo_key_uuid.get(), server_uuid,
-         ENCRYPTION_SERVER_UUID_LEN + 1);
+         Encryption::SERVER_UUID_LEN + 1);
   dberr_t err = fil_set_encryption(space->id, Encryption::KEYRING, key, iv);
 
   if (err != DB_SUCCESS) {
@@ -2956,15 +2948,15 @@ bool set_undo_tablespace_encryption(THD *thd, space_id_t space_id, mtr_t *mtr,
   fil_space_t *space = fil_space_get(space_id);
 
   dberr_t err;
-  byte encrypt_info[ENCRYPTION_INFO_SIZE];
-  byte key[ENCRYPTION_KEY_LEN];
-  byte iv[ENCRYPTION_KEY_LEN];
+  byte encrypt_info[Encryption::INFO_SIZE];
+  byte key[Encryption::KEY_LEN];
+  byte iv[Encryption::KEY_LEN];
 
   Encryption::random_value(key);
   Encryption::random_value(iv);
 
   /* 0 fill encryption info */
-  memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
+  memset(encrypt_info, 0, Encryption::INFO_SIZE);
 
   /* Fill up encryption info to be set */
   if (!Encryption::fill_encryption_info(key, iv, encrypt_info, is_boot, true)) {
@@ -2975,7 +2967,7 @@ bool set_undo_tablespace_encryption(THD *thd, space_id_t space_id, mtr_t *mtr,
     return true;
   }
 
-  ulint new_flags = space->flags | FSP_FLAGS_MASK_ENCRYPTION;
+  uint32_t new_flags = space->flags | FSP_FLAGS_MASK_ENCRYPTION;
 
   /* Write encryption info on tablespace header page */
   if (!fsp_header_write_encryption(space->id, new_flags, encrypt_info, true,
@@ -3235,7 +3227,7 @@ static bool srv_purge_should_exit(
 /** Fetch and execute a task from the work queue.
  @return true if a task was executed */
 static bool srv_task_execute(void) {
-  que_thr_t *thr = NULL;
+  que_thr_t *thr = nullptr;
 
   ut_ad(!srv_read_only_mode);
   ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
@@ -3252,7 +3244,7 @@ static bool srv_task_execute(void) {
 
   mutex_exit(&srv_sys->tasks_mutex);
 
-  if (thr != NULL) {
+  if (thr != nullptr) {
     que_run_threads(thr);
 
     os_atomic_inc_ulint(&purge_sys->pq_mutex, &purge_sys->n_completed, 1);
@@ -3260,7 +3252,7 @@ static bool srv_task_execute(void) {
     srv_inc_activity_count();
   }
 
-  return (thr != NULL);
+  return (thr != nullptr);
 }
 
 static std::atomic<ulint> purge_tid_i(0);

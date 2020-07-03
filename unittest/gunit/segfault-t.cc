@@ -53,7 +53,7 @@ TEST_F(FatalSignalDeathTest, Abort) {
 }
 
 TEST_F(FatalSignalDeathTest, Segfault) {
-  int *pint = NULL;
+  int *pint = nullptr;
 #if defined(_WIN32)
   /*
    After upgrading from gtest 1.5 to 1.6 this segfault is no longer
@@ -136,7 +136,7 @@ TEST(PrintUtilities, Itoa) {
 TEST(PrintUtilities, Printf) {
   char buff[512];
   char sprintfbuff[512];
-  const char *null_str = NULL;
+  const char *null_str = nullptr;
 
   my_safe_snprintf(buff, sizeof(buff), "hello");
   EXPECT_STREQ("hello", buff);

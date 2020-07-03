@@ -1,8 +1,8 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009, Google Inc.
-Copyright (c) 2009, 2016, Percona Inc.
+Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -365,10 +365,6 @@ and/or load it during startup. */
 extern bool srv_buffer_pool_dump_at_shutdown;
 extern bool srv_buffer_pool_load_at_startup;
 
-/** Path to the parallel doublewrite buffer */
-#define SRV_PARALLEL_DOUBLEWRITE_PATH_DEFAULT "xb_doublewrite"
-extern char *srv_parallel_doublewrite_path;
-
 /* Whether to disable file system cache if it is defined */
 extern bool srv_disable_sort_file_cache;
 
@@ -402,6 +398,9 @@ extern FILE *srv_misc_tmpfile;
 /* Server parameters which are read from the initfile */
 
 extern char *srv_data_home;
+
+/** Number of pages per doublewrite thread/segment */
+extern ulong srv_dblwr_pages;
 
 /** Set if InnoDB must operate in read-only mode. We don't do any
 recovery and open all tables in RO mode instead of RW mode. We don't
@@ -758,8 +757,6 @@ extern unsigned long long srv_stats_persistent_sample_pages;
 extern bool srv_stats_auto_recalc;
 extern bool srv_stats_include_delete_marked;
 
-extern ibool srv_use_doublewrite_buf;
-extern ulong srv_doublewrite_batch_size;
 extern ulong srv_checksum_algorithm;
 
 extern double srv_max_buf_pool_modified_pct;
@@ -1436,6 +1433,10 @@ struct srv_slot_t {
   /** Stores the current value of lock_wait_table_reservations, when
   lock_wait_table_reserve_slot is called.
   This can be used as a version number to avoid ABA problems.
+  The difference lock_wait_table_reservations - reservation_no tells us how many
+  other threads got suspended while our thr was sleeping.
+  This can be used to determine if the wait was unfairly long, and it is time to
+  boost trx->lock.schedule_weight.
   Protected by lock->wait_mutex. */
   uint64_t reservation_no;
 

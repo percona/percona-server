@@ -454,6 +454,9 @@ struct dict_col_default_t {
   byte *value;
   /** Length of default value */
   size_t len;
+
+  bool operator==(const dict_col_default_t &other);
+  bool operator!=(const dict_col_default_t &other);
 };
 
 /** Data structure for a column in a table */
@@ -531,7 +534,7 @@ struct dict_col_t {
   /** Gets the column data type.
   @param[out] type	data type */
   void copy_type(dtype_t *type) const {
-    ut_ad(type != NULL);
+    ut_ad(type != nullptr);
 
     type->mtype = mtype;
     type->prtype = prtype;
@@ -837,8 +840,8 @@ class last_ops_cur_t {
     if (mtr.is_active()) {
       mtr_commit(&mtr);
     }
-    rec = NULL;
-    block = NULL;
+    rec = nullptr;
+    block = nullptr;
     invalid = false;
   }
 
@@ -1402,7 +1405,7 @@ bool dict_foreign_set_validate(const dict_table_t &table);
 inline void dict_foreign_free(
     dict_foreign_t *foreign) /*!< in, own: foreign key struct */
 {
-  if (foreign->v_cols != NULL) {
+  if (foreign->v_cols != nullptr) {
     UT_DELETE(foreign->v_cols);
   }
 
@@ -2114,9 +2117,9 @@ detect this and will eventually quit sooner. */
     the clustered index may be NULL.  If the clustered index is corrupted,
     the table is corrupt.  We do not consider the table corrupt if only
     a secondary index is corrupt. */
-    ut_ad(index == NULL || index->is_clustered());
+    ut_ad(index == nullptr || index->is_clustered());
 
-    return (index != NULL && index->type & DICT_CORRUPT);
+    return (index != nullptr && index->type & DICT_CORRUPT);
   }
 
   /** Returns a column's name.
@@ -2540,12 +2543,12 @@ or from a thread that has not shared the table object with other threads.
 @param[in,out]	table	table whose stats latch to destroy */
 inline void dict_table_autoinc_destroy(dict_table_t *table) {
   if (table->autoinc_mutex_created == os_once::DONE) {
-    if (table->autoinc_mutex != NULL) {
+    if (table->autoinc_mutex != nullptr) {
       mutex_free(table->autoinc_mutex);
       UT_DELETE(table->autoinc_mutex);
     }
 
-    if (table->autoinc_persisted_mutex != NULL) {
+    if (table->autoinc_persisted_mutex != nullptr) {
       mutex_free(table->autoinc_persisted_mutex);
       UT_DELETE(table->autoinc_persisted_mutex);
     }
@@ -2557,8 +2560,8 @@ This function is only called from either single threaded environment
 or from a thread that has not shared the table object with other threads.
 @param[in,out]	table	table whose autoinc latch is to be created. */
 inline void dict_table_autoinc_create_lazy(dict_table_t *table) {
-  table->autoinc_mutex = NULL;
-  table->autoinc_persisted_mutex = NULL;
+  table->autoinc_mutex = nullptr;
+  table->autoinc_persisted_mutex = nullptr;
   table->autoinc_mutex_created = os_once::NEVER_DONE;
 }
 
@@ -2567,7 +2570,7 @@ This function is only called from either single threaded environment
 or from a thread that has not shared the table object with other threads.
 @param[in,out]	index	index whose zip_pad mutex is to be created */
 inline void dict_index_zip_pad_mutex_create_lazy(dict_index_t *index) {
-  index->zip_pad.mutex = NULL;
+  index->zip_pad.mutex = nullptr;
   index->zip_pad.mutex_created = os_once::NEVER_DONE;
 }
 
@@ -2577,7 +2580,7 @@ or from a thread that has not shared the table object with other threads.
 @param[in,out]	index	index whose stats latch to destroy */
 inline void dict_index_zip_pad_mutex_destroy(dict_index_t *index) {
   if (index->zip_pad.mutex_created == os_once::DONE &&
-      index->zip_pad.mutex != NULL) {
+      index->zip_pad.mutex != nullptr) {
     mutex_free(index->zip_pad.mutex);
     UT_DELETE(index->zip_pad.mutex);
   }

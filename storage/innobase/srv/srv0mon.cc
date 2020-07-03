@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -148,6 +148,14 @@ static monitor_info_t innodb_counter_info[] = {
     {"lock_rec_lock_requests", "lock", "Number of record locks requested",
      MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_NUM_RECLOCK_REQ},
 
+    {"lock_rec_release_attempts", "lock",
+     "Number of times we attempted to release record locks", MONITOR_DEFAULT_ON,
+     MONITOR_DEFAULT_START, MONITOR_RECLOCK_RELEASE_ATTEMPTS},
+
+    {"lock_rec_grant_attempts", "lock",
+     "Number of times we attempted to grant locks for a record",
+     MONITOR_DEFAULT_ON, MONITOR_DEFAULT_START, MONITOR_RECLOCK_GRANT_ATTEMPTS},
+
     {"lock_rec_lock_created", "lock", "Number of record locks created",
      MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_RECLOCK_CREATED},
 
@@ -199,6 +207,11 @@ static monitor_info_t innodb_counter_info[] = {
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT |
                                  MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_LOCK_AVG_WAIT_TIME},
+
+    {"lock_schedule_refreshes", "lock",
+     "Number of times the wait-for graph was analyzed to update schedule "
+     "weights of transactions",
+     MONITOR_DEFAULT_ON, MONITOR_DEFAULT_START, MONITOR_SCHEDULE_REFRESHES},
 
     /* ========== Counters for Buffer Manager and I/O ========== */
     {"module_buffer", "buffer", "Buffer Manager Module", MONITOR_MODULE,
@@ -1436,6 +1449,22 @@ static monitor_info_t innodb_counter_info[] = {
      MONITOR_DEFAULT_START,
      MONITOR_PAGE_TRACK_CHECKPOINT_PARTIAL_FLUSH_REQUEST},
 
+    /* ========== Double write ========== */
+    {"module_dblwr", "dblwr", "Counters related to double writes", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_MODULE_DBLWR},
+
+    {"dblwr_async_requests", "dblwr", "Total async requests", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_DBLWR_ASYNC_REQUESTS},
+
+    {"dblwr_sync_requests", "dblwr", "Total sync enqueue requests",
+     MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_DBLWR_SYNC_REQUESTS},
+
+    {"dblwr_flush_requests", "dblwr", "Total flush requests", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_DBLWR_FLUSH_REQUESTS},
+
+    {"dblwr_flush_wait_events", "dblwr", "Total flush wait events",
+     MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_DBLWR_FLUSH_WAIT_EVENTS},
+
     /* ========== To turn on/off reset all counters ========== */
     {"all", "All Counters", "Turn on/off and reset all counters",
      MONITOR_MODULE, MONITOR_DEFAULT_START, MONITOR_ALL_COUNTER},
@@ -1458,7 +1487,8 @@ monitor_info_t *srv_mon_get_info(
 {
   ut_a(monitor_id < NUM_MONITOR);
 
-  return ((monitor_id < NUM_MONITOR) ? &innodb_counter_info[monitor_id] : NULL);
+  return ((monitor_id < NUM_MONITOR) ? &innodb_counter_info[monitor_id]
+                                     : nullptr);
 }
 
 /** Get monitor's name by its monitor id (indexing into the
@@ -1473,7 +1503,7 @@ const char *srv_mon_get_name(
 
   return ((monitor_id < NUM_MONITOR)
               ? innodb_counter_info[monitor_id].monitor_name
-              : NULL);
+              : nullptr);
 }
 
 /** Turn on/off, reset monitor counters in a module. If module_id
@@ -1589,7 +1619,7 @@ static ulint srv_mon_get_rseg_size(void) {
   /* Rollback segments used in the temporary tablespace */
   trx_sys->tmp_rsegs.s_lock();
   for (const auto tmp_rseg : trx_sys->tmp_rsegs) {
-    value += tmp_rseg->curr_size;
+    value += tmp_rseg->get_curr_size();
   }
   trx_sys->tmp_rsegs.s_unlock();
 
@@ -1600,7 +1630,7 @@ static ulint srv_mon_get_rseg_size(void) {
         break;
       }
 
-      value += rseg->curr_size;
+      value += rseg->get_curr_size();
     }
   }
   undo::spaces->s_unlock();
@@ -1648,7 +1678,7 @@ void srv_mon_process_existing_counter(
     read requests */
     case MONITOR_OVLD_BUF_POOL_READ_REQUESTS:
       buf_get_total_stat(&stat);
-      value = stat.n_page_gets;
+      value = Counter::total(stat.m_n_page_gets);
       break;
 
     /* innodb_buffer_pool_write_requests, the number of
@@ -2142,7 +2172,7 @@ void srv_mon_reset(monitor_id_t monitor) /*!< in: monitor id */
   MONITOR_MAX_VALUE(monitor) = MAX_RESERVED;
   MONITOR_MIN_VALUE(monitor) = MIN_RESERVED;
 
-  MONITOR_FIELD((monitor), mon_reset_time) = time(NULL);
+  MONITOR_FIELD((monitor), mon_reset_time) = time(nullptr);
 
   if (monitor_was_on) {
     MONITOR_ON(monitor);

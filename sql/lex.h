@@ -1,7 +1,7 @@
 #ifndef LEX_INCLUDED
 #define LEX_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,28 +42,12 @@
 #define HINT_COMMENT_STARTER "/*+"
 #define HINT_COMMENT_TERMINATOR "*/"
 
-#define SYM(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_KEYWORDS, false
-#define SYM_FN(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_FUNCTIONS, false
-#define SYM_HK(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_HINTABLE_KEYWORDS, false
-#define SYM_H(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_HINTS, false
+#define SYM(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_KEYWORDS
+#define SYM_FN(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_FUNCTIONS
+#define SYM_HK(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_HINTABLE_KEYWORDS
+#define SYM_H(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_HINTS
 
-/*
- * Percona defined tokens are located together with upstream tokens
- * in sql_yacc.yy. However we put them at the end of the token list, after
- * hints tokens (sql_hints.yy). When we add add Percona token to the digest
- * generator input buffer, we need to adjust its value (shift it up)
- * to not clash with adjusted (shifted up) hint tockens.
- * That is why we need to detect Percona tokens (following macro)
- *
- * Example:
- * EFFECTIVE_SYM in sql_yacc.h is 1001.
- * But hint tag RESOURCE_GROUP after applying shift in Hint_scanner::add_hint_token_digest()
- * is 1001 as well. So these 2 would result with the same token in digest
- * generator input. To prevent this we detect Percona token and adjust its value
- * before adding to digest generator input (Lex_input_stream::add_digest_token())
- * Read comments in get_lex_token.cc for additional info.
- */
-#define SYM_PERCONA(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_KEYWORDS, true
+#define SYM_PERCONA(T, A) SYM(T, A)
 
 /*
   Symbols are broken into separated arrays to allow field names with
@@ -486,6 +470,7 @@ static const SYMBOL symbols[] = {
     {SYM("NUMERIC", NUMERIC_SYM)},
     {SYM("NVARCHAR", NVARCHAR_SYM)},
     {SYM("OF", OF_SYM)},
+    {SYM("OFF", OFF_SYM)},
     {SYM("OFFSET", OFFSET_SYM)},
     {SYM("OJ", OJ_SYM)},
     {SYM("OLD", OLD_SYM)},
@@ -586,6 +571,8 @@ static const SYMBOL symbols[] = {
     {SYM("REPEAT", REPEAT_SYM)},
     {SYM("REQUIRE", REQUIRE_SYM)},
     {SYM("REQUIRE_ROW_FORMAT", REQUIRE_ROW_FORMAT_SYM)},
+    {SYM("REQUIRE_TABLE_PRIMARY_KEY_CHECK",
+         REQUIRE_TABLE_PRIMARY_KEY_CHECK_SYM)},
     {SYM("RESET", RESET_SYM)},
     {SYM("RESPECT", RESPECT_SYM)},
     {SYM("RESIGNAL", RESIGNAL_SYM)},
@@ -687,6 +674,7 @@ static const SYMBOL symbols[] = {
     {SYM("STORAGE", STORAGE_SYM)},
     {SYM("STORED", STORED_SYM)},
     {SYM("STRAIGHT_JOIN", STRAIGHT_JOIN)},
+    {SYM("STREAM", STREAM_SYM)},
     {SYM("STRING", STRING_SYM)},
     {SYM("SUBCLASS_ORIGIN", SUBCLASS_ORIGIN_SYM)},
     {SYM("SUBJECT", SUBJECT_SYM)},
@@ -874,6 +862,14 @@ static const SYMBOL symbols[] = {
     {SYM_H("SKIP_SCAN", SKIP_SCAN_HINT)},
     {SYM_H("NO_SKIP_SCAN", NO_SKIP_SCAN_HINT)},
     {SYM_H("HASH_JOIN", HASH_JOIN_HINT)},
-    {SYM_H("NO_HASH_JOIN", NO_HASH_JOIN_HINT)}};
+    {SYM_H("NO_HASH_JOIN", NO_HASH_JOIN_HINT)},
+    {SYM_H("INDEX", INDEX_HINT)},
+    {SYM_H("NO_INDEX", NO_INDEX_HINT)},
+    {SYM_H("JOIN_INDEX", JOIN_INDEX_HINT)},
+    {SYM_H("NO_JOIN_INDEX", NO_JOIN_INDEX_HINT)},
+    {SYM_H("GROUP_INDEX", GROUP_INDEX_HINT)},
+    {SYM_H("NO_GROUP_INDEX", NO_GROUP_INDEX_HINT)},
+    {SYM_H("ORDER_INDEX", ORDER_INDEX_HINT)},
+    {SYM_H("NO_ORDER_INDEX", NO_ORDER_INDEX_HINT)}};
 
 #endif /* LEX_INCLUDED */

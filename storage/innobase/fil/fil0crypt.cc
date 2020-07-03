@@ -117,34 +117,34 @@ EncryptionKeyId get_global_default_encryption_key_id_value();
 #define DEBUG_KEYROTATION_THROTTLING 0
 
 static constexpr uint KERYING_ENCRYPTION_INFO_MAX_SIZE =
-    ENCRYPTION_MAGIC_SIZE + 1      // type
-    + 4                            // min_key_version
-    + 4                            // key_id
-    + 1                            // encryption
-    + CRYPT_SCHEME_1_IV_LEN        // iv (16 bytes)
-    + 1                            // encryption rotation type
-    + ENCRYPTION_KEY_LEN           // tablespace key
-    + ENCRYPTION_SERVER_UUID_LEN;  // server's UUID
+    Encryption::MAGIC_SIZE + 1      // type
+    + 4                             // min_key_version
+    + 4                             // key_id
+    + 1                             // encryption
+    + CRYPT_SCHEME_1_IV_LEN         // iv (16 bytes)
+    + 1                             // encryption rotation type
+    + Encryption::KEY_LEN           // tablespace key
+    + Encryption::SERVER_UUID_LEN;  // server's UUID
 
 static constexpr uint KERYING_ENCRYPTION_INFO_MAX_SIZE_V1 =
-    ENCRYPTION_MAGIC_SIZE + 2  // length of iv
-    + 4                        // space id
-    + 2                        // offset
-    + 1                        // type
-    + 4                        // min_key_version
-    + 4                        // key_id
-    + 1                        // encryption
-    + CRYPT_SCHEME_1_IV_LEN    // iv (16 bytes)
-    + 4                        // encryption rotation type
-    + ENCRYPTION_KEY_LEN       // tablespace key
-    + ENCRYPTION_KEY_LEN;      // tablespace iv
+    Encryption::MAGIC_SIZE + 2  // length of iv
+    + 4                         // space id
+    + 2                         // offset
+    + 1                         // type
+    + 4                         // min_key_version
+    + 4                         // key_id
+    + 1                         // encryption
+    + CRYPT_SCHEME_1_IV_LEN     // iv (16 bytes)
+    + 4                         // encryption rotation type
+    + Encryption::KEY_LEN       // tablespace key
+    + Encryption::KEY_LEN;      // tablespace iv
 
 /* The size of keyring key encrption header cannot cross the Master
 Key header. This is because the bytes followed by MK header are used
 by other features like SDI, encryption progress (MK) etc. If we cross
 the MK encryption header size ENCRYPTION_INFO_MAX_SIZE, we corrupt the
 header and other features will not work */
-static_assert(KERYING_ENCRYPTION_INFO_MAX_SIZE < ENCRYPTION_INFO_MAX_SIZE,
+static_assert(KERYING_ENCRYPTION_INFO_MAX_SIZE < Encryption::INFO_MAX_SIZE,
               "Keyring key encryption header crosses Master Key encryption"
               " header size");
 
@@ -173,7 +173,7 @@ uchar *fil_space_crypt_t::get_cached_key(Cached_key &cached_key,
 
   Encryption::get_tablespace_key(this->key_id, this->uuid, key_version,
                                  &cached_key.key, &cached_key.key_len);
-  ut_ad(cached_key.key == NULL || cached_key.key_len == ENCRYPTION_KEY_LEN);
+  ut_ad(cached_key.key == NULL || cached_key.key_len == Encryption::KEY_LEN);
 
   cached_key.key_version = key_version;
 
@@ -244,8 +244,8 @@ fil_space_crypt_t::fil_space_crypt_t(uint new_min_key_version, uint new_key_id,
     type = 0;  // TODO:Robert: This is temporary to get rid of unused variable
                // problem
   if (new_uuid != nullptr && strlen(new_uuid) > 0) {
-    memcpy(uuid, new_uuid, ENCRYPTION_SERVER_UUID_LEN);
-    uuid[ENCRYPTION_SERVER_UUID_LEN] = '\0';
+    memcpy(uuid, new_uuid, Encryption::SERVER_UUID_LEN);
+    uuid[Encryption::SERVER_UUID_LEN] = '\0';
   } else {
     uuid[0] = '\0';
   }
@@ -452,10 +452,10 @@ static fil_space_crypt_t *fil_space_read_crypt_data_v1(
     const page_size_t &page_size, const byte *page) {
   const ulint offset{fsp_header_get_keyring_encryption_offset(page_size)};
 
-  ut_ad(memcmp(page + offset, ENCRYPTION_KEY_MAGIC_PS_V1,
-               ENCRYPTION_MAGIC_SIZE) == 0);
+  ut_ad(memcmp(page + offset, Encryption::KEY_MAGIC_PS_V1,
+               Encryption::MAGIC_SIZE) == 0);
 
-  ulint bytes_read{ENCRYPTION_MAGIC_SIZE};
+  ulint bytes_read{Encryption::MAGIC_SIZE};
 
   uint8_t iv_length = mach_read_from_2(page + offset + bytes_read);
   ut_ad(iv_length == CRYPT_SCHEME_1_IV_LEN);
@@ -474,10 +474,10 @@ static fil_space_crypt_t *fil_space_read_crypt_data_v1(
     ib::error() << "Found non sensible crypt scheme: " << type
                 << " for space: " << page_get_space_id(page)
                 << " offset: " << offset << " bytes: ["
-                << page[offset + 2 + ENCRYPTION_MAGIC_SIZE]
-                << page[offset + 3 + ENCRYPTION_MAGIC_SIZE]
-                << page[offset + 4 + ENCRYPTION_MAGIC_SIZE]
-                << page[offset + 5 + ENCRYPTION_MAGIC_SIZE] << "].";
+                << page[offset + 2 + Encryption::MAGIC_SIZE]
+                << page[offset + 3 + Encryption::MAGIC_SIZE]
+                << page[offset + 4 + Encryption::MAGIC_SIZE]
+                << page[offset + 5 + Encryption::MAGIC_SIZE] << "].";
     return nullptr;
   }
 
@@ -510,12 +510,12 @@ static fil_space_crypt_t *fil_space_read_crypt_data_v1(
       mach_read_from_4(page + offset + bytes_read));
   bytes_read += 4;
 
-  uchar tablespace_key[ENCRYPTION_KEY_LEN];
-  memcpy(tablespace_key, page + offset + bytes_read, ENCRYPTION_KEY_LEN);
-  bytes_read += ENCRYPTION_KEY_LEN;
+  uchar tablespace_key[Encryption::KEY_LEN];
+  memcpy(tablespace_key, page + offset + bytes_read, Encryption::KEY_LEN);
+  bytes_read += Encryption::KEY_LEN;
 
-  if (std::search_n(tablespace_key, tablespace_key + ENCRYPTION_KEY_LEN,
-                    ENCRYPTION_KEY_LEN,
+  if (std::search_n(tablespace_key, tablespace_key + Encryption::KEY_LEN,
+                    Encryption::KEY_LEN,
                     0) ==
       tablespace_key) {  // tablespace_key is all zeroes which means there is no
                          // tablepsace in mtr log
@@ -533,13 +533,13 @@ static fil_space_crypt_t *fil_space_read_crypt_data_v2(
     const page_size_t &page_size, const byte *page) {
   const ulint offset = fsp_header_get_keyring_encryption_offset(page_size);
 
-  if (memcmp(page + offset, ENCRYPTION_KEY_MAGIC_PS_V2,
-             ENCRYPTION_MAGIC_SIZE) != 0) {
+  if (memcmp(page + offset, Encryption::KEY_MAGIC_PS_V2,
+             Encryption::MAGIC_SIZE) != 0) {
     /* Crypt data is not stored. */
     return nullptr;
   }
 
-  ulint bytes_read{ENCRYPTION_MAGIC_SIZE};
+  ulint bytes_read{Encryption::MAGIC_SIZE};
 
   uint8_t type = mach_read_from_1(page + offset + bytes_read);
 
@@ -554,10 +554,10 @@ static fil_space_crypt_t *fil_space_read_crypt_data_v2(
     ib::error() << "Found non sensible crypt scheme: " << type
                 << " for space: " << page_get_space_id(page)
                 << " offset: " << offset << " bytes: ["
-                << page[offset + 2 + ENCRYPTION_MAGIC_SIZE]
-                << page[offset + 3 + ENCRYPTION_MAGIC_SIZE]
-                << page[offset + 4 + ENCRYPTION_MAGIC_SIZE]
-                << page[offset + 5 + ENCRYPTION_MAGIC_SIZE] << "].";
+                << page[offset + 2 + Encryption::MAGIC_SIZE]
+                << page[offset + 3 + Encryption::MAGIC_SIZE]
+                << page[offset + 4 + Encryption::MAGIC_SIZE]
+                << page[offset + 5 + Encryption::MAGIC_SIZE] << "].";
     return nullptr;
   }
 
@@ -569,10 +569,10 @@ static fil_space_crypt_t *fil_space_read_crypt_data_v2(
 
   ut_ad(key_id != (uint)(~0));
 
-  char uuid[ENCRYPTION_SERVER_UUID_LEN];
-  memset(uuid, 0, ENCRYPTION_SERVER_UUID_LEN);
-  memcpy(uuid, page + offset + bytes_read, ENCRYPTION_SERVER_UUID_LEN);
-  bytes_read += ENCRYPTION_SERVER_UUID_LEN;
+  char uuid[Encryption::SERVER_UUID_LEN];
+  memset(uuid, 0, Encryption::SERVER_UUID_LEN);
+  memcpy(uuid, page + offset + bytes_read, Encryption::SERVER_UUID_LEN);
+  bytes_read += Encryption::SERVER_UUID_LEN;
 
   ut_ad(strlen(uuid) > 0);
 
@@ -595,12 +595,12 @@ static fil_space_crypt_t *fil_space_read_crypt_data_v2(
       mach_read_from_1(page + offset + bytes_read));
   bytes_read += 1;
 
-  uchar tablespace_key[ENCRYPTION_KEY_LEN];
-  memcpy(tablespace_key, page + offset + bytes_read, ENCRYPTION_KEY_LEN);
-  bytes_read += ENCRYPTION_KEY_LEN;
+  uchar tablespace_key[Encryption::KEY_LEN];
+  memcpy(tablespace_key, page + offset + bytes_read, Encryption::KEY_LEN);
+  bytes_read += Encryption::KEY_LEN;
 
-  if (std::search_n(tablespace_key, tablespace_key + ENCRYPTION_KEY_LEN,
-                    ENCRYPTION_KEY_LEN,
+  if (std::search_n(tablespace_key, tablespace_key + Encryption::KEY_LEN,
+                    Encryption::KEY_LEN,
                     0) ==
       tablespace_key) {  // tablespace_key is all zeroes which means there is no
                          // tablepsace in mtr log
@@ -618,13 +618,13 @@ fil_space_crypt_t *fil_space_read_crypt_data(const page_size_t &page_size,
                                              const byte *page) {
   const ulint offset{fsp_header_get_keyring_encryption_offset(page_size)};
 
-  if (memcmp(page + offset, ENCRYPTION_KEY_MAGIC_PS_V1,
-             ENCRYPTION_MAGIC_SIZE) == 0) {
+  if (memcmp(page + offset, Encryption::KEY_MAGIC_PS_V1,
+             Encryption::MAGIC_SIZE) == 0) {
     return fil_space_read_crypt_data_v1(page_size, page);
   }
 
-  if (memcmp(page + offset, ENCRYPTION_KEY_MAGIC_PS_V2,
-             ENCRYPTION_MAGIC_SIZE) == 0) {
+  if (memcmp(page + offset, Encryption::KEY_MAGIC_PS_V2,
+             Encryption::MAGIC_SIZE) == 0) {
     return fil_space_read_crypt_data_v2(page_size, page);
   }
 
@@ -681,8 +681,8 @@ void fil_space_crypt_t::write_page0(
   mlog_write_ulint(page + FSP_HEADER_OFFSET + FSP_SPACE_FLAGS, space->flags,
                    MLOG_4BYTES, mtr);  // done
 
-  memcpy(encrypt_info_ptr, ENCRYPTION_KEY_MAGIC_PS_V2, ENCRYPTION_MAGIC_SIZE);
-  encrypt_info_ptr += ENCRYPTION_MAGIC_SIZE;
+  memcpy(encrypt_info_ptr, Encryption::KEY_MAGIC_PS_V2, Encryption::MAGIC_SIZE);
+  encrypt_info_ptr += Encryption::MAGIC_SIZE;
 
   mach_write_to_1(encrypt_info_ptr, a_type);
   encrypt_info_ptr += 1;
@@ -692,8 +692,9 @@ void fil_space_crypt_t::write_page0(
   mach_write_to_4(encrypt_info_ptr, key_id);
   encrypt_info_ptr += 4;
   ut_ad(strlen(space->crypt_data->uuid) > 0);
-  memcpy(encrypt_info_ptr, space->crypt_data->uuid, ENCRYPTION_SERVER_UUID_LEN);
-  encrypt_info_ptr += ENCRYPTION_SERVER_UUID_LEN;
+  memcpy(encrypt_info_ptr, space->crypt_data->uuid,
+         Encryption::SERVER_UUID_LEN);
+  encrypt_info_ptr += Encryption::SERVER_UUID_LEN;
   mach_write_to_1(encrypt_info_ptr, encryption);
   encrypt_info_ptr += 1;
 
@@ -705,11 +706,11 @@ void fil_space_crypt_t::write_page0(
   encrypt_info_ptr += 1;
 
   if (tablespace_key == nullptr) {
-    memset(encrypt_info_ptr, 0, ENCRYPTION_KEY_LEN);
-    encrypt_info_ptr += ENCRYPTION_KEY_LEN;
+    memset(encrypt_info_ptr, 0, Encryption::KEY_LEN);
+    encrypt_info_ptr += Encryption::KEY_LEN;
   } else {
-    memcpy(encrypt_info_ptr, tablespace_key, ENCRYPTION_KEY_LEN);
-    encrypt_info_ptr += ENCRYPTION_KEY_LEN;
+    memcpy(encrypt_info_ptr, tablespace_key, Encryption::KEY_LEN);
+    encrypt_info_ptr += Encryption::KEY_LEN;
   }
 
   mlog_write_string(page + offset, encrypt_info,
@@ -776,8 +777,9 @@ byte *fil_parse_write_crypt_data_v2(space_id_t space_id, byte *ptr,
   }
 
   // We should only enter this function if ENCRYPTION_KEY_MAGIC_PS_V2 is set
-  ut_ad((memcmp(ptr, ENCRYPTION_KEY_MAGIC_PS_V2, ENCRYPTION_MAGIC_SIZE) == 0));
-  ptr += ENCRYPTION_MAGIC_SIZE;
+  ut_ad(
+      (memcmp(ptr, Encryption::KEY_MAGIC_PS_V2, Encryption::MAGIC_SIZE) == 0));
+  ptr += Encryption::MAGIC_SIZE;
 
   uint type = mach_read_from_1(ptr);
   ptr += 1;
@@ -791,10 +793,10 @@ byte *fil_parse_write_crypt_data_v2(space_id_t space_id, byte *ptr,
   uint key_id = mach_read_from_4(ptr);
   ptr += 4;
 
-  char uuid[ENCRYPTION_SERVER_UUID_LEN];
-  memset(uuid, 0, ENCRYPTION_SERVER_UUID_LEN);
-  memcpy(uuid, ptr, ENCRYPTION_SERVER_UUID_LEN);
-  ptr += ENCRYPTION_SERVER_UUID_LEN;
+  char uuid[Encryption::SERVER_UUID_LEN];
+  memset(uuid, 0, Encryption::SERVER_UUID_LEN);
+  memcpy(uuid, ptr, Encryption::SERVER_UUID_LEN);
+  ptr += Encryption::SERVER_UUID_LEN;
 
   fil_encryption_t encryption = (fil_encryption_t)mach_read_from_1(ptr);
   ptr += 1;
@@ -810,12 +812,12 @@ byte *fil_parse_write_crypt_data_v2(space_id_t space_id, byte *ptr,
   crypt_data->encryption_rotation =
       static_cast<Encryption_rotation>(mach_read_from_1(ptr));
   ptr += 1;
-  uchar tablespace_key[ENCRYPTION_KEY_LEN];
-  memcpy(tablespace_key, ptr, ENCRYPTION_KEY_LEN);
-  ptr += ENCRYPTION_KEY_LEN;
+  uchar tablespace_key[Encryption::KEY_LEN];
+  memcpy(tablespace_key, ptr, Encryption::KEY_LEN);
+  ptr += Encryption::KEY_LEN;
 
-  if (std::search_n(tablespace_key, tablespace_key + ENCRYPTION_KEY_LEN,
-                    ENCRYPTION_KEY_LEN,
+  if (std::search_n(tablespace_key, tablespace_key + Encryption::KEY_LEN,
+                    Encryption::KEY_LEN,
                     0) ==
       tablespace_key) {  // tablespace_key is all zeroes which means there is no
                          // tablepsace in mtr log
@@ -866,8 +868,9 @@ byte *fil_parse_write_crypt_data_v1(space_id_t space_id, byte *ptr,
   }
 
   // We should only enter this function if ENCRYPTION_KEY_MAGIC_PS_V1 is set
-  ut_ad((memcmp(ptr, ENCRYPTION_KEY_MAGIC_PS_V1, ENCRYPTION_MAGIC_SIZE) == 0));
-  ptr += ENCRYPTION_MAGIC_SIZE;
+  ut_ad(
+      (memcmp(ptr, Encryption::KEY_MAGIC_PS_V1, Encryption::MAGIC_SIZE) == 0));
+  ptr += Encryption::MAGIC_SIZE;
 
   ptr += 4;  // skip space_id
   ptr += 2;  // skip offset
@@ -903,20 +906,20 @@ byte *fil_parse_write_crypt_data_v1(space_id_t space_id, byte *ptr,
   crypt_data->encryption_rotation =
       static_cast<Encryption_rotation>(mach_read_from_4(ptr));
   ptr += 4;
-  uchar tablespace_key[ENCRYPTION_KEY_LEN];
-  memcpy(tablespace_key, ptr, ENCRYPTION_KEY_LEN);
-  ptr += ENCRYPTION_KEY_LEN;
+  uchar tablespace_key[Encryption::KEY_LEN];
+  memcpy(tablespace_key, ptr, Encryption::KEY_LEN);
+  ptr += Encryption::KEY_LEN;
 
-  if (std::search_n(tablespace_key, tablespace_key + ENCRYPTION_KEY_LEN,
-                    ENCRYPTION_KEY_LEN,
+  if (std::search_n(tablespace_key, tablespace_key + Encryption::KEY_LEN,
+                    Encryption::KEY_LEN,
                     0) ==
       tablespace_key) {  // tablespace_key is all zeroes which means there is no
                          // tablepsace in mtr log
     crypt_data->set_tablespace_key(nullptr);
-    ptr += ENCRYPTION_KEY_LEN;  // skip tablespace iv
+    ptr += Encryption::KEY_LEN;  // skip tablespace iv
   } else {
     crypt_data->set_tablespace_key(tablespace_key);
-    ptr += ENCRYPTION_KEY_LEN;  // skip tablespace iv
+    ptr += Encryption::KEY_LEN;  // skip tablespace iv
   }
 
   if (crypt_data->encryption_rotation ==
@@ -1399,8 +1402,8 @@ static bool fil_crypt_space_needs_rotation(rotate_thread_t *state,
       // after the restart, because we will end up here again -
       // encryption key will not be found.
       ut_ad(strlen(server_uuid) > 0);
-      memcpy(crypt_data->uuid, server_uuid, ENCRYPTION_SERVER_UUID_LEN);
-      crypt_data->uuid[ENCRYPTION_SERVER_UUID_LEN] = '\0';
+      memcpy(crypt_data->uuid, server_uuid, Encryption::SERVER_UUID_LEN);
+      crypt_data->uuid[Encryption::SERVER_UUID_LEN] = '\0';
       // fix private_version - it might have been 1
       crypt_data->private_version = 2;
     } else {
@@ -2131,7 +2134,7 @@ static void fil_crypt_rotate_pages(const key_state_t *key_state,
      * real pages, they will be updated anyway when the
      * real page is updated
      */
-    if (space == TRX_SYS_SPACE && buf_dblwr_page_inside(state->offset)) {
+    if (space == TRX_SYS_SPACE && dblwr::v1::is_inside(state->offset)) {
       continue;
     }
 
@@ -3349,12 +3352,12 @@ redo_log_key *redo_log_keys::load_latest_key(THD *thd, bool generate) {
     return nullptr;
   }
 
-  ut_ad(klen2 == ENCRYPTION_KEY_LEN);
+  ut_ad(klen2 == Encryption::KEY_LEN);
 
   auto it = m_keys.find(version);
 
   if (it != m_keys.end() && it->second.present) {
-    ut_ad(memcmp(it->second.key, rkey2, ENCRYPTION_KEY_LEN) == 0);
+    ut_ad(memcmp(it->second.key, rkey2, Encryption::KEY_LEN) == 0);
     my_free(rkey);
     my_free(rkey2);
     my_free(key_type);
@@ -3364,7 +3367,7 @@ redo_log_key *redo_log_keys::load_latest_key(THD *thd, bool generate) {
   redo_log_key *rk = &m_keys[version];
   rk->version = version;
   rk->present = true;
-  memcpy(rk->key, rkey2, ENCRYPTION_KEY_LEN);
+  memcpy(rk->key, rkey2, Encryption::KEY_LEN);
 
   my_free(rkey);
   my_free(rkey2);
@@ -3399,12 +3402,12 @@ redo_log_key *redo_log_keys::load_key_version(THD *thd, const char *uuid,
     return nullptr;
   }
 
-  ut_ad(klen == ENCRYPTION_KEY_LEN);
+  ut_ad(klen == Encryption::KEY_LEN);
 
   redo_log_key *rk = &m_keys[version];
   rk->version = version;
   rk->present = true;
-  memcpy(rk->key, rkey, ENCRYPTION_KEY_LEN);
+  memcpy(rk->key, rkey, Encryption::KEY_LEN);
 
   my_free(rkey);
   my_free(key_type);
@@ -3433,7 +3436,7 @@ void redo_log_keys::get_key_name(std::ostringstream &oss, const char *uuid) {
 redo_log_key *redo_log_keys::generate_and_store_new_key(THD *thd) {
   std::string key_name = get_key_name(server_uuid);
 
-  if (my_key_generate(key_name.c_str(), "AES", nullptr, ENCRYPTION_KEY_LEN)) {
+  if (my_key_generate(key_name.c_str(), "AES", nullptr, Encryption::KEY_LEN)) {
     ib::error(ER_REDO_ENCRYPTION_CANT_GENERATE_KEY);
     if (thd) {
       ib_senderrf(thd, IB_LOG_LEVEL_WARN,
@@ -3465,7 +3468,7 @@ redo_log_key *redo_log_keys::generate_and_store_new_key(THD *thd) {
   bool err = (parse_system_key(rkey, klen, &version, &rkey2, &klen2) ==
               reinterpret_cast<uchar *>(NullS));
 
-  ut_ad(klen2 == ENCRYPTION_KEY_LEN);
+  ut_ad(klen2 == Encryption::KEY_LEN);
 
   if (err) {
     ib::error(ER_REDO_ENCRYPTION_CANT_PARSE_KEY, rkey);
@@ -3480,7 +3483,7 @@ redo_log_key *redo_log_keys::generate_and_store_new_key(THD *thd) {
 
   redo_log_key *rk = &m_keys[version];
   rk->version = version;
-  memcpy(rk->key, rkey2, ENCRYPTION_KEY_LEN);
+  memcpy(rk->key, rkey2, Encryption::KEY_LEN);
   rk->present = true;
 
   my_free(redo_key_type);
@@ -3517,7 +3520,7 @@ redo_log_key *redo_log_keys::fetch_or_generate_default_key(THD *thd) {
   if (default_rkey != nullptr) {
     redo_log_key *rk = &m_keys[0];
     rk->version = 0;
-    memcpy(rk->key, default_rkey, ENCRYPTION_KEY_LEN);
+    memcpy(rk->key, default_rkey, Encryption::KEY_LEN);
     rk->present = true;
     my_free(default_redo_key_type);
     my_free(default_rkey);
@@ -3529,7 +3532,7 @@ redo_log_key *redo_log_keys::fetch_or_generate_default_key(THD *thd) {
   Encryption::random_value(reinterpret_cast<byte *>(&m_keys[0].key));
 
   if (my_key_store(default_key_name.c_str(), "AES", nullptr, m_keys[0].key,
-                   ENCRYPTION_KEY_LEN)) {
+                   Encryption::KEY_LEN)) {
     return nullptr;
   }
 
@@ -3547,7 +3550,7 @@ void redo_log_keys::unload_old_keys() noexcept {
   for (auto &item : m_keys) {
     if (&item.second != last) {
       item.second.present = false;
-      memset(item.second.key, 0, ENCRYPTION_KEY_LEN);
+      memset(item.second.key, 0, Encryption::KEY_LEN);
     }
   }
 }

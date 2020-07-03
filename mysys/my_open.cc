@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,9 +61,8 @@
   @param Flags      Read | write
   @param MyFlags    Special flags
 
-  @return
-    @retval File descriptor if successful
-    @retval -1 in case of errors
+  @retval File descriptor if successful
+  @retval -1 in case of errors
 */
 
 File my_open(const char *filename, int Flags, myf MyFlags) {
@@ -141,7 +140,6 @@ File my_unix_socket_connect(const char *FileName, myf MyFlags) noexcept
   @param fd   File sescriptor
   @param MyFlags  Special Flags
 
-  @return
   @retval 0 if successful
   @retval -1 in case of errors
 */

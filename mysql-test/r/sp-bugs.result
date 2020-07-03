@@ -503,25 +503,28 @@ CONCAT(UNIX_TIMESTAMP(?))
 1546290000
 DEALLOCATE PREPARE stmt;
 #
-# Bug#97682 - Handler fails to trigger on Error 1049 or SQLSTATE 42000 or plain sqlexception
+# Bug#30561920 - Handler fails to trigger on error 1049 or SQLSTATE 42000
+#                or plain SQLEXCEPTION
 #
-CREATE FUNCTION handler_func() RETURNS INTEGER
+CREATE FUNCTION func1() RETURNS INT
 BEGIN
 DECLARE EXIT HANDLER FOR SQLEXCEPTION RETURN NULL;
-SELECT fake_col INTO @a FROM fake_table;
+SELECT * INTO @a FROM fake_table;
 RETURN 1;
 END|
-CREATE FUNCTION handler_func2() RETURNS INTEGER
+CREATE FUNCTION func2() RETURNS INT
 BEGIN
 DECLARE EXIT HANDLER FOR SQLEXCEPTION RETURN NULL;
-SELECT fake_col INTO @a FROM fake_db.fake_table;
+SELECT * INTO @a FROM fake_db.fake_table;
 RETURN 1;
 END|
-SELECT handler_func();
-handler_func()
+SELECT func1();
+func1()
 NULL
-SELECT handler_func2();
-handler_func2()
+# Without fix, exit handler is not triggered and unknown DB error
+# is reported.
+SELECT func2();
+func2()
 NULL
-DROP FUNCTION handler_func;
-DROP FUNCTION handler_func2;
+DROP FUNCTION func1;
+DROP FUNCTION func2;

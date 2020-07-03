@@ -767,16 +767,6 @@ class fatal_or_error : public logger {
   const bool m_fatal;
 };
 
-/** Emit a warning message if the given predicate is true, otherwise emit an
-informational message. */
-class warn_or_info : public logger {
- public:
-#ifndef UNIV_NO_ERR_MSGS
-  warn_or_info(int err, bool pred)
-      : logger(pred ? WARNING_LEVEL : INFORMATION_LEVEL, err) {}
-#endif /* !UNIV_NO_ERR_MSGS */
-};
-
 #ifdef UNIV_HOTBACKUP
 /**  The class trace is used to emit informational log messages. only when
 trace level is set in the MEB code */

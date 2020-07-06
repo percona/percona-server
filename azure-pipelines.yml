@@ -178,7 +178,7 @@ jobs:
       sudo -E apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
       sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1
 
-      sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $CXX $PACKAGES cmake cmake-curses-gui ccache bison libncurses5-dev libaio-dev libmecab-dev libnuma-dev liblzma-dev libssl-dev libreadline-dev libpam-dev libcurl4-openssl-dev || exit 1;
+      sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $CXX $PACKAGES cmake cmake-curses-gui ccache bison libncurses5-dev libaio-dev libmecab-dev libnuma-dev liblzma-dev libssl-dev libreadline-dev libpam-dev libcurl4-openssl-dev libldap2-dev || exit 1;
       if [[ "$INVERTED" != "ON" ]]; then
         sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install libevent-dev libeditline-dev liblz4-dev libre2-dev protobuf-compiler libprotobuf-dev libprotoc-dev libicu-dev || exit 1;
       fi

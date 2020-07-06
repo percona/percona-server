@@ -119,10 +119,7 @@ STRING(REGEX MATCHALL "[^\n]+" ROCKSDB_LIB_SOURCES ${SCRIPT_OUTPUT})
 # add bundled compression code
 SET(ROCKSDB_LIB_SOURCES
   ${ROCKSDB_LIB_SOURCES}
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib/lz4.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib/lz4hc.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib/lz4frame.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib/xxhash.c
+  ${CMAKE_SOURCE_DIR}/extra/lz4/xxhash.c
 )
 
 INCLUDE_DIRECTORIES(
@@ -130,7 +127,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/include
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/include/rocksdb
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/third-party/gtest-1.8.1/fused-src
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib
 )
 
 IF(BUILD_BUNDLED_ZSTD)
@@ -173,7 +169,7 @@ SET(ROCKSDB_SOURCES
   ${ROCKSDB_LIB_SOURCES}
 )
 
-SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} ${ZSTD_LIBRARY} "-lrt" "-ldl")
+SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} ${ZSTD_LIBRARY} ${LZ4_LIBRARY} "-lrt" "-ldl")
 
 MYSQL_ADD_PLUGIN(rocksdb ${ROCKSDB_SOURCES} STORAGE_ENGINE DEFAULT MODULE_ONLY
   LINK_LIBRARIES ${rocksdb_static_libs}

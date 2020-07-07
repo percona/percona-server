@@ -629,6 +629,13 @@ std::pair<bool, bool> Security_context::has_global_grant(const char *priv,
 
   std::string privilege(priv, priv_len);
 
+  if (acl_utility_user.user) {
+    if (acl_is_utility_user(m_priv_user, m_priv_host, nullptr)) {
+      auto res = acl_utility_user_has_global_grant(privilege);
+      return std::make_pair(res, res);
+    }
+  }
+
   if (m_acl_map == nullptr) {
     Acl_cache_lock_guard acl_cache_lock(current_thd,
                                         Acl_cache_lock_mode::READ_MODE);

@@ -7,6 +7,3 @@
 [submodule "storage/rocksdb/rocksdb"]
 	path = storage/rocksdb/rocksdb
 	url = https://github.com/percona/rocksdb.git
-[submodule "storage/rocksdb/third_party/lz4"]
-	path = storage/rocksdb/third_party/lz4
-	url = https://github.com/lz4/lz4

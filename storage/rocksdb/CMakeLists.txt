@@ -53,6 +53,11 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
   remove_compile_flags(-Wmissing-format-attribute)
 ENDIF()
 
+# Suppress warnings for gcc ASan build
+IF(CMAKE_COMPILER_IS_GNUCXX AND WITH_ASAN)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-error=maybe-uninitialized FILES rocksdb/util/bloom.cc)
+ENDIF()
+
 
 IF (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/Makefile")
   MESSAGE(SEND_ERROR "Missing Makefile in rocksdb directory. Try \"git submodule update\".")

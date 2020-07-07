@@ -74,64 +74,12 @@ not make sense under the current LRU flushing design:
 The need for |InnoDB| recovery thread writer threads is also removed,
 consequently all associated code is deleted.
 
-.. _parallel_doublewrite_buffer:
+.. _doublewrite_buffer:
 
-Parallel doublewrite buffer
+Doublewrite buffer
 ===========================
 
-The legacy doublewrite buffer is shared between all the buffer pool instances
-and all the flusher threads. It collects all the page write requests into a
-single buffer, and, when the buffer fills, writes it out to disk twice,
-blocking any new write requests until the writes complete. This becomes a
-bottleneck with increased flusher parallelism, limiting the effect of extra
-cleaner threads. In addition, single page flushes, if they are performed, are
-subject to above and also contend on the doublewrite mutex.
-
-To address these issues |Percona Server| uses private doublewrite buffers for
-each buffer pool instance, for each batch flushing mode (LRU or flush list). For
-example, with four buffer pool instances, there will be eight doublewrite
-shards. Only one flusher thread can access any shard at a time, and each shard
-is added to and flushed completely independently from the rest. This does away
-with the mutex and the event wait does not block other threads from proceeding
-anymore, it only waits for the asynchronous I/O to complete. The only
-inter-thread synchronization is between the flusher thread and I/O completion
-threads.
-
-The new doublewrite buffer is contained in a new file, where all the shards are
-contained, at different offsets. This file is created on startup, and removed
-on a clean shutdown. If it's found on a crashed instance startup, its contents
-are read and any torn pages are restored. If it's found on a clean instance
-startup, the server startup is aborted with an error message.
-
-The location of the doublewrite file is governed by a new
-:variable:`innodb_parallel_doublewrite_path` global, read-only system variable.
-It defaults to :file:`xb_doublewrite` in the data directory. The variable
-accepts both absolute and relative paths. In the latter case they are treated
-as relative to the data directory. The doublewrite file is not a tablespace
-from |InnoDB| internals point of view.
-
-The legacy |InnoDB| doublewrite buffer in the system tablespace continues to
-address doublewrite needs of single page flushes, and they are free to use the
-whole of that buffer (128 pages by default) instead of the last eight pages as
-currently used. Note that single page flushes will not happen in |Percona
-Server| unless :variable:`innodb_empty_free_list_algorithm` is set to
-``legacy`` value.
-
-The existing system tablespace is not touched in any way for this feature
-implementation, ensuring that cleanly-shutdown instances may be freely moved
-between different server flavors.
-
-Interaction with :variable:`innodb_flush_method`
-------------------------------------------------
-
-Regardless of :variable:`innodb_flush_method` setting, the parallel doublewrite
-file is opened with ``O_DIRECT`` flag to remove OS caching, then its access is
-further governed by the exact value set: if it's set to ``O_DSYNC``, the
-parallel doublewrite is opened with ``O_SYNC`` flag too. Further, if it's one of
-``O_DSYNC``, ``O_DIRECT_NO_FSYNC``, then the doublewrite file is not flushed
-after a batch of writes to it is completed.  With other
-:variable:`innodb_flush_method` values the doublewrite buffer is flushed only if
-setting ``O_DIRECT`` has failed.
+As of |Percona Server| 8.0.20-11, the parallel doublewrite buffer is replaced with the `MySQL implementation <https://dev.mysql.com/doc/refman/8.0/en/innodb-doublewrite-buffer.html>`_.
 
 .. variable:: innodb_parallel_doublewrite_path
 
@@ -140,6 +88,8 @@ setting ``O_DIRECT`` has failed.
    :dyn: No
    :vartype: String
    :default: ``xb_doublewrite``
+
+As of |Percona Server| 8.0.20-11, this variable is considered **deprecated** and has no effect. You should use `innodb_doublewrite_dir <https://dev.mysql.com/doc/refman/8.0/en/innodb-parameters.html#sysvar_innodb_doublewrite_dir>`_. 
 
 This variable is used to specify the location of the parallel doublewrite file.
 It accepts both absolute and relative paths. In the latter case they are

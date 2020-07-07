@@ -42,7 +42,8 @@ using ::testing::SetArgPointee;
 using ::testing::StrEq;
 using ::testing::WithArgs;
 
-static std::string credential_file_url = "./keyring_vault.conf";
+static std::string credential_file_url =
+    "./keyring_vault_vault_keys_container.conf";
 
 class Vault_keys_container_test : public ::testing::Test {
  public:
@@ -1214,7 +1215,7 @@ int main(int argc, char **argv) {
 
   keyring::ILogger *logger = new keyring::Mock_logger();
   keyring::Vault_mount vault_mount(curl, logger);
-  std::string mount_point_path = "cicd/" + uuid;
+  std::string mount_point_path = "cicd/" + uuid + "_vault_keys_container";
 
   if (generate_credential_file(
           keyring__vault_keys_container_unittest::credential_file_url, CORRECT,

@@ -255,7 +255,7 @@ fi
         -DWITH_INNODB_MEMCACHED=ON \
         -DWITH_ZLIB=system \
         -DWITH_NUMA=ON \
-        -DWITH_LDAP=ON \
+        -DWITH_LDAP=system \
         -DFORCE_INSOURCE_BUILD=1 \
         -DWITH_LIBEVENT=bundled \
         -DWITH_ZSTD=bundled \

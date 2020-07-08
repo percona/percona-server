@@ -115,22 +115,22 @@
  #define mysql_library_init mysql_server_init
 --- libmysql/CMakeLists.txt	2018-08-18 03:30:19.520515918 -0400
 +++ libmysql/CMakeLists.txt	2018-08-18 03:30:19.525932667 -0400
-@@ -244,13 +244,13 @@
- MESSAGE(STATUS "Creating LDAP authentication SASL client library.")
+@@ -245,13 +245,13 @@
+ # LDAP authentication SASL client plugin
  ADD_SUBDIRECTORY(authentication_ldap)
-   
+
 -# Merge several convenience libraries into one big perconaserverclient
 -MERGE_CONVENIENCE_LIBRARIES(perconaserverclient ${LIBS_TO_MERGE} COMPONENT Development)
 -TARGET_LINK_LIBRARIES(perconaserverclient PRIVATE ${LIBS_TO_LINK})
 +# Merge several convenience libraries into one big mysqlclient
 +MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE} COMPONENT Development)
 +TARGET_LINK_LIBRARIES(mysqlclient PRIVATE ${LIBS_TO_LINK})
- 
+
  # Visual Studio users need debug  static library for debug projects
  IF(MSVC)
 -  INSTALL_DEBUG_TARGET(perconaserverclient DESTINATION ${INSTALL_LIBDIR}/debug)
 +  INSTALL_DEBUG_TARGET(mysqlclient DESTINATION ${INSTALL_LIBDIR}/debug)
- 
+
    INSTALL_DEBUG_TARGET(auth_win_client DESTINATION ${INSTALL_LIBDIR}/debug)
    INSTALL_DEBUG_TARGET(clientlib DESTINATION ${INSTALL_LIBDIR}/debug)
 @@ -279,7 +279,7 @@

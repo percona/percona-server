@@ -499,6 +499,7 @@ mkdir debug
            -DMYSQL_MAINTAINER_MODE=OFF \
            -DFORCE_INSOURCE_BUILD=1 \
            -DWITH_NUMA=ON \
+           -DWITH_LDAP=system \
            -DWITH_SYSTEM_LIBS=ON \
            -DWITH_PROTOBUF=bundled \
            -DWITH_RAPIDJSON=bundled \
@@ -645,6 +646,9 @@ rm -rf %{buildroot}%{_bindir}/mysql_embedded
 rm -rf %{buildroot}/%{_libdir}/libmysqlharness.{a,so}
 rm -rf %{buildroot}/%{_libdir}/libmysqlrouter.so
 rm -rf %{buildroot}/%{_libdir}/libmysqlrouter_http.so
+rm -rf %{buildroot}/%{_libdir}/libmysqlrouter_http_auth_backend.so.*
+rm -rf %{buildroot}/%{_libdir}/libmysqlrouter_http_auth_realm.so.*
+rm -rf %{buildroot}/%{_libdir}/libprotobuf-lite.so.*
 
 %check
 %if 0%{?runselftest}
@@ -954,6 +958,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/data_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_simple.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_syseventlog.so

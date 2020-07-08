@@ -590,13 +590,15 @@ class IORequest {
 
   /** Clear all encryption related flags */
   void clear_encrypted() {
+    m_encryption.set_type(Encryption::NONE);
     m_encryption.set_key(nullptr, 0);
     m_encryption.set_initial_vector(nullptr);
     m_encryption.set_key_versions_cache(nullptr);
-    m_encryption.set_type(Encryption::NONE);
-    m_encryption.set_encryption_rotation(Encryption_rotation::NO_ROTATION);
+    m_encryption.set_key_version(0);
     m_encryption.set_key_id(0);
     m_encryption.set_tablespace_key(nullptr);
+    m_encryption.set_key_id_uuid(nullptr);
+    m_encryption.set_encryption_rotation(Encryption_rotation::NO_ROTATION);
   }
 
   void mark_page_zip_compressed() { m_is_page_zip_compressed = true; }

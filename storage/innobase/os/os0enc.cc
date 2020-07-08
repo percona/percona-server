@@ -1850,16 +1850,48 @@ ulint Encryption::get_master_key_id() { return s_master_key_id; }
 bool Encryption::dblwr_encrypt_page(fil_space_t *space, page_t *in_page,
                                     file::Block_ptr &enc_block,
                                     ulint &enc_block_len) {
-  if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+  // Skip encryption if space do not have encryption flag set and it does
+  // not have crypt_data assigned with max_key_version other than
+  // ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED. In other case the page needs
+  // encryption, because it is either MK encrypted or Keyring encrypted (has
+  // crypt data and max_key_version is different than not encrypted marker (i.e.
+  // key version is greater than 0)).
+  if (!FSP_FLAGS_GET_ENCRYPTION(space->flags) &&
+      (space->crypt_data == nullptr ||
+       space->crypt_data->max_key_version ==
+           ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED)) {
     return (false);
   }
 
   IORequest write_request(IORequest::WRITE);
 
-  write_request.encryption_key(space->encryption_key, space->encryption_klen,
-                               space->encryption_iv, 0, 0, nullptr, nullptr,
-                               nullptr);
-  write_request.encryption_algorithm(Encryption::AES);
+  if (space->encryption_type == Encryption::AES) {
+    ut_ad(space->encryption_klen != 0);
+
+    write_request.encryption_key(space->encryption_key, space->encryption_klen,
+                                 space->encryption_iv, 0, 0, nullptr, nullptr,
+                                 nullptr);
+
+    write_request.encryption_algorithm(Encryption::AES);
+
+  } else {
+    ut_ad(space->crypt_data != nullptr);
+
+    if (space->crypt_data->local_keys_cache.size() == 0)
+      space->crypt_data->load_keys_to_local_cache();
+
+    ut_ad(space->crypt_data
+              ->local_keys_cache[space->crypt_data->max_key_version] !=
+          nullptr);
+
+    write_request.encryption_key(
+        space->crypt_data->local_keys_cache[space->crypt_data->max_key_version],
+        Encryption::KEY_LEN, space->crypt_data->iv,
+        space->crypt_data->max_key_version, space->crypt_data->key_id, nullptr,
+        space->crypt_data->uuid, &space->crypt_data->local_keys_cache);
+
+    write_request.encryption_algorithm(Encryption::KEYRING);
+  }
 
   page_size_t page_size(space->flags);
 
@@ -1885,17 +1917,43 @@ bool Encryption::dblwr_encrypt_page(fil_space_t *space, page_t *in_page,
 }
 
 bool Encryption::dblwr_decrypt_page(fil_space_t *space, page_t *page) {
-  if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+  // Skip decryption if space do not have encryption flag set and it does
+  // not have crypt_data assigned with max_key_version other than
+  // ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED. In other case the page needs
+  // decryption, because it is either MK encrypted or Keyring encrypted (has
+  // crypt data and max_key_version is different than not encrypted marker (i.e.
+  // key version is greater than 0)).
+  if (!FSP_FLAGS_GET_ENCRYPTION(space->flags) &&
+      (space->crypt_data == nullptr ||
+       space->crypt_data->max_key_version ==
+           ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED)) {
     return (true);
   }
 
   IORequest decrypt_request;
 
-  decrypt_request.encryption_key(space->encryption_key, space->encryption_klen,
-                                 space->encryption_iv, 0, 0, nullptr, nullptr,
-                                 nullptr);
+  if (space->encryption_type == Encryption::AES) {
+    decrypt_request.encryption_key(space->encryption_key,
+                                   space->encryption_klen, space->encryption_iv,
+                                   0, 0, nullptr, nullptr, nullptr);
+    decrypt_request.encryption_algorithm(Encryption::AES);
+  } else {
+    ut_ad(space->crypt_data != nullptr);
 
-  decrypt_request.encryption_algorithm(Encryption::AES);
+    if (space->crypt_data->local_keys_cache.size() == 0)
+      space->crypt_data->load_keys_to_local_cache();
+
+    ut_ad(space->crypt_data
+              ->local_keys_cache[space->crypt_data->max_key_version] !=
+          nullptr);
+
+    decrypt_request.encryption_key(
+        space->crypt_data->local_keys_cache[space->crypt_data->max_key_version],
+        Encryption::KEY_LEN, space->crypt_data->iv,
+        space->crypt_data->max_key_version, space->crypt_data->key_id, nullptr,
+        space->crypt_data->uuid, &space->crypt_data->local_keys_cache);
+    decrypt_request.encryption_algorithm(Encryption::KEYRING);
+  }
 
   Encryption encryption(decrypt_request.encryption_algorithm());
 

@@ -9572,12 +9572,17 @@ dberr_t fil_set_encryption(space_id_t space_id, Encryption::Type algorithm,
   }
 
   if (key == nullptr) {
-    Encryption::random_value(space->encryption_key);
+    if (algorithm == Encryption::KEYRING) {
+      memset(space->encryption_key, 0, Encryption::KEY_LEN);
+      space->encryption_klen = 0;
+    } else {
+      Encryption::random_value(space->encryption_key);
+      space->encryption_klen = Encryption::KEY_LEN;
+    }
   } else {
     memcpy(space->encryption_key, key, Encryption::KEY_LEN);
+    space->encryption_klen = Encryption::KEY_LEN;
   }
-
-  space->encryption_klen = Encryption::KEY_LEN;
 
   if (iv == nullptr) {
     Encryption::random_value(space->encryption_iv);

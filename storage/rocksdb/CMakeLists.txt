@@ -67,18 +67,57 @@ IF (!HAVE_STDCXX11)
   RETURN ()
 ENDIF ()
 
-IF (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/Makefile")
-  MESSAGE(SEND_ERROR "Missing Makefile in rocksdb directory. Try \"git submodule update\".")
-ENDIF ()
-
 CHECK_FUNCTION_EXISTS(sched_getcpu  HAVE_SCHED_GETCPU)
 IF(HAVE_SCHED_GETCPU)
   ADD_DEFINITIONS(-DHAVE_SCHED_GETCPU=1 -DROCKSDB_SCHED_GETCPU_PRESENT)
 ENDIF()
 
-# use my_rocksdb for rocksdb namespace to avoid conflicts with other rocksdb
-# copies in plugins
-ADD_DEFINITIONS(-DROCKSDB_NAMESPACE=my_rocksdb)
+# This is a strong requirement coming from RocksDB. No conditional checks here.
+ADD_DEFINITIONS(-DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX -DZLIB -DLZ4 -DZSTD)
+
+IF(ROCKSDB_CUSTOM_NAMESPACE)
+  ADD_DEFINITIONS(-DROCKSDB_NAMESPACE=${ROCKSDB_CUSTOM_NAMESPACE})
+  ADD_DEFINITIONS(-DROCKSDB_CUSTOM_NAMESPACE=${ROCKSDB_CUSTOM_NAMESPACE})
+ENDIF()
+
+IF(HAVE_EXTERNAL_ROCKSDB)
+  MESSAGE(STATUS "MyRocks: Using external RocksDB")
+  SET(ROCKSDB_ROOT ${ROCKSDB_SRC_PATH})
+ELSE()
+  MESSAGE(STATUS "MyRocks: Using local RocksDB")
+
+  IF (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/Makefile")
+    MESSAGE(SEND_ERROR "Missing Makefile in rocksdb directory. Try \"git submodule update\".")
+  ENDIF()
+
+  SET(ROCKSDB_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb)
+
+  # get a list of rocksdb library source files
+  # run with env -i to avoid passing variables
+  EXECUTE_PROCESS(
+    COMMAND env -i ${CMAKE_CURRENT_SOURCE_DIR}/get_rocksdb_files.sh
+    OUTPUT_VARIABLE SCRIPT_OUTPUT
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  # split the list into lines
+  STRING(REGEX MATCHALL "[^\n]+" ROCKSDB_LIB_SOURCES ${SCRIPT_OUTPUT})
+
+  # Statically include all RocksDB source
+  SET(ROCKSDB_SOURCES
+    ${ROCKSDB_LIB_SOURCES}
+  )
+ENDIF()
+
+INCLUDE_DIRECTORIES(
+  ${ROCKSDB_ROOT}
+  ${ROCKSDB_ROOT}/include
+  ${ROCKSDB_ROOT}/include/rocksdb
+  ${ROCKSDB_ROOT}/third-party/gtest-1.8.1/fused-src
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/dictBuilder
+  ${LZ4_INCLUDE_DIR}
+)
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mpclmul")
 SET(CMAKE_REQUIRED_FLAGS "${CMAKE_CXX_FLAGS} --std=c++11")
@@ -97,6 +136,7 @@ int main() {
 " HAVE_SSE42)
 IF (HAVE_SSE42)
   ADD_DEFINITIONS(-DHAVE_SSE42)
+  MESSAGE(STATUS "MyRocks: SSE42 support found")
 ELSE ()
   IF (ALLOW_NO_SSE42)
     MESSAGE(WARNING "No SSE42 support found and ALLOW_NO_SSE42 specified, building MyRocks but without SSE42/FastCRC32 support")
@@ -118,19 +158,22 @@ IF(UNIX)
   ENDIF()
 ENDIF()
 
-# get a list of rocksdb library source files
-# run with env -i to avoid passing variables
-EXECUTE_PROCESS(
-  COMMAND env -i ${CMAKE_CURRENT_SOURCE_DIR}/get_rocksdb_files.sh
-  OUTPUT_VARIABLE SCRIPT_OUTPUT
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-)
-# split the list into lines
-STRING(REGEX MATCHALL "[^\n]+" ROCKSDB_LIB_SOURCES ${SCRIPT_OUTPUT})
+CHECK_CXX_SOURCE_COMPILES("
+#if defined(_MSC_VER) && !defined(__thread)
+#define __thread __declspec(thread)
+#endif
+int main() {
+  static __thread int tls __attribute__((unused));
+}
+" HAVE_THREAD_LOCAL)
+if(HAVE_THREAD_LOCAL)
+  ADD_DEFINITIONS(-DROCKSDB_SUPPORT_THREAD_LOCAL)
+else()
+  MESSAGE(FATAL_ERROR "No '__thread' support found. Not building MyRocks")
+endif()
 
 # add bundled compression code
-SET(ROCKSDB_LIB_SOURCES
-  ${ROCKSDB_LIB_SOURCES}
+SET(ZSTD_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/entropy_common.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/error_private.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/fse_decompress.c
@@ -160,27 +203,9 @@ SET(ROCKSDB_LIB_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/dictBuilder/zdict.c
 )
 
-INCLUDE_DIRECTORIES(
-  ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb
-  ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/include
-  ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/include/rocksdb
-  ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/third-party/gtest-1.8.1/fused-src
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/dictBuilder
-  ${LZ4_INCLUDE_DIR}
-)
-
-ADD_DEFINITIONS(-DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX -DZLIB -DLZ4
-  -DZSTD -DROCKSDB_SUPPORT_THREAD_LOCAL)
-
-IF(WITH_FB_TSAN)
-  SET(PIC_EXT "_pic")
-ELSE()
-  SET(PIC_EXT "")
-ENDIF()
-
 SET(ROCKSDB_SOURCES
+  ${ROCKSDB_SOURCES}
+  ${ZSTD_SOURCES}
   ha_rocksdb.cc ha_rocksdb.h ha_rocksdb_proto.h
   logger.h
   rdb_comparator.h
@@ -199,8 +224,17 @@ SET(ROCKSDB_SOURCES
   rdb_utils.cc rdb_utils.h rdb_buff.h
   rdb_threads.cc rdb_threads.h
   ha_rockspart.cc ha_rockspart.h
-  ${ROCKSDB_LIB_SOURCES}
 )
+
+IF(WITH_FB_TSAN)
+  SET(PIC_EXT "_pic")
+ELSE()
+  SET(PIC_EXT "")
+ENDIF()
+
+IF(HAVE_EXTERNAL_ROCKSDB)
+  SET(rocksdb_static_libs "${ROCKSDB_LIB_PATH}/${ROCKSDB_LIB_NAME}")
+ENDIF()
 
 SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} ${LZ4_LIBRARY} "-lrt" "-ldl")
 
@@ -212,18 +246,21 @@ IF(WITH_EMBEDDED_SERVER)
   ADD_SUBDIRECTORY(unittest)
 ENDIF()
 
-# TODO: read this file list from src.mk:TOOL_SOURCES
-SET(ROCKSDB_TOOL_SOURCES
-  ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/ldb_tool.cc
-  ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/ldb_cmd.cc
-  ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/sst_dump_tool.cc
-  ${ROCKSDB_LIB_SOURCES}
-)
-MYSQL_ADD_EXECUTABLE(sst_dump ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/sst_dump.cc ${ROCKSDB_TOOL_SOURCES})
-TARGET_LINK_LIBRARIES(sst_dump ${rocksdb_static_libs})
+IF (NOT HAVE_EXTERNAL_ROCKSDB)
+  # TODO: read this file list from src.mk:TOOL_SOURCES
+  SET(ROCKSDB_TOOL_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/ldb_tool.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/ldb_cmd.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/sst_dump_tool.cc
+    ${ROCKSDB_LIB_SOURCES}
+    ${ZSTD_SOURCES}
+  )
+  MYSQL_ADD_EXECUTABLE(sst_dump ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/sst_dump.cc ${ROCKSDB_TOOL_SOURCES})
+  TARGET_LINK_LIBRARIES(sst_dump ${rocksdb_static_libs})
 
-MYSQL_ADD_EXECUTABLE(ldb ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/ldb.cc ${ROCKSDB_TOOL_SOURCES})
-TARGET_LINK_LIBRARIES(ldb ${rocksdb_static_libs})
+  MYSQL_ADD_EXECUTABLE(ldb ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/ldb.cc ${ROCKSDB_TOOL_SOURCES})
+  TARGET_LINK_LIBRARIES(ldb ${rocksdb_static_libs})
 
-MYSQL_ADD_EXECUTABLE(mysql_ldb ${CMAKE_CURRENT_SOURCE_DIR}/tools/mysql_ldb.cc ${ROCKSDB_TOOL_SOURCES})
-TARGET_LINK_LIBRARIES(mysql_ldb ${rocksdb_static_libs})
+  MYSQL_ADD_EXECUTABLE(mysql_ldb ${CMAKE_CURRENT_SOURCE_DIR}/tools/mysql_ldb.cc ${ROCKSDB_TOOL_SOURCES})
+  TARGET_LINK_LIBRARIES(mysql_ldb ${rocksdb_static_libs})
+ENDIF()

@@ -6173,8 +6173,6 @@ int ha_tokudb::info(uint flag) {
     }
     if ((flag & HA_STATUS_CONST)) {
         stats.max_data_file_length = 9223372036854775807ULL;
-    }
-    if (flag & (HA_STATUS_VARIABLE | HA_STATUS_CONST)) {
         share->set_cardinality_counts_in_table(table);
     }
 

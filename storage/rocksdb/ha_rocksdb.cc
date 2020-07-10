@@ -575,7 +575,7 @@ static uint32_t rocksdb_force_compute_memtable_stats_cachetime =
 static bool rocksdb_debug_optimizer_no_zero_cardinality = true;
 static uint32_t rocksdb_debug_cardinality_multiplier = 0;
 static uint32_t rocksdb_wal_recovery_mode =
-    static_cast<uint32_t>(rocksdb::WALRecoveryMode::kAbsoluteConsistency);
+    static_cast<uint32_t>(rocksdb::WALRecoveryMode::kPointInTimeRecovery);
 static uint32_t rocksdb_stats_level = 0;
 static uint32_t rocksdb_access_hint_on_compaction_start =
     rocksdb::Options::AccessHint::NORMAL;
@@ -1250,9 +1250,9 @@ static MYSQL_THDVAR_INT(
 
 static MYSQL_SYSVAR_UINT(
     wal_recovery_mode, rocksdb_wal_recovery_mode, PLUGIN_VAR_RQCMDARG,
-    "DBOptions::wal_recovery_mode for RocksDB. Default is kAbsoluteConsistency",
+    "DBOptions::wal_recovery_mode for RocksDB. Default is kPointInTimeRecovery",
     nullptr, nullptr,
-    /* default */ (uint)rocksdb::WALRecoveryMode::kAbsoluteConsistency,
+    /* default */ (uint)rocksdb::WALRecoveryMode::kPointInTimeRecovery,
     /* min */ (uint)rocksdb::WALRecoveryMode::kTolerateCorruptedTailRecords,
     /* max */ (uint)rocksdb::WALRecoveryMode::kSkipAnyCorruptedRecords, 0);
 

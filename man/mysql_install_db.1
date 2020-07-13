@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_install_db\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/06/2020
+.\"      Date: 06/02/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_INSTALL_DB\FR" "1" "03/06/2020" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL_INSTALL_DB\FR" "1" "06/02/2020" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -192,7 +192,6 @@ Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-help\fR
-.sp
 Display a help message and exit\&.
 .RE
 .sp
@@ -205,7 +204,6 @@ Display a help message and exit\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-basedir=\fR\fB\fIdir_name\fR\fR
-.sp
 The path to the MySQL installation directory\&.
 .RE
 .sp
@@ -218,7 +216,6 @@ The path to the MySQL installation directory\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-builddir=\fR\fB\fIdir_name\fR\fR
-.sp
 For use with
 \fB\-\-srcdir\fR
 and out\-of\-source builds\&. Set this to the location of the directory where the built files reside\&.
@@ -233,7 +230,6 @@ and out\-of\-source builds\&. Set this to the location of the directory where th
 .IP \(bu 2.3
 .\}
 \fB\-\-cross\-bootstrap\fR
-.sp
 For internal use\&. This option is used for building system tables on one host intended for another\&.
 .RE
 .sp
@@ -246,7 +242,6 @@ For internal use\&. This option is used for building system tables on one host i
 .IP \(bu 2.3
 .\}
 \fB\-\-datadir=\fR\fB\fIdir_name\fR\fR
-.sp
 The path to the MySQL data directory\&. Beginning with MySQL 5\&.6\&.8,
 \fBmysql_install_db\fR
 is more strict about the option value\&. Only the last component of the path name is created if it does not exist; the parent directory must already exist or an error occurs\&.
@@ -261,7 +256,6 @@ is more strict about the option value\&. Only the last component of the path nam
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
-.sp
 Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
@@ -279,7 +273,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
-.sp
 Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
@@ -297,7 +290,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-force\fR
-.sp
 Cause
 \fBmysql_install_db\fR
 to run even if DNS does not work\&. Grant table entries normally created using host names will use IP addresses instead\&.
@@ -312,7 +304,6 @@ to run even if DNS does not work\&. Grant table entries normally created using h
 .IP \(bu 2.3
 .\}
 \fB\-\-keep\-my\-cnf\fR
-.sp
 Tell
 \fBmysql_install_db\fR
 to preserve any existing
@@ -331,7 +322,6 @@ file\&. This option was added in MySQL 5\&.6\&.20\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-ldata=\fR\fB\fIdir_name\fR\fR
-.sp
 A synonym for
 \fB\-\-datadir\fR\&.
 .RE
@@ -345,7 +335,6 @@ A synonym for
 .IP \(bu 2.3
 .\}
 \fB\-\-no\-defaults\fR
-.sp
 Do not read any option files\&. If program startup fails due to reading unknown options from an option file,
 \fB\-\-no\-defaults\fR
 can be used to prevent them from being read\&.
@@ -363,7 +352,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-random\-passwords\fR
-.sp
 On Unix platforms, this option provides for more secure MySQL installation\&. Invoking
 \fBmysql_install_db\fR
 with
@@ -476,7 +464,6 @@ option manually to make your MySQL installation more secure\&. This is recommend
 .IP \(bu 2.3
 .\}
 \fB\-\-rpm\fR
-.sp
 For internal use\&. This option is used during the MySQL installation process for install operations performed using RPM packages\&.
 .RE
 .sp
@@ -489,7 +476,6 @@ For internal use\&. This option is used during the MySQL installation process fo
 .IP \(bu 2.3
 .\}
 \fB\-\-skip\-name\-resolve\fR
-.sp
 Use IP addresses rather than host names when creating grant table entries\&. This option can be useful if your DNS does not work\&.
 .RE
 .sp
@@ -502,7 +488,6 @@ Use IP addresses rather than host names when creating grant table entries\&. Thi
 .IP \(bu 2.3
 .\}
 \fB\-\-srcdir=\fR\fB\fIdir_name\fR\fR
-.sp
 For internal use\&. This option specifies the directory under which
 \fBmysql_install_db\fR
 looks for support files such as the error message file and the file for populating the help tables\&.
@@ -517,7 +502,6 @@ looks for support files such as the error message file and the file for populati
 .IP \(bu 2.3
 .\}
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR
-.sp
 The system (login) user name to use for running
 \fBmysqld\fR\&. Files and directories created by
 \fBmysqld\fR
@@ -537,7 +521,6 @@ runs using your current login name and files and directories that it creates wil
 .IP \(bu 2.3
 .\}
 \fB\-\-verbose\fR
-.sp
 Verbose mode\&. Print more information about what the program does\&.
 .RE
 .sp
@@ -550,13 +533,12 @@ Verbose mode\&. Print more information about what the program does\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-windows\fR
-.sp
 For internal use\&. This option is used for creating Windows distributions\&.
 .RE
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

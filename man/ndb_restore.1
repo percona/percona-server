@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/06/2020
+.\"      Date: 06/02/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "03/06/2020" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "06/02/2020" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -707,9 +707,9 @@ T}:T{
 Value
 T}
 .T&
-l l.
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --append
 T}
@@ -740,21 +740,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --backup-path=dir_name
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Directory name
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 ./
 T}
@@ -801,9 +801,9 @@ It is not possible to restore a backup made from a newer version of NDB Cluster 
 \fBndb_restore\fR
 from the newer NDB Cluster version to do so\&.
 .sp
-For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.4\&.27 to a cluster running NDB Cluster 7\&.3\&.28, you must use the
+For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.4\&.29 to a cluster running NDB Cluster 7\&.3\&.30, you must use the
 \fBndb_restore\fR
-that comes with the NDB Cluster 7\&.4\&.27 distribution\&.
+that comes with the NDB Cluster 7\&.4\&.29 distribution\&.
 .sp .5v
 .RE
 For more rapid restoration, the data may be restored in parallel, provided that there is a sufficient number of cluster connections available\&. That is, when restoring to multiple nodes in parallel, you must have an
@@ -836,21 +836,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --backupid=#
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Numeric
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 none
 T}
@@ -896,21 +896,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --connect
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 localhost:1186
 T}
@@ -938,9 +938,9 @@ T}:T{
 Value
 T}
 .T&
-l l.
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --disable-indexes
 T}
@@ -971,9 +971,9 @@ T}:T{
 Value
 T}
 .T&
-l l.
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --dont-ignore-systab-0
 T}
@@ -1007,21 +1007,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --exclude-databases=db-list
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 T}
 .TE
@@ -1050,27 +1050,27 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l
-l l.
+lB l
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --exclude-intermediate-sql-tables[=TRUE|FALSE]
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 5.6.17-ndb-7.3.6
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 TRUE
 T}
@@ -1111,9 +1111,9 @@ T}:T{
 Value
 T}
 .T&
-l l.
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --exclude-missing-columns
 T}
@@ -1146,15 +1146,15 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l.
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --exclude-missing-tables
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 5.6.21-ndb-7.3.7
 T}
@@ -1185,21 +1185,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --exclude-tables=table-list
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 T}
 .TE
@@ -1407,21 +1407,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --fields-enclosed-by=char
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 T}
 .TE
@@ -1448,21 +1448,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --fields-optionally-enclosed-by
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 T}
 .TE
@@ -1493,21 +1493,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --fields-terminated-by=char
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 \t (tab)
 T}
@@ -1534,9 +1534,9 @@ T}:T{
 Value
 T}
 .T&
-l l.
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --hex
 T}
@@ -1563,21 +1563,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --include-databases=db-list
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 T}
 .TE
@@ -1604,21 +1604,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --include-tables=table-list
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 T}
 .TE
@@ -1771,21 +1771,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --lines-terminated-by=char
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 \n (linebreak)
 T}
@@ -1813,21 +1813,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --lossy-conversions
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE (If option is not used)
 T}
@@ -1862,9 +1862,9 @@ T}:T{
 Value
 T}
 .T&
-l l.
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --no-binlog
 T}
@@ -1894,21 +1894,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --no-restore-disk-objects
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -1939,9 +1939,9 @@ T}:T{
 Value
 T}
 .T&
-l l.
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --no-upgrade
 T}
@@ -1974,9 +1974,9 @@ T}:T{
 Value
 T}
 .T&
-l l.
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --ndb-nodegroup-map=map
 T}
@@ -2005,21 +2005,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --nodeid=#
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Numeric
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 none
 T}
@@ -2050,33 +2050,33 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l
-l l
-l l.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --parallelism=#
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Numeric
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 128
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 1
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 1024
 T}
@@ -2111,9 +2111,9 @@ T}:T{
 Value
 T}
 .T&
-l l.
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --preserve-trailing-spaces
 T}
@@ -2175,21 +2175,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --print
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -2245,21 +2245,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --print-data
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -2301,21 +2301,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --print-log
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -2345,21 +2345,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --print-meta
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -2387,33 +2387,33 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l
-l l
-l l.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --progress-frequency=#
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Numeric
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 0
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 0
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 65535
 T}
@@ -2443,9 +2443,9 @@ T}:T{
 Value
 T}
 .T&
-l l.
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --promote-attributes
 T}
@@ -2567,9 +2567,9 @@ T}:T{
 Value
 T}
 .T&
-l l.
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --rebuild-indexes
 T}
@@ -2623,21 +2623,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --restore-data
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -2667,9 +2667,9 @@ T}:T{
 Value
 T}
 .T&
-l l.
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --restore-epoch
 T}
@@ -2704,21 +2704,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --restore-meta
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -2772,21 +2772,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --restore-privilege-tables
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE (If option is not used)
 T}
@@ -2821,21 +2821,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --rewrite-database=olddb,newdb
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 none
 T}
@@ -2924,9 +2924,9 @@ T}:T{
 Value
 T}
 .T&
-l l.
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --skip-broken-objects
 T}
@@ -2960,9 +2960,9 @@ T}:T{
 Value
 T}
 .T&
-l l.
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --skip-table-check
 T}
@@ -3052,9 +3052,9 @@ T}:T{
 Value
 T}
 .T&
-l l.
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --skip-unknown-objects
 T}
@@ -3087,15 +3087,15 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l.
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --tab=dir_name
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Directory name
 T}
@@ -3127,33 +3127,33 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l
-l l
-l l.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --verbose=#
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Numeric
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 1
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 0
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 255
 T}
@@ -3804,7 +3804,7 @@ The support for fewer partitions when restoring to a smaller cluster also means 
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

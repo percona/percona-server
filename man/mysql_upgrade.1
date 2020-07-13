@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_upgrade\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/06/2020
+.\"      Date: 06/02/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_UPGRADE\FR" "1" "03/06/2020" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL_UPGRADE\FR" "1" "06/02/2020" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -330,8 +330,8 @@ option\&.
 .PP
 \fBmysql_upgrade\fR
 does not upgrade the contents of the time zone tables or help tables\&. For upgrade instructions, see
-Section\ \&5.1.12, \(lqMySQL Server Time Zone Support\(rq, and
-Section\ \&5.1.13, \(lqServer-Side Help Support\(rq\&.
+Section\ \&5.1.13, \(lqMySQL Server Time Zone Support\(rq, and
+Section\ \&5.1.14, \(lqServer-Side Help Support\(rq\&.
 .PP
 \fBmysql_upgrade\fR
 supports the following options, which can be specified on the command line or in the
@@ -351,7 +351,6 @@ Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-help\fR
-.sp
 Display a short help message and exit\&.
 .RE
 .sp
@@ -364,7 +363,6 @@ Display a short help message and exit\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-basedir=\fR\fB\fIdir_name\fR\fR
-.sp
 The path to the MySQL installation directory\&. This option is accepted for backward compatibility but ignored\&. It is removed in MySQL 5\&.7\&.
 .RE
 .sp
@@ -377,7 +375,6 @@ The path to the MySQL installation directory\&. This option is accepted for back
 .IP \(bu 2.3
 .\}
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
-.sp
 The directory where character sets are installed\&. See
 Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .RE
@@ -391,7 +388,6 @@ Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-compress\fR
-.sp
 Compress all information sent between the client and the server if possible\&. See
 Section\ \&4.2.5, \(lqConnection Compression Control\(rq\&.
 .RE
@@ -405,7 +401,6 @@ Section\ \&4.2.5, \(lqConnection Compression Control\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-datadir=\fR\fB\fIdir_name\fR\fR
-.sp
 The path to the data directory\&. This option is accepted for backward compatibility but ignored\&. It is removed in MySQL 5\&.7\&.
 .RE
 .sp
@@ -419,7 +414,6 @@ The path to the data directory\&. This option is accepted for backward compatibi
 .\}
 \fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
 \fB\-# [\fR\fB\fIdebug_options\fR\fR\fB]\fR
-.sp
 Write a debugging log\&. A typical
 \fIdebug_options\fR
 string is
@@ -436,7 +430,6 @@ d:t:O,/tmp/mysql_upgrade\&.trace\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-debug\-check\fR
-.sp
 Print some debugging information when the program exits\&.
 .RE
 .sp
@@ -450,7 +443,6 @@ Print some debugging information when the program exits\&.
 .\}
 \fB\-\-debug\-info\fR,
 \fB\-T\fR
-.sp
 Print debugging information and memory and CPU usage statistics when the program exits\&.
 .RE
 .sp
@@ -463,7 +455,6 @@ Print debugging information and memory and CPU usage statistics when the program
 .IP \(bu 2.3
 .\}
 \fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
-.sp
 A hint about which client\-side authentication plugin to use\&. See
 Section\ \&6.2.11, \(lqPluggable Authentication\(rq\&.
 .RE
@@ -477,7 +468,6 @@ Section\ \&6.2.11, \(lqPluggable Authentication\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-default\-character\-set=\fR\fB\fIcharset_name\fR\fR
-.sp
 Use
 \fIcharset_name\fR
 as the default character set\&. See
@@ -493,7 +483,6 @@ Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
-.sp
 Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
@@ -511,7 +500,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
-.sp
 Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
@@ -529,7 +517,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-group\-suffix=\fR\fB\fIstr\fR\fR
-.sp
 Read not only the usual option groups, but also groups with the usual names and a suffix of
 \fIstr\fR\&. For example,
 \fBmysql_upgrade\fR
@@ -560,7 +547,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-force\fR
-.sp
 Ignore the
 mysql_upgrade_info
 file and force execution even if
@@ -578,7 +564,6 @@ has already been executed for the current version of MySQL\&.
 .\}
 \fB\-\-host=\fR\fB\fIhost_name\fR\fR,
 \fB\-h \fR\fB\fIhost_name\fR\fR
-.sp
 Connect to the MySQL server on the given host\&.
 .RE
 .sp
@@ -591,7 +576,6 @@ Connect to the MySQL server on the given host\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-login\-path=\fR\fB\fIname\fR\fR
-.sp
 Read options from the named login path in the
 \&.mylogin\&.cnf
 login path file\&. A
@@ -614,7 +598,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-no\-defaults\fR
-.sp
 Do not read any option files\&. If program startup fails due to reading unknown options from an option file,
 \fB\-\-no\-defaults\fR
 can be used to prevent them from being read\&.
@@ -643,7 +626,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .\}
 \fB\-\-password[=\fR\fB\fIpassword\fR\fR\fB]\fR,
 \fB\-p[\fR\fB\fIpassword\fR\fR\fB]\fR
-.sp
 The password of the MySQL account used for connecting to the server\&. The password value is optional\&. If not given,
 \fBmysql_upgrade\fR
 prompts for one\&. If given, there must be
@@ -674,7 +656,6 @@ option\&.
 .\}
 \fB\-\-pipe\fR,
 \fB\-W\fR
-.sp
 On Windows, connect to the server using a named pipe\&. This option applies only if the server was started with the
 named_pipe
 system variable enabled to support named\-pipe connections\&. In addition, the user making the connection must be a member of the Windows group specified by the
@@ -691,7 +672,6 @@ system variable\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-plugin\-dir=\fR\fB\fIdir_name\fR\fR
-.sp
 The directory in which to look for plugins\&. Specify this option if the
 \fB\-\-default\-auth\fR
 option is used to specify an authentication plugin but
@@ -710,7 +690,6 @@ Section\ \&6.2.11, \(lqPluggable Authentication\(rq\&.
 .\}
 \fB\-\-port=\fR\fB\fIport_num\fR\fR,
 \fB\-P \fR\fB\fIport_num\fR\fR
-.sp
 For TCP/IP connections, the port number to use\&.
 .RE
 .sp
@@ -723,7 +702,6 @@ For TCP/IP connections, the port number to use\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-print\-defaults\fR
-.sp
 Print the program name and all options that it gets from option files\&.
 .sp
 For additional information about this and other option\-file options, see
@@ -739,7 +717,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
-.sp
 The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally result in use of a protocol other than the one you want\&. For details on the permissible values, see
 Section\ \&4.2.4, \(lqConnecting to the MySQL Server Using Command Options\(rq\&.
 .RE
@@ -753,7 +730,6 @@ Section\ \&4.2.4, \(lqConnecting to the MySQL Server Using Command Options\(rq\&
 .IP \(bu 2.3
 .\}
 \fB\-\-shared\-memory\-base\-name=\fR\fB\fIname\fR\fR
-.sp
 On Windows, the shared\-memory name to use for connections made using shared memory to a local server\&. The default value is
 MYSQL\&. The shared\-memory name is case\-sensitive\&.
 .sp
@@ -772,7 +748,6 @@ system variable enabled to support shared\-memory connections\&.
 .\}
 \fB\-\-socket=\fR\fB\fIpath\fR\fR,
 \fB\-S \fR\fB\fIpath\fR\fR
-.sp
 For connections to
 localhost, the Unix socket file to use, or, on Windows, the name of the named pipe to use\&.
 .sp
@@ -792,7 +767,6 @@ system variable\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-ssl*\fR
-.sp
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
@@ -809,7 +783,6 @@ the section called \(lqCommand Options for Encrypted Connections\(rq\&.
 .\}
 \fB\-\-tmpdir=\fR\fB\fIdir_name\fR\fR,
 \fB\-t \fR\fB\fIdir_name\fR\fR
-.sp
 The path name of the directory to use for creating temporary files\&.
 .RE
 .sp
@@ -823,7 +796,6 @@ The path name of the directory to use for creating temporary files\&.
 .\}
 \fB\-\-upgrade\-system\-tables\fR,
 \fB\-s\fR
-.sp
 Upgrade only the system tables in the
 mysql
 schema, do not upgrade user schemas\&.
@@ -839,7 +811,6 @@ schema, do not upgrade user schemas\&.
 .\}
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR,
 \fB\-u \fR\fB\fIuser_name\fR\fR
-.sp
 The user name of the MySQL account to use for connecting to the server\&. The default user name is
 root\&.
 .RE
@@ -853,7 +824,6 @@ root\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-verbose\fR
-.sp
 Verbose mode\&. Print more information about what the program does\&.
 .RE
 .sp
@@ -867,7 +837,6 @@ Verbose mode\&. Print more information about what the program does\&.
 .\}
 \fB\-\-version\-check\fR,
 \fB\-k\fR
-.sp
 Check the version of the server to which
 \fBmysql_upgrade\fR
 is connecting to verify that it is the same as the version for which
@@ -887,7 +856,6 @@ exits\&. This option is enabled by default; to disable the check, use
 .IP \(bu 2.3
 .\}
 \fB\-\-write\-binlog\fR
-.sp
 Cause binary logging to be enabled while
 \fBmysql_upgrade\fR
 runs\&. In MySQL 5\&.6\&.6 and earlier, this was the default behavior\&. (To disable binary logging during the upgrade, it was necessary to use the inverse of this option, by starting the program with
@@ -905,7 +873,7 @@ When the server is running with global transaction identifiers (GTIDs) enabled (
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

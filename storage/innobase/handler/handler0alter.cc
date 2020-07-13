@@ -643,10 +643,13 @@ static inline bool is_instant(const Alter_inplace_info *ha_alter_info) {
 }
 
 /** Determine if ALTER TABLE needs to rebuild the table.
-@param[in]	ha_alter_info	The DDL operation
+@param[in]  ha_alter_info  The DDL operation
+@param[in]  old_table the table we are changing
+@param[in]  is_file_per_table true if table is file_per_table
 @return whether it is necessary to rebuild the table */
 static MY_ATTRIBUTE((warn_unused_result)) bool innobase_need_rebuild(
-    const Alter_inplace_info *ha_alter_info, const TABLE *old_table) {
+    const Alter_inplace_info *ha_alter_info, const TABLE *old_table,
+    bool is_file_per_table) {
   if (is_instant(ha_alter_info)) {
     return (false);
   }
@@ -661,9 +664,6 @@ static MY_ATTRIBUTE((warn_unused_result)) bool innobase_need_rebuild(
   const bool is_none_explicitly_specified{Encryption::none_explicitly_specified(
       ha_alter_info->create_info->explicit_encryption,
       ha_alter_info->create_info->encrypt_type.str)};
-
-  const bool is_file_per_table{
-      !tablespace_is_shared_space(ha_alter_info->create_info)};
 
   if ((!was_none_explicitly_specified && is_none_explicitly_specified &&
        is_file_per_table) ||
@@ -1014,7 +1014,9 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
     operation is possible. */
   } else if (((ha_alter_info->handler_flags &
                Alter_inplace_info::ADD_PK_INDEX) ||
-              innobase_need_rebuild(ha_alter_info, altered_table)) &&
+              innobase_need_rebuild(
+                  ha_alter_info, altered_table,
+                  dict_table_is_file_per_table(m_prebuilt->table))) &&
              (innobase_fulltext_exist(altered_table) ||
               innobase_spatial_exist(altered_table))) {
     /* Refuse to rebuild the table online, if
@@ -1159,7 +1161,8 @@ bool ha_innobase::prepare_inplace_alter_table(TABLE *altered_table,
   ut_ad(new_dd_tab != nullptr);
 
   if (dict_sys_t::is_dd_table_id(m_prebuilt->table->id) &&
-      innobase_need_rebuild(ha_alter_info, table)) {
+      innobase_need_rebuild(ha_alter_info, table,
+                            dict_table_is_file_per_table(m_prebuilt->table))) {
     ut_ad(!m_prebuilt->table->is_temporary());
     my_error(ER_NOT_ALLOWED_COMMAND, MYF(0));
     return true;
@@ -2719,7 +2722,7 @@ static MY_ATTRIBUTE((warn_unused_result, malloc)) index_def_t
                               bool &add_fts_doc_idx,
                               /*!< in: whether we need to add new DOC ID
                               index for FTS index */
-                              const TABLE *table)
+                              const TABLE *table, bool is_file_per_table)
 /*!<in: old_table MySQL table as it is before the ALTER operation */
 {
   index_def_t *indexdef;
@@ -2751,8 +2754,9 @@ static MY_ATTRIBUTE((warn_unused_result, malloc)) index_def_t
     new_primary = (altered_table->s->primary_key != MAX_KEY);
   }
 
-  const bool rebuild = new_primary || add_fts_doc_id ||
-                       innobase_need_rebuild(ha_alter_info, table);
+  const bool rebuild =
+      new_primary || add_fts_doc_id ||
+      innobase_need_rebuild(ha_alter_info, table, is_file_per_table);
 
   /* Reserve one more space if new_primary is true, and we might
   need to add the FTS_DOC_ID_INDEX */
@@ -4286,6 +4290,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
   DBUG_ASSERT(!ctx->num_to_add_index);
 
   user_table = ctx->new_table;
+  bool is_file_per_table = dict_table_is_file_per_table(user_table);
 
   trx_start_if_not_started_xa(ctx->prebuilt->trx, true);
 
@@ -4339,7 +4344,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
       ctx->heap, ha_alter_info, altered_table, new_dd_tab,
       ctx->num_to_add_index, num_fts_index,
       row_table_got_default_clust_index(ctx->new_table), fts_doc_id_col,
-      add_fts_doc_id, add_fts_doc_id_idx, old_table);
+      add_fts_doc_id, add_fts_doc_id_idx, old_table, is_file_per_table);
 
   new_clustered = DICT_CLUSTERED & index_defs[0].ind_type;
 
@@ -4364,7 +4369,8 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
   if (!ctx->online) {
     /* This is not an online operation (LOCK=NONE). */
   } else if (ctx->add_autoinc == ULINT_UNDEFINED && num_fts_index == 0 &&
-             (!innobase_need_rebuild(ha_alter_info, old_table) ||
+             (!innobase_need_rebuild(ha_alter_info, old_table,
+                                     is_file_per_table) ||
               !innobase_fulltext_exist(altered_table))) {
     /* InnoDB can perform an online operation (LOCK=NONE). */
   } else {
@@ -4382,7 +4388,8 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
   DBUG_ASSERT(!add_fts_doc_id || new_clustered);
   DBUG_ASSERT(
       !!new_clustered ==
-      (innobase_need_rebuild(ha_alter_info, old_table) || add_fts_doc_id));
+      (innobase_need_rebuild(ha_alter_info, old_table, is_file_per_table) ||
+       add_fts_doc_id));
 
   /* Allocate memory for dictionary index definitions */
 
@@ -4793,7 +4800,8 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
                                           add_cols, ctx->heap, prebuilt);
     ctx->add_cols = add_cols;
   } else {
-    DBUG_ASSERT(!innobase_need_rebuild(ha_alter_info, old_table));
+    DBUG_ASSERT(
+        !innobase_need_rebuild(ha_alter_info, old_table, is_file_per_table));
     DBUG_ASSERT(old_table->s->primary_key == altered_table->s->primary_key);
 
     for (dict_index_t *index = user_table->first_index(); index != nullptr;
@@ -5377,7 +5385,9 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
         ha_alter_info, m_prebuilt->table, this->table, altered_table);
     /* Even if some operations can be done instantly without rebuilding, they
     are still disallowed to behave like before. */
-    if (innobase_need_rebuild(ha_alter_info, table) ||
+    if (innobase_need_rebuild(
+            ha_alter_info, table,
+            dict_table_is_file_per_table(m_prebuilt->table)) ||
         (type == Instant_Type::INSTANT_VIRTUAL_ONLY ||
          type == Instant_Type::INSTANT_ADD_COLUMN)) {
       my_error(ER_TABLESPACE_DISCARDED, MYF(0), indexed_table->name.m_name);
@@ -5882,7 +5892,9 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
   if (!(ha_alter_info->handler_flags & INNOBASE_ALTER_DATA) ||
       ((ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) ==
            Alter_inplace_info::CHANGE_CREATE_OPTION &&
-       !innobase_need_rebuild(ha_alter_info, table))) {
+       !innobase_need_rebuild(
+           ha_alter_info, table,
+           dict_table_is_file_per_table(m_prebuilt->table)))) {
     if (heap) {
       ha_alter_info->handler_ctx = new (m_user_thd->mem_root)
           ha_innobase_inplace_ctx(m_prebuilt, drop_index, n_drop_index,
@@ -6136,7 +6148,9 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
 
   if (((ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) ==
            Alter_inplace_info::CHANGE_CREATE_OPTION &&
-       !innobase_need_rebuild(ha_alter_info, table))) {
+       !innobase_need_rebuild(
+           ha_alter_info, table,
+           dict_table_is_file_per_table(m_prebuilt->table)))) {
     goto ok_exit;
   }
 

@@ -396,13 +396,6 @@ btr_cur_latch_leaves(
 			cursor->left_block = get_block;
 
 			SRV_CORRUPT_TABLE_CHECK(get_block, return latch_leaves;);
-
-#ifdef UNIV_BTR_DEBUG
-			ut_a(page_is_comp(get_block->frame)
-			     == page_is_comp(page));
-			ut_a(btr_page_get_next(get_block->frame, mtr)
-			     == page_get_page_no(page));
-#endif /* UNIV_BTR_DEBUG */
 		}
 
 		latch_leaves.savepoints[1] = mtr_set_savepoint(mtr);
@@ -413,6 +406,13 @@ btr_cur_latch_leaves(
 
 		latch_leaves.blocks[1] = get_block;
 #ifdef UNIV_BTR_DEBUG
+		/* Sanity check only after both the blocks are latched. */
+		if (latch_leaves.blocks[0] != NULL) {
+			ut_a(page_is_comp(latch_leaves.blocks[0]->frame)
+			     == page_is_comp(page));;
+			ut_a(btr_page_get_next(latch_leaves.blocks[0]->frame, mtr)
+			     == page_get_page_no(page));
+		}
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
 #endif /* UNIV_BTR_DEBUG */
 		return(latch_leaves);

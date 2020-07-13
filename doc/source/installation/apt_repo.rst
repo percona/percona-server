@@ -91,7 +91,7 @@ Percona offers pre-release builds from the testing repository. To enable it, run
 
 .. code-block:: bash
 
-   $ sudo percona-release enable ps80 testing
+    $ sudo percona-release enable original testing
 
 Apt-Pinning the packages
 --------------------------------------------------------------------------------
@@ -178,9 +178,11 @@ storage engine).
    packages will need to be installed before you can manually install Percona
    Server: ``mysql-common``, ``libjemalloc1``, ``libaio1`` and ``libmecab2``
 
+The following table lists the default locations for files:
 
-Running |Percona Server|
-========================
+.. list-table::
+    :widths: 30 30
+    :header-rows: 1
 
 |Percona Server| stores the data files in :file:`/var/lib/mysql/` by
 default. You can find the configuration file that is used to manage |Percona
@@ -196,6 +198,55 @@ Server| in :file:`/etc/mysql/my.cnf`.
 
 |tip.run-all.root|
 
+.. list-table::
+    :widths: 20 40
+    :header-rows: 1
+
+    * - Files
+      - Location
+    * - `mysqld` server
+      - :file:`/usr/sbin`
+    * - Configuration
+      - :file:`/etc/mysql/my.cnf`
+    * - Data directory
+      - :file:`/var/lib/mysql`
+    * - Logs
+      - :file:`/var/log/mysql`
+
+.. note::
+
+  *Debian* and *Ubuntu* installation does not automatically create a special
+  ``debian-sys-maint`` user which can be used by the control scripts to control
+  the |Percona Server| ``mysqld`` and ``mysqld_safe`` services like it was the
+  case with previous |Percona Server| versions. If you still require this user you must create the user manually.
+
+Running |Percona Server|
+========================
+
+The following procedure runs the |Percona Server|:
+
+1. Starting the service
+
+   |Percona Server| starts automatically after installation unless the server
+   encounters errors during the installation process. You can also manually
+   start it by running the following command:
+
+   .. code-block:: bash
+
+     $ sudo service mysql start
+
+2. Confirming the service is running
+
+   You can verify the service status by running the following command:
+
+   .. code-block:: bash
+
+     $ service mysql status
+
+3. Stopping the service
+
+   You can stop the service by running the following command:
+
 1. Starting the service
 
    |Percona Server| is started automatically after it gets installed unless it
@@ -206,7 +257,6 @@ Server| in :file:`/etc/mysql/my.cnf`.
    running: :bash:`service mysql status`
 
 #. Stopping the service
-
    You can stop the service by running: :bash:`service mysql stop`
 
 #. Restarting the service. :bash:`service mysql restart`
@@ -235,7 +285,7 @@ suits you.
 
    b) Purge the packages. **NOTE**: This will remove all the packages and delete all the data files (databases, tables, logs, etc.): :bash:`apt-get purge percona-server*`
 
+     $ sudo apt-get purge percona-server*
 
 .. include:: ../.res/replace.txt
 .. include:: ../.res/replace.program.txt
-.. include:: ../.res/url.txt

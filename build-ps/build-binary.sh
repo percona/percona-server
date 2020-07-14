@@ -249,6 +249,8 @@ fi
         -DFEATURE_SET=community \
         -DCMAKE_INSTALL_PREFIX="/usr/local/$PRODUCT_FULL" \
         -DMYSQL_DATADIR="/usr/local/$PRODUCT_FULL/data" \
+        -DROUTER_INSTALL_LIBDIR="/usr/local/$PRODUCT_FULL/lib/mysqlrouter/private" \
+        -DROUTER_INSTALL_PLUGINDIR="/usr/local/$PRODUCT_FULL/lib/mysqlrouter/plugin" \
         -DCOMPILATION_COMMENT="$COMMENT" \
         -DWITH_PAM=ON \
         -DWITH_ROCKSDB=ON \
@@ -292,10 +294,11 @@ fi
         mkdir -p lib/private
     fi
 
-    LIBLIST="libcrypto.so libssl.so libreadline.so libtinfo.so libsasl2.so libcurl.so libldap liblber libssh libbrotlidec.so libbrotlicommon.so libgssapi_krb5.so libkrb5.so libkrb5support.so libk5crypto.so librtmp.so libgssapi.so libcrypt.so libfreebl3.so libssl3.so libsmime3.so libnss3.so libnssutil3.so libplds4.so libplc4.so libnspr4.so libssl3.so libplds4.so"
-    DIRLIST="bin lib lib/private lib/plugin"
+    LIBLIST="libcrypto.so libssl.so libreadline.so libtinfo.so libsasl2.so libcurl.so libldap liblber libssh libbrotlidec.so libbrotlicommon.so libgssapi_krb5.so libkrb5.so libkrb5support.so libk5crypto.so librtmp.so libgssapi.so libfreebl3.so libssl3.so libsmime3.so libnss3.so libnssutil3.so libplds4.so libplc4.so libnspr4.so libssl3.so libplds4.so"
+    DIRLIST="bin lib lib/private lib/plugin lib/mysqlrouter/plugin lib/mysqlrouter/private"
 
     LIBPATH=""
+    OVERRIDE=false
 
     function gather_libs {
         local elf_path=$1
@@ -326,8 +329,12 @@ fi
         local r_path=$2
         for elf in $(find $elf_path -maxdepth 1 -exec file {} \; | grep 'ELF ' | cut -d':' -f1); do
             echo "Checking LD_RUNPATH for $elf"
-            if [ -z $(patchelf --print-rpath $elf) ]; then
+            if [[ -z $(patchelf --print-rpath $elf) ]]; then
                 echo "Changing RUNPATH for $elf"
+                patchelf --set-rpath $r_path $elf
+            fi
+            if [[ ! -z $override ]] && [[ $override == "true" ]]; then
+                echo "Overriding RUNPATH for $elf"
                 patchelf --set-rpath $r_path $elf
             fi
         done
@@ -356,10 +363,19 @@ fi
     done
 
     # Set proper runpath
+    export override=false
     set_runpath bin '$ORIGIN/../lib/private/'
     set_runpath lib '$ORIGIN/private/'
     set_runpath lib/plugin '$ORIGIN/../private/'
     set_runpath lib/private '$ORIGIN'
+    # LIBS MYSQLROUTER
+    unset override && export override=true && set_runpath lib/mysqlrouter/plugin '$ORIGIN/:$ORIGIN/../private/:$ORIGIN/../../private/'
+    unset override && export override=true && set_runpath lib/mysqlrouter/private '$ORIGIN/:$ORIGIN/../plugin/:$ORIGIN/../../private/'
+    #  BINS MYSQLROUTER
+    unset override && export override=true && set_runpath bin/mysqlrouter_passwd '$ORIGIN/../lib/mysqlrouter/private/:$ORIGIN/../lib/mysqlrouter/plugin/:$ORIGIN/../lib/private/'
+    unset override && export override=true && set_runpath bin/mysqlrouter_plugin_info '$ORIGIN/../lib/mysqlrouter/private/:$ORIGIN/../lib/mysqlrouter/plugin/:$ORIGIN/../lib/private/'
+    unset override && export override=true && set_runpath bin/mysqlrouter '$ORIGIN/../lib/mysqlrouter/private/:$ORIGIN/../lib/mysqlrouter/plugin/:$ORIGIN/../lib/private/'
+    unset override && export override=true && set_runpath bin/mysqlrouter_keyring '$ORIGIN/../lib/mysqlrouter/private/:$ORIGIN/../lib/mysqlrouter/plugin/:$ORIGIN/../lib/private/'
 
     # Replace libs
     for DIR in $DIRLIST; do

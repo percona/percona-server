@@ -27,7 +27,7 @@ function install_deps {
 
 main () {
 
-    DIRLIST="bin lib lib/private lib/plugin"
+    DIRLIST="bin lib lib/private lib/plugin lib/mysqlrouter/plugin lib/mysqlrouter/private"
 
     prepare
 

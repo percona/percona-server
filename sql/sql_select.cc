@@ -3570,10 +3570,12 @@ int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
     for (; const_key_parts & 1 ; const_key_parts>>= 1)
       key_part++; 
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
     /* Avoid usage of prefix index for sorting a partition table */
     if (table->part_info && key_part != table->key_info[idx].key_part &&
-	key_part != key_part_end && is_prefix_index(table, idx))
+      key_part != key_part_end && is_prefix_index(table, idx))
      DBUG_RETURN(0);
+#endif
 
     if (key_part == key_part_end)
     {

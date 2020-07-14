@@ -331,10 +331,10 @@ class ha_rocksdb : public my_core::handler {
                            const bool use_all_keys, const uint eq_cond_len);
   void release_scan_iterator(void);
 
-  rocksdb::Status get_for_update(
-      Rdb_transaction *const tx,
-      rocksdb::ColumnFamilyHandle *const column_family,
-      const rocksdb::Slice &key, rocksdb::PinnableSlice *value) const;
+  rocksdb::Status get_for_update(Rdb_transaction *const tx,
+                                 const Rdb_key_def &kd,
+                                 const rocksdb::Slice &key,
+                                 rocksdb::PinnableSlice *value) const;
 
   int get_row_by_rowid(uchar *const buf, const char *const rowid,
                        const uint rowid_size, const bool skip_ttl_check = true,

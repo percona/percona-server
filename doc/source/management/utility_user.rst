@@ -122,7 +122,7 @@ This variable can be used to specify a comma-separated list of extra access priv
 
 This variable was added in |Percona Server| 8.0.20-11.
 
-This variable allows a comma-separated list of extra access dynamic privileges to grant to the utility user. The supported values for the dynamic prvilieges are:
+This variable allows a comma-separated list of extra access dynamic privileges to grant to the utility user. The supported values for the dynamic privileges are:
 
 * APPLICATION_PASSWORD_ADMIN
 * AUDIT_ADMIN

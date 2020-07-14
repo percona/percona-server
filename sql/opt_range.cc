@@ -6036,6 +6036,11 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
               .add_alnum("cost", "not applicable");
         } else {
           trace_idx.add("rows", found_records).add("cost", cost);
+          if (param->thd->optimizer_switch_flag(
+                  OPTIMIZER_SWITCH_FAVOR_RANGE_SCAN)) {
+            trace_idx.add("revised_cost", cost.total_cost() * 0.1);
+            cost.multiply(0.1);
+          }
         }
       }
 

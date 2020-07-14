@@ -167,8 +167,6 @@ Following system variables available in |Percona Server| 5.6 are no longer prese
      - Replaced by upstream `max_execution_time <http://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_max_statement_time)>`_ variable in `Server-side SELECT statement timeouts <http://mysqlserverteam.com/server-side-select-statement-timeouts/>`_ implementation. 
    * - :variable:`have_statement_timeout`                     
      - Variable has been removed due to upstream feature implementation
-   * - :variable:`have_statement_timeout`                     
-     - Variable has been removed due to upstream feature implementation
    * - :variable:`innodb_use_atomic_writes`                     
      - Variable has been removed due to upstream feature implementation
    * - :variable:`innodb_adaptive_hash_index_partitions`                     

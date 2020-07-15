@@ -5197,14 +5197,14 @@ static int rocksdb_init_internal(void *const p) {
   });
   if (!status.ok()) {
     /*
-      When we start on an empty datadir, ListColumnFamilies returns IOError,
-      and RocksDB doesn't provide any way to check what kind of error it was.
-      Checking system errno happens to work right now.
+      When we start on an empty datadir, ListColumnFamilies returns IOError
+      with subcode = kPathNotFound.
     */
-    if (status.IsIOError() && errno == ENOENT) {
-      LogPluginErrMsg(INFORMATION_LEVEL, 0,
-                      "Got ENOENT when listing column families assuming that "
-                      "we're creating a new database");
+    if (status.IsPathNotFound()) {
+      LogPluginErrMsg(
+          INFORMATION_LEVEL, 0,
+          "Got kPathNotFound when listing column families assuming that "
+          "we're creating a new database");
     } else {
       rdb_log_status_error(status, "Error listing column families");
       DBUG_RETURN(HA_EXIT_FAILURE);

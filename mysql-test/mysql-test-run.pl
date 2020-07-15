@@ -245,23 +245,6 @@ our $opt_xml_report;
 #
 # Suites run by default (i.e. when invoking ./mtr without parameters)
 #
-<<<<<<< HEAD
-our $DEFAULT_SUITES = 
-  "auth_sec,binlog_gtid,binlog_nogtid,clone,collations,connection_control,encryption,federated,funcs_2,gcol,sysschema,gis,information_schema,innodb,innodb_fts,innodb_gis,innodb_undo,innodb_zip,json,main,opt_trace,parts,perfschema,query_rewrite_plugins,rpl,rpl_gtid,rpl_nogtid,secondary_engine,service_status_var_registration,service_sys_var_registration,service_udf_registration,sys_vars,binlog,test_service_sql_api,test_services,x,"
-  # Percona suites
-  ."audit_log,binlog_57_decryption,percona-pam-for-mysql,"
-  ."data_masking,"
-  ."keyring_vault,"
-  ."rocksdb,rocksdb_rpl,rocksdb_sys_vars,"
-  ."rpl_encryption,"
-  ."tokudb,tokudb_add_index,tokudb_alter_table,tokudb_bugs,tokudb_parts,"
-  ."tokudb_perfschema,tokudb_rpl,"
-  # MySQL suites tested by Percona by default
-  ."audit_null,engines/iuds,engines/funcs,funcs_1,group_replication,interactive_utilities,jp,stress";
-||||||| merged common ancestors
-our $DEFAULT_SUITES =
-"auth_sec,binlog_gtid,binlog_nogtid,clone,collations,connection_control,encryption,federated,funcs_2,gcol,sysschema,gis,information_schema,innodb,innodb_fts,innodb_gis,innodb_undo,innodb_zip,json,main,opt_trace,parts,perfschema,query_rewrite_plugins,rpl,rpl_gtid,rpl_nogtid,secondary_engine,service_status_var_registration,service_sys_var_registration,service_udf_registration,sys_vars,binlog,test_service_sql_api,test_services,x";
-=======
 our @DEFAULT_SUITES = qw(
   auth_sec
   binlog
@@ -300,10 +283,35 @@ our @DEFAULT_SUITES = qw(
   test_service_sql_api
   test_services
   x
+
+  audit_log
+  binlog_57_decryption
+  percona-pam-for-mysql
+  data_masking
+  keyring_vault
+  rocksdb
+  rocksdb_rpl
+  rocksdb_sys_vars
+  rpl_encryption
+  tokudb
+  tokudb_add_index
+  tokudb_alter_table
+  tokudb_bugs
+  tokudb_parts
+  tokudb_perfschema
+  tokudb_rpl
+
+  audit_null
+  engines/iuds
+  engines/funcs
+  funcs_1
+  group_replication
+  interactive_utilities
+  jp
+  stress
   );
 
 our $DEFAULT_SUITES = join ',', @DEFAULT_SUITES;
->>>>>>> mysql-8.0.21
 
 # End of list of default suites
 
@@ -2893,15 +2901,9 @@ sub read_plugin_defs($) {
           $semi = ';';
         }
 
-<<<<<<< HEAD
-	$ENV{ $plug_var . '_EARLY_LOAD'} = $early_load_var;
-        $ENV{ $plug_var . '_LOAD' }     = $load_var;
-||||||| merged common ancestors
-        $ENV{ $plug_var . '_LOAD' }     = $load_var;
-=======
         $ENV{ $plug_var . '_LOAD' }       = $load_var;
->>>>>>> mysql-8.0.21
         $ENV{ $plug_var . '_LOAD_EARLY' } = $early_load_var;
+        $ENV{ $plug_var . '_EARLY_LOAD' } = $early_load_var;
         $ENV{ $plug_var . '_LOAD_ADD' }   = $load_add_var;
       }
     } else {
@@ -2910,6 +2912,7 @@ sub read_plugin_defs($) {
       $ENV{ $plug_var . '_OPT' } = "";
       $ENV{ $plug_var . '_LOAD' }       = "" if $plug_names;
       $ENV{ $plug_var . '_LOAD_EARLY' } = "" if $plug_names;
+      $ENV{ $plug_var . '_EARLY_LOAD' } = "" if $plug_names;
       $ENV{ $plug_var . '_LOAD_ADD' }   = "" if $plug_names;
     }
   }

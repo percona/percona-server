@@ -1981,15 +1981,9 @@ void warn_about_deprecated_binary(THD *thd)
         ts_option_redo_buffer_size
         ts_option_undo_buffer_size
         ts_option_wait
-<<<<<<< HEAD
         ts_option_encryption
         ts_option_encryption_key_id
-||||||| merged common ancestors
-	ts_option_encryption
-=======
-        ts_option_encryption
         ts_option_engine_attribute
->>>>>>> mysql-8.0.21
 
 %type <explain_format_type> opt_explain_format_type
 %type <explain_format_type> opt_explain_analyze_type
@@ -5428,15 +5422,9 @@ tablespace_option:
         | ts_option_wait
         | ts_option_comment
         | ts_option_file_block_size
-<<<<<<< HEAD
         | ts_option_encryption
         | ts_option_encryption_key_id
-||||||| merged common ancestors
-	| ts_option_encryption
-=======
-        | ts_option_encryption
         | ts_option_engine_attribute
->>>>>>> mysql-8.0.21
         ;
 
 opt_alter_tablespace_options:
@@ -5465,15 +5453,9 @@ alter_tablespace_option:
         | ts_option_max_size
         | ts_option_engine
         | ts_option_wait
-<<<<<<< HEAD
         | ts_option_encryption
         | ts_option_encryption_key_id
-||||||| merged common ancestors
-	| ts_option_encryption
-=======
-        | ts_option_encryption
         | ts_option_engine_attribute
->>>>>>> mysql-8.0.21
         ;
 
 opt_undo_tablespace_options:
@@ -5657,7 +5639,6 @@ ts_option_encryption:
           }
         ;
 
-<<<<<<< HEAD
 ts_option_encryption_key_id:
           ENCRYPTION_KEY_ID_SYM opt_equal real_ulong_num
           {
@@ -5665,8 +5646,6 @@ ts_option_encryption_key_id:
           }
         ;
 
-||||||| merged common ancestors
-=======
 ts_option_engine_attribute:
           ENGINE_ATTRIBUTE_SYM opt_equal json_attribute
           {
@@ -5674,7 +5653,6 @@ ts_option_engine_attribute:
           }
         ;
 
->>>>>>> mysql-8.0.21
 size_number:
           real_ulonglong_num { $$= $1;}
         | IDENT_sys
@@ -6234,17 +6212,11 @@ create_table_option:
         | ENCRYPTION_SYM opt_equal TEXT_STRING_sys
           {
             $$= NEW_PTN PT_create_encryption_option($3);
-<<<<<<< HEAD
-	  }
+	        }
         | ENCRYPTION_KEY_ID_SYM opt_equal real_ulong_num
           {
             $$= NEW_PTN PT_create_encryption_key_id_option($3);
           }
-||||||| merged common ancestors
-	  }
-=======
-          }
->>>>>>> mysql-8.0.21
         | AUTO_INC opt_equal ulonglong_num
           {
             $$= NEW_PTN PT_create_auto_increment_option($3);
@@ -15709,13 +15681,7 @@ alter_instance_stmt:
           ALTER INSTANCE_SYM alter_instance_action
           {
             Lex->sql_command= SQLCOM_ALTER_INSTANCE;
-<<<<<<< HEAD
-            $$= NEW_PTN PT_alter_instance($3.alter_instance_action, $3.key_id);
-||||||| merged common ancestors
-            $$= NEW_PTN PT_alter_instance($3);
-=======
             $$= $3;
->>>>>>> mysql-8.0.21
           }
 
 alter_instance_action:
@@ -15723,20 +15689,11 @@ alter_instance_action:
           {
             if (is_identifier($2, "INNODB"))
             {
-<<<<<<< HEAD
-              $$.alter_instance_action = ROTATE_INNODB_MASTER_KEY;
-              $$.key_id = 0;
-||||||| merged common ancestors
-              $$= ROTATE_INNODB_MASTER_KEY;
-=======
-              $$= NEW_PTN PT_alter_instance(ROTATE_INNODB_MASTER_KEY, EMPTY_CSTR);
->>>>>>> mysql-8.0.21
+              $$= NEW_PTN PT_alter_instance(ROTATE_INNODB_MASTER_KEY, EMPTY_CSTR, 0);
             }
             else if (is_identifier($2, "BINLOG"))
             {
-<<<<<<< HEAD
-              $$.alter_instance_action = ROTATE_BINLOG_MASTER_KEY;
-              $$.key_id = 0;
+              $$= NEW_PTN PT_alter_instance(ROTATE_BINLOG_MASTER_KEY, EMPTY_CSTR, 0);
             }
             else
             {
@@ -15753,8 +15710,7 @@ alter_instance_action:
                 my_error(ER_SYSTEM_KEY_ROTATION_MAX_KEY_ID_EXCEEDED, MYF(0));
                 MYSQL_YYABORT;
               }
-              $$.alter_instance_action = ROTATE_INNODB_SYSTEM_KEY;
-              $$.key_id = $5;
+              $$= NEW_PTN PT_alter_instance(ROTATE_INNODB_SYSTEM_KEY, EMPTY_CSTR, $5);
             }
             else
             {
@@ -15766,13 +15722,7 @@ alter_instance_action:
           {
             if (is_identifier($2, "REDO"))
             {
-              $$.alter_instance_action = ROTATE_REDO_SYSTEM_KEY;
-              $$.key_id = 0;
-||||||| merged common ancestors
-              $$= ROTATE_BINLOG_MASTER_KEY;
-=======
-              $$= NEW_PTN PT_alter_instance(ROTATE_BINLOG_MASTER_KEY, EMPTY_CSTR);
->>>>>>> mysql-8.0.21
+              $$= NEW_PTN PT_alter_instance(ROTATE_REDO_SYSTEM_KEY, EMPTY_CSTR, 0);
             }
             else
             {
@@ -15782,31 +15732,24 @@ alter_instance_action:
           }
         | RELOAD TLS_SYM
           {
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR, to_lex_cstring("mysql_main"));
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR, to_lex_cstring("mysql_main"), 0);
           }
         | RELOAD TLS_SYM NO_SYM ROLLBACK_SYM ON_SYM ERROR_SYM
           {
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS, to_lex_cstring("mysql_main"));
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS, to_lex_cstring("mysql_main"), 0);
           }
         | RELOAD TLS_SYM FOR_SYM CHANNEL_SYM ident {
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR, to_lex_cstring($5));
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR, to_lex_cstring($5), 0);
           }
         | RELOAD TLS_SYM FOR_SYM CHANNEL_SYM ident NO_SYM ROLLBACK_SYM ON_SYM ERROR_SYM {
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS, to_lex_cstring($5));
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS, to_lex_cstring($5), 0);
           }
         | ENABLE_SYM ident ident
           {
             if (!is_identifier($2, "INNODB"))
             {
-<<<<<<< HEAD
-              $$.alter_instance_action = ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR;
-              $$.key_id = 0;
-||||||| merged common ancestors
-              $$ = ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR;
-=======
               YYTHD->syntax_error_at(@2);
               MYSQL_YYABORT;
->>>>>>> mysql-8.0.21
             }
 
             if (!is_identifier($3, "REDO_LOG"))
@@ -15814,21 +15757,14 @@ alter_instance_action:
               YYTHD->syntax_error_at(@3);
               MYSQL_YYABORT;
             }
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_ENABLE_INNODB_REDO, EMPTY_CSTR);
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_ENABLE_INNODB_REDO, EMPTY_CSTR, 0);
           }
         | DISABLE_SYM ident ident
           {
             if (!is_identifier($2, "INNODB"))
             {
-<<<<<<< HEAD
-              $$.alter_instance_action = ALTER_INSTANCE_RELOAD_TLS;
-              $$.key_id = 0;
-||||||| merged common ancestors
-              $$ = ALTER_INSTANCE_RELOAD_TLS;
-=======
               YYTHD->syntax_error_at(@2);
               MYSQL_YYABORT;
->>>>>>> mysql-8.0.21
             }
 
             if (!is_identifier($3, "REDO_LOG"))
@@ -15836,7 +15772,7 @@ alter_instance_action:
               YYTHD->syntax_error_at(@3);
               MYSQL_YYABORT;
             }
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_DISABLE_INNODB_REDO, EMPTY_CSTR);
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_DISABLE_INNODB_REDO, EMPTY_CSTR, 0);
           }
         ;
 

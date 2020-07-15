@@ -406,7 +406,7 @@ bool JOIN::optimize() {
     if (select_lex->select_limit && select_lex->select_limit->fixed &&
         select_lex->select_limit->val_int() &&
         !is_order_deterministic(&select_lex->top_join_list, where_cond,
-                                order)) {
+                                order.order)) {
       thd->order_deterministic = false;
     }
   }

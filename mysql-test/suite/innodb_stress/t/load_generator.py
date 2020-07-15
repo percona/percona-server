@@ -1,11 +1,5 @@
-<<<<<<< HEAD
 from __future__ import print_function
 import io
-||||||| merged common ancestors
-import cStringIO
-=======
-import io
->>>>>>> mysql-8.0.21
 import hashlib
 import mysql.connector
 import os
@@ -19,13 +13,7 @@ import string
 CHARS = string.ascii_letters + string.digits
 
 def sha1(x):
-<<<<<<< HEAD
   return hashlib.sha1(str(x).encode('utf-8')).hexdigest()
-||||||| merged common ancestors
-  return hashlib.sha1(str(x)).hexdigest()
-=======
-  return hashlib.sha1(str(x).encode("utf-8")).hexdigest()
->>>>>>> mysql-8.0.21
 
 # Should be deterministic given an idx
 def get_msg(do_blob, idx):
@@ -64,22 +52,10 @@ class PopulateWorker(threading.Thread):
       self.exception = e
       try:
         cursor = self.con.cursor()
-<<<<<<< HEAD
         cursor.execute("INSERT INTO errors VALUES('%s')" % e)
       except MySQLdb.Error as e2:
         print("caught while inserting error (%s)" % e2, file=self.log)
       print("caught (%s)" % e, file=self.log)
-||||||| merged common ancestors
-        cursor.execute("INSERT INTO errors VALUES('%s')" % e)
-      except MySQLdb.Error, e2:
-        print >> self.log, "caught while inserting error (%s)" % e2
-      print >> self.log, "caught (%s)" % e
-=======
-        cursor.execute("INSERT INTO errors VALUES (%s)", (e,))
-      except mysql.connector.Error as e2:
-        print("caught while inserting error (%s)" % e2,)
-      print("caught (%s)" % e)
->>>>>>> mysql-8.0.21
     finally:
       self.finish()
 
@@ -110,31 +86,8 @@ def populate_table(con, num_records_before, do_blob, log):
   cur = con.cursor()
   stmt = None
   workers = []
-<<<<<<< HEAD
-  N = int(num_records_before / 10)
-||||||| merged common ancestors
-  N = num_records_before / 10
-=======
   N = num_records_before // 10
->>>>>>> mysql-8.0.21
   start_id = 0
-<<<<<<< HEAD
-  for i in range(10):
-     w = PopulateWorker(MySQLdb.connect(user=user, host=host, port=port, db=db),
-                        start_id, start_id + N, i)
-     start_id += N
-     workers.append(w)
-
-  for i in range(start_id, num_records_before):
-||||||| merged common ancestors
-  for i in xrange(10):
-     w = PopulateWorker(MySQLdb.connect(user=user, host=host, port=port, db=db),
-                        start_id, start_id + N, i)
-     start_id += N
-     workers.append(w)
-
-  for i in xrange(start_id, num_records_before):
-=======
   for i in range(10):
     # We use raw data as long strings of digits were interpretted by connector as
     # a float and cast to float value of "inf".
@@ -144,7 +97,6 @@ def populate_table(con, num_records_before, do_blob, log):
     workers.append(w)
 
   for i in range(start_id, num_records_before):
->>>>>>> mysql-8.0.21
       msg = get_msg(do_blob, i)
       stmt = """
 INSERT INTO t1(id,msg_prefix,msg,msg_length,msg_checksum) VALUES (%d,'%s','%s',%d,'%s')
@@ -155,13 +107,7 @@ INSERT INTO t1(id,msg_prefix,msg,msg_length,msg_checksum) VALUES (%d,'%s','%s',%
   for w in workers:
     w.join()
     if w.exception:
-<<<<<<< HEAD
-      print("populater thead %d threw an exception" % w.num, file=log)
-||||||| merged common ancestors
-      print >>log, "populater thead %d threw an exception" % w.num
-=======
       print("populater thead %d threw an exception" % w.num)
->>>>>>> mysql-8.0.21
       return False
   return True
 
@@ -211,24 +157,10 @@ class ChecksumWorker(threading.Thread):
         cursor = self.con.cursor()
         cursor.execute("INSERT INTO errors VALUES (%s)", (repr(e),))
         con.commit()
-<<<<<<< HEAD
-      except MySQLdb.Error as e2:
-        print("caught while inserting error (%s)" % e2, file=self.log)
-||||||| merged common ancestors
-      except MySQLdb.Error, e2:
-        print >> self.log, "caught while inserting error (%s)" % e2
-=======
       except mysql.connector.Error as e2:
         print("caught while inserting error (%s)" % repr(e2))
->>>>>>> mysql-8.0.21
 
-<<<<<<< HEAD
-      print("caught (%s)" % e, file=self.log)
-||||||| merged common ancestors
-      print >> self.log, "caught (%s)" % e
-=======
       print("caught (%s)" % repr(e))
->>>>>>> mysql-8.0.21
     finally:
       self.finish()
 
@@ -245,13 +177,7 @@ class ChecksumWorker(threading.Thread):
     checksum = cur.fetchone()[1]
     self.con.commit()
     if checksum != self.checksum:
-<<<<<<< HEAD
-      print("checksums do not match. given checksum=%d, calculated checksum=%d" % (self.checksum, checksum), file=self.log)
-||||||| merged common ancestors
-      print >> self.log, "checksums do not match. given checksum=%d, calculated checksum=%d" % (self.checksum, checksum)
-=======
       print("checksums do not match. given checksum=%d, calculated checksum=%d" % (self.checksum, checksum))
->>>>>>> mysql-8.0.21
       self.checksum = checksum
     else:
       print("checksums match! (both are %d)" % checksum, file=self.log)
@@ -308,13 +234,7 @@ class Worker(threading.Thread):
           len_match, len(msg), msg_length,
           checksum_match, checksum, msg_checksum,
           prefix_match, msg_prefix, msg[0:255])
-<<<<<<< HEAD
-      print(errmsg, file=self.log)
-||||||| merged common ancestors
-      print >> self.log, errmsg
-=======
       print(errmsg)
->>>>>>> mysql-8.0.21
 
       cursor = self.con.cursor()
       cursor.execute("INSERT INTO errors VALUES (%s)", (errmsg,))
@@ -333,58 +253,24 @@ class Worker(threading.Thread):
   def run(self):
     try:
       self.runme()
-<<<<<<< HEAD
       print("ok, with do_blob %s" % self.do_blob, file=self.log)
     except Exception as e:
-
-||||||| merged common ancestors
-      print >> self.log, "ok, with do_blob %s" % self.do_blob
-    except Exception, e:
-
-=======
-      print("ok, with do_blob %s" % self.do_blob, file=self.log)
-    except Exception as e:
->>>>>>> mysql-8.0.21
       try:
         cursor = self.con.cursor()
         cursor.execute("INSERT INTO errors VALUES (%s)", (repr(e),))
         cursor.execute("COMMIT")
-<<<<<<< HEAD
-      except MySQLdb.Error as e2:
-        print("caught while inserting error (%s)" % e2, file=self.log)
-||||||| merged common ancestors
-      except MySQLdb.Error, e2:
-        print >> self.log, "caught while inserting error (%s)" % e2
-=======
       except mysql.connector.Error as e2:
         print("caught while inserting errors: (%s)\nThe message to store: %s" % (repr(e2), repr(e)))
->>>>>>> mysql-8.0.21
 
-<<<<<<< HEAD
-      print("caught (%s)" % e, file=self.log)
-||||||| merged common ancestors
-      print >> self.log, "caught (%s)" % e
-=======
       print("caught (%s)" % repr(e))
->>>>>>> mysql-8.0.21
     finally:
       self.finish()
 
   def runme(self):
     self.start_time = time.time()
-<<<<<<< HEAD
-    cur = self.con.cursor()
-    print("thread %d started, run from %d to %d" % (
-        self.xid, self.loop_num, self.num_xactions), file=self.log)
-||||||| merged common ancestors
-    cur = self.con.cursor()
-    print >> self.log, "thread %d started, run from %d to %d" % (
-        self.xid, self.loop_num, self.num_xactions)
-=======
     cur = self.con.cursor(buffered=True)
     print("thread %d started, run from %d to %d" % (
         self.xid, self.loop_num, self.num_xactions), file=self.log)
->>>>>>> mysql-8.0.21
 
     while not self.num_xactions or (self.loop_num < self.num_xactions):
       idx = self.rand.randint(0, self.max_id)
@@ -449,40 +335,18 @@ class Worker(threading.Thread):
           if insert_or_update:
             if insert_with_index:
               if not self.check_exists(res_array, idx):
-<<<<<<< HEAD
-                print("Error: Inserted row doesn't exist in secondary index", file=self.log)
-||||||| merged common ancestors
-                print >> self.log, "Error: Inserted row doesn't exist in secondary index"
-=======
                 print("Error: Inserted row doesn't exist in secondary index")
->>>>>>> mysql-8.0.21
                 raise Exception("Error: Inserted row doesn't exist in secondary index")
           else:
             if self.check_exists(res_array, idx):
-<<<<<<< HEAD
-              print("Error: Deleted row still exists in secondary index", file=self.log)
-||||||| merged common ancestors
-              print >> self.log, "Error: Deleted row still exists in secondary index"
-=======
               print("Error: Deleted row still exists in secondary index")
->>>>>>> mysql-8.0.21
               raise Exception("Error: Deleted row still exists in secondary index")
 
 
         if (self.loop_num % 100) == 0:
-<<<<<<< HEAD
-          print("Thread %d loop_num %d: result %d: %s" % (self.xid,
-                                                            self.loop_num, query_result,
-                                                            stmt), file=self.log)
-||||||| merged common ancestors
-          print >> self.log, "Thread %d loop_num %d: result %d: %s" % (self.xid,
-                                                            self.loop_num, query_result,
-                                                            stmt)
-=======
           print("Thread %d loop_num %d: result: %s" % (self.xid,
                                                             self.loop_num,
                                                             stmt), file=self.log)
->>>>>>> mysql-8.0.21
 
         # 30% commit, 10% rollback, 60% don't end the trx
         r = self.rand.randint(1,10)
@@ -492,19 +356,6 @@ class Worker(threading.Thread):
           except mysql.connector.Error as e:
             print("Error: error during commit: %s" % e)
         elif r == 4:
-<<<<<<< HEAD
-          self.con.rollback()
-
-      except MySQLdb.Error as e:
-        if e.args[0] == 2006:  # server is killed
-          print("mysqld down, transaction %d" % self.xid, file=self.log)
-||||||| merged common ancestors
-          self.con.rollback()
-
-      except MySQLdb.Error, e:
-        if e.args[0] == 2006:  # server is killed
-          print >> self.log, "mysqld down, transaction %d" % self.xid
-=======
           try:
             self.con.rollback()
           except mysql.connector.Error as e:
@@ -515,34 +366,19 @@ class Worker(threading.Thread):
           print("mysqld down, transaction %d" % self.xid)
           return
         elif e.args[0] in [1213, 1205]:    # deadlock or lock wait timeout, ignore
->>>>>>> mysql-8.0.21
           return
         else:
-<<<<<<< HEAD
-          print("mysql error for stmt(%s) %s" % (stmt, e), file=self.log)
-||||||| merged common ancestors
-          print >> self.log, "mysql error for stmt(%s) %s" % (stmt, e)
-=======
           try:
             cursor = self.con.cursor()
             cursor.execute("INSERT INTO errors VALUES (%s)", ("%s -- %s" % (e, stmt),))
           except mysql.connector.Error as e2:
             print("caught while inserting error (%s)" % e2)
           print("mysql error for stmt(%s) %s" % (stmt, e))
->>>>>>> mysql-8.0.21
 
     try:
       self.con.commit()
-<<<<<<< HEAD
-    except Exception as e:
-      print("commit error %s" % e, file=self.log)
-||||||| merged common ancestors
-    except Exception, e:
-      print >> self.log, "commit error %s" % e
-=======
     except Exception as e:
       print("commit error %s" % repr(e))
->>>>>>> mysql-8.0.21
 
 if  __name__ == '__main__':
   global LG_TMP_DIR
@@ -574,50 +410,26 @@ if  __name__ == '__main__':
 #" db = ", db, " server_pid = ", server_pid
 
   if num_records_before:
-<<<<<<< HEAD
-    print("populate table do_blob is %d" % do_blob, file=log)
-    con = MySQLdb.connect(user=user, host=host, port=port, db=db)
-||||||| merged common ancestors
-    print >> log, "populate table do_blob is %d" % do_blob
-    con = MySQLdb.connect(user=user, host=host, port=port, db=db)
-=======
     print("populate table do_blob is %d" % do_blob, file=log)
     # We use raw data as long strings of digits were interpretted by connector as
     # a float and cast to float value of "inf".
     con = mysql.connector.connect(user=user, host=host, port=port, db=db, ssl_disabled=True, raw=True)
->>>>>>> mysql-8.0.21
     if not populate_table(con, num_records_before, do_blob, log):
       sys.exit(1)
     con.close()
 
   if checksum:
-<<<<<<< HEAD
-    print("start the checksum thread", file=log)
-    checksum_worker = ChecksumWorker(MySQLdb.connect(user=user, host=host, port=port, db=db), checksum)
-||||||| merged common ancestors
-    print >> log, "start the checksum thread"
-    checksum_worker = ChecksumWorker(MySQLdb.connect(user=user, host=host, port=port, db=db), checksum)
-=======
     print("start the checksum thread", file=log)
     # We use raw data as long strings of digits were interpretted by connector as
     # a float and cast to float value of "inf".
     checksum_worker = ChecksumWorker(mysql.connector.connect(user=user, host=host, port=port, db=db,
                                                              ssl_disabled=True), checksum, raw=True)
->>>>>>> mysql-8.0.21
     workers.append(checksum_worker)
 
-<<<<<<< HEAD
-  print("start %d threads" % num_workers, file=log)
-  for i in range(num_workers):
-||||||| merged common ancestors
-  print >> log, "start %d threads" % num_workers
-  for i in xrange(num_workers):
-=======
   print("start %d threads" % num_workers, file=log)
   for i in range(num_workers):
     # We use raw data as long strings of digits were interpretted by connector as
     # a float and cast to float value of "inf".
->>>>>>> mysql-8.0.21
     worker = Worker(num_xactions_per_worker, i,
                     mysql.connector.connect(user=user, host=host, port=port, db=db, ssl_disabled=True, raw=True),
                     server_pid, do_blob, max_id, fake_changes, secondary_checks)

@@ -217,14 +217,6 @@ struct mtr_t {
     mtr_t *m_mtr;
   };
 
-<<<<<<< HEAD
-  mtr_t() {
-    m_impl.m_state = MTR_STATE_INIT;
-    m_impl.m_flush_observer = NULL;
-  }
-||||||| merged common ancestors
-  mtr_t() { m_impl.m_state = MTR_STATE_INIT; }
-=======
 #ifndef UNIV_HOTBACKUP
   /** mtr global logging */
   class Logging {
@@ -352,10 +344,10 @@ struct mtr_t {
 
   mtr_t() {
     m_impl.m_state = MTR_STATE_INIT;
+    m_impl.m_flush_observer = nullptr;
     m_impl.m_marked_nolog = false;
     m_impl.m_shard_index = 0;
   }
->>>>>>> mysql-8.0.21
 
   ~mtr_t() {
 #ifdef UNIV_DEBUG

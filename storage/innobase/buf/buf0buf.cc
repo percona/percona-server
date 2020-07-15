@@ -4488,28 +4488,16 @@ const buf_block_t *buf_page_try_get_func(const page_id_t &page_id,
 
   ut_ad(!buf_pool_watch_is_sentinel(buf_pool, &block->page));
 
-  buf_block_buf_fix_inc(block, file, line);
-
+  buf_page_mutex_enter(block);
   rw_lock_s_unlock(hash_lock);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-  buf_page_mutex_enter(block);
   ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-<<<<<<< HEAD
-  ut_a(page_id.equals_to(block->page.id));
-||||||| merged common ancestors
-  ut_a(page_id.equals_to(block->page.id));
-#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
-
-  buf_block_buf_fix_inc(block, file, line);
-=======
   ut_a(page_id == block->page.id);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
   buf_block_buf_fix_inc(block, file, line);
->>>>>>> mysql-8.0.21
   buf_page_mutex_exit(block);
-#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
   mtr_memo_type_t fix_type = MTR_MEMO_PAGE_S_FIX;
   success = rw_lock_s_lock_nowait(&block->lock, file, line);

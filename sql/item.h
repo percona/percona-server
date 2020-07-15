@@ -4910,29 +4910,11 @@ class Item_result_field : public Item {
   }
 
   longlong llrint_with_overflow_check(double realval) {
-<<<<<<< HEAD
-    if (realval < static_cast<double>(LLONG_MIN) ||
-        realval > static_cast<double>(LLONG_MAX)) {
-||||||| merged common ancestors
-    if (realval < LLONG_MIN || realval > LLONG_MAX) {
-=======
     if (realval < LLONG_MIN || realval > LLONG_MAX_DOUBLE) {
->>>>>>> mysql-8.0.21
       raise_integer_overflow();
       return error_int();
     }
-<<<<<<< HEAD
-    // Rounding error, llrint() may return LLONG_MIN.
-    const longlong retval =
-        realval == static_cast<double>(LLONG_MAX) ? LLONG_MAX : llrint(realval);
-    return retval;
-||||||| merged common ancestors
-    // Rounding error, llrint() may return LLONG_MIN.
-    const longlong retval = realval == LLONG_MAX ? LLONG_MAX : llrint(realval);
-    return retval;
-=======
     return llrint(realval);
->>>>>>> mysql-8.0.21
   }
 
   void raise_numeric_overflow(const char *type_name);

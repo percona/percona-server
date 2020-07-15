@@ -754,7 +754,6 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
     uint dup_key_found;
 
-<<<<<<< HEAD
     error = table->file->ha_fast_update(thd, *update_field_list,
                                         *update_value_list, conds);
     if (error == 0)
@@ -762,163 +761,13 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     else if (error != ENOTSUP) {
       table->file->print_error(error, MYF(0));
       error = 1;
-    } else
+    } else {
       while (true) {
         error = iterator->Read();
         if (error || thd->killed) break;
         thd->inc_examined_row_count(1);
         if (qep_tab.condition() != nullptr) {
           const bool skip_record = qep_tab.condition()->val_int() == 0;
-||||||| merged common ancestors
-    while (true) {
-      error = iterator->Read();
-      if (error || thd->killed) break;
-      thd->inc_examined_row_count(1);
-      if (qep_tab.condition() != nullptr) {
-        const bool skip_record = qep_tab.condition()->val_int() == 0;
-        if (thd->is_error()) {
-          error = 1;
-          break;
-        }
-        if (skip_record) {
-          table->file
-              ->unlock_row();  // Row failed condition check, release lock
-          thd->get_stmt_da()->inc_current_row_for_condition();
-          continue;
-        }
-      }
-      DBUG_ASSERT(!thd->is_error());
-
-      if (table->file->was_semi_consistent_read())
-        continue; /* repeat the read of the same row if it still exists */
-
-      table->clear_partial_update_diffs();
-
-      store_record(table, record[1]);
-      bool is_row_changed = false;
-      if (fill_record_n_invoke_before_triggers(
-              thd, &update, *update_field_list, *update_value_list, table,
-              TRG_EVENT_UPDATE, 0, false, &is_row_changed)) {
-        error = 1;
-        break;
-      }
-      found_rows++;
-
-      if (is_row_changed) {
-        /*
-          Default function and default expression values are filled before
-          evaluating the view check option. Check option on view using table(s)
-          with default function and default expression breaks otherwise.
-
-          It is safe to not invoke CHECK OPTION for VIEW if records are same.
-          In this case the row is coming from the view and thus should satisfy
-          the CHECK OPTION.
-        */
-        int check_result = table_list->view_check_option(thd);
-        if (check_result != VIEW_CHECK_OK) {
-          if (check_result == VIEW_CHECK_SKIP)
-            continue;
-          else if (check_result == VIEW_CHECK_ERROR) {
-            error = 1;
-            break;
-          }
-        }
-
-        /*
-          Existing rows in table should normally satisfy CHECK constraints. So
-          it should be safe to check constraints only for rows that has really
-          changed (i.e. after compare_records()).
-
-          In future, once addition/enabling of CHECK constraints without their
-          validation is supported, we might encounter old rows which do not
-          satisfy CHECK constraints currently enabled. However, rejecting no-op
-          updates to such invalid pre-existing rows won't make them valid and is
-          probably going to be confusing for users. So it makes sense to stick
-          to current behavior.
-        */
-        if (invoke_table_check_constraints(thd, table)) {
-=======
-    while (true) {
-      error = iterator->Read();
-      if (error || thd->killed) break;
-      thd->inc_examined_row_count(1);
-      if (qep_tab.condition() != nullptr) {
-        const bool skip_record = qep_tab.condition()->val_int() == 0;
-        if (thd->is_error()) {
-          error = 1;
-          break;
-        }
-        if (skip_record) {
-          table->file
-              ->unlock_row();  // Row failed condition check, release lock
-          thd->get_stmt_da()->inc_current_row_for_condition();
-          continue;
-        }
-      }
-      DBUG_ASSERT(!thd->is_error());
-
-      if (table->file->was_semi_consistent_read())
-        /*
-          Reviewer: iterator is reading from the to-be-updated table or
-          from a tmp file.
-          In the latter case, if the condition of this if() is true,
-          it is wrong to "continue"; indeed this will pick up the _next_ row of
-          tempfile; it will not re-read-with-lock the current row of tempfile,
-          as tempfile is not an InnoDB table and not doing semi consistent read.
-          If that happens, we're potentially skipping a row which was found
-          matching! OTOH, as the rowid was written to the tempfile, it means it
-          matched and thus we have already re-read it in the tempfile-write loop
-          above and thus locked it. So we shouldn't come here. How about adding
-          an assertion that if reading from tmp file we shouldn't come here?
-        */
-        continue; /* repeat the read of the same row if it still exists */
-
-      table->clear_partial_update_diffs();
-
-      store_record(table, record[1]);
-      bool is_row_changed = false;
-      if (fill_record_n_invoke_before_triggers(
-              thd, &update, *update_field_list, *update_value_list, table,
-              TRG_EVENT_UPDATE, 0, false, &is_row_changed)) {
-        error = 1;
-        break;
-      }
-      found_rows++;
-
-      if (is_row_changed) {
-        /*
-          Default function and default expression values are filled before
-          evaluating the view check option. Check option on view using table(s)
-          with default function and default expression breaks otherwise.
-
-          It is safe to not invoke CHECK OPTION for VIEW if records are same.
-          In this case the row is coming from the view and thus should satisfy
-          the CHECK OPTION.
-        */
-        int check_result = table_list->view_check_option(thd);
-        if (check_result != VIEW_CHECK_OK) {
-          if (check_result == VIEW_CHECK_SKIP)
-            continue;
-          else if (check_result == VIEW_CHECK_ERROR) {
-            error = 1;
-            break;
-          }
-        }
-
-        /*
-          Existing rows in table should normally satisfy CHECK constraints. So
-          it should be safe to check constraints only for rows that has really
-          changed (i.e. after compare_records()).
-
-          In future, once addition/enabling of CHECK constraints without their
-          validation is supported, we might encounter old rows which do not
-          satisfy CHECK constraints currently enabled. However, rejecting no-op
-          updates to such invalid pre-existing rows won't make them valid and is
-          probably going to be confusing for users. So it makes sense to stick
-          to current behavior.
-        */
-        if (invoke_table_check_constraints(thd, table)) {
->>>>>>> mysql-8.0.21
           if (thd->is_error()) {
             error = 1;
             break;
@@ -933,6 +782,19 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         DBUG_ASSERT(!thd->is_error());
 
         if (table->file->was_semi_consistent_read())
+        /*
+          Reviewer: iterator is reading from the to-be-updated table or
+          from a tmp file.
+          In the latter case, if the condition of this if() is true,
+          it is wrong to "continue"; indeed this will pick up the _next_ row of
+          tempfile; it will not re-read-with-lock the current row of tempfile,
+          as tempfile is not an InnoDB table and not doing semi consistent read.
+          If that happens, we're potentially skipping a row which was found
+          matching! OTOH, as the rowid was written to the tempfile, it means it
+          matched and thus we have already re-read it in the tempfile-write loop
+          above and thus locked it. So we shouldn't come here. How about adding
+          an assertion that if reading from tmp file we shouldn't come here?
+        */
           continue; /* repeat the read of the same row if it still exists */
 
         table->clear_partial_update_diffs();
@@ -948,6 +810,15 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         found_rows++;
 
         if (is_row_changed) {
+        /*
+          Default function and default expression values are filled before
+          evaluating the view check option. Check option on view using table(s)
+          with default function and default expression breaks otherwise.
+
+          It is safe to not invoke CHECK OPTION for VIEW if records are same.
+          In this case the row is coming from the view and thus should satisfy
+          the CHECK OPTION.
+        */
           int check_result = table_list->view_check_option(thd);
           if (check_result != VIEW_CHECK_OK) {
             if (check_result == VIEW_CHECK_SKIP)
@@ -957,6 +828,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
               break;
             }
           }
+
           /*
             Existing rows in table should normally satisfy CHECK constraints. So
             it should be safe to check constraints only for rows that has really
@@ -964,10 +836,10 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
             In future, once addition/enabling of CHECK constraints without their
             validation is supported, we might encounter old rows which do not
-            satisfy CHECK constraints currently enabled. However, rejecting
-            no-op updates to such invalid pre-existing rows won't make them
-            valid and is probably going to be confusing for users. So it makes
-            sense to stick to current behavior.
+            satisfy CHECK constraints currently enabled. However, rejecting no-op
+            updates to such invalid pre-existing rows won't make them valid and is
+            probably going to be confusing for users. So it makes sense to stick
+            to current behavior.
           */
           if (invoke_table_check_constraints(thd, table)) {
             if (thd->is_error()) {
@@ -1019,8 +891,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           else if (error == HA_ERR_RECORD_IS_THE_SAME)
             error = 0;
           else {
-            if (table->file->is_fatal_error(error))
-              error_flags |= ME_FATALERROR;
+          if (table->file->is_fatal_error(error)) error_flags |= ME_FATALERROR;
 
             table->file->print_error(error, error_flags);
 
@@ -1084,6 +955,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           break;
         }
       }
+    }
     end_semi_consistent_read.rollback();
 
     dup_key_found = 0;

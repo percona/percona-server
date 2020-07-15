@@ -181,20 +181,16 @@ class Create_field {
   // Whether the field is actually an array of the field's type;
   bool is_array{false};
 
-<<<<<<< HEAD
   /*
     Store dict_id after verifying zip_dict_name exists. The stored id
     is filled in dd::Column::options and later used to fill TABLE_SHARE*
     zip_dict_name and zip_dict_data
-  */
+  */ 
   uint64_t zip_dict_id;
 
-||||||| merged common ancestors
-=======
   LEX_CSTRING m_engine_attribute = EMPTY_CSTR;
   LEX_CSTRING m_secondary_engine_attribute = EMPTY_CSTR;
 
->>>>>>> mysql-8.0.21
   Create_field()
       : after(nullptr),
         is_explicit_collation(false),
@@ -232,30 +228,13 @@ class Create_field {
 
   bool init(THD *thd, const char *field_name, enum_field_types type,
             const char *length, const char *decimals, uint type_modifier,
-<<<<<<< HEAD
-            Item *default_value, Item *on_update_value, LEX_CSTRING *comment,
+            Item *default_value, Item *on_update_value, const LEX_CSTRING *comment,
             const char *change, List<String> *interval_list,
             const CHARSET_INFO *cs, bool has_explicit_collation,
             uint uint_geom_type, const LEX_CSTRING *zip_dict_name,
             Value_generator *gcol_info, Value_generator *default_val_expr,
             Nullable<gis::srid_t> srid, dd::Column::enum_hidden_type hidden,
             bool is_array = false);
-||||||| merged common ancestors
-            Item *default_value, Item *on_update_value, LEX_CSTRING *comment,
-            const char *change, List<String> *interval_list,
-            const CHARSET_INFO *cs, bool has_explicit_collation,
-            uint uint_geom_type, Value_generator *gcol_info,
-            Value_generator *default_val_expr, Nullable<gis::srid_t> srid,
-            dd::Column::enum_hidden_type hidden, bool is_array = false);
-=======
-            Item *default_value, Item *on_update_value,
-            const LEX_CSTRING *comment, const char *change,
-            List<String> *interval_list, const CHARSET_INFO *cs,
-            bool has_explicit_collation, uint uint_geom_type,
-            Value_generator *gcol_info, Value_generator *default_val_expr,
-            Nullable<gis::srid_t> srid, dd::Column::enum_hidden_type hidden,
-            bool is_array = false);
->>>>>>> mysql-8.0.21
 
   ha_storage_media field_storage_type() const {
     return (ha_storage_media)((flags >> FIELD_FLAGS_STORAGE_MEDIA) & 3);

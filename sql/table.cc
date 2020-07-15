@@ -747,33 +747,17 @@ void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
   KEY_PART_INFO *key_part = &keyinfo->key_part[key_part_n];
   Field *field = key_part->field;
 
-<<<<<<< HEAD
   /* Flag field as unique and/or clustering if it is the only keypart in a
   unique/clustering index */
   if (key_part_n == 0 && key_n != primary_key_n) {
-    field->flags |= (((keyinfo->flags & HA_NOSAME) &&
-                      (keyinfo->user_defined_key_parts == 1))
-                         ? UNIQUE_KEY_FLAG
-                         : MULTIPLE_KEY_FLAG);
-    if (((keyinfo->flags & HA_CLUSTERING) &&
-         (keyinfo->user_defined_key_parts == 1)))
-      field->flags |= CLUSTERING_FLAG;
-  }
-||||||| merged common ancestors
-  /* Flag field as unique if it is the only keypart in a unique index */
-  if (key_part_n == 0 && key_n != primary_key_n)
-    field->flags |= (((keyinfo->flags & HA_NOSAME) &&
-                      (keyinfo->user_defined_key_parts == 1))
-                         ? UNIQUE_KEY_FLAG
-                         : MULTIPLE_KEY_FLAG);
-=======
-  /* Flag field as unique if it is the only keypart in a unique index */
-  if (key_part_n == 0 && key_n != primary_key_n)
     field->set_flag(
         ((keyinfo->flags & HA_NOSAME) && (keyinfo->user_defined_key_parts == 1))
             ? UNIQUE_KEY_FLAG
             : MULTIPLE_KEY_FLAG);
->>>>>>> mysql-8.0.21
+    if (((keyinfo->flags & HA_CLUSTERING) &&
+         (keyinfo->user_defined_key_parts == 1)))
+      field->set_flag(CLUSTERING_FLAG);
+  }
   if (key_part_n == 0) field->key_start.set_bit(key_n);
   field->m_indexed = true;
 
@@ -2280,7 +2264,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
           the primary key, then we can use any key to find this column
         */
         if (field->key_length() == key_part->length &&
-            !(field->flags & BLOB_FLAG))
+            !field->is_flag_set(BLOB_FLAG))
           field->part_of_key = share->keys_in_use;
         if (field->part_of_sortkey.is_set(primary_key))
           field->part_of_sortkey = share->keys_in_use;

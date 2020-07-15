@@ -235,17 +235,11 @@ enum srv_shutdown_t {
 to SRV_SHUTDOWN_EXIT_THREADS. */
 extern std::atomic<enum srv_shutdown_t> srv_shutdown_state;
 
-<<<<<<< HEAD
 /** true if shared MDL is taken by background thread for all tablespaces, for
  *  which (un)encryption is to be rolled forward*/
 extern bool shared_mdl_is_taken;
 
-/** Call exit(3) */
-||||||| merged common ancestors
-/** Call exit(3) */
-=======
 /** Call std::quick_exit(3) */
->>>>>>> mysql-8.0.21
 void srv_fatal_error() MY_ATTRIBUTE((noreturn));
 
 /** Attempt to shutdown all background threads created by InnoDB.

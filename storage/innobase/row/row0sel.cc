@@ -2554,16 +2554,10 @@ mysql_col_len, mbminlen, mbmaxlen
 #endif /* UNIV_DEBUG */
 /**
 @param[in]	data		data to store
-<<<<<<< HEAD
 @param[in]	len		length of the data
-@param[in]	prebuilt	use prebuilt->compress_heap only here
-||||||| merged common ancestors
-@param[in]	len		length of the data
-=======
-@param[in]	len		length of the data */
+@param[in]	prebuilt	use prebuilt->compress_heap only here */
 #ifdef UNIV_DEBUG
 /**
->>>>>>> mysql-8.0.21
 @param[in]	sec_field	secondary index field no if the secondary index
                                 record but the prebuilt template is in
                                 clustered index format and used only for end

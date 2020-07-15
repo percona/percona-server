@@ -5,28 +5,12 @@
 # Reinvoke the threads.
 
 
-<<<<<<< HEAD
---connection master
-#--let $innodb_index_cluster_optimization_save_master = `SELECT @@innodb_prefix_index_cluster_optimization`
---let $innodb_status_output_save_master = `SELECT @@innodb_status_output`
-
---connection slave
-#--let $innodb_index_cluster_optimization_save_slave = `SELECT @@innodb_prefix_index_cluster_optimization`
---let $innodb_status_output_save_slave = `SELECT @@innodb_status_output`
-||||||| merged common ancestors
---connection master
-#--let $innodb_index_cluster_optimization_save_master = `SELECT @@innodb_prefix_index_cluster_optimization`
-
---connection slave
-#--let $innodb_index_cluster_optimization_save_slave = `SELECT @@innodb_prefix_index_cluster_optimization`
-=======
 # Set python interpreter to use (On Windows executable is python.exe)
 --let $PYTHON = python3
 if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) IN ('Win32', 'Win64', 'Windows')`)
 {
   --let $PYTHON = python
 }
->>>>>>> mysql-8.0.21
 
 # create the directory for temporary log files.
 --mkdir $MYSQL_TMP_DIR/load_generator
@@ -191,43 +175,11 @@ let $slave_sync_timeout = 7200;
 
 connection master;
 
-<<<<<<< HEAD
---exec rm -rf $MYSQL_TMP_DIR/load_generator
-
---connection slave
-# Restore the value of variable on slave
---disable_query_log
-#eval SET GLOBAL innodb_prefix_index_cluster_optimization = $innodb_index_cluster_optimization_save_slave;
-eval SET GLOBAL innodb_status_output = $innodb_status_output_save_slave;
---enable_query_log
-
---connection master
-# Restore the value of variable on master
---disable_query_log
-#eval SET GLOBAL innodb_prefix_index_cluster_optimization = $innodb_index_cluster_optimization_save_master;
-eval SET GLOBAL innodb_status_output = $innodb_status_output_save_master;
---enable_query_log
-||||||| merged common ancestors
---exec rm -rf $MYSQL_TMP_DIR/load_generator
-
---connection slave
-# Restore the value of variable on slave
---disable_query_log
-#eval SET GLOBAL innodb_prefix_index_cluster_optimization = $innodb_index_cluster_optimization_save_slave;
---enable_query_log
-
---connection master
-# Restore the value of variable on master
---disable_query_log
-#eval SET GLOBAL innodb_prefix_index_cluster_optimization = $innodb_index_cluster_optimization_save_master;
---enable_query_log
-=======
 --force-rmdir $MYSQL_TMP_DIR/load_generator
 if ($fake_changes)
 {
   --force-rmdir $MYSQL_TMP_DIR/load_generator_slave
 }
->>>>>>> mysql-8.0.21
 
 # Reconnect client in case master had been killed
 if ($kill_db_after)

@@ -199,7 +199,6 @@ tablespaces to dictionary table mysql.tablespaces */
 using missing_sys_tblsp_t = std::set<fil_space_t *, space_compare>;
 extern missing_sys_tblsp_t missing_spaces;
 
-<<<<<<< HEAD
 /** This function parses a SYS_ZIP_DICT record, extracts necessary
 information from the record and returns to caller.
 @param[in,out]	heap		heap memory
@@ -217,13 +216,10 @@ const char *dict_process_sys_zip_dict(mem_heap_t *heap,
                                       const char **name, ulint *name_len,
                                       const char **data, ulint *data_len);
 
-||||||| merged common ancestors
-=======
 /** This bool denotes if we found a Table or Partition with discarded Tablespace
 during load of SYS_TABLES (in dict_check_sys_tables).
 
 We use it to stop upgrade from 5.7 to 8.0 if there are discarded Tablespaces. */
 extern bool has_discarded_tablespaces;
 
->>>>>>> mysql-8.0.21
 #endif

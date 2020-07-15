@@ -3721,15 +3721,9 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
             ? "PRI"
             : field->is_flag_set(UNIQUE_KEY_FLAG)
                   ? "UNI"
-<<<<<<< HEAD
-                  : (field->flags & MULTIPLE_KEY_FLAG)
+                  : (field->is_flag_set(MULTIPLE_KEY_FLAG))
                         ? "MUL"
-                        : (field->flags & CLUSTERING_FLAG) ? "CLU" : "");
-||||||| merged common ancestors
-                  : (field->flags & MULTIPLE_KEY_FLAG) ? "MUL" : "");
-=======
-                  : field->is_flag_set(MULTIPLE_KEY_FLAG) ? "MUL" : "");
->>>>>>> mysql-8.0.21
+                        : (field->is_flag_set(CLUSTERING_FLAG)) ? "CLU" : "");
     table->field[TMP_TABLE_COLUMNS_COLUMN_KEY]->store(
         (const char *)pos, strlen((const char *)pos), cs);
 

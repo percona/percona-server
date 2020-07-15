@@ -571,8 +571,8 @@ static int heap_prepare_hp_create_info(TABLE *table_arg, bool single_instance,
 
     if (field->type() == MYSQL_TYPE_VARCHAR) {
       column->length_bytes = static_cast<uint8>(
-          ((static_cast<Field_varstring *>(field))->length_bytes));
-    } else if (field->flags & BLOB_FLAG) {
+          ((static_cast<Field_varstring *>(field))->get_length_bytes()));
+    } else if (field->is_flag_set(BLOB_FLAG)) {
       blobs++;
       column->length_bytes = static_cast<uint8>(
           (static_cast<Field_blob *>(field))->pack_length_no_ptr());
@@ -632,20 +632,14 @@ static int heap_prepare_hp_create_info(TABLE *table_arg, bool single_instance,
       seg->length = (uint)key_part->length;
       seg->flag = key_part->key_part_flag;
 
-<<<<<<< HEAD
       next_field_pos = seg->start;
       if (field->type() == MYSQL_TYPE_VARCHAR) {
-        Field *orig_field = *(table_arg->field + key_part->field->field_index);
+        Field *orig_field = *(table_arg->field + key_part->field->field_index());
         next_field_pos += orig_field->pack_length();
       } else {
         next_field_pos += seg->length;
       }
-      if (field->flags & (ENUM_FLAG | SET_FLAG))
-||||||| merged common ancestors
-      if (field->flags & (ENUM_FLAG | SET_FLAG))
-=======
       if (field->is_flag_set(ENUM_FLAG) || field->is_flag_set(SET_FLAG))
->>>>>>> mysql-8.0.21
         seg->charset = &my_charset_bin;
       else
         seg->charset = field->charset_for_protocol();
@@ -717,11 +711,11 @@ static int heap_prepare_hp_create_info(TABLE *table_arg, bool single_instance,
         fixed_data_size = next_field_pos;
       }
 
-      if (field->field_index >= fixed_key_fieldnr) {
+      if (field->field_index() >= fixed_key_fieldnr) {
         /*
           Do not use seg->fieldnr as it's not reliable in case of temp tables
         */
-        fixed_key_fieldnr = field->field_index + 1;
+        fixed_key_fieldnr = field->field_index() + 1;
       }
     }
   }

@@ -167,7 +167,6 @@ bool validate_user_plugins = true;
 #define IP_ADDR_STRLEN (3 + 1 + 3 + 1 + 3 + 1 + 3)
 #define ACL_KEY_LENGTH (IP_ADDR_STRLEN + 1 + NAME_LEN + 1 + USERNAME_LENGTH + 1)
 
-<<<<<<< HEAD
 ACL_USER acl_utility_user;
 static LEX_STRING acl_utility_user_name, acl_utility_user_host_name;
 static bool acl_utility_user_initialized = false;
@@ -176,8 +175,6 @@ static std::vector<std::string> uu_dynamic_privileges;
 
 static void acl_free_utility_user();
 
-||||||| merged common ancestors
-=======
 /** Helper: Set user name */
 static void set_username(char **user, const char *user_arg, MEM_ROOT *mem) {
   DBUG_ASSERT(user != nullptr);
@@ -192,7 +189,6 @@ static void set_hostname(ACL_HOST_AND_IP *host, const char *host_arg,
                                                 : nullptr);
 }
 
->>>>>>> mysql-8.0.21
 /**
   Allocates the memory in the the global_acl_memory MEM_ROOT.
 */

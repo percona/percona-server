@@ -248,14 +248,8 @@ INSERT INTO global_suppressions VALUES
  ("\\[GCS\\] Error on opening a connection to localhost:.* on local port: .*."),
  ("\\[GCS\\] Error pushing message into group communication engine."),
  ("\\[GCS\\] Message cannot be sent because the member does not belong to a group."),
-<<<<<<< HEAD
  ("\\[GCS\\] Automatically adding IPv. localhost address to the whitelist. It is mandatory that it is added."),
-||||||| merged common ancestors
- ("\\[GCS\\] Automatically adding IPv4 localhost address to the whitelist. It is mandatory that it is added."),
-=======
- ("\\[GCS\\] Automatically adding IPv4 localhost address to the whitelist. It is mandatory that it is added."),
  ("\\[GCS\\] Unable to bind to INADDR_ANY:.*"),
->>>>>>> mysql-8.0.21
  ("\\[GCS\\] Unable to announce tcp port .*. Port already in use\\?"),
  ("\\[GCS\\] Error joining the group while waiting for the network layer to become ready."),
  ("\\[GCS\\] The member was unable to join the group. Local port: .*"),

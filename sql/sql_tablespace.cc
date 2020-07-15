@@ -967,19 +967,15 @@ bool Sql_cmd_alter_tablespace::execute(THD *thd) {
     }
   }
 
-<<<<<<< HEAD
   if (hton->flags & HTON_SUPPORTS_TABLE_ENCRYPTION) {
     tsmp.second->options().set("explicit_encryption",
                                m_options->encryption.str ? true : false);
   }
 
-||||||| merged common ancestors
-=======
   if (m_options->engine_attribute.str) {
     tsmp.second->set_engine_attribute(m_options->engine_attribute);
   }
 
->>>>>>> mysql-8.0.21
   /*
     Even if the tablespace already exists in the DD we still need to
     validate the name, since we are not allowed to modify

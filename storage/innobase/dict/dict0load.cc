@@ -1383,19 +1383,16 @@ std::pair<bool, space_id_t> dict_check_sys_tablespaces(bool validate) {
     opened. */
     char *filepath = dict_get_first_path(space_id);
 
-<<<<<<< HEAD
     // We do not need to validate tablespace for online encryption as encryption
     // threads do not work in 5.7. Only ENCRYPTION='KEYRING' works.
     Keyring_encryption_info keyring_encryption_info;
-||||||| merged common ancestors
-=======
+
     /* Check that this ibd is in a known location. If not, allow this
     but make some noise. */
     if (!fil_path_is_known(filepath)) {
       ib::warn(ER_IB_MSG_UNPROTECTED_LOCATION_ALLOWED, filepath, space_name);
     }
 
->>>>>>> mysql-8.0.21
     /* Check that the .ibd file exists. */
     dberr_t err = fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id,
                                fsp_flags, space_name, space_name, filepath,

@@ -179,13 +179,9 @@ enum options_client {
   OPT_ORDER_BY_PRIMARY_DESC,
   OPT_TLS_CIPHERSUITES,
   OPT_MYSQL_BINARY_AS_HEX,
-<<<<<<< HEAD
   OPT_START_SQL_FILE,
   OPT_FINISH_SQL_FILE,
-||||||| merged common ancestors
-=======
   OPT_LOAD_DATA_LOCAL_DIR,
->>>>>>> mysql-8.0.21
   /* Add new option above this */
   OPT_MAX_CLIENT_OPTION
 };

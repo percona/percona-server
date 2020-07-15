@@ -2152,14 +2152,8 @@ Field *Field::new_field(MEM_ROOT *root, TABLE *new_table) const {
       (tmp->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED);
   tmp->flags &= (NOT_NULL_FLAG | BLOB_FLAG | UNSIGNED_FLAG | ZEROFILL_FLAG |
                  BINARY_FLAG | ENUM_FLAG | SET_FLAG | NOT_SECONDARY_FLAG);
-<<<<<<< HEAD
   if (has_compressed_flag)
     tmp->set_column_format(COLUMN_FORMAT_TYPE_COMPRESSED);
-  tmp->reset_fields();
-||||||| merged common ancestors
-  tmp->reset_fields();
-=======
->>>>>>> mysql-8.0.21
   return tmp;
 }
 

@@ -416,17 +416,9 @@ static int copy_data_between_tables(
 
 static bool prepare_blob_field(THD *thd, Create_field *sql_field,
                                bool convert_character_set);
-<<<<<<< HEAD
 static bool check_engine(THD *thd, const char *db_name, const char *table_name,
                          HA_CREATE_INFO *create_info,
                          const Alter_info *alter_info);
-||||||| merged common ancestors
-static bool check_engine(THD *thd, const char *db_name, const char *table_name,
-                         HA_CREATE_INFO *create_info);
-=======
-static bool check_engine(const char *db_name, const char *table_name,
-                         HA_CREATE_INFO *create_info);
->>>>>>> mysql-8.0.21
 
 static bool prepare_set_field(THD *thd, Create_field *sql_field);
 static bool prepare_enum_field(THD *thd, Create_field *sql_field);
@@ -7105,11 +7097,6 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
     return true;
   if (key_info->comment.length > 0) key_info->flags |= HA_USES_COMMENT;
 
-<<<<<<< HEAD
-  switch (static_cast<int>(key->type)) {
-||||||| merged common ancestors
-  switch (key->type) {
-=======
   key_info->engine_attribute = key->key_create_info.m_engine_attribute;
   if (key_info->engine_attribute.length > 0)
     key_info->flags |= HA_INDEX_USES_ENGINE_ATTRIBUTE;
@@ -7120,8 +7107,7 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
 #ifndef DBUG_OFF
   decltype(key_info->flags) flags_before_switch = key_info->flags;
 #endif /* DBUG_OFF */
-  switch (key->type) {
->>>>>>> mysql-8.0.21
+  switch (static_cast<int>(key->type)) {
     case KEYTYPE_MULTIPLE:
       break;
     case KEYTYPE_FULLTEXT:
@@ -8625,91 +8611,7 @@ static bool create_table_impl(
     return true;
   }
 
-<<<<<<< HEAD
   if (check_engine(thd, db, table_name, create_info, alter_info)) return true;
-
-  // Check if new table creation is disallowed by the storage engine.
-  if (!internal_tmp_table &&
-      ha_is_storage_engine_disabled(create_info->db_type)) {
-    /*
-      If table creation is disabled for the engine then substitute the engine
-      for the table with the default engine only if sql mode
-      NO_ENGINE_SUBSTITUTION is disabled.
-    */
-    handlerton *new_engine = nullptr;
-    if (is_engine_substitution_allowed(thd))
-      new_engine = ha_default_handlerton(thd);
-
-    /*
-      Proceed with the engine substitution only if,
-      1. The disabled engine and the default engine are not the same.
-      2. The default engine is not in the disabled engines list.
-      else report an error.
-    */
-    if (new_engine && create_info->db_type &&
-        new_engine != create_info->db_type &&
-        !ha_is_storage_engine_disabled(new_engine)) {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_DISABLED_STORAGE_ENGINE,
-                          ER_THD(thd, ER_DISABLED_STORAGE_ENGINE),
-                          ha_resolve_storage_engine_name(create_info->db_type));
-
-      create_info->db_type = new_engine;
-
-      push_warning_printf(
-          thd, Sql_condition::SL_WARNING, ER_WARN_USING_OTHER_HANDLER,
-          ER_THD(thd, ER_WARN_USING_OTHER_HANDLER),
-          ha_resolve_storage_engine_name(create_info->db_type), table_name);
-    } else {
-      my_error(ER_DISABLED_STORAGE_ENGINE, MYF(0),
-               ha_resolve_storage_engine_name(create_info->db_type));
-      return true;
-    }
-  }
-||||||| merged common ancestors
-  if (check_engine(thd, db, table_name, create_info)) return true;
-
-  // Check if new table creation is disallowed by the storage engine.
-  if (!internal_tmp_table &&
-      ha_is_storage_engine_disabled(create_info->db_type)) {
-    /*
-      If table creation is disabled for the engine then substitute the engine
-      for the table with the default engine only if sql mode
-      NO_ENGINE_SUBSTITUTION is disabled.
-    */
-    handlerton *new_engine = nullptr;
-    if (is_engine_substitution_allowed(thd))
-      new_engine = ha_default_handlerton(thd);
-
-    /*
-      Proceed with the engine substitution only if,
-      1. The disabled engine and the default engine are not the same.
-      2. The default engine is not in the disabled engines list.
-      else report an error.
-    */
-    if (new_engine && create_info->db_type &&
-        new_engine != create_info->db_type &&
-        !ha_is_storage_engine_disabled(new_engine)) {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_DISABLED_STORAGE_ENGINE,
-                          ER_THD(thd, ER_DISABLED_STORAGE_ENGINE),
-                          ha_resolve_storage_engine_name(create_info->db_type));
-
-      create_info->db_type = new_engine;
-
-      push_warning_printf(
-          thd, Sql_condition::SL_WARNING, ER_WARN_USING_OTHER_HANDLER,
-          ER_THD(thd, ER_WARN_USING_OTHER_HANDLER),
-          ha_resolve_storage_engine_name(create_info->db_type), table_name);
-    } else {
-      my_error(ER_DISABLED_STORAGE_ENGINE, MYF(0),
-               ha_resolve_storage_engine_name(create_info->db_type));
-      return true;
-    }
-  }
-=======
-  if (check_engine(db, table_name, create_info)) return true;
->>>>>>> mysql-8.0.21
 
   // Secondary engine cannot be defined for temporary tables.
   if (create_info->secondary_engine.str != nullptr &&
@@ -15118,21 +15020,11 @@ static fk_column_change_type fk_check_column_changes(
         return fk_column_change_type::RENAMED;
       }
 
-<<<<<<< HEAD
       const auto fields_differ =
           (old_field->is_equal(new_field) == IS_EQUAL_NO);
 
       if (fields_differ || ((new_field->flags & NOT_NULL_FLAG) &&
-                            !(old_field->flags & NOT_NULL_FLAG))) {
-||||||| merged common ancestors
-      if ((old_field->is_equal(new_field) == IS_EQUAL_NO) ||
-          ((new_field->flags & NOT_NULL_FLAG) &&
-           !(old_field->flags & NOT_NULL_FLAG))) {
-=======
-      if ((old_field->is_equal(new_field) == IS_EQUAL_NO) ||
-          ((new_field->flags & NOT_NULL_FLAG) &&
-           !old_field->is_flag_set(NOT_NULL_FLAG))) {
->>>>>>> mysql-8.0.21
+                            !old_field->is_flag_set(NOT_NULL_FLAG))) {
         if (!(thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS)) {
           /*
             Column in a FK has changed significantly. Unless
@@ -16466,14 +16358,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       create_info->db_type = table->s->db_type();
   }
 
-<<<<<<< HEAD
   if (check_engine(thd, alter_ctx.new_db, alter_ctx.new_name, create_info,
                    alter_info))
-||||||| merged common ancestors
-  if (check_engine(thd, alter_ctx.new_db, alter_ctx.new_name, create_info))
-=======
-  if (check_engine(alter_ctx.new_db, alter_ctx.new_name, create_info))
->>>>>>> mysql-8.0.21
     return true;
 
   /*
@@ -18873,25 +18759,12 @@ err:
   @retval true  Engine not available/supported, error has been reported.
   @retval false Engine available/supported.
 */
-<<<<<<< HEAD
 static bool check_engine(THD *thd, const char *db_name, const char *table_name,
                          HA_CREATE_INFO *create_info,
                          const Alter_info *alter_info) {
-||||||| merged common ancestors
-static bool check_engine(THD *thd, const char *db_name, const char *table_name,
-                         HA_CREATE_INFO *create_info) {
-=======
-static bool check_engine(const char *db_name, const char *table_name,
-                         HA_CREATE_INFO *create_info) {
->>>>>>> mysql-8.0.21
   DBUG_TRACE;
   handlerton **new_engine = &create_info->db_type;
-<<<<<<< HEAD
   handlerton *req_engine = *new_engine;
-  bool no_substitution = (!is_engine_substitution_allowed(thd));
-  if (!(*new_engine = ha_checktype(thd, ha_legacy_type(req_engine),
-                                   no_substitution, true)))
-    return true;
 
   if (enforce_storage_engine && !opt_initialize && !opt_noacl) {
     /*
@@ -18900,6 +18773,8 @@ static bool check_engine(const char *db_name, const char *table_name,
       2. for "ALTER TABLE" statements without explicit "... ENGINE=xxx" part
       3. Transactional data dictionary (DD) tables
     */
+    bool no_substitution = (!is_engine_substitution_allowed(thd));
+
     bool enforcement_forbidden =
         ((thd->lex->sql_command == SQLCOM_ALTER_TABLE) &&
          (create_info->used_fields & HA_CREATE_USED_ENGINE) == 0) ||
@@ -18918,47 +18793,6 @@ static bool check_engine(const char *db_name, const char *table_name,
       }
     }
   }
-  if (req_engine && req_engine != *new_engine) {
-    push_warning_printf(
-        thd, Sql_condition::SL_NOTE, ER_WARN_USING_OTHER_HANDLER,
-        ER_THD(thd, ER_WARN_USING_OTHER_HANDLER),
-        ha_resolve_storage_engine_name(*new_engine), table_name);
-  }
-  if (create_info->options & HA_LEX_CREATE_TMP_TABLE &&
-      ha_check_storage_engine_flag(*new_engine, HTON_TEMPORARY_NOT_SUPPORTED)) {
-    if (create_info->used_fields & HA_CREATE_USED_ENGINE) {
-      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
-               ha_resolve_storage_engine_name(*new_engine), "TEMPORARY");
-      *new_engine = nullptr;
-      return true;
-    }
-    *new_engine = myisam_hton;
-  }
-||||||| merged common ancestors
-  handlerton *req_engine = *new_engine;
-  bool no_substitution = (!is_engine_substitution_allowed(thd));
-  if (!(*new_engine = ha_checktype(thd, ha_legacy_type(req_engine),
-                                   no_substitution, true)))
-    return true;
-
-  if (req_engine && req_engine != *new_engine) {
-    push_warning_printf(
-        thd, Sql_condition::SL_NOTE, ER_WARN_USING_OTHER_HANDLER,
-        ER_THD(thd, ER_WARN_USING_OTHER_HANDLER),
-        ha_resolve_storage_engine_name(*new_engine), table_name);
-  }
-  if (create_info->options & HA_LEX_CREATE_TMP_TABLE &&
-      ha_check_storage_engine_flag(*new_engine, HTON_TEMPORARY_NOT_SUPPORTED)) {
-    if (create_info->used_fields & HA_CREATE_USED_ENGINE) {
-      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
-               ha_resolve_storage_engine_name(*new_engine), "TEMPORARY");
-      *new_engine = nullptr;
-      return true;
-    }
-    *new_engine = myisam_hton;
-  }
-=======
->>>>>>> mysql-8.0.21
 
   /*
     Check, if the given table name is system table, and if the storage engine

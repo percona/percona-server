@@ -3,17 +3,12 @@
 --echo # WL#12138 -- Add Admin Port
 --echo #
 
-<<<<<<< HEAD
-CALL mtr.add_suppression("Too many connections");
-
-||||||| merged common ancestors
-=======
 --disable_query_log
+CALL mtr.add_suppression("Too many connections");
 CALL mtr.add_suppression("Failed to initialize TLS for channel: mysql_admin");
 CALL mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
 --enable_query_log
 
->>>>>>> mysql-8.0.21
 --echo # Create the user u1
 CREATE USER u1;
 --echo # Grant the user u1 the privilege SERVICE_CONNECTION_ADMIN

@@ -76,19 +76,9 @@ struct LF_PINBOX {
   lf_pinbox_free_func *free_func;
   void *free_func_arg;
   uint free_ptr_offset;
-<<<<<<< HEAD
   std::atomic<uint64> pinstack_top_ver; /* this is a versioned pointer */
   std::atomic<uint64> pins_in_array;    /* number of elements in array */
-} LF_PINBOX;
-||||||| merged common ancestors
-  std::atomic<uint32> pinstack_top_ver; /* this is a versioned pointer */
-  std::atomic<uint32> pins_in_array;    /* number of elements in array */
-} LF_PINBOX;
-=======
-  std::atomic<uint32> pinstack_top_ver; /* this is a versioned pointer */
-  std::atomic<uint32> pins_in_array;    /* number of elements in array */
 };
->>>>>>> mysql-8.0.21
 
 struct LF_PINS {
   std::atomic<void *> pin[LF_PINBOX_PINS];

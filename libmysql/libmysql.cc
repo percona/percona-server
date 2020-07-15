@@ -3205,18 +3205,8 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     case MYSQL_TYPE_DOUBLE: {
       double data;
       if (is_unsigned) {
-<<<<<<< HEAD
-        data = ulonglong2double(value);
-        *param->error = data >= static_cast<double>(ULLONG_MAX) ||
-                        ((ulonglong)value) != ((ulonglong)data);
-||||||| merged common ancestors
-        data = ulonglong2double(value);
-        *param->error =
-            data >= ULLONG_MAX || ((ulonglong)value) != ((ulonglong)data);
-=======
         data =
             convert_with_inexact_check<ulonglong, double>(value, param->error);
->>>>>>> mysql-8.0.21
       } else {
         data =
             convert_with_inexact_check<longlong, double>(value, param->error);

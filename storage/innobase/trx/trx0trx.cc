@@ -2195,7 +2195,7 @@ the receiver transaction will get the same read view as the donor transaction
 @param[in]	from_trx	donor transaction
 @return read view clone */
 ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx) {
-  ut_ad(lock_mutex_own());
+  ut_ad(locksys::owns_exclusive_global_latch());
   ut_ad(trx_sys_mutex_own());
   ut_ad(trx_mutex_own(from_trx));
 

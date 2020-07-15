@@ -394,12 +394,8 @@ class Alter_instance;
 class Sql_cmd_alter_instance : public Sql_cmd {
   friend class PT_alter_instance;
   const enum alter_instance_action_enum alter_instance_action;
-<<<<<<< HEAD
-  uint system_key_id;
-||||||| merged common ancestors
-=======
   LEX_CSTRING channel_name_;
->>>>>>> mysql-8.0.21
+  uint system_key_id;
   Alter_instance *alter_instance;
 
  public:
@@ -412,8 +408,9 @@ class Sql_cmd_alter_instance : public Sql_cmd {
 
   explicit Sql_cmd_alter_instance(
       enum alter_instance_action_enum alter_instance_action_arg,
-      uint system_key_id_arg)
+      const LEX_CSTRING &channel_name, uint system_key_id_arg)
       : alter_instance_action(alter_instance_action_arg),
+        channel_name_(channel_name),
         system_key_id(system_key_id_arg),
         alter_instance(NULL) {}
 

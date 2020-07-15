@@ -1895,7 +1895,6 @@ typedef bool (*rotate_encryption_master_key_t)(void);
 
 /**
   @brief
-<<<<<<< HEAD
   Fix empty UUID of tablespaces of an engine. This is used when engine encrypts
   tablespaces as part of initialization. These tablespaces will have empty UUID
   because UUID is generated after all plugins are initialized. This API will be
@@ -1929,8 +1928,6 @@ using upgrade_get_compression_dict_data_t =
 
 /**
   @brief
-||||||| merged common ancestors
-=======
   Enable or Disable SE write ahead logging.
 
   @param[in] thd    server thread handle
@@ -1942,7 +1939,6 @@ typedef bool (*redo_log_set_state_t)(THD *thd, bool enable);
 
 /**
   @brief
->>>>>>> mysql-8.0.21
   Retrieve ha_statistics from SE.
 
   @param db_name                  Name of schema
@@ -2490,15 +2486,11 @@ struct handlerton {
   notify_exclusive_mdl_t notify_exclusive_mdl;
   notify_alter_table_t notify_alter_table;
   rotate_encryption_master_key_t rotate_encryption_master_key;
-<<<<<<< HEAD
   fix_tablespaces_empty_uuid_t fix_tablespaces_empty_uuid;
   fix_default_table_encryption_t fix_default_table_encryption;
   check_mk_keyring_exclusions_t check_mk_keyring_exclusions;
   upgrade_get_compression_dict_data_t upgrade_get_compression_dict_data;
-||||||| merged common ancestors
-=======
   redo_log_set_state_t redo_log_set_state;
->>>>>>> mysql-8.0.21
 
   get_table_statistics_t get_table_statistics;
   get_index_column_cardinality_t get_index_column_cardinality;
@@ -2636,25 +2628,6 @@ struct handlerton {
 /** Engine supports table or tablespace encryption . */
 #define HTON_SUPPORTS_TABLE_ENCRYPTION (1 << 16)
 
-<<<<<<< HEAD
-/**
-   Set if the storage engine supports 'online' backups. This means that there
-   exists a way to create a consistent copy of its tables without blocking
-   updates to them. If so, statements that update such tables will not be
-   affected by an active LOCK TABLES FOR BACKUP.
-*/
-#define HTON_SUPPORTS_ONLINE_BACKUPS (1 << 17)
-
-/**
-  Engine supports secondary clustered keys.
-*/
-#define HTON_SUPPORTS_CLUSTERED_KEYS (1 << 18)
-
-/**
-  Engine supports compressed columns.
-*/
-#define HTON_SUPPORTS_COMPRESSED_COLUMNS (1 << 19)
-
 struct TABLE_STATS {
   ulonglong rows_read, rows_changed;
   ulonglong rows_changed_x_indexes;
@@ -2670,12 +2643,9 @@ struct TABLE_STATS {
         engine_type(engine_type_) {}
 };
 
-||||||| merged common ancestors
-=======
 constexpr const decltype(handlerton::flags) HTON_SUPPORTS_ENGINE_ATTRIBUTE{
     1 << 17};
 
->>>>>>> mysql-8.0.21
 inline bool ddl_is_atomic(const handlerton *hton) {
   return (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) != 0;
 }

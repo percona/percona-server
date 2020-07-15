@@ -116,12 +116,8 @@
 #include "sql/sql_plugin.h"  // plugin_foreach
 #include "sql/sql_select.h"  // actual_key_parts
 #include "sql/sql_table.h"   // build_table_filename
-<<<<<<< HEAD
 #include "sql/sql_zip_dict.h"
-||||||| merged common ancestors
-=======
 #include "sql/strfunc.h"     // strnncmp_nopads
->>>>>>> mysql-8.0.21
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/tc_log.h"
@@ -2812,21 +2808,17 @@ void HA_CREATE_INFO::init_create_options_from_share(const TABLE_SHARE *share,
     DBUG_ASSERT(secondary_engine.str == nullptr);
     secondary_engine = share->secondary_engine;
   }
-<<<<<<< HEAD
 
   if (!(used_fields & HA_CREATE_USED_ENCRYPTION_KEY_ID)) {
     encryption_key_id = share->encryption_key_id;
     was_encryption_key_id_set = share->was_encryption_key_id_set;
   }
-||||||| merged common ancestors
-=======
 
   if (engine_attribute.str == nullptr)
     engine_attribute = share->engine_attribute;
 
   if (secondary_engine_attribute.str == nullptr)
     secondary_engine_attribute = share->secondary_engine_attribute;
->>>>>>> mysql-8.0.21
 }
 
 /****************************************************************************

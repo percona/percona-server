@@ -42,13 +42,7 @@ call mtr.add_suppression("Failed to set up SSL because of the following SSL libr
 call mtr.add_suppression("Failed to initialize TLS for channel: mysql_main");
 
 let $total_global_vars=`SELECT COUNT(*) FROM performance_schema.global_variables where variable_name NOT LIKE 'ndb_%'`;
-<<<<<<< HEAD
-let $total_persistent_vars=447;
-||||||| merged common ancestors
-let $total_persistent_vars=393;
-=======
-let $total_persistent_vars=403;
->>>>>>> mysql-8.0.21
+let $total_persistent_vars=457;
 
 --echo ***************************************************************
 --echo * 0. Verify that variables present in performance_schema.global

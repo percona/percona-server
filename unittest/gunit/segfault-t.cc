@@ -63,26 +63,10 @@ TEST_F(FatalSignalDeathTest, Segfault) {
    gtest library instead.
   */
   EXPECT_DEATH_IF_SUPPORTED(*pint = 42, "");
-<<<<<<< HEAD
-#elif defined(__SANITIZE_ADDRESS__)
+#elif defined(HAVE_ASAN)
   /* AddressSanitizer */
   EXPECT_DEATH_IF_SUPPORTED(*pint = 42, ".*ASAN:(DEADLYSIGNAL|SIGSEGV).*");
 #else
-||||||| merged common ancestors
-#elif defined(__SANITIZE_ADDRESS__)
-/* gcc 4.8.1 with '-fsanitize=address -O1' */
-/* Newer versions of ASAN give other error message, disable it */
-// EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".*ASAN:SIGSEGV.*");
-#else
-  int *pint = nullptr;
-=======
-#elif defined(HAVE_ASAN)
-/* gcc 4.8.1 with '-fsanitize=address -O1' */
-/* Newer versions of ASAN give other error message, disable it */
-// EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".*ASAN:SIGSEGV.*");
-#elif defined(HANDLE_FATAL_SIGNALS)
-  int *pint = nullptr;
->>>>>>> mysql-8.0.21
   /*
    On most platforms we get SIGSEGV == 11, but SIGBUS == 10 is also possible.
    And on Mac OsX we can get SIGILL == 4 (but only in optmized mode).

@@ -548,15 +548,11 @@ SET(SQL_SHARED_SOURCES
   sql_union.cc
   sql_update.cc
   sql_view.cc
-<<<<<<< HEAD
   sql_zip_dict.cc
-||||||| merged common ancestors
-=======
   ssl_acceptor_context_iterator.cc
   ssl_acceptor_context_data.cc
   ssl_acceptor_context_operator.cc
   ssl_init_callback.cc
->>>>>>> mysql-8.0.21
   stateless_allocator.cc
   strfunc.cc
   sys_vars.cc

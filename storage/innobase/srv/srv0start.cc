@@ -3491,6 +3491,7 @@ void srv_pre_dd_shutdown() {
     ib::warn(ER_IB_MSG_1154, ulonglong{threads_count});
     os_thread_sleep(1000000);  // 1s
   }
+
   /* Crash if some query threads are still alive. */
   ut_a(srv_conc_get_active_threads() == 0);
 
@@ -3512,18 +3513,6 @@ void srv_pre_dd_shutdown() {
   gtid_persistor.stop();
 
   if (srv_read_only_mode) {
-<<<<<<< HEAD
-    /* In read-only mode, no background tasks should
-    access the data dictionary. */
-    srv_is_being_shutdown = true;
-    srv_shutdown_state.store(SRV_SHUTDOWN_CLEANUP);
-    unlock_keyrings(NULL);
-||||||| merged common ancestors
-    /* In read-only mode, no background tasks should
-    access the data dictionary. */
-    srv_is_being_shutdown = true;
-    srv_shutdown_state.store(SRV_SHUTDOWN_CLEANUP);
-=======
     /* Check that goal of SRV_SHUTDOWN_RECOVERY_ROLLBACK is reached:
     1. In read-only mode, no rollbacks should be executed.
     2. The trx_recovery_rollback thread should not be started. */
@@ -3548,7 +3537,7 @@ void srv_pre_dd_shutdown() {
     srv_shutdown_set_state(SRV_SHUTDOWN_PRE_DD_AND_SYSTEM_TRANSACTIONS);
     srv_shutdown_set_state(SRV_SHUTDOWN_PURGE);
     srv_shutdown_set_state(SRV_SHUTDOWN_DD);
->>>>>>> mysql-8.0.21
+    unlock_keyrings(NULL);
     return;
   }
 
@@ -3604,27 +3593,19 @@ void srv_pre_dd_shutdown() {
 
   /* Since this point we do not expect accesses to DD coming from InnoDB. */
 
-<<<<<<< HEAD
-    if (srv_threads.m_crypt_threads_n > 0) {
-      wait = true;
-      if ((count % 600) == 0) {
-        ib::info(ER_XB_MSG_WAIT_FOR_KEYRING_ENCRYPT_THREAD)
-            << "Waiting for"
-               " keyring encryption threads"
-               " to exit";
-      }
+  for (;;) {
+    const auto threads_count = srv_threads.m_crypt_threads_n;
+    if (threads_count == 0) {
+      break;
     }
+    ib::info(ER_XB_MSG_WAIT_FOR_KEYRING_ENCRYPT_THREAD)
+          << "Waiting for"
+             " keyring encryption threads"
+             " to exit";
+    os_thread_sleep(1000000);  // 1s
+  }
 
-    if (!wait) {
-      break;
-    }
-||||||| merged common ancestors
-    if (!wait) {
-      break;
-    }
-=======
   srv_shutdown_set_state(SRV_SHUTDOWN_PURGE);
->>>>>>> mysql-8.0.21
 
   for (uint32_t count = 1; srv_purge_threads_active(); ++count) {
     srv_purge_wakeup();
@@ -3633,18 +3614,12 @@ void srv_pre_dd_shutdown() {
     }
     os_thread_sleep(SHUTDOWN_SLEEP_TIME_US);
   }
-<<<<<<< HEAD
 
   if (srv_start_state_is_set(SRV_START_STATE_STAT)) {
-    dict_stats_thread_deinit();
-    /* Shutdown key rotation threads */
     fil_crypt_threads_cleanup();
     btr_scrub_cleanup();
-||||||| merged common ancestors
+  }
 
-  if (srv_start_state_is_set(SRV_START_STATE_STAT)) {
-    dict_stats_thread_deinit();
-=======
   switch (trx_purge_state()) {
     case PURGE_STATE_INIT:
     case PURGE_STATE_EXIT:
@@ -3654,16 +3629,11 @@ void srv_pre_dd_shutdown() {
     case PURGE_STATE_RUN:
     case PURGE_STATE_STOP:
       ut_ad(0);
->>>>>>> mysql-8.0.21
   }
 
-<<<<<<< HEAD
+
   unlock_keyrings(NULL);
 
-  srv_is_being_shutdown = true;
-||||||| merged common ancestors
-  srv_is_being_shutdown = true;
-=======
   /* After this phase plugins are asked to be shut down, in which case they
   will be marked as DELETED. Note: we cannot leave any transaction in the THD,
   because the mechanism which cleans resources in THD would not be able to
@@ -3677,7 +3647,6 @@ void srv_pre_dd_shutdown() {
     - with state = TRX_STATE_ACTIVE and with is_recovered == true */
 
   trx_sys_after_pre_dd_shutdown_validate();
->>>>>>> mysql-8.0.21
 
   srv_shutdown_set_state(SRV_SHUTDOWN_DD);
 
@@ -4153,7 +4122,7 @@ void srv_fatal_error() {
 void log_ensure_scrubbing_thread(void) {
   log_scrub_thread_active = srv_scrub_log;
   if (log_scrub_thread_active) {
-    log_scrub_event = os_event_create("log_scrub_event");
+    log_scrub_event = os_event_create();
     auto thread = os_thread_create(log_scrub_thread_key, log_scrub_thread);
     thread.start();
   }

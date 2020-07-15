@@ -444,13 +444,8 @@ ulong srv_buf_pool_instances;
 const ulong srv_buf_pool_instances_default = 0;
 /** Number of locks to protect buf_pool->page_hash */
 ulong srv_n_page_hash_locks = 16;
-<<<<<<< HEAD
-
-||||||| merged common ancestors
-=======
 /** Whether to validate InnoDB tablespace paths on startup */
 bool srv_validate_tablespace_paths = true;
->>>>>>> mysql-8.0.21
 /** Scan depth for LRU flush batch i.e.: number of blocks scanned*/
 ulong srv_LRU_scan_depth = 1024;
 /** Whether or not to flush neighbors of a block */
@@ -1240,9 +1235,9 @@ static void srv_init(void) {
 
     UT_LIST_INIT(srv_sys->tasks, &que_thr_t::queue);
 
-    srv_checkpoint_completed_event = os_event_create(0);
+    srv_checkpoint_completed_event = os_event_create();
 
-    srv_redo_log_tracked_event = os_event_create(0);
+    srv_redo_log_tracked_event = os_event_create();
     os_event_set(srv_redo_log_tracked_event);
   }
 
@@ -1475,37 +1470,6 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
     mutex_exit(&dict_foreign_err_mutex);
   }
 
-<<<<<<< HEAD
-  /* Only if lock_print_info_summary proceeds correctly,
-  before we call the lock_print_info_all_transactions
-  to print all the lock information. IMPORTANT NOTE: This
-  function acquires the lock mutex on success. */
-  ret = recv_recovery_on ? FALSE : lock_print_info_summary(file, nowait);
-
-  if (ret) {
-    if (trx_start_pos) {
-      long t = ftell(file);
-      if (t < 0) {
-        *trx_start_pos = ULINT_UNDEFINED;
-      } else {
-        *trx_start_pos = (ulint)t;
-      }
-||||||| merged common ancestors
-  /* Only if lock_print_info_summary proceeds correctly,
-  before we call the lock_print_info_all_transactions
-  to print all the lock information. IMPORTANT NOTE: This
-  function acquires the lock mutex on success. */
-  ret = lock_print_info_summary(file, nowait);
-
-  if (ret) {
-    if (trx_start_pos) {
-      long t = ftell(file);
-      if (t < 0) {
-        *trx_start_pos = ULINT_UNDEFINED;
-      } else {
-        *trx_start_pos = (ulint)t;
-      }
-=======
   ret = true;
   if (nowait) {
     locksys::Global_exclusive_try_latch guard{};
@@ -1514,7 +1478,6 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
     } else {
       fputs("FAIL TO OBTAIN LOCK MUTEX, SKIP LOCK INFO PRINTING\n", file);
       ret = false;
->>>>>>> mysql-8.0.21
     }
   } else {
     locksys::Global_exclusive_latch_guard guard{};
@@ -3160,42 +3123,6 @@ static void srv_master_sleep(void) {
 
 /** Check redo and undo log encryption and rotate default master key. */
 static void srv_sys_check_set_encryption() {
-<<<<<<< HEAD
-||||||| merged common ancestors
-  /* Rotate default master key for redo log encryption if it is set */
-  if (srv_redo_log_encrypt) {
-    fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
-    ut_a(space);
-
-    /* Encryption for redo tablesapce must already have been set. This is
-    safeguard to encrypt it if not done earlier. */
-    ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
-
-    if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-      ib::warn(ER_IB_MSG_1285, space->name, "srv_redo_log_encrypt");
-      srv_enable_redo_encryption(false);
-    }
-    redo_rotate_default_master_key();
-  }
-
-=======
-  /* Rotate default master key for redo log encryption if it is set */
-  if (srv_redo_log_encrypt) {
-    fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
-    ut_a(space);
-
-    /* Encryption for redo tablespace must already have been set. This is
-    safeguard to encrypt it if not done earlier. */
-    ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
-
-    if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-      ib::warn(ER_IB_MSG_1285, space->name, "srv_redo_log_encrypt");
-      srv_enable_redo_encryption(false);
-    }
-    redo_rotate_default_master_key();
-  }
-
->>>>>>> mysql-8.0.21
   if (!srv_undo_log_encrypt) {
     return;
   }
@@ -3232,40 +3159,10 @@ static void srv_sys_check_set_encryption() {
   mutex_exit(&undo::ddl_mutex);
 }
 
-<<<<<<< HEAD
-/** The master thread controlling the server. */
-void srv_master_thread() {
-  DBUG_TRACE;
-
-  srv_slot_t *slot;
-  ulint old_activity_count = srv_get_activity_count();
-  ulint old_ibuf_merge_activity_count = srv_get_ibuf_merge_activity_count();
-
-  srv_master_tid = os_thread_get_tid();
-
-  const auto actual_priority =
-      os_thread_set_priority(srv_master_tid, srv_sched_priority_master);
-  if (UNIV_UNLIKELY(actual_priority != srv_sched_priority_master))
-    ib::warn() << "Failed to set master thread priority to "
-               << srv_sched_priority_master << " the current priority is "
-               << actual_priority;
-
-  THD *thd = create_thd(false, true, true, 0);
-||||||| merged common ancestors
-/** The master thread controlling the server. */
-void srv_master_thread() {
-  DBUG_TRACE;
-
-  srv_slot_t *slot;
-  ulint old_activity_count = srv_get_activity_count();
-
-  THD *thd = create_thd(false, true, true, 0);
-=======
 /** Waits on event in provided slot.
 @param[in]   slot     slot reserved as SRV_MASTER */
 static void srv_master_wait(srv_slot_t *slot) {
   srv_main_thread_op_info = "suspending";
->>>>>>> mysql-8.0.21
 
   srv_suspend_thread(slot);
 
@@ -3296,7 +3193,8 @@ static void srv_master_main_loop(srv_slot_t *slot) {
   }
 
   ulint old_activity_count = srv_get_activity_count();
-
+  ulint old_ibuf_merge_activity_count = srv_get_ibuf_merge_activity_count();
+  
   while (srv_shutdown_state.load() <
          SRV_SHUTDOWN_PRE_DD_AND_SYSTEM_TRANSACTIONS) {
     srv_master_sleep();

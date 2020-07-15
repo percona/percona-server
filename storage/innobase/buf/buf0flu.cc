@@ -117,8 +117,8 @@ struct page_cleaner_slot_t {
                               protected by page_cleaner_t::mutex
                               if the worker thread got the slot and
                               set to PAGE_CLEANER_STATE_FLUSHING,
-                              n_flushed_list can be updated only by
-                              the worker thread */
+                              n_flushed_lru and n_flushed_list can be
+                              updated only by the worker thread */
   /* This value is set during state==PAGE_CLEANER_STATE_NONE */
   ulint n_pages_requested;
   /*!< number of requested pages
@@ -126,15 +126,22 @@ struct page_cleaner_slot_t {
   /* These values are updated during state==PAGE_CLEANER_STATE_FLUSHING,
   and commited with state==PAGE_CLEANER_STATE_FINISHED.
   The consistency is protected by the 'state' */
+  ulint n_flushed_lru;
+  /*!< number of flushed pages
+  by LRU scan flushing */
   ulint n_flushed_list;
   /*!< number of flushed pages
   by flush_list flushing */
   bool succeeded_list;
   /*!< true if flush_list flushing
   succeeded. */
+  uint64_t flush_lru_time;
+  /*!< elapsed time for LRU flushing */
   uint64_t flush_list_time;
   /*!< elapsed time for flush_list
   flushing */
+  ulint flush_lru_pass;
+  /*!< count to attempt LRU flushing */
   ulint flush_list_pass;
   /*!< count to attempt flush_list
   flushing */
@@ -2529,280 +2536,12 @@ ulint get_pct_for_lsn(lsn_t age) /*!< in: current age of LSN. */
   }
 }
 
-<<<<<<< HEAD
-/** This function is called approximately once every second by the
- page_cleaner thread, unless it is sync flushing mode, in which case
- it is called every small round. Based on various factors it decides
- if there is a need to do flushing.
- @param  last_pages_in  the number of pages flushed by the last flush_list
-                        flushing.
- @param  is_sync_flush  true iff this is sync flush mode
- @return number of pages recommended to be flushed */
-static ulint page_cleaner_flush_pages_recommendation(ulint last_pages_in,
-                                                     bool is_sync_flush) {
-  static lsn_t prev_lsn = 0;
-  static ulint sum_pages = 0;
-  static ulint avg_page_rate = 0;
-  static ulint n_iterations = 0;
-  static ib_time_monotonic_t prev_time;
-  lsn_t oldest_lsn;
-  lsn_t cur_lsn;
-  lsn_t age;
-  lsn_t lsn_rate;
-  ulint n_pages = 0;
-  ulint pct_for_dirty = 0;
-  ulint pct_for_lsn = 0;
-  ulint pct_total = 0;
-
-  cur_lsn = log_buffer_dirty_pages_added_up_to_lsn(*log_sys);
-
-  if (prev_lsn == 0) {
-    /* First time around. */
-    prev_lsn = cur_lsn;
-    prev_time = ut_time_monotonic();
-    return (0);
-  }
-
-  if (prev_lsn == cur_lsn && !is_sync_flush) {
-    return (0);
-  }
-
-  sum_pages += last_pages_in;
-
-  ib_time_monotonic_t curr_time = ut_time_monotonic();
-
-  auto time_elapsed = curr_time - prev_time;
-
-  const auto avg_loops = srv_flushing_avg_loops;
-
-  /* We update our variables every srv_flushing_avg_loops
-  iterations to smooth out transition in workload. */
-  if (++n_iterations >= avg_loops || time_elapsed >= (int64_t)avg_loops) {
-    if (time_elapsed < 1) {
-      time_elapsed = 1;
-    }
-
-    avg_page_rate = static_cast<ulint>(
-        ((static_cast<double>(sum_pages) / time_elapsed) + avg_page_rate) / 2);
-
-    /* How much LSN we have generated since last call. */
-    lsn_rate = static_cast<lsn_t>(static_cast<double>(cur_lsn - prev_lsn) /
-                                  time_elapsed);
-
-    lsn_avg_rate = (lsn_avg_rate + lsn_rate) / 2;
-
-    /* aggregate stats of all slots */
-    mutex_enter(&page_cleaner->mutex);
-
-    uint64_t flush_tm = page_cleaner->flush_time;
-    ulint flush_pass = page_cleaner->flush_pass;
-
-    page_cleaner->flush_time = 0;
-    page_cleaner->flush_pass = 0;
-
-    uint64_t list_tm = 0;
-    ulint list_pass = 0;
-
-    for (ulint i = 0; i < page_cleaner->n_slots; i++) {
-      page_cleaner_slot_t *slot;
-
-      slot = &page_cleaner->slots[i];
-
-      list_tm += slot->flush_list_time;
-      list_pass += slot->flush_list_pass;
-
-      slot->flush_list_time = 0;
-      slot->flush_list_pass = 0;
-    }
-
-    mutex_exit(&page_cleaner->mutex);
-
-    /* minimum values are 1, to avoid dividing by zero. */
-    if (list_tm < 1) {
-      list_tm = 1;
-    }
-    if (flush_tm < 1) {
-      flush_tm = 1;
-    }
-
-    if (list_pass < 1) {
-      list_pass = 1;
-    }
-    if (flush_pass < 1) {
-      flush_pass = 1;
-    }
-
-    MONITOR_SET(MONITOR_FLUSH_ADAPTIVE_AVG_TIME_SLOT, list_tm / list_pass);
-
-    MONITOR_SET(MONITOR_FLUSH_ADAPTIVE_AVG_TIME_THREAD,
-                list_tm / (srv_n_page_cleaners * flush_pass));
-    MONITOR_SET(MONITOR_FLUSH_ADAPTIVE_AVG_TIME_EST, flush_tm / flush_pass);
-    MONITOR_SET(MONITOR_FLUSH_AVG_TIME, flush_tm / flush_pass);
-
-    MONITOR_SET(MONITOR_FLUSH_ADAPTIVE_AVG_PASS,
-                list_pass / page_cleaner->n_slots);
-    MONITOR_SET(MONITOR_FLUSH_AVG_PASS, flush_pass);
-
-    prev_lsn = cur_lsn;
-    prev_time = curr_time;
-
-    n_iterations = 0;
-
-    sum_pages = 0;
-  }
-
-  oldest_lsn = buf_pool_get_oldest_modification_approx();
-
-||||||| merged common ancestors
-/** This function is called approximately once every second by the
- page_cleaner thread, unless it is sync flushing mode, in which case
- it is called every small round. Based on various factors it decides
- if there is a need to do flushing.
- @param  last_pages_in  the number of pages flushed by the last flush_list
-                        flushing.
- @param  is_sync_flush  true iff this is sync flush mode
- @return number of pages recommended to be flushed */
-static ulint page_cleaner_flush_pages_recommendation(ulint last_pages_in,
-                                                     bool is_sync_flush) {
-  static lsn_t prev_lsn = 0;
-  static ulint sum_pages = 0;
-  static ulint avg_page_rate = 0;
-  static ulint n_iterations = 0;
-  static ib_time_monotonic_t prev_time;
-  lsn_t oldest_lsn;
-  lsn_t cur_lsn;
-  lsn_t age;
-  lsn_t lsn_rate;
-  ulint n_pages = 0;
-  ulint pct_for_dirty = 0;
-  ulint pct_for_lsn = 0;
-  ulint pct_total = 0;
-
-  cur_lsn = log_buffer_dirty_pages_added_up_to_lsn(*log_sys);
-
-  if (prev_lsn == 0) {
-    /* First time around. */
-    prev_lsn = cur_lsn;
-    prev_time = ut_time_monotonic();
-    return (0);
-  }
-
-  if (prev_lsn == cur_lsn && !is_sync_flush) {
-    return (0);
-  }
-
-  sum_pages += last_pages_in;
-
-  ib_time_monotonic_t curr_time = ut_time_monotonic();
-
-  auto time_elapsed = curr_time - prev_time;
-
-  const auto avg_loops = srv_flushing_avg_loops;
-
-  /* We update our variables every srv_flushing_avg_loops
-  iterations to smooth out transition in workload. */
-  if (++n_iterations >= avg_loops || time_elapsed >= (int64_t)avg_loops) {
-    if (time_elapsed < 1) {
-      time_elapsed = 1;
-    }
-
-    avg_page_rate = static_cast<ulint>(
-        ((static_cast<double>(sum_pages) / time_elapsed) + avg_page_rate) / 2);
-
-    /* How much LSN we have generated since last call. */
-    lsn_rate = static_cast<lsn_t>(static_cast<double>(cur_lsn - prev_lsn) /
-                                  time_elapsed);
-
-    lsn_avg_rate = (lsn_avg_rate + lsn_rate) / 2;
-
-    /* aggregate stats of all slots */
-    mutex_enter(&page_cleaner->mutex);
-
-    uint64_t flush_tm = page_cleaner->flush_time;
-    ulint flush_pass = page_cleaner->flush_pass;
-
-    page_cleaner->flush_time = 0;
-    page_cleaner->flush_pass = 0;
-
-    uint64_t lru_tm = 0;
-    uint64_t list_tm = 0;
-    ulint lru_pass = 0;
-    ulint list_pass = 0;
-
-    for (ulint i = 0; i < page_cleaner->n_slots; i++) {
-      page_cleaner_slot_t *slot;
-
-      slot = &page_cleaner->slots[i];
-
-      lru_tm += slot->flush_lru_time;
-      lru_pass += slot->flush_lru_pass;
-      list_tm += slot->flush_list_time;
-      list_pass += slot->flush_list_pass;
-
-      slot->flush_lru_time = 0;
-      slot->flush_lru_pass = 0;
-      slot->flush_list_time = 0;
-      slot->flush_list_pass = 0;
-    }
-
-    mutex_exit(&page_cleaner->mutex);
-
-    /* minimum values are 1, to avoid dividing by zero. */
-    if (lru_tm < 1) {
-      lru_tm = 1;
-    }
-    if (list_tm < 1) {
-      list_tm = 1;
-    }
-    if (flush_tm < 1) {
-      flush_tm = 1;
-    }
-
-    if (lru_pass < 1) {
-      lru_pass = 1;
-    }
-    if (list_pass < 1) {
-      list_pass = 1;
-    }
-    if (flush_pass < 1) {
-      flush_pass = 1;
-    }
-
-    MONITOR_SET(MONITOR_FLUSH_ADAPTIVE_AVG_TIME_SLOT, list_tm / list_pass);
-    MONITOR_SET(MONITOR_LRU_BATCH_FLUSH_AVG_TIME_SLOT, lru_tm / lru_pass);
-
-    MONITOR_SET(MONITOR_FLUSH_ADAPTIVE_AVG_TIME_THREAD,
-                list_tm / (srv_n_page_cleaners * flush_pass));
-    MONITOR_SET(MONITOR_LRU_BATCH_FLUSH_AVG_TIME_THREAD,
-                lru_tm / (srv_n_page_cleaners * flush_pass));
-    MONITOR_SET(MONITOR_FLUSH_ADAPTIVE_AVG_TIME_EST,
-                flush_tm * list_tm / flush_pass / (list_tm + lru_tm));
-    MONITOR_SET(MONITOR_LRU_BATCH_FLUSH_AVG_TIME_EST,
-                flush_tm * lru_tm / flush_pass / (list_tm + lru_tm));
-    MONITOR_SET(MONITOR_FLUSH_AVG_TIME, flush_tm / flush_pass);
-
-    MONITOR_SET(MONITOR_FLUSH_ADAPTIVE_AVG_PASS,
-                list_pass / page_cleaner->n_slots);
-    MONITOR_SET(MONITOR_LRU_BATCH_FLUSH_AVG_PASS,
-                lru_pass / page_cleaner->n_slots);
-    MONITOR_SET(MONITOR_FLUSH_AVG_PASS, flush_pass);
-
-    prev_lsn = cur_lsn;
-    prev_time = curr_time;
-
-    n_iterations = 0;
-
-    sum_pages = 0;
-  }
-
-  oldest_lsn = buf_pool_get_oldest_modification_approx();
-
-=======
+    /// TODO MONITOR_SET(MONITOR_FLUSH_ADAPTIVE_AVG_TIME_EST, flush_tm / flush_pass);
+    
 /** Set page flush target based on LSN change and checkpoint age.
 @param[in]	sync_flush	true iff this is sync flush mode */
 ulint set_flush_target_by_lsn(bool sync_flush) {
   lsn_t oldest_lsn = buf_pool_get_oldest_modification_approx();
->>>>>>> mysql-8.0.21
   ut_ad(oldest_lsn <= log_get_lsn(*log_sys));
 
   lsn_t age = cur_iter_lsn > oldest_lsn ? cur_iter_lsn - oldest_lsn : 0;
@@ -2846,20 +2585,11 @@ ulint set_flush_target_by_lsn(bool sync_flush) {
 
   /* Cap the maximum IO capacity that we are going to use by
   max_io_capacity. Limit the value to avoid too quick increase */
+  ulint pages_for_lsn =
+      std::min<ulint>(sum_pages_for_lsn, srv_max_io_capacity * 2);
 
-<<<<<<< HEAD
-  n_pages = PCT_IO(pct_total);
-  if (age < log_get_max_modified_age_async(*log_sys)) {
-    ulint pages_for_lsn =
-        std::min<ulint>(sum_pages_for_lsn, srv_max_io_capacity * 2);
-    n_pages = (n_pages + avg_page_rate + pages_for_lsn) / 3;
-  }
-||||||| merged common ancestors
-  n_pages = (PCT_IO(pct_total) + avg_page_rate + pages_for_lsn) / 3;
-=======
   /* Estimate based on LSN and dirty pages. */
   ulint n_pages = (PCT_IO(pct_total) + page_avg_rate + pages_for_lsn) / 3;
->>>>>>> mysql-8.0.21
 
   if (n_pages > srv_max_io_capacity) {
     n_pages = srv_max_io_capacity;
@@ -3361,16 +3091,8 @@ void buf_flush_page_cleaner_disabled_debug_update(THD *thd, SYS_VAR *var,
 
     innodb_page_cleaner_disabled_debug = false;
 
-<<<<<<< HEAD
     /* Enable page cleaner and LRU manager threads. */
-    while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
-||||||| merged common ancestors
-    /* Enable page cleaner threads. */
-    while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
-=======
-    /* Enable page cleaner threads. */
     while (srv_shutdown_state.load() < SRV_SHUTDOWN_CLEANUP) {
->>>>>>> mysql-8.0.21
       mutex_enter(&page_cleaner->mutex);
       const ulint n = page_cleaner->n_disabled_debug;
       mutex_exit(&page_cleaner->mutex);
@@ -3826,7 +3548,6 @@ void buf_flush_sync_all_buf_pools(void) {
   ut_a(success);
 }
 
-<<<<<<< HEAD
 /** Make a LRU manager thread sleep until the passed target time, if it's not
 already in the past.
 @param[in]	next_loop_timm	desired wake up time */
@@ -3921,8 +3642,6 @@ static void buf_lru_manager_thread(size_t buf_pool_instance) {
   }
 }
 
-||||||| merged common ancestors
-=======
 void reset_buf_flush_sync_lsn() {
   const auto curr_lsn = log_get_lsn(*log_sys);
 
@@ -3935,29 +3654,19 @@ void reset_buf_flush_sync_lsn() {
   mutex_exit(&page_cleaner->mutex);
 }
 
->>>>>>> mysql-8.0.21
 /** Request IO burst and wake page_cleaner up.
 @param[in]	lsn_limit	upper limit of LSN to be flushed */
 bool buf_flush_request_force(lsn_t lsn_limit) {
   ut_a(buf_flush_page_cleaner_is_active());
 
-<<<<<<< HEAD
-  /* adjust based on lsn_avg_rate not to get old */
-  lsn_t lsn_target =
-      (lsn_limit != LSN_MAX) ? (lsn_limit + lsn_avg_rate * 3) : LSN_MAX;
-||||||| merged common ancestors
-  /* adjust based on lsn_avg_rate not to get old */
-  lsn_t lsn_target = lsn_limit + lsn_avg_rate * 3;
-=======
   lsn_t lsn_target = lsn_limit;
 
   /* Avoid aggressive sync flush beyond limit when redo is disabled. */
-  if (mtr_t::s_logging.is_enabled()) {
+  if (mtr_t::s_logging.is_enabled() && lsn_limit != LSN_MAX) {
     /* adjust based on lsn_avg_rate not to get old */
     lsn_target += Adaptive_flush::lsn_avg_rate * 3;
   }
 
->>>>>>> mysql-8.0.21
   bool result;
 
   mutex_enter(&page_cleaner->mutex);

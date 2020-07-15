@@ -2719,15 +2719,11 @@ static void clean_up_mutexes() {
   mysql_mutex_destroy(&LOCK_keyring_operations);
   mysql_mutex_destroy(&LOCK_tls_ctx_options);
   mysql_mutex_destroy(&LOCK_rotate_binlog_master_key);
-<<<<<<< HEAD
   mysql_mutex_destroy(&LOCK_global_user_client_stats);
   mysql_mutex_destroy(&LOCK_global_table_stats);
   mysql_mutex_destroy(&LOCK_global_index_stats);
   mysql_rwlock_destroy(&LOCK_consistent_snapshot);
-||||||| merged common ancestors
-=======
   mysql_mutex_destroy(&LOCK_admin_tls_ctx_options);
->>>>>>> mysql-8.0.21
 }
 
 /****************************************************************************

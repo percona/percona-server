@@ -410,7 +410,6 @@ class Alter_info {
 
   // List of columns, used by both CREATE and ALTER TABLE.
   List<Create_field> create_list;
-<<<<<<< HEAD
   // List of keys, which creation is delayed to benefit from fast index creation
   Mem_root_array<const Key_spec *> delayed_key_list;
   // Keys, which creation is delayed to benefit from fast index creation
@@ -418,11 +417,8 @@ class Alter_info {
   // Count of keys, which creation is delayed to benefit from fast index
   // creation
   uint delayed_key_count;
-||||||| merged common ancestors
-=======
   std::vector<CreateFieldApplier> cf_appliers;
 
->>>>>>> mysql-8.0.21
   // Type of ALTER TABLE operation.
   ulonglong flags;
   // Enable or disable keys.

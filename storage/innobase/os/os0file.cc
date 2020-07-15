@@ -1,15 +1,7 @@
 /***********************************************************************
 
-<<<<<<< HEAD
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
-Copyright (c) 2009, 2016, Percona Inc.
-||||||| merged common ancestors
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
-Copyright (c) 2009, Percona Inc.
-=======
 Copyright (c) 1995, 2020, Oracle and/or its affiliates.
-Copyright (c) 2009, Percona Inc.
->>>>>>> mysql-8.0.21
+Copyright (c) 2009, 2016, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
 by Percona Inc.. Those modifications are
@@ -3160,22 +3152,12 @@ static int os_file_fsync_posix(os_file_t file) {
         os_thread_sleep(200000);
         break;
 
-<<<<<<< HEAD
       case EIO: {
         const auto fd_path = os_file_find_path_for_fd(file);
         if (!fd_path.empty())
-          ib::fatal() << "fsync(\"" << fd_path << "\") returned EIO, aborting.";
+          ib::fatal(ER_IB_MSG_1358) << "fsync(\"" << fd_path << "\") returned EIO, aborting.";
         else
-          ib::fatal() << "fsync() returned EIO, aborting.";
-||||||| merged common ancestors
-      case EIO:
-
-        ib::fatal() << "fsync() returned EIO, aborting.";
-=======
-      case EIO:
-
-        ib::fatal(ER_IB_MSG_1358) << "fsync() returned EIO, aborting.";
->>>>>>> mysql-8.0.21
+          ib::fatal(ER_IB_MSG_1358) << "fsync() returned EIO, aborting.";
         break;
       }
 

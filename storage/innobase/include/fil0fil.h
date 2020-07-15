@@ -359,13 +359,10 @@ struct fil_space_t {
   /** FIL_SPACE_MAGIC_N */
   ulint magic_n;
 
-<<<<<<< HEAD
   /** @return whether the tablespace is about to be dropped or
   truncated */
   bool is_stopping() const { return stop_new_ops; }
 
-||||||| merged common ancestors
-=======
   /** LSN when the instance was deleted. */
   lsn_t m_deleted_lsn;
 
@@ -373,7 +370,6 @@ struct fil_space_t {
   @return true if the space was deleted */
   bool is_deleted() { return m_deleted_lsn > 0; }
 
->>>>>>> mysql-8.0.21
   /** System tablespace */
   static fil_space_t *s_sys_space;
 
@@ -2194,7 +2190,6 @@ void fil_space_update_name(fil_space_t *space, const char *name);
 @param[in]	extn	file extension */
 void fil_adjust_name_import(dict_table_t *table, const char *path,
                             ib_file_suffix extn);
-<<<<<<< HEAD
 
 /** Mark space as corrupt
 @param space_id	space id */
@@ -2220,8 +2215,6 @@ void fil_unlock_shard_by_id(space_id_t space_id);
 @return true if the re-encrypt suceeds */
 bool encryption_rotate_low(fil_space_t *space);
 
-||||||| merged common ancestors
-=======
 
 #ifndef UNIV_HOTBACKUP
 
@@ -2245,5 +2238,4 @@ bool fil_is_deleted(space_id_t space_id);
 
 #endif /* !UNIV_HOTBACKUP */
 
->>>>>>> mysql-8.0.21
 #endif /* fil0fil_h */

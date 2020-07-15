@@ -1230,16 +1230,12 @@ static SHOW_VAR innodb_status_variables[] = {
      SHOW_SCOPE_GLOBAL},
     {"pages_written", (char *)&export_vars.innodb_pages_written, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
-<<<<<<< HEAD
     {"purge_trx_id", (char *)&export_vars.innodb_purge_trx_id, SHOW_LONGLONG,
      SHOW_SCOPE_GLOBAL},
     {"purge_undo_no", (char *)&export_vars.innodb_purge_undo_no, SHOW_LONGLONG,
      SHOW_SCOPE_GLOBAL},
-||||||| merged common ancestors
-=======
     {"redo_log_enabled", (char *)&export_vars.innodb_redo_log_enabled,
      SHOW_BOOL, SHOW_SCOPE_GLOBAL},
->>>>>>> mysql-8.0.21
     {"row_lock_current_waits",
      (char *)&export_vars.innodb_row_lock_current_waits, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
@@ -3593,14 +3589,8 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     }
 
     space_id_t space_id;
-<<<<<<< HEAD
-    uint32_t flags = 0;
-    bool is_enc_in_progress{false};
-||||||| merged common ancestors
-    uint32_t flags = 0;
-=======
     uint32_t fsp_flags = 0;
->>>>>>> mysql-8.0.21
+    bool is_enc_in_progress{false};
     const auto &p = dd_tablespace->se_private_data();
     const char *space_name = dd_tablespace->name().c_str();
     const auto se_key_value = dd_space_key_strings;
@@ -3827,27 +3817,13 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
       continue;
     }
 
-<<<<<<< HEAD
     Keyring_encryption_info keyring_encryption_info;
 
     /* It's safe to pass space_name in tablename charset because
     filename is already in filename charset. */
     dberr_t err = fil_ibd_open(
-        validate || is_enc_in_progress, FIL_TYPE_TABLESPACE, space_id, flags,
+        validate || is_enc_in_progress, FIL_TYPE_TABLESPACE, space_id, fsp_flags,
         space_name, nullptr, filename, false, false, keyring_encryption_info);
-||||||| merged common ancestors
-    /* It's safe to pass space_name in tablename charset because
-    filename is already in filename charset. */
-    dberr_t err = fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id, flags,
-                               space_name, nullptr, filename, false, false);
-=======
-    /* The IBD filename from the DD has not yet been opened. Try to open it.
-    It's safe to pass space_name in tablename charset because filename is
-    already in filename charset. */
-    dberr_t err =
-        fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id, fsp_flags,
-                     space_name, nullptr, filename, false, false);
->>>>>>> mysql-8.0.21
 
     switch (err) {
       case DB_SUCCESS:
@@ -4145,16 +4121,8 @@ static void innobase_post_recover() {
       srv_undo_log_encrypt = false;
     } else {
       /* Enable encryption for UNDO tablespaces */
-<<<<<<< HEAD
-      mutex_enter(&(undo::ddl_mutex));
-      if (srv_enable_undo_encryption(nullptr, true)) {
-||||||| merged common ancestors
-      mutex_enter(&(undo::ddl_mutex));
-      if (srv_enable_undo_encryption(true)) {
-=======
       mutex_enter(&undo::ddl_mutex);
-      if (srv_enable_undo_encryption(true)) {
->>>>>>> mysql-8.0.21
+      if (srv_enable_undo_encryption(nullptr, true)) {
         ut_ad(false);
         srv_undo_log_encrypt = false;
       }
@@ -4450,13 +4418,10 @@ error_exit:
   return (ret);
 }
 
-<<<<<<< HEAD
-bool innobase_fix_default_table_encryption(ulong encryption_option,
-                                           bool is_server_starting) {
+bool innobase_fix_default_table_encryption(ulong encryption_option, bool is_server_starting) {
   if (!srv_read_only_mode) {
     return fil_crypt_set_encrypt_tables(
-        static_cast<enum_default_table_encryption>(encryption_option),
-        is_server_starting);
+        static_cast<enum_default_table_encryption>(encryption_option), is_server_starting);
   }
   return false;
 }
@@ -4598,8 +4563,6 @@ bool innobase_fix_tablespaces_empty_uuid() {
   return (false);
 }
 
-||||||| merged common ancestors
-=======
 /** Enable or Disable SE write ahead logging.
 @param[in]	thd	connection THD
 @param[in]	enable	enable/disable redo logging
@@ -4626,7 +4589,6 @@ static bool innobase_redo_set_state(THD *thd, bool enable) {
   return (false);
 }
 
->>>>>>> mysql-8.0.21
 /** Return partitioning flags. */
 static uint innobase_partition_flags() {
   return (HA_CAN_EXCHANGE_PARTITION | HA_CANNOT_PARTITION_FK |
@@ -5391,7 +5353,6 @@ static int innodb_init(void *p) {
   innobase_hton->rotate_encryption_master_key =
       innobase_encryption_key_rotation;
 
-<<<<<<< HEAD
   innobase_hton->fix_tablespaces_empty_uuid =
       innobase_fix_tablespaces_empty_uuid;
 
@@ -5401,11 +5362,8 @@ static int innodb_init(void *p) {
   innobase_hton->check_mk_keyring_exclusions =
       innobase_check_mk_keyring_exclusions;
 
-||||||| merged common ancestors
-=======
   innobase_hton->redo_log_set_state = innobase_redo_set_state;
 
->>>>>>> mysql-8.0.21
   innobase_hton->post_ddl = innobase_post_ddl;
 
   /* Initialize handler clone interfaces for. */
@@ -6094,7 +6052,7 @@ static int innobase_start_trx_and_clone_read_view(handlerton *hton, THD *thd,
                         "this phrase can only be used with REPEATABLE READ "
                         "isolation level.");
   } else {
-    lock_mutex_enter();
+    locksys::Global_exclusive_latch_guard guard{};
     trx_sys_mutex_enter();
     trx_mutex_enter(from_trx);
     if (!trx_clone_read_view(trx, from_trx)) {
@@ -6103,7 +6061,6 @@ static int innobase_start_trx_and_clone_read_view(handlerton *hton, THD *thd,
                           "ignored because the target transaction has not "
                           "been assigned a read view.");
     }
-    lock_mutex_exit();
   }
 
   /* Set the MySQL flag to mark that there is an active transaction */
@@ -22313,15 +22270,10 @@ static bool innodb_purge_run_now = true;
 static bool innodb_purge_stop_now = true;
 static bool innodb_log_checkpoint_now = true;
 static bool innodb_log_checkpoint_fuzzy_now = true;
-<<<<<<< HEAD
 static bool innodb_track_redo_log_now = true;
-||||||| merged common ancestors
-
-=======
 static bool innodb_log_flush_now = true;
 static bool innodb_buf_flush_list_now = true;
 
->>>>>>> mysql-8.0.21
 static uint innodb_merge_threshold_set_all_debug =
     DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
 

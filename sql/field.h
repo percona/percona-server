@@ -1906,9 +1906,7 @@ class Field {
 
   uchar *pack_int64(uchar *to, const uchar *from, size_t max_length) const;
 
-<<<<<<< HEAD
-  const uchar *unpack_int64(uchar *to, const uchar *from,
-                            bool low_byte_first_from) const;
+  const uchar *unpack_int64(uchar *to, const uchar *from) const;
 
  public:
   /**
@@ -1923,12 +1921,6 @@ class Field {
   */
   bool has_different_compression_attributes_with(
       const Create_field &new_field) const noexcept;
-||||||| merged common ancestors
-  const uchar *unpack_int64(uchar *to, const uchar *from,
-                            bool low_byte_first_from) const;
-=======
-  const uchar *unpack_int64(uchar *to, const uchar *from) const;
->>>>>>> mysql-8.0.21
 };
 
 /**

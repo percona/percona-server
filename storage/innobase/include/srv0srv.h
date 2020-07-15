@@ -296,14 +296,11 @@ struct Srv_threads {
   waiting procedure used in the pre_dd_shutdown. */
   os_event_t m_shutdown_cleanup_dbg;
 #endif /* UNIV_DEBUG */
-<<<<<<< HEAD
   /** true if tablespace alter encrypt thread is created */
   bool m_ts_alter_encrypt_thread_active;
 
   /** No of key rotation threads started */
   size_t m_crypt_threads_n = 0;
-||||||| merged common ancestors
-=======
 
   /** When the master thread notices that shutdown has started (by noticing
   srv_shutdown_state >= SRV_SHUTDOWN_PRE_DD_AND_SYSTEM_TRANSACTIONS), it exits
@@ -315,7 +312,6 @@ struct Srv_threads {
   next phase (SRV_SHUTDOWN_PURGE) in which master thread is not allowed to
   use system transactions or touch DD objects. */
   os_event_t m_master_ready_for_dd_shutdown;
->>>>>>> mysql-8.0.21
 };
 
 /** Check if given thread is still active. */
@@ -906,7 +902,6 @@ extern bool srv_print_lock_wait_timeout_info;
 
 extern bool srv_cmp_per_index_enabled;
 
-<<<<<<< HEAD
 extern enum_default_table_encryption srv_default_table_encryption;
 
 /** Number of times secondary index lookup triggered cluster lookup */
@@ -914,11 +909,8 @@ extern std::atomic<ulint> srv_sec_rec_cluster_reads;
 /** Number of times prefix optimization avoided triggering cluster lookup */
 extern std::atomic<ulint> srv_sec_rec_cluster_reads_avoided;
 
-||||||| merged common ancestors
-=======
 extern bool srv_redo_log;
 
->>>>>>> mysql-8.0.21
 /** Status variables to be passed to MySQL */
 extern struct export_var_t export_vars;
 
@@ -1266,7 +1258,6 @@ void undo_spaces_init();
 called once during thread de-initialization. */
 void undo_spaces_deinit();
 
-<<<<<<< HEAD
 /** Enables master key redo encryption.
  * Doesn't depend on the srv_redo_log_encrypt variable, used by
  * SET innodb_redo_log_encrypt = MK. */
@@ -1280,13 +1271,10 @@ bool srv_enable_redo_encryption_rk(THD *thd);
 /** Enables redo log encryption based on srv_redo_log_encrypt. */
 bool srv_enable_redo_encryption(THD *thd);
 
-||||||| merged common ancestors
-=======
 /** Set redo log variable for performance schema global status.
 @param[in]	enable	true => redo log enabled, false => redo log disabled */
 void set_srv_redo_log(bool enable);
 
->>>>>>> mysql-8.0.21
 #ifdef UNIV_DEBUG
 struct SYS_VAR;
 

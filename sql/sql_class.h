@@ -2888,11 +2888,6 @@ class THD : public MDL_context_owner,
     ~Permanent_transform() { m_thd->m_permanent_transform = m_old_value; }
   };
 
-<<<<<<< HEAD
-  explicit THD(bool enable_plugins = true);
-||||||| merged common ancestors
-  THD(bool enable_plugins = true);
-=======
   /*
     Audit API events are generated, when this flag is true. The flag
     is initially true, but it can be set false in some cases, e.g.
@@ -2901,8 +2896,7 @@ class THD : public MDL_context_owner,
   */
   bool m_audited;
 
-  THD(bool enable_plugins = true);
->>>>>>> mysql-8.0.21
+  explicit THD(bool enable_plugins = true);
 
   /*
     The THD dtor is effectively split in two:

@@ -3176,21 +3176,12 @@ void Fil_shard::space_detach(fil_space_t *space) {
 There must not be any pending I/O's or flushes on the files.
 @param[in,out]	space		tablespace */
 void Fil_shard::space_free_low(fil_space_t *&space) {
-<<<<<<< HEAD
-  // FIXME
-  // ut_ad(srv_fast_shutdown == 2);
 
   /* Wait for fil_space_t::release_for_io(); */
   while (space->n_pending_ios) {
     os_thread_sleep(100);
   }
 
-||||||| merged common ancestors
-  // FIXME
-  // ut_ad(srv_fast_shutdown == 2);
-
-=======
->>>>>>> mysql-8.0.21
   for (auto &file : space->files) {
     ut_d(space->size -= file.size);
 
@@ -4950,156 +4941,6 @@ bool fil_truncate_tablespace(space_id_t space_id, page_no_t size_in_pages) {
   return (shard->space_truncate(space_id, size_in_pages));
 }
 
-<<<<<<< HEAD
-/** Truncate the tablespace to needed size with a new space_id.
-@param[in]  old_space_id   Tablespace ID to truncate
-@param[in]  new_space_id   Tablespace ID to for the new file
-@param[in]  size_in_pages  Truncate size.
-@return true if truncate was successful. */
-bool fil_replace_tablespace(space_id_t old_space_id, space_id_t new_space_id,
-                            page_no_t size_in_pages) {
-  fil_space_t *space = fil_space_get(old_space_id);
-  std::string space_name(space->name);
-  std::string file_name(space->files.front().name);
-
-  /* Delete the old file and space object. */
-  dberr_t err = fil_delete_tablespace(old_space_id, BUF_REMOVE_ALL_NO_WRITE);
-  if (err != DB_SUCCESS) {
-    return (false);
-  }
-
-  /* Create the new one. */
-  bool success;
-  pfs_os_file_t fh = os_file_create(
-      innodb_data_file_key, file_name.c_str(),
-      srv_read_only_mode ? OS_FILE_OPEN : OS_FILE_CREATE, OS_FILE_NORMAL,
-      OS_DATA_FILE, srv_read_only_mode, &success);
-  if (!success) {
-    ib::error(ER_IB_MSG_1214, space_name.c_str(), "during truncate");
-    return (success);
-  }
-
-  /* Now write it full of zeros */
-  success = os_file_set_size(file_name.c_str(), fh, 0,
-                             size_in_pages << UNIV_PAGE_SIZE_SHIFT,
-                             srv_read_only_mode, true);
-  if (!success) {
-    ib::info(ER_IB_MSG_1074, file_name.c_str());
-    return (success);
-  }
-
-  os_file_close(fh);
-
-  uint32_t flags = fsp_flags_init(univ_page_size, false, false, false, false);
-
-  /* Delete the fil_space_t object for the new_space_id if it exists. */
-  if (fil_space_get(new_space_id) != nullptr) {
-    fil_space_free(new_space_id, false);
-  }
-
-  space = fil_space_create(space_name.c_str(), new_space_id, flags,
-                           FIL_TYPE_TABLESPACE, nullptr);
-  if (space == nullptr) {
-    ib::error(ER_IB_MSG_1082, space_name.c_str());
-    return (false);
-  }
-
-  page_no_t n_pages = SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
-#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
-  bool atomic_write = false;
-  if (!dblwr::enabled) {
-    atomic_write = fil_fusionio_enable_atomic_write(fh);
-  }
-#else
-  bool atomic_write = false;
-#endif /* !NO_FALLOCATE && UNIV_LINUX */
-
-  char *fn =
-      fil_node_create(file_name.c_str(), n_pages, space, false, atomic_write);
-  if (fn == nullptr) {
-    ib::error(ER_IB_MSG_1082, space_name.c_str());
-    return (false);
-  }
-
-  return (true);
-}
-
-||||||| merged common ancestors
-/** Truncate the tablespace to needed size with a new space_id.
-@param[in]  old_space_id   Tablespace ID to truncate
-@param[in]  new_space_id   Tablespace ID to for the new file
-@param[in]  size_in_pages  Truncate size.
-@return true if truncate was successful. */
-bool fil_replace_tablespace(space_id_t old_space_id, space_id_t new_space_id,
-                            page_no_t size_in_pages) {
-  fil_space_t *space = fil_space_get(old_space_id);
-  std::string space_name(space->name);
-  std::string file_name(space->files.front().name);
-
-  /* Delete the old file and space object. */
-  dberr_t err = fil_delete_tablespace(old_space_id, BUF_REMOVE_ALL_NO_WRITE);
-  if (err != DB_SUCCESS) {
-    return (false);
-  }
-
-  /* Create the new one. */
-  bool success;
-  pfs_os_file_t fh = os_file_create(
-      innodb_data_file_key, file_name.c_str(),
-      srv_read_only_mode ? OS_FILE_OPEN : OS_FILE_CREATE, OS_FILE_NORMAL,
-      OS_DATA_FILE, srv_read_only_mode, &success);
-  if (!success) {
-    ib::error(ER_IB_MSG_1214, space_name.c_str(), "during truncate");
-    return (success);
-  }
-
-  /* Now write it full of zeros */
-  success = os_file_set_size(file_name.c_str(), fh, 0,
-                             size_in_pages << UNIV_PAGE_SIZE_SHIFT,
-                             srv_read_only_mode, true);
-  if (!success) {
-    ib::info(ER_IB_MSG_1074, file_name.c_str());
-    return (success);
-  }
-
-  os_file_close(fh);
-
-  uint32_t flags = fsp_flags_init(univ_page_size, false, false, false, false);
-
-  /* Delete the fil_space_t object for the new_space_id if it exists. */
-  if (fil_space_get(new_space_id) != nullptr) {
-    fil_space_free(new_space_id, false);
-  }
-
-  space = fil_space_create(space_name.c_str(), new_space_id, flags,
-                           FIL_TYPE_TABLESPACE);
-  if (space == nullptr) {
-    ib::error(ER_IB_MSG_1082, space_name.c_str());
-    return (false);
-  }
-
-  page_no_t n_pages = SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
-#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
-  bool atomic_write = false;
-  if (!dblwr::enabled) {
-    atomic_write = fil_fusionio_enable_atomic_write(fh);
-  }
-#else
-  bool atomic_write = false;
-#endif /* !NO_FALLOCATE && UNIV_LINUX */
-
-  char *fn =
-      fil_node_create(file_name.c_str(), n_pages, space, false, atomic_write);
-  if (fn == nullptr) {
-    ib::error(ER_IB_MSG_1082, space_name.c_str());
-    return (false);
-  }
-
-  return (true);
-}
-
-=======
->>>>>>> mysql-8.0.21
 #ifdef UNIV_DEBUG
 /** Increase redo skipped count for a tablespace.
 @param[in]	space_id	Tablespace ID */
@@ -6109,11 +5950,12 @@ bool fil_replace_tablespace(space_id_t old_space_id, space_id_t new_space_id,
   }
 
   ulint flags = fsp_flags_init(univ_page_size, false, false, false, false);
-
+ 
   /* Create the new UNDO tablespace. */
   err =
       fil_create_tablespace(new_space_id, space_name.c_str(), file_name.c_str(),
-                            flags, size_in_pages, FIL_TYPE_TABLESPACE);
+                            flags, size_in_pages, FIL_TYPE_TABLESPACE,
+                            FIL_ENCRYPTION_DEFAULT, KeyringEncryptionKeyIdInfo());
 
   return (err == DB_SUCCESS);
 }
@@ -6239,16 +6081,8 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
     return (DB_SUCCESS);
   }
 
-<<<<<<< HEAD
-  /* We pass UNINITIALIZED flags while we try to open DD tablesapce. In that
-     case, set the flags now based on what is read from disk.*/
-||||||| merged common ancestors
-  /* We pass UNINITIALIZED flags while we try to open DD tablesapce. In that
-  case, set the flags now based on what is read from disk.*/
-=======
   /* We pass UNINITIALIZED flags while we try to open DD tablespace. In that
   case, set the flags now based on what is read from disk.*/
->>>>>>> mysql-8.0.21
   if (FSP_FLAGS_ARE_NOT_SET(flags) && fsp_is_dd_tablespace(space_id)) {
     flags = df.flags();
     is_encrypted = FSP_FLAGS_GET_ENCRYPTION(flags);
@@ -8349,51 +8183,6 @@ dberr_t Fil_shard::do_redo_io(const IORequest &type, const page_id_t &page_id,
   return (err);
 }
 
-<<<<<<< HEAD
-/** Read or write data. This operation could be asynchronous (aio).
-@param[in]	type		IO context
-@param[in]	sync		whether synchronous aio is desired
-@param[in]	page_id		page id
-@param[in]	page_size	page size
-@param[in]	byte_offset	remainder of offset in bytes; in aio this
-                                must be divisible by the OS block
-                                size
-@param[in]	len		how many bytes to read or write; this must
-                                not cross a file boundary; in AIO this must
-                                be a block size multiple
-@param[in,out]	buf		buffer where to store read data or from where
-                                to write; in aio this must be appropriately
-                                aligned
-@param[in]	message		message for aio handler if !sync, else ignored
-@param[in]	should_buffer   whether to buffer an aio request. AIO read
-                                ahead uses this. If you plan to use this
-                                parameter, make sure you remember to call
-                                os_aio_dispatch_read_array_submit() when you're
-                                ready to commit all your requests.
-@return error code
-@retval DB_SUCCESS on success
-@retval DB_TABLESPACE_DELETED if the tablespace does not exist */
-||||||| merged common ancestors
-/** Read or write data. This operation could be asynchronous (aio).
-@param[in]	type		IO context
-@param[in]	sync		whether synchronous aio is desired
-@param[in]	page_id		page id
-@param[in]	page_size	page size
-@param[in]	byte_offset	remainder of offset in bytes; in aio this
-                                must be divisible by the OS block
-                                size
-@param[in]	len		how many bytes to read or write; this must
-                                not cross a file boundary; in AIO this must
-                                be a block size multiple
-@param[in,out]	buf		buffer where to store read data or from where
-                                to write; in aio this must be appropriately
-                                aligned
-@param[in]	message		message for aio handler if !sync, else ignored
-@return error code
-@retval DB_SUCCESS on success
-@retval DB_TABLESPACE_DELETED if the tablespace does not exist */
-=======
->>>>>>> mysql-8.0.21
 dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
                          const page_id_t &page_id, const page_size_t &page_size,
                          ulint byte_offset, ulint len, void *buf, void *message,
@@ -8516,7 +8305,7 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
       complete_io(file, type);
       if (aio_mode == AIO_mode::NORMAL) {
         ut_a(space->purpose == FIL_TYPE_TABLESPACE);
-        buf_page_io_complete(static_cast<buf_page_t *>(message));
+        buf_page_io_complete(static_cast<buf_page_t *>(message), false);
       }
     }
 
@@ -12503,7 +12292,6 @@ void Fil_path::convert_to_lower_case(std::string &path) {
   path.assign(lc_path);
 }
 
-<<<<<<< HEAD
 /** Mark space as corrupt
     @param space_id	space id */
 void fil_space_set_corrupt(space_id_t space_id) {
@@ -12540,8 +12328,6 @@ void fil_unlock_shard_by_id(space_id_t space_id) {
   shard->mutex_release();
 }
 
-||||||| merged common ancestors
-=======
 void fil_checkpoint(lsn_t lwm) { fil_system->checkpoint(lwm); }
 
 size_t fil_count_deleted(space_id_t undo_num) {
@@ -12554,5 +12340,4 @@ bool fil_is_deleted(space_id_t space_id) {
   return (fil_system->is_deleted(space_id));
 }
 
->>>>>>> mysql-8.0.21
 #endif /* !UNIV_HOTBACKUP */

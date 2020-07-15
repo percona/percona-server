@@ -17,27 +17,12 @@
 
 perl;
     use strict;
-<<<<<<< HEAD
-    my @search_files =         glob($ENV{'SEARCH_FILE'})     or die "SEARCH_FILE not set";
-    my $search_pattern=        $ENV{'SEARCH_PATTERN'}        or die "SEARCH_PATTERN not set";
-    my $search_echo=           $ENV{'SEARCH_ECHO'}     || "NONE";
-    my $ignore_pattern=        $ENV{'IGNORE_PATTERN'}  || "";
-    my $search_echo_ctx=       $ENV{'SEARCH_ECHO_CTX'} || 0;
-||||||| merged common ancestors
-    my $search_file=           $ENV{'SEARCH_FILE'}           or die "SEARCH_FILE not set";
-    my $search_pattern=        $ENV{'SEARCH_PATTERN'}        or die "SEARCH_PATTERN not set";
-    my $search_echo=           $ENV{'SEARCH_ECHO'}     || "NONE";
-    my $ignore_pattern=        $ENV{'IGNORE_PATTERN'}  || "";
-    my $search_echo_ctx=       $ENV{'SEARCH_ECHO_CTX'} || 0;
-=======
-    my $search_file =           $ENV{'SEARCH_FILE'}           or die "SEARCH_FILE not set";
+    my @search_files =          glob($ENV{'SEARCH_FILE'})           or die "SEARCH_FILE not set";
     my $search_pattern =        $ENV{'SEARCH_PATTERN'}        or die "SEARCH_PATTERN not set";
     my $search_echo =           $ENV{'SEARCH_ECHO'}     || "NONE";
     my $ignore_pattern =        $ENV{'IGNORE_PATTERN'}  || "";
     my $search_echo_ctx =       $ENV{'SEARCH_ECHO_CTX'} || 0;
->>>>>>> mysql-8.0.21
 
-    my $flag= 0;
 
     # We include the current line and 'n' previous lines in its context
     # as a FIFO queue i.e., oldest entries in the queue are removed when
@@ -45,32 +30,8 @@ perl;
     my @context = (undef) x ($search_echo_ctx + 1);
 
     my $line;
-<<<<<<< HEAD
-||||||| merged common ancestors
     my $flag= 0;
-
-    # Read the file line by line
-    while ($line= <FILE>)
-    {
-        my $cur_lineno= $.;
-        my $file_pos= tell(FILE);
-=======
-    my $flag = 0;
     my $output = "";
-
-    # Read the file line by line
-    while ($line = <FILE>)
-    {
-        my $cur_lineno = $.;
-        my $file_pos = tell(FILE);
-
-        if ($line =~ /^CURRENT_TEST: /)
-        {
-            $output = "";
-            $flag = 0;
-            @context = (undef) x ($search_echo_ctx + 1);
-        }
->>>>>>> mysql-8.0.21
 
     foreach my $search_file (@search_files) {
         open(FILE, "< $search_file") or die("Unable to open '$search_file': $!\n");
@@ -78,20 +39,15 @@ perl;
         # Read the file line by line
         while ($line= <FILE>)
         {
-<<<<<<< HEAD
             my $cur_lineno= $.;
             my $file_pos= tell(FILE);
-||||||| merged common ancestors
-            if (!(length $ignore_pattern) or !($line =~ /$ignore_pattern/))
+
+            if ($line =~ /^CURRENT_TEST: /)
             {
-                # Line matches the specified pattern
-                $flag= 1;
-=======
-            if (!(length $ignore_pattern) or !($line =~ /$ignore_pattern/))
-            {
-                # Line matches the specified pattern
-                $flag = 1;
->>>>>>> mysql-8.0.21
+                $output = "";
+                $flag = 0;
+                @context = (undef) x ($search_echo_ctx + 1);
+            }
 
             # Context stored as a sliding window of size 'n' lines
             shift @context;
@@ -121,34 +77,14 @@ perl;
                         {
                             print_succeeding_n_lines($search_echo_ctx, $cur_lineno);
 
-<<<<<<< HEAD
                             # Return to current file position after reading 'n'
                             # succeeding lines
                             seek(FILE, $file_pos, 0);
                             $.= $cur_lineno;
-||||||| merged common ancestors
-                        # Return to current file position after reading 'n'
-                        # succeeding lines
-                        seek(FILE, $file_pos, 0);
-                        $.= $cur_lineno;
-=======
-                        # Return to current file position after reading 'n'
-                        # succeeding lines
-                        seek(FILE, $file_pos, 0);
-                        $. = $cur_lineno;
->>>>>>> mysql-8.0.21
 
-<<<<<<< HEAD
                             # Separate each matching line
-                            print "---\n";
+                            $output .= "---\n";
                         }
-||||||| merged common ancestors
-                        # Separate each matching line
-                        print "---\n";
-=======
-                        # Separate each matching line
-                        $output .= "---\n";
->>>>>>> mysql-8.0.21
                     }
                 }
             }

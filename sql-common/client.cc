@@ -3286,12 +3286,7 @@ const char *STDCALL mysql_get_ssl_cipher(MYSQL *mysql MY_ATTRIBUTE((unused))) {
 
 #include <openssl/x509v3.h>
 
-#if defined(HAVE_X509_CHECK_HOST) && defined(HAVE_X509_CHECK_IP)
-#define HAVE_X509_CHECK_FUNCTIONS 1
-#endif
-
-#if !defined(HAVE_X509_CHECK_FUNCTIONS)
-
+#if OPENSSL_VERSION_NUMBER < 0x10002000L
 /*
   Compares the DNS entry from the Subject Alternative Names (SAN) list with
   the provided host name
@@ -3447,7 +3442,7 @@ error:
   DBUG_RETURN(ret_validation);
 }
 
-#endif /* !defined(HAVE_X509_CHECK_FUNCTIONS) */
+#endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
 
 /*
   Check the server's (subject) Common Name against the
@@ -3469,16 +3464,16 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
                                   const char **errptr) {
   SSL *ssl;
   X509 *server_cert = nullptr;
-#ifndef HAVE_X509_CHECK_FUNCTIONS
+#if OPENSSL_VERSION_NUMBER < 0x10002000L
   char *cn = NULL;
   int cn_loc = -1;
   ASN1_STRING *cn_asn1 = NULL;
   X509_NAME_ENTRY *cn_entry = NULL;
   X509_NAME *subject = NULL;
-#endif
-  ASN1_OCTET_STRING *server_ip_address = nullptr;
   const unsigned char *ipout = nullptr;
   size_t iplen = 0;
+#endif
+  ASN1_OCTET_STRING *server_ip_address = nullptr;
   int ret_validation = 1;
 
   DBUG_TRACE;
@@ -3509,45 +3504,6 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
     are what we expect.
   */
 
-<<<<<<< HEAD
-  /* Checking if the provided server_hostname is a V4/V6 IP address */
-  server_ip_address = a2i_IPADDRESS(server_hostname);
-  if (server_ip_address != nullptr) {
-    iplen = ASN1_STRING_length(server_ip_address);
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-    ipout = (const unsigned char *)ASN1_STRING_data(server_ip_address);
-#else
-    ipout = (const unsigned char *)ASN1_STRING_get0_data(server_ip_address);
-#endif
-||||||| merged common ancestors
-  /* Use OpenSSL certificate matching functions instead of our own if we
-     have OpenSSL. The X509_check_* functions return 1 on success.
-  */
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L
-  if ((X509_check_host(server_cert, server_hostname, strlen(server_hostname), 0,
-                       nullptr) != 1) &&
-      (X509_check_ip_asc(server_cert, server_hostname, 0) != 1)) {
-    *errptr =
-        "Failed to verify the server certificate via X509 certificate "
-        "matching functions";
-    goto error;
-
-  } else {
-    /* Success */
-    ret_validation = 0;
-  }
-#else  /* OPENSSL_VERSION_NUMBER < 0x10002000L */
-  /*
-     OpenSSL prior to 1.0.2 do not support X509_check_host() function.
-     Use deprecated X509_get_subject_name() instead.
-  */
-  subject = X509_get_subject_name((X509 *)server_cert);
-  // Find the CN location in the subject
-  cn_loc = X509_NAME_get_index_by_NID(subject, NID_commonName, -1);
-  if (cn_loc < 0) {
-    *errptr = "Failed to get CN location in the certificate subject";
-    goto error;
-=======
   /* Use OpenSSL certificate matching functions instead of our own if we
      have OpenSSL. The X509_check_* functions return 1 on success.
   */
@@ -3558,31 +3514,22 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
   */
   ret_validation = 0;
 #else  /* OPENSSL_VERSION_NUMBER < 0x10002000L */
-  /*
-     OpenSSL prior to 1.0.2 do not support X509_check_host() function.
-     Use deprecated X509_get_subject_name() instead.
-  */
-  subject = X509_get_subject_name((X509 *)server_cert);
-  // Find the CN location in the subject
-  cn_loc = X509_NAME_get_index_by_NID(subject, NID_commonName, -1);
-  if (cn_loc < 0) {
-    *errptr = "Failed to get CN location in the certificate subject";
-    goto error;
->>>>>>> mysql-8.0.21
+  /* Checking if the provided server_hostname is a V4/V6 IP address */
+  server_ip_address = a2i_IPADDRESS(server_hostname);
+  if (server_ip_address != nullptr) {
+    iplen = ASN1_STRING_length(server_ip_address);
+    ipout = (const unsigned char *)ASN1_STRING_data(server_ip_address);
   }
 
-#ifdef HAVE_X509_CHECK_FUNCTIONS
-  if (iplen == 0)
-    ret_validation =
-        X509_check_host(server_cert, server_hostname, 0, 0, nullptr) != 1;
-  else
-    ret_validation = X509_check_ip(server_cert, ipout, iplen, 0) != 1;
-#else
   ret_validation = ssl_verify_server_cert_san(
       server_cert, iplen != 0 ? (const char *)ipout : server_hostname, iplen,
       errptr);
   if (*errptr != nullptr) goto error;
   if (ret_validation != 0) {
+    /*
+      OpenSSL prior to 1.0.2 do not support X509_check_host() function.
+      Use deprecated X509_get_subject_name() instead.
+    */
     subject = X509_get_subject_name(server_cert);
     // Find the CN location in the subject
     cn_loc = X509_NAME_get_index_by_NID(subject, NID_commonName, -1);
@@ -3617,20 +3564,15 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
       goto error;
     }
 
-<<<<<<< HEAD
     DBUG_PRINT("info", ("Server hostname in cert: %s", cn));
     if (!strcmp(cn, server_hostname)) {
       /* Success */
       ret_validation = 0;
     }
   }
-#endif
+#endif /* OPENSSL_VERSION_NUMBER >= 0x10002000L */
+
   *errptr = ret_validation != 0 ? "SSL certificate validation failure" : "";
-||||||| merged common ancestors
-  *errptr = "SSL certificate validation failure";
-=======
-  *errptr = "SSL certificate validation success";
->>>>>>> mysql-8.0.21
 
 error:
   if (server_ip_address != nullptr) ASN1_OCTET_STRING_free(server_ip_address);

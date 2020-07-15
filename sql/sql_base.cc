@@ -10068,13 +10068,13 @@ Table_node::Table_node(const TABLE *table_arg)
 
 inline Column_node *Table_node::get_column_node(const Field *field) const
     noexcept {
-  return columns[field->field_index];
+  return columns[field->field_index()];
 }
 
 inline Column_node *Table_node::create_column_node(const Field *field) {
   if (!get_column_node(field)) {
     Column_node *column = new (*THR_MALLOC) Column_node;
-    columns[field->field_index] = column;
+    columns[field->field_index()] = column;
     /*
       If the table is ORDERED or CONST, then all the columns are
       ORDERED or CONST, so add the table as an successor of the column

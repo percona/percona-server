@@ -2658,19 +2658,9 @@ static char **new_mysql_completion(const char *text, int start, int end);
   if not.
 */
 
-<<<<<<< HEAD
-#if defined(USE_NEW_XLINE_INTERFACE) || defined(USE_LIBEDIT_INTERFACE)
-||||||| merged common ancestors
-#if defined(USE_NEW_EDITLINE_INTERFACE)
-static int fake_magic_space(int, int);
+#if defined(XLINE_HAVE_COMPLETION_CHAR)
 char *no_completion(const char *, int)
-#elif defined(USE_LIBEDIT_INTERFACE)
-static int fake_magic_space(int, int);
-=======
-#if defined(EDITLINE_HAVE_COMPLETION_CHAR)
->>>>>>> mysql-8.0.21
-char *no_completion(const char *, int)
-#elif defined(EDITLINE_HAVE_COMPLETION_INT)
+#elif defined(XLINE_HAVE_COMPLETION_INT)
 int no_completion(const char *, int)
 #else
 char *no_completion()
@@ -2691,39 +2681,27 @@ static int not_in_history(const char *line) {
   return 1;
 }
 
+#if defined(USE_NEW_XLINE_INTERFACE)
 static int fake_magic_space(int, int)
-<<<<<<< HEAD
-||||||| merged common ancestors
 #else
-static int fake_magic_space(int, int)
+ static int fake_magic_space(const char *, int)
 #endif
-=======
-#else
-static int fake_magic_space(const char *, int)
-#endif
->>>>>>> mysql-8.0.21
 {
   rl_insert(1, ' ');
   return 0;
 }
-
+#endif
 static void initialize_readline(char *name) {
   /* Allow conditional parsing of the ~/.inputrc file. */
   rl_readline_name = name;
 
   /* Tell the completer that we want a crack first. */
-<<<<<<< HEAD
-#if defined(USE_NEW_XLINE_INTERFACE)
-||||||| merged common ancestors
-#if defined(USE_NEW_EDITLINE_INTERFACE)
-=======
-#if defined(EDITLINE_HAVE_COMPLETION_CHAR)
->>>>>>> mysql-8.0.21
+#if defined(XLINE_HAVE_COMPLETION_CHAR)
   rl_attempted_completion_function = &new_mysql_completion;
   rl_completion_entry_function = &no_completion;
 
   rl_add_defun("magic-space", &fake_magic_space, -1);
-#elif defined(EDITLINE_HAVE_COMPLETION_INT)
+#elif defined(XLINE_HAVE_COMPLETION_INT)
   setlocale(LC_ALL, ""); /* so as libedit use isprint */
   rl_attempted_completion_function = &new_mysql_completion;
   rl_completion_entry_function = &no_completion;
@@ -2949,13 +2927,12 @@ char *rindex(const char *s, int c) {
 }
 }
 #endif /* ! HAVE_INDEX */
-#endif /* HAVE_READLINE */
 
 static void fix_line(String *final_command) {
   int total_lines = 1;
   char *ptr = final_command->c_ptr();
   String fixed_buffer; /* Converted buffer */
-
+ 
   /* Character if we are in a string or not */
   char str_char = '\0';
 

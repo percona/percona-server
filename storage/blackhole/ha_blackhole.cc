@@ -163,8 +163,8 @@ int ha_blackhole::rnd_next(uchar *) {
       for (Field **field_ptr = table->field; *field_ptr != nullptr;
            ++field_ptr) {
         auto current_field = *field_ptr;
-        if ((current_field->flags & BLOB_FLAG) != 0 &&
-            bitmap_is_set(table->write_set, current_field->field_index)) {
+        if ((current_field->is_flag_set(BLOB_FLAG)) != 0 &&
+            bitmap_is_set(table->write_set, current_field->field_index())) {
           auto bfield = down_cast<Field_blob *>(current_field);
           bfield->set_keep_old_value(true);
           bfield->keep_old_value();

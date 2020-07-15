@@ -2010,7 +2010,7 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
 
   /* If tablespace is to be encrypted, encrypt it now */
   if (is_encrypted && srv_undo_log_encrypt) {
-    ut_d(bool ret =) set_undo_tablespace_encryption(new_space_id, &mtr, false);
+    ut_d(bool ret =) set_undo_tablespace_encryption(nullptr, new_space_id, &mtr, false);
     /* Don't expect any error here (unless keyring plugin is uninstalled). In
     that case too, continue truncation processing of tablespace. */
     ut_ad(!ret);
@@ -2090,33 +2090,6 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
     rseg->last_del_marks = FALSE;
   }
 
-<<<<<<< HEAD
-  /* If tablespace is to be encrypted, encrypt it now */
-  if (is_encrypted && srv_undo_log_encrypt) {
-    mtr_t mtr;
-    mtr_start(&mtr);
-    ut_d(bool ret =)
-        set_undo_tablespace_encryption(nullptr, new_space_id, &mtr, false);
-    /* Don't expect any error here (unless keyring plugin is uninstalled). In
-    that case too, continue truncation processing of tablespace. */
-    ut_ad(!ret);
-    mtr_commit(&mtr);
-  }
-
-||||||| merged common ancestors
-  /* If tablespace is to be encrypted, encrypt it now */
-  if (is_encrypted && srv_undo_log_encrypt) {
-    mtr_t mtr;
-    mtr_start(&mtr);
-    ut_d(bool ret =) set_undo_tablespace_encryption(new_space_id, &mtr, false);
-    /* Don't expect any error here (unless keyring plugin is uninstalled). In
-    that case too, continue truncation processing of tablespace. */
-    ut_ad(!ret);
-    mtr_commit(&mtr);
-  }
-
-=======
->>>>>>> mysql-8.0.21
   marked_rsegs->x_unlock();
 
   /* Increment the space ID for this undo space now so that if anyone refers

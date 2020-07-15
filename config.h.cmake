@@ -240,17 +240,10 @@
 #cmakedefine HAVE_NCURSES_H 1
 #cmakedefine USE_LIBEDIT_INTERFACE 1
 #cmakedefine HAVE_HIST_ENTRY 1
-<<<<<<< HEAD
 #cmakedefine USE_NEW_XLINE_INTERFACE 1
 #cmakedefine HAVE_READLINE_HISTORY_H 1
-||||||| merged common ancestors
-#cmakedefine USE_NEW_EDITLINE_INTERFACE 1
-=======
-#cmakedefine USE_NEW_EDITLINE_INTERFACE 1
-#cmakedefine EDITLINE_HAVE_COMPLETION_CHAR 1
-#cmakedefine EDITLINE_HAVE_COMPLETION_INT 1
-
->>>>>>> mysql-8.0.21
+#cmakedefine XLINE_HAVE_COMPLETION_CHAR 1
+#cmakedefine XLINE_HAVE_COMPLETION_INT 1
 
 /*
  * Libedit

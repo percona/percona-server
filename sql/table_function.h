@@ -397,7 +397,6 @@ class Table_function_json final : public Table_function {
   bool do_init_args() override;
   void do_cleanup() override;
 };
-<<<<<<< HEAD
 
 class Table_function_sequence final : public Table_function {
   static constexpr const char *value_field_name = "value";
@@ -470,9 +469,6 @@ class Table_function_sequence final : public Table_function {
   ulonglong calculate_upper_bound() const;
 };
 
-||||||| merged common ancestors
-=======
-
 /**
   Print ON EMPTY or ON ERROR clauses.
 
@@ -487,5 +483,4 @@ void print_on_empty_or_error(const THD *thd, String *str,
                              enum_query_type query_type, bool on_empty,
                              Json_on_response_type response_type,
                              const Item *default_string);
->>>>>>> mysql-8.0.21
 #endif /* TABLE_FUNCTION_INCLUDED */

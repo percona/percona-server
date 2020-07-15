@@ -307,7 +307,7 @@ void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
   trx_mutex_exit(trx);
 
   if (srv_print_lock_wait_timeout_info) {
-    lock_mutex_enter();
+    locksys::Global_exclusive_latch_guard guard{};
     const lock_t *wait_lock = trx->lock.wait_lock;
     if (wait_lock != nullptr) {
       lock_queue_iterator_t iter;
@@ -331,7 +331,6 @@ void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
         }
       }
     }
-    lock_mutex_exit();
   }
 
   ulint had_dict_lock = trx->dict_operation_lock_mode;

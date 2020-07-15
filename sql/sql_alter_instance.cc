@@ -123,22 +123,6 @@ bool Rotate_innodb_master_key::execute() {
     return true;
   }
 
-<<<<<<< HEAD
-  if (acquire_backup_locks()) return true;
-||||||| merged common ancestors
-  /*
-    Acquire shared backup lock to block concurrent backup. Acquire exclusive
-    backup lock to block any concurrent DDL. The fact that we acquire both
-    these locks also ensures that concurrent KEY rotation requests are blocked.
-  */
-  if (acquire_exclusive_backup_lock(m_thd, m_thd->variables.lock_wait_timeout,
-                                    true) ||
-      acquire_shared_backup_lock(m_thd, m_thd->variables.lock_wait_timeout)) {
-    // MDL subsystem has to set an error in Diagnostics Area
-    DBUG_ASSERT(m_thd->get_stmt_da()->is_error());
-    return true;
-  }
-=======
   /*
     Acquire protection against GRL and check for concurrent change of read_only
     value since encryption key rotation is not allowed in read_only/
@@ -151,19 +135,7 @@ bool Rotate_innodb_master_key::execute() {
     return true;
   }
 
-  /*
-    Acquire shared backup lock to block concurrent backup. Acquire exclusive
-    backup lock to block any concurrent DDL. The fact that we acquire both
-    these locks also ensures that concurrent KEY rotation requests are blocked.
-  */
-  if (acquire_exclusive_backup_lock(m_thd, m_thd->variables.lock_wait_timeout,
-                                    true) ||
-      acquire_shared_backup_lock(m_thd, m_thd->variables.lock_wait_timeout)) {
-    // MDL subsystem has to set an error in Diagnostics Area
-    DBUG_ASSERT(m_thd->get_stmt_da()->is_error());
-    return true;
-  }
->>>>>>> mysql-8.0.21
+  if (acquire_backup_locks()) return true;
 
   if (hton->rotate_encryption_master_key()) {
     /* SE should have raised error */
@@ -191,7 +163,6 @@ bool Rotate_innodb_master_key::execute() {
   return false;
 }
 
-<<<<<<< HEAD
 bool Rotate_percona_system_key::rotate() {
   size_t key_length{0};
 
@@ -266,8 +237,6 @@ bool Rotate_innodb_system_key::execute() {
   return false;
 }
 
-||||||| merged common ancestors
-=======
 bool Innodb_redo_log::execute() {
   DBUG_TRACE;
 
@@ -314,7 +283,6 @@ bool Innodb_redo_log::execute() {
   return false;
 }
 
->>>>>>> mysql-8.0.21
 bool Rotate_binlog_master_key::execute() {
   DBUG_TRACE;
 

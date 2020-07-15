@@ -2588,23 +2588,13 @@ static Sys_var_ulong Sys_log_error_verbosity(
     "2, log errors and warnings. "
     "3, log errors, warnings, and notes. "
     "Messages sent to the client are unaffected by this setting.",
-<<<<<<< HEAD
-    GLOBAL_VAR(log_error_verbosity), CMD_LINE(REQUIRED_ARG), VALID_RANGE(1, 3),
-    DEFAULT(2), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
-    ON_UPDATE(update_log_error_verbosity), nullptr,
+    PERSIST_AS_READONLY GLOBAL_VAR(log_error_verbosity), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(1, 3), DEFAULT(2), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(update_log_error_verbosity), nullptr,
     /* 1. my_init_signals() allows to use setrlimit() which can generate
        LogErr() that depends on log_error_verbosity
        2. my_init_signals() was moved before sys_var::PARSE_NORMAL */
     sys_var::PARSE_EARLY);
-||||||| merged common ancestors
-    GLOBAL_VAR(log_error_verbosity), CMD_LINE(REQUIRED_ARG), VALID_RANGE(1, 3),
-    DEFAULT(2), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
-    ON_UPDATE(update_log_error_verbosity));
-=======
-    PERSIST_AS_READONLY GLOBAL_VAR(log_error_verbosity), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(1, 3), DEFAULT(2), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(nullptr), ON_UPDATE(update_log_error_verbosity));
->>>>>>> mysql-8.0.21
 
 static Sys_var_enum Sys_log_timestamps(
     "log_timestamps",
@@ -3225,13 +3215,9 @@ static const char *optimizer_switch_names[] = {
     "use_invisible_indexes",
     "skip_scan",
     "hash_join",
-<<<<<<< HEAD
-    "favor_range_scan",
-||||||| merged common ancestors
-=======
     "subquery_to_derived",
     "prefer_ordering_index",
->>>>>>> mysql-8.0.21
+    "favor_range_scan",
     "default",
     NullS};
 static Sys_var_flagset Sys_optimizer_switch(
@@ -3241,23 +3227,11 @@ static Sys_var_flagset Sys_optimizer_switch(
     "index_merge_intersection, engine_condition_pushdown, "
     "index_condition_pushdown, mrr, mrr_cost_based"
     ", materialization, semijoin, loosescan, firstmatch, duplicateweedout,"
-<<<<<<< HEAD
-    " subquery_materialization_cost_based, skip_scan"
-    ", block_nested_loop, batched_key_access, use_index_extensions,"
-    " condition_fanout_filter, derived_merge, hash_join, favor_range_scan}"
-    " and val is one of {on, off, default}",
-||||||| merged common ancestors
-    " subquery_materialization_cost_based, skip_scan"
-    ", block_nested_loop, batched_key_access, use_index_extensions,"
-    " condition_fanout_filter, derived_merge, hash_join} and val is one of "
-    "{on, off, default}",
-=======
     " subquery_materialization_cost_based, skip_scan,"
     " block_nested_loop, batched_key_access, use_index_extensions,"
     " condition_fanout_filter, derived_merge, hash_join,"
-    " subquery_to_derived, prefer_ordering_index} and val is one of "
+    " subquery_to_derived, prefer_ordering_index, favor_range_scan} and val is one of "
     "{on, off, default}",
->>>>>>> mysql-8.0.21
     HINT_UPDATEABLE SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
     optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));

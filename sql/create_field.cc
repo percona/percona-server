@@ -80,13 +80,9 @@ Create_field::Create_field(Field *old_field, Field *orig_field)
       stored_in_db(old_field->stored_in_db),
       m_default_val_expr(old_field->m_default_val_expr),
       is_array(old_field->is_array()),
-<<<<<<< HEAD
       zip_dict_id(0),
-||||||| merged common ancestors
-=======
       m_engine_attribute(old_field->m_engine_attribute),
       m_secondary_engine_attribute(old_field->m_secondary_engine_attribute),
->>>>>>> mysql-8.0.21
       m_max_display_width_in_codepoints(old_field->char_length()) {
   switch (sql_type) {
     case MYSQL_TYPE_TINY_BLOB:

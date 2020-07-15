@@ -63,22 +63,7 @@ TEST(MString, HumanReadableSize) {
   data_size *= 1000;
   EXPECT_EQ("1025000Y", HumanReadable(data_size));
   data_size *= 1000;
-<<<<<<< HEAD
-  human_readable_num_bytes(data_size_str, 32, data_size);
-  EXPECT_STREQ("1025000000Y", data_size_str);
 
-  data_size *=
-      static_cast<double>(std::numeric_limits<unsigned long long>::max());
-  human_readable_num_bytes(data_size_str, 32, data_size);
-  EXPECT_STREQ("+INF", data_size_str);
-||||||| merged common ancestors
-  human_readable_num_bytes(data_size_str, 32, data_size);
-  EXPECT_STREQ("1025000000Y", data_size_str);
-
-  data_size *= std::numeric_limits<unsigned long long>::max();
-  human_readable_num_bytes(data_size_str, 32, data_size);
-  EXPECT_STREQ("+INF", data_size_str);
-=======
   EXPECT_EQ("1025000000Y", HumanReadable(data_size));
   data_size *=
       static_cast<double>(std::numeric_limits<unsigned long long>::max());
@@ -106,7 +91,6 @@ TEST(MString, HumanReadableSize) {
   EXPECT_EQ("+INF", HumanReadable(static_cast<double>(ULLONG_MAX) * yotta));
   EXPECT_EQ("+INF", HumanReadable(nextafter(
                         static_cast<double>(ULLONG_MAX) * yotta, DBL_MAX)));
->>>>>>> mysql-8.0.21
 }
 
 static void BM_longlong10_to_str(size_t num_iterations) {

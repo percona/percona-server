@@ -27,23 +27,12 @@
 #include "sql/dd/impl/system_views/character_sets.h"     // Character_sets
 #include "sql/dd/impl/system_views/check_constraints.h"  // Check_constraints
 #include "sql/dd/impl/system_views/collation_charset_applicability.h"  // Collati...
-<<<<<<< HEAD
 #include "sql/dd/impl/system_views/collations.h"         // Collations
 #include "sql/dd/impl/system_views/column_statistics.h"  // Column_statistics
 #include "sql/dd/impl/system_views/columns.h"            // Columns
+#include "sql/dd/impl/system_views/columns_extensions.h"  // Columns_extensions
 #include "sql/dd/impl/system_views/compression_dictionary.h"  // Compression_dictionary
 #include "sql/dd/impl/system_views/compression_dictionary_tables.h"  // Compression_dictionary_tables
-||||||| merged common ancestors
-#include "sql/dd/impl/system_views/collations.h"           // Collations
-#include "sql/dd/impl/system_views/column_statistics.h"    // Column_statistics
-#include "sql/dd/impl/system_views/columns.h"              // Columns
-=======
-#include "sql/dd/impl/system_views/collations.h"          // Collations
-#include "sql/dd/impl/system_views/column_statistics.h"   // Column_statistics
-#include "sql/dd/impl/system_views/columns.h"             // Columns
-#include "sql/dd/impl/system_views/columns_extensions.h"  // Columns_extensions
-
->>>>>>> mysql-8.0.21
 #include "sql/dd/impl/system_views/enabled_roles.h"        // Enabled_roles
 #include "sql/dd/impl/system_views/events.h"               // Events
 #include "sql/dd/impl/system_views/files.h"                // Files

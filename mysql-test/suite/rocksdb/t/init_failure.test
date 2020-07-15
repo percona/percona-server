@@ -1,0 +1,8 @@
+--source include/have_debug.inc
+--source include/have_rocksdb.inc
+
+--let $_mysqld_option=--debug="+d,rocksdb_init_failure_open_db"
+--source include/restart_mysqld.inc
+
+--let $_mysqld_option=--debug="+d,rocksdb_init_failure_list_cf"
+--source include/restart_mysqld.inc

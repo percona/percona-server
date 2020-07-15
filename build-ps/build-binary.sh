@@ -287,13 +287,7 @@ fi
     fi
 )
 
-# Patch needed libraries
 (
-    cd "$INSTALLDIR/usr/local/$PRODUCT_FULL"
-    if [ ! -d lib/private ]; then
-        mkdir -p lib/private
-    fi
-
     LIBLIST="libcrypto.so libssl.so libreadline.so libtinfo.so libsasl2.so libcurl.so libldap liblber libssh libbrotlidec.so libbrotlicommon.so libgssapi_krb5.so libkrb5.so libkrb5support.so libk5crypto.so librtmp.so libgssapi.so libfreebl3.so libssl3.so libsmime3.so libnss3.so libnssutil3.so libplds4.so libplc4.so libnspr4.so libssl3.so libplds4.so"
     DIRLIST="bin lib lib/private lib/plugin lib/mysqlrouter/plugin lib/mysqlrouter/private"
 
@@ -357,31 +351,46 @@ fi
         done
     }
 
-    # Gather libs
-    for DIR in $DIRLIST; do
-        gather_libs $DIR
-    done
+    function link {
+        if [ ! -d lib/private ]; then
+            mkdir -p lib/private
+        fi
+        # Gather libs
+        for DIR in $DIRLIST; do
+            gather_libs $DIR
+        done
+        # Set proper runpath
+        export override=false
+        set_runpath bin '$ORIGIN/../lib/private/'
+        set_runpath lib '$ORIGIN/private/'
+        set_runpath lib/plugin '$ORIGIN/../private/'
+        set_runpath lib/private '$ORIGIN'
+        # LIBS MYSQLROUTER
+        unset override && export override=true && set_runpath lib/mysqlrouter/plugin '$ORIGIN/:$ORIGIN/../private/:$ORIGIN/../../private/'
+        unset override && export override=true && set_runpath lib/mysqlrouter/private '$ORIGIN/:$ORIGIN/../plugin/:$ORIGIN/../../private/'
+        #  BINS MYSQLROUTER
+        unset override && export override=true && set_runpath bin/mysqlrouter_passwd '$ORIGIN/../lib/mysqlrouter/private/:$ORIGIN/../lib/mysqlrouter/plugin/:$ORIGIN/../lib/private/'
+        unset override && export override=true && set_runpath bin/mysqlrouter_plugin_info '$ORIGIN/../lib/mysqlrouter/private/:$ORIGIN/../lib/mysqlrouter/plugin/:$ORIGIN/../lib/private/'
+        unset override && export override=true && set_runpath bin/mysqlrouter '$ORIGIN/../lib/mysqlrouter/private/:$ORIGIN/../lib/mysqlrouter/plugin/:$ORIGIN/../lib/private/'
+        unset override && export override=true && set_runpath bin/mysqlrouter_keyring '$ORIGIN/../lib/mysqlrouter/private/:$ORIGIN/../lib/mysqlrouter/plugin/:$ORIGIN/../lib/private/'
+        # Replace libs
+        for DIR in $DIRLIST; do
+            replace_libs $DIR
+        done
+    }
 
-    # Set proper runpath
-    export override=false
-    set_runpath bin '$ORIGIN/../lib/private/'
-    set_runpath lib '$ORIGIN/private/'
-    set_runpath lib/plugin '$ORIGIN/../private/'
-    set_runpath lib/private '$ORIGIN'
-    # LIBS MYSQLROUTER
-    unset override && export override=true && set_runpath lib/mysqlrouter/plugin '$ORIGIN/:$ORIGIN/../private/:$ORIGIN/../../private/'
-    unset override && export override=true && set_runpath lib/mysqlrouter/private '$ORIGIN/:$ORIGIN/../plugin/:$ORIGIN/../../private/'
-    #  BINS MYSQLROUTER
-    unset override && export override=true && set_runpath bin/mysqlrouter_passwd '$ORIGIN/../lib/mysqlrouter/private/:$ORIGIN/../lib/mysqlrouter/plugin/:$ORIGIN/../lib/private/'
-    unset override && export override=true && set_runpath bin/mysqlrouter_plugin_info '$ORIGIN/../lib/mysqlrouter/private/:$ORIGIN/../lib/mysqlrouter/plugin/:$ORIGIN/../lib/private/'
-    unset override && export override=true && set_runpath bin/mysqlrouter '$ORIGIN/../lib/mysqlrouter/private/:$ORIGIN/../lib/mysqlrouter/plugin/:$ORIGIN/../lib/private/'
-    unset override && export override=true && set_runpath bin/mysqlrouter_keyring '$ORIGIN/../lib/mysqlrouter/private/:$ORIGIN/../lib/mysqlrouter/plugin/:$ORIGIN/../lib/private/'
+    mkdir $INSTALLDIR/usr/local/minimal
+    cp -r "$INSTALLDIR/usr/local/$PRODUCT_FULL" "$INSTALLDIR/usr/local/minimal/$PRODUCT_FULL"
 
-    # Replace libs
-    for DIR in $DIRLIST; do
-        replace_libs $DIR
-    done
+    # NORMAL TARBALL
+    cd "$INSTALLDIR/usr/local/$PRODUCT_FULL"
+    link
 
+    # MIN TARBALL
+    cd "$INSTALLDIR/usr/local/minimal/$PRODUCT_FULL"
+    rm -rf mysql-test 2> /dev/null
+    find . -type f -exec file '{}' \; | grep ': ELF ' | cut -d':' -f1 | xargs strip --strip-unneeded
+    link
 )
 
 # Package the archive
@@ -391,8 +400,8 @@ fi
     find $PRODUCT_FULL -type f -name 'COPYING.AGPLv3' -delete
     $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL.tar.gz" $PRODUCT_FULL
 
-    rm -rf $PRODUCT_FULL/mysql-test 2> /dev/null
-    find $PRODUCT_FULL -type f -exec file '{}' \; | grep ': ELF ' | cut -d':' -f1 | xargs strip --strip-unneeded
+    cd "$INSTALLDIR/usr/local/minimal/"
+    find $PRODUCT_FULL -type f -name 'COPYING.AGPLv3' -delete
     $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL-minimal.tar.gz" $PRODUCT_FULL
 )
 

@@ -214,4 +214,9 @@ void srv_fatal_error() MY_ATTRIBUTE((noreturn));
 Shutdown all background threads created by InnoDB. */
 void srv_shutdown_all_bg_threads();
 
+/** check if there is no encryption conflicts when setting
+either Master Key or Keyring encryption for undo */
+dberr_t check_mk_and_keyring_encrypt_exclusion_for_undo(
+    bool should_acquire_space, THD *thd);
+
 #endif

@@ -1034,10 +1034,14 @@ static bool fil_crypt_needs_rotation(fil_encryption_t encrypt_mode,
 /** Read page 0 and possible crypt data from there.
 @param[in,out]	space		Tablespace */
 static inline void fil_crypt_read_crypt_data(fil_space_t *space) {
-  if (space->crypt_data && space->size) {
-    /* The encryption metadata has already been read, or
-    the tablespace is not encrypted and the file has been
-    opened already. */
+  if (space->size != 0) {
+    /* When space->size != 0 it means that page0 of the tablespace has
+    already been read in order to read the size of the space (i.e. number of the
+    pages). When we read page0 - we also read crypt_data information from it -
+    thus if space->size != 0 - it means that crypt_data was already read (if
+    existed). Also we need to read space->size in order to know how many pages
+    we are going to rotate in space. buf_page_get will read space's size if it
+    is not yet read */
     return;
   }
 
@@ -1077,7 +1081,52 @@ static void fil_crypt_write_crypt_data_to_page0(fil_space_t *space) {
   mtr.commit();
 }
 
-bool fil_crypt_exclude_tablespace_from_rotation(fil_space_t *space) {
+bool fil_crypt_exclude_tablespace_from_rotation_temporarily(
+    fil_space_t *space) {
+  if (space->exclude_from_rotation) {
+    // nothing to do
+    return true;
+  }
+
+  // We acquire fil_crypt_threads_mutex to stop encryption threads from
+  // generating crypt_data for tablespaces that they are about to encrypt.
+  // Generating crypt_data is the fist step in encryption process.
+  mutex_enter(&fil_crypt_threads_mutex);
+
+  if (space->crypt_data == nullptr) {
+    space->exclude_from_rotation = true;
+    mutex_exit(&fil_crypt_threads_mutex);
+    return true;
+  }
+
+  mutex_exit(&fil_crypt_threads_mutex);
+
+  // crypt_data already existed.
+  fil_space_crypt_t *crypt_data = space->crypt_data;
+  // take a lock on crypt_data to block rotation from starting
+  IB_mutex_guard crypt_data_mutex_guard(&crypt_data->mutex);
+
+  // if there are any encryption threads "running" on this tablespace we cannot
+  // exclude it from rotation.
+  if (crypt_data->rotate_state.active_threads != 0 ||
+      crypt_data->rotate_state.starting || crypt_data->rotate_state.flushing) {
+    my_error(ER_EXCLUDE_ENCRYPTION_THREADS_RUNNING, MYF(0), space->name);
+    return false;
+  }
+
+  // it is only possible to exclude tablespace that is unencrypted
+  if (crypt_data->type != CRYPT_SCHEME_UNENCRYPTED) {
+    my_error(ER_EXCLUDE_ENCRYPTION_TABLE_ENCRYPTED, MYF(0), space->name);
+    return false;
+  }
+
+  space->exclude_from_rotation = true;
+
+  return true;
+}
+
+bool fil_crypt_exclude_tablespace_from_rotation_permanently(
+    fil_space_t *space) {
   // We acquire fil_crypt_threads_mutex to stop encryption threads from
   // generating crypt_data for tablespaces that they are about to encrypt.
   // Generating crypt_data is the fist step in encryption process.
@@ -1106,10 +1155,15 @@ bool fil_crypt_exclude_tablespace_from_rotation(fil_space_t *space) {
   // exclude it from rotation.
   if (crypt_data->rotate_state.active_threads != 0 ||
       crypt_data->rotate_state.starting || crypt_data->rotate_state.flushing) {
+    my_error(ER_EXCLUDE_ENCRYPTION_THREADS_RUNNING, MYF(0), space->name);
     return false;
   }
 
-  ut_ad(crypt_data->type == CRYPT_SCHEME_UNENCRYPTED);
+  // it is only possible to exclude tablespace that is unencrypted
+  if (crypt_data->type != CRYPT_SCHEME_UNENCRYPTED) {
+    my_error(ER_EXCLUDE_ENCRYPTION_TABLE_ENCRYPTED, MYF(0), space->name);
+    return false;
+  }
 
   crypt_data->encryption = FIL_ENCRYPTION_OFF;
   crypt_data->key_id = FIL_DEFAULT_ENCRYPTION_KEY;
@@ -1117,6 +1171,15 @@ bool fil_crypt_exclude_tablespace_from_rotation(fil_space_t *space) {
   fil_crypt_write_crypt_data_to_page0(space);
 
   return true;
+}
+
+void fil_crypt_readd_space_to_rotation(space_id_t space_id) {
+  fil_space_t *space = fil_space_acquire_silent(space_id);
+
+  if (space != nullptr) {
+    space->exclude_from_rotation = false;
+    fil_space_release(space);
+  }
 }
 
 /***********************************************************************
@@ -1431,8 +1494,9 @@ static bool fil_crypt_space_needs_rotation(rotate_thread_t *state,
       break;
     }
 
-    /* No need to rotate space if encryption is disabled */
-    if (crypt_data->is_encryption_disabled()) {
+    /* No need to rotate space if encryption is disabled
+     * permanently or temporarily */
+    if (crypt_data->is_encryption_disabled() || space->exclude_from_rotation) {
       break;
     }
 
@@ -1701,6 +1765,20 @@ static bool fil_crypt_find_space_to_rotate(key_state_t *key_state,
       return true;
     }
 
+    DBUG_EXECUTE_IF(
+        "wait_for_ts1_to_be_considered_for_rotation",
+        if (strcmp(state->space->name, "ts1") == 0) {
+          // artifical key_id = 10 for system space to let MTR test know that
+          // t1 was already proccessed
+          fil_space_t *sys_space = fil_space_get(0);
+          EncryptionKeyId key_id = sys_space->crypt_data->key_id;
+          sys_space->crypt_data->key_id = 10;
+          while (DBUG_EVALUATE_IF("wait_for_ts1_to_be_considered_for_rotation",
+                                  true, false))
+            os_thread_sleep(1000);
+          sys_space->crypt_data->key_id = key_id;
+        });
+
     if (srv_fil_crypt_rotate_key_age) {
       state->space = fil_space_next(state->space);
     } else {
@@ -1733,9 +1811,19 @@ static bool fil_crypt_start_rotate_space(const key_state_t *key_state,
 
   mutex_enter(&crypt_data->mutex);
 
-  // It is possible that tablespace was excluded from rotation in the meantime.
-  // I.e. fil_crypt_exclude_tablespace_from_rotation was called. Check it here.
-  if (crypt_data->is_encryption_disabled()) {
+  // Check of crypt_data->is_encryption_disabled:
+  // It is possible that tablespace was excluded from rotation in the meantime
+  // ("permanently") I.e. fil_crypt_exclude_tablespace_from_rotation was called,
+  // because ENCRYPTION='N' was set. Check it here. Check for
+  // state->space->exclude_from_rotation: Check that in the meantime space was
+  // not excluded from rotation (temporarly). This could be the case when ALTER
+  // ENCRYPTION='Y/N' is done on a tablespace. When ENCRYPTION of general
+  // tablespace is changed the page0 is periodically updated with the progress
+  // of encryption/decryption of general tablespace. We do not want encryption
+  // threads to interfere with that.
+
+  if (crypt_data->is_encryption_disabled() ||
+      state->space->exclude_from_rotation) {
     mutex_exit(&crypt_data->mutex);
     crypt_data->rotate_state.destroy_flush_observer();
     mutex_exit(&crypt_data->start_rotate_mutex);
@@ -1787,14 +1875,13 @@ static bool fil_crypt_start_rotate_space(const key_state_t *key_state,
   mutex_exit(&crypt_data->start_rotate_mutex);
 
   DBUG_EXECUTE_IF(
-      "hang_on_ts_with_encryption_key_id_rotation",
-      if (strcmp(state->space->name, "ts_with_encryption_key_id") == 0) {
+      "hang_on_ts_hang_rotation",
+      if (strcmp(state->space->name, "ts_hang") == 0) {
         // artifical key_id = 10 to let MTR test know that we are
         // hanging
         static EncryptionKeyId key_id = crypt_data->key_id;
         crypt_data->key_id = 10;
-        while (DBUG_EVALUATE_IF("hang_on_ts_with_encryption_key_id_rotation",
-                                true, false))
+        while (DBUG_EVALUATE_IF("hang_on_ts_hang_rotation", true, false))
           os_thread_sleep(1000);
         crypt_data->key_id = key_id;
       });

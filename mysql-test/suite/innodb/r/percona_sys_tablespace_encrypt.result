@@ -87,7 +87,7 @@ Pattern found.
 # restart: --datadir=MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=ON
 SELECT @@innodb_sys_tablespace_encrypt;
 @@innodb_sys_tablespace_encrypt
-1
+ON
 include/assert.inc [System tablespace should be encrypted]
 CREATE DATABASE db1;
 CREATE USER u1@localhost;
@@ -214,7 +214,7 @@ CREATE TABLE t6(a TEXT) ENCRYPTION='Y';
 INSERT INTO t6 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence is');
 SELECT @@innodb_sys_tablespace_encrypt;
 @@innodb_sys_tablespace_encrypt
-1
+ON
 ALTER TABLE t6 TABLESPACE=`innodb_system`;
 SHOW CREATE TABLE t6;
 Table	Create Table
@@ -309,10 +309,10 @@ DROP DATABASE db1;
 # PS-5652 - innodb_sys_tablespace_encrypt must not be allowed to be persisted
 #
 SET PERSIST_ONLY innodb_sys_tablespace_encrypt = ON;
-ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a non persistent read only variable
+ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a non persistent variable
 SET PERSIST_ONLY innodb_sys_tablespace_encrypt = OFF;
-ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a non persistent read only variable
+ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a non persistent variable
 SET PERSIST innodb_sys_tablespace_encrypt = ON;
-ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a read only variable
+ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a non persistent variable
 SET PERSIST innodb_sys_tablespace_encrypt = OFF;
-ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a read only variable
+ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a non persistent variable

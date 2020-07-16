@@ -1,7 +1,6 @@
 #
 # WL#12138 -- Add Admin Port
 #
-CALL mtr.add_suppression("Too many connections");
 # Create the user u1
 CREATE USER u1;
 # Grant the user u1 the privilege SERVICE_CONNECTION_ADMIN

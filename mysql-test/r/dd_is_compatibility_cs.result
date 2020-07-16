@@ -223,22 +223,10 @@ WHERE TABLE_NAME LIKE 'no_such_table';
 TABLE_NAME
 # 4. Names collate differently. On trunk, the queries below returns
 #    the same result set.
-<<<<<<< HEAD
-SELECT count(*) = IF(@@lower_case_table_names = 0, 5, 9)
-||||||| merged common ancestors
-SELECT count(*) = IF(@@lower_case_table_names = 0, 4, 9)
-=======
-SELECT count(*) = IF(@@lower_case_table_names = 0, 7, 12)
->>>>>>> mysql-8.0.21
+SELECT count(*) = IF(@@lower_case_table_names = 0, 8, 9)
 FROM information_schema.tables
 WHERE table_name LIKE 'TAB%';
-<<<<<<< HEAD
-count(*) = IF(@@lower_case_table_names = 0, 5, 9)
-||||||| merged common ancestors
-count(*) = IF(@@lower_case_table_names = 0, 4, 9)
-=======
-count(*) = IF(@@lower_case_table_names = 0, 7, 12)
->>>>>>> mysql-8.0.21
+count(*) = IF(@@lower_case_table_names = 0, 8, 9)
 1
 SELECT count(*) = IF(@@lower_case_table_names = 0, 5, 12)
 FROM information_schema.tables

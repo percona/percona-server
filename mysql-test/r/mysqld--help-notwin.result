@@ -258,6 +258,9 @@ The following options may be given as the first argument:
  --console           Write error output on screen; don't remove the console
  window on windows.
  --core-file         Write core on errors.
+ --coredumper[=name] Use coredumper library to generate coredumps. Specify a
+ path for coredump otherwise it will be generated on
+ datadir
  --create-admin-listener-thread 
  Use a dedicated thread for listening incoming connections
  on admin interface
@@ -1546,6 +1549,7 @@ completion-type NO_CHAIN
 concurrent-insert AUTO
 connect-timeout 10
 console FALSE
+coredumper (No default value)
 create-admin-listener-thread FALSE
 cte-max-recursion-depth 1000
 daemonize FALSE

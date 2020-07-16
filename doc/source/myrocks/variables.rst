@@ -2650,7 +2650,11 @@ Specifies the path to the directory where MyRocks stores WAL files.
   :dyn: Yes
   :scope: Global
   :vartype: Numeric
-  :default: ``1``
+  :default: ``2``
+
+.. note:: 
+
+    In version 5.7.31-34 and later, the default is changed from ``1`` to ``2``. 
 
 Specifies the level of tolerance when recovering write-ahead logs (WAL) files
 after a system crash.
@@ -2659,9 +2663,9 @@ The following are the options:
 
  * ``0``: if the last WAL entry is corrupted, truncate the entry and either start the server normally or refuse to start.
 
- * ``1`` (default): if a WAL entry is corrupted, the server fails to   start and does not recover from the crash.
+ * ``1``: if a WAL entry is corrupted, the server fails to   start and does not recover from the crash.
 
- * ``2``: if a corrupted WAL entry is detected, truncate all entries after the detected corrupted entry. You can select this setting for replication slaves.
+ * ``2`` (default): if a corrupted WAL entry is detected, truncate all entries after the detected corrupted entry. You can select this setting for replication slaves.
 
  * ``3``: If a corrupted WAL entry is detected, skip only the corrupted entry and continue the apply WAL entries. This option can be dangerous.
 

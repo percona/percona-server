@@ -76,10 +76,8 @@ SET GLOBAL debug="+d,crash_on_t1_flush_after_dd_update";
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 # Make sure that t1 has been decrypted
 # First restart the server after crash so any redo logs for t1 were proceed. If there are any logs available
-# t1 will be opened without validating idb file to DD. We set here innodb-encryption-threads to value > 0 - so
-# in case there is no redo for t1 and validation to DD would occur we would not get an error in the log
-# to set innodb-encryption-threads to value > 0 to finish rotation. We grep for this error later.
-# restart:--innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=1
+# t1 will be opened without validating idb file to DD.
+# restart:--innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=0
 SET GLOBAL debug="-d,crash_on_t1_flush_after_dd_update";
 # Now restart the server and select from t1. Validation of t1's flags should proceed.
 # It should be discovered that there is mismatch of flags in t1. However it shoud be possible to use
@@ -100,10 +98,8 @@ COUNT(1)
 SET GLOBAL debug="+d,crash_on_t1_flush_after_dd_update";
 SET GLOBAL innodb_encryption_threads=4;
 # First restart the server after crash so any redo logs for t1 were proceed. If there are any logs available
-# t1 will be opened without validating idb file to DD. We set here innodb-encryption-threads to value > 0 - so
-# in case there is no redo for t1 and validation to DD would occur we would not get an error in the log
-# to set innodb-encryption-threads to value > 0 to finish rotation. We grep for this error later.
-# restart:--innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=1
+# t1 will be opened without validating idb file to DD.
+# restart:--innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=0
 SET GLOBAL debug="-d,crash_on_t1_flush_after_dd_update";
 # Make sure that t1 has been encrypted
 # Now start the server and select from t1. Validation of t1's flags should proceed.

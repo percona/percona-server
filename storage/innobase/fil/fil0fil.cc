@@ -8409,8 +8409,8 @@ void fil_aio_wait(ulint segment) {
 
       /* async single page writes from the dblwr buffer don't have
       access to the page */
-      if (message != nullptr) {
-        buf_page_io_complete(static_cast<buf_page_t *>(message));
+      if (m2 != nullptr) {
+        buf_page_io_complete(static_cast<buf_page_t *>(m2));
       }
       return;
     case FIL_TYPE_LOG:
@@ -8972,7 +8972,7 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
       read_request.encryption_key(
           encrypted_with_keyring ? iter.m_crypt_data->tablespace_key
                                  : iter.m_encryption_key,
-          ENCRYPTION_KEY_LEN,
+          Encryption::KEY_LEN,
           encrypted_with_keyring ? iter.m_crypt_data->iv : iter.m_encryption_iv,
           0, iter.m_encryption_key_id,
           encrypted_with_keyring ? iter.m_crypt_data->tablespace_key : nullptr,
@@ -9028,13 +9028,13 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
     if (iter.m_encryption_key != NULL && offset != 0 &&
         iter.m_crypt_data == NULL) {
       write_request.encryption_key(
-          iter.m_encryption_key, ENCRYPTION_KEY_LEN, iter.m_encryption_iv,
+          iter.m_encryption_key, Encryption::KEY_LEN, iter.m_encryption_iv,
           iter.m_encryption_key_version, iter.m_encryption_key_id, nullptr,
           nullptr, nullptr);
       write_request.encryption_algorithm(Encryption::AES);
     } else if (offset != 0 && iter.m_crypt_data) {
       write_request.encryption_key(
-          iter.m_encryption_key, ENCRYPTION_KEY_LEN, iter.m_encryption_iv,
+          iter.m_encryption_key, Encryption::KEY_LEN, iter.m_encryption_iv,
           iter.m_encryption_key_version, iter.m_crypt_data->key_id, nullptr,
           iter.m_crypt_data->uuid, nullptr);
 

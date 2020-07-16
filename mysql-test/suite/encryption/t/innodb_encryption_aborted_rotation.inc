@@ -249,10 +249,8 @@ if (!$is_t1_compressed)
 }
 
 --echo # First restart the server after crash so any redo logs for t1 were proceed. If there are any logs available
---echo # t1 will be opened without validating idb file to DD. We set here innodb-encryption-threads to value > 0 - so
---echo # in case there is no redo for t1 and validation to DD would occur we would not get an error in the log
---echo # to set innodb-encryption-threads to value > 0 to finish rotation. We grep for this error later.
---let $restart_parameters=restart:--innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=1
+--echo # t1 will be opened without validating idb file to DD.
+--let $restart_parameters=restart:--innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=0
 --source include/start_mysqld.inc
 
 SET GLOBAL debug="-d,crash_on_t1_flush_after_dd_update";
@@ -314,10 +312,8 @@ SET GLOBAL innodb_encryption_threads=4;
 --source include/wait_until_disconnected.inc
 
 --echo # First restart the server after crash so any redo logs for t1 were proceed. If there are any logs available
---echo # t1 will be opened without validating idb file to DD. We set here innodb-encryption-threads to value > 0 - so
---echo # in case there is no redo for t1 and validation to DD would occur we would not get an error in the log
---echo # to set innodb-encryption-threads to value > 0 to finish rotation. We grep for this error later.
---let $restart_parameters=restart:--innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=1
+--echo # t1 will be opened without validating idb file to DD.
+--let $restart_parameters=restart:--innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=0
 --source include/start_mysqld.inc
 
 SET GLOBAL debug="-d,crash_on_t1_flush_after_dd_update";

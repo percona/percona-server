@@ -1361,14 +1361,8 @@ std::pair<bool, space_id_t> dict_check_sys_tablespaces(bool validate) {
     }
 
     // For tables in cache check if they contain crypt_data in page0
-<<<<<<< HEAD
-    if (fil_space_exists_in_mem(space_id, space_name, false, true, nullptr,
-                                0)) {
-      if (is_space_keyring_v1_encrypted(space_id)) {
-=======
     if (fil_space_exists_in_mem(space_id, space_name, false, true, NULL, 0)) {
       if (is_space_keyring_pre_v3_encrypted(space_id)) {
->>>>>>> PS-5635: Intoduce crypt_schema 2 for better error checking in encryption
         mtr_commit(&mtr);
         return std::make_pair(true, 0);  // will cause upgrade to fail
       }

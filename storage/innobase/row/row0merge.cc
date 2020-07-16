@@ -3856,12 +3856,6 @@ dberr_t row_merge_build_indexes(
     goto func_exit;
   }
 
-  if (!old_table->is_readable() || !new_table->is_readable()) {
-    error = DB_IO_DECRYPT_FAIL;
-    ib::warn(ER_XB_MSG_4, table->s->table_name.str);
-    goto func_exit;
-  }
-
   /* Read clustered index of the table and create files for
   secondary index entries for merge sort */
   error = row_merge_read_clustered_index(

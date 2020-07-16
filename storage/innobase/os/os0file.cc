@@ -1700,8 +1700,8 @@ encrypted.
 static void verify_encryption_for_rotation(const IORequest &type,
                                            Encryption &encryption, byte *page,
                                            ulint page_size) {
-  ut_ad(encryption.m_type == Encryption::KEYRING &&
-        encryption.m_encryption_rotation ==
+  ut_ad(encryption.get_type() == Encryption::KEYRING &&
+        encryption.get_encryption_rotation() ==
             Encryption_rotation::MASTER_KEY_TO_KEYRING);
 
   bool is_crypt_checksum_correct =
@@ -1723,7 +1723,7 @@ static void verify_encryption_for_rotation(const IORequest &type,
           encryption.is_encrypted_and_compressed(page));
     }
 
-    encryption.m_type =
+    encryption.set_type(
         is_crypt_checksum_correct
             ? Encryption::KEYRING  // assume page is RK encrypted
             : Encryption::AES);    // assume page is MK encrypted
@@ -1759,14 +1759,14 @@ static bool load_key_needed_for_decryption(const IORequest &type,
     ut_ad(key_version_read_from_page != ENCRYPTION_KEY_VERSION_INVALID);
     ut_ad(key_version_read_from_page != ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED);
 
-    ut_ad(encryption.m_key_versions_cache != nullptr);
+    ut_ad(encryption.get_key_versions_cache() != nullptr);
 
-    if (encryption.m_key_version != key_version_read_from_page) {
+    if (encryption.get_key_version() != key_version_read_from_page) {
       encryption.set_key(
-          (*encryption.m_key_versions_cache)[key_version_read_from_page],
-          ENCRYPTION_KEY_LEN);
+          (*encryption.get_key_versions_cache())[key_version_read_from_page],
+          Encryption::KEY_LEN);
     }
-    encryption.m_key_version = key_version_read_from_page;
+    encryption.set_key_version(key_version_read_from_page);
   } else {
     ut_ad(encryption.get_type() == Encryption::AES);
     if (encryption.get_encryption_rotation() ==
@@ -1776,8 +1776,8 @@ static bool load_key_needed_for_decryption(const IORequest &type,
 
     ut_ad(encryption.get_encryption_rotation() ==
               Encryption_rotation::MASTER_KEY_TO_KEYRING &&
-          encryption.m_tablespace_key != nullptr);
-    encryption.set_key(encryption.m_tablespace_key, ENCRYPTION_KEY_LEN);
+          encryption.get_tablespace_key() != nullptr);
+    encryption.set_key(encryption.get_tablespace_key(), Encryption::KEY_LEN);
   }
 
   return true;
@@ -1826,8 +1826,8 @@ static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
       // was already encrypted with keyring encryption (important when we are
       // resuming the re-encryption, which was previously stopped by shutdown or
       // a crash).
-      if (encryption.m_type == Encryption::KEYRING &&
-          encryption.m_encryption_rotation ==
+      if (encryption.get_type() == Encryption::KEYRING &&
+          encryption.get_encryption_rotation() ==
               Encryption_rotation::MASTER_KEY_TO_KEYRING) {
         verify_encryption_for_rotation(type, encryption, buf, src_len);
       }

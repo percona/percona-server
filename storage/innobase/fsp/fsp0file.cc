@@ -715,11 +715,11 @@ Datafile::ValidateOutput Datafile::validate_first_page(space_id_t space_id,
       crypt_data == nullptr) {
     if (m_encryption_key == nullptr) {
       m_encryption_key =
-          static_cast<byte *>(ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
+          static_cast<byte *>(ut_zalloc_nokey(Encryption::KEY_LEN));
     }
     if (m_encryption_iv == nullptr) {
       m_encryption_iv =
-          static_cast<byte *>(ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
+          static_cast<byte *>(ut_zalloc_nokey(Encryption::KEY_LEN));
     }
 #ifdef UNIV_ENCRYPT_DEBUG
     fprintf(stderr, "Got from file " SPACE_ID_PFS ":", m_space_id);
@@ -745,7 +745,7 @@ Datafile::ValidateOutput Datafile::validate_first_page(space_id_t space_id,
                               << " successfully, encryption"
                               << " of this tablespace enabled.";
       if (recv_recovery_is_on() &&
-          memcmp(m_encryption_key, m_encryption_iv, ENCRYPTION_KEY_LEN) == 0) {
+          memcmp(m_encryption_key, m_encryption_iv, Encryption::KEY_LEN) == 0) {
         ut_free(m_encryption_key);
         ut_free(m_encryption_iv);
         m_encryption_key = nullptr;

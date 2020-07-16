@@ -38,6 +38,7 @@ include/assert.inc ['There are 2 values in table t1']
 #
 # 5. Cleanup
 SET @@GLOBAL.slave_checkpoint_period= SLAVE_CHECKPOINT_PERIOD;
+SET DEBUG_SYNC= 'RESET';
 [connection master]
 DROP TABLE t1;
 include/rpl_end.inc

@@ -5648,8 +5648,14 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
           add("index_only", read_index_only).
           add("rows", found_records).
           add("cost", cost.total_cost());
+        if (param->thd->optimizer_switch_flag(
+                OPTIMIZER_SWITCH_FAVOR_RANGE_SCAN))
+          trace_idx.add("revised_cost", cost.total_cost() * 0.1);
       }
 #endif
+      if (param->thd->optimizer_switch_flag(
+              OPTIMIZER_SWITCH_FAVOR_RANGE_SCAN))
+        cost.multiply(0.1);
 
       if ((found_records != HA_POS_ERROR) && param->is_ror_scan)
       {

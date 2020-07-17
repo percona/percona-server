@@ -456,10 +456,10 @@ dberr_t dict_create_index_tree_in_mem(dict_index_t *index, trx_t *trx) {
     return (DB_SUCCESS);
   }
 
-  const bool unreadable =
-      !index->table->is_readable() || dict_table_is_discarded(index->table);
+  const bool missing =
+      index->table->ibd_file_missing || dict_table_is_discarded(index->table);
 
-  if (unreadable) {
+  if (missing) {
     index->page = FIL_NULL;
     index->trx_id = trx->id;
 

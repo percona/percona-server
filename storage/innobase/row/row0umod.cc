@@ -1229,7 +1229,7 @@ static void row_undo_mod_parse_undo_rec(undo_node_t *node, THD *thd,
     return;
   }
 
-  if (node->table->file_unreadable) {
+  if (node->table->ibd_file_missing) {
     dd_table_close(node->table, thd, mdl, false);
 
     /* We skip undo operations to missing .ibd files */

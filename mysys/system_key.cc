@@ -64,7 +64,7 @@ uchar *parse_system_key(const uchar *key, const size_t key_length,
 
   if (key == nullptr || key_length == 0) return nullptr;
 
-  for (; key[key_version_length] != ':' && key_version_length < key_length;
+  for (; key_version_length < key_length && key[key_version_length] != ':';
        ++key_version_length)
     ;
   if (key_version_length == 0 || key_version_length == key_length)

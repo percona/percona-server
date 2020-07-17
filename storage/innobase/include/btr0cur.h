@@ -140,7 +140,7 @@ bool btr_cur_optimistic_latch_leaves(buf_block_t *block,
  Note that if mode is PAGE_CUR_LE, which is used in inserts, then
  cursor->up_match and cursor->low_match both will have sensible values.
  If mode is PAGE_CUR_GE, then up_match will a have a sensible value. */
-dberr_t btr_cur_search_to_nth_level(
+void btr_cur_search_to_nth_level(
     dict_index_t *index,   /*!< in: index */
     ulint level,           /*!< in: the tree level of search */
     const dtuple_t *tuple, /*!< in: data tuple; NOTE: n_fields_cmp in
@@ -197,7 +197,7 @@ void btr_cur_search_to_nth_level_with_no_latch(
     mtr_t *mtr, bool mark_dirty = true);
 
 /** Opens a cursor at either end of an index. */
-dberr_t btr_cur_open_at_index_side_func(
+void btr_cur_open_at_index_side_func(
     bool from_left,      /*!< in: true if open to the low end,
                          false if to the high end */
     dict_index_t *index, /*!< in: index */

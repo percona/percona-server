@@ -1642,6 +1642,10 @@ static byte *recv_parse_or_apply_log_rec_body(mlog_id_t type, byte *ptr,
                             Encryption::MAGIC_SIZE) == 0 &&
                      apply) {
             return (fil_parse_write_crypt_data_v2(space_id, ptr, end_ptr, len));
+          } else if (memcmp(ptr_copy, Encryption::KEY_MAGIC_PS_V3,
+                            Encryption::MAGIC_SIZE) == 0 &&
+                     apply) {
+            return (fil_parse_write_crypt_data_v3(space_id, ptr, end_ptr, len));
           }
         }
         break;

@@ -116,7 +116,6 @@ ALTER TABLE t6 ENCRYPTION='KEYRING', ALGORITHM=INPLACE;
 --let SEARCH_PATTERN=moresecret
 --source include/search_pattern_in_file.inc
 
-
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT KEYRING_PLUGIN_OPT
 --let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=1
 -- source include/start_mysqld.inc
@@ -134,6 +133,8 @@ SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 
 --let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE ((FLAG & 8192) = 8192)]" = 3
 --source include/assert.inc
+
+--let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
 
 --source include/shutdown_mysqld.inc
 
@@ -174,8 +175,6 @@ SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 
 --echo # Now turn on encryption and wait for threads to encrypt all spaces
 SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
-
---let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
 
 --echo # Wait max 10 min for key encryption threads to encrypt all spaces, apart from temporary and t3
 --let $wait_timeout= 600

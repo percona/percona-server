@@ -26,7 +26,7 @@ UNINSTALL PLUGIN keyring_file;
 --echo # Turn off encryption threads, uninstall keyring
 SET GLOBAL innodb_encryption_threads=0;
 UNINSTALL PLUGIN keyring_file;
---echo # Turn on encryption back - should not be possible as there is keyring plugin installed
+--echo # Turn on encryption back - should not be possible as there is no keyring plugin installed
 --error ER_WRONG_ARGUMENTS
 SET GLOBAL innodb_encryption_threads=1;
 --echo # Install keyring plugin and turn encryption threads back on

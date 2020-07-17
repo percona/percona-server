@@ -67,18 +67,11 @@ buf_block_t *btr_block_get_func(const page_id_t &page_id,
                                 const char *file, ulint line,
                                 const dict_index_t *index, mtr_t *mtr) {
   buf_block_t *block;
-  dberr_t err = DB_SUCCESS;
 
   block = buf_page_get_gen(page_id, page_size, mode, nullptr,
-                           Page_fetch::NORMAL, file, line, mtr, false, &err);
+                           Page_fetch::NORMAL, file, line, mtr);
 
-  if (err == DB_IO_DECRYPT_FAIL) {
-    if (index && index->table) {
-      index->table->set_file_unreadable();
-    }
-  } else {
-    SRV_CORRUPT_TABLE_CHECK(block, ; /* do nothing */);
-  }
+  SRV_CORRUPT_TABLE_CHECK(block, ; /* do nothing */);
 
   if (block && mode != RW_NO_LATCH) {
     buf_block_dbg_add_level(block, index != nullptr && dict_index_is_ibuf(index)

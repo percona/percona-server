@@ -1,0 +1,17 @@
+
+# Restart server with keys2.txt
+# restart:--keyring-file-data=MYSQLTEST_VARDIR/std_data/keys2.txt --early-plugin-load=keyring_file=KEYRING_PLUGIN --default-table-encryption=ONLINE_TO_KEYRING
+create table t1(a int not null primary key, c char(200), b blob, index(b(10))) engine=innodb row_format=compressed ENCRYPTION='KEYRING' encryption_key_id=2;
+begin;
+commit;
+SET GLOBAL innodb_flush_log_at_trx_commit=1;
+begin;
+update t1 set c = repeat('secret3', 20);
+insert into t1 (a,c,b) values (21, repeat('secret5',20), repeat('secret6',6000));
+COMMIT;
+# Kill the server
+# restart
+# Restart mysqld
+# restart:<hidden args>
+drop table t1;
+# restart:--keyring-file-data=MYSQL_TMP_DIR/mysecret_keyring

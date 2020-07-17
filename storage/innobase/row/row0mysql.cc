@@ -1152,7 +1152,6 @@ handle_new_error:
     case DB_FTS_INVALID_DOCID:
     case DB_INTERRUPTED:
     case DB_CANT_CREATE_GEOMETRY_OBJECT:
-    case DB_IO_DECRYPT_FAIL:
     case DB_COMPUTE_VALUE_FAILED:
     case DB_LOCK_NOWAIT:
     case DB_BTREE_LEVEL_LIMIT_EXCEEDED:
@@ -1965,42 +1964,6 @@ static dberr_t row_insert_for_mysql_using_cursor(const byte *mysql_rec,
   return (err);
 }
 
-/** Determine is tablespace encrypted but decryption failed, is table corrupted
-or is tablespace .ibd file missing.
-@param[in] table                Table
-@param[in] trx                  Transaction
-@param[in] push_warning         true if we should push warning to user
-@retval DB_IO_DECRYPT_FAIL    table is encrypted but decryption failed
-@retval DB_CORRUPTION           table is corrupted
-@retval DB_TABLESPACE_NOT_FOUND tablespace .ibd file not found */
-static dberr_t row_mysql_get_table_status(const dict_table_t *table, trx_t *trx,
-                                          bool push_warning = true) {
-  dberr_t err;
-  if (fil_space_t *space = fil_space_acquire_silent(table->space)) {
-    if (space->is_encrypted) {
-      if (push_warning) {
-        ib::warn(ER_XB_MSG_4, table->name);
-      }
-      err = DB_IO_DECRYPT_FAIL;
-    } else {
-      if (push_warning) {
-        push_warning_printf(trx->mysql_thd, Sql_condition::SL_WARNING,
-                            HA_ERR_CRASHED,
-                            "Table %s in tablespace %u corrupted.",
-                            table->name.m_name, table->space);
-      }
-      err = DB_CORRUPTION;
-    }
-    fil_space_release(space);
-  } else {
-    ib::error(ER_IB_MSG_977)
-        << ".ibd file is missing for table " << table->name;
-    err = DB_TABLESPACE_NOT_FOUND;
-  }
-
-  return (err);
-}
-
 /** Does an insert for MySQL using INSERT graph. This function will run/execute
 INSERT graph.
 @param[in]	mysql_rec	row in the MySQL format
@@ -2031,8 +1994,12 @@ static dberr_t row_insert_for_mysql_using_ins_graph(const byte *mysql_rec,
 
     return (DB_TABLESPACE_DELETED);
 
-  } else if (!prebuilt->table->is_readable()) {
-    return (row_mysql_get_table_status(prebuilt->table, trx, true));
+  } else if (prebuilt->table->ibd_file_missing) {
+    ib::error(ER_IB_MSG_977)
+        << ".ibd file is missing for table " << prebuilt->table->name;
+
+    return (DB_TABLESPACE_NOT_FOUND);
+
   } else if (srv_force_recovery &&
              !(srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN &&
                (dict_sys_t::is_dd_table_id(prebuilt->table->id) ||
@@ -2777,7 +2744,7 @@ static dberr_t row_update_for_mysql_using_upd_graph(const byte *mysql_rec,
   ut_a(prebuilt->magic_n2 == ROW_PREBUILT_ALLOCATED);
   UT_NOT_USED(mysql_rec);
 
-  if (prebuilt->table->file_unreadable) {
+  if (prebuilt->table->ibd_file_missing) {
     ib::error(ER_IB_MSG_984)
         << "MySQL is trying to use a table handle but the"
            " .ibd file for table "
@@ -4002,7 +3969,7 @@ static dberr_t row_discard_tablespace(trx_t *trx, dict_table_t *table,
   4) FOREIGN KEY operations: if table->n_foreign_key_checks_running > 0,
   we do not allow the discard. */
 
-  /* For SDI tables, acquire exclusive MDL and set sdi_table->file_unreadable
+  /* For SDI tables, acquire exclusive MDL and set sdi_table->ibd_file_missing
   to true. Purge on SDI table acquire shared MDL & also check for missing
   flag. */
   mutex_exit(&dict_sys->mutex);
@@ -4045,7 +4012,7 @@ static dberr_t row_discard_tablespace(trx_t *trx, dict_table_t *table,
       /* All persistent operations successful, update the
       data dictionary memory cache. */
 
-      table->set_file_unreadable();
+      table->ibd_file_missing = true;
 
       table->flags2 |= DICT_TF2_DISCARDED;
 
@@ -4063,7 +4030,7 @@ static dberr_t row_discard_tablespace(trx_t *trx, dict_table_t *table,
       {
         dict_table_t *sdi_table = dict_sdi_get_table(table->space, true, false);
         if (sdi_table) {
-          sdi_table->set_file_unreadable();
+          sdi_table->ibd_file_missing = true;
           dict_sdi_close_table(sdi_table);
         }
       }
@@ -4090,7 +4057,7 @@ static dberr_t row_discard_tablespace(trx_t *trx, dict_table_t *table,
 
 /** Discards the tablespace of a table which stored in an .ibd file. Discarding
  means that this function renames the .ibd file and assigns a new table id for
- the table. Also the flag table->file_unreadable is set to TRUE.
+ the table. Also the flag table->ibd_file_missing is set to TRUE.
  @return error code or DB_SUCCESS */
 dberr_t row_discard_tablespace_for_mysql(
     const char *name, /*!< in: table name */
@@ -4741,7 +4708,7 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
     err = DB_TABLE_NOT_FOUND;
     goto funct_exit;
 
-  } else if (table->file_unreadable && !dict_table_is_discarded(table)) {
+  } else if (table->ibd_file_missing && !dict_table_is_discarded(table)) {
     err = DB_TABLE_NOT_FOUND;
 
     ib::error(ER_IB_MSG_996) << "Table " << old_name

@@ -84,7 +84,7 @@ INSERT INTO t2 VALUES ('foobar',1,2);
 --source include/shutdown_mysqld.inc
 
 --echo # Make sure that there is no error in error log related to decryption failures of t2
---let SEARCH_PATTERN=Table test/t2 is encrypted but decryption failed\. Seems that the encryption key fetched from keyring is not the correct one\. Are you using the correct keyring?
+--let SEARCH_PATTERN=[InnoDB] Tablespace id 5 in file t1.ibd is encrypted but keyring or used key_id 2 is not available. Can't continue reading table. Please provide the correct keyring.
 --let ABORT_ON=FOUND
 --let SEARCH_FILE=$test_error_log
 --source include/search_pattern_in_file.inc
@@ -101,7 +101,7 @@ SET GLOBAL innodb_stats_persistent=ON;
 
 --error ER_GET_ERRMSG
 SELECT * FROM t2;
---let $expected_error_message=Got error 500 Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the from InnoDB
+--let $expected_error_message=Got error 501 Table encrypted but decryption key was not found. Is correct keyring loaded? from InnoDB
 --source check_error_in_warnings.inc
 
 --error ER_GET_ERRMSG
@@ -146,11 +146,9 @@ DROP TABLE t2;
 --source include/shutdown_mysqld.inc
 
 --echo # Make sure that log contains t2 decryption errors
---let SEARCH_PATTERN=Table test/t2 is encrypted but decryption failed\. Seems that the encryption key fetched from keyring is not the correct one\. Are you using the correct keyring?
+--let SEARCH_PATTERN=\[InnoDB\] Tablespace id 5 in file t1\.ibd is encrypted but keyring or used key_id 2 is not available\. Can't continue reading table\. Please provide the correct keyring\.
 --let ABORT_ON=NOT_FOUND
 --let SEARCH_FILE=$test_error_log
---source include/search_pattern_in_file.inc
---let SEARCH_PATTERN=The page \[page id: space=[0-9], page number=[0-9]\] in file '\./test/t2\.ibd' cannot be decrypted\. Are you using correct keyring?
 --source include/search_pattern_in_file.inc
 
 --remove_file $test_error_log

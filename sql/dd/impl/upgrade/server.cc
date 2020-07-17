@@ -650,7 +650,8 @@ bool do_server_upgrade_checks(THD *thd) {
         ha_resolve_by_name_raw(thd, LEX_CSTRING{STRING_WITH_LEN("InnoDB")});
     handlerton *hton =
         (pr != nullptr ? plugin_data<handlerton *>(pr) : nullptr);
-    DBUG_ASSERT(hton != nullptr && hton->is_tablespace_keyring_v1_encrypted);
+    DBUG_ASSERT(hton != nullptr &&
+                hton->is_tablespace_keyring_pre_v3_encrypted);
 
     /*
       Get hold of all tablespaces, keep the non-implicit InnoDB spaces
@@ -666,11 +667,11 @@ bool do_server_upgrade_checks(THD *thd) {
         continue;
 
       int error = 0;
-      bool is_tablespace_keyring_v1_encrypted =
-          hton->is_tablespace_keyring_v1_encrypted(*space, error);
+      bool is_tablespace_keyring_pre_v3_encrypted =
+          hton->is_tablespace_keyring_pre_v3_encrypted(*space, error);
       DBUG_ASSERT(error == 0);
-      if (is_tablespace_keyring_v1_encrypted) {
-        LogErr(ERROR_LEVEL, ER_UPGRADE_KEYRING_V1_ENCRYPTION);
+      if (is_tablespace_keyring_pre_v3_encrypted) {
+        LogErr(ERROR_LEVEL, ER_UPGRADE_KEYRING_UNSUPPORTED_VERSION_ENCRYPTION);
         return dd::end_transaction(thd, true);
       }
     }

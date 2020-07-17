@@ -2,7 +2,8 @@
 # on restart keyring is not available. Since the keyring is not available the redo log for writing
 # keyring encryption info to page 0 will report an error.
 
-# Keys in std_data/keys2 and std_data/keys3 belong to the server with uuid b3665c10-e6c0-11e9-8e47-9cb6d0d5dc99. In order for MTR server
+# Keys in validation_keyrings/std_data/keys2 and validation_keyrings/std_data/keys3 belong to the
+# server with uuid b3665c10-e6c0-11e9-8e47-9cb6d0d5dc99. In order for MTR server
 # to be able to read those keys we need to assign this uuid to server_uuid via auto.conf file.
 --let $uuid_file= auto.cnf
 --let $original_server_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)

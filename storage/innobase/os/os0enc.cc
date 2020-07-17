@@ -52,6 +52,7 @@ constexpr char Encryption::KEY_MAGIC_RK_V1[];
 constexpr char Encryption::KEY_MAGIC_RK_V2[];
 constexpr char Encryption::KEY_MAGIC_PS_V1[];
 constexpr char Encryption::KEY_MAGIC_PS_V2[];
+constexpr char Encryption::KEY_MAGIC_PS_V3[];
 
 constexpr char Encryption::MASTER_KEY_PREFIX[];
 constexpr char Encryption::DEFAULT_MASTER_KEY[];
@@ -75,10 +76,8 @@ Encryption::Encryption(const Encryption &other) noexcept
       m_key_version(other.m_key_version),
       m_key_id(other.m_key_id),
       m_checksum(other.m_checksum),
-      m_encryption_rotation(other.m_encryption_rotation) {
-  if (other.m_key_allocated && other.m_key != nullptr)
-    m_key = static_cast<byte *>(
-        my_memdup(PSI_NOT_INSTRUMENTED, other.m_key, other.m_klen, MYF(0)));
+      m_encryption_rotation(other.m_encryption_rotation),
+      m_key_versions_cache(other.m_key_versions_cache) {
   memcpy(m_key_id_uuid, other.m_key_id_uuid, SERVER_UUID_LEN + 1);
 }
 
@@ -88,13 +87,14 @@ Encryption::~Encryption() {
   }
 }
 
-void Encryption::set_key(byte *key, ulint key_len, bool allocated) noexcept {
-  if (m_key_allocated && m_key != nullptr) {
-    my_free(m_key);
-  }
+void Encryption::set_key(byte *key, ulint key_len) noexcept {
   m_key = key;
   m_klen = key_len;
-  m_key_allocated = allocated;
+}
+
+void Encryption::set_key_versions_cache(
+    std::map<uint, byte *> *key_versions_cache) noexcept {
+  m_key_versions_cache = key_versions_cache;
 }
 
 const char *Encryption::to_string(Type type) noexcept {
@@ -235,8 +235,9 @@ bool Encryption::get_tablespace_key(uint key_id, const char *uuid,
   get_keyring_key(key_name, tablespace_key, key_len);
 
   if (*tablespace_key == nullptr) {
-    ib::error() << "Encryption can't find tablespace key, please check"
-                   " the keyring plugin is loaded.";
+    ib::error() << "Encryption can't find tablespace key_id = " << key_id
+                << ", please check"
+                << " the keyring plugin is loaded.";
     result = false;
   }
 
@@ -1259,7 +1260,8 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
   }
 
   if (m_type == KEYRING) {
-    /* handle post encryption checksum */
+    /* assign key version to page and for master key to keyring rotation
+     * assign post encryption checksum */
     m_checksum = 0;
 
     ut_ad(*dst_len == src_len);
@@ -1273,22 +1275,24 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
                                        // the checksum
     }
 
-    if (type.is_page_zip_compressed())
-      memcpy(dst + FIL_PAGE_ZIP_KEYRING_ENCRYPTION_MAGIC,
-             ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC,
-             ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC_LEN);
+#ifndef UNIV_INNOCHECKSUM
+    if (m_encryption_rotation == Encryption_rotation::MASTER_KEY_TO_KEYRING) {
+      if (type.is_page_zip_compressed())
+        memcpy(dst + FIL_PAGE_ZIP_KEYRING_ENCRYPTION_MAGIC,
+               ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC,
+               ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC_LEN);
 
-#ifndef UNIV_INNOCHECKSUM  // TODO: Robert - this might need to be included in
-                           // innodbchecksum
-    uint page_size = *dst_len;
-    if (page_type == FIL_PAGE_COMPRESSED) {
-      page_size = static_cast<uint16_t>(
-          mach_read_from_2(dst + FIL_PAGE_COMPRESS_SIZE_V1));
-    } else if (type.is_page_zip_compressed()) {
-      page_size = type.get_zip_page_physical_size();
+      uint page_size = *dst_len;
+      if (page_type == FIL_PAGE_COMPRESSED) {
+        page_size = static_cast<uint16_t>(
+            mach_read_from_2(dst + FIL_PAGE_COMPRESS_SIZE_V1));
+      } else if (type.is_page_zip_compressed()) {
+        page_size = type.get_zip_page_physical_size();
+      }
+      m_checksum = fil_crypt_calculate_checksum(page_size, dst,
+                                                type.is_page_zip_compressed());
+      ut_ad(m_checksum != 0);
     }
-    m_checksum = fil_crypt_calculate_checksum(page_size, dst,
-                                              type.is_page_zip_compressed());
 #endif
     ut_ad(m_key_version != 0);  // Since we are encrypting key_version cannot be
                                 // 0 (i.e. page unencrypted)
@@ -1296,18 +1300,13 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
     mach_write_to_4(src + FIL_PAGE_ENCRYPTION_KEY_VERSION, m_key_version);
 
     if (page_type == FIL_PAGE_COMPRESSED) {
-      mach_write_to_4(dst + FIL_PAGE_DATA, m_checksum);
+      if (m_checksum != 0) mach_write_to_4(dst + FIL_PAGE_DATA, m_checksum);
     } else if (!type.is_page_zip_compressed()) {
       mach_write_to_4(dst + FIL_PAGE_ENCRYPTION_KEY_VERSION, m_key_version);
-      ut_ad(m_checksum != 0);
-      mach_write_to_4(dst + *dst_len - 4, m_checksum);
+      if (m_checksum != 0) mach_write_to_4(dst + *dst_len - 4, m_checksum);
     } else if (type.is_page_zip_compressed()) {
       mach_write_to_4(dst + FIL_PAGE_ENCRYPTION_KEY_VERSION, m_key_version);
       ut_ad(m_key_version != 0);
-      uint32 innodb_checksum = mach_read_from_4(dst + FIL_PAGE_SPACE_OR_CHKSUM);
-      uint32 xor_checksum = innodb_checksum ^ m_checksum;
-      mach_write_to_4(dst + FIL_PAGE_SPACE_OR_CHKSUM, xor_checksum);
-      ut_ad(m_checksum != 0);
     }
 #ifdef UNIV_ENCRYPT_DEBUG
     ut_ad(type.is_page_zip_compressed() ||
@@ -1570,15 +1569,6 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
     return (DB_SUCCESS);
   }
 
-  if (m_type == KEYRING && type.is_page_zip_compressed()) {
-    uint32 post_enc_checksum = fil_crypt_calculate_checksum(
-        type.get_zip_page_physical_size(), src, type.is_page_zip_compressed());
-    uint32 xor_checksum = mach_read_from_4(src + FIL_PAGE_SPACE_OR_CHKSUM);
-    ut_ad(xor_checksum != 0);
-    uint32 innodb_checksum = xor_checksum ^ post_enc_checksum;
-    mach_write_to_4(src + FIL_PAGE_SPACE_OR_CHKSUM, innodb_checksum);
-  }
-
   /* For compressed page, we need to get the compressed size
   for decryption */
   page_type = mach_read_from_2(src + FIL_PAGE_TYPE);
@@ -1805,6 +1795,10 @@ void Encryption::set_type(Encryption::Type type) { m_type = type; }
 
 byte *Encryption::get_key() const { return m_key; }
 
+std::map<uint, byte *> *Encryption::get_key_versions_cache() const {
+  return m_key_versions_cache;
+}
+
 void Encryption::set_key(byte *key) { m_key = key; }
 
 ulint Encryption::get_key_length() const { return m_klen; }
@@ -1861,8 +1855,9 @@ bool Encryption::dblwr_encrypt_page(fil_space_t *space, page_t *in_page,
   }
 
   IORequest write_request(IORequest::WRITE);
+
   write_request.encryption_key(space->encryption_key, space->encryption_klen,
-                               false, space->encryption_iv, 0, 0, nullptr,
+                               space->encryption_iv, 0, 0, nullptr, nullptr,
                                nullptr);
   write_request.encryption_algorithm(Encryption::AES);
 
@@ -1874,7 +1869,8 @@ bool Encryption::dblwr_encrypt_page(fil_space_t *space, page_t *in_page,
   to a new memory block which is encrypted and
   the bytes will have value of length of encrypted data */
   void *in_page_before = in_page;
-  file::Block_ptr block{os_file_encrypt_page(write_request, in_page_before, &bytes)};
+  file::Block_ptr block{
+      os_file_encrypt_page(write_request, in_page_before, &bytes)};
 
   ut_ad(block.get() != nullptr);
 
@@ -1896,7 +1892,7 @@ bool Encryption::dblwr_decrypt_page(fil_space_t *space, page_t *page) {
   IORequest decrypt_request;
 
   decrypt_request.encryption_key(space->encryption_key, space->encryption_klen,
-                                 false, space->encryption_iv, 0, 0, nullptr,
+                                 space->encryption_iv, 0, 0, nullptr, nullptr,
                                  nullptr);
 
   decrypt_request.encryption_algorithm(Encryption::AES);
@@ -1922,8 +1918,8 @@ bool os_dblwr_encrypt_page(space_id_t space_id, page_t *in_page,
   }
 
   const page_size_t page_size(space->flags);
-  const bool success = Encryption::dblwr_encrypt_page(
-      space, in_page, enc_block, enc_block_len);
+  const bool success =
+      Encryption::dblwr_encrypt_page(space, in_page, enc_block, enc_block_len);
 
   fil_space_release(space);
 

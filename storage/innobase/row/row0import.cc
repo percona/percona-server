@@ -822,10 +822,9 @@ class PageConverter : public AbstractCallback {
  private:
   /** Status returned by PageConverter::validate() */
   enum import_page_status_t {
-    IMPORT_PAGE_STATUS_OK,               /*!< Page is OK */
-    IMPORT_PAGE_STATUS_ALL_ZERO,         /*!< Page is all zeros */
-    IMPORT_PAGE_STATUS_CORRUPTED,        /*!< Page is corrupted */
-    IMPORT_PAGE_STATUS_DECRYPTION_FAILED /*< Page decryption failed */
+    IMPORT_PAGE_STATUS_OK,       /*!< Page is OK */
+    IMPORT_PAGE_STATUS_ALL_ZERO, /*!< Page is all zeros */
+    IMPORT_PAGE_STATUS_CORRUPTED /*!< Page is corrupted */
   };
 
   /** Update the page, set the space id, max trx id and index id.
@@ -2148,31 +2147,20 @@ PageConverter::import_page_status_t PageConverter::validate(
   the file. Flag as corrupt if it doesn't. Disable the check
   for LSN in buf_page_is_corrupted() */
 
-  ulint page_type = mach_read_from_2(page + FIL_PAGE_TYPE);
-  ulint original_page_type = mach_read_from_2(page + FIL_PAGE_ORIGINAL_TYPE_V1);
-  bool was_page_read_encrypted = original_page_type == FIL_PAGE_ENCRYPTED;
-  block->page.encrypted = block->page.encrypted || was_page_read_encrypted ||
-                          page_type == FIL_PAGE_ENCRYPTED ||
-                          page_type == FIL_PAGE_ENCRYPTED_RTREE ||
-                          page_type == FIL_PAGE_COMPRESSED_AND_ENCRYPTED;
-
   BlockReporter reporter(false, page, get_page_size(),
                          fsp_is_checksum_disabled(block->page.id.space()));
 
   if (reporter.is_corrupted() ||
       (page_get_page_no(page) != offset / m_page_size.physical() &&
        page_get_page_no(page) != 0)) {
-    return block->page.encrypted ? IMPORT_PAGE_STATUS_DECRYPTION_FAILED
-                                 : IMPORT_PAGE_STATUS_CORRUPTED;
+    return (IMPORT_PAGE_STATUS_CORRUPTED);
 
   } else if (offset > 0 && page_get_page_no(page) == 0) {
     /* The page is all zero: do nothing. We already checked
     for all NULs in buf_page_is_corrupted() */
-    block->page.encrypted = false;
     return (IMPORT_PAGE_STATUS_ALL_ZERO);
   }
 
-  block->page.encrypted = false;
   return (IMPORT_PAGE_STATUS_OK);
 }
 
@@ -2234,14 +2222,6 @@ dberr_t PageConverter::operator()(os_offset_t offset,
       /* The page is all zero: leave it as is. */
       break;
 
-    case IMPORT_PAGE_STATUS_DECRYPTION_FAILED:
-      ib::warn()
-          << "Page " << (offset / m_page_size.physical()) << " at offet "
-          << offset << " in file " << m_filepath << " cannot be decrypted. "
-          << "Are you using correct keyring that contain the key used to "
-          << "encrypt the tablespace before it was discared ?";
-      return (DB_IO_DECRYPT_FAIL);
-
     case IMPORT_PAGE_STATUS_CORRUPTED:
 
       ib::warn(ER_IB_MSG_944)
@@ -2293,7 +2273,7 @@ static void row_import_discard_changes(
     index->space = FIL_NULL;
   }
 
-  table->set_file_unreadable();
+  table->ibd_file_missing = true;
 
   err = fil_close_tablespace(trx, table->space);
   ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_NOT_FOUND);
@@ -3521,7 +3501,7 @@ help to detect the missing .cfg file for a table with instant added columns.
 dberr_t row_import_check_corruption(dict_table_t *table, THD *thd,
                                     bool missing) {
   dberr_t err = DB_SUCCESS;
-  if (btr_validate_index(table->first_index(), nullptr, false) != DB_SUCCESS) {
+  if (!btr_validate_index(table->first_index(), nullptr, false)) {
     err = DB_CORRUPTION;
     if (missing) {
       ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
@@ -3559,7 +3539,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
 
   ut_a(table->space);
   ut_ad(prebuilt->trx);
-  ut_a(table->file_unreadable);
+  ut_a(table->ibd_file_missing);
 
   ibuf_delete_for_discarded_space(table->space);
 
@@ -3751,10 +3731,8 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
 
     innobase_format_name(table_name, sizeof(table_name), table->name.m_name);
 
-    if (err != DB_IO_DECRYPT_FAIL) {
-      ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_INTERNAL_ERROR,
-              "Cannot reset LSNs in table %s : %s", table_name, ut_strerr(err));
-    }
+    ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_INTERNAL_ERROR,
+            "Cannot reset LSNs in table %s : %s", table_name, ut_strerr(err));
 
     return (row_import_cleanup(prebuilt, trx, err));
   }
@@ -4024,7 +4002,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
                           "While importing table %s", table->name.m_name);
                   return (row_import_error(prebuilt, trx, err)););
 
-  table->set_file_readable();
+  table->ibd_file_missing = false;
   table->flags2 &= ~DICT_TF2_DISCARDED;
 
   /* Set autoinc value read from cfg file. The value is set to zero
@@ -4046,7 +4024,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   At the end of successful import, set sdi_table->ibd_file_missing to
   false, indicating that .ibd of SDI table is available */
   dict_table_t *sdi_table = dict_sdi_get_table(space->id, true, false);
-  sdi_table->set_file_readable();
+  sdi_table->ibd_file_missing = false;
   dict_sdi_close_table(sdi_table);
 
   row_mysql_unlock_data_dictionary(trx);

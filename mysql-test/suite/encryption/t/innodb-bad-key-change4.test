@@ -1,7 +1,7 @@
 --source include/have_64bit.inc
 
 call mtr.add_suppression("\\[InnoDB\\] The page \\[page id: space=[0-9], page number=[0-9]\\] in file '\./test/t1\.ibd' cannot be decrypted\. Are you using correct keyring?");
-call mtr.add_suppression("\\[InnoDB\\] Table test/t1 is encrypted but decryption failed\. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?");
+call mtr.add_suppression("\\[InnoDB\\] Tablespace id . in file t1\.ibd is encrypted\. Although server managed to find all needed versions of key_id=4 in keyring to decrypt it, the provided versions are either incorrect or corrupted\.");
 
 # Keys in std_data/keys2 and std_data/keys3 belong to the server with uuid b3665c10-e6c0-11e9-8e47-9cb6d0d5dc99. In order for MTR server
 # to be able to read those keys we need to assign this uuid to server_uuid via auto.conf file.
@@ -34,14 +34,20 @@ INSERT INTO t1 VALUES (1,'foo'),(2,'bar');
 
 OPTIMIZE TABLE t1;
 
---let $expected_error_message=Got error 500 Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the from InnoDB
---source check_error_in_warnings.inc
+--echo # check that CHECK TABLE t1 generates decryption error
+--let $error_message= query_get_value(OPTIMIZE TABLE t1, Msg_text, 1)
+--let $error_message= `SELECT REPLACE("$error_message", "'", "")`
+--let $assert_text= It should be decryption error
+--let $assert_cond= "$error_message" LIKE "Got error 501 Table encrypted but decryption key was not found. Is correct keyring loaded? from InnoDB"
+--source include/assert.inc
+
+CHECK TABLE t1;
 
 --echo # check that CHECK TABLE t1 generates decryption error
 --let $error_message= query_get_value(CHECK TABLE t1, Msg_text, 1)
 --let $error_message= `SELECT REPLACE("$error_message", "'", "")`
 --let $assert_text= It should be decryption error
---let $assert_cond= "$error_message" LIKE "Table test/t1 is encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?"
+--let $assert_cond= "$error_message" LIKE "Got error 501 Table encrypted but decryption key was not found. Is correct keyring loaded? from InnoDB"
 --source include/assert.inc
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR

@@ -56,6 +56,7 @@ set autocommit=1;
 --source include/wait_condition.inc
 
 --echo # We want only first 100 pages to be rotated
+SET GLOBAL debug="+d,set_number_of_t1_pages_to_rotate_to_100";
 SET GLOBAL debug="+d,rotate_only_first_100_pages_from_t1";
 
 --let $assert_text= Make sure re-encryption will happen per every key rotation
@@ -76,6 +77,7 @@ SET GLOBAL debug="+d,rotate_only_first_100_pages_from_t1";
 SET GLOBAL innodb_encryption_threads = 0;
 --echo # Disable rotation of only first 100 pages
 SET GLOBAL debug="-d,rotate_only_first_100_pages_from_t1";
+SET GLOBAL debug="-d,set_number_of_t1_pages_to_rotate_to_100";
 
 --source include/shutdown_mysqld.inc
 

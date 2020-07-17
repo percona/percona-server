@@ -4871,7 +4871,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
     log is unnecessary. When rebuilding the table
     (new_clustered), we will allocate the log for the
     clustered index of the old table, later. */
-    if (new_clustered || !ctx->online || !user_table->is_readable() ||
+    if (new_clustered || !ctx->online || user_table->ibd_file_missing ||
         dict_table_is_discarded(user_table)) {
       /* No need to allocate a modification log. */
       ut_ad(!ctx->add_index[a]->online_log);
@@ -5455,32 +5455,6 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
       my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), table_type(), invalid_opt);
       goto err_exit_no_heap;
     }
-  }
-
-  if (indexed_table->is_readable()) {
-  } else {
-    if (indexed_table->is_corrupt) {
-      /* Handled below */
-    } else {
-      FilSpace space(indexed_table->space, true);
-
-      if (space()) {
-        String str;
-        const char *engine = table_type();
-        ib::warn(ER_XB_MSG_4, table_share->table_name.str);
-        my_error(ER_GET_ERRMSG, MYF(0), HA_ERR_DECRYPTION_FAILED, str.c_ptr(),
-                 engine);
-        return true;
-      }
-    }
-  }
-
-  if (indexed_table->is_corrupt ||
-      UT_LIST_GET_FIRST(indexed_table->indexes) == NULL ||
-      UT_LIST_GET_FIRST(indexed_table->indexes)->is_corrupted()) {
-    /* The clustered index is corrupted. */
-    my_error(ER_CHECK_NO_SUCH_TABLE, MYF(0));
-    return true;
   }
 
   /* Check if any index name is reserved. */
@@ -6170,7 +6144,7 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
 
   ctx->m_stage = UT_NEW_NOKEY(ut_stage_alter_t(pk));
 
-  if (m_prebuilt->table->file_unreadable ||
+  if (m_prebuilt->table->ibd_file_missing ||
       dict_table_is_discarded(m_prebuilt->table)) {
     goto all_done;
   }
@@ -6320,14 +6294,6 @@ oom:
                get_error_key_name(m_prebuilt->trx->error_key_num, ha_alter_info,
                                   m_prebuilt->table));
       break;
-    case DB_IO_DECRYPT_FAIL: {
-      String str;
-      const char *engine = table_type();
-      get_error_message(HA_ERR_DECRYPTION_FAILED, &str);
-      my_error(ER_GET_ERRMSG, MYF(0), HA_ERR_DECRYPTION_FAILED, str.c_ptr(),
-               engine);
-      break;
-    }
     default:
       my_error_innodb(error, table_share->table_name.str,
                       m_prebuilt->table->flags);
@@ -7001,7 +6967,7 @@ inline MY_ATTRIBUTE((warn_unused_result)) bool commit_try_rebuild(
   /* The new table must inherit the flag from the
   "parent" table. */
   if (dict_table_is_discarded(user_table)) {
-    rebuilt_table->set_file_unreadable();
+    rebuilt_table->ibd_file_missing = true;
     rebuilt_table->flags2 |= DICT_TF2_DISCARDED;
   }
   /* We must be still holding a table handle. */
@@ -7362,17 +7328,17 @@ static void alter_stats_rebuild(dict_table_t *table, const char *table_name,
   }
 
 #ifdef UNIV_DEBUG
-  bool file_unreadable_orig = false;
+  bool ibd_file_missing_orig = false;
 #endif /* UNIV_DEBUG */
 
   DBUG_EXECUTE_IF("ib_rename_index_fail2",
-                  file_unreadable_orig = table->file_unreadable;
-                  table->set_file_unreadable(););
+                  ibd_file_missing_orig = table->ibd_file_missing;
+                  table->ibd_file_missing = true;);
 
   dberr_t ret = dict_stats_update(table, DICT_STATS_RECALC_PERSISTENT);
 
   DBUG_EXECUTE_IF("ib_rename_index_fail2",
-                  table->file_unreadable = file_unreadable_orig;);
+                  table->ibd_file_missing = ibd_file_missing_orig;);
 
   if (ret != DB_SUCCESS) {
     push_warning_printf(thd, Sql_condition::SL_WARNING, ER_ALTER_INFO,
@@ -7469,20 +7435,6 @@ bool ha_innobase::commit_inplace_alter_table_impl(
     ha_innobase_inplace_ctx *ctx =
         static_cast<ha_innobase_inplace_ctx *>(*pctx);
     DBUG_ASSERT(ctx->prebuilt->trx == m_prebuilt->trx);
-
-    /* If decryption failed for old table or new table
-    fail here. */
-    if ((!ctx->old_table->is_readable() &&
-         fil_space_get(ctx->old_table->space)) ||
-        (!ctx->new_table->is_readable() &&
-         fil_space_get(ctx->new_table->space))) {
-      String str;
-      const char *engine = table_type();
-      get_error_message(HA_ERR_DECRYPTION_FAILED, &str);
-      my_error(ER_GET_ERRMSG, MYF(0), HA_ERR_DECRYPTION_FAILED, str.c_ptr(),
-               engine);
-      return true;
-    }
 
     /* Exclusively lock the table, to ensure that no other
     transaction is holding locks on the table while we

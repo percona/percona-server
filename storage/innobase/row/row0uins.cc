@@ -328,7 +328,7 @@ static void row_undo_ins_parse_undo_rec(undo_node_t *node, THD *thd,
 
   /* Skip the UNDO if we can't find the table or the .ibd file. */
   if (node->table == nullptr) {
-  } else if (node->table->file_unreadable) {
+  } else if (node->table->ibd_file_missing) {
   close_table:
     dd_table_close(node->table, thd, mdl, false);
 

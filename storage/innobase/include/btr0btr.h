@@ -533,8 +533,8 @@ ibool btr_index_rec_validate(const rec_t *rec,          /*!< in: index record */
                                                   record and page on error */
     MY_ATTRIBUTE((warn_unused_result));
 /** Checks the consistency of an index tree.
-@return	DB_SUCCESS if ok, error code if not */
-dberr_t btr_validate_index(
+@return	true if ok, error code if not */
+bool btr_validate_index(
     dict_index_t *index, /*!< in: index */
     const trx_t *trx,    /*!< in: transaction or 0 */
     bool lockout)        /*!< in: true if X-latch index is intended */

@@ -31,8 +31,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #define os0enc_h
 
 #include "keyring_encryption_key_info.h"
-#include "template_utils.h"
 #include "page0types.h"
+#include "template_utils.h"
 
 #include "univ.i"
 
@@ -43,7 +43,7 @@ namespace file {
 struct Block;
 struct Block_deleter;
 using Block_ptr = std::unique_ptr<Block, Block_deleter>;
-}
+}  // namespace file
 
 /** Disk sector size of aligning write buffer for DIRECT_IO */
 extern ulint os_io_ptr_align;
@@ -105,6 +105,8 @@ class Encryption {
 
   static constexpr char KEY_MAGIC_PS_V2[] = "PSB";
 
+  static constexpr char KEY_MAGIC_PS_V3[] = "PSC";
+
   /** Encryption master key prifix */
   static constexpr char MASTER_KEY_PREFIX[] = "INNODBKey";
 
@@ -116,6 +118,8 @@ class Encryption {
 
   /** Encryption magic bytes size */
   static constexpr size_t MAGIC_SIZE = 3;
+
+  static constexpr size_t SERVER_UUID_HEX_LEN = 16;
 
   /** Encryption master key prifix size */
   static constexpr size_t MASTER_KEY_PRIFIX_LEN = 9;
@@ -174,7 +178,8 @@ class Encryption {
         m_key_version(0),
         m_key_id(0),
         m_checksum(0),
-        m_encryption_rotation(Encryption_rotation::NO_ROTATION) {
+        m_encryption_rotation(Encryption_rotation::NO_ROTATION),
+        m_key_versions_cache(nullptr) {
     m_key_id_uuid[0] = '\0';
   }
 
@@ -184,7 +189,6 @@ class Encryption {
       : m_type(type),
         m_key(nullptr),
         m_klen(0),
-        m_key_allocated(false),
         m_iv(nullptr),
         m_tablespace_key(nullptr),
         m_key_version(0),
@@ -217,7 +221,6 @@ class Encryption {
     std::swap(m_type, other.m_type);
     std::swap(m_key, other.m_key);
     std::swap(m_klen, other.m_klen);
-    std::swap(m_key_allocated, other.m_key_allocated);
     std::swap(m_iv, other.m_iv);
     std::swap(m_tablespace_key, other.m_tablespace_key);
     std::swap(m_key_version, other.m_key_version);
@@ -225,11 +228,15 @@ class Encryption {
     std::swap(m_checksum, other.m_checksum);
     std::swap(m_encryption_rotation, other.m_encryption_rotation);
     std::swap(m_key_id_uuid, other.m_key_id_uuid);
+    std::swap(m_key_versions_cache, other.m_key_versions_cache);
   }
 
   ~Encryption();
 
-  void set_key(byte *key, ulint key_len, bool allocated) noexcept;
+  void set_key(byte *key, ulint key_len) noexcept;
+
+  void set_key_versions_cache(
+      std::map<uint, byte *> *key_versions_cache) noexcept;
 
   /** Check if page is encrypted page or not
   @param[in]  page  page which need to check
@@ -479,6 +486,8 @@ class Encryption {
   @return encryption key **/
   byte *get_key() const;
 
+  std::map<uint, byte *> *get_key_versions_cache() const;
+
   /** Set encryption key
   @param[in]  key  encryption key **/
   void set_key(byte *key);
@@ -591,6 +600,8 @@ class Encryption {
   uint32 m_checksum;
 
   Encryption_rotation m_encryption_rotation;
+
+  std::map<uint, byte *> *m_key_versions_cache;
 
   /** Current master key id */
   static ulint s_master_key_id;

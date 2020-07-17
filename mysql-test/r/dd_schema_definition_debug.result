@@ -730,11 +730,5 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 include/assert.inc [The group concat max length is sufficient.]
 CHECK_STATUS
-<<<<<<< HEAD
-The schema checksum corresponds to DD version 80019.
-||||||| merged common ancestors
-The schema checksum corresponds to DD version 80017.
-=======
 The schema checksum corresponds to DD version 80021.
->>>>>>> mysql-8.0.21
 include/assert.inc [The schema checksum corresponds to a known DD version.]

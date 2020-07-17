@@ -35,7 +35,7 @@ send INSERT INTO t1 VALUES ();
 --connection default
 SET DEBUG_SYNC = 'now WAIT_FOR waiting';
 SET DEBUG_SYNC = 'now SIGNAL finish2';
-real_sleep 2;
+sleep 2;
 SET DEBUG_SYNC = 'now SIGNAL finish1';
 
 --connection con1

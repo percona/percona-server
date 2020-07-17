@@ -41,7 +41,7 @@ SET DEBUG_SYNC = 'now WAIT_FOR before_show_gtid_executed.reached';
 # Following insert will change @@global.gtid_executed, but it should not change the snapshot
 # It may block if mysqldump was started with --lock-all-tables, so we need to do it in async way
 --send INSERT INTO t1 VALUES (1)
---real_sleep $sleep_sec
+--sleep $sleep_sec
 
 # Now let's go to another connection and let mysqldump to continue
 --connection con1

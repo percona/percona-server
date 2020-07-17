@@ -5922,7 +5922,6 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
   ut_ad(!is_encrypted || df.is_open());
 
   const byte *first_page = df.is_open() ? df.get_first_page() : nullptr;
-
   fil_space_crypt_t *crypt_data =
       first_page ? fil_space_read_crypt_data(page_size_t(flags), first_page)
                  : nullptr;
@@ -5934,8 +5933,6 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
                             : false;
 
   space = fil_space_create(space_name, space_id, flags, purpose, crypt_data);
-
-  ut_ad(space != nullptr);
 
   if (space == nullptr) {
     if (crypt_data != nullptr) fil_space_destroy_crypt_data(&crypt_data);
@@ -6291,8 +6288,6 @@ fil_load_status Fil_shard::ibd_open_for_recovery(space_id_t space_id,
                        FIL_TYPE_TABLESPACE, crypt_data);
 
   fil_system->mutex_release_all();
-
-  ut_ad(space != nullptr);
 
   if (space == nullptr) {
     return (FIL_LOAD_INVALID);

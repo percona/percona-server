@@ -92,7 +92,8 @@ void Encryption::set_key(byte *key, ulint key_len) noexcept {
   m_klen = key_len;
 }
 
-void Encryption::set_key_versions_cache(std::map<uint, byte *> *key_versions_cache) noexcept {
+void Encryption::set_key_versions_cache(
+    std::map<uint, byte *> *key_versions_cache) noexcept {
   m_key_versions_cache = key_versions_cache;
 }
 
@@ -1299,7 +1300,7 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
     mach_write_to_4(src + FIL_PAGE_ENCRYPTION_KEY_VERSION, m_key_version);
 
     if (page_type == FIL_PAGE_COMPRESSED) {
-      if (m_checksum != 0) mach_write_to_4(dst + FIL_PAGE_DATA, m_checksum); 
+      if (m_checksum != 0) mach_write_to_4(dst + FIL_PAGE_DATA, m_checksum);
     } else if (!type.is_page_zip_compressed()) {
       mach_write_to_4(dst + FIL_PAGE_ENCRYPTION_KEY_VERSION, m_key_version);
       if (m_checksum != 0) mach_write_to_4(dst + *dst_len - 4, m_checksum);
@@ -1794,7 +1795,7 @@ void Encryption::set_type(Encryption::Type type) { m_type = type; }
 
 byte *Encryption::get_key() const { return m_key; }
 
-std::map<uint, byte *> * Encryption::get_key_versions_cache() const {
+std::map<uint, byte *> *Encryption::get_key_versions_cache() const {
   return m_key_versions_cache;
 }
 
@@ -1855,7 +1856,7 @@ bool Encryption::dblwr_encrypt_page(fil_space_t *space, page_t *in_page,
 
   IORequest write_request(IORequest::WRITE);
 
- write_request.encryption_key(space->encryption_key, space->encryption_klen,
+  write_request.encryption_key(space->encryption_key, space->encryption_klen,
                                space->encryption_iv, 0, 0, nullptr, nullptr,
                                nullptr);
   write_request.encryption_algorithm(Encryption::AES);
@@ -1868,7 +1869,8 @@ bool Encryption::dblwr_encrypt_page(fil_space_t *space, page_t *in_page,
   to a new memory block which is encrypted and
   the bytes will have value of length of encrypted data */
   void *in_page_before = in_page;
-  file::Block_ptr block{os_file_encrypt_page(write_request, in_page_before, &bytes)};
+  file::Block_ptr block{
+      os_file_encrypt_page(write_request, in_page_before, &bytes)};
 
   ut_ad(block.get() != nullptr);
 
@@ -1916,8 +1918,8 @@ bool os_dblwr_encrypt_page(space_id_t space_id, page_t *in_page,
   }
 
   const page_size_t page_size(space->flags);
-  const bool success = Encryption::dblwr_encrypt_page(
-      space, in_page, enc_block, enc_block_len);
+  const bool success =
+      Encryption::dblwr_encrypt_page(space, in_page, enc_block, enc_block_len);
 
   fil_space_release(space);
 

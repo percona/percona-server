@@ -31,8 +31,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #define os0enc_h
 
 #include "keyring_encryption_key_info.h"
-#include "template_utils.h"
 #include "page0types.h"
+#include "template_utils.h"
 
 #include "univ.i"
 
@@ -43,7 +43,7 @@ namespace file {
 struct Block;
 struct Block_deleter;
 using Block_ptr = std::unique_ptr<Block, Block_deleter>;
-}
+}  // namespace file
 
 /** Disk sector size of aligning write buffer for DIRECT_IO */
 extern ulint os_io_ptr_align;
@@ -179,7 +179,7 @@ class Encryption {
         m_key_id(0),
         m_checksum(0),
         m_encryption_rotation(Encryption_rotation::NO_ROTATION),
-        m_key_versions_cache(nullptr)  {
+        m_key_versions_cache(nullptr) {
     m_key_id_uuid[0] = '\0';
   }
 
@@ -235,7 +235,8 @@ class Encryption {
 
   void set_key(byte *key, ulint key_len) noexcept;
 
-  void set_key_versions_cache (std::map<uint, byte *> *key_versions_cache) noexcept;
+  void set_key_versions_cache(
+      std::map<uint, byte *> *key_versions_cache) noexcept;
 
   /** Check if page is encrypted page or not
   @param[in]  page  page which need to check
@@ -485,7 +486,7 @@ class Encryption {
   @return encryption key **/
   byte *get_key() const;
 
-  std::map<uint, byte *> *get_key_versions_cache () const;
+  std::map<uint, byte *> *get_key_versions_cache() const;
 
   /** Set encryption key
   @param[in]  key  encryption key **/

@@ -984,7 +984,8 @@ byte *fil_parse_write_crypt_data_v3(space_id_t space_id, byte *ptr,
   }
 
   // We should only enter this function if ENCRYPTION_KEY_MAGIC_PS_V3 is set
-  ut_ad((memcmp(ptr, Encryption::KEY_MAGIC_PS_V3, Encryption::MAGIC_SIZE) == 0));
+  ut_ad(
+      (memcmp(ptr, Encryption::KEY_MAGIC_PS_V3, Encryption::MAGIC_SIZE) == 0));
   ptr += Encryption::MAGIC_SIZE;
 
   uint type = mach_read_from_1(ptr);
@@ -1063,14 +1064,17 @@ byte *fil_parse_write_crypt_data_v3(space_id_t space_id, byte *ptr,
     // We have encrypted tablespace - validate that encryption key is available
     // and it is the correct one.
     if (crypt_data->key_found == false) {
-        ib::warn(ER_REDO_TABLESPACE_ENCRYPTION_MISSING_KEY, space_id, crypt_data->key_id);
-        recv_sys->set_corrupt_log();
+      ib::warn(ER_REDO_TABLESPACE_ENCRYPTION_MISSING_KEY, space_id,
+               crypt_data->key_id);
+      recv_sys->set_corrupt_log();
     } else {
-      Validation_key_verions_result result{crypt_data->validate_encryption_key_versions()};
+      Validation_key_verions_result result{
+          crypt_data->validate_encryption_key_versions()};
       if (result != Validation_key_verions_result::SUCCESS) {
-        uint error = (result == Validation_key_verions_result::MISSING_KEY_VERSIONS)
-                       ? ER_REDO_TABLESPACE_ENCRYPTION_MISSING_KEY_VERSIONS
-                       : ER_REDO_TABLESPACE_ENCRYPTION_CORRUPTED_KEYS;
+        uint error =
+            (result == Validation_key_verions_result::MISSING_KEY_VERSIONS)
+                ? ER_REDO_TABLESPACE_ENCRYPTION_MISSING_KEY_VERSIONS
+                : ER_REDO_TABLESPACE_ENCRYPTION_CORRUPTED_KEYS;
         ib::warn(error, space_id, crypt_data->key_id);
         recv_sys->set_corrupt_log();
       }

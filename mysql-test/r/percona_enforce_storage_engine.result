@@ -11,8 +11,6 @@ t1	CREATE TABLE `t1` (
 DROP TABLE t1;
 SET SESSION sql_mode='';
 CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT, c2 VARCHAR(10)) ENGINE=InnoDB;
-Warnings:
-Note	1266	Using storage engine MyISAM for table 't1'
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

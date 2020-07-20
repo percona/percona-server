@@ -3,7 +3,6 @@
 # Test sleeps for long times
 --source include/big_test.inc
 
-set @saved_log_output = @@global.log_output;
 set @@global.log_output = 'TABLE';
 truncate table mysql.slow_log;
 
@@ -40,4 +39,4 @@ disconnect con2;
 
 TRUNCATE mysql.slow_log;
 
-set @@global.log_output = @saved_log_output;
+set @@global.log_output=default;

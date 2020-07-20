@@ -1395,8 +1395,11 @@ position where the part about transactions starts.
                               transactions
 */
 static void srv_printf_locks_and_transactions(FILE *file,
-                                              ulint *trx_start_pos) {
+                                             ulint *trx_start_pos) {
   ut_ad(locksys::owns_exclusive_global_latch());
+
+  if (recv_recovery_on) return;
+
   lock_print_info_summary(file);
   if (trx_start_pos) {
     long t = ftell(file);
@@ -1469,7 +1472,7 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
 
     mutex_exit(&dict_foreign_err_mutex);
   }
-
+  
   ret = true;
   if (nowait) {
     locksys::Global_exclusive_try_latch guard{};

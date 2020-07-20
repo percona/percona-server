@@ -311,6 +311,7 @@ test/tp3#p#p3#sp#s5	test/tp3#p#p3#sp#s5	97	5	Dynamic	0	Single
 test/tp3#p#p3#sp#s6	test/tp3#p#p3#sp#s6	97	5	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	Any	ibdata1
 mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/known_dir/test/t1.ibd
@@ -326,6 +327,7 @@ test/tp3#p#p3#sp#s6	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/known_dir/test/tp3#p#
 ts1	General	DEFAULT	0	Any	MYSQL_TMP_DIR/known_dir/ts1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t1	TABLESPACE	InnoDB	NORMAL	test/t1	MYSQL_TMP_DIR/known_dir/test/t1.ibd

@@ -261,7 +261,6 @@ let $str = `$SELECT_CMD $WHERE_COND`;
 echo $str;
 eval INSERT INTO I_S_check_table(t) VALUES ("$str");
 
-<<<<<<< HEAD
 let $WHERE_COND = AND TABLE_NAME='COMPRESSION_DICTIONARY';
 replace_regex /(cat|sch|vw).name COLLATE utf8_tolower_ci/\1.name/;
 let $str = `$SELECT_CMD $WHERE_COND`;

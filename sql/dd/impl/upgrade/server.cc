@@ -673,7 +673,6 @@ bool do_server_upgrade_checks(THD *thd) {
       int error = 0;
       bool is_tablespace_keyring_pre_v3_encrypted =
           hton->is_tablespace_keyring_pre_v3_encrypted(*space, error);
-      DBUG_ASSERT(error == 0);
       if (is_tablespace_keyring_pre_v3_encrypted) {
         LogErr(ERROR_LEVEL, ER_UPGRADE_KEYRING_UNSUPPORTED_VERSION_ENCRYPTION);
         return dd::end_transaction(thd, true);

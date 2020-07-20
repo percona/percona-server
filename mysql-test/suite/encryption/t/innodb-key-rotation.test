@@ -30,9 +30,8 @@ insert t6 values (repeat('nosecret', 12));
 --let $wait_condition=SELECT COUNT(*) = $tables_count - 2 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
 --source include/wait_condition.inc
 
---let $assert_text= Successful rotation of percona_innodb-0 to version 2
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
---source include/assert.inc
+--echo # Rotation of percona_innodb-0 to version 2.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
 
 --echo # Just make sure that none of the table started re-encrypting
 --sleep 5 # Give a bit of time for re-encryption thread
@@ -41,9 +40,8 @@ insert t6 values (repeat('nosecret', 12));
 --let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 2]" = 0
 --source include/assert.inc
 
---let $assert_text= Successful rotation of percona_innodb-0 to version 3
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
---source include/assert.inc
+--echo # Rotation of percona_innodb-0 to version 3.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
 
 --let $wait_timeout= 600
 # We should have $tables_count - 3 tables encrypted with version 3, as 
@@ -61,13 +59,11 @@ insert t6 values (repeat('nosecret', 12));
 
 --echo # Now, let's rotate key 5 twice
 
---let $assert_text= Successful rotation of percona_innodb-5 to version 2
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-5\\"\\) = 1]" = 1
---source include/assert.inc
+--echo # Rotation of percona_innodb-5 to version 2.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 5;
 
---let $assert_text= Successful rotation of percona_innodb-5 to version 3
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-5\\"\\) = 1]" = 1
---source include/assert.inc
+--echo # Rotation of percona_innodb-5 to version 3.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 5;
 
 --let $wait_timeout= 600
 --let $wait_condition=SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 3 AND CURRENT_KEY_ID = 5
@@ -77,9 +73,8 @@ insert t6 values (repeat('nosecret', 12));
 --echo # in re-encryption of the table
 SET GLOBAL innodb_encryption_rotate_key_age = 1;
 
---let $assert_text= Successful rotation of percona_innodb-0 to version 4
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
---source include/assert.inc
+--echo # Rotation of percona_innodb-0 to version 4.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
 
 --let $wait_timeout= 600
 # We should have $tables_count - 3 tables encrypted with version 4, as
@@ -92,9 +87,7 @@ SET GLOBAL innodb_encryption_rotate_key_age = 1;
 --source include/assert.inc
 
 --echo # Rotate key 5 to version 4 => this should trigger table t2 re-encryption
---let $assert_text= Successful rotation of percona_innodb-5 to version 4
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-5\\"\\) = 1]" = 1
---source include/assert.inc
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 5;
 
 --let $wait_timeout= 600
 --let $wait_condition=SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 4 AND CURRENT_KEY_ID = 5
@@ -105,14 +98,11 @@ SET GLOBAL innodb_encryption_rotate_key_age = 0;
 
 --echo # Rotating key should not cause any re-encryption
 
---let $assert_text= Successful rotation of percona_innodb-0 to version 5
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
---source include/assert.inc
+--echo # Rotation of percona_innodb-0 to version 5.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
 
 --echo # Rotate key 5 to version 5 => this should trigger table t2 re-encryption
---let $assert_text= Successful rotation of percona_innodb-5 to version 5
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-5\\"\\) = 1]" = 1
---source include/assert.inc
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 5;
 
 --echo # Just make sure that none of the table started re-encrypting
 --sleep 5 # Give a bit of time for re-encryption thread

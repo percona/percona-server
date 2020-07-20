@@ -20,7 +20,8 @@ include/assert.inc [Make sure t1 is encrypted]
 SET GLOBAL debug="+d,set_number_of_t1_pages_to_rotate_to_100";
 SET GLOBAL debug="+d,rotate_only_first_100_pages_from_t1";
 include/assert.inc [Make sure re-encryption will happen per every key rotation]
-include/assert.inc [Successful rotation of percona_innodb-0 to version 2]
+# Rotation of percona_innodb-0 to version 2
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
 # Table t1 should have min_key_version = 1 assigned and ROTATIONG_OR_FLUSHING=1 <= this means that only 100 pages
 # have been rotatted.
 # Disable rotation threads

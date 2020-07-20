@@ -31,17 +31,15 @@ SET GLOBAL innodb_encryption_threads=4;
 --let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0 and name=\\'ts4\\']" = 1
 --source include/assert.inc
 
---let $assert_text= Successful rotation of percona_innodb-0 to version 2
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
---source include/assert.inc
+--echo # Rotation of percona_innodb-0 to version 2.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
 
 --let $assert_text= None of the tablespaces should get re-encrypted with version 2 as innodb_encryption_rotate_key_age is 2
 --let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 2]" = 0
 --source include/assert.inc
 
---let $assert_text= Successful rotation of percona_innodb-0 to version 3
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
---source include/assert.inc
+--echo # Rotation of percona_innodb-0 to version 3.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
 
 --let $wait_timeout= 600
 # We should have ts3 encrypted with key0,ver3
@@ -62,13 +60,11 @@ SET GLOBAL innodb_encryption_threads=4;
 
 --echo # Now, let's rotate key 5 twice
 
---let $assert_text= Successful rotation of percona_innodb-5 to version 2
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-5\\"\\) = 1]" = 1
---source include/assert.inc
+--echo # Rotation of percona_innodb-5 to version 2.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 5;
 
---let $assert_text= Successful rotation of percona_innodb-5 to version 3
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-5\\"\\) = 1]" = 1
---source include/assert.inc
+--echo # Rotation of percona_innodb-5 to version 3.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 5;
 
 --let $wait_timeout= 600
 --let $wait_condition=SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 3 and name='ts2' AND CURRENT_KEY_ID = 5
@@ -85,9 +81,8 @@ CREATE TABLE t1_in_ts5 (a varchar(255)) TABLESPACE=ts5;
 --echo # in re-encryption of the table
 SET GLOBAL innodb_encryption_rotate_key_age = 1;
 
---let $assert_text= Successful rotation of percona_innodb-0 to version 4
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
---source include/assert.inc
+--echo # Rotation of percona_innodb-0 to version 4.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
 
 --let $wait_timeout= 600
 # We should have ts3 encrypted with key0,ver4
@@ -99,9 +94,7 @@ SET GLOBAL innodb_encryption_rotate_key_age = 1;
 --source include/assert.inc
 
 --echo # Rotate key 5 to version 4 => this should trigger table ts2 re-encryption
---let $assert_text= Successful rotation of percona_innodb-5 to version 4
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-5\\"\\) = 1]" = 1
---source include/assert.inc
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 5;
 
 --let $wait_timeout= 600
 --let $wait_condition=SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 4 and name='ts2' AND CURRENT_KEY_ID = 5
@@ -112,14 +105,11 @@ SET GLOBAL innodb_encryption_rotate_key_age = 0;
 
 --echo # Rotating key should not cause any re-encryption
 
---let $assert_text= Successful rotation of percona_innodb-0 to version 5
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
---source include/assert.inc
+--echo # Rotation of percona_innodb-0 to version 5.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
 
 --echo # Rotate key 5 to version 5 => this should trigger table ts2 re-encryption
---let $assert_text= Successful rotation of percona_innodb-5 to version 5
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-5\\"\\) = 1]" = 1
---source include/assert.inc
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 5;
 
 --let $assert_text= All tables should be still encrypted with key version 4 at most.
 --let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION > 4]" = 0

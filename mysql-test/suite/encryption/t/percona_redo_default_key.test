@@ -91,9 +91,8 @@ EOF
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD KEYRING_PLUGIN_EARLY_LOAD
 --source include/start_mysqld.inc
 
---let $assert_text= rotate percona_redo-UUID key to version 2
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_redo\\"\\) = 1]" = 1
---source include/assert.inc
+--echo # Rotate percona_redo-UUID key to version 2.
+ALTER INSTANCE ROTATE REDO SYSTEM KEY;
 
 --source include/shutdown_mysqld.inc
 

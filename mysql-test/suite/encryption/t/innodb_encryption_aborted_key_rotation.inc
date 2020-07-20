@@ -63,9 +63,8 @@ SET GLOBAL debug="+d,rotate_only_first_100_pages_from_t1";
 --let $assert_cond= "[SELECT @@GLOBAL.innodb_encryption_rotate_key_age = 1]" = 1
 --source include/assert.inc
 
---let $assert_text= Successful rotation of percona_innodb-0 to version 2
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
---source include/assert.inc
+--echo # Rotation of percona_innodb-0 to version 2
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
 
 --echo # Table t1 should have min_key_version = 1 assigned and ROTATIONG_OR_FLUSHING=1 <= this means that only 100 pages
 --echo # have been rotatted.

@@ -15482,7 +15482,7 @@ alter_instance_stmt:
           ALTER INSTANCE_SYM alter_instance_action
           {
             Lex->sql_command= SQLCOM_ALTER_INSTANCE;
-            $$= NEW_PTN PT_alter_instance($3);
+            $$= NEW_PTN PT_alter_instance($3.alter_instance_action, $3.key_id);
           }
 
 alter_instance_action:
@@ -15490,11 +15490,44 @@ alter_instance_action:
           {
             if (is_identifier($2, "INNODB"))
             {
-              $$= ROTATE_INNODB_MASTER_KEY;
+              $$.alter_instance_action = ROTATE_INNODB_MASTER_KEY;
+              $$.key_id = 0;
             }
             else if (is_identifier($2, "BINLOG"))
             {
-              $$= ROTATE_BINLOG_MASTER_KEY;
+              $$.alter_instance_action = ROTATE_BINLOG_MASTER_KEY;
+              $$.key_id = 0;
+            }
+            else
+            {
+              YYTHD->syntax_error_at(@2);
+              MYSQL_YYABORT;
+            }
+          }
+          | ROTATE_SYM ident_or_text SYSTEM_SYM KEY_SYM ulong_num
+          {
+            if (is_identifier($2, "INNODB"))
+            {
+              if ($5 > UINT_MAX32 - 1)
+              {
+                my_error(ER_SYSTEM_KEY_ROTATION_MAX_KEY_ID_EXCEEDED, MYF(0));
+                MYSQL_YYABORT;
+              }
+              $$.alter_instance_action = ROTATE_INNODB_SYSTEM_KEY;
+              $$.key_id = $5;
+            }
+            else
+            {
+              YYTHD->syntax_error_at(@2);
+              MYSQL_YYABORT;
+            }
+          }
+          | ROTATE_SYM ident_or_text SYSTEM_SYM KEY_SYM
+          {
+            if (is_identifier($2, "REDO"))
+            {
+              $$.alter_instance_action = ROTATE_REDO_SYSTEM_KEY;
+              $$.key_id = 0;
             }
             else
             {
@@ -15506,7 +15539,8 @@ alter_instance_action:
           {
             if (is_identifier($2, "TLS"))
             {
-              $$ = ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR;
+              $$.alter_instance_action = ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR;
+              $$.key_id = 0;
             }
             else
             {
@@ -15518,7 +15552,8 @@ alter_instance_action:
           {
             if (is_identifier($2, "TLS"))
             {
-              $$ = ALTER_INSTANCE_RELOAD_TLS;
+              $$.alter_instance_action = ALTER_INSTANCE_RELOAD_TLS;
+              $$.key_id = 0;
             }
             else
             {

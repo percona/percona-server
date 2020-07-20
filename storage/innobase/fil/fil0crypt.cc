@@ -2101,8 +2101,12 @@ static void fil_crypt_realloc_iops(rotate_thread_t *state) {
 
 /***********************************************************************
 Return allocated iops to global
-@param[in,out]		state		Rotation state */
-static void fil_crypt_return_iops(rotate_thread_t *state) {
+@param[in,out] state                       rotation state
+@param[in]     set_fil_crypt_threads_event should fil_crypt_threads_event be set
+                                           so to notify other events that there
+                                           might be some work to do. */
+static void fil_crypt_return_iops(rotate_thread_t *state,
+                                  bool set_fil_crypt_threads_event = true) {
   if (state->allocated_iops > 0) {
     uint iops = state->allocated_iops;
     mutex_enter(&fil_crypt_threads_mutex);
@@ -2117,7 +2121,7 @@ static void fil_crypt_return_iops(rotate_thread_t *state) {
 
     n_fil_crypt_iops_allocated -= iops;
     state->allocated_iops = 0;
-    os_event_set(fil_crypt_threads_event);
+    if (set_fil_crypt_threads_event) os_event_set(fil_crypt_threads_event);
     mutex_exit(&fil_crypt_threads_mutex);
   }
 
@@ -2207,8 +2211,12 @@ static bool fil_crypt_find_space_to_rotate(key_state_t *key_state,
     }
   }
 
-  /* if we didn't find any space return iops */
-  fil_crypt_return_iops(state);
+  /* If we didn't find any space return iops. Do not set
+     fil_crypt_threads_event. We do not want to notify other threads that there
+     is some work to do - since
+     we went through all spaces and did not find any space that needs rotation.
+   */
+  fil_crypt_return_iops(state, false);
 
   return false;
 }

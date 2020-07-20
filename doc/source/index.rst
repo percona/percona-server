@@ -176,6 +176,7 @@ TokuDB
    tokudb/tokudb_background_analyze_table
    tokudb/tokudb_variables
    tokudb/tokudb_status_variables
+   tokudb/tokudb_fractal_tree_indexing
    tokudb/tokudb_troubleshooting
    tokudb/tokudb_performance_schema
    tokudb/toku_backup

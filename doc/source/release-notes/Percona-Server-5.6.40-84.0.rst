@@ -99,7 +99,7 @@ Bugs Fixed
   Bugs fixed :psbug:`4280` and :psbug:`4292`.
 
 * A number of |Percona Server| 8.0 |TokuDB| fixes have been backported to
-  |Percona Server| 5.6 in preparation for using MySQL 8.0. Bugs fixed 
+  |Percona Server| 5.6 in preparation for using MySQL 8.0. Bugs fixed
   :psbug:`4379`, :psbug:`4380`, :psbug:`4387`, :psbug:`4378`, :psbug:`4383`,
   :psbug:`4384`, :psbug:`4386`,  :psbug:`4382`, :psbug:`4391`,
   :psbug:`4390`, :psbug:`4392`, and :psbug:`4381`.
@@ -114,10 +114,6 @@ TokuDB Changes and Fixes
 
 * A data race was fixed in minicron utility of the PerconaFT, as a contribution
   by Rik Prohaska. Bug fixed :psbug:`4281`.
-
-* Row count and cardinality decrease to zero took place after long-running
-  ``REPLACE`` load, ending up with full table scans for any action. Bug fixed
-  :psbug:`4296`.
 
 Other Bugs Fixed
 ================

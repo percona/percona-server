@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/27/2019
+.\"      Date: 03/06/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "09/27/2019" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "03/06/2020" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -426,6 +426,11 @@ built using this option\&.
 \fB\-\-debug\-check\fR
 .sp
 Print some debugging information when the program exits\&.
+.sp
+This option is available only if MySQL was built using
+\fBWITH_DEBUG\fR\&. MySQL release binaries provided by Oracle are
+\fInot\fR
+built using this option\&.
 .RE
 .sp
 .RS 4
@@ -440,6 +445,11 @@ Print some debugging information when the program exits\&.
 \fB\-T\fR
 .sp
 Print debugging information and memory and CPU usage statistics when the program exits\&.
+.sp
+This option is available only if MySQL was built using
+\fBWITH_DEBUG\fR\&. MySQL release binaries provided by Oracle are
+\fInot\fR
+built using this option\&.
 .RE
 .sp
 .RS 4
@@ -727,17 +737,26 @@ Write line numbers for errors\&. Disable this with
 .\}
 \fB\-\-local\-infile[={0|1}]\fR
 .sp
-Enable or disable
+By default,
 LOCAL
 capability for
-LOAD DATA\&. For
-\fBmysql\fR, this capability is disabled by default\&. With no value, the option enables
-LOCAL\&. The option may be given as
+LOAD DATA
+is determined by the default compiled into the MySQL client library\&. To enable or disable
+LOCAL
+explicitly, use the
+\fB\-\-local\-infile\fR
+option\&. When given with no value, the option enables
+LOCAL\&. When given as
 \fB\-\-local\-infile=0\fR
 or
-\fB\-\-local\-infile=1\fR
-to explicitly disable or enable
-LOCAL\&. Enabling local data loading also requires that the server permits it; see
+\fB\-\-local\-infile=1\fR, the option explicitly disables or enables
+LOCAL\&.
+.sp
+Successful use of
+LOCAL
+load operations within
+\fBmysql\fR
+also requires that the server permits local loading; see
 Section\ \&6.1.6, \(lqSecurity Issues with LOAD DATA LOCAL\(rq
 .RE
 .sp
@@ -1369,6 +1388,10 @@ Ignore
 SIGINT
 signals (typically the result of typing
 Control+C)\&.
+.sp
+Without this option, typing
+Control+C
+interrupts the current statement if there is one, or cancels any partial input line otherwise\&.
 .RE
 .sp
 .RS 4
@@ -1813,7 +1836,7 @@ is set to something other than the default of
 ;, instances of that character are sent to the server without interpretation\&. However, the server itself still interprets
 ;
 as a statement delimiter and processes statements accordingly\&. This behavior on the server side comes into play for multiple\-statement execution (see
-Section\ \&23.8.16, \(lqC API Multiple Statement Execution Support\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
+Section\ \&23.7.15, \(lqC API Multiple Statement Execution Support\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
 Section\ \&20.1, \(lqDefining Stored Programs\(rq)\&.
 .RE
 .sp
@@ -2669,7 +2692,8 @@ How Logging Occurs
 .\}
 Controlling the History File
 .RE
-How Logging Occurs.PP
+How Logging Occurs
+.PP
 Statement logging occurs as follows:
 .sp
 .RS 4
@@ -2823,7 +2847,8 @@ shell> \fBmysql \-\-histignore="*UPDATE*:*DELETE*"\fR
 .RE
 .\}
 .sp
-Controlling the History File.PP
+Controlling the History File
+.PP
 The
 \&.mysql_history
 file should be protected with a restrictive access mode because sensitive information might be written to it, such as the text of SQL statements that contain passwords\&. See
@@ -3183,7 +3208,8 @@ Disabling mysql Auto-Reconnect
 .\}
 mysql Client Parser Versus Server Parser
 .RE
-Input\-Line Editing.PP
+Input\-Line Editing
+.PP
 \fBmysql\fR
 supports input\-line editing, which enables you to modify the current input line in place or recall previous input lines\&. For example, the
 left\-arrow
@@ -3255,7 +3281,8 @@ at the end of
 \&.editrc\&.
 \fBmysql\fR
 will show the bindings when it starts\&.
-Unicode Support on Windows.PP
+Unicode Support on Windows
+.PP
 Windows provides APIs based on UTF\-16LE for reading from and writing to the console; the
 \fBmysql\fR
 client for Windows is able to use these APIs\&. The Windows installer creates an item in the MySQL menu named
@@ -3337,7 +3364,8 @@ default\-character\-set=utf8
 .RE
 .\}
 .sp
-Displaying Query Results Vertically.PP
+Displaying Query Results Vertically
+.PP
 Some query results are much more readable when displayed vertically, instead of in the usual horizontal table format\&. Queries can be displayed vertically by terminating the query with \eG instead of a semicolon\&. For example, longer text values that include newlines often are much easier to read with vertical output:
 .sp
 .if n \{\
@@ -3368,7 +3396,8 @@ Jones
 .RE
 .\}
 .sp
-Using Safe\-Updates Mode (\-\-safe\-updates).PP
+Using Safe\-Updates Mode (\-\-safe\-updates)
+.PP
 For beginners, a useful startup option is
 \fB\-\-safe\-updates\fR
 (or
@@ -3502,7 +3531,8 @@ c1
 is compared to a numeric value using
 WHERE c1 = 2222\&. For such comparisons, the string value is converted to a number and the operands are compared numerically (see
 Section\ \&12.2, \(lqType Conversion in Expression Evaluation\(rq), preventing use of the index\&. If safe\-updates mode is enabled, an error occurs\&.
-Disabling mysql Auto\-Reconnect.PP
+Disabling mysql Auto\-Reconnect
+.PP
 If the
 \fBmysql\fR
 client loses its connection to the server while sending a statement, it immediately and automatically tries to reconnect once to the server and send the statement again\&. However, even if
@@ -3544,8 +3574,9 @@ client with the
 option\&.
 .PP
 For more information about auto\-reconnect and its effect on state information when a reconnection occurs, see
-Section\ \&23.8.20, \(lqC API Automatic Reconnection Control\(rq\&.
-mysql Client Parser Versus Server Parser.PP
+Section\ \&23.7.19, \(lqC API Automatic Reconnection Control\(rq\&.
+mysql Client Parser Versus Server Parser
+.PP
 The
 \fBmysql\fR
 client uses a parser on the client side that is not a duplicate of the complete parser used by the
@@ -3614,7 +3645,7 @@ command)\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

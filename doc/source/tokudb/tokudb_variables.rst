@@ -110,6 +110,11 @@ TokuDB Server Variables
      - Yes
      - Session, Global
      - Yes
+   * - :variable:`tokudb_cache_size`
+     - Yes
+     - Yes
+     - Global
+     - No
    * - :variable:`tokudb_cachetable_pool_threads`
      - Yes
      - Yes

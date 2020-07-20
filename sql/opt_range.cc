@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights
  * reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -5648,8 +5648,14 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
           add("index_only", read_index_only).
           add("rows", found_records).
           add("cost", cost.total_cost());
+        if (param->thd->optimizer_switch_flag(
+                OPTIMIZER_SWITCH_FAVOR_RANGE_SCAN))
+          trace_idx.add("revised_cost", cost.total_cost() * 0.1);
       }
 #endif
+      if (param->thd->optimizer_switch_flag(
+              OPTIMIZER_SWITCH_FAVOR_RANGE_SCAN))
+        cost.multiply(0.1);
 
       if ((found_records != HA_POS_ERROR) && param->is_ror_scan)
       {
@@ -7605,7 +7611,13 @@ key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
     }
     // key1->part < key2->part
     key1->use_count--;
-    if (key1->use_count > 0)
+    /*
+     Clone key1 if the use_count is greater than 0 otherwise use the
+     "clone_flag" to determine if a key needs to be cloned.
+     "clone_flag" is set to true if the conditions which need to be
+     ANDed (in tree_and) are not simple (has many OR conditions within).
+   */
+    if (key1->use_count > 0 || (clone_flag & CLONE_KEY2_MAYBE))
       if (!(key1= key1->clone_tree(param)))
 	return 0;				// OOM
     return and_all_keys(param, key1, key2, clone_flag);

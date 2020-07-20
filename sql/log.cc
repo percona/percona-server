@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
    Copyright (c) 2009, 2013, Monty Program Ab
    Copyright (C) 2012 Percona Inc.
 
@@ -63,10 +63,6 @@ using std::max;
 #include "debug_sync.h"
 #include "sql_show.h"
 #include "mysqld.h"
-
-/* max size of log messages (error log, plugins' logging, general log) */
-#define MAX_LOG_BUFFER_SIZE 1024
-#define MAX_TIME_SIZE 32
 
 static
 const TABLE_FIELD_TYPE slow_query_log_table_fields[SQLT_FIELD_COUNT] =

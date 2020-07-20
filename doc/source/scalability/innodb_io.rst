@@ -31,13 +31,27 @@ System Variables
    :default: True
    :range: True/False
 
-This variable is used to control the ability of the user to set the value of the global |MySQL| variable ``innodb_flush_log_at_trx_commit``.
+This variable enables or disables the effect of the per-session value of 
+the `innodb_flush_log_at_trx_commit` variable. 
 
-If ``innodb_use_global_flush_log_at_trx_commit=0`` (False), the client can set the global |MySQL| variable, using: ::
+If the global variable  `innodb_use_global_flush_log_at_trx_commit` is
+set to ``1``, the session will always use the current
+global value of `innodb_flush_log_at_trx_commit`. This is the
+upstream compatible mode. If the user attempts to change the
+`innodb_flush_log_at_trx_commit` value for a
+session, the session value is ignored.
 
-  SET innodb_use_global_flush_log_at_trx_commit=N
+If the global variable `innodb_use_global_flush_log_at_trx_commit` is set to
+``0``, a user can modify the
+``innodb_flush_log_at_trx_commit`` per-session using the following command:
 
-If ``innodb_use_global_flush_log_at_trx_commit=1`` (True), the user session will use the current value of ``innodb_flush_log_at_trx_commit``, and the user cannot reset the value of the global variable using a ``SET`` command.
+.. code-block:: MySQL
+
+    SET SESSION innodb_flush_log_at_trx_commit=0
+
+This modification only affects the transactions in that session. Other sessions,
+if they have not been individually modified, continue to use the
+global `innodb_use_flush_log_at_trx_commit` value.
 
 .. variable:: innodb_log_block_size
 

@@ -2514,7 +2514,8 @@ files_checked:
 		works for space 0. */
 
 		err = dict_boot();
-
+		DBUG_EXECUTE_IF("ib_dic_boot_error",
+				err = DB_ERROR;);
 		if (err != DB_SUCCESS) {
 			return(err);
 		}

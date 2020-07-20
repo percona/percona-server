@@ -44,9 +44,26 @@ In |Percona Server| :rn:`5.6.24-72.2` and newer, the single binary tarball was r
  * ssl101 - for *CentOS* 6 and *CentOS* 7 (``libssl.so.10 => /usr/lib64/libssl.so.10 (0x00007facbe8c4000)``);
  * ssl098e - to be used only for *CentOS* 5 (``libssl.so.6 => /lib64/libssl.so.6 (0x00002aed5b64d000)``).
 
-You can download the binary tarballs from the ``Linux - Generic`` `section <https://www.percona.com/downloads/Percona-Server-5.6/LATEST/binary/tarball/>`_ on the download page.
+.. note::
 
-Fetch and extract the correct binary tarball. For example for *Debian Wheezy*: 
+        The list is a guide. To find which libssl.so files are available on your
+        system you should run the following in Ubuntu or Debian:
+
+        .. code-block:: bash
+
+            $ locate libssl | grep "^/usr/lib/"
+
+        In CentOS, run the following command: 
+
+        .. code-block:: bash
+
+            $ ldconfig -p | grep ssl
+
+
+Download the appropriate binary tarball from the ``Linux - Generic`` `section <https://www.percona.com/downloads/Percona-Server-5.6/LATEST/binary/tarball/>`_ on the download page.
+
+Fetch and extract the correct binary
+tarball. For example for *Debian Wheezy*: 
 
 .. code-block:: bash
 

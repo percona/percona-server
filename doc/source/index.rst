@@ -48,6 +48,7 @@ Installation
 
    installation
    upgrading_guide_56_57
+   installation/post-installation
 
 Scalability Improvements
 ========================

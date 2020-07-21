@@ -17,26 +17,24 @@ As of 8.0.20-11, the Percona Parallel Doublewrite buffer implementation has been
 New Features
 ================================================================================
 
-
-* :jirabug:`PS-7157`: Document --utility-user-dynamic-privileges server option
-* :jirabug:`PS-7128`: Document RocksDB variables: rocksdb_max_background_compactions, rocksdb_max_background_flushes, and rocksdb_max_bottom_pri_background_compactions
-* :jirabug:`PS-7039`: Document RocksDB variable: rocksdb_validate_tables
-* :jirabug:`PS-6951`: Document new RocksDB variables: rocksdb_delete_cf, rocksdb_enable_iterate_bounds, and rocksdb_enable_remove_orphaned_dropped_cfs
-* :jirabug:`PS-6926`: Document RocksDB variables: rocksdb_table_stats_recalc_threshold_pct, rocksdb_table_stats_recalc_threshold_count, rocksdb_table_stats_background_thread_nice_value, rocksdb_table_stats_max_num_rows_scanned, rocksdb_table_stats_use_table_scan. rocksdb_table_stats_background_thread_nice_value,  rocksdb_table_stats_max_num_rows_scanned,  rocksdb_table_stats_use_table_scan, and rocksdb_trace_block_cache_access.
-* :jirabug:`PS-6910`: Document RocksDB variable: rocksdb_stats_level.
-* :jirabug:`PS-6902`: Document the variable rocksdb_enable_insert_with_update_caching.
-* :jirabug:`PS-6901`: Document RocksDB variable: rocksdb_read_free_rpl.
-* :jirabug:`PS-6891`: Document RocksDB variable: rocksdb_master_skip_tx_api.
-* :jirabug:`PS-6890`: Document RocksDB variable: rocksdb_blind_delete_primary_key.
-* :jirabug:`PS-6886`: Document variable rocksdb_cache_dump which includes RocksDB block cache content in a core dump.
-* :jirabug:`PS-6885`: Document the new variable rocksdb_rollback_on_timeout which allows the rollback of an entire transaction on timeout.
+* :jirabug:`PS-7128`: Document RocksDB variables: :variable:`rocksdb_max_background_compactions`, :variable:`rocksdb_max_background_flushes`, and :variable:`rocksdb_max_bottom_pri_background_compactions`
+* :jirabug:`PS-7039`: Document RocksDB variable: :variable:`rocksdb_validate_tables`
+* :jirabug:`PS-6951`: Document RocksDB variables: :variable:`rocksdb_delete_cf`, :variable:`rocksdb_enable_iterate_bounds`, and :variable:`rocksdb_enable_remove_orphaned_dropped_cfs`
+* :jirabug:`PS-6926`: Document RocksDB variables: :variable:`rocksdb_table_stats_recalc_threshold_pct`, :variable:`rocksdb_table_stats_recalc_threshold_count`, :variable:`rocksdb_table_stats_background_thread_nice_value`, :variable:`rocksdb_table_stats_max_num_rows_scanned`, :variable:`rocksdb_table_stats_use_table_scan`.
+* :jirabug:`PS-6910`: Document RocksDB variable: :variable:`rocksdb_stats_level`.
+* :jirabug:`PS-6902`: Document RocksDB variable: :variable:`rocksdb_enable_insert_with_update_caching`.
+* :jirabug:`PS-6901`: Document RocksDB variable: :variable:`rocksdb_read_free_rpl`.
+* :jirabug:`PS-6891`: Document RocksDB variable: :variable:`rocksdb_master_skip_tx_api`.
+* :jirabug:`PS-6890`: Document RocksDB variable: :variable:`rocksdb_blind_delete_primary_key`.
+* :jirabug:`PS-6886`: Document RocksDB variable: :variable:`rocksdb_cache_dump`.
+* :jirabug:`PS-6885`: Document RocksDB variable: :variable:`rocksdb_rollback_on_timeout`.
 
 
 
 Improvements
 ================================================================================
 
-* :jirabug:`PS-6994`: Reimplement rocksdb_validate_tables functionality in Percona Server 8.X
+* :jirabug:`PS-6994`: Implement rocksdb_validate_tables functionality in Percona Server 8.X
 * :jirabug:`PS-6984`: Update the zstd submodule to v1.4.4.
 * :jirabug:`PS-5764`: Introduce SEQUENCE_TABLE() table-level SQL function
 
@@ -62,6 +60,7 @@ Bugs Fixed
 * :jirabug:`PS-7127`: Provide mechanism to grant dynamic privilege to the utility user.
 * :jirabug:`PS-7118`: Add ability to set LOWER_CASE_TABLE_NAMES option before initializing data directory
 * :jirabug:`PS-7116`: Port MyRocks fix of Index Condition Pushdown (ICP)
+* :jirabug:`PS-7075`: Provide binary tarball with shared libs and glibc suffix
 * :jirabug:`PS-6974`: Correct instability in the rocksdb.drop_cf_* tests
 * :jirabug:`PS-6969`: Correct instability in the rocksdb.index_stats_large_table
 * :jirabug:`PS-6105`: Modify innodb.mysqld_core_dump_without_buffer_pool_dynamic test to move assertion to correct location
@@ -71,4 +70,3 @@ Bugs Fixed
 * :jirabug:`PS-7100`: Fix rocksdb_read_free_rpl test to properly count rows corresponding to broken index entries
 * :jirabug:`PS-7082`: Correct link displayed on \help client command
 * :jirabug:`PS-7169`: Set rocksdb_validate_tables to disabled RocksDB while upgrading the server from 5.7 to 8.0.20
-* :jirabug:`PS-7075`: Provide binary tarball with shared libs and glibc suffix

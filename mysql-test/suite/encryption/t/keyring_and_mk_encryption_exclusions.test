@@ -145,6 +145,7 @@ SET DEBUG_SYNC = 'now SIGNAL go_alter_encryption_to_y';
 
 --connection con1
 SET GLOBAL debug="-d,hang_on_ts_hang_rotation";
+SET GLOBAL innodb_encryption_threads=0;
 DROP TABLESPACE ts_hang;
 
 --echo # Now check when TABLESPACE ENCRYPTION is ALTERED to 'N' while encryption threads start to process
@@ -179,6 +180,7 @@ SET DEBUG_SYNC = 'now SIGNAL go_alter_encryption_to_n';
 
 --connection con1
 SET GLOBAL debug="-d,hang_on_ts_hang_rotation";
+SET GLOBAL innodb_encryption_threads=0;
 DROP TABLESPACE ts_hang;
 
 --echo # Here we check that encryption threads are dissallowed from running on a tablespace for which

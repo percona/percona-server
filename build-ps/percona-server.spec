@@ -228,15 +228,6 @@
   %define distro_requires               coreutils grep procps /usr/sbin/useradd /usr/sbin/groupadd
 %endif
 
-# ----------------------------------------------------------------------------
-# Support optional "tcmalloc" library (experimental)
-# ----------------------------------------------------------------------------
-%if %{defined malloc_lib_target}
-%define WITH_TCMALLOC 1
-%else
-%define WITH_TCMALLOC 0
-%endif
-
 ##############################################################################
 # Configuration based upon above user input, not to be set directly
 ##############################################################################
@@ -649,14 +640,6 @@ touch $RBR%{_sysconfdir}/my.cnf
 # Install SELinux files in datadir
 install -m 600 $MBD/support-files/RHEL4-SElinux/mysql.{fc,te} \
   $RBR%{_datadir}/percona-server/SELinux/RHEL4
-
-%if %{WITH_TCMALLOC}
-# Even though this is a shared library, put it under /usr/lib*/mysql, so it
-# doesn't conflict with possible shared lib by the same name in /usr/lib*.  See
-# `mysql_config --variable=pkglibdir` and mysqld_safe for how this is used.
-install -m 644 "%{malloc_lib_source}" \
-  "$RBR%{_libdir}/mysql/%{malloc_lib_target}"
-%endif
 
 # Remove files we explicitly do not want to package, avoids 'unpackaged
 # files' warning.
@@ -1334,10 +1317,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/scalability_metrics.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/scalability_metrics.so
 
-%if %{WITH_TCMALLOC}
-%attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
-%endif
-
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
 %if 0%{?systemd}
 %attr(755, root, root) %{_bindir}/mysql-systemd
@@ -1700,8 +1679,7 @@ done
 
 * Mon Nov 16 2009 Joerg Bruehe <joerg.bruehe@sun.com>
 
-- Fix some problems with the directives around "tcmalloc" (experimental),
-  remove erroneous traces of the InnoDB plugin (that is 5.1 only).
+- remove erroneous traces of the InnoDB plugin (that is 5.1 only).
 
 * Fri Oct 06 2009 Magnus Blaudd <mvensson@mysql.com>
 

@@ -391,14 +391,14 @@ fi
     }
 
     mkdir $INSTALLDIR/usr/local/minimal
-    cp -r "$INSTALLDIR/usr/local/$PRODUCT_FULL" "$INSTALLDIR/usr/local/minimal/$PRODUCT_FULL"
+    cp -r "$INSTALLDIR/usr/local/$PRODUCT_FULL" "$INSTALLDIR/usr/local/minimal/$PRODUCT_FULL-minimal"
 
     # NORMAL TARBALL
     cd "$INSTALLDIR/usr/local/$PRODUCT_FULL"
     link
 
     # MIN TARBALL
-    cd "$INSTALLDIR/usr/local/minimal/$PRODUCT_FULL"
+    cd "$INSTALLDIR/usr/local/minimal/$PRODUCT_FULL-minimal"
     rm -rf mysql-test 2> /dev/null
     find . -type f -exec file '{}' \; | grep ': ELF ' | cut -d':' -f1 | xargs strip --strip-unneeded
     link
@@ -413,7 +413,7 @@ fi
 
     cd "$INSTALLDIR/usr/local/minimal/"
     find $PRODUCT_FULL -type f -name 'COPYING.AGPLv3' -delete
-    $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL-minimal.tar.gz" $PRODUCT_FULL
+    $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL-minimal.tar.gz" $PRODUCT_FULL-minimal
 )
 
 # Clean up

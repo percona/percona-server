@@ -17,17 +17,17 @@ As of 8.0.20-11, the Percona Parallel Doublewrite buffer implementation has been
 New Features
 ================================================================================
 
-* :jirabug:`PS-7128`: Document RocksDB variables: :variable:`rocksdb_max_background_compactions`, :variable:`rocksdb_max_background_flushes`, and :variable:`rocksdb_max_bottom_pri_background_compactions`
-* :jirabug:`PS-7039`: Document RocksDB variable: :variable:`rocksdb_validate_tables`
-* :jirabug:`PS-6951`: Document RocksDB variables: :variable:`rocksdb_delete_cf`, :variable:`rocksdb_enable_iterate_bounds`, and :variable:`rocksdb_enable_remove_orphaned_dropped_cfs`
-* :jirabug:`PS-6926`: Document RocksDB variables: :variable:`rocksdb_table_stats_recalc_threshold_pct`, :variable:`rocksdb_table_stats_recalc_threshold_count`, :variable:`rocksdb_table_stats_background_thread_nice_value`, :variable:`rocksdb_table_stats_max_num_rows_scanned`, :variable:`rocksdb_table_stats_use_table_scan`.
-* :jirabug:`PS-6910`: Document RocksDB variable: :variable:`rocksdb_stats_level`.
-* :jirabug:`PS-6902`: Document RocksDB variable: :variable:`rocksdb_enable_insert_with_update_caching`.
-* :jirabug:`PS-6901`: Document RocksDB variable: :variable:`rocksdb_read_free_rpl`.
-* :jirabug:`PS-6891`: Document RocksDB variable: :variable:`rocksdb_master_skip_tx_api`.
-* :jirabug:`PS-6890`: Document RocksDB variable: :variable:`rocksdb_blind_delete_primary_key`.
-* :jirabug:`PS-6886`: Document RocksDB variable: :variable:`rocksdb_cache_dump`.
-* :jirabug:`PS-6885`: Document RocksDB variable: :variable:`rocksdb_rollback_on_timeout`.
+* :jirabug:`PS-7128`: Add RocksDB variables: :variable:`rocksdb_max_background_compactions`, :variable:`rocksdb_max_background_flushes`, and :variable:`rocksdb_max_bottom_pri_background_compactions`
+* :jirabug:`PS-7039`: Add RocksDB variable: :variable:`rocksdb_validate_tables`
+* :jirabug:`PS-6951`: Add RocksDB variables: :variable:`rocksdb_delete_cf`, :variable:`rocksdb_enable_iterate_bounds`, and :variable:`rocksdb_enable_remove_orphaned_dropped_cfs`
+* :jirabug:`PS-6926`: Add RocksDB variables: :variable:`rocksdb_table_stats_recalc_threshold_pct`, :variable:`rocksdb_table_stats_recalc_threshold_count`, :variable:`rocksdb_table_stats_background_thread_nice_value`, :variable:`rocksdb_table_stats_max_num_rows_scanned`, :variable:`rocksdb_table_stats_use_table_scan`.
+* :jirabug:`PS-6910`: Add RocksDB variable: :variable:`rocksdb_stats_level`.
+* :jirabug:`PS-6902`: Add RocksDB variable: :variable:`rocksdb_enable_insert_with_update_caching`.
+* :jirabug:`PS-6901`: Add RocksDB variable: :variable:`rocksdb_read_free_rpl`.
+* :jirabug:`PS-6891`: Add RocksDB variable: :variable:`rocksdb_master_skip_tx_api`.
+* :jirabug:`PS-6890`: Add RocksDB variable: :variable:`rocksdb_blind_delete_primary_key`.
+* :jirabug:`PS-6886`: Add RocksDB variable: :variable:`rocksdb_cache_dump`.
+* :jirabug:`PS-6885`: Add RocksDB variable: :variable:`rocksdb_rollback_on_timeout`.
 
 
 

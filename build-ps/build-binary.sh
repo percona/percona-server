@@ -345,11 +345,16 @@ fi
                     echo "Replacing lib $(basename $(readlink -f $libpath_sorted)) for $elf"
                     patchelf --replace-needed $LDD $(basename $(readlink -f $libpath_sorted)) $elf
                 fi
-                # Add if present in LDD to NEEDED
-                if [[ ! -z $LDD ]] && [[ -z "$(readelf -d $elf | grep $(basename $libpath_sorted | awk -F'.' '{print $1}'))" ]]; then
-                    patchelf --add-needed $(basename $(readlink -f $libpath_sorted)) $elf
-                fi
             done
+        done
+    }
+
+    function check_libs {
+        local elf_path=$1
+        for elf in $(find $elf_path -maxdepth 1 -exec file {} \; | grep 'ELF ' | cut -d':' -f1); do
+            if ! ldd $elf; then
+                exit 1
+            fi
         done
     }
 
@@ -378,6 +383,10 @@ fi
         # Replace libs
         for DIR in $DIRLIST; do
             replace_libs $DIR
+        done
+        # Make final check in order to determine any error after linkage
+        for DIR in $DIRLIST; do
+            check_libs $DIR
         done
     }
 

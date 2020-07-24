@@ -147,6 +147,7 @@ Diagnostics Improvements
    diagnostics/scalability_metrics_plugin
    diagnostics/response_time_distribution
    diagnostics/innodb_fragmentation_count
+   diagnostics/libcoredumper
 
 TokuDB
 ======

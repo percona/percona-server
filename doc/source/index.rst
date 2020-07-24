@@ -33,7 +33,7 @@ Installation
    :glob:
 
    installation
-   upgrading_guide
+   installation/post-installation
 
 Scalability Improvements
 ================================================================================

@@ -153,7 +153,7 @@ get_sources(){
     BRANCH_NAME="${BRANCH}"
     echo "BRANCH_NAME=${BRANCH_NAME}" >> ../percona-server-5.6.properties
     echo "PRODUCT=Percona-Server-${MYSQL_VERSION_MAJOR}.${MYSQL_VERSION_MINOR}" >> ../percona-server-5.6.properties
-    echo 'PRODUCT_FULL=${PRODUCT}.${MYSQL_VERSION_PATCH}${MYSQL_VERSION_EXTRA}' >> ../percona-server-5.6.properties
+    echo "PRODUCT_FULL=${PRODUCT}.${MYSQL_VERSION_PATCH}${MYSQL_VERSION_EXTRA}" >> ../percona-server-5.6.properties
     echo "BUILD_NUMBER=${BUILD_NUMBER}" >> ../percona-server-5.6.properties
     echo "BUILD_ID=${BUILD_ID}" >> ../percona-server-5.6.properties
     echo "PERCONAFT_REPO=${PERCONAFT_REPO}" >> ../percona-server-5.6.properties

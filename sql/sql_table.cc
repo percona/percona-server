@@ -18798,7 +18798,8 @@ static bool check_engine(THD *thd, const char *db_name, const char *table_name,
     Check, if the given table name is system table, and if the storage engine
     does supports it.
   */
-  if (!ha_check_if_supported_system_table(*new_engine, db_name, table_name)) {
+  if ((create_info->used_fields & HA_CREATE_USED_ENGINE) &&
+      !ha_check_if_supported_system_table(*new_engine, db_name, table_name)) {
     my_error(ER_UNSUPPORTED_ENGINE, MYF(0),
              ha_resolve_storage_engine_name(*new_engine), db_name, table_name);
     *new_engine = nullptr;

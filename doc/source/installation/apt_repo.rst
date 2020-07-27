@@ -6,22 +6,7 @@ Installing |Percona Server| on *Debian* and *Ubuntu*
 
 Ready-to-use packages are available from the |Percona Server| software repositories and the `download page <http://www.percona.com/downloads/Percona-Server-5.6/>`_.
 
-Supported Releases:
-
-* Debian:
-
- * 8.0 (jessie)
- * 9.0 (stretch)
-
-* Ubuntu:
-
- * 16.04LTS (xenial)
- * 18.04 (bionic)
-
-Supported Platforms:
-
- * x86
- * x86_64 (also known as ``amd64``)
+Specific information on the supported platforms, products, and versions is described in `Percona Software and Platform Lifecycle <https://www.percona.com/services/policies/percona-software-platform-lifecycle#mysql>`_.
 
 What's in each DEB package?
 ===========================
@@ -57,7 +42,7 @@ Installing |Percona Server| from Percona ``apt`` repository
 
       $ wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb
 
-2. Install the downloaded package with :program:`dpkg`. To do that, run the following commands as root or with :program:`sudo`:
+3. Install the downloaded package with :program:`dpkg`. To do that, run the following commands as root or with :program:`sudo`:
 
    .. code-block:: bash
 
@@ -65,13 +50,13 @@ Installing |Percona Server| from Percona ``apt`` repository
 
    Once you install this package the Percona repositories should be added. You can check the repository setup in the :file:`/etc/apt/sources.list.d/percona-release.list` file.
 
-3. Remember to update the local cache:
+4. Remember to update the local cache:
 
    .. code-block:: bash
 
       $ sudo apt-get update
 
-4. After that you can install the server package:
+5. After that you can install the server package:
 
    .. code-block:: bash
 
@@ -81,12 +66,9 @@ Installing |Percona Server| from Percona ``apt`` repository
 Percona ``apt`` Testing repository
 ----------------------------------
 
-Percona offers pre-release builds from the testing repository. To enable it, run
-|percona-release| with the ``testing`` argument. |tip.run-this.root|.
+Percona offers pre-release builds from the testing repository. To enable it add the just uncomment the testing repository lines in the Percona repository definition in your repository file (default :file:`/etc/apt/sources.list.d/percona-release.list`). It should looks like this (in this example ``VERSION`` is the name of your distribution): ::
 
-.. code-block:: bash
-
-    $ sudo percona-release enable original testing
+$ sudo percona-release enable original testing
 
 Apt-Pinning the packages
 ------------------------
@@ -145,6 +127,79 @@ This will install all the packages from the bundle. Another option is to downloa
 
   When installing packages manually like this, you'll need to make sure to resolve all the dependencies and install missing packages yourself.
 
+Automating the Install |Percona Server| using a non-interactive script
+-----------------------------------------------------------------------
+
+You can install |Percona Server| with a non-interactive script using the following options:
+
+* ``debconf`` - The `Debian package configuration system <https://manpages.ubuntu.com/manpages/bionic/man7/debconf.7.html>`_
+* ``DEBIAN_FRONTEND`` - an interface variable for ``debconf``
+* `debconf-set-selections <https://manpages.ubuntu.com/manpages/bionic/en/man1/debconf-get-selections.1.html>`_ - inserts values into the debconf database
+
+.. note::
+ 
+    If needed, you can return the contents of the debconf database with the following statement:
+
+    .. code-block:: bash
+        debconf-get-selections
+
+The following example script installs the server and secures the installation.
+
+.. code-block:: bash
+
+    #!/bin/bash
+
+    # variable for the root password
+    dbpass="root"
+
+    # Install the OS updates
+    apt-get update && apt-get upgrade -y
+
+    # Set the timezone to CST
+    echo "America/Chicago" > /etc/timezone
+
+    dpkg-reconfigure -f noninteractive tzdata
+
+    # Install needed packages
+    apt-get install gnupg2
+    apt-get install debconf-utils
+
+    # Install noninteractive
+    export DEBIAN_FRONTEND=noninteractive
+
+    # Fetch the Percona repository
+    wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb
+
+    # Install the downloaded package with dpkg.
+    dpkg -i percona-release_latest.$(lsb_release -sc)_all.deb
+
+    # Update the local cache
+    apt-get update
+
+    # Install essential packages
+    apt-get -y install zsh htop
+
+    # Install MySQL Server in a Non-Interactive mode. Default root password will be "root"
+    debconf-set-selections <<< "percona-server-server-5.6 percona-server-server/root_password password root"
+    debconf-set-selections <<< "percona-server-server-5.6 percona-server-server/root_password_again password root"
+
+    apt-get -y install percona-server-server-5.6
+
+    # SQL statements to secure the installation
+    mysql -uroot -p"$dbpass"<< EOF_MYSQL
+
+    UPDATE mysql.user SET Password = PASSWORD("$dbpass") WHERE USER='root';
+    DELETE FROM mysql.user WHERE User='';
+    DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
+    DROP DATABASE IF EXISTS test;
+    DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
+    FLUSH PRIVILEGES;
+
+    EOF_MYSQL
+
+    service mysql stop
+    service mysql start
+
 The following table lists the default locations for files:
 
 .. list-table::
@@ -162,12 +217,10 @@ The following table lists the default locations for files:
     * - Logs
       - :file:`/var/log/mysql`
 
-
 Running |Percona Server|
 ========================
 
-A *Debian* or an *Ubuntu* installation automatically creates a special
-``debian-sys-maint`` user which is used by the control scripts to control the |Percona Server| ``mysqld`` and ``mysqld_safe`` services. Login details for that user can be found in :file:`/etc/mysql/debian.cnf`.
+|Percona Server| stores the data files in :file:`/var/lib/mysql/` by default. You can find the configuration file that is used to manage |Percona Server| in :file:`/etc/mysql/my.cnf`. *Debian* and *Ubuntu* installation automatically creates a special ``debian-sys-maint`` user which is used by the control scripts to control the |Percona Server| ``mysqld`` and ``mysqld_safe`` services. Login details for that user can be found in :file:`/etc/mysql/debian.cnf`.
 
 1. Starting the service
 
@@ -205,31 +258,6 @@ A *Debian* or an *Ubuntu* installation automatically creates a special
 
   *Debian* 8.0 (jessie) and *Ubuntu* 15.04 (vivid) come with `systemd <http://freedesktop.org/wiki/Software/systemd/>`_ as the default system and service manager so you can invoke all the above commands with ``sytemctl`` instead of ``service``. Currently both are supported.
 
-|tip.run-all.root|
-
-1. Starting the service
-
-   |Percona Server| is started automatically after it gets installed unless it
-   encounters errors during the installation process. You can also manually
-   start it by running: :bash:`service mysql start`
-
-#. Confirming that service is running. You can check the service status by
-   running: :bash:`service mysql status`
-
-#. Stopping the service
-
-   You can stop the service by running: :bash:`service mysql stop`
-
-#. Restarting the service. :bash:`service mysql restart`
-
-.. note::
-
-   |debian-last| and |ubuntu-lts| come with `systemd
-   <http://freedesktop.org/wiki/Software/systemd/>`_ as the default system and
-   service manager. You can invoke all the above commands with ``systemctl``
-   instead of ``service``. Currently both are supported.
-
-
 Uninstalling |Percona Server|
 =============================
 
@@ -254,6 +282,3 @@ To uninstall |Percona Server| you'll need to remove all the installed packages. 
    .. code-block:: bash
 
      $ sudo apt-get purge percona-server*
-
-.. include:: ../.res/replace.txt
-.. include:: ../.res/replace.program.txt

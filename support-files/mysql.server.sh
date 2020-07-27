@@ -53,6 +53,8 @@ datadir=
 # Negative numbers mean to wait indefinitely
 service_startup_timeout=900
 
+[ -e /etc/sysconfig/mysql ] && . /etc/sysconfig/mysql
+
 # Lock directory for RedHat / SuSE.
 lockdir='/var/lock/subsys'
 lock_file_path="$lockdir/mysql"

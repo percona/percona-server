@@ -3528,6 +3528,7 @@ const_table_extraction_done:
           {
             s->type= JT_CONST;
             mark_as_null_row(table);
+            table->const_table= 1;
             join->found_const_table_map|= table->map;
 	    join->const_table_map|= table->map;
 	    set_position(join, const_count++, s, NULL);

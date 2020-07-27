@@ -25,7 +25,6 @@
 # This test case is binary log format agnostic
 --source include/have_binlog_format_row.inc
 --source include/have_debug.inc
---source include/only_mts_slave_parallel_workers.inc
 --source include/master-slave.inc
 
 # Do some DMLs on master and sync with slave to make sure that one checkpoint
@@ -37,6 +36,9 @@ CREATE TABLE db2.t1 ( id INT(11) PRIMARY KEY ) ENGINE=INNODB;
 INSERT INTO db1.t1 VALUES (40);
 INSERT INTO db2.t1 VALUES (40);
 --source include/sync_slave_sql_with_master.inc
+
+# connection was switched to slave
+--source include/only_mts_slave_parallel_workers.inc
 
 # Save the global variables that are being modified. Set bigger values for
 # slave_checkpoint_group/period so that no further checkpoints are done

@@ -162,7 +162,8 @@ Depends: percona-server-client-5.6 (>= ${source:Version}),
          ${misc:Depends},
          psmisc,
          passwd,
-         lsb-base (>= 3.0-10)
+         lsb-base (>= 3.0-10),
+         openssl
 Provides: mysql-server,
           virtual-mysql-server,
           virtual-mysql-server-core

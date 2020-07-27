@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlhotcopy\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/06/2020
+.\"      Date: 06/02/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLHOTCOPY\FR" "1" "03/06/2020" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLHOTCOPY\FR" "1" "06/02/2020" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -137,7 +137,6 @@ Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
 .\}
 \fB\-\-help\fR,
 \fB\-?\fR
-.sp
 Display a help message and exit\&.
 .RE
 .sp
@@ -150,7 +149,6 @@ Display a help message and exit\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-addtodest\fR
-.sp
 Do not rename target directory (if it exists); merely add files to it\&.
 .RE
 .sp
@@ -163,7 +161,6 @@ Do not rename target directory (if it exists); merely add files to it\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-allowold\fR
-.sp
 Do not abort if a target exists; rename it by adding an
 _old
 suffix\&.
@@ -178,7 +175,6 @@ suffix\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-checkpoint=\fR\fB\fIdb_name\fR\fR\fB\&.\fR\fB\fItbl_name\fR\fR
-.sp
 Insert checkpoint entries into the specified database
 \fIdb_name\fR
 and table
@@ -194,7 +190,6 @@ and table
 .IP \(bu 2.3
 .\}
 \fB\-\-chroot=\fR\fB\fIdir_name\fR\fR
-.sp
 Base directory of the
 \fBchroot\fR
 jail in which
@@ -216,7 +211,6 @@ option given to
 .IP \(bu 2.3
 .\}
 \fB\-\-debug\fR
-.sp
 Enable debug output\&.
 .sp
 This option is available only if MySQL was built using
@@ -235,7 +229,6 @@ built using this option\&.
 .\}
 \fB\-\-dryrun\fR,
 \fB\-n\fR
-.sp
 Report actions without performing them\&.
 .RE
 .sp
@@ -248,7 +241,6 @@ Report actions without performing them\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-flushlog\fR
-.sp
 Flush logs after all tables are locked\&.
 .RE
 .sp
@@ -262,7 +254,6 @@ Flush logs after all tables are locked\&.
 .\}
 \fB\-\-host=\fR\fB\fIhost_name\fR\fR,
 \fB\-h \fR\fB\fIhost_name\fR\fR
-.sp
 The host name of the local host to use for making a TCP/IP connection to the local server\&. By default, the connection is made to
 localhost
 using a Unix socket file\&.
@@ -277,7 +268,6 @@ using a Unix socket file\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-keepold\fR
-.sp
 Do not delete previous (renamed) target when done\&.
 .RE
 .sp
@@ -290,7 +280,6 @@ Do not delete previous (renamed) target when done\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-method=\fR\fB\fIcommand\fR\fR
-.sp
 The method for copying files (cp
 or
 scp)\&. The default is
@@ -306,7 +295,6 @@ cp\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-noindices\fR
-.sp
 Do not include full index files for
 MyISAM
 tables in the backup\&. This makes the backup smaller and faster\&. The indexes for reloaded tables can be reconstructed later with
@@ -323,7 +311,6 @@ tables in the backup\&. This makes the backup smaller and faster\&. The indexes 
 .\}
 \fB\-\-password=\fR\fB\fIpassword\fR\fR,
 \fB\-p\fR\fB\fIpassword\fR\fR
-.sp
 The password to use when connecting to the server\&. The password value is not optional for this option, unlike for other MySQL programs\&.
 .sp
 Specifying a password on the command line should be considered insecure\&. To avoid giving the password on the command line, use an option file\&. See
@@ -340,7 +327,6 @@ Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&.
 .\}
 \fB\-\-port=\fR\fB\fIport_num\fR\fR,
 \fB\-P \fR\fB\fIport_num\fR\fR
-.sp
 The TCP/IP port number to use when connecting to the local server\&.
 .RE
 .sp
@@ -353,7 +339,6 @@ The TCP/IP port number to use when connecting to the local server\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-old_server\fR
-.sp
 In MySQL 5\&.6,
 \fBmysqlhotcopy\fR
 uses
@@ -373,7 +358,6 @@ option if the server is older than 5\&.5\&.3, which is when that statement was i
 .\}
 \fB\-\-quiet\fR,
 \fB\-q\fR
-.sp
 Be silent except for errors\&.
 .RE
 .sp
@@ -386,7 +370,6 @@ Be silent except for errors\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-record_log_pos=\fR\fB\fIdb_name\fR\fR\fB\&.\fR\fB\fItbl_name\fR\fR
-.sp
 Record master and slave status in the specified database
 \fIdb_name\fR
 and table
@@ -402,7 +385,6 @@ and table
 .IP \(bu 2.3
 .\}
 \fB\-\-regexp=\fR\fB\fIexpr\fR\fR
-.sp
 Copy all databases with names that match the given regular expression\&.
 .RE
 .sp
@@ -415,7 +397,6 @@ Copy all databases with names that match the given regular expression\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-resetmaster\fR
-.sp
 Reset the binary log after locking all the tables\&.
 .RE
 .sp
@@ -428,7 +409,6 @@ Reset the binary log after locking all the tables\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-resetslave\fR
-.sp
 Reset the master info repository file or table after locking all the tables\&.
 .RE
 .sp
@@ -442,7 +422,6 @@ Reset the master info repository file or table after locking all the tables\&.
 .\}
 \fB\-\-socket=\fR\fB\fIpath\fR\fR,
 \fB\-S \fR\fB\fIpath\fR\fR
-.sp
 The Unix socket file to use for connections to
 localhost\&.
 .RE
@@ -456,7 +435,6 @@ localhost\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-suffix=\fR\fB\fIstr\fR\fR
-.sp
 The suffix to use for names of copied databases\&.
 .RE
 .sp
@@ -469,7 +447,6 @@ The suffix to use for names of copied databases\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-tmpdir=\fR\fB\fIdir_name\fR\fR
-.sp
 The temporary directory\&. The default is
 /tmp\&.
 .RE
@@ -484,7 +461,6 @@ The temporary directory\&. The default is
 .\}
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR,
 \fB\-u \fR\fB\fIuser_name\fR\fR
-.sp
 The MySQL user name to use when connecting to the server\&.
 .RE
 .PP
@@ -510,7 +486,7 @@ shell> \fBperldoc mysqlhotcopy\fR
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

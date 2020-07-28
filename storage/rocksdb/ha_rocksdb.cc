@@ -251,17 +251,17 @@ class Rdb_open_tables_map {
   std::unordered_map<std::string, Rdb_table_handler *> m_table_map;
 
   /* The mutex used to protect the hash table */
-  mutable mysql_mutex_t m_mutex;
+  mutable Rds_mysql_mutex m_mutex;
 
  public:
   void init() {
     m_table_map.clear();
-    mysql_mutex_init(rdb_psi_open_tbls_mutex_key, &m_mutex, MY_MUTEX_INIT_FAST);
+    m_mutex.init(rdb_psi_open_tbls_mutex_key, MY_MUTEX_INIT_FAST);
   }
 
   void free() {
     m_table_map.clear();
-    mysql_mutex_destroy(&m_mutex);
+    m_mutex.destroy();
   }
 
   size_t count() { return m_table_map.size(); }
@@ -451,8 +451,8 @@ static void rocksdb_drop_index_wakeup_thread(
     void *const var_ptr MY_ATTRIBUTE((__unused__)), const void *const save);
 
 static bool rocksdb_pause_background_work = false;
-static mysql_mutex_t rdb_sysvars_mutex;
-static mysql_mutex_t rdb_block_cache_resize_mutex;
+static Rds_mysql_mutex rdb_sysvars_mutex;
+static Rds_mysql_mutex rdb_block_cache_resize_mutex;
 static mysql_mutex_t rdb_bottom_pri_background_compactions_resize_mutex;
 
 static void rocksdb_set_pause_background_work(
@@ -2476,7 +2476,7 @@ class Rdb_transaction {
   rocksdb::ReadOptions m_read_opts;
 
   static std::multiset<Rdb_transaction *> s_tx_list;
-  static mysql_mutex_t s_tx_list_mutex;
+  static Rds_mysql_mutex s_tx_list_mutex;
 
   Rdb_io_perf *m_tbl_io_perf;
 
@@ -2548,12 +2548,12 @@ class Rdb_transaction {
   virtual bool is_writebatch_trx() const = 0;
 
   static void init_mutex() {
-    mysql_mutex_init(key_mutex_tx_list, &s_tx_list_mutex, MY_MUTEX_INIT_FAST);
+    s_tx_list_mutex.init(key_mutex_tx_list, MY_MUTEX_INIT_FAST);
   }
 
   static void term_mutex() {
     DBUG_ASSERT(s_tx_list.size() == 0);
-    mysql_mutex_destroy(&s_tx_list_mutex);
+    s_tx_list_mutex.destroy();
   }
 
   static void walk_tx_list(Rdb_tx_list_walker *walker) {
@@ -3780,7 +3780,7 @@ void Rdb_snapshot_notifier::SnapshotCreated(
 }
 
 std::multiset<Rdb_transaction *> Rdb_transaction::s_tx_list;
-mysql_mutex_t Rdb_transaction::s_tx_list_mutex;
+Rds_mysql_mutex Rdb_transaction::s_tx_list_mutex;
 
 class Rdb_ha_data {
  public:
@@ -4974,6 +4974,13 @@ static uint rocksdb_partition_flags() { return (HA_CANNOT_PARTITION_FK); }
 static int rocksdb_init_internal(void *const p) {
   DBUG_ENTER_FUNC();
 
+  // Validate the assumption about the size of ROCKSDB_SIZEOF_HIDDEN_PK_COLUMN.
+  static_assert(sizeof(longlong) == 8, "Assuming that longlong is 8 bytes.");
+
+  // Lock the handlertons initialized status flag for writing
+  Rdb_hton_init_state::Scoped_lock state_lock(*rdb_get_hton_init_state(), true);
+  SHIP_ASSERT(!rdb_get_hton_init_state()->initialized());
+
   // Initialize error logging service.
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) {
     DBUG_RETURN(HA_EXIT_FAILURE);
@@ -4998,12 +5005,10 @@ static int rocksdb_init_internal(void *const p) {
     }
   }
 
-  // Validate the assumption about the size of ROCKSDB_SIZEOF_HIDDEN_PK_COLUMN.
-  static_assert(sizeof(longlong) == 8, "Assuming that longlong is 8 bytes.");
-
-  // Lock the handlertons initialized status flag for writing
-  Rdb_hton_init_state::Scoped_lock state_lock(*rdb_get_hton_init_state(), true);
-  SHIP_ASSERT(!rdb_get_hton_init_state()->initialized());
+  DBUG_EXECUTE_IF("rocksdb_init_failure_files_corruption", {
+    // Simulate rdb_check_rocksdb_corruption failure
+    DBUG_RETURN(HA_EXIT_FAILURE);
+  });
 
   init_rocksdb_psi_keys();
 
@@ -5024,10 +5029,9 @@ static int rocksdb_init_internal(void *const p) {
   rdb_is_thread.init();
   rdb_mc_thread.init();
 #endif
-  mysql_mutex_init(rdb_collation_data_mutex_key, &rdb_collation_data_mutex,
-                   MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(rdb_mem_cmp_space_mutex_key, &rdb_mem_cmp_space_mutex,
-                   MY_MUTEX_INIT_FAST);
+  rdb_collation_data_mutex.init(rdb_collation_data_mutex_key,
+                                MY_MUTEX_INIT_FAST);
+  rdb_mem_cmp_space_mutex.init(rdb_mem_cmp_space_mutex_key, MY_MUTEX_INIT_FAST);
 
 #if defined(HAVE_PSI_INTERFACE)
   rdb_collation_exceptions =
@@ -5036,14 +5040,19 @@ static int rocksdb_init_internal(void *const p) {
   rdb_collation_exceptions = new Regex_list_handler();
 #endif
 
-  mysql_mutex_init(rdb_sysvars_psi_mutex_key, &rdb_sysvars_mutex,
-                   MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(rdb_block_cache_resize_mutex_key,
-                   &rdb_block_cache_resize_mutex, MY_MUTEX_INIT_FAST);
+  rdb_sysvars_mutex.init(rdb_sysvars_psi_mutex_key, MY_MUTEX_INIT_FAST);
+  rdb_block_cache_resize_mutex.init(rdb_block_cache_resize_mutex_key,
+                                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(rdb_bottom_pri_background_compactions_resize_mutex_key,
                    &rdb_bottom_pri_background_compactions_resize_mutex,
                    MY_MUTEX_INIT_FAST);
+
   Rdb_transaction::init_mutex();
+
+  DBUG_EXECUTE_IF("rocksdb_init_failure_mutexes_initialized", {
+    // Simulate rdb_check_rocksdb_corruption failure
+    DBUG_RETURN(HA_EXIT_FAILURE);
+  });
 
   rocksdb_hton->state = SHOW_OPTION_YES;
   rocksdb_hton->create = rocksdb_create_handler;
@@ -5160,6 +5169,11 @@ static int rocksdb_init_internal(void *const p) {
       DBUG_RETURN(HA_EXIT_FAILURE);
     }
   }
+
+  DBUG_EXECUTE_IF("rocksdb_init_failure_reads", {
+    // Simulate rdb_check_rocksdb_corruption failure
+    DBUG_RETURN(HA_EXIT_FAILURE);
+  });
 
   if (rocksdb_db_options->allow_mmap_writes &&
       rocksdb_db_options->use_direct_io_for_flush_and_compaction) {
@@ -5299,6 +5313,11 @@ static int rocksdb_init_internal(void *const p) {
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
+  DBUG_EXECUTE_IF("rocksdb_init_failure_cache", {
+    // Simulate rdb_check_rocksdb_corruption failure
+    DBUG_RETURN(HA_EXIT_FAILURE);
+  });
+
   std::unique_ptr<Rdb_cf_options> cf_options_map(new Rdb_cf_options());
   if (!cf_options_map->init(*rocksdb_tbl_options, properties_collector_factory,
                             rocksdb_default_cf_options,
@@ -5307,6 +5326,11 @@ static int rocksdb_init_internal(void *const p) {
     deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
+
+  DBUG_EXECUTE_IF("rocksdb_init_failure_cf_options", {
+    // Simulate rdb_check_rocksdb_corruption failure
+    DBUG_RETURN(HA_EXIT_FAILURE);
+  });
 
   /*
     If there are no column families, we're creating the new database.
@@ -5349,6 +5373,11 @@ static int rocksdb_init_internal(void *const p) {
   status =
       check_rocksdb_options_compatibility(rocksdb_datadir, main_opts, cf_descr);
 
+  DBUG_EXECUTE_IF("rocksdb_init_failure_incompatible_options", {
+    // Simulate ListColumnFamilies failure
+    status = rocksdb::Status::Corruption();
+  });
+
   // We won't start if we'll determine that there's a chance of data corruption
   // because of incompatible options.
   if (!status.ok()) {
@@ -5361,10 +5390,12 @@ static int rocksdb_init_internal(void *const p) {
 
   status = rocksdb::TransactionDB::Open(
       main_opts, tx_db_options, rocksdb_datadir, cf_descr, &cf_handles, &rdb);
+
   DBUG_EXECUTE_IF("rocksdb_init_failure_open_db", {
     // Simulate opening TransactionDB failure
     status = rocksdb::Status::Corruption();
   });
+
   if (!status.ok()) {
     rdb_log_status_error(status, "Error opening instance");
     DBUG_RETURN(HA_EXIT_FAILURE);
@@ -5408,6 +5439,9 @@ static int rocksdb_init_internal(void *const p) {
       dict_manager.commit(batch);
     }
   }
+
+  DBUG_EXECUTE_IF("rocksdb_init_failure_managers",
+                  { DBUG_RETURN(HA_EXIT_FAILURE); });
 
   Rdb_sst_info::init(rdb);
 
@@ -5481,6 +5515,9 @@ static int rocksdb_init_internal(void *const p) {
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
+  DBUG_EXECUTE_IF("rocksdb_init_failure_threads",
+                  { DBUG_RETURN(HA_EXIT_FAILURE); });
+
   rdb_set_collation_exception_list(rocksdb_strict_collation_exceptions);
 
   if (rocksdb_pause_background_work) {
@@ -5517,18 +5554,155 @@ static int rocksdb_init_internal(void *const p) {
   rocksdb_set_max_bottom_pri_background_compactions_internal(
       rocksdb_max_bottom_pri_background_compactions);
 
+  DBUG_EXECUTE_IF("rocksdb_init_failure_everything_initialized",
+                  { DBUG_RETURN(HA_EXIT_FAILURE); });
+
   DBUG_RETURN(HA_EXIT_SUCCESS);
 }
 
-/*
-  Cleanup rocksdb variables that need to be deleted even in case of
-  engine initialization failure. It's dangerous to clean them up
-  at process shutdown in __run_exit_handlers
-*/
-static void rocksdb_shutdown_safe() {
+// This function cleans up after both normal and init-failure scenarios.
+// It can be unsafe to perform some cleanup after initalization failure,
+// so currently only some code is executed for such scenarios.
+// More code will be safeguarded and executed for both scenarios, and
+// eventually minimalShutdown parameter will be removed (always = false).
+// @parameter minimalShutdown - only perform uninitialization deemed safe
+// (experimentation).
+static int rocksdb_shutdown(bool minimalShutdown) {
+  int error = 0;
+
+  // If we finalize the storage engine plugin, it is no longer initialized.
+  // Grab a writer lock for the duration of the call, so we can clear the flag
+  // and destroy the handlerton and global state in isolation.
+  Rdb_hton_init_state::Scoped_lock state_lock(*rdb_get_hton_init_state(), true);
+
+  if (!minimalShutdown) {
+    // signal the drop index thread to stop
+    rdb_drop_idx_thread.signal(true);
+
+    // Flush all memtables for not losing data, even if WAL is disabled.
+    rocksdb_flush_all_memtables();
+
+    // Stop all rocksdb background work
+    if (rdb && rdb->GetBaseDB()) {
+      CancelAllBackgroundWork(rdb->GetBaseDB(), true);
+    }
+
+    // Signal the background thread to stop and to persist all stats collected
+    // from background flushes and compactions. This will add more keys to a new
+    // memtable, but since the memtables were just flushed, it should not
+    // trigger a flush that can stall due to background threads being stopped.
+    // As long as these keys are stored in a WAL file, they can be retrieved on
+    // restart.
+    rdb_bg_thread.signal(true);
+
+    // signal the index stats calculation thread to stop
+    rdb_is_thread.signal(true);
+
+    // signal the manual compaction thread to stop
+    rdb_mc_thread.signal(true);
+
+    // Wait for the background thread to finish.
+    auto err = rdb_bg_thread.join();
+    if (err != 0) {
+      // We'll log the message and continue because we're shutting down and
+      // continuation is the optimal strategy.
+      LogPluginErrMsg(ERROR_LEVEL, 0,
+                      "Couldn't stop the background thread: (errno=%d)", err);
+    }
+
+    // Wait for the drop index thread to finish.
+    err = rdb_drop_idx_thread.join();
+    if (err != 0) {
+      LogPluginErrMsg(ERROR_LEVEL, 0,
+                      "Couldn't stop the index thread: (errno=%d)", err);
+    }
+
+    // Wait for the index stats calculation thread to finish.
+    err = rdb_is_thread.join();
+    if (err != 0) {
+      LogPluginErrMsg(
+          ERROR_LEVEL, 0,
+          "Couldn't stop the index stats calculation thread: (errno=%d)", err);
+    }
+
+    // Wait for the manual compaction thread to finish.
+    err = rdb_mc_thread.join();
+    if (err != 0) {
+      LogPluginErrMsg(ERROR_LEVEL, 0,
+                      "Couldn't stop the manual compaction thread: (errno=%d)",
+                      err);
+    }
+
+    if (rdb_open_tables.count()) {
+      // Looks like we are getting unloaded and yet we have some open tables
+      // left behind.
+
+      LogPluginErrMsg(ERROR_LEVEL, 0,
+                      "There're tables still opened during shutdown");
+      error = 1;
+    }
+
+    rdb_open_tables.free();
+  }
+
+  // The only code executed during both normal and init faiure shutdown are
+  // deleting mutexes. The plan is to gradually increase this section so there's
+  // one single shutdown function for all scenarios.
+
+  rdb_sysvars_mutex.destroy();
+  rdb_block_cache_resize_mutex.destroy();
+  mysql_mutex_destroy(&rdb_bottom_pri_background_compactions_resize_mutex);
+
+  if (!minimalShutdown) {
+    delete rdb_collation_exceptions;
+    rdb_collation_exceptions = nullptr;
+  }
+
+  rdb_collation_data_mutex.destroy();
+  rdb_mem_cmp_space_mutex.destroy();
+
+  Rdb_transaction::term_mutex();
+
+  if (!minimalShutdown) {
+    for (auto &it : rdb_collation_data) {
+      delete it;
+      it = nullptr;
+    }
+
+    ddl_manager.cleanup();
+    dict_manager.cleanup();
+    cf_manager.cleanup();
+
+    delete rdb;
+    rdb = nullptr;
+
+    delete commit_latency_stats;
+    commit_latency_stats = nullptr;
+
+    // Disown the cache data since we're shutting down.
+    // This results in memory leaks but it improved the shutdown time.
+    // Don't disown when running under valgrind
+#ifndef HAVE_VALGRIND
+    if (rocksdb_tbl_options->block_cache) {
+      rocksdb_tbl_options->block_cache->DisownData();
+    }
+#endif /* HAVE_VALGRIND */
+  }
+
   rocksdb_db_options = nullptr;
   rocksdb_tbl_options = nullptr;
   rocksdb_stats = nullptr;
+
+  if (!minimalShutdown) {
+    my_error_unregister(HA_ERR_ROCKSDB_FIRST, HA_ERR_ROCKSDB_LAST);
+  }
+
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
+
+  // clear the initialized flag and unlock
+  rdb_get_hton_init_state()->set_initialized(false);
+
+  return error;
 }
 
 static int rocksdb_init_func(void *const p) {
@@ -5536,7 +5710,7 @@ static int rocksdb_init_func(void *const p) {
   if (ret) {
     // Ideally we should call rocksdb_done_func but we are not quite
     // there yet so this only cleans up the safe ones
-    rocksdb_shutdown_safe();
+    rocksdb_shutdown(/* minimalShutdown = */ true);
   }
   return ret;
 }
@@ -5545,121 +5719,10 @@ static int rocksdb_init_func(void *const p) {
   Storage Engine deinitialization function, invoked when plugin is unloaded.
 */
 
-static int rocksdb_done_func(void *const p) {
+static int rocksdb_done_func(void *const p MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
-  int error = 0;
-
-  // If we finalize the storage engine plugin, it is no longer initialized.
-  // Grab a writer lock for the duration of the call, so we can clear the flag
-  // and destroy the handlerton and global state in isolation.
-  Rdb_hton_init_state::Scoped_lock state_lock(*rdb_get_hton_init_state(), true);
-  SHIP_ASSERT(rdb_get_hton_init_state()->initialized());
-
-  // signal the drop index thread to stop
-  rdb_drop_idx_thread.signal(true);
-
-  // Flush all memtables for not losing data, even if WAL is disabled.
-  rocksdb_flush_all_memtables();
-
-  // Stop all rocksdb background work
-  CancelAllBackgroundWork(rdb->GetBaseDB(), true);
-
-  // Signal the background thread to stop and to persist all stats collected
-  // from background flushes and compactions. This will add more keys to a new
-  // memtable, but since the memtables were just flushed, it should not trigger
-  // a flush that can stall due to background threads being stopped. As long
-  // as these keys are stored in a WAL file, they can be retrieved on restart.
-  rdb_bg_thread.signal(true);
-
-  // signal the index stats calculation thread to stop
-  rdb_is_thread.signal(true);
-
-  // signal the manual compaction thread to stop
-  rdb_mc_thread.signal(true);
-
-  // Wait for the background thread to finish.
-  auto err = rdb_bg_thread.join();
-  if (err != 0) {
-    // We'll log the message and continue because we're shutting down and
-    // continuation is the optimal strategy.
-    LogPluginErrMsg(ERROR_LEVEL, 0,
-                    "Couldn't stop the background thread: (errno=%d)", err);
-  }
-
-  // Wait for the drop index thread to finish.
-  err = rdb_drop_idx_thread.join();
-  if (err != 0) {
-    LogPluginErrMsg(ERROR_LEVEL, 0,
-                    "Couldn't stop the index thread: (errno=%d)", err);
-  }
-
-  // Wait for the index stats calculation thread to finish.
-  err = rdb_is_thread.join();
-  if (err != 0) {
-    LogPluginErrMsg(
-        ERROR_LEVEL, 0,
-        "Couldn't stop the index stats calculation thread: (errno=%d)", err);
-  }
-
-  // Wait for the manual compaction thread to finish.
-  err = rdb_mc_thread.join();
-  if (err != 0) {
-    // NO_LINT_DEBUG
-    LogPluginErrMsg(ERROR_LEVEL, 0,
-                    "Couldn't stop the manual compaction thread: (errno=%d)",
-                    err);
-  }
-
-  if (rdb_open_tables.count()) {
-    // Looks like we are getting unloaded and yet we have some open tables
-    // left behind.
-    error = 1;
-  }
-
-  rdb_open_tables.free();
-  mysql_mutex_destroy(&rdb_sysvars_mutex);
-  mysql_mutex_destroy(&rdb_block_cache_resize_mutex);
-  mysql_mutex_destroy(&rdb_bottom_pri_background_compactions_resize_mutex);
-
-  delete rdb_collation_exceptions;
-  mysql_mutex_destroy(&rdb_collation_data_mutex);
-  mysql_mutex_destroy(&rdb_mem_cmp_space_mutex);
-
-  Rdb_transaction::term_mutex();
-
-  for (auto &it : rdb_collation_data) {
-    delete it;
-    it = nullptr;
-  }
-
-  ddl_manager.cleanup();
-  dict_manager.cleanup();
-  cf_manager.cleanup();
-
-  delete rdb;
-  rdb = nullptr;
-
-  delete commit_latency_stats;
-  commit_latency_stats = nullptr;
-
-// Disown the cache data since we're shutting down.
-// This results in memory leaks but it improved the shutdown time.
-// Don't disown when running under valgrind
-#ifndef HAVE_VALGRIND
-  if (rocksdb_tbl_options->block_cache) {
-    rocksdb_tbl_options->block_cache->DisownData();
-  }
-#endif  // HAVE_VALGRIND
-
-  rocksdb_shutdown_safe();
-
-  my_error_unregister(HA_ERR_ROCKSDB_FIRST, HA_ERR_ROCKSDB_LAST);
-
-  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
-
-  // clear the initialized flag and unlock
-  rdb_get_hton_init_state()->set_initialized(false);
+  int error = rocksdb_shutdown(/* minimalShutdown = */ false);
 
   DBUG_RETURN(error);
 }

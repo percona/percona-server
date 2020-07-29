@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -140,6 +140,32 @@ static int get_string(const NdbRecAttr* attr, string& str)
   return 0;
 }
 
+// Do a cleanup of all inserted tuples
+static void do_cleanup(Ndb& ndb)
+{
+  const NdbDictionary::Dictionary* dict = ndb.getDictionary();
+
+  const NdbDictionary::Table *table = dict->getTable("api_array_simple");
+  if (table == nullptr) APIERROR(dict->getNdbError());
+
+  NdbTransaction *transaction= ndb.startTransaction();
+  if (transaction == nullptr) APIERROR(ndb.getNdbError());
+
+  for (int i = 0; i <= 20; i++)
+  {
+    NdbOperation* myOperation = transaction->getNdbOperation(table);
+    if (myOperation == nullptr) APIERROR(transaction->getNdbError());
+    myOperation->deleteTuple();
+    myOperation->equal("ATTR1", i);
+  }
+
+  if (transaction->execute(NdbTransaction::Commit) != 0)
+  {
+    APIERROR(transaction->getNdbError());
+  }
+  ndb.closeTransaction(transaction);
+}
+
 /*******************************************************
  * Use one transaction and insert 21 rows in one batch *
  *******************************************************/
@@ -259,10 +285,10 @@ static void do_read(Ndb& ndb)
   vector<NdbRecAttr*> attr;
   const int column_count= table->getNoOfColumns();
   attr.reserve(column_count);
-
+  attr.push_back(nullptr);
   for (int i= 1; i < column_count; i++)
   {
-    attr[i] = operation->getValue(i, NULL);
+    attr.push_back(operation->getValue(i, NULL));
     if (attr[i] == NULL) APIERROR(transaction->getNdbError());
   }
 
@@ -334,6 +360,7 @@ static void run_application(Ndb_cluster_connection &cluster_connection,
    */
   do_insert(ndb);
   do_read(ndb);
+  do_cleanup(ndb);
 }
 
 int main(int argc, char** argv)

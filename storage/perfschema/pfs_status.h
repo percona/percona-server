@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,14 +28,16 @@
   Status variables statistics (declarations).
 */
 
-struct PFS_status_stats
-{
+#include "my_inttypes.h"
+#include "sql/system_variables.h"  // COUNT_GLOBAL_STATUS_VARS
+
+struct PFS_status_stats {
   PFS_status_stats();
 
   void reset();
   void aggregate(const PFS_status_stats *from);
-  void aggregate_from(const STATUS_VAR *from);
-  void aggregate_to(STATUS_VAR *to);
+  void aggregate_from(const System_status_var *from);
+  void aggregate_to(System_status_var *to);
 
   bool m_has_stats;
   ulonglong m_stats[COUNT_GLOBAL_STATUS_VARS];
@@ -48,4 +50,3 @@ void reset_status_by_host();
 void reset_global_status();
 
 #endif
-

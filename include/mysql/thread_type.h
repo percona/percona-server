@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,34 +18,34 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* Defines to make different thread packages compatible */
 
 #ifndef THREAD_TYPE_INCLUDED
 #define THREAD_TYPE_INCLUDED
 
-#ifdef  __cplusplus
-extern "C"{
-#endif
+/**
+  @file include/mysql/thread_type.h
+*/
 
 /* Flags for the THD::system_thread variable */
-enum enum_thread_type
-{
-  NON_SYSTEM_THREAD= 0,
-  SYSTEM_THREAD_SLAVE_IO= 1,
-  SYSTEM_THREAD_SLAVE_SQL= 2,
-  SYSTEM_THREAD_NDBCLUSTER_BINLOG= 4,
-  SYSTEM_THREAD_EVENT_SCHEDULER= 8,
-  SYSTEM_THREAD_EVENT_WORKER= 16,
-  SYSTEM_THREAD_INFO_REPOSITORY= 32,
-  SYSTEM_THREAD_SLAVE_WORKER= 64,
-  SYSTEM_THREAD_COMPRESS_GTID_TABLE= 128,
-  SYSTEM_THREAD_BACKGROUND= 256
+enum enum_thread_type {
+  NON_SYSTEM_THREAD = 0,
+  SYSTEM_THREAD_SLAVE_IO = 1,
+  SYSTEM_THREAD_SLAVE_SQL = 2,
+  SYSTEM_THREAD_NDBCLUSTER_BINLOG = 4,
+  SYSTEM_THREAD_EVENT_SCHEDULER = 8,
+  SYSTEM_THREAD_EVENT_WORKER = 16,
+  SYSTEM_THREAD_INFO_REPOSITORY = 32,
+  SYSTEM_THREAD_SLAVE_WORKER = 64,
+  SYSTEM_THREAD_COMPRESS_GTID_TABLE = 128,
+  SYSTEM_THREAD_BACKGROUND = 256,
+  SYSTEM_THREAD_DD_INITIALIZE = 512,
+  SYSTEM_THREAD_DD_RESTART = 1024,
+  SYSTEM_THREAD_SERVER_INITIALIZE = 2048,
+  SYSTEM_THREAD_INIT_FILE = 4096,
+  SYSTEM_THREAD_SERVER_UPGRADE = 8192
 };
-
-#ifdef  __cplusplus
-}
-#endif
 
 #endif /* THREAD_TYPE_INCLUDED */

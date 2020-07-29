@@ -25,7 +25,7 @@ drop table t1;
 --let $character_set_collate=CHARACTER SET latin1 COLLATE latin1_bin
 --source suite/rocksdb/include/type_varchar_endspace.inc
 
---let $character_set_collate=CHARACTER SET utf8 COLLATE utf8_bin
+--let $character_set_collate=CHARACTER SET utf8mb3 COLLATE utf8mb3_bin
 --source suite/rocksdb/include/type_varchar_endspace.inc
 
 --let $character_set_collate=CHARACTER SET ucs2 COLLATE ucs2_bin
@@ -74,9 +74,30 @@ set session rocksdb_verify_row_debug_checksums = @save_rocksdb_verify_row_debug_
 
 # Issue #784 - Skip trailing space bytes for non-unpackable fields
 
-create table t (h varchar(31) character set utf8 collate utf8_bin not null, i varchar(19) collate latin1_bin not null, primary key(i), key(h)) engine=rocksdb;
+create table t (h varchar(31) character set utf8mb3 collate utf8mb3_bin not null, i varchar(19) collate latin1_bin not null, primary key(i), key(h)) engine=rocksdb;
 insert into t(i,h) values('a','b');
 check table t;
 alter table t modify h varchar(31) character set cp1257 collate cp1257_bin not null;
 check table t;
 drop table t;
+
+--echo # PS-4971 : Setting utf8mb4 as a key in MyRocks table could lead to a server crash
+# This sequence would overwrite memory, eventually assert at the end of
+# Rdb_key_def::pack_record and, if successful, would leave a badly malformed and
+# stored secondary key entry.
+create table t1 (
+  str varchar(255) character set utf8mb4,
+  key str (str(2))) default character set utf8mb4 engine=rocksdb;
+insert INTO t1 values("1111111111111111111111111111111111111111111111111111");
+drop table t1;
+
+# With a partial fix, this sequence would find the row in the secondary key but
+# would fail to unpack the t_vers value from the secondary key with a data
+# coruption error.
+create table t1(
+  t_vers varchar(4) not null,
+  key ix_5 (t_vers)
+) charset latin1 engine=rocksdb;
+insert into t1 values ('7.6 ');
+select t_vers from t1 where t_vers = '7.6';
+drop table t1;

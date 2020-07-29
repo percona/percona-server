@@ -1,0 +1,30 @@
+SET @@global.keyring_file_data="MYSQL_TMP_DIR/mysecret_keyring";
+SET GLOBAL innodb_file_per_table = ON;
+create table t1 (a varchar(255)) engine=innodb encryption='Y';
+insert t1 values (repeat('foobarsecret', 12));
+SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
+# Wait max 10 min for key encryption threads to encrypt all spaces
+include/assert.inc [All encrypted tables should have encrypted flag set apart from temporary tablespace]
+include/assert.inc [Make sure t1 is present in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERSION = 1]
+# restart:--early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring KEYRING_PLUGIN_OPT --default-table-encryption=ON --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=1
+# Now turn off encryption and wait for threads to decrypt everything
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+include/assert.inc [There should be no encrypted tables left]
+# t1 yes on expecting NOT FOUND
+# restart:--early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring KEYRING_PLUGIN_OPT --default-table-encryption=ON --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4
+# Now turn on encryption and wait for threads to encrypt all spaces
+SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
+# Wait max 10 min for key encryption threads to encrypt all spaces
+include/assert.inc [All tables should have been encrypted, apart from temporary tablepsace]
+include/assert.inc [temprorary tablespace should be the only one left unencrypted]
+# restart:--early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring KEYRING_PLUGIN_OPT --default-table-encryption=ON --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4
+alter table t1 encryption='n';
+# Wait max 10 min for key encryption to decrypt t1
+include/assert.inc [t1 should got decrypted]
+include/assert.inc [also temporary tablespace should stay unenecrypted]
+include/assert.inc [t1 and temporary should be the only unencrypted tables]
+# restart:--early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring KEYRING_PLUGIN_OPT --default-table-encryption=ON --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4
+drop table t1;
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+# Wait max 10 min for encryption threads to decrypt all tables
+SET GLOBAL default_table_encryption = OFF;

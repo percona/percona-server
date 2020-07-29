@@ -1,6 +1,3 @@
-set global innodb_large_prefix=off;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 SET SESSION DEFAULT_STORAGE_ENGINE = InnoDB;
 SET SESSION DEFAULT_TMP_STORAGE_ENGINE = InnoDB;
 drop table if exists t1,t2,t3,t1m,t1i,t2m,t2i,t4;
@@ -11,6 +8,9 @@ org_id int(11) default null,
 unique key contacts$c_id (c_id),
 key contacts$org_id (org_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values
 (2,null),(120,null),(141,null),(218,7), (128,1),
 (151,2),(234,2),(236,2),(243,2),(255,2),(259,2),(232,3),(235,3),(238,3),
@@ -34,6 +34,19 @@ unique key t2$slai_id (slai_id),
 key t2$owner_id (owner_id),
 key t2$sla_id (sla_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t2(slai_id, owner_tbl, owner_id, sla_id) values
 (1,3,1,1), (3,3,10,2), (4,3,3,6), (5,3,2,5), (6,3,8,3), (7,3,9,7),
 (8,3,6,8), (9,3,4,9), (10,3,5,10), (11,3,11,11), (12,3,7,12);
@@ -73,15 +86,13 @@ DELETE FROM t2 WHERE a = 1 AND b < 2;
 INSERT INTO t3 VALUES (1,1,1),(2,1,2);
 INSERT INTO t3 SELECT a + 2, a + 2, 3 FROM t3;
 INSERT INTO t3 SELECT a + 4, a + 4, 3 FROM t3;
-SELECT STRAIGHT_JOIN SQL_NO_CACHE t1.b, t1.a FROM t1, t3, t2 WHERE
+SELECT STRAIGHT_JOIN t1.b, t1.a FROM t1, t3, t2 WHERE
 t3.a = t2.a AND t2.b = t1.a AND t3.b = 1 AND t3.c IN (1, 2)
 ORDER BY t1.b LIMIT 2;
 b	a
 1	1
 2	2
-Warnings:
-Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
-SELECT STRAIGHT_JOIN SQL_NO_CACHE t1.b, t1.a FROM t1, t3, t2 WHERE
+SELECT STRAIGHT_JOIN t1.b, t1.a FROM t1, t3, t2 WHERE
 t3.a = t2.a AND t2.b = t1.a AND t3.b = 1 AND t3.c IN (1, 2)
 ORDER BY t1.b LIMIT 5;
 b	a
@@ -90,8 +101,6 @@ b	a
 2	2
 3	3
 3	3
-Warnings:
-Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 DROP TABLE t1, t2, t3;
 CREATE TABLE `t1` (`id1` INT) ;
 INSERT INTO `t1` (`id1`) VALUES (1),(5),(2);
@@ -123,6 +132,8 @@ Before and after comparison
 drop table t1;
 CREATE TABLE t1(c1 TEXT, UNIQUE (c1(1)), cnt INT DEFAULT 1)
 ENGINE=INNODB CHARACTER SET UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (c1) VALUES ('1a');
 SELECT * FROM t1;
 c1	cnt
@@ -134,6 +145,8 @@ c1	cnt
 DROP TABLE t1;
 CREATE TABLE t1(c1 VARCHAR(2), UNIQUE (c1(1)), cnt INT DEFAULT 1)
 ENGINE=INNODB CHARACTER SET UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (c1) VALUES ('1a');
 SELECT * FROM t1;
 c1	cnt
@@ -145,6 +158,8 @@ c1	cnt
 DROP TABLE t1;
 CREATE TABLE t1(c1 CHAR(2), UNIQUE (c1(1)), cnt INT DEFAULT 1)
 ENGINE=INNODB CHARACTER SET UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (c1) VALUES ('1a');
 SELECT * FROM t1;
 c1	cnt
@@ -163,7 +178,10 @@ a5 char(175) DEFAULT NULL,
 a6 timestamp NOT NULL DEFAULT '2000-01-01 01:01:01',
 a7 tinyblob,
 INDEX idx (a6,a7(239),a5)
-) ENGINE=InnoDB;
+) charset latin1 ENGINE=InnoDB;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT a4 FROM t1 WHERE
 a6=NULL AND
 a4='UNcT5pIde4I6c2SheTo4gt92OV1jgJCVkXmzyf325R1DwLURkbYHwhydANIZMbKTgdcR5xS';
@@ -197,7 +215,7 @@ min(7)
 explain select min(7) from t2i join t1i;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2i	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t1i	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t1i	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select min(7) AS `min(7)` from `test`.`t2i` join `test`.`t1i`
 select min(7) from t2i join t1i;
@@ -215,7 +233,7 @@ max(7)
 explain select max(7) from t2i join t1i;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2i	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t1i	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t1i	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select max(7) AS `max(7)` from `test`.`t2i` join `test`.`t1i`
 select max(7) from t2i join t1i;
@@ -334,7 +352,7 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 DELETE IGNORE FROM t1 WHERE i = 1;
 Warnings:
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`) ON DELETE NO ACTION)
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`))
 SELECT * FROM t1, t2;
 i	i
 1	1
@@ -356,20 +374,28 @@ drop table t1;
 create table t1 (f1 int, f2 char(1), primary key(f1,f2)) stats_persistent=0;
 insert into t1 values ( 1,"e"),(2,"a"),( 3,"c"),(4,"d");
 alter table t1 drop primary key, add primary key (f2, f1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain select distinct f1 a, f1 b from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	5	NULL	4	100.00	Using index; Using temporary
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	8	NULL	4	100.00	Using index; Using temporary
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`f1` AS `a`,`test`.`t1`.`f1` AS `b` from `test`.`t1`
 explain select distinct f1, f2 from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	5	NULL	4	100.00	Using index
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	8	NULL	4	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1`
 drop table t1;
 CREATE TABLE t1 (id int(11) NOT NULL PRIMARY KEY, name varchar(20),
 INDEX (name));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (id int(11) NOT NULL PRIMARY KEY, fkey int(11));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t2 ADD FOREIGN KEY (fkey) REFERENCES t2(id);
 INSERT INTO t1 VALUES (1,'A1'),(2,'A2'),(3,'B');
 INSERT INTO t2 VALUES (1,1),(2,2),(3,2),(4,3),(5,3);
@@ -377,7 +403,7 @@ EXPLAIN
 SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id
 WHERE t1.name LIKE 'A%';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY,name	name	23	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	PRIMARY,name	name	83	NULL	2	100.00	Using where; Using index
 1	SIMPLE	t2	NULL	ref	fkey	fkey	5	test.t1.id	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` join `test`.`t1` where ((`test`.`t2`.`fkey` = `test`.`t1`.`id`) and (`test`.`t1`.`name` like 'A%'))
@@ -385,10 +411,10 @@ EXPLAIN
 SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id
 WHERE t1.name LIKE 'A%' OR FALSE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	NULL	fkey	5	NULL	5	100.00	Using index
-1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.fkey	1	33.33	Using where
+1	SIMPLE	t1	NULL	range	PRIMARY,name	name	83	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	ref	fkey	fkey	5	test.t1.id	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` left join `test`.`t1` on((`test`.`t1`.`id` = `test`.`t2`.`fkey`)) where (`test`.`t1`.`name` like 'A%')
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` join `test`.`t1` where ((`test`.`t2`.`fkey` = `test`.`t1`.`id`) and (`test`.`t1`.`name` like 'A%'))
 DROP TABLE t1,t2;
 CREATE TABLE t1 (
 id int NOT NULL,
@@ -398,14 +424,20 @@ age tinyint(3) unsigned NOT NULL,
 PRIMARY KEY (id),
 INDEX (name,dept)
 ) ENGINE=InnoDB STATS_PERSISTENT=0;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1(id, dept, age, name) VALUES
 (3987, 'cs1', 10, 'rs1'), (3988, 'cs2', 20, 'rs1'), (3995, 'cs3', 10, 'rs2'),
 (3996, 'cs4', 20, 'rs2'), (4003, 'cs5', 10, 'rs3'), (4004, 'cs6', 20, 'rs3'),
 (4011, 'cs7', 10, 'rs4'), (4012, 'cs8', 20, 'rs4'), (4019, 'cs9', 10, 'rs5'),
 (4020, 'cs10', 20, 'rs5'),(4027, 'cs11', 10, 'rs6'),(4028, 'cs12', 20, 'rs6');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# Masking (#) number in "rows" column of the following EXPLAIN output, as it may vary (bug#47746).
 EXPLAIN SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	name	name	22	const	2	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	ref	name	name	82	const	#	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`name` AS `name`,`test`.`t1`.`dept` AS `dept` from `test`.`t1` where (`test`.`t1`.`name` = 'rs5')
 SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
@@ -413,6 +445,15 @@ name	dept
 rs5	cs10
 rs5	cs9
 DELETE FROM t1;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# Masking (#) number in "rows" column of the following EXPLAIN output, as it may vary (bug#47746).
+EXPLAIN SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	name	name	82	const	#	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`name` AS `name`,`test`.`t1`.`dept` AS `dept` from `test`.`t1` where (`test`.`t1`.`name` = 'rs5')
 SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
 name	dept
 DROP TABLE t1;
@@ -453,80 +494,33 @@ a
 2
 5
 drop table t1;
-set @save_qcache_size=@@global.query_cache_size;
-Warnings:
-Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
-set @save_qcache_type=@@global.query_cache_type;
-Warnings:
-Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
-set global query_cache_size=10*1024*1024;
-Warnings:
-Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
-set global query_cache_type=1;
-Warnings:
-Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
-drop table if exists `test`;
-Warnings:
-Note	1051	Unknown table 'test.test'
-CREATE TABLE `test` (`test1` varchar(3) NOT NULL,
-`test2` varchar(4) NOT NULL,PRIMARY KEY  (`test1`))
-ENGINE=InnoDB DEFAULT CHARSET=latin1;
-INSERT INTO `test` (`test1`, `test2`) VALUES ('tes', '5678');
-select * from test;
-test1	test2
-tes	5678
-INSERT INTO `test` (`test1`, `test2`) VALUES ('tes', '1234')
-ON DUPLICATE KEY UPDATE `test2` = '1234';
-select * from test;
-test1	test2
-tes	1234
-flush tables;
-select * from test;
-test1	test2
-tes	1234
-drop table test;
-set global query_cache_type=@save_qcache_type;
-Warnings:
-Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
-set global query_cache_size=@save_qcache_size;
-Warnings:
-Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
-drop table if exists t1;
-show variables like 'innodb_rollback_on_timeout';
-Variable_name	Value
-innodb_rollback_on_timeout	OFF
-create table t1 (a int unsigned not null primary key) engine = innodb;
-insert into t1 values (1);
-commit;
-begin work;
-insert into t1 values (2);
-select * from t1;
-a
-1
-2
-begin work;
-insert into t1 values (5);
-select * from t1;
-a
-1
-5
-insert into t1 values (2);
+End of 5.0 tests
+#
+# Bug#23753319: !M_THD->TRANSACTION_ROLLBACK_REQUEST' AT
+# THD::ATTACHABLE_TRX::INIT IN SQL/SQL_C
+#
+create table t1 (i int);
+insert into t1 values (42);
+# Grab locks which will block another con from doing select in RR
+BEGIN;
+select * from t1 for update;
+i
+42
+# Create competing connection using RR
+BEGIN;
+set session transaction isolation level repeatable read;
+# Will fail and request rollback due to blocking for update
+# (prior to fix this would trigger the assert).
+create table t2 as select * from t1;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-select * from t1;
-a
-1
-5
-commit;
-select * from t1;
-a
-1
-2
-commit;
-select * from t1;
-a
-1
-2
-5
+# Additional coverage for WL#7743 "New data dictionary: changes
+# to DDL-related parts of SE API". Check how rollback is handled
+# by similar CTS for non-transactional table.
+BEGIN;
+create table t2 engine=myisam as select * from t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Cleanup
+COMMIT;
 drop table t1;
 create table t1(
 id int auto_increment,
@@ -539,12 +533,16 @@ insert into t1 (id, c) values
 (NULL, 'a'),
 (NULL, 'a')
 on duplicate key update id = values(id), counter = counter + 1;
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 select * from t1;
 id	c	counter
 2	a	2
 insert into t1 (id, c) values
 (NULL, 'b')
 on duplicate key update id = values(id), counter = counter + 1;
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 select * from t1;
 id	c	counter
 2	a	2
@@ -556,20 +554,24 @@ id	c	counter
 1	a	1
 insert into t1 (id, c) values (NULL, 'b'), (NULL, 'b')
 on duplicate key update id = values(id), c = values(c), counter = counter + 1;
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 select * from t1;
 id	c	counter
 1	a	1
 3	b	2
 insert into t1 (id, c) values (NULL, 'a')
 on duplicate key update id = values(id), c = values(c), counter = counter + 1;
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 select * from t1;
 id	c	counter
 3	b	2
 4	a	2
 drop table t1;
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(
 id int AUTO_INCREMENT PRIMARY KEY,
 stat_id int NOT NULL,
@@ -633,10 +635,12 @@ alter table t1 comment '123';
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMMENT='123'
+  `a` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='123'
 drop table t1;
 CREATE TABLE t1 (a CHAR(2), KEY (a)) ENGINE = InnoDB DEFAULT CHARSET=UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('uk'),('bg');
 SELECT * FROM t1 WHERE a = 'uk';
 a
@@ -672,14 +676,6 @@ UPDATE t3 SET a = 'us' WHERE a = 'uk';
 SELECT * FROM t3 WHERE a = 'uk';
 a
 DROP TABLE t1,t2,t3;
-create table t1 (a int) engine=innodb;
-select * from bug29807;
-ERROR 42S02: Table 'test.bug29807' doesn't exist
-drop table t1;
-drop table bug29807;
-ERROR 42S02: Unknown table 'test.bug29807'
-create table bug29807 (a int);
-drop table bug29807;
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 CREATE TABLE t2 (a INT) ENGINE=InnoDB;
 switch to connection c1
@@ -737,7 +733,7 @@ WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	idx_b,idx_c	NULL	NULL	NULL	#	#	Using where
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (((`test`.`t1`.`c` >= '2007-01-02') and (`test`.`t1`.`c` <= '2007-01-03')) or (`test`.`t1`.`b` >= 1))
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (((`test`.`t1`.`c` >= TIMESTAMP'2007-01-02 00:00:00') and (`test`.`t1`.`c` <= TIMESTAMP'2007-01-03 00:00:00')) or (`test`.`t1`.`b` >= 1))
 SELECT COUNT(*) FROM t1 
 WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
 COUNT(*)
@@ -748,7 +744,7 @@ WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index_merge	idx_b,idx_c	idx_c,idx_b	5,4	NULL	#	#	Using sort_union(idx_c,idx_b); Using where
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` FORCE INDEX (`idx_c`) FORCE INDEX (`idx_b`) where (((`test`.`t1`.`c` >= '2007-01-02') and (`test`.`t1`.`c` <= '2007-01-03')) or (`test`.`t1`.`b` >= 1))
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` FORCE INDEX (`idx_c`) FORCE INDEX (`idx_b`) where (((`test`.`t1`.`c` >= TIMESTAMP'2007-01-02 00:00:00') and (`test`.`t1`.`c` <= TIMESTAMP'2007-01-03 00:00:00')) or (`test`.`t1`.`b` >= 1))
 SELECT COUNT(*) FROM t1 FORCE INDEX(idx_b, idx_c)
 WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
 COUNT(*)
@@ -758,12 +754,12 @@ DROP TABLE t1,t2;
 CREATE TABLE t1 (a int, b int);
 insert into t1 values (1,1),(1,2);
 CREATE TABLE t2 (primary key (a)) select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 drop table if exists t2;
 Warnings:
 Note	1051	Unknown table 'test.t2'
 CREATE TEMPORARY TABLE t2 (primary key (a)) select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 drop table if exists t2;
 Warnings:
 Note	1051	Unknown table 'test.t2'
@@ -782,7 +778,7 @@ a	b
 100	100
 TRUNCATE table t2;
 INSERT INTO t2 select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 SELECT * from t2;
 a	b
 drop table t2;
@@ -811,20 +807,10 @@ a	b
 100	100
 TRUNCATE table t2;
 INSERT INTO t2 select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 SELECT * from t2;
 a	b
 drop table t1,t2;
-SET sql_mode='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-create table t1(f1 varchar(800) binary not null, key(f1))
-character set utf8 collate utf8_general_ci;
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
-insert into t1 values('aaa');
-drop table t1;
-SET sql_mode=default;
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c FLOAT, KEY b(b)) ENGINE = INNODB;
 INSERT INTO t1 VALUES (    1 , 1              , 1);
 INSERT INTO t1 SELECT  a + 1 , MOD(a + 1 , 20), 1 FROM t1;
@@ -882,6 +868,34 @@ a
 2
 5
 drop table t1;
+End of 5.0 tests
+#
+# Bug#23753319: !M_THD->TRANSACTION_ROLLBACK_REQUEST' AT
+# THD::ATTACHABLE_TRX::INIT IN SQL/SQL_C
+#
+create table t1 (i int);
+insert into t1 values (42);
+# Grab locks which will block another con from doing select in RR
+BEGIN;
+select * from t1 for update;
+i
+42
+# Create competing connection using RR
+BEGIN;
+set session transaction isolation level repeatable read;
+# Will fail and request rollback due to blocking for update
+# (prior to fix this would trigger the assert).
+create table t2 as select * from t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Additional coverage for WL#7743 "New data dictionary: changes
+# to DDL-related parts of SE API". Check how rollback is handled
+# by similar CTS for non-transactional table.
+BEGIN;
+create table t2 engine=myisam as select * from t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Cleanup
+COMMIT;
+drop table t1;
 drop table if exists t1;
 create table t1 (a int) engine=innodb;
 alter table t1 alter a set default 1;
@@ -930,7 +944,7 @@ key_len	5
 ref	const
 rows	16
 filtered	100.00
-Extra	Using where; Using index
+Extra	Using index
 Warnings:
 Level	Note
 Code	1003
@@ -1072,7 +1086,7 @@ key_len	5
 ref	const
 rows	16
 filtered	100.00
-Extra	Using where; Using index; Using filesort
+Extra	Using index; Using filesort
 Warnings:
 Level	Note
 Code	1003
@@ -1107,7 +1121,7 @@ key_len	10
 ref	const,const
 rows	16
 filtered	100.00
-Extra	Using where; Using index
+Extra	Using index
 Warnings:
 Level	Note
 Code	1003
@@ -1142,7 +1156,7 @@ key_len	10
 ref	const,const
 rows	16
 filtered	100.00
-Extra	Using where; Using index
+Extra	Using index
 Warnings:
 Level	Note
 Code	1003
@@ -1177,7 +1191,7 @@ key_len	10
 ref	const,const
 rows	16
 filtered	100.00
-Extra	Using where; Using index
+Extra	Using index
 Warnings:
 Level	Note
 Code	1003
@@ -1227,19 +1241,19 @@ CALL p1();
 DROP PROCEDURE p1;
 DROP TABLE t1;
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
+create table t1(a text) engine=innodb row_format=dynamic default charset=utf8;
 Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-create table t1(a text) engine=innodb default charset=utf8;
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values('aaa');
-alter table t1 add index(a(1024));
+alter table t1 add index(a(1025));
 Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
+Warning	1071	Specified key was too long; max key length is 3072 bytes
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` text,
-  KEY `a` (`a`(255))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+  KEY `a` (`a`(1024))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC
 drop table t1;
 SET sql_mode=default;
 CREATE TABLE t1 (
@@ -1270,7 +1284,7 @@ UNIQUE KEY (c,b)
 INSERT INTO t1 VALUES (1,1,1,50), (1,2,3,40), (2,1,3,4);
 EXPLAIN SELECT c,b,d FROM t1 GROUP BY c,b,d;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c` AS `c`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`d` AS `d` from `test`.`t1` group by `test`.`t1`.`c`,`test`.`t1`.`b`,`test`.`t1`.`d`
 SELECT c,b,d FROM t1 GROUP BY c,b,d;
@@ -1300,7 +1314,7 @@ c	b	d
 3	2	40
 EXPLAIN SELECT c,b,d FROM t1 GROUP BY c,b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	c	c	8	NULL	3	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	c	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c` AS `c`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`d` AS `d` from `test`.`t1` group by `test`.`t1`.`c`,`test`.`t1`.`b`
 SELECT c,b,d FROM t1 GROUP BY c,b;
@@ -1333,7 +1347,7 @@ key_len	5
 ref	const
 rows	2
 filtered	100.00
-Extra	Using where; Using index
+Extra	Using index
 Warnings:
 Level	Note
 Code	1003
@@ -1354,7 +1368,7 @@ key_len	5
 ref	const
 rows	2
 filtered	100.00
-Extra	Using where; Using index
+Extra	Backward index scan; Using index
 Warnings:
 Level	Note
 Code	1003
@@ -1397,7 +1411,7 @@ key_len	5
 ref	NULL
 rows	3
 filtered	100.00
-Extra	Using index
+Extra	Backward index scan; Using index
 Warnings:
 Level	Note
 Code	1003
@@ -1470,7 +1484,7 @@ ROW_FORMAT = COMPACT;
 SELECT table_schema, table_name, row_format
 FROM INFORMATION_SCHEMA.TABLES
 WHERE table_schema = DATABASE() AND table_name = 't1';
-table_schema	table_name	row_format
+TABLE_SCHEMA	TABLE_NAME	ROW_FORMAT
 test	t1	Compact
 
 # - change ROW_FORMAT and check;
@@ -1480,7 +1494,7 @@ ALTER TABLE t1 ROW_FORMAT = REDUNDANT;
 SELECT table_schema, table_name, row_format
 FROM INFORMATION_SCHEMA.TABLES
 WHERE table_schema = DATABASE() AND table_name = 't1';
-table_schema	table_name	row_format
+TABLE_SCHEMA	TABLE_NAME	ROW_FORMAT
 test	t1	Redundant
 
 # - that's it, cleanup.
@@ -1499,21 +1513,30 @@ t1	CREATE TABLE `t1` (
   `b` char(4) NOT NULL,
   UNIQUE KEY `bb` (`b`),
   UNIQUE KEY `aa` (`a`(1))
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 CREATE TABLE t1 (id int, type char(6), d int, INDEX idx(id,d)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES 
-(191, 'member', 1), (NULL, 'member', 3), (NULL, 'member', 4), (201, 'member', 2);
+(191, 'member', 1), (NULL, 'member', 3), (NULL, 'member', 4),
+(201, 'member', 2), (NULL, 'member', 5), (191, 'member', 6),
+(191, 'member', 7), (191, 'member', 8), (191, 'member', 9),
+(191, 'member', 10);
 EXPLAIN SELECT * FROM t1 WHERE id=191 OR id IS NULL ORDER BY d;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	idx	NULL	NULL	NULL	4	75.00	Using where; Using filesort
+1	SIMPLE	t1	NULL	ALL	idx	NULL	NULL	NULL	10	90.00	Using where; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`type` AS `type`,`test`.`t1`.`d` AS `d` from `test`.`t1` where ((`test`.`t1`.`id` = 191) or isnull(`test`.`t1`.`id`)) order by `test`.`t1`.`d`
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`type` AS `type`,`test`.`t1`.`d` AS `d` from `test`.`t1` where ((`test`.`t1`.`id` = 191) or (`test`.`t1`.`id` is null)) order by `test`.`t1`.`d`
 SELECT * FROM t1 WHERE id=191 OR id IS NULL ORDER BY d;
 id	type	d
 191	member	1
 NULL	member	3
 NULL	member	4
+NULL	member	5
+191	member	6
+191	member	7
+191	member	8
+191	member	9
+191	member	10
 DROP TABLE t1;
 set @my_innodb_autoextend_increment=@@global.innodb_autoextend_increment;
 set global innodb_autoextend_increment=8;
@@ -1525,18 +1548,19 @@ CREATE TABLE t1 (a int, b int, c int, PRIMARY KEY (a), KEY t1_b (b))
 ENGINE=InnoDB;
 INSERT INTO t1 (a,b,c) VALUES (1,1,1), (2,1,1), (3,1,1), (4,1,1);
 INSERT INTO t1 (a,b,c) SELECT a+4,b,c FROM t1;
+INSERT INTO t1 (a,b,c) SELECT a+8,b,c FROM t1;
 EXPLAIN SELECT a, b, c FROM t1 WHERE b = 1 ORDER BY a DESC LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	t1_b	t1_b	5	NULL	8	100.00	Using index condition
+1	SIMPLE	t1	NULL	range	t1_b	t1_b	5	NULL	16	100.00	Using index condition; Backward index scan
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`b` = 1) order by `test`.`t1`.`a` desc limit 5
 SELECT a, b, c FROM t1 WHERE b = 1 ORDER BY a DESC LIMIT 5;
 a	b	c
-8	1	1
-7	1	1
-6	1	1
-5	1	1
-4	1	1
+16	1	1
+15	1	1
+14	1	1
+13	1	1
+12	1	1
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a char(50)) ENGINE=InnoDB;
@@ -1572,13 +1596,13 @@ CREATE TABLE t1 (f1 INTEGER PRIMARY KEY COMMENT 'My ID#', f2 INTEGER DEFAULT NUL
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL COMMENT 'My ID#',
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL COMMENT 'My ID#',
+  `f2` int DEFAULT NULL,
   `f3` char(10) DEFAULT 'My ID#',
   PRIMARY KEY (`f1`),
   KEY `f2_ref` (`f2`),
   CONSTRAINT `f2_ref` FOREIGN KEY (`f2`) REFERENCES `t1` (`f1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Bug #36995: valgrind error in remove_const during subquery executions
@@ -1586,15 +1610,13 @@ DROP TABLE t1;
 create table t1 (a bit(1) not null,b int) engine=myisam;
 create table t2 (c int) engine=innodb;
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 explain
 select b from t1 where a not in (select b from t1,t2 group by a) group by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `b` from `test`.`t1` where (not(<in_optimizer>(NULL,<exists>(/* select#2 */ select 1 from `test`.`t1` join `test`.`t2` where ((<cache>(NULL) = NULL) or isnull(NULL)) having <is_not_null_test>(NULL))))) group by NULL
+Note	1003	/* select#1 */ select NULL AS `b` from `test`.`t1` where <in_optimizer>(NULL,<exists>(/* select#2 */ select `test`.`t1`.`b` from `test`.`t1` join `test`.`t2` where ((<cache>(NULL) = `test`.`t1`.`b`) or (`test`.`t1`.`b` is null)) having <is_not_null_test>(`test`.`t1`.`b`)) is false) group by NULL
 DROP TABLE t1,t2;
 SET sql_mode=default;
 End of 5.0 tests
@@ -1605,6 +1627,10 @@ CREATE TABLE `t2` (
 PRIMARY KEY  (`k`),
 UNIQUE KEY `idx_1` (`a`)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t2 ( a ) values ( 6 ) on duplicate key update c =
 ifnull( c,
 0 ) + 1;
@@ -1639,14 +1665,14 @@ k	a	c
 2	7	NULL
 insert ignore into t2 values (null,6,1),(10,8,1);
 Warnings:
-Warning	1062	Duplicate entry '6' for key 'idx_1'
+Warning	1062	Duplicate entry '6' for key 't2.idx_1'
 select last_insert_id();
 last_insert_id()
 0
 insert ignore into t2 values (null,6,1),(null,8,1),(null,15,1),(null,20,1);
 Warnings:
-Warning	1062	Duplicate entry '6' for key 'idx_1'
-Warning	1062	Duplicate entry '8' for key 'idx_1'
+Warning	1062	Duplicate entry '6' for key 't2.idx_1'
+Warning	1062	Duplicate entry '8' for key 't2.idx_1'
 select last_insert_id();
 last_insert_id()
 11
@@ -1712,10 +1738,14 @@ insert into t1(f1) values(1);
 select @a:=f2 from t1;
 @a:=f2
 #
+Warnings:
+#	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 update t1 set f1=1;
 select @b:=f2 from t1;
 @b:=f2
 #
+Warnings:
+#	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select if(@a=@b,"ok","wrong");
 if(@a=@b,"ok","wrong")
 ok
@@ -1723,6 +1753,8 @@ insert into t1(f1) values (1) on duplicate key update f1="1";
 select @b:=f2 from t1;
 @b:=f2
 #
+Warnings:
+#	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select if(@a=@b,"ok","wrong");
 if(@a=@b,"ok","wrong")
 ok
@@ -1730,6 +1762,8 @@ insert into t1(f1) select f1 from t1 on duplicate key update f1="1";
 select @b:=f2 from t1;
 @b:=f2
 #
+Warnings:
+#	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select if(@a=@b,"ok","wrong");
 if(@a=@b,"ok","wrong")
 ok
@@ -1822,7 +1856,7 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a,b)) engine=innodb;
 CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
 CONSTRAINT c2 FOREIGN KEY f2 (c) REFERENCES t1 (a,b) ON UPDATE NO ACTION) engine=innodb;
-ERROR 42000: Incorrect foreign key definition for 'f2': Key reference and table reference don't match
+ERROR 42000: Incorrect foreign key definition for 'c2': Key reference and table reference don't match
 CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
 CONSTRAINT c2 FOREIGN KEY (c) REFERENCES t1 (a,b) ON UPDATE NO ACTION) engine=innodb;
 ERROR 42000: Incorrect foreign key definition for 'c2': Key reference and table reference don't match
@@ -1835,7 +1869,7 @@ CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
 FOREIGN KEY (c) REFERENCES t1 (a,k) ON UPDATE NO ACTION) engine=innodb;
 ERROR 42000: Incorrect foreign key definition for 'foreign key without name': Key reference and table reference don't match
 CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
-FOREIGN KEY f1 (c) REFERENCES t1 (a,k) ON UPDATE NO ACTION) engine=innodb;
+CONSTRAINT f1 FOREIGN KEY (c) REFERENCES t1 (a,k) ON UPDATE NO ACTION) engine=innodb;
 ERROR 42000: Incorrect foreign key definition for 'f1': Key reference and table reference don't match
 CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
 CONSTRAINT c1 FOREIGN KEY f1 (c) REFERENCES t1 (a) ON DELETE NO ACTION,
@@ -1845,14 +1879,14 @@ FOREIGN KEY (c) REFERENCES t1 (a) ON UPDATE NO ACTION) engine=innodb;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c` int(11) NOT NULL,
-  `d` int(11) NOT NULL,
+  `c` int NOT NULL,
+  `d` int NOT NULL,
   PRIMARY KEY (`c`,`d`),
-  CONSTRAINT `c1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION,
-  CONSTRAINT `c2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON UPDATE NO ACTION,
-  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON UPDATE NO ACTION,
-  CONSTRAINT `t2_ibfk_2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON UPDATE NO ACTION
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  CONSTRAINT `c1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
+  CONSTRAINT `c2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
+  CONSTRAINT `t2_ibfk_2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 DROP TABLE t1;
 create table t1 (a int auto_increment primary key) engine=innodb;
@@ -1877,7 +1911,7 @@ INSERT INTO t1 VALUES
 (2,1,4,'c_extra',NULL),(3,1,4,'c_extra',NULL);
 EXPLAIN SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE tid = 1 AND vid = 3 ORDER BY idx DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	PRIMARY	12	NULL	16	6.25	Using where
+1	SIMPLE	t1	NULL	index	NULL	PRIMARY	12	NULL	16	6.25	Using where; Backward index scan
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`vid` AS `vid`,`test`.`t1`.`tid` AS `tid`,`test`.`t1`.`idx` AS `idx`,`test`.`t1`.`name` AS `name`,`test`.`t1`.`type` AS `type` from `test`.`t1` FORCE INDEX (PRIMARY) where ((`test`.`t1`.`vid` = 3) and (`test`.`t1`.`tid` = 1)) order by `test`.`t1`.`idx` desc
 SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE tid = 1 AND vid = 3 ORDER BY idx DESC;
@@ -1904,7 +1938,7 @@ SELECT 1 FROM (SELECT COUNT(DISTINCT c1)
 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	DERIVED	t1	NULL	ref	c3,c2	c3	5	const	2	40.00	Using index condition; Using where; Using filesort
+2	DERIVED	t1	NULL	ref	c3,c2	c3	5	const	2	40.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select count(distinct `test`.`t1`.`c1`) AS `COUNT(DISTINCT c1)` from `test`.`t1` where ((`test`.`t1`.`c3` = 2) and (`test`.`t1`.`c2` in (1,1))) group by `test`.`t1`.`c2`) `x`
 DROP TABLE t1;
@@ -1920,7 +1954,7 @@ SELECT 1 FROM (SELECT COUNT(DISTINCT c1)
 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	DERIVED	t1	NULL	ref	c3,c2	c3	9	const	2	40.00	Using index condition; Using where; Using filesort
+2	DERIVED	t1	NULL	ref	c3,c2	c3	9	const	2	40.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select count(distinct `test`.`t1`.`c1`) AS `COUNT(DISTINCT c1)` from `test`.`t1` where ((`test`.`t1`.`c2` in (1,1)) and (`test`.`t1`.`c3` = 2)) group by `test`.`t1`.`c2`) `x`
 DROP TABLE t1;
@@ -1937,9 +1971,9 @@ SELECT 1 FROM (SELECT COUNT(DISTINCT c1)
 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	DERIVED	t1	NULL	ref	c3,c2	c3	7	const	2	40.00	Using index condition; Using where; Using filesort
+2	DERIVED	t1	NULL	ref	c3,c2	c3	7	const	2	40.00	Using where; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select count(distinct `test`.`t1`.`c1`) AS `COUNT(DISTINCT c1)` from `test`.`t1` where ((`test`.`t1`.`c2` in (1,1)) and (`test`.`t1`.`c3` = 2)) group by `test`.`t1`.`c2`) `x`
+Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select count(distinct `test`.`t1`.`c1`) AS `COUNT(DISTINCT c1)` from `test`.`t1` where ((`test`.`t1`.`c2` in (1,1)) and (`test`.`t1`.`c3` = 2.00)) group by `test`.`t1`.`c2`) `x`
 DROP TABLE t1;
 End of 5.1 tests
 #
@@ -1961,7 +1995,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t2	NULL	ref	a	a	4	test.t1.a	1	100.00	Using index condition
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`b` + 1))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (0 <> (`test`.`t2`.`b` + 1)))
 select * from t1, t2 where t2.a=t1.a and t2.b + 1;
 a	a	b	filler
 0	0	1	filler
@@ -2002,10 +2036,6 @@ a
 # Disconnect con1
 # Connection default
 DROP TABLE t1;
-set global innodb_large_prefix=default;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
-drop table if exists t1, t2, t3;
 #
 # BUG#35850: Performance regression in 5.1.23/5.1.24
 #
@@ -2013,6 +2043,11 @@ create table t1(a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t2 (a int, b int, pk int, key(a,b), primary key(pk)) engine=innodb;
 insert into t2 select @a:=A.a+10*(B.a + 10*C.a),@a, @a from t1 A, t1 B, t1 C;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 # this must use key 'a', not PRIMARY:
 explain select a from t2 where a=b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2023,19 +2058,20 @@ drop table t1, t2;
 #
 # Bug #40360: Binlog related errors with binlog off
 #
+SET @save_log_bin= @@sql_log_bin;
+SET @save_binlog_format=@@binlog_format;
+SET @@sql_log_bin = 0;
 SET SESSION BINLOG_FORMAT=STATEMENT;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
-select @@session.sql_log_bin, @@session.binlog_format, @@session.tx_isolation;
-@@session.sql_log_bin	1
+select @@session.sql_log_bin, @@session.binlog_format, @@session.transaction_isolation;
+@@session.sql_log_bin	0
 @@session.binlog_format	STATEMENT
-@@session.tx_isolation	READ-COMMITTED
-Warnings:
-Level	Warning
-Code	1287
-Message	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+@@session.transaction_isolation	READ-COMMITTED
 CREATE TABLE t1 ( a INT ) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
 DROP TABLE t1;
+SET @@sql_log_bin=@save_log_bin;
+SET @@binlog_format=@save_binlog_format;
 #
 # Bug#37284 Crash in Field_string::type()
 #
@@ -2063,7 +2099,9 @@ KEY b (b)
 ) engine=myisam;
 INSERT INTO foo VALUES
 (1,2,'abcdefghij'), (2,3,''), (3,4,'klmnopqrst'),
-(4,5,'uvwxyz'), (5,6,'meotnsyglt'), (4,5,'asfdewe');
+(4,5,'uvwxyz'), (5,6,'meotnsyglt'), (4,5,'asfdewe'), (5,6,'trondheim'),
+(6,7,'stockholm'), (7,8,'copenhagen'), (8,9,'helsinki'),
+(9,10,'reykjavik');
 INSERT INTO bar SELECT * FROM foo;
 INSERT INTO foo2 SELECT * FROM foo;
 ANALYZE TABLE bar;
@@ -2079,8 +2117,8 @@ possible_keys	b
 key	NULL
 key_len	NULL
 ref	NULL
-rows	6
-filtered	83.33
+rows	11
+filtered	90.91
 Extra	Using where
 Warnings:
 Level	Note
@@ -2096,8 +2134,8 @@ possible_keys	b
 key	NULL
 key_len	NULL
 ref	NULL
-rows	6
-filtered	83.33
+rows	11
+filtered	90.91
 Extra	Using where
 Warnings:
 Level	Note
@@ -2113,7 +2151,7 @@ possible_keys	b
 key	b
 key_len	5
 ref	NULL
-rows	5
+rows	10
 filtered	100.00
 Extra	Using where; Using index
 Warnings:
@@ -2130,7 +2168,7 @@ possible_keys	PRIMARY
 key	NULL
 key_len	NULL
 ref	NULL
-rows	6
+rows	11
 filtered	33.33
 Extra	Using where
 Warnings:
@@ -2150,7 +2188,7 @@ possible_keys	PRIMARY
 key	NULL
 key_len	NULL
 ref	NULL
-rows	6
+rows	11
 filtered	33.33
 Extra	Using where
 Warnings:
@@ -2170,13 +2208,16 @@ possible_keys	PRIMARY
 key	b
 key_len	5
 ref	NULL
-rows	6
+rows	11
 filtered	33.33
 Extra	Using where; Using index
 Warnings:
 Level	Warning
 Code	1739
 Message	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'c'
+Level	Warning
+Code	1739
+Message	Cannot use range access on index 'b' due to type or collation conversion on field 'c'
 Level	Note
 Code	1003
 Message	/* select#1 */ select `test`.`foo2`.`c` AS `c` from `test`.`foo2` where (`test`.`foo2`.`c` > 2)
@@ -2218,7 +2259,7 @@ INSERT INTO t2 VALUES (3,2);
 SET AUTOCOMMIT = 0;
 START TRANSACTION;
 TRUNCATE TABLE t1;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`t1_id`) REFERENCES `test`.`t1` (`id`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1`)
 SELECT * FROM t1;
 id
 1
@@ -2230,7 +2271,7 @@ id
 2
 START TRANSACTION;
 TRUNCATE TABLE t1;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`t1_id`) REFERENCES `test`.`t1` (`id`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1`)
 SELECT * FROM t1;
 id
 1
@@ -2248,7 +2289,7 @@ id
 2
 COMMIT;
 TRUNCATE TABLE t1;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`t1_id`) REFERENCES `test`.`t1` (`id`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1`)
 SELECT * FROM t1;
 id
 1
@@ -2260,7 +2301,7 @@ id
 1
 2
 TRUNCATE TABLE t1;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`t1_id`) REFERENCES `test`.`t1` (`id`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1`)
 ROLLBACK;
 SELECT * FROM t1;
 id
@@ -2317,7 +2358,7 @@ DROP TABLES t4,t5;
 CREATE TABLE t1 (i INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE t2 (a VARCHAR(100)) ENGINE=InnoDB;
 CREATE TABLE t3 (i INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
-CREATE TABLE t4 (i INT NOT NULL PRIMARY KEY, t1i INT, 
+CREATE TABLE t4 (i INT NOT NULL PRIMARY KEY, t1i INT,
 FOREIGN KEY (t1i) REFERENCES t1(i))
 ENGINE=InnoDB;
 CREATE TRIGGER trg AFTER DELETE ON t1 FOR EACH ROW
@@ -2452,7 +2493,7 @@ a	b
 DROP TABLE t1, t2, t3, t4;
 #
 # Bug#44886: SIGSEGV in test_if_skip_sort_order() -
-#            uninitialized variable used as subscript 
+#            uninitialized variable used as subscript
 #
 CREATE TABLE t1 (a INT, b INT, c INT, d INT, PRIMARY KEY (b), KEY (a,c))
 ENGINE=InnoDB;
@@ -2462,8 +2503,6 @@ INSERT INTO t2 VALUES (1,1,2);
 CREATE TABLE t3 (a INT, b INT) ENGINE=MyISAM;
 INSERT INTO t3 VALUES (1, 1);
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT * FROM t1, t2, t3
 WHERE t1.a = t3.a AND (t1.b = t3.b OR t1.d) AND t2.b = t1.b AND t2.e = 2
 GROUP BY t1.b;
@@ -2472,7 +2511,7 @@ a	b	c	d	a	b	e	a	b
 SET sql_mode=default;
 DROP TABLE t1, t2, t3;
 #
-# Bug #45828: Optimizer won't use partial primary key if another 
+# Bug #45828: Optimizer won't use partial primary key if another
 # index can prevent filesort
 #
 CREATE TABLE `t1` (
@@ -2517,9 +2556,12 @@ c3 int NOT NULL,
 KEY (c1,c2),
 KEY (c3)
 ) ENGINE=InnoDB;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 explain SELECT * FROM t2 WHERE c1 = 99999999 AND c3 > 1 ORDER BY c3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	c1,c3	c1	4	const	1	100.00	Using index condition; Using where; Using filesort
+1	SIMPLE	t2	NULL	ref	c1,c3	c1	4	const	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`c1` AS `c1`,`test`.`t2`.`c2` AS `c2`,`test`.`t2`.`c3` AS `c3` from `test`.`t2` where ((`test`.`t2`.`c1` = 99999999) and (`test`.`t2`.`c3` > 1)) order by `test`.`t2`.`c3`
 DROP TABLE t1,t2;
@@ -2544,12 +2586,12 @@ INSERT INTO t1 (b,c,d,e) SELECT RAND()*10000, RAND()*10000, d, e FROM t1;
 ANALYZE TABLE t1;
 EXPLAIN SELECT * FROM t1 WHERE b=1 AND c=1 ORDER BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	i2	i2	8	const,const	1	100.00	Using index condition; Using filesort
+1	SIMPLE	t1	NULL	ref	i2	i2	8	const,const	1	100.00	Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e` from `test`.`t1` where ((`test`.`t1`.`c` = 1) and (`test`.`t1`.`b` = 1)) order by `test`.`t1`.`a`
 EXPLAIN SELECT * FROM t1 FORCE INDEX(i2) WHERE b=1 and c=1 ORDER BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	i2	i2	8	const,const	1	100.00	Using index condition; Using filesort
+1	SIMPLE	t1	NULL	ref	i2	i2	8	const,const	1	100.00	Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e` from `test`.`t1` FORCE INDEX (`i2`) where ((`test`.`t1`.`c` = 1) and (`test`.`t1`.`b` = 1)) order by `test`.`t1`.`a`
 EXPLAIN SELECT * FROM t1 FORCE INDEX(PRIMARY) WHERE b=1 AND c=1 ORDER BY a;
@@ -2562,45 +2604,48 @@ DROP TABLE t1;
 # Bug #47963: Wrong results when index is used
 #
 CREATE TABLE t1(
-a VARCHAR(5) NOT NULL, 
+a VARCHAR(5) NOT NULL,
 b VARCHAR(5) NOT NULL,
 c DATETIME NOT NULL,
-KEY (c) 
+KEY (c)
 ) ENGINE=InnoDB;
 INSERT INTO t1 VALUES('TEST', 'TEST', '2009-10-09 00:00:00');
-SELECT * FROM t1 WHERE a = 'TEST' AND 
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT * FROM t1 WHERE a = 'TEST' AND
 c >= '2009-10-09 00:00:00' AND c <= '2009-10-09 00:00:00';
 a	b	c
 TEST	TEST	2009-10-09 00:00:00
-SELECT * FROM t1 WHERE a = 'TEST' AND 
+SELECT * FROM t1 WHERE a = 'TEST' AND
 c >= '2009-10-09 00:00:00.0' AND c <= '2009-10-09 00:00:00.0';
 a	b	c
 TEST	TEST	2009-10-09 00:00:00
-SELECT * FROM t1 WHERE a = 'TEST' AND 
+SELECT * FROM t1 WHERE a = 'TEST' AND
 c >= '2009-10-09 00:00:00.0' AND c <= '2009-10-09 00:00:00';
 a	b	c
 TEST	TEST	2009-10-09 00:00:00
-SELECT * FROM t1 WHERE a = 'TEST' AND 
+SELECT * FROM t1 WHERE a = 'TEST' AND
 c >= '2009-10-09 00:00:00' AND c <= '2009-10-09 00:00:00.0';
 a	b	c
 TEST	TEST	2009-10-09 00:00:00
-SELECT * FROM t1 WHERE a = 'TEST' AND 
+SELECT * FROM t1 WHERE a = 'TEST' AND
 c >= '2009-10-09 00:00:00.000' AND c <= '2009-10-09 00:00:00.000';
 a	b	c
 TEST	TEST	2009-10-09 00:00:00
-SELECT * FROM t1 WHERE a = 'TEST' AND 
+SELECT * FROM t1 WHERE a = 'TEST' AND
 c >= '2009-10-09 00:00:00.00' AND c <= '2009-10-09 00:00:00.001';
 a	b	c
 TEST	TEST	2009-10-09 00:00:00
-SELECT * FROM t1 WHERE a = 'TEST' AND 
+SELECT * FROM t1 WHERE a = 'TEST' AND
 c >= '2009-10-09 00:00:00.001' AND c <= '2009-10-09 00:00:00.00';
 a	b	c
-EXPLAIN SELECT * FROM t1 WHERE a = 'TEST' AND 
+EXPLAIN SELECT * FROM t1 WHERE a = 'TEST' AND
 c >= '2009-10-09 00:00:00.001' AND c <= '2009-10-09 00:00:00.00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`c` >= '2009-10-09 00:00:00.001') and (`test`.`t1`.`c` <= '2009-10-09 00:00:00.00') and multiple equal('TEST', `test`.`t1`.`a`))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`c` >= TIMESTAMP'2009-10-09 00:00:00.001') and (`test`.`t1`.`c` <= TIMESTAMP'2009-10-09 00:00:00') and multiple equal('TEST', `test`.`t1`.`a`))
 DROP TABLE t1;
 #
 # Bug #46175: NULL read_view and consistent read assertion
@@ -2609,7 +2654,7 @@ CREATE TABLE t1(a CHAR(13),KEY(a)) ENGINE=innodb;
 CREATE TABLE t2(b DATETIME,KEY(b)) ENGINE=innodb;
 INSERT INTO t1 VALUES (),();
 INSERT INTO t2 VALUES (),();
-CREATE OR REPLACE VIEW v1 AS SELECT 1 FROM t2 
+CREATE OR REPLACE VIEW v1 AS SELECT 1 FROM t2
 WHERE b =(SELECT a FROM t1 LIMIT 1);
 CREATE PROCEDURE p1(num INT)
 BEGIN
@@ -2647,7 +2692,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	3	100.00	NULL
 1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`f1` = `test`.`t1`.`f1`)) where 1 group by `test`.`t1`.`f1`
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`f1` = `test`.`t1`.`f1`)) where true group by `test`.`t1`.`f1`
 drop table t1,t2;
 #
 #
@@ -2685,9 +2730,12 @@ DROP TABLE t1;
 # Bug #49838: DROP INDEX and ADD UNIQUE INDEX for same index may
 #   corrupt definition at engine
 #
-CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, KEY k (a,b)) 
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, KEY k (a,b))
 ENGINE=InnoDB;
 ALTER TABLE t1 DROP INDEX k, ADD UNIQUE INDEX k (a,b);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SHOW INDEXES FROM t1;;
 Table	t1
 Non_unique	0
@@ -2702,6 +2750,8 @@ Null
 Index_type	BTREE
 Comment	
 Index_comment	
+Visible	YES
+Expression	NULL
 Table	t1
 Non_unique	0
 Key_name	k
@@ -2715,35 +2765,9 @@ Null
 Index_type	BTREE
 Comment	
 Index_comment	
+Visible	YES
+Expression	NULL
 DROP TABLE t1;
-#
-# Bug #47453: InnoDB incorrectly changes TIMESTAMP columns when 
-#  JOINed during an UPDATE
-#
-CREATE TABLE t1 (d INT) ENGINE=InnoDB;
-CREATE TABLE t2 (a INT, b INT, 
-c TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB;
-# set up our data elements
-INSERT INTO t1 (d) VALUES (1);
-INSERT INTO t2 (a,b) VALUES (1,1);
-SELECT SECOND(c) INTO @bug47453 FROM t2;
-SELECT SECOND(c)-@bug47453 FROM t1 JOIN t2 ON d=a;
-SECOND(c)-@bug47453
-0
-UPDATE t1 JOIN t2 ON d=a SET b=1 WHERE a=1;
-SELECT SECOND(c)-@bug47453 FROM t1 JOIN t2 ON d=a;
-SECOND(c)-@bug47453
-0
-SELECT SLEEP(1);
-SLEEP(1)
-0
-UPDATE t1 JOIN t2 ON d=a SET b=1 WHERE a=1;
-# should be 0
-SELECT SECOND(c)-@bug47453 FROM t1 JOIN t2 ON d=a;
-SECOND(c)-@bug47453
-0
-DROP TABLE t1, t2;
 #
 # Bug #53334: wrong result for outer join with impossible ON condition
 # (see the same test case for MyISAM in join.test)
@@ -2764,6 +2788,12 @@ INSERT INTO t1 VALUES (105);
 INSERT INTO t1 VALUES (106);
 INSERT INTO t1 VALUES (107);
 INSERT INTO t2 VALUES (107),(75),(1000);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 SELECT t1.id,t2.id FROM t2 LEFT JOIN t1 ON t1.id>=74 AND t1.id<=0
 WHERE t2.id=75 AND t1.id IS NULL;
 id	id
@@ -2774,7 +2804,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	const	PRIMARY	NULL	NULL	NULL	1	100.00	Impossible ON condition
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t2`.`id` AS `id` from `test`.`t2` left join `test`.`t1` on(((`test`.`t1`.`id` >= 74) and (`test`.`t1`.`id` <= 0))) where ((`test`.`t2`.`id` = 75) and isnull(`test`.`t1`.`id`))
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t2`.`id` AS `id` from `test`.`t2` left join `test`.`t1` on(((`test`.`t1`.`id` >= 74) and (`test`.`t1`.`id` <= 0))) where ((`test`.`t2`.`id` = 75) and (`test`.`t1`.`id` is null))
 DROP TABLE t1,t2;
 #
 # Bug#38999 valgrind warnings for update statement in function compare_record()
@@ -2810,6 +2840,11 @@ PRIMARY KEY (f1),
 KEY idx1 (f2,f5,f4),
 KEY idx2 (f2,f4)
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 LOAD DATA INFILE '../../std_data/intersect-bug50389.tsv' INTO TABLE t1;
 ANALYZE TABLE t1;
 SELECT * FROM t1 WHERE f1 IN
@@ -2850,6 +2885,11 @@ PRIMARY KEY (f1),
 UNIQUE KEY (f2, f3),
 KEY (f4)
 ) ENGINE=InnoDB STATS_PERSISTENT=0;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES
 (1,1,991,1), (2,1,992,1), (3,1,993,1), (4,1,994,1), (5,1,995,1),
 (6,1,996,1), (7,1,997,1), (8,1,998,1), (10,1,999,1), (11,1,9910,1),
@@ -2857,6 +2897,9 @@ INSERT INTO t1 VALUES
 (21,1,9916,1), (22,1,9917,1), (23,1,9918,1), (24,1,9919,1), (25,1,9920,1),
 (26,1,9921,1), (27,1,9922,1);
 FLUSH TABLES;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT * FROM t1 WHERE f2 = 1 AND f4 = TRUE
 ORDER BY f1 DESC LIMIT 5;
 f1	f2	f3	f4
@@ -2868,9 +2911,9 @@ f1	f2	f3	f4
 EXPLAIN SELECT * FROM t1 WHERE f2 = 1 AND f4 = TRUE
 ORDER BY f1 DESC LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	f2,f4	f4	1	NULL	22	100.00	Using index condition; Using where
+1	SIMPLE	t1	NULL	range	f2,f4	f4	1	NULL	22	100.00	Using index condition; Using where; Backward index scan
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4` from `test`.`t1` where ((`test`.`t1`.`f4` = TRUE) and (`test`.`t1`.`f2` = 1)) order by `test`.`t1`.`f1` desc limit 5
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4` from `test`.`t1` where ((`test`.`t1`.`f4` = true) and (`test`.`t1`.`f2` = 1)) order by `test`.`t1`.`f1` desc limit 5
 DROP TABLE t1;
 #
 # Bug#54117 crash in thr_multi_unlock, temporary table
@@ -2886,6 +2929,9 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INT , b INT, c INT, d INT,
 KEY (b), PRIMARY KEY (a,b)) ENGINE=INNODB STATS_PERSISTENT=0;
 INSERT INTO t1 VALUES (1,1,1,1), (2,2,2,2), (3,3,3,3);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT COUNT(*) FROM t1;
 id	1
 select_type	SIMPLE
@@ -2905,6 +2951,9 @@ Code	1003
 Message	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1`
 DROP INDEX b ON t1;
 CREATE INDEX b ON t1(a,b);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT COUNT(*) FROM t1;
 id	1
 select_type	SIMPLE
@@ -2924,6 +2973,9 @@ Code	1003
 Message	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1`
 DROP INDEX b ON t1;
 CREATE INDEX b ON t1(a,b,c);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT COUNT(*) FROM t1;
 id	1
 select_type	SIMPLE
@@ -2943,6 +2995,9 @@ Code	1003
 Message	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1`
 DROP INDEX b ON t1;
 CREATE INDEX b ON t1(a,b,c,d);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT COUNT(*) FROM t1;
 id	1
 select_type	SIMPLE
@@ -2962,12 +3017,12 @@ Code	1003
 Message	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1`
 DROP TABLE t1;
 #
-# Bug#55826: create table .. select crashes with when KILL_BAD_DATA 
+# Bug#55826: create table .. select crashes with when KILL_BAD_DATA
 #  is returned
 #
 CREATE TABLE t1(a INT) ENGINE=innodb;
 INSERT INTO t1 VALUES (0);
-CREATE TABLE t2 
+CREATE TABLE t2
 SELECT LEAST((SELECT '' FROM t1),NOW()) FROM `t1`;
 ERROR 22007: Incorrect datetime value: '' for column 'NOW()' at row 2
 DROP TABLE t1;
@@ -2985,10 +3040,10 @@ constraint x foreign key (FK) references t1 (PK)) engine=InnoDB;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `fk` int(11) DEFAULT NULL,
+  `fk` int DEFAULT NULL,
   KEY `x` (`fk`),
   CONSTRAINT `x` FOREIGN KEY (`fk`) REFERENCES `t1` (`pk`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2, t1;
 #
 # Test for bug #11762012 - "54553: INNODB ASSERTS IN HA_INNOBASE::
@@ -3008,7 +3063,7 @@ UNLOCK TABLES;
 DROP TEMPORARY TABLE t1;
 # End of 5.1 tests
 #
-# Bug#49604 "6.0 processing compound WHERE clause incorrectly 
+# Bug#49604 "6.0 processing compound WHERE clause incorrectly
 #            with Innodb - extra rows"
 #
 CREATE TABLE t1 (
@@ -3030,7 +3085,7 @@ PRIMARY KEY (c1)
 INSERT INTO t2 VALUES (1,2);
 INSERT INTO t2 VALUES (2,9);
 SELECT STRAIGHT_JOIN t2.c2, t1.c2, t2.c1
-FROM t1 JOIN t2 ON t1.c2 = t2.c1  
+FROM t1 JOIN t2 ON t1.c2 = t2.c1
 WHERE t2.c1 IN (2, 1, 6) OR t2.c1 NOT IN (1);
 c2	c2	c1
 2	1	1
@@ -3072,20 +3127,27 @@ CREATE TABLE t1 (a tinyblob) ENGINE=InnoDB;
 CREATE TABLE t2 (a int PRIMARY KEY,  b tinyblob) ENGINE=InnoDB;
 INSERT INTO t1 VALUES ('1'), (NULL);
 INSERT INTO t2 VALUES (1, '1');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 EXPLAIN
 SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	SIMPLE	t2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using join buffer (hash join)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (hash join)
+2	MATERIALIZED	t2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`b` AS `b` from `test`.`t1` semi join (`test`.`t2`) join `test`.`t2` where (`test`.`t1`.`a` = 1)
+Note	1003	/* select#1 */ select `test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` semi join (`test`.`t2`) where (`test`.`t1`.`a` = `<subquery2>`.`1`)
 SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
 b
 1
 DROP TABLE t1,t2;
 #
-# Bug#48093: 6.0 Server not processing equivalent IN clauses properly 
+# Bug#48093: 6.0 Server not processing equivalent IN clauses properly
 #            with Innodb tables
 #
 CREATE TABLE t1 (
@@ -3095,12 +3157,17 @@ v2 varchar(20) DEFAULT NULL,
 KEY i (i),
 KEY v (v1,i)
 ) ENGINE=innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,'f','no');
 INSERT INTO t1 VALUES (2,'u','yes-u');
 INSERT INTO t1 VALUES (2,'h','yes-h');
 INSERT INTO t1 VALUES (3,'d','no');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 
-SELECT v2  
+SELECT v2
 FROM t1
 WHERE v1  IN  ('f', 'd', 'h', 'u' ) AND i  =  2;
 v2
@@ -3109,7 +3176,7 @@ yes-h
 
 # Should not use index_merge
 EXPLAIN
-SELECT v2  
+SELECT v2
 FROM t1
 WHERE v1  IN  ('f', 'd', 'h', 'u' ) AND i  =  2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -3118,12 +3185,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v2` AS `v2` from `test`.`t1` where ((`test`.`t1`.`i` = 2) and (`test`.`t1`.`v1` in ('f','d','h','u')))
 DROP TABLE t1;
 #
-# Bug#54606 innodb fast alter table + pack_keys=0 
+# Bug#54606 innodb fast alter table + pack_keys=0
 #           prevents adding new indexes
 #
 DROP TABLE IF EXISTS t1;
-CREATE TABLE t1 (a INT, b CHAR(9), c INT, key(b)) 
-ENGINE=InnoDB 
+CREATE TABLE t1 (a INT, b CHAR(9), c INT, key(b))
+ENGINE=InnoDB
 PACK_KEYS=0;
 CREATE INDEX a ON t1 (a);
 CREATE INDEX c on t1 (c);
@@ -3150,5 +3217,41 @@ CREATE TABLE t1 (id int, a  int, b  int, PRIMARY KEY (id),
 INDEX a (a)) ENGINE=innodb;
 ALTER TABLE t1 DROP INDEX a, ADD INDEX a (b, a);
 ALTER TABLE t1 DROP INDEX a, ADD INDEX (a, b);
+DROP TABLE t1;
+#
+# Check the prefix index on BLOB could not be promoted to PRIMARY KEY
+#
+CREATE TABLE t1 (a INT NOT NULL, d INT NOT NULL, b TEXT NOT NULL, c TEXT,
+UNIQUE KEY (b(8) desc, a asc, d)) ENGINE = InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL,
+  `d` int NOT NULL,
+  `b` text NOT NULL,
+  `c` text,
+  UNIQUE KEY `b` (`b`(8) DESC,`a`,`d`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#
+# Bug#25650516. The problem is the index order for the old and new
+# dd::Table are different
+#
+CREATE TABLE t1 (col1 INT, col2 INT) ENGINE = InnoDB;
+ALTER TABLE t1 ADD UNIQUE KEY uidx ( col2 );
+ALTER TABLE t1 ADD UNIQUE KEY uidx ( col1 ), RENAME KEY uidx TO new_uidx;
+ALTER TABLE t1 ADD PRIMARY KEY ( col1 );
+ALTER TABLE t1 ALTER COLUMN col1 DROP DEFAULT;
+DROP TABLE t1;
+#
+# BUG 25674492 - INNODB: ASSERTION FAILURE: HA_INNODB.CC:13881
+# :DD_TABLE_MATCH(TABLE, DD_TABLE)
+#
+CREATE TABLE t1 (col1 INT, col4 TEXT) ENGINE = InnoDB ROW_FORMAT = COMPACT;
+ALTER TABLE t1 ADD KEY idx ( col1 ), ADD FULLTEXT KEY ftidx ( col4 );
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+ALTER TABLE t1 DROP KEY ftidx;
+TRUNCATE TABLE t1;
 DROP TABLE t1;
 End of 6.0 tests

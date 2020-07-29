@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,18 +28,24 @@
 #include <SocketClient.hpp>
 #include <SocketAuthenticator.hpp>
 
+#if 0
+#define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
+#else
+#define DEBUG_FPRINTF(a)
+#endif
+
 SocketClient::SocketClient(SocketAuthenticator *sa) :
   m_connect_timeout_millisec(0),// Blocking connect by default
   m_last_used_port(0),
   m_auth(sa)
 {
-  my_socket_invalidate(&m_sockfd);
+  ndb_socket_invalidate(&m_sockfd);
 }
 
 SocketClient::~SocketClient()
 {
-  if (my_socket_valid(m_sockfd))
-    NDB_CLOSE_SOCKET(m_sockfd);
+  if (ndb_socket_valid(m_sockfd))
+    ndb_socket_close(m_sockfd);
   if (m_auth)
     delete m_auth;
 }
@@ -47,15 +53,16 @@ SocketClient::~SocketClient()
 bool
 SocketClient::init()
 {
-  if (my_socket_valid(m_sockfd))
-    NDB_CLOSE_SOCKET(m_sockfd);
+  if (ndb_socket_valid(m_sockfd))
+    ndb_socket_close(m_sockfd);
 
-  m_sockfd= my_socket_create(AF_INET, SOCK_STREAM, 0);
-  if (!my_socket_valid(m_sockfd)) {
+  m_sockfd= ndb_socket_create(AF_INET, SOCK_STREAM, 0);
+  if (!ndb_socket_valid(m_sockfd)) {
     return false;
   }
 
-  DBUG_PRINT("info",("NDB_SOCKET: " MY_SOCKET_FORMAT, MY_SOCKET_FORMAT_VALUE(m_sockfd)));
+  DBUG_PRINT("info",("NDB_SOCKET: " MY_SOCKET_FORMAT,
+                     MY_SOCKET_FORMAT_VALUE(m_sockfd)));
 
   return true;
 }
@@ -64,7 +71,7 @@ int
 SocketClient::bind(const char* local_hostname,
                    unsigned short local_port)
 {
-  if (!my_socket_valid(m_sockfd))
+  if (!ndb_socket_valid(m_sockfd))
     return -1;
 
   struct sockaddr_in local;
@@ -85,15 +92,15 @@ SocketClient::bind(const char* local_hostname,
     return errno ? errno : EINVAL;
   }
 
-  if (my_socket_reuseaddr(m_sockfd, true) == -1)
+  if (ndb_socket_reuseaddr(m_sockfd, true) == -1)
   {
-    int ret = my_socket_errno();
-    my_socket_close(m_sockfd);
-    my_socket_invalidate(&m_sockfd);
+    int ret = ndb_socket_errno();
+    ndb_socket_close(m_sockfd);
+    ndb_socket_invalidate(&m_sockfd);
     return ret;
   }
 
-  while (my_bind_inet(m_sockfd, &local) == -1)
+  while (ndb_bind_inet(m_sockfd, &local) == -1)
   {
     if (local_port == 0 &&
         m_last_used_port != 0)
@@ -105,9 +112,9 @@ SocketClient::bind(const char* local_hostname,
       continue;
     }
 
-    int ret = my_socket_errno();
-    my_socket_close(m_sockfd);
-    my_socket_invalidate(&m_sockfd);
+    int ret = ndb_socket_errno();
+    ndb_socket_close(m_sockfd);
+    ndb_socket_invalidate(&m_sockfd);
     return ret;
   }
 
@@ -127,10 +134,11 @@ SocketClient::connect(const char* server_hostname,
   // Reset last used port(in case connect fails)
   m_last_used_port = 0;
 
-  if (!my_socket_valid(m_sockfd))
+  if (!ndb_socket_valid(m_sockfd))
   {
     if (!init())
     {
+      DEBUG_FPRINTF((stderr, "Failed init in connect\n"));
       return m_sockfd;
     }
   }
@@ -143,28 +151,33 @@ SocketClient::connect(const char* server_hostname,
   // Resolve server address
   if (Ndb_getInAddr(&server_addr.sin_addr, server_hostname))
   {
-    my_socket_close(m_sockfd);
-    my_socket_invalidate(&m_sockfd);
+    DEBUG_FPRINTF((stderr, "Failed Ndb_getInAddr in connect\n"));
+    ndb_socket_close(m_sockfd);
+    ndb_socket_invalidate(&m_sockfd);
     return m_sockfd;
   }
 
   // Set socket non blocking
-  if (my_socket_nonblock(m_sockfd, true) < 0)
+  if (ndb_socket_nonblock(m_sockfd, true) < 0)
   {
-    my_socket_close(m_sockfd);
-    my_socket_invalidate(&m_sockfd);
+    DEBUG_FPRINTF((stderr, "Failed to set socket nonblocking in connect\n"));
+    ndb_socket_close(m_sockfd);
+    ndb_socket_invalidate(&m_sockfd);
     return m_sockfd;
   }
 
   // Start non blocking connect
-  int r = my_connect_inet(m_sockfd, &server_addr);
+  DEBUG_FPRINTF((stderr, "Connect to %s:%u\n",
+                         server_hostname, server_port));
+  int r = ndb_connect_inet(m_sockfd, &server_addr);
   if (r == 0)
     goto done; // connected immediately.
 
-  if (r < 0 && NONBLOCKERR(my_socket_errno())) {
+  if (r < 0 && NONBLOCKERR(ndb_socket_errno())) {
     // Start of non blocking connect failed
-    my_socket_close(m_sockfd);
-    my_socket_invalidate(&m_sockfd);
+    DEBUG_FPRINTF((stderr, "Failed to to connect_inet in connect\n"));
+    ndb_socket_close(m_sockfd);
+    ndb_socket_invalidate(&m_sockfd);
     return m_sockfd;
   }
 
@@ -173,9 +186,10 @@ SocketClient::connect(const char* server_hostname,
                m_connect_timeout_millisec : -1) <= 0)
   {
     // Nothing has happened on the socket after timeout
-    // or an error occured
-    my_socket_close(m_sockfd);
-    my_socket_invalidate(&m_sockfd);
+    // or an error occurred
+    DEBUG_FPRINTF((stderr, "Timeout after connect_inet in connect\n"));
+    ndb_socket_close(m_sockfd);
+    ndb_socket_invalidate(&m_sockfd);
     return m_sockfd;
   }
 
@@ -184,46 +198,50 @@ SocketClient::connect(const char* server_hostname,
   {
     // Check socket level error code
     int so_error = 0;
-    SOCKET_SIZE_TYPE len= sizeof(so_error);
-    if (my_getsockopt(m_sockfd, SOL_SOCKET, SO_ERROR, &so_error, &len) < 0)
+    ndb_socket_len_t len= sizeof(so_error);
+    if (ndb_getsockopt(m_sockfd, SOL_SOCKET, SO_ERROR, &so_error, &len) < 0)
     {
-      my_socket_close(m_sockfd);
-      my_socket_invalidate(&m_sockfd);
+      DEBUG_FPRINTF((stderr, "Failed to set sockopt in connect\n"));
+      ndb_socket_close(m_sockfd);
+      ndb_socket_invalidate(&m_sockfd);
       return m_sockfd;
     }
 
     if (so_error)
     {
-      my_socket_close(m_sockfd);
-      my_socket_invalidate(&m_sockfd);
+      DEBUG_FPRINTF((stderr, "so_error: %d in connect\n", so_error));
+      ndb_socket_close(m_sockfd);
+      ndb_socket_invalidate(&m_sockfd);
       return m_sockfd;
     }
   }
 
 done:
-  if (my_socket_nonblock(m_sockfd, false) < 0)
+  if (ndb_socket_nonblock(m_sockfd, false) < 0)
   {
-    my_socket_close(m_sockfd);
-    my_socket_invalidate(&m_sockfd);
+    DEBUG_FPRINTF((stderr, "ndb_socket_nonblock failed in connect\n"));
+    ndb_socket_close(m_sockfd);
+    ndb_socket_invalidate(&m_sockfd);
     return m_sockfd;
   }
 
   // Remember the local port used for this connection
   assert(m_last_used_port == 0);
-  my_socket_get_port(m_sockfd, &m_last_used_port);
+  ndb_socket_get_port(m_sockfd, &m_last_used_port);
 
   if (m_auth) {
     if (!m_auth->client_authenticate(m_sockfd))
     {
-      my_socket_close(m_sockfd);
-      my_socket_invalidate(&m_sockfd);
+      DEBUG_FPRINTF((stderr, "authenticate failed in connect\n"));
+      ndb_socket_close(m_sockfd);
+      ndb_socket_invalidate(&m_sockfd);
       return m_sockfd;
     }
   }
 
   NDB_SOCKET_TYPE sockfd = m_sockfd;
 
-  my_socket_invalidate(&m_sockfd);
+  ndb_socket_invalidate(&m_sockfd);
 
   return sockfd;
 }

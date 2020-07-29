@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,34 +18,38 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef RPL_INFO_VALUES_H
 #define RPL_INFO_VALUES_H
 
-#include "my_global.h"
+#include "my_bitmap.h"
 
 class String;
 
-
-class Rpl_info_values
-{
-public:
+class Rpl_info_values {
+ public:
   Rpl_info_values(int param_ninfo);
   virtual ~Rpl_info_values();
 
   bool init();
 
-  /** 
+  /**
     Sequence of values to be read from or stored into a repository.
   */
   String *value;
 
-private:
+  /**
+    Bitset to represent nullability of corresponding field values in `value`
+    array above.
+   */
+  MY_BITMAP is_null;
+
+ private:
   /* This property represents the number of fields. */
   int ninfo;
 
-  Rpl_info_values& operator=(const Rpl_info_values& values);
-  Rpl_info_values(const Rpl_info_values& values);
+  Rpl_info_values &operator=(const Rpl_info_values &values);
+  Rpl_info_values(const Rpl_info_values &values);
 };
 #endif /* RPL_INFO_VALUES_H */

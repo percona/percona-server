@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,7 @@
 #ifndef NDB_TAP_HPP
 #define NDB_TAP_HPP
 
-#include <../../../unittest/mytap/tap.h>
-#include <../../../unittest/mytap/tap.c>
+#include "unittest/mytap/tap.h"
 
 #ifdef VM_TRACE
 #define OK(b) assert(b);
@@ -42,24 +41,5 @@ int main(int argc, const char** argv){          \
   return exit_status();                         \
 }                                               \
 int name##_test()
-
-/* tap.c needs my_print_stacktrace */
-#ifdef DONT_DEFINE_VOID
-// stacktrace.c turns off VOID redefinition if needed
-#undef DONT_DEFINE_VOID
-#endif
-
-#ifdef HAVE_GCOV
-// __gcov_flush need C linkage
-extern "C" void __gcov_flush(void);
-#endif
-
-/* stacktrace.c needs min unless MY_MIN is defined */
-#if !defined MY_MIN && !defined min
-#define min(a, b)    ((a) < (b) ? (a) : (b)) 
-#endif
-
-#include <../../../mysys/stacktrace.c>
-
 
 #endif

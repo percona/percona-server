@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,8 +18,8 @@
    GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   Hash accessor function for lexical scanners:
@@ -30,18 +30,14 @@
 #ifndef SQL_LEX_HASH_INCLUDED
 #define SQL_LEX_HASH_INCLUDED
 
-struct SYMBOL;
-
-class Lex_hash
-{
-private:
+class Lex_hash {
+ private:
   const unsigned char *hash_map;
   const unsigned int entry_max_len;
 
-public:
+ public:
   Lex_hash(const unsigned char *hash_map_arg, unsigned int entry_max_len_arg)
-  : hash_map(hash_map_arg), entry_max_len(entry_max_len_arg)
-  {}
+      : hash_map(hash_map_arg), entry_max_len(entry_max_len_arg) {}
 
   const struct SYMBOL *get_hash_symbol(const char *s, unsigned int len) const;
 
@@ -50,6 +46,5 @@ public:
 
   static const Lex_hash hint_keywords;
 };
-
 
 #endif /* SQL_LEX_HASH_INCLUDED */

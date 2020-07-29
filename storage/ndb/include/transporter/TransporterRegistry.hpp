@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,7 @@
 #include <mgmapi/mgmapi.h>
 
 #include <NodeBitmask.hpp>
+#include <NdbMutex.h>
 
 // A transporter is always in an IOState.
 // NoHalt is used initially and as long as it is no restrictions on
@@ -68,8 +69,8 @@ static const char *performStateString[] =
 
 class Transporter;
 class TCP_Transporter;
-class SCI_Transporter;
 class SHM_Transporter;
+class Multi_Transporter;
 
 class TransporterRegistry;
 class SocketAuthenticator;
@@ -94,7 +95,7 @@ public:
  * TransporterReceiveData
  *
  *   State for pollReceive/performReceive
- *   Moved into own class to enable multi receive threads
+ *   Moved into own class to enable multiple receive threads
  */
 struct TransporterReceiveData
 {
@@ -107,25 +108,25 @@ struct TransporterReceiveData
    * Add a transporter to epoll_set
    *   does nothing if epoll not active
    */
-  bool epoll_add(TCP_Transporter*);
+  bool epoll_add(Transporter*);
 
   /**
    * Bitmask of transporters currently handled by this instance
    */
-  NodeBitmask m_transporters;
+  TrpBitmask m_transporters;
 
   /**
    * Bitmask of transporters having data awaiting to be received
    * from its transporter.
    */
-  NodeBitmask m_recv_transporters;
+  TrpBitmask m_recv_transporters;
 
   /**
    * Bitmask of transporters that has already received data buffered
    * inside its transporter. Possibly "carried over" from last 
    * performReceive
    */
-  NodeBitmask m_has_data_transporters;
+  TrpBitmask m_has_data_transporters;
 
   /**
    * Subset of m_has_data_transporters which we completed handling
@@ -134,13 +135,31 @@ struct TransporterReceiveData
    * ::performReceive in order to avoid starvation of non-handled
    * transporters.
    */
-  NodeBitmask m_handled_transporters;
+  TrpBitmask m_handled_transporters;
 
   /**
    * Bitmask of transporters having received corrupted or unsupported
-   * message.  No more unpacking and delivery of messages allowed.
+   * message. No more unpacking and delivery of messages allowed.
    */
   NodeBitmask m_bad_data_transporters;
+
+  /**
+   * Last node received from if unable to complete all transporters
+   * in previous ::performReceive(). Next ::performReceive will
+   * resume from first transporter after this.
+   */
+  Uint32 m_last_trp_id;
+
+  /**
+   * Spintime calculated as maximum of currently connected transporters.
+   * Only applies to shared memory transporters.
+   */
+  Uint32 m_spintime;
+
+  /**
+   * Total spintime
+   */
+  Uint32 m_total_spintime;
 
 #if defined(HAVE_EPOLL_CREATE)
   int m_epoll_fd;
@@ -160,7 +179,8 @@ struct TransporterReceiveData
  * @class TransporterRegistry
  * @brief ...
  */
-class TransporterRegistry : private TransporterSendBufferHandle {
+class TransporterRegistry 
+{
   friend class SHM_Transporter;
   friend class SHM_Writer;
   friend class Transporter;
@@ -171,7 +191,6 @@ public:
   */
   TransporterRegistry(TransporterCallback *callback,
                       TransporterReceiveHandle * receiveHandle,
-                      bool use_default_send_buffer = true,
 		      unsigned maxTransporters = MAX_NTRANSPORTERS);
 
   /**
@@ -180,7 +199,7 @@ public:
    * (if set) is destroyed, and this is destroyed by the destructor
    */
   void set_mgm_handle(NdbMgmHandle h);
-  NdbMgmHandle get_mgm_handle(void) { return m_mgm_handle; };
+  NdbMgmHandle get_mgm_handle(void) { return m_mgm_handle; }
 
   bool init(NodeId localNodeId);
 
@@ -203,12 +222,14 @@ public:
      @param close_with_reset allows the function to indicate to the caller
                              how the socket should be closed when function
                              returns false
+     @param log_failure      whether a failure to connect is log-worthy
 
      @returns false on failure and true on success
   */
   bool connect_server(NDB_SOCKET_TYPE sockfd,
                       BaseString& msg,
-                      bool& close_with_reset) const;
+                      bool& close_with_reset,
+                      bool& log_failure);
 
   bool connect_client(NdbMgmHandle *h);
 
@@ -225,8 +246,22 @@ public:
    */
   NDB_SOCKET_TYPE connect_ndb_mgmd(NdbMgmHandle *h);
 
+  /**
+   * Manage allTransporters and theNodeIdTransporters when using
+   * Multi_Transporter changes. There is a mutex protecting changes
+   * to those data structures.
+   */
+  void lockMultiTransporters();
+  void unlockMultiTransporters();
+  void insert_allTransporters(Transporter*);
+  void remove_allTransporters(Transporter*);
+  void insert_node_transporter(NodeId, Transporter*);
+  bool isMultiTransporter(Transporter*);
+  void switch_active_trp(Multi_Transporter*);
+  Uint32 get_num_active_transporters(Multi_Transporter*);
 private:
 
+  NdbMutex *theMultiTransporterMutex;
   /**
    * Report the dynamically allocated ports to ndb_mgmd so that clients
    * which want to connect to ndbd can ask ndb_mgmd which port to use.
@@ -242,6 +277,17 @@ private:
    * Disconnect all transporters
    */
   void disconnectAll();
+
+  /**
+   * Reset awake state on shared memory transporters before sleep.
+   */
+  int reset_shm_awake_state(TransporterReceiveHandle& recvdata,
+                            bool& sleep_state_set);
+
+  /**
+   * Set awake state on shared memory transporters after sleep.
+   */
+  void set_shm_awake_state(TransporterReceiveHandle& recvdata);
 
 public:
 
@@ -278,7 +324,7 @@ public:
     DISCONNECTING     = 3
   };
   const char *getPerformStateString(NodeId nodeId) const
-  { return performStateString[(unsigned)performStates[nodeId]]; };
+  { return performStateString[(unsigned)performStates[nodeId]]; }
 
   PerformState getPerformState(NodeId nodeId) const { return performStates[nodeId]; }
 
@@ -286,10 +332,15 @@ public:
    * Get and set methods for PerformState
    */
   void do_connect(NodeId node_id);
-  void do_disconnect(NodeId node_id, int errnum = 0);
+  /**
+   * do_disconnect can be issued both from send and recv, it is possible to
+   * specify from where it is called in send_source parameter, this enables
+   * us to provide more detailed information for disconnects.
+   */
+  bool do_disconnect(NodeId node_id, int errnum = 0, bool send_source = true);
   bool is_connected(NodeId node_id) const {
     return performStates[node_id] == CONNECTED;
-  };
+  }
 private:
   void report_connect(TransporterReceiveHandle&, NodeId node_id);
   void report_disconnect(TransporterReceiveHandle&, NodeId node_id, int errnum);
@@ -325,10 +376,10 @@ private:
 private:
 
   bool createTCPTransporter(TransporterConfiguration * config);
-  bool createSCITransporter(TransporterConfiguration * config);
   bool createSHMTransporter(TransporterConfiguration * config);
 
 public:
+  bool createMultiTransporter(Uint32 node_id, Uint32 num_trps);
   /**
    *   configureTransporter
    *
@@ -339,28 +390,16 @@ public:
   bool configureTransporter(TransporterConfiguration * config);
 
   /**
-   * Allocate send buffer for default send buffer handling.
-   *
-   * Upper layer that implements their own TransporterSendBufferHandle do not
-   * use this, instead they manage their own send buffers.
-   *
-   * Argument is the value of config parameter TotalSendBufferMemory. If 0,
-   * a default will be used of sum(max send buffer) over all transporters.
-   * The second is the config parameter ExtraSendBufferMemory
-   */
-  void allocate_send_buffers(Uint64 total_send_buffer,
-                             Uint64 extra_send_buffer);
-
-  /**
    * Get sum of max send buffer over all transporters, to be used as a default
    * for allocate_send_buffers eg.
    *
    * Must be called after creating all transporters for returned value to be
    * correct.
    */
-  Uint64 get_total_max_send_buffer() { return m_total_max_send_buffer; }
-
-  bool get_using_default_send_buffer() const{ return m_use_default_send_buffer;}
+  Uint64 get_total_max_send_buffer() {
+    DBUG_ASSERT(m_total_max_send_buffer > 0);
+    return m_total_max_send_buffer;
+  } 
 
   /**
    * Get transporter's connect count
@@ -396,76 +435,57 @@ public:
    *
    * When IOState is HaltOutput or HaltIO do not send or insert any 
    * signals in the SendBuffer, unless it is intended for the remote 
-   * CMVMI block (blockno 252)
+   * QMGR block (blockno 252)
    * Perform prepareSend on the transporter. 
    *
    * NOTE signalHeader->xxxBlockRef should contain block numbers and 
    *                                not references
    */
+
+private:
+  template <typename AnySectionArg>
+  SendStatus prepareSendTemplate(
+                         TransporterSendBufferHandle *sendHandle,
+                         const SignalHeader *signalHeader,
+                         Uint8 prio,
+                         const Uint32 *signalData,
+                         NodeId nodeId,
+                         TrpId &trp_id,
+                         AnySectionArg section);
+
+
+public:
   SendStatus prepareSend(TransporterSendBufferHandle *sendHandle,
-                         const SignalHeader * const signalHeader, Uint8 prio,
-			 const Uint32 * const signalData,
-			 NodeId nodeId, 
-			 const LinearSectionPtr ptr[3]);
+                         const SignalHeader *signalHeader,
+                         Uint8 prio,
+                         const Uint32 *signalData,
+                         NodeId nodeId,
+                         TrpId &trp_id,
+                         const LinearSectionPtr ptr[3]);
 
   SendStatus prepareSend(TransporterSendBufferHandle *sendHandle,
-                         const SignalHeader * const signalHeader, Uint8 prio,
-			 const Uint32 * const signalData,
-			 NodeId nodeId, 
-			 class SectionSegmentPool & pool,
-			 const SegmentedSectionPtr ptr[3]);
+                         const SignalHeader *signalHeader,
+                         Uint8 prio,
+                         const Uint32 *signalData,
+                         NodeId nodeId,
+                         TrpId &trp_id,
+                         class SectionSegmentPool & pool,
+                         const SegmentedSectionPtr ptr[3]);
+
   SendStatus prepareSend(TransporterSendBufferHandle *sendHandle,
-                         const SignalHeader * const signalHeader, Uint8 prio,
-                         const Uint32 * const signalData,
+                         const SignalHeader *signalHeader,
+                         Uint8 prio,
+                         const Uint32 *signalData,
                          NodeId nodeId,
                          const GenericSectionPtr ptr[3]);
-  /**
-   * Backwards compatiple methods with default send buffer handling.
-   */
-  SendStatus prepareSend(const SignalHeader * const signalHeader, Uint8 prio,
-			 const Uint32 * const signalData,
-			 NodeId nodeId,
-			 const LinearSectionPtr ptr[3])
-  {
-    return prepareSend(this, signalHeader, prio, signalData, nodeId, ptr);
-  }
-  SendStatus prepareSend(const SignalHeader * const signalHeader, Uint8 prio,
-			 const Uint32 * const signalData,
-			 NodeId nodeId,
-			 class SectionSegmentPool & pool,
-			 const SegmentedSectionPtr ptr[3])
-  {
-    return prepareSend(this, signalHeader, prio, signalData, nodeId, pool, ptr);
-  }
-  SendStatus prepareSend(const SignalHeader * const signalHeader, Uint8 prio,
-                         const Uint32 * const signalData,
-                         NodeId nodeId,
-                         const GenericSectionPtr ptr[3])
-  {
-    return prepareSend(this, signalHeader, prio, signalData, nodeId, ptr);
-  }
   
-  /**
-   * external_IO
-   *
-   * Equal to: poll(...); perform_IO()
-   *
-   */
-  void external_IO(Uint32 timeOutMillis);
-
-  bool performSend(NodeId nodeId);
+  /* Send on a specific transporter */
+  bool performSend(TrpId id, bool need_wakeup = true);
+  /* performSendNode is only used from NDB API */
+  bool performSendNode(NodeId nodeId, bool need_wakeup = true);
   void performSend();
-
-  /**
-   * Force sending if more than or equal to sendLimit
-   * number have asked for send. Returns 0 if not sending
-   * and 1 if sending.
-   */
-  int forceSendCheck(int sendLimit);
   
-#ifdef DEBUG_TRANSPORTER
   void printState();
-#endif
 
   class Transporter_interface {
   public:
@@ -476,16 +496,23 @@ public:
   Vector<Transporter_interface> m_transporter_interface;
   void add_transporter_interface(NodeId remoteNodeId, const char *interf,
 		  		 int s_port);	// signed port. <0 is dynamic
-  Transporter* get_transporter(NodeId nodeId);
+
+  int get_transporter_count() const;
+  Transporter* get_transporter(TrpId id) const;
+  Transporter* get_node_transporter(NodeId nodeId) const;
+  bool is_shm_transporter(NodeId nodeId);
   struct in_addr get_connect_address(NodeId node_id) const;
 
   Uint64 get_bytes_sent(NodeId nodeId) const;
   Uint64 get_bytes_received(NodeId nodeId) const;
-protected:
-  
+
+  Uint32 get_num_multi_transporters();
+  Multi_Transporter* get_multi_transporter(Uint32 index);
+  Multi_Transporter* get_node_multi_transporter(NodeId node_id);
+
 private:
-  TransporterCallback *callbackObj;
-  TransporterReceiveHandle * receiveHandle;
+  TransporterCallback *const callbackObj;
+  TransporterReceiveHandle *const receiveHandle;
 
   NdbMgmHandle m_mgm_handle;
 
@@ -495,15 +522,18 @@ private:
   int sendCounter;
   NodeId localNodeId;
   unsigned maxTransporters;
-  int nTransporters;
-  int nTCPTransporters;
-  int nSCITransporters;
-  int nSHMTransporters;
+  Uint32 nTransporters;
+  Uint32 nMultiTransporters;
+  Uint32 nTCPTransporters;
+  Uint32 nSHMTransporters;
 
 #ifdef ERROR_INSERT
-  Bitmask<MAX_NTRANSPORTERS/32> m_blocked;
-  Bitmask<MAX_NTRANSPORTERS/32> m_blocked_disconnected;
+  NodeBitmask m_blocked;
+  TrpBitmask m_blocked_trp;
+  NodeBitmask m_blocked_disconnected;
   int m_disconnect_errors[MAX_NTRANSPORTERS];
+
+  NodeBitmask m_sendBlocked;
 
   Uint32 m_mixology_level;
 #endif
@@ -511,21 +541,23 @@ private:
   /**
    * Arrays holding all transporters in the order they are created
    */
+  Transporter**     allTransporters;
+  Multi_Transporter** theMultiTransporters;
   TCP_Transporter** theTCPTransporters;
-  SCI_Transporter** theSCITransporters;
   SHM_Transporter** theSHMTransporters;
   
   /**
    * Array, indexed by nodeId, holding all transporters
    */
   TransporterType* theTransporterTypes;
-  Transporter**    theTransporters;
+  Transporter**    theNodeIdTransporters;
 
   /** 
    * State arrays, index by host id
    */
   PerformState* performStates;
   int*          m_disconnect_errnum;
+  Uint32*       m_disconnect_enomem_error;
   IOState*      ioStates;
   struct ErrorState {
     TransporterError m_code;
@@ -575,25 +607,25 @@ private:
   Uint32 * unpack(TransporterReceiveHandle&,
                   Uint32 * readPtr,
                   Uint32 * eodPtr,
+                  Uint32 * endPtr,
                   NodeId remoteNodeId,
                   IOState state,
 		  bool & stopReceiving);
 
-  static Uint32 unpack_length_words(const Uint32 *readPtr, Uint32 maxWords);
-  /** 
-   * Disconnect the transporter and remove it from 
-   * theTransporters array. Do not allow any holes 
-   * in theTransporters. Delete the transporter 
-   * and remove it from theIndexedTransporters array
-   */
-  void removeTransporter(NodeId nodeId);
+  static Uint32 unpack_length_words(const Uint32 *readPtr,
+                                    Uint32 maxWords,
+                                    bool extra_signal);
 
   Uint32 poll_TCP(Uint32 timeOutMillis, TransporterReceiveHandle&);
-  Uint32 poll_SCI(Uint32 timeOutMillis, TransporterReceiveHandle&);
-  Uint32 poll_SHM(Uint32 timeOutMillis, TransporterReceiveHandle&);
+  Uint32 poll_SHM(TransporterReceiveHandle&, bool &any_connected);
+  Uint32 poll_SHM(TransporterReceiveHandle&,
+                  NDB_TICKS start_time,
+                  Uint32 micros_to_poll);
+  Uint32 check_TCP(TransporterReceiveHandle&, Uint32 timeoutMillis);
+  Uint32 spin_check_transporters(TransporterReceiveHandle&);
 
   int m_shm_own_pid;
-  int m_transp_count;
+  Uint32 m_transp_count;
 
 public:
   bool setup_wakeup_socket(TransporterReceiveHandle&);
@@ -608,81 +640,30 @@ private:
   NDB_SOCKET_TYPE m_extra_wakeup_sockets[2];
   void consume_extra_sockets();
 
-
   Uint32 *getWritePtr(TransporterSendBufferHandle *handle,
-                      NodeId node, Uint32 lenBytes, Uint32 prio);
+                      Transporter*,
+                      Uint32 trp_id,
+                      Uint32 lenBytes,
+                      Uint32 prio,
+                      SendStatus *error);
   void updateWritePtr(TransporterSendBufferHandle *handle,
-                      NodeId node, Uint32 lenBytes, Uint32 prio);
+                      Transporter*,
+                      Uint32 trp_id,
+                      Uint32 lenBytes,
+                      Uint32 prio);
 
 public:
-  /**
-   * TransporterSendBufferHandle implementation.
-   *
-   * Used for default send buffer handling, when the upper layer does not
-   * want to do special buffer handling itself.
-   */
-  virtual Uint32 *getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
-                              Uint32 max_use);
-  virtual Uint32 updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio);
-  virtual void getSendBufferLevel(NodeId node, SB_LevelType &level);
-  virtual bool forceSend(NodeId node);
-
-
   /* Various internal */
   void inc_overload_count(Uint32 nodeId);
   void inc_slowdown_count(Uint32 nodeId);
+
+  void get_trps_for_node(Uint32 nodeId,
+                         TrpId *trp_ids,
+                         Uint32 &num_trp_ids,
+                         Uint32 max_trp_ids);
+
+  Uint32 get_num_trps();
 private:
-  /* Send buffer pages. */
-  struct SendBufferPage {
-    /* This is the number of words that will fit in one page of send buffer. */
-    static const Uint32 PGSIZE = 32768;
-    static Uint32 max_data_bytes()
-    {
-      return PGSIZE - offsetof(SendBufferPage, m_data);
-    }
-
-    /* Send buffer for one transporter is kept in a single-linked list. */
-    struct SendBufferPage *m_next;
-
-    /* Bytes of send data available in this page. */
-    Uint16 m_bytes;
-    /* Start of unsent data */
-    Uint16 m_start;
-
-    /* Data; real size is to the end of one page. */
-    char m_data[2];
-  };
-
-  /* Send buffer for one transporter. */
-  struct SendBuffer {
-    /* Total size of data in buffer, from m_offset_start_data to end. */
-    Uint32 m_used_bytes;
-    /* Linked list of active buffer pages with first and last pointer. */
-    SendBufferPage *m_first_page;
-    SendBufferPage *m_last_page;
-  };
-
-  SendBufferPage *alloc_page();
-  void release_page(SendBufferPage *page);
-
-private:
-  /* True if we are using the default send buffer implementation. */
-  bool m_use_default_send_buffer;
-  /* Send buffers. */
-  SendBuffer *m_send_buffers;
-  /**
-   * Make sure m_send_buffers array (read-only) is not using same
-   * cacheline as the data below which is often updated.
-   */
-  char unused[NDB_CL];
-
-  /* Linked list of free pages. */
-  SendBufferPage *m_page_freelist;
-  /* Original block of memory for pages (so we can free it at exit). */
-  unsigned char *m_send_buffer_memory;
-  
-  Uint64 m_tot_send_buffer_memory;
-  Uint64 m_tot_used_buffer_memory;
   /**
    * Sum of max transporter memory for each transporter.
    * Used to compute default send buffer size.
@@ -690,20 +671,13 @@ private:
   Uint64 m_total_max_send_buffer;
 
 public:
-  Uint32 get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max);
-  Uint32 bytes_sent(NodeId node, Uint32 bytes);
-  bool has_data_to_send(NodeId node);
-
-  void reset_send_buffer(NodeId node, bool should_be_empty);
-
-  void print_transporters(const char* where, NdbOut& out = ndbout);
-
   /**
    * Receiving
    */
   Uint32 pollReceive(Uint32 timeOutMillis, TransporterReceiveHandle& mask);
-  Uint32 performReceive(TransporterReceiveHandle&);
-  void update_connections(TransporterReceiveHandle&);
+  Uint32 performReceive(TransporterReceiveHandle&, Uint32 receive_thread_idx);
+  Uint32 update_connections(TransporterReceiveHandle&,
+                          Uint32 max_spintime = UINT32_MAX);
 
   inline Uint32 pollReceive(Uint32 timeOutMillis) {
     assert(receiveHandle != 0);
@@ -712,25 +686,49 @@ public:
 
   inline Uint32 performReceive() {
     assert(receiveHandle != 0);
-    return performReceive(* receiveHandle);
+    return performReceive(* receiveHandle, 0);
   }
 
   inline void update_connections() {
     assert(receiveHandle != 0);
     update_connections(* receiveHandle);
   }
+  inline Uint32 get_total_spintime()
+  {
+    assert(receiveHandle != 0);
+    return receiveHandle->m_total_spintime;
+  }
+  inline void reset_total_spintime()
+  {
+    assert(receiveHandle != 0);
+    receiveHandle->m_total_spintime = 0;
+  }
+
+  TrpId getTransporterIndex(Transporter* t);
+  void set_recv_thread_idx(Transporter* t, Uint32 recv_thread_idx);
 
 #ifdef ERROR_INSERT
   /* Utils for testing latency issues */
   bool isBlocked(NodeId nodeId);
   void blockReceive(TransporterReceiveHandle&, NodeId nodeId);
   void unblockReceive(TransporterReceiveHandle&, NodeId nodeId);
+  bool isSendBlocked(NodeId nodeId) const;
+  void blockSend(TransporterReceiveHandle& recvdata,
+                 NodeId nodeId);
+  void unblockSend(TransporterReceiveHandle& recvdata,
+                   NodeId nodeId);
 
   /* Testing interleaving of signal processing */
   Uint32 getMixologyLevel() const;
   void setMixologyLevel(Uint32 l);
 #endif
 };
+
+inline Uint32
+TransporterRegistry::get_num_trps()
+{
+  return nTransporters;
+}
 
 inline void
 TransporterRegistry::set_status_overloaded(Uint32 nodeId, bool val)

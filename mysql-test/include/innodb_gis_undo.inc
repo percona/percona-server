@@ -1,4 +1,7 @@
-
+#
+# TODO: The column 'g' should have the SRID attribute when bug#27021029 has been
+#       fixed.
+#
 eval CREATE TABLE t1 (
   p	INT NOT NULL AUTO_INCREMENT,
   g	LINESTRING NOT NULL,
@@ -6,6 +9,7 @@ eval CREATE TABLE t1 (
 ) ENGINE=InnoDB ROW_FORMAT=$row_format;
 
 if ($index == 'spatial_none') {
+  --error ER_WRONG_SUB_KEY
   eval ALTER TABLE t1 ADD INDEX prefix_idx (g($prefix_size));
 }
 
@@ -15,6 +19,7 @@ if ($index == 'spatial_only') {
 
 if ($index == 'spatial_mixed') {
   ALTER TABLE t1 ADD SPATIAL INDEX spatial_idx (g);
+  --error ER_WRONG_SUB_KEY
   eval ALTER TABLE t1 ADD INDEX prefix_idx (g($prefix_size));
 }
 
@@ -45,11 +50,12 @@ if ($index == 'spatial_none') {
 }
 
 if ($index == 'spatial_only') {
+  --error ER_WRONG_SUB_KEY
   eval ALTER TABLE t1 ADD INDEX prefix_idx (g($prefix_size));
 }
 
 if ($index == 'spatial_mixed') {
-  ALTER TABLE t1 DROP INDEX spatial_idx, DROP INDEX prefix_idx;
+  ALTER TABLE t1 DROP INDEX spatial_idx;
 }
 
 connection con1;
@@ -64,12 +70,12 @@ DELETE FROM t1 WHERE p = 2;
 
 eval CREATE TABLE t2 (
   p INT PRIMARY KEY,
-  g1 POINT NOT NULL,
-  g2 POINT NOT NULL,
-  g3 LINESTRING NOT NULL,
-  g4 LINESTRING NOT NULL,
-  g5 GEOMETRY NOT NULL,
-  g6 GEOMETRY NOT NULL,
+  g1 POINT NOT NULL SRID 0,
+  g2 POINT NOT NULL SRID 0,
+  g3 LINESTRING NOT NULL SRID 0,
+  g4 LINESTRING NOT NULL SRID 0,
+  g5 GEOMETRY NOT NULL SRID 0,
+  g6 GEOMETRY NOT NULL SRID 0,
   SPATIAL KEY (g1),
   SPATIAL KEY (g2),
   SPATIAL KEY (g3),

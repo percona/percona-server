@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 # Verify that the configuration options were applied correctly to the
 # performance_schema.setup_instruments table. These instruments that are known to persist across
 # platforms and the various compile options.
@@ -60,19 +57,9 @@ SHOW VARIABLES LIKE "%/wait/synch/mutex%";
 --echo # Verify command line options are processed correctly
 --echo #
 
-# The instrument wait/io/table/sql/handler should be enabled and timed. We will
-# restart the server with the instrument disabled from the command line.
+# The instrument wait/io/table/sql/handler should be enabled and timed.
 --echo #
 --echo # Verify that wait/io/table/sql/handler is enabled and timed
---echo #
-SELECT * FROM performance_schema.setup_instruments
-WHERE name like "%wait/io/table/sql/handler%";
-
---let $restart_parameters= restart:--loose-performance-schema-instrument='%wait/io/table/sql/%=off'
---source include/restart_mysqld.inc
-
---echo #
---echo # Verify that wait/io/table is disabled
 --echo #
 SELECT * FROM performance_schema.setup_instruments
 WHERE name like "%wait/io/table/sql/handler%";

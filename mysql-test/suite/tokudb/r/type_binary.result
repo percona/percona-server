@@ -24,7 +24,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `s1` varbinary(20) DEFAULT NULL,
   `s2` varbinary(20) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values (0x41,0x4100),(0x41,0x4120),(0x4100,0x4120);
 select hex(s1), hex(s2) from t1;
 hex(s1)	hex(s2)
@@ -48,7 +48,7 @@ create table t1 (s1 binary(2) primary key);
 insert into t1 values (0x01);
 insert into t1 values (0x0120);
 insert into t1 values (0x0100);
-ERROR 23000: Duplicate entry '\x01' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '\x01' for key 't1.PRIMARY'
 select hex(s1) from t1 order by s1;
 hex(s1)
 0100

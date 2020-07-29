@@ -22,7 +22,8 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 ======= */
 
-#ident "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
+#ident \
+    "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
 #ifndef _TOKUDB_INFORMATION_SCHEMA_H
 #define _TOKUDB_INFORMATION_SCHEMA_H
@@ -40,7 +41,7 @@ extern st_mysql_plugin fractal_tree_info;
 extern st_mysql_plugin fractal_tree_block_map;
 extern st_mysql_plugin background_job_status;
 
-} // namespace information_schema
-} // namespace tokudb
+}  // namespace information_schema
+}  // namespace tokudb
 
-#endif // _TOKUDB_INFORMATION_SCHEMA_H
+#endif  // _TOKUDB_INFORMATION_SCHEMA_H

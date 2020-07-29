@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -17,32 +17,34 @@
    GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
-
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef OPT_EXPLAIN_FORMAT_JSON_INCLUDED
 #define OPT_EXPLAIN_FORMAT_JSON_INCLUDED
 
-#include "opt_explain_format.h"
+#include <stddef.h>
 
-namespace opt_explain_json_namespace
-{
-  class context;
+#include "sql/opt_explain_format.h"
+#include "sql/parse_tree_node_base.h"
+
+class Query_result;
+class SELECT_LEX_UNIT;
+
+namespace opt_explain_json_namespace {
+class context;
 }
 
 /**
   Formatter class for EXPLAIN FORMAT=JSON output
 */
 
-class Explain_format_JSON : public Explain_format
-{
-private:
-  opt_explain_json_namespace::context *current_context; ///< current tree node
-  Query_result *output;
+class Explain_format_JSON : public Explain_format {
+ private:
+  opt_explain_json_namespace::context *current_context;  ///< current tree node
 
-public:
-  Explain_format_JSON() : current_context(NULL), output(NULL) {}
+ public:
+  Explain_format_JSON() : current_context(nullptr) {}
 
   virtual bool is_hierarchical() const { return true; }
   virtual bool send_headers(Query_result *result);
@@ -54,4 +56,4 @@ public:
   virtual qep_row *entry();
 };
 
-#endif//OPT_EXPLAIN_FORMAT_JSON_INCLUDED
+#endif  // OPT_EXPLAIN_FORMAT_JSON_INCLUDED

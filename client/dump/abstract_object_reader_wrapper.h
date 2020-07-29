@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,36 +25,38 @@
 #ifndef ABSTRACT_OBJECT_READER_WRAPPER_INCLUDED
 #define ABSTRACT_OBJECT_READER_WRAPPER_INCLUDED
 
-#include "i_object_reader_wrapper.h"
-#include "abstract_chain_element.h"
+#include <functional>
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+#include "client/dump/abstract_chain_element.h"
+#include "client/dump/i_object_reader_wrapper.h"
+
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 /**
   Implementation of common logic for classes that directs execution of
   dump tasks to Object Readers.
  */
 class Abstract_object_reader_wrapper : public I_object_reader_wrapper,
-  public Abstract_chain_element
-{
-public:
-  void register_object_reader(I_object_reader* new_object_reader);
+                                       public Abstract_chain_element {
+ public:
+  void register_object_reader(I_object_reader *new_object_reader);
 
-protected:
+ protected:
   Abstract_object_reader_wrapper(
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
-    message_handler, Simple_id_generator* object_id_generator);
+      std::function<bool(const Mysql::Tools::Base::Message_data &)>
+          *message_handler,
+      Simple_id_generator *object_id_generator);
 
-  void format_object(Item_processing_data* current_processing_data);
+  void format_object(Item_processing_data *current_processing_data);
 
-private:
-  std::vector<I_object_reader*> m_object_readers;
+ private:
+  std::vector<I_object_reader *> m_object_readers;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

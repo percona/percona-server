@@ -1,0 +1,8 @@
+--source include/have_debug.inc
+
+--echo # percona binlog encryption key is not supported in PS >= 8.0.14
+
+--let $assert_text= It is not possible to rotate percona binlog key
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_binlog\\"\\) = 0]" = 1
+--source include/assert.inc
+

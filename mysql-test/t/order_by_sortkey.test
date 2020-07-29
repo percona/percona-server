@@ -2,6 +2,7 @@
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
+--source include/have_myisam.inc
 
 #
 # WL#1393 - ORDER BY with LIMIT tests
@@ -15,7 +16,7 @@ CREATE TABLE t1(
   f0 int auto_increment PRIMARY KEY,
   f1 int,
   f2 varchar(200)
-);
+) charset latin1;
 
 INSERT INTO t1(f1, f2) VALUES 
 (0,"0"),(1,"1"),(2,"2"),(3,"3"),(4,"4"),(5,"5"),
@@ -39,7 +40,7 @@ INSERT INTO t1(f1, f2) VALUES
 (91,"91"),(92,"92"),(93,"93"),(94,"94"),(95,"95"),
 (96,"96"),(97,"97"),(98,"98"),(99,"99");
 
-CREATE TEMPORARY TABLE tmp (f1 int, f2 varchar(20));
+CREATE TEMPORARY TABLE tmp (f1 int, f2 varchar(20)) charset latin1;
 INSERT INTO tmp SELECT f1,f2 FROM t1;
 INSERT INTO t1(f1,f2) SELECT * FROM tmp;
 INSERT INTO tmp SELECT f1,f2 FROM t1;
@@ -62,8 +63,10 @@ set sort_buffer_size= 32768;
 FLUSH STATUS;
 SHOW SESSION STATUS LIKE 'Sort%';
 
-SELECT * FROM t1 ORDER BY f2 LIMIT 100;
+SELECT * FROM t1 ORDER BY f2,f0 LIMIT 101;
 
+# 32-bit has smaller pointers and thus can do with fewer merge passes.
+--replace_result 100 102
 SHOW SESSION STATUS LIKE 'Sort%';
 
 FLUSH STATUS;

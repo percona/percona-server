@@ -1,3 +1,43 @@
+SELECT ST_DISTANCE_SPHERE(NULL, NULL);
+ST_DISTANCE_SPHERE(NULL, NULL)
+NULL
+SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(0 0)'), NULL);
+ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(0 0)'), NULL)
+NULL
+SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 4326), ST_GEOMFROMTEXT('POINT(0 0)'));
+ERROR HY000: Binary geometry function st_distance_sphere given two geometries of different srids: 4326 and 0, which should have been identical.
+SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)'));
+ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)'))
+157249.0357231545
+SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(0 0)'), ST_GEOMFROMTEXT('MULTIPOINT(1 1)'));
+ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(0 0)'), ST_GEOMFROMTEXT('MULTIPOINT(1 1)'))
+157249.0357231545
+SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)'), 1);
+ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)'), 1)
+0.024682056391766436
+SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(0 0)'), ST_GEOMFROMTEXT('MULTIPOINT(1 1)'), 1);
+ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(0 0)'), ST_GEOMFROMTEXT('MULTIPOINT(1 1)'), 1)
+0.024682056391766436
+SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 4047), ST_GEOMFROMTEXT('POINT(1 1)', 4047));
+ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 4047), ST_GEOMFROMTEXT('POINT(1 1)', 4047))
+157249.55404633854
+SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(0 0)', 4047), ST_GEOMFROMTEXT('MULTIPOINT(1 1)', 4047));
+ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(0 0)', 4047), ST_GEOMFROMTEXT('MULTIPOINT(1 1)', 4047))
+157249.55404633854
+SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 4326), ST_GEOMFROMTEXT('POINT(1 1)', 4326));
+ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 4326), ST_GEOMFROMTEXT('POINT(1 1)', 4326))
+157249.59776850493
+SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(0 0)', 4326), ST_GEOMFROMTEXT('MULTIPOINT(1 1)', 4326));
+ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(0 0)', 4326), ST_GEOMFROMTEXT('MULTIPOINT(1 1)', 4326))
+157249.59776850493
+SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 3857), ST_GEOMFROMTEXT('POINT(1 1)', 3857), 1);
+ERROR 22S00: st_distance_sphere(POINT, POINT) has not been implemented for projected spatial reference systems.
+SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)'), 0);
+ERROR 22003: Invalid radius provided to function st_distance_sphere: Radius must be greater than zero.
+SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)'), -1);
+ERROR 22003: Invalid radius provided to function st_distance_sphere: Radius must be greater than zero.
+SELECT ST_Distance_Sphere(POINT(-50, -50), POINT(50, 50), 1.0e308);
+ERROR HY000: Overflow error: INFINITY in function st_distance_sphere.
 # Creating the spatial Geometry object
 USE test;
 CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
@@ -170,7 +210,7 @@ ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(-36 -41)'), ST_GEOMFROMTEXT('MULTIPOIN
 7242075.616184488
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(138 86)'), ST_GEOMFROMTEXT('MULTIPOINT(15 -79,-110 -76,49 31)'));
 ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(138 86)'), ST_GEOMFROMTEXT('MULTIPOINT(15 -79,-110 -76,49 31)'))
-6562054.981740507
+6562054.98174
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(164 -41)'), ST_GEOMFROMTEXT('MULTIPOINT(-11 2,-81 3,161 62,-119 31)'));
 ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(164 -41)'), ST_GEOMFROMTEXT('MULTIPOINT(-11 2,-81 3,161 62,-119 31)'))
 11240807.17994
@@ -221,7 +261,7 @@ ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(-172 -70)'), ST_GEOMFROMTEXT('POI
 17791149.16775415
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(-157 -67)'), ST_GEOMFROMTEXT('POINT(-92 -88)'));
 ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(-157 -67)'), ST_GEOMFROMTEXT('POINT(-92 -88)'))
-2471277.694448198
+2471277.69445
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(156 -64,-96 57,-15 -18)'), ST_GEOMFROMTEXT('POINT(-73 -1)'));
 ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(156 -64,-96 57,-15 -18)'), ST_GEOMFROMTEXT('POINT(-73 -1)'))
 6603053.68396362
@@ -239,13 +279,13 @@ ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(-36 -87,-75 20,-157 78)'), ST_GEO
 6685828.523608761
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(151 17,-150 -43,-165 76,87 53)'), ST_GEOMFROMTEXT('POINT(152 27)'));
 ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(151 17,-150 -43,-165 76,87 53)'), ST_GEOMFROMTEXT('POINT(152 27)'))
-1116698.095391192
+1116698.09539
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(-159 -88,-177 -82,17 76,79 1)'), ST_GEOMFROMTEXT('POINT(35 -74)'));
 ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(-159 -88,-177 -82,17 76,79 1)'), ST_GEOMFROMTEXT('POINT(35 -74)'))
 1995604.718606601
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(-130 -20,-118 -63,-57 0)'), ST_GEOMFROMTEXT('POINT(-156 89)'));
 ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(-130 -20,-118 -63,-57 0)'), ST_GEOMFROMTEXT('POINT(-156 89)'))
-10024915.226003662
+10024915.226
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(-84 25,-52 53,125 -50,-171 51,55 -13,-4 -69)'), ST_GEOMFROMTEXT('POINT(-127 52)'));
 ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(-84 25,-52 53,125 -50,-171 51,55 -13,-4 -69)'), ST_GEOMFROMTEXT('POINT(-127 52)'))
 3000854.92226
@@ -256,7 +296,7 @@ SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(-6 -56,-73 54,20 -74,-160 
 ST_GEOMFROMTEXT('POINT(167 -17)'));
 ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(-6 -56,-73 54,20 -74,-160 72,-4 42,-120 -62,-54 -8,-85 48,159 -49,100 -75)'),
 ST_GEOMFROMTEXT('POINT(167 -17)'))
-3630973.4329214436
+3630973.43292
 #####################################################################################
 # ST_DISTANCE_SPHERE(multipoint, multipoint)
 #####################################################################################
@@ -307,7 +347,7 @@ ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(-123 85)'), ST_GEOMFROMTEXT('MULT
 14239014.67884
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(152 43)'), ST_GEOMFROMTEXT('MULTIPOINT(106 76,53 20,148 -40)'));
 ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(152 43)'), ST_GEOMFROMTEXT('MULTIPOINT(106 76,53 20,148 -40)'))
-4260092.912246835
+4260092.91225
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(-177 -88,-165 9,153 40,2 17)'), ST_GEOMFROMTEXT('MULTIPOINT(-150 -4)'));
 ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(-177 -88,-165 9,153 40,2 17)'), ST_GEOMFROMTEXT('MULTIPOINT(-150 -4)'))
 2203222.520729071
@@ -328,7 +368,7 @@ ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(137 -65,-63 13,38 9)'), ST_GEOMFR
 4086108.7033282355
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(-128 90,90 -17,-176 -37,40 -78,156 -82,37 -42)'), ST_GEOMFROMTEXT('MULTIPOINT(57 32,-3 22,24 -88)'));
 ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(-128 90,90 -17,-176 -37,40 -78,156 -82,37 -42)'), ST_GEOMFROMTEXT('MULTIPOINT(57 32,-3 22,24 -88)'))
-1051350.22798656
+1051350.22799
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(87 -12,-25 31,-47 23,134 83,120 69,39 -41)'), ST_GEOMFROMTEXT('MULTIPOINT(-9 -4,-171 -82,140 -26)'));
 ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(87 -12,-25 31,-47 23,134 83,120 69,39 -41)'), ST_GEOMFROMTEXT('MULTIPOINT(-9 -4,-171 -82,140 -26)'))
 4245876.626705522
@@ -405,70 +445,93 @@ SELECT ST_DISTANCE_SPHERE(NULL,NULL);
 ST_DISTANCE_SPHERE(NULL,NULL)
 NULL
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT()'),ST_GEOMFROMTEXT('POINT(0 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(a 0)'),ST_GEOMFROMTEXT('POINT(0 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(! 0)'),ST_GEOMFROMTEXT('POINT(0 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT('!' 0)'),ST_GEOMFROMTEXT('POINT(0 0)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),ST_GEOMFROMTEXT('POINT(0 0)'))' at line 1
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(12,34 0)'),ST_GEOMFROMTEXT('POINT(0 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT()'),ST_GEOMFROMTEXT('POINT(0 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(1 12,34 a)'),ST_GEOMFROMTEXT('POINT(0 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(1 12,34 0,1)'),ST_GEOMFROMTEXT('POINT(0 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(1 1,2 2,'!' 0)'),ST_GEOMFROMTEXT('POINT(0 0)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),ST_GEOMFROMTEXT('POINT(0 0)'))' at line 1
 SELECT ST_DISTANCE_SPHERE(,);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',)' at line 1
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT(@star_of_elems),);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT ST_DISTANCE_SPHERE(,ST_GEOMFROMTEXT(@star_top));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ST_GEOMFROMTEXT(@star_top))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',ST_GEOMFROMTEXT(@star_top))' at line 1
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 1)'), ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR HY000: Calling geometry function st_distance_sphere with unsupported types of arguments.
+ERROR 22S00: st_distance_sphere(POINT, LINESTRING) has not been implemented for Cartesian spatial reference systems.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 1)'), ST_GEOMFROMTEXT('POLYGON((0 0,0 5,5 5,5 0,0 0))'));
-ERROR HY000: Calling geometry function st_distance_sphere with unsupported types of arguments.
+ERROR 22S00: st_distance_sphere(POINT, POLYGON) has not been implemented for Cartesian spatial reference systems.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 1)'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0))'));
-ERROR HY000: Calling geometry function st_distance_sphere with unsupported types of arguments.
+ERROR 22S00: st_distance_sphere(POINT, GEOMCOLLECTION) has not been implemented for Cartesian spatial reference systems.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(1 1))'), ST_GEOMFROMTEXT('POINT(0 0)'));
-ERROR HY000: Calling geometry function st_distance_sphere with unsupported types of arguments.
+ERROR 22S00: st_distance_sphere(GEOMCOLLECTION, POINT) has not been implemented for Cartesian spatial reference systems.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 1)'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'));
-ERROR HY000: Calling geometry function st_distance_sphere with unsupported types of arguments.
+ERROR 22S00: st_distance_sphere(POINT, GEOMCOLLECTION) has not been implemented for Cartesian spatial reference systems.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 1)'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(0 0)))'));
-ERROR HY000: Calling geometry function st_distance_sphere with unsupported types of arguments.
+ERROR 22S00: st_distance_sphere(POINT, GEOMCOLLECTION) has not been implemented for Cartesian spatial reference systems.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 1)'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0),GEOMETRYCOLLECTION())'));
-ERROR HY000: Calling geometry function st_distance_sphere with unsupported types of arguments.
+ERROR 22S00: st_distance_sphere(POINT, GEOMCOLLECTION) has not been implemented for Cartesian spatial reference systems.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(0 1)'), ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR HY000: Calling geometry function st_distance_sphere with unsupported types of arguments.
+ERROR 22S00: st_distance_sphere(MULTIPOINT, LINESTRING) has not been implemented for Cartesian spatial reference systems.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(0 1)'), ST_GEOMFROMTEXT('POLYGON((0 0,0 5,5 5,5 0,0 0))'));
-ERROR HY000: Calling geometry function st_distance_sphere with unsupported types of arguments.
+ERROR 22S00: st_distance_sphere(MULTIPOINT, POLYGON) has not been implemented for Cartesian spatial reference systems.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(0 1)'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0))'));
-ERROR HY000: Calling geometry function st_distance_sphere with unsupported types of arguments.
+ERROR 22S00: st_distance_sphere(MULTIPOINT, GEOMCOLLECTION) has not been implemented for Cartesian spatial reference systems.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOINT(1 1))'), ST_GEOMFROMTEXT('POINT(0 0)'));
-ERROR HY000: Calling geometry function st_distance_sphere with unsupported types of arguments.
+ERROR 22S00: st_distance_sphere(GEOMCOLLECTION, POINT) has not been implemented for Cartesian spatial reference systems.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(0 1)'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'));
-ERROR HY000: Calling geometry function st_distance_sphere with unsupported types of arguments.
+ERROR 22S00: st_distance_sphere(MULTIPOINT, GEOMCOLLECTION) has not been implemented for Cartesian spatial reference systems.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(0 1)'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(0 0)))'));
-ERROR HY000: Calling geometry function st_distance_sphere with unsupported types of arguments.
+ERROR 22S00: st_distance_sphere(MULTIPOINT, GEOMCOLLECTION) has not been implemented for Cartesian spatial reference systems.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(0 1)'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0),GEOMETRYCOLLECTION())'));
-ERROR HY000: Calling geometry function st_distance_sphere with unsupported types of arguments.
+ERROR 22S00: st_distance_sphere(MULTIPOINT, GEOMCOLLECTION) has not been implemented for Cartesian spatial reference systems.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'));
-ERROR HY000: Calling geometry function st_distance_sphere with unsupported types of arguments.
+ERROR 22S00: st_distance_sphere(GEOMCOLLECTION, GEOMCOLLECTION) has not been implemented for Cartesian spatial reference systems.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(1 1)'), ST_GEOMFROMTEXT('POINT(0 0)'), -200);
-ERROR HY000: Incorrect arguments to st_distance_sphere
+ERROR 22003: Invalid radius provided to function st_distance_sphere: Radius must be greater than zero.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(1 1)'), ST_GEOMFROMTEXT('POINT(0 0)'), -1);
-ERROR HY000: Incorrect arguments to st_distance_sphere
+ERROR 22003: Invalid radius provided to function st_distance_sphere: Radius must be greater than zero.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(1 1)'), ST_GEOMFROMTEXT('POINT(0 0)'), 0);
-ERROR HY000: Incorrect arguments to st_distance_sphere
+ERROR 22003: Invalid radius provided to function st_distance_sphere: Radius must be greater than zero.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(200 1)'), ST_GEOMFROMTEXT('POINT(0 0)'), 200);
-ERROR HY000: Incorrect arguments to st_distance_sphere
+ERROR 22S02: Longitude 200.000000 is out of range in function st_distance_sphere. It must be within (-180.000000, 180.000000].
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(20 1)'), ST_GEOMFROMTEXT('POINT(0 100)'), 200);
-ERROR HY000: Incorrect arguments to st_distance_sphere
+ERROR 22S03: Latitude 100.000000 is out of range in function st_distance_sphere. It must be within [-90.000000, 90.000000].
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(1 1)'), ST_GEOMFROMTEXT('POINT(0 0)'), 200, 300);
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_DISTANCE_SPHERE'
 # Clean up
 DROP TABLE gis_geometrycollection;
+#
+# WL#8579 Spatial Reference Systems
+#
+# SRID 0 (should pass)
+SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 0), ST_GEOMFROMTEXT('POINT(1 1)', 0));
+ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 0), ST_GEOMFROMTEXT('POINT(1 1)', 0))
+157249.03572
+# Projected SRS (should error)
+SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 2000), ST_GEOMFROMTEXT('POINT(1 1)', 2000));
+ERROR 22S00: st_distance_sphere(POINT, POINT) has not been implemented for projected spatial reference systems.
+# Geographic SRS (should pass)
+SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 4326), ST_GEOMFROMTEXT('POINT(1 1)', 4326));
+ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 4326), ST_GEOMFROMTEXT('POINT(1 1)', 4326))
+157249.59776850493
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+# Assume SRID 10 is not defined.
+DO ST_DISTANCE_SPHERE(
+x'0A000000010100000000000000000000000000000000000000',
+x'0A000000010100000000000000000000000000000000000000'
+);
+ERROR SR001: There's no spatial reference system with SRID 10.

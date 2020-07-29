@@ -1,6 +1,0 @@
---source include/have_rocksdb.inc
---source ../include/have_native_partitioning.inc
-
---let $disable_native_partition_opt = "rocksdb_enable_native_partition"
---let $engine = RocksDB
---source ../../parts/inc/disable_native_partitioning.inc

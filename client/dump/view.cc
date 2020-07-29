@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,12 +22,11 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "view.h"
+#include "client/dump/view.h"
 
 using namespace Mysql::Tools::Dump;
 
-View::View(uint64 id, const std::string& name, const std::string& schema,
-  const std::string& sql_formatted_definition)
-  : Abstract_plain_sql_object_dump_task(id, name, schema,
-    sql_formatted_definition)
-{}
+View::View(uint64 id, const std::string &name, const std::string &schema,
+           const std::string &sql_formatted_definition)
+    : Abstract_plain_sql_object_dump_task(id, name, schema,
+                                          sql_formatted_definition) {}

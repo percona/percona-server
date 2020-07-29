@@ -4,10 +4,10 @@ CREATE DATABASE ```db3"`;
 CREATE DATABASE `some_very_long,database_na'me``some_very_long_database_n"ame____q`;
 SHOW DATABASES;
 Database
-information_schema
 `db3"
 db1
 db2
+information_schema
 mtr
 mysql
 performance_schema
@@ -67,7 +67,6 @@ NULL	NULL
 SET GLOBAL audit_log_flush=ON;
 SET GLOBAL audit_log_flush=ON;
 SET GLOBAL audit_log_include_databases= 'db1,```db3"`';
-SET GLOBAL event_scheduler = ON;
 CREATE TABLE db1.t (a INT);
 CREATE TABLE db1.trig (a INT);
 CREATE TABLE db2.t (a INT);
@@ -142,11 +141,11 @@ INSERT INTO a19 VALUES (1);
 INSERT INTO b0 VALUES (1);
 SELECT * FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN t q ON t.a = q.a / 2;
 a	id	word	a
+77	NULL	NULL	NULL
+7	NULL	NULL	NULL
 1	NULL	NULL	2
 2	2	two	NULL
 3	3	three	NULL
-77	NULL	NULL	NULL
-7	NULL	NULL	NULL
 DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN t q ON t.a = q.a / 2 WHERE t.a > 2;
 DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN db2.t q ON t.a = q.a / 2 WHERE t.a > 2;
 USE db2;
@@ -235,9 +234,7 @@ DROP TABLE db1.a17;
 DROP TABLE db1.a18;
 DROP TABLE db1.a19;
 DROP TABLE db1.b0;
-SET GLOBAL event_scheduler = OFF;
 SET GLOBAL audit_log_include_databases= 'db2,```db3"`';
-SET GLOBAL event_scheduler = ON;
 CREATE TABLE db1.t (a INT);
 CREATE TABLE db1.trig (a INT);
 CREATE TABLE db2.t (a INT);
@@ -312,11 +309,11 @@ INSERT INTO a19 VALUES (1);
 INSERT INTO b0 VALUES (1);
 SELECT * FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN t q ON t.a = q.a / 2;
 a	id	word	a
+77	NULL	NULL	NULL
+7	NULL	NULL	NULL
 1	NULL	NULL	2
 2	2	two	NULL
 3	3	three	NULL
-77	NULL	NULL	NULL
-7	NULL	NULL	NULL
 DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN t q ON t.a = q.a / 2 WHERE t.a > 2;
 DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN db2.t q ON t.a = q.a / 2 WHERE t.a > 2;
 USE db2;
@@ -405,9 +402,7 @@ DROP TABLE db1.a17;
 DROP TABLE db1.a18;
 DROP TABLE db1.a19;
 DROP TABLE db1.b0;
-SET GLOBAL event_scheduler = OFF;
 SET GLOBAL audit_log_include_databases= NULL;
-SET GLOBAL event_scheduler = ON;
 CREATE TABLE db1.t (a INT);
 CREATE TABLE db1.trig (a INT);
 CREATE TABLE db2.t (a INT);
@@ -482,11 +477,11 @@ INSERT INTO a19 VALUES (1);
 INSERT INTO b0 VALUES (1);
 SELECT * FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN t q ON t.a = q.a / 2;
 a	id	word	a
+77	NULL	NULL	NULL
+7	NULL	NULL	NULL
 1	NULL	NULL	2
 2	2	two	NULL
 3	3	three	NULL
-77	NULL	NULL	NULL
-7	NULL	NULL	NULL
 DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN t q ON t.a = q.a / 2 WHERE t.a > 2;
 DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN db2.t q ON t.a = q.a / 2 WHERE t.a > 2;
 USE db2;
@@ -575,9 +570,7 @@ DROP TABLE db1.a17;
 DROP TABLE db1.a18;
 DROP TABLE db1.a19;
 DROP TABLE db1.b0;
-SET GLOBAL event_scheduler = OFF;
 SET GLOBAL audit_log_exclude_databases= 'db1,`some_very_long,database_na\'me``some_very_long_database_n"ame____q`';
-SET GLOBAL event_scheduler = ON;
 CREATE TABLE db1.t (a INT);
 CREATE TABLE db1.trig (a INT);
 CREATE TABLE db2.t (a INT);
@@ -652,11 +645,11 @@ INSERT INTO a19 VALUES (1);
 INSERT INTO b0 VALUES (1);
 SELECT * FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN t q ON t.a = q.a / 2;
 a	id	word	a
+77	NULL	NULL	NULL
+7	NULL	NULL	NULL
 1	NULL	NULL	2
 2	2	two	NULL
 3	3	three	NULL
-77	NULL	NULL	NULL
-7	NULL	NULL	NULL
 DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN t q ON t.a = q.a / 2 WHERE t.a > 2;
 DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN db2.t q ON t.a = q.a / 2 WHERE t.a > 2;
 USE db2;
@@ -745,9 +738,7 @@ DROP TABLE db1.a17;
 DROP TABLE db1.a18;
 DROP TABLE db1.a19;
 DROP TABLE db1.b0;
-SET GLOBAL event_scheduler = OFF;
 SET GLOBAL audit_log_exclude_databases= 'db1,db2';
-SET GLOBAL event_scheduler = ON;
 CREATE TABLE db1.t (a INT);
 CREATE TABLE db1.trig (a INT);
 CREATE TABLE db2.t (a INT);
@@ -822,11 +813,11 @@ INSERT INTO a19 VALUES (1);
 INSERT INTO b0 VALUES (1);
 SELECT * FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN t q ON t.a = q.a / 2;
 a	id	word	a
+77	NULL	NULL	NULL
+7	NULL	NULL	NULL
 1	NULL	NULL	2
 2	2	two	NULL
 3	3	three	NULL
-77	NULL	NULL	NULL
-7	NULL	NULL	NULL
 DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN t q ON t.a = q.a / 2 WHERE t.a > 2;
 DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN db2.t q ON t.a = q.a / 2 WHERE t.a > 2;
 USE db2;
@@ -915,13 +906,11 @@ DROP TABLE db1.a17;
 DROP TABLE db1.a18;
 DROP TABLE db1.a19;
 DROP TABLE db1.b0;
-SET GLOBAL event_scheduler = OFF;
 SET GLOBAL audit_log_exclude_databases= NULL;
 set global audit_log_flush= ON;
 ===================================================================
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_flush=ON","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_include_databases= 'db1,```db3""`'","root[root] @ localhost []","localhost","","","test"
-"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL event_scheduler = ON","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","create_table","<CONN_ID>",0,"CREATE TABLE db1.t (a INT)","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","create_table","<CONN_ID>",0,"CREATE TABLE db1.trig (a INT)","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","create_table","<CONN_ID>",0,"CREATE TABLE db2.t (a INT)","root[root] @ localhost []","localhost","","","test"
@@ -1031,7 +1020,7 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT s FROM vjoin","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT a,s FROM vjoin","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT s FROM vmat","root[root] @ localhost []","localhost","","","db1"
-"Query","<ID>","<DATETIME>","update_multi","<CONN_ID>",0,"UPDATE vjoin SET a=a+1","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","update","<CONN_ID>",0,"UPDATE vjoin SET a=a+1","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","change_db","<CONN_ID>",0,"USE test","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT * FROM db1.t WHERE a IN (SELECT a FROM `some_very_long,database_na'me``some_very_long_database_n""ame____q`.t)","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 1","root[root] @ localhost []","localhost","","","test"
@@ -1067,9 +1056,7 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.a18","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.a19","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.b0","root[root] @ localhost []","localhost","","","test"
-"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL event_scheduler = OFF","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_include_databases= 'db2,```db3""`'","root[root] @ localhost []","localhost","","","test"
-"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL event_scheduler = ON","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","create_table","<CONN_ID>",0,"CREATE TABLE db1.t (a INT)","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","create_table","<CONN_ID>",0,"CREATE TABLE db1.trig (a INT)","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","create_table","<CONN_ID>",0,"CREATE TABLE db2.t (a INT)","root[root] @ localhost []","localhost","","","test"
@@ -1160,7 +1147,7 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT a,s FROM vjoin","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT a FROM vup","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","update","<CONN_ID>",0,"UPDATE vup SET a=a+1","root[root] @ localhost []","localhost","","","db1"
-"Query","<ID>","<DATETIME>","update_multi","<CONN_ID>",0,"UPDATE vjoin SET a=a+1","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","update","<CONN_ID>",0,"UPDATE vjoin SET a=a+1","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","change_db","<CONN_ID>",0,"USE test","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 1","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.t","root[root] @ localhost []","localhost","","","test"
@@ -1195,9 +1182,7 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.a18","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.a19","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.b0","root[root] @ localhost []","localhost","","","test"
-"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL event_scheduler = OFF","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_include_databases= NULL","root[root] @ localhost []","localhost","","","test"
-"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL event_scheduler = ON","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","create_table","<CONN_ID>",0,"CREATE TABLE db1.t (a INT)","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","create_table","<CONN_ID>",0,"CREATE TABLE db1.trig (a INT)","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","create_table","<CONN_ID>",0,"CREATE TABLE db2.t (a INT)","root[root] @ localhost []","localhost","","","test"
@@ -1317,7 +1302,7 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT s FROM vmat","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT a FROM vup","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","update","<CONN_ID>",0,"UPDATE vup SET a=a+1","root[root] @ localhost []","localhost","","","db1"
-"Query","<ID>","<DATETIME>","update_multi","<CONN_ID>",0,"UPDATE vjoin SET a=a+1","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","update","<CONN_ID>",0,"UPDATE vjoin SET a=a+1","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","change_db","<CONN_ID>",0,"USE test","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT * FROM db1.t WHERE a IN (SELECT a FROM `some_very_long,database_na'me``some_very_long_database_n""ame____q`.t)","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 1","root[root] @ localhost []","localhost","","","test"
@@ -1353,9 +1338,7 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.a18","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.a19","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.b0","root[root] @ localhost []","localhost","","","test"
-"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL event_scheduler = OFF","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_exclude_databases= 'db1,`some_very_long,database_na\'me``some_very_long_database_n""ame____q`'","root[root] @ localhost []","localhost","","","test"
-"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL event_scheduler = ON","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","create_table","<CONN_ID>",0,"CREATE TABLE db1.t (a INT)","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","create_table","<CONN_ID>",0,"CREATE TABLE db1.trig (a INT)","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","create_table","<CONN_ID>",0,"CREATE TABLE db2.t (a INT)","root[root] @ localhost []","localhost","","","test"
@@ -1446,7 +1429,7 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT a,s FROM vjoin","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT a FROM vup","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","update","<CONN_ID>",0,"UPDATE vup SET a=a+1","root[root] @ localhost []","localhost","","","db1"
-"Query","<ID>","<DATETIME>","update_multi","<CONN_ID>",0,"UPDATE vjoin SET a=a+1","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","update","<CONN_ID>",0,"UPDATE vjoin SET a=a+1","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","change_db","<CONN_ID>",0,"USE test","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 1","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.t","root[root] @ localhost []","localhost","","","test"
@@ -1481,9 +1464,7 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.a18","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.a19","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.b0","root[root] @ localhost []","localhost","","","test"
-"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL event_scheduler = OFF","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_exclude_databases= 'db1,db2'","root[root] @ localhost []","localhost","","","test"
-"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL event_scheduler = ON","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","create_table","<CONN_ID>",0,"CREATE TABLE db1.t (a INT)","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","create_table","<CONN_ID>",0,"CREATE TABLE db1.trig (a INT)","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","create_table","<CONN_ID>",0,"CREATE TABLE db2.t (a INT)","root[root] @ localhost []","localhost","","","test"
@@ -1593,7 +1574,6 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.a18","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.a19","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.b0","root[root] @ localhost []","localhost","","","test"
-"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL event_scheduler = OFF","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_exclude_databases= NULL","root[root] @ localhost []","localhost","","","test"
 ===================================================================
 DROP DATABASE db1;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -17,26 +17,26 @@
    GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef MOCK_FIELD_DATETIME_H
 #define MOCK_FIELD_DATETIME_H
 
-#include "field.h"
+#include "sql/field.h"
+#include "unittest/gunit/fake_table.h"
 
-class Mock_field_datetime : public Field_datetime
-{
-  void initialize()
-  {
-    ptr= buffer;
-    memset(buffer, 0, PACK_LENGTH);
+class Mock_field_datetime : public Field_datetime {
+  void initialize() {
+    table = new Fake_TABLE(this);
+    ptr = table->record[0];
+    // Make it possible to write into this field
+    bitmap_set_bit(table->write_set, 0);
   }
 
-public:
-  uchar buffer[PACK_LENGTH];
-  Mock_field_datetime() : Field_datetime(false, "") { initialize(); }
-
+ public:
+  Mock_field_datetime() : Field_datetime("") { initialize(); }
+  ~Mock_field_datetime() override { delete static_cast<Fake_TABLE *>(table); }
 };
 
-#endif // MOCK_FIELD_DATETIME_H
+#endif  // MOCK_FIELD_DATETIME_H

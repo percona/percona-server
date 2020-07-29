@@ -22,13 +22,14 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 ======= */
 
-#ident "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
+#ident \
+    "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
 #include "hatoku_hton.h"
-#include "sql_acl.h"
+#include "sql/auth/auth_acls.h"  // for SUPER_ACL below
+#include "sql/sql_parse.h"
+#include "sql/sql_plugin.h"
 #include "tokudb_dir_cmd.h"
-#include "sql_parse.h"
-#include "sql_plugin.h"
 
 namespace tokudb {
 namespace sysvars {
@@ -46,1133 +47,592 @@ namespace sysvars {
 
 const size_t error_buffer_max_size = 1024;
 
-ulonglong   cache_size = 0;
-uint        cachetable_pool_threads = 0;
-int         cardinality_scale_percent = 0;
-my_bool     checkpoint_on_flush_logs = FALSE;
-uint        checkpoint_pool_threads = 0;
-uint        checkpointing_period = 0;
-ulong       cleaner_iterations = 0;
-ulong       cleaner_period = 0;
-uint        client_pool_threads = 0;
-my_bool     compress_buffers_before_eviction = TRUE;
-char*       data_dir = NULL;
-ulong       debug = 0;
+ulonglong cache_size = 0;
+uint cachetable_pool_threads = 0;
+int cardinality_scale_percent = 0;
+bool checkpoint_on_flush_logs = false;
+uint checkpoint_pool_threads = 0;
+uint checkpointing_period = 0;
+ulong cleaner_iterations = 0;
+ulong cleaner_period = 0;
+uint client_pool_threads = 0;
+bool compress_buffers_before_eviction = true;
+char *data_dir = NULL;
+ulong debug = 0;
 #if defined(TOKUDB_DEBUG) && TOKUDB_DEBUG
 // used to control background job manager
-my_bool     debug_pause_background_job_manager = FALSE;
+bool debug_pause_background_job_manager = false;
 #endif  // defined(TOKUDB_DEBUG) && TOKUDB_DEBUG
-my_bool     directio = FALSE;
-my_bool     enable_native_partition = FALSE;
-my_bool     enable_partial_eviction = TRUE;
+bool directio = false;
+bool enable_partial_eviction = false;
 // file system reserve as a percentage of total disk space
-int         fs_reserve_percent = 0;
-uint        fsync_log_period = 0;
-char*       log_dir = NULL;
-ulonglong   max_lock_memory = 0;
-uint        read_status_frequency = 0;
-my_bool     strip_frm_data = FALSE;
-char*       tmp_dir = NULL;
-uint        write_status_frequency = 0;
-my_bool     dir_per_db = TRUE;
-char*       version = (char*) TOKUDB_VERSION_STR;
+int fs_reserve_percent = 0;
+uint fsync_log_period = 0;
+char *log_dir = NULL;
+ulonglong max_lock_memory = 0;
+uint read_status_frequency = 0;
+bool strip_frm_data = false;
+char *tmp_dir = NULL;
+uint write_status_frequency = 0;
+bool dir_per_db = true;
+char *version = (char *)TOKUDB_VERSION_STR;
 
-my_bool        check_jemalloc = TRUE;
+bool check_jemalloc = false;
 
-static MYSQL_SYSVAR_ULONGLONG(
-    cache_size,
-    cache_size,
-    PLUGIN_VAR_READONLY,
-    "cache table size",
-    NULL,
-    NULL,
-    0,
-    0,
-    ~0ULL,
-    0);
+static MYSQL_SYSVAR_ULONGLONG(cache_size, cache_size, PLUGIN_VAR_READONLY,
+                              "cache table size", NULL, NULL, 0, 0, ~0ULL, 0);
 
-static MYSQL_SYSVAR_UINT(
-    force_recovery,
-    force_recovery,
-    PLUGIN_VAR_READONLY,
-    "force recovery. Set to 6 to skip reading the logs",
-    NULL,
-    NULL,
-    0,
-    0,
-    0,
-    0);
+static MYSQL_SYSVAR_UINT(cachetable_pool_threads, cachetable_pool_threads,
+                         PLUGIN_VAR_READONLY, "cachetable ops thread pool size",
+                         NULL, NULL, 0, 0, 1024, 0);
 
-static MYSQL_SYSVAR_UINT(
-    cachetable_pool_threads,
-    cachetable_pool_threads,
-    PLUGIN_VAR_READONLY,
-    "cachetable ops thread pool size",
-    NULL,
-    NULL,
-    0,
-    0,
-    1024,
-    0);
+static MYSQL_SYSVAR_INT(cardinality_scale_percent, cardinality_scale_percent, 0,
+                        "index cardinality scale percentage", NULL, NULL, 100,
+                        0, 100, 0);
 
-static MYSQL_SYSVAR_INT(
-    cardinality_scale_percent,
-    cardinality_scale_percent,
-    0,
-    "index cardinality scale percentage",
-    NULL,
-    NULL,
-    100,
-    0,
-    100,
-    0);
+static MYSQL_SYSVAR_BOOL(checkpoint_on_flush_logs, checkpoint_on_flush_logs, 0,
+                         "checkpoint on flush logs", NULL, NULL, false);
+
+static MYSQL_SYSVAR_UINT(checkpoint_pool_threads, checkpoint_pool_threads,
+                         PLUGIN_VAR_READONLY, "checkpoint ops thread pool size",
+                         NULL, NULL, 0, 0, 1024, 0);
+
+static void checkpointing_period_update(TOKUDB_UNUSED(THD *thd),
+                                        TOKUDB_UNUSED(SYS_VAR *sys_var),
+                                        void *var, const void *save) {
+  uint *cp = (uint *)var;
+  *cp = *(const uint *)save;
+  int r = db_env->checkpointing_set_period(db_env, *cp);
+  assert(r == 0);
+}
+
+static MYSQL_SYSVAR_UINT(checkpointing_period, checkpointing_period, 0,
+                         "checkpointing period", NULL,
+                         checkpointing_period_update, 60, 0, ~0U, 0);
+
+static void cleaner_iterations_update(TOKUDB_UNUSED(THD *thd),
+                                      TOKUDB_UNUSED(SYS_VAR *sys_var),
+                                      void *var, const void *save) {
+  ulong *ci = (ulong *)var;
+  *ci = *(const ulong *)save;
+  int r = db_env->cleaner_set_iterations(db_env, *ci);
+  assert(r == 0);
+}
+
+static MYSQL_SYSVAR_ULONG(cleaner_iterations, cleaner_iterations, 0,
+                          "cleaner_iterations", NULL, cleaner_iterations_update,
+                          DEFAULT_TOKUDB_CLEANER_ITERATIONS, 0, ~0UL, 0);
+
+static void cleaner_period_update(TOKUDB_UNUSED(THD *thd),
+                                  TOKUDB_UNUSED(SYS_VAR *sys_var), void *var,
+                                  const void *save) {
+  ulong *cp = (ulong *)var;
+  *cp = *(const ulong *)save;
+  int r = db_env->cleaner_set_period(db_env, *cp);
+  assert(r == 0);
+}
+
+static MYSQL_SYSVAR_ULONG(cleaner_period, cleaner_period, 0, "cleaner_period",
+                          NULL, cleaner_period_update,
+                          DEFAULT_TOKUDB_CLEANER_PERIOD, 0, ~0UL, 0);
+
+static MYSQL_SYSVAR_UINT(client_pool_threads, client_pool_threads,
+                         PLUGIN_VAR_READONLY, "client ops thread pool size",
+                         NULL, NULL, 0, 0, 1024, 0);
 
 static MYSQL_SYSVAR_BOOL(
-    checkpoint_on_flush_logs,
-    checkpoint_on_flush_logs,
-    0,
-    "checkpoint on flush logs",
-    NULL,
-    NULL,
-    FALSE);
-
-static MYSQL_SYSVAR_UINT(
-    checkpoint_pool_threads,
-    checkpoint_pool_threads,
+    compress_buffers_before_eviction, compress_buffers_before_eviction,
     PLUGIN_VAR_READONLY,
-    "checkpoint ops thread pool size",
-    NULL,
-    NULL,
-    0,
-    0,
-    1024,
-    0);
+    "enable in-memory buffer compression before partial eviction", NULL, NULL,
+    true);
 
-static void checkpointing_period_update(
-    TOKUDB_UNUSED(THD* thd),
-    TOKUDB_UNUSED(st_mysql_sys_var* sys_var),
-    void* var,
-    const void* save) {
-    uint* cp = (uint*)var;
-    *cp = *(const uint*)save;
-    int r = db_env->checkpointing_set_period(db_env, *cp);
-    assert(r == 0);
-}
+static MYSQL_SYSVAR_STR(data_dir, data_dir, PLUGIN_VAR_READONLY,
+                        "data directory", NULL, NULL, NULL);
 
-static MYSQL_SYSVAR_UINT(
-    checkpointing_period,
-    checkpointing_period,
-    0,
-    "checkpointing period",
-    NULL,
-    checkpointing_period_update,
-    60,
-    0,
-    ~0U,
-    0);
-
-static void cleaner_iterations_update(TOKUDB_UNUSED(THD* thd),
-                                      TOKUDB_UNUSED(st_mysql_sys_var* sys_var),
-                                      void* var,
-                                      const void* save) {
-    ulong* ci = (ulong*)var;
-    *ci = *(const ulong*)save;
-    int r = db_env->cleaner_set_iterations(db_env, *ci);
-    assert(r == 0);
-}
-
-static MYSQL_SYSVAR_ULONG(
-    cleaner_iterations,
-    cleaner_iterations,
-    0,
-    "cleaner_iterations",
-    NULL,
-    cleaner_iterations_update,
-    DEFAULT_TOKUDB_CLEANER_ITERATIONS,
-    0,
-    ~0UL,
-    0);
-
-static void cleaner_period_update(TOKUDB_UNUSED(THD* thd),
-                                  TOKUDB_UNUSED(st_mysql_sys_var* sys_var),
-                                  void* var,
-                                  const void* save) {
-    ulong* cp = (ulong*)var;
-    *cp = *(const ulong*)save;
-    int r = db_env->cleaner_set_period(db_env, *cp);
-    assert(r == 0);
-}
-
-static MYSQL_SYSVAR_ULONG(
-    cleaner_period,
-    cleaner_period,
-    0,
-    "cleaner_period",
-    NULL,
-    cleaner_period_update,
-    DEFAULT_TOKUDB_CLEANER_PERIOD,
-    0,
-    ~0UL,
-    0);
-
-static MYSQL_SYSVAR_UINT(
-    client_pool_threads,
-    client_pool_threads,
-    PLUGIN_VAR_READONLY,
-    "client ops thread pool size",
-    NULL,
-    NULL,
-    0,
-    0,
-    1024,
-    0);
-
-static MYSQL_SYSVAR_BOOL(
-    compress_buffers_before_eviction,
-    compress_buffers_before_eviction,
-    PLUGIN_VAR_READONLY,
-    "enable in-memory buffer compression before partial eviction",
-    NULL,
-    NULL,
-    TRUE);
-
-static MYSQL_SYSVAR_STR(
-    data_dir,
-    data_dir,
-    PLUGIN_VAR_READONLY,
-    "data directory",
-    NULL,
-    NULL,
-    NULL);
-
-static MYSQL_SYSVAR_ULONG(
-    debug,
-    debug,
-    0,
-    "plugin debug mask",
-    NULL,
-    NULL,
-    0,
-    0,
-    ~0UL,
-    0);
+static MYSQL_SYSVAR_ULONG(debug, debug, 0, "plugin debug mask", NULL, NULL, 0,
+                          0, ~0UL, 0);
 
 #if defined(TOKUDB_DEBUG) && TOKUDB_DEBUG
-static MYSQL_SYSVAR_BOOL(
-    debug_pause_background_job_manager,
-    debug_pause_background_job_manager,
-    0,
-    "debug : pause the background job manager",
-    NULL,
-    NULL,
-    FALSE);
+static MYSQL_SYSVAR_BOOL(debug_pause_background_job_manager,
+                         debug_pause_background_job_manager, 0,
+                         "debug : pause the background job manager", NULL, NULL,
+                         false);
 #endif  // defined(TOKUDB_DEBUG) && TOKUDB_DEBUG
 
-static MYSQL_SYSVAR_BOOL(
-    directio,
-    directio,
-    PLUGIN_VAR_READONLY, "enable direct i/o ",
-    NULL,
-    NULL,
-    FALSE);
+static MYSQL_SYSVAR_BOOL(directio, directio, PLUGIN_VAR_READONLY,
+                         "enable direct i/o ", NULL, NULL, false);
 
-static MYSQL_SYSVAR_BOOL(
-    enable_native_partition,
-    enable_native_partition,
-    PLUGIN_VAR_READONLY,
-    "enable native partitioning",
-    NULL,
-    NULL,
-    FALSE);
-
-static void enable_partial_eviction_update(
-    TOKUDB_UNUSED(THD* thd),
-    TOKUDB_UNUSED(st_mysql_sys_var* sys_var),
-    void* var,
-    const void* save) {
-    my_bool* epe = (my_bool*)var;
-    *epe = *(const my_bool*)save;
-    int r = db_env->evictor_set_enable_partial_eviction(db_env, *epe);
-    assert(r == 0);
+static void enable_partial_eviction_update(TOKUDB_UNUSED(THD *thd),
+                                           TOKUDB_UNUSED(SYS_VAR *sys_var),
+                                           void *var, const void *save) {
+  bool *epe = (bool *)var;
+  *epe = *(const bool *)save;
+  int r = db_env->evictor_set_enable_partial_eviction(db_env, *epe);
+  assert(r == 0);
 }
 
-static MYSQL_SYSVAR_BOOL(
-    enable_partial_eviction,
-    enable_partial_eviction,
-    0,
-    "enable partial node eviction",
-    NULL,
-    enable_partial_eviction_update,
-    TRUE);
+static MYSQL_SYSVAR_BOOL(enable_partial_eviction, enable_partial_eviction, 0,
+                         "enable partial node eviction", NULL,
+                         enable_partial_eviction_update, false);
 
-static MYSQL_SYSVAR_INT(
-    fs_reserve_percent,
-    fs_reserve_percent,
-    PLUGIN_VAR_READONLY,
-    "file system space reserve (percent free required)",
-    NULL,
-    NULL,
-    5,
-    0,
-    100,
-    0);
+static MYSQL_SYSVAR_INT(fs_reserve_percent, fs_reserve_percent,
+                        PLUGIN_VAR_READONLY,
+                        "file system space reserve (percent free required)",
+                        NULL, NULL, 5, 0, 100, 0);
 
-static void fsync_log_period_update(TOKUDB_UNUSED(THD* thd),
-                                    TOKUDB_UNUSED(st_mysql_sys_var* sys_var),
-                                    void* var,
-                                    const void* save) {
-    uint* flp = (uint*)var;
-    *flp = *(const uint*)save;
-    db_env->change_fsync_log_period(db_env, *flp);
+static void fsync_log_period_update(TOKUDB_UNUSED(THD *thd),
+                                    TOKUDB_UNUSED(SYS_VAR *sys_var), void *var,
+                                    const void *save) {
+  uint *flp = (uint *)var;
+  *flp = *(const uint *)save;
+  db_env->change_fsync_log_period(db_env, *flp);
 }
 
-static MYSQL_SYSVAR_UINT(
-    fsync_log_period,
-    fsync_log_period,
-    0,
-    "fsync log period",
-    NULL,
-    fsync_log_period_update,
-    0,
-    0,
-    ~0U,
-    0);
+static MYSQL_SYSVAR_UINT(fsync_log_period, fsync_log_period, 0,
+                         "fsync log period", NULL, fsync_log_period_update, 0,
+                         0, ~0U, 0);
 
-static MYSQL_SYSVAR_STR(
-    log_dir,
-    log_dir,
-    PLUGIN_VAR_READONLY,
-    "log directory",
-    NULL,
-    NULL,
-    NULL);
+static MYSQL_SYSVAR_STR(log_dir, log_dir, PLUGIN_VAR_READONLY, "log directory",
+                        NULL, NULL, NULL);
 
-static MYSQL_SYSVAR_ULONGLONG(
-    max_lock_memory,
-    max_lock_memory,
-    PLUGIN_VAR_READONLY,
-    "max memory for locks",
-    NULL,
-    NULL,
-    0,
-    0,
-    ~0ULL,
-    0);
+static MYSQL_SYSVAR_ULONGLONG(max_lock_memory, max_lock_memory,
+                              PLUGIN_VAR_READONLY, "max memory for locks", NULL,
+                              NULL, 0, 0, ~0ULL, 0);
 
 static MYSQL_SYSVAR_UINT(
-    read_status_frequency,
-    read_status_frequency,
-    0,
-    "frequency that show processlist updates status of reads",
-    NULL,
-    NULL,
-    10000,
-    0,
-    ~0U,
-    0);
+    read_status_frequency, read_status_frequency, 0,
+    "frequency that show processlist updates status of reads", NULL, NULL,
+    10000, 0, ~0U, 0);
 
-static MYSQL_SYSVAR_BOOL(
-    strip_frm_data,
-    strip_frm_data,
-    PLUGIN_VAR_READONLY,
-    "strip .frm data from metadata file(s)",
-    NULL,
-    NULL,
-    FALSE);
+static MYSQL_SYSVAR_BOOL(strip_frm_data, strip_frm_data, PLUGIN_VAR_READONLY,
+                         "strip .frm data from metadata file(s)", NULL, NULL,
+                         false);
 
-static MYSQL_SYSVAR_STR(
-    tmp_dir,
-    tmp_dir,
-    PLUGIN_VAR_READONLY,
-    "directory to use for temporary files",
-    NULL,
-    NULL,
-    NULL);
+static MYSQL_SYSVAR_STR(tmp_dir, tmp_dir, PLUGIN_VAR_READONLY,
+                        "directory to use for temporary files", NULL, NULL,
+                        NULL);
 
-static MYSQL_SYSVAR_STR(
-    version,
-    version,
-    PLUGIN_VAR_READONLY,
-    "plugin version",
-    NULL,
-    NULL,
-    NULL);
+static MYSQL_SYSVAR_STR(version, version, PLUGIN_VAR_READONLY, "plugin version",
+                        NULL, NULL, NULL);
 
 static MYSQL_SYSVAR_UINT(
-    write_status_frequency,
-    write_status_frequency,
-    0,
-    "frequency that show processlist updates status of writes",
-    NULL,
-    NULL,
-    1000,
-    0,
-    ~0U,
-    0);
+    write_status_frequency, write_status_frequency, 0,
+    "frequency that show processlist updates status of writes", NULL, NULL,
+    1000, 0, ~0U, 0);
 
-static void tokudb_dir_per_db_update(
-    TOKUDB_UNUSED(THD* thd),
-    TOKUDB_UNUSED(struct st_mysql_sys_var* sys_var),
-    void* var,
-    const void* save) {
-    my_bool *value = (my_bool *) var;
-    *value = *(const my_bool *) save;
-    db_env->set_dir_per_db(db_env, *value);
+static void tokudb_dir_per_db_update(TOKUDB_UNUSED(THD *thd),
+                                     TOKUDB_UNUSED(struct SYS_VAR *sys_var),
+                                     void *var, const void *save) {
+  bool *value = (bool *)var;
+  *value = *(const bool *)save;
+  db_env->set_dir_per_db(db_env, *value);
 }
 
-static MYSQL_SYSVAR_BOOL(dir_per_db, dir_per_db,
-    0, "TokuDB store ft files in db directories",
-    NULL, tokudb_dir_per_db_update, TRUE);
+static MYSQL_SYSVAR_BOOL(dir_per_db, dir_per_db, 0,
+                         "TokuDB store ft files in db directories", NULL,
+                         tokudb_dir_per_db_update, true);
 
 static MYSQL_SYSVAR_BOOL(
-    check_jemalloc,
-    check_jemalloc,
-    PLUGIN_VAR_READONLY|PLUGIN_VAR_RQCMDARG,
-    "check if jemalloc is linked and transparent huge pages are disabled",
-    NULL,
-    NULL,
-    TRUE);
-
+    check_jemalloc, check_jemalloc, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+    "check if jemalloc is linked and transparent huge pages are disabled", NULL,
+    NULL, false);
 
 //******************************************************************************
 // session variables
 //******************************************************************************
-static MYSQL_THDVAR_BOOL(
-    alter_print_error,
-    0,
-    "print errors for alter table operations",
-    NULL,
-    NULL,
-    false);
+static MYSQL_THDVAR_BOOL(alter_print_error, 0,
+                         "print errors for alter table operations", NULL, NULL,
+                         false);
 
-static MYSQL_THDVAR_DOUBLE(
-    analyze_delete_fraction,
-    0,
-    "fraction of rows allowed to be deleted",
-    NULL,
-    NULL,
-    1.0,
-    0,
-    1.0,
-    1);
+static MYSQL_THDVAR_DOUBLE(analyze_delete_fraction, 0,
+                           "fraction of rows allowed to be deleted", NULL, NULL,
+                           1.0, 0, 1.0, 1);
 
-static MYSQL_THDVAR_BOOL(
-    analyze_in_background,
-    0,
-    "dispatch ANALYZE TABLE to background job.",
-    NULL,
-    NULL,
-    true);
+static MYSQL_THDVAR_BOOL(analyze_in_background, 0,
+                         "dispatch ANALYZE TABLE to background job.", NULL,
+                         NULL, true);
 
-const char* srv_analyze_mode_names[] = {
-    "TOKUDB_ANALYZE_STANDARD",
-    "TOKUDB_ANALYZE_RECOUNT_ROWS",
-    "TOKUDB_ANALYZE_CANCEL",
-    NullS
-};
+const char *srv_analyze_mode_names[] = {"TOKUDB_ANALYZE_STANDARD",
+                                        "TOKUDB_ANALYZE_RECOUNT_ROWS",
+                                        "TOKUDB_ANALYZE_CANCEL", NullS};
 
 static TYPELIB tokudb_analyze_mode_typelib = {
-    array_elements(srv_analyze_mode_names) - 1,
-    "tokudb_analyze_mode_typelib",
-    srv_analyze_mode_names,
-    NULL
-};
+    array_elements(srv_analyze_mode_names) - 1, "tokudb_analyze_mode_typelib",
+    srv_analyze_mode_names, NULL};
 
-static MYSQL_THDVAR_ENUM(analyze_mode,
-    PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_ENUM(
+    analyze_mode, PLUGIN_VAR_RQCMDARG,
     "Controls the function of ANALYZE TABLE. Possible values are: "
     "TOKUDB_ANALYZE_STANDARD perform standard table analysis (default); "
     "TOKUDB_ANALYZE_RECOUNT_ROWS perform logical recount of table rows;"
     "TOKUDB_ANALYZE_CANCEL terminate and cancel all scheduled background jobs "
     "for a table",
-    NULL,
-    NULL,
-    TOKUDB_ANALYZE_STANDARD,
-    &tokudb_analyze_mode_typelib);
+    NULL, NULL, TOKUDB_ANALYZE_STANDARD, &tokudb_analyze_mode_typelib);
 
-static MYSQL_THDVAR_ULONGLONG(
-    analyze_throttle,
-    0,
-    "analyze throttle (keys)",
-    NULL,
-    NULL,
-    0,
-    0,
-    ~0U,
-    1);
+static MYSQL_THDVAR_ULONGLONG(analyze_throttle, 0, "analyze throttle (keys)",
+                              NULL, NULL, 0, 0, ~0U, 1);
 
-static MYSQL_THDVAR_UINT(
-    analyze_time,
-    0,
-    "analyze time (seconds)",
-    NULL,
-    NULL,
-    5,
-    0,
-    ~0U,
-    1);
+static MYSQL_THDVAR_UINT(analyze_time, 0, "analyze time (seconds)", NULL, NULL,
+                         5, 0, ~0U, 1);
 
-static MYSQL_THDVAR_ULONGLONG(
-    auto_analyze,
-    0,
-    "auto analyze threshold (percent)",
-    NULL,
-    NULL,
-    30,
-    0,
-    ~0U,
-    1);
+static MYSQL_THDVAR_ULONGLONG(auto_analyze, 0,
+                              "auto analyze threshold (percent)", NULL, NULL,
+                              30, 0, ~0U, 1);
 
-static MYSQL_THDVAR_UINT(
-    block_size,
-    0,
-    "fractal tree block size",
-    NULL,
-    NULL,
-    4<<20,
-    4096,
-    ~0U,
-    1);
+static MYSQL_THDVAR_UINT(block_size, 0, "fractal tree block size", NULL, NULL,
+                         1 << 18, 4096, ~0U, 1);
 
-static MYSQL_THDVAR_BOOL(
-    bulk_fetch,
-    PLUGIN_VAR_THDLOCAL,
-    "enable bulk fetch",
-    NULL,
-    NULL,
-    true);
+static MYSQL_THDVAR_BOOL(bulk_fetch, PLUGIN_VAR_THDLOCAL, "enable bulk fetch",
+                         NULL, NULL, true);
 
-static void checkpoint_lock_update(TOKUDB_UNUSED(THD* thd),
-                                   TOKUDB_UNUSED(st_mysql_sys_var* var),
-                                   void* var_ptr,
-                                   const void* save) {
-    my_bool* val = (my_bool*)var_ptr;
-    *val= *(my_bool*)save ? true : false;
-    if (*val) {
-        tokudb_checkpoint_lock(thd);
-    } else {
-        tokudb_checkpoint_unlock(thd);
-    }
+static void checkpoint_lock_update(TOKUDB_UNUSED(THD *thd),
+                                   TOKUDB_UNUSED(SYS_VAR *var), void *var_ptr,
+                                   const void *save) {
+  bool *val = (bool *)var_ptr;
+  *val = *(bool *)save ? true : false;
+  if (*val) {
+    tokudb_checkpoint_lock(thd);
+  } else {
+    tokudb_checkpoint_unlock(thd);
+  }
 }
 
-static MYSQL_THDVAR_BOOL(
-    checkpoint_lock,
-    0,
-    "checkpoint lock",
-    NULL,
-    checkpoint_lock_update,
-    false);
+static MYSQL_THDVAR_BOOL(checkpoint_lock, 0, "checkpoint lock", NULL,
+                         checkpoint_lock_update, false);
 
-static MYSQL_THDVAR_BOOL(
-    commit_sync,
-    PLUGIN_VAR_THDLOCAL,
-    "sync on txn commit",
-    NULL,
-    NULL,
-    true);
+static MYSQL_THDVAR_BOOL(commit_sync, PLUGIN_VAR_THDLOCAL, "sync on txn commit",
+                         NULL, NULL, true);
 
-static MYSQL_THDVAR_BOOL(
-    create_index_online,
-    0,
-    "if on, create index done online",
-    NULL,
-    NULL,
-    true);
+static MYSQL_THDVAR_BOOL(create_index_online, 0,
+                         "if on, create index done online", NULL, NULL, true);
 
-static MYSQL_THDVAR_BOOL(
-    disable_hot_alter,
-    0,
-    "if on, hot alter table is disabled",
-    NULL,
-    NULL,
-    false);
+static MYSQL_THDVAR_BOOL(disable_hot_alter, 0,
+                         "if on, hot alter table is disabled", NULL, NULL,
+                         false);
 
-static MYSQL_THDVAR_BOOL(
-    disable_prefetching,
-    0,
-    "if on, prefetching disabled",
-    NULL,
-    NULL,
-    false);
+static MYSQL_THDVAR_BOOL(disable_prefetching, 0, "if on, prefetching disabled",
+                         NULL, NULL, false);
 
-static MYSQL_THDVAR_BOOL(
-    disable_slow_alter,
-    0,
-    "if on, alter tables that require copy are disabled",
-    NULL,
-    NULL,
-    false);
+static MYSQL_THDVAR_BOOL(disable_slow_alter, 0,
+                         "if on, alter tables that require copy are disabled",
+                         NULL, NULL, false);
 
-static const char *tokudb_empty_scan_names[] = {
-    "disabled",
-    "lr",
-    "rl",
-    NullS
-};
+static const char *tokudb_empty_scan_names[] = {"disabled", "lr", "rl", NullS};
 
 static TYPELIB tokudb_empty_scan_typelib = {
-    array_elements(tokudb_empty_scan_names) - 1,
-    "tokudb_empty_scan_typelib",
-    tokudb_empty_scan_names,
-    NULL
-};
+    array_elements(tokudb_empty_scan_names) - 1, "tokudb_empty_scan_typelib",
+    tokudb_empty_scan_names, NULL};
 
-static MYSQL_THDVAR_ENUM(
-    empty_scan,
-    PLUGIN_VAR_OPCMDARG,
-    "algorithm to check if the table is empty when opened",
-    NULL,
-    NULL,
-    TOKUDB_EMPTY_SCAN_RL,
-    &tokudb_empty_scan_typelib);
+static MYSQL_THDVAR_ENUM(empty_scan, PLUGIN_VAR_OPCMDARG,
+                         "algorithm to check if the table is empty when opened",
+                         NULL, NULL, TOKUDB_EMPTY_SCAN_RL,
+                         &tokudb_empty_scan_typelib);
 
-static MYSQL_THDVAR_UINT(
-    fanout,
-    0,
-    "fractal tree fanout",
-    NULL,
-    NULL,
-    16,
-    2,
-    16*1024,
-    1);
+static MYSQL_THDVAR_UINT(fanout, 0, "fractal tree fanout", NULL, NULL, 16, 2,
+                         16 * 1024, 1);
 
-static MYSQL_THDVAR_BOOL(
-    hide_default_row_format,
-    0,
-    "hide the default row format",
-    NULL,
-    NULL,
-    true);
+static MYSQL_THDVAR_BOOL(hide_default_row_format, 0,
+                         "hide the default row format", NULL, NULL, true);
 
-static MYSQL_THDVAR_ULONGLONG(
-    killed_time,
-    0,
-    "killed time",
-    NULL,
-    NULL,
-    DEFAULT_TOKUDB_KILLED_TIME,
-    0,
-    ~0ULL,
-    1);
+static MYSQL_THDVAR_ULONGLONG(killed_time, 0, "killed time", NULL, NULL,
+                              DEFAULT_TOKUDB_KILLED_TIME, 0, ~0ULL, 1);
 
 static MYSQL_THDVAR_STR(last_lock_timeout,
                         PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_NOCMDOPT |
                             PLUGIN_VAR_READONLY,
-                        "last lock timeout",
-                        NULL,
-                        NULL,
+                        "last lock timeout", NULL, NULL, NULL);
+
+static MYSQL_THDVAR_BOOL(
+    load_save_space, 0, "compress intermediate bulk loader files to save space",
+    NULL, NULL, true);
+
+static MYSQL_THDVAR_ULONGLONG(loader_memory_size, 0, "loader memory size", NULL,
+                              NULL, 100 * 1000 * 1000, 0, ~0ULL, 1);
+
+static MYSQL_THDVAR_ULONGLONG(lock_timeout, 0, "lock timeout", NULL, NULL,
+                              DEFAULT_TOKUDB_LOCK_TIMEOUT, 0, ~0ULL, 1);
+
+static MYSQL_THDVAR_UINT(lock_timeout_debug, 0, "lock timeout debug", NULL,
+                         NULL, 1, 0, ~0U, 1);
+
+static MYSQL_THDVAR_DOUBLE(optimize_index_fraction, 0,
+                           "optimize index fraction (default 1.0 all)", NULL,
+                           NULL, 1.0, 0, 1.0, 1);
+
+static MYSQL_THDVAR_STR(optimize_index_name,
+                        PLUGIN_VAR_THDLOCAL + PLUGIN_VAR_MEMALLOC,
+                        "optimize index name (default all indexes)", NULL, NULL,
                         NULL);
 
-static MYSQL_THDVAR_BOOL(
-    load_save_space,
-    0,
-    "compress intermediate bulk loader files to save space",
-    NULL,
-    NULL,
-    true);
+static MYSQL_THDVAR_ULONGLONG(optimize_throttle, 0,
+                              "optimize throttle (default no throttle)", NULL,
+                              NULL, 0, 0, ~0ULL, 1);
 
-static MYSQL_THDVAR_ULONGLONG(
-    loader_memory_size,
-    0,
-    "loader memory size",
-    NULL,
-    NULL,
-    100*1000*1000,
-    0,
-    ~0ULL,
-    1);
+static MYSQL_THDVAR_BOOL(prelock_empty, 0, "prelock empty table", NULL, NULL,
+                         true);
 
-static MYSQL_THDVAR_ULONGLONG(
-    lock_timeout,
-    0,
-    "lock timeout",
-    NULL,
-    NULL,
-    DEFAULT_TOKUDB_LOCK_TIMEOUT,
-    0,
-    ~0ULL,
-    1);
+static MYSQL_THDVAR_UINT(read_block_size, 0, "fractal tree read block size",
+                         NULL, NULL, 1 << 14, 4096, ~0U, 1);
 
-static MYSQL_THDVAR_UINT(
-    lock_timeout_debug,
-    0,
-    "lock timeout debug",
-    NULL,
-    NULL,
-    1,
-    0,
-    ~0U,
-    1);
-
-static MYSQL_THDVAR_DOUBLE(
-    optimize_index_fraction,
-    0,
-    "optimize index fraction (default 1.0 all)",
-    NULL,
-    NULL,
-    1.0,
-    0,
-    1.0,
-    1);
-
-static MYSQL_THDVAR_STR(
-    optimize_index_name,
-    PLUGIN_VAR_THDLOCAL + PLUGIN_VAR_MEMALLOC,
-    "optimize index name (default all indexes)",
-    NULL,
-    NULL,
-    NULL);
-
-static MYSQL_THDVAR_ULONGLONG(
-    optimize_throttle,
-    0,
-    "optimize throttle (default no throttle)",
-    NULL,
-    NULL,
-    0,
-    0,
-    ~0ULL,
-    1);
-
-static MYSQL_THDVAR_BOOL(
-    prelock_empty,
-    0,
-    "prelock empty table",
-    NULL,
-    NULL,
-    true);
-
-static MYSQL_THDVAR_UINT(
-    read_block_size,
-    0,
-    "fractal tree read block size",
-    NULL,
-    NULL,
-    64*1024,
-    4096,
-    ~0U,
-    1);
-
-static MYSQL_THDVAR_UINT(
-    read_buf_size,
-    0,
-    "range query read buffer size",
-    NULL,
-    NULL,
-    128*1024,
-    0,
-    1*1024*1024,
-    1);
+static MYSQL_THDVAR_UINT(read_buf_size, 0, "range query read buffer size", NULL,
+                         NULL, 128 * 1024, 0, 1 * 1024 * 1024, 1);
 
 static const char *tokudb_row_format_names[] = {
-    "tokudb_uncompressed",
-    "tokudb_zlib",
-    "tokudb_snappy",
-    "tokudb_quicklz",
-    "tokudb_lzma",
-    "tokudb_fast",
-    "tokudb_small",
-    "tokudb_default",
-    NullS
-};
+    "tokudb_uncompressed", "tokudb_zlib",    "tokudb_snappy",
+    "tokudb_quicklz",      "tokudb_lzma",    "tokudb_fast",
+    "tokudb_small",        "tokudb_default", NullS};
 
 static TYPELIB tokudb_row_format_typelib = {
-    array_elements(tokudb_row_format_names) - 1,
-    "tokudb_row_format_typelib",
-    tokudb_row_format_names,
-    NULL
-};
+    array_elements(tokudb_row_format_names) - 1, "tokudb_row_format_typelib",
+    tokudb_row_format_names, NULL};
 
 static MYSQL_THDVAR_ENUM(
-    row_format,
-    PLUGIN_VAR_OPCMDARG,
+    row_format, PLUGIN_VAR_OPCMDARG,
     "Specifies the compression method for a table created during this session. "
     "Possible values are TOKUDB_UNCOMPRESSED, TOKUDB_ZLIB, TOKUDB_SNAPPY, "
     "TOKUDB_QUICKLZ, TOKUDB_LZMA, TOKUDB_FAST, TOKUDB_SMALL and TOKUDB_DEFAULT",
-    NULL,
-    NULL,
-    SRV_ROW_FORMAT_ZLIB,
-    &tokudb_row_format_typelib);
+    NULL, NULL, SRV_ROW_FORMAT_QUICKLZ, &tokudb_row_format_typelib);
 
 #if defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
-static MYSQL_THDVAR_BOOL(
-    rpl_check_readonly,
-    PLUGIN_VAR_THDLOCAL,
-    "check if the slave is read only",
-    NULL,
-    NULL,
-    true);
+static MYSQL_THDVAR_BOOL(rpl_check_readonly, PLUGIN_VAR_THDLOCAL,
+                         "check if the slave is read only", NULL, NULL, true);
 
-static MYSQL_THDVAR_BOOL(
-    rpl_lookup_rows,
-    PLUGIN_VAR_THDLOCAL,
-    "lookup a row on rpl slave",
-    NULL,
-    NULL,
-    true);
+static MYSQL_THDVAR_BOOL(rpl_lookup_rows, PLUGIN_VAR_THDLOCAL,
+                         "lookup a row on rpl slave", NULL, NULL, true);
 
 static MYSQL_THDVAR_ULONGLONG(
-    rpl_lookup_rows_delay,
-    PLUGIN_VAR_THDLOCAL,
-    "time in milliseconds to add to lookups on replication slave",
-    NULL,
-    NULL,
-    0,
-    0,
-    ~0ULL,
-    1);
+    rpl_lookup_rows_delay, PLUGIN_VAR_THDLOCAL,
+    "time in milliseconds to add to lookups on replication slave", NULL, NULL,
+    0, 0, ~0ULL, 1);
 
-static MYSQL_THDVAR_BOOL(
-    rpl_unique_checks,
-    PLUGIN_VAR_THDLOCAL,
-    "enable unique checks on replication slave",
-    NULL,
-    NULL,
-    true);
+static MYSQL_THDVAR_BOOL(rpl_unique_checks, PLUGIN_VAR_THDLOCAL,
+                         "enable unique checks on replication slave", NULL,
+                         NULL, true);
 
 static MYSQL_THDVAR_ULONGLONG(
-    rpl_unique_checks_delay,
-    PLUGIN_VAR_THDLOCAL,
+    rpl_unique_checks_delay, PLUGIN_VAR_THDLOCAL,
     "time in milliseconds to add to unique checks test on replication slave",
-    NULL,
-    NULL,
-    0,
-    0,
-    ~0ULL,
-    1);
-#endif // defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
+    NULL, NULL, 0, 0, ~0ULL, 1);
+#endif  // defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
 
 #if defined(TOKU_INCLUDE_UPSERT) && TOKU_INCLUDE_UPSERT
-static MYSQL_THDVAR_BOOL(
-    enable_fast_update,
-    PLUGIN_VAR_THDLOCAL,
-    "disable slow update",
-    NULL,
-    NULL,
-    false);
+static MYSQL_THDVAR_BOOL(enable_fast_update, PLUGIN_VAR_THDLOCAL,
+                         "disable slow update", NULL, NULL, false);
 
-static MYSQL_THDVAR_BOOL(
-    enable_fast_upsert,
-    PLUGIN_VAR_THDLOCAL,
-    "disable slow upsert",
-    NULL,
-    NULL,
-    false);
+static MYSQL_THDVAR_BOOL(enable_fast_upsert, PLUGIN_VAR_THDLOCAL,
+                         "disable slow upsert", NULL, NULL, false);
 #endif  // defined(TOKU_INCLUDE_UPSERT) && TOKU_INCLUDE_UPSERT
 
-static const char* deprecated_tokudb_support_xa =
-    "Using tokudb_support_xa is deprecated and the "
-    "parameter may be removed in future releases.";
-static const char* deprecated_tokudb_support_xa_off =
-    "Using tokudb_support_xa is deprecated and the "
-    "parameter may be removed in future releases. "
-    "Only tokudb_support_xa=ON is allowed.";
+static int dir_cmd_check(THD *thd, struct SYS_VAR *var, void *save,
+                         struct st_mysql_value *value);
 
-static void support_xa_update(
-    THD* thd,
-    st_mysql_sys_var* var,
-    void* var_ptr,
-    const void* save) {
-    my_bool tokudb_support_xa = *static_cast<const my_bool*>(save);
-    push_warning(thd,
-                 Sql_condition::SL_WARNING,
-                 HA_ERR_WRONG_COMMAND,
-                 tokudb_support_xa ? deprecated_tokudb_support_xa :
-                 deprecated_tokudb_support_xa_off);
-}
-
-static MYSQL_THDVAR_BOOL(
-    support_xa,
-    PLUGIN_VAR_OPCMDARG,
-    "Enable TokuDB support for the XA two-phase commit",
-    NULL,
-    support_xa_update,
-    true);
-
-static int dir_cmd_check(THD* thd, struct st_mysql_sys_var* var,
-                         void* save, struct st_mysql_value* value) ;
-
-static MYSQL_THDVAR_INT(dir_cmd_last_error,
-    PLUGIN_VAR_THDLOCAL,
-    "error from the last dir command. 0 is success",
-    NULL, NULL, 0, 0, 0, 1);
+static MYSQL_THDVAR_INT(dir_cmd_last_error, PLUGIN_VAR_THDLOCAL,
+                        "error from the last dir command. 0 is success", NULL,
+                        NULL, 0, 0, 0, 1);
 
 static MYSQL_THDVAR_STR(dir_cmd_last_error_string,
-    PLUGIN_VAR_THDLOCAL + PLUGIN_VAR_MEMALLOC,
-    "error string from the last dir command",
-    NULL, NULL, NULL);
+                        PLUGIN_VAR_THDLOCAL + PLUGIN_VAR_MEMALLOC,
+                        "error string from the last dir command", NULL, NULL,
+                        NULL);
 
-static MYSQL_THDVAR_STR(dir_cmd,
-    PLUGIN_VAR_THDLOCAL + PLUGIN_VAR_MEMALLOC,
-    "name of the directory where the backup is stored",
-    dir_cmd_check, NULL, NULL);
+static MYSQL_THDVAR_STR(dir_cmd, PLUGIN_VAR_THDLOCAL + PLUGIN_VAR_MEMALLOC,
+                        "name of the directory where the backup is stored",
+                        dir_cmd_check, NULL, NULL);
 
 static void MY_ATTRIBUTE((format(printf, 3, 4)))
-    dir_cmd_set_error(THD* thd, int error, const char* error_fmt, ...) {
-    char   buff[error_buffer_max_size];
-    va_list varargs;
+    dir_cmd_set_error(THD *thd, int error, const char *error_fmt, ...) {
+  char buff[error_buffer_max_size];
+  va_list varargs;
 
-    assert(thd);
-    assert(error_fmt);
+  assert(thd);
+  assert(error_fmt);
 
-    va_start(varargs, error_fmt);
-    vsnprintf(buff, sizeof(buff), error_fmt, varargs);
-    va_end(varargs);
+  va_start(varargs, error_fmt);
+  vsnprintf(buff, sizeof(buff), error_fmt, varargs);
+  va_end(varargs);
 
-    THDVAR_SET(thd, dir_cmd_last_error, &error);
-    THDVAR_SET(thd, dir_cmd_last_error_string, buff);
+  THDVAR_SET(thd, dir_cmd_last_error, &error);
+  THDVAR_SET(thd, dir_cmd_last_error_string, buff);
 }
 
-static void dir_cmd_clear_error(THD* thd) {
-    static constexpr int no_error = 0;
-    static const char* empty_error_str = "";
-    THDVAR_SET(thd, dir_cmd_last_error, &no_error);
-    THDVAR_SET(thd, dir_cmd_last_error_string, empty_error_str);
+static void dir_cmd_clear_error(THD *thd) {
+  static constexpr int no_error = 0;
+  static const char *empty_error_str = "";
+  THDVAR_SET(thd, dir_cmd_last_error, &no_error);
+  THDVAR_SET(thd, dir_cmd_last_error_string, empty_error_str);
 }
 
-static int dir_cmd_check(THD* thd,
-                         TOKUDB_UNUSED(struct st_mysql_sys_var* var),
-                         void* save,
-                         struct st_mysql_value* value) {
-    int error = 0;
-    dir_cmd_clear_error(thd);
+static int dir_cmd_check(THD *thd, TOKUDB_UNUSED(struct SYS_VAR *var),
+                         void *save, struct st_mysql_value *value) {
+  int error = 0;
+  dir_cmd_clear_error(thd);
 
-    if (check_global_access(thd, SUPER_ACL)) {
-        return 1;
-    }
+  if (check_global_access(thd, SUPER_ACL)) {
+    return 1;
+  }
 
-    char buff[STRING_BUFFER_USUAL_SIZE];
-    int length = sizeof(buff);
-    const char *str = value->val_str(value, buff, &length);
-    if (str) {
-        str = thd->strmake(str, length);
-        *(const char**)save = str;
-    }
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  int length = sizeof(buff);
+  const char *str = value->val_str(value, buff, &length);
+  if (str) {
+    str = thd->strmake(str, length);
+    *(const char **)save = str;
+  }
 
-    if (str) {
-        dir_cmd_callbacks callbacks { .set_error = dir_cmd_set_error };
-        process_dir_cmd(thd, str, callbacks);
+  if (str) {
+    dir_cmd_callbacks callbacks{.set_error = dir_cmd_set_error};
+    process_dir_cmd(thd, str, callbacks);
 
-        error = THDVAR(thd, dir_cmd_last_error);
-    } else {
-        error = EINVAL;
-    }
+    error = THDVAR(thd, dir_cmd_last_error);
+  } else {
+    error = EINVAL;
+  }
 
-    return error;
+  return error;
 }
+
+static MYSQL_SYSVAR_UINT(force_recovery, force_recovery, PLUGIN_VAR_READONLY,
+                         "force recovery. Set to 6 to skip reading the logs",
+                         NULL, NULL, 0, 0, 0, 0);
 
 //******************************************************************************
 // all system variables
 //******************************************************************************
-st_mysql_sys_var* system_variables[] = {
+SYS_VAR *system_variables[] = {
     // global vars
-    MYSQL_SYSVAR(cache_size),
-    MYSQL_SYSVAR(force_recovery),
-    MYSQL_SYSVAR(checkpoint_on_flush_logs),
+    MYSQL_SYSVAR(cache_size), MYSQL_SYSVAR(checkpoint_on_flush_logs),
     MYSQL_SYSVAR(cachetable_pool_threads),
     MYSQL_SYSVAR(cardinality_scale_percent),
-    MYSQL_SYSVAR(checkpoint_pool_threads),
-    MYSQL_SYSVAR(checkpointing_period),
-    MYSQL_SYSVAR(cleaner_iterations),
-    MYSQL_SYSVAR(cleaner_period),
+    MYSQL_SYSVAR(checkpoint_pool_threads), MYSQL_SYSVAR(checkpointing_period),
+    MYSQL_SYSVAR(cleaner_iterations), MYSQL_SYSVAR(cleaner_period),
     MYSQL_SYSVAR(client_pool_threads),
-    MYSQL_SYSVAR(compress_buffers_before_eviction),
-    MYSQL_SYSVAR(data_dir),
-    MYSQL_SYSVAR(debug),
-    MYSQL_SYSVAR(directio),
-    MYSQL_SYSVAR(enable_native_partition),
-    MYSQL_SYSVAR(enable_partial_eviction),
-    MYSQL_SYSVAR(fs_reserve_percent),
-    MYSQL_SYSVAR(fsync_log_period),
-    MYSQL_SYSVAR(log_dir),
-    MYSQL_SYSVAR(max_lock_memory),
-    MYSQL_SYSVAR(read_status_frequency),
-    MYSQL_SYSVAR(strip_frm_data),
-    MYSQL_SYSVAR(tmp_dir),
-    MYSQL_SYSVAR(version),
-    MYSQL_SYSVAR(write_status_frequency),
-    MYSQL_SYSVAR(dir_per_db),
+    MYSQL_SYSVAR(compress_buffers_before_eviction), MYSQL_SYSVAR(data_dir),
+    MYSQL_SYSVAR(debug), MYSQL_SYSVAR(directio),
+    MYSQL_SYSVAR(enable_partial_eviction), MYSQL_SYSVAR(force_recovery),
+    MYSQL_SYSVAR(fs_reserve_percent), MYSQL_SYSVAR(fsync_log_period),
+    MYSQL_SYSVAR(log_dir), MYSQL_SYSVAR(max_lock_memory),
+    MYSQL_SYSVAR(read_status_frequency), MYSQL_SYSVAR(strip_frm_data),
+    MYSQL_SYSVAR(tmp_dir), MYSQL_SYSVAR(version),
+    MYSQL_SYSVAR(write_status_frequency), MYSQL_SYSVAR(dir_per_db),
     MYSQL_SYSVAR(check_jemalloc),
 
     // session vars
-    MYSQL_SYSVAR(alter_print_error),
-    MYSQL_SYSVAR(analyze_delete_fraction),
-    MYSQL_SYSVAR(analyze_in_background),
-    MYSQL_SYSVAR(analyze_mode),
-    MYSQL_SYSVAR(analyze_throttle),
-    MYSQL_SYSVAR(analyze_time),
-    MYSQL_SYSVAR(auto_analyze),
-    MYSQL_SYSVAR(block_size),
-    MYSQL_SYSVAR(bulk_fetch),
-    MYSQL_SYSVAR(checkpoint_lock),
-    MYSQL_SYSVAR(commit_sync),
-    MYSQL_SYSVAR(create_index_online),
-    MYSQL_SYSVAR(disable_hot_alter),
-    MYSQL_SYSVAR(disable_prefetching),
-    MYSQL_SYSVAR(disable_slow_alter),
-    MYSQL_SYSVAR(empty_scan),
-    MYSQL_SYSVAR(fanout),
-    MYSQL_SYSVAR(hide_default_row_format),
-    MYSQL_SYSVAR(killed_time),
-    MYSQL_SYSVAR(last_lock_timeout),
-    MYSQL_SYSVAR(load_save_space),
-    MYSQL_SYSVAR(loader_memory_size),
-    MYSQL_SYSVAR(lock_timeout),
-    MYSQL_SYSVAR(lock_timeout_debug),
-    MYSQL_SYSVAR(optimize_index_fraction),
-    MYSQL_SYSVAR(optimize_index_name),
-    MYSQL_SYSVAR(optimize_throttle),
-    MYSQL_SYSVAR(prelock_empty),
-    MYSQL_SYSVAR(read_block_size),
-    MYSQL_SYSVAR(read_buf_size),
+    MYSQL_SYSVAR(alter_print_error), MYSQL_SYSVAR(analyze_delete_fraction),
+    MYSQL_SYSVAR(analyze_in_background), MYSQL_SYSVAR(analyze_mode),
+    MYSQL_SYSVAR(analyze_throttle), MYSQL_SYSVAR(analyze_time),
+    MYSQL_SYSVAR(auto_analyze), MYSQL_SYSVAR(block_size),
+    MYSQL_SYSVAR(bulk_fetch), MYSQL_SYSVAR(checkpoint_lock),
+    MYSQL_SYSVAR(commit_sync), MYSQL_SYSVAR(create_index_online),
+    MYSQL_SYSVAR(disable_hot_alter), MYSQL_SYSVAR(disable_prefetching),
+    MYSQL_SYSVAR(disable_slow_alter), MYSQL_SYSVAR(empty_scan),
+    MYSQL_SYSVAR(fanout), MYSQL_SYSVAR(hide_default_row_format),
+    MYSQL_SYSVAR(killed_time), MYSQL_SYSVAR(last_lock_timeout),
+    MYSQL_SYSVAR(load_save_space), MYSQL_SYSVAR(loader_memory_size),
+    MYSQL_SYSVAR(lock_timeout), MYSQL_SYSVAR(lock_timeout_debug),
+    MYSQL_SYSVAR(optimize_index_fraction), MYSQL_SYSVAR(optimize_index_name),
+    MYSQL_SYSVAR(optimize_throttle), MYSQL_SYSVAR(prelock_empty),
+    MYSQL_SYSVAR(read_block_size), MYSQL_SYSVAR(read_buf_size),
     MYSQL_SYSVAR(row_format),
 #if defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
-    MYSQL_SYSVAR(rpl_check_readonly),
-    MYSQL_SYSVAR(rpl_lookup_rows),
-    MYSQL_SYSVAR(rpl_lookup_rows_delay),
-    MYSQL_SYSVAR(rpl_unique_checks),
+    MYSQL_SYSVAR(rpl_check_readonly), MYSQL_SYSVAR(rpl_lookup_rows),
+    MYSQL_SYSVAR(rpl_lookup_rows_delay), MYSQL_SYSVAR(rpl_unique_checks),
     MYSQL_SYSVAR(rpl_unique_checks_delay),
 #endif  // defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
 #if defined(TOKU_INCLUDE_UPSERT) && TOKU_INCLUDE_UPSERT
-    MYSQL_SYSVAR(enable_fast_update),
-    MYSQL_SYSVAR(enable_fast_upsert),
+    MYSQL_SYSVAR(enable_fast_update), MYSQL_SYSVAR(enable_fast_upsert),
 #endif  // defined(TOKU_INCLUDE_UPSERT) && TOKU_INCLUDE_UPSERT
-    MYSQL_SYSVAR(support_xa),
 
 #if defined(TOKUDB_DEBUG) && TOKUDB_DEBUG
     MYSQL_SYSVAR(debug_pause_background_job_manager),
 #endif  // defined(TOKUDB_DEBUG) && TOKUDB_DEBUG
-    MYSQL_SYSVAR(dir_cmd_last_error),
-    MYSQL_SYSVAR(dir_cmd_last_error_string),
+    MYSQL_SYSVAR(dir_cmd_last_error), MYSQL_SYSVAR(dir_cmd_last_error_string),
     MYSQL_SYSVAR(dir_cmd),
 
-    NULL
-};
+    NULL};
 
-my_bool alter_print_error(THD* thd) {
-    return (THDVAR(thd, alter_print_error) != 0);
+bool alter_print_error(THD *thd) {
+  return (THDVAR(thd, alter_print_error) != 0);
 }
-double analyze_delete_fraction(THD* thd) {
-    return THDVAR(thd, analyze_delete_fraction);
+double analyze_delete_fraction(THD *thd) {
+  return THDVAR(thd, analyze_delete_fraction);
 }
-my_bool analyze_in_background(THD* thd) {
-    return (THDVAR(thd, analyze_in_background) != 0);
+bool analyze_in_background(THD *thd) {
+  return (THDVAR(thd, analyze_in_background) != 0);
 }
-analyze_mode_t analyze_mode(THD* thd) {
-    return (analyze_mode_t ) THDVAR(thd, analyze_mode);
+analyze_mode_t analyze_mode(THD *thd) {
+  return (analyze_mode_t)THDVAR(thd, analyze_mode);
 }
-ulonglong analyze_throttle(THD* thd) {
-    return THDVAR(thd, analyze_throttle);
+ulonglong analyze_throttle(THD *thd) { return THDVAR(thd, analyze_throttle); }
+ulonglong analyze_time(THD *thd) { return THDVAR(thd, analyze_time); }
+ulonglong auto_analyze(THD *thd) { return THDVAR(thd, auto_analyze); }
+bool bulk_fetch(THD *thd) { return (THDVAR(thd, bulk_fetch) != 0); }
+uint block_size(THD *thd) { return THDVAR(thd, block_size); }
+bool commit_sync(THD *thd) { return (THDVAR(thd, commit_sync) != 0); }
+bool create_index_online(THD *thd) {
+  return (THDVAR(thd, create_index_online) != 0);
 }
-ulonglong analyze_time(THD* thd) {
-    return THDVAR(thd, analyze_time);
+bool disable_hot_alter(THD *thd) {
+  return (THDVAR(thd, disable_hot_alter) != 0);
 }
-ulonglong auto_analyze(THD* thd) {
-    return THDVAR(thd, auto_analyze);
+bool disable_prefetching(THD *thd) {
+  return (THDVAR(thd, disable_prefetching) != 0);
 }
-my_bool bulk_fetch(THD* thd) {
-    return (THDVAR(thd, bulk_fetch) != 0);
-}
-uint block_size(THD* thd) {
-    return THDVAR(thd, block_size);
-}
-my_bool commit_sync(THD* thd) {
-    return (THDVAR(thd, commit_sync) != 0);
-}
-my_bool create_index_online(THD* thd) {
-    return (THDVAR(thd, create_index_online) != 0);
-}
-my_bool disable_hot_alter(THD* thd) {
-    return (THDVAR(thd, disable_hot_alter) != 0);
-}
-my_bool disable_prefetching(THD* thd) {
-    return (THDVAR(thd, disable_prefetching) != 0);
-}
-my_bool disable_slow_alter(THD* thd) {
-    return (THDVAR(thd, disable_slow_alter) != 0);
+bool disable_slow_alter(THD *thd) {
+  return (THDVAR(thd, disable_slow_alter) != 0);
 }
 #if defined(TOKU_INCLUDE_UPSERT) && TOKU_INCLUDE_UPSERT
-my_bool enable_fast_update(THD* thd) {
-    return (THDVAR(thd, enable_fast_update) != 0);
+bool enable_fast_update(THD *thd) {
+  return (THDVAR(thd, enable_fast_update) != 0);
 }
-my_bool enable_fast_upsert(THD* thd) {
-    return (THDVAR(thd, enable_fast_upsert) != 0);
+bool enable_fast_upsert(THD *thd) {
+  return (THDVAR(thd, enable_fast_upsert) != 0);
 }
 #endif  // defined(TOKU_INCLUDE_UPSERT) && TOKU_INCLUDE_UPSERT
-empty_scan_mode_t empty_scan(THD* thd) {
-    return (empty_scan_mode_t)THDVAR(thd, empty_scan);
+empty_scan_mode_t empty_scan(THD *thd) {
+  return (empty_scan_mode_t)THDVAR(thd, empty_scan);
 }
-uint fanout(THD* thd) {
-    return THDVAR(thd, fanout);
+uint fanout(THD *thd) { return THDVAR(thd, fanout); }
+bool hide_default_row_format(THD *thd) {
+  return (THDVAR(thd, hide_default_row_format) != 0);
 }
-my_bool hide_default_row_format(THD* thd) {
-    return (THDVAR(thd, hide_default_row_format) != 0);
+ulonglong killed_time(THD *thd) { return THDVAR(thd, killed_time); }
+char *last_lock_timeout(THD *thd) { return THDVAR(thd, last_lock_timeout); }
+void set_last_lock_timeout(THD *thd, char *last) {
+  THDVAR(thd, last_lock_timeout) = last;
 }
-ulonglong killed_time(THD* thd) {
-    return THDVAR(thd, killed_time);
+bool load_save_space(THD *thd) { return (THDVAR(thd, load_save_space) != 0); }
+ulonglong loader_memory_size(THD *thd) {
+  return THDVAR(thd, loader_memory_size);
 }
-char* last_lock_timeout(THD* thd) {
-    return THDVAR(thd, last_lock_timeout);
+ulonglong lock_timeout(THD *thd) { return THDVAR(thd, lock_timeout); }
+uint lock_timeout_debug(THD *thd) { return THDVAR(thd, lock_timeout_debug); }
+double optimize_index_fraction(THD *thd) {
+  return THDVAR(thd, optimize_index_fraction);
 }
-void set_last_lock_timeout(THD* thd, char* last) {
-    THDVAR(thd, last_lock_timeout) = last;
+const char *optimize_index_name(THD *thd) {
+  return THDVAR(thd, optimize_index_name);
 }
-my_bool load_save_space(THD* thd) {
-    return (THDVAR(thd, load_save_space) != 0);
-}
-ulonglong loader_memory_size(THD* thd) {
-    return THDVAR(thd, loader_memory_size);
-}
-ulonglong lock_timeout(THD* thd) {
-    return THDVAR(thd, lock_timeout);
-}
-uint lock_timeout_debug(THD* thd) {
-    return THDVAR(thd, lock_timeout_debug);
-}
-double optimize_index_fraction(THD* thd) {
-    return THDVAR(thd, optimize_index_fraction);
-}
-const char* optimize_index_name(THD* thd) {
-    return THDVAR(thd, optimize_index_name);
-}
-ulonglong optimize_throttle(THD* thd) {
-    return THDVAR(thd, optimize_throttle);
-}
-my_bool prelock_empty(THD* thd) {
-    return (THDVAR(thd, prelock_empty) != 0);
-}
-uint read_block_size(THD* thd) {
-    return THDVAR(thd, read_block_size);
-}
-uint read_buf_size(THD* thd) {
-    return THDVAR(thd, read_buf_size);
-}
+ulonglong optimize_throttle(THD *thd) { return THDVAR(thd, optimize_throttle); }
+bool prelock_empty(THD *thd) { return (THDVAR(thd, prelock_empty) != 0); }
+uint read_block_size(THD *thd) { return THDVAR(thd, read_block_size); }
+uint read_buf_size(THD *thd) { return THDVAR(thd, read_buf_size); }
 row_format_t row_format(THD *thd) {
-    return (row_format_t) THDVAR(thd, row_format);
+  return (row_format_t)THDVAR(thd, row_format);
 }
 #if defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
-my_bool rpl_check_readonly(THD* thd) {
-    return (THDVAR(thd, rpl_check_readonly) != 0);
+bool rpl_check_readonly(THD *thd) {
+  return (THDVAR(thd, rpl_check_readonly) != 0);
 }
-my_bool rpl_lookup_rows(THD* thd) {
-    return (THDVAR(thd, rpl_lookup_rows) != 0);
+bool rpl_lookup_rows(THD *thd) { return (THDVAR(thd, rpl_lookup_rows) != 0); }
+ulonglong rpl_lookup_rows_delay(THD *thd) {
+  return THDVAR(thd, rpl_lookup_rows_delay);
 }
-ulonglong rpl_lookup_rows_delay(THD* thd) {
-    return THDVAR(thd, rpl_lookup_rows_delay);
+bool rpl_unique_checks(THD *thd) {
+  return (THDVAR(thd, rpl_unique_checks) != 0);
 }
-my_bool rpl_unique_checks(THD* thd) {
-    return (THDVAR(thd, rpl_unique_checks) != 0);
+ulonglong rpl_unique_checks_delay(THD *thd) {
+  return THDVAR(thd, rpl_unique_checks_delay);
 }
-ulonglong rpl_unique_checks_delay(THD* thd) {
-    return THDVAR(thd, rpl_unique_checks_delay);
-}
-#endif // defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
-my_bool support_xa(THD* thd) {
-    return (THDVAR(thd, support_xa) != 0);
-}
-void set_support_xa(THD* thd, my_bool xa) {
-    THDVAR(thd, support_xa) = xa;
-}
-} // namespace sysvars
-} // namespace tokudb
+#endif  // defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
+}  // namespace sysvars
+}  // namespace tokudb

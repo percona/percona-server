@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_debug.inc
 
 SET @old_debug= @@session.debug;
@@ -61,4 +56,48 @@ SET debug= '-d,bug13822652_2';
 
 DROP TABLE g1,g2;
 
+--echo #
+--echo # Bug#28079850: Requires handling THD::KILL_QUERY in records* functions.
+--echo #
+
+CREATE TABLE t_innodb(c1 INT NOT NULL PRIMARY KEY,
+                      c2 INT NOT NULL,
+                      c3 char(20),
+                      KEY c3_idx(c3))ENGINE=INNODB;
+
+INSERT INTO t_innodb VALUES (1, 1, 'a'), (2,2,'a'), (3,3,'a');
+ANALYZE TABLE t_innodb;
+
+SET debug= '+d,bug28079850';
+#checks handler::records_from_index()
+--error ER_QUERY_INTERRUPTED
+SELECT COUNT(*) FROM t_innodb;
+#checks handler::records()
+--error ER_QUERY_INTERRUPTED
+SELECT COUNT(*) FROM performance_schema.table_handles;
+SET debug= '-d,bug28079850';
+
+DROP TABLE t_innodb;
+
 SET debug= @old_debug;
+
+--echo Bug#29969769 - KILL QUERY KILLS THE NEXT QUERY
+# Sending KILL QUERY before statement begins execution shall not interrupt it.
+connect (con1, localhost, root,,);
+--let $ID= `SELECT connection_id()`
+SET DEBUG_SYNC='before_command_dispatch SIGNAL kill_query WAIT_FOR continue';
+--send SELECT 1;
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR kill_query';
+--replace_result $ID ID
+--eval KILL QUERY $ID
+SET DEBUG_SYNC='now SIGNAL continue';
+
+connection con1;
+#Without fix, SELECT fails with ER_QUERY_INTERRUPTED error.
+--reap
+
+connection default;
+SET DEBUG_SYNC='RESET';
+disconnect con1;

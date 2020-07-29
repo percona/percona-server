@@ -11,7 +11,7 @@ SELECT @@local.transaction_write_set_extraction,
 @@binlog_transaction_dependency_tracking,
 @@binlog_transaction_dependency_history_size;
 @@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
-XXHASH64	XXHASH64	WRITESET	6
+XXHASH64	XXHASH64	WRITESET	3
 CREATE TABLE test.tab1 (a INT PRIMARY KEY AUTO_INCREMENT NOT NULL);
 CREATE TABLE test.tab2 (a INT);
 FLUSH LOGS;
@@ -45,7 +45,7 @@ SELECT @@local.transaction_write_set_extraction,
 @@binlog_transaction_dependency_tracking,
 @@binlog_transaction_dependency_history_size;
 @@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
-XXHASH64	XXHASH64	WRITESET_SESSION	6
+XXHASH64	XXHASH64	WRITESET_SESSION	3
 CREATE TABLE test.tab1 (a INT PRIMARY KEY AUTO_INCREMENT NOT NULL);
 CREATE TABLE test.tab2 (a INT);
 FLUSH LOGS;
@@ -79,7 +79,7 @@ SELECT @@local.transaction_write_set_extraction,
 @@binlog_transaction_dependency_tracking,
 @@binlog_transaction_dependency_history_size;
 @@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
-XXHASH64	XXHASH64	COMMIT_ORDER	6
+XXHASH64	XXHASH64	COMMIT_ORDER	3
 CREATE TABLE test.tab1 (a INT PRIMARY KEY AUTO_INCREMENT NOT NULL);
 CREATE TABLE test.tab2 (a INT);
 FLUSH LOGS;

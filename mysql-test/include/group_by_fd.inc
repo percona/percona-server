@@ -67,9 +67,18 @@ eval $query;
 
 ALTER TABLE group_by_test2 ADD UNIQUE INDEX (cat);
 eval $query;
+
+# The same query with ROLLUP would be wrong:
+# indeed, it would then be a UNION with a 2nd member where 'cat' is
+# NULL; in that case, which value should 'name' have? In MySQL's
+# implementation it gets the last seen value before 'cat' was
+# switched to NULL, which is non-deterministic and useless.
+# In other words, even if 'cat' determines 'name', it doesn't when
+# it's an artificial NULL.
 --error ER_WRONG_FIELD_WITH_GROUP
 eval $query WITH ROLLUP;
 --echo # Expressions of group columns are ok:
+# when 'cat' is made NULL, length(cat) is deterministic.
 SELECT
  cat,
 length(cat),
@@ -600,6 +609,7 @@ let $query=
 select d.a,d.c
 from t1 left join (select a, coalesce(a,3) as c from t1) as d
 on t1.b>0;
+--sorted_result
 eval $query;
 --echo # Now group it by d.a:
 --error ER_WRONG_FIELD_WITH_GROUP
@@ -610,6 +620,7 @@ let $query=
 select d.a,d.c
 from t1 left join (select a, count(a) as c from t1 group by a) as d
 on t1.b+d.c>0;
+--sorted_result
 eval $query;
 --echo # Now group it by d.a:
 --error ER_WRONG_FIELD_WITH_GROUP
@@ -620,12 +631,14 @@ let $query=
 select d.m,d.c
 from t1 left join (select max(a) as m, count(a) as c from t1) as d
 on t1.b+d.c>0;
+--sorted_result
 eval $query;
 --echo # Now group it by d.m:
 --error ER_WRONG_FIELD_WITH_GROUP
 eval $query group by d.m;
 eval $show_trace;
 --echo # Now group it by d.c which is non-nullable:
+--sorted_result
 eval $query group by d.c;
 eval $show_trace;
 
@@ -671,6 +684,7 @@ insert into t2 values(2,3);
 let $query=
 select t4.d
  from t1 left join (t2 as t3 join t2 as t4 on t4.d=3) on t1.a=10;
+--sorted_result
 eval $query;
 --echo # Equivalent to T1 LJ (T2, T3) ON T4.D=3 AND T1.A=10
 --echo # (this is what simplify_joins() does).
@@ -681,6 +695,7 @@ eval $query group by "";
 let $query=
 select t4.d
  from t1 left join (t2 as t3 left join t2 as t4 on t4.d=3) on t1.a=10;
+--sorted_result
 eval $query;
 --echo # For T4.D=3, DJS={}, not NULL-friendly, and embedding is on weak side
 --echo # so FD cannot propagate.
@@ -701,12 +716,15 @@ create view v1 as select a as a, 2*a as b, coalesce(a,3) as c from t1;
 
 let $query=
 select v1.b from t1 left join v1 on 1;
+--sorted_result
 eval $query;
 --echo # If v1.a is NULL then v1.b is NULL: a->b is NULL-friendly
+--sorted_result
 eval $query group by v1.a;
 
 let $query=
 select v1.c from t1 left join v1 on 1;
+--sorted_result
 eval $query;
 --echo # If v1.a is NULL then v1.c may not be NULL: a->c is not NULL-friendly
 --error ER_WRONG_FIELD_WITH_GROUP
@@ -721,6 +739,7 @@ select t1.a, v1.b from t1 left join v1 on t1.a is not null;
 --echo # Because of BUG#17023060, the result is wrong, should be
 --echo # [10,2 ; 10,2 ; NULL,NULL], which would show that {}->{v1.b} does not
 --echo # hold in the result, even though v1.b is constant (=2) in v1.
+--sorted_result
 eval $query;
 --echo # We correctly reject this:
 --error ER_WRONG_FIELD_WITH_GROUP
@@ -1024,9 +1043,238 @@ CREATE TABLE u ( a INT );
 INSERT INTO u VALUES(0),(1);
 --echo # Even though {a}->{c} holds in 't', it doesn't propagate to the left
 --echo # join's result
+--sorted_result
 SELECT t.a,t.c FROM u LEFT JOIN t ON u.a>0;
 --error ER_WRONG_FIELD_WITH_GROUP
 SELECT t.a,t.c FROM u LEFT JOIN t ON u.a>0 GROUP BY t.a;
 DROP TABLE t,u;
 
+--echo #
+--echo # Bug #22924183 	GROUP BY ON DERIVED TABLE, EXPRESSION OF AGGREGATE AND GROUP COLUMN: ERROR
+--echo #
+
+CREATE TABLE coll (
+  doc text
+) ENGINE=InnoDB;
+
+SELECT (je+1)+count(*) FROM (SELECT doc+1 AS je FROM coll) AS dt GROUP BY je;
+
+SELECT je+(1+count(*)) FROM (SELECT doc+1 AS je FROM coll) AS dt GROUP BY je;
+
+DROP TABLE coll;
+
+--echo #
+--echo # Bug#27114719 FUNCTIONAL DEPENDENCY CHECK FAILS ON FIRST CALL, SUCCEEDS ON NEXT
+--echo #
+
+CREATE TABLE t ( a INT, c INT GENERATED ALWAYS AS (a+2), d INT GENERATED
+ALWAYS AS (c+2) );
+# Was wrongly accepted, on first run, in 8.0
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT t1.d FROM t as t1, t as t2 WHERE t2.d>t1.c GROUP BY t2.a;
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT t1.d FROM t as t1, t as t2 WHERE t2.d>t1.c GROUP BY t2.a;
+FLUSH TABLES;
+# Was wrongly accepted, on all runs, in 8.0 and 5.7
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT (SELECT t1.c FROM t as t1 GROUP BY -3) FROM t as t2;
+
+# Verify the DISTINCT check works on generated columns too (doesn't
+# have the above bug, because check doesn't need to dive into gcols).
+--error ER_FIELD_IN_ORDER_NOT_SELECT
+SELECT DISTINCT t1.a FROM t as t1 ORDER BY t1.d LIMIT 1;
+--error ER_FIELD_IN_ORDER_NOT_SELECT
+SELECT (SELECT DISTINCT t1.a FROM t as t1 ORDER BY t1.d LIMIT 1) FROM t as t2;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#22279903 ISSUE WITH ONLY_FULL_GROUP_BY AND UNIQUE KEY WITH NULL VALUES
+--echo #
+
+CREATE TABLE t(a INT NULL, b INT NOT NULL, c INT, UNIQUE(a,b));
+INSERT INTO t VALUES (NULL, 1, 4);
+INSERT INTO t VALUES (NULL, 1, 5);
+# we see that the first and second fields don't determine the third, so
+# it is incorrect to accept:
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT a,b,c FROM t GROUP BY a,b;
+
+# However, if we exclude null values of "a" then group columns do
+# determine {c}:
+SELECT a,b,c FROM t WHERE a IS NOT NULL GROUP BY a,b;
+# Test various predicates:
+SELECT a,b,c FROM t WHERE NOT (a IS NULL) GROUP BY a,b;
+SELECT a,b,c FROM t WHERE a > 3 GROUP BY a,b;
+SELECT a,b,c FROM t WHERE a = 3 GROUP BY b;
+SELECT a,b,c FROM t WHERE a BETWEEN 3 AND 6 GROUP BY a,b;
+SELECT a,b,c FROM t WHERE a <> 3 GROUP BY a,b;
+SELECT a,b,c FROM t WHERE a IN (3,4) GROUP BY a,b;
+SELECT a,b,c FROM t WHERE a IN (SELECT b FROM t) GROUP BY a,b;
+SELECT a,b,c FROM t WHERE a IS TRUE GROUP BY a,b;
+SELECT a,b,c FROM t WHERE (a <> 3) IS TRUE GROUP BY a,b;
+SELECT a,b,c FROM t WHERE a IS FALSE GROUP BY a,b;
+SELECT a,b,c FROM t WHERE (a <> 3) IS FALSE GROUP BY a,b;
+SELECT a,b,c FROM t WHERE NOT(a IN (3,4)) GROUP BY a,b;
+SELECT a,b,c FROM t WHERE a NOT IN (3,4) GROUP BY a,b;
+SELECT a,b,c FROM t WHERE a LIKE "%abc%" GROUP BY a,b;
+SELECT a,b,c FROM t WHERE a NOT LIKE "%abc%" GROUP BY a,b;
+
+# IS TRUE is not an equality, any non-zero number passes,
+# so it doesn't determine the value of 'a'.
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT a,b,c FROM t WHERE a IS TRUE GROUP BY b;
+
+# <=> lets NULLs pass, is potentially dangerous:
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT a,b,c FROM t WHERE a<=>NULL GROUP BY b;
+
+# unlike IS TRUE (tested above), IS NOT TRUE lets NULLs pass, so:
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT a,b,c FROM t WHERE a IS NOT TRUE GROUP BY a,b;
+
+# Conditions work equally well in merged derived table:
+SELECT a,b,c FROM
+ (SELECT * FROM t WHERE a IS NOT NULL) AS dt GROUP BY a,b;
+# And in materialized one. How this works:
+# in top query we add dt.a and dt.b to FD list; this adds t.a and t.b
+# to derived table's inner FD list; later we search if dt.c is FD; we
+# fail, and search into the derived table's body: there, dt.c is t.c;
+# we search if t.c is FD in the derived table's body; so we scan the
+# WHERE clause, find 'a IS NOT NULL', conclude that (a,b) is like a PK
+# of 't', so t.c is FD in the derived table's body, so dt.c is also
+# FD.
+SELECT /*+ NO_MERGE() */ a,b,c FROM
+ (SELECT * FROM t WHERE a IS NOT NULL) AS dt GROUP BY a,b;
+eval $show_trace;
+
+# IS NULL doesn't help us distinguish two NULLs in a group:
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT a,b,c FROM t WHERE a IS NULL GROUP BY a,b;
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT a,b,c FROM t WHERE NOT(a IS NOT NULL) GROUP BY a,b;
+
+# join condition on strong-side column gives no information
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT t.* FROM t LEFT JOIN t AS t1 ON t.a IS NOT NULL
+GROUP BY t.a,t.b;
+# but on weak-side column it does
+SELECT t.* FROM t RIGHT JOIN t AS t1 ON t.a IS NOT NULL
+GROUP BY t.a,t.b;
+
+DROP TABLE t;
+
+# A case which mixes different types of FDs.
+
+CREATE TABLE t1 (a INT, b INT);
+
+CREATE TABLE t2 (b INT);
+
+CREATE TABLE t3 (
+b INT NULL,
+c INT NULL,
+d INT NULL,
+e INT NULL,
+UNIQUE KEY (b,d,e));
+
+# t1.b is in GROUP BY and t1.a = 2
+# => t1.a and t1.b are known;
+# with t2.b=t1.b
+# => t2.b is known;
+# with t3.e=1 and t3.d=1 and t2.b=t3.b,
+# => t3.b and t3.e and t3.d are known and
+# we can treat them as non-nullable so treat unique key of t3
+# as PK,
+# => t3.c is known.
+SELECT * FROM t1, t2, t3
+WHERE t2.b = t1.b AND t2.b = t3.b
+AND t3.d = 1 AND t3.e = 1 AND t3.d IS NOT NULL AND t1.a = 2
+GROUP BY t1.b;
+
+# Remove IS NOT NULL condition, still works
+SELECT * FROM t1, t2, t3
+WHERE t2.b = t1.b AND t2.b = t3.b
+AND t3.d = 1 AND t3.e = 1 AND t1.a = 2
+GROUP BY t1.b;
+eval $show_trace;
+
+# Remove t3.d = 1, IS NOT NULL is not enough of course.
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT * FROM t1, t2, t3
+WHERE t2.b = t1.b AND t2.b = t3.b
+AND t3.e = 1 AND t3.d IS NOT NULL AND t1.a = 2
+GROUP BY t1.b;
+
+--echo # Verify that for semijoin and antijoin we catch the FD issues.
+
+# Start with EXISTS:
+--error ER_WRONG_FIELD_WITH_GROUP
+explain select (select 2 from t2 where 1=(select t1.b from t3)) as col from t1 group by t1.a;
+# this is ok, as the value of t1.b doesn't influence the result of EXISTS
+explain select (select 2 from t2 where exists(select t1.b from t3)) as col from t1 group by t1.a;
+explain select (select 2 from t2 where not exists(select t1.b from t3)) as col from t1 group by t1.a;
+# Move the column into WHERE of subquery:
+--error ER_WRONG_FIELD_WITH_GROUP
+explain select (select 2 from t2 where exists(select 1 from t3 where t1.b)) as col from t1 group by t1.a;
+--error ER_WRONG_FIELD_WITH_GROUP
+explain select (select 2 from t2 where not exists(select 1 from t3 where t1.b)) as col from t1 group by t1.a;
+
+# Same, with IN:
+--error ER_WRONG_FIELD_WITH_GROUP
+explain select (select 2 from t2 where 1 in(select t1.b from t3)) as col from t1 group by t1.a;
+# need a not NULL column to trigger antisemijoin for NOT IN:
+alter table t1 modify b int not null;
+--error ER_WRONG_FIELD_WITH_GROUP
+explain select (select 2 from t2 where 1 not in(select t1.b from t3)) as col from t1 group by t1.a;
+# Move the column into WHERE of subquery:
+--error ER_WRONG_FIELD_WITH_GROUP
+explain select (select 2 from t2 where 1 in(select 1 from t3 where t1.b)) as col from t1 group by t1.a;
+--error ER_WRONG_FIELD_WITH_GROUP
+explain select (select 2 from t2 where 1 not in(select 1 from t3 where t1.b)) as col from t1 group by t1.a;
+
+DROP TABLE t1, t2, t3;
+
 DROP FUNCTION show_json_object;
+
+--echo #
+--echo # Bug#29006668 UNEXPECTED ERROR: "ORDER BY CLAUSE IS NOT IN GROUP BY CLAUSE" WITH ROLLUP
+--echo #
+
+CREATE TABLE t(i INT);
+INSERT INTO t VALUES (-1),(2),(1);
+SELECT ABS(i) AS a FROM t GROUP BY abs(i)             ORDER BY a + 1;
+SELECT ABS(i) AS a FROM t GROUP BY abs(i) WITH ROLLUP ORDER BY a + 1;
+SELECT ABS(i) AS a FROM t GROUP BY a                  ORDER BY a + 1;
+SELECT ABS(i) AS a FROM t GROUP BY a      WITH ROLLUP ORDER BY a + 1;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#30753524 DBUG_ASSERT((MAP_OF_NEW_FDS & PSEUDO_TABLE_BITS) == 0)
+--echo #
+
+CREATE TABLE t (a INT,b INT);
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT 1 FROM t AS ot
+WHERE 1 <=
+ (
+   SELECT it2.a
+   FROM
+   (
+     SELECT ot.b FROM t AS it1
+   ) AS dt
+   JOIN t AS it2 ON dt.b=it2.b
+   GROUP BY it2.b
+ )
+;
+SELECT 1 FROM t AS ot
+WHERE 1 <=
+ (
+   SELECT dt.b
+   FROM
+   (
+     SELECT ot.b FROM t AS it1
+   ) AS dt
+   JOIN t AS it2 ON dt.b=it2.b
+   GROUP BY it2.b
+ )
+;
+DROP TABLE t;

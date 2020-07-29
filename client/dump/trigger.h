@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,27 +25,28 @@
 #ifndef TRIGGER_INCLUDED
 #define TRIGGER_INCLUDED
 
-#include "abstract_plain_sql_object_dump_task.h"
-#include "table.h"
+#include "client/dump/abstract_plain_sql_object_dump_task.h"
+#include "client/dump/table.h"
+#include "my_inttypes.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-class Trigger : public Abstract_plain_sql_object_dump_task
-{
-public:
-  Trigger(uint64 id, const std::string& name, const std::string& schema,
-    const std::string& sql_formatted_definition, const Table* defined_table);
-  const Table* get_defined_table();
+class Trigger : public Abstract_plain_sql_object_dump_task {
+ public:
+  Trigger(uint64 id, const std::string &name, const std::string &schema,
+          const std::string &sql_formatted_definition,
+          const Table *defined_table);
+  const Table *get_defined_table();
 
-private:
+ private:
   /* Holds table object based on which this trigger is defined. */
-  const Table* m_defined_table;
+  const Table *m_defined_table;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

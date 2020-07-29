@@ -1,3 +1,25 @@
+# Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
 """Test result object"""
 
 import sys
@@ -36,7 +58,7 @@ class TestResult(unittest.TestResult):
     """
     _previousTestClass = None
     _moduleSetUpFailed = False
-    
+
     def __init__(self):
         self.failfast = False
         self.failures = []
@@ -52,7 +74,7 @@ class TestResult(unittest.TestResult):
         self._original_stdout = sys.stdout
         self._original_stderr = sys.stderr
         self._mirrorOutput = False
-    
+
     def startTest(self, test):
         "Called when the given test is about to be run"
         self.testsRun += 1
@@ -84,7 +106,7 @@ class TestResult(unittest.TestResult):
                     if not error.endswith('\n'):
                         error += '\n'
                     self._original_stderr.write(STDERR_LINE % error)
-                
+
             sys.stdout = self._original_stdout
             sys.stderr = self._original_stderr
             self._stdout_buffer.seek(0)
@@ -92,7 +114,7 @@ class TestResult(unittest.TestResult):
             self._stderr_buffer.seek(0)
             self._stderr_buffer.truncate()
         self._mirrorOutput = False
-        
+
 
     def stopTestRun(self):
         """Called once after all tests are executed.
@@ -124,7 +146,7 @@ class TestResult(unittest.TestResult):
         self.skipped.append((test, reason))
 
     def addExpectedFailure(self, test, err):
-        """Called when an expected failure/error occured."""
+        """Called when an expected failure/error occurred."""
         self.expectedFailures.append(
             (test, self._exc_info_to_string(err, test)))
 
@@ -153,10 +175,10 @@ class TestResult(unittest.TestResult):
             msgLines = traceback.format_exception(exctype, value, tb, length)
         else:
             msgLines = traceback.format_exception(exctype, value, tb)
-        
+
         if self.buffer:
             output = sys.stdout.getvalue()
-            error = sys.stderr.getvalue()            
+            error = sys.stderr.getvalue()
             if output:
                 if not output.endswith('\n'):
                     output += '\n'

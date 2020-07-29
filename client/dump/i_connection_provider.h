@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,26 +25,25 @@
 #ifndef I_CONNECTION_PROVIDER_INCLUDED
 #define I_CONNECTION_PROVIDER_INCLUDED
 
-#include "base/mysql_query_runner.h"
-#include "base/message_data.h"
-#include "i_callable.h"
+#include <functional>
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+#include "client/base/message_data.h"
+#include "client/base/mysql_query_runner.h"
 
-class I_connection_provider
-{
-public:
-  virtual ~I_connection_provider()
-  {}
-  virtual Mysql::Tools::Base::Mysql_query_runner* get_runner(
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
-    message_handler)= 0;
+namespace Mysql {
+namespace Tools {
+namespace Dump {
+
+class I_connection_provider {
+ public:
+  virtual ~I_connection_provider() {}
+  virtual Mysql::Tools::Base::Mysql_query_runner *get_runner(
+      std::function<bool(const Mysql::Tools::Base::Message_data &)>
+          *message_handler) = 0;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

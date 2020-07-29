@@ -12,7 +12,7 @@ create table t1 (a int primary key, msg varchar(255)) engine=rocksdb;
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 SET SESSION debug="d,crash_commit_after_prepare";
---error 0,2013
+--error 0,CR_SERVER_LOST
 insert into t1 values (1, 'dogz');
 --enable_reconnect
 --source include/wait_until_connected_again.inc
@@ -20,7 +20,7 @@ select * from t1;
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 SET SESSION debug="d,crash_commit_after_log";
---error 0,2013
+--error 0,CR_SERVER_LOST
 insert into t1 values (2, 'catz'), (3, 'men');
 --enable_reconnect
 --source include/wait_until_connected_again.inc
@@ -28,7 +28,7 @@ select * from t1;
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 SET SESSION debug="d,crash_commit_after";
---error 0,2013
+--error 0,CR_SERVER_LOST
 insert into t1 values (4, 'cars'), (5, 'foo');
 --enable_reconnect
 --source include/wait_until_connected_again.inc

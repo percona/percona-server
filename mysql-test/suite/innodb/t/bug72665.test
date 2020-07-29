@@ -1,5 +1,3 @@
---source include/have_innodb.inc
-
 # Testcase for http://bugs.mysql.com/bug.php?id=72665:
 # ALTER TABLE causes
 # InnoDB: Assertion failure in thread 4608106496 in file ha_innodb.cc line 7215

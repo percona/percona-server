@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,7 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef BINARY_LOG_INCLUDED
-#define	BINARY_LOG_INCLUDED
+#define BINARY_LOG_INCLUDED
 
 /*
   This file is a convenience header file meant for the users, for inclusion
@@ -30,9 +30,9 @@
 */
 #include "binlog_event.h"
 #include "control_events.h"
-#include "statement_events.h"
+#include "field_types.h"
 #include "load_data_events.h"
 #include "rows_event.h"
-#include "binary_log_types.h"
+#include "statement_events.h"
 
-#endif	/* BINARY_LOG_INCLUDED */
+#endif /* BINARY_LOG_INCLUDED */

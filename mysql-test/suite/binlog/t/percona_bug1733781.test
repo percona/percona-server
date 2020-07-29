@@ -1,5 +1,4 @@
 --source include/have_log_bin.inc
---source include/have_innodb.inc
 
 --echo #
 --echo # Bug 1733781: sql/handler.cc:3008: int handler::ha_close(): Assertion `m_lock_type == 2' failed

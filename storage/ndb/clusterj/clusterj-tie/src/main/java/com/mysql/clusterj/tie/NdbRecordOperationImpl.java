@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,7 @@ import com.mysql.clusterj.tie.DbImpl.BufferManager;
 
 import com.mysql.ndbjtie.ndbapi.NdbBlob;
 import com.mysql.ndbjtie.ndbapi.NdbOperationConst;
+import com.mysql.ndbjtie.ndbapi.NdbOperation;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.Dictionary;
 
 /**
@@ -129,6 +130,9 @@ public class NdbRecordOperationImpl implements Operation {
     /** The autoincrement column id or zero if none */
     protected int autoIncrementColumnId = 0;
 
+    /** Boolean flag that tracks whether this operation is a read operation */
+    protected boolean isReadOp = false;
+
     /** Constructor used for smart value handler for new instances,
      * and the cluster transaction is not yet known. There is only one
      * NdbRecord and one buffer, so all operations result in using
@@ -147,7 +151,8 @@ public class NdbRecordOperationImpl implements Operation {
             this.autoIncrement = true;
             this.autoIncrementColumnId = autoIncrementColumn.getColumnId();
         }
-        logger.detail("autoIncrement for " + storeTable.getName() + " is: " + autoIncrement);
+        if (logger.isDetailEnabled())
+            logger.detail("autoIncrement for " + storeTable.getName() + " is: " + autoIncrement);
         this.tableName = storeTable.getName();
         this.ndbRecordValues = clusterConnection.getCachedNdbRecordImpl(storeTable);
         this.ndbRecordKeys = ndbRecordValues;
@@ -177,11 +182,11 @@ public class NdbRecordOperationImpl implements Operation {
             this.autoIncrement = true;
             this.autoIncrementColumnId = autoIncrementColumn.getColumnId();
         }
-        logger.detail("autoIncrement for " + storeTable.getName() + " is: " + autoIncrement);
+        if (logger.isDetailEnabled())
+            logger.detail("autoIncrement for " + storeTable.getName() + " is: " + autoIncrement);
         this.tableName = storeTable.getName();
         this.ndbRecordValues = clusterTransaction.getCachedNdbRecordImpl(storeTable);
         this.valueBufferSize = ndbRecordValues.getBufferSize();
-        this.valueBuffer = ndbRecordValues.newBuffer();
         this.storeColumns = ndbRecordValues.storeColumns;
         this.numberOfColumns = ndbRecordValues.getNumberOfColumns();
         this.blobs = new NdbRecordBlobImpl[this.numberOfColumns];
@@ -319,6 +324,9 @@ public class NdbRecordOperationImpl implements Operation {
         valueBuffer.limit(valueBufferSize);
         valueBuffer.position(0);
         ndbOperation = clusterTransactionImpl.readTuple(ndbRecordKeys.getNdbRecord(), keyBuffer, ndbRecordValues.getNdbRecord(), valueBuffer, mask, null);
+        // mark this operation as a read and add this to operationsToCheck list
+        isReadOp = true;
+        clusterTransactionImpl.addOperationToCheck(this);
         // for each blob column set, get the blob handle
         for (NdbRecordBlobImpl blob: activeBlobs) {
             // activate the blob by getting the NdbBlob
@@ -330,8 +338,17 @@ public class NdbRecordOperationImpl implements Operation {
         this.mask = new byte[1 + (numberOfColumns/8)];
     }
 
+    public void allocateValueBuffer(boolean initialize) {
+        this.valueBuffer = ndbRecordValues.newBuffer(initialize);
+    }
+
     public void allocateValueBuffer() {
-        this.valueBuffer = ndbRecordValues.newBuffer();
+        allocateValueBuffer(true);
+    }
+
+    public void returnValueBuffer() {
+        ndbRecordValues.returnBuffer(this.valueBuffer);
+        this.valueBuffer = null;
     }
 
     protected void activateBlobs() {
@@ -915,6 +932,10 @@ public class NdbRecordOperationImpl implements Operation {
 
     public NdbRecordBlobImpl getBlobHandle(int columnId) {
         return (NdbRecordBlobImpl) getBlobHandle(storeColumns[columnId]);
+    }
+
+    public boolean isReadOperation() {
+        return isReadOp;
     }
 
     public int getErrorCode() {

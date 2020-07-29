@@ -33,8 +33,7 @@ let $wait_condition = SELECT trx_state = 'LOCK WAIT'
 # saving the output into "STATUS" environment variable
 --let STATUS = query_get_value(SHOW ENGINE INNODB STATUS, Status, 1)
 
-# When "innodb_show_verbose_locks" is enabled the output should also include
-# something similar to the following:
+# The output should also include detailed lock info, i.e.
 #
 # Record lock, heap no 2 PHYSICAL RECORD: n_fields 4; compact format; info bits 0
 #  0: len 4; hex 80000001; asc     ;;

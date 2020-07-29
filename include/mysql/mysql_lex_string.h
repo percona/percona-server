@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,18 +23,22 @@
 #ifndef MYSQL_LEX_STRING_INCLUDED
 #define MYSQL_LEX_STRING_INCLUDED
 
-struct st_mysql_lex_string
-{
+/**
+  @file include/mysql/mysql_lex_string.h
+*/
+
+#ifndef MYSQL_ABI_CHECK
+#include <stddef.h>
+#endif
+
+struct MYSQL_LEX_STRING {
   char *str;
   size_t length;
 };
-typedef struct st_mysql_lex_string MYSQL_LEX_STRING;
 
-struct st_mysql_const_lex_string
-{
+struct MYSQL_LEX_CSTRING {
   const char *str;
   size_t length;
 };
-typedef struct st_mysql_const_lex_string MYSQL_LEX_CSTRING;
 
 #endif  // MYSQL_LEX_STRING_INCLUDED

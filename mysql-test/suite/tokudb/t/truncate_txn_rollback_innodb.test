@@ -1,5 +1,4 @@
 # test truncate commit
---source include/have_innodb.inc
 --source include/have_tokudb.inc
 set autocommit=off;
 --disable_warnings

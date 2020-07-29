@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,21 +26,28 @@
 #define trp_buffer_hpp
 
 #include <ndb_global.h>
-#include <ndb_socket.h> // struct iovec
+#include "ndb_socket.h" // struct iovec
 #include <portlib/NdbMutex.h>
 
 struct TFPage
 {
-  inline Uint32 max_data_bytes() const {
-    return m_size;
+  /* In previous versions the number of data words was calculated such that
+   * sizeof TFPage became 32'768 bytes.  That value is made explicit to more
+   * easily track possible future changes.
+   */
+  static constexpr Uint32 SIZE = 8188 * sizeof(Uint32);
+
+  static constexpr inline Uint32 max_data_bytes()
+  {
+    return SIZE;
   }
 
   inline Uint32 get_free_bytes() const {
-    return m_size - m_bytes;
+    return SIZE - m_bytes;
   }
 
   inline bool is_full() const {
-    return m_bytes == m_size;
+    return m_bytes == SIZE;
   }
 
   inline void init () {
@@ -48,12 +55,6 @@ struct TFPage
     m_start = 0;
     m_ref_count = 0;
     m_next = 0;
-    /*
-      Ensure compiler and developer not adds any fields without
-      ensuring alignment still holds.
-    */
-    STATIC_ASSERT(sizeof(TFPage) ==
-      (sizeof(void*) + 4 * sizeof(Uint16) + 8));
   }
 
   static TFPage* ptr(struct iovec p) {
@@ -73,10 +74,7 @@ struct TFPage
    */
   Uint16 m_start;
 
-  /**
-   * size of page
-   */
-  Uint16 m_size;
+  Uint16 m_unused;
 
   /**
    * ref-count
@@ -84,7 +82,10 @@ struct TFPage
   Uint16 m_ref_count;
 
   /**
-   * Pointer to next page
+   * Pointer to next page.
+   * Note, may be 32bit on some platforms.
+   * alignas(8) for m_data makes sure that struct size still will be equal on
+   * 32bit and 64bit platforms.
    */
   struct TFPage * m_next;
 
@@ -95,23 +96,7 @@ struct TFPage
    * m_data actually houses a full page that is allocated when the
    * data structure is malloc'ed.
    */
-  char m_data[8];
-};
-
-/**
- * TFSentinel is used to link pages wo/ having to care about
- *   first page being null
- */
-struct TFSentinel
-{
-  Uint64 data[sizeof(TFPage) / 8];
-
-  TFSentinel() {
-    for (Uint32 i = 0; i < NDB_ARRAY_SIZE(data); i++)
-      data[i] = 0;
-  }
-
-  TFPage* getPtr() { return new (&data[0]) TFPage;}
+  alignas(8) char m_data[SIZE];
 };
 
 struct TFBuffer
@@ -145,30 +130,51 @@ class TFPool
 {
   friend class TFMTPool;
   unsigned char * m_alloc_ptr;
-  Uint64 m_tot_send_buffer;
-  Uint64 m_tot_used_send_buffer;
+  Uint32 m_tot_send_buffer_pages;
+  Uint32 m_pagesize;
+  Uint32 m_free_send_buffer_pages;
+  Uint32 m_reserved_send_buffer_pages;
   TFPage * m_first_free;
 public:
-  TFPool();
+  TFPool():
+    m_alloc_ptr(0),
+    m_tot_send_buffer_pages(0),
+    m_pagesize(SENDBUFFER_DEFAULT_PAGE_SIZE),
+    m_free_send_buffer_pages(0),
+    m_reserved_send_buffer_pages(0),
+    m_first_free(0)
+    {}
+
   ~TFPool();
 
-  bool init(size_t total_memory, size_t page_sz = 32768);
+  bool init(size_t total_memory, 
+            size_t reserved_memory = 0,
+            size_t page_sz = SENDBUFFER_DEFAULT_PAGE_SIZE);
   bool inited() const { return m_alloc_ptr != 0;}
 
-  TFPage* try_alloc(Uint32 N); // Return linked list of most N pages
+  TFPage* try_alloc(Uint32 N, bool reserved = false); // Return linked list of most N pages
   Uint32 try_alloc(struct iovec tmp[], Uint32 cnt);
 
   void release(TFPage* first, TFPage* last, Uint32 page_count);
   void release_list(TFPage* first);
 
-  Uint64 get_total_send_buffer_size()
+  Uint64 get_total_send_buffer_size() const
   {
-    return m_tot_send_buffer;
+    /* We ignore the reserved space which is for 'emergency' use only */
+    return Uint64(m_tot_send_buffer_pages - m_reserved_send_buffer_pages) * m_pagesize;
   }
-  Uint64 get_total_used_send_buffer_size()
+  Uint64 get_total_used_send_buffer_size() const
   {
-    return m_tot_used_send_buffer;
+    return Uint64(m_tot_send_buffer_pages - m_free_send_buffer_pages) * m_pagesize;
   }
+  Uint32 get_page_size() const
+  {
+    return m_pagesize;
+  }
+
+protected:
+  static constexpr Uint32 SENDBUFFER_DEFAULT_PAGE_SIZE = 32 * 1024;
+  static_assert(SENDBUFFER_DEFAULT_PAGE_SIZE == sizeof(TFPage), "");
 };
 
 class TFMTPool : private TFPool
@@ -177,16 +183,20 @@ class TFMTPool : private TFPool
 public:
   explicit TFMTPool(const char * name = 0);
 
-  bool init(size_t total_memory, size_t page_sz = 32768) {
-    return TFPool::init(total_memory, page_sz);
+  bool init(size_t total_memory, 
+            size_t reserved_memory = 0, 
+            size_t page_sz = SENDBUFFER_DEFAULT_PAGE_SIZE) {
+    return TFPool::init(total_memory, 
+                        reserved_memory,
+                        page_sz);
   }
   bool inited() const {
     return TFPool::inited();
   }
 
-  TFPage* try_alloc(Uint32 N) {
+  TFPage* try_alloc(Uint32 N, bool reserved = false) {
     Guard g(&m_mutex);
-    return TFPool::try_alloc(N);
+    return TFPool::try_alloc(N, reserved);
   }
 
   void release(TFPage* first, TFPage* last, Uint32 page_count) {
@@ -204,36 +214,71 @@ public:
     }
     release(head, tail, page_count);
   }
-  Uint64 get_total_send_buffer_size()
+  Uint64 get_total_send_buffer_size() const
   {
-    return m_tot_send_buffer;
+    return TFPool::get_total_send_buffer_size(); 
   }
-  Uint64 get_total_used_send_buffer_size()
+  Uint64 get_total_used_send_buffer_size() const
   {
-    return m_tot_used_send_buffer;
+    return TFPool::get_total_used_send_buffer_size();
+  }
+  Uint32 get_page_size() const
+  {
+    return TFPool::get_page_size();
   }
 };
 
 inline
 TFPage *
-TFPool::try_alloc(Uint32 n)
+TFPool::try_alloc(Uint32 n, bool reserved)
 {
-  TFPage * h = m_first_free;
-  if (h)
+  /* Try to alloc up to n, but maybe less, including 0 */
+
+  /**
+   * Don't worry about reserved et al unless we are low
+   * on pages (unusual case)
+   */
+  if (unlikely(m_free_send_buffer_pages < m_reserved_send_buffer_pages + n))
   {
+    Uint64 avail_pages = m_free_send_buffer_pages; 
+    if (!reserved)
+    {
+      /* Some pages are unavailable for us */
+      if (m_free_send_buffer_pages > m_reserved_send_buffer_pages)
+      {
+        /* Some lesser number of pages available */
+        avail_pages = m_free_send_buffer_pages - 
+          m_reserved_send_buffer_pages;
+      }
+      else
+      {
+        /* No pages available */
+        avail_pages = 0;
+      }
+    }
+    
+    n = MIN(n, avail_pages);
+  }
+  
+  if (n)
+  {
+    TFPage * h = m_first_free;
     TFPage * p = h;
     TFPage * prev = 0;
-    while (p != 0 && n != 0)
+    m_free_send_buffer_pages -= n;
+    while (n != 0)
     {
+      assert(p);
       prev = p;
       p = p->m_next;
-      m_tot_used_send_buffer += 32768;
       n--;
     }
     prev->m_next = 0;
     m_first_free = p;
+    return h;
   }
-  return h;
+
+  return NULL;
 }
 
 inline
@@ -246,7 +291,7 @@ TFPool::try_alloc(struct iovec tmp[], Uint32 cnt)
   {
     p->init();
     tmp[i].iov_base = p->m_data;
-    tmp[i].iov_len = p->m_size;
+    tmp[i].iov_len = p->max_data_bytes();
 
     i++;
     p = p->m_next;
@@ -260,7 +305,8 @@ TFPool::release(TFPage* first, TFPage* last, Uint32 page_count)
 {
   last->m_next = m_first_free;
   m_first_free = first;
-  m_tot_used_send_buffer -= (32768 * page_count);
+  m_free_send_buffer_pages += page_count;
+  assert(m_free_send_buffer_pages <= m_tot_send_buffer_pages);
 }
 
 inline

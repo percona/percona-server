@@ -1,7 +1,6 @@
 # This test checks if compressed columns extensions (including compression
 # dictionaries) work properly in different replication modes.
 
---source include/have_innodb.inc
 --source include/master-slave.inc
 
 --let $dict_word= long

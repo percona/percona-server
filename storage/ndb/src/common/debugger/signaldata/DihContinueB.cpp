@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2008 MySQL AB, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,12 +50,6 @@ printCONTINUEB_DBDIH(FILE * output, const Uint32 * theData,
 	    theData[1], theData[2], theData[3], theData[4]);
     return true;
     break;
-#if 0
-  case DihContinueB::ZREAD_TAB_DESCRIPTION:
-    fprintf(output, " Read Table description: %d\n", theData[1]);
-    return true;
-    break;
-#endif
   case DihContinueB::ZCOPY_TABLE:
     fprintf(output, " Copy Table: %d\n", theData[1]);
     return true;
@@ -107,7 +100,7 @@ printCONTINUEB_DBDIH(FILE * output, const Uint32 * theData,
     return true;
     break;
   case DihContinueB::ZINIT_LCP:
-    fprintf(output, " Init LCP: Table: %d\n", theData[1]);
+    fprintf(output, " Init LCP: Table: %d\n", theData[2]);
     return true;
     break;
   case DihContinueB::ZADD_TABLE_MASTER_PAGES:
@@ -162,6 +155,14 @@ printCONTINUEB_DBDIH(FILE * output, const Uint32 * theData,
     fprintf(output, " To Start Copy Frag: TakeOverPtr: %d\n", theData[1]);
     return true;
     break;
+  case DihContinueB::ZTO_START_LOGGING:
+    fprintf(output, " To Start REDO logging: TakeOverPtr: %d\n", theData[1]);
+    return true;
+    break;
+  case DihContinueB::ZTO_START_FRAGMENTS:
+    fprintf(output, " To Start Fragments: TakeOverPtr: %d\n", theData[1]);
+    return true;
+    break;
   case DihContinueB::ZINVALIDATE_NODE_LCP:
     fprintf(output, " Invalide LCP: NodeId: %d TableId %d\n",
             theData[1], theData[2]);
@@ -201,6 +202,18 @@ printCONTINUEB_DBDIH(FILE * output, const Uint32 * theData,
   case DihContinueB::ZLCP_TRY_LOCK:
     fprintf(output, " Lcp trylock: attempt %u\n",
             theData[1]);
+    break;
+  case DihContinueB::ZWAIT_OLD_SCAN:
+    fprintf(output, " Wait old scan\n");
+    break;
+  case DihContinueB::ZDEQUEUE_LCP_REP:
+    fprintf(output, " Get Dequeue LCP report\n");
+    break;
+  case DihContinueB::ZGET_TABINFO:
+    fprintf(output, " Get Tabinfo\n");
+    break;
+  case DihContinueB::ZGET_TABINFO_SEND:
+    fprintf(output, " Get Tabinfo Send\n");
     break;
   default:
     fprintf(output, " Default system error lab...\n");

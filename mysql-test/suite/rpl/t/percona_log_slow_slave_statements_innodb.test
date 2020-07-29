@@ -1,5 +1,4 @@
 --source include/have_binlog_format_statement.inc
---source include/have_innodb.inc
 --source include/master-slave.inc
 
 CREATE TABLE t(id INT,data CHAR(30)) ENGINE=InnoDB;

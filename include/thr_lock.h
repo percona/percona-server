@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,71 +22,90 @@
 
 /* For use with thr_lock:s */
 
+/**
+  @file include/thr_lock.h
+*/
+
 #ifndef _thr_lock_h
 #define _thr_lock_h
 
-#include <my_thread.h>
-#include <my_list.h>
-#include "mysql/psi/mysql_thread.h"
+#include <sys/types.h>
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
+#include "my_inttypes.h"
+#include "my_list.h"
+#include "my_thread_local.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
 
-struct st_thr_lock;
-extern ulong locks_immediate,locks_waited ;
+extern mysql_mutex_t THR_LOCK_lock;
+
+struct THR_LOCK;
+
+extern ulong locks_immediate, locks_waited;
 
 /*
   Important: if a new lock type is added, a matching lock description
              must be added to sql_test.cc's lock_descriptions array.
 */
-enum thr_lock_type { TL_IGNORE=-1,
-		     TL_UNLOCK,			/* UNLOCK ANY LOCK */
-                     /*
-                       Parser only! At open_tables() becomes TL_READ or
-                       TL_READ_NO_INSERT depending on the binary log format
-                       (SBR/RBR) and on the table category (log table).
-                       Used for tables that are read by statements which
-                       modify tables.
-                     */
-                     TL_READ_DEFAULT,
-		     TL_READ,			/* Read lock */
-		     TL_READ_WITH_SHARED_LOCKS,
-		     /* High prior. than TL_WRITE. Allow concurrent insert */
-		     TL_READ_HIGH_PRIORITY,
-		     /* READ, Don't allow concurrent insert */
-		     TL_READ_NO_INSERT,
-		     /* 
-			Write lock, but allow other threads to read / write.
-			Used by BDB tables in MySQL to mark that someone is
-			reading/writing to the table.
-		      */
-		     TL_WRITE_ALLOW_WRITE,
-                     /*
-                       parser only! Late bound low_priority_flag.
-                       At open_tables() becomes thd->insert_lock_default.
-                     */
-                     TL_WRITE_CONCURRENT_DEFAULT,
-		     /*
-		       WRITE lock used by concurrent insert. Will allow
-		       READ, if one could use concurrent insert on table.
-		     */
-		     TL_WRITE_CONCURRENT_INSERT,
-                     /* 
-                       parser only! Late bound low_priority flag. 
-                       At open_tables() becomes thd->update_lock_default.
-                     */
-                     TL_WRITE_DEFAULT,
-		     /* WRITE lock that has lower priority than TL_READ */
-		     TL_WRITE_LOW_PRIORITY,
-		     /* Normal WRITE lock */
-		     TL_WRITE,
-		     /* Abort new lock request with an error */
-		     TL_WRITE_ONLY};
+enum thr_lock_type {
+  TL_IGNORE = -1,
+  TL_UNLOCK, /* UNLOCK ANY LOCK */
+  /*
+    Parser only! At open_tables() becomes TL_READ or
+    TL_READ_NO_INSERT depending on the binary log format
+    (SBR/RBR) and on the table category (log table).
+    Used for tables that are read by statements which
+    modify tables.
+  */
+  TL_READ_DEFAULT,
+  TL_READ, /* Read lock */
+  TL_READ_WITH_SHARED_LOCKS,
+  /* High prior. than TL_WRITE. Allow concurrent insert */
+  TL_READ_HIGH_PRIORITY,
+  /* READ, Don't allow concurrent insert */
+  TL_READ_NO_INSERT,
+  /*
+     Write lock, but allow other threads to read / write.
+     Used by BDB tables in MySQL to mark that someone is
+     reading/writing to the table.
+   */
+  TL_WRITE_ALLOW_WRITE,
+  /*
+    parser only! Late bound low_priority_flag.
+    At open_tables() becomes thd->insert_lock_default.
+  */
+  TL_WRITE_CONCURRENT_DEFAULT,
+  /*
+    WRITE lock used by concurrent insert. Will allow
+    READ, if one could use concurrent insert on table.
+  */
+  TL_WRITE_CONCURRENT_INSERT,
+  /*
+    parser only! Late bound low_priority flag.
+    At open_tables() becomes thd->update_lock_default.
+  */
+  TL_WRITE_DEFAULT,
+  /* WRITE lock that has lower priority than TL_READ */
+  TL_WRITE_LOW_PRIORITY,
+  /* Normal WRITE lock */
+  TL_WRITE,
+  /* Abort new lock request with an error */
+  TL_WRITE_ONLY
+};
 
-enum enum_thr_lock_result { THR_LOCK_SUCCESS= 0, THR_LOCK_ABORTED= 1,
-                            THR_LOCK_WAIT_TIMEOUT= 2, THR_LOCK_DEADLOCK= 3 };
+enum thr_locked_row_action { THR_DEFAULT, THR_WAIT, THR_NOWAIT, THR_SKIP };
 
+struct Lock_descriptor {
+  thr_lock_type type{TL_UNLOCK};
+  thr_locked_row_action action{THR_DEFAULT};
+};
+
+enum enum_thr_lock_result {
+  THR_LOCK_SUCCESS = 0,
+  THR_LOCK_ABORTED = 1,
+  THR_LOCK_WAIT_TIMEOUT = 2,
+  THR_LOCK_DEADLOCK = 3
+};
 
 extern ulong max_write_lock_count;
 extern enum thr_lock_type thr_upgraded_concurrent_insert_lock;
@@ -96,29 +115,27 @@ extern enum thr_lock_type thr_upgraded_concurrent_insert_lock;
   of an instance of this structure is used to uniquely identify the thread.
 */
 
-typedef struct st_thr_lock_info
-{
+struct THR_LOCK_INFO {
   my_thread_id thread_id;
   mysql_cond_t *suspend;
-} THR_LOCK_INFO;
-
-
-typedef struct st_thr_lock_data {
-  THR_LOCK_INFO *owner;
-  struct st_thr_lock_data *next,**prev;
-  struct st_thr_lock *lock;
-  mysql_cond_t *cond;
-  enum thr_lock_type type;
-  void *status_param;			/* Param to status functions */
-  void *debug_print_param;
-  struct PSI_table *m_psi;
-} THR_LOCK_DATA;
-
-struct st_lock_list {
-  THR_LOCK_DATA *data,**last;
 };
 
-typedef struct st_thr_lock {
+struct THR_LOCK_DATA {
+  THR_LOCK_INFO *owner{nullptr};
+  THR_LOCK_DATA *next{nullptr}, **prev{nullptr};
+  THR_LOCK *lock{nullptr};
+  mysql_cond_t *cond{nullptr};
+  thr_lock_type type{TL_IGNORE};
+  void *status_param{nullptr}; /* Param to status functions */
+  void *debug_print_param{nullptr};
+  struct PSI_table *m_psi{nullptr};
+};
+
+struct st_lock_list {
+  THR_LOCK_DATA *data{nullptr}, **last{nullptr};
+};
+
+struct THR_LOCK {
   LIST list;
   mysql_mutex_t mutex;
   struct st_lock_list read_wait;
@@ -126,44 +143,34 @@ typedef struct st_thr_lock {
   struct st_lock_list write_wait;
   struct st_lock_list write;
   /* write_lock_count is incremented for write locks and reset on read locks */
-  ulong write_lock_count;
-  uint read_no_write_count;
-  void (*get_status)(void*, int);	/* When one gets a lock */
-  void (*copy_status)(void*,void*);
-  void (*update_status)(void*);		/* Before release of write */
-  void (*restore_status)(void*);         /* Before release of read */
-  my_bool (*check_status)(void *);
-} THR_LOCK;
-
+  ulong write_lock_count{0};
+  uint read_no_write_count{0};
+  void (*get_status)(void *, int){nullptr}; /* When one gets a lock */
+  void (*copy_status)(void *, void *){nullptr};
+  void (*update_status)(void *){nullptr};  /* Before release of write */
+  void (*restore_status)(void *){nullptr}; /* Before release of read */
+  bool (*check_status)(void *){nullptr};
+};
 
 extern LIST *thr_lock_thread_list;
-extern mysql_mutex_t THR_LOCK_lock;
 
 void thr_lock_info_init(THR_LOCK_INFO *info, my_thread_id thread_id,
                         mysql_cond_t *suspend);
 void thr_lock_init(THR_LOCK *lock);
 void thr_lock_delete(THR_LOCK *lock);
-void thr_lock_data_init(THR_LOCK *lock,THR_LOCK_DATA *data,
-			void *status_param);
-enum enum_thr_lock_result thr_lock(THR_LOCK_DATA *data,
-                                   THR_LOCK_INFO *owner,
+void thr_lock_data_init(THR_LOCK *lock, THR_LOCK_DATA *data,
+                        void *status_param);
+enum enum_thr_lock_result thr_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner,
                                    enum thr_lock_type lock_type,
                                    ulong lock_wait_timeout);
 void thr_unlock(THR_LOCK_DATA *data);
-enum enum_thr_lock_result thr_multi_lock(THR_LOCK_DATA **data,
-                                         uint count, THR_LOCK_INFO *owner,
+enum enum_thr_lock_result thr_multi_lock(THR_LOCK_DATA **data, uint count,
+                                         THR_LOCK_INFO *owner,
                                          ulong lock_wait_timeout);
-void thr_multi_unlock(THR_LOCK_DATA **data,uint count);
-void
-thr_lock_merge_status(THR_LOCK_DATA **data, uint count);
-void thr_abort_locks(THR_LOCK *lock, my_bool upgrade_lock);
+void thr_multi_unlock(THR_LOCK_DATA **data, uint count);
+void thr_lock_merge_status(THR_LOCK_DATA **data, uint count);
 void thr_abort_locks_for_thread(THR_LOCK *lock, my_thread_id thread);
-void thr_print_locks(void);		/* For debugging */
-void    thr_downgrade_write_lock(THR_LOCK_DATA *data,
-                                 enum thr_lock_type new_lock_type);
+void thr_print_locks(void); /* For debugging */
 void thr_set_lock_wait_callback(void (*before_wait)(void),
                                 void (*after_wait)(void));
-#ifdef	__cplusplus
-}
-#endif
 #endif /* _thr_lock_h */

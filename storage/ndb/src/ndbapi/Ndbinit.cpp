@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,7 +82,6 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   theInitState= NotConstructed;
 
   theNode= 0;
-  theFirstTransId= 0;
   theMyRef= 0;
 
   fullyQualifiedNames = true;
@@ -174,6 +173,18 @@ Ndb::~Ndb()
   }
   doDisconnect();
 
+  /**
+   * Update ndb_cluster_connection next transid map
+   *
+   * Must be done *before* releasing the block reference so that
+   * another Ndb reusing the reference does not overlap
+   */
+  if (theNdbBlockNumber > 0)
+  {
+    theImpl->m_ndb_cluster_connection.set_next_transid(theNdbBlockNumber,
+                                                       Uint32(theFirstTransId));
+  }
+
   /* Disconnect from transporter to stop signals from coming in */
   theImpl->close();
 
@@ -210,17 +221,6 @@ Ndb::~Ndb()
   DBUG_VOID_RETURN;
 }
 
-NdbWaiter::NdbWaiter(trp_client* clnt)
-  : m_clnt(clnt)
-{
-  m_node = 0;
-  m_state = NO_WAIT;
-}
-
-NdbWaiter::~NdbWaiter()
-{
-  m_clnt = NULL;
-}
 
 NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
 		 Ndb& ndb)
@@ -231,7 +231,15 @@ NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
     m_transporter_facade(ndb_cluster_connection->m_impl.m_transporter_facade),
     m_dictionary(ndb),
     theCurrentConnectIndex(0),
-    theNdbObjectIdMap(1024,1024),
+    /**
+     * m_mutex is passed to theNdbObjectIdMap since it's needed to guard
+     * expand() of theNdbObjectIdMap.
+     */
+#ifdef TEST_MAP_REALLOC
+    theNdbObjectIdMap(1, 1, m_mutex),
+#else
+    theNdbObjectIdMap(1024, 1024, m_mutex),
+#endif
     theNoOfDBnodes(0),
     theWaiter(this),
     wakeHandler(0),
@@ -272,7 +280,6 @@ NdbImpl::~NdbImpl()
 {
   m_next_ndb_object = NULL;
   m_prev_ndb_object = NULL;
-  theWaiter = NULL;
   wakeHandler = NULL;
   m_ev_op = NULL;
 }

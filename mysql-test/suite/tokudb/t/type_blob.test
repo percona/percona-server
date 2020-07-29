@@ -55,7 +55,7 @@ insert into t1 values (null,"a","A");
 insert into t1 values (null,"bbb","BBB");
 insert into t1 values (null,"ccc","CCC");
 select last_insert_id();
-select * from t1,t1 as t2;
+select * from t1,t1 as t2 order by t2.nr, t2.b, t2.str, t1.nr, t1.b, t1.str;
 
 drop table t1;
 
@@ -134,12 +134,10 @@ select c,count(*) from t1 group by c;
 select d,count(*) from t1 group by d;
 drop table t1;
 
--- error 1071
+-- error ER_TOO_LONG_KEY
 create table t1 (a text, unique (a(21000))); # should give an error
-create table t1 (a text, key (a(2100)));    # key is auto-truncated
-replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
-show create table t1;
-drop table t1;
+-- error ER_TOO_LONG_KEY
+create table t1 (a text, key (a(2100))); # should give an error
 
 #
 # Test of join with blobs and min
@@ -344,7 +342,7 @@ eval select
   collation(load_file('../../std_data/words.dat')),
   coercibility(load_file('../../std_data/words.dat'));
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval explain extended select
+eval explain select
   charset(load_file('$MYSQLTEST_VARDIR/std_data/words.dat')),
   collation(load_file('$MYSQLTEST_VARDIR/std_data/words.dat')),
   coercibility(load_file('$MYSQLTEST_VARDIR/std_data/words.dat'));
@@ -365,7 +363,6 @@ drop table t1;
 #
 
 create table t1 (id integer primary key auto_increment, txt text not null, unique index txt_index (txt (20)));
---error ER_DUP_ENTRY
 insert into t1 (txt) values ('Chevy'), ('Chevy ');
 --error ER_DUP_ENTRY
 insert into t1 (txt) values ('Chevy'), ('CHEVY');
@@ -557,13 +554,19 @@ CREATE TABLE b15776 (a char(9999999999999999999999999999999999999999999999999999
 CREATE TABLE b15776 (a year(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));
 
 ## Do not select, too much memory needed.
+--error ER_WARN_ALLOWED_PACKET_OVERFLOWED
 CREATE TABLE b15776 select cast(null as char(4294967295));
+CREATE TABLE b15776 select cast(null as char(67108864));
 show columns from b15776;
 drop table b15776;
+--error ER_WARN_ALLOWED_PACKET_OVERFLOWED
 CREATE TABLE b15776 select cast(null as nchar(4294967295));
+CREATE TABLE b15776 select cast(null as char(67108864));
 show columns from b15776;
 drop table b15776;
+--error ER_WARN_ALLOWED_PACKET_OVERFLOWED
 CREATE TABLE b15776 select cast(null as binary(4294967295));
+CREATE TABLE b15776 select cast(null as char(67108864));
 show columns from b15776;
 drop table b15776;
 

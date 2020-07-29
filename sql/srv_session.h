@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -18,15 +18,27 @@
 
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef SRV_SESSION_H
 #define SRV_SESSION_H
 
-#include "protocol_callback.h"
-#include "sql_class.h"
-#include "my_thread.h"           /* my_thread_id */
-#include "violite.h"             /* enum_vio_type */
+#include <stdint.h>
+
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "my_command.h"
+#include "my_psi_config.h"
+#include "my_thread_local.h"
+#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/service_command.h"
+#include "mysql/service_srv_session.h"
+#include "sql/protocol_callback.h"
+#include "sql/sql_class.h"
+#include "sql/sql_error.h"
+#include "violite.h" /* enum_vio_type */
+
+struct st_plugin_int;
 
 /**
   @file
@@ -40,9 +52,8 @@
 extern PSI_statement_info stmt_info_new_packet;
 #endif
 
-class Srv_session
-{
-public:
+class Srv_session {
+ public:
   /**
     Initializes the module.
 
@@ -84,7 +95,6 @@ public:
   */
   static void deinit_thread();
 
-
   /**
     Checks if a plugin has left threads and sessions
 
@@ -114,14 +124,17 @@ public:
   */
   static unsigned int thread_count(const void *plugin_name);
 
+  /**
+    Check if current physical thread was created to be used with this class.
+  */
+  static bool is_srv_session_thread();
 
   /* Non-static members follow */
 
   /**
     Enum for the state of the session
   */
-  enum srv_session_state
-  {
+  enum srv_session_state {
     SRV_SESSION_CREATED,
     SRV_SESSION_ATTACHED,
     SRV_SESSION_DETACHED,
@@ -131,7 +144,7 @@ public:
   /**
     Constructs a server session
 
-    @param error_cb       Default completion callback
+    @param err_cb         Default completion callback
     @param err_cb_ctx     Plugin's context, opaque pointer that would
                           be provided to callbacks. Might be NULL.
   */
@@ -199,16 +212,15 @@ public:
       0   success
   */
   int execute_command(enum enum_server_command command,
-                      const union COM_DATA * data,
-                      const CHARSET_INFO * client_cs,
-                      const struct st_command_service_cbs * command_callbacks,
+                      const union COM_DATA *data, const CHARSET_INFO *client_cs,
+                      const struct st_command_service_cbs *command_callbacks,
                       enum cs_text_or_binary text_or_binary,
-                      void * callbacks_context);
+                      void *callbacks_context);
 
   /**
     Returns the internal THD object
   */
-  inline THD* get_thd() { return &thd; }
+  inline THD *get_thd() { return &thd; }
 
   /**
     Returns the ID of a session.
@@ -259,15 +271,15 @@ public:
   */
   bool set_connection_type(enum_vio_type type);
 
-  struct st_err_protocol_ctx
-  {
-    st_err_protocol_ctx(srv_session_error_cb h, void *h_ctx) :
-       handler(h), handler_context(h_ctx) {}
+  struct st_err_protocol_ctx {
+    st_err_protocol_ctx(srv_session_error_cb h, void *h_ctx)
+        : handler(h), handler_context(h_ctx) {}
 
     srv_session_error_cb handler;
     void *handler_context;
   };
-private:
+
+ private:
   /**
     Sets session's state to attached
 
@@ -288,16 +300,16 @@ private:
   srv_session_state state;
   enum_vio_type vio_type;
 
-  class Session_backup_and_attach
-  {
-  public:
+  class Session_backup_and_attach {
+   public:
     /**
       Constructs a session state object. Saves state then attaches a session.
       Uses RAII.
 
       @param sess Session to backup
+      @param is_in_close_session Wheather session needs to be closed.
     */
-    Session_backup_and_attach(Srv_session *sess, bool is_close_session);
+    Session_backup_and_attach(Srv_session *sess, bool is_in_close_session);
 
     /**
       Destructs the session state object. In other words it restores to
@@ -305,12 +317,13 @@ private:
     */
     ~Session_backup_and_attach();
 
-  private:
+   private:
     Srv_session *session;
     Srv_session *old_session; /* used in srv_session threads */
     THD *backup_thd;
     bool in_close_session;
-  public:
+
+   public:
     bool attach_error;
   };
 };

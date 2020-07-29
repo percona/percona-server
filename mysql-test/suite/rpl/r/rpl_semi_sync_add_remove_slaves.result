@@ -65,7 +65,7 @@ include/install_semisync_slave.inc
 [connection server1_1]
 SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 8;
 #
-# 4. Insert 5000 tuples in background using 10 parallel connections.
+# 4. Insert 1000 tuples in background using 10 parallel connections.
 #
 #
 # 5. While the insert operations are going in the background, keep

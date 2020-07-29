@@ -65,6 +65,19 @@ z varchar(20) binary NOT NULL DEFAULT ' ',
 a1 varchar(30) binary NOT NULL DEFAULT ' ',
 b1 tinyblob NULL)
 DEFAULT CHARACTER SET = latin1 COLLATE latin1_bin;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -115,7 +128,7 @@ Warnings:
 Warning	1364	Field 'd' doesn't have a default value
 desc bug20691;
 Field	Type	Null	Key	Default	Extra
-i	int(11)	YES		NULL	
+i	int	YES		NULL	
 d	datetime	NO		NULL	
 dn	datetime	NO		0000-00-00 00:00:00	
 insert into bug20691 values (3, DEFAULT, DEFAULT), (3, '1975-07-10 07:10:03', '1978-01-13 14:08:51'), (3, DEFAULT, DEFAULT);
@@ -155,8 +168,6 @@ i	d	dn
 6	0000-00-00 00:00:00	0000-00-00 00:00:00
 drop table bug20691;
 SET sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table bug20691 (
 a set('one', 'two', 'three') not null,
 b enum('small', 'medium', 'large', 'enormous', 'ellisonego') not null,
@@ -224,3 +235,13 @@ NULL
 drop table t1, t2;
 SET sql_mode = default;
 End of 5.0 tests.
+CREATE TABLE ts(ts TIMESTAMP DEFAULT TIMESTAMP'2019-10-01 01:02:03');
+ERROR 42000: Invalid default value for 'ts'
+CREATE TABLE dt(dt DATETIME DEFAULT TIMESTAMP'2019-10-01 01:02:03');
+ERROR 42000: Invalid default value for 'dt'
+CREATE TABLE ints(a INT DEFAULT TIMESTAMP'2019-10-01 01:02:03');
+ERROR 42000: Invalid default value for 'a'
+CREATE TABLE t(t TIME DEFAULT TIME'01:02:03');
+ERROR 42000: Invalid default value for 't'
+CREATE TABLE d(d DATE DEFAULT DATE'2019-10-01');
+ERROR 42000: Invalid default value for 'd'

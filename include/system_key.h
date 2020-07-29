@@ -17,26 +17,34 @@
 #ifndef SYSTEM_KEY_INCLUDED
 #define SYSTEM_KEY_INCLUDED
 
-#include "my_global.h"
+#include "map_helpers.h"
+#include "my_inttypes.h"
 
-C_MODE_START
 #define PERCONA_BINLOG_KEY_NAME "percona_binlog"
 #define PERCONA_INNODB_KEY_NAME "percona_innodb"
 #define PERCONA_REDO_KEY_NAME "percona_redo"
 
-my_bool is_valid_percona_system_key(const char *key_name, size_t *key_length);
+bool is_valid_percona_system_key(const char *key_name, size_t *key_length);
 
 /**
-  A convenience function that extracts key's data and key's version from system key.
+  A convenience function that extracts key's data and key's version from system
+  key.
   @param key[in]              system key to parse
   @param key_length[in]       system key's length
   @param key_version[out]     on success - extracted key's version
-  @param key_data[out]        on success - extracted key's data - The caller of this function must free this memory
+  @param key_data[out]        on success - extracted key's data - The caller of
+  this function must free this memory
   @param key_data_length[out] on success - extracted key's data length
 
   @return key_data on success, NULL on failure
 */
-extern uchar* parse_system_key(const uchar *key, const size_t key_length, uint *key_version,
-                               uchar **key_data, size_t *key_data_length);
-C_MODE_END
-#endif // SYSTEM_KEY_INCLUDED
+extern uchar *parse_system_key(const uchar *key, const size_t key_length,
+                               uint *key_version, uchar **key_data,
+                               size_t *key_data_length) noexcept;
+
+extern uchar *parse_system_key(const uchar *key, const size_t key_length,
+                               uint *key_version,
+                               unique_ptr_my_free<uchar> &key_data,
+                               size_t *key_data_length) noexcept;
+
+#endif  // SYSTEM_KEY_INCLUDED

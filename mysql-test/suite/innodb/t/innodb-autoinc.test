@@ -1,6 +1,3 @@
--- source include/have_innodb.inc
--- source include/not_embedded.inc
-
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
@@ -703,7 +700,6 @@ SELECT * FROM t;
 SHOW CREATE TABLE t;
 DROP TABLE t;
 
-
 --echo #
 --echo # Bug#15851528 DUPLICATE KEY ERROR ON AUTO-INC PK WITH MIXED AUTO_INCREMENT_INCREMENT CLIENTS
 --echo #
@@ -762,6 +758,6 @@ SHOW CREATE TABLE t;
 INSERT INTO t(b) VALUES('S3');
 SELECT a,b FROM t;
 SHOW CREATE TABLE t;
---error ER_DUP_ENTRY
+-- error ER_DUP_ENTRY
 INSERT INTO t(b) VALUES('S4');
 DROP TABLE t;

@@ -13,7 +13,7 @@
 #
 # ==== Usage ====
 #
-# [--let $rpl_channel_name= NAME]
+# [--let $rpl_channel_name= 'NAME']
 # [--let $slave_timeout= NUMBER]
 # [--let $rpl_debug= 1]
 # --source include/wait_for_slave_sql_to_stop.inc
@@ -30,6 +30,10 @@
 
 
 --let $include_filename= wait_for_slave_sql_to_stop.inc
+if ($rpl_channel_name)
+{
+  --let $include_filename= $include_filename [FOR CHANNEL $rpl_channel_name]
+}
 --source include/begin_include_file.inc
 
 
@@ -38,7 +42,7 @@
 --let $slave_param_comparison= =
 --let $slave_error_param= Last_SQL_Errno
 --source include/wait_for_slave_param.inc
---let $slave_error_param= 
+--let $slave_error_param=
 
 
 --let $include_filename= wait_for_slave_sql_to_stop.inc

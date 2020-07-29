@@ -56,7 +56,7 @@
 %{?el7:                          %global systemd 1}
 %{?el8:                          %global systemd 1}
 %{!?with_debuginfo:              %global nodebuginfo 0}
-%{!?product_suffix:              %global product_suffix -57}
+%{!?product_suffix:              %global product_suffix -80}
 %{!?feature_set:                 %global feature_set community}
 %{!?compilation_comment_release: %global compilation_comment_release Percona Server (GPL), Release %{percona_server_version}, Revision %{revision}}
 %{!?compilation_comment_debug:   %global compilation_comment_debug Percona Server - Debug (GPL), Release %{percona_server_version}, Revision %{revision}}
@@ -91,10 +91,19 @@
 
 # Version for compat libs
 %if 0%{?rhel} > 6
+%global compat_prefix         56
 %global compatver             5.6.28
 %global percona_compatver     76.1
 %global compatlib             18
 %global compatsrc             https://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-%{compatver}-%{percona_compatver}/binary/redhat/7/x86_64/Percona-Server-shared-56-%{compatver}-rel%{percona_compatver}.el7.x86_64.rpm
+%endif
+
+%if 0%{?rhel} == 6
+%global compat_prefix         51
+%global compatver             5.1.73
+%global percona_compatver     14.12
+%global compatlib             16
+%global compatsrc             https://www.percona.com/downloads/Percona-Server-5.1/Percona-Server-5.1.73-rel14.12/RPM/rhel6/x86_64/Percona-Server-shared-51-5.1.73-rel14.12.624.rhel6.x86_64.rpm
 %endif
 
 # multiarch
@@ -119,25 +128,19 @@
 %global __os_install_post     /usr/lib/rpm/brp-compress %{nil}
 %endif
 
-%if 0%{?commercial}
-%global license_files_server  %{src_dir}/LICENSE.mysql
-%global license_type          Commercial
-%else
 %global license_files_server  %{src_dir}/README
 %global license_type          GPLv2
-%endif
 
-Name:           Percona-Server%{product_suffix}
+Name:           percona-server
 Summary:        Percona-Server: a very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        %{mysql_version}
 Release:        %{release}
-License:        Copyright (c) 2000, 2015, %{mysql_vendor}. All rights reserved. Under the GNU General Public License (http://www.gnu.org/licenses/).
-Source0:        http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-%{mysql_version}-%{percona_server_version}/source/%{src_dir}.tar.gz
+License:        Copyright (c) 2000, 2018, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field..
+Source0:        http://www.percona.com/downloads/Percona-Server-8.0/Percona-Server-%{mysql_version}-%{percona_server_version}/source/%{src_dir}.tar.gz
 URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>
 Vendor:         %{percona_server_vendor}
-Source4:        my_config.h
 Source5:        mysql_config.sh
 Source10:       http://jenkins.percona.com/downloads/boost/@@BOOST_PACKAGE_NAME@@.tar.gz
 Source90:       filter-provides.sh
@@ -149,6 +152,34 @@ BuildRequires:  gcc-c++
 BuildRequires:  perl
 %{?el7:BuildRequires: perl(Time::HiRes)}
 %{?el7:BuildRequires: perl(Env)}
+BuildRequires:  perl(Carp)
+BuildRequires:  perl(Config)
+BuildRequires:  perl(Cwd)
+BuildRequires:  perl(Data::Dumper)
+BuildRequires:  perl(English)
+BuildRequires:  perl(Errno)
+BuildRequires:  perl(Exporter)
+BuildRequires:  perl(Fcntl)
+BuildRequires:  perl(File::Basename)
+BuildRequires:  perl(File::Copy)
+BuildRequires:  perl(File::Find)
+BuildRequires:  perl(File::Path)
+BuildRequires:  perl(File::Spec)
+BuildRequires:  perl(File::Spec::Functions)
+BuildRequires:  perl(File::Temp)
+BuildRequires:  perl(Getopt::Long)
+BuildRequires:  perl(IO::File)
+BuildRequires:  perl(IO::Handle)
+BuildRequires:  perl(IO::Pipe)
+BuildRequires:  perl(IO::Select)
+BuildRequires:  perl(IO::Socket)
+BuildRequires:  perl(IO::Socket::INET)
+BuildRequires:  perl(JSON)
+BuildRequires:  perl(Memoize)
+BuildRequires:  perl(POSIX)
+BuildRequires:  perl(Sys::Hostname)
+BuildRequires:  perl(Time::HiRes)
+BuildRequires:  perl(Time::localtime)
 BuildRequires:  time
 BuildRequires:  libaio-devel
 BuildRequires:  ncurses-devel
@@ -163,6 +194,19 @@ BuildRequires:  libcurl-devel
 %if 0%{?systemd}
 BuildRequires:  systemd
 BuildRequires:  pkgconfig(systemd)
+%endif
+BuildRequires:  cyrus-sasl-devel
+BuildRequires:  openldap-devel
+%if 0%{?rhel} >= 8
+BuildRequires:  cmake >= 3.6.1
+BuildRequires:  gcc
+BuildRequires:  gcc-c++
+BuildRequires:  libtirpc-devel
+BuildRequires:  rpcgen
+%else
+BuildRequires:  cmake3 >= 3.6.1
+BuildRequires:  devtoolset-8-gcc
+BuildRequires:  devtoolset-8-gcc-c++
 %endif
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
@@ -185,7 +229,7 @@ Percona recommends that all production deployments be protected with a support
 contract (http://www.percona.com/mysql-suppport/) to ensure the highest uptime,
 be eligible for hot fixes, and boost your team's productivity.
 
-%package -n Percona-Server-server%{product_suffix}
+%package -n percona-server-server
 Summary:        Percona Server: a very fast and reliable SQL database server
 Group:          Applications/Databases
 Requires:       coreutils
@@ -193,12 +237,13 @@ Requires:       grep
 Requires:       procps
 Requires:       shadow-utils
 Requires:       net-tools
-Requires(pre):  Percona-Server-shared%{product_suffix}
-Requires:       Percona-Server-client%{product_suffix}
+Requires(pre):  percona-server-shared
+Requires:       percona-server-client
+Requires:       openssl
 Provides:       MySQL-server%{?_isa} = %{version}-%{release}
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
-Conflicts:      Percona-SQL-server-50 Percona-Server-server-51 Percona-Server-server-55 Percona-Server-server-56
+Conflicts:      Percona-SQL-server-50 Percona-Server-server-51 Percona-Server-server-55 Percona-Server-server-56 Percona-Server-server-57
 
 %if 0%{?systemd}
 Requires(post):   systemd
@@ -214,7 +259,7 @@ Requires(preun):  /sbin/service
 Obsoletes:      mariadb-connector-c-config
 %endif
 
-%description -n Percona-Server-server%{product_suffix}
+%description -n percona-server-server
 The Percona Server software delivers a very fast, multi-threaded, multi-user,
 and robust SQL (Structured Query Language) database server. Percona Server
 is intended for mission-critical, heavy-load production systems.
@@ -227,71 +272,97 @@ This package includes the Percona Server with XtraDB binary
 as well as related utilities to run and administer Percona Server.
 
 If you want to access and work with the database, you have to install
-package "Percona-Server-client%{product_suffix}" as well!
+package "percona-server-client" as well!
 
-%package -n Percona-Server-client%{product_suffix}
+
+%package -n percona-server-client
 Summary:        Percona Server - Client
 Group:          Applications/Databases
-Requires:       Percona-Server-shared%{product_suffix}
+Requires:       percona-server-shared
 Provides:       mysql-client MySQL-client mysql MySQL
-Conflicts:      Percona-SQL-client-50 Percona-Server-client-51 Percona-Server-client-55 Percona-Server-client-56
+Conflicts:      Percona-SQL-client-50 Percona-Server-client-51 Percona-Server-client-55 Percona-Server-client-56 Percona-Server-client-57
 
-%description -n Percona-Server-client%{product_suffix}
+%description -n percona-server-client
 This package contains the standard Percona Server client and administration tools.
 
 For a description of Percona Server see http://www.percona.com/software/percona-server/
 
-%package -n Percona-Server-test%{product_suffix}
+%package -n percona-server-test
 Summary:        Test suite for the Percona Server
 Group:          Applications/Databases
-Requires:       Percona-Server-server%{product_suffix} = %{version}-%{release}
-%if 0%{?rhel} == 8
+Requires:       perl(Carp)
+Requires:       perl(Config)
+Requires:       perl(Cwd)
+Requires:       perl(Data::Dumper)
+Requires:       perl(English)
+Requires:       perl(Errno)
+Requires:       perl(Exporter)
+Requires:       perl(Fcntl)
+Requires:       perl(File::Basename)
+Requires:       perl(File::Copy)
+Requires:       perl(File::Find)
+Requires:       perl(File::Path)
+Requires:       perl(File::Spec)
+Requires:       perl(File::Spec::Functions)
+Requires:       perl(File::Temp)
 Requires:       perl(Getopt::Long)
+Requires:       perl(IO::File)
+Requires:       perl(IO::Handle)
+Requires:       perl(IO::Pipe)
+Requires:       perl(IO::Select)
+Requires:       perl(IO::Socket)
+Requires:       perl(IO::Socket::INET)
+Requires:       perl(JSON)
 Requires:       perl(Memoize)
+Requires:       perl(POSIX)
+Requires:       perl(Sys::Hostname)
 Requires:       perl(Time::HiRes)
-%endif
+Requires:       perl(Time::localtime)
+Provides:       MySQL-test%{?_isa} = %{version}-%{release}
+Obsoletes:      MySQL-test < %{version}-%{release}
+Obsoletes:      mysql-test < %{version}-%{release}
+Obsoletes:      mariadb-test
 Provides:       mysql-test = %{version}-%{release}
 Provides:       mysql-test%{?_isa} = %{version}-%{release}
-Conflicts:      Percona-SQL-test-50 Percona-Server-test-51 Percona-Server-test-55 Percona-Server-test-56
+Conflicts:      Percona-SQL-test-50 Percona-Server-test-51 Percona-Server-test-55 Percona-Server-test-56 Percona-Server-test-57
 
-%description -n Percona-Server-test%{product_suffix}
+%description -n percona-server-test
 This package contains the Percona Server regression test suite.
 
 For a description of Percona Server see http://www.percona.com/software/percona-server/
 
-%package -n Percona-Server-devel%{product_suffix}
+%package -n percona-server-devel
 Summary:        Percona Server - Development header files and libraries
 Group:          Applications/Databases
 Provides:       mysql-devel = %{version}-%{release}
 Provides:       mysql-devel%{?_isa} = %{version}-%{release}
-Conflicts:      Percona-SQL-devel-50 Percona-Server-devel-51 Percona-Server-devel-55 Percona-Server-devel-56
+Conflicts:      Percona-SQL-devel-50 Percona-Server-devel-51 Percona-Server-devel-55 Percona-Server-devel-56 Percona-Server-devel-57
 Obsoletes:      mariadb-connector-c-devel
 %if 0%{?rhel} > 6
 Obsoletes:      mariadb-devel
 %endif
 
-%description -n Percona-Server-devel%{product_suffix}
+%description -n percona-server-devel
 This package contains the development header files and libraries necessary
 to develop Percona Server client applications.
 
 For a description of Percona Server see http://www.percona.com/software/percona-server/
 
-%package -n Percona-Server-shared%{product_suffix}
+%package -n percona-server-shared
 Summary:        Percona Server - Shared libraries
 Group:          Applications/Databases
 Provides:       mysql-libs = %{version}-%{release}
 Provides:       mysql-libs%{?_isa} = %{version}-%{release}
+Obsoletes:      mysql-libs < %{version}-%{release}
 Provides:       mysql-shared
-%if 0%{?rhel} > 6
-Requires(pre):  Percona-Server-shared-compat%{product_suffix}
-%endif
+Requires(pre):  percona-server-shared-compat
 
-%description -n Percona-Server-shared%{product_suffix}
+%description -n percona-server-shared
 This package contains the shared libraries (*.so*) which certain languages
 and applications need to dynamically load and use Percona Server.
 
 %if 0%{?compatlib}
-%package -n Percona-Server-shared-compat%{product_suffix}
+%package -n percona-server-shared-compat
 Summary:        Shared compat libraries for Percona Server %{compatver}-%{percona_compatver} database client applications
 Group:          Applications/Databases
 Provides:       mysql-libs-compat = %{version}-%{release}
@@ -302,59 +373,73 @@ Provides:       libmysqlclient.so.18()(64bit)
 Provides:       libmysqlclient.so.18(libmysqlclient_16)(64bit)
 Provides:       libmysqlclient.so.18(libmysqlclient_18)(64bit)
 Obsoletes:      mariadb-libs
+%else
+Obsoletes:      mysql-libs
+%endif
+Conflicts:      Percona-Server-shared-51
+Conflicts:      Percona-Server-shared-55
 Conflicts:      Percona-Server-shared-55
 Conflicts:      Percona-Server-shared-56
-%endif
+Conflicts:      Percona-Server-shared-57
 
-%description -n Percona-Server-shared-compat%{product_suffix}
+%description -n percona-server-shared-compat
 This package contains the shared compat libraries for Percona Server %{compatver}-%{percona_compatver} client
 applications.
 %endif
 
 %if 0%{?tokudb}
 # ----------------------------------------------------------------------------
-%package -n Percona-Server-tokudb%{product_suffix}
+%package -n percona-server-tokudb
 Summary:        Percona Server - TokuDB package
 Group:          Applications/Databases
-Requires:       Percona-Server-server%{product_suffix} = %{version}-%{release}
-Requires:       Percona-Server-shared%{product_suffix} = %{version}-%{release}
-Requires:       Percona-Server-client%{product_suffix} = %{version}-%{release}
+Requires:       percona-server-server = %{version}-%{release}
+Requires:       percona-server-shared = %{version}-%{release}
+Requires:       percona-server-client = %{version}-%{release}
 Requires:       jemalloc >= 3.3.0
 Provides:       tokudb-plugin = %{version}-%{release}
 
-Requires:		selinux-policy
-Requires:		policycoreutils
-Requires(pre):		policycoreutils
-Requires(post):		policycoreutils
-Requires(postun):       policycoreutils
-
-%if 0%{?rhel} == 6
-BuildRequires: 		selinux-policy
-%else
-BuildRequires: 		selinux-policy-devel
-%endif
-
-%description -n Percona-Server-tokudb%{product_suffix}
+%description -n percona-server-tokudb
 This package contains the TokuDB plugin for Percona Server %{version}-%{release}
 %endif
 
 %if 0%{?rocksdb}
 # ----------------------------------------------------------------------------
-%package -n Percona-Server-rocksdb%{product_suffix}
+%package -n percona-server-rocksdb
 Summary:        Percona Server - RocksDB package
 Group:          Applications/Databases
-Requires:       Percona-Server-server%{product_suffix} = %{version}-%{release}
-Requires:       Percona-Server-shared%{product_suffix} = %{version}-%{release}
-Requires:       Percona-Server-client%{product_suffix} = %{version}-%{release}
+Requires:       percona-server-server = %{version}-%{release}
+Requires:       percona-server-shared = %{version}-%{release}
+Requires:       percona-server-client = %{version}-%{release}
 
-%description -n Percona-Server-rocksdb%{product_suffix}
+%description -n percona-server-rocksdb
 This package contains the RocksDB plugin for Percona Server %{version}-%{release}
 %endif
+
+%package  -n   percona-mysql-router
+Summary:       Percona MySQL Router
+Group:         Applications/Databases
+Provides:      percona-mysql-router = %{version}-%{release}
+Obsoletes:     percona-mysql-router < %{version}-%{release}
+Provides:      mysql-router
+
+%description -n percona-mysql-router
+The Percona MySQL Router software delivers a fast, multi-threaded way of
+routing connections from MySQL Clients to MySQL Servers.
+
+%package   -n   percona-mysql-router-devel
+Summary:        Development header files and libraries for Percona MySQL Router
+Group:          Applications/Databases
+Provides:       percona-mysql-router-devel = %{version}-%{release}
+Obsoletes:      mysql-router-devel
+
+%description -n percona-mysql-router-devel
+This package contains the development header files and libraries
+necessary to develop Percona MySQL Router applications.
 
 %prep
 %setup -q -T -a 0 -a 10 -c -n %{src_dir}
 pushd %{src_dir}
-%patch0 -p1
+%patch0 -p0
 
 %build
 # Fail quickly and obviously if user tries to build as root
@@ -369,16 +454,18 @@ fi
 
 # Download compat libs
 %if 0%{?compatlib}
-%if 0%{?rhel} > 6
 (
   rm -rf percona-compatlib
   mkdir percona-compatlib
   pushd percona-compatlib
   wget %{compatsrc}
-  rpm2cpio Percona-Server-shared-56-%{compatver}-rel%{percona_compatver}.el7.x86_64.rpm | cpio --extract --make-directories --verbose
+%if 0%{?rhel} > 6
+  rpm2cpio Percona-Server-shared-%{compat_prefix}-%{compatver}-rel%{percona_compatver}.el7.x86_64.rpm | cpio --extract --make-directories --verbose
+%else
+  rpm2cpio Percona-Server-shared-%{compat_prefix}-%{compatver}-rel%{percona_compatver}.624.rhel6.x86_64.rpm | cpio --extract --make-directories --verbose
+%endif # 0%{?rhel} > 6
   popd
 )
-%endif # 0%{?rhel} > 6
 %endif # 0%{?compatlib}
 
 # Build debug versions of mysqld and libmysqld.a
@@ -394,7 +481,6 @@ mkdir debug
            -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
-           -DENABLE_DTRACE=0 \
 %if 0%{?systemd}
            -DWITH_SYSTEMD=1 \
 %endif
@@ -405,20 +491,29 @@ mkdir debug
            -DINSTALL_MYSQLSHAREDIR=share/percona-server \
            -DINSTALL_SUPPORTFILESDIR=share/percona-server \
            -DFEATURE_SET="%{feature_set}" \
-           -DWITH_EMBEDDED_SERVER=0 \
-           -DWITH_EMBEDDED_SHARED_LIBRARY=0 \
            -DWITH_PAM=1 \
            -DWITH_ROCKSDB=1 \
            -DWITH_INNODB_MEMCACHED=1 \
-           -DWITH_ZLIB=system \
-           -DWITH_SCALABILITY_METRICS=ON \
+           -DMYSQL_MAINTAINER_MODE=OFF \
+           -DFORCE_INSOURCE_BUILD=1 \
+           -DWITH_NUMA=ON \
+           -DWITH_LDAP=system \
+           -DWITH_SYSTEM_LIBS=ON \
+           -DWITH_PROTOBUF=bundled \
+           -DWITH_RAPIDJSON=bundled \
+           -DWITH_ICU=bundled \
+           -DWITH_LZ4=bundled \
+           -DWITH_ZLIB=bundled \
+           -DWITH_ZSTD=bundled \
+           -DWITH_READLINE=system \
+           -DWITH_LIBEVENT=bundled \
+           -DWITH_KEYRING_VAULT=ON \
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
   make %{?_smp_mflags} VERBOSE=1
 )
-
 # Build full release
 mkdir release
 (
@@ -430,7 +525,6 @@ mkdir release
            -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
-           -DENABLE_DTRACE=0 \
 %if 0%{?systemd}
            -DWITH_SYSTEMD=1 \
 %endif
@@ -441,13 +535,23 @@ mkdir release
            -DINSTALL_MYSQLSHAREDIR=share/percona-server \
            -DINSTALL_SUPPORTFILESDIR=share/percona-server \
            -DFEATURE_SET="%{feature_set}" \
-           -DWITH_EMBEDDED_SERVER=0 \
-           -DWITH_EMBEDDED_SHARED_LIBRARY=0 \
            -DWITH_PAM=1 \
            -DWITH_ROCKSDB=1 \
            -DWITH_INNODB_MEMCACHED=1 \
-           -DWITH_ZLIB=system \
-           -DWITH_SCALABILITY_METRICS=ON \
+           -DMYSQL_MAINTAINER_MODE=OFF \
+           -DFORCE_INSOURCE_BUILD=1 \
+           -DWITH_NUMA=ON \
+           -DWITH_LDAP=system \
+           -DWITH_SYSTEM_LIBS=ON \
+           -DWITH_LZ4=bundled \
+           -DWITH_ZLIB=bundled \
+           -DWITH_PROTOBUF=bundled \
+           -DWITH_RAPIDJSON=bundled \
+           -DWITH_ICU=bundled \
+           -DWITH_READLINE=system \
+           -DWITH_LIBEVENT=bundled \
+           -DWITH_ZSTD=bundled \
+           -DWITH_KEYRING_VAULT=ON \
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}
@@ -461,6 +565,9 @@ mkdir release
   %if 0%{?rhel} > 6
     install -D -m 0755 percona-compatlib/usr/lib64/libmysqlclient.so.18.1.0 %{buildroot}%{_libdir}/mysql/libmysqlclient.so.18.1.0
     install -D -m 0755 percona-compatlib/usr/lib64/libmysqlclient_r.so.18.1.0 %{buildroot}%{_libdir}/mysql/libmysqlclient_r.so.18.1.0
+  %else
+    install -D -m 0755 percona-compatlib/usr/lib64/libmysqlclient.so.16.0.0 %{buildroot}%{_libdir}/mysql/libmysqlclient.so.16.0.0
+    install -D -m 0755 percona-compatlib/usr/lib64/libmysqlclient_r.so.16.0.0 %{buildroot}%{_libdir}/mysql/libmysqlclient_r.so.16.0.0
   %endif # 0%{?rhel} > 6
 %endif # 0%{?compatlib}
 
@@ -472,32 +579,24 @@ install -d -m 0755 %{buildroot}/var/run/mysqld
 install -d -m 0750 %{buildroot}/var/lib/mysql-files
 install -d -m 0750 %{buildroot}/var/lib/mysql-keyring
 
-# SElinux
-%if 0%{?tokudb}
-pushd $MBD/%{src_dir}/policy/selinux
-make -f /usr/share/selinux/devel/Makefile
-install -D -m 0644 $MBD/%{src_dir}/policy/selinux/percona-server.pp %{buildroot}%{_datadir}/selinux/packages/percona-server/percona-server.pp
-popd
-# SElinux END
-%endif
+# Router directories
+install -d -m 0755 %{buildroot}/var/log/mysqlrouter
+install -d -m 0755 %{buildroot}/var/run/mysqlrouter
 
 # Install all binaries
 cd $MBD/release
 make DESTDIR=%{buildroot} install
 
 # Install logrotate and autostart
+#install -D -m 0644 packaging/rpm-common/mysql.logrotate %{buildroot}%{_sysconfdir}/logrotate.d/mysql
+#investigate this logrotate
 install -D -m 0644 $MBD/release/support-files/mysql-log-rotate %{buildroot}%{_sysconfdir}/logrotate.d/mysql
-install -d %{buildroot}%{_sysconfdir}/percona-server.conf.d
-install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/percona-server.cnf %{buildroot}%{_sysconfdir}/percona-server.cnf
-install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/mysqld.cnf %{buildroot}%{_sysconfdir}/percona-server.conf.d/mysqld.cnf
-install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/mysqld_safe.cnf %{buildroot}%{_sysconfdir}/percona-server.conf.d/mysqld_safe.cnf
- 
-#%if 0%{?rhel} > 6
-#  install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/percona-server.cnf %{buildroot}%{_sysconfdir}/my.cnf
-#%endif
+install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/mysqld.cnf %{buildroot}%{_sysconfdir}/my.cnf
 install -d %{buildroot}%{_sysconfdir}/my.cnf.d
-%if 0%{?systemd}
-%else
+
+#%if 0%{?systemd}
+#%else
+%if 0%{?rhel} < 7
   install -D -m 0755 $MBD/%{src_dir}/build-ps/rpm/mysql.init %{buildroot}%{_sysconfdir}/init.d/mysql
 %endif
 
@@ -507,13 +606,17 @@ echo "%{_libdir}/mysql" > %{buildroot}%{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}
 
 # multiarch support
 %ifarch %{multiarchs}
-  mv %{buildroot}/%{_includedir}/mysql/my_config.h \
-   %{buildroot}/%{_includedir}/mysql/my_config_%{_arch}.h
-  install -p -m 0644 %{SOURCE4} %{buildroot}/%{_includedir}/mysql/my_config.h
   mv %{buildroot}/%{_bindir}/mysql_config %{buildroot}/%{_bindir}/mysql_config-%{__isa_bits}
   install -p -m 0755 %{SOURCE5} %{buildroot}/%{_bindir}/mysql_config
 %endif
 
+%if 0%{?systemd}
+install -D -p -m 0644 packaging/rpm-common/mysqlrouter.service %{buildroot}%{_unitdir}/mysqlrouter.service
+install -D -p -m 0644 packaging/rpm-common/mysqlrouter.tmpfiles.d %{buildroot}%{_tmpfilesdir}/mysqlrouter.conf
+%else
+install -D -p -m 0755 packaging/rpm-common/mysqlrouter.init %{buildroot}%{_sysconfdir}/init.d/mysqlrouter
+%endif
+install -D -p -m 0644 packaging/rpm-common/mysqlrouter.conf %{buildroot}%{_sysconfdir}/mysqlrouter/mysqlrouter.conf
 
 # Remove files pages we explicitly do not want to package
 rm -rf %{buildroot}%{_infodir}/mysql.info*
@@ -527,14 +630,13 @@ rm -rf %{buildroot}%{_bindir}/mysql_embedded
   rm -f %{buildroot}%{_prefix}/COPYING.AGPLv3
   rm -f %{buildroot}%{_prefix}/COPYING.GPLv2
   rm -f %{buildroot}%{_prefix}/PATENTS
-%else
-  # Not needed if TokuDB package is not created
-  rm -rf %{buildroot}%{_bindir}/ps_tokudb_admin
 %endif
 
 # Remove upcoming man pages, to avoid breakage when they materialize
 # Keep this comment as a placeholder for future cases
 # rm -f %{buildroot}%{_mandir}/man1/<manpage>.1
+
+# Remove removed manpages here until they are removed from the docs repo
 
 %check
 %if 0%{?runselftest}
@@ -550,7 +652,7 @@ rm -rf %{buildroot}%{_bindir}/mysql_embedded
   rm -r $(readlink var) var
 %endif
 
-%pretrans -n Percona-Server-server%{product_suffix}
+%pretrans -n percona-server-server
 if [ -d %{_datadir}/mysql ] && [ ! -L %{_datadir}/mysql ]; then
   MYCNF_PACKAGE=$(rpm -qf /usr/share/mysql --queryformat "%{NAME}")
 fi
@@ -562,7 +664,7 @@ if [ "$MYCNF_PACKAGE" == "mariadb-libs" -o "$MYCNF_PACKAGE" == "mysql-libs" ]; t
   fi
 fi
 
-%pre -n Percona-Server-server%{product_suffix}
+%pre -n percona-server-server
 /usr/sbin/groupadd -g 27 -o -r mysql >/dev/null 2>&1 || :
 /usr/sbin/useradd -M %{!?el5:-N} -g mysql -o -r -d /var/lib/mysql -s /bin/false \
     -c "Percona Server" -u 27 mysql >/dev/null 2>&1 || :
@@ -574,7 +676,7 @@ if [ "$1" = 1 ]; then
   fi
 fi
 
-%post -n Percona-Server-server%{product_suffix}
+%post -n percona-server-server
 datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1)
 /bin/chmod 0751 "$datadir" >/dev/null 2>&1 || :
 if [ ! -e /var/log/mysqld.log ]; then
@@ -592,67 +694,21 @@ fi
   fi
 %endif
 
-%if 0%{?rhel} > 6
-  MYCNF_PACKAGE="mariadb-libs"
-%else
-  MYCNF_PACKAGE="mysql-libs"
-%endif
+if [ -d /etc/percona-server.conf.d ]; then
+    CONF_EXISTS=$(grep "percona-server.conf.d" /etc/my.cnf | wc -l)
+    if [ ${CONF_EXISTS} = 0 ]; then
+        echo "!includedir /etc/percona-server.conf.d/" >> /etc/my.cnf
+    fi
+fi
 
-if [ -e /etc/my.cnf ]; then
-  MYCNF_PACKAGE=$(rpm -qi `rpm -qf /etc/my.cnf` | grep -m 1 Name | awk '{print $3}')
-fi
-if [ "$MYCNF_PACKAGE" == "mariadb-libs" -o "$MYCNF_PACKAGE" == "mysql-libs" -o "$MYCNF_PACKAGE" == "Percona-Server-server-57" ]; then
-  MODIFIED=$(rpm -Va "$MYCNF_PACKAGE" | grep '/etc/my.cnf' | awk '{print $1}' | grep -c 5)
-  if [ "$MODIFIED" == 1 ]; then
-      cp /etc/my.cnf /etc/my.cnf.old
-  fi
-else
-  cp /etc/my.cnf /etc/my.cnf.old
-fi
-if [ ! -f /etc/my.cnf ]; then
-  rm -rf /etc/my.cnf
-  update-alternatives --install /etc/my.cnf my.cnf "/etc/percona-server.cnf" 200
-else
-  if [ "$MYCNF_PACKAGE" == "Percona-Server-server-57" ]; then
-      real_file=$(readlink -f /etc/my.cnf)
-      if [ -L /etc/my.cnf ] && [ "x${real_file}" == "x/etc/percona-server.cnf" ]; then
-          rm -rf /etc/my.cnf
-          update-alternatives --install /etc/my.cnf my.cnf "/etc/percona-server.cnf" 200
-      else
-          echo " -------------"
-          echo "   *  The suggested mysql options and settings are in /etc/percona-server.conf.d/mysqld.cnf"
-          echo "   *  If you want to use mysqld.cnf as default configuration file please make backup of /etc/my.cnf"
-          echo "   *  Once it is done please execute the following commands:"
-          echo " rm -rf /etc/my.cnf"
-          echo " update-alternatives --install /etc/my.cnf my.cnf \"/etc/percona-server.cnf\" 200"
-          echo " -------------"
-      fi
-  else
-      echo " -------------"
-      echo "   *  The suggested mysql options and settings are in /etc/percona-server.conf.d/mysqld.cnf"
-      echo "   *  If you want to use mysqld.cnf as default configuration file please make backup of /etc/my.cnf"
-      echo "   *  Once it is done please execute the following commands:"
-      echo " rm -rf /etc/my.cnf"
-      echo " update-alternatives --install /etc/my.cnf my.cnf \"/etc/percona-server.cnf\" 200"
-      echo " -------------"
-      cnflog=$(/usr/bin/my_print_defaults mysqld|grep -c log-error)
-      if [ $cnflog = 0 -a -f /etc/my.cnf -a ! -L /etc/my.cnf ]; then
-          sed -i "/^\[mysqld\]$/a log-error=/var/log/mysqld.log" /etc/my.cnf
-      fi
-      cnfpid=$(/usr/bin/my_print_defaults mysqld|grep -c pid-file)
-      if [ $cnfpid = 0 -a -f /etc/my.cnf -a ! -L /etc/my.cnf ]; then
-          sed -i "/^\[mysqld\]$/a pid-file=/var/run/mysqld/mysqld.pid" /etc/my.cnf
-      fi
-  fi
-fi
 echo "Percona Server is distributed with several useful UDF (User Defined Function) from Percona Toolkit."
 echo "Run the following commands to create these functions:"
 echo "mysql -e \"CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME 'libfnv1a_udf.so'\""
 echo "mysql -e \"CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME 'libfnv_udf.so'\""
 echo "mysql -e \"CREATE FUNCTION murmur_hash RETURNS INTEGER SONAME 'libmurmur_udf.so'\""
-echo "See http://www.percona.com/doc/percona-server/5.7/management/udf_percona_toolkit.html for more details"
+echo "See http://www.percona.com/doc/percona-server/8.0/management/udf_percona_toolkit.html for more details"
 
-%preun -n Percona-Server-server%{product_suffix}
+%preun -n percona-server-server
 %if 0%{?systemd}
   %systemd_preun mysqld.service
 %else
@@ -662,22 +718,16 @@ echo "See http://www.percona.com/doc/percona-server/5.7/management/udf_percona_t
   fi
 %endif
 if [ "$1" = 0 ]; then
-  timestamp=$(date '+%Y%m%d-%H%M')
   if [ -L %{_datadir}/mysql ]; then
       rm %{_datadir}/mysql
   fi
-  if [ ! -L /etc/my.cnf ]; then
-    cp -p /etc/my.cnf /etc/my.cnf_backup-${timestamp}
-  else
-    realfile=$(readlink -f /etc/my.cnf)
-    cp "${realfile}" "${realfile}_backup-${timestamp}"
+  if [ -f %{_sysconfdir}/my.cnf ]; then
+    cp %{_sysconfdir}/my.cnf \
+    %{_sysconfdir}/my.cnf.rpmsave
   fi
-  cp -rp /etc/percona-server.conf.d /etc/percona-server.conf.d_backup-${timestamp}
-  cp -rp /etc/my.cnf.d /etc/my.cnf.d_backup-${timestamp}
 fi
 
-
-%postun -n Percona-Server-server%{product_suffix}
+%postun -n percona-server-server
 %if 0%{?systemd}
   %systemd_postun_with_restart mysqld.service
 %else
@@ -686,7 +736,7 @@ fi
   fi
 %endif
 
-%posttrans -n Percona-Server-server%{product_suffix}
+%posttrans -n percona-server-server
 if [ -d %{_datadir}/mysql ] && [ ! -L %{_datadir}/mysql ]; then
   MYCNF_PACKAGE=$(rpm -qf /usr/share/mysql --queryformat "%{NAME}")
   if [ "$MYCNF_PACKAGE" == "file %{_datadir}/mysql is not owned by any package" ]; then
@@ -698,12 +748,13 @@ if [ ! -d %{_datadir}/mysql ] && [ ! -L %{_datadir}/mysql ]; then
     ln -s %{_datadir}/percona-server %{_datadir}/mysql
 fi
 
-%post -n Percona-Server-shared%{product_suffix} -p /sbin/ldconfig
+%post -n percona-server-shared -p /sbin/ldconfig
 
-%postun -n Percona-Server-shared%{product_suffix} -p /sbin/ldconfig
+%postun -n percona-server-shared -p /sbin/ldconfig
 
 %if 0%{?compatlib}
-%post -n Percona-Server-shared-compat%{product_suffix}
+%if 0%{?rhel} > 6
+%post -n percona-server-shared-compat
 for lib in libmysqlclient{.so.18.0.0,.so.18,_r.so.18.0.0,_r.so.18}; do
   if [ ! -f %{_libdir}/mysql/${lib} ]; then
     ln -s libmysqlclient.so.18.1.0 %{_libdir}/mysql/${lib};
@@ -711,35 +762,45 @@ for lib in libmysqlclient{.so.18.0.0,.so.18,_r.so.18.0.0,_r.so.18}; do
 done
 /sbin/ldconfig
 
-%postun -n Percona-Server-shared-compat%{product_suffix}
+%postun -n percona-server-shared-compat
 for lib in libmysqlclient{.so.18.0.0,.so.18,_r.so.18.0.0,_r.so.18}; do
   if [ -h %{_libdir}/mysql/${lib} ]; then
     rm -f %{_libdir}/mysql/${lib};
   fi
 done
 /sbin/ldconfig
+%else
+%post -n percona-server-shared-compat
+for lib in libmysqlclient{.so.16.0.0,.so.16,_r.so.16.0.0,_r.so.16}; do
+  if [ ! -f %{_libdir}/mysql/${lib} ]; then
+    ln -s libmysqlclient.so.16.1.0 %{_libdir}/mysql/${lib};
+  fi
+done
+/sbin/ldconfig
+
+%postun -n percona-server-shared-compat
+for lib in libmysqlclient{.so.16.0.0,.so.16,_r.so.16.0.0,_r.so.16}; do
+  if [ -h %{_libdir}/mysql/${lib} ]; then
+    rm -f %{_libdir}/mysql/${lib};
+  fi
+done
+/sbin/ldconfig
+%endif
 %endif
 
 %if 0%{?tokudb}
-%post -n Percona-Server-tokudb%{product_suffix}
-/usr/sbin/semodule -i %{_datadir}/selinux/packages/percona-server/percona-server.pp >/dev/null 2>&1 || :
+%post -n percona-server-tokudb
 if [ $1 -eq 1 ] ; then
   echo -e "\n\n * This release of Percona Server is distributed with TokuDB storage engine."
   echo -e " * Run the following script to enable the TokuDB storage engine in Percona Server:\n"
   echo -e "\tps-admin --enable-tokudb -u <mysql_admin_user> -p[mysql_admin_pass] [-S <socket>] [-h <host> -P <port>]\n"
-  echo -e " * See http://www.percona.com/doc/percona-server/5.7/tokudb/tokudb_installation.html for more installation details\n"
-  echo -e " * See http://www.percona.com/doc/percona-server/5.7/tokudb/tokudb_intro.html for an introduction to TokuDB\n\n"
+  echo -e " * See http://www.percona.com/doc/percona-server/8.0/tokudb/tokudb_installation.html for more installation details\n"
+  echo -e " * See http://www.percona.com/doc/percona-server/8.0/tokudb/tokudb_intro.html for an introduction to TokuDB\n\n"
 fi
-
-%postun -n Percona-Server-tokudb%{product_suffix}
-if [ $1 -eq 0 ] ; then
-    /usr/sbin/semodule -r percona-server >/dev/null 2>&1 || :
-fi
-
 %endif
 
 %if 0%{?rocksdb}
-%post -n Percona-Server-rocksdb%{product_suffix}
+%post -n percona-server-rocksdb
 if [ $1 -eq 1 ] ; then
   echo -e "\n\n * This release of Percona Server is distributed with RocksDB storage engine."
   echo -e " * Run the following script to enable the RocksDB storage engine in Percona Server:\n"
@@ -747,87 +808,127 @@ if [ $1 -eq 1 ] ; then
 fi
 %endif
 
+%pre -n percona-mysql-router
+/usr/sbin/groupadd -r mysqlrouter >/dev/null 2>&1 || :
+/usr/sbin/useradd -M -N -g mysqlrouter -r -d /var/lib/mysqlrouter -s /bin/false \
+    -c "Percona MySQL Router" mysqlrouter >/dev/null 2>&1 || :
 
-%files -n Percona-Server-server%{product_suffix}
+%post -n percona-mysql-router
+/sbin/ldconfig
+%if 0%{?systemd}
+%systemd_post mysqlrouter.service
+%else
+/sbin/chkconfig --add mysqlrouter
+%endif # systemd
+
+%preun -n percona-mysql-router
+%if 0%{?systemd}
+%systemd_preun mysqlrouter.service
+%else
+if [ "$1" = 0 ]; then
+    /sbin/service mysqlrouter stop >/dev/null 2>&1 || :
+    /sbin/chkconfig --del mysqlrouter
+fi
+%endif # systemd
+
+%postun -n percona-mysql-router
+/sbin/ldconfig
+%if 0%{?systemd}
+%systemd_postun_with_restart mysqlrouter.service
+%else
+if [ $1 -ge 1 ]; then
+    /sbin/service mysqlrouter condrestart >/dev/null 2>&1 || :
+fi
+%endif # systemd
+
+
+%files -n percona-server-server
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %doc %{src_dir}/Docs/INFO_SRC*
 %doc release/Docs/INFO_BIN*
 %attr(644, root, root) %{_mandir}/man1/innochecksum.1*
+%attr(644, root, root) %{_mandir}/man1/ibd2sdi.1*
 %attr(644, root, root) %{_mandir}/man1/my_print_defaults.1*
 %attr(644, root, root) %{_mandir}/man1/myisam_ftdump.1*
 %attr(644, root, root) %{_mandir}/man1/myisamchk.1*
 %attr(644, root, root) %{_mandir}/man1/myisamlog.1*
 %attr(644, root, root) %{_mandir}/man1/myisampack.1*
 %attr(644, root, root) %{_mandir}/man8/mysqld.8*
+%if 0%{?systemd}
+%exclude %{_mandir}/man1/mysqld_multi.1*
+%exclude %{_mandir}/man1/mysqld_safe.1*
+%else
 %attr(644, root, root) %{_mandir}/man1/mysqld_multi.1*
 %attr(644, root, root) %{_mandir}/man1/mysqld_safe.1*
+%endif
 %attr(644, root, root) %{_mandir}/man1/mysqldumpslow.1*
-%attr(644, root, root) %{_mandir}/man1/mysql_install_db.1*
-%attr(644, root, root) %{_mandir}/man1/mysql_plugin.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_secure_installation.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_upgrade.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlman.1*
 %attr(644, root, root) %{_mandir}/man1/mysql.server.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_tzinfo_to_sql.1*
 %attr(644, root, root) %{_mandir}/man1/perror.1*
-%attr(644, root, root) %{_mandir}/man1/replace.1*
-%attr(644, root, root) %{_mandir}/man1/resolve_stack_dump.1*
-%attr(644, root, root) %{_mandir}/man1/resolveip.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_ssl_rsa_setup.1*
 %attr(644, root, root) %{_mandir}/man1/lz4_decompress.1*
 %attr(644, root, root) %{_mandir}/man1/zlib_decompress.1*
 
+%config(noreplace) %{_sysconfdir}/my.cnf
 %dir %{_sysconfdir}/my.cnf.d
-%dir %{_sysconfdir}/percona-server.conf.d
-%config(noreplace) %{_sysconfdir}/percona-server.cnf
-%config(noreplace) %{_sysconfdir}/percona-server.conf.d/mysqld.cnf
-%config(noreplace) %{_sysconfdir}/percona-server.conf.d/mysqld_safe.cnf
-%if 0%{?rhel} > 6
-#%ghost %config(noreplace) %{_sysconfdir}/my.cnf
-%ghost %{_sysconfdir}/my.cnf
-%endif
 
-
+%attr(755, root, root) %{_bindir}/comp_err
 %attr(755, root, root) %{_bindir}/innochecksum
+%attr(755, root, root) %{_bindir}/ibd2sdi
 %attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/myisam_ftdump
 %attr(755, root, root) %{_bindir}/myisamchk
 %attr(755, root, root) %{_bindir}/myisamlog
 %attr(755, root, root) %{_bindir}/myisampack
-%attr(755, root, root) %{_bindir}/mysql_install_db
-%attr(755, root, root) %{_bindir}/mysql_plugin
 %attr(755, root, root) %{_bindir}/mysql_secure_installation
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
 %attr(755, root, root) %{_bindir}/mysql_upgrade
 %attr(755, root, root) %{_bindir}/mysqldumpslow
 %attr(755, root, root) %{_bindir}/ps_mysqld_helper
 %attr(755, root, root) %{_bindir}/perror
-%attr(755, root, root) %{_bindir}/replace
-%attr(755, root, root) %{_bindir}/resolve_stack_dump
-%attr(755, root, root) %{_bindir}/resolveip
 %attr(755, root, root) %{_bindir}/mysql_ssl_rsa_setup
 %attr(755, root, root) %{_bindir}/lz4_decompress
 %attr(755, root, root) %{_bindir}/zlib_decompress
 %attr(755, root, root) %{_bindir}/ps-admin
 %if 0%{?systemd}
 %attr(755, root, root) %{_bindir}/mysqld_pre_systemd
+%attr(755, root, root) %{_bindir}/mysqld_safe
 %else
 %attr(755, root, root) %{_bindir}/mysqld_multi
 %attr(755, root, root) %{_bindir}/mysqld_safe
 %endif
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
+%dir %{_libdir}/mysql/private
+%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.3.6.1
+%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.3.6.1
 
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_syseventlog.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_json.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_log_filter_dragnet.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_mysqlbackup.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_validate_password.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_api_message_emit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/ddl_rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/innodb_engine.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/ha_mock.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_file.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_udf.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libmemcached.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/locking_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/mysql_clone.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mysql_no_login.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/rewrite_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/rewriter.so
@@ -835,21 +936,36 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/version_token.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/mysqlx.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_udf.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/udf_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_audit_api_message.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_host_application_signal.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/test_services_host_application_signal.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/data_masking*
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_udf_services.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_simple.so
 %dir %{_libdir}/mysql/plugin/debug
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/data_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_simple.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/group_replication.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_syseventlog.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_json.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_filter_dragnet.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mysqlbackup.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_validate_password.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_api_message_emit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/ddl_rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/innodb_engine.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_mock.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_file.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_udf.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libmemcached.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/locking_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/mysql_clone.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mysql_no_login.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/rewrite_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/rewriter.so
@@ -857,11 +973,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/version_token.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/mysqlx.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_udf.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/group_replication.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/udf_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_audit_api_message.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_host_application_signal.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_services_host_application_signal.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_udf_services.so
 %if 0%{?mecab}
 %{_libdir}/mysql/mecab
 %attr(755, root, root) %{_libdir}/mysql/plugin/libpluginmecab.so
@@ -869,9 +984,20 @@ fi
 %endif
 # Percona plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
+#%attr(644, root, root) %{_datadir}/mysql-*/audit_log_filter_linux_install.sql
+#%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
+#%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
+#%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_simple.so
+#%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
+#%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_encrypted_file.so
+#%attr(755, root, root) %{_libdir}/mysql/plugin/mysql_clone.so
+#%attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
+#%attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
+#%attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
+#%attr(644, root, root) %{_datadir}/mysql-*/linux_install_firewall.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/scalability_metrics.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/scalability_metrics.so
+#%attr(755, root, root) %{_libdir}/mysql/plugin/scalability_metrics.so
+#%attr(755, root, root) %{_libdir}/mysql/plugin/debug/scalability_metrics.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_pam.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_pam.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_pam_compat.so
@@ -886,27 +1012,25 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/dialog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/query_response_time.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/query_response_time.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
+#%attr(755, root, root) %{_libdir}/mysql/plugin/query_response_time.so
+#%attr(755, root, root) %{_libdir}/mysql/plugin/debug/query_response_time.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_vault.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_vault.so
 #
-%attr(644, root, root) %{_datadir}/percona-server/fill_help_tables.sql
-%attr(644, root, root) %{_datadir}/percona-server/mysql_sys_schema.sql
-%attr(644, root, root) %{_datadir}/percona-server/mysql_system_tables.sql
-%attr(644, root, root) %{_datadir}/percona-server/mysql_system_tables_data.sql
-%attr(644, root, root) %{_datadir}/percona-server/mysql_test_data_timezone.sql
+#%attr(644, root, root) %{_datadir}/percona-server/fill_help_tables.sql
+#%attr(644, root, root) %{_datadir}/percona-server/mysql_sys_schema.sql
+#%attr(644, root, root) %{_datadir}/percona-server/mysql_system_tables.sql
+#%attr(644, root, root) %{_datadir}/percona-server/mysql_system_tables_data.sql
+#%attr(644, root, root) %{_datadir}/percona-server/mysql_test_data_timezone.sql
 %attr(644, root, root) %{_datadir}/percona-server/mysql-log-rotate
-%attr(644, root, root) %{_datadir}/percona-server/mysql_security_commands.sql
+#%attr(644, root, root) %{_datadir}/percona-server/mysql_security_commands.sql
 %attr(644, root, root) %{_datadir}/percona-server/dictionary.txt
 %attr(644, root, root) %{_datadir}/percona-server/innodb_memcached_config.sql
 %attr(644, root, root) %{_datadir}/percona-server/install_rewriter.sql
 %attr(644, root, root) %{_datadir}/percona-server/uninstall_rewriter.sql
-%attr(644, root, root) %{_datadir}/percona-server/magic
 %if 0%{?systemd}
-%attr(644, root, root) %{_unitdir}/mysqld@.service
 %attr(644, root, root) %{_unitdir}/mysqld.service
+%attr(644, root, root) %{_unitdir}/mysqld@.service
 %attr(644, root, root) %{_prefix}/lib/tmpfiles.d/mysql.conf
 %else
 %attr(755, root, root) %{_sysconfdir}/init.d/mysql
@@ -917,8 +1041,9 @@ fi
 %dir %attr(750, mysql, mysql) /var/lib/mysql-files
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
+%attr(755, root, root) %{_datadir}/percona-server/messages_to_clients.txt
+%attr(755, root, root) %{_datadir}/percona-server/messages_to_error_log.txt
 %attr(755, root, root) %{_datadir}/percona-server/charsets/
-%attr(755, root, root) %{_datadir}/percona-server/errmsg-utf8.txt
 %attr(755, root, root) %{_datadir}/percona-server/bulgarian/
 %attr(755, root, root) %{_datadir}/percona-server/czech/
 %attr(755, root, root) %{_datadir}/percona-server/danish/
@@ -943,8 +1068,9 @@ fi
 %attr(755, root, root) %{_datadir}/percona-server/spanish/
 %attr(755, root, root) %{_datadir}/percona-server/swedish/
 %attr(755, root, root) %{_datadir}/percona-server/ukrainian/
+#%attr(755, root, root) %{_datadir}/percona-server/mysql_system_users.sql
 
-%files -n Percona-Server-client%{product_suffix}
+%files -n percona-server-client
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %attr(755, root, root) %{_bindir}/mysql
@@ -969,7 +1095,7 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysqlslap.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_config_editor.1*
 
-%files -n Percona-Server-devel%{product_suffix}
+%files -n percona-server-devel
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %attr(644, root, root) %{_mandir}/man1/comp_err.1*
@@ -983,15 +1109,15 @@ fi
 %{_libdir}/mysql/lib%{shared_lib_pri_name}.so
 %{_libdir}/pkgconfig/%{shared_lib_pri_name}.pc
 
-%files -n Percona-Server-shared%{product_suffix}
+%files -n percona-server-shared
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
-%{_libdir}/mysql/lib%{shared_lib_pri_name}.so.20*
+%{_libdir}/mysql/lib%{shared_lib_pri_name}.so.21*
 
 %if 0%{?compatlib}
-%files -n Percona-Server-shared-compat%{product_suffix}
+%files -n percona-server-shared-compat
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql
@@ -1000,16 +1126,51 @@ fi
 %{_libdir}/mysql/libmysqlclient_r.so.%{compatlib}.*
 %endif
 
-%files -n Percona-Server-test%{product_suffix}
+%files -n percona-server-test
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %attr(-, root, root) %{_datadir}/mysql-test
 %attr(755, root, root) %{_bindir}/mysql_client_test
 %attr(755, root, root) %{_bindir}/mysqltest
+%attr(755, root, root) %{_bindir}/mysqltest_safe_process
 %attr(755, root, root) %{_bindir}/mysqlxtest
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_example_component1.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_example_component2.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_example_component3.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_test.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_backup_lock_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service_charset.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service_long.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_pfs_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_pfs_example_component_population.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/pfs_example_plugin_employee.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_pfs_notification.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_pfs_resource_group.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_udf_registration.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_current_thread_reader.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_3_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_avg_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_int_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_int_same_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_only_3_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_real_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_unreg_3_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_unreg_int_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_unreg_real_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_sys_var_service_int.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_sys_var_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_sys_var_service_same.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_sys_var_service_str.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_service_int.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_service_reg_only.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_service_str.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_service_unreg_only.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_system_variable_source.so
 %attr(644, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
 %attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/replication_observers_example_plugin.so
@@ -1017,6 +1178,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_services_threaded.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_session_detach.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_session_attach.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_session_in_thd.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_session_info.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_2_sessions.so
@@ -1029,6 +1191,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_processlist.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_shutdown.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_stmt.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_sqlmode.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_stored_procedures_functions.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_views_triggers.so
@@ -1038,15 +1201,57 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_interface.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_server.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_security_context.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/test_services_plugin_registry.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_services.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/udf_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_mysqlx_global_reset.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_runtime_error.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_reset_connection.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_runtime_error.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_reset_connection.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component1.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component2.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component3.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_test.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_backup_lock_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service_charset.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service_long.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_pfs_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_pfs_example_component_population.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/pfs_example_plugin_employee.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_pfs_notification.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_pfs_resource_group.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_udf_registration.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_current_thread_reader.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_3_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_avg_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_int_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_int_same_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_only_3_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_real_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_unreg_3_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_unreg_int_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_unreg_real_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_sys_var_service_int.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_sys_var_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_sys_var_service_same.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_sys_var_service_str.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_service_int.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_service_reg_only.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_service_str.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_service_unreg_only.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_system_variable_source.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/replication_observers_example_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_framework.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_services_threaded.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_session_detach.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_session_attach.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_session_in_thd.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_session_info.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_2_sessions.so
@@ -1059,6 +1264,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_processlist.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_shutdown.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_stmt.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_sqlmode.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_stored_procedures_functions.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_views_triggers.so
@@ -1068,17 +1274,17 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_interface.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_security_context.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_services_plugin_registry.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_udf_services.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/udf_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mysqlx_global_reset.so
 
 %if 0%{?tokudb}
-%files -n Percona-Server-tokudb%{product_suffix}
-%dir %attr(755, root, root) %{_datadir}/selinux/packages/percona-server
-%attr(644, root, root) %{_datadir}/selinux/packages/percona-server/percona-server.pp
+%files -n percona-server-tokudb
 %attr(-, root, root)
 %{_bindir}/tokuftdump
 %{_libdir}/mysql/plugin/ha_tokudb.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_tokudb.so
-%attr(755, root, root) %{_bindir}/ps_tokudb_admin
 %attr(755, root, root) %{_bindir}/tokuft_logprint
 %attr(755, root, root) %{_libdir}/mysql/plugin/tokudb_backup.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/tokudb_backup.so
@@ -1087,7 +1293,7 @@ fi
 %endif
 
 %if 0%{?rocksdb}
-%files -n Percona-Server-rocksdb%{product_suffix}
+%files -n percona-server-rocksdb
 %attr(-, root, root)
 %{_libdir}/mysql/plugin/ha_rocksdb.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_rocksdb.so
@@ -1096,16 +1302,45 @@ fi
 %attr(755, root, root) %{_bindir}/sst_dump
 %endif
 
+%files -n percona-mysql-router
+%defattr(-, root, root, -)
+%doc %{src_dir}/router/README.router  %{src_dir}/router/LICENSE.router
+%dir %{_sysconfdir}/mysqlrouter
+%config(noreplace) %{_sysconfdir}/mysqlrouter/mysqlrouter.conf
+%{_bindir}/mysqlrouter
+%{_bindir}/mysqlrouter_keyring
+%{_bindir}/mysqlrouter_passwd
+%{_bindir}/mysqlrouter_plugin_info
+%attr(644, root, root) %{_mandir}/man1/mysqlrouter.1*
+%attr(644, root, root) %{_mandir}/man1/mysqlrouter_passwd.1*
+%attr(644, root, root) %{_mandir}/man1/mysqlrouter_plugin_info.1*
+%if 0%{?systemd}
+%{_unitdir}/mysqlrouter.service
+%{_tmpfilesdir}/mysqlrouter.conf
+%else
+%{_sysconfdir}/init.d/mysqlrouter
+%endif
+%{_libdir}/mysqlrouter/private/libmysqlharness.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_http.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_http_auth_backend.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_http_auth_realm.so.*
+%{_libdir}/mysqlrouter/private/libprotobuf-lite.so.*
+%dir %{_libdir}/mysqlrouter
+%dir %{_libdir}/mysqlrouter/private
+%{_libdir}/mysqlrouter/*.so
+%dir %attr(755, mysqlrouter, mysqlrouter) /var/log/mysqlrouter
+%dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
 
 %changelog
 * Wed Aug  2 2017 Evgeniy Patlan <evgeniy.patlan@percona.com>
 - Added RocksDB
 
-* Thu Sep  1 2016 Evgeniy Patlan <evgeniy.patlan@percona.com> 
+* Thu Sep  1 2016 Evgeniy Patlan <evgeniy.patlan@percona.com>
 - fix license field
 
 * Thu Aug 25 2016 Evgeniy Patlan <evgeniy.patlan@percona.com>
-- Provide my.cnf for all systems 
+- Provide my.cnf for all systems
 
 * Wed Mar 09 2016 Tomislav Plavcic <tomislav.plavcic@percona.com> - 5.7.11-4
 - Include mysql-keyring directory
@@ -1125,6 +1360,9 @@ fi
 - Added libtest_* plugins to test package subpackage
 - Add mysqlpump man page
 - Obsolete mysql-connector-c-shared dependencies
+
+* Mon Jul 06 2015 Murthy Narkedimilli <murthy.narkedimilli@oracle.com> - 5.7.8-0.2.rc
+- Bumped the version of libmysqlclient.so and libmysqld.so from 20 -> 21.
 
 * Thu Jun 25 2015 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.8-0.2.rc
 - Add support for pkg-config
@@ -1153,7 +1391,7 @@ fi
 - Provide mysql_no_login.so plugin
 
 * Wed Aug 06 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.5-0.5.m15
-- Provide mysql-compat-server dependencies 
+- Provide mysql-compat-server dependencies
 
 * Wed Jul 09 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.5-0.4.m15
 - Remove perl(GD) and dtrace dependencies
@@ -1163,20 +1401,20 @@ fi
 
 * Wed Jun 25 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.5-0.2.m15
 - Add bench package
-- Enable dtrace 
+- Enable dtrace
 
 * Thu Apr 24 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.5-0.1.m15
 - Updated for 5.7.5
 
 * Mon Apr 07 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.4-0.5.m14
-- Fix Cflags for el7 
+- Fix Cflags for el7
 
 * Mon Mar 31 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.4-0.4.m14
 - Support for enterprise packages
 - Upgrade from MySQL-* packages
 
 * Wed Mar 12 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.4-0.3.m14
-- Resolve conflict with mysql-libs-compat 
+- Resolve conflict with mysql-libs-compat
 
 * Thu Mar 06 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.4-0.2.m14
 - Resolve conflict issues during upgrade
@@ -1188,7 +1426,7 @@ fi
 - Move mysqltest and test plugins to test subpackage
 
 * Mon Nov 18 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.3-0.3.m13
-- Fixed isa_bits error 
+- Fixed isa_bits error
 
 * Fri Oct 25 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.3-0.1.m13
 - Initial 5.7 port
@@ -1198,8 +1436,8 @@ fi
 - Updated to 5.6.15
 
 * Wed Oct 16 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.14-3
-- Fixed mysql_install_db usage 
-- Improved handling of plugin directory 
+- Fixed mysql_install_db usage
+- Improved handling of plugin directory
 
 * Fri Sep 27 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.14-2
 - Refresh mysql-install patch and service renaming
@@ -1208,23 +1446,23 @@ fi
 - Updated to 5.6.14
 
 * Wed Sep 04 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.13-5
-- Support upgrade from 5.5 ULN packages to 5.6 
+- Support upgrade from 5.5 ULN packages to 5.6
 
 * Tue Aug 27 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.13-4
-- Enhanced perl filtering 
-- Added openssl-devel to buildreq 
+- Enhanced perl filtering
+- Added openssl-devel to buildreq
 
 * Wed Aug 21 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.13-3
 - Removed mysql_embedded binary to resolve multilib conflict issue
 
-* Fri Aug 16 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.13-2 
-- Fixed Provides and Obsoletes issues in server, test packages 
+* Fri Aug 16 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.13-2
+- Fixed Provides and Obsoletes issues in server, test packages
 
 * Wed Aug 14 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.13-1
 - Updated to 5.6.13
 
 * Mon Aug 05 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.12-9
-- Added files list to embedded packages 
+- Added files list to embedded packages
 
 * Thu Aug 01 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.12-8
 - Updated libmysqld.a with libmysqld.so in embedded package
@@ -1235,10 +1473,10 @@ fi
 * Wed Jul 24 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.12-6
 - Added libs-compat dependency under libs package to resolve server
   installation conflicts issue.
- 
+
 * Wed Jul 17 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.12-5
 - Removed libmysqlclient.so.16 from libs package
- 
+
 * Fri Jul 05 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.12-4
 - Adjusted to work on OEL6
 
@@ -2007,3 +2245,4 @@ lenz@mysql.com>
 - A developers changelog for MySQL is available in the source RPM. And
   there is a history of major user visible changed in the Reference
   Manual.  Only RPM specific changes will be documented here.
+

@@ -10,5 +10,5 @@
 
 [mysqld_safe]
 pid-file = /var/run/mysqld/mysqld.pid
-socket   = /var/lib/mysql/mysql.sock
+socket   = /var/run/mysqld/mysqld.sock
 nice     = 0

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,7 +18,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "ArenaPool.hpp"
 #include <ndbd_exit_codes.h>
@@ -109,11 +109,14 @@ ArenaAllocator::release(ArenaHead& ah)
   new (&ah) ArenaHead();
 }
 
+#if 0
+template<typename T>
 void
-ArenaPool::init(ArenaAllocator * alloc,
-                const Record_info& ri, const Pool_context&)
+ArenaPool<T>::init(ArenaAllocator * alloc,
+                   const Record_info& ri, const Pool_context&)
 {
   m_record_info = ri;
+require(ri.m_size == sizeof(T));
 #if SIZEOF_CHARP == 4
   m_record_info.m_size = ((ri.m_size + 3) >> 2); // Align to word boundary
 #else
@@ -124,8 +127,9 @@ ArenaPool::init(ArenaAllocator * alloc,
   m_allocator = alloc;
 }
 
+template<typename T>
 bool
-ArenaPool::seize(ArenaHead & ah, Ptr<void>& ptr)
+ArenaPool<T>::seize(ArenaHead & ah, Ptr<void>& ptr)
 {
   Uint32 pos = ah.m_first_free;
   Uint32 bs = ah.m_block_size;
@@ -133,6 +137,7 @@ ArenaPool::seize(ArenaHead & ah, Ptr<void>& ptr)
   ArenaBlock * block = ah.m_current_block_ptr;
 
   Uint32 sz = m_record_info.m_size;
+require(sizeof(T) <= sz);
   Uint32 off = m_record_info.m_offset_magic;
 
   if (0)
@@ -156,24 +161,36 @@ ArenaPool::seize(ArenaHead & ah, Ptr<void>& ptr)
   else
   {
     Ptr<void> tmp;
-    if (m_allocator->m_pool.seize(tmp))
+    if (ah.m_first_block == RNIL)
+    { // ArenaPool is empty, seize a new ArenaHead
+      if (!m_allocator->seize(ah))
+        return false;
+    }
+    // Extend pool with new block
+    else if (m_allocator->m_pool.seize(tmp))
     {
+      assert(ah.m_block_size == m_allocator->m_block_size);
       ah.m_first_free = 0;
       ah.m_current_block = tmp.i;
       ah.m_current_block_ptr->m_next_block = tmp.i;
       ah.m_current_block_ptr = static_cast<ArenaBlock*>(tmp.p);
       ah.m_current_block_ptr->m_next_block = RNIL;
-      bool ret = seize(ah, ptr);
-      (void)ret;
-      assert(ret == true);
-      return true;
     }
+    else
+      return false;
+
+    // Re-seize object from created / extended Pool
+    const bool ret = seize(ah, ptr);
+    (void)ret;
+    assert(ret == true);
+    return true;
   }
   return false;
 }
 
+template<typename T>
 void
-ArenaPool::handle_invalid_release(Ptr<void> ptr)
+ArenaPool<T>::handle_invalid_release(Ptr<void> ptr)
 {
   char buf[255];
 
@@ -188,3 +205,4 @@ ArenaPool::handle_invalid_release(Ptr<void> ptr)
 
   m_allocator->m_pool.m_ctx.handleAbort(NDBD_EXIT_PRGERR, buf);
 }
+#endif

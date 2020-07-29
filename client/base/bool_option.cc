@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,21 +22,19 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "bool_option.h"
+#include "client/base/bool_option.h"
 
 using namespace Mysql::Tools::Base::Options;
 using std::string;
 
-Bool_option::Bool_option(bool* value, string name, string description)
-  : Abstract_option<Bool_option>(value, GET_BOOL, name, description, false)
-{
-  this->m_option_structure.arg_type= NO_ARG;
-  *value= false;
+Bool_option::Bool_option(bool *value, string name, string description)
+    : Abstract_option<Bool_option>(value, GET_BOOL, name, description, false) {
+  this->m_option_structure.arg_type = NO_ARG;
+  *value = false;
 }
 
-Bool_option* Bool_option::set_value(bool value)
-{
-  *(bool*)this->m_option_structure.value= value;
-  this->m_option_structure.def_value= (longlong)value;
+Bool_option *Bool_option::set_value(bool value) {
+  *(bool *)this->m_option_structure.value = value;
+  this->m_option_structure.def_value = (longlong)value;
   return this;
 }

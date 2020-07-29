@@ -1,7 +1,4 @@
---source include/have_innodb.inc
 --source include/have_simple_parser.inc
-# Restart is not supported in embedded
---source include/not_embedded.inc
 --source include/no_valgrind_without_big.inc
 
 #-----------------------------------------------------------------------------
@@ -318,3 +315,6 @@ SELECT * FROM t1 WHERE MATCH(a) AGAINST("')'@7" IN BOOLEAN MODE);
 DROP TABLE t1;
 
 UNINSTALL PLUGIN simple_parser;
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc

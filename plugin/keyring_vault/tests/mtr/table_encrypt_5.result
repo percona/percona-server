@@ -1,6 +1,6 @@
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not open file with credentials.'");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'keyring_vault initialization failure.");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'File '' not found");
+call mtr.add_suppression("\\[ERROR\\].*Plugin keyring_vault reported: 'Could not open file with credentials.'");
+call mtr.add_suppression("\\[ERROR\\].*Plugin keyring_vault reported: 'keyring_vault initialization failure.");
+call mtr.add_suppression("\\[ERROR\\].*Plugin keyring_vault reported: 'File '' not found");
 # Starting server with keyring plugin  
 # restart:<hidden args>
 DROP DATABASE IF EXISTS tde_db;
@@ -19,7 +19,7 @@ c3 CHAR(255) Default 'No text',
 c4 JSON , 
 c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-c7 POINT NOT NULL,
+c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)    
 ) ENCRYPTION="Y"  ENGINE = InnoDB;
 /*  Create NON encrypt table with encryption */
@@ -28,7 +28,7 @@ c3 CHAR(255) Default 'No text',
 c4 JSON ,
 c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-c7 POINT NOT NULL,
+c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
 )  ENGINE = InnoDB;
 /*  insert into encrypt table */
@@ -53,7 +53,7 @@ c3 CHAR(255) Default 'No text',
 c4 JSON ,
 c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-c7 POINT NOT NULL,
+c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
 )  ENCRYPTION="Y" ENGINE = InnoDB;
 CREATE TABLE tde_db.t_non_encrypt_2(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -61,7 +61,7 @@ c3 CHAR(255) Default 'No text',
 c4 JSON ,
 c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-c7 POINT NOT NULL,
+c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
 )  ENGINE = InnoDB;
 /*  insert into encrypt table 2 */
@@ -196,7 +196,7 @@ c3 CHAR(255) Default 'No text',
 c4 JSON ,
 c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-c7 POINT NOT NULL,
+c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
 )  ENCRYPTION="Y" ENGINE = InnoDB;
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
@@ -206,7 +206,7 @@ c3 CHAR(255) Default 'No text',
 c4 JSON ,
 c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-c7 POINT NOT NULL,
+c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
 )  ENGINE = InnoDB;
 DROP TABLE tde_db.t_encrypt , tde_db.t_encrypt_2 ;
@@ -386,7 +386,7 @@ c3 CHAR(255) Default 'No text',
 c4 JSON ,
 c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-c7 POINT NOT NULL,
+c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
 )  ENCRYPTION="Y" ENGINE = InnoDB;
 CREATE TABLE tde_db.t_non_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -394,7 +394,7 @@ c3 CHAR(255) Default 'No text',
 c4 JSON ,
 c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-c7 POINT NOT NULL,
+c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
 )  ENGINE = InnoDB;
 INSERT INTO tde_db.t_encrypt_4(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
@@ -521,7 +521,7 @@ c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
 13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 # restart without --early-plugin-load and keyring_file_data
-# restart: 
+# restart:
 # encrypt table not accessible
 SELECT COUNT(*) FROM tde_db.t_encrypt;
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
@@ -540,7 +540,7 @@ c3 CHAR(255) Default 'No text',
 c4 JSON ,
 c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-c7 POINT NOT NULL,
+c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
 )  ENCRYPTION="Y" ENGINE = InnoDB;
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
@@ -550,7 +550,7 @@ c3 CHAR(255) Default 'No text',
 c4 JSON ,
 c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-c7 POINT NOT NULL,
+c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
 )  ENGINE = InnoDB;
 INSERT INTO tde_db.t_non_encrypt_4(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_non_encrypt;
@@ -585,7 +585,7 @@ c3 CHAR(255) Default 'No text',
 c4 JSON , 
 c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-c7 POINT NOT NULL,
+c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)    
 ) ENCRYPTION="Y"  ENGINE = InnoDB;
 /*  Create NON encrypt table with encryption */
@@ -594,7 +594,7 @@ c3 CHAR(255) Default 'No text',
 c4 JSON ,
 c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-c7 POINT NOT NULL,
+c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
 )  ENGINE = InnoDB;
 /*  insert into encrypt table */
@@ -619,7 +619,7 @@ c3 CHAR(255) Default 'No text',
 c4 JSON ,
 c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-c7 POINT NOT NULL,
+c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
 )  ENCRYPTION="Y" ENGINE = InnoDB;
 CREATE TABLE tde_db.t_non_encrypt_2(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -627,7 +627,7 @@ c3 CHAR(255) Default 'No text',
 c4 JSON ,
 c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-c7 POINT NOT NULL,
+c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
 )  ENGINE = InnoDB;
 /*  insert into encrypt table 2 */
@@ -712,10 +712,7 @@ c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
 9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
-# restart without --early-plugin-load (still need to provide with
-# keyring_file_data otherwise it would point to default location which might be
-# non-writable to mtr). Instead explicitly install plugin to access old table
-# restart: --loose-keyring_file_data=MYSQL_TMP_DIR/mydummy_keyring
+# restart:<hidden args>
 # Install keyring plugin
 INSTALL PLUGIN keyring_vault SONAME 'keyring_vault.so';
 # Set keyring_file_data as old file so as to access old tables
@@ -825,7 +822,7 @@ c3 CHAR(255) Default 'No text',
 c4 JSON ,
 c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-c7 POINT NOT NULL,
+c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
 )  ENCRYPTION="Y" ENGINE = InnoDB;
 CREATE TABLE tde_db.t_non_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -833,7 +830,7 @@ c3 CHAR(255) Default 'No text',
 c4 JSON ,
 c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-c7 POINT NOT NULL,
+c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
 )  ENGINE = InnoDB;
 INSERT INTO tde_db.t_encrypt_4(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
@@ -895,7 +892,7 @@ c3 CHAR(255) Default 'No text',
 c4 JSON ,
 c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-c7 POINT NOT NULL,
+c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
 )  ENCRYPTION="Y" ENGINE = InnoDB;
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
@@ -992,7 +989,7 @@ c3 CHAR(255) Default 'No text',
 c4 JSON ,
 c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-c7 POINT NOT NULL,
+c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
 )  ENCRYPTION="Y" ENGINE = InnoDB;
 # non encrypt table possible
@@ -1001,7 +998,7 @@ c3 CHAR(255) Default 'No text',
 c4 JSON ,
 c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-c7 POINT NOT NULL,
+c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
 )  ENGINE = InnoDB;
 INSERT INTO tde_db.t_encrypt_4(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_non_encrypt;
@@ -1037,5 +1034,5 @@ DROP TABLE tde_db.t_encrypt , tde_db.t_encrypt_2 ,tde_db.t_encrypt_4;
 DROP TABLE tde_db.t_non_encrypt , tde_db.t_non_encrypt_2 ,tde_db.t_non_encrypt_4;
 DROP DATABASE tde_db;
 # Starting server without keyring
-# restart: 
+# restart:
 SET GLOBAL innodb_file_per_table=1;

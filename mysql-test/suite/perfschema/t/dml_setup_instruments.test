@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 # The query result are not re producible,
 # due to variations in platforms and plugins
 # We still execute the select statement, for:
@@ -22,6 +19,7 @@ select * from performance_schema.setup_instruments
   order by name limit 10;
 
 # CRYPTO_dynlock_value::lock is dependent on the build (SSL)
+# LOCK_named_pipe_full_access_group is dependent on the build (Windows only)
 
 select * from performance_schema.setup_instruments
   where name like 'Wait/Synch/Rwlock/sql/%'

@@ -1,2 +1,0 @@
---let $skip_start_encryption_event=1
---source suite/rpl/t/rpl_mts_logical_clock_wrong_start_pos.test

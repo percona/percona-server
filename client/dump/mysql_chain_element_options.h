@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,32 +25,29 @@
 #ifndef MYSQL_CHAIN_ELEMENT_OPTIONS_INCLUDED
 #define MYSQL_CHAIN_ELEMENT_OPTIONS_INCLUDED
 
-#include "base/abstract_options_provider.h"
-#include "base/abstract_connection_program.h"
+#include "client/base/abstract_connection_program.h"
+#include "client/base/abstract_options_provider.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-
-class Mysql_chain_element_options :
-  public Mysql::Tools::Base::Options::Abstract_options_provider
-{
-public:
+class Mysql_chain_element_options
+    : public Mysql::Tools::Base::Options::Abstract_options_provider {
+ public:
   Mysql_chain_element_options(
-    Mysql::Tools::Base::Abstract_connection_program* program);
+      Mysql::Tools::Base::Abstract_connection_program *program);
 
   void create_options();
 
-  Mysql::Tools::Base::Abstract_connection_program* get_program() const;
+  Mysql::Tools::Base::Abstract_connection_program *get_program() const;
 
-private:
-
-  Mysql::Tools::Base::Abstract_connection_program* m_program;
+ private:
+  Mysql::Tools::Base::Abstract_connection_program *m_program;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

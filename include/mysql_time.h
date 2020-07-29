@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -23,12 +23,13 @@
 
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef _mysql_time_h_
 #define _mysql_time_h_
 
-/*
+/**
+  @file include/mysql_time.h
   Time declarations shared between the server and client API:
   you should not add anything to this header unless it's used
   (and hence should be visible) in mysql.h.
@@ -37,12 +38,33 @@
   and Time Values" chapter in documentation.
 */
 
-enum enum_mysql_timestamp_type
-{
-  MYSQL_TIMESTAMP_NONE= -2, MYSQL_TIMESTAMP_ERROR= -1,
-  MYSQL_TIMESTAMP_DATE= 0, MYSQL_TIMESTAMP_DATETIME= 1, MYSQL_TIMESTAMP_TIME= 2
-};
+// Do not not pull in the server header "my_inttypes.h" from client code.
+// IWYU pragma: no_include "my_inttypes.h"
 
+enum enum_mysql_timestamp_type {
+  MYSQL_TIMESTAMP_NONE = -2,
+  MYSQL_TIMESTAMP_ERROR = -1,
+
+  /// Stores year, month and day components.
+  MYSQL_TIMESTAMP_DATE = 0,
+
+  /**
+    Stores all date and time components.
+    Value is in UTC for `TIMESTAMP` type.
+    Value is in local time zone for `DATETIME` type.
+  */
+  MYSQL_TIMESTAMP_DATETIME = 1,
+
+  /// Stores hour, minute, second and microsecond.
+  MYSQL_TIMESTAMP_TIME = 2,
+
+  /**
+    A temporary type for `DATETIME` or `TIMESTAMP` types equipped with time
+    zone information. After the time zone information is reconciled, the type is
+    converted to MYSQL_TIMESTAMP_DATETIME.
+  */
+  MYSQL_TIMESTAMP_DATETIME_TZ = 3
+};
 
 /*
   Structure which is used to represent datetime values inside MySQL.
@@ -56,12 +78,13 @@ enum enum_mysql_timestamp_type
   value (time_type == MYSQL_TIMESTAMP_TIME) days and hour member can hold
   bigger values.
 */
-typedef struct st_mysql_time
-{
-  unsigned int  year, month, day, hour, minute, second;
-  unsigned long second_part;  /**< microseconds */
-  my_bool       neg;
+typedef struct MYSQL_TIME {
+  unsigned int year, month, day, hour, minute, second;
+  unsigned long second_part; /**< microseconds */
+  bool neg;
   enum enum_mysql_timestamp_type time_type;
+  /// The time zone displacement, specified in seconds.
+  int time_zone_displacement;
 } MYSQL_TIME;
 
 #endif /* _mysql_time_h_ */

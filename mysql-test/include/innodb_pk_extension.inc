@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 CREATE TABLE t1
 (
@@ -142,10 +141,13 @@ SHOW STATUS LIKE 'handler_read%';
 
 --echo #
 --echo # Optimization of sorting
+--echo # Also verifies FORMAT=tree for reverse ref access.
 --echo #
 
 --replace_column 10 #
 EXPLAIN SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 = 3 AND f1 = '2000-01-03'
+ORDER BY pk_2 DESC LIMIT 5;
+EXPLAIN FORMAT=tree SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 = 3 AND f1 = '2000-01-03'
 ORDER BY pk_2 DESC LIMIT 5;
 FLUSH STATUS;
 SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 = 3 AND f1 = '2000-01-03'
@@ -201,7 +203,7 @@ CREATE TABLE t1
   f7 VARCHAR(500),
   PRIMARY KEY (f1, f2, f3, f4),
   KEY k1 (f5, f6, f7)
-) ENGINE = InnoDB;
+) charset latin1 ENGINE = InnoDB;
 
 --replace_column 10 #
 EXPLAIN SELECT f5 FROM t1 FORCE INDEX (k1) WHERE
@@ -258,7 +260,7 @@ DROP TABLE t1, t2;
 --echo #
 
 CREATE TABLE t1
-(a GEOMETRY NOT NULL, PRIMARY KEY (a(1)), SPATIAL KEY(a)) ENGINE=INNODB;
+(a GEOMETRY NOT NULL SRID 0, SPATIAL KEY(a)) ENGINE=INNODB;
 
 INSERT INTO t1 VALUES (point(7, 7));
 SELECT st_astext(a) FROM t1 WHERE st_equals(a, point(7, 7));

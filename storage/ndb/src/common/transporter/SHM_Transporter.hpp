@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
 #include "Transporter.hpp"
 #include "SHM_Buffer.hpp"
 
-#ifdef NDB_WIN32
+#ifdef _WIN32
 typedef Uint32 key_t;
 #endif
 
@@ -41,6 +41,7 @@ class SHM_Transporter : public Transporter {
   friend class TransporterRegistry;
 public:
   SHM_Transporter(TransporterRegistry &,
+                  TrpId transporterIndex,
 		  const char *lHostName,
 		  const char *rHostName, 
 		  int r_port,
@@ -51,13 +52,25 @@ public:
 		  bool checksum, 
 		  bool signalId,
 		  key_t shmKey,
-		  Uint32 shmSize);
-  
+		  Uint32 shmSize,
+		  bool preSendChecksum,
+                  Uint32 spintime,
+                  Uint32 send_buffer_size);
+
+  SHM_Transporter(TransporterRegistry &,
+                  const SHM_Transporter*);
+ 
   /**
    * SHM destructor
    */
   virtual ~SHM_Transporter();
-  
+
+  /**
+   * Clear any data buffered in the transporter.
+   * Should only be called in a disconnected state.
+   */
+  virtual void resetBuffers();
+
   virtual bool configure_derived(const TransporterConfiguration* conf);
 
   /**
@@ -65,13 +78,14 @@ public:
    */
   bool initTransporter();
   
-  void getReceivePtr(Uint32 ** ptr, Uint32 ** eod){
-    reader->getReadPtr(* ptr, * eod);
+  void getReceivePtr(Uint32 ** ptr,
+                     Uint32 ** eod,
+                     Uint32 ** end)
+  {
+    reader->getReadPtr(* ptr, * eod, * end);
   }
   
-  void updateReceivePtr(Uint32 * ptr){
-    reader->updateReadPtr(ptr);
-  }
+  void updateReceivePtr(TransporterReceiveHandle&, Uint32 * ptr);
   
 protected:
   /**
@@ -80,6 +94,11 @@ protected:
    * -# marks the segment for removal
    */
   void disconnectImpl();
+
+  /**
+   * Disconnect socket that was used for wakeup services.
+   */
+  void disconnect_socket();
 
   /**
    * Blocking
@@ -114,6 +133,8 @@ protected:
   bool ndb_shm_create();
   bool ndb_shm_get();
   bool ndb_shm_attach();
+  void ndb_shm_destroy();
+  void set_socket(NDB_SOCKET_TYPE);
 
   /**
    * Check if there are two processes attached to the segment (a connection)
@@ -125,26 +146,59 @@ protected:
   /**
    * Initialises the SHM_Reader and SHM_Writer on the segment 
    */
-  void setupBuffers();
+  bool setupBuffers();
 
   /**
    * doSend (i.e signal receiver)
    */
-  bool doSend();
+  bool doSend(bool need_wakeup = true);
+  void doReceive();
+  void wakeup();
+
+  /**
+   * When sending as client I use the server mutex and server status
+   * flag to check for server awakeness, so sender always uses the
+   * reverse state.
+   *
+   * When receiving I change my own state, so client updates client
+   * status flag and locks client mutex.
+   */
+  void lock_mutex();
+  void unlock_mutex();
+  void lock_reverse_mutex();
+  void unlock_reverse_mutex();
+  void set_awake_state(Uint32 awake_state);
+  bool handle_reverse_awake_state();
+
+  void remove_mutexes();
+  void setupBuffersUndone();
+
   int m_remote_pid;
   Uint32 m_signal_threshold;
 
 private:
   bool _shmSegCreated;
   bool _attached;
-  bool m_connected;
   
   key_t shmKey;
   volatile Uint32 * serverStatusFlag;
-  volatile Uint32 * clientStatusFlag;  
+  volatile Uint32 * clientStatusFlag;
+
+  bool m_server_locked;
+  bool m_client_locked;
+
+  Uint32 *serverAwakenedFlag;
+  Uint32 *clientAwakenedFlag;
+
+  Uint32 *serverUpFlag;
+  Uint32 *clientUpFlag;
+
+  NdbMutex *serverMutex;
+  NdbMutex *clientMutex;
+
   bool setupBuffersDone;
   
-#ifdef NDB_WIN32
+#ifdef _WIN32
   HANDLE hFileMapping;
 #else
   int shmId;
@@ -152,10 +206,13 @@ private:
   
   int shmSize;
   char * shmBuf;
-  
-  SHM_Reader * reader;
-  SHM_Writer * writer;
-  
+
+  SHM_Reader *reader;
+  SHM_Writer *writer;
+
+  SHM_Reader m_shm_reader;
+  SHM_Writer m_shm_writer;
+
   /**
    * @return - True if the reader has data to read on its segment.
    */
@@ -169,7 +226,8 @@ private:
   {
     return ((Uint32)bufsize >= m_signal_threshold);
   }
-  bool send_is_possible(int timeout_millisec) const { return 1; }
+  bool send_is_possible(int timeout_millisec) const;
+  void detach_shm(bool rep_error);
 };
 
 #endif

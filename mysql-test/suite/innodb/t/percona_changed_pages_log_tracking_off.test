@@ -1,10 +1,15 @@
-# Tests for queries from INFORMATION_SCHEMA.INNODB_CHANGED_PAGES that don't require
-# a running log tracker
+# Tests for queries from INFORMATION_SCHEMA.INNODB_CHANGED_PAGES without a running log tracker
+
+--let $assert_text= Redo log tracking must be off
+--let $assert_cond= @@innodb_track_changed_pages = 0
+--source include/assert.inc
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 
+remove_files_wildcard $MYSQLD_DATADIR ib_modified_log*;
+
 # Test for bug 1342494: InnoDB: Failing assertion: bitmap_files->files[i].start_lsn
-# >= bitmap_files->files[i - 1].start_lsn on inconsistent bitmap file directory 
+# >= bitmap_files->files[i - 1].start_lsn on inconsistent bitmap file directory
 
 --echo creating inconsistent bitmap dir: start LSN of 3rd file < start LSN of 2nd file
 write_file $MYSQLD_DATADIR/ib_modified_log_1_0.xdb;

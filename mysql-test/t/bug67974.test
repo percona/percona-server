@@ -6,8 +6,6 @@
 # temporary tables already created and locked.
 ########################################################################
 
---source include/have_partition.inc
---source include/have_innodb.inc
 --source include/have_debug_sync.inc
 
 SET DEBUG_SYNC='reset';

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -19,7 +19,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef NdbQueryBuilder_H
 #define NdbQueryBuilder_H
@@ -27,10 +27,13 @@
 #include <stdlib.h>
 #include <ndb_types.h>
 
+#include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
+
 // this file is currently not located in include/ndbapi
 // skip includes...and require them to be included first
 // BUH!
 
+class Ndb;
 class NdbQueryDef;
 class NdbQueryDefImpl;
 class NdbQueryBuilderImpl;
@@ -128,19 +131,19 @@ public:
    * These are hints only.
    * The implementation is allowed to take a conservative approach
    * and produce more rows than specified by the MatchType.
-   * However, not more rows than specified by 'MatchAll' should be produced.
+   * However, no more rows than specified by 'MatchAll' should be produced.
    * As additional rows should be expected, the receiver should be prepared to
    * filter away unwanted rows if another MatchType than 'MatchAll' was specified.
    */
   enum MatchType
   {
-    MatchAll,        // DEFAULT: Output all matches, including duplicates.
+    MatchAll = 0x00, // DEFAULT: Output all matches, including duplicates.
                      // Append a single NULL complemented row for non-matching childs.
-    MatchNonNull,    // Output all matches, including duplicates. 
+    MatchNonNull = 0x01,// Output all matches, including duplicates.
                      // Parents without any matches are discarded.
     MatchNullOnly,   // Output only parent rows without any child matches.
                      // Append a single NULL complemented row for the non_matching child
-    MatchSingle,     // Output a single row when >=1 child matches.
+    MatchFirst = 0x02,// Output a single row when >=1 child matches.
                      // One of the matching child row is included in the output.
     Default = MatchAll
   };
@@ -177,6 +180,30 @@ public:
    * grandparents of 'parent'.
    */
   int setParent(const class NdbQueryOperationDef* parent);
+
+  /**
+   * Set the 'first_inner' operation of the join_nest this operation is a
+   * member of. All tables in the same join nest has an implicit inner join
+   * dependency between them, even if there are no such dependencies
+   * specified by the linkedValues.
+   *
+   * Specifying a 'FirstInnerJoin' is only required when the firstInner
+   * is not an ancestor Op. of this Op in the tree of QueryOperations.
+   * That is if firstInner and this Op are in seperate branches of the
+   * QueryTree -> This Op has no linkedValue dependencies on other Ops
+   * in the nest starting with firstInner.
+   */
+  int setFirstInnerJoin(const class NdbQueryOperationDef* firstInner);
+
+  /**
+   * Specifies the nesting of the join nest:
+   * By default the parent of the 'firstInner' will be our upper nest.
+   * However, there might be nest constructs like 't1 lj (t2 lj (t3))',
+   * where t3 has a join dependency directly on t1 (Which becomes the parent).
+   * Thus the query tree will have t3 as direct child of t1, which 'hides'
+   * the nest dependency on t2. In such cases t3 will need to t3.setUpperJoin(t1).
+   */
+  int setUpperJoin(const class NdbQueryOperationDef* firstUpper);
 
   /**
    * Set the NdbInterpretedCode needed for defining a conditional filter 
@@ -322,13 +349,13 @@ public:
   // C'tor for an equal bound:
   NdbQueryIndexBound(const NdbQueryOperand* const *eqKey)
    : m_low(eqKey), m_lowInclusive(true), m_high(eqKey), m_highInclusive(true)
-  {};
+  {}
 
   // C'tor for a normal range including low & high limit:
   NdbQueryIndexBound(const NdbQueryOperand* const *low,
                      const NdbQueryOperand* const *high)
    : m_low(low), m_lowInclusive(true), m_high(high), m_highInclusive(true)
-  {};
+  {}
 
   // Complete C'tor where limits might be exluded:
   NdbQueryIndexBound(const NdbQueryOperand* const *low,  bool lowIncl,
@@ -393,7 +420,17 @@ public:
    */
   void destroy();
 
-  const NdbQueryDef* prepare();    // Complete building a queryTree from 'this' NdbQueryBuilder
+  static bool outerJoinedScanSupported(const Ndb *ndb);
+
+  /**
+   * Complete building a queryTree from 'this' NdbQueryBuilder
+   */
+  const NdbQueryDef* prepare(const Ndb *ndb);
+
+  /**
+   * Compatible older version of prepare(); not recommended
+   */
+  const NdbQueryDef* prepare();
 
   // NdbQueryOperand builders:
   //

@@ -1,0 +1,57 @@
+--echo #
+--echo # This test uses a 8.0.13-3 datadir that was upgraded from PS-5.7
+--echo # This datadir has wrong table_ids for compression dictionary tables
+--echo # The aim of test is to ensure that compression dictionary tables have
+--echo # correct table_ids(ie se_private_id).
+--echo #
+--disable_query_log
+call mtr.add_suppression("Column count of mysql.user is wrong. Expected 51, found 50. Created with MySQL 80013, now running \\d+. Please use mysql_upgrade to fix this error");
+--enable_query_log
+
+--source include/have_debug.inc
+
+--echo # Set different paths for datadir
+--let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data8013_57
+
+--copy_file $MYSQLTEST_VARDIR/std_data/data8013_57.zip $MYSQL_TMP_DIR/data8013_57.zip
+--file_exists $MYSQL_TMP_DIR/data8013_57.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data8013_57.zip -d $MYSQL_TMP_DIR
+
+--echo # Start server without fixing compression dict table_id
+--let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR1 --debug=d,skip_compression_dict_fix"
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--source include/restart_mysqld.inc
+
+SET SESSION DEBUG = '+d,skip_dd_table_access_check';
+SELECT se_private_id FROM mysql.tables WHERE name = 'compression_dictionary';
+SELECT se_private_id FROM mysql.tables WHERE name = 'compression_dictionary_cols';
+
+--echo # Start server without fixing compression dict table_id
+--let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR1"
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--source include/restart_mysqld.inc
+
+SET SESSION DEBUG = '+d,skip_dd_table_access_check';
+SELECT se_private_id FROM mysql.tables WHERE name = 'compression_dictionary';
+SELECT se_private_id FROM mysql.tables WHERE name = 'compression_dictionary_cols';
+
+CREATE COMPRESSION_DICTIONARY d1('blah');
+CREATE TABLE t2(a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d1);
+
+SELECT * FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY;
+SELECT * FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY_TABLES;
+
+DROP TABLE t2;
+DROP COMPRESSION_DICTIONARY d1;
+
+SELECT * FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY;
+SELECT * FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY_TABLES;
+
+--echo # Shutdown the server
+--source include/shutdown_mysqld.inc
+
+--force-rmdir $MYSQLD_DATADIR1
+--remove_file $MYSQL_TMP_DIR/data8013_57.zip
+
+--let $restart_parameters=
+--source include/start_mysqld.inc

@@ -14,81 +14,96 @@ Percona |TokuBackup| is an open-source hot backup utility for |MySQL| servers ru
 Installing From Binaries
 ------------------------
 
-|TokuBackup| is included with |Percona Server| :rn:`5.7.10-1` and later versions. Installation can be performed with the ``ps-admin`` script.
+The installation of |TokuBackup| can be performed with the |ps-admin| script.
 
-To install |Percona TokuBackup|:
+To install |Percona TokuBackup| complete the following steps. |tip.run-all.root|.
 
-1. Run ``ps-admin --enable-tokubackup`` to add the ``preload-hotbackup`` option into **[mysqld_safe]** section of :file:`my.cnf`.
+1. Run |ps-admin.enable-tokubackup| to add the ``preload-hotbackup`` option into **[mysqld_safe]** section of :file:`my.cnf`.
 
-  .. code-block:: bash
+   .. admonition:: Output
 
-    $ sudo ps-admin --enable-tokubackup
+      .. code-block:: guess
 
-    Checking SELinux status...
-    INFO: SELinux is disabled.
+	 Checking SELinux status...
+	 INFO: SELinux is disabled.
 
-    Checking if preload-hotbackup option is already set in config file...
-    INFO: Option preload-hotbackup is not set in the config file.
+	 Checking if preload-hotbackup option is already set in config file...
+	 INFO: Option preload-hotbackup is not set in the config file.
 
-    Checking TokuBackup plugin status...
-    INFO: TokuBackup plugin is not installed.
+	 Checking TokuBackup plugin status...
+	 INFO: TokuBackup plugin is not installed.
 
-    Adding preload-hotbackup option into /etc/my.cnf
-    INFO: Successfully added preload-hotbackup option into /etc/my.cnf
-    PLEASE RESTART MYSQL SERVICE AND RUN THIS SCRIPT AGAIN TO FINISH INSTALLATION!
+	 Adding preload-hotbackup option into /etc/my.cnf
+	 INFO: Successfully added preload-hotbackup option into /etc/my.cnf
+	 PLEASE RESTART MYSQL SERVICE AND RUN THIS SCRIPT AGAIN TO FINISH INSTALLATION!
 
-2. Restart mysql service
+2. Restart mysql service: |service.mysql.restart|
+3. Run |ps-admin.enable-tokubackup| again to finish the installation of the |TokuBackup| plugin.
 
-  .. code-block:: bash
+   .. admonition:: Output
 
-    $ sudo service mysql restart
+      .. code-block:: guess
 
-3. Run ``ps-admin --enable-tokubackup`` again to finish installation of |TokuBackup| plugin
+	 Checking SELinux status...
+	 INFO: SELinux is disabled.
 
-  .. code-block:: bash
+	 Checking if preload-hotbackup option is already set in config file...
+	 INFO: Option preload-hotbackup is set in the config file.
 
-    $ sudo ps-admin --enable-tokubackup
+	 Checking TokuBackup plugin status...
+	 INFO: TokuBackup plugin is not installed.
 
-    Checking SELinux status...
-    INFO: SELinux is disabled.
+	 Checking if Percona Server is running with libHotBackup.so preloaded...
+	 INFO: Percona Server is running with libHotBackup.so preloaded.
 
-    Checking if preload-hotbackup option is already set in config file...
-    INFO: Option preload-hotbackup is set in the config file.
-
-    Checking TokuBackup plugin status...
-    INFO: TokuBackup plugin is not installed.
-
-    Checking if Percona Server is running with libHotBackup.so preloaded...
-    INFO: Percona Server is running with libHotBackup.so preloaded.
-
-    Installing TokuBackup plugin...
-    INFO: Successfully installed TokuBackup plugin.
+	 Installing TokuBackup plugin...
+	 INFO: Successfully installed TokuBackup plugin.
 
 Making a Backup
 ---------------
 
-To run |Percona TokuBackup|, the backup destination directory must exist, be writable and owned by the same user under which |MySQL| server is running (usually ``mysql``) and empty. Once this directory is created, the backup can be run using the following command:
+To run |Percona TokuBackup|, the backup destination directory must
+exist, be writable and owned by the same user under which |MySQL|
+server is running (usually ``mysql``) and empty.
+
+Once this directory is created, the backup can be run using the
+following command:
 
 .. code-block:: mysql
 
-  mysql> set tokudb_backup_dir='/path_to_empty_directory';
+   mysql> set tokudb_backup_dir='/path_to_empty_directory';
 
-.. note:: Setting the :variable:`tokudb_backup_dir` variable automatically starts the backup process to the specified directory. Percona TokuBackup will take full backup each time, currently there is no incremental backup option
+.. note::
 
-If you get any error on this step (e.g. caused by some misconfiguration), the `Reporting Errors`_ section explains how to find out the reason.
+   Setting the :variable:`tokudb_backup_dir` variable automatically
+   starts the backup process to the specified directory. Percona
+   TokuBackup will take full backup each time, currently there is no
+   incremental backup option
+
+If you get any error on this step (e.g. caused by some
+misconfiguration), the `Reporting Errors`_ section explains how to
+find out the reason.
 
 Restoring From Backup
 ---------------------
 
-|Percona TokuBackup| does not have any functionality for restoring a backup. You can use :command:`rsync` or :command:`cp` to restore the files. You should check that the restored files have the correct ownership and permissions.
+|Percona TokuBackup| does not have any functionality for restoring a
+backup. You can use :command:`rsync` or :command:`cp` to restore the
+files. You should check that the restored files have the correct
+ownership and permissions.
 
-.. note:: Make sure that the datadir is empty and that |MySQL| server is shut down before restoring from backup. You can't restore to a datadir of a running mysqld instance (except when importing a partial backup).
+.. note::
+
+   Make sure that the datadir is empty and that |MySQL| server is shut
+   down before restoring from backup. You can't restore to a datadir
+   of a running mysqld instance (except when importing a partial
+   backup).
 
 The following example shows how you might use the :command:`rsync` command to restore the backup:
 
 .. code-block:: bash
 
-  $ rsync -avrP /data/backup/ /var/lib/mysql/
+   $ rsync -avrP /data/backup/ /var/lib/mysql/
 
 Since attributes of files are preserved, in most cases you will need to change their ownership to *mysql* before starting the database server. Otherwise, the files will be owned by the user who created the backup.
 
@@ -129,7 +144,11 @@ For example, to exclude all :file:`lost+found` directories from backup, use the 
 
   mysql> SET tokudb_backup_exclude='/lost\\+found($|/)';
 
-.. note:: In |Percona Server| :rn:`5.7.10-3` to address bug :backupbug:`125`, server ``pid`` file is excluded by default. If you're providing your own additions to the exclusions and have the ``pid`` file in the default location, you will need to add the mysqld_safe.pid entry.
+.. note::
+
+   The server ``pid`` file is excluded by default. If you're providing your own
+   additions to the exclusions and have the ``pid`` file in the default
+   location, you will need to add the mysqld_safe.pid entry.
 
 Throttling Backup Rate
 **********************
@@ -181,23 +200,6 @@ Reporting Errors
   | tokudb backup couldn't create needed directories. |
   +---------------------------------------------------+
 
-Create a Backup with a Timestamp
-*********************************
-
-If you plan to store more than one backup in a location, you should add a
-timestamp to the backup directory name.
-
-A sample Bash script has this information:
-
-.. code-block:: bash
-
-   #!/bin/bash
-
-   tm=$(date "+%Y-%m-%d-%H-%M-%S");
-   backup_dir=$PWD/backup/$tm;
-   mkdir -p $backup_dir;
-   bin/mysql -uroot -e "set tokudb_backup_dir='$backup_dir'"
-  
 Using TokuDB Hot Backup for Replication
 ***************************************
 
@@ -258,6 +260,22 @@ exist or do not exist. If temporary tables exist, the slave SQL thread is
 restarted until there are no temporary tables or a defined timeout is reached.
 
 You should not use this option for group-replication.
+Create a Backup with a Timestamp
+*********************************
+
+If you plan to store more than one backup in a location, you should add a
+timestamp to the backup directory name.
+
+A sample Bash script has this information:
+
+.. code-block:: bash
+
+   #!/bin/bash
+
+   tm=$(date "+%Y-%m-%d-%H-%M-%S");
+   backup_dir=$PWD/backup/$tm;
+   mkdir -p $backup_dir;
+   bin/mysql -uroot -e "set tokudb_backup_dir='$backup_dir'"
 
 Limitations and known issues
 ----------------------------
@@ -287,3 +305,5 @@ Limitations and known issues
 * |TokuBackup| doesn't support incremental backups.
 
 
+.. include:: ../.res/replace.txt
+.. include:: ../.res/replace.program.txt

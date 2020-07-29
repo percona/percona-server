@@ -1,0 +1,52 @@
+set default_storage_engine='tokudb';
+drop table if exists t;
+set session tokudb_auto_analyze = 0;
+set session tokudb_analyze_in_background = 0;
+create table t (id int, x int, y int, primary key (id), key (x), key (y)) 
+partition by range(id) 
+( partition p0 values less than (10), partition p1 values less than maxvalue);
+insert into t values (1,1,1),(2,1,2),(3,1,3),(4,1,4);
+show indexes from t;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t	0	PRIMARY	1	id	A	5	NULL	NULL		SE_SPECIFIC			YES	NULL
+t	1	x	1	x	A	5	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+t	1	y	1	y	A	5	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+alter table t analyze partition p0;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+show indexes from t;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t	0	PRIMARY	1	id	A	5	NULL	NULL		SE_SPECIFIC			YES	NULL
+t	1	x	1	x	A	5	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+t	1	y	1	y	A	5	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+alter table t analyze partition p1;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+show indexes from t;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t	0	PRIMARY	1	id	A	5	NULL	NULL		SE_SPECIFIC			YES	NULL
+t	1	x	1	x	A	5	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+t	1	y	1	y	A	5	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+insert into t values (100,1,1),(200,2,1),(300,3,1),(400,4,1),(500,5,1);
+show indexes from t;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t	0	PRIMARY	1	id	A	9	NULL	NULL		SE_SPECIFIC			YES	NULL
+t	1	x	1	x	A	9	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+t	1	y	1	y	A	9	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+alter table t analyze partition p0;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+show indexes from t;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t	0	PRIMARY	1	id	A	9	NULL	NULL		SE_SPECIFIC			YES	NULL
+t	1	x	1	x	A	9	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+t	1	y	1	y	A	9	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+alter table t analyze partition p1;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+show indexes from t;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t	0	PRIMARY	1	id	A	9	NULL	NULL		SE_SPECIFIC			YES	NULL
+t	1	x	1	x	A	9	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+t	1	y	1	y	A	9	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+drop table t;

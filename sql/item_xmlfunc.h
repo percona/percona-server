@@ -20,36 +20,52 @@
    GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "item_strfunc.h"     // Item_str_func
+#include "my_inttypes.h"
+#include "my_xml.h"            // my_xml_node_type
+#include "sql/item_strfunc.h"  // Item_str_func
+#include "sql/parse_tree_node_base.h"
+#include "sql_string.h"
+
+class Item;
+class THD;
 
 /* This file defines all XML functions */
 
-class Item_xml_str_func: public Item_str_func
-{
-protected:
-  String tmp_value, pxml;
+/* Structure to store a parsed XML tree */
+struct MY_XML_NODE {
+  uint level;                 /* level in XML tree, 0 means root node   */
+  enum my_xml_node_type type; /* node type: node, or attribute, or text */
+  uint parent;                /* link to the parent                     */
+  const char *beg;            /* beginning of the name or text          */
+  const char *end;            /* end of the name or text                */
+  const char *tagend;         /* where this tag ends                    */
+};
+
+using ParsedXML = std::vector<MY_XML_NODE>;
+
+class Item_xml_str_func : public Item_str_func {
+ protected:
+  ParsedXML pxml;
   Item *nodeset_func;
   String xpath_tmp_value;
-public:
-  Item_xml_str_func(const POS &pos, Item *a, Item *b): 
-    Item_str_func(pos, a,b) 
-  {
-    maybe_null= TRUE;
-  }
-  Item_xml_str_func(const POS &pos, Item *a, Item *b, Item *c): 
-    Item_str_func(pos, a,b,c) 
-  {
-    maybe_null= TRUE;
-  }
-  void fix_length_and_dec();
-  String *parse_xml(String *raw_xml, String *parsed_xml_buf);
-  bool check_gcol_func_processor(uchar *int_arg) { return false; }
 
-protected:
-  /** 
+ public:
+  Item_xml_str_func(const POS &pos, Item *a, Item *b)
+      : Item_str_func(pos, a, b), nodeset_func(nullptr) {
+    maybe_null = true;
+  }
+  Item_xml_str_func(const POS &pos, Item *a, Item *b, Item *c)
+      : Item_str_func(pos, a, b, c), nodeset_func(nullptr) {
+    maybe_null = true;
+  }
+  bool resolve_type(THD *thd) override;
+  bool check_function_as_value_generator(uchar *) override { return false; }
+
+ protected:
+  /**
     Parse the specified XPATH expression and initialize @c nodeset_func.
 
     @note This is normally called in resolve phase since we only support
@@ -57,33 +73,37 @@ protected:
           const value is not yet known at resolve time.
 
     @param xpath_expr XPATH expression to be parsed
+
+    @returns false on success, true on error
    */
-  void parse_xpath(Item* xpath_expr);
+  bool parse_xpath(Item *xpath_expr);
 };
 
+class Item_func_xml_extractvalue final : public Item_xml_str_func {
+  String tmp_value;
 
-class Item_func_xml_extractvalue: public Item_xml_str_func
-{
-public:
+ public:
   Item_func_xml_extractvalue(const POS &pos, Item *a, Item *b)
-    :Item_xml_str_func(pos, a, b)
-  {}
-  const char *func_name() const { return "extractvalue"; }
-  String *val_str(String *);
+      : Item_xml_str_func(pos, a, b) {}
+  const char *func_name() const override { return "extractvalue"; }
+  String *val_str(String *) override;
 };
 
+class Item_func_xml_update final : public Item_xml_str_func {
+  String tmp_value;
 
-class Item_func_xml_update: public Item_xml_str_func
-{
-  String tmp_value2, tmp_value3;
-public:
+ public:
   Item_func_xml_update(const POS &pos, Item *a, Item *b, Item *c)
-    :Item_xml_str_func(pos, a, b, c)
-  {}
-  const char *func_name() const { return "updatexml"; }
-  String *val_str(String *);
-  bool check_gcol_func_processor(uchar *int_arg)
-  { return true; }
+      : Item_xml_str_func(pos, a, b, c) {}
+  const char *func_name() const override { return "updatexml"; }
+  String *val_str(String *) override;
+  bool check_function_as_value_generator(uchar *checker_args) override {
+    auto *func_arg =
+        pointer_cast<Check_function_as_value_generator_parameters *>(
+            checker_args);
+    func_arg->banned_function_name = func_name();
+    return true;
+  }
 };
 
 #endif /* ITEM_XMLFUNC_INCLUDED */

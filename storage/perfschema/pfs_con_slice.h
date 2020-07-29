@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,20 +28,21 @@
   Performance schema connection slice (declarations).
 */
 
-#include "sql_class.h"
-#include "pfs_lock.h"
+#include <stddef.h>
+
 #include "lf.h"
-#include "pfs_status.h"
+#include "storage/perfschema/pfs_lock.h"
+#include "storage/perfschema/pfs_status.h"
 
 struct PFS_single_stat;
 struct PFS_stage_stat;
 struct PFS_statement_stat;
 struct PFS_transaction_stat;
-struct PFS_memory_stat;
+struct PFS_error_stat;
 class PFS_opaque_container_page;
 
 /**
-  @addtogroup Performance_schema_buffers
+  @addtogroup performance_schema_buffers
   @{
 */
 
@@ -49,16 +50,15 @@ class PFS_opaque_container_page;
   A connection slice, an arbitrary grouping of several connections.
   This structure holds statistics for grouping of connections.
 */
-struct PFS_connection_slice
-{
+struct PFS_connection_slice {
   /** Reset all statistics. */
-  inline void reset_stats()
-  {
-    m_has_waits_stats= false;
-    m_has_stages_stats= false;
-    m_has_statements_stats= false;
-    m_has_transactions_stats= false;
-    m_has_memory_stats= false;
+  inline void reset_stats() {
+    m_has_waits_stats = false;
+    m_has_stages_stats = false;
+    m_has_statements_stats = false;
+    m_has_transactions_stats = false;
+    m_has_errors_stats = false;
+    m_has_memory_stats = false;
     reset_status_stats();
   }
 
@@ -70,135 +70,120 @@ struct PFS_connection_slice
   void reset_statements_stats();
   /** Reset all transactions statistics. */
   void reset_transactions_stats();
-  /** Reset all memory statistics. */
-  void rebase_memory_stats();
+  /** Reset all errors statistics. */
+  void reset_errors_stats();
   /** Reset all status variable statistics. */
-  void reset_status_stats()
-  {
-    m_status_stats.reset();
+  void reset_status_stats() { m_status_stats.reset(); }
+
+  void set_instr_class_waits_stats(PFS_single_stat *array) {
+    m_has_waits_stats = false;
+    m_instr_class_waits_stats = array;
   }
 
-  void set_instr_class_waits_stats(PFS_single_stat *array)
-  {
-    m_has_waits_stats= false;
-    m_instr_class_waits_stats= array;
-  }
-
-  const PFS_single_stat* read_instr_class_waits_stats() const
-  {
-    if (! m_has_waits_stats)
-      return NULL;
+  const PFS_single_stat *read_instr_class_waits_stats() const {
+    if (!m_has_waits_stats) {
+      return nullptr;
+    }
     return m_instr_class_waits_stats;
   }
 
-  PFS_single_stat* write_instr_class_waits_stats()
-  {
-    if (! m_has_waits_stats)
-    {
+  PFS_single_stat *write_instr_class_waits_stats() {
+    if (!m_has_waits_stats) {
       reset_waits_stats();
-      m_has_waits_stats= true;
+      m_has_waits_stats = true;
     }
     return m_instr_class_waits_stats;
   }
 
-  void set_instr_class_stages_stats(PFS_stage_stat *array)
-  {
-    m_has_stages_stats= false;
-    m_instr_class_stages_stats= array;
+  void set_instr_class_stages_stats(PFS_stage_stat *array) {
+    m_has_stages_stats = false;
+    m_instr_class_stages_stats = array;
   }
 
-  const PFS_stage_stat* read_instr_class_stages_stats() const
-  {
-    if (! m_has_stages_stats)
-      return NULL;
+  const PFS_stage_stat *read_instr_class_stages_stats() const {
+    if (!m_has_stages_stats) {
+      return nullptr;
+    }
     return m_instr_class_stages_stats;
   }
 
-  PFS_stage_stat* write_instr_class_stages_stats()
-  {
-    if (! m_has_stages_stats)
-    {
+  PFS_stage_stat *write_instr_class_stages_stats() {
+    if (!m_has_stages_stats) {
       reset_stages_stats();
-      m_has_stages_stats= true;
+      m_has_stages_stats = true;
     }
     return m_instr_class_stages_stats;
   }
 
-  void set_instr_class_statements_stats(PFS_statement_stat *array)
-  {
-    m_has_statements_stats= false;
-    m_instr_class_statements_stats= array;
+  void set_instr_class_statements_stats(PFS_statement_stat *array) {
+    m_has_statements_stats = false;
+    m_instr_class_statements_stats = array;
   }
 
-  const PFS_statement_stat* read_instr_class_statements_stats() const
-  {
-    if (! m_has_statements_stats)
-      return NULL;
+  const PFS_statement_stat *read_instr_class_statements_stats() const {
+    if (!m_has_statements_stats) {
+      return nullptr;
+    }
     return m_instr_class_statements_stats;
   }
 
-  PFS_statement_stat* write_instr_class_statements_stats()
-  {
-    if (! m_has_statements_stats)
-    {
+  PFS_statement_stat *write_instr_class_statements_stats() {
+    if (!m_has_statements_stats) {
       reset_statements_stats();
-      m_has_statements_stats= true;
+      m_has_statements_stats = true;
     }
     return m_instr_class_statements_stats;
   }
 
-  void set_instr_class_transactions_stats(PFS_transaction_stat *array)
-  {
-    m_has_transactions_stats= false;
-    m_instr_class_transactions_stats= array;
+  void set_instr_class_transactions_stats(PFS_transaction_stat *array) {
+    m_has_transactions_stats = false;
+    m_instr_class_transactions_stats = array;
   }
 
-  const PFS_transaction_stat* read_instr_class_transactions_stats() const
-  {
-    if (! m_has_transactions_stats)
-      return NULL;
+  const PFS_transaction_stat *read_instr_class_transactions_stats() const {
+    if (!m_has_transactions_stats) {
+      return nullptr;
+    }
     return m_instr_class_transactions_stats;
   }
 
-  PFS_transaction_stat* write_instr_class_transactions_stats()
-  {
-    if (! m_has_transactions_stats)
-    {
+  PFS_transaction_stat *write_instr_class_transactions_stats() {
+    if (!m_has_transactions_stats) {
       reset_transactions_stats();
-      m_has_transactions_stats= true;
+      m_has_transactions_stats = true;
     }
     return m_instr_class_transactions_stats;
   }
 
-  void set_instr_class_memory_stats(PFS_memory_stat *array)
-  {
-    m_has_memory_stats= false;
-    m_instr_class_memory_stats= array;
+  void set_instr_class_errors_stats(PFS_error_stat *array) {
+    m_has_errors_stats = false;
+    m_instr_class_errors_stats = array;
   }
 
-  const PFS_memory_stat* read_instr_class_memory_stats() const
-  {
-    if (! m_has_memory_stats)
-      return NULL;
-    return m_instr_class_memory_stats;
-  }
-
-  PFS_memory_stat* write_instr_class_memory_stats()
-  {
-    if (! m_has_memory_stats)
-    {
-      rebase_memory_stats();
-      m_has_memory_stats= true;
+  const PFS_error_stat *read_instr_class_errors_stats() const {
+    if (!m_has_errors_stats) {
+      return nullptr;
     }
-    return m_instr_class_memory_stats;
+    return m_instr_class_errors_stats;
   }
 
-private:
+  PFS_error_stat *write_instr_class_errors_stats() {
+    if (!m_has_errors_stats) {
+      reset_errors_stats();
+      m_has_errors_stats = true;
+    }
+    return m_instr_class_errors_stats;
+  }
+
+ protected:
+  bool m_has_memory_stats;
+
+ private:
   bool m_has_waits_stats;
   bool m_has_stages_stats;
   bool m_has_statements_stats;
   bool m_has_transactions_stats;
-  bool m_has_memory_stats;
+  bool m_has_errors_stats;
 
   /**
     Per connection slice waits aggregated statistics.
@@ -233,17 +218,15 @@ private:
   PFS_transaction_stat *m_instr_class_transactions_stats;
 
   /**
-    Per connection slice memory aggregated statistics.
+    Per connection slice error aggregated statistics.
     This member holds the data for the table
-    PERFORMANCE_SCHEMA.MEMORY_SUMMARY_BY_*_BY_EVENT_NAME.
+    PERFORMANCE_SCHEMA.EVENTS_ERRORS_SUMMARY_BY_*_BY_ERROR.
     Immutable, safe to use without internal lock.
   */
-  PFS_memory_stat *m_instr_class_memory_stats;
+  PFS_error_stat *m_instr_class_errors_stats;
 
-public:
-
-  void aggregate_status_stats(const STATUS_VAR *status_vars)
-  {
+ public:
+  void aggregate_status_stats(const System_status_var *status_vars) {
     m_status_stats.aggregate_from(status_vars);
   }
 
@@ -258,4 +241,3 @@ public:
 
 /** @} */
 #endif
-

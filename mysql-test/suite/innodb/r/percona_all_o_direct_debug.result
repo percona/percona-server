@@ -1,9 +1,0 @@
-#
-# Test for bug 1578604 (Please check if ALL_O_DIRECT is ON if InnoDB log I/O fails with errno == 22 "Invalid argument")
-#
-call mtr.add_suppression("InnoDB: New log files created");
-# Shutting down...
-# Attempting to start with ALL_O_DIRECT and simulating an I/O write error...
-# Attempting to start with ALL_O_DIRECT and simulating an I/O read error...
-# restart
-# Test completed

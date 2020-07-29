@@ -1,14 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_ndb.inc
-
---disable_warnings
-drop table if exists t1;
-drop database if exists test2;
---enable_warnings
 
 #
 # Minimal NDB blobs test.
@@ -28,7 +18,8 @@ create table t1 (
   c int not null,
   d longblob,
   key (c)
-) engine=ndbcluster;
+) engine=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 # -- values --
 
@@ -689,6 +680,30 @@ connection con1;
 commit;
 
 connection con1;
+--echo Test autocommit committedread round trips
+delete from t1;
+insert into t1 values (1, repeat('P', 20000), 1);
+
+set autocommit=1;
+
+--disable_result_log
+select @start_count:=variable_value from performance_schema.global_status where variable_name="ndb_api_wait_exec_complete_count";
+
+--echo Autocommit CommittedRead
+select a, length(b) from t1 where a=1;
+
+select @end_count:=variable_value from performance_schema.global_status where variable_name="ndb_api_wait_exec_complete_count";
+
+--enable_result_log
+
+--echo Expect 3 round trips currently :
+--echo   1. Lock and read inline head
+--echo   2. Read parts
+--echo   3. Rollback
+select @end_count-@start_count as round_trips;
+
+set autocommit=0;
+
 drop table t1;
 
 --echo 5.6 tests
@@ -697,7 +712,9 @@ drop table t1;
 #   ASSERTION: !USES_BLOB_VALUE(TABLE->READ_SET) IN MULTI_RANGE_START_RETRIEVALS
 #   table->read_set was calculated to late to detect Blob read.
 
-create table `t1` (`a` int,`b` blob,primary key (`a`)) engine=ndbcluster;
+create table `t1` (`a` int,`b` blob,primary key (`a`))
+  engine=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values (2, 'Hei og hopp! ');
 
 update t1 set b=concat(b,b,b,b,b);

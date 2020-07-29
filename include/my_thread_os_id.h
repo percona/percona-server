@@ -18,7 +18,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file include/my_thread_os_id.h
@@ -28,24 +28,21 @@
 #ifndef MY_THREAD_OS_ID_INCLUDED
 #define MY_THREAD_OS_ID_INCLUDED
 
-#include "my_global.h"              /* my_bool */
-
+#include "my_config.h"
+#include "my_macros.h"
+#include "my_thread.h"
 #ifndef _WIN32
-#include <sys/types.h>              /* pid_t */
-#include <sys/syscall.h>            /* SYS_gettid */
-#include <unistd.h>                 /* syscall */
-#include <pthread.h>                /* pthread_self */
+#include <sys/syscall.h>
+#include <unistd.h>
 #endif
 
 #ifdef HAVE_PTHREAD_GETTHREADID_NP
-#include <pthread_np.h>             /* pthread_getthreadid_np() */
-#endif /* HAVE_PTHREAD_GETTHREADID_NP */
+#include <pthread_np.h> /* pthread_getthreadid_np() */
+#endif                  /* HAVE_PTHREAD_GETTHREADID_NP */
 
 #ifdef HAVE_PTHREAD_THREADID_NP
 #include <pthread.h>
 #endif /* HAVE_PTHREAD_THREADID_NP */
-
-C_MODE_START
 
 typedef unsigned long long my_thread_os_id_t;
 
@@ -57,8 +54,7 @@ typedef unsigned long long my_thread_os_id_t;
     for example with perf in linux.
   This helper returns the underling operating system thread id.
 */
-static inline my_thread_os_id_t my_thread_os_id()
-{
+static inline my_thread_os_id_t my_thread_os_id() {
 #ifdef HAVE_PTHREAD_THREADID_NP
   /*
     macOS.
@@ -67,7 +63,7 @@ static inline my_thread_os_id_t my_thread_os_id()
     as SYS_gettid has a different meaning compared to linux gettid().
   */
   uint64_t tid64;
-  pthread_threadid_np(NULL, &tid64);
+  pthread_threadid_np(nullptr, &tid64);
   return (pid_t)tid64;
 #else
 #ifdef HAVE_SYS_GETTID
@@ -99,7 +95,5 @@ static inline my_thread_os_id_t my_thread_os_id()
 #endif /* HAVE_SYS_GETTID */
 #endif /* HAVE_SYS_THREAD_SELFID */
 }
-
-C_MODE_END
 
 #endif /* MY_THREAD_OS_ID_INCLUDED */

@@ -3,5 +3,15 @@
 # You may list individual files or (more typically) directories.
 # Do not use shell wildcards and such, they will not work.
 
-rapid/plugin/x/mysqlxtest_src
-rapid/unittest/gunit/xplugin
+plugin/x/tests/driver/
+unittest/gunit/xplugin
+extra/protobuf
+extra/icu
+extra/zstd
+
+router/src/harness/tests/
+router/src/metadata_cache/tests
+router/src/mysql_protocol/tests
+router/src/router/tests
+router/src/routing/tests
+router/tests

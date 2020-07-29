@@ -1,1 +1,0 @@
-SELECT @@global.query_cache_strip_comments;

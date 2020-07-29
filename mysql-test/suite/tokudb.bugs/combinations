@@ -1,8 +1,0 @@
-[non-native-partitioning]
-loose-tokudb-enable-native-partition=off
-
-[native-partitioning]
-loose-tokudb-enable-native-partition=on
-mtr-result-dir = r-native-partitioning
-mtr-tests-list = alter_part_tokudb_bug_155,db756_card_part_hash,db756_card_part_hash_1,db756_card_part_hash_1_pick,db756_card_part_hash_2,db756_card_part_hash_2_pick,db757_part_alter_analyze,db766,db801,db811,db811s
-

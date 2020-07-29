@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 #include <ndb_version.h>
 #include <NodeBitmask.hpp>
 #include <ndb_cluster_connection.hpp>
+#include <ndb_rand.h>
 
 #define MGMERR(h) \
   ndbout << "latest_error="<<ndb_mgm_get_latest_error(h) \
@@ -83,18 +84,20 @@ NdbRestarter::restartOneDbNode(int _nodeId,
 			       bool inital,
 			       bool nostart,
 			       bool abort,
-                               bool force)
+                              bool force,
+                              bool captureError)
 {
   return restartNodes(&_nodeId, 1,
                       (inital ? NRRF_INITIAL : 0) |
                       (nostart ? NRRF_NOSTART : 0) |
                       (abort ? NRRF_ABORT : 0) |
-                      (force ? NRRF_FORCE : 0));
+                      (force ? NRRF_FORCE : 0),
+                      captureError);
 }
 
 int
 NdbRestarter::restartNodes(int * nodes, int cnt,
-                           Uint32 flags)
+                           Uint32 flags, bool captureError)
 {
   if (!isConnected())
     return -1;
@@ -112,10 +115,16 @@ NdbRestarter::restartNodes(int * nodes, int cnt,
      * ndb_mgm_restart4 returned error, one reason could
      * be that the node have not stopped fast enough!
      * Check status of the node to see if it's on the 
-     * way down. If that's the case ignore the error
+     * way down. If that's the case ignore the error.
+     *
+     * Bug #11757421 is a special case where the
+     * error code and description is required in
+     * the test case. The call to getStatus()
+     * overwrites the error and is thus avoided
+     * by adding an option to capture the error.
      */ 
 
-    if (getStatus() != 0)
+    if (!captureError && getStatus() != 0)
       return -1;
 
     g_info << "ndb_mgm_restart4 returned with error, checking node state"
@@ -175,10 +184,14 @@ NdbRestarter::getMasterNodeId(){
 int
 NdbRestarter::getNodeGroup(int nodeId){
   if (!isConnected())
+  {
     return -1;
+  }
   
   if (getStatus() != 0)
+  {
     return -1;
+  }
   
   for(unsigned i = 0; i < ndbNodes.size(); i++)
   {
@@ -187,8 +200,96 @@ NdbRestarter::getNodeGroup(int nodeId){
       return ndbNodes[i].node_group;
     }
   }
-  
   return -1;
+}
+
+/* getNodeGroups()
+   Both parameters are OUT params.
+   Returns -1 on error, or the number of configured node groups on success.
+*/
+int
+NdbRestarter::getNodeGroups(Vector<int>& node_groups, int * max_alive_replicas_ptr)
+{
+  if (!isConnected())
+  {
+    return -1;
+  }
+
+  if (getStatus() != 0)
+  {
+    return -1;
+  }
+
+  int n_groups = 0;
+  Vector<int> node_group_replicas;
+  for (unsigned i = 0; i < ndbNodes.size(); i++)
+  {
+    const unsigned node_group = ndbNodes[i].node_group;
+    if (node_group == RNIL)
+    {
+      // Data node without node group
+      continue;
+    }
+    require(node_group < RNIL);
+
+    // Grow vector if needed.
+    int zero_replicas = 0;
+    node_group_replicas.fill(node_group + 1, zero_replicas);
+
+    // If not seen node group before, add it.
+    if (node_group_replicas[node_group] == 0)
+    {
+      node_groups.push_back(node_group);
+      n_groups++;
+    }
+
+    node_group_replicas[node_group]++;
+  }
+
+  if (max_alive_replicas_ptr != nullptr)
+  {
+    int max_alive_replicas = 0;
+    for (unsigned i = 0; i < node_group_replicas.size(); i++)
+    {
+      const int ng_replicas = node_group_replicas[i];
+      if (max_alive_replicas < ng_replicas)
+      {
+        max_alive_replicas = ng_replicas;
+      }
+    }
+    *max_alive_replicas_ptr = max_alive_replicas;
+  }
+  return n_groups;
+}
+
+int NdbRestarter::getNumNodeGroups() {
+  Vector<int> node_group_list;
+  return getNodeGroups(node_group_list);
+}
+
+int NdbRestarter::getNumReplicas() {
+  Vector<int> node_group_list;
+  int replicas;
+  (void) getNodeGroups(node_group_list, &replicas);
+  return replicas;
+}
+
+/* Calculate the number of data nodes that can fail at the same time,
+   which is half the total number of data nodes (rounded down) if
+   there are two or more replicas of the data.
+*/
+int NdbRestarter::getMaxConcurrentNodeFailures() {
+  return (getNumReplicas() < 2) ? 0 : getNumDbNodes() / 2;
+}
+
+/* Calculate the total number of data nodes that can eventually fail.
+   In each replica set, one node must remain running.
+*/
+int NdbRestarter::getMaxFailedNodes() {
+  Vector<int> node_group_list;
+  int replicas;
+  int ngroups = getNodeGroups(node_group_list, &replicas);
+  return (replicas-1) * ngroups;
 }
 
 int
@@ -259,8 +360,13 @@ NdbRestarter::getRandomNodeOtherNodeGroup(int nodeId, int rand){
     return -1;
   
   int node_group = -1;
-  for(unsigned i = 0; i < ndbNodes.size(); i++){
-    if(ndbNodes[i].node_id == nodeId){
+
+  // find nodegroup corresponding to nodeId
+  for (unsigned i = 0; i < ndbNodes.size(); i++)
+  {
+    if (ndbNodes[i].node_id == nodeId &&
+        ndbNodes[i].node_group <= MAX_NDB_NODE_GROUPS)
+    {
       node_group = ndbNodes[i].node_group;
       break;
     }
@@ -271,6 +377,8 @@ NdbRestarter::getRandomNodeOtherNodeGroup(int nodeId, int rand){
 
   Uint32 counter = 0;
   rand = rand % ndbNodes.size();
+
+  // find random node not belonging to node_group
   while(counter++ < ndbNodes.size() && ndbNodes[rand].node_group == node_group)
     rand = (rand + 1) % ndbNodes.size();
   
@@ -289,6 +397,7 @@ NdbRestarter::getRandomNodeSameNodeGroup(int nodeId, int rand){
     return -1;
   
   int node_group = -1;
+  // find nodegroup corresponding to nodeId
   for(unsigned i = 0; i < ndbNodes.size(); i++){
     if(ndbNodes[i].node_id == nodeId){
       node_group = ndbNodes[i].node_group;
@@ -301,6 +410,8 @@ NdbRestarter::getRandomNodeSameNodeGroup(int nodeId, int rand){
 
   Uint32 counter = 0;
   rand = rand % ndbNodes.size();
+
+  // find random node which is not nodeId, belonging to node_group
   while(counter++ < ndbNodes.size() && 
 	(ndbNodes[rand].node_id == nodeId || 
 	 ndbNodes[rand].node_group != node_group))
@@ -311,6 +422,13 @@ NdbRestarter::getRandomNodeSameNodeGroup(int nodeId, int rand){
     return ndbNodes[rand].node_id;
   
   return -1;
+}
+
+int
+NdbRestarter::getRandomNodePreferOtherNodeGroup(int nodeId, int rand) {
+  int n = getRandomNodeOtherNodeGroup(nodeId, rand);
+  if(n == -1) n = getRandomNodeSameNodeGroup(nodeId, rand);
+  return n;
 }
 
 
@@ -692,6 +810,37 @@ int NdbRestarter::restartAll(bool initial,
   return 0;
 }
 
+
+int NdbRestarter::restartAll3(bool initial,
+           bool nostart,
+           bool abort,
+                             bool force)
+{
+  /*
+   * This function has been added since restartAll
+   * and restartAll2 both include handling various
+   * cases of restart failure. Some cases such as
+   * Bug #11757421 require the handling of failures
+   * to be done in the test itself as the error
+   * returned is of interest.
+   */
+
+  if (!isConnected())
+      return -1;
+
+  int unused;
+  if (ndb_mgm_restart4(handle, 0, NULL, initial, 1, abort,
+                       force, &unused) <= 0)
+  {
+    MGMERR(handle);
+    g_err  << "Could not stop nodes" << endl;
+    return -1;
+  }
+
+  return 0;
+
+}
+
 int NdbRestarter::startAll(){
   if (!isConnected())
     return -1;
@@ -736,6 +885,25 @@ int NdbRestarter::insertErrorInNode(int _nodeId, int _error){
   return 0;
 }
 
+int NdbRestarter::insertErrorInNodes(const int * _nodes, int _num_nodes, int _error)
+{
+  if (!isConnected())
+    return -1;
+
+  if (getStatus() != 0)
+    return -1;
+
+  int result = 0;
+
+  for(int i = 0; i < _num_nodes ; i++)
+  {
+    g_debug << "inserting error in node " << _nodes[i] << endl;
+    if (insertErrorInNode(_nodes[i], _error) == -1)
+      result = -1;
+  }
+  return result;
+}
+
 int NdbRestarter::insertErrorInAllNodes(int _error){
   if (!isConnected())
     return -1;
@@ -770,6 +938,25 @@ NdbRestarter::insertError2InNode(int _nodeId, int _error, int extra){
     g_err << "Error: " << reply.message << endl;
   }
   return 0;
+}
+
+int NdbRestarter::insertError2InNodes(const int * _nodes, int _num_nodes, int _error, int extra)
+{
+  if (!isConnected())
+    return -1;
+
+  if (getStatus() != 0)
+    return -1;
+
+  int result = 0;
+
+  for(int i = 0; i < _num_nodes ; i++)
+  {
+    g_debug << "inserting error in node " << _nodes[i] << endl;
+    if (insertError2InNode(_nodes[i], _error, extra) == -1)
+      result = -1;
+  }
+  return result;
 }
 
 int NdbRestarter::insertError2InAllNodes(int _error, int extra){
@@ -897,6 +1084,45 @@ NdbRestarter::getNode(NodeSelector type)
 void
 NdbRestarter::setReconnect(bool val){
   m_reconnect= val;
+}
+
+bool
+in_node_list(const int *dead_nodes, int num_dead_nodes, int nodeId)
+{
+  for (int i = 0; i < num_dead_nodes; i++)
+  {
+    if (dead_nodes[i] == nodeId)
+      return true;
+  }
+  return false;
+}
+
+bool
+NdbRestarter::checkClusterState(const int *dead_nodes, int num_dead_nodes)
+{
+  if (getStatus() != 0)
+    return false;
+
+  for (unsigned n = 0; n < ndbNodes.size(); n++)
+  {
+    if (in_node_list(dead_nodes, num_dead_nodes, ndbNodes[n].node_id))
+    {
+      if (ndbNodes[n].node_status == NDB_MGM_NODE_STATUS_STARTED)
+      {
+        ndbout_c("Node %d started, expected dead", ndbNodes[n].node_id);
+        return false;
+      }
+    }
+    else
+    {
+      if (ndbNodes[n].node_status != NDB_MGM_NODE_STATUS_STARTED)
+      {
+        ndbout_c("Node %d dead, expected started", ndbNodes[n].node_id);
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 int
@@ -1060,38 +1286,66 @@ NdbRestarter::getNodeStatus(int nodeid)
   return -1;
 }
 
+
+static uint
+urandom(uint m)
+{
+  require(m != 0);
+  uint n = (uint)ndb_rand();
+  return n % m;
+}
+
 Vector<Vector<int> >
 NdbRestarter::splitNodes()
 {
-  Vector<int> part0;
-  Vector<int> part1;
-  Bitmask<255> ngmask;
+  // Vector of parts. Each part has the NodeIds of nodes belonging to it.
+  Vector<Vector<int>> parts;
+
+  // Vector of node group masks
+  Vector<Bitmask<255>>ngMasks;
+
   for (int i = 0; i < getNumDbNodes(); i++)
   {
     int nodeId = getDbNodeId(i);
     int ng = getNodeGroup(nodeId);
-    if (ngmask.get(ng))
+    unsigned numOfNGKnown = ngMasks.size();
+    unsigned j = 0;
+    for (j = 0; j < numOfNGKnown; j++)
     {
-      part1.push_back(nodeId);
+      if (ngMasks[j].get(ng) == false)
+      {
+        // parts[j] doesn't have node belonging to ng, add to parts[j]
+        parts[j].push_back(nodeId);
+
+        // set ng in ngMasks[j] so we know it's there in parts[j]
+        ngMasks[j].set(ng);
+        break;
+      }
     }
-    else
+    if (j == numOfNGKnown)
     {
-      ngmask.set(ng);
-      part0.push_back(nodeId);
+      /**
+       * It's the first node we're looping through, or;
+       * there's already one node in each part that has a nodeId belonging to
+       * ng. So, create new part and new ng bitmask
+       */
+
+      Vector<int> newPart;
+      Bitmask<255> newNGMask;
+
+      // add the nodeId to a new part
+      newPart.push_back(nodeId);
+      parts.push(newPart, urandom(numOfNGKnown + 1));
+
+      // set ng in a new bitmask, add to ngMasks
+      newNGMask.set(ng);
+      ngMasks.push_back(newNGMask);
     }
   }
-  Vector<Vector<int> > result;
-  if ((rand() % 100) > 50)
-  {
-    result.push_back(part0);
-    result.push_back(part1);
-  }
-  else
-  {
-    result.push_back(part1);
-    result.push_back(part0);
-  }
-  return result;
+
+  g_debug << "Number of parts: " << parts.size() << endl;
+  g_debug << "Number of masks: " << ngMasks.size() << endl;
+  return parts;
 }
 
 int
@@ -1121,6 +1375,20 @@ NdbRestarter::wait_until_ready(const int * nodes, int cnt, int timeout)
   }
 
   return m_cluster_connection->wait_until_ready(nodes, cnt, timeout);
+}
+
+int
+NdbRestarter::getNodeConnectCount(int nodeId)
+{
+  if (getStatus() != 0)
+    return -1;
+
+  for (unsigned n = 0; n < ndbNodes.size(); n++)
+  {
+    if (ndbNodes[n].node_id == nodeId)
+      return ndbNodes[n].connect_count;
+  }
+  return -1;
 }
 
 template class Vector<ndb_mgm_node_state>;

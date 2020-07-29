@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,36 +33,36 @@
 /**
  * KeyTable2 is DLHashTable2 with hardcoded Uint32 key named "key".
  */
-template <class T, class U>
-class KeyTable2 : public DLHashTable2<T, U> {
+template <class P, class T = typename P::Type>
+class KeyTable2 : public DLHashTable2<P, T> {
 public:
-  KeyTable2(ArrayPool<U>& pool) :
-    DLHashTable2<T, U>(pool) {
+  KeyTable2(P& pool) :
+    DLHashTable2<P, T>(pool) {
   }
 
   bool find(Ptr<T>& ptr, const T& rec) const {
-    return DLHashTable2<T, U>::find(ptr, rec);
+    return DLHashTable2<P, T>::find(ptr, rec);
   }
 
   bool find(Ptr<T>& ptr, Uint32 key) const {
     T rec;
     rec.key = key;
-    return DLHashTable2<T, U>::find(ptr, rec);
+    return DLHashTable2<P, T>::find(ptr, rec);
   }
 };
 
-template <class T, class U>
-class KeyTable2C : public KeyTable2<T, U> {
+template <class P, class T = typename P::Type>
+class KeyTable2C : public KeyTable2<P, T> {
   Uint32 m_count;
 public:
-  KeyTable2C(ArrayPool<U>& pool) :
-    KeyTable2<T, U>(pool), m_count(0) {
+  KeyTable2C(P& pool) :
+    KeyTable2<P, T>(pool), m_count(0) {
   }
 
   Uint32 get_count() const { return m_count; }
   
   bool seize(Ptr<T> & ptr) {
-    if (KeyTable2<T, U>::seize(ptr))
+    if (KeyTable2<P, T>::seize(ptr))
     {
       m_count ++;
       return true;
@@ -71,12 +71,12 @@ public:
   }
 
   void add(Ptr<T> & ptr) {
-    KeyTable2<T, U>::add(ptr);
+    KeyTable2<P, T>::add(ptr);
     m_count ++;
   }
 
   void remove(Ptr<T> & ptr, const T & key) {
-    KeyTable2<T, U>::remove(ptr, key);
+    KeyTable2<P, T>::remove(ptr, key);
     if (ptr.i != RNIL)
     {
       assert(m_count);
@@ -85,24 +85,24 @@ public:
   }
 
   void remove(Uint32 i) {
-    KeyTable2<T, U>::remove(i);
+    KeyTable2<P, T>::remove(i);
     assert(m_count);
     m_count --;
   }
 
   void remove(Ptr<T> & ptr) {
-    KeyTable2<T, U>::remove(ptr);
+    KeyTable2<P, T>::remove(ptr);
     assert(m_count);
     m_count --;
   }
 
   void removeAll() {
-    KeyTable2<T, U>::removeAll();
+    KeyTable2<P, T>::removeAll();
     m_count = 0;
   }
   
   void release(Ptr<T> & ptr, const T & key) {
-    KeyTable2<T, U>::release(ptr, key);
+    KeyTable2<P, T>::release(ptr, key);
     if (ptr.i != RNIL)
     {
       assert(m_count);
@@ -111,13 +111,13 @@ public:
   }
 
   void release(Uint32 i) {
-    KeyTable2<T, U>::release(i);
+    KeyTable2<P, T>::release(i);
     assert(m_count);
     m_count --;
   }
 
   void release(Ptr<T> & ptr) {
-    KeyTable2<T, U>::release(ptr);
+    KeyTable2<P, T>::release(ptr);
     assert(m_count);
     m_count --;
   }

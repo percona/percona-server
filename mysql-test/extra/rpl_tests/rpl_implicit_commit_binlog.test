@@ -403,7 +403,7 @@ while ($ddl_cases >= 1)
     # 4: INSERT
     # 5: COMMIT
     #
-    # In RBR and MIXED the transaction is not committed either and the statement is not
+    # In RBR the transaction is not committed either and the statement is not
     # written to the binary log:
     #
     # 1: GTID
@@ -412,18 +412,25 @@ while ($ddl_cases >= 1)
     # 4: ROW EVENT
     # 5: COMMIT
     #
-    # In MIXED mode, the DDL statement is not written to the binary log and
-    # does not commit the current transaction.
-    #
-    # 1: BEGIN
-    # 2: INSERT
-    # 3: COMMIT
-    #
     if (`select @@binlog_format = 'STATEMENT'` )
     {
       let $commit_event_row_number= 5;
     }
     #
+    # In MIXED mode, the DDL statement is not written to the binary log and
+    # does not commit the current transaction.
+    #
+    # 1: GTID
+    # 2: BEGIN
+    # 3: INSERT
+    # 4: COMMIT
+    #
+    if (`select @@binlog_format = 'MIXED'` )
+    {
+      let $commit_event_row_number= 4;
+    }
+    #
+
     # In NDB (RBR mode), the commit event is the sixth event
     # in the binary log:
     #
@@ -464,6 +471,23 @@ while ($ddl_cases >= 1)
   {
     let $cmd= ALTER TABLE tt_xx ADD COLUMN (b int);
     #
+    # In MIXED mode, the changes are logged as rows and we have what follows:
+    #
+    # 1: GTID
+    # 2: BEGIN
+    # 3: ROW EVENT
+    # 4: COMMIT
+    # 5: GTID
+    #
+    if (`select @@binlog_format = 'MIXED'`)
+    {
+      let $commit_event_row_number= 5;
+      # Since this alter is done on a temp table in MIXED, it will not be
+      # binlogged at all, so explicitly commit.
+      let $in_temporary= yes;
+      let $commit_event_row_number= 4;
+    }
+    #
     # In NDB (RBR and MIXED modes), the commit event is the 7th event
     # in the binary log:
     #
@@ -483,6 +507,22 @@ while ($ddl_cases >= 1)
   if ($ddl_cases == 9)
   {
     let $cmd= ALTER TABLE tt_xx RENAME new_tt_xx;
+    #
+    # In MIXED mode, the changes are logged as rows and we have what follows:
+    #
+    # 1: GTID
+    # 2: BEGIN
+    # 3: ROW EVENT
+    # 4: COMMIT
+    #
+    if (`select @@binlog_format = 'MIXED'`)
+    {
+      let $commit_event_row_number= 5;
+      # Since this alter is done on a temp table in MIXED, it will not be
+      # binlogged at all, so explicitly commit.
+      let $in_temporary= yes;
+      let $commit_event_row_number= 4;
+    }
     #
     # In NDB (RBR and MIXED modes), the commit event is the sixth event
     # in the binary log:
@@ -505,8 +545,10 @@ while ($ddl_cases >= 1)
     let $cmd= DROP TEMPORARY TABLE IF EXISTS new_tt_xx;
     let $in_temporary= yes;
     #
-    # In SBR mode, the DDL statement is written to the binary log but does
-    # not commit the current transaction:
+    # In SBR mode, the DDL statement is written to the binary log
+    # but does not commit the current transaction:
+    #
+    # In SBR, we have what follows:
     #
     # 1: GTID
     # 2: BEGIN
@@ -514,8 +556,8 @@ while ($ddl_cases >= 1)
     # 4: DROP TEMPORARY
     # 5: COMMIT
     #
-    # In RBR and MIXED modes, the transaction is not committed either and
-    # the statement is not written to the binary log:
+    # In RBR and MIXED modes, the transaction is not committed either and the
+    # statement is not written to the binary log:
     #
     # RBR:
     # 1: GTID
@@ -529,7 +571,6 @@ while ($ddl_cases >= 1)
     # 2: BEGIN
     # 3: ROW EVENT
     # 4: COMMIT
-    #
     if (`select @@binlog_format = 'STATEMENT'`)
     {
       let $commit_event_row_number= 5;
@@ -542,7 +583,6 @@ while ($ddl_cases >= 1)
     {
       let $commit_event_row_number= 4;
     }
-
     #
     # In NDB (RBR and MIXED modes), the commit event is the sixth event
     # in the binary log:
@@ -662,6 +702,12 @@ while ($ddl_cases >= 1)
   }
   if ($check_position_of_commit_event == yes)
   {
+    if (`SELECT @@session.binlog_transaction_compression = TRUE AND @@session.binlog_format='ROW'`)
+    {
+      # there is an extra event when compression is enabled: Transaction_payload_event
+      --let $commit_event_row_number = `SELECT $commit_event_row_number + 1`
+    }
+
     --let $assert_cond= SUBSTRING("[SHOW BINLOG EVENTS FROM $first_binlog_position LIMIT $commit_event_row_number, Info, $commit_event_row_number]", 1, 6) = "COMMIT"
     --let $assert_text= There should be a COMMIT event at the specified position (test#$ddl_cases)
     --source include/assert.inc
@@ -670,7 +716,10 @@ while ($ddl_cases >= 1)
   --echo -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
   let $binlog_start= $first_binlog_position;
   --echo -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+  --let $mask_user_password_events = 1
+  --let $mask_grant_as_events=1
   --source include/show_binlog_events.inc
+  --let $mask_user_password_events = 0
   --echo -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
   --echo
   dec $ddl_cases;

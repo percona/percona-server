@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,7 @@ import testsuite.clusterj.model.Employee;
 public class ReleaseTest extends AbstractClusterJModelTest {
 
     public void test() {
+        testReleaseNull();
         testReleaseStatic();
         testReleaseDynamic();
         testReleaseArray();
@@ -239,6 +240,17 @@ public class ReleaseTest extends AbstractClusterJModelTest {
         }        
     }
 
+    /** Test releasing null throws the proper exception */
+    protected void testReleaseNull() {
+        try {
+            session.release(null);
+            error("release null failed to throw ClusterJUserException.");
+        } catch (Throwable ex) {
+            String message = ex.getMessage();
+            errorIfNotEqual("wrong error message: " + message, true, message.contains("elease"));
+        }
+    }
+
     /** Test releasing resources for static class Employee. */
     protected void testReleaseStatic() {
         // release employee 0 and make sure that accessing it throws an exception
@@ -278,6 +290,7 @@ public class ReleaseTest extends AbstractClusterJModelTest {
         try {
             result = session.release(list);
         } catch (Throwable t) {
+            System.out.println("ReleaseTest.testReleaseIterable threw this exception:");
             t.printStackTrace();
         }
         if (list != result) error("session.release list did not return argument");
@@ -303,6 +316,7 @@ public class ReleaseTest extends AbstractClusterJModelTest {
         try {
             result = session.release(array);
         } catch (Throwable t) {
+            System.out.println("ReleaseTest.testReleaseArray threw this exception:");
             t.printStackTrace();
         }
         if (array != result) error("session.release array did not return argument");
@@ -322,7 +336,7 @@ public class ReleaseTest extends AbstractClusterJModelTest {
 
     /** Test releasing object of non-persistent type */
     protected void testReleaseNonPersistent() {
-        testNonPersistentRelease(new Integer(1), "new Integer(1)");
+        testNonPersistentRelease(Integer.valueOf(1), "Integer.valueOf(1)");
         testNonPersistentRelease(new Integer[] {1, 2}, "new Integer[] {1, 2}");
     }
 

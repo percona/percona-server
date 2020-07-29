@@ -2,8 +2,6 @@
 # Basic sysvar test for ft_query_extra_word_chars
 # Dynamic, boolean, global and session scope
 #
---source include/have_perfschema.inc
-
 SELECT @@GLOBAL.ft_query_extra_word_chars;
 
 SET @start_value= @@GLOBAL.ft_query_extra_word_chars;

@@ -17,10 +17,14 @@ select * from t;
 id	x
 1	2
 insert into t values (1,10) on duplicate key update x=x+values(x);
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 select * from t;
 id	x
 1	12
 insert into t values (1,100) on duplicate key update x=x+values(x);
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 select * from t;
 id	x
 1	112

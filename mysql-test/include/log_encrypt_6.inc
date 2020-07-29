@@ -4,8 +4,6 @@
 # - Pass    :remove redo files,restart without keyring plugin
 
 --source include/no_valgrind_without_big.inc
---source include/have_innodb.inc
---source include/not_embedded.inc
 
 --disable_query_log
 call mtr.add_suppression("keyring_file initialization failure. Please check if the keyring_file_data points to readable keyring file or keyring file can be created in the specified location. The keyring_file will stay unusable until correct path to the keyring file gets provided");
@@ -35,15 +33,13 @@ EOF
 --echo # Stop the MTR default DB server
 --source include/shutdown_mysqld.inc
 
-let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" --innodb_redo_log_encrypt=$redo_log_encrypt_mode --innodb_undo_tablespaces=2 --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/my_key_redo4 $KEYRING_PLUGIN_OPT </dev/null>>$MYSQL_TMP_DIR/bootstrap1.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" --innodb_redo_log_encrypt=$redo_log_encrypt_mode $KEYRING_PLUGIN_EARLY_LOAD --keyring_file_data=$MYSQL_TMP_DIR/my_key_redo4 $KEYRING_PLUGIN_OPT </dev/null>>$MYSQL_TMP_DIR/bootstrap1.log 2>&1;
 
 --echo # Run the bootstrap command of datadir1
 --exec $NEW_CMD
 
 --echo # Start the DB server with datadir1
---replace_result $MYSQL_TMP_DIR TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $MYSQLD_DATADIR1 DATADIR1 $START_PAGE_SIZE PAGE_SIZE $LOG_FILE_SIZE LOG_FILE_SIZE
---let $restart_parameters="restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" $KEYRING_PLUGIN_OPT --keyring_file_data=$MYSQL_TMP_DIR/my_key_redo4 --innodb_redo_log_encrypt=$redo_log_encrypt_mode --innodb_undo_tablespaces=2 --datadir=$MYSQLD_DATADIR1 --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE"
---replace_regex /\.dll/.so/
+--let $restart_parameters = restart: $KEYRING_PLUGIN_EARLY_LOAD $KEYRING_PLUGIN_OPT --keyring_file_data=$MYSQL_TMP_DIR/my_key_redo4 --innodb_redo_log_encrypt=$redo_log_encrypt_mode --datadir=$MYSQLD_DATADIR1 --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE
 --source include/start_mysqld_no_echo.inc
 
 CREATE DATABASE tde_db;
@@ -86,24 +82,22 @@ DROP DATABASE tde_db;
 --source include/shutdown_mysqld.inc
 
 --echo # Try starting without keyring : Error
-let NEW_CMD = $MYSQLD --no-defaults --innodb_undo_tablespaces=2 --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1  --secure-file-priv="" --console </dev/null>>$MYSQL_TMP_DIR/wl9290.err 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1  --secure-file-priv="" --console </dev/null>>$MYSQL_TMP_DIR/wl9290.err 2>&1;
 --error 1
 --exec $NEW_CMD
-
---echo # Search for error message
-let SEARCH_FILE= $MYSQL_TMP_DIR/wl9290.err;
-let SEARCH_PATTERN= InnoDB: Redo log was encrypted, but keyring plugin is not loaded;
---source include/search_pattern.inc
 
 --echo # Restart without keyring plugin possible if redo files removed
 --remove_file $MYSQLD_DATADIR1/ib_logfile0
 --remove_file $MYSQLD_DATADIR1/ib_logfile1
 
 --echo # Start the DB server with datadir1
---replace_result $MYSQL_TMP_DIR TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $MYSQLD_DATADIR1 DATADIR1 $START_PAGE_SIZE PAGE_SIZE $LOG_FILE_SIZE LOG_FILE_SIZE
---let $restart_parameters="restart: --innodb_undo_tablespaces=2 --datadir=$MYSQLD_DATADIR1 --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE"
---replace_regex /\.dll/.so/
+--let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR1 --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE
 --source include/start_mysqld_no_echo.inc
+
+--echo # Search for error message
+let SEARCH_FILE= $MYSQL_TMP_DIR/wl9290.err;
+let SEARCH_PATTERN=  Redo log was encrypted, but keyring plugin is not loaded;
+--source include/search_pattern.inc
 
 # shutdown server
 --let $_server_id= `SELECT @@server_id`
@@ -111,9 +105,7 @@ let SEARCH_PATTERN= InnoDB: Redo log was encrypted, but keyring plugin is not lo
 
 --echo # Try starting without keyring and  --innodb_force_recovery=SRV_FORCE_NO_LOG_REDO.
 --echo # Start the DB server with datadir1
---replace_result $MYSQL_TMP_DIR TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $MYSQLD_DATADIR1 DATADIR1 $START_PAGE_SIZE PAGE_SIZE $LOG_FILE_SIZE LOG_FILE_SIZE
---let $restart_parameters="restart: --innodb_undo_tablespaces=2 --datadir=$MYSQLD_DATADIR1 --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE --innodb_force_recovery=6 --no-console --log-error=$MYSQL_TMP_DIR/wl9290_2.err"
---replace_regex /\.dll/.so/
+--let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR1 --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE --innodb_force_recovery=6 --no-console --log-error=$MYSQL_TMP_DIR/wl9290_2.err
 --source include/start_mysqld_no_echo.inc
 SELECT 1;
 
@@ -122,11 +114,12 @@ SELECT 1;
 --source include/shutdown_mysqld.inc
 
 # restart the server with MTR default
---let $restart_parameters=
+--let $restart_parameters =
 --source include/start_mysqld.inc
 
 --remove_file $BOOTSTRAP_SQL
 --remove_file $MYSQL_TMP_DIR/my_key_redo4
+--remove_file $MYSQL_TMP_DIR/bootstrap1.log
 --remove_file $MYSQL_TMP_DIR/wl9290.err
 --remove_file $MYSQL_TMP_DIR/wl9290_2.err
 

@@ -19,7 +19,7 @@ CREATE DATABASE db3;
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 
@@ -27,12 +27,12 @@ CREATE DATABASE db3;
 --let $rpl_connection_name= server_3
 --source include/rpl_connection.inc
 
---let $rpl_channel_name= channel_3
+--let $rpl_channel_name= 'channel_3'
 --let $sync_slave_connection=server_2
 --source include/sync_slave_sql_with_master.inc
 
 # Restart slave for channel_3 so that SELECT returns unsorted data.
---let $rpl_channel_name= channel_3
+--let $rpl_channel_name= 'channel_3'
 --source include/stop_slave.inc
 --source include/start_slave.inc
 
@@ -78,7 +78,7 @@ DROP DATABASE db3;
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 
@@ -86,6 +86,6 @@ DROP DATABASE db3;
 --let $rpl_connection_name= server_3
 --source include/rpl_connection.inc
 
---let $rpl_channel_name= channel_3
+--let $rpl_channel_name= 'channel_3'
 --let $sync_slave_connection=server_2
 --source include/sync_slave_sql_with_master.inc

@@ -1,0 +1,17 @@
+# Establish connection conn1 (user = root)
+select DB, command, state, info from information_schema.processlist where DB='test' order by info;
+DB	command	state	info
+test	Sleep		NULL
+test	Query	executing	select DB, command, state, info from information_schema.processlist where DB='test' order by info
+flush logs;
+select DB, command, state, info from information_schema.processlist where DB='test' order by info;
+DB	command	state	info
+test	Sleep		NULL
+test	Query	executing	select DB, command, state, info from information_schema.processlist where DB='test' order by info
+set tokudb_checkpoint_lock=1;
+flush logs;;
+select DB, command, state, info from information_schema.processlist where DB='test' order by info;
+DB	command	state	info
+test	Sleep		NULL
+test	Query	executing	select DB, command, state, info from information_schema.processlist where DB='test' order by info
+set tokudb_checkpoint_lock=0;

@@ -1,3 +1,4 @@
+source include/force_myisam_default.inc;
 source include/have_myisam.inc;
 source include/have_log_bin.inc;
 
@@ -5,12 +6,12 @@ SET @old_binlog_format=@@binlog_format;
 
 let $engine = MyISAM;
 
-SET BINLOG_FORMAT=ROW;
+SET BINLOG_FORMAT='ROW';
 RESET MASTER;
 
 source extra/binlog_tests/binlog_truncate.test;
 
-SET BINLOG_FORMAT=STATEMENT;
+SET BINLOG_FORMAT='STATEMENT';
 RESET MASTER;
 
 source extra/binlog_tests/binlog_truncate.test;

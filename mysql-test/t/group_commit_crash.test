@@ -1,6 +1,5 @@
 # Testing group commit by crashing a few times.
 # Test adapted from the Facebook patch: lp:mysqlatfacebook
---source include/not_embedded.inc
 # Don't test this under valgrind, memory leaks will occur
 --source include/not_valgrind.inc
 
@@ -57,7 +56,7 @@ while ($numtests)
   eval call setcrash($numtests);
 
   # Run the crashing query
-  --error 2006,2013
+  --error CR_SERVER_GONE_ERROR,CR_SERVER_LOST
   COMMIT;
 
   # Poll the server waiting for it to be back online again.

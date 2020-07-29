@@ -2,8 +2,6 @@ CREATE TABLE t1(a DECIMAL(0,0));
 ALTER TABLE t1 ADD b INT,ADD c TIME(6);
 ALTER TABLE t1 MODIFY a DATETIME(5);
 SET sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 SET a=0;
 SET sql_mode='NO_ZERO_DATE';
 Warnings:

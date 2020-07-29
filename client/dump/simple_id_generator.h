@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,25 +25,25 @@
 #ifndef SIMPLE_ID_GENERATOR_INCLUDED
 #define SIMPLE_ID_GENERATOR_INCLUDED
 
-#include "my_global.h"
-#include "base/atomic.h"
+#include "my_inttypes.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+#include <atomic>
 
-class Simple_id_generator
-{
-public:
+namespace Mysql {
+namespace Tools {
+namespace Dump {
+
+class Simple_id_generator {
+ public:
   Simple_id_generator();
   uint64 create_id();
 
-private:
-  my_boost::atomic_int64_t m_next_id;
+ private:
+  std::atomic<int64_t> m_next_id;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

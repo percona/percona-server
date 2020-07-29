@@ -1,4 +1,4 @@
-# Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 # cmake -DWITH_LDAP=system|</path/to/custom/installation>
 # system is the default
+# Custom path is only supported for LINUX_STANDALONE platforms.
 
 INCLUDE (CheckIncludeFile)
 INCLUDE (CheckIncludeFiles)
@@ -30,6 +31,18 @@ SET(WITH_LDAP_DOC "\nsystem (use the OS ldap library)")
 STRING_APPEND(WITH_LDAP_DOC ", \n</path/to/custom/installation>")
 
 STRING(REPLACE "\n" "| " WITH_LDAP_DOC_STRING "${WITH_LDAP_DOC}")
+
+FUNCTION(WARN_MISSING_SYSTEM_LDAP OUTPUT_WARNING)
+  IF(NOT LDAP_FOUND AND WITH_LDAP STREQUAL "system")
+    MESSAGE(WARNING "Cannot find LDAP development libraries. "
+      "You need to install the required packages:\n"
+      "  Debian/Ubuntu:              apt install libldap-dev\n"
+      "  RedHat/Fedora/Oracle Linux: yum install openldap-devel\n"
+      "  SuSE:                       zypper install openldap2-devel\n"
+      )
+    SET(${OUTPUT_WARNING} 1 PARENT_SCOPE)
+  ENDIF()
+ENDFUNCTION()
 
 MACRO(FIND_SYSTEM_LDAP)
   IF(WIN32)
@@ -78,10 +91,6 @@ MACRO(FIND_CUSTOM_LDAP)
     NO_SYSTEM_ENVIRONMENT_PATH
     )
 
-  # On mac this list is <.dylib;.so;.a>
-  # We prefer static libraries, so we reverse it here.
-  LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
-
   FIND_LIBRARY(LDAP_CUSTOM_LIBRARY
     NAMES ldap_r ldap
     PATHS ${WITH_LDAP_PATH}/lib
@@ -97,8 +106,6 @@ MACRO(FIND_CUSTOM_LDAP)
     NO_SYSTEM_ENVIRONMENT_PATH
     )
 
-  LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
-
   IF(LDAP_INCLUDE_DIR)
     INCLUDE_DIRECTORIES(BEFORE SYSTEM ${LDAP_INCLUDE_DIR})
 
@@ -112,10 +119,6 @@ MACRO(FIND_CUSTOM_LDAP)
   IF(LDAP_CUSTOM_LIBRARY AND LBER_CUSTOM_LIBRARY)
     SET(LDAP_LIBRARY ${LDAP_CUSTOM_LIBRARY})
     SET(LBER_LIBRARY ${LBER_CUSTOM_LIBRARY})
-    GET_FILENAME_COMPONENT(LDAP_LIBRARY_EXT ${LDAP_LIBRARY} EXT)
-    IF(LDAP_LIBRARY_EXT STREQUAL ".a")
-      SET(STATIC_LDAP_LIBRARY 1)
-    ENDIF()
     MESSAGE(STATUS "LDAP_LIBRARY ${LDAP_LIBRARY}")
     MESSAGE(STATUS "LBER_LIBRARY ${LBER_LIBRARY}")
   ENDIF()
@@ -135,8 +138,14 @@ MACRO(MYSQL_CHECK_LDAP)
 
   IF(WITH_LDAP STREQUAL "system")
     FIND_SYSTEM_LDAP()
+  ELSEIF(WITH_LDAP_PATH)
+    IF(LINUX_STANDALONE)
+      FIND_CUSTOM_LDAP()
+    ELSE()
+      MESSAGE(FATAL_ERROR "-DWITH_LDAP=<path> not supported on this platform")
+    ENDIF()
   ELSE()
-    FIND_CUSTOM_LDAP()
+    MESSAGE(FATAL_ERROR "Could not find LDAP")
   ENDIF()
 
   IF(WIN32 AND WITH_LDAP STREQUAL "system")
@@ -145,6 +154,19 @@ MACRO(MYSQL_CHECK_LDAP)
     SET(LDAP_FOUND 1)
   ELSE()
     SET(LDAP_FOUND 0)
+    # FATAL_ERROR later if WITH_AUTHENTICATION_LDAP == ON
+    MESSAGE(WARNING "Could not find LDAP")
   ENDIF()
 
+ENDMACRO()
+
+MACRO(MYSQL_CHECK_LDAP_DLLS)
+  IF(LINUX_STANDALONE AND LDAP_CUSTOM_LIBRARY)
+    COPY_CUSTOM_SHARED_LIBRARY("${LDAP_CUSTOM_LIBRARY}" ""
+      LDAP_LIBRARY ldap_target)
+  ENDIF()
+  IF(LINUX_STANDALONE AND LBER_CUSTOM_LIBRARY)
+    COPY_CUSTOM_SHARED_LIBRARY("${LBER_CUSTOM_LIBRARY}" ""
+      LBER_LIBRARY lber_target)
+  ENDIF()
 ENDMACRO()

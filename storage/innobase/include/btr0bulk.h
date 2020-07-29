@@ -2,46 +2,46 @@
 
 Copyright (c) 2014, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License, version 2.0,
-as published by the Free Software Foundation.
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
 
-This program is also distributed with certain software (including
-but not limited to OpenSSL) that is licensed under separate terms,
-as designated in a particular file or component or in included license
-documentation.  The authors of MySQL hereby grant you an additional
-permission to link the program and your derivative works with the
-separately licensed software that they have included with MySQL.
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License, version 2.0, for more details.
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/********************************************************************//**
-@file include/btr0bulk.h
-The B-tree bulk load
+/** @file include/btr0bulk.h
+ The B-tree bulk load
 
-Created 03/11/2014 Shaohua Wang
-*************************************************************************/
+ Created 03/11/2014 Shaohua Wang
+ *************************************************************************/
 
 #ifndef btr0bulk_h
 #define btr0bulk_h
+
+#include <stddef.h>
+#include <vector>
 
 #include "dict0dict.h"
 #include "page0cur.h"
 #include "ut0new.h"
 
-#include <vector>
-
 /** Innodb B-tree index fill factor for bulk load. */
-extern	long	innobase_fill_factor;
+extern long innobase_fill_factor;
 
 /*
 The proper function call sequence of PageBulk is as below:
@@ -53,361 +53,369 @@ The proper function call sequence of PageBulk is as below:
 -- PageBulk::commit
 */
 
-class PageBulk
-{
-public:
-	/** Constructor
-	@param[in]	index		B-tree index
-	@param[in]	page_no		page number
-	@param[in]	level		page level
-	@param[in]	trx_id		transaction id
-	@param[in]	observer	flush observer */
-	PageBulk(
-		dict_index_t*	index,
-		trx_id_t	trx_id,
-		ulint		page_no,
-		ulint		level,
-		FlushObserver*	observer)
-		:
-		m_heap(NULL),
-		m_index(index),
-		m_mtr(NULL),
-		m_trx_id(trx_id),
-		m_block(NULL),
-		m_page(NULL),
-		m_page_zip(NULL),
-		m_cur_rec(NULL),
-		m_page_no(page_no),
-		m_level(level),
-		m_is_comp(dict_table_is_comp(index->table)),
-		m_heap_top(NULL),
-		m_rec_no(0),
-		m_free_space(0),
-		m_reserved_space(0),
+class PageBulk {
+ public:
+  /** Page split point descriptor. */
+  struct SplitPoint {
+    /** Record being the point of split.
+     * All records before this record should stay on current on page.
+     * This record and all following records should be moved to new page. */
+    rec_t *m_rec;
+    /** Number of records before this record. */
+    ulint m_n_rec_before;
+  };
+
+  /** Constructor
+  @param[in]	index		B-tree index
+  @param[in]	page_no		page number
+  @param[in]	level		page level
+  @param[in]	trx_id		transaction id
+  @param[in]	observer	flush observer */
+  PageBulk(dict_index_t *index, trx_id_t trx_id, page_no_t page_no, ulint level,
+           FlushObserver *observer)
+      : m_heap(nullptr),
+        m_index(index),
+        m_mtr(nullptr),
+        m_trx_id(trx_id),
+        m_block(nullptr),
+        m_page(nullptr),
+        m_page_zip(nullptr),
+        m_cur_rec(nullptr),
+        m_page_no(page_no),
+        m_level(level),
+        m_is_comp(dict_table_is_comp(index->table)),
+        m_heap_top(nullptr),
+        m_rec_no(0),
+        m_free_space(0),
+        m_reserved_space(0),
+        m_padding_space(0),
 #ifdef UNIV_DEBUG
-		m_total_data(0),
+        m_total_data(0),
 #endif /* UNIV_DEBUG */
-		m_modify_clock(0),
-		m_flush_observer(observer),
-		m_err(DB_SUCCESS)
-	{
-		ut_ad(!dict_index_is_spatial(m_index));
-	}
+        m_modify_clock(0),
+        m_flush_observer(observer),
+        m_last_slotted_rec(nullptr),
+        m_slotted_rec_no(0),
+        m_modified(false) {
+    ut_ad(!dict_index_is_spatial(m_index));
+  }
 
-	/** Deconstructor */
-	~PageBulk()
-	{
-		mem_heap_free(m_heap);
-	}
+  /** Destructor */
+  ~PageBulk() {
+    if (m_heap) {
+      mem_heap_free(m_heap);
+    }
+  }
 
-	/** Initialize members and allocate page if needed and start mtr.
-	Note: must be called and only once right after constructor.
-	@return error code */
-	dberr_t init();
+  /** Initialize members and allocate page if needed and start mtr.
+  @note Must be called and only once right after constructor.
+  @return error code */
+  dberr_t init() MY_ATTRIBUTE((warn_unused_result));
 
-	/** Insert a record in the page.
-	@param[in]	rec		record
-	@param[in]	offsets		record offsets */
-	void insert(const rec_t* rec, ulint* offsets);
+  /** Insert a tuple in the page.
+  @param[in]  tuple     tuple to insert
+  @param[in]  big_rec   external record
+  @param[in]  rec_size  record size
+  @return error code */
+  dberr_t insert(const dtuple_t *tuple, const big_rec_t *big_rec,
+                 ulint rec_size) MY_ATTRIBUTE((warn_unused_result));
 
-	/** Mark end of insertion to the page. Scan all records to set page
-	dirs, and set page header members. */
-	void finish();
+  /** Mark end of insertion to the page. Scan records to set page dirs,
+  and set page header members. The scan is incremental (slots and records
+  which assignment could be "finalized" are not checked again. Check the
+  m_slotted_rec_no usage, note it could be reset in some cases like
+  during split.
+  Note: we refer to page_copy_rec_list_end_to_created_page. */
+  void finish();
 
-	/** Commit mtr for a page
-	@param[in]	success		Flag whether all inserts succeed. */
-	void commit(bool success);
+  /** Commit mtr for a page
+  @param[in]	success		Flag whether all inserts succeed. */
+  void commit(bool success);
 
-	/** Compress if it is compressed table
-	@return	true	compress successfully or no need to compress
-	@return	false	compress failed. */
-	bool compress();
+  /** Compress if it is compressed table
+  @return	true	compress successfully or no need to compress
+  @return	false	compress failed. */
+  bool compress() MY_ATTRIBUTE((warn_unused_result));
 
-	/** Check whether the record needs to be stored externally.
-	@return	true
-	@return	false */
-	bool needExt(const dtuple_t* tuple, ulint rec_size);
+  /** Check whether the record needs to be stored externally.
+  @return false if the entire record can be stored locally on the page */
+  bool needExt(const dtuple_t *tuple, ulint rec_size) const
+      MY_ATTRIBUTE((warn_unused_result));
 
-	/** Store external record
-	@param[in]	big_rec		external recrod
-	@param[in]	offsets		record offsets
-	@return	error code */
-	dberr_t storeExt(const big_rec_t* big_rec, ulint* offsets);
+  /** Get node pointer
+  @return node pointer */
+  dtuple_t *getNodePtr();
 
-	/** Get node pointer
-	@return node pointer */
-	dtuple_t* getNodePtr();
+  /** Split the page records between this and given bulk.
+   * @param new_page_bulk  The new bulk to store split records. */
+  void split(PageBulk &new_page_bulk);
 
-	/** Get split rec in the page. We split a page in half when compresssion
-	fails, and the split rec should be copied to the new page.
-	@return split rec */
-	rec_t*	getSplitRec();
+  /** Copy all records from page.
+  @param[in]  src_page  Page with records to copy. */
+  void copyAll(const page_t *src_page);
 
-	/** Copy all records after split rec including itself.
-	@param[in]	rec	split rec */
-	void copyIn(rec_t*	split_rec);
+  /** Set next page
+  @param[in]	next_page_no	next page no */
+  void setNext(page_no_t next_page_no);
 
-	/** Remove all records after split rec including itself.
-	@param[in]	rec	split rec	*/
-	void copyOut(rec_t*	split_rec);
+  /** Set previous page
+  @param[in]	prev_page_no	previous page no */
+  void setPrev(page_no_t prev_page_no);
 
-	/** Set next page
-	@param[in]	next_page_no	next page no */
-	void setNext(ulint	next_page_no);
+  /** Release block by committing mtr */
+  inline void release();
 
-	/** Set previous page
-	@param[in]	prev_page_no	previous page no */
-	void setPrev(ulint	prev_page_no);
+  /** Start mtr and latch block */
+  inline void latch();
 
-	/** Release block by commiting mtr */
-	inline void release();
+  /** Check if required space is available in the page for the rec
+  to be inserted.	We check fill factor & padding here.
+  @param[in]	rec_size	required space
+  @return true	if space is available */
+  inline bool isSpaceAvailable(ulint rec_size) const;
 
-	/** Start mtr and latch block */
-        inline dberr_t latch();
+  /** Get page no */
+  page_no_t getPageNo() const { return (m_page_no); }
 
-	/** Check if required space is available in the page for the rec
-	to be inserted.	We check fill factor & padding here.
-	@param[in]	length		required length
-	@return true	if space is available */
-	inline bool isSpaceAvailable(ulint	rec_size);
+  /** Get page level */
+  ulint getLevel() const { return (m_level); }
 
-	/** Get page no */
-	ulint	getPageNo()
-	{
-		return(m_page_no);
-	}
+  /** Get record no */
+  ulint getRecNo() const { return (m_rec_no); }
 
-	/** Get page level */
-	ulint	getLevel()
-	{
-		return(m_level);
-	}
+  /** Get page */
+  const page_t *getPage() const { return (m_page); }
 
-	/** Get record no */
-	ulint	getRecNo()
-	{
-		return(m_rec_no);
-	}
-
-	/** Get page */
-	page_t*	getPage()
-	{
-		return(m_page);
-	}
-
-	/** Get page zip */
-	page_zip_des_t*	getPageZip()
-	{
-		return(m_page_zip);
-	}
-
-	dberr_t getError()
-	{
-		return(m_err);
-	}
+  /** Check if table is compressed.
+  @return true if table is compressed, false otherwise. */
+  bool isTableCompressed() const { return (m_page_zip != nullptr); }
 
 #ifdef UNIV_DEBUG
-	/** Check if index is X locked */
-	bool isIndexXLocked();
-#endif // UNIV_DEBUG
+  /** Check if index is X locked */
+  bool isIndexXLocked();
+#endif  // UNIV_DEBUG
 
-	/* Memory heap for internal allocation */
-	mem_heap_t*	m_heap;
+ private:
+  /** Get page split point. We split a page in half when compression
+  fails, and the split record and all following records should be copied
+  to the new page.
+  @return split record descriptor */
+  SplitPoint getSplitRec();
 
-private:
-	/** The index B-tree */
-	dict_index_t*	m_index;
+  /** Copy given and all following records.
+  @param[in]  first_rec  first record to copy */
+  void copyRecords(const rec_t *first_rec);
 
-	/** The min-transaction */
-	mtr_t*		m_mtr;
+  /** Remove all records after split rec including itself.
+  @param[in]  split_point  split point descriptor */
+  void splitTrim(const SplitPoint &split_point);
 
-	/** The transaction id */
-	trx_id_t	m_trx_id;
+  /** Insert a record in the page.
+  @param[in]  rec   record
+  @param[in]  offsets   record offsets */
+  void insert(const rec_t *rec, ulint *offsets);
 
-	/** The buffer block */
-	buf_block_t*	m_block;
+  /** Store external record
+  Since the record is not logged yet, so we don't log update to the record.
+  the blob data is logged first, then the record is logged in bulk mode.
+  @param[in]  big_rec   external record
+  @param[in]  offsets   record offsets
+  @return error code */
+  dberr_t storeExt(const big_rec_t *big_rec, ulint *offsets)
+      MY_ATTRIBUTE((warn_unused_result));
 
-	/** The page */
-	page_t*		m_page;
+  /** Memory heap for internal allocation */
+  mem_heap_t *m_heap;
 
-	/** The page zip descriptor */
-	page_zip_des_t*	m_page_zip;
+  /** The index B-tree */
+  dict_index_t *m_index;
 
-	/** The current rec, just before the next insert rec */
-	rec_t*		m_cur_rec;
+  /** The min-transaction */
+  mtr_t *m_mtr;
 
-	/** The page no */
-	ulint		m_page_no;
+  /** The transaction id */
+  trx_id_t m_trx_id;
 
-	/** The page level in B-tree */
-	ulint		m_level;
+  /** The buffer block */
+  buf_block_t *m_block;
 
-	/** Flag: is page in compact format */
-	const bool	m_is_comp;
+  /** The page */
+  page_t *m_page;
 
-	/** The heap top in page for next insert */
-	byte*		m_heap_top;
+  /** The page zip descriptor */
+  page_zip_des_t *m_page_zip;
 
-	/** User record no */
-	ulint		m_rec_no;
+  /** The current rec, just before the next insert rec */
+  rec_t *m_cur_rec;
 
-	/** The free space left in the page */
-	ulint		m_free_space;
+  /** The page no */
+  page_no_t m_page_no;
 
-	/** The reserved space for fill factor */
-	ulint		m_reserved_space;
+  /** The page level in B-tree */
+  ulint m_level;
 
-	/** The padding space for compressed page */
-	ulint		m_padding_space;
+  /** Flag: is page in compact format */
+  const bool m_is_comp;
+
+  /** The heap top in page for next insert */
+  byte *m_heap_top;
+
+  /** User record no */
+  ulint m_rec_no;
+
+  /** The free space left in the page */
+  ulint m_free_space;
+
+  /** The reserved space for fill factor */
+  ulint m_reserved_space;
+
+  /** The padding space for compressed page */
+  ulint m_padding_space;
 
 #ifdef UNIV_DEBUG
-	/** Total data in the page */
-	ulint		m_total_data;
+  /** Total data in the page */
+  ulint m_total_data;
 #endif /* UNIV_DEBUG */
 
-	/** The modify clock value of the buffer block
-	when the block is re-pinned */
-	ib_uint64_t     m_modify_clock;
+  /** The modify clock value of the buffer block
+  when the block is re-pinned */
+  ib_uint64_t m_modify_clock;
 
-	/** Flush observer */
-	FlushObserver*	m_flush_observer;
+  /** Flush observer */
+  FlushObserver *m_flush_observer;
 
-	/** Operation result DB_SUCCESS or error code */
-	dberr_t		m_err;
+  /** Last record assigned to a slot. */
+  rec_t *m_last_slotted_rec;
+
+  /** Number of records assigned to slots. */
+  ulint m_slotted_rec_no;
+
+  /** Page modified flag. */
+  bool m_modified;
 };
 
-typedef std::vector<PageBulk*, ut_allocator<PageBulk*> >
-	page_bulk_vector;
+class BtrBulk {
+ public:
+  using page_bulk_vector = std::vector<PageBulk *, ut_allocator<PageBulk *>>;
 
-class BtrBulk
-{
-public:
-	/** Constructor
-	@param[in]	index		B-tree index
-	@param[in]	trx_id		transaction id
-	@param[in]	observer	flush observer */
-	BtrBulk(
-		dict_index_t*	index,
-		trx_id_t	trx_id,
-		FlushObserver*	observer)
-		:
-		m_heap(NULL),
-		m_index(index),
-		m_trx_id(trx_id),
-		m_flush_observer(observer)
-	{
-		ut_ad(m_flush_observer != NULL);
-#ifdef UNIV_DEBUG
-		fil_space_inc_redo_skipped_count(m_index->space);
-		m_index_online = m_index->online_status;
-#endif /* UNIV_DEBUG */
-	}
+  /** Constructor
+  @param[in]	index		B-tree index
+  @param[in]	trx_id		transaction id
+  @param[in]	observer	flush observer */
+  BtrBulk(dict_index_t *index, trx_id_t trx_id, FlushObserver *observer);
 
-	/** Destructor */
-	~BtrBulk()
-	{
-		mem_heap_free(m_heap);
-		UT_DELETE(m_page_bulks);
+  /** Destructor */
+  ~BtrBulk();
 
-#ifdef UNIV_DEBUG
-		fil_space_dec_redo_skipped_count(m_index->space);
-#endif /* UNIV_DEBUG */
-	}
+  /** Initialization
+  @note Must be called right after constructor. */
+  dberr_t init() MY_ATTRIBUTE((warn_unused_result));
 
-	/** Initialization
-	Note: must be called right after constructor. */
-	void init()
-	{
-		ut_ad(m_heap == NULL);
-		m_heap = mem_heap_create(1000);
+  /** Insert a tuple
+  @param[in]	tuple	tuple to insert.
+  @return error code */
+  dberr_t insert(dtuple_t *tuple) MY_ATTRIBUTE((warn_unused_result)) {
+    return (insert(tuple, 0));
+  }
 
-		m_page_bulks = UT_NEW_NOKEY(page_bulk_vector());
-	}
+  /** Btree bulk load finish. We commit the last page in each level
+  and copy the last page in top level to the root page of the index
+  if no error occurs.
+  @param[in]	err	whether bulk load was successful until now
+  @return error code  */
+  dberr_t finish(dberr_t err) MY_ATTRIBUTE((warn_unused_result));
 
-	/** Insert a tuple
-	@param[in]	tuple	tuple to insert.
-	@return error code */
-	dberr_t	insert(dtuple_t*	tuple)
-	{
-		return(insert(tuple, 0));
-	}
+  /** Release all latches */
+  void release();
 
-	/** Btree bulk load finish. We commit the last page in each level
-	and copy the last page in top level to the root page of the index
-	if no error occurs.
-	@param[in]	err	whether bulk load was successful until now
-	@return error code  */
-	dberr_t finish(dberr_t	err);
+  /** Re-latch all latches */
+  void latch();
 
-	/** Release all latches */
-	void release();
+ private:
+  /** Insert a tuple to a page in a level
+  @param[in]	tuple	tuple to insert
+  @param[in]	level	B-tree level
+  @return error code */
+  dberr_t insert(dtuple_t *tuple, ulint level)
+      MY_ATTRIBUTE((warn_unused_result));
 
-	/** Re-latch all latches */
-	void latch();
+  /** Split a page
+  @param[in]	page_bulk	page to split
+  @param[in]	next_page_bulk	next page
+  @return	error code */
+  dberr_t pageSplit(PageBulk *page_bulk, PageBulk *next_page_bulk)
+      MY_ATTRIBUTE((warn_unused_result));
 
-private:
-	/** Insert a tuple to a page in a level
-	@param[in]	tuple	tuple to insert
-	@param[in]	level	B-tree level
-	@return error code */
-	dberr_t insert(dtuple_t* tuple, ulint level);
+  /** Commit(finish) a page. We set next/prev page no, compress a page of
+  compressed table and split the page if compression fails, insert a node
+  pointer to father page if needed, and commit mini-transaction.
+  @param[in]	page_bulk	page to commit
+  @param[in]	next_page_bulk	next page
+  @param[in]	insert_father	flag whether need to insert node ptr
+  @return	error code */
+  dberr_t pageCommit(PageBulk *page_bulk, PageBulk *next_page_bulk,
+                     bool insert_father) MY_ATTRIBUTE((warn_unused_result));
 
-	/** Split a page
-	@param[in]	page_bulk	page to split
-	@param[in]	next_page_bulk	next page
-	@return	error code */
-	dberr_t pageSplit(PageBulk* page_bulk,
-			  PageBulk* next_page_bulk);
+  /** Abort a page when an error occurs
+  @param[in]	page_bulk	page bulk object
+  @note We should call pageAbort for a PageBulk object, which is not in
+  m_page_bulks after pageCommit, and we will commit or abort PageBulk
+  objects in function "finish". */
+  void pageAbort(PageBulk *page_bulk) { page_bulk->commit(false); }
 
-	/** Commit(finish) a page. We set next/prev page no, compress a page of
-	compressed table and split the page if compression fails, insert a node
-	pointer to father page if needed, and commit mini-transaction.
-	@param[in]	page_bulk	page to commit
-	@param[in]	next_page_bulk	next page
-	@param[in]	insert_father	flag whether need to insert node ptr
-	@return	error code */
-	dberr_t pageCommit(PageBulk* page_bulk,
-			   PageBulk* next_page_bulk,
-			   bool insert_father);
+  /** Prepare space to insert a tuple.
+  @param[in,out]  page_bulk   page bulk that will be used to store the record.
+                              It may be replaced if there is not enough space
+                              to hold the record.
+  @param[in]  level           B-tree level
+  @param[in]  rec_size        record size
+  @return error code */
+  dberr_t prepareSpace(PageBulk *&page_bulk, ulint level, ulint rec_size)
+      MY_ATTRIBUTE((warn_unused_result));
 
-	/** Abort a page when an error occurs
-	@param[in]	page_bulk	page bulk object
-	Note: we should call pageAbort for a PageBulk object, which is not in
-	m_page_bulks after pageCommit, and we will commit or abort PageBulk
-	objects in function "finish". */
-	void	pageAbort(PageBulk* page_bulk)
-	{
-		page_bulk->commit(false);
-	}
+  /** Insert a tuple to a page.
+  @param[in]  page_bulk   page bulk object
+  @param[in]  tuple       tuple to insert
+  @param[in]  big_rec     big record vector, maybe NULL if there is no
+                          data to be stored externally.
+  @param[in]  rec_size    record size
+  @return error code */
+  dberr_t insert(PageBulk *page_bulk, dtuple_t *tuple, big_rec_t *big_rec,
+                 ulint rec_size) MY_ATTRIBUTE((warn_unused_result));
 
-	/** Log free check */
-	void logFreeCheck();
+  /** Log free check */
+  void logFreeCheck();
 
-private:
-	/** Memory heap for allocation */
-	mem_heap_t*		m_heap;
+  /** Btree page bulk load finish. Commits the last page in each level
+  if no error occurs. Also releases all page bulks.
+  @param[in]  err           whether bulk load was successful until now
+  @param[out] last_page_no  last page number
+  @return error code  */
+  dberr_t finishAllPageBulks(dberr_t err, page_no_t &last_page_no)
+      MY_ATTRIBUTE((warn_unused_result));
 
-	/** B-tree index */
-	dict_index_t*		m_index;
+ private:
+  /** B-tree index */
+  dict_index_t *m_index;
 
-	/** Transaction id */
-	trx_id_t		m_trx_id;
+  /** Transaction id */
+  trx_id_t m_trx_id;
 
-	/** Root page level */
-	ulint			m_root_level;
+  /** Root page level */
+  ulint m_root_level;
 
-	/** Flush observer */
-	FlushObserver*		m_flush_observer;
+  /** Flush observer */
+  FlushObserver *m_flush_observer;
 
-	/** Page cursor vector for all level */
-	page_bulk_vector*	m_page_bulks;
+  /** Page cursor vector for all level */
+  page_bulk_vector *m_page_bulks;
 
 #ifdef UNIV_DEBUG
-	/** State of the index. Used for asserting at the end of a
-	bulk load operation to ensure that the online status of the
-	index does not change */
-	unsigned		m_index_online;
-#endif // UNIV_DEBUG
+  /** State of the index. Used for asserting at the end of a
+  bulk load operation to ensure that the online status of the
+  index does not change */
+  unsigned m_index_online;
+#endif  // UNIV_DEBUG
 };
 
 #endif

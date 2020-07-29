@@ -1,1 +1,0 @@
-SELECT @@global.innodb_use_global_flush_log_at_trx_commit;

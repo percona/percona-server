@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,9 +18,11 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <NdbDictionary.hpp>
+
+#include "my_compiler.h"
 
 /*
  * Move data between "compatible" tables.
@@ -125,6 +127,7 @@ private:
     Uint32 size_in_bytes;
     Uint32 length_bytes;
     Uint32 data_size; // size_in_bytes - length_bytes
+    Uint32 tiny_bytes;
     int pad_char;
     bool equal; // attr1,attr2 equal non-blobs
     Attr();
@@ -132,7 +135,7 @@ private:
   Attr* m_sourceattr;
   Attr* m_targetattr;
   void set_type(Attr& attr, const NdbDictionary::Column* c);
-  Uint32 calc_str_len_truncated(CHARSET_INFO *cs, char *data, uint32 maxlen);
+  Uint32 calc_str_len_truncated(CHARSET_INFO *cs, const char *data, uint32 maxlen);
   int check_nopk(const Attr& attr1, const Attr& attr2);
   int check_promotion(const Attr& attr1, const Attr& attr2);
   int check_demotion(const Attr& attr1, const Attr& attr2);
@@ -185,7 +188,8 @@ private:
   Stat m_stat;
   Error m_error;
   void set_error_line(int line);
-  void set_error_code(int code, const char* fmt, ...);
+  void set_error_code(int code, const char* fmt, ...)
+    MY_ATTRIBUTE((format(printf, 3, 4)));
   void set_error_code(const NdbError& ndberror);
   void reset_error();
   friend class NdbOut& operator<<(NdbOut&, const Error&);

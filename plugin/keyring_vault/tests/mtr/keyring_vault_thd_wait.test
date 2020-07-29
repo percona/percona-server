@@ -1,6 +1,4 @@
 --source include/have_keyring_vault_plugin.inc
---source include/not_embedded.inc
---source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/not_repeat.inc
 

@@ -23,6 +23,9 @@ id2 tinyint(3) NOT NULL,
 PRIMARY KEY (id),
 KEY index2 (id2)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t6 (`x"z"` INT, xyz VARCHAR(20), notes TEXT);
 ALTER TABLE t6 ADD INDEX t6_index (`x"z"`, xyz, notes(3));
 CREATE TABLE t7 (
@@ -32,6 +35,10 @@ PS_AVAILQTY int(11) NOT NULL,
 PS_SUPPLYCOST float NOT NULL,
 PS_COMMENT varchar(199) NOT NULL
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t7 ADD PRIMARY KEY (PS_PARTKEY,PS_SUPPKEY);
 CREATE TABLE t8 (
 c_id INT(11) NOT NULL AUTO_INCREMENT,
@@ -39,11 +46,15 @@ c_name VARCHAR(255) NOT NULL,
 c_description text,
 PRIMARY KEY (c_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t9 (
 v_id INT(11) NOT NULL AUTO_INCREMENT,
 v_name VARCHAR(255) DEFAULT NULL,
 PRIMARY KEY (v_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t10 (
 p_id INT(11) NOT NULL AUTO_INCREMENT,
 p_name VARCHAR(355) NOT NULL,
@@ -53,6 +64,9 @@ PRIMARY KEY (p_id),
 KEY fk_t8 (c_id),
 CONSTRAINT t10_ibfk_1 FOREIGN KEY (c_id) REFERENCES t8 (c_id) ON UPDATE CASCADE
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t11 (
 num int PRIMARY KEY,
 FOREIGN KEY (num) REFERENCES t9 (v_id)
@@ -324,183 +338,61 @@ CREATE VIEW v1 AS SELECT * FROM db1_basic.t2,db3_basic.t1;
 CREATE VIEW v2 AS SELECT * FROM db2_basic.t1,db1_basic.t2;
 SHOW CREATE VIEW db3_basic.v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db3_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from `db1_basic`.`t2`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db3_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from `db1_basic`.`t2`	utf8mb4	utf8mb4_0900_ai_ci
 SHOW CREATE VIEW db2_basic.v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db2_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from `db1_basic`.`t2`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db2_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from `db1_basic`.`t2`	utf8mb4	utf8mb4_0900_ai_ci
 SHOW CREATE VIEW db2_basic.v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db2_basic`.`v2` AS select `db3_basic`.`t1`.`a3` AS `a3` from `db3_basic`.`t1`	latin1	latin1_swedish_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db2_basic`.`v2` AS select `db3_basic`.`t1`.`a3` AS `a3` from `db3_basic`.`t1`	utf8mb4	utf8mb4_0900_ai_ci
 SHOW CREATE VIEW db4_basic.v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1`,`db3_basic`.`t1`.`a3` AS `a3` from (`db1_basic`.`t2` join `db3_basic`.`t1`)	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1`,`db3_basic`.`t1`.`a3` AS `a3` from (`db1_basic`.`t2` join `db3_basic`.`t1`)	utf8mb4	utf8mb4_0900_ai_ci
 SHOW CREATE VIEW db4_basic.v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `db2_basic`.`t1`.`a2` AS `a2`,`db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from (`db2_basic`.`t1` join `db1_basic`.`t2`)	latin1	latin1_swedish_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `db2_basic`.`t1`.`a2` AS `a2`,`db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from (`db2_basic`.`t1` join `db1_basic`.`t2`)	utf8mb4	utf8mb4_0900_ai_ci
 DROP DATABASE db1_basic;
 DROP DATABASE db2_basic;
 DROP DATABASE db3_basic;
 DROP DATABASE db4_basic;
 SHOW CREATE VIEW db3_basic.v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db3_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from `db1_basic`.`t2`	utf8mb4	utf8mb4_general_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db3_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from `db1_basic`.`t2`	utf8mb4	utf8mb4_0900_ai_ci
 SHOW CREATE VIEW db2_basic.v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db2_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from `db1_basic`.`t2`	utf8mb4	utf8mb4_general_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db2_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from `db1_basic`.`t2`	utf8mb4	utf8mb4_0900_ai_ci
 SHOW CREATE VIEW db2_basic.v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db2_basic`.`v2` AS select `db3_basic`.`t1`.`a3` AS `a3` from `db3_basic`.`t1`	utf8mb4	utf8mb4_general_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db2_basic`.`v2` AS select `db3_basic`.`t1`.`a3` AS `a3` from `db3_basic`.`t1`	utf8mb4	utf8mb4_0900_ai_ci
 SHOW CREATE VIEW db4_basic.v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db4_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1`,`db3_basic`.`t1`.`a3` AS `a3` from (`db1_basic`.`t2` join `db3_basic`.`t1`)	utf8mb4	utf8mb4_general_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db4_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1`,`db3_basic`.`t1`.`a3` AS `a3` from (`db1_basic`.`t2` join `db3_basic`.`t1`)	utf8mb4	utf8mb4_0900_ai_ci
 SHOW CREATE VIEW db4_basic.v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db4_basic`.`v2` AS select `db2_basic`.`t1`.`a2` AS `a2`,`db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from (`db2_basic`.`t1` join `db1_basic`.`t2`)	utf8mb4	utf8mb4_general_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db4_basic`.`v2` AS select `db2_basic`.`t1`.`a2` AS `a2`,`db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from (`db2_basic`.`t1` join `db1_basic`.`t2`)	utf8mb4	utf8mb4_0900_ai_ci
 DROP DATABASE db1_basic;
 DROP DATABASE db2_basic;
 DROP DATABASE db3_basic;
 DROP DATABASE db4_basic;
 SHOW CREATE VIEW db3_basic.v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db3_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from `db1_basic`.`t2`	utf8mb4	utf8mb4_general_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db3_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from `db1_basic`.`t2`	utf8mb4	utf8mb4_0900_ai_ci
 SHOW CREATE VIEW db2_basic.v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db2_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from `db1_basic`.`t2`	utf8mb4	utf8mb4_general_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db2_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from `db1_basic`.`t2`	utf8mb4	utf8mb4_0900_ai_ci
 SHOW CREATE VIEW db2_basic.v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db2_basic`.`v2` AS select `db3_basic`.`t1`.`a3` AS `a3` from `db3_basic`.`t1`	utf8mb4	utf8mb4_general_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db2_basic`.`v2` AS select `db3_basic`.`t1`.`a3` AS `a3` from `db3_basic`.`t1`	utf8mb4	utf8mb4_0900_ai_ci
 SHOW CREATE VIEW db4_basic.v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db4_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1`,`db3_basic`.`t1`.`a3` AS `a3` from (`db1_basic`.`t2` join `db3_basic`.`t1`)	utf8mb4	utf8mb4_general_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db4_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1`,`db3_basic`.`t1`.`a3` AS `a3` from (`db1_basic`.`t2` join `db3_basic`.`t1`)	utf8mb4	utf8mb4_0900_ai_ci
 SHOW CREATE VIEW db4_basic.v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db4_basic`.`v2` AS select `db2_basic`.`t1`.`a2` AS `a2`,`db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from (`db2_basic`.`t1` join `db1_basic`.`t2`)	utf8mb4	utf8mb4_general_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db4_basic`.`v2` AS select `db2_basic`.`t1`.`a2` AS `a2`,`db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from (`db2_basic`.`t1` join `db1_basic`.`t2`)	utf8mb4	utf8mb4_0900_ai_ci
 DROP DATABASE db1_basic;
 DROP DATABASE db2_basic;
 DROP DATABASE db3_basic;
 DROP DATABASE db4_basic;
-CREATE DATABASE bug21644479;
-USE bug21644479;
-CREATE TABLE t1 (a INT);
-CREATE TABLE t2 (a INT, b VARCHAR(10), primary key(a));
-CREATE TABLE t3 (`a"b"` char(2));
-CREATE TABLE t4 (
-name VARCHAR(64) NOT NULL,
-value FLOAT DEFAULT NULL,
-last_update TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-comment VARCHAR(1024) DEFAULT NULL,
-PRIMARY KEY (name)
-);
-CREATE TABLE t5 (
-id int(11) NOT NULL,
-id2 tinyint(3) NOT NULL,
-PRIMARY KEY (id),
-KEY index2 (id2)
-);
-SHOW TABLES;
-Tables_in_bug21644479
-t1
-t2
-t3
-t4
-t5
-INSERT INTO t1 VALUES (289), (298), (234), (456), (789);
-INSERT INTO t2 VALUES (1, "on"), (2, "off"), (10, "pol"), (12, "meg");
-INSERT INTO t3 VALUES ("1\""), ("\"2");
-INSERT INTO t4  (name) VALUES ('disk_temptable_create_cost');
-INSERT INTO t4  (name) VALUES ('disk_temptable_row_cost');
-SELECT * FROM t1 ORDER BY 1;
-a
-234
-289
-298
-456
-789
-SELECT * FROM t2 ORDER BY 1;
-a	b
-1	on
-2	off
-10	pol
-12	meg
-SELECT * FROM t3 ORDER BY 1;
-a"b"
-"2
-1"
-SELECT name FROM t4 ORDER BY 1;
-name
-disk_temptable_create_cost
-disk_temptable_row_cost
-SELECT * FROM t5 ORDER BY 1;
-id	id2
-# compress using lz4
-# uncompress using lz4_decompress
-DROP DATABASE bug21644479;
-USE bug21644479;
-SHOW TABLES;
-Tables_in_bug21644479
-t1
-t2
-t3
-t4
-t5
-SELECT * FROM t1 ORDER BY 1;
-a
-234
-289
-298
-456
-789
-SELECT * FROM t2 ORDER BY 1;
-a	b
-1	on
-2	off
-10	pol
-12	meg
-SELECT * FROM t3 ORDER BY 1;
-a"b"
-"2
-1"
-SELECT name FROM t4 ORDER BY 1;
-name
-disk_temptable_create_cost
-disk_temptable_row_cost
-SELECT * FROM t5 ORDER BY 1;
-id	id2
-# compress using zlib
-# uncompress using zlib_decompress
-DROP DATABASE bug21644479;
-USE bug21644479;
-SHOW TABLES;
-Tables_in_bug21644479
-t1
-t2
-t3
-t4
-t5
-SELECT * FROM t1 ORDER BY 1;
-a
-234
-289
-298
-456
-789
-SELECT * FROM t2 ORDER BY 1;
-a	b
-1	on
-2	off
-10	pol
-12	meg
-SELECT * FROM t3 ORDER BY 1;
-a"b"
-"2
-1"
-SELECT name FROM t4 ORDER BY 1;
-name
-disk_temptable_create_cost
-disk_temptable_row_cost
-SELECT * FROM t5 ORDER BY 1;
-id	id2
-DROP DATABASE bug21644479;
 #
 # Bug #21650559 MYSQLPUMP MAKES CORRUPTED DUMP WHEN TABLE HAS GENERATED COLUMN
 #
@@ -585,6 +477,9 @@ CREATE TABLE `part1_hash` (
 KEY `id` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 PARTITION BY HASH (MONTH(hired)) PARTITIONS 2;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE `part2_hash` (
 `firstname` VARCHAR(25) NOT NULL,
 `lastname` VARCHAR(25) NOT NULL,
@@ -646,7 +541,7 @@ testref	INSERT	test1	BEGIN
 INSERT INTO test2 SET a2 = NEW.a1;
 DELETE FROM test3 WHERE a3 = NEW.a1;
 UPDATE test4 SET b4 = b4 + 1 WHERE a4 = NEW.a1;
-END	BEFORE	0000-00-00 00:00:00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	BEFORE	0000-00-00 00:00:00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 DROP DATABASE bug23072245;
 USE bug23072245;
 SHOW TRIGGERS;
@@ -655,7 +550,7 @@ testref	INSERT	test1	BEGIN
 INSERT INTO test2 SET a2 = NEW.a1;
 DELETE FROM test3 WHERE a3 = NEW.a1;
 UPDATE test4 SET b4 = b4 + 1 WHERE a4 = NEW.a1;
-END	BEFORE	0000-00-00 00:00:00	NO_AUTO_VALUE_ON_ZERO	root@localhost	utf8mb4	utf8mb4_general_ci	latin1_swedish_ci
+END	BEFORE	0000-00-00 00:00:00	NO_AUTO_VALUE_ON_ZERO	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 DROP DATABASE bug23072245;
 CREATE USER bug23721446_u1,bug23721446_u2;
 CREATE DATABASE db23721446;
@@ -669,28 +564,28 @@ GRANT SELECT, SELECT (i) ON db23721446.t TO 'bug23721446_u1'@'%';
 GRANT EXECUTE ON PROCEDURE db23721446.sp TO 'bug23721446_u1'@'%';
 SHOW GRANTS FOR bug23721446_u1@'%';
 Grants for bug23721446_u1@%
-GRANT USAGE ON *.* TO 'bug23721446_u1'@'%'
-GRANT ALL PRIVILEGES ON `db23721446`.* TO 'bug23721446_u1'@'%'
-GRANT SELECT, SELECT (i) ON `db23721446`.`t` TO 'bug23721446_u1'@'%'
-GRANT EXECUTE ON PROCEDURE `db23721446`.`sp` TO 'bug23721446_u1'@'%'
+GRANT USAGE ON *.* TO `bug23721446_u1`@`%`
+GRANT ALL PRIVILEGES ON `db23721446`.* TO `bug23721446_u1`@`%`
+GRANT SELECT, SELECT (`i`) ON `db23721446`.`t` TO `bug23721446_u1`@`%`
+GRANT EXECUTE ON PROCEDURE `db23721446`.`sp` TO `bug23721446_u1`@`%`
 GRANT UPDATE (i) ON db23721446.t TO 'bug23721446_u2'@'%';
 GRANT DELETE ON db23721446.t TO 'bug23721446_u2'@'%';
 SHOW GRANTS FOR bug23721446_u2@'%';
 Grants for bug23721446_u2@%
-GRANT USAGE ON *.* TO 'bug23721446_u2'@'%'
-GRANT UPDATE (i), DELETE ON `db23721446`.`t` TO 'bug23721446_u2'@'%'
+GRANT USAGE ON *.* TO `bug23721446_u2`@`%`
+GRANT UPDATE (`i`), DELETE ON `db23721446`.`t` TO `bug23721446_u2`@`%`
 DROP USER bug23721446_u1,bug23721446_u2;
 DROP DATABASE db23721446;
 SHOW GRANTS FOR bug23721446_u1@'%';
 Grants for bug23721446_u1@%
-GRANT USAGE ON *.* TO 'bug23721446_u1'@'%'
-GRANT ALL PRIVILEGES ON `db23721446`.* TO 'bug23721446_u1'@'%'
-GRANT SELECT, SELECT (i) ON `db23721446`.`t` TO 'bug23721446_u1'@'%'
-GRANT EXECUTE ON PROCEDURE `db23721446`.`sp` TO 'bug23721446_u1'@'%'
+GRANT USAGE ON *.* TO `bug23721446_u1`@`%`
+GRANT ALL PRIVILEGES ON `db23721446`.* TO `bug23721446_u1`@`%`
+GRANT SELECT, SELECT (`i`) ON `db23721446`.`t` TO `bug23721446_u1`@`%`
+GRANT EXECUTE ON PROCEDURE `db23721446`.`sp` TO `bug23721446_u1`@`%`
 SHOW GRANTS FOR bug23721446_u2@'%';
 Grants for bug23721446_u2@%
-GRANT USAGE ON *.* TO 'bug23721446_u2'@'%'
-GRANT UPDATE (i), DELETE ON `db23721446`.`t` TO 'bug23721446_u2'@'%'
+GRANT USAGE ON *.* TO `bug23721446_u2`@`%`
+GRANT UPDATE (`i`), DELETE ON `db23721446`.`t` TO `bug23721446_u2`@`%`
 DROP USER bug23721446_u1,bug23721446_u2;
 DROP DATABASE db23721446;
 #
@@ -700,8 +595,6 @@ CREATE DATABASE bug22919028;
 USE bug22919028;
 CREATE TABLE t (i DATE);
 SET SQL_MODE = ALLOW_INVALID_DATES;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t VALUES('2016-02-31');
 DROP DATABASE bug22919028;
 SELECT * FROM bug22919028.t;
@@ -717,7 +610,7 @@ CREATE TABLE t (i INT);
 INSERT INTO t VALUES (9), (0);
 DROP DATABASE bug26694675;
 check for warnings
-Pattern "mysqlpump: \[WARNING\]" not found
+Pattern "mysqlpump: \[WARNING\]" found
 #
 # Bug#26116415 TABLESPACE CLAUSE CONFUSES MYSQLPUMP
 #
@@ -726,14 +619,14 @@ CREATE TABLE `test`.`t1` (a integer) TABLESPACE `mytbsp`;
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `mytbsp` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `a` int DEFAULT NULL
+) /*!50100 TABLESPACE `mytbsp` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE `test`.`t1`;
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `mytbsp` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `a` int DEFAULT NULL
+) /*!50100 TABLESPACE `mytbsp` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE `test`.`t1`;
 DROP TABLESPACE `mytbsp`;
 #

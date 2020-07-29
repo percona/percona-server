@@ -4,8 +4,6 @@
 # A "wrong key column" error was added to address an unsupported index creation scenario
 #
 SET sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TEMPORARY TABLE t1 (c1 INT NOT NULL) ENGINE=InnoDB;
 CREATE TABLE t1(c1 CHAR(0) NOT NULL);
 DROP TABLE t1;

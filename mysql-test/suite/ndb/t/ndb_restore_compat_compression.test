@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 ######################################################################
 # Test restoring compressed backups
 ######################################################################
@@ -15,3 +10,4 @@ source ndb_restore_misc.test;
 
 # turn off compressed backups
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 13001 0" >> $NDB_TOOLS_OUTPUT
+--remove_file $NDB_TOOLS_OUTPUT

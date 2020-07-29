@@ -61,6 +61,14 @@ uclicks int(10) unsigned DEFAULT '0' NOT NULL,
 ts timestamp,
 PRIMARY KEY (place_id,ts)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (place_id,shows,ishows,ushows,clicks,iclicks,uclicks,ts)
 VALUES (1,0,0,0,0,0,0,20000928174434);
 UPDATE t1 SET shows=shows+1,ishows=ishows+1,ushows=ushows+1,clicks=clicks+1,iclicks=iclicks+1,uclicks=uclicks+1 WHERE place_id=1 AND ts>="2000-09-28 00:00:00";
@@ -68,44 +76,12 @@ select place_id,shows from t1;
 place_id	shows
 1	1
 drop table t1;
-CREATE TABLE t1 (
-lfdnr int(10) unsigned NOT NULL default '0',
-ticket int(10) unsigned NOT NULL default '0',
-client varchar(255) NOT NULL default '',
-replyto varchar(255) NOT NULL default '',
-subject varchar(100) NOT NULL default '',
-timestamp int(10) unsigned NOT NULL default '0',
-tstamp timestamp NOT NULL,
-status int(3) NOT NULL default '0',
-type varchar(15) NOT NULL default '',
-assignment int(10) unsigned NOT NULL default '0',
-fupcount int(4) unsigned NOT NULL default '0',
-parent int(10) unsigned NOT NULL default '0',
-activity int(10) unsigned NOT NULL default '0',
-priority tinyint(1) unsigned NOT NULL default '1',
-cc varchar(255) NOT NULL default '',
-bcc varchar(255) NOT NULL default '',
-body text NOT NULL,
-comment text,
-header text,
-PRIMARY KEY  (lfdnr),
-KEY k1 (timestamp),
-KEY k2 (type),
-KEY k3 (parent),
-KEY k4 (assignment),
-KEY ticket (ticket)
-) ENGINE=MyISAM;
-INSERT INTO t1 VALUES (773,773,'','','',980257344,20010318180652,0,'Open',10,0,0,0,1,'','','','','');
-alter table t1 change lfdnr lfdnr int(10) unsigned not null auto_increment;
-update t1 set status=1 where type='Open';
-select status from t1;
-status
-1
-drop table t1;
 create table t1 (a int not null, b int not null, key (a));
 insert into t1 values (1,1),(1,2),(1,3),(3,1),(3,2),(3,3),(3,1),(3,2),(3,3),(2,1),(2,2),(2,3);
 SET @tmp=0;
 update t1 set b=(@tmp:=@tmp+1) order by a;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 update t1 set b=99 where a=1 order by b asc limit 1;
 select * from t1 order by a,b;
 a	b
@@ -141,18 +117,6 @@ create table t2 (a int not null, b int not null);
 insert into t2 values (1,1),(1,2),(1,3);
 update t1 set b=(select distinct 1 from (select * from t2) a);
 drop table t1,t2;
-CREATE TABLE t1 (
-`id_param` smallint(3) unsigned NOT NULL default '0',
-`nom_option` char(40) NOT NULL default '',
-`valid` tinyint(1) NOT NULL default '0',
-KEY `id_param` (`id_param`,`nom_option`)
-) ENGINE=MyISAM;
-INSERT INTO t1 (id_param,nom_option,valid) VALUES (185,'600x1200',1);
-UPDATE t1 SET nom_option='test' WHERE id_param=185 AND nom_option='600x1200' AND valid=1 LIMIT 1;
-select * from t1;
-id_param	nom_option	valid
-185	test	1
-drop table t1;
 create table t1 (F1 VARCHAR(30), F2 VARCHAR(30), F3 VARCHAR(30), cnt int, groupid int, KEY groupid_index (groupid));
 insert into t1 (F1,F2,F3,cnt,groupid) values ('0','0','0',1,6),
 ('0','1','2',1,5), ('0','2','0',1,3), ('1','0','1',1,2),
@@ -174,6 +138,9 @@ CREATE TABLE t1 (
 `colB` int(11) NOT NULL default '0',
 PRIMARY KEY  (`colA`)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (4433,5424);
 CREATE TABLE t2 (
 `colC` int(10) unsigned NOT NULL default '0',
@@ -183,6 +150,12 @@ CREATE TABLE t2 (
 `colF` int(10) unsigned NOT NULL default '0',
 PRIMARY KEY  (`colC`,`colA`,`colD`,`colE`)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (3,4433,10005,495,500);
 INSERT INTO t2 VALUES (3,4433,10005,496,500);
 INSERT INTO t2 VALUES (3,4433,10009,494,500);
@@ -194,22 +167,22 @@ INSERT INTO t2 VALUES (3,4433,10005,493,500);
 INSERT INTO t2 VALUES (3,4433,10005,492,500);
 UPDATE IGNORE t2,t1 set t2.colE = t2.colE + 1,colF=0 WHERE t1.colA = t2.colA AND (t1.colB & 4096) > 0 AND (colE + 1) < colF;
 Warnings:
-Warning	1062	Duplicate entry '3-4433-10005-496' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3-4433-10005-497' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3-4433-10005-495' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3-4433-10005-494' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3-4433-10005-493' for key 'PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-493' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-494' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-495' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-496' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-497' for key 't2.PRIMARY'
 SELECT * FROM t2;
 colC	colA	colD	colE	colF
+3	4433	10005	492	500
+3	4433	10005	493	500
+3	4433	10005	494	500
 3	4433	10005	495	500
 3	4433	10005	496	500
+3	4433	10005	498	0
 3	4433	10009	495	0
 3	4433	10011	495	0
-3	4433	10005	498	0
 3	4433	10013	490	0
-3	4433	10005	494	500
-3	4433	10005	493	500
-3	4433	10005	492	500
 DROP TABLE t1;
 DROP TABLE t2;
 create table t1 (c1 int, c2 char(6), c3 int);
@@ -232,20 +205,6 @@ select * from t1;
 a	b
 0	2
 drop table t1;
-create table t1 (a int, b varchar(10), key b(b(5))) engine=myisam;
-create table t2 (a int, b varchar(10)) engine=myisam;
-insert into t1 values ( 1, 'abcd1e');
-insert into t1 values ( 2, 'abcd2e');
-insert into t2 values ( 1, 'abcd1e');
-insert into t2 values ( 2, 'abcd2e');
-analyze table t1,t2;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
-test.t2	analyze	status	OK
-update t1, t2 set t1.a = t2.a where t2.b = t1.b;
-show warnings;
-Level	Code	Message
-drop table t1, t2;
 create table t1(f1 int, f2 int);
 create table t2(f3 int, f4 int);
 create index idx on t2(f3);
@@ -278,7 +237,7 @@ a
 show status like 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	0
+Handler_read_key	1
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -290,46 +249,48 @@ update t1 set b=9999 order by a limit 1;
 show status like 'handler_read%';
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	0
+Handler_read_key	4
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	2
-Handler_read_rnd_next	0
+Handler_read_rnd_next	18
 flush status;
-delete from t1 order by a limit 1;
+delete from t1 order by a, b desc limit 1;
 show status like 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	0
-Handler_read_last	0
-Handler_read_next	0
-Handler_read_prev	0
-Handler_read_rnd	0
-Handler_read_rnd_next	0
-flush status;
-delete from t1 order by a desc limit 1;
-show status like 'handler_read%';
-Variable_name	Value
-Handler_read_first	0
-Handler_read_key	0
-Handler_read_last	1
-Handler_read_next	0
-Handler_read_prev	0
-Handler_read_rnd	0
-Handler_read_rnd_next	0
-alter table t1 disable keys;
-flush status;
-delete from t1 order by a limit 1;
-show status like 'handler_read%';
-Variable_name	Value
-Handler_read_first	0
-Handler_read_key	0
+Handler_read_key	2
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	1
 Handler_read_rnd_next	9
+flush status;
+delete from t1 order by a desc, b desc limit 1;
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	1
+Handler_read_rnd_next	8
+alter table t1 disable keys;
+Warnings:
+Note	1031	Table storage engine for 't1' doesn't have this option
+flush status;
+delete from t1 order by a limit 1;
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	3
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
 select * from t1;
 a	b
 0	0
@@ -347,16 +308,6 @@ a	b
 22	3
 22	3
 23	3
-drop table t1;
-create table t1 (f1 date not null) engine=myisam;
-insert into t1 values('2000-01-01'),('0000-00-00');
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 2
-update t1 set f1='2002-02-02' where f1 is null;
-select * from t1;
-f1
-2000-01-01
-2002-02-02
 drop table t1;
 create table t1 (f1 int);
 create table t2 (f2 int);
@@ -380,7 +331,7 @@ update t2 set a=3 where a=2;
 show status like 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	1
+Handler_read_key	2
 Handler_read_last	0
 Handler_read_next	1
 Handler_read_prev	0
@@ -393,11 +344,9 @@ update t1 set `*f2`=1;
 drop table t1;
 create table t1(f1 int);
 update t1 set f2=1 order by f2;
-ERROR 42S22: Unknown column 'f2' in 'order clause'
+ERROR 42S22: Unknown column 'f2' in 'field list'
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 request_id int unsigned NOT NULL auto_increment,
 user_id varchar(12) default NULL,
@@ -421,7 +370,7 @@ user_id
 show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	1
+Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -432,7 +381,7 @@ user_id
 show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	2
+Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -442,7 +391,7 @@ UPDATE t1 SET user_id=null WHERE request_id=9999999999999;
 show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	2
+Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -452,7 +401,7 @@ UPDATE t1 SET user_id=null WHERE request_id=999999999999999999999999999999;
 show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	2
+Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -466,6 +415,8 @@ quux decimal( 31, 30 ),
 UNIQUE KEY bar (a),
 KEY quux (quux)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO
 t1 ( a, quux )
 VALUES
@@ -473,6 +424,8 @@ VALUES
 ( 2,  0.1 );
 INSERT INTO t1( a )
 SELECT @newA := 1 + a FROM t1 WHERE quux <= 0.1;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SELECT * FROM t1;
 a	quux
 1	1.000000000000000000000000000000
@@ -553,8 +506,6 @@ DROP VIEW v1;
 # Bug#54734 assert in Diagnostics_area::set_ok_status
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE IF EXISTS t1, not_exists;
 DROP FUNCTION IF EXISTS f1;
 DROP VIEW IF EXISTS v1;
@@ -581,53 +532,34 @@ INSERT INTO t2 SELECT i, i, i, i FROM t1;
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET d = 10 WHERE b = 10 LIMIT 5;
-SHOW STATUS LIKE 'HANDLER_UPDATE';
-Variable_name	Value
-Handler_update	1
+SET @binlog_handler_update= IF(@@global.log_bin AND @@global.binlog_format != 'STATEMENT', 1, 0);
+SELECT VARIABLE_VALUE + @binlog_handler_update FROM performance_schema.session_status WHERE VARIABLE_NAME = 'HANDLER_UPDATE';
+VARIABLE_VALUE + @binlog_handler_update
+1
 ROLLBACK;
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
-SHOW STATUS LIKE 'HANDLER_UPDATE';
-Variable_name	Value
-Handler_update	1
+SELECT VARIABLE_VALUE + @binlog_handler_update FROM performance_schema.session_status WHERE VARIABLE_NAME = 'HANDLER_UPDATE';
+VARIABLE_VALUE + @binlog_handler_update
+1
 ROLLBACK;
 Same test with a different UPDATE.
 ALTER TABLE t2 DROP INDEX idx, ADD INDEX idx2 (a, b);
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET c = 10 LIMIT 5;
-SHOW STATUS LIKE 'HANDLER_UPDATE';
-Variable_name	Value
-Handler_update	5
+SELECT VARIABLE_VALUE + @binlog_handler_update FROM performance_schema.session_status WHERE VARIABLE_NAME = 'HANDLER_UPDATE';
+VARIABLE_VALUE + @binlog_handler_update
+5
 ROLLBACK;
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET c = 10 ORDER BY a, b DESC LIMIT 5;
-SHOW STATUS LIKE 'HANDLER_UPDATE';
-Variable_name	Value
-Handler_update	5
+SELECT VARIABLE_VALUE + @binlog_handler_update FROM performance_schema.session_status WHERE VARIABLE_NAME = 'HANDLER_UPDATE';
+VARIABLE_VALUE + @binlog_handler_update
+5
 ROLLBACK;
-DROP TABLE t1, t2;
-# Bug#18439019 Assert in mysql_multi_update with ordered view
-CREATE TABLE t1 (
-a int unsigned not null auto_increment primary key,
-b int unsigned
-) ENGINE=MyISAM;
-CREATE TABLE t2 (
-a int unsigned not null auto_increment primary key,
-b int unsigned
-) ENGINE=MyISAM;
-INSERT INTO t1 VALUES (NULL, 0);
-INSERT INTO t1 SELECT NULL, 0 FROM t1;
-INSERT INTO t2 VALUES (NULL, 0), (NULL,1);
-CREATE VIEW v1 AS SELECT a FROM t1 ORDER BY a;
-explain UPDATE t2, v1 AS t SET t2.b = t.a+5 ;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-UPDATE t2, v1 AS t SET t2.b = t.a+5 ;
-DROP VIEW v1;
 DROP TABLE t1, t2;
 # Bug#20454533: Assertion failed: sargables == 0 || *keyfields ...
 CREATE TABLE t1(
@@ -672,9 +604,17 @@ KEY key1 (a,b,c)
 );
 INSERT INTO t1 (a,b,c,d) VALUES (1, 1, 1, 4), (2, 2, 2, 5), (2, 3, 4, 7),
 (3, 3, 3, 9), (4, 4, 4, 0), (5, 5, 5, 1), (5, 6, 7, 3), (5, 7, 9, 9);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain UPDATE t1 SET c = 72 WHERE a = 2 ORDER BY b ASC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	range	key1	key1	5	const	2	100.00	Using where; Using temporary
+1	UPDATE	t1	NULL	range	key1	key1	5	const	#	100.00	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`c` = 72 where (`test`.`t1`.`a` = 2) order by `test`.`t1`.`b` limit 1
 UPDATE t1 SET c = 72 WHERE a = 2 ORDER BY b ASC LIMIT 1;
 SELECT * FROM t1;
 a	b	c	d
@@ -688,7 +628,9 @@ a	b	c	d
 5	7	9	9
 explain UPDATE t1 SET d = 72 WHERE a = 2 ORDER BY b ASC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	range	key1	key1	5	const	2	100.00	Using where; Using temporary
+1	UPDATE	t1	NULL	range	key1	key1	5	const	#	100.00	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`d` = 72 where (`test`.`t1`.`a` = 2) order by `test`.`t1`.`b` limit 1
 UPDATE t1 SET d = 72 WHERE a = 2 ORDER BY b ASC LIMIT 1;
 SELECT * FROM t1;
 a	b	c	d
@@ -701,9 +643,14 @@ a	b	c	d
 5	6	7	3
 5	7	9	9
 INSERT INTO t1 (a,b,c,d) VALUES (5, 5, 1, 1), (5, 5, 2, 1), (5, 5, 4, 1);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain UPDATE t1 SET c = 3 WHERE a = 5 ORDER BY b ASC LIMIT 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	range	key1	key1	5	const	5	100.00	Using where; Using temporary
+1	UPDATE	t1	NULL	range	key1	key1	5	const	#	100.00	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`c` = 3 where (`test`.`t1`.`a` = 5) order by `test`.`t1`.`b` limit 3
 UPDATE t1 SET c = 3 WHERE a = 5 ORDER BY b ASC LIMIT 3;
 SELECT * FROM t1;
 a	b	c	d
@@ -718,22 +665,27 @@ a	b	c	d
 5	5	3	1
 5	5	3	1
 5	5	3	1
-explain UPDATE t1 SET c = 62 WHERE a > 1 ORDER BY b ASC LIMIT 3;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+explain UPDATE t1 SET c = 62 WHERE a > 4 ORDER BY b ASC LIMIT 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	range	key1	key1	5	const	10	100.00	Using where; Using filesort
-UPDATE t1 SET c = 62 WHERE a > 1 ORDER BY b ASC LIMIT 3;
+1	UPDATE	t1	NULL	range	key1	key1	5	const	#	100.00	Using where; Using filesort
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`c` = 62 where (`test`.`t1`.`a` > 4) order by `test`.`t1`.`b` limit 3
+UPDATE t1 SET c = 62 WHERE a > 4 ORDER BY b ASC LIMIT 3;
 SELECT * FROM t1;
 a	b	c	d
 1	1	1	4
-2	2	62	72
-2	3	62	7
-3	3	62	9
+2	2	72	72
+2	3	4	7
+3	3	3	9
 4	4	4	0
-5	5	5	1
+5	5	62	1
 5	6	7	3
 5	7	9	9
-5	5	3	1
-5	5	3	1
+5	5	62	1
+5	5	62	1
 5	5	3	1
 INSERT INTO t1 (a,b,c,d) VALUES (1, 1, 1, 4), (2, 2, 2, 5), (2, 3, 4, 7),
 (3, 3, 3, 9), (4, 4, 4, 0), (5, 5, 5, 1), (5, 6, 7, 3), (5, 7, 9, 9);
@@ -742,20 +694,22 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 explain UPDATE t1 SET c = 82 ORDER BY a ASC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	index	NULL	key1	15	NULL	1	100.00	Using temporary
+1	UPDATE	t1	NULL	index	NULL	key1	15	NULL	#	100.00	Using temporary
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`c` = 82 order by `test`.`t1`.`a` limit 1
 UPDATE t1 SET c = 82 ORDER BY a ASC LIMIT 1;
 SELECT * FROM t1;
 a	b	c	d
 1	1	82	4
-2	2	62	72
-2	3	62	7
-3	3	62	9
+2	2	72	72
+2	3	4	7
+3	3	3	9
 4	4	4	0
-5	5	5	1
+5	5	62	1
 5	6	7	3
 5	7	9	9
-5	5	3	1
-5	5	3	1
+5	5	62	1
+5	5	62	1
 5	5	3	1
 1	1	1	4
 2	2	2	5
@@ -767,20 +721,22 @@ a	b	c	d
 5	7	9	9
 explain UPDATE t1 SET a = 82 ORDER BY b ASC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	19	100.00	Using filesort
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using filesort
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 82 order by `test`.`t1`.`b` limit 1
 UPDATE t1 SET a = 82 ORDER BY b ASC LIMIT 1;
 SELECT * FROM t1;
 a	b	c	d
 82	1	82	4
-2	2	62	72
-2	3	62	7
-3	3	62	9
+2	2	72	72
+2	3	4	7
+3	3	3	9
 4	4	4	0
-5	5	5	1
+5	5	62	1
 5	6	7	3
 5	7	9	9
-5	5	3	1
-5	5	3	1
+5	5	62	1
+5	5	62	1
 5	5	3	1
 1	1	1	4
 2	2	2	5
@@ -792,20 +748,22 @@ a	b	c	d
 5	7	9	9
 explain UPDATE t1 SET b = 82 ORDER BY d ASC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	19	100.00	Using filesort
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using filesort
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`b` = 82 order by `test`.`t1`.`d` limit 1
 UPDATE t1 SET b = 82 ORDER BY d ASC LIMIT 1;
 SELECT * FROM t1;
 a	b	c	d
 82	1	82	4
-2	2	62	72
-2	3	62	7
-3	3	62	9
+2	2	72	72
+2	3	4	7
+3	3	3	9
 4	82	4	0
-5	5	5	1
+5	5	62	1
 5	6	7	3
 5	7	9	9
-5	5	3	1
-5	5	3	1
+5	5	62	1
+5	5	62	1
 5	5	3	1
 1	1	1	4
 2	2	2	5
@@ -824,20 +782,22 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 explain UPDATE t1 SET c = 82 ORDER BY a ASC LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	index	NULL	key1	15	NULL	2	100.00	Using temporary
+1	UPDATE	t1	NULL	index	NULL	key1	15	NULL	#	100.00	Using temporary
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`c` = 82 order by `test`.`t1`.`a` limit 2
 UPDATE t1 SET c = 82 ORDER BY a ASC LIMIT 2;
 SELECT * FROM t1;
 a	b	c	d
 82	1	82	4
-2	2	62	72
-2	3	62	7
-3	3	62	9
+2	2	72	72
+2	3	4	7
+3	3	3	9
 4	82	4	0
-5	5	5	1
+5	5	62	1
 5	6	7	3
 5	7	9	9
-5	5	3	1
-5	5	3	1
+5	5	62	1
+5	5	62	1
 5	5	3	1
 1	1	82	4
 2	2	2	5
@@ -866,6 +826,13 @@ a	b	c	d
 DROP TABLE t1;
 # End of test for Bug#18698556
 #
+# Bug#21944866: REFACTORING: REMOVE KILL_BAD_DATA
+#
+CREATE TABLE t1 (a INT PRIMARY KEY, b DATE);
+UPDATE t1 SET b= NULL WHERE a < '00:38:47.008761';
+ERROR 22007: Truncated incorrect DOUBLE value: '00:38:47.008761'
+DROP TABLE t1;
+#
 # Bug#21032418: PERFORMANCE REGRESSION IN 5.6: UPDATE DOES NOT USE INDEX
 #
 CREATE TABLE t1(
@@ -874,10 +841,10 @@ token VARCHAR(255) DEFAULT NULL,
 PRIMARY KEY (id),
 KEY token (token)
 )DEFAULT CHARSET=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (1, "abc"), (2, "def");
 SET sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t1 SET token = X'ad';
 Warnings:
 Warning	1366	Incorrect string value: '\xAD' for column 'token' at row 1
@@ -891,6 +858,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
 Warning	1366	Incorrect string value: '\xAD' for column 'token' at row 1
+Note	1003	update `test`.`t1` set `test`.`t1`.`token` = NULL where (`test`.`t1`.`token` = 0xad)
 UPDATE t1 SET token = NULL WHERE token = X'ad';
 Warnings:
 Warning	1366	Incorrect string value: '\xAD' for column 'token' at row 1
@@ -900,6 +868,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
 Warning	1366	Incorrect string value: '\xAD' for column 'token' at row 1
+Note	1003	update `test`.`t1` set `test`.`t1`.`token` = NULL where (`test`.`t1`.`token` = 0xad)
 UPDATE t1 SET token = NULL WHERE token = X'ad';
 Warnings:
 Warning	1366	Incorrect string value: '\xAD' for column 'token' at row 1
@@ -909,3 +878,41 @@ id	token
 2	
 DROP TABLE t1;
 # End of test for Bug#21032418
+#
+# Bug #29047894: ASSERTION FAILURE: ROW0MYSQL.CC:2387:TRX->ALLOW_SEMI_CONSISTENT()
+#
+CREATE TABLE t1 (a INTEGER);
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+INSERT INTO t1 VALUES (0);
+UPDATE t1 SET a=1 ORDER BY CAST('invalid' AS DATETIME);
+ERROR 22007: Incorrect datetime value: 'invalid'
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+DELETE FROM t1 WHERE a=2;
+DROP TABLE t1;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+#
+# Bug#30158954: INCONSISTENT ROWS MATCHED VALUE FOR UPDATE
+#               WITH FAILED CONSTRAINT
+#
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT CHECK (f2 < 400));
+CREATE TABLE t2 (f1 INT PRIMARY KEY, f2 INT);
+CREATE VIEW v2 AS SELECT * FROM t2 WHERE f2 < 400 WITH CHECK OPTION;
+INSERT INTO t1 VALUES (1, 10), (2, 20);
+INSERT INTO t2 VALUES (1, 10), (2, 20);
+UPDATE IGNORE t1 SET f2 = 400;
+affected rows: 0
+info: Rows matched: 2  Changed: 0  Warnings: 2
+Warnings:
+Warning	3819	Check constraint 't1_chk_1' is violated.
+Warning	3819	Check constraint 't1_chk_1' is violated.
+UPDATE IGNORE v2 SET f2 = 400;
+affected rows: 0
+info: Rows matched: 2  Changed: 0  Warnings: 2
+Warnings:
+Warning	1369	CHECK OPTION failed 'test.v2'
+Warning	1369	CHECK OPTION failed 'test.v2'
+UPDATE IGNORE t2 SET f2 = 400;
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+DROP VIEW v2;
+DROP TABLE t2, t1;

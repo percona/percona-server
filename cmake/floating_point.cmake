@@ -1,4 +1,4 @@
-# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -18,10 +18,11 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 INCLUDE(CheckCSourceRuns)
 INCLUDE(CheckCXXSourceRuns)
+INCLUDE(CMakePushCheckState)
 
 SET(code "
   int main (int argc, char **argv)
@@ -47,29 +48,12 @@ SET(code "
   }"
 )
 
-SET(SAVE_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
-SET(CMAKE_REQUIRED_FLAGS
-  "${CMAKE_REQUIRED_FLAGS} -O3"
-)
+CMAKE_PUSH_CHECK_STATE()
+STRING_APPEND(CMAKE_REQUIRED_FLAGS " -O3")
 
-IF(CMAKE_COMPILER_IS_GNUCC)
+IF(MY_COMPILER_IS_GNU)
   CHECK_C_SOURCE_RUNS("${code}" HAVE_C_FLOATING_POINT_FUSED_MADD)
-ENDIF()
-
-IF(CMAKE_COMPILER_IS_GNUCXX)
   CHECK_CXX_SOURCE_RUNS("${code}" HAVE_CXX_FLOATING_POINT_FUSED_MADD)
 ENDIF()
 
-SET(CMAKE_REQUIRED_FLAGS
-  "${CMAKE_REQUIRED_FLAGS} -ffp-contract=off"
-)
-
-IF(CMAKE_COMPILER_IS_GNUCC)
-  CHECK_C_SOURCE_COMPILES("${code}" HAVE_C_FP_CONTRACT_FLAG)
-ENDIF()
-
-IF(CMAKE_COMPILER_IS_GNUCXX)
-  CHECK_CXX_SOURCE_COMPILES("${code}" HAVE_CXX_FP_CONTRACT_FLAG)
-ENDIF()
-
-SET(CMAKE_REQUIRED_FLAGS "${SAVE_CMAKE_REQUIRED_FLAGS}")
+CMAKE_POP_CHECK_STATE()

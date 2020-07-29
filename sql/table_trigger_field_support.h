@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,15 +18,15 @@
    GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef TABLE_TRIGGER_FIELD_SUPPORT_H_INCLUDED
 #define TABLE_TRIGGER_FIELD_SUPPORT_H_INCLUDED
 
 ///////////////////////////////////////////////////////////////////////////
 
-#include "trigger_def.h"  // enum_trigger_variable_type
+#include "sql/trigger_def.h"  // enum_trigger_variable_type
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -40,18 +40,16 @@ class Field;
   about table trigger fields (NEW/OLD rows).
 */
 
-class Table_trigger_field_support
-{
-public:
-  virtual TABLE *get_subject_table()= 0;
+class Table_trigger_field_support {
+ public:
+  virtual TABLE *get_subject_table() = 0;
 
   virtual Field *get_trigger_variable_field(enum_trigger_variable_type v,
-                                            int field_index)= 0;
+                                            int field_index) = 0;
 
-  virtual ~Table_trigger_field_support()
-  { }
+  virtual ~Table_trigger_field_support() {}
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-#endif // TABLE_TRIGGER_FIELD_SUPPORT_H_INCLUDED
+#endif  // TABLE_TRIGGER_FIELD_SUPPORT_H_INCLUDED

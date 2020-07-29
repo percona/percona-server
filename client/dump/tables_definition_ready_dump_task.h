@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,24 +25,23 @@
 #ifndef TABLES_DEFINITION_READY_DUMP_TASK_INCLUDED
 #define TABLES_DEFINITION_READY_DUMP_TASK_INCLUDED
 
-#include "abstract_dump_task.h"
+#include "client/dump/abstract_dump_task.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 /**
   Represents task for additional work once all Table_definition_dump_task are
   processed.
  */
-class Tables_definition_ready_dump_task : public Abstract_dump_task
-{
-public:
+class Tables_definition_ready_dump_task : public Abstract_dump_task {
+ public:
   Tables_definition_ready_dump_task();
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

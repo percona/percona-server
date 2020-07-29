@@ -6,7 +6,5 @@
 # result string had the same character set, resulting in incorrect behavior
 # when an ASCII string was expected.
 #
---source include/have_utf16.inc
-
-SET NAMES utf8, collation_connection = 'utf16_bin';
+SET NAMES utf8mb3, collation_connection = 'utf16_bin';
 SELECT '2010-10-10 10:10:10' + INTERVAL ST_GeometryType(ST_GeomFromText('POINT(1 1)')) hour_second;

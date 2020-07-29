@@ -20,8 +20,8 @@ test	t1	MyISAM	0
 # Bug 1614849 (INFORMATION_SCHEMA.TABLES (or other schema info table) and GLOBAL_TEMPORARY_TABLES queries running in parallel may crash or hang)
 #
 # connection con1
-SET DEBUG_SYNC="before_open_in_get_all_tables SIGNAL tables_query_ready WAIT_FOR tables_query_finish";
-SELECT * FROM INFORMATION_SCHEMA.TABLES;
+SET DEBUG_SYNC="fill_schema_table_stats SIGNAL tables_query_ready WAIT_FOR tables_query_finish";
+SELECT * FROM INFORMATION_SCHEMA.TABLE_STATISTICS;
 # connection con2
 SET DEBUG_SYNC="now WAIT_FOR tables_query_ready";
 SET DEBUG_SYNC="fill_global_temporary_tables_thd_item_at_tables_debug_sync SIGNAL temp_tables_query_ready WAIT_FOR temp_tables_query_finish";

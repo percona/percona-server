@@ -1,36 +1,20 @@
 .. _innodb_show_status:
 
 ====================================
-Extended Show Engine |InnoDB| Status
+Extended Show Engine InnoDB Status
 ====================================
 
-This feature reorganizes the output of ``SHOW ENGINE INNODB STATUS`` for
-better readability and prints the amount of memory used by the internal hash
-tables. In addition, new variables are available to control the output.
+This feature reorganizes the output of ``SHOW ENGINE INNODB STATUS``
+to improve readability and to provide additional information. The
+variable :variable:`innodb_show_locks_held` controls the umber of
+locks held to print for each |InnoDB| transaction.
 
 This feature modified the ``SHOW ENGINE INNODB STATUS`` command as follows:
 
-  * Added two variables to control ``SHOW ENGINE INNODB STATUS`` information
-    presented (bugfix for upstream bug :mysqlbug:`29126`):
-
-    * :variable:`innodb_show_verbose_locks` - Whether to show records locked
-
-    * :variable:`innodb_show_locks_held` - Number of locks held to print for
-      each |InnoDB| transaction
-
-  * Added extended information about |InnoDB| internal hash table sizes (in
-    bytes) in the ``BUFFER POOL AND MEMORY`` section; also added buffer pool
-    size in bytes.
-
-  * Added additional LOG section information.
-
-Version Specific Information
-============================
-
-  * :rn:`5.7.10-1`:
-
-    Feature ported from |Percona Server| 5.6.
-
+* Added extended information about |InnoDB| internal hash table sizes
+  (in bytes) in the ``BUFFER POOL AND MEMORY`` section; also added
+  buffer pool size in bytes.
+* Added additional LOG section information.
 
 Other Information
 =================
@@ -38,25 +22,8 @@ Other Information
   * Author / Origin:
     Baron Schwartz, http://lists.mysql.com/internals/35174
 
-
 System Variables
 ================
-
-.. variable:: innodb_show_verbose_locks
-
-     :cli: Yes
-     :conf: Yes
-     :scope: Global
-     :dyn: Yes
-     :vartype: ULONG
-     :default: 0
-     :range: 0 - 1
-
-Specifies to show records locked in ``SHOW ENGINE INNODB STATUS``. The default
-is ``0``, which means only the higher-level information about the lock (which
-table and index is locked, etc.) is printed. If set to ``1``, then traditional
-|InnoDB| behavior is enabled: the records that are locked are dumped to the
-output.
 
 .. variable:: innodb_show_locks_held
 
@@ -73,7 +40,6 @@ Specifies the number of locks held to print for each |InnoDB| transaction in
 
 .. variable:: innodb_print_lock_wait_timeout_info
 
-     :version 5.7.20-18: Implemented
      :cli: Yes
      :conf: Yes
      :scope: Global
@@ -356,7 +322,7 @@ buffer pool.
 
 This variable shows the total number of buffer pool pages which are considered
 to be old according to the `Making the Buffer Pool Scan Resistant manual page
-<https://dev.mysql.com/doc/refman/5.7/en/innodb-performance-midpoint_insertion.html>`_.
+<https://dev.mysql.com/doc/refman/8.0/en/innodb-performance-midpoint_insertion.html>`_.
 
 
 TRANSACTIONS
@@ -419,6 +385,16 @@ the system.
    :column READ_VIEW_LOW_LIMIT_TRX_NUMBER: This is the highest transactions number at the time the view was created.
    :column READ_VIEW_UPPER_LIMIT_TRX_ID: This is the highest transactions ID at the time the view was created. This means that it should not see newer transactions with IDs bigger than or equal to that value.
    :column READ_VIEW_LOW_LIMIT_TRX_ID: This is the latest committed transaction ID at the time the oldest view was created. This means that it should see all transactions with IDs smaller than or equal to that value.
+
+.. note::
+
+    Starting with |Percona Server| 8.0.20-11, in ``INFORMATION_SCHEMA.XTRADB_READ_VIEW``, the data type for the following columns is changed from ``VARCHAR(18)`` to ``BIGINT UNSIGNED``:
+
+    * ``READ_VIEW_LOW_LIMIT_TRX_NUMBER`` 
+    * ``READ_VIEW_UPPER_LIMIT_TRX_ID`` 
+    * ``READ_VIWE_LOW_LIMIT_TRX_ID`` 
+    
+The columns contain 64-bit integers, which is too large for ``VARCHAR(18)``.
 
 The following table contains information about the memory usage for
 InnoDB/XtraDB hash tables.

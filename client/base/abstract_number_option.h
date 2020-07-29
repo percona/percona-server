@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,58 +26,56 @@
 #define ABSTRACT_NUMBER_OPTION_INCLUDED
 
 #include <string>
-#include "abstract_value_option.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Base{
-namespace Options{
+#include "client/base/abstract_value_option.h"
+
+namespace Mysql {
+namespace Tools {
+namespace Base {
+namespace Options {
 
 /**
   Abstract option to handle numeric option values.
  */
-template<typename T_type, typename T_value> class Abstract_number_option
-  : public Abstract_value_option<T_type>
-{
-public:
+template <typename T_type, typename T_value>
+class Abstract_number_option : public Abstract_value_option<T_type> {
+ public:
   /**
     Sets minimum value boundary for option value. Smaller values passed as
     option value will be changed to this minimum value.
    */
-  virtual T_type* set_minimum_value(T_value minimum)= 0;
+  virtual T_type *set_minimum_value(T_value minimum) = 0;
   /**
     Sets maximum value boundary for option value. Greater values passed as
     option value will be changed to this maximum value.
    */
-  virtual T_type* set_maximum_value(T_value maximum)= 0;
+  virtual T_type *set_maximum_value(T_value maximum) = 0;
 
-protected:
+ protected:
   /**
     Constructs new number option.
     @param value Pointer to object to receive option value.
     @param var_type my_getopt internal option type.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
     @param default_value default value to be supplied to internal option
       data structure.
    */
-  Abstract_number_option(T_value* value, ulong var_type, std::string name,
-    std::string description, uint64 default_value);
+  Abstract_number_option(T_value *value, ulong var_type, std::string name,
+                         std::string description, uint64 default_value);
 };
 
+template <typename T_type, typename T_value>
+Abstract_number_option<T_type, T_value>::Abstract_number_option(
+    T_value *value, ulong var_type, std::string name, std::string description,
+    uint64 default_value)
+    : Abstract_value_option<T_type>(value, var_type, name, description,
+                                    default_value) {}
 
-template<typename T_type, typename T_value>Abstract_number_option<T_type, T_value>
-::Abstract_number_option(
-  T_value* value, ulong var_type, std::string name, std::string description,
-  uint64 default_value)
-  : Abstract_value_option<T_type>(
-      value, var_type, name, description, default_value)
-{}
-
-}
-}
-}
-}
+}  // namespace Options
+}  // namespace Base
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

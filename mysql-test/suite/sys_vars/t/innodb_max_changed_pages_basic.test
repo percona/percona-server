@@ -1,5 +1,4 @@
 # Tests for innodb_max_changed_pages variable
---source include/have_innodb.inc
 
 SET @start_value = @@global.innodb_max_changed_pages;
 SELECT @start_value;
@@ -45,11 +44,11 @@ SELECT @@session.innodb_max_changed_pages;
 
 # Verify INFORMATION_SCHEMA access
 SELECT @@global.innodb_max_changed_pages = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_max_changed_pages';
 
 SELECT @@global.innodb_max_changed_pages = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='innodb_max_changed_pages';
 
 # Check default scope

@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 #  
 # Tests for optimizations for InnoDB fulltext search (WL#6043)
@@ -44,7 +43,8 @@ FROM wp;
 --echo No sorting for this query
 FLUSH STATUS;
 
-SELECT title, MATCH(title, text) AGAINST ('database') AS score
+--partially_sorted_result 1
+SELECT MATCH(title, text) AGAINST ('database') AS score, title
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score DESC;
@@ -54,7 +54,8 @@ SHOW SESSION STATUS LIKE 'Sort%';
 --echo No sorting for this query even if MATCH is part of an expression
 FLUSH STATUS;
 
-SELECT title, MATCH(title, text) AGAINST ('database') AS score
+--partially_sorted_result 1
+SELECT MATCH(title, text) AGAINST ('database') AS score, title
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database') > 0.1
 ORDER BY score DESC;
@@ -64,9 +65,11 @@ SHOW SESSION STATUS LIKE 'Sort%';
 --echo No sorting even if there are several MATCH expressions as long as the
 --echo right one is used in ORDER BY
 FLUSH STATUS;
-
-SELECT title, MATCH(title, text) AGAINST ('database') AS score1,
-       MATCH(title, text) AGAINST ('mysql') AS score2
+ 
+--partially_sorted_result 1
+SELECT MATCH(title, text) AGAINST ('database') AS score1,
+       MATCH(title, text) AGAINST ('mysql') AS score2,
+       title
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score1 DESC;
@@ -76,7 +79,8 @@ SHOW SESSION STATUS LIKE 'Sort%';
 --echo No Sorting since FT table is first table in query
 FLUSH STATUS;
 
-SELECT title, MATCH(title, text) AGAINST ('database') AS score
+--partially_sorted_result 1
+SELECT MATCH(title, text) AGAINST ('database') AS score, title
 FROM wp, t1
 WHERE MATCH(title, text) AGAINST ('database') AND FTS_DOC_ID = t1.i
 ORDER BY score DESC;
@@ -86,7 +90,8 @@ SHOW SESSION STATUS LIKE 'Sort_rows%';
 --echo Sorting since there is no WHERE clause
 FLUSH STATUS;
 
-SELECT title, MATCH(title, text) AGAINST ('database') AS score
+--partially_sorted_result 1
+SELECT MATCH(title, text) AGAINST ('database') AS score, title
 FROM wp
 ORDER BY score DESC;
 
@@ -115,7 +120,8 @@ SHOW SESSION STATUS LIKE 'Sort_rows%';
 --echo Sorting because one is ordering on a different MATCH expression
 FLUSH STATUS;
 
-SELECT title, MATCH(title, text) AGAINST ('mysql') AS score
+--partially_sorted_result 1
+SELECT MATCH(title, text) AGAINST ('mysql') AS score, title
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score DESC;
@@ -473,20 +479,20 @@ SHOW STATUS LIKE 'Handler_read%';
 #
 # Check that nothing goes wrong when combining different modes
 #
-SELECT title,
-       MATCH(title, text) AGAINST ('database') AS score
+--partially_sorted_result 1
+SELECT MATCH(title, text) AGAINST ('database') AS score, title
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION)
 ORDER BY score DESC;
 
-SELECT title,
-       MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score
+--partially_sorted_result 1
+SELECT MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score, title
 FROM wp
 WHERE MATCH(title, text) AGAINST ('MySQL database' WITH QUERY EXPANSION)
 ORDER BY score DESC;
 
-SELECT title,
-       MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score
+--partially_sorted_result 1
+SELECT MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score, title
 FROM wp
 WHERE MATCH(title, text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE)
 ORDER BY score DESC;
@@ -565,7 +571,7 @@ INSERT INTO t1 (title, text) VALUES
   ('MySQL databases are relational', 'A relational database stores data in separate tables rather than putting all the data in one big storeroom...'),
   ('MySQL software is Open Source', 'Open Source means that it is possible for anyone to use and modify the software...'),
   ('The MySQL Database Server is very fast, reliable, scalable, and easy to use', 'MySQL Server can run comfortably on a desktop or laptop...'),
-  ('MySQL Server works in client/server or embedded systems', 'The MySQL Database Software is a client/server system...'),
+  ('MySQL Server works in client/server enviornment ......', 'The MySQL Database Software is a client/server system...'),
   ('MyISAM', 'MyISAM is based on the older (and no longer available) ISAM storage engine but has many useful extensions'),
   ('A large amount of contributed MySQL software is available', 'MySQL Server has a practical set of features developed in close cooperation with our users'),
   (NULL,NULL);
@@ -662,89 +668,89 @@ SELECT FTS_DOC_ID FROM t1 WHERE MATCH(title, text) AGAINST ('"very fast"@3' IN B
 SELECT FTS_DOC_ID FROM t1 WHERE MATCH(title, text) AGAINST ('"very fast"@3' IN BOOLEAN MODE) ORDER BY title LIMIT 1;
 
 EXPLAIN
-SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as rank
+SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as `rank`
 FROM t1 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE)
-ORDER BY rank
+ORDER BY `rank`
 LIMIT 3;
-SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as rank
+SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as `rank`
 FROM t1 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE)
-ORDER BY rank
+ORDER BY `rank`
 LIMIT 3;
 
 EXPLAIN
-SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as rank
+SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as `rank`
 FROM t1 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE)
-ORDER BY rank DESC
+ORDER BY `rank` DESC, FTS_DOC_ID
 LIMIT 3;
-SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as rank
+SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as `rank`
 FROM t1 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE)
-ORDER BY rank DESC
+ORDER BY `rank` DESC, FTS_DOC_ID
 LIMIT 3;
 
-EXPLAIN SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as rank
+EXPLAIN SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
 FROM t1
-ORDER BY rank DESC
+ORDER BY `rank` DESC, FTS_DOC_ID
 LIMIT 3;
-SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as rank
+SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
 FROM t1
-ORDER BY rank DESC
-LIMIT 3;
-
-EXPLAIN SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as rank
-FROM t1
-ORDER BY rank DESC
-LIMIT 3;
-SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as rank
-FROM t1
-ORDER BY rank DESC
+ORDER BY `rank` DESC, FTS_DOC_ID
 LIMIT 3;
 
-EXPLAIN SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as rank
+EXPLAIN SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as `rank`
+FROM t1
+ORDER BY `rank` DESC, FTS_DOC_ID
+LIMIT 3;
+SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as `rank`
+FROM t1
+ORDER BY `rank` DESC, FTS_DOC_ID
+LIMIT 3;
+
+EXPLAIN SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
 FROM t1 WHERE MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE)
 ORDER BY MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE)  DESC
 LIMIT 3;
-SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as rank
+SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
 FROM t1 WHERE MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE)
 ORDER BY MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE)  DESC
 LIMIT 3;
 
-EXPLAIN SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as rank
+EXPLAIN SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
 FROM t1 WHERE MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) and FTS_DOC_ID > 1
 ORDER BY MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE)  DESC
 LIMIT 3;
-SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as rank
+SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
 FROM t1 WHERE MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) and FTS_DOC_ID > 1
 ORDER BY MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE)  DESC
 LIMIT 3;
 
 
 EXPLAIN
-SELECT FTS_DOC_ID,MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) as rank
+SELECT FTS_DOC_ID,MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) as `rank`
 FROM t1 WHERE MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) 
-ORDER BY rank
+ORDER BY `rank`
 LIMIT 1;
-SELECT FTS_DOC_ID,MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) as rank
+SELECT FTS_DOC_ID,MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) as `rank`
 FROM t1 WHERE MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) 
-ORDER BY rank
+ORDER BY `rank`
 LIMIT 1;
 
 EXPLAIN
-SELECT FTS_DOC_ID,MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) as rank
+SELECT FTS_DOC_ID,MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) as `rank`
 FROM t1 WHERE MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) 
-ORDER BY rank DESC
+ORDER BY `rank` DESC
 LIMIT 1;
-SELECT FTS_DOC_ID,MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) as rank
+SELECT FTS_DOC_ID,MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) as `rank`
 FROM t1 WHERE MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) 
-ORDER BY rank DESC
+ORDER BY `rank` DESC
 LIMIT 1;
 
 
 EXPLAIN
-SELECT FTS_DOC_ID,MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) as rank
+SELECT FTS_DOC_ID,MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) as `rank`
 FROM t1 WHERE MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) 
 ORDER BY  MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) 
 LIMIT 1;
-SELECT FTS_DOC_ID,MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) as rank
+SELECT FTS_DOC_ID,MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) as `rank`
 FROM t1 WHERE MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) 
 ORDER BY  MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) DESC
 LIMIT 1;
@@ -839,13 +845,13 @@ LIMIT 3;
 
 --echo # FTS index access
 
-SELECT FTS_DOC_ID, MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as rank
+SELECT FTS_DOC_ID, MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
 FROM t1
-ORDER BY rank DESC
+ORDER BY `rank` DESC
 LIMIT 3;
-EXPLAIN SELECT FTS_DOC_ID, MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as rank
+EXPLAIN SELECT FTS_DOC_ID, MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
 FROM t1
-ORDER BY rank DESC
+ORDER BY `rank` DESC
 LIMIT 3;
 
 SELECT a.FTS_DOC_ID, b.FTS_DOC_ID
@@ -899,7 +905,7 @@ SELECT FTS_DOC_ID FROM t1 WHERE MATCH(title, text) AGAINST ('+database' IN BOOLE
 DROP TABLE t1, t2;
 
 --echo "Check hints with uft8 charset for 2 cases"
-set names utf8;
+SET NAMES utf8mb4;
 EVAL CREATE TABLE t1 (
         FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
         title VARCHAR(200),
@@ -938,7 +944,8 @@ DROP TABLE t1;
 --echo #
 
 CREATE TABLE t1 (f1 CHAR(1), FULLTEXT KEY (f1));
-SELECT 1 FROM t1 NATURAL JOIN t1 a GROUP BY MATCH(t1.f1) AGAINST ("1") DESC;
+SELECT 1 FROM t1 NATURAL JOIN t1 a GROUP BY MATCH(t1.f1) AGAINST ("1")
+ORDER BY MATCH(t1.f1) AGAINST ("1") DESC;
 DROP TABLE t1;
 
 
@@ -974,7 +981,7 @@ DROP TABLE t1;
 --echo #
 
 CREATE TABLE t1(a TEXT CHARSET LATIN1, FULLTEXT KEY(a)) ENGINE=INNODB;
---error ER_FT_MATCHING_KEY_NOT_FOUND
+--error ER_TABLE_CANT_HANDLE_FT
 SELECT MATCH(a) AGAINST ('') FROM (SELECT a FROM t1 LIMIT 1) q;
 DROP TABLE t1;
 

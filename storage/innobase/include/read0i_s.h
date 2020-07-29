@@ -23,27 +23,26 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <trx0types.h>
 
 struct i_s_xtradb_read_view_struct {
-	trx_id_t	low_limit_no;
-				/*!< The view does not need to see the undo
-				logs for transactions whose transaction number
-				is strictly smaller (<) than this value: they
-				can be removed in purge if not needed by other
-				views */
-	trx_id_t	low_limit_id;
-				/*!< The read should not see any transaction
-				with trx id >= this value. In other words,
-				this is the "high water mark". */
-	trx_id_t	up_limit_id;
-				/*!< The read should see all trx ids which
-				are strictly smaller (<) than this value.
-				In other words,
-				this is the "low water mark". */
+  trx_id_t low_limit_no;
+  /*!< The view does not need to see the undo
+  logs for transactions whose transaction number
+  is strictly smaller (<) than this value: they
+  can be removed in purge if not needed by other
+  views */
+  trx_id_t low_limit_id;
+  /*!< The read should not see any transaction
+  with trx id >= this value. In other words,
+  this is the "high water mark". */
+  trx_id_t up_limit_id;
+  /*!< The read should see all trx ids which
+  are strictly smaller (<) than this value.
+  In other words,
+  this is the "low water mark". */
 };
 
 typedef struct i_s_xtradb_read_view_struct i_s_xtradb_read_view_t;
 
-i_s_xtradb_read_view_t*
-read_fill_i_s_xtradb_read_view(i_s_xtradb_read_view_t *rv);
-
+i_s_xtradb_read_view_t *read_fill_i_s_xtradb_read_view(
+    i_s_xtradb_read_view_t *rv);
 
 #endif /* read0i_s_h */

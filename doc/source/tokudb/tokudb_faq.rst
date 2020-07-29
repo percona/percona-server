@@ -13,35 +13,35 @@ This section contains frequently asked questions regarding |TokuDB| and related 
 Transactional Operations
 ------------------------
 
-**What transactional operations does TokuDB support?**
+.. rubric:: What transactional operations does TokuDB support?
 
-|TokuDB| supports ``BEGIN TRANSACTION``, ``END TRANSACTION``, ``COMMIT``, ``ROLLBACK``, ``SAVEPOINT``, and ``RELEASE SAVEPOINT``.
+|TokuDB| supports ``BEGIN TRANSACTION``, ``END TRANSACTION``, ``COMMIT``, ``ROLLBACK``, ``SAVEPOINT``, and ``RELEASE SAVEPOINT``. 
 
 TokuDB and the File System
 --------------------------
 
-**How can I determine which files belong to the various tables and indexes in my schemas?**
+.. rubric:: How can I determine which files belong to the various tables and indexes in my schemas?
 
 The :table:`tokudb_file_map` plugin lists all Fractal Tree Indexes and their corresponding data files. The ``internal_file_name`` is the actual file name (in the data folder).
 
 .. code-block:: sql
 
- mysql> SELECT * FROM information_schema.tokudb_file_map;
+   mysql> SELECT * FROM information_schema.tokudb_file_map;
 
- +--------------------------+---------------------------------------+---------------+-------------+------------------------+
- | dictionary_name          | internal_file_name                    | table_schema  | table_name  | table_dictionary_name  |
- +--------------------------+---------------------------------------+---------------+-------------+------------------------+
- | ./test/tmc-key-idx_col2  | ./_test_tmc_key_idx_col2_a_14.tokudb  | test          | tmc         | key_idx_col2           |
- | ./test/tmc-main          | ./_test_tmc_main_9_14.tokudb          | test          | tmc         | main                   |
- | ./test/tmc-status        | ./_test_tmc_status_8_14.tokudb        | test          | tmc         | status                 |
- +--------------------------+---------------------------------------+---------------+-------------+------------------------+
+   +--------------------------+---------------------------------------+---------------+-------------+------------------------+
+   | dictionary_name          | internal_file_name                    | table_schema  | table_name  | table_dictionary_name  |
+   +--------------------------+---------------------------------------+---------------+-------------+------------------------+
+   | ./test/tmc-key-idx_col2  | ./_test_tmc_key_idx_col2_a_14.tokudb  | test          | tmc         | key_idx_col2           |
+   | ./test/tmc-main          | ./_test_tmc_main_9_14.tokudb          | test          | tmc         | main                   |
+   | ./test/tmc-status        | ./_test_tmc_status_8_14.tokudb        | test          | tmc         | status                 |
+   +--------------------------+---------------------------------------+---------------+-------------+------------------------+
 
 .. _tokudb_full_disks:
 
 Full Disks
 ----------
 
-**What happens when the disk system fills up?**
+.. rubric:: What happens when the disk system fills up?
 
 The disk system may fill up during bulk load operations, such as ``LOAD DATA IN FILE`` or ``CREATE INDEX``, or during incremental operations like ``INSERT``.
 
@@ -61,9 +61,9 @@ Details about the disk system:
 
  .. code-block:: mysql
 
-  SHOW ENGINE TokuDB STATUS;
+    SHOW ENGINE TokuDB STATUS;
 
- Make disk space available will allow the storage engine to continue running, but inserts will still be prohibited until twice the reserve is free.
+    Make disk space available will allow the storage engine to continue running, but inserts will still be prohibited until twice the reserve is free.
 
  .. note:: 
  
@@ -94,7 +94,7 @@ The fine print:
 Backup
 ------
 
-**How do I back up a system with TokuDB tables?**
+.. rubric:: How do I back up a system with TokuDB tables?
 
 Taking backups with :ref:`toku_backup`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -150,23 +150,23 @@ A logical snapshot of the databases uses a SQL statements to retrieve table rows
 
 The ``SELECT INTO OUTFILE`` statement is used to take a logical snapshot of a database. The ``LOAD DATA INFILE`` statement is used to load the table data. Please see the |MySQL| 5.6 reference manual for details.
 
-.. note:: Please do not use the :program`mysqlhotcopy` to back up |TokuDB| tables. This script is incompatible with |TokuDB|.
+.. note:: Please do not use the :program:`mysqlhotcopy` to back up |TokuDB| tables. This script is incompatible with |TokuDB|.
 
 Missing Log Files
 -----------------
 
-**What do I do if I delete my logs files or they are otherwise missing?**
+.. rubric:: What do I do if I delete my logs files or they are otherwise missing?
 
 You'll need to recover from a backup. It is essential that the log files be present in order to restart the database.
 
 Isolation Levels
 ----------------
 
-**What is the default isolation level for TokuDB?**
+.. rubric:: What is the default isolation level for TokuDB?
 
 It is repeatable-read (MVCC).
 
-**How can I change the isolation level?**
+.. rubric:: How can I change the isolation level?
 
 |TokuDB| supports repeatable-read, serializable, read-uncommitted and read-committed isolation levels (other levels are not supported). |TokuDB| employs pessimistic locking, and aborts a transaction when a lock conflict is detected.
 
@@ -175,7 +175,7 @@ To guarantee that lock conflicts do not occur, use repeatable-read, read-uncommi
 Lock Wait Timeout Exceeded
 --------------------------
 
-**Why do my |MySQL| clients get lock timeout errors for my update queries? And what should my application do when it gets these errors?**
+.. rubric:: Why do my |MySQL| clients get lock timeout errors for my update queries? And what should my application do when it gets these errors?
 
 Updates can get lock timeouts if some other transaction is holding a lock on the rows being updated for longer than the |TokuDB| lock timeout. You may want to increase the this timeout.
 
@@ -183,35 +183,28 @@ If an update deadlocks, then the transaction should abort and retry.
 
 For more information on diagnosing locking issues, see :ref:`Lock Visualization in TokuDB <tokudb_lock_visualization>`.
 
-Query Cache
------------
-
-**Does TokuDB support the query cache?**
-
-Yes, you can enable the query cache in the :file:`my.cnf` file. Please make sure that the size of the cache is set to something larger than ``0``, as this, in effect, disables the cache.
-
 Row Size
 --------
 
-**What is the maximum row size?**
+.. rubric:: What is the maximum row size?
 
 The maximum row size is 32 MiB.
 
 NFS & CIFS
 ----------
 
-**Can the data directories reside on a disk that is NFS or CIFS mounted?**
+.. rubric:: Can the data directories reside on a disk that is NFS or CIFS mounted?
 
 Yes, we do have customers in production with NFS & CIFS volumes today. However, both of these disk types can pose a challenge to performance and data integrity due to their complexity. If you're seeking performance, the switching infrastructure and protocols of a traditional network were not conceptualized for low response times and can be very difficult to troubleshoot. If you're concerned with data integrity, the possible data caching at the NFS level can cause inconsistencies between the logs and data files that may never be detected in the event of a crash. If you are thinking of using a NFS or CIFS mount, we would recommend that you use synchronous mount options, which are available from the NFS mount man page, but these settings may decrease performance. For further discussion please look `here <http://www.mysqlperformanceblog.com/2010/07/30/storing-mysql-binary-logs-on-nfs-volume/>`_.
 
 Using Other Storage Engines
 ---------------------------
 
-**Can the MyISAM and InnoDB Storage Engines be used?**
+.. rubric:: Can the MyISAM and InnoDB Storage Engines be used?
 
 |MyISAM| and |InnoDB| can be used directly in conjunction with |TokuDB|. Please note that you should not overcommit memory between |InnoDB| and |TokuDB|. The total memory assigned to both caches must be less than physical memory.
 
-**Can the Federated Storage Engines be used?**
+.. rubric:: Can the Federated Storage Engines be used?
 
 The Federated Storage Engine can also be used, however it is disabled by default in |MySQL|. It can be enabled by either running mysqld with ``--federated`` as a command line parameter, or by putting ``federated`` in the ``[mysqld]`` section of the :file:`my.cnf` file.
 
@@ -220,27 +213,27 @@ For more information see the |MySQL| 5.6 Reference Manual: `FEDERATED Storage En
 Using MySQL Patches with TokuDB
 -------------------------------
 
-**Can I use MySQL source code patches with TokuDB?**
+.. rubric:: Can I use MySQL source code patches with TokuDB?
 
 Yes, but you need to apply Percona patches as well as your patches to |MySQL| to build a binary that works with the Percona Fractal Tree library. 
 
 Truncate Table vs Delete from Table
 -----------------------------------
 
-**Which is faster, TRUNCATE TABLE or DELETE FROM TABLE?**
+.. rubric:: Which is faster, TRUNCATE TABLE or DELETE FROM TABLE?
 
-Please use ``TRUNCATE TABLE`` whenever possible. A table truncation runs in constant time, whereas a ``DELETE FROM TABLE`` requires a row-by-row deletion and thus runs in time linear to the table size.
+Use ``TRUNCATE TABLE`` whenever possible. A table truncation runs in constant time, whereas a ``DELETE FROM TABLE`` requires a row-by-row deletion and thus runs in time linear to the table size.
 
 Foreign Keys
 ------------
 
-**Does TokuDB enforce foreign key constraints?**
+.. rubric:: Does TokuDB enforce foreign key constraints?
 
 No, |TokuDB| ignores foreign key declarations.
 
 Dropping Indexes
 ----------------
 
-**Is dropping an index in TokuDB hot?**
+.. rubric:: Is dropping an index in TokuDB hot?
 
 No, the table is locked for the amount of time it takes the file system to delete the file associated with the index.

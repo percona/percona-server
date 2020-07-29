@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@
 
 // big brother
 #include <dbtup/Dbtup.hpp>
+#include <dblqh/Dblqh.hpp>
 
 // packed index keys and bounds
 #include <NdbPack.hpp>
@@ -78,8 +79,10 @@ public:
   Dbtux(Block_context& ctx, Uint32 instanceNumber = 0);
   virtual ~Dbtux();
 
-  // pointer to TUP instance in this thread
+  void prepare_scan_ctx(Uint32 scanPtrI);
+  // pointer to TUP and LQH instance in this thread
   Dbtup* c_tup;
+  Dblqh* c_lqh;
   void execTUX_BOUND_INFO(Signal* signal);
   void execREAD_PSEUDO_REQ(Signal* signal);
 
@@ -220,8 +223,8 @@ private:
   friend struct TreePos;
   struct TreePos {
     TupLoc m_loc;               // physical node address
-    Uint16 m_pos;               // position 0 to m_occup
-    Uint8 m_dir;                // see scanNext
+    Uint32 m_pos;               // position 0 to m_occup
+    Uint32 m_dir;                // see scanNext
     TreePos();
   };
 
@@ -246,7 +249,9 @@ private:
     DescPage();
   };
   typedef Ptr<DescPage> DescPagePtr;
-  ArrayPool<DescPage> c_descPagePool;
+  typedef ArrayPool<DescPage> DescPage_pool;
+
+  DescPage_pool c_descPagePool;
   Uint32 c_descPageList;
 
   struct DescHead {
@@ -265,6 +270,8 @@ private:
   typedef NdbPack::Data KeyData;
   typedef NdbPack::BoundC KeyBoundC;
   typedef NdbPack::Bound KeyBound;
+  typedef NdbPack::DataArray KeyDataArray;
+  typedef NdbPack::BoundArray KeyBoundArray;
 
   // range scan
 
@@ -272,17 +279,36 @@ private:
    * ScanBound instances are members of ScanOp.  Bound data is stored in
    * a separate segmented buffer pool.
    */
+  typedef DataBufferSegment<ScanBoundSegmentSize, RT_DBTUX_SCAN_BOUND>
+            ScanBoundSegment;
+  typedef TransientPool<ScanBoundSegment> ScanBoundBuffer_pool;
+  STATIC_CONST(DBTUX_SCAN_BOUND_TRANSIENT_POOL_INDEX = 2);
+  typedef DataBuffer<ScanBoundSegmentSize,
+                     ScanBoundBuffer_pool,
+                     RT_DBTUX_SCAN_BOUND> ScanBoundBuffer;
+  typedef LocalDataBuffer<ScanBoundSegmentSize,
+                          ScanBoundBuffer_pool,
+                          RT_DBTUX_SCAN_BOUND> LocalScanBoundBuffer;
   struct ScanBound {
-    DataBuffer<ScanBoundSegmentSize>::Head m_head;
+    ScanBoundBuffer::Head m_head;
     Uint16 m_cnt;       // number of attributes
     Int16 m_side;
     ScanBound();
   };
-  DataBuffer<ScanBoundSegmentSize>::DataBufferPool c_scanBoundPool;
+  ScanBoundBuffer_pool c_scanBoundPool;
 
   // ScanLock
   struct ScanLock {
-    ScanLock() {}
+    STATIC_CONST( TYPE_ID = RT_DBTUX_SCAN_LOCK);
+    Uint32 m_magic;
+
+    ScanLock() :
+      m_magic(Magic::make(TYPE_ID))
+    {
+    }
+    ~ScanLock()
+    {
+    }
     Uint32 m_accLockOp;
     union {
     Uint32 nextPool;
@@ -290,8 +316,14 @@ private:
     };
     Uint32 prevList;
   };
+  STATIC_CONST(DBTUX_SCAN_LOCK_TRANSIENT_POOL_INDEX = 1);
   typedef Ptr<ScanLock> ScanLockPtr;
-  ArrayPool<ScanLock> c_scanLockPool;
+  typedef TransientPool<ScanLock> ScanLock_pool;
+  typedef DLFifoList<ScanLock_pool> ScanLock_fifo;
+  typedef LocalDLFifoList<ScanLock_pool> Local_ScanLock_fifo;
+  typedef ConstLocalDLFifoList<ScanLock_pool> ConstLocal_ScanLock_fifo;
+  Uint32 c_freeScanLock;
+  ScanLock_pool c_scanLockPool;
  
   /*
    * Scan operation.
@@ -314,9 +346,14 @@ private:
    * and returned to LQH.  No more result rows are returned but normal
    * protocol is still followed until scan close.
    */
-  struct ScanOp;
-  friend struct ScanOp;
   struct ScanOp {
+    STATIC_CONST( TYPE_ID = RT_DBTUX_SCAN_OPERATION);
+    Uint32 m_magic;
+
+    ~ScanOp()
+    {
+    }
+
     enum {
       Undef = 0,
       First = 1,                // before first entry
@@ -328,9 +365,9 @@ private:
       Last = 7,                 // after last entry
       Aborting = 8
     };
-    Uint8 m_state;
-    Uint8 m_lockwait;
-    Uint16 m_errorCode;
+    Uint32 m_errorCode;
+    Uint32 m_lockwait;
+    Uint32 m_state;
     Uint32 m_userPtr;           // scanptr.i in LQH
     Uint32 m_userRef;
     Uint32 m_tableId;
@@ -343,7 +380,7 @@ private:
     // lock waited for or obtained and not yet passed to LQH
     Uint32 m_accLockOp;
     // locks obtained and passed to LQH but not yet returned by LQH
-    DLFifoList<ScanLock>::Head m_accLockOps;
+    ScanLock_fifo::Head m_accLockOps;
     Uint8 m_readCommitted;      // no locking
     Uint8 m_lockMode;
     Uint8 m_descending;
@@ -359,8 +396,11 @@ private:
     Uint32 prevList;
     ScanOp();
   };
+  STATIC_CONST(DBTUX_SCAN_OPERATION_TRANSIENT_POOL_INDEX = 0);
   typedef Ptr<ScanOp> ScanOpPtr;
-  ArrayPool<ScanOp> c_scanOpPool;
+  typedef TransientPool<ScanOp> ScanOp_pool;
+  typedef DLList<ScanOp_pool> ScanOp_list;
+  ScanOp_pool c_scanOpPool;
 
   // indexes and fragments
 
@@ -400,7 +440,9 @@ private:
     Index();
   };
   typedef Ptr<Index> IndexPtr;
-  ArrayPool<Index> c_indexPool;
+  typedef ArrayPool<Index> Index_pool;
+
+  Index_pool c_indexPool;
   RSS_AP_SNAPSHOT(c_indexPool);
 
   /*
@@ -417,7 +459,7 @@ private:
     Uint16 m_fragId;
     TreeHead m_tree;
     TupLoc m_freeLoc;           // one free node for next op
-    DLList<ScanOp> m_scanList;  // current scans on this fragment
+    ScanOp_list m_scanList;  // current scans on this fragment
     Uint32 m_tupIndexFragPtrI;
     Uint32 m_tupTableFragPtrI;
     Uint32 m_accTableFragPtrI;
@@ -427,10 +469,12 @@ private:
     union {
     Uint32 nextPool;
     };
-    Frag(ArrayPool<ScanOp>& scanOpPool);
+    Frag(ScanOp_pool& scanOpPool);
   };
   typedef Ptr<Frag> FragPtr;
-  ArrayPool<Frag> c_fragPool;
+  typedef ArrayPool<Frag> Frag_pool;
+
+  Frag_pool c_fragPool;
   RSS_AP_SNAPSHOT(c_fragPool);
 
   /*
@@ -450,7 +494,9 @@ private:
     FragOp();
   };
   typedef Ptr<FragOp> FragOpPtr;
-  ArrayPool<FragOp> c_fragOpPool;
+  typedef ArrayPool<FragOp> FragOp_pool;
+
+  FragOp_pool c_fragOpPool;
   RSS_AP_SNAPSHOT(c_fragOpPool);
 
   // node handles
@@ -487,7 +533,10 @@ private:
     Uint32* getPref();
     TreeEnt getEnt(unsigned pos);
     // for ndbrequire and ndbassert
-    void progError(int line, int cause, const char* file);
+    [[noreturn]] void progError(int line,
+                                int cause,
+                                const char* file,
+                                const char* check);
   };
 
   // stats scan
@@ -544,7 +593,9 @@ private:
    StatOp(const Index&);
   };
   typedef Ptr<StatOp> StatOpPtr;
-  ArrayPool<StatOp> c_statOpPool;
+  typedef ArrayPool<StatOp> StatOp_pool;
+
+  StatOp_pool c_statOpPool;
   RSS_AP_SNAPSHOT(c_statOpPool);
 
   // stats monitor (shared by req data and continueB loop)
@@ -571,9 +622,20 @@ private:
   void execNODE_STATE_REP(Signal* signal);
 
   // utils
-  void readKeyAttrs(TuxCtx&, const Frag& frag, TreeEnt ent, KeyData& keyData, Uint32 count);
-  void readTablePk(const Frag& frag, TreeEnt ent, Uint32* pkData, unsigned& pkSize);
-  void unpackBound(TuxCtx&, const ScanBound& bound, KeyBoundC& searchBound);
+  void readKeyAttrs(TuxCtx&,
+                    const Frag& frag,
+                    TreeEnt ent,
+                    KeyData& keyData,
+                    Uint32 count);
+  void readKeyAttrs(TuxCtx&,
+                    const Frag& frag,
+                    TreeEnt ent,
+                    Uint32 count,
+                    Uint32 *outputBuffer);
+  void readTablePk(TreeEnt ent, Uint32* pkData, unsigned& pkSize);
+  void unpackBound(Uint32* const outputBuffer,
+                   const ScanBound& bound,
+                   KeyBoundC& searchBound);
   void findFrag(EmulatedJamBuffer* jamBuf, const Index& index, 
                 Uint32 fragId, FragPtr& fragPtr);
 
@@ -601,8 +663,8 @@ private:
    */
   int allocNode(TuxCtx&, NodeHandle& node);
   void freeNode(NodeHandle& node);
-  void selectNode(NodeHandle& node, TupLoc loc);
-  void insertNode(NodeHandle& node);
+  void selectNode(TuxCtx&, NodeHandle& node, TupLoc loc);
+  void insertNode(TuxCtx&, NodeHandle& node);
   void deleteNode(NodeHandle& node);
   void freePreallocatedNode(Frag& frag);
   void setNodePref(struct TuxCtx &, NodeHandle& node);
@@ -652,11 +714,12 @@ private:
   void execACCKEYCONF(Signal* signal);
   void execACCKEYREF(Signal* signal);
   void execACC_ABORTCONF(Signal* signal);
-  void scanFirst(ScanOpPtr scanPtr);
-  void scanFind(ScanOpPtr scanPtr);
-  void scanNext(ScanOpPtr scanPtr, bool fromMaintReq);
-  bool scanCheck(ScanOpPtr scanPtr, TreeEnt ent);
-  bool scanVisible(ScanOpPtr scanPtr, TreeEnt ent);
+  void scanFirst(ScanOpPtr scanPtr, Frag& frag, const Index& index);
+  void continue_scan(Signal *signal, ScanOpPtr scanPtr, Frag& frag, bool);
+  void scanFind(ScanOpPtr scanPtr, Frag& frag);
+  Uint32 scanNext(ScanOpPtr scanPtr, bool fromMaintReq, Frag& frag);
+  bool scanCheck(ScanOp& scan, TreeEnt ent);
+  bool scanVisible(ScanOp& scan, TreeEnt ent);
   void scanClose(Signal* signal, ScanOpPtr scanPtr);
   void abortAccLockOps(Signal* signal, ScanOpPtr scanPtr);
   void addAccLockOp(ScanOpPtr scanPtr, Uint32 accLockOp);
@@ -666,14 +729,52 @@ private:
   /*
    * DbtuxSearch.cpp
    */
-  void findNodeToUpdate(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, NodeHandle& currNode);
-  bool findPosToAdd(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, NodeHandle& currNode, TreePos& treePos);
-  bool findPosToRemove(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, NodeHandle& currNode, TreePos& treePos);
-  bool searchToAdd(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, TreePos& treePos);
-  bool searchToRemove(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, TreePos& treePos);
-  void findNodeToScan(Frag& frag, unsigned dir, const KeyBoundC& searchBound, NodeHandle& currNode);
-  void findPosToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, NodeHandle& currNode, Uint16* pos);
-  void searchToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, TreePos& treePos);
+  void findNodeToUpdate(TuxCtx&,
+                        Frag& frag,
+                        const KeyBoundArray& searchBound,
+                        TreeEnt searchEnt,
+                        NodeHandle& currNode);
+  bool findPosToAdd(TuxCtx&,
+                    Frag& frag,
+                    const KeyBoundArray& searchBound,
+                    TreeEnt searchEnt,
+                    NodeHandle& currNode,
+                    TreePos& treePos);
+  bool findPosToRemove(TuxCtx&,
+                       TreeEnt searchEnt,
+                       NodeHandle& currNode,
+                       TreePos& treePos);
+  bool searchToAdd(TuxCtx&,
+                   Frag& frag,
+                   const KeyBoundArray& searchBound,
+                   TreeEnt searchEnt,
+                   TreePos& treePos);
+  bool searchToRemove(TuxCtx&,
+                      Frag& frag,
+                      const KeyBoundArray& searchBound,
+                      TreeEnt searchEnt,
+                      TreePos& treePos);
+  void findNodeToScan(Frag& frag,
+                      unsigned dir,
+                      const KeyBoundArray& searchBound,
+                      NodeHandle& currNode);
+  void findPosToScan(Frag& frag,
+                     unsigned idir,
+                     const KeyBoundArray& searchBound,
+                     NodeHandle& currNode,
+                     Uint32* pos);
+  void searchToScan(Frag& frag,
+                    unsigned idir,
+                    const KeyBoundArray& searchBound,
+                    TreePos& treePos);
+
+  /**
+   * Prepare methods
+   * These methods are setting up variables that are precomputed to avoid having
+   * to compute those every time we need them.
+   */
+  void prepare_scan_bounds(const ScanOp *scanPtrP, const Index *indexPtrP);
+  void prepare_move_scan_ctx(ScanOpPtr scanPtr);
 
   /*
    * DbtuxCmp.cpp
@@ -736,7 +837,7 @@ private:
   friend class NdbOut& operator<<(NdbOut&, const StatOp&);
   friend class NdbOut& operator<<(NdbOut&, const StatMon&);
   FILE* debugFile;
-  NdbOut debugOut;
+  NdbOut tuxDebugOut;
   unsigned debugFlags;
   enum {
     DebugMeta = 1,              // log create and drop index
@@ -766,14 +867,43 @@ private:
   {
     EmulatedJamBuffer * jamBuffer;
 
+
+    ScanOpPtr scanPtr;
+    FragPtr fragPtr;
+    IndexPtr indexPtr;
+    Uint32 *tupIndexFragPtr;
+    Uint32 *tupIndexTablePtr;
+    Uint32 *tupRealFragPtr;
+    Uint32 *tupRealTablePtr;
+    Uint32 attrDataOffset;
+    Uint32 tuxFixHeaderSize;
+
+    KeyDataArray searchScanDataArray;
+    KeyBoundArray searchScanBoundArray;
+    Uint32 *keyAttrs;
+
+    KeyDataArray searchKeyDataArray;
+    KeyBoundArray searchKeyBoundArray;
+
+    Uint32 scanBoundCnt;
+    Uint32 descending;
+
+    TreeEnt m_current_ent;
+
     // buffer for scan bound and search key data
     Uint32* c_searchKey;
+
+    // buffer for scan bound and search key data for next key
+    Uint32* c_nextKey;
 
     // buffer for current entry key data
     Uint32* c_entryKey;
 
     // buffer for xfrm-ed PK and for temporary use
     Uint32* c_dataBuffer;
+
+    // buffer for xfrm-ed PK and for temporary use
+    Uint32* c_boundBuffer;
 
 #ifdef VM_TRACE
     char* c_debugBuffer;
@@ -804,11 +934,80 @@ private:
 
 public:
   static Uint32 mt_buildIndexFragment_wrapper(void*);
+  void prepare_build_ctx(TuxCtx& ctx, FragPtr fragPtr);
+  void prepare_tup_ptrs(TuxCtx& ctx);
+  void prepare_all_tup_ptrs(TuxCtx& ctx);
 private:
   Uint32 mt_buildIndexFragment(struct mt_BuildIndxCtx*);
 
   Signal* c_signal_bug32040;
+
+private:
+  bool check_freeScanLock(ScanOp& scan);
+  void release_c_free_scan_lock();
+  void checkPoolShrinkNeed(Uint32 pool_index,
+                           const TransientFastSlotPool& pool);
+  void sendPoolShrink(Uint32 pool_index);
+  void shrinkTransientPools(Uint32 pool_index);
+
+  static const Uint32 c_transient_pool_count = 3;
+  TransientFastSlotPool* c_transient_pools[c_transient_pool_count];
+  Bitmask<1> c_transient_pools_shrinking;
+
+public:
+  static Uint64 getTransactionMemoryNeed(
+    const Uint32 ldm_instance_count,
+    const ndb_mgm_configuration_iterator *mgm_cfg,
+    const bool use_reserved);
 };
+
+inline bool Dbtux::check_freeScanLock(ScanOp& scan)
+{
+  if (unlikely((! scan.m_readCommitted) &&
+                c_freeScanLock == RNIL))
+  {
+    ScanLockPtr allocPtr;
+    if (c_scanLockPool.seize(allocPtr))
+    {
+      jam();
+      c_freeScanLock = allocPtr.i;
+    }
+    else
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
+inline void
+Dbtux::release_c_free_scan_lock()
+{
+  if (c_freeScanLock != RNIL)
+  {
+    jam();
+    ScanLockPtr releasePtr;
+    releasePtr.i = c_freeScanLock;
+    ndbrequire(c_scanLockPool.getValidPtr(releasePtr));
+    c_scanLockPool.release(releasePtr);
+    c_freeScanLock = RNIL;
+    checkPoolShrinkNeed(DBTUX_SCAN_LOCK_TRANSIENT_POOL_INDEX,
+                        c_scanLockPool);
+  }
+}
+
+inline void Dbtux::checkPoolShrinkNeed(const Uint32 pool_index,
+                                       const TransientFastSlotPool& pool)
+{
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+  ndbrequire(pool_index < c_transient_pool_count);
+  ndbrequire(c_transient_pools[pool_index] == &pool);
+#endif
+  if (pool.may_shrink())
+  {
+    sendPoolShrink(pool_index);
+  }
+}
 
 // Dbtux::TupLoc
 
@@ -971,8 +1170,8 @@ Dbtux::TreeHead::getEntList(TreeNode* node) const
 inline
 Dbtux::TreePos::TreePos() :
   m_loc(),
-  m_pos(ZNIL),
-  m_dir(255)
+  m_pos(Uint32(~0)),
+  m_dir(Uint32(~0))
 {
 }
 
@@ -1002,26 +1201,14 @@ Dbtux::ScanBound::ScanBound() :
 {
 }
 
-// Dbtux::ScanOp
-
 inline
 Dbtux::ScanOp::ScanOp() :
-  m_state(Undef),
-  m_lockwait(false),
+  m_magic(Magic::make(ScanOp::TYPE_ID)),
   m_errorCode(0),
-  m_userPtr(RNIL),
-  m_userRef(RNIL),
-  m_tableId(RNIL),
-  m_indexId(RNIL),
+  m_lockwait(false),
   m_fragPtrI(RNIL),
-  m_transId1(0),
-  m_transId2(0),
-  m_savePointId(0),
   m_accLockOp(RNIL),
   m_accLockOps(),
-  m_readCommitted(0),
-  m_lockMode(0),
-  m_descending(0),
   m_scanBound(),
   m_scanPos(),
   m_scanEnt(),
@@ -1057,7 +1244,7 @@ Dbtux::Index::Index() :
 // Dbtux::Frag
 
 inline
-Dbtux::Frag::Frag(ArrayPool<ScanOp>& scanOpPool) :
+Dbtux::Frag::Frag(ScanOp_pool& scanOpPool) :
   m_tableId(RNIL),
   m_indexId(RNIL),
   m_fragId(ZNIL),
@@ -1166,7 +1353,7 @@ Dbtux::NodeHandle::setLink(unsigned i, TupLoc loc)
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -1179,7 +1366,7 @@ Dbtux::NodeHandle::setSide(unsigned i)
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -1357,7 +1544,7 @@ Dbtux::getTupAddr(const Frag& frag, TreeEnt ent, Uint32& lkey1, Uint32& lkey2)
   const TupLoc tupLoc = ent.m_tupLoc;
   c_tup->tuxGetTupAddr(tableFragPtrI, tupLoc.getPageId(),tupLoc.getPageOffset(),
                        lkey1, lkey2);
-  jamEntry();
+  jamEntryDebug();
 }
 
 inline unsigned
@@ -1374,18 +1561,26 @@ Dbtux::max(unsigned x, unsigned y)
 
 // DbtuxCmp.cpp
 
+/**
+ * Can be called from MT-build of ordered indexes,
+ * but it doesn't make use of the MT-context other
+ * than for debug printouts.
+ */
 inline int
-Dbtux::cmpSearchKey(TuxCtx& ctx, const KeyDataC& searchKey, const KeyDataC& entryKey, Uint32 cnt)
+Dbtux::cmpSearchKey(TuxCtx& ctx,
+                    const KeyDataC& searchKey,
+                    const KeyDataC& entryKey,
+                    Uint32 cnt)
 {
   // compare cnt attributes from each
   Uint32 num_eq;
   int ret = searchKey.cmp(entryKey, cnt, num_eq);
 #ifdef VM_TRACE
   if (debugFlags & DebugMaint) {
-    debugOut << "cmpSearchKey: ret:" << ret;
-    debugOut << " search:" << searchKey.print(ctx.c_debugBuffer, DebugBufferBytes);
-    debugOut << " entry:" << entryKey.print(ctx.c_debugBuffer, DebugBufferBytes);
-    debugOut << endl;
+    tuxDebugOut << "cmpSearchKey: ret:" << ret;
+    tuxDebugOut << " search:" << searchKey.print(ctx.c_debugBuffer, DebugBufferBytes);
+    tuxDebugOut << " entry:" << entryKey.print(ctx.c_debugBuffer, DebugBufferBytes);
+    tuxDebugOut << endl;
   }
 #endif
   return ret;
@@ -1399,16 +1594,28 @@ Dbtux::cmpSearchBound(TuxCtx& ctx, const KeyBoundC& searchBound, const KeyDataC&
   int ret = searchBound.cmp(entryKey, cnt, num_eq);
 #ifdef VM_TRACE
   if (debugFlags & DebugScan) {
-    debugOut << "cmpSearchBound: res:" << ret;
-    debugOut << " search:" << searchBound.print(ctx.c_debugBuffer, DebugBufferBytes);
-    debugOut << " entry:" << entryKey.print(ctx.c_debugBuffer, DebugBufferBytes);
-    debugOut << endl;
+    tuxDebugOut << "cmpSearchBound: res:" << ret;
+    tuxDebugOut << " search:" << searchBound.print(ctx.c_debugBuffer, DebugBufferBytes);
+    tuxDebugOut << " entry:" << entryKey.print(ctx.c_debugBuffer, DebugBufferBytes);
+    tuxDebugOut << endl;
   }
 #endif
   return ret;
 }
 
-
+inline
+void
+Dbtux::prepare_all_tup_ptrs(TuxCtx& ctx)
+{
+  c_tup->get_all_tup_ptrs(ctx.fragPtr.p->m_tupIndexFragPtrI,
+                          ctx.fragPtr.p->m_tupTableFragPtrI,
+                          &ctx.tupIndexFragPtr,
+                          &ctx.tupIndexTablePtr,
+                          &ctx.tupRealFragPtr,
+                          &ctx.tupRealTablePtr,
+                          ctx.attrDataOffset,
+                          ctx.tuxFixHeaderSize);
+}
 #undef JAM_FILE_ID
 
 #endif

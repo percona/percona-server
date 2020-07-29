@@ -32,7 +32,7 @@ create table t1
 
   INDEX i1(key1),
   INDEX i2(key2)
-);
+) charset latin1;
 
 --disable_query_log
 let $1=200;
@@ -98,7 +98,7 @@ create table t1 (
   filler char  (200),
   index (key1),
   index (key2)
-);
+) charset latin1;
 show warnings;
 --disable_query_log
 let $1=30;
@@ -292,7 +292,7 @@ CREATE TABLE t1(
   PRIMARY KEY (t_cpac,t_vers,t_rele,t_cust),
   UNIQUE KEY IX_4 (t_cust,t_cpac,t_vers,t_rele),
   KEY IX_5 (t_vers,t_rele,t_cust)
-);
+) charset latin1;
 
 insert into t1 values
 ('tm','2.5 ','a ','    ','',''), ('tm','2.5U','a ','stnd','',''),

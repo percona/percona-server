@@ -1,16 +1,15 @@
 source include/not_valgrind.inc;
 source include/have_memcached_plugin.inc;
 source include/not_windows.inc;
-source include/have_innodb.inc;
 
 --disable_query_log
 CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
 CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
-CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
+CALL mtr.add_suppression("Warning: MySQL is trying to drop");
 --enable_query_log
 
 --enable_connect_log
-SET @tx_isolation= @@global.tx_isolation;
+SET @transaction_isolation= @@global.transaction_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
 # Create the memcached tables
@@ -43,13 +42,11 @@ INSERT INTO t1 VALUES ('C', 'Cottbus', 0, 0 ,0);
 INSERT INTO t1 VALUES ('H', 'Hamburg', 0, 0, 0);
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11242
+--source ../include/load_daemon_memcached_expecting_success.inc
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2 FROM t1;
-
-SELECT SLEEP(2);
 
 perl;
 use DBI;
@@ -77,7 +74,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with E:\n";
+print "Here are the memcached results with E:\n";
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -94,7 +91,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with E,H:\n";
+print "Here are the memcached results with E,H:\n";
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
 $val = $memd->get("H");
@@ -104,8 +101,8 @@ EOF
 
 DROP TABLE t1;
 
-# Stop plugin befor innodb_memcached configuration
+# Stop plugin before innodb_memcached configuration
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
- 
-SET @@global.tx_isolation= @tx_isolation;
+
+SET @@global.transaction_isolation= @transaction_isolation;

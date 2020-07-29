@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -104,15 +104,13 @@ NdbConnection* HugoOperations::getTransaction(){
   return pTrans;
 }
 
-int HugoOperations::pkReadRecord(Ndb* pNdb,
-				 int recordNo,
-				 int numRecords,
-				 NdbOperation::LockMode lm,
-                                 NdbOperation::LockMode *lmused){
+int HugoOperations::pkReadRecord(Ndb* pNdb, int recordNo, int numRecords,
+                                 NdbOperation::LockMode lm,
+                                 NdbOperation::LockMode *lmused, bool noWait) {
   int a;  
   allocRows(numRecords);
   indexScans.clear();  
-  int check;
+  int check = -1;
 
   NdbOperation* pOp = 0;
   pIndexScanOp = 0;
@@ -128,7 +126,7 @@ int HugoOperations::pkReadRecord(Ndb* pNdb,
       setNdbError(pTrans->getNdbError());
       return NDBT_FAILED;
     }
-    
+
 rand_lock_mode:
     switch(lm){
     case NdbOperation::LM_Read:
@@ -162,7 +160,16 @@ rand_lock_mode:
       setNdbError(pTrans->getNdbError());
       return NDBT_FAILED;
     }
-    
+
+    if (noWait)
+    {
+      if (pOp->setNoWait())
+      {
+        g_err << __LINE__  << " Setting noWait flag failed" << endl;
+        return NDBT_FAILED;
+      }
+    }
+
     // Define primary keys
     if (equalForRow(pOp, r+recordNo) != 0)
     {
@@ -482,8 +489,9 @@ HugoOperations::setNonPkValues(NdbOperation* pOp, int rowId, int updateId)
 int HugoOperations::pkInsertRecord(Ndb* pNdb,
 				   int recordNo,
 				   int numRecords,
-				   int updatesValue){
-  
+				   int updatesValue,
+                                   int row_step)
+{
   int check;
   for(int r=0; r < numRecords; r++){
     NdbOperation* pOp = getOperation(pTrans, NdbOperation::InsertRequest);
@@ -499,8 +507,9 @@ int HugoOperations::pkInsertRecord(Ndb* pNdb,
       setNdbError(pTrans->getNdbError());
       return NDBT_FAILED;
     }
-    
-    if(setValues(pOp, r+recordNo, updatesValue) != NDBT_OK)
+    if(setValues(pOp,
+                 (r * row_step) + recordNo,
+                 updatesValue) != NDBT_OK)
     {
       m_error.code = pTrans->getNdbError().code;
       g_err << __LINE__ << " setValues failed" << endl;
@@ -508,7 +517,9 @@ int HugoOperations::pkInsertRecord(Ndb* pNdb,
     }
 
     Uint32 partId;
-    if(getPartIdForRow(pOp, r+recordNo, partId))
+    if(getPartIdForRow(pOp,
+                       (r * row_step) + recordNo,
+                       partId))
       pOp->setPartitionId(partId);
     
   }
@@ -598,10 +609,13 @@ int HugoOperations::pkWritePartialRecord(Ndb* pNdb,
 
 int HugoOperations::pkDeleteRecord(Ndb* pNdb,
 				   int recordNo,
-				   int numRecords){
+				   int numRecords,
+                                   int step)
+{
   
   int check;
-  for(int r=0; r < numRecords; r++){
+  for (int r=0; r < (numRecords * step); r+= step)
+  {
     NdbOperation* pOp = getOperation(pTrans, NdbOperation::DeleteRequest);
     if (pOp == NULL) {
       NDB_ERR(pTrans->getNdbError());

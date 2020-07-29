@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006 MySQL AB, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,15 +65,29 @@ CPCD::Monitor::run() {
 			     m_changeMutex,
 			     m_pollingInterval * 1000);
 
-    MutexVector<CPCD::Process *> &proc = *m_cpcd->getProcessList();
+    MutexVector<CPCD::Process *> &processes = *m_cpcd->getProcessList();
 
-    proc.lock();
+    processes.lock();
 
-    for(unsigned i = 0; i < proc.size(); i++) {
-      proc[i]->monitor();
+    for (unsigned i = 0; i < processes.size(); i++)
+    {
+      processes[i]->monitor();
     }
 
-    proc.unlock();
+    // Erase in reverse order to let i always step down
+    for (unsigned i = processes.size(); i > 0; i--)
+    {
+      CPCD::Process *proc = processes[i - 1];
+      if (!proc->should_be_erased())
+      {
+        continue;
+      }
+
+      processes.erase(i - 1, false /* already locked */);
+      delete proc;
+    }
+
+    processes.unlock();
 
     NdbMutex_Unlock(m_changeMutex);
   }

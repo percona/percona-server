@@ -31,7 +31,7 @@ let $engine = rocksdb;
 
 connection default;
 create table t (
-  i int(5), primary key(i) comment 'cf_primary_key'
+  i int, primary key(i) comment 'cfname=cf_primary_key'
 ) engine=rocksdb;
 
 insert into t values (1), (2), (3);

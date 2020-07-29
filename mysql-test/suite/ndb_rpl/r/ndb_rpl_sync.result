@@ -36,10 +36,6 @@ Tables_in_ndbsynctest
 DROP DATABASE ndbsynctest;
 CREATE DATABASE ndbsynctest;
 USE ndbsynctest;
-SHOW TABLES;
-Tables_in_ndbsynctest
-t1
-t2
 SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
 hex(c1)	hex(c2)	c3
 1	1	row1
@@ -55,8 +51,13 @@ hex(c2)	hex(c3)	c1
 SELECT @the_epoch:=MAX(epoch) FROM mysql.ndb_apply_status;
 @the_epoch:=MAX(epoch)
 <the_epoch>
+Warnings:
+<the_epoch>	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 @the_pos:=Position	@the_file:=SUBSTRING_INDEX(REPLACE(FILE,'\\','/'), '/', -1)
 <the_pos>	master-bin.000001
+Warnings:
+<the_pos>	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+<the_pos>	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 CHANGE MASTER TO
 master_log_file = 'master-bin.000001',
 master_log_pos = <the_pos> ;

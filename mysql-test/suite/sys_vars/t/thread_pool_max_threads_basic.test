@@ -1,5 +1,4 @@
 # uint global
---source include/not_embedded.inc
 SET @start_global_value = @@global.thread_pool_max_threads;
 
 #
@@ -10,8 +9,8 @@ select @@global.thread_pool_max_threads;
 select @@session.thread_pool_max_threads;
 show global variables like 'thread_pool_max_threads';
 show session variables like 'thread_pool_max_threads';
-select * from information_schema.global_variables where variable_name='thread_pool_max_threads';
-select * from information_schema.session_variables where variable_name='thread_pool_max_threads';
+select * from performance_schema.global_variables where variable_name='thread_pool_max_threads';
+select * from performance_schema.session_variables where variable_name='thread_pool_max_threads';
 
 #
 # show that it's writable

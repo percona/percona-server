@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@ class DiAddTabReq {
    */
   friend class Dbdih;
 public:
-  STATIC_CONST( SignalLength = 12 );
+  STATIC_CONST( SignalLength = 14 );
   SECTION( FRAGMENTATION = 0 );
   SECTION( TS_RANGE = 0 );
   
@@ -58,6 +58,8 @@ private:
   Uint32 temporaryTable;
   Uint32 schemaTransId;
   Uint32 hashMapPtrI;
+  Uint32 fullyReplicated;
+  Uint32 partitionCount;
 };
 
 class DiAddTabRef {

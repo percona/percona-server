@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,7 @@ import com.mysql.clusterj.core.util.LoggerFactoryService;
 import com.mysql.clusterj.tie.DbImpl.BufferManager;
 
 import com.mysql.ndbjtie.ndbapi.NdbErrorConst;
+import com.mysql.ndbjtie.ndbapi.NdbErrorConst.Classification;
 import com.mysql.ndbjtie.ndbapi.NdbIndexOperation;
 import com.mysql.ndbjtie.ndbapi.NdbIndexScanOperation;
 import com.mysql.ndbjtie.ndbapi.NdbOperation;
@@ -160,7 +161,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
      * Otherwise, use the partition key to enlist the transaction.
      */
     private void enlist() {
-        db.assertOpen("ClusterTransactionImpl.enlist");
+        db.assertNotClosed("ClusterTransactionImpl.enlist");
         if (logger.isTraceEnabled()) logger.trace("ndbTransaction: " + ndbTransaction
                 + " with joinTransactionId: " + joinTransactionId);
         if (ndbTransaction == null) {
@@ -174,7 +175,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
     }
 
     public void executeCommit(boolean abort, boolean force) {
-        db.assertOpen("ClusterTransactionImpl.executeCommit");
+        db.assertNotClosed("ClusterTransactionImpl.executeCommit");
         if (logger.isTraceEnabled()) logger.trace("");
         // nothing to do if no ndbTransaction was ever enlisted or already autocommitted
         if (isEnlisted() && !autocommitted) {
@@ -194,7 +195,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
     }
 
     public void executeNoCommit(boolean abort, boolean force) {
-        db.assertOpen("ClusterTransactionImpl.executeNoCommit");
+        db.assertNotClosed("ClusterTransactionImpl.executeNoCommit");
         if (logger.isTraceEnabled()) logger.trace("");
         if (!isEnlisted()) {
             // nothing to do if no ndbTransaction was ever enlisted
@@ -215,7 +216,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
     }
 
     public void executeRollback() {
-        db.assertOpen("ClusterTransactionImpl.executeRollback");
+        db.assertNotClosed("ClusterTransactionImpl.executeRollback");
         if (!isEnlisted()) {
             // nothing to do if no ndbTransaction was ever enlisted
             return;
@@ -477,7 +478,10 @@ class ClusterTransactionImpl implements ClusterTransaction {
     public NdbIndexScanOperation scanIndex(NdbRecordConst key_record, NdbRecordConst result_record,
             byte[] result_mask, ScanOptions scanOptions) {
         enlist();
-        return ndbTransaction.scanIndex(key_record, result_record, indexScanLockMode, result_mask, null, scanOptions, 0);
+        NdbIndexScanOperation operation =
+                ndbTransaction.scanIndex(key_record, result_record, indexScanLockMode, result_mask, null, scanOptions, 0);
+        handleError(operation, ndbTransaction);
+        return operation;
     }
 
     /** Create an NdbOperation for delete using NdbRecord.
@@ -568,10 +572,14 @@ class ClusterTransactionImpl implements ClusterTransaction {
         StringBuilder exceptionMessages = new StringBuilder();
         for (Operation op: operationsToCheck) {
             int code = op.getErrorCode();
-            if (code != 0) {
+            int classification = op.getClassification();
+            // Read operations can return data not found errors.
+            // Ignore them and report everything else.
+            if (code != 0 &&
+                !(op.isReadOperation() &&
+                  classification == Classification.NoDataFound)) {
                 int mysqlCode = op.getMysqlCode();
                 int status = op.getStatus();
-                int classification = op.getClassification();
                 String message = local.message("ERR_Datastore", -1, code, mysqlCode, status, classification,
                         op.toString());
                 exceptionMessages.append(message);

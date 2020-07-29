@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/23/2020
+.\"      Date: 03/06/2020
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 5.7
+.\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_CONFIG\FR" "1" "03/23/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL_CONFIG\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -49,32 +49,11 @@ provides you with useful information for compiling your MySQL client and connect
 .ps -1
 .br
 .PP
-As of MySQL 5\&.7\&.9,
 \fBpkg\-config\fR
 can be used as an alternative to
 \fBmysql_config\fR
 for obtaining information such as compiler flags or link libraries required to compile MySQL applications\&. For more information, see
-Section\ \&27.7.3.2, \(lqBuilding C API Client Programs Using pkg-config\(rq\&.
-.sp .5v
-.RE
-.if n \{\
-.sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
-.PP
-As of MySQL 5\&.7\&.4, for binary distributions for Solaris,
-\fBmysql_config\fR
-does not provide arguments for linking with the embedded library\&. To get linking arguments for the embedded library, use the
-\fBmysql_server_config\fR
-script instead\&.
+Section\ \&28.7.3.2, \(lqBuilding C API Client Programs Using pkg-config\(rq\&.
 .sp .5v
 .RE
 .PP
@@ -133,39 +112,6 @@ Compiler options to find MySQL include files\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-libmysqld\-libs\fR,
-\fB\-\-embedded\-libs\fR,
-\fB\-\-embedded\fR
-.sp
-Libraries and options required to link with
-libmysqld, the MySQL embedded server\&.
-.if n \{\
-.sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
-The
-libmysqld
-embedded server library is deprecated as of MySQL 5\&.7\&.19 and has been removed in MySQL 8\&.0\&.
-.sp .5v
-.RE
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 \fB\-\-libs\fR
 .sp
 Libraries and options required to link with the MySQL client library\&.
@@ -181,7 +127,7 @@ Libraries and options required to link with the MySQL client library\&.
 .\}
 \fB\-\-libs_r\fR
 .sp
-Libraries and options required to link with the thread\-safe MySQL client library\&. In MySQL 5\&.7, all client libraries are thread\-safe, so this option need not be used\&. The
+Libraries and options required to link with the thread\-safe MySQL client library\&. In MySQL 8\&.0, all client libraries are thread\-safe, so this option need not be used\&. The
 \fB\-\-libs\fR
 option can be used in all cases\&.
 .RE
@@ -280,9 +226,7 @@ Options:
   \-\-plugindir      [/usr/local/mysql/lib/plugin]
   \-\-socket         [/tmp/mysql\&.sock]
   \-\-port           [3306]
-  \-\-version        [5\&.7\&.9]
-  \-\-libmysqld\-libs [\-L/usr/local/mysql/lib/mysql \-lmysqld
-                    \-lpthread \-lm \-lrt \-lssl \-lcrypto \-ldl \-lcrypt]
+  \-\-version        [5\&.8\&.0\-m17]
   \-\-variable=VAR   VAR is one of:
           pkgincludedir [/usr/local/mysql/include]
           pkglibdir     [/usr/local/mysql/lib]

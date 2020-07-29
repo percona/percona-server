@@ -1,0 +1,5 @@
+# restart:<hidden args>
+include/assert.inc [Binlog should be OFF]
+include/assert.inc [Binlog encryption should be ON]
+Pattern "binlog and relay log encryption enabled without binary logging being enabled. If relay logs are in use, they will be encrypted." found
+# restart

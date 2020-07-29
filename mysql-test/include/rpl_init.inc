@@ -62,6 +62,10 @@
 #    [--let $rpl_gtid_utils= 1]
 #    [--let $rpl_set_gtid_next_anonymous_in_new_connection= 1]
 #    [--let $rpl_skip_log_bin= 1]
+#    [--let $rpl_privilege_checks_user= 1:'user'@'host',2:NULL]
+#    [--let $rpl_privilege_checks_user_additional_grants= CREATE,INSERT,SELECT]
+#    [--let $rpl_require_row_format= *:0,1:0,2:1]
+#    [--let $rpl_require_table_primary_key_check= *:STREAM,1:ON,2:OFF]
 #    --source include/rpl_init.inc
 #
 #    Parameters:
@@ -145,6 +149,18 @@
 #      Bypasses the binlog related checking to allow testing --skip-log-bin
 #      servers.
 #
+#   $rpl_privilege_checks_user
+#      See `include/rpl_change_topology.inc`.
+#
+#   $rpl_privilege_checks_user_additional_grants
+#      See `include/rpl_change_topology.inc`.
+#
+#   $rpl_require_row_format
+#      See `include/rpl_change_topology.inc`.
+#
+#   $rpl_require_table_primary_key_check
+#      See `include/rpl_change_topology.inc`.
+#
 # ==== Side effects ====
 #
 # Changes current connection to server_1.
@@ -166,7 +182,7 @@
 #   Set to LENGTH($rpl_server_count). So if $rpl_server_count < 10,
 #   then $rpl_server_count_length = 1; if 10 <= $rpl_server_count <
 #   100, then $rpl_server_count_length = 2, etc.
-# 
+#
 # $_rpl_space
 #   Contains a single space. This is used by other .inc files to
 #   append a single space character to the end of an
@@ -308,6 +324,18 @@ while ($_rpl_server)
   --let $rpl_connection_name= server_$_rpl_server
   --source include/rpl_connection.inc
   USE test;
+  if ($rpl_privilege_checks_user)
+  {
+    # Default database `test` has a special configurations that allow for
+    # operations to be executed even if the user in session doesn't have
+    # privileges. So, whenever we're running applier thread with privileges, we
+    # need to use a different database.
+    --let $RPL_PRIV_DB = rpl_priv
+    SET @@sql_log_bin = 0;
+    --eval CREATE DATABASE $RPL_PRIV_DB
+    SET @@sql_log_bin = 1;
+    --eval USE $RPL_PRIV_DB
+  }
   if ($rpl_gtid_utils)
   {
     --source include/gtid_utils.inc

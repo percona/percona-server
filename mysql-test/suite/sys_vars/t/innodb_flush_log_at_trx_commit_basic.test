@@ -24,7 +24,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_innodb.inc
 --source include/load_sysvars.inc
 
 ######################################################################## 
@@ -56,7 +55,7 @@ SELECT @@global.innodb_flush_log_at_trx_commit;
 # Check if variable can be accessed with and without @@ sign                  #
 ###############################################################################
 
-#--Error ER_GLOBAL_VARIABLE
+--Error ER_GLOBAL_VARIABLE
 SET innodb_flush_log_at_trx_commit = 1;
 SELECT @@innodb_flush_log_at_trx_commit;
 
@@ -122,12 +121,12 @@ SELECT @@global.innodb_flush_log_at_trx_commit;
 
 --disable_warnings
 SELECT @@global.innodb_flush_log_at_trx_commit =
- VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+ VARIABLE_VALUE FROM performance_schema.global_variables
   WHERE VARIABLE_NAME='innodb_flush_log_at_trx_commit';
 --enable_warnings
 SELECT @@global.innodb_flush_log_at_trx_commit;
 --disable_warnings
-SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
  WHERE VARIABLE_NAME='innodb_flush_log_at_trx_commit';
 --enable_warnings
 

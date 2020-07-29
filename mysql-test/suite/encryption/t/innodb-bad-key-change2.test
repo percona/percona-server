@@ -1,8 +1,4 @@
 --skip
---source include/have_innodb.inc
-# embedded does not support restart
--- source include/not_embedded.inc
-#-- source filekeys_plugin_exists.inc
 #
 # MDEV-8750: Server crashes in page_cur_is_after_last on altering table using a wrong encryption key
 # MDEV-8769: Server crash at file btr0btr.ic line 122 when defragmenting encrypted table using incorrect keys
@@ -93,8 +89,8 @@ ALTER TABLE t1 IMPORT TABLESPACE;
 SHOW CREATE TABLE t1;
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---let $restart_parameters=restart: --innodb-encrypt-tables --keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys3.txt
-#--let $restart_parameters= --innodb-encrypt-tables --plugin-load-add=file_key_management.so --file-key-management --file-key-management-filename=$MYSQLTEST_VARDIR/std_data/keys3.txt
+--let $restart_parameters=restart: --default-table-encryption --keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys3.txt
+#--let $restart_parameters= --default-table-encryption --plugin-load-add=file_key_management.so --file-key-management --file-key-management-filename=$MYSQLTEST_VARDIR/std_data/keys3.txt
 --source include/restart_mysqld.inc
 
 SET GLOBAL innodb_stats_persistent=OFF;

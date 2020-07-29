@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -17,8 +17,8 @@
    GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -28,21 +28,26 @@
   length records. A read isn't allowed to go over file-length. A read is ok
   if it ends at file-length and next read can try to read after file-length
   (and get a EOF-error).
-  Possibly use of asyncronic io.
-  macros for read and writes for faster io.
   Used instead of FILE when reading or writing whole files.
-  This will make mf_rec_cache obsolete.
   One can change info->pos_in_file to a higher value to skip bytes in file if
   also info->rc_pos is set to info->rc_end.
   If called through open_cached_file(), then the temporary file will
   only be created if a write exeeds the file buffer or if one calls
-  flush_io_cache().  
+  flush_io_cache().
 */
 
-#ifdef HAVE_REPLICATION
-#include "sql_class.h"                          // THD
+#include <stddef.h>
+#include <sys/types.h>
 
-extern "C" {
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_rnd.h"
+#include "my_sys.h"
+#include "mysql_com.h"
+#include "sql/current_thd.h"
+#include "sql/protocol_classic.h"
+#include "sql/sql_class.h"  // THD
 
 /**
   Read buffered from the net.
@@ -53,45 +58,67 @@ extern "C" {
     0   if record read
 */
 
-
 int _my_b_net_read(IO_CACHE *info, uchar *Buffer,
-		   size_t Count MY_ATTRIBUTE((unused)))
-{
+                   size_t Count MY_ATTRIBUTE((unused))) {
   ulong read_length;
-  NET *net= current_thd->get_protocol_classic()->get_net();
-  DBUG_ENTER("_my_b_net_read");
+  NET *net = current_thd->get_protocol_classic()->get_net();
+  DBUG_TRACE;
 
   if (!info->end_of_file)
-    DBUG_RETURN(1);	/* because my_b_get (no _) takes 1 byte at a time */
-  read_length=my_net_read(net);
-  if (read_length == packet_error)
-  {
-    info->error= -1;
-    DBUG_RETURN(1);
+    return 1; /* because my_b_get (no _) takes 1 byte at a time */
+  read_length = my_net_read(net);
+  if (read_length == packet_error) {
+    info->error = -1;
+    return 1;
   }
-  if (read_length == 0)
-  {
-    info->end_of_file= 0;			/* End of file from client */
-    DBUG_RETURN(1);
+  if (read_length == 0) {
+    info->end_of_file = 0; /* End of file from client */
+    return 1;
   }
   /* to set up stuff for my_b_get (no _) */
   info->read_end = (info->read_pos = net->read_pos) + read_length;
-  Buffer[0] = info->read_pos[0];		/* length is always 1 */
+  Buffer[0] = info->read_pos[0]; /* length is always 1 */
 
   /*
     info->request_pos is used by log_loaded_block() to know the size
     of the current block.
     info->pos_in_file is used by log_loaded_block() too.
   */
-  info->pos_in_file+= read_length;
-  info->request_pos=info->read_pos;
+  info->pos_in_file += read_length;
+  info->request_pos = info->read_pos;
 
   info->read_pos++;
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
-} /* extern "C" */
-#endif /* HAVE_REPLICATION */
+/*
+** A wrapper for 'open_cached_file()' which also initializes encryption
+** subsystem depending on the value of 'encrypted' parameter.
+*/
+bool open_cached_file_encrypted(IO_CACHE *cache, const char *dir,
+                                const char *prefix, size_t cache_size,
+                                myf cache_myflags, bool encrypted) {
+  DBUG_ENTER("open_cached_file_encrypted");
+  bool res = open_cached_file(cache, dir, prefix, cache_size, cache_myflags);
+  if (res) DBUG_RETURN(true);
+  if (!encrypted) DBUG_RETURN(false);
 
+  Key_string password_str;
+  unsigned char password[Aes_ctr::PASSWORD_LENGTH];
 
+  /* Generate password, it is a random string. */
+  if (my_rand_buffer(password, sizeof(password)) != 0) DBUG_RETURN(true);
+  password_str.append(password, sizeof(password));
+
+  auto encryptor = std::make_unique<Aes_ctr_encryptor>();
+  if (encryptor->open(password_str, 0)) DBUG_RETURN(true);
+
+  auto decryptor = std::make_unique<Aes_ctr_decryptor>();
+  if (decryptor->open(password_str, 0)) DBUG_RETURN(true);
+
+  cache->m_encryptor = encryptor.release();
+  cache->m_decryptor = decryptor.release();
+
+  DBUG_RETURN(false);
+}

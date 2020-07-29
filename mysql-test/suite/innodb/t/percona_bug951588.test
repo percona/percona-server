@@ -1,6 +1,5 @@
 # Test for bug 951588 (Querying I_S.TEMPORARY_TABLES crashes parallel threads working on temp tables)
 
---source include/have_innodb.inc
 --source include/have_debug_sync.inc
 
 --disable_warnings

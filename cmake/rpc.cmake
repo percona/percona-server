@@ -18,7 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 IF(WIN32)
   RETURN()
@@ -26,18 +26,7 @@ ENDIF()
 
 MACRO(MYSQL_CHECK_RPC)
   IF(LINUX AND NOT LIBTIRPC_VERSION_TOO_OLD)
-    # Do a sanity check, before bailing out in FIND_PACKAGE below.
-    FIND_PROGRAM(MY_PKG_CONFIG_EXECUTABLE NAMES pkg-config
-      DOC "pkg-config executable")
-    IF(NOT MY_PKG_CONFIG_EXECUTABLE)
-      MESSAGE(WARNING "Cannot find pkg-config. You need to "
-        "install the required package:\n"
-        "  Debian/Ubuntu:              apt install pkg-config\n"
-        "  RedHat/Fedora/Oracle Linux: yum install pkg-config\n"
-        "  SuSE:                       zypper install pkg-config\n"
-        )
-    ENDIF()
-    FIND_PACKAGE(PkgConfig REQUIRED)
+    MYSQL_CHECK_PKGCONFIG()
     PKG_CHECK_MODULES(TIRPC libtirpc)
   ENDIF()
 

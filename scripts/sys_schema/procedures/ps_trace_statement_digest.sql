@@ -1,20 +1,13 @@
 -- Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
--- it under the terms of the GNU General Public License, version 2.0,
--- as published by the Free Software Foundation.
---
--- This program is also distributed with certain software (including
--- but not limited to OpenSSL) that is licensed under separate terms,
--- as designated in a particular file or component or in included license
--- documentation.  The authors of MySQL hereby grant you an additional
--- permission to link the program and your derivative works with the
--- separately licensed software that they have included with MySQL.
+-- it under the terms of the GNU General Public License as published by
+-- the Free Software Foundation; version 2 of the License.
 --
 -- This program is distributed in the hope that it will be useful,
 -- but WITHOUT ANY WARRANTY; without even the implied warranty of
 -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
--- GNU General Public License, version 2.0, for more details.
+-- GNU General Public License for more details.
 --
 -- You should have received a copy of the GNU General Public License
 -- along with this program; if not, write to the Free Software
@@ -25,7 +18,7 @@ DROP PROCEDURE IF EXISTS ps_trace_statement_digest;
 DELIMITER $$
 
 CREATE DEFINER='mysql.sys'@'localhost' PROCEDURE ps_trace_statement_digest (
-        IN in_digest VARCHAR(32),
+        IN in_digest VARCHAR(64),
         IN in_runtime INT,
         IN in_interval DECIMAL(2,2),
         IN in_start_fresh BOOLEAN,
@@ -40,7 +33,7 @@ Statement Digest.
 
 When finding a statement of interest within the
 performance_schema.events_statements_summary_by_digest table, feed
-the DIGEST MD5 value in to this procedure, set how long to poll for,
+the DIGEST value in to this procedure, set how long to poll for,
 and at what interval to poll, and it will generate a report of all
 statistics tracked within Performance Schema for that digest for the
 interval.
@@ -62,7 +55,7 @@ Requires the SUPER privilege for "SET sql_log_bin = 0;".
 Parameters
 -----------
 
-in_digest (VARCHAR(32)):
+in_digest (VARCHAR(64)):
   The statement digest identifier you would like to analyze
 in_runtime (INT):
   The number of seconds to run analysis for
@@ -247,8 +240,8 @@ BEGIN
     SELECT "SUMMARY STATISTICS";
 
     SELECT COUNT(*) executions,
-           sys.format_time(SUM(timer_wait)) AS exec_time,
-           sys.format_time(SUM(lock_time)) AS lock_time,
+           format_pico_time(SUM(timer_wait)) AS exec_time,
+           format_pico_time(SUM(lock_time)) AS lock_time,
            SUM(rows_sent) AS rows_sent,
            SUM(rows_affected) AS rows_affected,
            SUM(rows_examined) AS rows_examined,
@@ -258,7 +251,7 @@ BEGIN
 
     SELECT event_name,
            COUNT(*) as count,
-           sys.format_time(SUM(timer_wait)) as latency
+           format_pico_time(SUM(timer_wait)) as latency
       FROM stmt_stages
      GROUP BY event_name
      ORDER BY SUM(timer_wait) DESC;
@@ -266,8 +259,8 @@ BEGIN
     SELECT "LONGEST RUNNING STATEMENT";
 
     SELECT thread_id,
-           sys.format_time(timer_wait) AS exec_time,
-           sys.format_time(lock_time) AS lock_time,
+           format_pico_time(timer_wait) AS exec_time,
+           format_pico_time(lock_time) AS lock_time,
            rows_sent,
            rows_affected,
            rows_examined,
@@ -286,7 +279,7 @@ BEGIN
 
     IF (@sql_id IS NOT NULL) THEN
         SELECT event_name,
-               sys.format_time(timer_wait) as latency
+               format_pico_time(timer_wait) as latency
           FROM stmt_stages
          WHERE stmt_id = @sql_id
          ORDER BY event_id;

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,22 +22,19 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "mysql_chain_element_options.h"
+#include "client/dump/mysql_chain_element_options.h"
+
 #include <boost/algorithm/string.hpp>
 
 using namespace Mysql::Tools::Dump;
 
 Mysql_chain_element_options::Mysql_chain_element_options(
-  Mysql::Tools::Base::Abstract_connection_program* program)
-  : m_program(program)
-{}
+    Mysql::Tools::Base::Abstract_connection_program *program)
+    : m_program(program) {}
 
-void Mysql_chain_element_options::create_options()
-{
-}
+void Mysql_chain_element_options::create_options() {}
 
-Mysql::Tools::Base::Abstract_connection_program*
-  Mysql_chain_element_options::get_program() const
-{
+Mysql::Tools::Base::Abstract_connection_program *
+Mysql_chain_element_options::get_program() const {
   return m_program;
 }

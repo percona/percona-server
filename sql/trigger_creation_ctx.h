@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,57 +18,51 @@
    GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef TRIGGER_CREATION_CTX_H_INCLUDED
 #define TRIGGER_CREATION_CTX_H_INCLUDED
 
 ///////////////////////////////////////////////////////////////////////////
 
-#include "sp_head.h" // Stored_program_creation_ctx
+#include "lex_string.h"
+#include "sql/sp_head.h"  // Stored_program_creation_ctx
+
+class Object_creation_ctx;
+class THD;
+struct CHARSET_INFO;
+struct MEM_ROOT;
 
 /**
   Trigger_creation_ctx -- creation context of triggers.
 */
 
-class Trigger_creation_ctx : public Stored_program_creation_ctx,
-                             public Sql_alloc
-{
-public:
-  static Trigger_creation_ctx *create(THD *thd,
-                                      const LEX_CSTRING &db_name,
+class Trigger_creation_ctx : public Stored_program_creation_ctx {
+ public:
+  static Trigger_creation_ctx *create(THD *thd, const LEX_CSTRING &db_name,
                                       const LEX_CSTRING &table_name,
-                                      const LEX_STRING &client_cs_name,
-                                      const LEX_STRING &connection_cl_name,
-                                      const LEX_STRING &db_cl_name);
+                                      const LEX_CSTRING &client_cs_name,
+                                      const LEX_CSTRING &connection_cl_name,
+                                      const LEX_CSTRING &db_cl_name);
 
-public:
-  virtual Stored_program_creation_ctx *clone(MEM_ROOT *mem_root)
-  {
-    return new (mem_root) Trigger_creation_ctx(m_client_cs,
-                                               m_connection_cl,
-                                               m_db_cl);
-  }
+ public:
+  Stored_program_creation_ctx *clone(MEM_ROOT *mem_root) override;
 
-protected:
-  virtual Object_creation_ctx *create_backup_ctx(THD *thd) const
-  {
-    return new Trigger_creation_ctx(thd);
-  }
+ protected:
+  Object_creation_ctx *create_backup_ctx(THD *thd) const override;
 
-private:
-  Trigger_creation_ctx(THD *thd)
-    :Stored_program_creation_ctx(thd)
-  { }
+  void delete_backup_ctx() override;
+
+ private:
+  explicit Trigger_creation_ctx(THD *thd) : Stored_program_creation_ctx(thd) {}
 
   Trigger_creation_ctx(const CHARSET_INFO *client_cs,
                        const CHARSET_INFO *connection_cl,
                        const CHARSET_INFO *db_cl)
-    :Stored_program_creation_ctx(client_cs, connection_cl, db_cl)
-  { }
+      : Stored_program_creation_ctx(client_cs, connection_cl, db_cl) {}
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-#endif // TRIGGER_CREATION_CTX_H_INCLUDED
+#endif  // TRIGGER_CREATION_CTX_H_INCLUDED

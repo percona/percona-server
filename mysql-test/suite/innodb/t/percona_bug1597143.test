@@ -1,5 +1,3 @@
---source include/have_innodb.inc
-
 SET @saved_innodb_log_write_ahead_size=@@GLOBAL.innodb_log_write_ahead_size;
 SET GLOBAL innodb_log_write_ahead_size=8192;
 

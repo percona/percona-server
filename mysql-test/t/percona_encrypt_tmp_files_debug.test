@@ -1,8 +1,6 @@
---source include/have_innodb.inc
 --source include/linux.inc
 --source include/have_grep.inc
 --source include/have_debug_sync.inc
---source include/not_embedded.inc
 
 #
 # Filesort temporary files
@@ -10,6 +8,9 @@
 --let $encryption_mode = 0
 while($encryption_mode < 2)
 {
+  # No need to save / restore this variable as we are restarting the server.
+  SET GLOBAL local_infile = ON;
+
   # Asserting expected values in the .opt file / provided via $restart_parameters
   if($encryption_mode == 0)
   {
@@ -51,7 +52,7 @@ while($encryption_mode < 2)
     id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
     value CHAR(32) NOT NULL,
     dummy VARCHAR(1024) NOT NULL
-  ) ENGINE=InnoDB;
+  ) DEFAULT CHARACTER SET=latin1 DEFAULT COLLATE=latin1_swedish_ci ENGINE=InnoDB;
 
   # Filling the table with pseudo-random data based on MD5 hashes.
   --let $length_multiplier = 16
@@ -68,11 +69,16 @@ while($encryption_mode < 2)
   # Establishing a new auxiliary connection.
   --connect (con1,localhost,root,,)
 
+  # Setting enforce_legacy_temp_files debug macro to make sure that
+  # temporary files are not created with 'O_TMPFILE' flag and therefore
+  # have a valid name starting with 'MY'
+  SET debug = "+d,enforce_legacy_temp_files";
+
   # Making the server stop at 'after_find_all_keys' DEBUG_SYNC point
   # (inside 'filesort()' after 'find_all_keys()')
   # when executing the following 'SELECT sql_big_result' statement.
   SET DEBUG_SYNC = 'after_find_all_keys SIGNAL after_find_all_keys_reached WAIT_FOR after_find_all_keys_signaled';
-  --send SELECT sql_big_result * FROM t1 ORDER BY dummy
+  --send CREATE TABLE t2 AS SELECT sql_big_result * FROM t1 ORDER BY dummy
 
   # In the main connection waiting for the SELECT from the aux connection to
   # reach 'after_find_all_keys' DEBUG_SYNC point and suspend.
@@ -122,6 +128,21 @@ while($encryption_mode < 2)
   --reap
   --enable_result_log
 
+  # Resetting 'enforce_legacy_temp_files' debug macro.
+  SET debug = "-d,enforce_legacy_temp_files";
+
+  # Saving result set checksums.
+  --let $data_checksum = query_get_value(CHECKSUM TABLE t2, Checksum, 1)
+  if($encryption_mode == 0)
+  {
+    --let $data_checksum_encrypted = $data_checksum
+  }
+  if($encryption_mode == 1)
+  {
+    --let $data_checksum_unencrypted = $data_checksum
+  }
+  DROP TABLE t2;
+
   # Closing aux connection.
   # 'count_sessions.inc' is not needed as the server is restarted
   --connection default
@@ -144,3 +165,9 @@ while($encryption_mode < 2)
 
   --inc $encryption_mode
 }
+
+# Comparing checksums of result sets created with and without
+# '--encrypt-tmp-files' option set.
+--let $assert_text = SELECT result checksums must match
+--let $assert_cond = $data_checksum_encrypted = $data_checksum_unencrypted
+--source include/assert.inc

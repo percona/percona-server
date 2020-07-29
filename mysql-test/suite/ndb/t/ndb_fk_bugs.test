@@ -1,4 +1,5 @@
 -- source include/have_ndb.inc
+-- source suite/ndb/include/backup_restore_setup.inc
 
 -- disable_warnings
 drop table if exists t2, t1;
@@ -93,19 +94,17 @@ INSERT INTO towns VALUES
 ('Maidenhead','Berkshire'),('Reading','Berkshire'),('Shrewsbury','Shropshire')
 ,('Oxford','Oxfordshire');
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 CREATE TABLE languages (language VARCHAR(30) NOT NULL PRIMARY KEY,
 country VARCHAR(30), INDEX lang_country_index(country), CONSTRAINT
 country_language FOREIGN KEY (country) REFERENCES counties(country) ON DELETE
 RESTRICT ON UPDATE RESTRICT) engine=ndb;
-show warnings;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 CREATE TABLE languages (language VARCHAR(30) NOT NULL PRIMARY KEY,
 country VARCHAR(30), INDEX lang_country_index(country), CONSTRAINT
 country_language FOREIGN KEY (country) REFERENCES counties(country) ON DELETE
 RESTRICT ON UPDATE RESTRICT) engine=ndb;
-show warnings;
 
 CREATE TABLE languages (id INT NOT NULL PRIMARY KEY) engine=ndb;
 
@@ -120,7 +119,7 @@ create table t1 (
   unique key using hash (b)
 ) engine ndb;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_INCOMPATIBLE_COLUMNS
 create table t2 (
   a int not null,
   b char(20) not null,
@@ -128,7 +127,6 @@ create table t2 (
   key (b),
   constraint fk1 foreign key (b) references t1 (b)
 ) engine ndb;
-show warnings;
 
 create table t2 (
   a int not null,
@@ -137,16 +135,15 @@ create table t2 (
   key (b)
 ) engine ndb;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_INCOMPATIBLE_COLUMNS
 alter table t2 algorithm=inplace,
   add constraint fk1 foreign key (b) references t1 (b);
-show warnings;
 
 drop table t2, t1;
 
 --echo # test: parent table not exist
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_CANNOT_OPEN_PARENT
 create table t2 (
   a int not null,
   b int not null,
@@ -154,7 +151,6 @@ create table t2 (
   key (b),
   constraint fk1 foreign key (b) references t1 (b)
 ) engine ndb;
-show warnings;
 
 create table t2 (
   a int not null,
@@ -163,10 +159,9 @@ create table t2 (
   key (b)
 ) engine ndb;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_CANNOT_OPEN_PARENT
 alter table t2 algorithm=inplace,
   add constraint fk1 foreign key (b) references t1 (b);
-show warnings;
 
 drop table t2;
 
@@ -177,7 +172,7 @@ create table t1 (
   primary key using hash (a)
 ) engine ndb;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_COLUMN_PARENT
 create table t2 (
   a int not null,
   b int not null,
@@ -185,7 +180,6 @@ create table t2 (
   key (b),
   constraint fk1 foreign key (b) references t1 (b)
 ) engine ndb;
-show warnings;
 
 create table t2 (
   a int not null,
@@ -194,10 +188,9 @@ create table t2 (
   key (b)
 ) engine ndb;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_COLUMN_PARENT
 alter table t2 algorithm=inplace,
   add constraint fk1 foreign key (b) references t1 (b);
-show warnings;
 
 drop table t2, t1;
 
@@ -217,7 +210,6 @@ create table t2 (
   key (b),
   constraint fk1 foreign key (b) references t1 (b)
 ) engine ndb;
-show warnings;
 
 create table t2 (
   a int not null,
@@ -229,7 +221,6 @@ create table t2 (
 --error ER_FK_NO_INDEX_PARENT
 alter table t2 algorithm=inplace,
   add constraint fk1 foreign key (b) references t1 (b);
-show warnings;
 
 drop table t2, t1;
 
@@ -242,7 +233,7 @@ create table t1 (
   key (b)
 ) engine ndb;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 create table t2 (
   a int not null,
   b int not null,
@@ -250,7 +241,6 @@ create table t2 (
   key (b),
   constraint fk1 foreign key (b) references t1 (b)
 ) engine ndb;
-show warnings;
 
 create table t2 (
   a int not null,
@@ -259,10 +249,9 @@ create table t2 (
   key (b)
 ) engine ndb;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 alter table t2 algorithm=inplace,
   add constraint fk1 foreign key (b) references t1 (b);
-show warnings;
 
 drop table t2, t1;
 
@@ -347,7 +336,6 @@ create table t2 (
   key (b),
   constraint fk1 foreign key (b) references t1 (b)
 ) engine ndb;
-show warnings;
 
 create table t2 (
   a int not null,
@@ -359,7 +347,6 @@ create table t2 (
 --error ER_FK_NO_INDEX_PARENT
 alter table t2 algorithm=inplace,
   add constraint fk1 foreign key (b) references t1 (b);
-show warnings;
 
 drop table t2, t1;
 
@@ -401,10 +388,10 @@ create table t2 (
   foreign key fk1 (a) references t1 (a)
 ) engine=ndb;
 
---error ER_ROW_IS_REFERENCED
+--error ER_FK_CANNOT_CHANGE_ENGINE
 alter table t1 engine=innodb;
 
---error ER_ROW_IS_REFERENCED
+--error ER_FK_CANNOT_CHANGE_ENGINE
 alter table t2 engine=innodb;
 
 drop table t2, t1;
@@ -416,7 +403,7 @@ create table t1 (
   foreign key fk1 (b) references t1 (a)
 ) engine=ndb;
 
---error ER_ROW_IS_REFERENCED
+--error ER_FK_CANNOT_CHANGE_ENGINE
 alter table t1 engine=innodb;
 
 drop table t1;
@@ -487,25 +474,27 @@ drop table t2, t1;
 
 create table t1 (
   a int primary key,
-  b int not null,
+  b enum('a','b','c') not null,
   unique key (b)
 ) engine=ndb;
 
 create table t2 (
   a int primary key,
-  b int not null,
+  b enum('a','b','c') not null,
   key (b),
-  foreign key fk1 (b) references t1 (b)
+  constraint fk1 foreign key (b) references t1 (b)
 ) engine=ndb;
 
-insert into t1 values (1,10),(2,20);
-insert into t2 values (1,10),(2,10),(3,20);
+insert into t1 values (1,'a'),(2,'b');
+insert into t2 values (1,'a'),(2,'a'),(3,'b');
 
 --error ER_FK_COLUMN_CANNOT_CHANGE_CHILD
-alter table t1 modify column b char(20) not null;
+alter table t1 modify column b enum('a','b') not null;
 alter table t2 drop foreign key fk1;
-alter table t1 modify column b char(20) not null;
+alter table t1 modify column b enum('a','b') not null;
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 select * from t1 order by a;
 select * from t2 order by a;
@@ -531,10 +520,10 @@ while ($i)
 	     b int,
 	     primary key using hash (a),
 	     key (b),
-	     foreign key fk1 (b) references t1 (a)
+	     constraint fk1 foreign key (b) references t1 (a)
 	) engine=$engine;
 
-	--error ER_ROW_IS_REFERENCED
+	--error ER_FK_CANNOT_DROP_PARENT
 	drop table t1;
 
 	drop table t2, t1;
@@ -553,7 +542,7 @@ while ($i)
 	     b int,
 	     primary key using hash (a),
 	     key (b),
-	     foreign key fk1 (b) references t1 (a)
+	     constraint fk1 foreign key (b) references t1 (a)
 	) engine=$engine;
 
 	drop table t1;
@@ -595,11 +584,13 @@ create table t2 (
   c int not null,
   primary key using hash (a),
   key xbc (b,c),
-  foreign key fk1 (b) references t1 (a)
+  constraint fk1 foreign key (b) references t1 (a)
 ) engine ndb;
 
 # uses index xbc
+--disable_warnings
 show create table t2;
+--enable_warnings
 
 insert into t2 (a,b,c) values (1,1,11),(2,2,21),(3,2,22);
 --error ER_NO_REFERENCED_ROW_2
@@ -615,11 +606,13 @@ create table t2 (
   c int not null,
   primary key using hash (a),
   key xbc (b,c),
-  foreign key fk1 (c) references t1 (a)
+  constraint fk1 foreign key (c) references t1 (a)
 ) engine ndb;
 
 # creates index fk1 (c)
+--disable_warnings
 show create table t2;
+--enable_warnings
 
 insert into t2 (a,c,b) values (1,1,11),(2,2,21),(3,2,22);
 --error ER_NO_REFERENCED_ROW_2
@@ -631,14 +624,14 @@ drop table t2;
 
 # partial hash key does not work
 # XXX maybe should create index fk1 (b)
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_CHILD
 create table t2 (
   a int not null,
   b int not null,
   c int not null,
   primary key using hash (a),
   unique key xbc (b,c) using hash,
-  foreign key fk1 (b) references t1 (a)
+  constraint fk1 foreign key (b) references t1 (a)
 ) engine ndb;
 
 create table t2 (
@@ -647,11 +640,13 @@ create table t2 (
   c int not null,
   primary key using hash (a),
   unique key xbc (b,c) using hash,
-  foreign key fk1 (c) references t1 (a)
+  constraint fk1 foreign key (c) references t1 (a)
 ) engine ndb;
 
 # creates index fk1 (c)
+--disable_warnings
 show create table t2;
+--enable_warnings
 
 insert into t2 (a,c,b) values (1,1,11),(2,2,21),(3,2,22);
 --error ER_NO_REFERENCED_ROW_2
@@ -664,23 +659,24 @@ drop table t2, t1;
 #
 # failed create table pollutes dict cache
 #
-create table t1_parent (pk1 char(255) primary key) engine = ndb;
+create table t1_parent (pk1 char(255) primary key) charset=latin1, engine = ndb;
 
---error 1296
+--error ER_CANT_CREATE_TABLE
 create table t1 (
-  c50 char(255), c49 char(255), c48 char(255), c47 char(255), c46 char(255),
-  c45 char(255), c44 char(255), c43 char(255), c42 char(255), c41 char(255),
-  c40 char(255), c39 char(255), c38 char(255), c37 char(255), c36 char(255),
-  c35 char(255), c34 char(255), c33 char(255), c32 char(255), c31 char(255),
-  c30 char(255), c29 char(255), c28 char(255), c27 char(255), c26 char(255),
-  c25 char(255), c24 char(255), c23 char(255), c22 char(255), c21 char(255),
-  c20 char(255), c19 char(255), c18 char(255), c17 char(255), c16 char(255),
-  c15 char(255), c14 char(255), c13 char(255), c12 char(255), c11 char(255),
-  c10 char(255), c9 char(255), c8 char(255), c7 char(255), c6 char(255),
-  c5 char(255), c4 char(255), c3 char(255), c2 char(255), c1 char(255),
+  c50 char(255) column_format fixed, c49 char(255) column_format fixed, c48 char(255) column_format fixed, c47 char(255) column_format fixed, c46 char(255) column_format fixed,
+  c45 char(255) column_format fixed, c44 char(255) column_format fixed, c43 char(255) column_format fixed, c42 char(255) column_format fixed, c41 char(255) column_format fixed,
+  c40 char(255) column_format fixed, c39 char(255) column_format fixed, c38 char(255) column_format fixed, c37 char(255) column_format fixed, c36 char(255) column_format fixed,
+  c35 char(255) column_format fixed, c34 char(255) column_format fixed, c33 char(255) column_format fixed, c32 char(255) column_format fixed, c31 char(255) column_format fixed,
+  c30 char(255) column_format fixed, c29 char(255) column_format fixed, c28 char(255) column_format fixed, c27 char(255) column_format fixed, c26 char(255) column_format fixed,
+  c25 char(255) column_format fixed, c24 char(255) column_format fixed, c23 char(255) column_format fixed, c22 char(255) column_format fixed, c21 char(255) column_format fixed,
+  c20 char(255) column_format fixed, c19 char(255) column_format fixed, c18 char(255) column_format fixed, c17 char(255) column_format fixed, c16 char(255) column_format fixed,
+  c15 char(255) column_format fixed, c14 char(255) column_format fixed, c13 char(255) column_format fixed, c12 char(255) column_format fixed, c11 char(255) column_format fixed,
+  c10 char(255) column_format fixed, c9 char(255) column_format fixed, c8 char(255) column_format fixed, c7 char(255) column_format fixed, c6 char(255) column_format fixed,
+  c5 char(255) column_format fixed, c4 char(255) column_format fixed, c3 char(255) column_format fixed, c2 char(255) column_format fixed, c1 char(255) column_format fixed,
   primary key using hash(c1)
   ,foreign key(c1) references t1_parent(pk1)
-) engine=ndb;
+) charset=latin1, engine=ndb;
+SHOW WARNINGS;
 
 # Fails here with "Table 'test.t1' doesn't exist"
 create table t1(a int primary key) engine = ndb;
@@ -702,16 +698,14 @@ create table t2 (
   key (c),
   key t2x1 (b),
   primary key using hash (a),
-  foreign key t2fk1 (b) references t1 (b)
+  constraint t2fk1 foreign key (b) references t1 (b)
 ) engine=ndb;
 
 --echo # try to drop indexes
 --error ER_DROP_INDEX_FK
 alter table t1 drop index t1x1;
-show warnings;
 --error ER_DROP_INDEX_FK
 alter table t2 drop index t2x1;
-show warnings;
 
 insert into t1 values (1,10),(2,20),(3,30);
 insert into t2 values (1,10,100),(2,20,200),(3,30,300);
@@ -738,8 +732,8 @@ create table t2 (
   c int,
   key xb (b),
   key xc (c),
-  foreign key fkb (b) references t1 (a),
-  foreign key fkc (c) references t1 (a)
+  constraint fkb foreign key (b) references t1 (a),
+  constraint fkc foreign key (c) references t1 (a)
 ) engine=ndb;
 
 --error ER_CANT_DROP_FIELD_OR_KEY
@@ -747,7 +741,9 @@ alter table t2
   drop foreign key nosuchfk,
   algorithm=inplace;
 
+--disable_warnings
 show create table t2;
+--enable_warnings
 
 --error ER_CANT_DROP_FIELD_OR_KEY
 alter table t2
@@ -756,7 +752,9 @@ alter table t2
   drop foreign key fkc,
   algorithm=inplace;
 
+--disable_warnings
 show create table t2;
+--enable_warnings
 
 drop table t2;
 
@@ -769,8 +767,8 @@ create table t2 (
   c int,
   key xb (b),
   key xc (c),
-  foreign key fkb (b) references t1 (a),
-  foreign key fkc (c) references t1 (a)
+  constraint fkb foreign key (b) references t1 (a),
+  constraint fkc foreign key (c) references t1 (a)
 ) engine=ndb;
 
 --error ER_CANT_DROP_FIELD_OR_KEY
@@ -778,7 +776,9 @@ alter table t2
   drop foreign key nosuchfk,
   algorithm=copy;
 
+--disable_warnings
 show create table t2;
+--enable_warnings
 
 --error ER_CANT_DROP_FIELD_OR_KEY
 alter table t2
@@ -787,7 +787,9 @@ alter table t2
   drop foreign key fkc,
   algorithm=copy;
 
+--disable_warnings
 show create table t2;
+--enable_warnings
 
 drop table t2, t1;
 
@@ -801,20 +803,20 @@ create table t2 (
   a int, primary key using hash (a)
 ) engine = ndb;
 
-alter table t2 add constraint fkname foreign key (a) references t1 (a);
+alter table t2 add constraint fkname2 foreign key (a) references t1 (a);
 
 create table t3 (
   a int, primary key using hash (a)
 ) engine = ndb;
 
-alter table t3 add constraint fkname foreign key (a) references t2 (a);
+alter table t3 add constraint fkname3 foreign key (a) references t2 (a);
 
 --error ER_CANT_DROP_FIELD_OR_KEY
 alter table t2 algorithm=inplace, drop foreign key nosuchfk;
 
-alter table t2 algorithm=inplace, drop foreign key fkname;
+alter table t2 algorithm=inplace, drop foreign key fkname2;
 
-alter table t3 algorithm=inplace, drop foreign key fkname;
+alter table t3 algorithm=inplace, drop foreign key fkname3;
 
 drop table t1, t2, t3;
 
@@ -826,20 +828,20 @@ create table t2 (
   a int, primary key using hash (a)
 ) engine = ndb;
 
-alter table t2 add constraint fkname foreign key (a) references t1 (a);
+alter table t2 add constraint fkname2 foreign key (a) references t1 (a);
 
 create table t3 (
   a int, primary key using hash (a)
 ) engine = ndb;
 
-alter table t3 add constraint fkname foreign key (a) references t2 (a);
+alter table t3 add constraint fkname3 foreign key (a) references t2 (a);
 
 --error ER_CANT_DROP_FIELD_OR_KEY
 alter table t2 algorithm=copy, drop foreign key nosuchfk;
 
-alter table t2 algorithm=copy, drop foreign key fkname;
+alter table t2 algorithm=copy, drop foreign key fkname2;
 
-alter table t3 algorithm=copy, drop foreign key fkname;
+alter table t3 algorithm=copy, drop foreign key fkname3;
 
 drop table t1, t2, t3;
 
@@ -851,13 +853,13 @@ create table t3 (a int primary key) engine=ndb;
 create table t4 (a int primary key) engine=ndb;
 
 alter table t2
-  add constraint foreign key myfk (a) references t1 (a);
+  add constraint myfk2 foreign key (a) references t1 (a);
 alter table t4
-  add constraint foreign key myfk (a) references t3 (a);
+  add constraint myfk4 foreign key (a) references t3 (a);
 
 --error ER_CANNOT_ADD_FOREIGN
 alter table t4
-  add constraint foreign key `11/22/myfk` (a) references t3 (a);
+  add constraint `11/22/myfk4` foreign key (a) references t3 (a);
 show warnings;
 
 --echo # run backup
@@ -867,13 +869,16 @@ drop table t2, t1;
 drop table t4, t3;
 
 --echo # run restore meta
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -m $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
+--disable_warnings
 show create table t2;
 show create table t4;
+--enable_warnings
 
 drop table t2, t1;
 drop table t4, t3;
+--source suite/ndb/include/backup_restore_cleanup.inc
 
 --echo # bug18825966 - ADDING FK TO TABLE WITH DATA GIVES INTERNAL ERROR 208
 
@@ -918,7 +923,7 @@ create table t2 (
 insert into t1 (c2,c5) values (1,10),(2,20),(3,30);
 insert into t2 (c1,c4) values (1,10),(2,20),(3,30);
 
-alter table t2 add constraint foreign key fk (c1,c4) references t1 (c2,c5);
+alter table t2 add constraint fk foreign key (c1,c4) references t1 (c2,c5);
 
 --error ER_NO_REFERENCED_ROW_2
 insert into t2 (c1,c4) values (4,40);
@@ -949,9 +954,117 @@ create table t2 (
 insert into t1 (c0,c2,c5) values (1,1,10),(2,2,20),(3,3,30);
 insert into t2 (c1,c4) values (1,10),(2,20),(3,30);
 
-alter table t2 add constraint foreign key fk (c1,c4) references t1 (c2,c5);
+alter table t2 add constraint fk foreign key (c1,c4) references t1 (c2,c5);
 
 --error ER_NO_REFERENCED_ROW_2
 insert into t2 (c1,c4) values (4,40);
 
 drop table t2, t1;
+
+--echo #
+--echo # BUG#21308928 :  CANNOT ADD UNIQUE CONSTRAINT ON SET OF FIELDS WITH EXISTING FOREIGN KEY
+--echo #
+
+--echo #Create the tables
+create table t1 (
+  a int not null primary key
+) engine ndb;
+
+create table t2 (
+  a int primary key,
+  b int not null,
+  c int,
+  constraint fk1 foreign key (a) references t1(a),
+  constraint fk2 foreign key (b) references t1(a),
+  constraint fk3 foreign key (c) references t1(a)
+) engine ndb;
+
+--echo #Add a unique constraint to the foreign key column
+alter table t2 add constraint uniquet2a unique (a);
+alter table t2 add constraint uniquet2b unique (b);
+alter table t2 add constraint uniquet2c unique (c);
+
+--disable_warnings
+show create table t2;
+--enable_warnings
+
+--echo #Drop tables
+drop table t2, t1;
+
+--echo #
+--echo # Bug#27930382 : FOREIGN KEY CONSTRAINT VIOLATIONS INCORRECTLY REPORTED
+--echo
+
+# Foreign key constraint which self referrence its own table,
+# incorrectly reported constraint violation. Root cause was
+# that the key constraints were checked before the (unique) indexes
+# had been updated:
+#
+# (Test case based on the API test 'testFK')
+
+
+create table t1 (
+  kol1 int primary key,
+  kol2 int not null,
+  kol3 int not null,
+  kol4 int not null,
+  kol5 int not null,
+  unique key uq1(kol2),
+  foreign key fk1(kol3) references t1(kol2) on update restrict on delete restrict
+) engine = ndb;
+
+insert into t1 values (1,1,1,1,1);
+delete from t1 where kol1=1;
+drop table t1;
+
+create table t1 (
+  kol1 int primary key,
+  kol2 int not null,
+  kol3 int not null,
+  kol4 int not null,
+  kol5 int not null,
+  foreign key fk1(kol3) references t1(kol1) on update restrict on delete restrict
+) engine = ndb;
+
+insert into t1 values (1,1,1,1,1);
+delete from t1 where kol1=1;
+drop table t1;
+
+#
+# There were also a race condition due to local backup replicas
+# being read when verifying that there were no references to
+# a deleted row. This allowed the read to race the delete of the
+# index row, such that the deleted row appered to still being referred.
+# FIX: Always read primary replicas when verifying a constraint.
+create table t1 (
+  kol1 int primary key,
+  kol2 int not null,
+  kol3 int not null,
+  kol4 int not null,
+  kol5 int not null,
+  unique key uq1(kol2),
+  unique key uq2(kol3),
+  foreign key fk1(kol3) references t1(kol2) on update restrict on delete restrict
+) engine = ndb;
+
+insert into t1 values (1,1,1,1,1);
+delete from t1 where kol1=1;
+
+insert into t1 values (2,1,1,1,1);
+delete from t1 where kol1=2;
+
+insert into t1 values (3,1,1,1,1);
+delete from t1 where kol1=3;
+
+insert into t1 values (4,1,1,1,1);
+delete from t1 where kol1=4;
+
+
+insert into t1 values (1,0,0,0,0);
+insert into t1 values (2,1,1,1,1);
+insert into t1 values (3,2,2,2,2);
+insert into t1 values (4,3,3,3,3);
+delete from t1;
+
+drop table t1;
+--remove_file $NDB_TOOLS_OUTPUT

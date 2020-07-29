@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -18,18 +18,27 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_util.cmake)
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmapi
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/debugger
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/transporter
-                    ${NDB_SCI_INCLUDES})
+INCLUDE_DIRECTORIES(
+  ${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmapi
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
+  ${CMAKE_SOURCE_DIR}/storage/ndb/include/debugger
+  ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel
+  ${CMAKE_SOURCE_DIR}/storage/ndb/include/transporter)
+
+IF(NOT WIN32)
+  SET(EXTRA_SRC SHM_Transporter.unix.cpp SHM_Transporter.cpp)
+ENDIF()
 
 ADD_CONVENIENCE_LIBRARY(ndbtransport
-            Transporter.cpp TCP_Transporter.cpp Loopback_Transporter.cpp
-            TransporterRegistry.cpp Packer.cpp)
-
+  Transporter.cpp
+  TCP_Transporter.cpp
+  Loopback_Transporter.cpp
+  TransporterRegistry.cpp
+  Packer.cpp
+  Multi_Transporter.cpp
+  ${EXTRA_SRC}
+  )

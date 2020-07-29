@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #define DBTUP_C
 #define DBTUP_STORE_PROC_DEF_CPP
 #include "Dbtup.hpp"
@@ -42,9 +41,9 @@ void Dbtup::execSTORED_PROCREQ(Signal* signal)
 {
   OperationrecPtr regOperPtr;
   TablerecPtr regTabPtr;
-  jamEntry();
+  jamEntryDebug();
   regOperPtr.i = signal->theData[0];
-  c_operation_pool.getPtr(regOperPtr);
+  ndbrequire(c_operation_pool.getValidPtr(regOperPtr));
   regTabPtr.i = signal->theData[1];
   ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
 
@@ -59,14 +58,14 @@ void Dbtup::execSTORED_PROCREQ(Signal* signal)
    * It can be done here since seize/release always succeeds.
    * The count is only used under -DERROR_INSERT via DUMP.
    */
-#if defined VM_TRACE || defined ERROR_INSERT
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
   BlockReference apiBlockref = signal->theData[5];
 #endif
   switch (requestInfo) {
   case ZSCAN_PROCEDURE:
   {
-    jam();
-#if defined VM_TRACE || defined ERROR_INSERT
+    jamDebug();
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
     storedProcCountNonAPI(apiBlockref, +1);
 #endif
     SectionHandle handle(this);
@@ -81,21 +80,21 @@ void Dbtup::execSTORED_PROCREQ(Signal* signal)
     break;
   }
   case ZCOPY_PROCEDURE:
-    jam();
-#if defined VM_TRACE || defined ERROR_INSERT
+    jamDebug();
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
     storedProcCountNonAPI(apiBlockref, +1);
 #endif
     copyProcedure(signal, regTabPtr, regOperPtr.p);
     break;
   case ZSTORED_PROCEDURE_DELETE:
-    jam();
-#if defined VM_TRACE || defined ERROR_INSERT
+    jamDebug();
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
     storedProcCountNonAPI(apiBlockref, -1);
 #endif
     deleteScanProcedure(signal, regOperPtr.p);
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
   }//switch
 }//Dbtup::execSTORED_PROCREQ()
 
@@ -123,21 +122,27 @@ void Dbtup::deleteScanProcedure(Signal* signal,
 {
   StoredProcPtr storedPtr;
   Uint32 storedProcId = signal->theData[4];
-  c_storedProcPool.getPtr(storedPtr, storedProcId);
-  ndbrequire(storedPtr.p->storedCode != ZSTORED_PROCEDURE_FREE);
-  if (unlikely(storedPtr.p->storedCode == ZCOPY_PROCEDURE))
+  storedPtr.i = storedProcId;
+  if (storedPtr.i != RNIL)
   {
-    releaseCopyProcedure();
+    jam();
+    ndbrequire(c_storedProcPool.getValidPtr(storedPtr));
+    ndbrequire(storedPtr.p->storedCode != ZSTORED_PROCEDURE_FREE);
+    if (unlikely(storedPtr.p->storedCode == ZCOPY_PROCEDURE))
+    {
+      releaseCopyProcedure();
+    }
+    else
+    {
+      /* ZSCAN_PROCEDURE */
+      releaseSection(storedPtr.p->storedProcIVal);
+    }
+    storedPtr.p->storedCode = ZSTORED_PROCEDURE_FREE;
+    storedPtr.p->storedProcIVal= RNIL;
+    c_storedProcPool.release(storedPtr);
+    checkPoolShrinkNeed(DBTUP_STORED_PROCEDURE_TRANSIENT_POOL_INDEX,
+                        c_storedProcPool);
   }
-  else
-  {
-    /* ZSCAN_PROCEDURE */
-    releaseSection(storedPtr.p->storedProcIVal);
-  }
-  storedPtr.p->storedCode = ZSTORED_PROCEDURE_FREE;
-  storedPtr.p->storedProcIVal= RNIL;
-  c_storedProcPool.release(storedPtr);
-
   set_trans_state(regOperPtr, TRANS_IDLE);
   signal->theData[0] = 0; /* Success */
   signal->theData[1] = storedProcId;
@@ -155,12 +160,20 @@ void Dbtup::scanProcedure(Signal* signal,
   ndbrequire( handle->m_ptr[0].p->m_sz > 0 );
 
   StoredProcPtr storedPtr;
-  c_storedProcPool.seize(storedPtr);
-  ndbrequire(storedPtr.i != RNIL);
-  storedPtr.p->storedCode = (isCopy)? ZCOPY_PROCEDURE : ZSCAN_PROCEDURE;
+  if (unlikely(!c_storedProcPool.seize(storedPtr)))
+  {
+    jam();
+    handle->clear();
+    storedProcBufferSeizeErrorLab(signal, 
+                                  regOperPtr,
+                                  RNIL,
+                                  ZOUT_OF_STORED_PROC_MEMORY_ERROR);
+    return;
+  }
   Uint32 lenAttrInfo= handle->m_ptr[0].p->m_sz;
-  storedPtr.p->storedProcIVal= handle->m_ptr[0].i;
   handle->clear();
+  storedPtr.p->storedCode = (isCopy)? ZCOPY_PROCEDURE : ZSCAN_PROCEDURE;
+  storedPtr.p->storedProcIVal= handle->m_ptr[0].i;
 
   set_trans_state(regOperPtr, TRANS_IDLE);
   
@@ -330,6 +343,9 @@ void Dbtup::copyProcedure(Signal* signal,
                 regOperPtr,
                 &handle,
                 true); // isCopy
+  Ptr<SectionSegment> first;
+  g_sectionSegmentPool.getPtr(first, cCopyProcedure);
+  signal->theData[2] = first.p->m_sz;
 }//Dbtup::copyProcedure()
 
 void Dbtup::storedProcBufferSeizeErrorLab(Signal* signal,

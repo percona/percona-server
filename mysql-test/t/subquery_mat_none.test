@@ -2,6 +2,7 @@
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
+--source include/have_myisam.inc
 
 # 
 # Run subquery_mat.inc without any of the socalled 6.0 features.
@@ -29,4 +30,3 @@ if (`select locate('mrr', @@optimizer_switch) > 0`)
 --source include/subquery_mat.inc
 
 set optimizer_switch=default;
-

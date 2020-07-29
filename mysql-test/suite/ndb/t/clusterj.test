@@ -1,18 +1,13 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Run the Cluster/J JUnit tests from MTR
 #
+
+# Don't run in asan builds
+--source include/not_asan.inc
 --source include/have_ndb.inc
---source include/have_big5.inc
---source include/have_utf8.inc
---source include/have_sjis.inc
---source include/not_embedded.inc
---source suite/ndb/include/have_clusterj.inc
 --source suite/ndb/include/have_connectorj.inc
+--source suite/ndb/include/have_clusterj.inc
+--let JAVA_MIN_REQUIRED_VERSION=1.8
 --source suite/ndb/include/have_java.inc
 
 --let JAVA_CLASSPATH=$CLUSTERJ_TEST_JAR
@@ -21,16 +16,29 @@
 --let JAVA_JVM_OPTS= -ea -Xcheck:jni
 --let JAVA_JVM_OPTS_1= -Dclusterj.properties=$MYSQLTEST_VARDIR/tmp/clusterj.properties
 --let JAVA_JVM_OPTS_2= -Djava.library.path="$NDBCLIENT_LIB_DIR"
+# Run the cluster-test jar in the same timezone as the
+# server (set in the environment variable TZ)
+--let JAVA_JVM_OPTS_3= -Duser.timezone=$TZ
 --let JAVA_CLASS= testsuite.clusterj.AllTests
 --let JAVA_ARGUMENTS= $CLUSTERJ_TEST_JAR
 
+# Enable debug tests if this is a debug build
+--source include/check_ndb_debug.inc
+if ($have_ndb_debug) {
+  --let JAVA_ARGUMENTS= $JAVA_ARGUMENTS --enable-debug-tests
+}
+
 --source suite/ndb/include/run_java.inc
+
+--echo Clean up the temporary clusterj.properties file.
+--remove_file $MYSQLTEST_VARDIR/tmp/clusterj.properties
 
 --echo Clean up tables used in the JUnit tests.
 DROP TABLE a;
 DROP TABLE allprimitives;
 DROP TABLE autopkint;
 DROP TABLE autopkbigint;
+DROP TABLE autopkmediumint;
 DROP TABLE autopksmallint;
 DROP TABLE autopktinyint;
 DROP TABLE b0;
@@ -56,18 +64,22 @@ DROP TABLE dn2id;
 DROP TABLE doubletypes;
 DROP TABLE floattypes;
 DROP TABLE hashpk;
+DROP TABLE hope;
 DROP TABLE longintstringfk;
 DROP TABLE longintstringix;
 DROP TABLE longintstringpk;
 DROP TABLE longlongstringfk;
 DROP TABLE longlongstringpk;
 DROP TABLE longvarbinarypk;
+DROP TABLE mediumintegertypes;
+DROP TABLE mediumunsignedtypes;
 DROP TABLE nullvalues;
 DROP TABLE shortpk;
 DROP TABLE stress;
 DROP TABLE stringtype;
 DROP TABLE t_basic;
 DROP TABLE timestamptypes;
+DROP TABLE timestamp2types;
 DROP TABLE timetypes;
 DROP TABLE twopk;
 DROP TABLE yeartypes;
@@ -80,4 +92,3 @@ DROP TABLE varbinarytypes;
 DROP TABLE IF EXISTS test2.t_basic2;
 DROP DATABASE IF EXISTS test2;
 
-exit;

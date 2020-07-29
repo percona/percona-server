@@ -21,11 +21,12 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 ======= */
 
-#ident "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
+#ident \
+    "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
-#include <stdio.h>
-#include <stdint.h>
 #include <inttypes.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 
@@ -33,22 +34,22 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 using namespace tokudb;
 
 static void test(int length_bits) {
-    printf("%s %d\n", __FUNCTION__, length_bits);
-    uint64_t max = (1ULL << length_bits) - 1;
-    for (uint64_t x = 0; x <= max; x++) {
-        for (uint64_t y = 0; y <= max; y++) {
-            bool over;
-            uint64_t n = uint_add(x, y, max, &over);
-            printf("%"PRIu64" %"PRIu64" %"PRIu64"\n", x, y, n);
-        }
+  printf("%s %d\n", __FUNCTION__, length_bits);
+  uint64_t max = (1ULL << length_bits) - 1;
+  for (uint64_t x = 0; x <= max; x++) {
+    for (uint64_t y = 0; y <= max; y++) {
+      bool over;
+      uint64_t n = uint_add(x, y, max, &over);
+      printf("%" PRIu64 " %" PRIu64 " %" PRIu64 "\n", x, y, n);
     }
+  }
 }
 
 int main(int argc, char *argv[]) {
-    if (argc > 1) {
-        for (int i = 1; i < argc; i++) {
-            test(atoi(argv[i]));
-        }
+  if (argc > 1) {
+    for (int i = 1; i < argc; i++) {
+      test(atoi(argv[i]));
     }
-    return 0;
+  }
+  return 0;
 }

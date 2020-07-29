@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -22,6 +22,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
+
+#ifdef TEST_MGMCONFIG
 
 #include <ndb_global.h>
 #include "InitConfigFileParser.hpp"
@@ -150,7 +152,7 @@ create_config(const char* first, ...)
 }
 
 // Global variable for my_getopt
-extern "C" const char* my_defaults_file;
+extern const char* my_defaults_file;
 
 static
 unsigned
@@ -290,7 +292,7 @@ diff_config(void)
 }
 
 
-void
+static void
 print_restart_info(void)
 {
   Vector<const char*> initial_node;
@@ -396,14 +398,14 @@ test_param_values(void)
   {
     ndbout_c("testing %s", t->param);
     {
-      const Config* c =
-        create_config("[ndbd]", "NoOfReplicas=1",
+ const Config* c =
+   create_config("[ndbd]", "NoOfReplicas=1",
                       t->param,
-                      "[ndb_mgmd]", "HostName=localhost",
-                      "[mysqld]", NULL);
+                 "[ndb_mgmd]", "HostName=localhost",
+                 "[mysqld]", NULL);
       if (t->result)
       {
-        CHECK(c);
+  CHECK(c);
         delete c;
       }
       else
@@ -437,6 +439,7 @@ test_param_values(void)
 static void
 test_hostname_mycnf(void)
 {
+  ndbout_c("test_hostname_mycnf");
   // Check the special rule for my.cnf that says
   // the two hostname specs must match
   {
@@ -483,9 +486,9 @@ TAPTEST(MgmConfig)
   checksum_config();
   test_param_values();
   test_hostname_mycnf();
-#if 0
-  print_restart_info();
-#endif
+  if (false)
+    print_restart_info();
   ndb_end(0);
   return 1; // OK
 }
+#endif

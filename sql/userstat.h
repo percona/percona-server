@@ -18,8 +18,8 @@
 #define USERSTAT_INCLUDED
 
 void userstat_start_timer(double *start_busy_usecs,
-                          double *start_cpu_nsecs);
+                          double *start_cpu_nsecs) noexcept;
 void userstat_finish_timer(double start_busy_usecs, double start_cpu_nsecs,
-                           double *busy_sec, double *cpu_sec);
+                           double *busy_sec, double *cpu_sec) noexcept;
 
 #endif

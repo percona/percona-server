@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@ import java.util.List;
 
 import testsuite.clusterj.model.AutoPKInt;
 import testsuite.clusterj.model.AutoPKBigint;
+import testsuite.clusterj.model.AutoPKMediumint;
 import testsuite.clusterj.model.AutoPKSmallint;
 import testsuite.clusterj.model.AutoPKTinyint;
 
@@ -45,10 +46,10 @@ public class AutoPKTest extends AbstractClusterJTest {
     
     protected Helper<Integer> intHelper = new Helper<Integer>() {
         public Integer valueOf(int i) {
-            return new Integer(i);
+            return Integer.valueOf(i);
         }
         public Integer valueOf(Number i) {
-            return new Integer(i.intValue());
+            return Integer.valueOf(i.intValue());
         }
         public Class<Integer> keyType() {
             return Integer.class;
@@ -57,22 +58,34 @@ public class AutoPKTest extends AbstractClusterJTest {
 
     protected Helper<Long> bigintHelper = new Helper<Long>() {
         public Long valueOf(int i) {
-            return new Long(i);
+            return Long.valueOf(i);
         }
         public Long valueOf(Number i) {
-            return new Long(i.intValue());
+            return Long.valueOf(i.intValue());
         }
         public Class<Long> keyType() {
             return Long.class;
         }
     };
 
+    protected Helper<Integer> mediumintHelper = new Helper<Integer>() {
+        public Integer valueOf(int i) {
+            return Integer.valueOf(i);
+        }
+        public Integer valueOf(Number i) {
+            return Integer.valueOf(i.intValue());
+        }
+        public Class<Integer> keyType() {
+            return Integer.class;
+        }
+    };
+
     protected Helper<Short> smallintHelper = new Helper<Short>() {
         public Short valueOf(int i) {
-            return new Short((short)i);
+            return Short.valueOf((short)i);
         }
         public Short valueOf(Number i) {
-            return new Short((short)i.intValue());
+            return Short.valueOf((short)i.intValue());
         }
         public Class<Short> keyType() {
             return Short.class;
@@ -81,10 +94,10 @@ public class AutoPKTest extends AbstractClusterJTest {
 
     protected Helper<Byte> tinyintHelper = new Helper<Byte>() {
         public Byte valueOf(int i) {
-            return new Byte((byte)i);
+            return Byte.valueOf((byte)i);
         }
         public Byte valueOf(Number i) {
-            return new Byte((byte)i.intValue());
+            return Byte.valueOf((byte)i.intValue());
         }
         public Class<Byte> keyType() {
             return Byte.class;
@@ -96,6 +109,7 @@ public class AutoPKTest extends AbstractClusterJTest {
 
     protected Tester<Integer, AutoPKInt> intTester = new Tester<Integer, AutoPKInt>(intHelper, AutoPKInt.class);
     protected Tester<Long, AutoPKBigint> bigintTester = new Tester<Long, AutoPKBigint>(bigintHelper, AutoPKBigint.class);
+    protected Tester<Integer, AutoPKMediumint> mediumintTester = new Tester<Integer, AutoPKMediumint>(mediumintHelper, AutoPKMediumint.class);
     protected Tester<Short, AutoPKSmallint> smallintTester = new Tester<Short, AutoPKSmallint>(smallintHelper, AutoPKSmallint.class);
     protected Tester<Byte, AutoPKTinyint> tinyintTester = new Tester<Byte, AutoPKTinyint>(tinyintHelper, AutoPKTinyint.class);
 
@@ -228,6 +242,7 @@ public class AutoPKTest extends AbstractClusterJTest {
         try {
             intTester.deleteAll();
             bigintTester.deleteAll();
+            mediumintTester.deleteAll();
             smallintTester.deleteAll();
             tinyintTester.deleteAll();
         } catch (Throwable t) {
@@ -237,12 +252,13 @@ public class AutoPKTest extends AbstractClusterJTest {
         try {
             intTester.createAll();
             bigintTester.createAll();
+            mediumintTester.createAll();
             smallintTester.createAll();
             tinyintTester.createAll();
         } catch (Throwable t) {
             t.printStackTrace();
         }
-        addTearDownClasses(AutoPKInt.class, AutoPKBigint.class, AutoPKSmallint.class, AutoPKTinyint.class);
+        addTearDownClasses(AutoPKInt.class, AutoPKBigint.class, AutoPKMediumint.class, AutoPKSmallint.class, AutoPKTinyint.class);
     }
 
     public void test() {
@@ -256,6 +272,7 @@ public class AutoPKTest extends AbstractClusterJTest {
     protected void find() {
         intTester.findAll();
         bigintTester.findAll();
+        mediumintTester.findAll();
         smallintTester.findAll();
         tinyintTester.findAll();
     }
@@ -266,6 +283,7 @@ public class AutoPKTest extends AbstractClusterJTest {
             if (0 == i % 5) {
                 intTester.deleteByKey(i);
                 bigintTester.deleteByKey(i);
+                mediumintTester.deleteByKey(i);
                 smallintTester.deleteByKey(i);
                 tinyintTester.deleteByKey(i);
                 
@@ -282,6 +300,10 @@ public class AutoPKTest extends AbstractClusterJTest {
                 found = bigintTester.findByKey(i);
                 if (found != null) {
                     error ("failed to delete AutoPKBigint for " + i);
+                }
+                found = mediumintTester.findByKey(i);
+                if (found != null) {
+                    error ("failed to delete AutoPKMediumint for " + i);
                 }
                 found = smallintTester.findByKey(i);
                 if (found != null) {

@@ -2,21 +2,19 @@
 # This test case will test export/import encrypted tablespace.
 
 --source include/no_valgrind_without_big.inc
---source include/have_innodb.inc
---source include/not_embedded.inc
 --source include/have_debug.inc
 
---let $restart_parameters="$KEYRING_RESTART_PARAM"
---let $restart_hide_args= 1
+--let $restart_parameters = $KEYRING_RESTART_PARAM
+--let $restart_hide_args = 1
 --source include/restart_mysqld.inc
 
 
 --disable_query_log
 call mtr.add_suppression("Trying to import a encrypted tablespace, but could not get encryption information from .cfp file");
 call mtr.add_suppression("Operating system error number .* in a file operation");
-call mtr.add_suppression("InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("The error means the system cannot find the path specified.");
 call mtr.add_suppression("'delete' returned OS error 7");
-call mtr.add_suppression("InnoDB: Trying to import a tablespace, but could not open the tablespace file");
+call mtr.add_suppression("Trying to import a tablespace, but could not open the tablespace file");
 call mtr.add_suppression("Table is not in an encrypted tablespace, but the data file intended for import is an encrypted tablespace");
 --enable_query_log
 
@@ -93,8 +91,8 @@ if($source_db != $dest_db) {
 	eval DROP TABLE $dest_db.t1;
 }
 
---let $restart_parameters="$KEYRING_RESTART_PARAM"
---let $restart_hide_args= 1
+--let $restart_parameters = $KEYRING_RESTART_PARAM
+--let $restart_hide_args = 1
 --source include/restart_mysqld.inc
 
 --source include/wait_until_connected_again.inc
@@ -182,6 +180,7 @@ eval ALTER TABLE $dest_db.t1 IMPORT TABLESPACE;
 eval DROP TABLE IF EXISTS $dest_db.t1;
 eval DROP TABLE IF EXISTS $source_db.t1;
 --enable_query_log
+--remove_files_wildcard $MYSQLD_DATADIR/$dest_db/ t1.*
 --remove_file $MYSQLD_DATADIR/t1.cfg_back
 --remove_file $MYSQLD_DATADIR/t1.cfp_back
 --remove_file $MYSQLD_DATADIR/t1.ibd_back

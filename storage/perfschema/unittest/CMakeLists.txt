@@ -18,26 +18,18 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
-                    ${CMAKE_SOURCE_DIR}/include/mysql
-                    ${CMAKE_SOURCE_DIR}/regex
-                    ${CMAKE_SOURCE_DIR}/sql
-                    ${SSL_INCLUDE_DIRS}
-                    ${CMAKE_SOURCE_DIR}/unittest/mytap
-                    ${CMAKE_SOURCE_DIR}/storage/perfschema)
+ADD_DEFINITIONS(-DMYSQL_SERVER)
 
-ADD_DEFINITIONS(-DMYSQL_SERVER ${SSL_DEFINES})
-
-ADD_CONVENIENCE_LIBRARY(pfs_server_stubs pfs_server_stubs.cc)
+ADD_LIBRARY(pfs_server_stubs STATIC pfs_server_stubs.cc)
 
 ADD_DEPENDENCIES(pfs_server_stubs GenError)
 
 MACRO (PFS_ADD_TEST name)
-  ADD_EXECUTABLE(${name}-t ${name}-t.cc)
-  TARGET_LINK_LIBRARIES(${name}-t mytap perfschema mysys pfs_server_stubs)
-  ADD_TEST(${name} ${name}-t)
+  MYSQL_ADD_EXECUTABLE(${name}-t ${name}-t.cc ADD_TEST ${name})
+  TARGET_LINK_LIBRARIES(${name}-t
+    mytap perfschema mysys pfs_server_stubs strings sql_main ${ICU_LIBRARIES})
 ENDMACRO()
 
 SET(tests
@@ -62,23 +54,18 @@ ENDIF()
 
 # We need the server libs to test the blob parser.
 # Add sql_builtin.cc here, to force linkage of plugins below.
-# Also add mysys/string.c (see Bug#45488)
-ADD_EXECUTABLE(pfs_connect_attr-t
+MYSQL_ADD_EXECUTABLE(pfs_connect_attr-t
   pfs_connect_attr-t.cc
   ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
-  ${CMAKE_SOURCE_DIR}/mysys/string.c
   ${MYSQLD_EXTRA_SOURCES}
+  EXCLUDE_ON_SOLARIS
+  ADD_TEST pfs_connect_attr
 )
-ADD_DEPENDENCIES(pfs_connect_attr-t GenServerSource)
-TARGET_LINK_LIBRARIES(pfs_connect_attr-t mytap perfschema)
-# We need to explicitly link in everything referenced in sql/sql_builtin.cc
-TARGET_LINK_LIBRARIES(pfs_connect_attr-t ${MYSQLD_STATIC_PLUGIN_LIBS})
-TARGET_LINK_LIBRARIES(pfs_connect_attr-t sql binlog rpl master slave sql)
-TARGET_LINK_LIBRARIES(pfs_connect_attr-t mysys mysys_ssl)
-TARGET_LINK_LIBRARIES(pfs_connect_attr-t vio ${SSL_LIBRARIES})
-TARGET_LINK_LIBRARIES(pfs_connect_attr-t strings dbug regex mysys ${ZLIB_LIBRARY})
-ADD_TEST(pfs_connect_attr pfs_connect_attr-t)
 
-# ADD_EXECUTABLE(pfs_benchmark-t pfs_benchmark-t.cc pfs_benchmark_helper.cc)
-# TARGET_LINK_LIBRARIES(pfs_benchmark-t mytap perfschema mysys pfs_server_stubs)
-# ADD_TEST(pfs_benchmark pfs_benchmark-t)
+ADD_DEPENDENCIES(pfs_connect_attr-t GenServerSource)
+# We need to explicitly link in everything referenced in sql/sql_builtin.cc
+TARGET_LINK_LIBRARIES(pfs_connect_attr-t
+  mytap
+  server_unittest_library
+  ${MYSQLD_STATIC_PLUGIN_LIBS}
+  )

@@ -1,5 +1,3 @@
---source include/have_innodb.inc
-
 # Display default value
 SELECT @@GLOBAL.innodb_scrub_log;
 --echo 0 Expected
@@ -14,7 +12,7 @@ SELECT @@GLOBAL.innodb_scrub_log;
 
 # Check if the value in GLOBAL TABLE matches value in variable
 SELECT IF(@@GLOBAL.innodb_scrub_log, 'ON', 'OFF') = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_scrub_log';
 --echo 1 Expected
 
@@ -22,7 +20,7 @@ SELECT @@GLOBAL.innodb_scrub_log;
 --echo 0 Expected
 
 SELECT VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='innodb_scrub_log';
 --echo 0 Expected
 

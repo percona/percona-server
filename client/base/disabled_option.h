@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,33 +25,32 @@
 #ifndef DISABLED_OPTION_INCLUDED
 #define DISABLED_OPTION_INCLUDED
 
-#include <my_getopt.h>
-#include "abstract_option.h"
+#include "client/base/abstract_option.h"
+#include "my_getopt.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Base{
-namespace Options{
+namespace Mysql {
+namespace Tools {
+namespace Base {
+namespace Options {
 
 /**
   Disabled option. This option is used to mark existance of options
   inavailable due to distribution configuration.
  */
-class Disabled_option : public Abstract_option<Disabled_option>
-{
-public:
+class Disabled_option : public Abstract_option<Disabled_option> {
+ public:
   /**
     Constructs new disabled option.
     @param name Name of option. It is used in command-line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
   Disabled_option(std::string name, std::string description);
 };
 
-}
-}
-}
-}
+}  // namespace Options
+}  // namespace Base
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

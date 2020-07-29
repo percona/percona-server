@@ -91,14 +91,7 @@ create table sa_t1(id int);
 insert into sa_t1 values (1), (2);
 drop table sa_t1;
 drop database sa_db;
-create user 'jeffrey'@'localhost' IDENTIFIED BY 'mypass';
-drop user 'jeffrey'@'localhost';
 select '&;&&&""""<><<>>>>';
 &;&&&""""<><<>>>>
 &;&&&""""<><<>>>>
-select ' 	
-/"\\';
-/"\
- 	
-/"\
 set global audit_log_flush= ON;

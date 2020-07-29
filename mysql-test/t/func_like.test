@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Test of like
 #
@@ -11,10 +6,11 @@
 drop table if exists t1;
 --enable_warnings
 
-create table t1 (a varchar(10), key(a));
+create table t1 (a varchar(10), key(a)) charset utf8mb4;
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
-explain extended select * from t1 where a like 'abc%';
-explain extended select * from t1 where a like concat('abc','%');
+analyze table t1;
+explain select * from t1 where a like 'abc%';
+explain select * from t1 where a like concat('abc','%');
 select * from t1 where a like "abc%";
 select * from t1 where a like concat("abc","%");
 select * from t1 where a like "ABC%";
@@ -22,7 +18,7 @@ select * from t1 where a like "test%";
 select * from t1 where a like "te_t";
 
 #
-# The following will test the Boyer-Moore code
+# The following will test non-anchored matches
 #
 select * from t1 where a like "%a%";
 select * from t1 where a like "%abcd%";
@@ -66,7 +62,9 @@ SET NAMES koi8r;
 
 CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET koi8r);
 
+--character_set koi8r
 INSERT INTO t1 VALUES ('фыва'),('Фыва'),('фЫва'),('фыВа'),('фывА'),('ФЫВА');
+
 INSERT INTO t1 VALUES ('фывапролдж'),('Фывапролдж'),('фЫвапролдж'),('фыВапролдж');
 INSERT INTO t1 VALUES ('фывАпролдж'),('фываПролдж'),('фывапРолдж'),('фывапрОлдж');
 INSERT INTO t1 VALUES ('фывапроЛдж'),('фывапролДж'),('фывапролдЖ'),('ФЫВАПРОЛДЖ');
@@ -76,6 +74,8 @@ SELECT * FROM t1 WHERE a LIKE '%фЫв%';
 SELECT * FROM t1 WHERE a LIKE 'фЫва%';
 
 DROP TABLE t1;
+
+--character_set utf8mb4
 
 # Bug #2547 Strange "like" behaviour in tables with default charset=cp1250
 # Test like with non-default character set using TurboBM
@@ -134,7 +134,6 @@ DROP TABLE t1, t2;
 --echo #
 --echo # Bug#59149 valgrind warnings with "like .. escape .." function
 --echo #
---error ER_WRONG_ARGUMENTS
 SELECT '' LIKE '1' ESCAPE COUNT(1);
 
 --echo End of 5.1 tests
@@ -190,7 +189,7 @@ SELECT ('a%b' LIKE 'ax%b' ESCAPE ('x', 'y'));
 SELECT ('a%b' LIKE 'ax%b' ESCAPE x) FROM t1;
 
 # Also test on an indexed column to exercise the range optimizer.
-# (The range optimizer will give up because it doesn't know the
+# (The range optimizer will give up because it does not know the
 # value of the escape character, so the query execution plan will
 # not actually use range optimization.)
 CREATE TABLE t2(x int, y varchar(100)) ENGINE=InnoDB;
@@ -207,6 +206,123 @@ DROP TABLE t1, t2;
 --echo # Bug#20035071: Out of range error in subselect lead to assertion failed
 
 CREATE TABLE t1(a INTEGER) engine=innodb;
---error ER_DATA_OUT_OF_RANGE
+# Error is OK but not mandatory.
 SELECT 1 FROM t1 HAVING (SELECT 1 FROM t1) LIKE EXP(NOW());
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #25140629: WRONG RESULT WHEN USING LIKE FUNCTION WITH UCA
+--echo #                COLLATIONS
+--echo #
+CREATE TABLE t1(wildstr VARCHAR(10), str VARCHAR(10), like_result INTEGER)
+COLLATE utf8mb4_0900_ai_ci;
+INSERT INTO t1 VALUES('abc', 'abc', 1), ('AbC', 'aBc', 1), ('_bc', 'abc', 1),
+('a_c', 'abc', 1), ('ab_', 'abc', 1), ('%c', 'abc', 1), ('a%c', 'abc', 1),
+('a%', 'abc', 1), ('a%d_f', 'abcdef', 1), ('a%d%g', 'abcdefg', 1),
+('a_c_e', 'abcde', 1), ('a%%de', 'abcde', 1), ('a__de', 'abcde', 1),
+(_utf16 0x65700025636E005F5E93, _utf16 0x65706C49636E5B575E93, 1),
+('a\\', 'a\\', 1);
+SELECT wildstr, str, like_result FROM t1 WHERE (str LIKE wildstr) <>
+like_result;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #12635103: VALGRIND WARNINGS IN MY_WILDCMP_MB AND
+--echo #                MY_WILDCMP_8BIT WITH LIKE AND CONVERT
+--echo #
+# This bug is visible only with valgrind.
+# Multibyte wildcmp
+SELECT 'aa' LIKE CONVERT('%a' USING big5);
+# UCA wildcmp
+SELECT 'aa' LIKE CONVERT('%a' USING utf8mb4);
+# GB18030 wildcmp
+SELECT 'aa' LIKE CONVERT('%a' USING gb18030);
+# Binary wildcmp
+SELECT 'aa' LIKE CONVERT('%a' USING binary);
+# 8bit wildcmp
+SELECT 'aa' LIKE CONVERT('%a' USING latin1);
+# Multibyte binary wildcmp
+SET NAMES gb2312;
+SELECT 'aa' LIKE '%a' COLLATE gb2312_bin;
+SET NAMES DEFAULT;
+# Unicode wildcmp
+SELECT 'aa' LIKE CONVERT('%a' USING utf8);
+
+--echo #
+--echo # Bug#29175461: LIKE RESULT ERROR IF ESCAPE IS % OF WILDCARD CHARACTERS
+--echo #
+# Multibyte wildcmp
+SET NAMES big5;
+select 1 where 'b%a' like '%%a' escape '%';
+select 1 where 'b_a' like '__a' escape '_';
+select 1 where 'b%a' like '#%a' escape '#';
+select 1 where 'b_a' like '#_a' escape '#';
+# UCA wildcmp
+SET NAMES utf8mb4;
+select 1 where 'b%a' like '%%a' escape '%';
+select 1 where 'b_a' like '__a' escape '_';
+select 1 where 'b%a' like '#%a' escape '#';
+select 1 where 'b_a' like '#_a' escape '#';
+# GB18030 wildcmp
+SET NAMES gb18030;
+select 1 where 'b%a' like '%%a' escape '%';
+select 1 where 'b_a' like '__a' escape '_';
+select 1 where 'b%a' like '#%a' escape '#';
+select 1 where 'b_a' like '#_a' escape '#';
+# Binary wildcmp
+SET NAMES binary;
+select 1 where 'b%a' like '%%a' escape '%';
+select 1 where 'b_a' like '__a' escape '_';
+select 1 where 'b%a' like '#%a' escape '#';
+select 1 where 'b_a' like '#_a' escape '#';
+# 8bit wildcmp
+SET NAMES latin1;
+select 1 where 'b%a' like '%%a' escape '%';
+select 1 where 'b_a' like '__a' escape '_';
+select 1 where 'b%a' like '#%a' escape '#';
+select 1 where 'b_a' like '#_a' escape '#';
+# Multibyte binary wildcmp
+SET NAMES gb2312;
+select 1 where 'b%a' like '%%a' escape '%';
+select 1 where 'b_a' like '__a' escape '_';
+select 1 where 'b%a' like '#%a' escape '#';
+select 1 where 'b_a' like '#_a' escape '#';
+# Unicode wildcmp
+SET NAMES utf8;
+select 1 where 'b%a' like '%%a' escape '%';
+select 1 where 'b_a' like '__a' escape '_';
+select 1 where 'b%a' like '#%a' escape '#';
+select 1 where 'b_a' like '#_a' escape '#';
+
+SET NAMES default;
+
+--echo #
+--echo # Bug#29368521: ASSERTION `!THD->IS_ERROR()' FAILED
+--echo #
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT 'a' LIKE '%' ESCAPE CAST('' AS JSON);
+
+
+--echo #
+--echo # Bug#29590129 UBSAN: MEMBER CALL ON NULL POINTER OF TYPE
+--echo #              'STRUCT STRING' IN ITEM_FUNC_LIKE::VA
+--echo #
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (42);
+
+--error ER_TRUNCATED_WRONG_VALUE
+DELETE FROM t1 WHERE
+( EXISTS
+   (SELECT * WHERE '520:33:32.77' < (c1 - INTERVAL(1) MONTH))
+) LIKE (c1);
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#29904751: LIKE CONDITION FOR DATE COLUMN RETURNS ERROR
+--echo #
+CREATE TABLE t(col1 DATE);
+INSERT INTO t(col1) VALUES('2019-06-13'), ('2019-07-13');
+SELECT * FROM t WHERE col1 LIKE '2019%';
+SELECT * FROM t WHERE col1 LIKE '2019-06-1%';
+DROP TABLE t;
+

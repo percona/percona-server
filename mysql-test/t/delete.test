@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Check for problems with delete
 #
@@ -83,7 +78,7 @@ CREATE TABLE t1 (
   not_null varchar(20) binary NOT NULL default '',
   misc     integer not null,
   PRIMARY KEY  (not_null)
-) ENGINE=MyISAM;
+) ;
 
 INSERT INTO t1 VALUES (NULL,'a',4), (NULL,'b',5), (NULL,'c',6), (NULL,'d',7);
 
@@ -118,6 +113,7 @@ create table t2 (a int NOT NULL, b int, primary key (a));
 insert into t11 values (0, 10),(1, 11),(2, 12);
 insert into t12 values (33, 10),(0, 11),(2, 12);
 insert into t2 values (1, 21),(2, 12),(3, 23);
+analyze table t11,t12,t2;
 select * from t11;
 select * from t12;
 select * from t2;
@@ -126,13 +122,16 @@ delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b <> (select b from
 select * from t11;
 select * from t12;
 delete ignore t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b <> (select b from t2 where t11.a < t2.a);
+analyze table t11,t12,t2;
 select * from t11;
 select * from t12;
 insert into t11 values (2, 12);
+analyze table t11,t12,t2;
 -- error 1242
 delete from t11 where t11.b <> (select b from t2 where t11.a < t2.a);
 select * from t11;
 delete ignore from t11 where t11.b <> (select b from t2 where t11.a < t2.a);
+analyze table t11,t12,t2;
 select * from t11;
 drop table t11, t12, t2;
 
@@ -221,7 +220,10 @@ CREATE TABLE t3 (a int not null, b int not null, primary key (a,b));
 insert into t1 values (1,1),(2,1),(1,3);
 insert into t2 values (1,1),(2,2),(3,3);
 insert into t3 values (1,1),(2,1),(1,3);
-select * from t1,t2,t3 where t1.a=t2.a AND t2.b=t3.a and t1.b=t3.b;
+select * from t1,t2,t3 where t1.a=t2.a AND t2.b=t3.a and t1.b=t3.b order by t1.a,t1.b;
+analyze table t1;
+analyze table t2;
+analyze table t3;
 explain select * from t1,t2,t3 where t1.a=t2.a AND t2.b=t3.a and t1.b=t3.b;
 delete t2.*,t3.* from t1,t2,t3 where t1.a=t2.a AND t2.b=t3.a and t1.b=t3.b;
 # This should be empty
@@ -437,9 +439,9 @@ DELETE a1,a2 FROM db1.t1, db2.t2;
 DELETE a1,a2 FROM db1.t1 AS a1, db2.t2;
 --error ER_UNKNOWN_TABLE
 DELETE a1,a2 FROM db1.t1, db2.t2 AS a2;
---error ER_NO_SUCH_TABLE
+--error ER_BAD_DB_ERROR
 DELETE a1,a2 FROM db3.t1 AS a1, db4.t2 AS a2;
---error ER_NO_SUCH_TABLE
+--error ER_BAD_DB_ERROR
 DELETE a1,a2 FROM db3.t1 AS a1, db4.t2 AS a2;
 
 --error ER_UNKNOWN_TABLE
@@ -450,9 +452,9 @@ DELETE FROM a1,a2 USING db1.t1, db2.t2;
 DELETE FROM a1,a2 USING db1.t1 AS a1, db2.t2;
 --error ER_UNKNOWN_TABLE
 DELETE FROM a1,a2 USING db1.t1, db2.t2 AS a2;
---error ER_NO_SUCH_TABLE
+--error ER_BAD_DB_ERROR
 DELETE FROM a1,a2 USING db3.t1 AS a1, db4.t2 AS a2;
---error ER_NO_SUCH_TABLE
+--error ER_BAD_DB_ERROR
 DELETE FROM a1,a2 USING db3.t1 AS a1, db4.t2 AS a2;
 
 # Ambiguous table references
@@ -550,18 +552,6 @@ DELETE IGNORE FROM t1;
 
 DROP TABLE t1;
 
---echo #
---echo # Bug #53450: Crash/assertion
---echo #    "virtual int ha_myisam::index_first(uchar*)") at assert.c:81
---echo #
-
-CREATE TABLE t1 (a INT,    b INT,    c INT,
-                 INDEX(a), INDEX(b), INDEX(c));
-INSERT INTO t1 VALUES (1,2,3), (4,5,6), (7,8,9);
-
-DELETE FROM t1 WHERE a = 10 OR b = 20 ORDER BY c LIMIT 1;
-
-DROP TABLE t1;
 
 --echo #
 --echo # Bug #53034: Multiple-table DELETE statements not accepting
@@ -672,36 +662,12 @@ CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE t2 (b INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1), (2), (5);
 INSERT INTO t2 VALUES (1), (5);
---replace_regex /#sql-[[0-9a-f]*_[0-9a-f]*]*/#sql-temporary/
+--replace_regex /#sql-(?:[0-9a-f]*_[0-9a-f]*)*/#sql-temporary/
 ALTER TABLE t2 ADD CONSTRAINT FOREIGN KEY(b) REFERENCES t1(a);
 SELECT * FROM t2;
 DELETE IGNORE FROM t1;
 SELECT * FROM t1;
 DROP TABLE t2,t1;
-
---echo #
---echo # Bug#17787664 : ASSERT `! IS_SET()` IN DIAGNOSTICS_AREA::SET_OK_STATUS
---echo #                ON ER_SUBQUERY_NO_1_ROW
---echo #
-
-CREATE TABLE t1 (a INT) ENGINE=MyISAM;
-INSERT INTO t1 VALUES (1);
-
-CREATE TABLE t2 (b INT) ENGINE=MyISAM;
-INSERT INTO t2 VALUES (8);
-INSERT INTO t2 VALUES (24);
-
-CREATE TABLE t3 (c INT) ENGINE=MyISAM;
-INSERT INTO t3 VALUES (43);
-INSERT INTO t3 VALUES (1);
-
-#This statement triggers an assert in DEBUG build without the patch.
---error ER_SUBQUERY_NO_1_ROW
-DELETE  FROM OUTR1.* USING t1 AS OUTR1
-    LEFT OUTER JOIN t2 AS OUTR2  ON ( OUTR1.a = OUTR2.b )
-WHERE OUTR1.a < ( SELECT t3.c  from t3 where 1 XOR OUTR2.b IS NOT NULL);
-
-DROP TABLE t1,t2,t3;
 
 --echo #
 --echo # Bug#20460208: !table || (!table->read_set || bitmap_is_set)
@@ -831,3 +797,76 @@ eval $query;
 
 DROP VIEW v1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#25320909 ASSERTION `THD->LEX->CURRENT_SELECT() == UNIT->FIRST_SELECT()' WITH DELETE
+--echo #
+
+CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY);
+INSERT INTO t1 (a,b) VALUES
+(10000,'foobar'),(1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
+INSERT INTO t1 (a,b) SELECT a, b FROM t1;
+
+CREATE TABLE t2 (pk INT AUTO_INCREMENT PRIMARY KEY, c CHAR(8), d INT);
+INSERT INTO t2 (c,d) SELECT b, a FROM t1;
+
+DELETE IGNORE FROM t1 WHERE b IS NOT NULL ORDER BY a LIMIT 1;
+--sorted_result
+SELECT a,b FROM t1;
+DELETE IGNORE t1.*, t2.* FROM t1, t2
+  WHERE c < b OR
+        a != ( SELECT 1 UNION SELECT 2 );
+--sorted_result
+SELECT a,b FROM t1;
+--sorted_result
+SELECT c,d FROM t2;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#29153485: ASSERTION IN JOIN_READ_CONST_TABLE()
+--echo #
+CREATE TABLE d3 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int int(11) DEFAULT NULL,
+  col_varchar varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk)
+) ;
+
+INSERT INTO d3 VALUES (96,9,'t'),(97,0,'x');
+
+CREATE TABLE e3 (
+  col_varchar varchar(1) DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (pk)
+) ;
+
+INSERT INTO e3 VALUES ('v',986);
+--error ER_SUBQUERY_NO_1_ROW
+DELETE OUTR1.* FROM e3 AS OUTR1 INNER JOIN d3 AS OUTR2 ON 
+  ( OUTR1.col_varchar = OUTR2.col_varchar )
+  LEFT JOIN d3 AS OUTR3 ON ( OUTR1. pk = OUTR3.pk )
+  WHERE OUTR1.pk =
+    ( SELECT DISTINCT INNR1.col_int FROM d3 AS INNR1 WHERE INNR1.pk <> 8) ;
+
+DROP TABLE d3,e3;
+
+--echo #
+--echo # Bug#27455809; DELETE FROM ...WHERE NOT EXISTS WITH TABLE ALIAS CREATES AN ERROR 1064 (42000
+--echo #
+
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1), (2);
+SELECT * FROM t1;
+
+DELETE FROM t1 AS a1 WHERE a1.c1 = 2;
+SELECT * FROM t1;
+
+CREATE TABLE t2 (c2 INT);
+INSERT INTO t2 VALUES (1), (2);
+SELECT * FROM t2;
+
+DELETE FROM t2 a2 WHERE NOT EXISTS (SELECT * FROM t1 WHERE t1.c1 = a2.c2);
+SELECT * FROM t2;
+
+DROP TABLE t1, t2;

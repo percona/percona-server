@@ -1,1 +1,2 @@
---transaction-isolation=read-committed
+--initialize --default_authentication_plugin=mysql_native_password
+--transaction-isolation=read-committed --default_authentication_plugin=mysql_native_password

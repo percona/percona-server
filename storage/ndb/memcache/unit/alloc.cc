@@ -1,6 +1,5 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
- reserved.
+ Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -20,10 +19,9 @@
 
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- 02110-1301  USA
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
-#include <my_config.h>
+#include "my_config.h"
 #include <stdio.h>
 #include <assert.h>
 #include <pthread.h>
@@ -65,7 +63,8 @@ int run_allocator_test(QueryPlan *, Ndb *, int v) {
     int free_slot   = p->alligator[i].free_idx;
     size_t alloc_sz = p->alligator[i].total;
     
-    detail(v, "Class %d idx %d used %lu \n", i, list_size - free_slot, alloc_sz);
+    detail(v, "Class %d idx %d used %lu \n",
+           i, list_size - free_slot, (unsigned long)alloc_sz);
     /* After we destroy the pool, every slab must have 0 allocated blocks */
     require(list_size - free_slot == 0);
     /* But it must have a non-zero size, indicating that it has been used */

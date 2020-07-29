@@ -1,11 +1,11 @@
 #
 # Tests for the changed page tracking bitmap crash recovery and very fast shutdowns
 #
---source include/have_innodb.inc
---source include/not_embedded.inc
 --source include/not_crashrep.inc
 --source include/have_debug.inc
 --source include/not_valgrind.inc
+
+let $MYSQLD_DATADIR= `select @@datadir`;
 
 call mtr.add_suppression("last tracked LSN in");
 
@@ -40,7 +40,9 @@ INSERT INTO t2 VALUES (1),(2),(3),(4),(5);
 SET GLOBAL INNODB_FAST_SHUTDOWN=2;
 
 --echo 1st restart
---source include/restart_mysqld.inc
+--source include/shutdown_mysqld.inc
+list_files $MYSQLD_DATADIR ib_modified_log*;
+--source include/start_mysqld.inc
 
 --let $assert_text= There should not be a hole in the tracked LSN range
 --let $assert_cond= COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
@@ -54,7 +56,7 @@ SET GLOBAL INNODB_FAST_SHUTDOWN=2;
 --let $restart_parameters=restart:--debug="+d,crash_before_bitmap_write"
 --source include/restart_mysqld.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---error 2013
+--error CR_SERVER_LOST
 INSERT INTO t1 SELECT x FROM t1;
 --enable_reconnect
 --source include/wait_until_connected_again.inc

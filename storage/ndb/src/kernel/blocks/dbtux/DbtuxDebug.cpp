@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,14 +53,16 @@ void Dbtux::execDBINFO_SCANREQ(Signal *signal)
         c_indexPool.getUsedHi(),
         { CFG_DB_NO_TABLES,
           CFG_DB_NO_ORDERED_INDEXES,
-          CFG_DB_NO_UNIQUE_HASH_INDEXES,0 }},
+          CFG_DB_NO_UNIQUE_HASH_INDEXES,0 },
+        0},
       { "Fragment",
         c_fragPool.getUsed(),
         c_fragPool.getSize(),
         c_fragPool.getEntrySize(),
         c_fragPool.getUsedHi(),
         { CFG_DB_NO_ORDERED_INDEXES,
-          CFG_DB_NO_REPLICAS,0,0 }},
+          CFG_DB_NO_REPLICAS,0,0 },
+        0},
       { "Descriptor page",
         c_descPagePool.getUsed(),
         c_descPagePool.getSize(),
@@ -68,33 +70,38 @@ void Dbtux::execDBINFO_SCANREQ(Signal *signal)
         c_descPagePool.getUsedHi(),
         { CFG_DB_NO_TABLES,
           CFG_DB_NO_ORDERED_INDEXES,
-          CFG_DB_NO_UNIQUE_HASH_INDEXES,0 }},
+          CFG_DB_NO_UNIQUE_HASH_INDEXES,0 },
+        0},
       { "Fragment Operation",
         c_fragOpPool.getUsed(),
         c_fragOpPool.getSize(),
         c_fragOpPool.getEntrySize(),
         c_fragOpPool.getUsedHi(),
-        { 0,0,0,0 }},
+        { 0,0,0,0 },
+        0},
       { "Scan Operation",
         c_scanOpPool.getUsed(),
         c_scanOpPool.getSize(),
         c_scanOpPool.getEntrySize(),
         c_scanOpPool.getUsedHi(),
-        { CFG_DB_NO_LOCAL_SCANS,0,0,0 }},
+        { CFG_DB_NO_LOCAL_SCANS,0,0,0 },
+        0},
       { "Scan Bound",
         c_scanBoundPool.getUsed(),
         c_scanBoundPool.getSize(),
         c_scanBoundPool.getEntrySize(),
         c_scanBoundPool.getUsedHi(),
-        { CFG_DB_NO_LOCAL_SCANS,0,0,0 }},
+        { CFG_DB_NO_LOCAL_SCANS,0,0,0 },
+        0},
       { "Scan Lock",
         c_scanLockPool.getUsed(),
         c_scanLockPool.getSize(),
         c_scanLockPool.getEntrySize(),
         c_scanLockPool.getUsedHi(),
         { CFG_DB_NO_LOCAL_SCANS,
-          CFG_DB_BATCH_SIZE,0,0 }},
-      { NULL, 0,0,0,0,{ 0,0,0,0 }}
+          CFG_DB_BATCH_SIZE,0,0 },
+        0},
+      { NULL, 0,0,0,0,{ 0,0,0,0 },0}
     };
 
     const size_t num_config_params =
@@ -115,6 +122,8 @@ void Dbtux::execDBINFO_SCANREQ(Signal *signal)
       row.write_uint64(pools[pool].entry_size);
       for (size_t i = 0; i < num_config_params; i++)
         row.write_uint32(pools[pool].config_params[i]);
+      row.write_uint32(GET_RG(pools[pool].record_type));
+      row.write_uint32(GET_TID(pools[pool].record_type));
       ndbinfo_send_row(signal, req, row, rl);
       pool++;
       if (rl.need_break(req))
@@ -151,7 +160,7 @@ Dbtux::execDUMP_STATE_ORD(Signal* signal)
         if (debugFile != slFile)
           fclose(debugFile);
         debugFile = 0;
-        debugOut = *new NdbOut(*new NullOutputStream());
+        tuxDebugOut = *new NdbOut(*new NullOutputStream());
       }
       if (flag == 1)
         debugFile = fopen(tuxlog, "w");
@@ -160,7 +169,7 @@ Dbtux::execDUMP_STATE_ORD(Signal* signal)
       if (flag == 3)
         debugFile = slFile;
       if (debugFile != 0)
-        debugOut = *new NdbOut(*new FileOutputStream(debugFile));
+        tuxDebugOut = *new NdbOut(*new FileOutputStream(debugFile));
     }
     return;
   }
@@ -186,6 +195,31 @@ Dbtux::execDUMP_STATE_ORD(Signal* signal)
     RSS_AP_SNAPSHOT_CHECK(c_fragPool);
     RSS_AP_SNAPSHOT_CHECK(c_fragOpPool);
   }
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+  if (signal->theData[0] == DumpStateOrd::TuxSetTransientPoolMaxSize)
+  {
+    jam();
+    if (signal->getLength() < 3)
+      return;
+    const Uint32 pool_index = signal->theData[1];
+    const Uint32 new_size = signal->theData[2];
+    if (pool_index >= c_transient_pool_count)
+      return;
+    c_transient_pools[pool_index]->setMaxSize(new_size);
+    return;
+  }
+  if (signal->theData[0] == DumpStateOrd::TuxResetTransientPoolMaxSize)
+  {
+    jam();
+    if(signal->getLength() < 2)
+      return;
+    const Uint32 pool_index = signal->theData[1];
+    if (pool_index >= c_transient_pool_count)
+      return;
+    c_transient_pools[pool_index]->resetMaxSize();
+    return;
+  }
+#endif
 }
 
 #ifdef VM_TRACE
@@ -206,10 +240,10 @@ Dbtux::printTree(Signal* signal, Frag& frag, NdbOut& out)
       signal->theData[1] = 1;
       execDUMP_STATE_ORD(signal);
       if (debugFile != 0) {
-        printTree(signal, frag, debugOut);
+        printTree(signal, frag, tuxDebugOut);
       }
     }
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -224,7 +258,7 @@ Dbtux::printNode(TuxCtx & ctx,
   const Index& index = *c_indexPool.getPtr(frag.m_indexId);
   TreeHead& tree = frag.m_tree;
   NodeHandle node(frag);
-  selectNode(node, loc);
+  selectNode(ctx, node, loc);
   out << par.m_path << " " << node << endl;
   // check children
   PrintPar cpar[2];
@@ -438,8 +472,8 @@ operator<<(NdbOut& out, const Dbtux::ScanOp& scan)
   if (globalData.isNdbMtLqh)//TODO
     return out;
   {
-    DLFifoList<Dbtux::ScanLock>::Head head = scan.m_accLockOps;
-    LocalDLFifoList<Dbtux::ScanLock> list(tux->c_scanLockPool, head);
+    const Dbtux::ScanLock_fifo::Head& head = scan.m_accLockOps;
+    Dbtux::ConstLocal_ScanLock_fifo list(tux->c_scanLockPool, head);
     Dbtux::ScanLockPtr lockPtr;
     list.first(lockPtr);
     while (lockPtr.i != RNIL) {
@@ -458,7 +492,7 @@ operator<<(NdbOut& out, const Dbtux::ScanOp& scan)
     const Dbtux::Index& index = *tux->c_indexPool.getPtr(scan.m_indexId);
     Dbtux::KeyDataC keyBoundData(index.m_keySpec, true);
     Dbtux::KeyBoundC keyBound(keyBoundData);
-    tux->unpackBound(tux->c_ctx, scanBound, keyBound);
+    tux->unpackBound(tux->c_ctx.c_searchKey, scanBound, keyBound);
     out << " [scanBound " << dec << i;
     out << " " << keyBound.print(tux->c_ctx.c_debugBuffer, Dbtux::DebugBufferBytes);
     out << "]";

@@ -1,6 +1,0 @@
-select variable_name from information_schema.session_variables where variable_name=
-(select variable_name from information_schema.session_variables where variable_name= 'BASEDIR');
-variable_name
-BASEDIR
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.SESSION_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.session_variables instead

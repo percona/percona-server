@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,29 +25,28 @@
 #ifndef COMPOSITE_OPTIONS_PROVIDER_INCLUDED
 #define COMPOSITE_OPTIONS_PROVIDER_INCLUDED
 
-#include "i_option.h"
-#include "abstract_options_provider.h"
+#include "client/base/abstract_options_provider.h"
+#include "client/base/i_option.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Base{
-namespace Options{
+namespace Mysql {
+namespace Tools {
+namespace Base {
+namespace Options {
 
 /**
   Provider that aggregates options from other providers.
   It is still a provider, so can have have own options added.
  */
-class Composite_options_provider : public Abstract_options_provider
-{
-public:
+class Composite_options_provider : public Abstract_options_provider {
+ public:
   /**
     Adds new providers to list. Last parameter value must be NULL.
    */
-  void add_providers(I_options_provider* first, /*I_options_provider* */...);
+  void add_providers(I_options_provider *first, /*I_options_provider* */...);
   /**
     Adds new provider to list.
    */
-  void add_provider(I_options_provider* options_provider);
+  void add_provider(I_options_provider *options_provider);
 
   /**
     This callback is to be called after all options were parsed.
@@ -59,14 +58,13 @@ public:
    */
   virtual std::vector<my_option> generate_options();
 
-
-private:
-  std::vector<I_options_provider*> m_options_providers;
+ private:
+  std::vector<I_options_provider *> m_options_providers;
 };
 
-}
-}
-}
-}
+}  // namespace Options
+}  // namespace Base
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

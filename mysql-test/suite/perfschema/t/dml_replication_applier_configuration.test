@@ -3,15 +3,21 @@
 # This test verifies the correct behaviour in case of invalid
 # usage of DMLs on the table replication_applier_configuration.
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 --disable_result_log
 SELECT * FROM performance_schema.replication_applier_configuration
   LIMIT 1;
 
-sELECT * FROM performance_schema.replication_applier_configuration
+SELECT * FROM performance_schema.replication_applier_configuration
   WHERE desired_delay=12;
+
+SELECT * FROM performance_schema.replication_applier_configuration
+  WHERE privilege_checks_user=NULL;
+
+SELECT * FROM performance_schema.replication_applier_configuration
+  WHERE require_row_format="NO";
+
+SELECT * FROM performance_schema.replication_applier_configuration
+  WHERE require_table_primary_key_check="STREAM";
 --enable_result_log
 
 --error ER_TABLEACCESS_DENIED_ERROR
@@ -19,12 +25,48 @@ INSERT INTO performance_schema.replication_applier_configuration
   SET desired_delay=2;
 
 --error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.replication_applier_configuration
+  SET privilege_checks_user="'user'@'%'";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.replication_applier_configuration
+  SET require_row_format="YES";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.replication_applier_configuration
+  SET require_table_primary_key_check="ON";
+
+--error ER_TABLEACCESS_DENIED_ERROR
 UPDATE performance_schema.replication_applier_configuration
   SET desired_delay=12 WHERE desired_delay=2;
 
 --error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.replication_applier_configuration
+  SET privilege_checks_user="'user'@'%'" WHERE privilege_checks_user=NULL;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.replication_applier_configuration
+  SET require_row_format="YES" WHERE require_row_format="NO";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.replication_applier_configuration
+  SET require_table_primary_key_check="OFF" WHERE require_table_primary_key_check="STREAM";
+
+--error ER_TABLEACCESS_DENIED_ERROR
 DELETE FROM performance_schema.replication_applier_configuration
   WHERE desired_delay=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.replication_applier_configuration
+  WHERE privilege_checks_user="'user'@'%'";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.replication_applier_configuration
+  WHERE require_row_format="NO";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.replication_applier_configuration
+  WHERE require_table_primary_key_check="STREAM";
 
 --error ER_TABLEACCESS_DENIED_ERROR
 DELETE FROM performance_schema.replication_applier_configuration;

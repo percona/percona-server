@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,7 +18,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 #include "ConfigManager.hpp"
@@ -99,16 +99,22 @@ alone_on_host(Config* conf,
     Uint32 type;
     if(iter.get(CFG_TYPE_OF_SECTION, &type) ||
        type != own_type)
+    {
       continue;
+    }
 
     Uint32 nodeid;
     if(iter.get(CFG_NODE_ID, &nodeid) ||
        nodeid == own_nodeid)
+    {
       continue;
+    }
 
     const char * hostname;
     if(iter.get(CFG_NODE_HOST, &hostname))
+    {
       continue;
+    }
 
     if (SocketServer::tryBind(0,hostname))
     {
@@ -139,7 +145,9 @@ ConfigManager::find_nodeid_from_configdir(void)
 
   if (!m_configdir ||
       iter.open(m_configdir) != 0)
+  {
     return 0;
+  }
 
   const char* name;
   unsigned found_nodeid= 0;
@@ -157,7 +165,9 @@ ConfigManager::find_nodeid_from_configdir(void)
       if (nodeid != found_nodeid)
       {
         if (found_nodeid != 0)
+        {
           return 0; // Found more than one nodeid
+        }
         found_nodeid= nodeid;
       }
 
@@ -167,14 +177,18 @@ ConfigManager::find_nodeid_from_configdir(void)
   }
 
   if (max_version == 0)
+  {
     return 0;
+  }
 
   config_name.assfmt("%s%sndb_%u_config.bin.%u",
                      m_configdir, DIR_SEPARATOR, found_nodeid, max_version);
 
   Config* conf;
   if (!(conf = load_saved_config(config_name)))
+  {
     return 0;
+  }
 
   if (!m_config_retriever.verifyConfig(conf->m_configValues,
                                        found_nodeid) ||
@@ -208,14 +222,18 @@ find_own_nodeid(Config* conf)
     Uint32 type;
     if(iter.get(CFG_TYPE_OF_SECTION, &type) ||
        type != NDB_MGM_NODE_TYPE_MGM)
+    {
       continue;
+    }
 
     Uint32 nodeid;
     require(iter.get(CFG_NODE_ID, &nodeid) == 0);
 
     const char * hostname;
     if(iter.get(CFG_NODE_HOST, &hostname))
+    {
       continue;
+    }
 
     if (SocketServer::tryBind(0,hostname))
     {
@@ -223,7 +241,9 @@ find_own_nodeid(Config* conf)
       if (found_nodeid == 0)
         found_nodeid = nodeid;
       else
+      {
         return 0; // More than one host on this node
+      }
     }
   }
   return found_nodeid;
@@ -235,11 +255,15 @@ ConfigManager::find_nodeid_from_config(void)
 {
   if (!m_opts.mycnf &&
       !m_opts.config_filename)
+  {
     return 0;
+  }
 
   Config* conf = load_config();
   if (conf == NULL)
+  {
     return 0;
+  }
 
   NodeId found_nodeid = find_own_nodeid(conf);
   if (found_nodeid == 0 ||
@@ -249,6 +273,7 @@ ConfigManager::find_nodeid_from_config(void)
     return 0;
   }
 
+  delete conf;
   return found_nodeid;
 }
 
@@ -531,7 +556,7 @@ ConfigManager::prepareConfigChange(const Config* config)
 
   /* Pack the config */
   UtilBuffer buf;
-  if(!config->pack(buf))
+  if(!config->pack(buf, OUR_V2_VERSION))
   {
     /* Failed to pack config */
     g_eventLogger->error("Failed to pack configuration while preparing");
@@ -627,7 +652,8 @@ check_no_dynamic_ports_in_config(const Config* config)
   ConfigIter iter(config, CFG_SECTION_CONNECTION);
 
   for(;iter.valid();iter.next()) {
-    Uint32 n1, n2;
+    Uint32 n1 = 0;
+    Uint32 n2 = 0;
     require(iter.get(CFG_CONNECTION_NODE_1, &n1) == 0 &&
             iter.get(CFG_CONNECTION_NODE_2, &n2) == 0);
 
@@ -657,7 +683,8 @@ ConfigManager::set_config(Config* new_config)
   m_config = new_config;
 
   // Removed cache of packed config
-  m_packed_config.clear();
+  m_packed_config_v1.clear();
+  m_packed_config_v2.clear();
 
   for (unsigned i = 0; i < m_subscribers.size(); i++)
     m_subscribers[i]->config_changed(m_node_id, new_config);
@@ -750,6 +777,8 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REQ(SignalSender& ss, SimpleSignal* sig)
   if (!m_defragger.defragment(sig))
     return; // More fragments to come
 
+  const Uint32 version_sending = ss.getNodeInfo(nodeId).m_info.m_version;
+  bool v2 = ndb_config_version_v2(version_sending);
   Guard g(m_config_mutex);
 
   switch(req->requestType){
@@ -761,7 +790,11 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REQ(SignalSender& ss, SimpleSignal* sig)
     }
 
     ConfigValuesFactory cf;
-    if (!cf.unpack(sig->ptr[0].p, req->length))
+    bool ret = v2 ?
+      cf.unpack_v2(sig->ptr[0].p, req->length) :
+      cf.unpack_v1(sig->ptr[0].p, req->length);
+
+    if (!ret)
     {
       sendConfigChangeImplRef(ss, nodeId, ConfigChangeRef::FailedToUnpack);
       return;
@@ -1244,9 +1277,13 @@ ConfigManager::sendConfigChangeImplReq(SignalSender& ss, const Config* conf)
    *   keep track of which I sent to in m_contacted_nodes
    */
   SimpleSignal ssig;
+  Uint32 nodeId = nodes.find(0);
+
+  const Uint32 version_receiving = ss.getNodeInfo(nodeId).m_info.m_version;
+  bool v2 = ndb_config_version_v2(version_receiving);
 
   UtilBuffer buf;
-  conf->pack(buf);
+  conf->pack(buf, v2);
   ssig.ptr[0].p = (Uint32*)buf.get_data();
   ssig.ptr[0].sz = (buf.length() + 3) / 4;
   ssig.header.m_noOfSections = 1;
@@ -1257,21 +1294,20 @@ ConfigManager::sendConfigChangeImplReq(SignalSender& ss, const Config* conf)
   req->initial = (m_config_state == CS_INITIAL);
   req->length = buf.length();
 
-  Uint32 i = nodes.find(0);
-  g_eventLogger->debug("Sending CONFIG_CHANGE_IMPL_REQ(prepare) to %u", i);
-  int result = ss.sendFragmentedSignal(i, ssig, MGM_CONFIG_MAN,
+  g_eventLogger->debug("Sending CONFIG_CHANGE_IMPL_REQ(prepare) to %u", nodeId);
+  int result = ss.sendFragmentedSignal(nodeId, ssig, MGM_CONFIG_MAN,
                                        GSN_CONFIG_CHANGE_IMPL_REQ,
                                        ConfigChangeImplReq::SignalLength);
   if (result != 0)
   {
     g_eventLogger->warning("Failed to send configuration change "
                            "prepare to node: %d, result: %d",
-                           i, result);
+                           nodeId, result);
     return -1;
   }
 
-  m_waiting_for.set(i);
-  m_config_change.m_contacted_nodes.set(i);
+  m_waiting_for.set(nodeId);
+  m_config_change.m_contacted_nodes.set(nodeId);
 
   return 1;
 }
@@ -1311,8 +1347,15 @@ ConfigManager::execCONFIG_CHANGE_REQ(SignalSender& ss, SimpleSignal* sig)
     return;
   }
 
+  NodeId senderNodeId = refToNode(sig->header.theSendersBlockRef);
+  const Uint32 version_sending = ss.getNodeInfo(senderNodeId).m_info.m_version;
+  bool v2 = ndb_config_version_v2(version_sending);
   ConfigValuesFactory cf;
-  if (!cf.unpack(sig->ptr[0].p, req->length))
+  bool ret = v2 ?
+    cf.unpack_v2(sig->ptr[0].p, req->length) :
+    cf.unpack_v1(sig->ptr[0].p, req->length);
+
+  if (!ret)
   {
     sendConfigChangeRef(ss, from, ConfigChangeRef::FailedToUnpack);
     return;
@@ -1336,7 +1379,7 @@ ConfigManager::execCONFIG_CHANGE_REQ(SignalSender& ss, SimpleSignal* sig)
 
 
 static Uint32
-config_check_checksum(const Config* config)
+config_check_checksum(const Config* config, bool v2)
 {
   Config copy(config);
 
@@ -1345,7 +1388,7 @@ config_check_checksum(const Config* config)
   copy.setName("CHECKSUM");
   copy.setPrimaryMgmNode(0);
 
-  Uint32 checksum = copy.checksum();
+  Uint32 checksum = copy.checksum(v2);
 
   return checksum;
 }
@@ -1360,6 +1403,9 @@ ConfigManager::execCONFIG_CHECK_REQ(SignalSender& ss, SimpleSignal* sig)
   const ConfigCheckReq * const req =
     CAST_CONSTPTR(ConfigCheckReq, sig->getDataPtr());
 
+  const Uint32 version_sending = ss.getNodeInfo(nodeId).m_info.m_version;
+  bool v2 = ndb_config_version_v2(version_sending);
+
   Uint32 other_generation = req->generation;
   ConfigState other_state = (ConfigState)req->state;
 
@@ -1372,7 +1418,7 @@ ConfigManager::execCONFIG_CHECK_REQ(SignalSender& ss, SimpleSignal* sig)
   }
 
   // checksum
-  Uint32 checksum = config_check_checksum(m_config);
+  Uint32 checksum = config_check_checksum(m_config, v2);
   Uint32 other_checksum = req->checksum;
   if (sig->header.theLength == ConfigCheckReq::SignalLengthBeforeChecksum)
   {
@@ -1520,17 +1566,29 @@ ConfigManager::sendConfigCheckReq(SignalSender& ss, NodeBitmask to)
   SimpleSignal ssig;
   ConfigCheckReq* const req =
     CAST_PTR(ConfigCheckReq, ssig.getDataPtrSend());
+
   req->state =        m_config_state;
   req->generation =   m_config->getGeneration();
-  req->checksum =     config_check_checksum(m_config);
 
   g_eventLogger->debug("Sending CONFIG_CHECK_REQ to %s",
                        BaseString::getPrettyText(to).c_str());
 
   require(m_waiting_for.isclear());
-  m_waiting_for = ss.broadcastSignal(to, ssig, MGM_CONFIG_MAN,
-                                     GSN_CONFIG_CHECK_REQ,
-                                     ConfigCheckReq::SignalLength);
+
+  Uint32 nodeId = to.find(0);
+  while (nodeId != to.NotFound)
+  {
+    const Uint32 version_receiving = ss.getNodeInfo(nodeId).m_info.m_version;
+    bool v2 = ndb_config_version_v2(version_receiving);
+    req->checksum = config_check_checksum(m_config, v2);
+    m_waiting_for.set(nodeId);
+    ss.sendSignal(nodeId,
+                  ssig,
+                  MGM_CONFIG_MAN,
+                  GSN_CONFIG_CHECK_REQ,
+                  ConfigCheckReq::SignalLength);
+    nodeId = to.find(nodeId + 1);
+  }
 }
 
 static bool
@@ -1570,8 +1628,10 @@ ConfigManager::sendConfigCheckRef(SignalSender& ss, BlockReference to,
   }
   else
   {
+    const Uint32 version_receiving = ss.getNodeInfo(nodeId).m_info.m_version;
+    bool v2 = ndb_config_version_v2(version_receiving);
     UtilBuffer buf;
-    m_config->pack(buf);
+    m_config->pack(buf, v2);
     ssig.ptr[0].p = (Uint32*)buf.get_data();
     ssig.ptr[0].sz = (buf.length() + 3) / 4;
     ssig.header.m_noOfSections = 1;
@@ -1678,8 +1738,13 @@ ConfigManager::execCONFIG_CHECK_REF(SignalSender& ss, SimpleSignal* sig)
       // The other node has sent it's config in the signal, use it if equal
       assert(sig->header.m_noOfSections == 1);
 
+      const Uint32 version_sending = ss.getNodeInfo(nodeId).m_info.m_version;
+      bool v2 = ndb_config_version_v2(version_sending);
       ConfigValuesFactory cf;
-      require(cf.unpack(sig->ptr[0].p, ref->length));
+      bool ret = v2 ?
+        cf.unpack_v2(sig->ptr[0].p, ref->length) :
+        cf.unpack_v1(sig->ptr[0].p, ref->length);
+      require(ret);
 
       Config other_config(cf.getConfigValues());
       assert(other_config.getGeneration() > 0);
@@ -1747,7 +1812,9 @@ void
 ConfigManager::set_facade(TransporterFacade * f)
 {
   m_facade = f;
-  m_ss = new SignalSender(f, MGM_CONFIG_MAN);
+  m_ss = new SignalSender(f,
+                          MGM_CONFIG_MAN,  // blockNum
+                          true);           // deliverAll
   require(m_ss != 0);
 }
 
@@ -2027,7 +2094,7 @@ ConfigManager::run()
 Config*
 ConfigManager::load_init_config(const char* config_filename)
 {
-   InitConfigFileParser parser;
+  InitConfigFileParser parser;
   return parser.parseConfig(config_filename);
 }
 
@@ -2288,7 +2355,10 @@ ConfigManager::load_saved_config(const BaseString& config_name)
 
 bool
 ConfigManager::get_packed_config(ndb_mgm_node_type nodetype,
-                                 BaseString* buf64, BaseString& error)
+                                 BaseString* buf64,
+                                 BaseString& error,
+                                 bool v2,
+                                 Uint32 node_id)
 {
   Guard g(m_config_mutex);
 
@@ -2336,23 +2406,59 @@ ConfigManager::get_packed_config(ndb_mgm_node_type nodetype,
   require(m_config != 0);
   if (buf64)
   {
-    if (!m_packed_config.length())
+    if (v2)
     {
-      // No packed config exist, generate a new one
-      Config config_copy(m_config);
-      if (!m_dynamic_ports.set_in_config(&config_copy))
+      if (!m_packed_config_v2.length())
       {
-        error.assign("get_packed_config, failed to set dynamic ports in config");
-        return false;
+        // No packed config exist, generate a new one
+        Config config_copy(m_config);
+        if (!m_dynamic_ports.set_in_config(&config_copy))
+        {
+          error.assign("get_packed_config, failed to set dynamic ports in config");
+          return false;
+        }
+        if (!config_copy.pack64_v2(m_packed_config_v2))
+        {
+          error.assign("get_packed_config, failed to pack config_copy");
+          return false;
+        }
       }
-      
-      if (!config_copy.pack64(m_packed_config))
+      if (node_id != 0)
       {
-        error.assign("get_packed_config, failed to pack config_copy");
-        return false;
+        NodeBitmask all_mgm;
+        m_config->get_nodemask(all_mgm, NDB_MGM_NODE_TYPE_MGM);
+        if (all_mgm.get(node_id) == false)
+        {
+          BaseString tmp;
+          Config config_copy(m_config);
+          if (config_copy.pack64_v2(tmp, node_id))
+          {
+            buf64->assign(tmp, tmp.length());
+            return true;
+          }
+        }
       }
+      buf64->assign(m_packed_config_v2, m_packed_config_v2.length());
     }
-    buf64->assign(m_packed_config, m_packed_config.length());
+    else
+    {
+      if (!m_packed_config_v1.length())
+      {
+        // No packed config exist, generate a new one
+        Config config_copy(m_config);
+        if (!m_dynamic_ports.set_in_config(&config_copy))
+        {
+          error.assign("get_packed_config, failed to set dynamic ports in config");
+          return false;
+        }
+        if (!config_copy.pack64_v1(m_packed_config_v1))
+        {
+          error.assign("get_packed_config, failed to pack config_copy");
+          return false;
+        }
+      }
+      buf64->assign(m_packed_config_v1, m_packed_config_v1.length());
+    }
   }
   return true;
 }
@@ -2623,7 +2729,8 @@ ConfigManager::set_dynamic_ports(int node, MgmtSrvr::DynPortSpec ports[],
 
   // Removed cache of packed config, need to be recreated
   // to include the new dynamic port
-  m_packed_config.clear();
+  m_packed_config_v1.clear();
+  m_packed_config_v2.clear();
 
   return result;
 }

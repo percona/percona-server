@@ -1,15 +1,3 @@
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop function if exists test.f1;
 drop procedure if exists test.p1;
 create function test.f1() returns int
@@ -36,6 +24,8 @@ user2	statement/sql/drop_procedure	drop procedure test.p1
 username	event_name	nesting_event_type
 user2	stage/sql/Waiting for stored procedure metadata lock	STATEMENT
 username	event_name	nesting_event_type
+user2	stage/sql/starting	STATEMENT
+user2	stage/sql/Executing hook on transaction begin.	STATEMENT
 user2	stage/sql/starting	STATEMENT
 select test.f1();
 test.f1()

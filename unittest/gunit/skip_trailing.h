@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,7 +18,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   Declarations of different versions of skip_trailing_space for
@@ -27,8 +27,10 @@
   So we put them in a separate compilation unit.
 */
 
-#include "my_global.h"
+#include <stddef.h>
+
 #include "m_ctype.h"
+#include "my_inttypes.h"
 
 namespace skip_trailing_space_unittest {
 
@@ -37,4 +39,4 @@ extern const uchar *skip_trailing_unalgn(const uchar *ptr, size_t len);
 extern const uchar *skip_trailing_4byte(const uchar *ptr, size_t len);
 extern const uchar *skip_trailing_8byte(const uchar *ptr, size_t len);
 
-}
+}  // namespace skip_trailing_space_unittest

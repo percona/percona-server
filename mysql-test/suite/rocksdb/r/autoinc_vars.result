@@ -55,14 +55,10 @@ INSERT INTO t1 (a) VALUES (NULL);
 ERROR 22003: Out of range value for column 'a' at row 1
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 (a) VALUES (NULL);
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT LAST_INSERT_ID();
 LAST_INSERT_ID()
 127
@@ -80,18 +76,18 @@ INSERT INTO t1 VALUES (18446744073709551613, 'a');
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` char(8) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ROCKSDB AUTO_INCREMENT=18446744073709551614 DEFAULT CHARSET=latin1
+) ENGINE=ROCKSDB AUTO_INCREMENT=18446744073709551614 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES (NULL, 'b');
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` char(8) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ROCKSDB AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=latin1
+) ENGINE=ROCKSDB AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES (NULL, 'c');
 ERROR HY000: Failed to read auto-increment value from storage engine
 SELECT * FROM t1;
@@ -105,19 +101,19 @@ INSERT INTO t1 VALUES (18446744073709551613, 'a');
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` char(8) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ROCKSDB AUTO_INCREMENT=18446744073709551614 DEFAULT CHARSET=latin1
+) ENGINE=ROCKSDB AUTO_INCREMENT=18446744073709551614 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES (NULL, 'b');
 ERROR HY000: Failed to read auto-increment value from storage engine
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` char(8) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ROCKSDB AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=latin1
+) ENGINE=ROCKSDB AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES (NULL, 'c');
 ERROR HY000: Failed to read auto-increment value from storage engine
 SELECT * FROM t1;
@@ -130,19 +126,19 @@ INSERT INTO t1 VALUES (18446744073709551613, 'a');
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` char(8) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ROCKSDB AUTO_INCREMENT=18446744073709551614 DEFAULT CHARSET=latin1
+) ENGINE=ROCKSDB AUTO_INCREMENT=18446744073709551614 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES (NULL, 'b');
 ERROR HY000: Failed to read auto-increment value from storage engine
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` char(8) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ROCKSDB AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=latin1
+) ENGINE=ROCKSDB AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES (NULL, 'c');
 ERROR HY000: Failed to read auto-increment value from storage engine
 SELECT * FROM t1;
@@ -153,6 +149,8 @@ DROP TABLE t1;
 # Issue #792 Crash in autoincrement
 #----------------------------------
 CREATE TABLE t1(C1 DOUBLE AUTO_INCREMENT KEY,C2 CHAR) ENGINE=ROCKSDB;
+Warnings:
+Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'C1'.
 INSERT INTO t1 VALUES(2177,0);
 DROP TABLE t1;
 CREATE TABLE t0(c0 BLOB) ENGINE=ROCKSDB;

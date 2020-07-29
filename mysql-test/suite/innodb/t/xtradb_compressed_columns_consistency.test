@@ -1,13 +1,8 @@
---source include/have_innodb.inc
-
-CREATE TABLE file_and_row_formats(file_format VARCHAR(20) NOT NULL,
-                                  row_format VARCHAR(40) NOT NULL);
-INSERT INTO file_and_row_formats VALUES ('Antelope', 'COMPACT');
-INSERT INTO file_and_row_formats VALUES ('Antelope', 'REDUNDANT');
-INSERT INTO file_and_row_formats VALUES ('Barracuda', 'DYNAMIC');
-INSERT INTO file_and_row_formats VALUES ('Barracuda', 'REDUNDANT');
-INSERT INTO file_and_row_formats VALUES ('Barracuda', 'COMPACT');
-INSERT INTO file_and_row_formats VALUES ('Barracuda', 'COMPRESSED');
+CREATE TABLE row_formats(row_format VARCHAR(40) NOT NULL PRIMARY KEY);
+INSERT INTO row_formats VALUES ('DYNAMIC');
+INSERT INTO row_formats VALUES ('REDUNDANT');
+INSERT INTO row_formats VALUES ('COMPACT');
+INSERT INTO row_formats VALUES ('COMPRESSED');
 
 CREATE TABLE data_types(type_name VARCHAR(40) NOT NULL PRIMARY KEY,
                                   length_limit INT UNSIGNED DEFAULT NULL,
@@ -104,8 +99,7 @@ BEGIN
   END IF;
 END|
 
-CREATE PROCEDURE test_data_type_with_field_length(IN file_format VARCHAR(20),
-                                                  IN row_format VARCHAR(40),
+CREATE PROCEDURE test_data_type_with_field_length(IN row_format VARCHAR(40),
                                                   IN data_type VARCHAR(40),
                                                   IN length_limit INT UNSIGNED,
                                                   IN base_or_full ENUM ('base', 'full'),
@@ -133,12 +127,8 @@ BEGIN
     SET local_type_length_limit = length_limit;
   END IF;
 
-  SET @set_file_format_query = CONCAT('SET GLOBAL innodb_file_format = ', file_format);
-  PREPARE set_file_format_stmt FROM @set_file_format_query;
-  EXECUTE set_file_format_stmt;
-  DEALLOCATE PREPARE set_file_format_stmt;
-
-  SET @create_table_query = CONCAT('CREATE TABLE t1(a ', field_def, ') ROW_FORMAT=', row_format, ' ENGINE=InnoDB');
+  SET @create_table_query = CONCAT('CREATE TABLE t1(a ', field_def, ') ROW_FORMAT=',
+                                   row_format, ' ENGINE=InnoDB CHARSET=latin1');
   PREPARE create_table_stmt FROM @create_table_query;
   EXECUTE create_table_stmt;
   DEALLOCATE PREPARE create_table_stmt;
@@ -191,8 +181,8 @@ BEGIN
   DROP TABLE t1;
 END|
 
-CREATE PROCEDURE test_data_type(IN file_format VARCHAR(20), IN row_format VARCHAR(40),
-                                IN data_type VARCHAR(40), IN length_limit INT UNSIGNED,
+CREATE PROCEDURE test_data_type(IN row_format VARCHAR(40), IN data_type VARCHAR(40),
+                                IN length_limit INT UNSIGNED,
                                 IN base_or_full ENUM ('base', 'full'))
 BEGIN
   DECLARE done INT DEFAULT FALSE;
@@ -215,16 +205,15 @@ BEGIN
     IF done THEN
       LEAVE field_lengths_loop;
     END IF;
-    CALL test_data_type_with_field_length(file_format, row_format, data_type,
-                                          length_limit, base_or_full,
-                                          data_field_length);
+    CALL test_data_type_with_field_length(row_format, data_type, length_limit,
+                                          base_or_full, data_field_length);
   END LOOP;
   CLOSE field_lengths_cur;
 
   DROP TEMPORARY TABLE field_lengths;
 END|
 
-CREATE PROCEDURE test_data_types(IN file_format VARCHAR(20), IN row_format VARCHAR(40))
+CREATE PROCEDURE test_data_types(IN row_format VARCHAR(40))
 BEGIN
   DECLARE done INT DEFAULT FALSE;
   DECLARE data_type VARCHAR(40);
@@ -239,51 +228,46 @@ BEGIN
     IF done THEN
       LEAVE data_type_loop;
     END IF;
-    CALL test_data_type(file_format, row_format, data_type, type_length_limit, type_base_or_full);
+    CALL test_data_type(row_format, data_type, type_length_limit, type_base_or_full);
   END LOOP;
   CLOSE data_type_cur;
 END|
 
-CREATE PROCEDURE test_file_and_row_formats()
+CREATE PROCEDURE test_row_formats()
 BEGIN
   DECLARE done int DEFAULT FALSE;
   DECLARE innodb_row_format VARCHAR(40);
-  DECLARE innodb_file_format VARCHAR(20);
-  DECLARE row_format_cur CURSOR FOR SELECT file_format, row_format FROM file_and_row_formats;
+  DECLARE row_format_cur CURSOR FOR SELECT row_format FROM row_formats;
   DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
 
   OPEN row_format_cur;
   row_format_loop: LOOP
-    FETCH row_format_cur INTO innodb_file_format, innodb_row_format;
+    FETCH row_format_cur INTO innodb_row_format;
     IF done THEN
        LEAVE row_format_loop;
     END IF;
-    CALL test_data_types(innodb_file_format, innodb_row_format);
+    CALL test_data_types(innodb_row_format);
   END LOOP;
   CLOSE row_format_cur;
 END|
 
 delimiter ;|
 
-SET @saved_innodb_file_format = @@GLOBAL.innodb_file_format;
 SET @saved_max_allowed_packet = @@GLOBAL.max_allowed_packet;
-SET GLOBAL max_allowed_packet = GREATEST(((@max_field_length + 1023) DIV 1024 + 1) * 1024, 1048576);
+SET GLOBAL max_allowed_packet = ((@max_field_length + 1023) DIV 1024 + 1) * 1024;
 
 --source include/count_sessions.inc
 
 --connect (con1,localhost,root)
 
-CALL test_file_and_row_formats;
+CALL test_row_formats;
 
 --disconnect con1
 --connection default
 
 SET GLOBAL max_allowed_packet = @saved_max_allowed_packet;
---disable_warnings
-SET GLOBAL innodb_file_format = @saved_innodb_file_format;
---enable_warnings
 
-DROP PROCEDURE test_file_and_row_formats;
+DROP PROCEDURE test_row_formats;
 DROP PROCEDURE test_data_types;
 DROP PROCEDURE test_data_type;
 DROP PROCEDURE test_data_type_with_field_length;
@@ -291,6 +275,6 @@ DROP PROCEDURE test_string_prefix;
 DROP PROCEDURE test_empty_string;
 DROP PROCEDURE test_null;
 DROP PROCEDURE diagnose_test_error;
-DROP TABLE data_types, short_field_lengths, full_field_lengths, file_and_row_formats;
+DROP TABLE data_types, short_field_lengths, full_field_lengths, row_formats;
 
 --source include/wait_until_count_sessions.inc

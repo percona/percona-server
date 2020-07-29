@@ -1,6 +1,3 @@
---source include/have_innodb.inc
---source include/not_embedded.inc
-
 # Restart the server with keyring loaded
 --let $restart_parameters="$KEYRING_RESTART_PARAM"
 --let $restart_hide_args=1

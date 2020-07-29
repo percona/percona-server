@@ -11,7 +11,7 @@ connect (conn2,localhost,root,,);
 ## test1 ##
 --connection conn1
 # create cf cf_primary_key
-create table create_cf ( id int, primary key (id) comment 'cf_primary_key' ) engine=rocksdb;
+create table create_cf ( id int, primary key (id) comment 'cfname=cf_primary_key' ) engine=rocksdb;
 drop table create_cf;
 select * from information_schema.rocksdb_cfstats where cf_name='cf_primary_key';
 
@@ -47,7 +47,7 @@ set @@global.debug = @old_debug;
 ## test2 ##
 --connection conn1
 # create cf cf_primary_key
-create table create_cf ( id int, primary key (id) comment 'cf_primary_key' ) engine=rocksdb;
+create table create_cf ( id int, primary key (id) comment 'cfname=cf_primary_key' ) engine=rocksdb;
 drop table create_cf;
 select * from information_schema.rocksdb_cfstats where cf_name='cf_primary_key';
 

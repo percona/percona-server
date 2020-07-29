@@ -1,3 +1,4 @@
+--source include/not_log_bin.inc
 --source ../include/fast_update_gen_header.inc
 
 --let GENERATED=$MYSQL_TMP_DIR/generated_fast_update_blobs.inc

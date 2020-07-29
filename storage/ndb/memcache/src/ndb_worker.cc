@@ -1,6 +1,5 @@
 /*
- Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
- reserved.
+ Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -20,15 +19,13 @@
 
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- 02110-1301  USA
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
 /* configure defines */
-#include <my_config.h>
+#include "my_config.h"
 
 /* System headers */
-#define __STDC_FORMAT_MACROS 
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -326,7 +323,7 @@ WorkerStep1::WorkerStep1(workitem *newitem) :
      (Further refine the semantics of this.  Does it depend on do_mc_read?)
   */  
     newitem->base.cas_owner = (newitem->prefix_info.has_cas_col);
-};
+}
 
 
 op_status_t WorkerStep1::do_delete() {
@@ -750,15 +747,6 @@ op_status_t WorkerStep1::do_math() {
 
 
 /***************** NDB CALLBACKS *********************************************/
-void debug_workitem(workitem *item) {
-  DEBUG_PRINT("%d.%d %s %s %s",
-    item->pipeline->id,
-    item->id,
-    item->plan->table->getName(),
-    workitem_get_operation(item),
-    workitem_get_key_suffix(item));
-}
-
 void callback_main(int, NdbTransaction *tx, void *itemptr) {
   workitem *wqitem = (workitem *) itemptr;
     
@@ -813,7 +801,9 @@ void callback_main(int, NdbTransaction *tx, void *itemptr) {
     wqitem->status = & status_block_idx_insert;
   }
   /* Out of memory */
-  else if(tx->getNdbError().code == 827) {
+  else if(tx->getNdbError().code == 827 ||
+          tx->getNdbError().code == 921)
+  {
     log_ndb_error(tx->getNdbError());
     wqitem->status = & status_block_no_mem;
   }
@@ -823,7 +813,6 @@ void callback_main(int, NdbTransaction *tx, void *itemptr) {
   */
   else  {
     log_ndb_error(tx->getNdbError());
-    debug_workitem(wqitem);
     wqitem->status = & status_block_misc_error;
   }
 

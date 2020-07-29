@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,21 +22,13 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "field.h"
+#include "client/dump/field.h"
 
 using namespace Mysql::Tools::Dump;
 
-const std::string& Field::get_type_string() const
-{
-  return m_type_string;
-}
+const std::string &Field::get_type_string() const { return m_type_string; }
 
-const std::string& Field::get_name() const
-{
-  return m_name;
-}
+const std::string &Field::get_name() const { return m_name; }
 
 Field::Field(std::string name, std::string type_string)
-  : m_name(name),
-  m_type_string(type_string)
-{}
+    : m_name(name), m_type_string(type_string) {}

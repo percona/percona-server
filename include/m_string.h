@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,53 +21,132 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef _m_string_h
-#define _m_string_h
+#ifndef M_STRING_INCLUDED
+#define M_STRING_INCLUDED
 
-#include "my_global.h"                          /* HAVE_* */
+/**
+  @file include/m_string.h
+*/
 
+#include <float.h>
+#include <limits.h>
+#include <stdbool.h>  // IWYU pragma: keep
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-#define bfill please_use_memset_rather_than_bfill
-#define bzero please_use_memset_rather_than_bzero
-#define bmove please_use_memmove_rather_than_bmove
-#define strmov please_use_my_stpcpy_or_my_stpmov_rather_than_strmov
-#define strnmov please_use_my_stpncpy_or_my_stpnmov_rather_than_strnmov
+#include <algorithm>
 
-#include "mysql/service_my_snprintf.h"
+#include "decimal.h"
+#include "lex_string.h"
+#include "my_config.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+/**
+  Definition of the null string (a null pointer of type char *),
+  used in some of our string handling code. New code should use
+  nullptr instead.
+*/
+#define NullS (char *)0
 
 /*
   my_str_malloc(), my_str_realloc() and my_str_free() are assigned to
-  implementations in strings/alloc.c, but can be overridden in
+  implementations in strings/alloc.cc, but can be overridden in
   the calling program.
  */
 extern void *(*my_str_malloc)(size_t);
 extern void *(*my_str_realloc)(void *, size_t);
 extern void (*my_str_free)(void *);
 
-/* Declared in int2str() */
-extern char _dig_vec_upper[];
-extern char _dig_vec_lower[];
+/* Declared in int2str.cc. */
+extern const char _dig_vec_upper[];
+extern const char _dig_vec_lower[];
 
-	/* Prototypes for string functions */
+/* Prototypes for string functions */
 
-extern	void bchange(uchar *dst,size_t old_len,const uchar *src,
-		     size_t new_len,size_t tot_len);
-extern	void strappend(char *s,size_t len,pchar fill);
-extern	char *strend(const char *s);
-extern  char *strcend(const char *, pchar);
-extern	char *strfill(char * s,size_t len,pchar fill);
-extern	char *strmake(char *dst,const char *src,size_t length);
+extern char *strmake(char *dst, const char *src, size_t length);
+extern char *strcont(char *src, const char *set);
+extern char *strxmov(char *dst, const char *src, ...);
+extern char *strxnmov(char *dst, size_t len, const char *src, ...);
 
-extern	char *my_stpmov(char *dst,const char *src);
-extern	char *my_stpnmov(char *dst, const char *src, size_t n);
-extern	char *strcont(const char *src, const char *set);
-extern	char *strxmov(char *dst, const char *src, ...);
-extern	char *strxnmov(char *dst, size_t len, const char *src, ...);
+/*
+  bchange(dst, old_length, src, new_length, tot_length)
+  replaces old_length characters at dst to new_length characters from
+  src in a buffer with tot_length bytes.
+*/
+static inline void bchange(uchar *dst, size_t old_length, const uchar *src,
+                           size_t new_length, size_t tot_length) {
+  memmove(dst + new_length, dst + old_length, tot_length - old_length);
+  memcpy(dst, src, new_length);
+}
+
+/*
+  strend(s) returns a character pointer to the NUL which ends s.  That
+  is,  strend(s)-s  ==  strlen(s). This is useful for adding things at
+  the end of strings.  It is redundant, because  strchr(s,'\0')  could
+  be used instead, but this is clearer and faster.
+*/
+static inline const char *strend(const char *s) {
+  while (*s++)
+    ;
+  return s - 1;
+}
+
+static inline char *strend(char *s) {
+  while (*s++)
+    ;
+  return s - 1;
+}
+
+/*
+  strcend(s, c) returns a pointer to the  first  place  in  s where  c
+  occurs,  or a pointer to the end-null of s if c does not occur in s.
+*/
+static inline const char *strcend(const char *s, char c) {
+  for (;;) {
+    if (*s == c) return s;
+    if (!*s++) return s - 1;
+  }
+}
+
+/*
+  strfill(dest, len, fill) makes a string of fill-characters. The result
+  string is of length == len. The des+len character is allways set to NULL.
+  strfill() returns pointer to dest+len;
+*/
+static inline char *strfill(char *s, size_t len, char fill) {
+  while (len--) *s++ = fill;
+  *(s) = '\0';
+  return (s);
+}
+
+/*
+  my_stpmov(dst, src) moves all the  characters  of  src  (including  the
+  closing NUL) to dst, and returns a pointer to the new closing NUL in
+  dst.	 The similar UNIX routine strcpy returns the old value of dst,
+  which I have never found useful.  my_stpmov(my_stpmov(dst,a),b) moves a//b
+  into dst, which seems useful.
+*/
+static inline char *my_stpmov(char *dst, const char *src) {
+  while ((*dst++ = *src++))
+    ;
+  return dst - 1;
+}
+
+/*
+  my_stpnmov(dst,src,length) moves length characters, or until end, of src to
+  dst and appends a closing NUL to dst if src is shorter than length.
+  The result is a pointer to the first NUL in dst, or is dst+n if dst was
+  truncated.
+*/
+static inline char *my_stpnmov(char *dst, const char *src, size_t n) {
+  while (n-- != 0) {
+    if (!(*dst++ = *src++)) return (char *)dst - 1;
+  }
+  return dst;
+}
 
 /**
    Copy a string from src to dst until (and including) terminating null byte.
@@ -82,9 +161,15 @@ extern	char *strxnmov(char *dst, size_t len, const char *src, ...);
 
    @return pointer to terminating null byte.
 */
-static inline char *my_stpcpy(char *dst, const char *src)
-{
+static inline char *my_stpcpy(char *dst, const char *src) {
 #if defined(HAVE_BUILTIN_STPCPY)
+  /*
+    If __builtin_stpcpy() is available, use it instead of stpcpy(), since GCC in
+    some situations is able to transform __builtin_stpcpy() into more efficient
+    strcpy() or memcpy() calls. It does not perform these transformations for a
+    plain call to stpcpy() when the compiler runs in strict mode. See GCC bug
+    82429.
+  */
   return __builtin_stpcpy(dst, src);
 #elif defined(HAVE_STPCPY)
   return stpcpy(dst, src);
@@ -106,8 +191,7 @@ static inline char *my_stpcpy(char *dst, const char *src)
 
    @return pointer to terminating null byte.
 */
-static inline char *my_stpncpy(char *dst, const char *src, size_t n)
-{
+static inline char *my_stpncpy(char *dst, const char *src, size_t n) {
 #if defined(HAVE_STPNCPY)
   return stpncpy(dst, src, n);
 #else
@@ -116,33 +200,7 @@ static inline char *my_stpncpy(char *dst, const char *src, size_t n)
 #endif
 }
 
-/**
-   Copies strlen(src) characters of source to destination.
-   If strlen(src) is equal or bigger than num then dst will be truncated.
-   The null-character is always appended at the end of destination.
-   Destination is not padded with zeros until a total of num characters.
-
-   @param dst   Destination
-   @param src   Source
-   @param n     Maximum number of characters to copy.
-
-   @return pointer to Destination is returned.
-*/
-static inline char *my_strncpy_trunc(char *dst, const char *src, size_t num)
-{
-  size_t len= strlen(src);
-  if (unlikely(len >= num)) {
-    len= num - 1;
-    memcpy(dst, src, len);
-    dst[len]= '\0';
-  } else {
-    memcpy(dst, src, len + 1);
-  }
-  return dst;
-}
-
-static inline longlong my_strtoll(const char *nptr, char **endptr, int base)
-{
+static inline longlong my_strtoll(const char *nptr, char **endptr, int base) {
 #if defined _WIN32
   return _strtoi64(nptr, endptr, base);
 #else
@@ -150,8 +208,7 @@ static inline longlong my_strtoll(const char *nptr, char **endptr, int base)
 #endif
 }
 
-static inline ulonglong my_strtoull(const char *nptr, char **endptr, int base)
-{
+static inline ulonglong my_strtoull(const char *nptr, char **endptr, int base) {
 #if defined _WIN32
   return _strtoui64(nptr, endptr, base);
 #else
@@ -159,8 +216,7 @@ static inline ulonglong my_strtoull(const char *nptr, char **endptr, int base)
 #endif
 }
 
-static inline char *my_strtok_r(char *str, const char *delim, char **saveptr)
-{
+static inline char *my_strtok_r(char *str, const char *delim, char **saveptr) {
 #if defined _WIN32
   return strtok_s(str, delim, saveptr);
 #else
@@ -169,8 +225,7 @@ static inline char *my_strtok_r(char *str, const char *delim, char **saveptr)
 }
 
 /* native_ rather than my_ since my_strcasecmp already exists */
-static inline int native_strcasecmp(const char *s1, const char *s2)
-{
+static inline int native_strcasecmp(const char *s1, const char *s2) {
 #if defined _WIN32
   return _stricmp(s1, s2);
 #else
@@ -179,8 +234,7 @@ static inline int native_strcasecmp(const char *s1, const char *s2)
 }
 
 /* native_ rather than my_ for consistency with native_strcasecmp */
-static inline int native_strncasecmp(const char *s1, const char *s2, size_t n)
-{
+static inline int native_strncasecmp(const char *s1, const char *s2, size_t n) {
 #if defined _WIN32
   return _strnicmp(s1, s2, n);
 #else
@@ -188,33 +242,33 @@ static inline int native_strncasecmp(const char *s1, const char *s2, size_t n)
 #endif
 }
 
-/* Prototypes of normal stringfunctions (with may ours) */
-#ifndef HAVE_STRNLEN
-extern size_t strnlen(const char *s, size_t n);
-#endif
-
-extern int is_prefix(const char *, const char *);
+/*
+  is_prefix(s, t) returns 1 if s starts with t.
+  A empty t is always a prefix.
+*/
+static inline int is_prefix(const char *s, const char *t) {
+  while (*t)
+    if (*s++ != *t++) return 0;
+  return 1; /* WRONG */
+}
 
 /* Conversion routines */
-typedef enum {
-  MY_GCVT_ARG_FLOAT,
-  MY_GCVT_ARG_DOUBLE
-} my_gcvt_arg_type;
+typedef enum { MY_GCVT_ARG_FLOAT, MY_GCVT_ARG_DOUBLE } my_gcvt_arg_type;
 
-double my_strtod(const char *str, char **end, int *error);
+double my_strtod(const char *str, const char **end, int *error);
 double my_atof(const char *nptr);
-size_t my_fcvt(double x, int precision, char *to, my_bool *error);
+size_t my_fcvt(double x, int precision, char *to, bool *error);
+size_t my_fcvt_compact(double x, char *to, bool *error);
 size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
-               my_bool *error);
-
-#define NOT_FIXED_DEC 31
+               bool *error);
 
 /*
   The longest string my_fcvt can return is 311 + "precision" bytes.
-  Here we assume that we never cal my_fcvt() with precision >= NOT_FIXED_DEC
+  Here we assume that we never call my_fcvt() with precision >=
+  DECIMAL_NOT_SPECIFIED
   (+ 1 byte for the terminating '\0').
 */
-#define FLOATING_POINT_BUFFER (311 + NOT_FIXED_DEC)
+static constexpr int FLOATING_POINT_BUFFER{311 + DECIMAL_NOT_SPECIFIED};
 
 /*
   We want to use the 'e' format in some cases even if we have enough space
@@ -231,143 +285,87 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
   (DBL_DIG + 2) significant digits + sign + "." + ("e-NNN" or
   MAX_DECPT_FOR_F_FORMAT zeros for cases when |x|<1 and the 'f' format is used).
 */
-#define MY_GCVT_MAX_FIELD_WIDTH (DBL_DIG + 4 + MY_MAX(5, MAX_DECPT_FOR_F_FORMAT)) \
+#define MY_GCVT_MAX_FIELD_WIDTH \
+  (DBL_DIG + 4 + std::max(5, MAX_DECPT_FOR_F_FORMAT))
 
-extern char *llstr(longlong value,char *buff);
-extern char *ullstr(longlong value,char *buff);
+const char *str2int(const char *src, int radix, long lower, long upper,
+                    long *val);
+longlong my_strtoll10(const char *nptr, const char **endptr, int *error);
+char *ll2str(int64_t val, char *dst, int radix, bool upcase);
+char *longlong10_to_str(int64_t val, char *dst, int radix);
 
-extern char *int2str(long val, char *dst, int radix, int upcase);
-extern char *int10_to_str(long val,char *dst,int radix);
-extern char *str2int(const char *src,int radix,long lower,long upper,
-			 long *val);
-longlong my_strtoll10(const char *nptr, char **endptr, int *error);
-#if SIZEOF_LONG == SIZEOF_LONG_LONG
-#define ll2str(A,B,C,D) int2str((A),(B),(C),(D))
-#define longlong10_to_str(A,B,C) int10_to_str((A),(B),(C))
-#undef strtoll
-#define strtoll(A,B,C) strtol((A),(B),(C))
-#define strtoull(A,B,C) strtoul((A),(B),(C))
-#else
-extern char *ll2str(longlong val,char *dst,int radix, int upcase);
-extern char *longlong10_to_str(longlong val,char *dst,int radix);
-#endif
-#define longlong2str(A,B,C) ll2str((A),(B),(C),1)
-
-#if defined(__cplusplus)
+inline char *longlong2str(int64_t val, char *dst, int radix) {
+  return ll2str(val, dst, radix, true);
 }
-#endif
 
 /*
-  LEX_STRING -- a pair of a C-string and its length.
-  (it's part of the plugin API as a MYSQL_LEX_STRING)
-  Ditto LEX_CSTRING/MYSQL_LEX_CSTRING.
+  This function saves a longlong value in a buffer and returns the pointer to
+  the buffer.
 */
+static inline char *llstr(longlong value, char *buff) {
+  longlong10_to_str(value, buff, -10);
+  return buff;
+}
 
-#include <mysql/mysql_lex_string.h>
-typedef struct st_mysql_lex_string LEX_STRING;
-typedef struct st_mysql_const_lex_string LEX_CSTRING;
+static inline char *ullstr(longlong value, char *buff) {
+  longlong10_to_str(value, buff, 10);
+  return buff;
+}
 
 #define STRING_WITH_LEN(X) (X), ((sizeof(X) - 1))
-#define USTRING_WITH_LEN(X) ((uchar*) X), ((sizeof(X) - 1))
-#define C_STRING_WITH_LEN(X) ((char *) (X)), ((sizeof(X) - 1))
-
 
 /**
-  Skip trailing space.
+  Skip trailing space (ASCII spaces only).
 
-  On most systems reading memory in larger chunks (ideally equal to the size of
-  the chunks that the machine physically reads from memory) causes fewer memory
-  access loops and hence increased performance.
-  This is why the 'int' type is used : it's closest to that (according to how
-  it's defined in C).
-  So when we determine the amount of whitespace at the end of a string we do
-  the following :
-    1. We divide the string into 3 zones :
-      a) from the start of the string (__start) to the first multiple
-        of sizeof(int)  (__start_words)
-      b) from the end of the string (__end) to the last multiple of sizeof(int)
-        (__end_words)
-      c) a zone that is aligned to sizeof(int) and can be safely accessed
-        through an int *
-    2. We start comparing backwards from (c) char-by-char. If all we find is
-       space then we continue
-    3. If there are elements in zone (b) we compare them as unsigned ints to a
-       int mask (SPACE_INT) consisting of all spaces
-    4. Finally we compare the remaining part (a) of the string char by char.
-       This covers for the last non-space unsigned int from 3. (if any)
-
-   This algorithm works well for relatively larger strings, but it will slow
-   the things down for smaller strings (because of the additional calculations
-   and checks compared to the naive method). Thus the barrier of length 20
-   is added.
-
-   @param     ptr   pointer to the input string
-   @param     len   the length of the string
-   @return          the last non-space character
+  @return New end of the string.
 */
-#if defined(__sparc) || defined(__sparcv9)
-static inline const uchar *skip_trailing_space(const uchar *ptr,size_t len)
-{
-  /* SPACE_INT is a word that contains only spaces */
-#if SIZEOF_INT == 4
-  const unsigned SPACE_INT= 0x20202020U;
-#elif SIZEOF_INT == 8
-  const unsigned SPACE_INT= 0x2020202020202020ULL;
-#else
-#error define the appropriate constant for a word full of spaces
-#endif
-
-  const uchar *end= ptr + len;
-
-  if (len > 20)
-  {
-    const uchar *end_words= (const uchar *)(intptr)
-      (((ulonglong)(intptr)end) / SIZEOF_INT * SIZEOF_INT);
-    const uchar *start_words= (const uchar *)(intptr)
-       ((((ulonglong)(intptr)ptr) + SIZEOF_INT - 1) / SIZEOF_INT * SIZEOF_INT);
-
-    DBUG_ASSERT(end_words > ptr);
-    while (end > end_words && end[-1] == 0x20)
-      end--;
-    if (end[-1] == 0x20 && start_words < end_words)
-      while (end > start_words && ((unsigned *)end)[-1] == SPACE_INT)
-        end -= SIZEOF_INT;
+static inline const uchar *skip_trailing_space(const uchar *ptr, size_t len) {
+  const uchar *end = ptr + len;
+  while (end - ptr >= 8) {
+    uint64_t chunk;
+    memcpy(&chunk, end - 8, sizeof(chunk));
+    if (chunk != 0x2020202020202020ULL) break;
+    end -= 8;
   }
-  while (end > ptr && end[-1] == 0x20)
-    end--;
+  while (end > ptr && end[-1] == 0x20) end--;
   return (end);
 }
-#else
+
 /*
-  Reads 8 bytes at a time, ignoring alignment.
-  We use uint8korr, which is fast (it simply reads a *ulonglong)
-  on all platforms, except sparc.
-*/
-static inline const uchar *skip_trailing_space(const uchar *ptr, size_t len)
-{
-  const uchar *end= ptr + len;
-  while (end - ptr >= 8)
-  {
-    if (uint8korr(end-8) != 0x2020202020202020ULL)
-      break;
-    end-= 8;
-  }
-  while (end > ptr && end[-1] == 0x20)
-    end--;
-  return (end);
-}
-#endif
+  Format a double (representing number of bytes) into a human-readable string.
 
-static inline void lex_string_set(LEX_STRING *lex_str, const char *c_str)
-{
-  lex_str->str= (char *) c_str;
-  lex_str->length= strlen(c_str);
-}
+  @param buf     Buffer used for printing
+  @param buf_len Length of buffer
+  @param dbl_val Value to be formatted
 
-static inline void lex_cstring_set(LEX_CSTRING *lex_str, const char *c_str)
-{
-  lex_str->str= c_str;
-  lex_str->length= strlen(c_str);
+  @note
+    Sample output format: 42 1K 234M 2G
+    If we exceed ULLONG_MAX YiB we give up, and convert to "+INF".
+
+  @todo Consider writing KiB GiB etc, since we use 1024 rather than 1000
+ */
+static inline void human_readable_num_bytes(char *buf, int buf_len,
+                                            double dbl_val) {
+  const char size[] = {'\0', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'};
+  unsigned int i;
+  for (i = 0; dbl_val > 1024 && i < sizeof(size) - 1; i++) dbl_val /= 1024;
+  const char mult = size[i];
+  // ULLONG_MAX (18446744073709551615) should be enough for most ...
+  // static_cast<double>(ULLONG_MAX) is equal 18446744073709551616.0
+  if (dbl_val >= static_cast<double>(ULLONG_MAX))
+    snprintf(buf, buf_len, "+INF");
+  else
+    snprintf(buf, buf_len, "%llu%c", (unsigned long long)dbl_val, mult);
 }
 
-#endif
+static inline void lex_string_set(LEX_STRING *lex_str, char *c_str) {
+  lex_str->str = c_str;
+  lex_str->length = strlen(c_str);
+}
+
+static inline void lex_cstring_set(LEX_CSTRING *lex_str, const char *c_str) {
+  lex_str->str = c_str;
+  lex_str->length = strlen(c_str);
+}
+
+#endif  // M_STRING_INCLUDED

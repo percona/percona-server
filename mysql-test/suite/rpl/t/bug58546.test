@@ -1,9 +1,11 @@
-source include/have_innodb.inc;
 source include/have_myisam.inc;
 source include/have_debug.inc;
 source include/have_debug_sync.inc;
 source include/have_binlog_format_mixed_or_statement.inc;
 source include/master-slave.inc;
+
+call mtr.add_suppression("Statement is unsafe because it accesses a non-transactional table after accessing a transactional");
+call mtr.add_suppression("Request to stop slave SQL Thread received while applying a group that has non-transactional changes");
 
 --echo
 --echo # Bug#58546 test rpl_packet timeout failure sporadically on PB
@@ -38,7 +40,9 @@ UPDATE t1 SET c2 = 2 WHERE c1 = 1;
 --source include/rpl_connection_master.inc
 BEGIN;
 INSERT INTO t1 VALUES(2, 2);
+--disable_warnings
 INSERT INTO t2 VALUES(1);
+--enable_warnings
 UPDATE t1 SET c2 = 3 WHERE c1 = 1;
 COMMIT;
 

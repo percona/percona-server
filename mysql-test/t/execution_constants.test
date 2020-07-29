@@ -1,6 +1,5 @@
-
-# In embedded server we don't really have a control over stack usage
--- source include/not_embedded.inc
+# ER_STACK_OVERRUN_NEED_MORE does not currenly work well with TSan
+--source include/not_tsan.inc
 
 #
 # Bug#21476: Lost Database Connection During Query

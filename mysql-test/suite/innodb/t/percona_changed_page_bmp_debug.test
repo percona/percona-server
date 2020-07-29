@@ -2,8 +2,6 @@
 # Non-crash tests for the changed page bitmaps that require debug builds
 #
 --source include/have_debug.inc
---source include/have_innodb.inc
---source include/not_embedded.inc
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 
@@ -99,7 +97,7 @@ send SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
 
 SET DEBUG_SYNC="now WAIT_FOR changed_pages_query_ready";
 
-# Remove the first bitmap file in the range after it has been enumerated 
+# Remove the first bitmap file in the range after it has been enumerated
 remove_files_wildcard $MYSQLD_DATADIR ib_modified_log_1_*.xdb;
 
 call mtr.add_suppression("Inconsistent bitmap file directory");

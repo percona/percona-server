@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,23 +20,26 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <my_dir.h>
+#include <sys/types.h>
+
+#include "my_dir.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+
+typedef unsigned int PSI_memory_key;
 
 extern PSI_memory_key csv_key_memory_Transparent_file;
 
-class Transparent_file
-{
+class Transparent_file {
   File filedes;
-  uchar *buff;  /* in-memory window to the file or mmaped area */
+  uchar *buff; /* in-memory window to the file or mmaped area */
   /* current window sizes */
   my_off_t lower_bound;
   my_off_t upper_bound;
   uint buff_size;
 
-public:
-
+ public:
   Transparent_file();
   ~Transparent_file();
 
@@ -44,6 +47,6 @@ public:
   uchar *ptr();
   my_off_t start();
   my_off_t end();
-  char get_value (my_off_t offset);
+  char get_value(my_off_t offset);
   my_off_t read_next();
 };

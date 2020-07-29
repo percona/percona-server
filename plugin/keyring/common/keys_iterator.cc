@@ -1,4 +1,4 @@
-/* Copyright (c)  2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,26 +21,22 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "keys_iterator.h"
-#include "keyring.h"
+#include "plugin/keyring/common/keyring.h"
 
 namespace keyring {
 
 /**
   Standard Constructor.
 */
-Keys_iterator::Keys_iterator(ILogger* logger)
-  : logger(logger)
-{
-}
+Keys_iterator::Keys_iterator(ILogger *logger) : logger(logger) {}
 
 /**
   This function initiates the internal pointers to point to
   begining of the first element of keys metadata.
 */
-void Keys_iterator::init()
-{
-  key_metadata_list= keys->get_keys_metadata();
-  key_metadata_list_iterator= key_metadata_list.begin();
+void Keys_iterator::init() {
+  key_metadata_list = keys->get_keys_metadata();
+  key_metadata_list_iterator = key_metadata_list.begin();
 }
 
 /**
@@ -56,20 +52,16 @@ void Keys_iterator::init()
   @return 1 Failure
 
 */
-bool Keys_iterator::get_key(Key_metadata **km)
-{
+bool Keys_iterator::get_key(Key_metadata **km) {
   /* if list is empty */
-  if (key_metadata_list_iterator == key_metadata_list.end())
-  {
-    *km= NULL;
+  if (key_metadata_list_iterator == key_metadata_list.end()) {
+    *km = nullptr;
     return false;
-  }
-  else
-  {
-    boost::movelib::unique_ptr<Key_metadata> key_meta(new Key_metadata());
-    key_meta->id= key_metadata_list_iterator->id;
-    key_meta->user= key_metadata_list_iterator->user;
-    *km= key_meta.release();
+  } else {
+    std::unique_ptr<Key_metadata> key_meta(new Key_metadata());
+    key_meta->id = key_metadata_list_iterator->id;
+    key_meta->user = key_metadata_list_iterator->user;
+    *km = key_meta.release();
   }
   key_metadata_list_iterator++;
   return false;
@@ -78,14 +70,11 @@ bool Keys_iterator::get_key(Key_metadata **km)
 /**
   Release all internal pointers.
 */
-void Keys_iterator::deinit()
-{
-  this->logger= NULL;
+void Keys_iterator::deinit() {
+  this->logger = nullptr;
   this->key_metadata_list.clear();
 }
 
-Keys_iterator::~Keys_iterator()
-{
-}
+Keys_iterator::~Keys_iterator() {}
 
-}
+}  // namespace keyring

@@ -1,7 +1,0 @@
-[non-native-partitioning]
-loose-tokudb-enable-native-partition=off
-
-[native-partitioning]
-loose-tokudb-enable-native-partition=on
-mtr-result-dir = r-native-partitioning
-mtr-tests-list = bug-1657908,cluster_key_part,gap_lock_error,type_temporal_fractional

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ Dbtux::execREAD_PSEUDO_REQ(Signal* signal)
   jamEntry();
   ScanOpPtr scanPtr;
   scanPtr.i = signal->theData[0];
-  c_scanOpPool.getPtr(scanPtr);
+  ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
   StatOpPtr statPtr;
   statPtr.i = scanPtr.p->m_statOpPtrI;
 
@@ -64,8 +64,7 @@ Dbtux::execREAD_PSEUDO_REQ(Signal* signal)
     statScanReadValue(statPtr, out);
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
 }
 
@@ -96,8 +95,17 @@ Dbtux::statRecordsInRange(ScanOpPtr scanPtr, Uint32* out)
     const ScanBound& scanBound = scan.m_scanBound[idir];
     KeyDataC searchBoundData(index.m_keySpec, true);
     KeyBoundC searchBound(searchBoundData);
-    unpackBound(c_ctx, scanBound, searchBound);
-    searchToScan(frag, idir, searchBound, pos2);
+    unpackBound(c_ctx.c_searchKey, scanBound, searchBound);
+
+    KeyDataArray *searchKeyDataArray = new (&c_ctx.searchKeyDataArray)
+                                         KeyDataArray();
+    searchKeyDataArray->init_bound(searchBound, scanBound.m_cnt);
+    KeyBoundArray *searchBoundArray = new (&c_ctx.searchKeyBoundArray)
+      KeyBoundArray(&index.m_keySpec,
+                    &c_ctx.searchKeyDataArray,
+                    scanBound.m_side);
+
+    searchToScan(frag, idir, *searchBoundArray, pos2);
     // committed read (same timeslice) and range not empty
     ndbrequire(pos2.m_loc != NullTupLoc);
   }
@@ -129,7 +137,7 @@ Uint32
 Dbtux::getEntriesBeforeOrAfter(Frag& frag, TreePos pos, unsigned idir)
 {
   NodeHandle node(frag);
-  selectNode(node, pos.m_loc);
+  selectNode(c_ctx, node, pos.m_loc);
   Uint16 path[MaxTreeDepth + 1];
   unsigned depth = getPathToNode(node, path);
   ndbrequire(depth != 0 && depth <= MaxTreeDepth);
@@ -178,7 +186,7 @@ Dbtux::getPathToNode(NodeHandle node, Uint16* path)
   unsigned i = MaxTreeDepth;
   while (loc != NullTupLoc) {
     jam();
-    selectNode(node, loc);
+    selectNode(c_ctx, node, loc);
     path[i] = node.getSide() | (node.getOccup() << 8);
     loc = node.getLink(2);
     ndbrequire(i != 0);
@@ -207,8 +215,11 @@ int
 Dbtux::statScanInit(StatOpPtr statPtr, const Uint32* data, Uint32 len,
                     Uint32* usedLen)
 {
+  ScanOpPtr scanPtr;
   StatOp& stat = *statPtr.p;
-  ScanOp& scan = *c_scanOpPool.getPtr(stat.m_scanOpPtrI);
+  scanPtr.i = stat.m_scanOpPtrI;
+  ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
+  ScanOp& scan = *scanPtr.p;
   Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
   const Index& index = *c_indexPool.getPtr(scan.m_indexId);
   D("statScanInit");
@@ -296,7 +307,10 @@ int
 Dbtux::statScanAddRow(StatOpPtr statPtr, TreeEnt ent)
 {
   StatOp& stat = *statPtr.p;
-  ScanOp& scan = *c_scanOpPool.getPtr(stat.m_scanOpPtrI);
+  ScanOpPtr scanPtr;
+  scanPtr.i = stat.m_scanOpPtrI;
+  ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
+  ScanOp& scan = *scanPtr.p;
   Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
   D("statScanAddRow" << V(stat));
 
@@ -352,7 +366,7 @@ Dbtux::statScanAddRow(StatOpPtr statPtr, TreeEnt ent)
   {
     NodeHandle node(frag);
     TreePos pos = scan.m_scanPos;
-    selectNode(node, pos.m_loc);
+    selectNode(c_ctx, node, pos.m_loc);
     // more entries in this node
     const unsigned occup = node.getOccup();
     // funny cast to avoid signed vs unsigned warning
@@ -372,7 +386,7 @@ Dbtux::statScanAddRow(StatOpPtr statPtr, TreeEnt ent)
     {
       jam();
       TupLoc loc = node.getLink(2);
-      selectNode(node, loc);
+      selectNode(c_ctx, node, loc);
     }
     // did not reach root
     if (node.getSide() != 2)
@@ -397,6 +411,16 @@ Dbtux::statScanAddRow(StatOpPtr statPtr, TreeEnt ent)
     stat.m_batchCurr = 0;
     return 1;
   }
+  /* Take a break to avoid problems with a long stretch of equal keys */
+  const Uint32 MaxAddRowsWithoutBreak = 16;
+  if (stat.m_rowCount % MaxAddRowsWithoutBreak == 0)
+  {
+    jam();
+    D("Taking a break from stat scan");
+    return 2; // Take a break
+  }
+
+  /* Iterate to next index entry */
   return 0;
 }
 
@@ -456,8 +480,7 @@ Dbtux::execINDEX_STAT_REP(Signal* signal)
 
   switch (rep->requestType) {
   case IndexStatRep::RT_UPDATE_REQ:
-    ndbrequire(false);
-    break;
+    ndbabort();
   case IndexStatRep::RT_UPDATE_CONF:
     {
       Index& index = *c_indexPool.getPtr(rep->indexId);
@@ -470,8 +493,7 @@ Dbtux::execINDEX_STAT_REP(Signal* signal)
     }
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
 }
 
@@ -495,8 +517,7 @@ Dbtux::execINDEX_STAT_IMPL_REQ(Signal* signal)
     statMonStop(signal, mon);
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
 }
 

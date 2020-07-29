@@ -6,8 +6,8 @@ create table foo (a int) engine=TokuDB;
 show create table foo;
 Table	Create Table
 foo	CREATE TABLE `foo` (
-  `a` int(11) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+  `a` int DEFAULT NULL
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into foo values (1);
 begin;
 select * from foo;

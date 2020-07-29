@@ -1,13 +1,9 @@
 CREATE TABLE t1(a DATE NOT NULL,b INT);
 SET SESSION sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 insert into t1(b)values(7);
 Warnings:
 Warning	1364	Field 'a' doesn't have a default value
 SET SESSION sql_mode='traditional';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT 1 FROM t1 WHERE(SELECT a FROM t1)/ a;
 1
 Warnings:

@@ -2,6 +2,7 @@
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
+--source include/have_myisam.inc
 
 #
 # Initialization
@@ -430,6 +431,7 @@ create algorithm=merge view v4 as
 select * from v2a natural join v3a;
 
 # Nested natural/using joins.
+--sorted_result
 select * from (t1 natural join t2) natural join (t3 natural join t4);
 --sorted_result
 select * from (t1 natural join t2) natural left join (t3 natural join t4);
@@ -439,21 +441,30 @@ select * from (t3 natural join t4) natural right join (t1 natural join t2);
 select * from (t1 natural left join t2) natural left join (t3 natural left join t4);
 --sorted_result
 select * from (t4 natural right join t3) natural right join (t2 natural right join t1);
+--sorted_result
 select * from t1 natural join t2 natural join t3 natural join t4;
+--sorted_result
 select * from ((t1 natural join t2) natural join t3) natural join t4;
+--sorted_result
 select * from t1 natural join (t2 natural join (t3 natural join t4));
 # BUG#15355: this query fails in 'prepared statements' mode
 # select * from ((t3 natural join (t1 natural join t2)) natural join t4) natural join t5;
 # select * from ((t3 natural left join (t1 natural left join t2)) natural left join t4) natural left join t5;
+--sorted_result
 select * from t5 natural right join (t4 natural right join ((t2 natural right join t1) natural right join t3));
 select * from (t1 natural join t2), (t3 natural join t4);
 # MySQL extension - nested comma ',' operator instead of cross join.
+--sorted_result
 select * from t5 natural join ((t1 natural join t2), (t3 natural join t4));
+--sorted_result
 select * from  ((t1 natural join t2),  (t3 natural join t4)) natural join t5;
+--sorted_result
 select * from t5 natural join ((t1 natural join t2) cross join (t3 natural join t4));
+--sorted_result
 select * from  ((t1 natural join t2) cross join (t3 natural join t4)) natural join t5;
 
 select * from (t1 join t2 using (b)) join (t3 join t4 using (c)) using (c);
+--sorted_result
 select * from (t1 join t2 using (b)) natural join (t3 join t4 using (c));
 
 
@@ -468,29 +479,40 @@ where b + 1 = y or b + 10 = y group by b,c,a,y having min(b) < max(y) order by a
 # Qualified column references to NJ columns.
 select * from t1 natural join t2 where t1.c > t2.a;
 select * from t1 natural join t2 where t1.b > t2.b;
+--sorted_result
 select * from t1 natural left join (t4 natural join t5) where t5.z is not NULL;
 
 # Nested 'join ... on' - name resolution of ON conditions
+--sorted_result
 select * from t1 join (t2 join t4 on b + 1 = y) on t1.c = t4.c;
+--sorted_result
 select * from (t2 join t4 on b + 1 = y) join t1 on t1.c = t4.c;
 select * from t1 natural join (t2 join t4 on b + 1 = y);
 select * from (t1 cross join t2) join (t3 cross join t4) on (a < y and t2.b < t3.c);
 
 # MySQL extension - 'join ... on' over nested comma operator
 select * from (t1, t2) join (t3, t4) on (a < y and t2.b < t3.c);
+--sorted_result
 select * from (t1 natural join t2) join (t3 natural join t4) on a = y;
+--sorted_result
 select * from ((t3 join (t1 join t2 on c > a) on t3.b < t2.a) join t4 on y > t1.c) join t5 on z = t1.b + 3;
 
 # MySQL extension - refererence qualified coalesced columns
 select * from t1 natural join t2 where t1.b > 0;
+--sorted_result
 select * from t1 natural join (t4 natural join t5) where t4.y > 7;
+--sorted_result
 select * from (t4 natural join t5) natural join t1 where t4.y > 7;
+--sorted_result
 select * from t1 natural left join (t4 natural join t5) where t4.y > 7;
+--sorted_result
 select * from (t4 natural join t5) natural right join t1 where t4.y > 7;
+--sorted_result
 select * from (t1 natural join t2) join (t3 natural join t4) on t1.b = t3.b;
 
 # MySQL extension - select qualified columns of NJ columns
 select t1.*, t2.* from t1 natural join t2;
+--sorted_result
 select t1.*, t2.*, t3.*, t4.* from (t1 natural join t2) natural join (t3 natural join t4);
 
 # Queries over subselects in the FROM clause
@@ -512,9 +534,13 @@ select * from v1a;
 select * from v1b;
 select * from v1c;
 select * from v1d;
+--sorted_result
 select * from v2a;
+--sorted_result
 select * from v2b;
+--sorted_result
 select * from v3a;
+--sorted_result
 select * from v3b;
 select * from v4;
 select * from v1a natural join v2a;
@@ -522,6 +548,7 @@ select v2a.* from v1a natural join v2a;
 select * from v1b join v2a on v1b.b = v2a.c;
 select * from v1c join v2a on v1c.b = v2a.c;
 select * from v1d join v2a on v1d.a = v2a.c;
+--sorted_result
 select * from v1a join (t3 natural join t4) on a = y;
 
 # TODO: add tests with correlated subqueries for natural join/join on.
@@ -565,11 +592,11 @@ select * from v1a join v1b on t1.b = t2.b;
 #
 # Bug #17523 natural join and information_schema
 #
-# Omit columns.PRIVILIGES as it may vary with embedded server.
 # Omit columns.ORDINAL_POSITION and statistics.CARDINALITY as it may vary with hostname='localhost'.
+ANALYZE TABLE mysql.user;
 select 
  statistics.TABLE_NAME, statistics.COLUMN_NAME, statistics.TABLE_CATALOG, statistics.TABLE_SCHEMA, statistics.NON_UNIQUE, statistics.INDEX_SCHEMA, statistics.INDEX_NAME, statistics.SEQ_IN_INDEX, statistics.COLLATION, statistics.SUB_PART, statistics.PACKED, statistics.NULLABLE, statistics.INDEX_TYPE, statistics.COMMENT, 
- columns.TABLE_CATALOG, columns.TABLE_SCHEMA, columns.COLUMN_DEFAULT, columns.IS_NULLABLE, columns.DATA_TYPE, columns.CHARACTER_MAXIMUM_LENGTH, columns.CHARACTER_OCTET_LENGTH, columns.NUMERIC_PRECISION, columns.NUMERIC_SCALE, columns.CHARACTER_SET_NAME, columns.COLLATION_NAME, columns.COLUMN_TYPE, columns.COLUMN_KEY, columns.EXTRA, columns.COLUMN_COMMENT
+ columns.TABLE_CATALOG, columns.TABLE_SCHEMA, columns.COLUMN_DEFAULT, columns.IS_NULLABLE, columns.DATA_TYPE, columns.CHARACTER_MAXIMUM_LENGTH, columns.CHARACTER_OCTET_LENGTH, columns.NUMERIC_PRECISION, columns.NUMERIC_SCALE, columns.CHARACTER_SET_NAME, columns.COLLATION_NAME, columns.COLUMN_TYPE, columns.COLUMN_KEY, columns.EXTRA, columns.PRIVILEGES, columns.COLUMN_COMMENT
  from information_schema.statistics join information_schema.columns using(table_name,column_name) where table_name='user';
 
 drop table t1;
@@ -693,7 +720,7 @@ insert into t2
 insert into t3 select * from t2 where a < 800;
 
 # The order of tables must be t2,t3:
-explain select * from t2,t3 where t2.a < 200 and t2.b=t3.b;
+explain select * from t2,t3 where t2.a < 400 and t2.b=t3.b;
 
 drop table t1, t2, t3;
 
@@ -713,7 +740,7 @@ select 'vv: Following query must use ALL(t1), eq_ref(A), eq_ref(B): vv' Z;
 
 explain select * from t1, t2 a, t2 b where a.a = t1.a and b.a=a.b;
 show status like '%cost%';
-select '^^: The above should be ~= 20 + cost(select * from t1). Value less than 20 is an error' Z;
+select '^^: The above should be ~= 8 + cost(select * from t1). Value less than 8 is an error' Z;
 
 
 
@@ -810,7 +837,7 @@ DROP TABLE t1,t2,t3,t4,t5,t6;
 CREATE TABLE t1(f1 INT);
 INSERT INTO t1 VALUES (1),(2);
 CREATE VIEW v1 AS SELECT 1 FROM t1 LEFT JOIN t1 AS t2 on 1=1;
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT 1 FROM v1 right join v1 AS v2 ON RAND();
 DROP VIEW v1;
 DROP TABLE t1;
@@ -867,6 +894,7 @@ INSERT INTO t1 VALUES ('1',null),(null,null);
 INSERT INTO t2 VALUES ('1',null),(null,null);
 CREATE TABLE mm1(a CHAR(9),b INT,KEY(b),KEY(a))
 ENGINE=MERGE  UNION=(t1,t2);
+--sorted_result
 SELECT t1.a FROM mm1,t1;
 DROP TABLE t1, t2, mm1;
 
@@ -1101,3 +1129,294 @@ EXECUTE st1;
 DEALLOCATE PREPARE st1;
 DROP VIEW v1;
 DROP TABLE t1;
+
+--echo # Bug#25424289: Assert '!table->has_null_row()' failed in join_read_key
+
+CREATE TABLE t1
+(pk INT,
+ col_int_key INT DEFAULT NULL,
+ col_varchar_10_latin1_key VARCHAR(10) DEFAULT NULL,
+ col_varchar_255_utf8 VARCHAR(255) CHARACTER SET utf8 DEFAULT NULL,
+ col_int INT DEFAULT NULL,
+ col_datetime_key datetime DEFAULT NULL,
+ col_varchar_255_latin1_key VARCHAR(255) DEFAULT NULL,
+ col_date_key date DEFAULT NULL,
+ col_datetime datetime DEFAULT NULL,
+ PRIMARY KEY (pk),
+ KEY col_date_key (col_date_key)
+) charset latin1 ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES
+(8,9,'h','FDUMQ',-1356726272,'2007-09-02 05:48:23','she','2002-04-02','2002-12-20 17:54:07');
+
+CREATE TABLE t2
+(pk INT,
+ col_int INT DEFAULT NULL,
+ col_int_key INT DEFAULT NULL,
+ PRIMARY KEY (pk)
+) charset latin1 ENGINE=MyISAM;
+
+CREATE TABLE t3
+(col_int INT DEFAULT NULL,
+ col_int_key INT DEFAULT NULL,
+ pk INT,
+ PRIMARY KEY (pk),
+ KEY test_idx (col_int_key,pk,col_int)
+) charset latin1 ENGINE=InnoDB;
+
+INSERT INTO t3 VALUES
+ (NULL,9, 41), (NULL,-1596719104, 48), (-1068105728,9, 49);
+
+CREATE TABLE t4
+(col_varchar_255_latin1_key VARCHAR(255) DEFAULT NULL,
+ pk INT,
+ PRIMARY KEY (pk)
+) charset latin1 ENGINE=MyISAM;
+
+INSERT INTO t4 VALUES ('RUXDY',8);
+
+ANALYZE TABLE t1, t2, t3, t4;
+
+let $query=
+SELECT alias1.pk AS field5
+FROM t3 AS alias1
+     LEFT JOIN t4 AS alias2
+       LEFT JOIN t4 AS alias3
+         LEFT JOIN t1 AS alias4
+           LEFT JOIN t2 AS alias5
+           ON alias4.pk = alias5.col_int_key
+         ON alias3.pk = alias5.col_int
+       ON alias2.col_varchar_255_latin1_key = alias4.col_varchar_10_latin1_key
+       RIGHT JOIN t1 AS alias6
+       ON alias4.pk = alias6.pk
+       RIGHT JOIN t4 AS alias7
+       ON alias6.pk = alias7.pk
+     ON alias1.col_int_key = alias6.col_int_key
+WHERE alias1.col_int > 5 OR
+      alias5.col_int > 5; 
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2, t3, t4;
+
+##################################################
+# In bushy- / star-joins there could be duplicated
+# 'is not null'-predicates being added to the parent
+# table 'where condition'
+
+--echo # Bug#28727717: Duplicated 'is not null' predicates
+
+create table parent(a int primary key, b int, c int, d int) engine=innodb;
+create table eq_child(a int, b int, c int, d int, primary key(a,b)) engine=innodb;
+
+insert into parent values (1,1,1,1);
+insert into eq_child select * from parent;
+
+# Need JSON explain format in order to make the where condition visible.
+explain format=json select straight_join count(*) from parent
+ join eq_child as c1 on c1.a = parent.b and c1.b = parent.b
+ join eq_child as c2 on c2.a = parent.b and c2.b = parent.b
+ join eq_child as c3 on c3.a = parent.b and c3.b = parent.b
+ join eq_child as c4 on c4.a = parent.b and c4.b = parent.b
+;
+
+drop table parent, eq_child;
+
+--echo #
+--echo # Bug #29954680: BACKWARDS REF SCAN DOES NOT PERFORM LATE NULLS FILTERING
+--echo #
+
+CREATE TABLE t (i INTEGER PRIMARY KEY AUTO_INCREMENT, j INTEGER, KEY(j)) ENGINE=InnoDB;
+INSERT INTO t VALUES (NULL, NULL);
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+ANALYZE TABLE t;
+
+# Verify that we indeed get a backwards index scan.
+EXPLAIN FORMAT=tree SELECT t1.i AS a, (SELECT t2.i FROM t t2 WHERE t1.j = t2.j ORDER BY j DESC, i DESC LIMIT 1) AS b FROM t t1;
+
+FLUSH STATUS;
+--disable_result_log
+SELECT t1.i AS a, (SELECT t2.i FROM t t2 WHERE t1.j = t2.j ORDER BY j DESC, i DESC LIMIT 1) AS b FROM t t1;
+--enable_result_log
+
+# Check that we skipped nearly all of the key lookups.
+SHOW STATUS LIKE 'Handler_read_key';
+
+DROP TABLE t;
+
+# New tests needn't use MyISAM
+set global default_storage_engine=innodb;
+set session default_storage_engine=innodb;
+
+--echo #
+--echo # Bug#30350696 REFERENCE FROM DERIVED TABLE JOIN CONDITION TO PRECEDING TABLE COLUMN FAILS
+--echo # Bug#11748138 ERROR 1054 (42S22): UNKNOWN COLUMN 'T2.I2' IN 'ON CLAUSE'
+--echo #
+
+# Test for outer references placed in ON conditions of JOIN operators.
+
+create table t(a int, b int);
+insert into t values(1,10),(2,20);
+# to test the iterator executor:
+set optimizer_switch="block_nested_loop=off";
+
+# Show that the subquery is re-calculated as needed.
+
+let query=
+ select t1.*, (select count(*)
+               from t t2
+               left join t t3 on t3.a>t2.a-t1.a)
+ from t t1;
+eval explain format=tree $query;
+eval $query;
+
+# let the reference be in GROUP BY, to test "odd" Items_ref:
+let query=
+ select t1.a, (select count(*)
+               from t t2
+               left join t t3 on t3.a>t2.a-t1.a)
+ from t t1
+ group by t1.a;
+eval explain format=tree $query;
+eval $query;
+
+# let it belong to a merged view (other odd Item_ref):
+create view v1 as select * from t;
+let query=
+ select v1.*, (select count(*)
+               from t t2
+               left join t t3 on t3.a>t2.a-v1.a)
+ from v1;
+eval explain format=tree $query;
+eval $query;
+drop view v1;
+
+# Push the reference very deep:
+
+let query=
+ select t1.*, (select * from
+                (select count(*)
+                 from t t2
+                 left join t t3 on t3.a>t2.a-t1.a) as dt)
+ from t t1;
+eval explain format=tree $query;
+eval $query;
+
+# Put the reference in a derived table
+
+let query=
+ select t1.*, dt.c
+ from t t1,
+ (select count(*) as c
+  from t t2
+  left join t t3 on t3.a>t2.a-t1.a) as dt;
+--error ER_BAD_FIELD_ERROR
+eval explain format=tree $query;
+
+# Put the reference in a lateral derived table
+
+let query=
+ select t1.*, dt.c
+ from t t1,
+ lateral
+ (select count(*) as c
+  from t t2
+  left join t t3 on t3.a>t2.a-t1.a) as dt;
+eval explain format=tree $query;
+eval $query;
+
+# Above had "comma" syntax; also try "JOIN" and "CROSS JOIN"
+
+let query=
+ select t1.*, dt.c
+ from t t1 cross join
+ lateral
+ (select count(*) as c
+  from t t2
+  left join t t3 on t3.a>t2.a-t1.a) as dt;
+eval explain format=tree $query;
+eval $query;
+
+let query=
+ select t1.*, dt.c
+ from t t1 join
+ lateral
+ (select count(*) as c
+  from t t2
+  left join t t3 on t3.a>t2.a-t1.a) as dt
+ on true;
+eval explain format=tree $query;
+eval $query;
+
+# Verify that an outer reference in a subquery doesn't have
+# more scope that if it was at the place of the subquery.
+# In first query, t0.a is wrong as ON cannot see tables
+# of the FROM clause except the operands of the JOIN.
+# In second query, it must be wrong too.
+
+--error ER_BAD_FIELD_ERROR
+select t1.* from t t0 cross join (t t1 join t t2 on 100=t0.a);
+--error ER_BAD_FIELD_ERROR
+select t1.* from t t0 cross join (t t1 join t t2
+                                       on 100=(select count(*)
+                                               from t t3
+                                                    left join t t4
+                                                    on t4.a>t3.a-t0.a));
+# If we remove the parenthesis, it becomes correct, as the subquery
+# is now the condition of the _outermost_ join.
+
+select t1.* from t t0 cross join t t1 join t t2
+                                      on 100=(select count(*)
+                                              from t t3
+                                                   left join t t4
+                                                   on t4.a>t3.a-t0.a);
+
+set optimizer_switch=default;
+drop table t;
+
+# This was a bug in 8.0: the outer reference t1.a
+# was located in a derived table, which got merged,
+# so the reference ended up in an ON clause (merging moves
+# derived table's WHERE to ON in the parent query),
+# and as sj_corr_tables didn't look at ON clauses,
+# it was thought the inner part of the semijoin wasn't correlated
+# and thus materialization was wrongly chosen, and result was wrong.
+
+create table t(a int);
+insert into t values(1),(2);
+# Try to use materialization:
+set optimizer_switch="firstmatch=off,block_nested_loop=off";
+let query=
+ select * from t t1
+ where t1.a in (select dt.a
+                from t t2
+                left join (select * from t t3 where t3.a>t1.a) dt
+                on true);
+eval explain format=tree $query;
+eval $query;
+
+drop table t;
+set optimizer_switch=default;
+
+set global default_storage_engine=myisam;
+--echo #
+--echo BUG #99398 / PS-7019: Wrong query results for LEFT JOIN with GROUP BY since 8.0.20
+--echo #
+CREATE TABLE t1 (t1_id INT PRIMARY KEY AUTO_INCREMENT, t2_id INT DEFAULT NULL);
+CREATE TABLE t2 (t2_id INT PRIMARY KEY AUTO_INCREMENT, is_active TINYINT NOT NULL DEFAULT '1');
+INSERT INTO t2 VALUES (2,1),(3,0),(1000,1);
+INSERT INTO t1 VALUES (1,1000),(2,5);
+SELECT t1.t1_id,t1.t2_id,t2.t2_id FROM t1 LEFT JOIN t2 ON (t1.t2_id = t2.t2_id AND t2.is_active=1) GROUP BY t1_id ORDER BY t1_id LIMIT 2;
+DROP TABLE t1,t2;

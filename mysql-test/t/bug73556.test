@@ -8,8 +8,6 @@
 #  * A server exit could occur when updating a view using an ALL comparison operator on a subquery
 #    that selects from an indexed column in the main table. (Bug #19434916)
 
---source include/have_innodb.inc
-
 CREATE TABLE t1(a DECIMAL NOT NULL) ENGINE=InnoDB;
 
 CREATE TABLE t2(

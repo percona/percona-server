@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,31 +25,30 @@
 #ifndef ROW_INCLUDED
 #define ROW_INCLUDED
 
-#include "base/mysql_query_runner.h"
-#include "i_data_object.h"
+#include "client/base/mysql_query_runner.h"
+#include "client/dump/i_data_object.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 /**
   Represents single data row.
  */
-class Row : public I_data_object
-{
-public:
-  Row(const Mysql::Tools::Base::Mysql_query_runner::Row& row_data);
+class Row : public I_data_object {
+ public:
+  Row(const Mysql::Tools::Base::Mysql_query_runner::Row &row_data);
 
   ~Row();
 
   /**
     Returns all raw data of fields.
    */
-  const Mysql::Tools::Base::Mysql_query_runner::Row& m_row_data;
+  const Mysql::Tools::Base::Mysql_query_runner::Row &m_row_data;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

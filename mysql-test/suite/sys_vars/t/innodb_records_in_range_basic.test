@@ -1,5 +1,3 @@
---source include/have_innodb.inc
-
 # Display default value
 SELECT @@GLOBAL.innodb_records_in_range;
 --echo 0 Expected

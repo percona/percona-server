@@ -54,7 +54,7 @@ reset_connection;
 
 INSERT INTO t1(id) VALUES(5);
 
---let $logical_timestamps= 4 5
+--let $logical_timestamps= 2 5
 --source include/assert_logical_timestamps.inc
 
 # Clean up

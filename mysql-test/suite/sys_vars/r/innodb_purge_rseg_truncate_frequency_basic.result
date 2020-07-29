@@ -36,13 +36,13 @@ SELECT @@global.innodb_purge_rseg_truncate_frequency;
 '#--------------------FN_DYNVARS_046_05-------------------------#'
 SET @@global.innodb_purge_rseg_truncate_frequency = -1;
 Warnings:
-Warning	1292	Truncated incorrect innodb_purge_rseg_truncate_frequ value: '-1'
+Warning	1292	Truncated incorrect innodb_purge_rseg_truncate_frequency value: '-1'
 SELECT @@global.innodb_purge_rseg_truncate_frequency;
 @@global.innodb_purge_rseg_truncate_frequency
 1
 SET @@global.innodb_purge_rseg_truncate_frequency = -1024;
 Warnings:
-Warning	1292	Truncated incorrect innodb_purge_rseg_truncate_frequ value: '-1024'
+Warning	1292	Truncated incorrect innodb_purge_rseg_truncate_frequency value: '-1024'
 SELECT @@global.innodb_purge_rseg_truncate_frequency;
 @@global.innodb_purge_rseg_truncate_frequency
 1
@@ -73,7 +73,7 @@ SELECT @@global.innodb_purge_rseg_truncate_frequency;
 1
 '#----------------------FN_DYNVARS_046_06------------------------#'
 SELECT @@global.innodb_purge_rseg_truncate_frequency =
-VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_purge_rseg_truncate_frequency';
 @@global.innodb_purge_rseg_truncate_frequency =
 VARIABLE_VALUE
@@ -81,7 +81,7 @@ VARIABLE_VALUE
 SELECT @@global.innodb_purge_rseg_truncate_frequency;
 @@global.innodb_purge_rseg_truncate_frequency
 1
-SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_purge_rseg_truncate_frequency';
 VARIABLE_VALUE
 1
@@ -103,7 +103,7 @@ SELECT @@global.innodb_purge_rseg_truncate_frequency;
 1
 SET @@global.innodb_purge_rseg_truncate_frequency = FALSE;
 Warnings:
-Warning	1292	Truncated incorrect innodb_purge_rseg_truncate_frequ value: '0'
+Warning	1292	Truncated incorrect innodb_purge_rseg_truncate_frequency value: '0'
 SELECT @@global.innodb_purge_rseg_truncate_frequency;
 @@global.innodb_purge_rseg_truncate_frequency
 1

@@ -1,5 +1,4 @@
 # bool global
---source include/have_innodb.inc
 
 SET @start_global_value = @@global.innodb_background_scrub_data_check_interval;
 
@@ -24,9 +23,9 @@ select @@global.innodb_background_scrub_data_check_interval;
 select @@session.innodb_background_scrub_data_check_interval;
 show global variables like 'innodb_background_scrub_data_check_interval';
 show session variables like 'innodb_background_scrub_data_check_interval';
-select * from information_schema.global_variables
+select * from performance_schema.global_variables
 where variable_name='innodb_background_scrub_data_check_interval';
-select * from information_schema.session_variables
+select * from performance_schema.session_variables
 where variable_name='innodb_background_scrub_data_check_interval';
 
 --echo #

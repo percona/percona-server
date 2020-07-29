@@ -19,7 +19,7 @@
 #               USING MULTI-SOURCE
 
 
-# Having fixed bug 1313901 / 72475, test this under statement, not mixed
+
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
 

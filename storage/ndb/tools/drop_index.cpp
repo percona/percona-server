@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,9 +29,9 @@
 #include <NdbApi.hpp>
 #include <NDBT.hpp>
 
-static const char* _dbname = "TEST_DB";
+#include "my_alloc.h"
 
-const char *load_default_groups[]= { "mysql_cluster",0 };
+static const char* _dbname = "TEST_DB";
 
 static struct my_option my_long_options[] =
 {
@@ -42,32 +42,19 @@ static struct my_option my_long_options[] =
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
-static void short_usage_sub(void)
-{
-  ndb_short_usage_sub(NULL);
-}
-
-static void usage()
-{
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
-}
-
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
-  ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  ndb_load_defaults(NULL,load_default_groups,&argc,&argv);
-  int ho_error;
-  if ((ho_error=handle_options(&argc, &argv, my_long_options,
-			       ndb_std_get_one_option)))
+  Ndb_opts opts(argc, argv, my_long_options);
+  if (opts.handle_options())
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   if (argc < 1) {
-    usage();
+    opts.usage();
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
   
   Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   con.set_name("ndb_drop_index");
-  if(con.connect(12, 5, 1) != 0)
+  if(con.connect(opt_connect_retries - 1, opt_connect_retry_delay, 1) != 0)
   {
     return NDBT_ProgramExit(NDBT_FAILED);
   }

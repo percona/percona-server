@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -18,35 +18,30 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET(REWRITER_SOURCES
+MYSQL_ADD_PLUGIN(rewriter
+  rewriter.cc
   rewriter_plugin.cc
   rewriter_udf.cc
   rule.cc
-  rewriter.cc
-  services.cc)
+  services.cc
+  MODULE_ONLY
+  MODULE_OUTPUT_NAME "rewriter"
+  )
 
-IF (DISABLE_SHARED)
-  RETURN()
-ENDIF()
+ADD_DEFINITIONS(-DMYSQL_SERVER)
+ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="Rewriter")
 
-MYSQL_ADD_PLUGIN(rewriter ${REWRITER_SOURCES}
-                 MODULE_ONLY MODULE_OUTPUT_NAME "rewriter")
-
-IF(WIN32 OR HAVE_DLOPEN)
-  IF(WIN32)
-    SET(DYNLIB_EXTENSION "dll")
-    IF(MSVC)
-      SET_TARGET_PROPERTIES(rewriter
-        PROPERTIES LINK_FLAGS
-        "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/rewriter_udf.def")
-    ENDIF()
-  ELSE()
-    SET(DYNLIB_EXTENSION "so")
-    SET_TARGET_PROPERTIES(rewriter
-      PROPERTIES LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS}")
+IF(WIN32)
+  SET(DYNLIB_EXTENSION "dll")
+  IF(MSVC)
+   SET_TARGET_PROPERTIES(rewriter
+      PROPERTIES LINK_FLAGS
+      "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/rewriter_udf.def")
   ENDIF()
+ELSE()
+  SET(DYNLIB_EXTENSION "so")
 ENDIF()
 
 

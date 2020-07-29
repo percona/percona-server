@@ -5,7 +5,6 @@
 
 --source include/have_myisam.inc
 --source include/have_debug_sync.inc
---source include/have_symlink.inc
 --source include/count_sessions.inc
 
 --echo #
@@ -122,14 +121,15 @@ send SELECT * FROM user;
 
 SET DEBUG_SYNC="now WAIT_FOR open_ready";
 
---exec rm -rf $custom_data_directory
---exec ln -s "$datadir"mysql $custom_data_directory
+--force-rmdir $custom_data_directory
+--exec ln -s $datadir/mysql $custom_data_directory
 
 SET DEBUG_SYNC="now SIGNAL finish_open";
 
 --connection con1
 
---error ER_ILLEGAL_HA
+--replace_result $custom_data_directory custom_data_directory
+--error 29
 reap;
 --disconnect con1
 --connection default

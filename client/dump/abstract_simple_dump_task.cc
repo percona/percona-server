@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,23 +22,15 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "abstract_simple_dump_task.h"
+#include "client/dump/abstract_simple_dump_task.h"
 
 using namespace Mysql::Tools::Dump;
 
-void Abstract_simple_dump_task::set_completed()
-{
-  m_is_completed= true;
-}
+void Abstract_simple_dump_task::set_completed() { m_is_completed = true; }
 
-bool Abstract_simple_dump_task::is_completed() const
-{
-  return m_is_completed;
-}
+bool Abstract_simple_dump_task::is_completed() const { return m_is_completed; }
 
-Abstract_simple_dump_task::~Abstract_simple_dump_task()
-{}
+Abstract_simple_dump_task::~Abstract_simple_dump_task() {}
 
 Abstract_simple_dump_task::Abstract_simple_dump_task()
-  : m_is_completed(false)
-{}
+    : m_is_completed(false) {}

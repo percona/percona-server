@@ -18,10 +18,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET(ARCHIVE_SOURCES  azio.c ha_archive.cc ha_archive.h)
+SET(ARCHIVE_SOURCES  azio.cc ha_archive.cc ha_archive.h)
 MYSQL_ADD_PLUGIN(archive ${ARCHIVE_SOURCES}
-  STORAGE_ENGINE RECOMPILE_FOR_EMBEDDED LINK_LIBRARIES ${ZLIB_LIBRARY}
-  DTRACE_INSTRUMENTED)
+  STORAGE_ENGINE LINK_LIBRARIES ${ZLIB_LIBRARY})
 

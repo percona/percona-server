@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,16 +18,35 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef ndb_mt_hpp
 #define ndb_mt_hpp
 
 #include <kernel_types.h>
+#include <ndb_limits.h>
 #include <TransporterDefinitions.hpp>
+#include <portlib/NdbTick.h>
+#include <SimulatedBlock.hpp>
+#include <util/Bitmask.hpp>
 
 #define JAM_FILE_ID 275
 
+
+#define NUM_MAIN_THREADS 2 // except receiver
+/*
+  MAX_BLOCK_THREADS need not include the send threads since it's
+  used to set size of arrays used by all threads that contains a
+  job buffer and executes signals. The send threads only sends
+  messages directed to other nodes and contains no blocks and
+  executes thus no signals.
+*/
+#define MAX_BLOCK_THREADS (NUM_MAIN_THREADS +       \
+                           MAX_NDBMT_LQH_THREADS +  \
+                           MAX_NDBMT_TC_THREADS +   \
+                           MAX_NDBMT_RECEIVE_THREADS)
+
+static_assert(MAX_BLOCK_THREADS == NDB_MAX_BLOCK_THREADS, "");
 
 Uint32 mt_get_instance_count(Uint32 block);
 
@@ -43,8 +62,52 @@ void sendprioa(Uint32 self, const struct SignalHeader *s,
 void senddelay(Uint32 thr_no, const struct SignalHeader*, Uint32 delay);
 void mt_execSTOP_FOR_CRASH();
 
+/**
+ * Interface methods to SimulatedBlock for ndbtmd.
+ */
 void mt_getSendBufferLevel(Uint32 self, NodeId node, SB_LevelType &level);
 Uint32 mt_getSignalsInJBB(Uint32 self);
+NDB_TICKS mt_getHighResTimer(Uint32 self);
+void mt_setNoSend(Uint32 self);
+void mt_startChangeNeighbourNode();
+void mt_setNeighbourNode(NodeId node);
+void mt_endChangeNeighbourNode();
+void mt_setWakeupThread(Uint32 self, Uint32 wakeup_instance);
+void mt_setOverloadStatus(Uint32 self,
+                         OverloadStatus new_status);
+void mt_setNodeOverloadStatus(Uint32 self,
+                             OverloadStatus new_status);
+void mt_setSendNodeOverloadStatus(OverloadStatus new_status);
+void mt_getPerformanceTimers(Uint32 self,
+                             Uint64 & micros_sleep,
+                             Uint64 & spin_time,
+                             Uint64 & buffer_full_sleep,
+                             Uint64 & micros_send);
+
+Uint32 mt_getConfiguredSpintime(Uint32 self);
+void mt_setSpintime(Uint32 self, Uint32 new_spintime);
+Uint32 mt_getWakeupLatency(void);
+void mt_setWakeupLatency(Uint32);
+
+const char *mt_getThreadName(Uint32 self);
+const char *mt_getThreadDescription(Uint32 self);
+void mt_getSendPerformanceTimers(Uint32 send_instance,
+                                 Uint64 & exec_time,
+                                 Uint64 & sleep_time,
+                                 Uint64 & spin_time,
+                                 Uint64 & user_time_os,
+                                 Uint64 & kernel_time_os,
+                                 Uint64 & elapsed_time_os);
+Uint32 mt_getNumSendThreads();
+Uint32 mt_getNumThreads();
+void mt_flush_send_buffers(Uint32 self);
+void mt_set_watchdog_counter(Uint32 self);
+void mt_assign_recv_thread_new_trp(Uint32 trp_id);
+void mt_assign_multi_trps_to_send_threads();
+bool mt_epoll_add_trp(Uint32 self, NodeId node_id, TrpId trp_id);
+bool mt_is_recv_thread_for_new_trp(Uint32 self,
+                                   NodeId node_id,
+                                   TrpId trp_id);
 
 SendStatus mt_send_remote(Uint32 self, const SignalHeader *sh, Uint8 prio,
                           const Uint32 *data, NodeId nodeId,
@@ -53,6 +116,10 @@ SendStatus mt_send_remote(Uint32 self, const SignalHeader *sh, Uint8 prio,
                           const Uint32 *data, NodeId nodeId,
                           class SectionSegmentPool *thePool,
                           const SegmentedSectionPtr ptr[3]);
+
+#ifdef ERROR_INSERT
+void mt_set_delayed_prepare(Uint32 self);
+#endif
 
 /**
  * Lock/unlock pools for long signal section(s)
@@ -68,16 +135,18 @@ int mt_checkDoJob(Uint32 receiver_thread_idx);
 bool NdbIsMultiThreaded();
 
 /**
- * Get list of BlockReferences so that
- *   each thread holding an instance of any block in blocks[] get "covered"
- *   (excluding ownThreadId
- *
- * eg. calling it with DBLQH, will return a block-reference to *a* block
- *     in each of the threads that has an DBLQH instance
+ * Get a bitset with a set bit for each thread holding an instance of any block
+ * in blocks[], not looking at proxy block instances.
  */
-Uint32 mt_get_thread_references_for_blocks(const Uint32 blocks[],
-                                           Uint32 ownThreadId,
-                                           Uint32 dst[], Uint32 len);
+Uint32 mt_get_threads_for_blocks_no_proxy(const Uint32 blocks[],
+                                          BlockThreadBitmask& mask);
+
+/**
+ * Get a bitset with a set bit for each thread that given thread can send
+ * signals too.
+ */
+Uint32 mt_get_addressable_threads(const Uint32 my_thr_no,
+                                  BlockThreadBitmask& mask);
 
 /**
  * wakeup thread running block
@@ -112,8 +181,25 @@ struct ndb_thr_stat
   Uint64 remote_sent_priob;
 };
 
+
 void
 mt_get_thr_stat(class SimulatedBlock *, ndb_thr_stat* dst);
+
+#define NUM_SPIN_INTERVALS 16
+struct ndb_spin_stat
+{
+  Uint32 m_sleep_longer_spin_time;
+  Uint32 m_sleep_shorter_spin_time;
+  Uint32 m_num_waits;
+  Uint32 m_micros_sleep_times[NUM_SPIN_INTERVALS];
+  Uint32 m_spin_interval[NUM_SPIN_INTERVALS];
+};
+
+void
+mt_get_spin_stat(class SimulatedBlock *, ndb_spin_stat *dst);
+
+void
+mt_set_spin_stat(class SimulatedBlock *, ndb_spin_stat *dst);
 
 /**
  * Get TransporterReceiveHandle for a specific trpman instance
@@ -128,8 +214,15 @@ mt_get_trp_receive_handle(unsigned instance);
  *   (or MAX_NODES is none)
  */
 Uint32
-mt_get_recv_thread_idx(NodeId nodeId);
+mt_get_recv_thread_idx(TrpId trp_id);
 
+#if defined(USE_INIT_GLOBAL_VARIABLES)
+void mt_enable_global_variables(Uint32 self);
+void mt_disable_global_variables(Uint32 self);
+void mt_init_global_variables_ptr_instances(Uint32,void**,size_t);
+void mt_init_global_variables_uint32_ptr_instances(Uint32,void**,size_t);
+void mt_init_global_variables_uint32_instances(Uint32,void**,size_t);
+#endif
 
 #undef JAM_FILE_ID
 

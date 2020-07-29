@@ -19,14 +19,6 @@ test.v1	check	status	OK
 test.t2	check	status	OK
 drop view v1;
 drop table t1, t2;
-CREATE TEMPORARY TABLE t1(a INT);
-CHECK TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	check	status	OK
-REPAIR TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	repair	status	OK
-DROP TABLE t1;
 #
 # Bug#56422 CHECK TABLE run when the table is locked reports corruption
 #           along with timeout
@@ -44,19 +36,51 @@ test.t1	check	status	Operation failed
 UNLOCK TABLES;
 DROP TABLE t1;
 #
-# BUG#26727481: SEGMENTATION FAULT DURING MYSQL_UPGRADE IN 8.0.3
+# Bug#24741307: add last_checked_for_upgrade column to dd.tables table
 #
-CHECK TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	check	error	Table upgrade required for `test`.`t1`. Please dump/reload table to fix it!
+# Checking default storage engine (Innodb)
+CREATE TABLE t1(i INT);
+# Table has been created with last_checked_for_upgrade = 0,
+# so the check will be performed
 CHECK TABLE t1 FOR UPGRADE;
 Table	Op	Msg_type	Msg_text
-test.t1	check	error	Table upgrade required for `test`.`t1`. Please dump/reload table to fix it!
-REPAIR TABLE t1;
+test.t1	check	status	OK
+# Checking again will detect that the table has already been checked
+CHECK TABLE t1 FOR UPGRADE;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	status	OK
-#REPAIR TABLE does not fix pre 5.0 decimal types.
-CHECK TABLE t1;
+test.t1	check	status	Table is already up to date
+ALTER TABLE t1 CHANGE COLUMN i j INT, ALGORITHM=INPLACE;
+# Checking again after ALTER INPLACE to verify that the check status is
+# still present
+CHECK TABLE t1 FOR UPGRADE;
 Table	Op	Msg_type	Msg_text
-test.t1	check	error	Table upgrade required for `test`.`t1`. Please dump/reload table to fix it!
+test.t1	check	status	Table is already up to date
+ALTER TABLE t1 CHANGE COLUMN j k INT, ALGORITHM=COPY;
+# Checking again after ALTER COPY to verify that the check status is
+# still present
+CHECK TABLE t1 FOR UPGRADE;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	Table is already up to date
+ALTER TABLE t1 ADD COLUMN l INT, ALGORITHM=INSTANT;
+# Checking again after ALTER INSTANT to verify that the check status
+# still present
+CHECK TABLE t1 FOR UPGRADE;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	Table is already up to date
+TRUNCATE TABLE t1;
+# Checking again after TRUNCATE to verify that the check status
+# still present
+CHECK TABLE t1 FOR UPGRADE;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	Table is already up to date
+# Cleanup
 DROP TABLE t1;
+#
+# Bug#28220374 	T != NULLPTR' AT BOOL)::<LAMBDA IN SQL/SQL_ADMIN.CC
+#
+# Verify that OK is returned for temporary tables
+CREATE TEMPORARY TABLE tt1(i INT);
+CHECK TABLE tt1 FOR UPGRADE;
+Table	Op	Msg_type	Msg_text
+test.tt1	check	status	OK
+DROP TABLE tt1;

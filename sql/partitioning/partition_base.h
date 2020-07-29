@@ -17,22 +17,20 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "item.h"
-#include "table.h"
-#include "partitioning/partition_handler.h" /* Partition_handler */
+#include "sql/item.h"                           // enum_monotonicity_info
+#include "sql/partitioning/partition_handler.h" /* Partition_handler */
 
 namespace native_part {
 
 /** class where to save partitions Handler_share's */
 class Parts_share_refs {
  public:
-  uint            num_parts; /**< Size of ha_share array */
+  uint num_parts;            /**< Size of ha_share array */
   Handler_share **ha_shares; /**< Storage for each part */
   Parts_share_refs();
   ~Parts_share_refs();
   bool init(uint arg_num_parts);
 };
-
 
 /**
   Partition specific Handler_share.
@@ -50,24 +48,24 @@ class Partition_base : public handler,
                        public Partition_helper,
                        public Partition_handler {
  public:
-  bool init_partitioning(MEM_ROOT *mem_root)
-  {
+  bool init_partitioning(MEM_ROOT *mem_root) {
     return Partition_helper::init_partitioning(mem_root);
   }
 
  private:
-  virtual handler *get_file_handler(TABLE_SHARE *share, MEM_ROOT *alloc)= 0;
+  virtual handler *get_file_handler(TABLE_SHARE *share,
+                                    MEM_ROOT *alloc) const = 0;
 
  private:
   /* Data for the partition handler */
-  int  m_mode;            // Open mode
-  uint m_open_test_lock;  // Open test_if_locked
+  int m_mode;  // Open mode
  protected:
+  /* Allow engine-specific handlers to access to the partitions array. */
   handler **m_file;  // Array of references to handler inst.
  private:
   uint m_file_tot_parts;  // Debug
   enum enum_handler_status {
-    handler_not_initialized= 0,
+    handler_not_initialized = 0,
     handler_initialized,
     handler_opened,
     handler_closed
@@ -94,7 +92,7 @@ class Partition_base : public handler,
 
   /** For optimizing ha_start_bulk_insert calls */
   MY_BITMAP m_bulk_insert_started;
-  ha_rows   m_bulk_inserted_rows;
+  ha_rows m_bulk_inserted_rows;
   /** used for prediction of start_bulk_insert rows */
   enum_monotonicity_info m_part_func_monotonicity_info;
   /** keep track of locked partitions */
@@ -113,14 +111,15 @@ class Partition_base : public handler,
 
   /** Used when Partiton_base is cloned. Specifically it is used to retrieve
   each handler ref_length */
-  Partition_base* m_clone_base;
+  Partition_base *m_clone_base;
   /** For clone operation, memory will be allocated from this mem_root instead
   of TABLE->mem_root. The clone can be destroyed by optimizer immediately. So
   this allows to release the memory used by cloned object quickly */
-  MEM_ROOT* m_clone_mem_root;
+  MEM_ROOT *m_clone_mem_root;
 
  public:
-  handler *clone(const char *name, MEM_ROOT *mem_root)override = 0;
+  handler *clone(const char *name, MEM_ROOT *mem_root) override = 0;
+
   /*
     -------------------------------------------------------------------------
     MODULE create/delete handler object
@@ -145,7 +144,7 @@ class Partition_base : public handler,
     enable later calls of the methods to retrieve constants from the under-
     lying handlers. Returns false if not successful.
   */
-  bool initialize_partition(MEM_ROOT *mem_root) override;
+  bool initialize_partition(MEM_ROOT *mem_root);
   /*
     -------------------------------------------------------------------------
     MODULE meta data changes
@@ -158,26 +157,11 @@ class Partition_base : public handler,
     object needed in opening the object in openfrm
     -------------------------------------------------------------------------
   */
-  int  delete_table(const char *from) override;
-  int  rename_table(const char *from, const char *to) override;
-  int  create(const char *name, TABLE *form,
-                      HA_CREATE_INFO *create_info) override;
+  int delete_table(const char *, const dd::Table *) override;
+  int rename_table(const char *, const char *, const dd::Table *,
+                   dd::Table *) override;
+  int create(const char *, TABLE *, HA_CREATE_INFO *, dd::Table *) override;
   void update_create_info(HA_CREATE_INFO *create_info) override;
-  int change_partitions_low(HA_CREATE_INFO *create_info, const char *path,
-                            ulonglong *const copied, ulonglong *const deleted) override
-  {
-    return Partition_helper::change_partitions(create_info, path, copied,
-                                               deleted);
-  }
-
-  /** This function reads zip dict-related info from partition handlers.
-  It may do nothing if individual handlers do not support COMPRESSED_COLUMNS.
-
-  @param    thd          Thread handler
-  @param    part_name    Must be always nullptr.
-  */
-  void update_field_defs_with_zip_dict_info(THD *       thd,
-                                                    const char *part_name) override;
 
  private:
   template <typename Fn>
@@ -185,28 +169,26 @@ class Partition_base : public handler,
 
   void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share) override;
   bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
-                                          uint            table_changes) override;
-  int  prepare_for_new_partitions(uint num_partitions, bool only_create) override;
-  int  create_new_partition(TABLE *table, HA_CREATE_INFO *create_info,
-                            const char *part_name, uint new_part_id,
-                            partition_element *p_elem) override;
-  int  write_row_in_new_part(uint part_id) override;
-  void close_new_partitions() override;
+                                  uint table_changes) override;
+  int prepare_for_new_partitions(uint num_partitions);
+  int write_row_in_new_part(uint part_id) override;
+  void close_new_partitions();
   /*
     delete_table and rename_table uses very similar logic which
     is packed into this routine.
   */
-  int del_ren_table(const char *from, const char *to);
-  bool                  setup_engine_array(MEM_ROOT *mem_root);
-  bool                  new_handlers_from_part_info(MEM_ROOT *mem_root);
-  partition_element *   find_partition_element(uint part_id);
-  bool                  populate_partition_name_hash();
+  int del_ren_table(const char *from, const char *to,
+                    const dd::Table *table_def_from, dd::Table *table_def_to);
+  bool setup_engine_array(MEM_ROOT *mem_root);
+  bool new_handlers_from_part_info(MEM_ROOT *mem_root);
+  partition_element *find_partition_element(uint part_id);
+  bool populate_partition_name_hash();
   Partition_base_share *get_share();
-  bool                  set_ha_share_ref(Handler_share **ha_share) override;
-  bool                  init_part_share();
-  void                  fix_data_dir(char *path);
-  bool                  init_partition_bitmaps();
-  void                  free_partition_bitmaps();
+  bool set_ha_share_ref(Handler_share **ha_share) override;
+  bool init_part_share();
+  void fix_data_dir(char *path);
+  bool init_partition_bitmaps();
+  void free_partition_bitmaps();
 
  public:
   /*
@@ -222,7 +204,7 @@ class Partition_base : public handler,
     being used for normal queries (not before meta-data changes always.
     If the object was opened it will also be closed before being deleted.
   */
-  int open(const char *name, int mode, uint test_if_locked) override;
+  int open(const char *, int, uint, const dd::Table *) override;
   int close(void) override;
 
   /*
@@ -240,8 +222,8 @@ class Partition_base : public handler,
     -------------------------------------------------------------------------
   */
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
-                                     enum thr_lock_type lock_type) override;
-  int             external_lock(THD *thd, int lock_type) override;
+                             enum thr_lock_type lock_type) override;
+  int external_lock(THD *thd, int lock_type) override;
   /*
     When table is locked a statement is started by calling start_stmt
     instead of external_lock
@@ -284,25 +266,25 @@ class Partition_base : public handler,
     start_bulk_insert and end_bulk_insert is called before and after a
     number of calls to write_row.
   */
-  int write_row(uchar *buf) override { return Partition_helper::ph_write_row(buf); }
-  int update_row(const uchar *old_data, uchar *new_data) override
-  {
+  int write_row(uchar *buf) override {
+    return Partition_helper::ph_write_row(buf);
+  }
+  int update_row(const uchar *old_data, uchar *new_data) override {
     return Partition_helper::ph_update_row(old_data, new_data,
                                            rpl_lookup_rows());
   }
-  int delete_row(const uchar *buf) override
-  {
+  int delete_row(const uchar *buf) override {
     return Partition_helper::ph_delete_row(buf, rpl_lookup_rows());
   }
-  int  delete_all_rows(void) override;
-  int  truncate() override;
+  int delete_all_rows(void) override;
+  int truncate(dd::Table *) override;
   void start_bulk_insert(ha_rows rows) override;
-  int  end_bulk_insert() override;
+  int end_bulk_insert() override;
 
  private:
   ha_rows guess_bulk_insert_rows();
-  void    start_part_bulk_insert(THD *thd, uint part_id);
-  long    estimate_read_buffer_size(long original_size);
+  void start_part_bulk_insert(THD *thd, uint part_id);
+  long estimate_read_buffer_size(long original_size);
 
  public:
   /*
@@ -312,19 +294,15 @@ class Partition_base : public handler,
     @remark This method is a partitioning-specific hook
             and thus not a member of the general SE API.
   */
-  int truncate_partition_low() override;
+  int truncate_partition_low(dd::Table *) override;
 
-  bool is_ignorable_error(int error) override
-  {
-  /*
-    Ignore the following errors during table copying on altering.
-  */
+  bool is_ignorable_error(int error) override {
     return (handler::is_ignorable_error(error) ||
             error == HA_ERR_NO_PARTITION_FOUND ||
             error == HA_ERR_NOT_IN_LOCK_PARTITIONS);
   }
 
-
+  bool continue_partition_copying_on_error(int error) override;
   /*
     -------------------------------------------------------------------------
     MODULE full table scan
@@ -350,24 +328,22 @@ class Partition_base : public handler,
     position it to the start of the table, no need to deallocate
     and allocate it again
   */
-  int rnd_init(bool scan) override { return Partition_helper::ph_rnd_init(scan); }
-  int rnd_end() override { return Partition_helper::ph_rnd_end(); }
-  int rnd_next(uchar *buf) override { return Partition_helper::ph_rnd_next(buf); }
-  int rnd_pos(uchar *buf, uchar *pos) override
-  {
-    return Partition_helper::ph_rnd_pos(buf, pos);
+  int rnd_init(bool scan) override {
+    return Partition_helper::ph_rnd_init(scan);
   }
-  int rnd_pos_by_record(uchar *record) override
-  {
+  int rnd_end() override { return Partition_helper::ph_rnd_end(); }
+  int rnd_next(uchar *buf) override {
+    return Partition_helper::ph_rnd_next(buf);
+  }
+  int rnd_pos(uchar *buf, uchar *pos) override;
+  int rnd_pos_by_record(uchar *record) override {
     if (unlikely(get_part_for_delete(record, m_table->record[0], m_part_info,
-                                     &m_last_part)))
-    {
+                                     &m_last_part))) {
       return (HA_ERR_INTERNAL_ERROR);
     }
     return (m_file[m_last_part]->rnd_pos_by_record(record));
   }
-  void position(const uchar *record) override
-  {
+  void position(const uchar *record) override {
     return Partition_helper::ph_position(record);
   }
 
@@ -404,16 +380,12 @@ class Partition_base : public handler,
     any end processing needed.
   */
   int index_read_map(uchar *buf, const uchar *key, key_part_map keypart_map,
-                     enum ha_rkey_function find_flag) override
-  {
+                     enum ha_rkey_function find_flag) override {
     return Partition_helper::ph_index_read_map(buf, key, keypart_map,
                                                find_flag);
   }
-  int index_init(uint idx, bool sorted) override
-  {
-    return Partition_helper::ph_index_init(idx, sorted);
-  }
-  int index_end() override { return Partition_helper::ph_index_end(); }
+  int index_init(uint idx, bool sorted) override;
+  int index_end() override;
 
   /**
     @brief
@@ -422,43 +394,44 @@ class Partition_base : public handler,
     index.
   */
   int index_read_idx_map(uchar *buf, uint index, const uchar *key,
-                         key_part_map          keypart_map,
-                         enum ha_rkey_function find_flag) override
-  {
-    return Partition_helper::ph_index_read_idx_map(buf, index, key,
-                                                   keypart_map, find_flag);
+                         key_part_map keypart_map,
+                         enum ha_rkey_function find_flag) override {
+    return Partition_helper::ph_index_read_idx_map(buf, index, key, keypart_map,
+                                                   find_flag);
   }
   /*
     These methods are used to jump to next or previous entry in the index
     scan. There are also methods to jump to first and last entry.
   */
-  int index_next(uchar *buf) override { return Partition_helper::ph_index_next(buf); }
-  int index_prev(uchar *buf) override { return Partition_helper::ph_index_prev(buf); }
-  int index_first(uchar *buf) override
-  {
+  int index_next(uchar *buf) override {
+    return Partition_helper::ph_index_next(buf);
+  }
+  int index_prev(uchar *buf) override {
+    return Partition_helper::ph_index_prev(buf);
+  }
+  int index_first(uchar *buf) override {
     return Partition_helper::ph_index_first(buf);
   }
-  int index_last(uchar *buf) override { return Partition_helper::ph_index_last(buf); }
-  int index_next_same(uchar *buf, const uchar *key, uint keylen) override
-  {
-    return Partition_helper::ph_index_next_same(buf, key, keylen);
+  int index_last(uchar *buf) override {
+    return Partition_helper::ph_index_last(buf);
+  }
+  int index_next_same(uchar *buf, const uchar * /*key*/, uint keylen) override {
+    return Partition_helper::ph_index_next_same(buf, keylen);
   }
   int index_read_last_map(uchar *buf, const uchar *key,
-                          key_part_map keypart_map) override
-  {
+                          key_part_map keypart_map) override {
     return Partition_helper::ph_index_read_last_map(buf, key, keypart_map);
   }
 
   int read_range_first(const key_range *start_key, const key_range *end_key,
-                       bool eq_range, bool sorted) override
-  {
-    return Partition_helper::ph_read_range_first(start_key, end_key, eq_range,
-                                                 sorted);
+                       bool eq_range_value, bool sorted) override {
+    return Partition_helper::ph_read_range_first(start_key, end_key,
+                                                 eq_range_value, sorted);
   }
-  int  read_range_next() override {
+  int read_range_next() override {
     return Partition_helper::ph_read_range_next();
   }
-  bool has_gap_locks() const override;
+  bool has_gap_locks() const noexcept override;
 
  public:
   /*
@@ -471,15 +444,15 @@ class Partition_base : public handler,
     -------------------------------------------------------------------------
   */
   int info(uint) override;
-  void        get_dynamic_partition_info(ha_statistics *stat_info,
-                                         ha_checksum *check_sum,
-                                         uint part_id) override;
+  void get_dynamic_partition_info(ha_statistics *stat_info,
+                                  ha_checksum *check_sum,
+                                  uint part_id) override;
   int extra(enum ha_extra_function operation) override;
   int reset(void) override;
 
  private:
   static const uint NO_CURRENT_PART_ID;
-  int               loop_extra(enum ha_extra_function operation);
+  int loop_extra(enum ha_extra_function operation);
 
  public:
   /*
@@ -501,18 +474,9 @@ class Partition_base : public handler,
  private:
   /* Helper functions for optimizer hints. */
   ha_rows min_rows_for_estimate();
-  uint    get_biggest_used_partition(uint *part_index);
+  uint get_biggest_used_partition(uint *part_index);
 
  public:
-  /*
-    keys_to_use_for_scanning can probably be implemented as the
-    intersection of all underlying handlers if mixed handlers are used.
-    This method is used to derive whether an index can be used for
-    index-only scanning when performing an ORDER BY query.
-    Only called from one place in sql_select.cc
-  */
-  const key_map *keys_to_use_for_scanning() override;
-
   /*
     Called in test_quick_select to determine if indexes should be used.
   */
@@ -527,7 +491,7 @@ class Partition_base : public handler,
     Used by optimizer to calculate cost of using a particular index.
   */
   ha_rows records_in_range(uint inx, key_range *min_key,
-                                   key_range *max_key) override;
+                           key_range *max_key) override;
 
   /*
     Upper bound of number records returned in scan is sum of all
@@ -535,16 +499,10 @@ class Partition_base : public handler,
   */
   ha_rows estimate_rows_upper_bound() override;
 
-  /*
-    table_cache_type is implemented by the underlying handler but all
-    underlying handlers must have the same implementation for it to work.
-  */
-  uint8 table_cache_type() override;
-  int   records(ha_rows *num_rows) override;
+  int records(ha_rows *num_rows) override;
 
   /* Calculate hash value for PARTITION BY KEY tables. */
-  uint32 calculate_key_hash_value(Field **field_array) override
-  {
+  uint32 calculate_key_hash_value(Field **field_array) override {
     return ph_calculate_key_hash_value(field_array);
   }
 
@@ -556,18 +514,8 @@ class Partition_base : public handler,
     table types, index type and error messages.
     -------------------------------------------------------------------------
   */
-  /*
-    The name of the index type that will be used for display
-    Here we must ensure that all handlers use the same index type
-    for each index created.
-  */
-  const char *index_type(uint inx) override;
-
   /* The name of the table type that will be used for display purposes */
   const char *table_type() const override;
-
-  /* The name of the row type used for the underlying tables. */
-  enum row_type get_row_type() const override;
 
   /*
      Handler specific error messages
@@ -756,15 +704,14 @@ class Partition_base : public handler,
     HA_KEYREAD_ONLY:
     Does the storage engine support index-only scans on this index.
     Enables use of HA_EXTRA_KEYREAD and HA_EXTRA_NO_KEYREAD
-    Used to set key_map keys_for_keyread and to check in optimiser for
+    Used to set Key_map keys_for_keyread and to check in optimiser for
     index-only scans.  When doing a read under HA_EXTRA_KEYREAD the handler
     only have to fill in the columns the key covers. If
     HA_PRIMARY_KEY_IN_READ_INDEX is set then also the PRIMARY KEY columns
     must be updated in the row.
     (BDB, InnoDB, MyISAM)
   */
-  ulong index_flags(uint inx, uint part, bool all_parts) const override
-  {
+  ulong index_flags(uint inx, uint part, bool all_parts) const override {
     return m_file[0]->index_flags(inx, part, all_parts);
   }
   /*
@@ -774,15 +721,12 @@ class Partition_base : public handler,
     The maximum supported values is the minimum of all handlers in the table
   */
   uint min_of_the_max_uint(uint (handler::*operator_func)(void) const) const;
-  uint min_of_the_max_uint(
-    HA_CREATE_INFO *create_info,
-    uint (handler::*operator_func)(HA_CREATE_INFO *) const) const;
   uint max_supported_record_length() const override;
   uint max_supported_keys() const override;
   uint max_supported_key_parts() const override;
   uint max_supported_key_length() const override;
   uint max_supported_key_part_length(
-    HA_CREATE_INFO *create_info) const override;
+      HA_CREATE_INFO *create_info) const override;
 
   /*
     The extra record buffer length is the maximum needed by all handlers.
@@ -795,10 +739,7 @@ class Partition_base : public handler,
     Primary key is clustered can only be true if all underlying handlers have
     this feature.
   */
-  bool primary_key_is_clustered() const override
-  {
-    return m_pkey_is_clustered;
-  }
+  bool primary_key_is_clustered() const override { return m_pkey_is_clustered; }
 
   /*
     -------------------------------------------------------------------------
@@ -816,7 +757,7 @@ class Partition_base : public handler,
     to check whether the rest of the reference part is also the same.
     -------------------------------------------------------------------------
   */
-  int cmp_ref(const uchar *ref1, const uchar *ref2) override;
+  int cmp_ref(const uchar *ref1, const uchar *ref2) const override;
 
   /*
     -------------------------------------------------------------------------
@@ -827,19 +768,18 @@ class Partition_base : public handler,
   */
 
   /* No support of engine condition pushdown yet! */
-  //const Item *cond_push(const Item *cond);
-  //void cond_pop();
+  // const Item *cond_push(const Item *cond);
+  // void cond_pop();
   /* Only Index condition pushdown is supported currently. */
   Item *idx_cond_push(uint keyno, Item *idx_cond) override;
-  void  cancel_pushed_idx_cond() override;
+  void cancel_pushed_idx_cond() override;
   /* No support of pushed joins yet! */
-  //uint number_of_pushed_joins()
-  //virtual const TABLE* root_of_pushed_join() const
-  //virtual const TABLE* parent_of_pushed_join() const
-  //virtual int index_read_pushed(uchar * buf, const uchar * key,
-  //key_part_map keypart_map)
-  //virtual int index_next_pushed(uchar * buf)
-
+  // uint number_of_pushed_joins()
+  // virtual const TABLE* root_of_pushed_join() const
+  // virtual const TABLE* parent_of_pushed_join() const
+  // virtual int index_read_pushed(uchar * buf, const uchar * key,
+  // key_part_map keypart_map)
+  // virtual int index_next_pushed(uchar * buf)
 
   /*
     -------------------------------------------------------------------------
@@ -855,11 +795,9 @@ class Partition_base : public handler,
      -------------------------------------------------------------------------
   */
   void get_auto_increment(ulonglong offset, ulonglong increment,
-                                  ulonglong  nb_desired_values,
-                                  ulonglong *first_value,
-                                  ulonglong *nb_reserved_values) override;
-  void         release_auto_increment() override
-  {
+                          ulonglong nb_desired_values, ulonglong *first_value,
+                          ulonglong *nb_reserved_values) override;
+  void release_auto_increment() override {
     Partition_helper::ph_release_auto_increment();
   }
   /** Release the auto increment for all underlying partitions. */
@@ -880,28 +818,6 @@ class Partition_base : public handler,
     by the partition handler
   */
 
-  /*
-    -------------------------------------------------------------------------
-    MODULE foreign key support
-    -------------------------------------------------------------------------
-    The following methods are used to implement foreign keys as supported by
-    InnoDB. Implement this ??
-    get_foreign_key_create_info is used by SHOW CREATE TABLE to get a textual
-    description of how the CREATE TABLE part to define FOREIGN KEY's is done.
-    free_foreign_key_create_info is used to free the memory area that provided
-    this description.
-    can_switch_engines checks if it is ok to switch to a new engine based on
-    the foreign key info in the table.
-    -------------------------------------------------------------------------
-
-    virtual char* get_foreign_key_create_info()
-    virtual void free_foreign_key_create_info(char* str)
-
-    virtual int get_foreign_key_list(THD *thd,
-    List<FOREIGN_KEY_INFO> *f_key_list)
-    virtual uint referenced_by_foreign_key()
-  */
-  bool can_switch_engines() override;
   /*
     -------------------------------------------------------------------------
     MODULE fulltext index
@@ -925,21 +841,13 @@ class Partition_base : public handler,
   */
   enum_alter_inplace_result check_if_supported_inplace_alter(
       TABLE *altered_table, Alter_inplace_info *ha_alter_info) override;
-  bool prepare_inplace_alter_table(TABLE *             altered_table,
-                                           Alter_inplace_info *ha_alter_info) override;
-  bool inplace_alter_table(TABLE *             altered_table,
-                                   Alter_inplace_info *ha_alter_info) override;
-  bool commit_inplace_alter_table(TABLE *             altered_table,
-                                          Alter_inplace_info *ha_alter_info,
-                                          bool                commit) override;
-  void notify_table_changed() override;
-
-  /*
-    -------------------------------------------------------------------------
-    MODULE tablespace support
-    -------------------------------------------------------------------------
-  */
-  int discard_or_import_tablespace(my_bool discard) override;
+  bool prepare_inplace_alter_table(TABLE *, Alter_inplace_info *,
+                                   const dd::Table *, dd::Table *) override;
+  bool inplace_alter_table(TABLE *, Alter_inplace_info *, const dd::Table *,
+                           dd::Table *) override;
+  bool commit_inplace_alter_table(TABLE *, Alter_inplace_info *, bool,
+                                  const dd::Table *, dd::Table *) override;
+  void notify_table_changed(Alter_inplace_info *) override;
 
   /*
     -------------------------------------------------------------------------
@@ -953,14 +861,14 @@ class Partition_base : public handler,
       all partitions.
     -------------------------------------------------------------------------
   */
-  int  optimize(THD *thd, HA_CHECK_OPT *check_opt) override;
-  int  analyze(THD *thd, HA_CHECK_OPT *check_opt) override;
-  int  check(THD *thd, HA_CHECK_OPT *check_opt) override;
-  int  repair(THD *thd, HA_CHECK_OPT *check_opt) override;
+  int optimize(THD *thd, HA_CHECK_OPT *check_opt) override;
+  int analyze(THD *thd, HA_CHECK_OPT *check_opt) override;
+  int check(THD *thd, HA_CHECK_OPT *check_opt) override;
+  int repair(THD *thd, HA_CHECK_OPT *check_opt) override;
   bool check_and_repair(THD *thd) override;
   bool auto_repair() const override;
   bool is_crashed() const override;
-  int  check_for_upgrade(HA_CHECK_OPT *check_opt) override;
+  int check_for_upgrade(HA_CHECK_OPT *check_opt) override;
 
  private:
   int handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
@@ -980,7 +888,8 @@ class Partition_base : public handler,
     virtual int dump(THD* thd, int fd = -1);
     virtual int net_read_dump(NET* net);
   */
-  ha_checksum checksum() const override { return Partition_helper::ph_checksum(); }
+  ha_checksum checksum() const override;
+
   /* Enabled keycache for performance reasons, WL#4571 */
   int assign_to_keycache(THD *thd, HA_CHECK_OPT *check_opt) override;
   int preload_keys(THD *thd, HA_CHECK_OPT *check_opt) override;
@@ -1014,81 +923,74 @@ class Partition_base : public handler,
   void rpl_after_delete_rows() override;
   void rpl_before_update_rows() override;
   void rpl_after_update_rows() override;
-  bool rpl_lookup_rows() override;
+  bool rpl_lookup_rows() override = 0;
 
   /* For MyRocks Writebatch Replication validation */
-  bool rpl_can_handle_stm_event() const override;
+  bool rpl_can_handle_stm_event() const noexcept override {
+    return m_file[0]->rpl_can_handle_stm_event();
+  }
 
   /*
     -------------------------------------------------------------------------
     MODULE partitioning specific handler API
     -------------------------------------------------------------------------
   */
-  handler *          get_handler() override { return static_cast<handler *>(this); }
-  Partition_handler *get_partition_handler() override
-  {
+  handler *get_handler() override { return static_cast<handler *>(this); }
+  Partition_handler *get_partition_handler() override {
     return static_cast<Partition_handler *>(this);
   }
-  void set_part_info(partition_info *part_info, bool early) override
-  {
+  void set_part_info(partition_info *part_info, bool early) override {
     Partition_helper::set_part_info_low(part_info, early);
   }
-  uint alter_flags(uint flags MY_ATTRIBUTE((unused))) const override
-  {
-    return (HA_PARTITION_FUNCTION_SUPPORTED | HA_FAST_CHANGE_PARTITION);
+  uint alter_flags(uint flags MY_ATTRIBUTE((unused))) const override {
+    return (HA_PARTITION_FUNCTION_SUPPORTED | HA_INPLACE_CHANGE_PARTITION);
   }
 
  private:
   /* private support functions for Partition_helper: */
-  int  write_row_in_part(uint part_id, uchar *buf) override;
-  int  update_row_in_part(uint part_id, const uchar *old_data,
-                          uchar *new_data) override;
-  int  delete_row_in_part(uint part_id, const uchar *buf) override;
-  int  rnd_init_in_part(uint part_id, bool table_scan) override;
-  int  rnd_next_in_part(uint part_id, uchar *buf) override;
-  int  rnd_end_in_part(uint part_id, bool scan) override;
+  int write_row_in_part(uint part_id, uchar *buf) override;
+  int update_row_in_part(uint part_id, const uchar *old_data,
+                         uchar *new_data) override;
+  int delete_row_in_part(uint part_id, const uchar *buf) override;
+  int rnd_init_in_part(uint part_id, bool table_scan) override;
+  int rnd_next_in_part(uint part_id, uchar *buf) override;
+  int rnd_end_in_part(uint part_id, bool scan) override;
   void position_in_last_part(uchar *ref, const uchar *record) override;
-  int  rnd_pos_in_part(uint part_id, uchar *buf, uchar *pos) override;
-  int  index_init_in_part(uint part, uint keynr, bool sorted) override;
-  int  index_end_in_part(uint part) override;
-  int  index_last_in_part(uint part, uchar *buf) override;
-  int  index_first_in_part(uint part, uchar *buf) override;
-  int  index_prev_in_part(uint part, uchar *buf) override;
-  int  index_next_in_part(uint part, uchar *buf) override;
-  int  index_next_same_in_part(uint part, uchar *buf, const uchar *key,
-                               uint length) override;
-  int  index_read_map_in_part(uint part, uchar *buf, const uchar *key,
-                              key_part_map          keypart_map,
-                              enum ha_rkey_function find_flag) override;
-  int  index_read_idx_map_in_part(uint part, uchar *buf, uint index,
-                                  const uchar *key, key_part_map keypart_map,
-                                  enum ha_rkey_function find_flag) override;
-  int  index_read_last_map_in_part(uint part, uchar *buf, const uchar *key,
-                                   key_part_map keypart_map) override;
-  int  read_range_first_in_part(uint part_id, uchar *buf,
-                                const key_range *start_key,
-                                const key_range *end_key, bool eq_range_arg,
-                                bool sorted) override;
-  int  read_range_next_in_part(uint part, uchar *buf) override;
+  int rnd_pos_in_part(uint part_id, uchar *buf, uchar *pos);
+  int index_init_in_part(uint part, uint keynr, bool sorted);
+  int index_end_in_part(uint part);
+  int index_last_in_part(uint part, uchar *buf) override;
+  int index_first_in_part(uint part, uchar *buf) override;
+  int index_prev_in_part(uint part, uchar *buf) override;
+  int index_next_in_part(uint part, uchar *buf) override;
+  int index_next_same_in_part(uint part, uchar *buf, const uchar *key,
+                              uint length) override;
+  int index_read_map_in_part(uint part, uchar *buf, const uchar *key,
+                             key_part_map keypart_map,
+                             enum ha_rkey_function find_flag) override;
+  int index_read_idx_map_in_part(uint part, uchar *buf, uint index,
+                                 const uchar *key, key_part_map keypart_map,
+                                 enum ha_rkey_function find_flag) override;
+  int index_read_last_map_in_part(uint part, uchar *buf, const uchar *key,
+                                  key_part_map keypart_map) override;
+  int read_range_first_in_part(uint part_id, uchar *buf,
+                               const key_range *start_key,
+                               const key_range *end_key, bool sorted) override;
+  int read_range_next_in_part(uint part, uchar *buf) override;
   ha_checksum checksum_in_part(uint part_id) const override;
-  int         initialize_auto_increment(bool no_lock) override;
+  int initialize_auto_increment(bool no_lock) override;
   /*
     Access methods to protected areas in handler to avoid adding
     friend class Partition_helper in class handler.
   */
-  THD *  get_thd() const override { return ha_thd(); }
+  THD *get_thd() const override { return ha_thd(); }
   TABLE *get_table() const override { return table; }
-  bool   get_eq_range() const override { return eq_range; }
-  void   set_eq_range(bool eq_range_arg) override { eq_range= eq_range_arg; }
-  void   set_range_key_part(KEY_PART_INFO *key_part) override
-  {
-    range_key_part= key_part;
+  bool get_eq_range() const override { return eq_range; }
+  void set_eq_range(bool eq_range_arg) override { eq_range = eq_range_arg; }
+  void set_range_key_part(KEY_PART_INFO *key_part) override {
+    range_key_part = key_part;
   }
 };
 
-bool            get_part_str_for_path(const char *path, std::string &result);
-bool            get_part_str_for_table(const char *name, std::string &result);
-partition_info *parse_partition_info(THD *              thd,
-                                     const std::string &partition_info_str);
 }  // namespace native_part
 #endif /* PARTITION_BASE_INCLUDED */

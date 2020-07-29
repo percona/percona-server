@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -116,7 +116,9 @@ private:
   static UintR getNoDiskFlag(const UintR & requestInfo);
   static Uint32 getViaSPJFlag(const Uint32 & requestInfo);
   static Uint32 getPassAllConfsFlag(const Uint32 & requestInfo);
-  static Uint32 get4WordConf(const Uint32&);
+  static Uint32 getExtendedConf(const Uint32&);
+  static Uint8 getReadCommittedBaseFlag(const UintR & requestInfo);
+  static Uint32 getMultiFragFlag(const Uint32 & requestInfo);
 
   /**
    * Set:ers for requestInfo
@@ -135,7 +137,9 @@ private:
   static void setNoDiskFlag(UintR & requestInfo, UintR val);
   static void setViaSPJFlag(Uint32 & requestInfo, Uint32 val);
   static void setPassAllConfsFlag(Uint32 & requestInfo, Uint32 val);
-  static void set4WordConf(Uint32 & requestInfo, Uint32 val);
+  static void setExtendedConf(Uint32 & requestInfo, Uint32 val);
+  static void setReadCommittedBaseFlag(Uint32 & requestInfo, Uint32 val);
+  static void setMultiFragFlag(Uint32 & requestInfo, Uint32 val);
 };
 
 /**
@@ -145,10 +149,6 @@ private:
                                         Note: these bits are ignored since
                                         7.0.34, 7.1.23, 7.2.7 and should be
                                         zero-filled until future reuse.
-                                        For signal sent to old nodes they
-                                        should be filled in.
-                                        Check version with
-                                        ndbd_scan_tabreq_implicit_parallelism().
  l = Lock mode             - 1  Bit 8
  h = Hold lock mode        - 1  Bit 10
  c = Read Committed        - 1  Bit 11
@@ -166,10 +166,11 @@ private:
  j = Via SPJ flag          - 1  Bit 27
  a = Pass all confs flag   - 1  Bit 28
  f = 4 word conf           - 1  Bit 29
+ R = Read Committed base   - 1  Bit 30
 
            1111111111222222222233
  01234567890123456789012345678901
- pppppppplnhcktzxbbbbbbbbbbdjaf
+ pppppppplnhcktzxbbbbbbbbbbdjafR
 */
 
 #define PARALLEL_SHIFT     (0)
@@ -207,7 +208,15 @@ private:
 
 #define SCAN_SPJ_SHIFT (27)
 #define SCAN_PASS_CONF_SHIFT (28)
-#define SCAN_4WORD_CONF_SHIFT (29)
+#define SCAN_EXTENDED_CONF_SHIFT (29)
+#define SCAN_READ_COMMITTED_BASE_SHIFT (30)
+#define SCAN_MULTI_FRAG_SHIFT (31)
+
+inline
+Uint8
+ScanTabReq::getReadCommittedBaseFlag(const UintR & requestInfo){
+  return (Uint8)((requestInfo >> SCAN_READ_COMMITTED_BASE_SHIFT) & 1);
+}
 
 inline
 Uint8
@@ -261,6 +270,14 @@ inline
 void 
 ScanTabReq::clearRequestInfo(UintR & requestInfo){
   requestInfo = 0;
+}
+
+inline
+void 
+ScanTabReq::setReadCommittedBaseFlag(UintR & requestInfo, Uint32 type){
+  ASSERT_MAX(type, 1, "ScanTabReq::setReadCommittedBase");
+  requestInfo= (requestInfo & ~(1 << SCAN_READ_COMMITTED_BASE_SHIFT)) |
+               ((type & 1) << SCAN_READ_COMMITTED_BASE_SHIFT);
 }
 
 inline
@@ -397,15 +414,33 @@ ScanTabReq::setPassAllConfsFlag(UintR & requestInfo, Uint32 flag){
 
 inline
 UintR
-ScanTabReq::get4WordConf(const UintR & requestInfo){
-  return (requestInfo >> SCAN_4WORD_CONF_SHIFT) & 1;
+ScanTabReq::getExtendedConf(const UintR & requestInfo){
+  return (requestInfo >> SCAN_EXTENDED_CONF_SHIFT) & 1;
 }
 
 inline
 void
-ScanTabReq::set4WordConf(UintR & requestInfo, Uint32 flag){
-  ASSERT_BOOL(flag, "TcKeyReq::setPassAllConfs");
-  requestInfo |= (flag << SCAN_4WORD_CONF_SHIFT);
+ScanTabReq::setExtendedConf(UintR & requestInfo, Uint32 flag){
+  ASSERT_BOOL(flag, "ScanTabReq::setExtendedConf");
+  requestInfo |= (flag << SCAN_EXTENDED_CONF_SHIFT);
+}
+
+/**
+ * MULTI_FRAG flag can currently only be used together
+ * with ViaSPJ flag.
+ */
+inline
+UintR
+ScanTabReq::getMultiFragFlag(const UintR & requestInfo){
+  return (requestInfo >> SCAN_MULTI_FRAG_SHIFT) & 1;
+}
+
+inline
+void
+ScanTabReq::setMultiFragFlag(UintR & requestInfo, Uint32 flag){
+  ASSERT_BOOL(flag, "TcKeyReq::setMultiFragFlag");
+  requestInfo= (requestInfo & ~(1 << SCAN_MULTI_FRAG_SHIFT)) |
+               (flag << SCAN_MULTI_FRAG_SHIFT);
 }
 
 /**
@@ -462,7 +497,7 @@ private:
   };
 
   /** for 3 word conf */
-  static Uint32 getLength(Uint32 opDataInfo) { return opDataInfo >> 10; };
+  static Uint32 getLength(Uint32 opDataInfo) { return opDataInfo >> 10; }
   static Uint32 getRows(Uint32 opDataInfo) { return opDataInfo & 1023;}
 };
 
@@ -555,7 +590,7 @@ class ScanNextReq {
   /**
    * Sender(s)
    */
-  friend class NdbOperation; 
+  friend class NdbScanOperation;
   friend class NdbQueryImpl;
 
   /**

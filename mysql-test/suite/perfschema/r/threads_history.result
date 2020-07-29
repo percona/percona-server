@@ -41,6 +41,9 @@ update performance_schema.threads
 set INSTRUMENTED='NO', HISTORY='NO'
   where PROCESSLIST_ID = connection_id();
 # Switch to connection default
+update performance_schema.threads
+set INSTRUMENTED='NO', HISTORY='NO'
+  where PROCESSLIST_ID = connection_id();
 truncate table performance_schema.events_transactions_current;
 truncate table performance_schema.events_transactions_history;
 truncate table performance_schema.events_transactions_history_long;
@@ -164,6 +167,8 @@ stage/sql/freeing items
 stage/sql/cleaning up
 EVENT_NAME
 stage/sql/starting
+stage/sql/Executing hook on transaction begin.
+stage/sql/starting
 stage/sql/query end
 stage/sql/closing tables
 stage/sql/freeing items
@@ -179,6 +184,8 @@ stage/sql/query end
 stage/sql/closing tables
 stage/sql/freeing items
 stage/sql/cleaning up
+stage/sql/starting
+stage/sql/Executing hook on transaction begin.
 stage/sql/starting
 stage/sql/query end
 stage/sql/closing tables
@@ -559,6 +566,8 @@ stage/sql/freeing items
 stage/sql/cleaning up
 EVENT_NAME
 stage/sql/starting
+stage/sql/Executing hook on transaction begin.
+stage/sql/starting
 stage/sql/query end
 stage/sql/closing tables
 stage/sql/freeing items
@@ -574,6 +583,8 @@ stage/sql/query end
 stage/sql/closing tables
 stage/sql/freeing items
 stage/sql/cleaning up
+stage/sql/starting
+stage/sql/Executing hook on transaction begin.
 stage/sql/starting
 stage/sql/query end
 stage/sql/closing tables
@@ -615,7 +626,7 @@ idle
 has_waits
 1
 has_waits
-1
+0
 "=========================== Waits user 2"
 EVENT_NAME
 idle
@@ -638,6 +649,9 @@ count(*)
 count(*)
 0
 # Switch to connection default
+update performance_schema.threads
+set INSTRUMENTED='YES', HISTORY='YES'
+  where PROCESSLIST_ID = connection_id();
 revoke all privileges, grant option from user1@localhost;
 revoke all privileges, grant option from user2@localhost;
 revoke all privileges, grant option from user3@localhost;

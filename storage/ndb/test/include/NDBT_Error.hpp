@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005-2007 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +44,7 @@ public:
    *
    * Return true if successeful
    */
-  bool parseCmdLineArg(const char ** argv, int & i);
+  bool parseCmdLineArg(char ** argv, int & i);
   
   /**
    * Print cmd line arguments
@@ -88,7 +87,7 @@ private:
 
 //
 //  ERR prints an NdbError object together with a description of where the
-//  error occured
+//  error occurred
 //
 #define NDB_ERR_OUT(where, error) \
   {  where << "ERROR: " << error.code << " " \

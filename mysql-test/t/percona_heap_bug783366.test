@@ -11,7 +11,7 @@ CREATE TABLE t1 (
         f2 VARCHAR ( 32 ),
         PRIMARY KEY ( f2 ( 2 ) , f1 )
 )
-ENGINE=HEAP KEY_BLOCK_SIZE = 512;
+ENGINE=HEAP KEY_BLOCK_SIZE=512 CHARACTER SET=latin1;
 INSERT IGNORE INTO t1 VALUES ( 'te' , 'm') , ( NULL , 'think' );
 INSERT IGNORE INTO t1 VALUES ( 'te' , 'm') , ( NULL , 'think' );
 

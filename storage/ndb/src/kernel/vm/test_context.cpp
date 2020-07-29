@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,16 +61,12 @@ test_context(Uint32 pages)
   for (Uint32 resid = 1; resid < RG_COUNT; resid++)
   {
     rl.m_min = 0;
-    rl.m_max = 0;
+    rl.m_max = Resource_limit::HIGHEST_LIMIT;
     rl.m_resource_id = resid;
     mm.set_resource_limit(rl);
   }
-  rl.m_min = 0;
-  rl.m_max = pages;
-  rl.m_resource_id = 0;
-  mm.set_resource_limit(rl);
 
-  if (!mm.init(NULL /* watchCounter */))
+  if (!mm.init(NULL /* watchCounter */, pages))
   {
     abort();
   }
@@ -111,4 +107,15 @@ Dbdih::dihGetInstanceKey(Uint32 tabId, Uint32 fragId)
 {
   abort();
   return 0;
+}
+
+Uint32
+Dbdih::dihGetInstanceKeyCanFail(Uint32 tabId, Uint32 fragId)
+{
+  abort();
+  return 0;
+}
+
+Dbdih::~Dbdih()
+{
 }

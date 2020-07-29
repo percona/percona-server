@@ -1,4 +1,4 @@
-/*  Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -18,149 +18,191 @@
 
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "m_ctype.h"  /* my_charset_utf8_bin */
-#include <mysql/plugin_keyring.h> /* keyring plugin */
-#include "set_var.h"
-#include "strfunc.h"
-#include "sql_string.h"
-#include "sql_plugin.h"
-#include "mysqld.h"
+#include <stddef.h>
 
-struct Key_data
-{
-  Key_data() : result(TRUE)
-  {}
+#include <functional>
+#include "my_inttypes.h"
+#include "mysql/plugin.h"
+#include "mysql/plugin_keyring.h" /* keyring plugin */
+#include "sql/current_thd.h"
+#include "sql/set_var.h"
+#include "sql/sql_plugin.h"
+#include "sql/sql_plugin_ref.h"
 
-  const char *key_id;
-  const char *key_type_to_store;
-  char **key_type_to_fetch;
-  const char *user_id;
-  const void *key_to_store;
-  void **key_to_fetch;
-  size_t key_len_to_store;
-  size_t *key_len_to_fetch;
-  my_bool result;
+/**
+  @class Callback
+
+  @brief Class that stores callback function reference as well as the result
+         of the callback function call (invoke method). Callback is called
+         using the plugin descriptor pointer, so the callback can call plugin
+         exposed function.
+*/
+class Callback {
+ public:
+  /**
+    Constructor.
+
+    @param callback Lambda function that is called using the invoke method.
+  */
+  explicit Callback(std::function<bool(st_mysql_keyring *keyring)> callback)
+      : m_callback(callback), m_result(true) {}
+
+  /**
+    Invoke the underlying callback using the specified parameter and store
+    the result of the operation.
+
+    @param keyring Keyring plugin descriptor pointer.
+  */
+  void invoke(st_mysql_keyring *keyring) { m_result = m_callback(keyring); }
+
+  /**
+    Result of the invoke operation.
+
+    @return Result of the invoke operation.
+  */
+  bool result() { return m_result; }
+
+ private:
+  /**
+    Callback function.
+  */
+  const std::function<bool(st_mysql_keyring *keyring)> m_callback;
+
+  /**
+    Result of the _callback function call.
+  */
+  bool m_result;
 };
 
-static my_bool key_fetch(THD *thd, plugin_ref plugin, void *arg)
-{
-  Key_data *key_data= reinterpret_cast<Key_data*>(arg);
-  plugin= my_plugin_lock(NULL, &plugin);
-  if (plugin)
-  {
-    st_mysql_keyring *keyring=
-      (st_mysql_keyring *) plugin_decl(plugin)->info;
-    key_data->result= keyring->mysql_key_fetch(key_data->key_id, key_data->key_type_to_fetch,
-      key_data->user_id, key_data->key_to_fetch, key_data->key_len_to_fetch);
+/**
+  Callback function that is called on the plugin.
+
+  @param plugin Plugin reference.
+  @param arg    Opaque Callback pointer.
+
+  @return This function always returns true.
+*/
+static bool key_plugin_cb_fn(THD *, plugin_ref plugin, void *arg) {
+  plugin = my_plugin_lock(nullptr, &plugin);
+  if (plugin) {
+    Callback *callback = reinterpret_cast<Callback *>(arg);
+    callback->invoke(
+        reinterpret_cast<st_mysql_keyring *>(plugin_decl(plugin)->info));
   }
-  //this function should get executed only for the first plugin. This is why
-  //it always returns error. plugin_foreach will stop after first iteration.
-  plugin_unlock(NULL, plugin);
-  return TRUE;
+  plugin_unlock(nullptr, plugin);
+  // this function should get executed only for the first plugin. This is why
+  // it always returns error. plugin_foreach will stop after first iteration.
+  return true;
 }
 
-static my_bool key_store(THD *thd, plugin_ref plugin, void *arg)
-{
-  Key_data *key_data= reinterpret_cast<Key_data*>(arg);
-  plugin= my_plugin_lock(NULL, &plugin);
-  if (plugin)
-  {
-    st_mysql_keyring *keyring=
-      (st_mysql_keyring *) plugin_decl(plugin)->info;
-    key_data->result= keyring->mysql_key_store(key_data->key_id, key_data->key_type_to_store,
-      key_data->user_id, key_data->key_to_store, key_data->key_len_to_store);
-  }
-  //this function should get executed only for the first plugin. This is why
-  //it always returns error. plugin_foreach will stop after first iteration.
-  plugin_unlock(NULL, plugin);
-  return TRUE;
+/**
+  Iterate over plugins of the MYSQL_KEYRING_PLUGIN type and call the function
+  specified by the argument.
+
+  @param fn           Function that can call plugin defined function.
+  @param check_access Perform access check.
+
+  @return Result of the fn call.
+*/
+static bool iterate_plugins(std::function<bool(st_mysql_keyring *keyring)> fn,
+                            bool check_access = true) {
+  Callback callback(fn);
+  if (check_access && keyring_access_test()) return true;
+  plugin_foreach(current_thd, key_plugin_cb_fn, MYSQL_KEYRING_PLUGIN,
+                 &callback);
+  return callback.result();
 }
 
-static my_bool key_remove(THD *thd, plugin_ref plugin, void *arg)
-{
-  Key_data *key_data= reinterpret_cast<Key_data*>(arg);
-  plugin= my_plugin_lock(NULL, &plugin);
-  if (plugin)
-  {
-    st_mysql_keyring *keyring=
-      (st_mysql_keyring *) plugin_decl(plugin)->info;
-    key_data->result= keyring->mysql_key_remove(key_data->key_id, key_data->user_id);
-  }
-  //this function should get executed only for the first plugin. This is why
-  //it always returns error. plugin_foreach will stop after first iteration.
-  plugin_unlock(NULL, plugin);
-  return TRUE;
-}
+/**
+  Iterates over all active keyring plugins and calls the mysql_key_fetch API
+  for the first one found.
 
-static my_bool key_generate(THD *thd, plugin_ref plugin, void *arg)
-{
-  Key_data *key_data= reinterpret_cast<Key_data*>(arg);
-  plugin= my_plugin_lock(NULL, &plugin);
-  if (plugin)
-  {
-    st_mysql_keyring *keyring=
-      (st_mysql_keyring *) plugin_decl(plugin)->info;
-    key_data->result= keyring->mysql_key_generate(key_data->key_id,
-      key_data->key_type_to_store, key_data->user_id, key_data->key_len_to_store);
-  }
-  //this function should get executed only for the first plugin. This is why
-  //it always returns error. plugin_foreach will stop after first iteration.
-  plugin_unlock(NULL, plugin);
-  return TRUE;
-}
-
+  @sa st_mysql_keyring::mysql_key_fetch, mysql_keyring_service_st
+*/
 int my_key_fetch(const char *key_id, char **key_type, const char *user_id,
-                 void **key, size_t *key_len)
-{
-  Key_data key_data;
-  key_data.key_id= key_id;
-  key_data.key_type_to_fetch= key_type;
-  key_data.user_id= user_id;
-  key_data.key_to_fetch= key;
-  key_data.key_len_to_fetch= key_len;
-  plugin_foreach(current_thd, key_fetch, MYSQL_KEYRING_PLUGIN, &key_data);
-  return key_data.result;
+                 void **key, size_t *key_len) {
+  return iterate_plugins(
+      [&](st_mysql_keyring *keyring) {
+        return keyring->mysql_key_fetch(key_id, key_type, user_id, key,
+                                        key_len);
+      },
+      false);
 }
 
+/**
+  Iterates over all active keyring plugins calls the mysql_key_store API
+  for the first one found.
+
+  @sa st_mysql_keyring::mysql_key_store, mysql_keyring_service_st
+*/
 int my_key_store(const char *key_id, const char *key_type, const char *user_id,
-                 const void *key, size_t key_len)
-{
-  Key_data key_data;
-  key_data.key_id= key_id;
-  key_data.key_type_to_store= key_type;
-  key_data.user_id= user_id;
-  key_data.key_to_store= key;
-  key_data.key_len_to_store= key_len;
-  if (keyring_access_test())
-    return 1;
-  plugin_foreach(current_thd, key_store, MYSQL_KEYRING_PLUGIN, &key_data);
-  return key_data.result;
+                 const void *key, size_t key_len) {
+  return iterate_plugins([&](st_mysql_keyring *keyring) {
+    return keyring->mysql_key_store(key_id, key_type, user_id, key, key_len);
+  });
 }
 
-int my_key_remove(const char *key_id, const char *user_id)
-{
-  Key_data key_data;
-  key_data.key_id= key_id;
-  key_data.user_id= user_id;
-  if (keyring_access_test())
-    return 1;
-  plugin_foreach(current_thd, key_remove, MYSQL_KEYRING_PLUGIN, &key_data);
-  return key_data.result;
+/**
+  Iterates over all active keyring plugins and calls the mysql_key_remove API
+  for the first one found.
+
+  @sa st_mysql_keyring::mysql_key_remove, mysql_keyring_service_st
+*/
+int my_key_remove(const char *key_id, const char *user_id) {
+  return iterate_plugins([&](st_mysql_keyring *keyring) {
+    return keyring->mysql_key_remove(key_id, user_id);
+  });
 }
 
+/**
+  Iterates over all active keyring plugins and calls the mysql_key_generate API
+  for the first one found.
+
+  @sa st_mysql_keyring::mysql_key_generate, mysql_keyring_service_st
+*/
 int my_key_generate(const char *key_id, const char *key_type,
-                    const char *user_id, size_t key_len)
-{
+                    const char *user_id, size_t key_len) {
+  return iterate_plugins([&](st_mysql_keyring *keyring) {
+    return keyring->mysql_key_generate(key_id, key_type, user_id, key_len);
+  });
+}
 
-  Key_data key_data;
-  key_data.key_id= key_id;
-  key_data.key_type_to_store= key_type;
-  key_data.user_id= user_id;
-  key_data.key_len_to_store= key_len;
-  if (keyring_access_test())
-    return 1;
-  plugin_foreach(current_thd, key_generate, MYSQL_KEYRING_PLUGIN, &key_data);
-  return key_data.result;
+/**
+  Iterates over all active keyring plugins and calls
+  the mysql_key_iterator_init API for the first one found.
+
+  @sa st_mysql_keyring::mysql_key_iterator_init, mysql_keyring_service_st
+*/
+int my_key_iterator_init(void **key_iterator) {
+  return iterate_plugins([&](st_mysql_keyring *keyring) {
+    keyring->mysql_key_iterator_init(key_iterator);
+    return false;
+  });
+}
+
+/**
+  Iterates over all active keyring plugins and calls
+  the mysql_key_iterator_deinit API for the first one found.
+
+  @sa st_mysql_keyring::mysql_key_iterator_deinit, mysql_keyring_service_st
+*/
+int my_key_iterator_deinit(void *key_iterator) {
+  return iterate_plugins([&](st_mysql_keyring *keyring) {
+    keyring->mysql_key_iterator_deinit(key_iterator);
+    return false;
+  });
+}
+
+/**
+  Iterates over all active keyring plugins and calls
+  the mysql_key_iterator_get_key API for the first one found.
+
+  @sa st_mysql_keyring::mysql_key_iterator_get_key, mysql_keyring_service_st
+*/
+int my_key_iterator_get_key(void *key_iterator, char *key_id, char *user_id) {
+  return iterate_plugins([&](st_mysql_keyring *keyring) {
+    return keyring->mysql_key_iterator_get_key(key_iterator, key_id, user_id);
+  });
 }

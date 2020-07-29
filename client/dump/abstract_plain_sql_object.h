@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,33 +25,34 @@
 #ifndef ABSTRACT_PLAIN_SQL_OBJECT_INCLUDED
 #define ABSTRACT_PLAIN_SQL_OBJECT_INCLUDED
 
-#include "abstract_data_object.h"
+#include "client/dump/abstract_data_object.h"
+#include "my_inttypes.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 /**
   Abstract object carrying its definition in SQL formatted string only.
  */
-class Abstract_plain_sql_object : public Abstract_data_object
-{
-public:
-    Abstract_plain_sql_object(uint64 id, const std::string& name,
-      const std::string& schema, const std::string& sql_formatted_definition);
+class Abstract_plain_sql_object : public Abstract_data_object {
+ public:
+  Abstract_plain_sql_object(uint64 id, const std::string &name,
+                            const std::string &schema,
+                            const std::string &sql_formatted_definition);
 
-    std::string get_sql_formatted_definition() const;
-    void set_sql_formatted_definition(std::string);
+  std::string get_sql_formatted_definition() const;
+  void set_sql_formatted_definition(std::string);
 
-private:
+ private:
   /**
     SQL formatted object definition.
    */
   std::string m_sql_formatted_definition;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

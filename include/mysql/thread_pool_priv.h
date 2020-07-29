@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,31 +25,30 @@
 #ifndef THREAD_POOL_PRIV_INCLUDED
 #define THREAD_POOL_PRIV_INCLUDED
 
-/*
-  The thread pool requires access to some MySQL server error codes, this is
-  accessed from mysqld_error.h.
-  We need access to the struct that defines the thread pool plugin interface
-  which is accessed through scheduler.h.
+/**
+  @file include/mysql/thread_pool_priv.h
   All accesses to THD variables and functions are defined in this header file.
-  A thread pool can also use DEBUG_SYNC and must thus include
-  debug_sync.h
-  To handle definitions of Information Schema plugins it is also required
-  to include sql_profile.h and table.h.
 */
 #include <mysqld_error.h> /* To get ER_ERROR_ON_READ */
-#define MYSQL_SERVER 1
-#include <conn_handler/channel_info.h>
-#include <conn_handler/connection_handler_manager.h>
-#include <debug_sync.h>
-#include <sql_profile.h>
-#include <table.h>
-#include "field.h"
-#include "sql_thd_internal_api.h"
-#include <set>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "sql/conn_handler/channel_info.h"
+#include "sql/conn_handler/connection_handler_manager.h"
+
+/**
+  Called by the server when a new client connects.
+
+  @param channel_info  Pointer to object containing information
+                       about the new connection.
+
+  @retval true  failure
+  @retval false success
+*/
+typedef bool (*add_connection_t)(Channel_info *channel_info);
+
+/**
+  Called by the server when the connection handler is destroyed.
+*/
+typedef void (*end_t)(void);
 
 /**
    This structure must be populated by plugins which implement connection
@@ -58,37 +57,23 @@ extern "C" {
 
    The structure contains pointers to plugin functions which the server
    will call when a new client connects or when the connection handler is
-   unloaded. It also containts the maximum number of threads the connection
+   unloaded. It also contains the maximum number of threads the connection
    handler will create.
 */
-struct Connection_handler_functions
-{
+struct Connection_handler_functions {
   /**
      The maximum number of threads this connection handler will create.
   */
   uint max_threads;
 
-  /**
-     Called by the server when a new client connects.
-
-     @param channel_info  Pointer to object containing information
-                          about the new connection.
-
-     @retval true  failure
-     @retval false success
-  */
-  bool (*add_connection)(Channel_info *channel_info);
-
-  /**
-     Called by the server when the connection handler is destroyed.
-  */
-  void (*end)(void);
+  add_connection_t add_connection;
+  end_t end;
 };
 
 /* create thd from channel_info object */
-THD* create_thd(Channel_info* channel_info);
+THD *create_thd(Channel_info *channel_info);
 /* destroy channel_info object */
-void destroy_channel_info(Channel_info* channel_info);
+void destroy_channel_info(Channel_info *channel_info);
 /* Decrement connection counter */
 void dec_connection_count();
 /*
@@ -99,24 +84,20 @@ void dec_connection_count();
 */
 void inc_thread_created();
 
-void thd_lock_thread_count(THD *thd);
-void thd_unlock_thread_count(THD *thd);
-
-#ifdef __cplusplus
-}
-#endif
+void thd_lock_thread_count();
+void thd_unlock_thread_count();
 
 /*
   Interface to global thread list iterator functions.
   Executes a function with signature 'void f(THD*, uint64)' for all THDs.
 */
-typedef void (do_thd_impl_uint64)(THD*, uint64);
+typedef void(do_thd_impl_uint64)(THD *, uint64);
 void do_for_all_thd(do_thd_impl_uint64, uint64);
 
 /* Needed to get access to scheduler variables */
-void* thd_get_scheduler_data(THD *thd);
+void *thd_get_scheduler_data(THD *thd);
 void thd_set_scheduler_data(THD *thd, void *data);
-PSI_thread* thd_get_psi(THD *thd);
+PSI_thread *thd_get_psi(THD *thd);
 void thd_set_psi(THD *thd, PSI_thread *psi);
 
 /* Interface to THD variables and functions */
@@ -131,17 +112,9 @@ int thd_connection_has_data(THD *thd);
 void thd_set_net_read_write(THD *thd, uint val);
 uint thd_get_net_read_write(THD *thd);
 void thd_set_not_killable(THD *thd);
-ulong  thd_get_net_wait_timeout(THD *thd);
+ulong thd_get_net_wait_timeout(THD *thd);
 my_socket thd_get_fd(THD *thd);
-int thd_store_globals(THD* thd);
-
-/* Print to the MySQL error log */
-void sql_print_error(const char *format, ...);
-void sql_print_warning(const char *format, ...);
-void sql_print_information(const char *format, ...);
-
-/* Store a table record */
-bool schema_table_store_record(THD *thd, TABLE *table);
+void thd_store_globals(THD *thd);
 
 /*
   The thread pool must be able to execute statements using the connection
@@ -159,14 +132,14 @@ bool do_command(THD *thd);
   executed.
 */
 /* Prepare connection as part of connection set-up */
-bool thd_prepare_connection(THD *thd, bool extra_port_connection);
+bool thd_prepare_connection(THD *thd);
 /* Release auditing before executing statement */
 void mysql_audit_release(THD *thd);
 /* Check if connection is still alive */
 bool thd_connection_alive(THD *thd);
 /* Close connection with possible error code */
-void close_connection(THD *thd, uint sql_errno,
-                      bool server_shutdown, bool generate_event);
+void close_connection(THD *thd, uint sql_errno, bool server_shutdown,
+                      bool generate_event);
 /* End the connection before closing it */
 void end_connection(THD *thd);
 /* Reset thread globals */
@@ -186,7 +159,6 @@ ulong get_max_connections(void);
 my_thread_attr_t *get_connection_attrib(void);
 
 /* Increment the status variable 'Aborted_connects'. */
-#ifndef EMBEDDED_LIBRARY
 void increment_aborted_connects();
-#endif
-#endif // THREAD_POOL_PRIV_INCLUDED
+
+#endif  // THREAD_POOL_PRIV_INCLUDED

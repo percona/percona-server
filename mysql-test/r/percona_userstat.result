@@ -22,7 +22,7 @@ TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	ROWS_READ
 SELECT * FROM INFORMATION_SCHEMA.TABLE_STATISTICS;
 TABLE_SCHEMA	TABLE_NAME	ROWS_READ	ROWS_CHANGED	ROWS_CHANGED_X_INDEXES
 SELECT * FROM INFORMATION_SCHEMA.THREAD_STATISTICS;
-THREAD_ID	TOTAL_CONNECTIONS	CONCURRENT_CONNECTIONS	CONNECTED_TIME	BUSY_TIME	CPU_TIME	BYTES_RECEIVED	BYTES_SENT	BINLOG_BYTES_WRITTEN	ROWS_FETCHED	ROWS_UPDATED	TABLE_ROWS_READ	SELECT_COMMANDS	UPDATE_COMMANDS	OTHER_COMMANDS	COMMIT_TRANSACTIONS	ROLLBACK_TRANSACTIONS	DENIED_CONNECTIONS	LOST_CONNECTIONS	ACCESS_DENIED	EMPTY_QUERIES	TOTAL_SSL_CONNECTIONS
+THREAD_ID	TOTAL_CONNECTIONS	CONNECTED_TIME	BUSY_TIME	CPU_TIME	BYTES_RECEIVED	BYTES_SENT	BINLOG_BYTES_WRITTEN	ROWS_FETCHED	ROWS_UPDATED	TABLE_ROWS_READ	SELECT_COMMANDS	UPDATE_COMMANDS	OTHER_COMMANDS	COMMIT_TRANSACTIONS	ROLLBACK_TRANSACTIONS	DENIED_CONNECTIONS	LOST_CONNECTIONS	ACCESS_DENIED	EMPTY_QUERIES	TOTAL_SSL_CONNECTIONS
 SELECT * FROM INFORMATION_SCHEMA.USER_STATISTICS;
 USER	TOTAL_CONNECTIONS	CONCURRENT_CONNECTIONS	CONNECTED_TIME	BUSY_TIME	CPU_TIME	BYTES_RECEIVED	BYTES_SENT	BINLOG_BYTES_WRITTEN	ROWS_FETCHED	ROWS_UPDATED	TABLE_ROWS_READ	SELECT_COMMANDS	UPDATE_COMMANDS	OTHER_COMMANDS	COMMIT_TRANSACTIONS	ROLLBACK_TRANSACTIONS	DENIED_CONNECTIONS	LOST_CONNECTIONS	ACCESS_DENIED	EMPTY_QUERIES	TOTAL_SSL_CONNECTIONS
 SHOW CLIENT_STATISTICS;
@@ -32,7 +32,7 @@ Table_schema	Table_name	Index_name	Rows_read
 SHOW TABLE_STATISTICS;
 Table_schema	Table_name	Rows_read	Rows_changed	Rows_changed_x_#indexes
 SHOW THREAD_STATISTICS;
-Thread_id	Total_connections	Concurrent_connections	Connected_time	Busy_time	Cpu_time	Bytes_received	Bytes_sent	Binlog_bytes_written	Rows_fetched	Rows_updated	Table_rows_read	Select_commands	Update_commands	Other_commands	Commit_transactions	Rollback_transactions	Denied_connections	Lost_connections	Access_denied	Empty_queries	Total_ssl_connections
+Thread_id	Total_connections	Connected_time	Busy_time	Cpu_time	Bytes_received	Bytes_sent	Binlog_bytes_written	Rows_fetched	Rows_updated	Table_rows_read	Select_commands	Update_commands	Other_commands	Commit_transactions	Rollback_transactions	Denied_connections	Lost_connections	Access_denied	Empty_queries	Total_ssl_connections
 SHOW USER_STATISTICS;
 User	Total_connections	Concurrent_connections	Connected_time	Busy_time	Cpu_time	Bytes_received	Bytes_sent	Binlog_bytes_written	Rows_fetched	Rows_updated	Table_rows_read	Select_commands	Update_commands	Other_commands	Commit_transactions	Rollback_transactions	Denied_connections	Lost_connections	Access_denied	Empty_queries	Total_ssl_connections
 SET @userstat_old= @@userstat;
@@ -47,8 +47,8 @@ TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	ROWS_READ
 SELECT * FROM INFORMATION_SCHEMA.TABLE_STATISTICS;
 TABLE_SCHEMA	TABLE_NAME	ROWS_READ	ROWS_CHANGED	ROWS_CHANGED_X_INDEXES
 SELECT * FROM INFORMATION_SCHEMA.THREAD_STATISTICS;
-THREAD_ID	TOTAL_CONNECTIONS	CONCURRENT_CONNECTIONS	CONNECTED_TIME	BUSY_TIME	CPU_TIME	BYTES_RECEIVED	BYTES_SENT	BINLOG_BYTES_WRITTEN	ROWS_FETCHED	ROWS_UPDATED	TABLE_ROWS_READ	SELECT_COMMANDS	UPDATE_COMMANDS	OTHER_COMMANDS	COMMIT_TRANSACTIONS	ROLLBACK_TRANSACTIONS	DENIED_CONNECTIONS	LOST_CONNECTIONS	ACCESS_DENIED	EMPTY_QUERIES	TOTAL_SSL_CONNECTIONS
-THREAD_ID	1	0	CONNECTED_TIME	BUSY_TIME	CPU_TIME	163	0	0	1	0	0	3	0	0	0	0	0	0	0	2	0
+THREAD_ID	TOTAL_CONNECTIONS	CONNECTED_TIME	BUSY_TIME	CPU_TIME	BYTES_RECEIVED	BYTES_SENT	BINLOG_BYTES_WRITTEN	ROWS_FETCHED	ROWS_UPDATED	TABLE_ROWS_READ	SELECT_COMMANDS	UPDATE_COMMANDS	OTHER_COMMANDS	COMMIT_TRANSACTIONS	ROLLBACK_TRANSACTIONS	DENIED_CONNECTIONS	LOST_CONNECTIONS	ACCESS_DENIED	EMPTY_QUERIES	TOTAL_SSL_CONNECTIONS
+THREAD_ID	1	CONNECTED_TIME	BUSY_TIME	CPU_TIME	163	0	0	1	0	0	3	0	0	0	0	0	0	0	2	0
 SELECT * FROM INFORMATION_SCHEMA.USER_STATISTICS;
 USER	TOTAL_CONNECTIONS	CONCURRENT_CONNECTIONS	CONNECTED_TIME	BUSY_TIME	CPU_TIME	BYTES_RECEIVED	BYTES_SENT	BINLOG_BYTES_WRITTEN	ROWS_FETCHED	ROWS_UPDATED	TABLE_ROWS_READ	SELECT_COMMANDS	UPDATE_COMMANDS	OTHER_COMMANDS	COMMIT_TRANSACTIONS	ROLLBACK_TRANSACTIONS	DENIED_CONNECTIONS	LOST_CONNECTIONS	ACCESS_DENIED	EMPTY_QUERIES	TOTAL_SSL_CONNECTIONS
 root	1	0	CONNECTED_TIME	BUSY_TIME	CPU_TIME	254	0	0	2	0	0	4	0	1	0	0	0	0	0	2	0
@@ -60,8 +60,8 @@ Table_schema	Table_name	Index_name	Rows_read
 SHOW TABLE_STATISTICS;
 Table_schema	Table_name	Rows_read	Rows_changed	Rows_changed_x_#indexes
 SHOW THREAD_STATISTICS;
-Thread_id	Total_connections	Concurrent_connections	Connected_time	Busy_time	Cpu_time	Bytes_received	Bytes_sent	Binlog_bytes_written	Rows_fetched	Rows_updated	Table_rows_read	Select_commands	Update_commands	Other_commands	Commit_transactions	Rollback_transactions	Denied_connections	Lost_connections	Access_denied	Empty_queries	Total_ssl_connections
-THREAD_ID	1	0	CONNECTED_TIME	BUSY_TIME	CPU_TIME	350	0	0	3	0	0	5	0	3	0	0	0	0	0	2	0
+Thread_id	Total_connections	Connected_time	Busy_time	Cpu_time	Bytes_received	Bytes_sent	Binlog_bytes_written	Rows_fetched	Rows_updated	Table_rows_read	Select_commands	Update_commands	Other_commands	Commit_transactions	Rollback_transactions	Denied_connections	Lost_connections	Access_denied	Empty_queries	Total_ssl_connections
+THREAD_ID	1	CONNECTED_TIME	BUSY_TIME	CPU_TIME	350	0	0	3	0	0	5	0	3	0	0	0	0	0	2	0
 SHOW USER_STATISTICS;
 User	Total_connections	Concurrent_connections	Connected_time	Busy_time	Cpu_time	Bytes_received	Bytes_sent	Binlog_bytes_written	Rows_fetched	Rows_updated	Table_rows_read	Select_commands	Update_commands	Other_commands	Commit_transactions	Rollback_transactions	Denied_connections	Lost_connections	Access_denied	Empty_queries	Total_ssl_connections
 root	1	0	CONNECTED_TIME	BUSY_TIME	CPU_TIME	413	0	0	3	0	0	5	0	5	0	0	0	0	0	2	0
@@ -112,14 +112,10 @@ select_must_be_true_6	update_must_be_true_6	other_must_be_true_6	rows_must_be_tr
 #
 # Bug lp:1659992 "Function over userstat tables cause mysql to crash"
 #
-CREATE FUNCTION utility_get_global_variable(in_name VARCHAR(64)) RETURNS VARCHAR(1024) CHARSET utf8 DETERMINISTIC SQL SECURITY INVOKER
+CREATE FUNCTION utility_get_global_variable(in_name VARCHAR(64)) RETURNS VARCHAR(1024) CHARSET UTF8MB4 DETERMINISTIC SQL SECURITY INVOKER
 BEGIN
 DECLARE var_value VARCHAR(1024);
-IF @@global.version LIKE '5.7.%' THEN
 SELECT v.variable_value FROM performance_schema.global_variables v WHERE v.variable_name = in_name INTO var_value;
-ELSE
-SELECT v.variable_value FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES v WHERE v.variable_name = in_name INTO var_value;
-END IF;
 RETURN var_value;
 END|
 SELECT *
@@ -142,7 +138,7 @@ COMMIT_TRANSACTIONS	ROLLBACK_TRANSACTIONS
 0	0
 SELECT COMMIT_TRANSACTIONS, ROLLBACK_TRANSACTIONS FROM INFORMATION_SCHEMA.USER_STATISTICS;
 COMMIT_TRANSACTIONS	ROLLBACK_TRANSACTIONS
-7	1
+17	1
 SET autocommit=1;
 DROP TABLE t1;
 SET GLOBAL userstat= @userstat_old;

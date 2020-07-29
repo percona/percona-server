@@ -4,9 +4,9 @@ SELECT @@session.show_create_table_verbosity;
 SHOW SESSION VARIABLES LIKE 'show_create_table_verbosity';
 Variable_name	Value
 show_create_table_verbosity	OFF
-SELECT * FROM information_schema.session_variables WHERE variable_name='show_create_table_verbosity';
+SELECT * FROM performance_schema.session_variables WHERE variable_name='show_create_table_verbosity';
 VARIABLE_NAME	VARIABLE_VALUE
-SHOW_CREATE_TABLE_VERBOSITY	OFF
+show_create_table_verbosity	OFF
 #Also can be set as a global variable.
 SELECT @@global.show_create_table_verbosity;
 @@global.show_create_table_verbosity
@@ -14,9 +14,9 @@ SELECT @@global.show_create_table_verbosity;
 SHOW GLOBAL VARIABLES LIKE 'show_create_table_verbosity';
 Variable_name	Value
 show_create_table_verbosity	OFF
-SELECT * FROM information_schema.global_variables WHERE variable_name='show_create_table_verbosity';
+SELECT * FROM performance_schema.global_variables WHERE variable_name='show_create_table_verbosity';
 VARIABLE_NAME	VARIABLE_VALUE
-SHOW_CREATE_TABLE_VERBOSITY	OFF
+show_create_table_verbosity	OFF
 #Test setting the variable to various values.
 #Boolean values.
 SET SESSION show_create_table_verbosity= ON;

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,29 +25,28 @@
 #ifndef I_CRAWLER_INCLUDED
 #define I_CRAWLER_INCLUDED
 
-#include "i_chain_element.h"
-#include "i_chain_maker.h"
+#include "client/dump/i_chain_element.h"
+#include "client/dump/i_chain_maker.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-class I_crawler : public virtual I_chain_element
-{
-public:
+class I_crawler : public virtual I_chain_element {
+ public:
   /**
     Enumerates all objects it can access, gets chains from all registered
     chain_maker for each object and then execute each chain.
    */
-  virtual void enumerate_objects()= 0;
+  virtual void enumerate_objects() = 0;
   /**
     Adds new Chain Maker to ask for chains for found objects.
    */
-  virtual void register_chain_maker(I_chain_maker* new_chain_maker)= 0;
+  virtual void register_chain_maker(I_chain_maker *new_chain_maker) = 0;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

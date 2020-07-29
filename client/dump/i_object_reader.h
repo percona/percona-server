@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,24 +25,23 @@
 #ifndef I_OBJECT_READER_INCLUDED
 #define I_OBJECT_READER_INCLUDED
 
-#include "i_chain_element.h"
-#include "item_processing_data.h"
+#include "client/dump/i_chain_element.h"
+#include "client/dump/item_processing_data.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-class I_object_reader : public virtual I_chain_element
-{
-public:
+class I_object_reader : public virtual I_chain_element {
+ public:
   /**
     Reads information on DB object related to task.
    */
-  virtual void read_object(Item_processing_data* item_to_process)= 0;
+  virtual void read_object(Item_processing_data *item_to_process) = 0;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

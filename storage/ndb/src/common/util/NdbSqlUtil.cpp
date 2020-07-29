@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,11 @@
 */
 
 #include <NdbSqlUtil.hpp>
-#include <ndb_version.h>
-#include <math.h>
+
+#include <cmath>
+
+#include "my_byteorder.h"
+#include "m_ctype.h"
 
 /*
  * Data types.  The entries must be in the numerical order.
@@ -393,7 +396,7 @@ NdbSqlUtil::cmpFloat(const void* info, const void* p1, unsigned n1, const void* 
   float v1, v2;
   memcpy(&v1, p1, 4);
   memcpy(&v2, p2, 4);
-  require(!isnan(v1) && !isnan(v2));
+  require(!std::isnan(v1) && !std::isnan(v2));
   if (v1 < v2)
     return -1;
   if (v1 > v2)
@@ -408,7 +411,7 @@ NdbSqlUtil::cmpDouble(const void* info, const void* p1, unsigned n1, const void*
   double v1, v2;
   memcpy(&v1, p1, 8);
   memcpy(&v2, p2, 8);
-  require(!isnan(v1) && !isnan(v2));
+  require(!std::isnan(v1) && !std::isnan(v2));
   if (v1 < v2)
     return -1;
   if (v1 > v2)
@@ -453,26 +456,33 @@ NdbSqlUtil::cmpOlddecimalunsigned(const void* info, const void* p1, unsigned n1,
 int
 NdbSqlUtil::cmpDecimal(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  return cmpBinary(info, p1, n1, p2, n2);
+  assert(info == 0 && n1 == n2);
+  return memcmp(p1, p2, n1);
 }
 
 int
 NdbSqlUtil::cmpDecimalunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  return cmpBinary(info, p1, n1, p2, n2);
+  assert(info == 0 && n1 == n2);
+  return memcmp(p1, p2, n1);
 }
 
 int
 NdbSqlUtil::cmpChar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  // allow different lengths
-  assert(info != 0);
+  // Require same lengths
+  assert(info != 0 && n1 == n2);
   const uchar* v1 = (const uchar*)p1;
   const uchar* v2 = (const uchar*)p2;
   CHARSET_INFO* cs = (CHARSET_INFO*)info;
-  // compare with space padding
-  int k = (*cs->coll->strnncollsp)(cs, v1, n1, v2, n2, false);
-  return k;
+
+  // Comparing with a NO_PAD collation requires trailing spaces to be stripped.
+  if (cs->pad_attribute == NO_PAD)
+  {
+    n1 = cs->cset->lengthsp(cs, (const char *)p1, n1);
+    n2 = cs->cset->lengthsp(cs, (const char *)p2, n2);
+  }
+  return (*cs->coll->strnncollsp)(cs, v1, n1, v2, n2);
 }
 
 int
@@ -487,28 +497,32 @@ NdbSqlUtil::cmpVarchar(const void* info, const void* p1, unsigned n1, const void
   require(lb + m1 <= n1 && lb + m2 <= n2);
   CHARSET_INFO* cs = (CHARSET_INFO*)info;
   // compare with space padding
-  int k = (*cs->coll->strnncollsp)(cs, v1 + lb, m1, v2 + lb, m2, false);
-  return k;
+  return (*cs->coll->strnncollsp)(cs, v1 + lb, m1, v2 + lb, m2);
 }
 
 int
 NdbSqlUtil::cmpBinary(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  // allow different lengths
-  assert(info == 0);
-  const uchar* v1 = (const uchar*)p1;
-  const uchar* v2 = (const uchar*)p2;
+  // Require same lengths
+  assert(info == 0 && n1 == n2);
+  return memcmp(p1, p2, n1);
+}
+
+static int
+cmpVarbinary(const void* p1, unsigned n1, const void* p2, unsigned n2)
+{
+  // Allow different lengths
   int k = 0;
-  if (n1 < n2) {
-    k = memcmp(v1, v2, n1);
+  if (likely(n1 == n2)) {
+    k = memcmp(p1, p2, n1);
+  } else if (n1 < n2) {
+    k = memcmp(p1, p2, n1);
     if (k == 0)
       k = -1;
-  } else if (n1 > n2) {
-    k = memcmp(v1, v2, n2);
+  } else {  // (n1 > n2)
+    k = memcmp(p1, p2, n2);
     if (k == 0)
       k = +1;
-  } else {
-    k = memcmp(v1, v2, n1);
   }
   return k;
 }
@@ -523,8 +537,7 @@ NdbSqlUtil::cmpVarbinary(const void* info, const void* p1, unsigned n1, const vo
   uint m1 = v1[0];
   uint m2 = v2[0];
   require(lb + m1 <= n1 && lb + m2 <= n2);
-  int k = cmpBinary(info, v1 + lb, m1, v2 + lb, m2);
-  return k;
+  return ::cmpVarbinary(v1 + lb, m1, v2 + lb, m2);
 }
 
 int
@@ -661,8 +674,7 @@ NdbSqlUtil::cmpLongvarchar(const void* info, const void* p1, unsigned n1, const 
   require(lb + m1 <= n1 && lb + m2 <= n2);
   CHARSET_INFO* cs = (CHARSET_INFO*)info;
   // compare with space padding
-  int k = (*cs->coll->strnncollsp)(cs, v1 + lb, m1, v2 + lb, m2, false);
-  return k;
+  return (*cs->coll->strnncollsp)(cs, v1 + lb, m1, v2 + lb, m2);
 }
 
 int
@@ -675,8 +687,7 @@ NdbSqlUtil::cmpLongvarbinary(const void* info, const void* p1, unsigned n1, cons
   uint m1 = v1[0] | (v1[1] << 8);
   uint m2 = v2[0] | (v2[1] << 8);
   require(lb + m1 <= n1 && lb + m2 <= n2);
-  int k = cmpBinary(info, v1 + lb, m1, v2 + lb, m2);
-  return k;
+  return ::cmpVarbinary(v1 + lb, m1, v2 + lb, m2);
 }
 
 int
@@ -710,19 +721,22 @@ NdbSqlUtil::cmpTimestamp(const void* info, const void* p1, unsigned n1, const vo
 int
 NdbSqlUtil::cmpTime2(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  return cmpBinary(info, p1, n1, p2, n2);
+  assert(info == 0 && n1 == n2);
+  return memcmp(p1, p2, n1);
 }
 
 int
 NdbSqlUtil::cmpDatetime2(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  return cmpBinary(info, p1, n1, p2, n2);
+  assert(info == 0 && n1 == n2);
+  return memcmp(p1, p2, n1);
 }
 
 int
 NdbSqlUtil::cmpTimestamp2(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  return cmpBinary(info, p1, n1, p2, n2);
+  assert(info == 0 && n1 == n2);
+  return memcmp(p1, p2, n1);
 }
 
 // like
@@ -897,12 +911,30 @@ NdbSqlUtil::check_column_for_pk(Uint32 typeId, const void* info)
       const CHARSET_INFO *cs = (const CHARSET_INFO*)info;
       if(cs != 0 &&
          cs->cset != 0 &&
-         cs->coll != 0 &&
-         cs->coll->strnxfrm != 0 &&
-         cs->strxfrm_multiply <= MAX_XFRM_MULTIPLY)
-        return 0;
-      else
-        return 743;
+         cs->coll != 0)
+      {
+	/**
+         * Check that we can produce a hash value
+         * - NO_PAD collations use the builtin hash_sort function
+         *   creating a single 'ulong' value.
+         */
+        if (cs->pad_attribute == NO_PAD)
+        {
+          if (cs->coll->hash_sort != NULL)
+            return 0;
+        }
+        /**
+         * 'Old' NO_PAD collations will 'multiply' the size of the
+         * frm'ed result. Check that it is within supported limits.
+         */
+        else if (cs->strxfrm_multiply > 0 &&
+                 cs->strxfrm_multiply <= MAX_XFRM_MULTIPLY)
+        {
+          return 0;
+        }
+      }
+      // Fall through; can't 'hash' this charset. 
+      return 743;
     }
     break;
   case Type::Undefined:
@@ -933,13 +965,12 @@ NdbSqlUtil::check_column_for_ordered_index(Uint32 typeId, const void* info)
   case Type::Varchar:
   case Type::Longvarchar:
     {
+      // Note: Only strnncollsp used for compare - no strnxfrm! 
       const CHARSET_INFO *cs = (const CHARSET_INFO*)info;
       if (cs != 0 &&
           cs->cset != 0 &&
           cs->coll != 0 &&
-          cs->coll->strnxfrm != 0 &&
-          cs->coll->strnncollsp != 0 &&
-          cs->strxfrm_multiply <= MAX_XFRM_MULTIPLY)
+          cs->coll->strnncollsp != 0)
         return 0;
       else
         return 743;
@@ -990,56 +1021,176 @@ NdbSqlUtil::get_var_length(Uint32 typeId, const void* p, unsigned attrlen, Uint3
   return false;
 }
 
+/**
+ * Normalize string for **hashing**. 
+ * To compare strings, use the NdbSqlUtil::cmp*() methods.
+ *
+ * xfrm'ed strings are guaranteed to be binary equal for
+ * strings defined as equal by the specified charset collation.
+ *
+ * However, the opposite is not true: unequal strings may
+ * be xfrm'ed into the same binary representation.
+ */
 
-size_t
-NdbSqlUtil::ndb_strnxfrm(struct charset_info_st * cs,
-                         uchar *dst, size_t dstlen,
-                         const uchar *src, size_t srclen)
+/**
+ * Backward bug compatible implementation of strnxfrm.
+ *
+ * Even if bug#7284: 'strnxfrm generates different results for equal strings'
+ * is fixed long ago, we still have to keep this method:
+ * The suggested fix for that bug was:
+ *
+ *   'Pad the result not with 0x00 character, but with weight
+ *    corresponding to the space character'.
+ *
+ * However, only PAD SPACE collations do this; NO PAD collations
+ * are likely to return a 'dst' not being completely padded
+ * unless the MY_STRXFRM_PAD_TO_MAXLEN flag is given.
+ *
+ * So we still have to handle the 'unlikely' case 'n3 < (int)dstLen'.
+ */
+
+/**
+ * Used to verify that the strnxfrm is only used for hashing:
+ * zero-fill xfrm'ed string, which will give a valid hash pattern,
+ * but break any misuse in strings compare
+ */
+static const bool verify_hash_only_usage = false;
+
+static inline int
+strnxfrm_bug7284(const CHARSET_INFO* cs,
+                 uchar* dst, unsigned dstLen,
+                 const uchar*src, unsigned srcLen)
 {
-#if NDB_MYSQL_VERSION_D < NDB_MAKE_VERSION(5,6,0)
-  return (*cs->coll->strnxfrm)(cs, dst, dstlen, src, srclen);
-#else
-  /*
-    strnxfrm has got two new parameters in 5.6, we are using the
-    defaults for those and can thus easily calculate them from
-    existing params
-  */
-  return  (*cs->coll->strnxfrm)(cs, dst, dstlen, (uint)dstlen,
-                                src, srclen, MY_STRXFRM_PAD_WITH_SPACE);
-#endif
-}
-
-// workaround
-
-int
-NdbSqlUtil::strnxfrm_bug7284(CHARSET_INFO* cs, unsigned char* dst, unsigned dstLen, const unsigned char*src, unsigned srcLen)
-{
-  unsigned char nsp[20]; // native space char
-  unsigned char xsp[20]; // strxfrm-ed space char
-#ifdef VM_TRACE
-  memset(nsp, 0x1f, sizeof(nsp));
-  memset(xsp, 0x1f, sizeof(xsp));
-#endif
-  // convert from unicode codepoint for space
-  int n1 = (*cs->cset->wc_mb)(cs, (my_wc_t)0x20, nsp, nsp + sizeof(nsp));
-  if (n1 <= 0)
-    return -1;
-  // strxfrm to binary
-  int n2 = (int)ndb_strnxfrm(cs, xsp, sizeof(xsp), nsp, n1);
-  if (n2 <= 0)
-    return -1;
-  // XXX bug workaround - strnxfrm may not write full string
-  memset(dst, 0x0, dstLen);
   // strxfrm argument string - returns no error indication
-  int n3 = (int)ndb_strnxfrm(cs, dst, dstLen, src, srcLen);
-  // pad with strxfrm-ed space chars
-  int n4 = n3;
-  while (n4 < (int)dstLen) {
-    dst[n4] = xsp[(n4 - n3) % n2];
-    n4++;
+  const int n3 = (int)(*cs->coll->strnxfrm)(cs,
+                                dst, dstLen, (uint)dstLen,
+                                src, srcLen,
+				0);
+
+  if (unlikely(n3 < (int)dstLen))
+  {
+    unsigned char nsp[20]; // native space char
+    unsigned char xsp[20]; // strxfrm-ed space char
+#ifdef VM_TRACE
+    memset(nsp, 0x1f, sizeof(nsp));
+    memset(xsp, 0x1f, sizeof(xsp));
+#endif
+    // convert from unicode codepoint for space
+    const int n1 = (*cs->cset->wc_mb)(cs, (my_wc_t)0x20, nsp, nsp + sizeof(nsp));
+    if (n1 <= 0)
+      return -1;
+    // strxfrm to binary
+    const int n2 = (int)(*cs->coll->strnxfrm)(cs, 
+                                xsp, sizeof(xsp), (uint)sizeof(xsp),
+                                nsp, n1,
+				0);
+    if (n2 <= 0)
+      return -1;
+
+    // pad with strxfrm-ed space chars
+    int n4 = n3;
+    while (n4 < (int)dstLen) {
+      dst[n4] = xsp[(n4 - n3) % n2];
+      n4++;
+    }
   }
+
+  if (verify_hash_only_usage)
+    memset(dst, 0, dstLen);
+
   // no check for partial last
   return dstLen;
+}
+
+int
+NdbSqlUtil::strnxfrm_hash(const CHARSET_INFO* cs,
+                          Uint32 typeId,
+                          uchar* dst, unsigned bufLen,
+                          const uchar* src, unsigned srcLen,
+                          unsigned maxLen)
+{
+  /**
+   * The NO_PAD Unicode-9.0 collations were introduced in MySQL-9.0.
+   * As we dont have to be bug-compatible when these (new) collations
+   * are used, we use the hash function provided by the collation
+   * directly, and use the calculated hash value as our contribution
+   * to the xfrm'ed hash string.
+   */
+  if (cs->pad_attribute == NO_PAD && cs != &my_charset_bin)
+  {
+    assert(typeId == NdbSqlUtil::Type::Char ||
+           typeId == NdbSqlUtil::Type::Varchar ||
+           typeId == NdbSqlUtil::Type::Longvarchar);
+
+    // Fixed length char need trailing spaces to be stripped if NO_PAD
+    if (typeId == NdbSqlUtil::Type::Char)
+      srcLen = cs->cset->lengthsp(cs, reinterpret_cast<const char*>(src), srcLen);
+
+    // Hash the string using the collations hash function.
+    uint64 hash = 0, n2 = 0;
+    (*cs->coll->hash_sort)(cs, src, srcLen, &hash, &n2);
+
+    if (verify_hash_only_usage)  //Debug only
+      hash = 0;
+
+    // Store the hash as part of the normalized hash string:
+    if (likely(sizeof(hash) <= bufLen))
+    {
+      memcpy(dst, &hash, sizeof(hash));
+      return sizeof(hash);
+    }
+  }
+  /**
+   * Need to be bug- and feature-compatible with older collations.
+   * Produce the fully xfrm'ed and space padded string.
+   * May unfortunately become quite huge, adding significant
+   * overhead when later md5_hash'ing (the space padding)
+   */
+  else if (likely(cs->strxfrm_multiply > 0))
+  {
+    /**
+     * Old transformation, pre-8.0 unicode-9.0 charset:
+     *
+     * Varchar end-spaces are ignored in comparisons.  To get same hash
+     * we blank-pad to maximum 'dstLen' via strnxfrm.
+     */
+    const Uint32 dstLen = cs->strxfrm_multiply * maxLen;
+
+    // Sufficient buffer space should always be provided.
+    if (likely(dstLen <= bufLen))
+    {
+      return strnxfrm_bug7284(cs, dst, dstLen, src, srcLen);
+    }
+  }
+
+  // Fall through, should never happen
+  return -1;
+}
+
+/**
+ * Get maximum length needed by the xfrm'ed string
+ * as produced by strnxfrm_hash().
+ *
+ *  cs:     The Character set definition
+ *  maxLen: The maximim (padded) length of the string
+ */
+Uint32
+NdbSqlUtil::strnxfrm_hash_len(const CHARSET_INFO* cs,
+                              unsigned maxLen)
+{
+  if (cs->pad_attribute == NO_PAD && cs != &my_charset_bin)
+  {
+    //The hash_sort() value, see strnxfrm_hash
+    return sizeof(uint64);
+  }
+  else if (likely(cs->strxfrm_multiply > 0))
+  {
+    // The full space-padded string will be produced
+    return cs->strxfrm_multiply * maxLen;
+  }
+
+  // Fall through, should never happen.
+  return 0;
 }
 
 #if defined(WORDS_BIGENDIAN) || defined (VM_TRACE)
@@ -1102,8 +1253,8 @@ void determineParams(Uint32 typeId,
       convLen = 1;
       break;
     }
-    // Fall through for Blob v2
   }
+  // Fall through - for Blob v2
   default:
     /* Default determined by meta-info */
     convSize = 1 << typeLog2Size;
@@ -1579,7 +1730,7 @@ NdbSqlUtil::pack_timestamp2(const Timestamp2& s, uchar* d, uint prec)
   pack_bigendian(f, &d[4], flen);
 }
 
-#ifdef TEST_NDB_SQL_UTIL
+#ifdef TEST_NDBSQLUTIL
 
 /*
  * Before using the pack/unpack test one must verify correctness
@@ -1591,6 +1742,7 @@ NdbSqlUtil::pack_timestamp2(const Timestamp2& s, uchar* d, uint prec)
 #include <ndb_rand.h>
 #include <NdbOut.hpp>
 #include <NdbEnv.h>
+#include <NdbHost.h>
 
 #define chk1(x) \
   do { if (x) break; ndbout << "line " << __LINE__ << ": " << #x << endl; \
@@ -2025,7 +2177,7 @@ testmain()
     ll0("random seed: loop number");
   else {
     if (seed < 0)
-      seed = getpid();
+      seed = NdbHost_GetProcessId();
     ll0("random seed " << seed);
     ndb_srand(seed);
   }

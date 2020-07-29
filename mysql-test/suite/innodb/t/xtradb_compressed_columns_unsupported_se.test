@@ -1,5 +1,3 @@
---source include/have_innodb.inc
-
 --echo # Defining compression dictionary content.
 SET @dictionary_data = 'one' 'two' 'three' 'four';
 

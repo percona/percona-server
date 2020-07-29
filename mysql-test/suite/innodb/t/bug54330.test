@@ -1,14 +1,8 @@
 # Testcase for MySQL bug #54330 - broken fast index creation
 
---source include/have_innodb.inc
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
 CREATE TABLE t1 (
-       id BIGINT(20) AUTO_INCREMENT PRIMARY KEY,
-       bar BIGINT(20)
+       id BIGINT AUTO_INCREMENT PRIMARY KEY,
+       bar BIGINT
 ) ENGINE=InnoDB;
 
 --disable_query_log

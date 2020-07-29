@@ -1,4 +1,5 @@
-/* Copyright (c) 2015-2016 Percona LLC and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015-2016 Percona LLC and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -17,8 +18,8 @@
 #ifndef AUDIT_LOG_H_INCLUDED
 #define AUDIT_LOG_H_INCLUDED
 
-#include <mysql/plugin.h>
-#include <m_ctype.h>
+#include <atomic>
+#include "mysql/psi/psi_memory.h"
 
 extern PSI_memory_key key_memory_audit_log_logger_handle;
 extern PSI_memory_key key_memory_audit_log_handler;
@@ -26,18 +27,8 @@ extern PSI_memory_key key_memory_audit_log_buffer;
 extern PSI_memory_key key_memory_audit_log_accounts;
 extern PSI_memory_key key_memory_audit_log_databases;
 extern PSI_memory_key key_memory_audit_log_commands;
-extern int64 audit_log_buffer_size_overflow;
+extern std::atomic<uint64_t> audit_log_buffer_size_overflow;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
-
-#ifdef __cplusplus
-}
-#endif
-
-#define AUDIT_LOG_PSI_CATEGORY "audit_log"
+static const constexpr auto AUDIT_LOG_PSI_CATEGORY = "audit_log";
 
 #endif /* AUDIT_LOG_H_INCLUDED */

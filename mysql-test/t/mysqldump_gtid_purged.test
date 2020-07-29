@@ -1,7 +1,5 @@
 # PS-6112: Inconsistent Binlog_snapshot_gtid when mysqldump used with --single-transaction
 
---source include/have_innodb.inc
---source include/not_embedded.inc
 --source include/have_debug_sync.inc
 
 # mysqldump supports start-sql-file/finish-sql-file options needed for MTR only in debug build

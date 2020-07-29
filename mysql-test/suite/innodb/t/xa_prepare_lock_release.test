@@ -3,8 +3,8 @@
 --echo # ISOLATION [XA PREPARE]
 --echo #
 
---source include/have_innodb.inc
 --source include/have_debug.inc
+--source include/have_debug_sync.inc
 --source include/count_sessions.inc
 
 CREATE TABLE t1 (col1 INT PRIMARY KEY, col2 int);
@@ -21,9 +21,11 @@ UPDATE t1 SET col2 = 100 where col1 = 10;
 
 connect (con1,localhost,root);
 --echo Connection: con1
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL con1_will_wait';
 --send INSERT INTO t1 values(10, 100)
 
 connection default;
+SET DEBUG_SYNC = 'now WAIT_FOR con1_will_wait';
 --echo Connection: default
 XA END 'lock_trx';
 XA PREPARE 'lock_trx';

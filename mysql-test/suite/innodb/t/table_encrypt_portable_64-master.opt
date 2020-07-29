@@ -1,0 +1,3 @@
+$KEYRING_PLUGIN_EARLY_LOAD
+--loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring
+$KEYRING_PLUGIN_OPT

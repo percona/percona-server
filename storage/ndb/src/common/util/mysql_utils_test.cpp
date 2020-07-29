@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -22,12 +22,14 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "my_global.h"
+#ifdef TEST_MYSQL_UTILS_TEST
+
 #include <string.h> // not using namespaces yet
 #include <stdio.h> // not using namespaces yet
 #include <stdlib.h> // not using namespaces yet
 
 #include <util/NdbTap.hpp>
+#include <util/BaseString.hpp>
 
 #include "dbug_utils.hpp"
 #include "decimal_utils.hpp"
@@ -81,7 +83,17 @@ int test_dbug_utils()
     s = dbugExplain(buffer, DBUG_BUF_SIZE);
     CHECK(!s || !strcmp(s, s1));
 
-    const char * const s2 = "d,somename:o,/tmp/somepath";
+    /* Build dbug string honoring setting of TMPDIR
+       using the format "d,somename:o,<TMPDIR>/somepath"
+     */
+    BaseString tmp("d,somename:o,");
+    const char* tmpd = getenv("TMPDIR");
+    if(tmpd)
+      tmp.append(tmpd);
+    else
+      tmp.append("/tmp");
+    tmp.append("/somepath");
+    const char * const s2 = tmp.c_str();
     dbugPush(s2);
     s = dbugExplain(buffer, DBUG_BUF_SIZE);
     CHECK(!s || !strcmp(s, s2));
@@ -243,7 +255,7 @@ int test_charset_map()
     lengths[1] = 4;
     CharsetMap::RecodeStatus rr3 = csmap.recode(lengths, latin1_num, utf8_num,
                                                 my_word_latin1, result_buff_too_small);
-    printf("Recode Test 3 - too-small buffer: %d %d %d \"%s\" => \"%s\" \n",
+    printf("Recode Test 3 - too-small buffer: %d %d %d \"%s\" => \"%.4s\" \n",
            rr3, lengths[0], lengths[1], my_word_latin1, result_buff_too_small);
     CHECK(rr3 == CharsetMap::RECODE_BUFF_TOO_SMALL);
     CHECK(lengths[0] == 3);
@@ -315,3 +327,5 @@ int main(int argc, const char** argv)
     // TAP: print summary report and return exit status
     return exit_status();
 }
+
+#endif

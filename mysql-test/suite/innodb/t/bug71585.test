@@ -1,5 +1,3 @@
---source include/have_innodb.inc
-
 # Testcase for http://bugs.mysql.com/bug.php?id=71585:
 # second UPDATE statement causes
 # InnoDB: Assertion failure in thread 140299335526144 in file row0upd.c line 1793

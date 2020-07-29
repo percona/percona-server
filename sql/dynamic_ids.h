@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,18 +21,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef DYNAMIC_ID_H
-
 #define DYNAMIC_ID_H
 
-#include <my_sys.h>
-#include <sql_string.h>
+#include <sys/types.h>
+
 #include "prealloced_array.h"
 
-class Server_ids
-{
-public:
+class String;
+
+class Server_ids {
+ public:
   Server_ids();
-  ~Server_ids() { };
+  ~Server_ids() {}
 
   Prealloced_array<ulong, 16> dynamic_ids;
 

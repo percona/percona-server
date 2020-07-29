@@ -2,9 +2,7 @@
 # This feature allows user to control what action server takes if corrupt
 # table is found.
 
---source include/have_innodb.inc
 --source include/have_debug.inc
-
 
 #------------------------------------------------------------------------------
 #

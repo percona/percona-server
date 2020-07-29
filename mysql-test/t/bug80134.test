@@ -4,9 +4,6 @@
 # Setting sort_buffer_size to a very large value could cause some operations
 # to fail with an out-of-memory error.
 #
---source include/not_embedded.inc
---source include/have_utf8mb4.inc
-
 call mtr.add_suppression("option 'sort_buffer_size': unsigned value [0-9]+ adjusted to [0-9]+");
 call mtr.add_suppression("Out of memory \\(Needed [0-9]+ bytes\\)");
 

@@ -132,10 +132,9 @@ class Rdb_compact_filter : public rocksdb::CompactionFilter {
 
     struct Rdb_index_info index_info;
     if (!rdb_get_dict_manager()->get_index_info(gl_index_id, &index_info)) {
-      // NO_LINT_DEBUG
-      sql_print_error(
-          "RocksDB: Could not get index information "
-          "for Index Number (%u,%u)",
+      LogPluginErrMsg(
+          ERROR_LEVEL, 0,
+          "Could not get index information for Index Number (%u,%u)",
           gl_index_id.cf_id, gl_index_id.index_id);
     }
 
@@ -163,11 +162,10 @@ class Rdb_compact_filter : public rocksdb::CompactionFilter {
       std::string buf;
       buf = rdb_hexdump(existing_value.data(), existing_value.size(),
                         RDB_MAX_HEXDUMP_LEN);
-      // NO_LINT_DEBUG
-      sql_print_error(
-          "Decoding ttl from PK value failed in compaction filter, "
-          "for index (%u,%u), val: %s",
-          m_prev_index.cf_id, m_prev_index.index_id, buf.c_str());
+      LogPluginErrMsg(ERROR_LEVEL, 0,
+                      "Decoding ttl from PK value failed in compaction filter, "
+                      "for index (%u,%u), val: %s",
+                      m_prev_index.cf_id, m_prev_index.index_id, buf.c_str());
       abort();
     }
 

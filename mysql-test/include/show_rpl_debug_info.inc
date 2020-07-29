@@ -23,6 +23,7 @@
 # [--let $rpl_only_current_connection= 1]
 # [--let $extra_debug_info= some text]
 # [--let $extra_debug_eval= expression parsable by include/eval.inc]
+# [--let $extra_debug_table= DB.TABLE]
 # --source include/show_rpl_debug_info.inc
 #
 # Parameters:
@@ -31,6 +32,9 @@
 #     with the current connection. If this variable is set, debug
 #     info is printed only for the current connection.
 #
+#   $crash_after_show_rpl_debug_info
+#     Crash all servers at the end (using include/dbug_crash_all.inc)
+#
 #   $extra_debug_info
 #     This text is printed verbatim to the output. Useful for helper
 #     scripts to supply extra diagnostic output.
@@ -38,6 +42,10 @@
 #   $extra_debug_eval
 #     Expression in the form expected by include/eval.inc, which will
 #     be evaluated and printed to the output.
+#
+#   $extra_debug_table
+#     Fully qualified table name. The script will run SELECT * FROM $table
+#     on this table, if given.
 #
 # ==== Side effects ====
 #
@@ -92,7 +100,7 @@ while ($_rpl_server)
   --echo
   --echo **** GTID_* on $CURRENT_CONNECTION ****
   query_vertical
-  SELECT @@GLOBAL.GTID_MODE, @@GLOBAL.GTID_EXECUTED, @@GLOBAL.GTID_PURGED, @@GLOBAL.GTID_OWNED, @@SESSION.GTID_EXECUTED, @@SESSION.GTID_OWNED;
+  SELECT @@GLOBAL.GTID_MODE, @@GLOBAL.GTID_EXECUTED, @@GLOBAL.GTID_PURGED, @@GLOBAL.GTID_OWNED, @@SESSION.GTID_OWNED;
   --echo
   --echo **** SHOW SLAVE STATUS on $CURRENT_CONNECTION ****
   query_vertical
@@ -111,6 +119,10 @@ while ($_rpl_server)
     --echo **** replication_group_member_stats on $CURRENT_CONNECTION ****
     query_vertical
     SELECT * FROM performance_schema.replication_group_member_stats;
+    --echo
+    --echo **** group replication stages on $CURRENT_CONNECTION ****
+    query_vertical
+    SELECT * FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";
   }
   --echo
   --echo **** replication_applier_status on $CURRENT_CONNECTION ****
@@ -124,6 +136,10 @@ while ($_rpl_server)
   --echo **** replication_applier_status_by_coordinator on $CURRENT_CONNECTION ****
   query_vertical
   SELECT * FROM performance_schema.replication_applier_status_by_coordinator;
+  --echo
+  --echo **** replication_applier_configuration on $CURRENT_CONNECTION ****
+  query_vertical
+  SELECT * FROM performance_schema.replication_applier_configuration;
   --echo
   --echo **** SHOW MASTER STATUS on $CURRENT_CONNECTION ****
   query_vertical
@@ -161,6 +177,14 @@ while ($_rpl_server)
   --echo **** mysql.gtid_executed on $CURRENT_CONNECTION ****
   SELECT * FROM mysql.gtid_executed;
 
+  if ($extra_debug_table)
+  {
+    --echo
+    --echo **** $extra_debug_table ****
+    eval SHOW CREATE TABLE $extra_debug_table;
+    eval SELECT * FROM $extra_debug_table;
+  }
+
   --let $_rpl_is_first_server= 0
   --dec $_rpl_server
   # Don't use same connection twice.
@@ -182,7 +206,13 @@ if ($extra_debug_eval)
 {
   --let $eval_expr= $extra_debug_eval
   --source include/eval.inc
+  --echo extra evaluated debug expression: '$extra_debug_eval'
   --echo extra evaluated debug info: '$eval_result'
+}
+
+if ($crash_after_show_rpl_debug_info)
+{
+ --source include/dbug_crash_all.inc
 }
 
 --connection $_rpl_old_con

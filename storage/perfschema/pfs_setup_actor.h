@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -17,8 +17,8 @@
   GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef PFS_SETUP_ACTOR_H
 #define PFS_SETUP_ACTOR_H
@@ -28,37 +28,42 @@
   Performance schema setup actors (declarations).
 */
 
-#include "sql_string.h"
-#include "pfs_lock.h"
+#include <sys/types.h>
+
 #include "lf.h"
+#include "my_hostname.h" /* HOSTNAME_LENGTH */
+#include "mysql_com.h"
+#include "sql_string.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_lock.h"
 
 struct PFS_global_param;
+struct PFS_thread;
 class PFS_opaque_container_page;
 
 /* WL#988 Roles Not implemented yet */
 #define ROLENAME_LENGTH 64
 
 /**
-  @addtogroup Performance_schema_buffers
+  @addtogroup performance_schema_buffers
   @{
 */
 
 /** Hash key for @sa PFS_setup_actor. */
-struct PFS_setup_actor_key
-{
+struct PFS_setup_actor_key {
   /**
     Hash search key.
-    This has to be a string for LF_HASH,
-    the format is "<username><0x00><hostname><0x00><rolename><0x00>"
+    This has to be a string for @c LF_HASH,
+    the format is @c "<username><0x00><hostname><0x00><rolename><0x00>"
   */
-  char m_hash_key[USERNAME_LENGTH + 1 + HOSTNAME_LENGTH + 1 + ROLENAME_LENGTH + 1];
+  char m_hash_key[USERNAME_LENGTH + 1 + HOSTNAME_LENGTH + 1 + ROLENAME_LENGTH +
+                  1];
   /** Length of @c m_hash_key. */
   uint m_key_length;
 };
 
 /** A setup_actor record. */
-struct PFS_ALIGNED PFS_setup_actor
-{
+struct PFS_ALIGNED PFS_setup_actor {
   /** Internal lock. */
   pfs_lock m_lock;
   /** Hash key. */
@@ -95,10 +100,9 @@ int delete_setup_actor(const String *user, const String *host,
 int reset_setup_actor(void);
 long setup_actor_count(void);
 
-void lookup_setup_actor(PFS_thread *thread,
-                        const char *user, uint user_length,
-                        const char *host, uint host_length,
-                        bool *enabled, bool *history);
+void lookup_setup_actor(PFS_thread *thread, const char *user, uint user_length,
+                        const char *host, uint host_length, bool *enabled,
+                        bool *history);
 
 /** Update derived flags for all setup_actors. */
 int update_setup_actors_derived_flags();
@@ -109,4 +113,3 @@ extern LF_HASH setup_actor_hash;
 
 /** @} */
 #endif
-

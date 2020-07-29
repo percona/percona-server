@@ -1,0 +1,105 @@
+#
+# Bug #24843257: CURRENT_ROLE(), ROLES_GRAPHML() RETURN VALUE
+#   HAS INCORRECT CHARACTER SET
+# Expect system charset for empty
+SELECT CHARSET(CURRENT_ROLE()) = @@character_set_system;
+CHARSET(CURRENT_ROLE()) = @@character_set_system
+1
+SELECT CHARSET(ROLES_GRAPHML()) = @@character_set_system;
+CHARSET(ROLES_GRAPHML()) = @@character_set_system
+1
+# Expect blobs
+CREATE TABLE t1 AS
+SELECT CURRENT_ROLE() AS CURRENT_ROLE, ROLES_GRAPHML() AS ROLES_GRAPHML;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `CURRENT_ROLE` longtext CHARACTER SET utf8,
+  `ROLES_GRAPHML` longtext CHARACTER SET utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+# create some roles
+CREATE ROLE r1;
+GRANT r1 TO root@localhost;
+SET ROLE r1;
+# Expect system charset for actual content
+SELECT CHARSET(CURRENT_ROLE()) = @@character_set_system;
+CHARSET(CURRENT_ROLE()) = @@character_set_system
+1
+SELECT CHARSET(ROLES_GRAPHML()) = @@character_set_system;
+CHARSET(ROLES_GRAPHML()) = @@character_set_system
+1
+# cleanup
+SET ROLE DEFAULT;
+REVOKE r1 FROM root@localhost;
+DROP ROLE r1;
+#
+# Bug #28953158: DROP ROLE USERNAME SHOULD BE REJECTED
+#
+CREATE USER uu@localhost, u1@localhost;
+CREATE ROLE r1;
+GRANT CREATE ROLE, DROP ROLE ON *.* TO uu@localhost;
+SHOW GRANTS;
+Grants for uu@localhost
+GRANT CREATE ROLE, DROP ROLE ON *.* TO `uu`@`localhost`
+# connected as uu
+# test result: must fail
+DROP USER u1@localhost;
+ERROR 42000: Access denied; you need (at least one of) the CREATE USER privilege(s) for this operation
+# test result: must fail
+DROP ROLE u1@localhost;
+ERROR 42000: Access denied; you need (at least one of) the CREATE USER privilege(s) for this operation
+# test result: must pass
+DROP ROLE r1;
+# Cleanup
+DROP USER uu@localhost, u1@localhost;
+#
+# Bug#28395115: permission denied if grants are given through role
+#
+CREATE DATABASE my_db;
+CREATE table my_db.t1 (id int primary key);
+CREATE ROLE my_role;
+CREATE USER my_user, foo@localhost, baz@localhost;
+GRANT ALL ON *.* to my_role, foo@localhost;
+GRANT EXECUTE ON *.* TO my_user, baz@localhost;
+GRANT my_role TO my_user, baz@localhost;
+SET DEFAULT ROLE my_role TO my_user;
+CREATE DEFINER=foo@localhost PROCEDURE my_db.foo_proc()
+BEGIN
+INSERT into my_db.t1 values(2) on duplicate key UPDATE id = values(id) + 200;
+END $$
+CREATE DEFINER=baz@localhost PROCEDURE my_db.baz_proc()
+BEGIN
+set ROLE all;
+INSERT into my_db.t1 values(4) on duplicate key UPDATE id = values(id) + 400;
+END $$
+INSERT into my_db.t1 values(5);
+# Inserts are now allowed if grants are given through role
+INSERT into my_db.t1 values(8) on duplicate key UPDATE id = values(id) + 800;
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+CALL my_db.foo_proc();
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+CALL my_db.baz_proc();
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+# Now revoke all privileges from the roles and user
+REVOKE ALL ON *.* FROM my_role;
+REVOKE ALL ON *.* FROM foo@localhost;
+GRANT EXECUTE ON *.* TO foo@localhost;
+# The SQL opperations must fail with existing connection.
+INSERT into my_db.t1 values(10);
+ERROR 42000: INSERT command denied to user 'my_user'@'localhost' for table 't1'
+CALL my_db.baz_proc();
+ERROR 42000: INSERT, UPDATE command denied to user 'baz'@'localhost' for table 't1'
+CALL my_db.foo_proc();
+ERROR 42000: INSERT, UPDATE command denied to user 'foo'@'localhost' for table 't1'
+# Cleanup
+DROP DATABASE my_db;
+DROP USER my_user;
+DROP USER foo@localhost, baz@localhost;
+DROP ROLE my_role;
+
+# End of 8.0 tests
+

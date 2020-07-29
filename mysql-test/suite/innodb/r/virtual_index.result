@@ -19,8 +19,6 @@ DROP TABLE t1;
 # OFFSETS)
 #
 SET @@SESSION.sql_mode=0;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(
 c1 int(1)AUTO_INCREMENT,
 c2 int(1),
@@ -39,6 +37,11 @@ c14 CHAR(2)GENERATED ALWAYS AS (concat(c13,'x')) VIRTUAL,
 PRIMARY KEY(c1),
 KEY c4_6(c4,c11)
 )ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2(
 c1 int(1)AUTO_INCREMENT,
 c2 int(1),
@@ -60,6 +63,11 @@ PRIMARY KEY(c1),
 KEY c13(c13),
 KEY c4_6(c4,c11)
 )ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2(c1,c2,c5,c7,c8,c12)VALUES (0,0,0,0,0,'v');
 CREATE TABLE t3(
 c1 int(1)AUTO_INCREMENT,
@@ -75,6 +83,11 @@ c12 CHAR(1),
 PRIMARY KEY(c1),
 KEY c4_6(c4,c11)
 )ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3(c1,c2,c5,c7,c8,c12)VALUES
 (0,0,0,0,0,'q'),(0,0,0,0,0,'g'),(0,0,0,0,0,'l'),(0,0,0,0,0,1),(0,0,0,0,0,'v'),
 (0,1,0,0,0,'c'),(0,0,0,0,0,'x');
@@ -116,6 +129,9 @@ KEY `vbidxcol_2` (`vbidxcol`),
 FULLTEXT KEY `ftsic` (`c`,`b`)
 ) ENGINE=InnoDB;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1831	Duplicate index 'vbidxcol_2' defined on the table 'test.ibstd_08'. This is deprecated and will be disallowed in a future release.
 ALTER TABLE ibstd_08  ADD COLUMN nc07006 BIGINT  AUTO_INCREMENT NOT NULL  , ADD KEY auto_nc07006(nc07006);
 Warnings:
@@ -126,8 +142,6 @@ DROP TABLE ibstd_08;
 # AND SEGFAULT
 #
 set sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t (a int) engine=innodb;
 create table s (
 b int generated always as (1) virtual,
@@ -180,6 +194,29 @@ KEY idx11 (col6x DESC),
 KEY idx6 (col9(10) DESC,col7 DESC),
 KEY idx14 (col6 DESC)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 ADD COLUMN col7a INT GENERATED ALWAYS AS (col5x % col6x)
 VIRTUAL, ADD FULLTEXT KEY ftidx ( col9 ), algorithm=inplace;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: INPLACE ADD or DROP of virtual columns cannot be combined with other ALTER TABLE actions. Try ALGORITHM=COPY.
@@ -188,26 +225,120 @@ Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 ALTER TABLE t1 ADD COLUMN col7a INT GENERATED ALWAYS AS (col5x % col6x)
 VIRTUAL, ADD FULLTEXT KEY ftidx ( col9 ), algorithm=inplace;
+Warnings:
+Warning	1831	Duplicate index 'ftidx' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 DROP TABLE t1;
 CREATE TABLE t1 (
 col1 int(11) NOT NULL,
 col2 int(11) DEFAULT NULL,
 col3 int(11) NOT NULL,
 col4 int(11) DEFAULT NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 ADD COLUMN col7a INT GENERATED ALWAYS AS (col1 % col2)
 VIRTUAL, ADD UNIQUE index idx (col1), algorithm=inplace;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: INPLACE ADD or DROP of virtual columns cannot be combined with other ALTER TABLE actions. Try ALGORITHM=COPY.
 DROP TABLE t1;
-#
-# Bug 27122803 - BACKPORT FIX FOR BUG 25899959 TO MYSQL-5.7
-#
-CREATE TABLE t1 (col1 int(10)) DEFAULT CHARSET=utf8mb4;
-ALTER TABLE t1 ADD col2 char(21) AS (col1 * col1), ADD INDEX n (col2);
+CREATE TABLE t1 (
+col1 int(11) NOT NULL,
+col2 int(11) DEFAULT NULL,
+col3 int(11) NOT NULL,
+col4 int(11) DEFAULT NULL,
+col5 int(11) GENERATED ALWAYS AS ((col2 - col4)) VIRTUAL,
+col6 int(11) GENERATED ALWAYS AS ((col5 + col1)) VIRTUAL,
+col7 bigint(20) GENERATED ALWAYS AS ((col2 / col1)) VIRTUAL,
+col8 int(11) GENERATED ALWAYS AS ((col5 % col5)) VIRTUAL,
+col9 text,
+KEY idx1 (col5 DESC),
+KEY idx2 (col6)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(10) DEFAULT NULL,
-  `col2` char(21) GENERATED ALWAYS AS ((`col1` * `col1`)) VIRTUAL,
-  KEY `n` (`col2`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` int NOT NULL,
+  `col4` int DEFAULT NULL,
+  `col5` int GENERATED ALWAYS AS ((`col2` - `col4`)) VIRTUAL,
+  `col6` int GENERATED ALWAYS AS ((`col5` + `col1`)) VIRTUAL,
+  `col7` bigint GENERATED ALWAYS AS ((`col2` / `col1`)) VIRTUAL,
+  `col8` int GENERATED ALWAYS AS ((`col5` % `col5`)) VIRTUAL,
+  `col9` text,
+  KEY `idx1` (`col5` DESC),
+  KEY `idx2` (`col6`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1(col1, col2, col3, col4, col9) VALUES (10, 50, 40, 300, "lope");
+INSERT INTO t1(col1, col2, col3, col4, col9) VALUES (100, 3240, 4000, 11, "dskf");
+INSERT INTO t1(col1, col2, col3, col4, col9) VALUES (5, 400, 20, 900, "hqal");
+SELECT * FROM t1;
+col1	col2	col3	col4	col5	col6	col7	col8	col9
+10	50	40	300	-250	-240	5	0	lope
+100	3240	4000	11	3229	3329	32	0	dskf
+5	400	20	900	-500	-495	80	0	hqal
+SELECT col5 FROM t1;
+col5
+3229
+-250
+-500
+SELECT col6 FROM t1;
+col6
+-495
+-240
+3329
+SELECT col7 FROM t1;
+col7
+5
+32
+80
+ALTER TABLE t1 ADD INDEX idx3 (col7 DESC);
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT col7 FROM t1;
+col7
+80
+32
+5
+SELECT col7 FROM t1;
+col7
+80
+32
+5
+ALTER TABLE t1 DROP INDEX idx3, ADD INDEX idx3 (col7 ASC);
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT col7 FROM t1;
+col7
+5
+32
+80
+DROP TABLE t1;
+#
+# Bug 25899959 - SERVER CRASH WHILE TRYING TO ADD A VIRTUAL COLUMN AND ADD INDEX ON IT
+#
+CREATE TABLE t1 (doc json DEFAULT NULL);
+ALTER TABLE t1 ADD Name char(52) AS (doc->>"$.Name"), ADD INDEX n (Name);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `doc` json DEFAULT NULL,
+  `Name` char(52) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.Name'))) VIRTUAL,
+  KEY `n` (`Name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;

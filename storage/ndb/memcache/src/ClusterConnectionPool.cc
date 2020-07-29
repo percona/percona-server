@@ -1,6 +1,5 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
- reserved.
+ Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -20,16 +19,12 @@
 
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- 02110-1301  USA
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include <my_config.h>
+#include "my_config.h"
 #include <stdio.h>
 #include <assert.h>
-
-/* C++ files must define __STDC_FORMAT_MACROS in order to get PRIu64 */
-#define __STDC_FORMAT_MACROS 
 #include <inttypes.h>
 #include <pthread.h>
 
@@ -163,6 +158,16 @@ ClusterConnectionPool::~ClusterConnectionPool() {
 }
 
 
+/* setMainConnection()
+*/
+void ClusterConnectionPool::setMainConnection(Ndb_cluster_connection *c) {
+  main_conn = c;
+  pool_size = 1;
+  pool_connections[0] = c;
+  c->set_service_uri("memcache", NULL, 0, "");
+}
+
+
 /* addPooledConnection() 
 */
 Ndb_cluster_connection * ClusterConnectionPool::addPooledConnection() {
@@ -175,6 +180,9 @@ Ndb_cluster_connection * ClusterConnectionPool::addPooledConnection() {
   
   if(conn && conn->node_id()) {
     pool_connections[pool_size++] = conn;
+    char uri_query_buff[32];
+    snprintf(uri_query_buff, sizeof(uri_query_buff), "?connection=%d", pool_size);
+    conn->set_service_uri("memcache", NULL, 0, uri_query_buff);
   }
   else {
     logger->log(LOG_WARNING, 0, "   Failed to grow connection pool.\n");

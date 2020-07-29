@@ -82,7 +82,7 @@ send replace into t values (1);
 # sub-transactions inherit lockability from their parent but still maintain
 # their own independent lock.  This can be seen/verified by removing the
 # column masking of the transaction Ids.
---echo should find the presence of lock(s) on 1st transactioni
+--echo should find the presence of lock(s) on 1st transaction
 connection default;
 let $wait_condition= select count(*)=1 from information_schema.processlist where info='replace into t values (1)' and state='update';
 source include/wait_condition.inc;

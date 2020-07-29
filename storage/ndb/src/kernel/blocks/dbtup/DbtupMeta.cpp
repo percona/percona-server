@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,9 @@
 #include <signaldata/CreateTable.hpp>
 #include <signaldata/CreateTab.hpp>
 #include <signaldata/TupFrag.hpp>
+#include <signaldata/FsOpenReq.hpp>
+#include <signaldata/FsReadWriteReq.hpp>
+#include <signaldata/FsCloseReq.hpp>
 #include <signaldata/FsRef.hpp>
 #include <signaldata/FsConf.hpp>
 #include <signaldata/FsRemoveReq.hpp>
@@ -42,15 +45,42 @@
 #include <signaldata/CreateFilegroupImpl.hpp>
 #include <AttributeDescriptor.hpp>
 #include "AttributeOffset.hpp"
-#include <my_sys.h>
+#include "my_sys.h"
 #include <signaldata/LqhFrag.hpp>
 #include <signaldata/AttrInfo.hpp>
+#include "../dblqh/Dblqh.hpp"
+#include <backup/BackupFormat.hpp>
+#include <backup/Backup.hpp>
 
 #include <EventLogger.hpp>
 
 #define JAM_FILE_ID 424
 
 extern EventLogger * g_eventLogger;
+
+#ifdef VM_TRACE
+//#define DEBUG_TUP_META 1
+//#define DEBUG_TUP_META_EXTRA 1
+//#define DEBUG_DROP_TAB 1
+#endif
+
+#ifdef DEBUG_DROP_TAB
+#define DEB_DROP_TAB(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_DROP_TAB(arglist) do { } while (0)
+#endif
+
+#ifdef DEBUG_TUP_META
+#define DEB_TUP_META(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_TUP_META(arglist) do { } while (0)
+#endif
+
+#ifdef DEBUG_TUP_META_EXTRA
+#define DEB_TUP_META_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_TUP_META_EXTRA(arglist) do { } while (0)
+#endif
 
 void
 Dbtup::execCREATE_TAB_REQ(Signal* signal)
@@ -255,7 +285,10 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
       goto error;
     }      
     AttributeOffset::setNullFlagPos(attrDes2, null_pos);
-  } else {
+  }
+  else
+  {
+    jam();
     /* A dynamic attribute. */
     ndbrequire(ind==MM);
     regTabPtr.p->m_attributes[ind].m_no_of_dynamic++;
@@ -275,6 +308,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
       jam();
       if (AttributeDescriptor::getSize(attrDescriptor)==0)
       {
+        jam();
         /**
          * Bit type. These are stored directly in the bitmap.
          * This means that we will still use some space for a dynamic NULL
@@ -312,6 +346,12 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
       regTabPtr.p->m_attributes[ind].m_no_of_dyn_var++;
       regTabPtr.p->m_dyn_null_bits[ind]++;
     }
+    if (null_pos > AO_NULL_FLAG_POS_MASK)
+    {
+      jam();
+      terrorCode = ZTOO_MANY_BITS_ERROR;
+      goto error;
+    }
     AttributeOffset::setNullFlagPos(attrDes2, null_pos);
 
     ndbassert((regTabPtr.p->m_attributes[ind].m_no_of_dyn_var +
@@ -333,7 +373,10 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   }
 
   if (!receive_defvalue(signal, regTabPtr))
+  {
+    jam();
     goto error;
+  }
 
   if ((ERROR_INSERTED(4032) && (attrId == 0)) ||
       (ERROR_INSERTED(4033) && lastAttr))
@@ -427,7 +470,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
     /* Allocate  dynamic descriptors. */
     for (Uint32 i = 0; i < NO_DYNAMICS; ++i)
     {
-
+      jam();
       Uint32 offset[3];
       Uint32 allocSize= getDynTabDescrOffsets(
                           (regTabPtr.p->m_dyn_null_bits[i]+31)>>5,
@@ -450,61 +493,6 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
     jam();
     goto error;
   }
-
-#if 0
-  ndbout << *regTabPtr.p << endl;
-  Uint32 idx= regTabPtr.p->tabDescriptor;
-  for(Uint32 i = 0; i<regTabPtr.p->m_no_of_attributes; i++)
-  {
-    ndbout << i << ": " << endl;
-    ndbout << *(AttributeDescriptor*)(tableDescriptor+idx) << endl;
-    ndbout << *(AttributeOffset*)(tableDescriptor+idx+1) << endl;
-    idx += 2;
-  }
-#endif
-  
-#if SYNC_TABLE
-  if (regTabPtr.p->m_no_of_disk_attributes)
-  {
-    jam();
-    if(!(getNodeState().startLevel == NodeState::SL_STARTING && 
-	 getNodeState().starting.startPhase <= 4))
-    {
-      CallbackPtr cb;
-      jam();
-
-      cb.m_callbackData= fragOperPtr.i;
-      cb.m_callbackIndex = UNDO_CREATETABLE_CALLBACK;
-      Uint32 sz= sizeof(Disk_undo::Create) >> 2;
-      
-      D("Logfile_client - execTUP_ADD_ATTRREQ");
-      Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
-      if((terrorCode = lgman.alloc_log_space(sz, jamBuffer())))
-      {
-        jamEntry();
-        addattrrefuseLab(signal, regFragPtr, fragOperPtr, regTabPtr.p, fragId);
-        return;
-      }
-      
-      jamEntry();
-      int res= lgman.get_log_buffer(signal, sz, &cb);
-      jamEntry();
-      switch(res){
-      case 0:
-        jam();
-	signal->theData[0] = 1;
-	return;
-      case -1:
-        g_eventLogger->warning("Out of space in RG_DISK_OPERATIONS resource,"
-                              " increase config parameter GlobalSharedMemory");
-	ndbrequire("NOT YET IMPLEMENTED" == 0);
-	break;
-      }
-      execute(signal, cb, regFragPtr.p->m_logfile_group_id);
-      return;
-    }
-  }
-#endif
 
   if (store_default_record(regTabPtr) < 0)
   {
@@ -557,7 +545,10 @@ bool Dbtup::receive_defvalue(Signal* signal, const TablerecPtr& regTabPtr)
   const Uint32 numSections = signal->getNoOfSections();
 
   if (numSections == 0)
+  {
+    jam();
     return true;
+  }
 
   jam();
   SectionHandle handle(this, signal);
@@ -608,15 +599,19 @@ bool Dbtup::receive_defvalue(Signal* signal, const TablerecPtr& regTabPtr)
   {
     if (arrayType == NDB_ARRAYTYPE_FIXED)
     {
+      jam();
       if (defValueBytes != bytes)
       {
+        jam();
         terrorCode = ZBAD_DEFAULT_VALUE_LEN;
       }
     }
     else
     {
+      jam();
       if (defValueBytes > bytes)
       {
+        jam();
         terrorCode = ZBAD_DEFAULT_VALUE_LEN;
       }
     }
@@ -629,8 +624,10 @@ bool Dbtup::receive_defvalue(Signal* signal, const TablerecPtr& regTabPtr)
      * for the 4-byte alignemnt, the space for BIT type occupied 4 bytes at least.
      * yet the bytes of default value can be 1, 2, 3, 4, 5, 6, 7, 8 bytes.
      */
+    jam();
     if (defValueBytes > bytes)
     {
+      jam();
       terrorCode = ZBAD_DEFAULT_VALUE_LEN;
     }
   }
@@ -639,6 +636,7 @@ bool Dbtup::receive_defvalue(Signal* signal, const TablerecPtr& regTabPtr)
 
   if (likely( !terrorCode ))
   {
+    jam();
     dst = cinBuffer;
     
     ndbrequire(r.getWords(dst, defValueWords));
@@ -653,15 +651,17 @@ bool Dbtup::receive_defvalue(Signal* signal, const TablerecPtr& regTabPtr)
       
       if (arrayType == NDB_ARRAYTYPE_SHORT_VAR)
       {
+        jam();
         internalVarSize = 1 + valPtr[0];
       }
       else if (arrayType == NDB_ARRAYTYPE_MEDIUM_VAR)
       {
+        jam();
         internalVarSize = 2 + valPtr[0] + (256 * Uint32(valPtr[1]));
       }
       else
       {
-        ndbrequire(false);
+        ndbabort();
       }
       
       if (unlikely(internalVarSize != defValueBytes))
@@ -685,6 +685,7 @@ bool Dbtup::receive_defvalue(Signal* signal, const TablerecPtr& regTabPtr)
         return true;
       }
     }
+    jam();
     terrorCode = ZMEM_NOMEM_ERROR;
   }
 
@@ -708,6 +709,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   Uint32 fragId         = req->fragId;
   Uint32 tablespace_id  = req->tablespaceid;
   Uint32 changeMask     = req->changeMask;
+  Uint32 partitionId    = req->partitionId;
 
   Uint64 maxRows =
     (((Uint64)req->maxRowsHigh) << 32) + req->maxRowsLow;
@@ -761,17 +763,6 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   }
 
   {
-#ifdef MIN_ROWS_NOT_SUPPORTED
-    Uint32 fix_tupheader = regTabPtr.p->m_offsets[MM].m_fix_header_size;
-    ndbassert(fix_tupheader > 0);
-    Uint32 noRowsPerPage = ZWORDS_ON_PAGE / fix_tupheader;
-    Uint32 noAllocatedPages = (minRows + noRowsPerPage - 1 )/ noRowsPerPage;
-    if (minRows == 0)
-      noAllocatedPages = 2;
-    else if (noAllocatedPages == 0)
-      noAllocatedPages = 2;
-#endif
-
     Uint32 noAllocatedPages = 1; //allocFragPage(regFragPtr.p);
 
     if (noAllocatedPages == 0)
@@ -796,6 +787,8 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
       ERROR_INSERTED(4050))
   {
     jam();
+    releaseFragrec(regFragPtr);
+    remove_frag_from_tab(regTabPtr, fragId);
     CLEAR_ERROR_INSERT_VALUE;
     terrorCode = 1;
     goto sendref;
@@ -804,8 +797,9 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   regFragPtr.p->fragStatus = Fragrecord::FS_ONLINE;
   regFragPtr.p->fragTableId= regTabPtr.i;
   regFragPtr.p->fragmentId= fragId;
+  regFragPtr.p->partitionId= partitionId;
   regFragPtr.p->m_tablespace_id= tablespace_id;
-  regFragPtr.p->m_undo_complete= false;
+  regFragPtr.p->m_undo_complete= 0;
   regFragPtr.p->m_lcp_scan_op = RNIL;
   regFragPtr.p->m_lcp_keep_list_head.setNull();
   regFragPtr.p->m_lcp_keep_list_tail.setNull();
@@ -813,11 +807,28 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   regFragPtr.p->noOfVarPages = 0;
   regFragPtr.p->m_varWordsFree = 0;
   regFragPtr.p->m_max_page_cnt = 0;
+  regFragPtr.p->m_lcp_changed_rows = 0;
   regFragPtr.p->m_free_page_id_list = FREE_PAGE_RNIL;
   ndbrequire(regFragPtr.p->m_page_map.isEmpty());
   regFragPtr.p->m_restore_lcp_id = RNIL;
+  regFragPtr.p->m_restore_local_lcp_id = 0;
   regFragPtr.p->m_fixedElemCount = 0;
+  regFragPtr.p->m_row_count = 0;
+  regFragPtr.p->m_prev_row_count = 0;
+  regFragPtr.p->m_lcp_start_gci = 0;
   regFragPtr.p->m_varElemCount = 0;
+  regFragPtr.p->m_committed_changes = 0;
+  /**
+   * Average row size will be calculated and set at each start of
+   * an LCP. This value is used to calculate the proposed speed of
+   * checkpoints. We initialise it to 200 to ensure that it has
+   * a somewhat sensible value before we can calculate it.
+   *
+   * We can survive some miscalculated numbers before first LCP
+   * is executed.
+   */
+  regFragPtr.p->m_average_row_size = 200;
+
   for (Uint32 i = 0; i<MAX_FREE_LIST+1; i++)
     ndbrequire(regFragPtr.p->free_var_page_array[i].isEmpty());
 
@@ -825,11 +836,27 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   bzero(&rep,sizeof(rep));
   if(regTabPtr.p->m_no_of_disk_attributes)
   {
-    D("Tablespace_client - execTUPFRAGREQ");
-    Tablespace_client tsman(0, this, c_tsman, 0, 0,
-                            regFragPtr.p->m_tablespace_id);
-    ndbrequire(tsman.get_tablespace_info(&rep) == 0);
-    regFragPtr.p->m_logfile_group_id= rep.tablespace.logfile_group_id;
+    {
+      jam();
+      D("Tablespace_client - execTUPFRAGREQ");
+      Tablespace_client tsman(0, this, c_tsman, 0, 0, 0,
+                              regFragPtr.p->m_tablespace_id);
+      ndbrequire(tsman.get_tablespace_info(&rep) == 0);
+      regFragPtr.p->m_logfile_group_id= rep.tablespace.logfile_group_id;
+    }
+    {
+      Page_cache_client pgman(this, c_pgman);
+      int res = pgman.add_fragment(regTabPtr.i, fragId);
+      jamEntry();
+      if (res != 0)
+      {
+        jam();
+        releaseFragrec(regFragPtr);
+        remove_frag_from_tab(regTabPtr, fragId);
+        terrorCode= ZNO_FREE_TAB_ENTRY_ERROR;
+        goto sendref;
+      }
+    }
   }
   else
   {
@@ -938,16 +965,52 @@ bool Dbtup::addfragtotab(Tablerec* const regTabPtr,
   return false;
 }
 
+Uint32
+Dbtup::get_frag_from_tab(TablerecPtr tabPtr, Uint32 fragId)
+{
+  Uint32 fragIndex = RNIL;
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabPtr.p->fragid); i++)
+  {
+    jam();
+    if (tabPtr.p->fragid[i] == fragId)
+    {
+      jam();
+      fragIndex= tabPtr.p->fragrec[i];
+      break;
+    }
+  }
+  return fragIndex;
+}
+
+void
+Dbtup::remove_frag_from_tab(TablerecPtr tabPtr, Uint32 fragId)
+{
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabPtr.p->fragid); i++)
+  {
+    jam();
+    if (tabPtr.p->fragid[i] == fragId)
+    {
+      jam();
+      tabPtr.p->fragid[i] = RNIL;
+      tabPtr.p->fragrec[i] = RNIL;
+      return;
+    }
+  }
+  ndbabort();
+}
+
 void Dbtup::getFragmentrec(FragrecordPtr& regFragPtr,
                            Uint32 fragId,
                            Tablerec* const regTabPtr)
 {
+#if defined(VM_TRACE) || defined(ERROR_INSERT) || defined(EXTRA_JAM)
   EmulatedJamBuffer* const jamBuf = getThrJamBuf();
+#endif
 
   for (Uint32 i = 0; i < NDB_ARRAY_SIZE(regTabPtr->fragid); i++) {
-    thrjam(jamBuf);
+    thrjamDebug(jamBuf);
     if (regTabPtr->fragid[i] == fragId) {
-      thrjam(jamBuf);
+      thrjamDebug(jamBuf);
       regFragPtr.i= regTabPtr->fragrec[i];
       ptrCheckGuard(regFragPtr, cnoOfFragrec, fragrecord);
       return;
@@ -1089,13 +1152,14 @@ Dbtup::execALTER_TAB_REQ(Signal *signal)
   }
   case AlterTabReq::AlterTableReadOnly:
   case AlterTabReq::AlterTableReadWrite:
+    jam();
     signal->theData[0] = 0;
     signal->theData[1] = RNIL;
     return;
   default:
     break;
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -1122,6 +1186,7 @@ Dbtup::handleAlterTablePrepare(Signal *signal,
         regTabPtr->m_attributes[MM].m_no_of_dynamic +
         (regTabPtr->m_bits & Tablerec::TR_ForceVarPart)) == 0)
     {
+      jam();
       sendAlterTabRef(signal, ZINVALID_ALTER_TAB);
       return;
     }
@@ -1213,6 +1278,7 @@ Dbtup::handleAlterTablePrepare(Signal *signal,
       noDynamic++;
       if (arrType==NDB_ARRAYTYPE_FIXED)
       {
+        jam();
         Uint32 words= AttributeDescriptor::getSizeInWords(attrDescriptor);
 
         if(AttributeDescriptor::getSize(attrDescriptor) > 0)
@@ -1305,6 +1371,7 @@ Dbtup::handleAlterTableCommit(Signal *signal,
 {
   if (AlterTableReq::getAddAttrFlag(req->changeMask))
   {
+    jam();
     AlterTabOperationPtr regAlterTabOpPtr;
     regAlterTabOpPtr.i= req->connectPtr;
     ptrCheckGuard(regAlterTabOpPtr, cnoOfAlterTabOps, alterTabOperRec);
@@ -1364,7 +1431,7 @@ Dbtup::handleAlterTableCommit(Signal *signal,
           break;
         default:
           jamLine(regFragPtr.p->fragStatus);
-          ndbrequire(false);
+          ndbabort();
         }
       }
     }
@@ -1407,7 +1474,7 @@ Dbtup::handleAlterTableComplete(Signal *signal,
           break;
         default:
           jamLine(regFragPtr.p->fragStatus);
-          ndbrequire(false);
+          ndbabort();
         }
       }
     }
@@ -1472,6 +1539,15 @@ Dbtup::handleCharsetPos(Uint32 csNumber, CHARSET_INFO** charsetArray,
   }
 }
 
+bool
+Dbtup::is_disk_columns_in_table(Uint32 tableId)
+{
+  TablerecPtr regTabPtr;
+  regTabPtr.i = tableId;
+  ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
+  return (regTabPtr.p->m_no_of_disk_attributes > 0);
+}
+
 /*
   This function (re-)computes aggregated metadata. It is called for
   both ALTER TABLE and CREATE TABLE.
@@ -1483,8 +1559,10 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
 
   for (Uint32 i = 0; i < NO_DYNAMICS; ++i)
   {
+    jam();
     if (regTabPtr->m_dyn_null_bits[i] == DYN_BM_LEN_BITS)
     {
+      jam();
       regTabPtr->m_dyn_null_bits[i] = 0;
     }
     dyn_null_words[i] = (regTabPtr->m_dyn_null_bits[i]+31)>>5;
@@ -1495,11 +1573,13 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
   Uint32 pos[2] = { 0, 0 };
   if (regTabPtr->m_bits & Tablerec::TR_Checksum)
   {
+    jam();
     pos[MM]++; 
   }
 
   if (regTabPtr->m_bits & Tablerec::TR_RowGCI)
   {
+    jam();
     pos[MM]++;
     pos[DD]++;
   }
@@ -1510,23 +1590,26 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
   if(regTabPtr->m_no_of_disk_attributes > 0)
   {
     /* Room for disk part location. */
-    regTabPtr->m_offsets[MM].m_disk_ref_offset= pos[MM];
+    regTabPtr->m_offsets[MM].m_disk_ref_offset= pos[MM] +
+            Tuple_header::HeaderSize;
     pos[MM] += Disk_part_ref::SZ32; // 8 bytes
     regTabPtr->m_bits |= Tablerec::TR_DiskPart;
   }
   else
   {
-    regTabPtr->m_offsets[MM].m_disk_ref_offset= pos[MM] - Disk_part_ref::SZ32;
+    regTabPtr->m_offsets[MM].m_disk_ref_offset =
+      (pos[MM] + Tuple_header::HeaderSize) - Disk_part_ref::SZ32;
   }
-
   if (regTabPtr->m_attributes[MM].m_no_of_varsize ||
       regTabPtr->m_attributes[MM].m_no_of_dynamic)
   {
+    jam();
     pos[MM] += Var_part_ref::SZ32;
     regTabPtr->m_bits &= ~(Uint32)Tablerec::TR_ForceVarPart;
   }
   else if (regTabPtr->m_bits & Tablerec::TR_ForceVarPart)
   {
+    jam();
     pos[MM] += Var_part_ref::SZ32;
   }
 
@@ -1561,6 +1644,7 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
 
   for(Uint32 i= 0; i<regTabPtr->m_no_of_attributes; i++)
   {
+    jam();
     Uint32 attrDescriptor= *tabDesc++;
     Uint32 attrDes2= *tabDesc;
     Uint32 ind= AttributeDescriptor::getDiskBased(attrDescriptor);
@@ -1572,23 +1656,34 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
     Uint32 off;
 
     if (extType == NDB_TYPE_BLOB || extType == NDB_TYPE_TEXT)
+    {
+      jam();
       regTabPtr->blobAttributeMask.set(i);
+    }
     if(!AttributeDescriptor::getNullable(attrDescriptor))
+    {
+      jam();
       regTabPtr->notNullAttributeMask.set(i);
+    }
     if (!AttributeDescriptor::getDynamic(attrDescriptor))
     {
       if(arr == NDB_ARRAYTYPE_FIXED || ind==DD)
       {
         if (attrLen!=0)
         {
+          jam();
           off= fix_size[ind] + pos[ind];
           fix_size[ind]+= size_in_words;
         }
         else
+        {
+          jam();
           off= 0;                               // Bit type
+        }
       }
       else
       {
+        jam();
         /* Static varsize. */
         ndbassert(ind==MM);
         off= statvar_count++;
@@ -1597,6 +1692,7 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
     }
     else
     {
+      jam();
       /* Dynamic attribute. */
       dynamic_count++;
       ndbrequire(ind==MM);
@@ -1623,7 +1719,10 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
           }
         }
         else
+        {
+          jam();
           off= 0;                               // Bit type
+        }
       }
       else
       {
@@ -1635,6 +1734,7 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
     }
     if (off > AttributeOffset::getMaxOffset())
     {
+      jam();
       return ZTOO_LARGE_TUPLE_ERROR;
     }
     AttributeOffset::setOffset(attrDes2, off);
@@ -1686,6 +1786,7 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
   */
   if(mm_vars + regTabPtr->m_attributes[MM].m_no_of_dynamic)
   {
+    jam();
     total_rec_size+= (mm_vars + 2) >> 1;
     total_rec_size+= regTabPtr->m_offsets[MM].m_dyn_null_words;
     total_rec_size+= (mm_dyns + 2) >> 1;
@@ -1706,53 +1807,11 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
 
   regTabPtr->total_rec_size= total_rec_size;
 
+  DEB_TUP_META(("New total_rec_size set to %u", total_rec_size));
+
   setUpQueryRoutines(regTabPtr);
   setUpKeyArray(regTabPtr);
   return 0;
-}
-
-void
-Dbtup::undo_createtable_callback(Signal* signal, Uint32 opPtrI, Uint32 unused)
-{
-  FragrecordPtr regFragPtr;
-  FragoperrecPtr fragOperPtr;
-  TablerecPtr regTabPtr;
-
-  fragOperPtr.i= opPtrI;
-  ptrCheckGuard(fragOperPtr, cnoOfFragoprec, fragoperrec);
-
-  regTabPtr.i= fragOperPtr.p->tableidFrag;
-  ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
-
-  getFragmentrec(regFragPtr, fragOperPtr.p->fragidFrag, regTabPtr.p);
-  ndbrequire(regFragPtr.i != RNIL);
-  
-  D("Logfile_client - undo_createtable_callback");
-  Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
-
-  Disk_undo::Create create;
-  create.m_type_length= Disk_undo::UNDO_CREATE << 16 | (sizeof(create) >> 2);
-  create.m_table = regTabPtr.i;
-  
-  Logfile_client::Change c[1] = {{ &create, sizeof(create) >> 2 } };
-  
-  Uint64 lsn= lgman.add_entry(c, 1);
-  jamEntry();
-
-  Logfile_client::Request req;
-  req.m_callback.m_callbackData= fragOperPtr.i;
-  req.m_callback.m_callbackIndex = UNDO_CREATETABLE_LOGSYNC_CALLBACK;
-  
-  int ret = lgman.sync_lsn(signal, lsn, &req, 0);
-  jamEntry();
-  switch(ret){
-  case 0:
-    return;
-  case -1:
-    warningEvent("Failed to sync log for create of table: %u", regTabPtr.i);
-  default:
-    execute(signal, req.m_callback, regFragPtr.p->m_logfile_group_id);
-  }
 }
 
 void
@@ -1919,7 +1978,7 @@ void Dbtup::deleteFragTab(Tablerec* const regTabPtr, Uint32 fragId)
       return;
     }
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 /*
@@ -1941,7 +2000,7 @@ Dbtup::execDROP_TAB_REQ(Signal* signal)
 {
   jamEntry();
   if (ERROR_INSERTED(4013)) {
-#if defined VM_TRACE || defined ERROR_INSERT
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
     verifytabdes();
 #endif
   }
@@ -1992,6 +2051,7 @@ void Dbtup::releaseTabDescr(Tablerec* const regTabPtr)
     descriptor= regTabPtr->dynTabDescriptor[i];
     if(descriptor != RNIL)
     {
+      jam();
       regTabPtr->dynTabDescriptor[i]= RNIL;
       regTabPtr->dynVarSizeMask[i]= NULL;
       regTabPtr->dynFixSizeMask[i]= NULL;
@@ -2029,15 +2089,16 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
     return;
   }
 
+  CallbackPtr cb;
   if (logfile_group_id != RNIL)
   {
-    CallbackPtr cb;
+    jam();
     cb.m_callbackData= tabPtr.i;
     cb.m_callbackIndex = DROP_TABLE_LOG_BUFFER_CALLBACK;
     Uint32 sz= sizeof(Disk_undo::Drop) >> 2;
     D("Logfile_client - releaseFragment");
     Logfile_client lgman(this, c_lgman, logfile_group_id);
-    int r0 = lgman.alloc_log_space(sz, jamBuffer());
+    int r0 = lgman.alloc_log_space(sz, false, false, jamBuffer());
     jamEntry();
     if (r0)
     {
@@ -2054,22 +2115,26 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
       jam();
       return;
     case -1:
-      g_eventLogger->warning("Out of space in RG_DISK_OPERATIONS resource,"
+      jam();
+      lgman.free_log_space(sz, jamBuffer());
+      g_eventLogger->warning("Out of space in RG_TRANSACTION_MEMORY resource,"
                              " increase config parameter GlobalSharedMemory");
       warningEvent("Failed to get log buffer for drop table: %u",
 		   tabPtr.i);
-      lgman.free_log_space(sz, jamBuffer());
       jamEntry();
       goto done;
-      break;
     default:
-      execute(signal, cb, logfile_group_id);
-      return;
+      jam();
+      goto execute;
     }
   }
-
 done:
   drop_table_logsync_callback(signal, tabPtr.i, RNIL);
+  return;
+execute:
+  jam();
+  execute(signal, cb, logfile_group_id);
+  return;
 }
 
 void
@@ -2093,13 +2158,15 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
       sendSignal(cownref, GSN_CONTINUEB, signal, 4, JBB);  
       return;
     }
-    while(alloc_info.m_dirty_pages[pos].isEmpty() && pos < MAX_FREE_LIST)
+    while(alloc_info.m_dirty_pages[pos].isEmpty() && pos < EXTENT_SEARCH_MATRIX_COLS)
       pos++;
     
-    if (pos == MAX_FREE_LIST)
+    if (pos == EXTENT_SEARCH_MATRIX_COLS)
     {
+      jam();
       if(alloc_info.m_curr_extent_info_ptr_i != RNIL)
       {
+        jam();
 	Local_extent_info_list
 	  list(c_extent_pool, alloc_info.m_free_extents[0]);
 	Ptr<Extent_info> ext_ptr;
@@ -2113,9 +2180,10 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
     }
     
     Ptr<Page> pagePtr;
-    ArrayPool<Page> *pool= (ArrayPool<Page>*)&m_global_page_pool;
+    Page_pool *pool= (Page_pool*)&m_global_page_pool;
+    jam();
     {
-      LocalDLList<Page> list(*pool, alloc_info.m_dirty_pages[pos]);
+      Local_Page_list list(*pool, alloc_info.m_dirty_pages[pos]);
       list.first(pagePtr);
       list.remove(pagePtr);
     }
@@ -2123,6 +2191,8 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
     Page_cache_client::Request req;
     req.m_page.m_page_no = pagePtr.p->m_page_no;
     req.m_page.m_file_no = pagePtr.p->m_file_no;
+    req.m_table_id = fragPtr.p->fragTableId;
+    req.m_fragment_id = fragPtr.p->fragmentId;
     
     req.m_callback.m_callbackData= pos;
     req.m_callback.m_callbackFunction = 
@@ -2135,9 +2205,13 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
     switch(res)
     {
     case 0:
+      jam();
+      break;
     case -1:
+      jam();
       break;
     default:
+      jam();
       ndbrequire((Uint32)res == pagePtr.i);
       drop_fragment_unmap_page_callback(signal, pos, res);
     }
@@ -2150,6 +2224,7 @@ void
 Dbtup::drop_fragment_unmap_page_callback(Signal* signal, 
 					 Uint32 pos, Uint32 page_id)
 {
+  jam();
   Ptr<GlobalPage> page;
   m_global_page_pool.getPtr(page, page_id);
   
@@ -2185,48 +2260,25 @@ Dbtup::drop_fragment_free_extent(Signal *signal,
 {
   if (tabPtr.p->m_no_of_disk_attributes)
   {
+    jam();
     Disk_alloc_info& alloc_info= fragPtr.p->m_disk_alloc_info;
     for(; pos<EXTENT_SEARCH_MATRIX_SIZE; pos++)
     {
+      jam();
       if(!alloc_info.m_free_extents[pos].isEmpty())
       {
 	jam();
         CallbackPtr cb;
 	cb.m_callbackData= fragPtr.i;
 	cb.m_callbackIndex = DROP_FRAGMENT_FREE_EXTENT_LOG_BUFFER_CALLBACK;
-#if NOT_YET_UNDO_FREE_EXTENT
-	Uint32 sz= sizeof(Disk_undo::FreeExtent) >> 2;
-	(void) c_lgman->alloc_log_space(fragPtr.p->m_logfile_group_id,
-                                        sz,
-                                        jamBuffer());
-        jamEntry();
-	
-	Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
-	
-	int res= lgman.get_log_buffer(signal, sz, &cb);
-        jamEntry();
-	switch(res){
-	case 0:
-	  jam();
-	  return;
-	case -1:
-          g_eventLogger->warning("Out of space in RG_DISK_OPERATIONS resource,"
-                             " increase config parameter GlobalSharedMemory");
-	  ndbrequire("NOT YET IMPLEMENTED" == 0);
-	  break;
-	default:
-	  execute(signal, cb, fragPtr.p->m_logfile_group_id);
-	  return;
-	}
-#else
 	execute(signal, cb, fragPtr.p->m_logfile_group_id);	
 	return;
-#endif
       }
     }
     
-    for(pos= 0; pos<MAX_FREE_LIST; pos++)
+    for(pos= 0; pos < EXTENT_SEARCH_MATRIX_COLS; pos++)
     {
+      jam();
       ndbrequire(alloc_info.m_page_requests[pos].isEmpty());
       alloc_info.m_dirty_pages[pos].init(); // Clear dirty page list head
     }
@@ -2250,29 +2302,49 @@ Dbtup::drop_table_log_buffer_callback(Signal* signal, Uint32 tablePtrI,
 
   Disk_undo::Drop drop;
   drop.m_table = tabPtr.i;
+  Uint32 sz = sizeof(drop) >> 2;
   drop.m_type_length = 
-    (Disk_undo::UNDO_DROP << 16) | (sizeof(drop) >> 2);
+    (Disk_undo::UNDO_DROP << 16) | sz;
   D("Logfile_client - drop_table_log_buffer_callback");
-  Logfile_client lgman(this, c_lgman, logfile_group_id);
+  {
+    Logfile_client lgman(this, c_lgman, logfile_group_id);
   
-  Logfile_client::Change c[1] = {{ &drop, sizeof(drop) >> 2 } };
-  Uint64 lsn = lgman.add_entry(c, 1);
-  jamEntry();
+    Logfile_client::Change c[1] = {{ &drop, sizeof(drop) >> 2 } };
+#ifdef DEBUG_TUP_META
+    Uint64 lsn =
+#endif
+      lgman.add_entry_simple(c, 1, sz);
+    jamEntry();
 
-  Logfile_client::Request req;
-  req.m_callback.m_callbackData= tablePtrI;
-  req.m_callback.m_callbackIndex = DROP_TABLE_LOGSYNC_CALLBACK;
-  
-  int ret = lgman.sync_lsn(signal, lsn, &req, 0);
-  jamEntry();
-  switch(ret){
-  case 0:
-    return;
-  case -1:
-    warningEvent("Failed to syn log for drop of table: %u", tablePtrI);
-  default:
-    execute(signal, req.m_callback, logfile_group_id);
+    DEB_TUP_META(("Add UNDO_TUP_DROP in lsn: %llu for tab: %u",
+                  lsn, tabPtr.i));
+
+    /**
+     * Normally we would eventually want a sync_lsn for this log entry
+     * to ensure that this entry have reached the UNDO log.
+     * This is not necessary here though and here is the reasoning why.
+     * 1) The reason for writing this entry is to ensure that we don't
+     *    apply any old UNDO log records towards new pages.
+     *
+     * An UNDO log record can only be applied if the page have a new
+     * table id, fragment id and create table version. If the table id,
+     * fragment id and table version belongs to the old table then
+     * it won't be applied since this table is not being restored.
+     *
+     * Now a page cannot be written with a new table id, fragment id
+     * and create table version unless it was first written to disk
+     * and before this happened it was necessary to call sync_lsn
+     * with the maximum LSN write of the page. This LSN is obviously
+     * higher than the LSN received here, so we're safe that if a
+     * page of an old table have been reused then also the
+     * DROP TABLE undo log record is sync:ed to the UNDO log.
+     *
+     * So the conclusion is that we need to write the UNDO log record,
+     * but there is no need to sync it right now, it will be sync:ed
+     * before it is of any use.
+     */
   }
+  drop_table_logsync_callback(signal, tabPtr.i, logfile_group_id);
 }
 
 void
@@ -2280,6 +2352,7 @@ Dbtup::drop_table_logsync_callback(Signal* signal,
 				   Uint32 tabPtrI, 
 				   Uint32 logfile_group_id)
 {
+  jam();
   TablerecPtr tabPtr;
   tabPtr.i = tabPtrI;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
@@ -2302,6 +2375,7 @@ Dbtup::drop_fragment_free_extent_log_buffer_callback(Signal* signal,
 						     Uint32 fragPtrI,
 						     Uint32 unused)
 {
+  jam();
   FragrecordPtr fragPtr;
   fragPtr.i = fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
@@ -2315,6 +2389,7 @@ Dbtup::drop_fragment_free_extent_log_buffer_callback(Signal* signal,
 
   for(Uint32 pos = 0; pos<EXTENT_SEARCH_MATRIX_SIZE; pos++)
   {
+    jam();
     if(!alloc_info.m_free_extents[pos].isEmpty())
     {
       jam();
@@ -2323,28 +2398,11 @@ Dbtup::drop_fragment_free_extent_log_buffer_callback(Signal* signal,
       Ptr<Extent_info> ext_ptr;
       list.first(ext_ptr);
 
-#if NOT_YET_UNDO_FREE_EXTENT
-#error "This code is complete"
-#error "but not needed until we do dealloc of empty extents"
-      Disk_undo::FreeExtent free;
-      free.m_table = tabPtr.i;
-      free.m_fragment = fragPtr.p->fragmentId;
-      free.m_file_no = ext_ptr.p->m_key.m_file_no;
-      free.m_page_no = ext_ptr.p->m_key.m_page_no;
-      free.m_type_length = 
-	(Disk_undo::UNDO_FREE_EXTENT << 16) | (sizeof(free) >> 2);
-      Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
-      
-      Logfile_client::Change c[1] = {{ &free, sizeof(free) >> 2 } };
-      Uint64 lsn = lgman.add_entry(c, 1);
-      jamEntry();
-#else
       Uint64 lsn = 0;
-#endif
-      
       D("Tablespace_client - drop_fragment_free_extent_log_buffer_callback");
       Tablespace_client tsman(signal, this, c_tsman, tabPtr.i, 
 			      fragPtr.p->fragmentId,
+                              c_lqh->getCreateSchemaVersion(tabPtr.i),
 			      fragPtr.p->m_tablespace_id);
       
       tsman.free_extent(&ext_ptr.p->m_key, lsn);
@@ -2360,7 +2418,7 @@ Dbtup::drop_fragment_free_extent_log_buffer_callback(Signal* signal,
       return;
     }
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -2381,9 +2439,11 @@ Dbtup::drop_fragment_free_var_pages(Signal* signal)
   PagePtr pagePtr;
   for (Uint32 i = 0; i<MAX_FREE_LIST+1; i++)
   {
+    jam();
     if (! fragPtr.p->free_var_page_array[i].isEmpty())
     {
-      LocalDLList<Page> list(c_page_pool, fragPtr.p->free_var_page_array[i]);
+      jam();
+      Local_Page_list list(c_page_pool, fragPtr.p->free_var_page_array[i]);
       ndbrequire(list.first(pagePtr));
       list.remove(pagePtr);
       returnCommonArea(pagePtr.i, 1);
@@ -2409,6 +2469,7 @@ Dbtup::drop_fragment_free_var_pages(Signal* signal)
 void
 Dbtup::drop_fragment_free_pages(Signal* signal)
 {
+  jam();
   Uint32 i;
   Uint32 tableId = signal->theData[1];
   Uint32 fragPtrI = signal->theData[2];
@@ -2431,8 +2492,16 @@ Dbtup::drop_fragment_free_pages(Signal* signal)
       if (realpid != RNIL && ((realpid & FREE_PAGE_BIT) == 0))
       {
         jam();
+        /**
+         * Both words in fragment page map can still have bit 30
+         * set even for allocated pages to indicate the states
+         * for lcp already scanned and state of page at last
+         * LCP.
+         */
+        realpid &= PAGE_BIT_MASK;
         returnCommonArea(realpid, 1);
       }
+      jam();
       break;
     case 2:
       jam();
@@ -2465,9 +2534,8 @@ done:
   /**
    * Remove LCP's for fragment
    */
-  tabPtr.p->m_dropTable.m_lcpno = 0;
   tabPtr.p->m_dropTable.m_fragPtrI = fragPtr.i;
-  drop_fragment_fsremove(signal, tabPtr, fragPtr);
+  drop_fragment_fsremove_init(signal, tabPtr, fragPtr);
 }
 
 void
@@ -2475,22 +2543,25 @@ Dbtup::drop_fragment_fsremove_done(Signal* signal,
                                    TablerecPtr tabPtr,
                                    FragrecordPtr fragPtr)
 {
+  jam();
+  DEB_TUP_META(("(%u)Done drop fragment: tab(%u,%u)",
+               instance(),
+               fragPtr.p->fragTableId,
+               fragPtr.p->fragmentId));
+
   /**
    * LCP's removed...
    *   now continue with "next"
    */
   Uint32 logfile_group_id = fragPtr.p->m_logfile_group_id ;
 
-  Uint32 i;
-  for(i= 0; i<NDB_ARRAY_SIZE(tabPtr.p->fragrec); i++)
-    if(tabPtr.p->fragrec[i] == fragPtr.i)
-      break;
-
-  ndbrequire(i != NDB_ARRAY_SIZE(tabPtr.p->fragrec));
-  tabPtr.p->fragid[i]= RNIL;
-  tabPtr.p->fragrec[i]= RNIL;
+  remove_frag_from_tab(tabPtr, fragPtr.p->fragmentId);
   releaseFragrec(fragPtr);
-
+  {
+    Page_cache_client pgman(this, c_pgman);
+    pgman.drop_fragment(tabPtr.i, fragPtr.p->fragmentId);
+  }
+  jam();
   if (tabPtr.p->tableStatus == DROPPING)
   {
     jam();
@@ -2513,28 +2584,471 @@ Dbtup::drop_fragment_fsremove_done(Signal* signal,
 }
 
 // Remove LCP
+/**
+ * Remove LCP control and data files
+ * ---------------------------------
+ * We remove all files related to the fragment which is dropped. This
+ * includes all data files and both control files.
+ * We will simply remove all potential files, most of them actually
+ * don't exist, but we don't worry about removing non-existing files.
+ *
+ * If we need to optimise drop table then we should read the control
+ * files to gather the information about which files are needed to
+ * actually delete.
+ */
+void
+Dbtup::drop_fragment_fsremove_init(Signal *signal,
+                                   TablerecPtr tabPtr,
+                                   FragrecordPtr fragPtr)
+{
+  jam();
+  tabPtr.p->m_dropTable.m_lcpno = 0;
+  tabPtr.p->m_dropTable.m_firstFileId = ZNIL;
+  tabPtr.p->m_dropTable.m_lastFileId = 0;
+  tabPtr.p->m_dropTable.m_numDataFiles = 0;
+
+  DEB_TUP_META(("(%u)Start drop fragment: tab(%u,%u)",
+               instance(),
+               fragPtr.p->fragTableId,
+               fragPtr.p->fragmentId));
+
+  lcp_open_ctl_file(signal,
+                    tabPtr.i,
+                    fragPtr.p->fragTableId,
+                    fragPtr.p->fragmentId,
+                    0);
+}
+
+void
+Dbtup::lcp_open_ctl_file(Signal *signal,
+                         Uint32 tabPtrI,
+                         Uint32 tableId,
+                         Uint32 fragmentId,
+                         Uint32 ctl_file)
+{
+  FsOpenReq *req = (FsOpenReq*)signal->getDataPtrSend();
+  req->userReference = reference();
+  req->fileFlags = FsOpenReq::OM_READONLY;
+  FsOpenReq::v2_setCount(req->fileNumber, 0xFFFFFFFF);
+  req->userPointer = tabPtrI;
+  FsOpenReq::setVersion(req->fileNumber, 5);
+  FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_CTL);
+  FsOpenReq::v5_setLcpNo(req->fileNumber, ctl_file);
+  FsOpenReq::v5_setTableId(req->fileNumber, tableId);
+  FsOpenReq::v5_setFragmentId(req->fileNumber, fragmentId);
+  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal,
+             FsOpenReq::SignalLength, JBA);
+}
+
+void
+Dbtup::execFSOPENREF(Signal *signal)
+{
+  jamEntry();
+  FsRef *ref = (FsRef*)signal->getDataPtr();
+  TablerecPtr tabPtr; 
+  FragrecordPtr fragPtr;
+
+  tabPtr.i = ref->userPointer;
+  ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
+  fragPtr.i = tabPtr.p->m_dropTable.m_fragPtrI;
+  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+
+  if (tabPtr.p->m_dropTable.m_lcpno == 0)
+  {
+    jam();
+    tabPtr.p->m_dropTable.m_lcpno = 1;
+    lcp_open_ctl_file(signal,
+                      tabPtr.i,
+                      fragPtr.p->fragTableId,
+                      fragPtr.p->fragmentId,
+                      1);
+    return;
+  }
+  lcp_read_completed(signal, tabPtr, fragPtr);
+}
+
+void
+Dbtup::execFSOPENCONF(Signal *signal)
+{
+  FsConf *conf = (FsConf*)signal->getDataPtr();
+  jamEntry();
+  TablerecPtr tabPtr;
+  FragrecordPtr fragPtr;
+
+  tabPtr.i = conf->userPointer;
+  ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
+  fragPtr.i = tabPtr.p->m_dropTable.m_fragPtrI;
+  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+  tabPtr.p->m_dropTable.m_filePointer = conf->filePointer;
+
+  lcp_read_ctl_file(signal,
+                    tabPtr.i,
+                    conf->filePointer,
+                    fragPtr.p->fragTableId,
+                    fragPtr.p->fragmentId,
+                    tabPtr.p->m_dropTable.m_lcpno);
+}
+
+void
+Dbtup::lcp_read_ctl_file(Signal *signal,
+                         Uint32 tabPtrI,
+                         Uint32 filePointer,
+                         Uint32 tableId,
+                         Uint32 fragmentId,
+                         Uint32 ctl_file)
+{
+  FsReadWriteReq *req = (FsReadWriteReq*)signal->getDataPtrSend();
+  req->userPointer = tabPtrI;
+  req->filePointer = filePointer;
+  req->userReference = reference();
+  req->varIndex = 0;
+  req->numberOfPages = 1;
+  req->operationFlag = 0;
+  FsReadWriteReq::setFormatFlag(req->operationFlag,
+                                FsReadWriteReq::fsFormatMemAddress);
+  FsReadWriteReq::setPartialReadFlag(req->operationFlag, 1);
+  req->data.memoryAddress.memoryOffset = 0;
+  req->data.memoryAddress.fileOffset = 0;
+  req->data.memoryAddress.size = BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG;
+  sendSignal(NDBFS_REF, GSN_FSREADREQ, signal,
+             FsReadWriteReq::FixedLength + 3, JBA);
+}
+
+void
+Dbtup::execFSREADREF(Signal *signal)
+{
+  jamEntry();
+  ndbabort();
+}
+
+void
+Dbtup::execFSREADCONF(Signal *signal)
+{
+  jamEntry();
+  FsConf *conf = (FsConf*)signal->getDataPtr();
+  TablerecPtr tabPtr;
+  FragrecordPtr fragPtr;
+
+  tabPtr.i = conf->userPointer;
+  ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
+  fragPtr.i = tabPtr.p->m_dropTable.m_fragPtrI;
+  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+
+  const Uint32 bytesRead = conf->bytes_read;
+  if (bytesRead != 0)
+  {
+    jam();
+    if (handle_ctl_info(tabPtr, fragPtr, bytesRead))
+    {
+      jam();
+      DEB_DROP_TAB(("(%u) handle_ctl_info failed, drop all tab(%u,%u)"
+                    ", ctl: %u",
+                    instance(),
+                    fragPtr.p->fragTableId,
+                    fragPtr.p->fragmentId,
+                    tabPtr.p->m_dropTable.m_lcpno));
+      ndbassert(false);
+      tabPtr.p->m_dropTable.m_firstFileId = 0;
+      tabPtr.p->m_dropTable.m_numDataFiles =
+        BackupFormat::NDB_MAX_LCP_FILES;
+      tabPtr.p->m_dropTable.m_lastFileId =
+        BackupFormat::NDB_MAX_LCP_FILES - 1;
+      tabPtr.p->m_dropTable.m_lcpno = 1;
+    }
+    else
+    {
+      DEB_DROP_TAB(("(%u) handle_ctl_info succeeded, drop all tab(%u,%u),"
+                    " ctl: %u",
+                    instance(),
+                    fragPtr.p->fragTableId,
+                    fragPtr.p->fragmentId,
+                    tabPtr.p->m_dropTable.m_lcpno));
+    }
+  }
+  lcp_close_ctl_file(signal,
+                     tabPtr.i,
+                     tabPtr.p->m_dropTable.m_filePointer);
+}
+
+void
+Dbtup::lcp_close_ctl_file(Signal *signal,
+                          Uint32 tabPtrI,
+                          Uint32 filePointer)
+{
+  FsCloseReq *req = (FsCloseReq*)signal->getDataPtrSend();
+  req->userPointer = tabPtrI;
+  req->userReference = reference();
+  req->filePointer = filePointer;
+  req->fileFlag = 0;
+  sendSignal(NDBFS_REF, GSN_FSCLOSEREQ, signal,
+             FsCloseReq::SignalLength, JBA);
+}
+
+void
+Dbtup::execFSCLOSEREF(Signal *signal)
+{
+  jamEntry();
+  ndbabort();
+}
+
+void
+Dbtup::execFSCLOSECONF(Signal *signal)
+{
+  jamEntry();
+  FsConf *conf = (FsConf*)signal->getDataPtr();
+  TablerecPtr tabPtr;
+  FragrecordPtr fragPtr;
+
+  tabPtr.i = conf->userPointer;
+  ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
+  fragPtr.i = tabPtr.p->m_dropTable.m_fragPtrI;
+  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+
+  if (tabPtr.p->m_dropTable.m_lcpno == 0)
+  {
+    jam();
+    tabPtr.p->m_dropTable.m_lcpno = 1;
+    lcp_open_ctl_file(signal,
+                      tabPtr.i,
+                      fragPtr.p->fragTableId,
+                      fragPtr.p->fragmentId,
+                      1);
+    return;
+  }
+  lcp_read_completed(signal, tabPtr, fragPtr);
+}
+
+bool
+Dbtup::handle_ctl_info(TablerecPtr tabPtr,
+                       FragrecordPtr fragPtr,
+                       Uint32 bytesRead)
+{
+  jam();
+  BackupFormat::LCPCtlFile *lcpCtlFilePtr =
+    (BackupFormat::LCPCtlFile*)&m_read_ctl_file_data[0];
+  ndbassert(bytesRead == BackupFormat::NDB_LCP_CTL_FILE_SIZE_SMALL ||
+            bytesRead == BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG);
+#ifdef DEBUG_DROP_TAB
+  Uint32 createTableVersion = lcpCtlFilePtr->CreateTableVersion;
+  DEB_DROP_TAB(("(%u)tab(%u,%u)handle_ctl_info table_version: %u",
+                instance(),
+                fragPtr.p->fragTableId,
+                fragPtr.p->fragmentId,
+                createTableVersion));
+#endif
+  if ((bytesRead != BackupFormat::NDB_LCP_CTL_FILE_SIZE_SMALL &&
+       bytesRead != BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG) ||
+      !c_backup->convert_ctl_page_to_host(lcpCtlFilePtr))
+  {
+    jam();
+    return true;
+  }
+  Uint32 lastDataFileNumber =
+    lcpCtlFilePtr->LastDataFileNumber;
+  Uint32 numFiles = lcpCtlFilePtr->NumPartPairs;
+  if (numFiles == 0)
+  {
+    jam();
+    numFiles = 1;
+  }
+  Uint32 startFileNumber;
+  if (lastDataFileNumber >= (numFiles-1))
+  {
+    jam();
+    startFileNumber = lastDataFileNumber - (numFiles - 1);
+  }
+  else
+  {
+    jam();
+    startFileNumber =
+      BackupFormat::NDB_MAX_LCP_FILES + lastDataFileNumber - (numFiles - 1);
+  }
+  if (tabPtr.p->m_dropTable.m_firstFileId == ZNIL)
+  {
+    jam();
+    tabPtr.p->m_dropTable.m_firstFileId = startFileNumber;
+    tabPtr.p->m_dropTable.m_lastFileId = lastDataFileNumber;
+    tabPtr.p->m_dropTable.m_numDataFiles = numFiles;
+  }
+  else
+  {
+    Uint32 this_last = lastDataFileNumber;
+    Uint32 prev_last = tabPtr.p->m_dropTable.m_lastFileId;
+    Uint32 diff;
+    if (prev_last > this_last)
+    {
+      jam();
+      diff = prev_last - this_last;
+    }
+    else if (prev_last < this_last)
+    {
+      jam();
+      diff = this_last - prev_last;
+    }
+    else
+    {
+      /* equal, don't do anything since they should not differ */
+      jam();
+      return false;
+    }
+    if (diff > BackupFormat::NDB_MAX_FILES_PER_LCP &&
+        diff < (BackupFormat::NDB_MAX_LCP_FILES -
+                BackupFormat::NDB_MAX_FILES_PER_LCP))
+    {
+      /**
+       * Should not happen that they are more than 8 files apart.
+       */
+      jam();
+      return true;
+    }
+    Uint32 last;
+    if (diff <= BackupFormat::NDB_MAX_FILES_PER_LCP)
+    {
+      /* The larger is the last */
+      jam();
+      last = MAX(this_last, prev_last);
+    }
+    else
+    {
+      /* The smaller is the last */
+      jam();
+      last = MIN(this_last, prev_last);
+      diff = BackupFormat::NDB_MAX_FILES_PER_LCP - diff;
+    }
+    tabPtr.p->m_dropTable.m_numDataFiles += diff;
+    if (last == tabPtr.p->m_dropTable.m_lastFileId)
+    {
+      jam();
+      /**
+       * The last file is the same, so the new one needs to set the start
+       * file number, but we need not set the last file number.
+       */
+      tabPtr.p->m_dropTable.m_firstFileId = startFileNumber;
+    }
+    else
+    {
+      jam();
+      /**
+       * The last file is the new one, so the new one needs not set the start
+       * file number, but we need to set the last file number.
+       */
+      tabPtr.p->m_dropTable.m_lastFileId = last;
+    }
+  }
+  return false;
+}
+
+void
+Dbtup::lcp_read_completed(Signal *signal,
+                          TablerecPtr tabPtr,
+                          FragrecordPtr fragPtr)
+{
+  if (tabPtr.p->m_dropTable.m_firstFileId == ZNIL)
+  {
+    jam();
+    tabPtr.p->m_dropTable.m_firstFileId = 0;
+    tabPtr.p->m_dropTable.m_lastFileId = 0;
+    tabPtr.p->m_dropTable.m_numDataFiles = 1;
+  }
+  tabPtr.p->m_dropTable.m_file_type = 0;
+  tabPtr.p->m_dropTable.m_outstanding_ops = 0;
+
+  ndbrequire(tabPtr.p->m_dropTable.m_firstFileId <
+             BackupFormat::NDB_MAX_LCP_FILES);
+  ndbrequire(tabPtr.p->m_dropTable.m_lastFileId <
+             BackupFormat::NDB_MAX_LCP_FILES);
+  ndbrequire(tabPtr.p->m_dropTable.m_numDataFiles <=
+             BackupFormat::NDB_MAX_LCP_FILES);
+  ndbrequire(tabPtr.p->m_dropTable.m_numDataFiles > 0);
+  DEB_TUP_META(("(%u)Prepared drop fragment: tab(%u,%u)"
+                " firstFileId: %u, lastFileId: %u, numDataFiles: %u",
+               instance(),
+               fragPtr.p->fragTableId,
+               fragPtr.p->fragmentId,
+               tabPtr.p->m_dropTable.m_firstFileId,
+               tabPtr.p->m_dropTable.m_lastFileId,
+               tabPtr.p->m_dropTable.m_numDataFiles));
+
+  drop_fragment_fsremove(signal,
+                         tabPtr,
+                         fragPtr);
+}
+
 void
 Dbtup::drop_fragment_fsremove(Signal* signal, 
                               TablerecPtr tabPtr, 
                               FragrecordPtr fragPtr)
 {
+  jam();
+  Uint32 loop_count;
+  Uint32 lcpno;
+  Uint32 file_type = tabPtr.p->m_dropTable.m_file_type;
+
+  if (file_type == 0 || file_type == 1)
+  {
+    jam();
+    lcpno = tabPtr.p->m_dropTable.m_firstFileId;
+    loop_count = MIN(8, (BackupFormat::NDB_MAX_LCP_FILES - lcpno));
+    loop_count = MIN(loop_count, tabPtr.p->m_dropTable.m_numDataFiles);
+    tabPtr.p->m_dropTable.m_firstFileId += loop_count;
+    tabPtr.p->m_dropTable.m_firstFileId %= BackupFormat::NDB_MAX_LCP_FILES;
+    tabPtr.p->m_dropTable.m_numDataFiles -= loop_count;
+    if (tabPtr.p->m_dropTable.m_numDataFiles == 0)
+    {
+      jam();
+      tabPtr.p->m_dropTable.m_file_type++;
+      tabPtr.p->m_dropTable.m_numDataFiles =
+        BackupFormat::NDB_MAX_FILES_PER_LCP;
+    }
+  }
+  else if (file_type == 2)
+  {
+    jam();
+    lcpno = 0;
+    loop_count = 2;
+    tabPtr.p->m_dropTable.m_file_type++;
+  }
+  else
+  {
+    jam();
+    ndbrequire(file_type == 3);
+    drop_fragment_fsremove_done(signal, tabPtr, fragPtr);
+    return;
+  }
+
+  Uint32 fragId = fragPtr.p->fragmentId;
+  Uint32 tableId = fragPtr.p->fragTableId;
+
   FsRemoveReq* req = (FsRemoveReq*)signal->getDataPtrSend();
   req->userReference = reference();
   req->userPointer = tabPtr.i;
   req->directory = 0;
   req->ownDirectory = 0;
-  
-  Uint32 lcpno = tabPtr.p->m_dropTable.m_lcpno;
-  Uint32 fragId = fragPtr.p->fragmentId;
-  Uint32 tableId = fragPtr.p->fragTableId;
-
-  FsOpenReq::setVersion(req->fileNumber, 5);
-  FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
-  FsOpenReq::v5_setLcpNo(req->fileNumber, lcpno);
-  FsOpenReq::v5_setTableId(req->fileNumber, tableId);
-  FsOpenReq::v5_setFragmentId(req->fileNumber, fragId);
-  sendSignal(NDBFS_REF, GSN_FSREMOVEREQ, signal, 
-             FsRemoveReq::SignalLength, JBB);
+  for (Uint32 i = 0; i < loop_count; i++)
+  {
+    FsOpenReq::setVersion(req->fileNumber, 5);
+    if (file_type == 2)
+    {
+      jam();
+      FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_CTL);
+      DEB_DROP_TAB(("(%u)Dropping ctl file for tab(%u,%u), ctl: %u",
+                    instance(),
+                    tableId,
+                    fragId,
+                    lcpno));
+    }
+    else
+    {
+      jam();
+      FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
+    }
+    FsOpenReq::v5_setLcpNo(req->fileNumber, lcpno++);
+    FsOpenReq::v5_setTableId(req->fileNumber, tableId);
+    FsOpenReq::v5_setFragmentId(req->fileNumber, fragId);
+    sendSignal(NDBFS_REF, GSN_FSREMOVEREQ, signal,
+               FsRemoveReq::SignalLength, JBB);
+  }
+  tabPtr.p->m_dropTable.m_outstanding_ops = loop_count;
 }
 
 void
@@ -2542,9 +3056,29 @@ Dbtup::execFSREMOVEREF(Signal* signal)
 {
   jamEntry();
   FsRef* ref = (FsRef*)signal->getDataPtr();
-  Uint32 userPointer = ref->userPointer;
+  TablerecPtr tabPtr; 
+
+  const Uint32 userPointer = ref->userPointer;
+  tabPtr.i = userPointer;
+#ifdef DEBUG_DROP_TAB
+  FragrecordPtr fragPtr;
+  ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
+  fragPtr.i = tabPtr.p->m_dropTable.m_fragPtrI;
+  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+  Uint32 fragId = fragPtr.p->fragmentId;
+  Uint32 tableId = fragPtr.p->fragTableId;
+
+  if (tabPtr.p->m_dropTable.m_file_type == 3)
+  {
+    DEB_DROP_TAB(("(%u) Failed to remove ctl file tab(%u,%u)",
+                  instance(),
+                  tableId,
+                  fragId));
+  }
+#endif
   FsConf* conf = (FsConf*)signal->getDataPtrSend();
   conf->userPointer = userPointer;
+  ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
   execFSREMOVECONF(signal);
 }
 
@@ -2563,17 +3097,16 @@ Dbtup::execFSREMOVECONF(Signal* signal)
   fragPtr.i = tabPtr.p->m_dropTable.m_fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
 
-  tabPtr.p->m_dropTable.m_lcpno++;
-  if (tabPtr.p->m_dropTable.m_lcpno < 3)
+  ndbrequire(tabPtr.p->m_dropTable.m_outstanding_ops > 0);
+  tabPtr.p->m_dropTable.m_outstanding_ops--;
+  if (tabPtr.p->m_dropTable.m_outstanding_ops > 0)
   {
     jam();
-    drop_fragment_fsremove(signal, tabPtr, fragPtr);
+    return;
   }
-  else
-  {
-    jam();
-    drop_fragment_fsremove_done(signal, tabPtr, fragPtr);
-  }
+  drop_fragment_fsremove(signal,
+                         tabPtr,
+                         fragPtr);
 }
 
 Uint32
@@ -2583,6 +3116,11 @@ Dbtup::get_max_lcp_record_size(Uint32 tableId)
   tabPtr.i= tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
 
+  DEB_TUP_META_EXTRA(("(%u)LCP tab(%u) use total_rec_size = %u",
+                      instance(),
+                      tableId,
+                      tabPtr.p->total_rec_size));
+
   return tabPtr.p->total_rec_size;
 }
 // End remove LCP
@@ -2590,6 +3128,7 @@ Dbtup::get_max_lcp_record_size(Uint32 tableId)
 void
 Dbtup::start_restore_lcp(Uint32 tableId, Uint32 fragId)
 {
+  jam();
   TablerecPtr tabPtr;
   tabPtr.i= tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
@@ -2608,6 +3147,7 @@ Dbtup::start_restore_lcp(Uint32 tableId, Uint32 fragId)
   Uint32 *tabDesc = (Uint32*)(tableDescriptor+tabPtr.p->tabDescriptor);
   for(Uint32 i= 0; i<tabPtr.p->m_no_of_attributes; i++)
   {
+    jam();
     Uint32 disk= AttributeDescriptor::getDiskBased(* tabDesc);
     Uint32 null= AttributeDescriptor::getNullable(* tabDesc);
 
@@ -2624,11 +3164,19 @@ Dbtup::start_restore_lcp(Uint32 tableId, Uint32 fragId)
   tabPtr.p->m_bits &= ~((Uint16) Tablerec::TR_RowGCI);
   tabPtr.p->m_default_value_location.setNull();
 }
+
 void
 Dbtup::complete_restore_lcp(Signal* signal, 
-                            Uint32 senderRef, Uint32 senderData,
-                            Uint32 tableId, Uint32 fragId)
+                            Uint32 senderRef,
+                            Uint32 senderData,
+                            Uint32 restoredLcpId,
+                            Uint32 restoredLocalLcpId,
+                            Uint32 maxGciCompleted,
+                            Uint32 maxGciWritten,
+                            Uint32 tableId,
+                            Uint32 fragId)
 {
+  jam();
   TablerecPtr tabPtr;
   tabPtr.i= tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
@@ -2647,6 +3195,7 @@ Dbtup::complete_restore_lcp(Signal* signal,
   Uint32 *tabDesc = (Uint32*)(tableDescriptor+tabPtr.p->tabDescriptor);
   for(Uint32 i= 0; i<tabPtr.p->m_no_of_attributes; i++)
   {
+    jam();
     Uint32 disk= AttributeDescriptor::getDiskBased(* tabDesc);
     Uint32 null= AttributeDescriptor::getNullable(* tabDesc);
     
@@ -2663,9 +3212,52 @@ Dbtup::complete_restore_lcp(Signal* signal,
   seizeFragoperrec(fragOpPtr);
   fragOpPtr.p->m_senderRef = senderRef;
   fragOpPtr.p->m_senderData = senderData;
+  fragOpPtr.p->m_restoredLcpId = restoredLcpId;
+  fragOpPtr.p->m_restoredLocalLcpId = restoredLocalLcpId;
+  fragOpPtr.p->m_maxGciCompleted = maxGciCompleted;
   Ptr<Fragrecord> fragPtr;
   getFragmentrec(fragPtr, fragId, tabPtr.p);
+  /**
+   * Restore will simply restore an LCP, no need to record rows
+   * that was changed as part of this process. However any rows
+   * changed by REDO log or other activity will be counted until
+   * we start next LCP.
+   *
+   * See detailed comment on setting m_lcp_start_gci in
+   * get_lcp_frag_stats function.
+   *
+   * maxGciCompleted == 0 indicates that no LCP was found to use
+   * in restore so setting to ~0 to ensure that we will run next
+   * LCP for this fragment and not use the idle LCP optimisation.
+   *
+   * We might have records written that have old_gci set up to
+   * maxGciWritten. When these records are changed the first
+   * time we also need to record it as a row change. So we need to
+   * cater for that in the minimum old_gci to trigger an update of
+   * the row change count.
+   */
+  Uint32 lcp_start_gci;
+  if (maxGciCompleted == 0)
+  {
+    jam();
+    lcp_start_gci = Uint32(~0);
+  }
+  else if (maxGciCompleted > maxGciWritten)
+  {
+    jam();
+    lcp_start_gci = maxGciCompleted;
+  }
+  else
+  {
+    jam();
+    lcp_start_gci = maxGciWritten;
+  }
+  fragPtr.p->m_lcp_changed_rows = 0;
+  fragPtr.p->m_prev_row_count = fragPtr.p->m_row_count;
+  set_lcp_start_gci(fragPtr.i, lcp_start_gci);
+
   fragOpPtr.p->fragPointer = fragPtr.i;
+  fragPtr.p->m_free_page_id_list = FREE_PAGE_RNIL;
 
   signal->theData[0] = ZREBUILD_FREE_PAGE_LIST;
   signal->theData[1] = fragOpPtr.i;
@@ -2693,12 +3285,22 @@ Dbtup::get_frag_info(Uint32 tableId, Uint32 fragId, Uint32* maxPage)
   return true;
 }
 
+void
+Dbtup::set_lcp_start_gci(Uint32 fragPtrI,
+                         Uint32 startGci)
+{
+  FragrecordPtr fragptr;
+  fragptr.i = fragPtrI;
+  ptrCheckGuard(fragptr, cnoOfFragrec, fragrecord);
+  fragptr.p->m_lcp_start_gci = startGci;
+}
+
 const Dbtup::FragStats
 Dbtup::get_frag_stats(Uint32 fragId) const
 {
+  Ptr<Fragrecord> fragptr;
   jam();
   ndbrequire(fragId < cnoOfFragrec);
-  Ptr<Fragrecord> fragptr;
   fragptr.i = fragId;
   ptrAss(fragptr, fragrecord);
   TablerecPtr tabPtr;
@@ -2707,6 +3309,8 @@ Dbtup::get_frag_stats(Uint32 fragId) const
   
   const Uint32 fixedWords = tabPtr.p->m_offsets[MM].m_fix_header_size;
   FragStats fs;
+  fs.committedRowCount      = fragptr.p->m_row_count;
+  fs.committedChanges       = fragptr.p->m_committed_changes;
   fs.fixedRecordBytes       = static_cast<Uint32>(fixedWords * sizeof(Uint32));
   fs.pageSizeBytes          = File_formats::NDB_PAGE_SIZE; /* 32768 */
   // Round downwards.
@@ -2730,12 +3334,160 @@ Dbtup::get_frag_stats(Uint32 fragId) const
   return fs;
 }
 
+Uint64
+Dbtup::get_restore_row_count(Uint32 tableId, Uint32 fragId)
+{
+  TablerecPtr tabPtr;
+  Ptr<Fragrecord> fragPtr;
+  tabPtr.i= tableId;
+  ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
+  getFragmentrec(fragPtr, fragId, tabPtr.p);
+  return fragPtr.p->m_row_count;
+}
+
+void
+Dbtup::get_lcp_frag_stats(Uint32 fragPtrI,
+                          Uint32 startGci,
+                          Uint32 & maxPageCount,
+                          Uint64 & row_count,
+                          Uint64 & prev_row_count,
+                          Uint64 & row_change_count,
+                          Uint64 & memory_used_in_bytes,
+                          bool reset_flag)
+{
+  /**
+   * We want to count the number of rows, the number of changed rows
+   * and the memory used in bytes as input to the Partial LCP
+   * algorithm.
+   *
+   * Counting the rows is fairly straightforward, each insert of a row
+   * will increment the row count and each free of a row of will decrement
+   * the row count. The count will not be absolutely correct, there will
+   * some differences due to commits and aborts, but it is detailed enough
+   * to assist the Partial LCP algorithm.
+   *
+   * The row change count should count unique changed rows. So every
+   * update should not be counted, only those updates that are new
+   * since the last LCP. We don't have enough information to make this
+   * count perfect and it is also not necessary to be absolutely
+   * correct. It is however absolutely vital that we don't report 0
+   * rows changed when actually some change have occurred.
+   *
+   * As an optimisation we don't count rows injected as part of the
+   * restore of a fragment. This is inserting rows from an LCP that
+   * exists and thus when the next LCP is to be executed something
+   * more must have changed in order for row change count to be
+   * larger than 0.
+   *
+   * During REDO log apply it is important to count the changes made
+   * that wasn't part of the LCP. We know the Max Completed GCI of
+   * each LCP, so if the row that is to be commited has a GCI which
+   * is higher than this Max Completed GCI then we know that the
+   * row have already been changed since we started the REDO log
+   * execution and we can thus ignore the change when counting the
+   * row change count.
+   *
+   * After REDO log execution we move onto the Copy Fragment part.
+   * In this part the same principle still applies that if a row
+   * that have its old GCI set higher than the Max Completed GCI 
+   * of the LCP restored then the row change can be ignored since
+   * it must have been counted already when setting the GCI above
+   * the Max Completed GCI before.
+   *
+   * One problem still is how to handle the cases when we have no
+   * LCP to restore. In this case it doesn't really matter what we
+   * do since the next LCP will be full LCP anyways. So here we
+   * simply set the m_lcp_start_gci to ~0 which is the highest GCI
+   * that could occur and thus all row changes will be counted.
+   *
+   * At start of LCP we gather the row count and the number of changed
+   * rows to assist in deciding how to execute the LCP. We also set the
+   * startGci, this is the highest GCI which have been set so far. So
+   * if a row has a GCI higher than this, then we know that it has
+   * been updated after this point and thus we need not count it as a
+   * changed row anymore since it has already been counted.
+   *
+   * --------------------------------------------------------------
+   * | Completed GCI | Highest seen GCI | Future GCIs             |
+   * |               | == startGci      |                         |
+   * --------------------------------------------------------------
+   * So as we can see in this picture if old_gci belongs to completed
+   * GCI, we are certain that it hasn't been updated before we came
+   * here. If it is in future GCIs, we are certain that it has
+   * already been updated since we came here. If it is equal to
+   * startGci, then we don't know since we can have multiple updates
+   * on the same row in one GCI. But we count all of those. So the
+   * row change count might be a bit high, but it is a good
+   * approximation to the number of changed rows since last LCP
+   * started.
+   */
+  FragrecordPtr fragptr;
+  fragptr.i = fragPtrI;
+  ptrCheckGuard(fragptr, cnoOfFragrec, fragrecord);
+  row_count = fragptr.p->m_row_count;
+  prev_row_count = fragptr.p->m_prev_row_count;
+  row_change_count = fragptr.p->m_lcp_changed_rows;
+  maxPageCount = fragptr.p->m_max_page_cnt;
+
+  if (reset_flag)
+  {
+    jam();
+    if (fragptr.p->m_lcp_start_gci == Uint32(~0) &&
+        row_change_count == 0)
+    {
+      jam();
+      /**
+       * When no LCP existed before in restart we don't want to run the
+       * next LCP as an IDLE LCP. It is most likely handled properly in
+       * Backup, but for extra security we ensure that this optimisation
+       * never happens when we restored a fragment from scratch. We do
+       * this by signalling that one row changed and thus a proper LCP
+       * is necessary.
+       */
+      row_change_count = 1;
+    }
+    fragptr.p->m_lcp_changed_rows = 0;
+    fragptr.p->m_prev_row_count = row_count;
+    fragptr.p->m_lcp_start_gci = startGci;
+  }
+
+  /**
+   * Also calculate total amount of memory allocated to fragment.
+   * This gives us an idea about the amount of data that needs to
+   * be written in a fragment LCP for the memory part.
+   */
+  const Dbtup::FragStats fs = get_frag_stats(fragPtrI);
+  Uint64 fixed_size = fs.fixedRecordBytes * fs.fixedElemCount;
+  /* mem_size now contains memory in fixed part */
+  Uint64 var_size_allocated =
+    (fs.varMemoryAllocPages *
+     (Tup_varsize_page::DATA_WORDS - 1) * sizeof(Uint32));
+  Uint64 var_size_free =  fs.varMemoryFreeBytes;
+  ndbassert(var_size_allocated >= var_size_free);
+  memory_used_in_bytes = fixed_size + (var_size_allocated - var_size_free);
+
+  /**
+   *  Varsize part is total allocated - area still free. We don't count the
+   * varsize page headers. We only count the part which is actually
+   * allocatable for rows. This means ignoring the header plus one word at the
+   * end of the page which is used for list processing.
+   */
+  if (row_count != 0)
+  {
+    Uint64 average_row_size = memory_used_in_bytes /
+                              row_count;
+    /* A simple safeguard */
+    average_row_size = MAX(average_row_size, 32);
+    fragptr.p->m_average_row_size = average_row_size;
+  }
+}
+
 void
 Dbtup::execDROP_FRAG_REQ(Signal* signal)
 {
   jamEntry();
   if (ERROR_INSERTED(4013)) {
-#if defined VM_TRACE || defined ERROR_INSERT
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
     verifytabdes();
 #endif
   }
@@ -2748,17 +3500,7 @@ Dbtup::execDROP_FRAG_REQ(Signal* signal)
   tabPtr.p->m_dropTable.tabUserRef = req->senderRef;
   tabPtr.p->m_dropTable.tabUserPtr = req->senderData;
 
-  Uint32 fragIndex = RNIL;
-  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabPtr.p->fragid); i++)
-  {
-    jam();
-    if (tabPtr.p->fragid[i] == req->fragId)
-    {
-      jam();
-      fragIndex= tabPtr.p->fragrec[i];
-      break;
-    }
-  }
+  Uint32 fragIndex = get_frag_from_tab(tabPtr, req->fragId);
   if (fragIndex != RNIL)
   {
     jam();

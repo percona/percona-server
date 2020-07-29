@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,13 +18,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 #ifndef NDB_DAEMON_H
 #define NDB_DAEMON_H
-
-C_MODE_START
-
 
 typedef int (*ndb_daemon_run_t)(int, char**);
 typedef void (*ndb_daemon_stop_t)(void);
@@ -59,8 +56,7 @@ int ndb_daemonize(const char* pidfile_name, const char *logfile_name);
 
   Performs an ordered shutdown of service if running as a serevice.
  */
-void ndb_daemon_exit(int status);
-
+[[noreturn]] void ndb_daemon_exit(int status);
 
 /*
    if any of the functions in ndb_daemon return non-zero (failure)
@@ -80,7 +76,5 @@ void ndb_service_print_options(const char* name);
   started as a service.
 */
 void ndb_service_wait_for_debugger(int timeout_sec);
-
-C_MODE_END
 
 #endif

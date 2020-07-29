@@ -1,4 +1,5 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,7 +19,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <ndb_global.h>
 
@@ -144,7 +145,7 @@ AsyncIoThread::run()
   EmulatedJamBuffer jamBuffer;
   jamBuffer.theEmulatedJamIndex = 0;
   // This key is needed by jamNoBlock().
-  NdbThread_SetTlsKey(NDB_THREAD_TLS_JAM, &jamBuffer);
+  NDB_THREAD_TLS_JAM = &jamBuffer;
 
   while (1)
   {
@@ -309,6 +310,14 @@ AsyncIoThread::allocMemReq(Request* request)
 void
 AsyncIoThread::buildIndxReq(Request* request)
 {
+  /**
+   * Rebind thread config to allow different behaviour
+   * during Index build.
+   */
+  THRConfigRebinder idxbuild_cpulock(&m_fs.m_ctx.m_config.m_thr_config,
+                                     THRConfig::T_IXBLD,
+                                     theThreadPtr);
+
   mt_BuildIndxReq req;
   memcpy(&req, &request->par.build.m_req, sizeof(req));
   req.mem_buffer = request->file->m_page_ptr.p;
@@ -324,7 +333,6 @@ AsyncIoThread::attach(AsyncFile* file)
   m_current_file = file;
   theMemoryChannelPtr = &theMemoryChannel;
   file->attach(this);
-  m_fs.cnt_active_bound(1);
 }
 
 void
@@ -341,6 +349,41 @@ AsyncIoThread::detach(AsyncFile* file)
     m_current_file = 0;
     theMemoryChannelPtr = &m_fs.theToBoundThreads;
     file->detach(this);
-    m_fs.cnt_active_bound(-1);
+  }
+}
+
+
+const char*
+Request::actionName(Request::Action action)
+{
+  switch(action){
+  case Request::open:
+    return "open";
+  case Request::close:
+    return "close";
+  case Request::closeRemove:
+    return "closeRemove";
+  case Request::read:
+    return "read";
+  case Request::readv:
+    return "readv";
+  case Request::write:
+    return "write";
+  case Request::writev:
+    return "writev";
+  case Request::writeSync:
+    return "writeSync";
+  case Request::writevSync:
+    return "writevSync";
+  case Request::sync:
+    return "sync";
+  case Request::end:
+    return "end";
+  case Request::append:
+    return "append";
+  case Request::rmrf:
+    return "rmrf";
+  default:
+    return "Unknown action";
   }
 }

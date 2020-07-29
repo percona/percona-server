@@ -197,22 +197,22 @@ Warning	1831	Duplicate index 'a064_long_123456789_123456789_123456789_123456789_
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
-  `c2` int(11) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
-  `c4` int(11) DEFAULT NULL,
-  `c5` int(11) DEFAULT NULL,
-  `c6` int(11) DEFAULT NULL,
-  `c7` int(11) DEFAULT NULL,
-  `c8` int(11) DEFAULT NULL,
-  `c9` int(11) DEFAULT NULL,
-  `c10` int(11) DEFAULT NULL,
-  `c11` int(11) DEFAULT NULL,
-  `c12` int(11) DEFAULT NULL,
-  `c13` int(11) DEFAULT NULL,
-  `c14` int(11) DEFAULT NULL,
-  `c15` int(11) DEFAULT NULL,
-  `c16` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` int DEFAULT NULL,
+  `c5` int DEFAULT NULL,
+  `c6` int DEFAULT NULL,
+  `c7` int DEFAULT NULL,
+  `c8` int DEFAULT NULL,
+  `c9` int DEFAULT NULL,
+  `c10` int DEFAULT NULL,
+  `c11` int DEFAULT NULL,
+  `c12` int DEFAULT NULL,
+  `c13` int DEFAULT NULL,
+  `c14` int DEFAULT NULL,
+  `c15` int DEFAULT NULL,
+  `c16` int DEFAULT NULL,
   KEY `a001_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
   KEY `a002_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
   KEY `a003_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
@@ -277,27 +277,27 @@ t1	CREATE TABLE `t1` (
   KEY `a062_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
   KEY `a063_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
   KEY `a064_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 flush tables;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
-  `c2` int(11) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
-  `c4` int(11) DEFAULT NULL,
-  `c5` int(11) DEFAULT NULL,
-  `c6` int(11) DEFAULT NULL,
-  `c7` int(11) DEFAULT NULL,
-  `c8` int(11) DEFAULT NULL,
-  `c9` int(11) DEFAULT NULL,
-  `c10` int(11) DEFAULT NULL,
-  `c11` int(11) DEFAULT NULL,
-  `c12` int(11) DEFAULT NULL,
-  `c13` int(11) DEFAULT NULL,
-  `c14` int(11) DEFAULT NULL,
-  `c15` int(11) DEFAULT NULL,
-  `c16` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` int DEFAULT NULL,
+  `c5` int DEFAULT NULL,
+  `c6` int DEFAULT NULL,
+  `c7` int DEFAULT NULL,
+  `c8` int DEFAULT NULL,
+  `c9` int DEFAULT NULL,
+  `c10` int DEFAULT NULL,
+  `c11` int DEFAULT NULL,
+  `c12` int DEFAULT NULL,
+  `c13` int DEFAULT NULL,
+  `c14` int DEFAULT NULL,
+  `c15` int DEFAULT NULL,
+  `c16` int DEFAULT NULL,
   KEY `a001_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
   KEY `a002_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
   KEY `a003_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
@@ -362,7 +362,7 @@ t1	CREATE TABLE `t1` (
   KEY `a062_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
   KEY `a063_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
   KEY `a064_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (c1 int, c2 int, c3 int, c4 int, c5 int, c6 int, c7 int, 
 c8 int, c9 int, c10 int, c11 int, c12 int, c13 int, c14 int, c15 int, c16 int);
@@ -562,22 +562,22 @@ Warning	1831	Duplicate index 'a064_long_123456789_123456789_123456789_123456789_
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
-  `c2` int(11) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
-  `c4` int(11) DEFAULT NULL,
-  `c5` int(11) DEFAULT NULL,
-  `c6` int(11) DEFAULT NULL,
-  `c7` int(11) DEFAULT NULL,
-  `c8` int(11) DEFAULT NULL,
-  `c9` int(11) DEFAULT NULL,
-  `c10` int(11) DEFAULT NULL,
-  `c11` int(11) DEFAULT NULL,
-  `c12` int(11) DEFAULT NULL,
-  `c13` int(11) DEFAULT NULL,
-  `c14` int(11) DEFAULT NULL,
-  `c15` int(11) DEFAULT NULL,
-  `c16` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` int DEFAULT NULL,
+  `c5` int DEFAULT NULL,
+  `c6` int DEFAULT NULL,
+  `c7` int DEFAULT NULL,
+  `c8` int DEFAULT NULL,
+  `c9` int DEFAULT NULL,
+  `c10` int DEFAULT NULL,
+  `c11` int DEFAULT NULL,
+  `c12` int DEFAULT NULL,
+  `c13` int DEFAULT NULL,
+  `c14` int DEFAULT NULL,
+  `c15` int DEFAULT NULL,
+  `c16` int DEFAULT NULL,
   KEY `a001_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
   KEY `a002_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
   KEY `a003_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
@@ -642,27 +642,27 @@ t1	CREATE TABLE `t1` (
   KEY `a062_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
   KEY `a063_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
   KEY `a064_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 flush tables;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
-  `c2` int(11) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
-  `c4` int(11) DEFAULT NULL,
-  `c5` int(11) DEFAULT NULL,
-  `c6` int(11) DEFAULT NULL,
-  `c7` int(11) DEFAULT NULL,
-  `c8` int(11) DEFAULT NULL,
-  `c9` int(11) DEFAULT NULL,
-  `c10` int(11) DEFAULT NULL,
-  `c11` int(11) DEFAULT NULL,
-  `c12` int(11) DEFAULT NULL,
-  `c13` int(11) DEFAULT NULL,
-  `c14` int(11) DEFAULT NULL,
-  `c15` int(11) DEFAULT NULL,
-  `c16` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` int DEFAULT NULL,
+  `c5` int DEFAULT NULL,
+  `c6` int DEFAULT NULL,
+  `c7` int DEFAULT NULL,
+  `c8` int DEFAULT NULL,
+  `c9` int DEFAULT NULL,
+  `c10` int DEFAULT NULL,
+  `c11` int DEFAULT NULL,
+  `c12` int DEFAULT NULL,
+  `c13` int DEFAULT NULL,
+  `c14` int DEFAULT NULL,
+  `c15` int DEFAULT NULL,
+  `c16` int DEFAULT NULL,
   KEY `a001_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
   KEY `a002_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
   KEY `a003_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
@@ -727,7 +727,7 @@ t1	CREATE TABLE `t1` (
   KEY `a062_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
   KEY `a063_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
   KEY `a064_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 add key 
 a065_long_123456789_123456789_123456789_123456789_123456789_1234 (
 c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16);
@@ -745,23 +745,23 @@ ERROR 42000: Identifier name 'a001_long_123456789_123456789_123456789_123456789_
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
-  `c2` int(11) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
-  `c4` int(11) DEFAULT NULL,
-  `c5` int(11) DEFAULT NULL,
-  `c6` int(11) DEFAULT NULL,
-  `c7` int(11) DEFAULT NULL,
-  `c8` int(11) DEFAULT NULL,
-  `c9` int(11) DEFAULT NULL,
-  `c10` int(11) DEFAULT NULL,
-  `c11` int(11) DEFAULT NULL,
-  `c12` int(11) DEFAULT NULL,
-  `c13` int(11) DEFAULT NULL,
-  `c14` int(11) DEFAULT NULL,
-  `c15` int(11) DEFAULT NULL,
-  `c16` int(11) DEFAULT NULL,
-  `c17` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` int DEFAULT NULL,
+  `c5` int DEFAULT NULL,
+  `c6` int DEFAULT NULL,
+  `c7` int DEFAULT NULL,
+  `c8` int DEFAULT NULL,
+  `c9` int DEFAULT NULL,
+  `c10` int DEFAULT NULL,
+  `c11` int DEFAULT NULL,
+  `c12` int DEFAULT NULL,
+  `c13` int DEFAULT NULL,
+  `c14` int DEFAULT NULL,
+  `c15` int DEFAULT NULL,
+  `c16` int DEFAULT NULL,
+  `c17` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 "End of tests"

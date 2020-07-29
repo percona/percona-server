@@ -1,5 +1,4 @@
 # Test for MySQL bug #74130: querying I_S.INNODB_FT_CONFIG may crash
---source include/have_innodb.inc
 
 CREATE TABLE t1(c TEXT, FULLTEXT KEY k(c)) ENGINE=InnoDB;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,7 +18,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef ConfigManager_H
 #define ConfigManager_H
@@ -44,7 +44,8 @@ class ConfigManager : public MgmtThread {
 
   NdbMutex *m_config_mutex;
   const Config * m_config;
-  BaseString m_packed_config; // base64 packed
+  BaseString m_packed_config_v1; // base64 packed
+  BaseString m_packed_config_v2; // base64 packed
 
   ConfigRetriever m_config_retriever;
 
@@ -224,7 +225,7 @@ class ConfigManager : public MgmtThread {
     struct NodePair {
       int node1;
       int node2;
-      NodePair(int n1, int n2) : node1(n1), node2(n2) {};
+      NodePair(int n1, int n2) : node1(n1), node2(n2) {}
     };
     HashMap<NodePair, int> m_ports;
     bool check(int& node1, int& node2) const;
@@ -257,7 +258,10 @@ public:
     Retrieve the current configuration in base64 packed format
    */
   bool get_packed_config(ndb_mgm_node_type nodetype,
-                         BaseString * buf64, BaseString& error);
+                         BaseString * buf64,
+                         BaseString& error,
+                         bool v2,
+                         Uint32 node_id);
 
   static Config* load_config(const char* config_filename, bool mycnf,
                              BaseString& msg);

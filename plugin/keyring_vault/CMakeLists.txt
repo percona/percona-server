@@ -34,14 +34,9 @@ ENDMACRO()
 CHECK_IF_LIB_FOUND(CURL "keyring_vault" FATAL_ERROR)
 MESSAGE (STATUS "Building keyring_vault plugin")
 
-INCLUDE_DIRECTORIES(SYSTEM
-  ${BOOST_PATCHES_DIR}
-  ${BOOST_INCLUDE_DIR}
-  ${CURL_INCLUDE_DIRS}
-)
+ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="keyring_vault")
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/keyring/common)
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/keyring)
+INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR} ${CURL_INCLUDE_DIRS})
 
 MYSQL_ADD_PLUGIN(keyring_vault
                  ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_key.cc
@@ -61,7 +56,7 @@ MYSQL_ADD_PLUGIN(keyring_vault
                  vault_credentials_parser.cc
                  vault_credentials.cc
                  vault_keyring.cc
-                 LINK_LIBRARIES ${CURL_LIBRARY}
+                 LINK_LIBRARIES ${CURL_LIBRARY} ${SSL_LIBRARIES}
                  MODULE_ONLY
                  MODULE_OUTPUT_NAME "keyring_vault")
 

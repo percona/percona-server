@@ -74,12 +74,10 @@ if ($log_grep_failed)
   SHOW GLOBAL VARIABLES LIKE 'log%';
   SHOW GLOBAL VARIABLES LIKE 'long_query_time';
   SHOW GLOBAL VARIABLES LIKE 'min_examined_row_limit';
-  SHOW GLOBAL VARIABLES LIKE 'query_cache%';
   SHOW GLOBAL VARIABLES LIKE 'slow_query%';
   SHOW SESSION VARIABLES LIKE 'log%';
   SHOW SESSION VARIABLES LIKE 'long_query_time';
   SHOW SESSION VARIABLES LIKE 'min_examined_row_limit';
-  SHOW SESSION VARIABLES LIKE 'query_cache%';
   SHOW SESSION VARIABLES LIKE 'slow_query%';
   --die Testcase failed!
 }

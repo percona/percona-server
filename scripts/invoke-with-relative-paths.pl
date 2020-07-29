@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 #
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -19,8 +19,8 @@
 # GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #
 
 #
@@ -41,8 +41,8 @@ use Cwd;
 
 my $cwd = getcwd();
 
-my @newarg = ();
-for my $i (0..$#ARGV) {
+my @newarg = ($ARGV[0]);
+for my $i (1..$#ARGV) {
 	my $arg = $ARGV[$i];
 	if ($arg =~ /-I(.+)$/) {
 		$arg = '-I' . relativize($1, $cwd);
@@ -64,7 +64,7 @@ sub relativize {
 	}
 
 	if (! -e $dir1) {
-#		print STDERR "Unknown file/directory $dir1.\n";
+		print STDERR "Unknown file/directory $dir1.\n";
 		return $dir1;
 	}
 	# Resolve symlinks and such, because getcwd() does.

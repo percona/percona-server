@@ -1,4 +1,6 @@
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE USER 'user1'@'%' IDENTIFIED BY '111';
 CREATE USER 'user2'@'%' IDENTIFIED BY '111';
 CREATE DATABASE db1;
@@ -7,6 +9,8 @@ CREATE DATABASE `ąžąžąžą`;
 CREATE TABLE db1.t (a VARCHAR(100));
 CREATE TABLE db2.t (a VARCHAR(100));
 CREATE TABLE ąžąžąžą.t (a VARCHAR(100)) charset=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO db1.t VALUES ('db1');
 INSERT INTO db2.t VALUES ('db2');
 INSERT INTO ąžąžąžą.t VALUES ('ąžąžąžą');
@@ -18,7 +22,6 @@ GRANT ALL PRIVILEGES ON ąžąžąžą.* TO 'user2'@'%';
 UNINSTALL PLUGIN audit_log;
 Warnings:
 Warning	1620	Plugin is busy and will be uninstalled on shutdown
-set names utf8;
 INSTALL PLUGIN audit_log SONAME 'audit_log.so';
 SELECT * FROM t;
 a
@@ -32,6 +35,8 @@ ERROR 28000: Access denied for user 'user2'@'localhost' (using password: YES)
 connect(localhost,user3,111,db2,MASTER_MYPORT,MASTER_MYSOCK);
 ERROR 28000: Access denied for user 'user3'@'localhost' (using password: YES)
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT * FROM t;
 a
 db2
@@ -41,6 +46,8 @@ SELECT * FROM t;
 a
 db2
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT * FROM t;
 a
 db1
@@ -68,11 +75,13 @@ set global audit_log_flush= ON;
 "Connect","<ID>","<DATETIME>","<CONN_ID>",1045,"user3","","","","localhost","",""
 "Connect","<ID>","<DATETIME>","<CONN_ID>",0,"user2","user2","","","localhost","","db2"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"set names utf8","user2[user2] @ localhost []","localhost","","","db2"
+"Query","<ID>","<DATETIME>","show_warnings","<CONN_ID>",0,"SHOW WARNINGS","user2[user2] @ localhost []","localhost","","","db2"
 "Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT * FROM t","user2[user2] @ localhost []","localhost","","","db2"
 "Query","<ID>","<DATETIME>","change_db","<CONN_ID>",1044,"use    	`db1`","user2[user2] @ localhost []","localhost","","","db2"
 "Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT * FROM t","user2[user2] @ localhost []","localhost","","","db2"
 "Change user","<ID>","<DATETIME>","<CONN_ID>",0,"user1","user1","","","localhost","","db1"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"set names utf8","user1[user1] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","show_warnings","<CONN_ID>",0,"SHOW WARNINGS","user1[user1] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT * FROM t","user1[user1] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","change_db","<CONN_ID>",0,"use `db2`","user1[user1] @ localhost []","localhost","","","db2"
 "Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT * FROM t","user1[user1] @ localhost []","localhost","","","db2"

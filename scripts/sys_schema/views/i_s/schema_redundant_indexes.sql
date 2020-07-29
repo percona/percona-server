@@ -1,20 +1,13 @@
 -- Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
--- it under the terms of the GNU General Public License, version 2.0,
--- as published by the Free Software Foundation.
---
--- This program is also distributed with certain software (including
--- but not limited to OpenSSL) that is licensed under separate terms,
--- as designated in a particular file or component or in included license
--- documentation.  The authors of MySQL hereby grant you an additional
--- permission to link the program and your derivative works with the
--- separately licensed software that they have included with MySQL.
+-- it under the terms of the GNU General Public License as published by
+-- the Free Software Foundation; version 2 of the License.
 --
 -- This program is distributed in the hope that it will be useful,
 -- but WITHOUT ANY WARRANTY; without even the implied warranty of
 -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
--- GNU General Public License, version 2.0, for more details.
+-- GNU General Public License for more details.
 --
 -- You should have received a copy of the GNU General Public License
 -- along with this program; if not, write to the Free Software
@@ -43,9 +36,9 @@
 -- *************************** 1. row ***************************
 --        Table: rkey
 -- Create Table: CREATE TABLE `rkey` (
---   `i` int(11) NOT NULL,
---   `j` int(11) DEFAULT NULL,
---   `k` int(11) DEFAULT NULL,
+--   `i` int NOT NULL,
+--   `j` int DEFAULT NULL,
+--   `k` int DEFAULT NULL,
 --   PRIMARY KEY (`i`),
 --   KEY `j` (`j`),
 --   KEY `j_2` (`j`,`k`)

@@ -5,8 +5,6 @@
 # corruption, leading eventually to a server exit.
 #
 
---source include/have_innodb.inc
-
 SET @@session.sql_buffer_result = 1;
 
 CREATE TEMPORARY TABLE t2(
@@ -30,11 +28,10 @@ CREATE TEMPORARY TABLE t3(
 ) ENGINE=InnoDB;
 DROP TABLE t2;
 
-SET @saved_sql_mode = @@session.sql_mode;
-SET SESSION sql_mode = 'NO_AUTO_CREATE_USER';
+--source include/turn_off_strict_mode.inc
 INSERT INTO t2 VALUES(4000000000000000, CURRENT_TIMESTAMP, '');
 ALTER TABLE t3 MODIFY c3 TINYTEXT CHARACTER SET "latin1" COLLATE "latin1_bin";
 INSERT INTO t3 SELECT * FROM t2;
-SET SESSION sql_mode = @saved_sql_mode;
+--source include/restore_strict_mode.inc
 
 DROP TABLE t2;

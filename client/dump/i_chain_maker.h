@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,36 +25,33 @@
 #ifndef I_CHAIN_MAKER_INCLUDED
 #define I_CHAIN_MAKER_INCLUDED
 
-#include "i_chain_element.h"
-#include "i_object_reader.h"
-#include "i_dump_task.h"
-#include "chain_data.h"
-#include "my_global.h"
+#include "client/dump/chain_data.h"
+#include "client/dump/i_chain_element.h"
+#include "client/dump/i_dump_task.h"
+#include "client/dump/i_object_reader.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-class I_chain_maker : public virtual I_chain_element
-{
-public:
+class I_chain_maker : public virtual I_chain_element {
+ public:
   /**
     Creates new chain for specified dump task. May return null if do not want
     to process specified object.
    */
-  virtual I_object_reader* create_chain(
-    Chain_data* chain_data, I_dump_task* dump_task)= 0;
+  virtual I_object_reader *create_chain(Chain_data *chain_data,
+                                        I_dump_task *dump_task) = 0;
   /**
     Frees resources used by specified chain.
    */
-  virtual void delete_chain(
-    uint64 chain_id, I_object_reader* chain)= 0;
+  virtual void delete_chain(uint64 chain_id, I_object_reader *chain) = 0;
 
-  virtual void stop_queues()= 0;
+  virtual void stop_queues() = 0;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

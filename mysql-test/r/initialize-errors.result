@@ -1,5 +1,3 @@
-# We don't care about innodb warnings at this point
-CALL mtr.add_suppression("InnoDB:");
 # shut server down
 # Server is down
 #
@@ -20,6 +18,24 @@ CREATE DATABASE test;
 # remove the password file
 # delete mysqld log
 # delete datadir
+#
+# Bug #27675647: INVALID INITIALIZATION COMMAND ALLOWED TO DO TOO MUCH WORK
+#
+# Run server with --initialize insecure
+# check for unusable directory log message
+Pattern found.
+# delete mysqld log
+# delete datadir
+# End of the test for bug #27675647
+#
+# Bug #29594082: INCORRECT AND DANGEROUS ERROR MESSAGE FROM MY-013236
+#
+# Run server with --initialize insecure on an existing empty directory
+# check for unusable existing directory log message
+Pattern found.
+# delete mysqld log
+# delete datadir
+# End of the test for bug #29594082
 #
 # Cleanup
 #

@@ -1,18 +1,17 @@
 source include/not_valgrind.inc;
 source include/have_memcached_plugin.inc;
 source include/not_windows.inc;
-source include/have_innodb.inc;
 
-call mtr.add_suppression("InnoDB: Cannot add field ");
+call mtr.add_suppression("Cannot add field ");
 
 --disable_query_log
 CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
 CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
-CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
+CALL mtr.add_suppression("Warning: MySQL is trying to drop");
 --enable_query_log
 
 --enable_connect_log
-SET @tx_isolation= @@global.tx_isolation;
+SET @transaction_isolation= @@global.transaction_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
 # Create the memcached tables
@@ -27,12 +26,12 @@ INSERT INTO config_options VALUES("separator", ",");
 
 # describe table for memcache
 INSERT INTO containers VALUES ("desc_t1", "test", "t1",
-			       "c1", 
+			       "c1",
                                "c200,c201,c202,c203,c204,c205,c206,c207,c208,c209,
                                 c210,c211,c212,c213,c214,c215,c216,c217,c218,c219,
                                 c220,c221,c222,c223,c224,c225,c226,c227,c228,c229,
                                 c230,c231,c232,c233,c234,c235,c236,c237,c238,c239,
-                                c240,c241,c242,c243,c244,c245,c246,c247,c248,c249", 
+                                c240,c241,c242,c243,c244,c245,c246,c247,c248,c249",
                                "c3", "c4", "c5", "PRIMARY");
 
 # Container's value_columns is 255 bytes, above insertion would be truncated.
@@ -44,7 +43,7 @@ DELETE FROM containers;
 
 # The 255 character limit of "value_columns" can hold columns up to "c230"
 INSERT INTO containers VALUES ("desc_t1", "test", "t1",
-			       "c1", 
+			       "c1",
                                "c200,c201,c202,c203,c204,c205,c206,c207,c208,c209,
                                 c210,c211,c212,c213,c214,c215,c216,c217,c218,c219,
                                 c220,c221,c222,c223,c224,c225,c226,c227,c228,c229",
@@ -114,36 +113,35 @@ INSERT INTO t1 VALUES ('1',
                        'c210','c211','c212','c213','c214','c215','c216','c217','c218','c219',
                        'c220','c221','c222','c223','c224','c225','c226','c227','c228','c229',
                        'c230','c231','c232','c233','c234','c235','c236','c237','c238','c239',
-                       'c240','c241','c242','c243','c244','c245','c246','c247','c248','c249', 
+                       'c240','c241','c242','c243','c244','c245','c246','c247','c248','c249',
                        0, 0, 0);
 INSERT INTO t1 VALUES ('2',
                        'c200','c201','c202','c203','c204','c205','c206','c207','c208','c209',
                        'c210','c211','c212','c213','c214','c215','c216','c217','c218','c219',
                        'c220','c221','c222','c223','c224','c225','c226','c227','c228','c229',
                        'c230','c231','c232','c233','c234','c235','c236','c237','c238','c239',
-                       'c240','c241','c242','c243','c244','c245','c246','c247','c248','c249', 
+                       'c240','c241','c242','c243','c244','c245','c246','c247','c248','c249',
                        0, 0, 0);
 INSERT INTO t1 VALUES ('3',
                        'c200','c201','c202','c203','c204','c205','c206','c207','c208','c209',
                        'c210','c211','c212','c213','c214','c215','c216','c217','c218','c219',
                        'c220','c221','c222','c223','c224','c225','c226','c227','c228','c229',
                        'c230','c231','c232','c233','c234','c235','c236','c237','c238','c239',
-                       'c240','c241','c242','c243','c244','c245','c246','c247','c248','c249', 
+                       'c240','c241','c242','c243','c244','c245','c246','c247','c248','c249',
                        0, 0, 0);
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11215
+--source ../include/load_daemon_memcached_expecting_success.inc
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c200,c201,c202,c203,c204,c205,c206,c207,c208,c209,
           c210,c211,c212,c213,c214,c215,c216,c217,c218,c219,
           c220,c221,c222,c223,c224,c225,c226,c227,c228,c229,
           c230,c231,c232,c233,c234,c235,c236,c237,c238,c239,
           c240,c241,c242,c243,c244,c245,c246,c247,c248,c249
-       FROM t1; 
+       FROM t1;
 
-SELECT SLEEP(2);
 
 perl;
 use DBI;
@@ -153,7 +151,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results:\n";
+print "Here are the memcached results:\n";
 $val = $memd->get("1");
 if ($val) { print "$val\n"; }
 $val = $memd->get("2");
@@ -169,7 +167,7 @@ SELECT c1,c200,c201,c202,c203,c204,c205,c206,c207,c208,c209,
           c220,c221,c222,c223,c224,c225,c226,c227,c228,c229,
           c230,c231,c232,c233,c234,c235,c236,c237,c238,c239,
           c240,c241,c242,c243,c244,c245,c246,c247,c248,c249
-       FROM t1; 
+       FROM t1;
 
 perl;
 use DBI;
@@ -179,8 +177,8 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after set:\n";
-$val = $memd->set("4","c200,c201,c202,c203,c204,c205,c206,c207,c208,c209,c210,c211,c212,c213,c214,c215,c216,c217,c218,c219,c220,c221,c222,c223,c224,c225,c226,c227,c228,c229"); 
+print "Here are the memcached results after set:\n";
+$val = $memd->set("4","c200,c201,c202,c203,c204,c205,c206,c207,c208,c209,c210,c211,c212,c213,c214,c215,c216,c217,c218,c219,c220,c221,c222,c223,c224,c225,c226,c227,c228,c229");
 $val = $memd->get("4");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -192,7 +190,7 @@ SELECT c1,c200,c201,c202,c203,c204,c205,c206,c207,c208,c209,
           c220,c221,c222,c223,c224,c225,c226,c227,c228,c229,
           c230,c231,c232,c233,c234,c235,c236,c237,c238,c239,
           c240,c241,c242,c243,c244,c245,c246,c247,c248,c249
-       FROM t1; 
+       FROM t1;
 
 perl;
 use DBI;
@@ -202,11 +200,11 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after set:\n";
+print "Here are the memcached results after set:\n";
 $val = $memd->set("4","c200,c201,c202,c203,c204,c205,c206,c207,c208,c209,
                        c210,c211,c212,c213,c214,c215,c216,c217,c218,c219,
                        c220,c221,c222,c223,c224,c225,c226,c227,c228,c229"
-                 ); 
+                 );
 $val = $memd->get("4");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -218,7 +216,7 @@ SELECT c1,c200,c201,c202,c203,c204,c205,c206,c207,c208,c209,
           c220,c221,c222,c223,c224,c225,c226,c227,c228,c229,
           c230,c231,c232,c233,c234,c235,c236,c237,c238,c239,
           c240,c241,c242,c243,c244,c245,c246,c247,c248,c249
-       FROM t1; 
+       FROM t1;
 
 perl;
 use DBI;
@@ -228,13 +226,13 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after set:\n";
+print "Here are the memcached results after set:\n";
 $val = $memd->set("4","c200,c201,c202,c203,c204,c205,c206,c207,c208,c209,
                        c210,c211,c212,c213,c214,c215,c216,c217,c218,c219,
                        c220,c221,c222,c223,c224,c225,c226,c227,c228,c229,
                        c230,c231,c232,c233,c234,c235,c236,c237,c238,c239,
                        c240,c241,c242,c243,c244,c245,c246,c247,c248,c249"
-                 ); 
+                 );
 $val = $memd->get("4");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -246,11 +244,11 @@ SELECT c1,c200,c201,c202,c203,c204,c205,c206,c207,c208,c209,
           c220,c221,c222,c223,c224,c225,c226,c227,c228,c229,
           c230,c231,c232,c233,c234,c235,c236,c237,c238,c239,
           c240,c241,c242,c243,c244,c245,c246,c247,c248,c249
-       FROM t1; 
+       FROM t1;
 
 DROP TABLE t1;
 SET sql_mode=default;
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
 
-SET @@global.tx_isolation= @tx_isolation;
+SET @@global.transaction_isolation= @transaction_isolation;

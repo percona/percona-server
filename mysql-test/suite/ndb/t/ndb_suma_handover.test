@@ -1,7 +1,11 @@
 --source include/have_ndb.inc
 --source suite/ndb/t/have_ndb_error_insert.inc
 
+--disable_query_log
 call mtr.add_suppression(".*Node failure caused abort of transaction.*");
+call mtr.add_suppression("cluster disconnect An incident event has been written");
+call mtr.add_suppression("NDB: Failed to setup events for 'mysql.ndb_schema' table");
+--enable_query_log
 
 # Restart half cluster, but without starting nodes
 --exec $NDB_MGM --no-defaults --verbose=0 -e "2 restart -n"
@@ -29,3 +33,4 @@ call mtr.add_suppression(".*Node failure caused abort of transaction.*");
 # Start cluster, should cause node 2 to fail
 --exec $NDB_MGM --no-defaults --verbose=0 -e "all start"
 --exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" --wait-nodes=2,4 >> $NDB_TOOLS_OUTPUT
+--remove_file $NDB_TOOLS_OUTPUT

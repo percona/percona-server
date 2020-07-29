@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -231,7 +231,7 @@ bool NextLogRecord::check() {
 }
 
 Uint32 NextLogRecord::getLogRecordSize(Uint32 pageIndex) {
-  return PAGESIZE - pageIndex;
+  return REDOLOG_PAGESIZE - pageIndex;
 }
 
 NdbOut& operator<<(NdbOut& no, const NextLogRecord& nl) {

@@ -46,7 +46,7 @@ replace_column 1 TRX_ID 2 MYSQL_ID;
 select * from information_schema.tokudb_locks;
 
 connection conn_b;
---error 1062
+--error ER_DUP_ENTRY
 reap;
 commit;
 

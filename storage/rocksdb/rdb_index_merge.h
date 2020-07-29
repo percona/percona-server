@@ -17,9 +17,7 @@
 #pragma once
 
 /* MySQL header files */
-#include "handler.h" /* handler */
-#include "log.h"
-#include "my_global.h" /* ulonglong */
+#include "sql/handler.h" /* handler */
 
 /* C++ standard header files */
 #include <queue>

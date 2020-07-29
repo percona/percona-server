@@ -10,7 +10,7 @@ insert into t values (1,0);
 insert into t values (1,0) on duplicate key update x=42;
 insert into t values (1,0) on duplicate key update x=x+1;
 insert into t values (1,0) on duplicate key update x=x-1;
-set session sql_mode="ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION,traditional";
+set session sql_mode="ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION,traditional";
 insert into t values (1,0) on duplicate key update x=42;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 insert into t values (1,0) on duplicate key update x=x+1;

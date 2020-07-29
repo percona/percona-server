@@ -24,9 +24,8 @@
 #include <vector>
 
 /* MySQL header files */
-#include "log.h"
 #include "my_dir.h"
-#include "sql_class.h"
+#include "sql/sql_class.h"
 
 /* RocksDB header files */
 #include "rocksdb/db.h"
@@ -82,9 +81,8 @@ rocksdb::Status Rdb_sst_file_ordered::Rdb_sst_file::open() {
 
   s = m_sst_file_writer->Open(m_name);
   if (m_tracing) {
-    // NO_LINT_DEBUG
-    sql_print_information("SST Tracing: Open(%s) returned %s", m_name.c_str(),
-                          s.ok() ? "ok" : "not ok");
+    LogPluginErrMsg(INFORMATION_LEVEL, 0, "SST Tracing: Open(%s) returned %s",
+                    m_name.c_str(), s.ok() ? "ok" : "not ok");
   }
 
   if (!s.ok()) {
@@ -133,22 +131,19 @@ rocksdb::Status Rdb_sst_file_ordered::Rdb_sst_file::commit() {
   // Close out the sst file
   s = m_sst_file_writer->Finish(&fileinfo);
   if (m_tracing) {
-    // NO_LINT_DEBUG
-    sql_print_information("SST Tracing: Finish returned %s",
-                          s.ok() ? "ok" : "not ok");
+    LogPluginErrMsg(INFORMATION_LEVEL, 0, "SST Tracing: Finish returned %s",
+                    s.ok() ? "ok" : "not ok");
   }
 
   if (s.ok()) {
     if (m_tracing) {
-      // NO_LINT_DEBUG
-      sql_print_information(
-          "SST Tracing: Adding file %s, smallest key: %s, "
-          "largest key: %s, file size: %lu, "
-          "num_entries: %lu",
-          fileinfo.file_path.c_str(),
-          generateKey(fileinfo.smallest_key).c_str(),
-          generateKey(fileinfo.largest_key).c_str(), fileinfo.file_size,
-          fileinfo.num_entries);
+      LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                      "SST Tracing: Adding file %s, smallest key: %s, "
+                      "largest key: %s, file size: %lu, num_entries: %lu",
+                      fileinfo.file_path.c_str(),
+                      generateKey(fileinfo.smallest_key).c_str(),
+                      generateKey(fileinfo.largest_key).c_str(),
+                      fileinfo.file_size, fileinfo.num_entries);
     }
   }
 
@@ -498,7 +493,8 @@ void Rdb_sst_info::set_error_msg(const std::string &sst_file_name,
 void Rdb_sst_info::report_error_msg(const rocksdb::Status &s,
                                     const char *sst_file_name) {
   if (s.IsInvalidArgument() &&
-      strcmp(s.getState(), "Keys must be added in order") == 0) {
+      strcmp(s.getState(), "Keys must be added in strict ascending order.") ==
+          0) {
     my_printf_error(ER_KEYS_OUT_OF_ORDER,
                     "Rows must be inserted in primary key order "
                     "during bulk load operation",
@@ -518,13 +514,12 @@ void Rdb_sst_info::report_error_msg(const rocksdb::Status &s,
 
 void Rdb_sst_info::init(const rocksdb::DB *const db) {
   const std::string path = db->GetName() + FN_DIRSEP;
-  struct st_my_dir *const dir_info = my_dir(path.c_str(), MYF(MY_DONT_SORT));
+  MY_DIR *const dir_info = my_dir(path.c_str(), MYF(MY_DONT_SORT));
 
   // Access the directory
   if (dir_info == nullptr) {
-    // NO_LINT_DEBUG
-    sql_print_warning("RocksDB: Could not access database directory: %s",
-                      path.c_str());
+    LogPluginErrMsg(WARNING_LEVEL, 0, "Could not access database directory: %s",
+                    path.c_str());
     return;
   }
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,28 +25,27 @@
 #ifndef I_DATA_FORMATTER_WRAPPER_INCLUDED
 #define I_DATA_FORMATTER_WRAPPER_INCLUDED
 
-#include "i_data_formatter.h"
+#include "client/dump/i_data_formatter.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 /**
   Represents class that directs execution of dump tasks to Data Formatters.
  */
-class I_data_formatter_wrapper
-{
-public:
-  virtual ~I_data_formatter_wrapper()
-  {}
+class I_data_formatter_wrapper {
+ public:
+  virtual ~I_data_formatter_wrapper() {}
   /**
   Add new Data Formatter to supply acquired data of objects to.
   */
-  virtual void register_data_formatter(I_data_formatter* new_data_formatter)= 0;
+  virtual void register_data_formatter(
+      I_data_formatter *new_data_formatter) = 0;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,15 +22,10 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "simple_id_generator.h"
+#include "client/dump/simple_id_generator.h"
 
 using namespace Mysql::Tools::Dump;
 
-Simple_id_generator::Simple_id_generator()
-  : m_next_id(1)
-{}
+Simple_id_generator::Simple_id_generator() : m_next_id(1) {}
 
-uint64 Simple_id_generator::create_id()
-{
-  return m_next_id++;
-}
+uint64 Simple_id_generator::create_id() { return m_next_id++; }

@@ -126,7 +126,7 @@ INSERT INTO global_suppressions VALUES
  ("Slave: Query caused different errors on master and slave"),
  ("Slave: Table .* doesn't exist"),
  ("Slave: Table width mismatch"),
- ("Slave: The incident LOST_EVENTS occured on the master"),
+ ("Slave: The incident LOST_EVENTS occurred on the master"),
  ("Slave: Unknown error.* 1105"),
  ("Slave: Can't drop database.* database doesn't exist"),
  ("Sort aborted"),
@@ -164,8 +164,6 @@ INSERT INTO global_suppressions VALUES
  ("No existing UUID has been found, so we assume that this is the first time that this server has been started.*"),
  /*It will print a warning if server is run without --explicit_defaults_for_timestamp.*/
  ("TIMESTAMP with implicit DEFAULT value is deprecated. Please use --explicit_defaults_for_timestamp server option (see documentation for more details)*"),
- /*It will print a warning if a server is run without NO_AUTO_CREATE_USER sql mode.*/
- ("'NO_AUTO_CREATE_USER' sql mode was not set."),
 
  /* Added 2009-08-XX after fixing Bug #42408 */
 

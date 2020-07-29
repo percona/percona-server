@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -140,18 +140,43 @@ void Dbtup::allocConsPages(EmulatedJamBuffer* jamBuf,
     return;
   }//if
 
-  Resource_limit rl;
-  m_ctx.m_mm.get_resource_limit_nolock(RG_DATAMEM, rl);
-  if (rl.m_curr + m_minFreePages + noOfPagesToAllocate > rl.m_max)
+  if (noOfPagesToAllocate == 1)
   {
-    thrjam(jamBuf);
-    noOfPagesAllocated = 0;
-    return;
+    void* p = m_ctx.m_mm.alloc_page(RT_DBTUP_PAGE,
+                                    &allocPageRef,
+                                    Ndbd_mem_manager::NDB_ZONE_LE_30);
+    if (p != NULL)
+    {
+      noOfPagesAllocated = 1;
+    }
+    else
+    {
+      noOfPagesAllocated = 0;
+    }
   }
-
-  m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE, &allocPageRef,
-			 &noOfPagesToAllocate, 1);
-  noOfPagesAllocated = noOfPagesToAllocate;
+  else
+  {
+#ifndef VM_TRACE
+    ndbrequire(noOfPagesToAllocate == 1);
+#else
+    /* For DUMP_STATE_ORD 1211, 1212, and, 1213 */
+    noOfPagesAllocated = noOfPagesToAllocate;
+    m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE,
+                           &allocPageRef,
+                           &noOfPagesAllocated,
+                           1);
+#endif
+  }
+  if(noOfPagesAllocated == 0 && c_allow_alloc_spare_page)
+  {
+    void* p = m_ctx.m_mm.alloc_spare_page(RT_DBTUP_PAGE,
+                                          &allocPageRef,
+                                          Ndbd_mem_manager::NDB_ZONE_LE_30);
+    if (p != NULL)
+    {
+      noOfPagesAllocated = 1;
+    }
+  }
 
   // Count number of allocated pages
   m_pages_allocated += noOfPagesAllocated;
@@ -161,12 +186,23 @@ void Dbtup::allocConsPages(EmulatedJamBuffer* jamBuf,
   return;
 }//allocConsPages()
 
-void Dbtup::returnCommonArea(Uint32 retPageRef, Uint32 retNo) 
+void Dbtup::returnCommonArea(Uint32 retPageRef, Uint32 retNo)
 {
   m_ctx.m_mm.release_pages(RT_DBTUP_PAGE, retPageRef, retNo);
 
   // Count number of allocated pages
   m_pages_allocated -= retNo;
-
 }//Dbtup::returnCommonArea()
 
+bool Dbtup::returnCommonArea_for_reuse(Uint32 retPageRef, Uint32 retNo)
+{
+  if (!m_ctx.m_mm.give_up_pages(RT_DBTUP_PAGE, retNo))
+  {
+    return false;
+  }
+
+  // Count number of allocated pages
+  m_pages_allocated -= retNo;
+
+  return true;
+}

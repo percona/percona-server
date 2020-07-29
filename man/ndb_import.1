@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_import\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/23/2020
+.\"      Date: 03/06/2020
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 5.7
+.\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_IMPORT\FR" "1" "03/23/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_IMPORT\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -188,7 +188,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.249.\ \&Command\-line options for the ndb_import program
+.B Table\ \&22.261.\ \&Command\-line options for the ndb_import program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -247,7 +247,7 @@ T}:T{
 Dump core on any fatal error; used for debugging
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -256,7 +256,7 @@ T}:T{
 For table with hidden PK, specify autoincrement increment. See mysqld
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -265,7 +265,7 @@ T}:T{
 For table with hidden PK, specify autoincrement offset. See mysqld
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -275,7 +275,7 @@ For table with hidden PK, specify number of autoincrement values that
               are prefetched. See mysqld
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -284,7 +284,7 @@ T}:T{
 Number of cluster connections to create
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -293,7 +293,7 @@ T}:T{
 When job fails, continue to next job
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -302,7 +302,7 @@ T}:T{
 Number of threads, per data node, executing database operations
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -312,7 +312,7 @@ Error insert type, for testing purposes; use "list" to obtain all
               possible values
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -321,7 +321,7 @@ T}:T{
 Error insert delay in milliseconds; random variation is added
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -332,7 +332,7 @@ Same as FIELDS ENCLOSED BY option for LOAD DATA statements. For CSV
               --fields-optionally-enclosed-by
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -341,7 +341,7 @@ T}:T{
 Same as FIELDS ESCAPED BY option for LOAD DATA statements
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -350,7 +350,7 @@ T}:T{
 Same as FIELDS OPTIONALLY ENCLOSED BY option for LOAD DATA statements
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -359,7 +359,7 @@ T}:T{
 Same as FIELDS TERMINATED BY option for LOAD DATA statements
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -368,7 +368,7 @@ T}:T{
 Number of milliseconds to sleep waiting for more to do
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -377,7 +377,7 @@ T}:T{
 Number of times to re-try before idlesleep
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -386,7 +386,7 @@ T}:T{
 Ignore first # lines in input file. Used to skip a non-data header
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -395,7 +395,7 @@ T}:T{
 Input type: random or csv
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -405,7 +405,7 @@ Number of threads processing input. Must be 2 or more if --input-type is
               csv
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -416,7 +416,7 @@ State files (except non-empty *.rej files) are normally removed on job
               preserved instead
 T}:T{
 .PP
-ADDED: NDB 7.6.4
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -425,7 +425,7 @@ T}:T{
 Same as LINES TERMINATED BY option for LOAD DATA statements
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -435,7 +435,7 @@ Import only this number of input data rows; default is 0, which imports
               all rows
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -448,7 +448,7 @@ Periodically print status of running job if something has changed
               pre-defined limit
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -457,7 +457,7 @@ T}:T{
 Run database operations as batches, in single transactions
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -466,7 +466,7 @@ T}:T{
 Do not use distribution key hint to select data node (TC)
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -478,7 +478,7 @@ A db execution batch is a set of transactions and operations sent to NDB
               limits number of asynch transactions. Value 0 is not valid
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -487,7 +487,7 @@ T}:T{
 Limit bytes in execution batch (default 0 = no limit)
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -496,7 +496,7 @@ T}:T{
 Output type: ndb is default, null used for testing
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -505,7 +505,7 @@ T}:T{
 Number of threads processing output or relaying database operations
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -514,7 +514,7 @@ T}:T{
 Align I/O buffers to given size
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -524,7 +524,7 @@ Size of I/O buffers as multiple of page size. CSV input worker allocates
               a double-sized buffer
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -534,7 +534,7 @@ Timeout per poll for completed asynchonous transactions; polling
               continues until all polls are completed, or error occurs
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -546,7 +546,7 @@ Limit number of rejected rows (rows with permanent error) in data load.
               *.rej
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -556,7 +556,7 @@ If job aborted (temporary error, user interrupt), resume with rows not
               yet processed
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -566,7 +566,7 @@ Limit rows in row queues (default 0 = no limit); must be 1 or more if
               --input-type is random
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -575,7 +575,7 @@ T}:T{
 Limit bytes in row queues (0 = no limit)
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -584,7 +584,7 @@ T}:T{
 Where to write state files; currect directory is default
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -595,7 +595,7 @@ Save performance related options and internal statistics in *.sto and
               even if --keep-state is not used
 T}:T{
 .PP
-ADDED: NDB 7.6.4
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -604,7 +604,7 @@ T}:T{
 Number of milliseconds to sleep between temporary errors
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -616,7 +616,7 @@ Number of times a transaction can fail due to a temporary error, per
               file
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -627,7 +627,7 @@ T}:T{
 Enable verbose output
 T}:T{
 .PP
-ADDED: NDB 7.6.2
+(Supported in all MySQL 8.0 based releases)
 T}
 .TE
 .sp 1
@@ -652,17 +652,11 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --abort-on-error
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -701,17 +695,11 @@ l l
 l l
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --ai-increment=#
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -762,17 +750,11 @@ l l
 l l
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --ai-offset=#
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -823,17 +805,11 @@ l l
 l l
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --ai-prefetch-sz=#
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -884,17 +860,11 @@ l l
 l l
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --connections=#
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -941,17 +911,11 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --continue
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -990,8 +954,6 @@ l l
 l l
 l l
 l l
-l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -999,24 +961,14 @@ T}:T{
 --db-workers=#
 T}
 T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
-T}
-T{
 \fBType\fR
 T}:T{
 Integer
 T}
 T{
-\fBDefault Value\fR (≥ 5.7.20-ndb-7.6.4)
+\fBDefault Value\fR
 T}:T{
 4
-T}
-T{
-\fBDefault Value\fR (≥ 5.7.18-ndb-7.6.2, ≤ 5.7.18-ndb-7.6.3)
-T}:T{
-1
 T}
 T{
 \fBMinimum Value\fR
@@ -1054,17 +1006,11 @@ T}
 l l
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --errins-type=name
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -1121,17 +1067,11 @@ l l
 l l
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --errins-delay=#
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -1178,17 +1118,11 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --fields-enclosed-by=char
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -1230,17 +1164,11 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --fields-escaped-by=name
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -1281,17 +1209,11 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --fields-optionally-enclosed-by=char
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -1333,17 +1255,11 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --fields-terminated-by=char
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -1386,17 +1302,11 @@ l l
 l l
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --idlesleep=#
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -1445,17 +1355,11 @@ l l
 l l
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --idlespin=#
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -1504,17 +1408,11 @@ l l
 l l
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --ignore-lines=#
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -1564,17 +1462,11 @@ T}
 l l
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --input-type=name
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -1624,8 +1516,6 @@ l l
 l l
 l l
 l l
-l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -1633,24 +1523,14 @@ T}:T{
 --input-workers=#
 T}
 T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
-T}
-T{
 \fBType\fR
 T}:T{
 Integer
 T}
 T{
-\fBDefault Value\fR (≥ 5.7.20-ndb-7.6.4)
+\fBDefault Value\fR
 T}:T{
 4
-T}
-T{
-\fBDefault Value\fR (≥ 5.7.18-ndb-7.6.2, ≤ 5.7.18-ndb-7.6.3)
-T}:T{
-2
 T}
 T{
 \fBMinimum Value\fR
@@ -1687,17 +1567,11 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --keep-state
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.20-ndb-7.6.4
 T}
 T{
 \fBType\fR
@@ -1736,17 +1610,11 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --lines-terminated-by=name
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -1844,17 +1712,11 @@ l l
 l l
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --max-rows=#
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -1903,17 +1765,11 @@ l l
 l l
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --monitor=#
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -1960,17 +1816,11 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --no-asynch
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -2007,17 +1857,11 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --no-hint
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -2056,17 +1900,11 @@ l l
 l l
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --opbatch=#
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -2115,17 +1953,11 @@ l l
 l l
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --opbytes=#
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -2173,17 +2005,11 @@ T}
 l l
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --output-type=name
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -2231,17 +2057,11 @@ l l
 l l
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --output-workers=#
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -2290,17 +2110,11 @@ l l
 l l
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --pagesize=#
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -2349,17 +2163,11 @@ l l
 l l
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --pagecnt=#
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -2408,17 +2216,11 @@ l l
 l l
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --polltimeout=#
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -2467,17 +2269,11 @@ l l
 l l
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --rejects=#
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -2532,17 +2328,11 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --resume
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -2581,17 +2371,11 @@ l l
 l l
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --rowbatch=#
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -2640,17 +2424,11 @@ l l
 l l
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --rowbytes=#
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -2697,17 +2475,11 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --stats
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.20-ndb-7.6.4
 T}
 T{
 \fBType\fR
@@ -2749,17 +2521,11 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --state-dir=name
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -2801,17 +2567,11 @@ l l
 l l
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --tempdelay=#
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -2860,17 +2620,11 @@ l l
 l l
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --temperrors=#
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
 T}
 T{
 \fBType\fR
@@ -2920,11 +2674,6 @@ T}
 .T&
 l l
 l l
-l l
-l l
-l l
-l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -2932,47 +2681,18 @@ T}:T{
 --verbose
 T}
 T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.2
-T}
-T{
-\fBType\fR (≥ 5.7.20-ndb-7.6.4)
+\fBType\fR
 T}:T{
 Boolean
 T}
 T{
-\fBType\fR (≥ 5.7.18-ndb-7.6.2, ≤ 5.7.18-ndb-7.6.3)
-T}:T{
-Integer
-T}
-T{
-\fBDefault Value\fR (≥ 5.7.20-ndb-7.6.4)
+\fBDefault Value\fR
 T}:T{
 false
 T}
-T{
-\fBDefault Value\fR (≥ 5.7.18-ndb-7.6.2, ≤ 5.7.18-ndb-7.6.3)
-T}:T{
-0
-T}
-T{
-\fBMinimum Value\fR
-T}:T{
-0
-T}
-T{
-\fBMaximum Value\fR
-T}:T{
-2
-T}
 .TE
 .sp 1
-NDB 7\&.6\&.4 and later: Enable verbose output\&.
-.sp
-Previously, this option controlled the internal logging level for debugging messages\&. In NDB 7\&.6\&.4 and later, use the
-\fB\-\-log\-level\fR
-option for this purpose instead\&.
+Enable verbose output\&.
 .RE
 .PP
 As with

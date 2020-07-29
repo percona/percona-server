@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,8 @@
 #include <NdbOut.hpp>
 #include "ConfigInfo.hpp"
 #include "EventLogger.hpp"
-#include <m_string.h>
+#include "m_string.h"
+#include "my_alloc.h"
 #include <util/SparseBitmask.hpp>
 #include "../common/util/parse_mask.hpp"
 
@@ -55,8 +56,8 @@ InitConfigFileParser::~InitConfigFileParser() {
 //  Read Config File
 //****************************************************************************
 InitConfigFileParser::Context::Context(const ConfigInfo * info)
-  :  m_userProperties(true), m_configValues(1000, 20) {
-
+  :  m_userProperties(true), m_configValues()
+{
   m_config = new Properties(true);
   m_defaults = new Properties(true);
 }
@@ -121,7 +122,9 @@ InitConfigFileParser::parseConfig(FILE * file) {
 	free(section);
 	ctx.reportError("Could not store previous default section "
 			"of configuration file.");
-	return 0;
+        delete ctx.m_currentSection;
+        ctx.m_currentSection = NULL;
+        return 0;
       }
       BaseString::snprintf(ctx.fname, sizeof(ctx.fname), "%s", section);
       free(section);
@@ -142,7 +145,9 @@ InitConfigFileParser::parseConfig(FILE * file) {
 	free(section);
 	ctx.reportError("Could not store previous section "
 			"of configuration file.");
-	return 0;
+        delete ctx.m_currentSection;
+        ctx.m_currentSection = NULL;
+        return 0;
       }
       BaseString::snprintf(ctx.fname, sizeof(ctx.fname), "%s", section);
       free(section);
@@ -160,17 +165,23 @@ InitConfigFileParser::parseConfig(FILE * file) {
      ****************************/
     if (!parseNameValuePair(ctx, line)) {
       ctx.reportError("Could not parse name-value pair in config file.");
+      delete ctx.m_currentSection;
+      ctx.m_currentSection = NULL;
       return 0;
     }
   }
   
   if (ferror(file)){
     ctx.reportError("Failure in reading");
+    delete ctx.m_currentSection;
+    ctx.m_currentSection = NULL;
     return 0;
   } 
 
   if(!storeSection(ctx)) {
     ctx.reportError("Could not store section of configuration file.");
+    delete ctx.m_currentSection;
+    ctx.m_currentSection = NULL;
     return 0;
   }
 
@@ -197,12 +208,26 @@ InitConfigFileParser::run_config_rules(Context& ctx)
       BaseString::snprintf(ctx.fname, sizeof(ctx.fname),
                            "%s", tmp[j].m_sectionType.c_str());
       ctx.type             = InitConfigFileParser::Section;
+      //Memory that belongs to m_sectionData is transfered to
+      //ctx.m_currentSection and will be released by ctx.
       ctx.m_currentSection = tmp[j].m_sectionData;
+      tmp[j].m_sectionData = NULL;
       ctx.m_userDefaults   = getSection(ctx.fname, ctx.m_defaults);
       require((ctx.m_currentInfo    = m_info->getInfo(ctx.fname)) != 0);
       require((ctx.m_systemDefaults = m_info->getDefaults(ctx.fname)) != 0);
       if(!storeSection(ctx))
-	return 0;
+      {
+        //Memory at ctx.m_currentSection will be released by storeSection() in
+        //Success case. So, releasing memory on failure.
+        delete ctx.m_currentSection;
+        ctx.m_currentSection = NULL;
+        //Releasing memory referenced by tmp[].m_sectionData
+        for (unsigned itr = j + 1; itr < tmp.size(); itr++)
+        {
+          delete tmp[itr].m_sectionData;
+        }
+        return 0;
+      }
     }
   }
 
@@ -280,6 +305,36 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
 					 const char* fname,
 					 const char* value)
 {
+  if (native_strcasecmp(fname, "MaxNoOfConcurrentScans") == 0 ||
+      native_strcasecmp(fname, "MaxNoOfConcurrentIndexOperations") == 0 ||
+      native_strcasecmp(fname, "MaxNoOfConcurrentOperations") == 0 ||
+      native_strcasecmp(fname, "MaxNoOfConcurrentTransactions") == 0)
+  {
+    if (ctx.m_currentSection->contains("TransactionMemory"))
+    {
+      ctx.reportError(
+          "[%s] Parameter %s can not be set along with TransactionMemory",
+          ctx.fname, fname);
+      return false;
+    }
+  }
+
+  if (native_strcasecmp(fname, "TransactionMemory") == 0)
+  {
+    if (ctx.m_currentSection->contains("MaxNoOfConcurrentScans") ||
+        ctx.m_currentSection->contains("MaxNoOfConcurrentIndexOperations") ||
+        ctx.m_currentSection->contains("MaxNoOfConcurrentOperations") ||
+        ctx.m_currentSection->contains("MaxNoOfConcurrentTransactions"))
+    {
+      ctx.reportError(
+          "[%s] Parameter %s can not be set along with any of the below "
+          "deprecated parameter(s) MaxNoOfConcurrentScans, "
+          "MaxNoOfConcurrentIndexOperations, MaxNoOfConcurrentOperations "
+          "and MaxNoOfConcurrentTransactions",
+          ctx.fname, fname);
+      return false;
+    }
+  }
 
   if (ctx.m_currentSection->contains(fname))
   {
@@ -300,11 +355,15 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
   if (status == ConfigInfo::CI_DEPRECATED) {
     const char * desc = m_info->getDescription(ctx.m_currentInfo, fname);
     if(desc && desc[0]){
-      ctx.reportWarning("[%s] %s is deprecated, use %s instead",
+      ctx.reportWarning("[%s] %s is deprecated, will use %s instead",
 			ctx.fname, fname, desc);
     } else if (desc == 0){
       ctx.reportWarning("[%s] %s is deprecated", ctx.fname, fname);
     }
+  }
+  if( status == ConfigInfo::CI_INTERNAL) {
+    ctx.reportError("[%s] Parameter %s not configurable by user", ctx.fname, fname);
+    return false;
   }
 
   const ConfigInfo::Type type = m_info->getType(ctx.m_currentInfo, fname);
@@ -378,6 +437,9 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
         break;
       case -2:
         desc.assfmt("Too large id used in bitmask, max is %llu", max);
+        break;
+      case -3:
+        desc.assfmt("Empty bitmask not allowed");
         break;
       default:
         break;
@@ -555,10 +617,12 @@ InitConfigFileParser::parseDefaultSectionHeader(const char* line) const {
   int no = sscanf(line, "[%120[A-Z_a-z] %120[A-Z_a-z]]", token1, token2);
 
   // Not correct no of tokens 
-  if (no != 2) return NULL;
+  if (no != 2)
+    return NULL;
 
   // Not correct keyword at end
-  if (!native_strcasecmp(token2, "DEFAULT") == 0) return NULL;
+  if (native_strcasecmp(token2, "DEFAULT") != 0)
+    return NULL;
 
   const char *token1_alias= m_info->getAlias(token1);
   if (token1_alias == 0)
@@ -650,15 +714,13 @@ InitConfigFileParser::Context::reportWarning(const char * fmt, ...){
                          m_lineno, buf);
 }
 
-#include <my_sys.h>
-#include <my_getopt.h>
-#ifdef HAVE_MY_DEFAULT_H
-#include <my_default.h>
-#endif
+#include "my_sys.h"
+#include "my_getopt.h"
+#include "my_default.h"
 
 static int order = 1;
 static 
-my_bool 
+bool 
 parse_mycnf_opt(int, const struct my_option * opt, char * value)
 {
   long *app_type= (long*) &opt->app_type;
@@ -705,7 +767,7 @@ InitConfigFileParser::store_in_properties(Vector<struct my_option>& options,
                              *(Uint64*)options[i].value);
         value = buf;
 	break;
-      case GET_STR:
+      case GET_STR_ALLOC:
         value = *(char**)options[i].value;
         break;
       default:
@@ -732,7 +794,14 @@ InitConfigFileParser::handle_mycnf_defaults(Vector<struct my_option>& options,
   require((ctx.m_currentInfo = m_info->getInfo(ctx.fname)) != 0);
   require((ctx.m_systemDefaults = m_info->getDefaults(ctx.fname)) != 0);
   if(store_in_properties(options, ctx, name))
-    return storeSection(ctx);
+  {
+    if(storeSection(ctx))
+    {
+      return true;
+    }
+  }
+  delete ctx.m_currentSection;
+  ctx.m_currentSection = NULL;
   return false;
 }
 
@@ -747,10 +816,7 @@ load_defaults(Vector<struct my_option>& options, const char* groups[])
   BaseString group_suffix;
 
   const char *save_file = my_defaults_file;
-#if MYSQL_VERSION_ID >= 50508
-  const
-#endif
-  char *save_extra_file = my_defaults_extra_file;
+  const char *save_extra_file = my_defaults_extra_file;
   const char *save_group_suffix = my_defaults_group_suffix;
 
   if (my_defaults_file)
@@ -773,17 +839,19 @@ load_defaults(Vector<struct my_option>& options, const char* groups[])
   }
 
   char ** tmp = (char**)argv;
-  int ret = load_defaults("my", groups, &argc, &tmp);
+  MEM_ROOT alloc;
+  int ret = load_defaults("my", groups, &argc, &tmp, &alloc);
 
   my_defaults_file = save_file;
   my_defaults_extra_file = save_extra_file;
   my_defaults_group_suffix = save_group_suffix;
-  
-  if (ret == 0)
+
+  if (ret != 0)
   {
-    return handle_options(&argc, &tmp, options.getBase(), parse_mycnf_opt);
+    return ret;
   }
-  
+  ret = handle_options(&argc, &tmp, options.getBase(), parse_mycnf_opt);
+
   return ret;
 }
 
@@ -814,10 +882,15 @@ InitConfigFileParser::load_mycnf_groups(Vector<struct my_option> & options,
   return store_in_properties(copy, ctx, name);
 }
 
+/*
+  Use "GET_STR_ALLOC" instead of "GET_STR" and during exit, call my_free() to
+  release the memory allocated by my_strdup() from handle_options().
+*/
 Config *
 InitConfigFileParser::parse_mycnf() 
 {
   Config * res = 0;
+  bool release_current_section = true;
   Vector<struct my_option> options;
   for(int i = 0 ; i < ConfigInfo::m_NoOfParams ; ++ i)
   {
@@ -841,9 +914,10 @@ InitConfigFileParser::parse_mycnf()
       case ConfigInfo::CI_ENUM:
       case ConfigInfo::CI_STRING: 
       case ConfigInfo::CI_BITMASK:
-	opt.value = (uchar**)malloc(sizeof(char *));
-	opt.var_type = GET_STR;
-	break;
+        opt.value = (uchar**)malloc(sizeof(char *));
+        *((char**)opt.value) = nullptr;
+        opt.var_type = GET_STR_ALLOC;
+        break;
       default:
         continue;
       }
@@ -868,28 +942,32 @@ InitConfigFileParser::parse_mycnf()
     opt.name = "ndbd";
     opt.id = 256;
     opt.value = (uchar**)malloc(sizeof(char*));
-    opt.var_type = GET_STR;
+    *((char**)opt.value) = nullptr;
+    opt.var_type = GET_STR_ALLOC;
     opt.arg_type = REQUIRED_ARG;
     options.push_back(opt);
 
     opt.name = "ndb_mgmd";
     opt.id = 256;
     opt.value = (uchar**)malloc(sizeof(char*));
-    opt.var_type = GET_STR;
+    *((char**)opt.value) = nullptr;
+    opt.var_type = GET_STR_ALLOC;
     opt.arg_type = REQUIRED_ARG;
     options.push_back(opt);
 
     opt.name = "mysqld";
     opt.id = 256;
     opt.value = (uchar**)malloc(sizeof(char*));
-    opt.var_type = GET_STR;
+    *((char**)opt.value) = nullptr;
+    opt.var_type = GET_STR_ALLOC;
     opt.arg_type = REQUIRED_ARG;
     options.push_back(opt);
 
     opt.name = "ndbapi";
     opt.id = 256;
     opt.value = (uchar**)malloc(sizeof(char*));
-    opt.var_type = GET_STR;
+    *((char**)opt.value) = nullptr;
+    opt.var_type = GET_STR_ALLOC;
     opt.arg_type = REQUIRED_ARG;
     options.push_back(opt);
 
@@ -897,9 +975,9 @@ InitConfigFileParser::parse_mycnf()
     options.push_back(opt);
 
     ndbd = &options[idx];
-    ndb_mgmd = &options[idx+1];
-    mysqld = &options[idx+2];
-    api = &options[idx+3];
+    ndb_mgmd = &options[idx + 1];
+    mysqld = &options[idx + 2];
+    api = &options[idx + 3];
   }
   
   Context ctx(m_info);
@@ -917,8 +995,6 @@ InitConfigFileParser::parse_mycnf()
   if(!handle_mycnf_defaults(options, ctx, "TCP"))
     goto end;
   if(!handle_mycnf_defaults(options, ctx, "SHM"))
-    goto end;
-  if(!handle_mycnf_defaults(options, ctx, "SCI"))
     goto end;
 
   {
@@ -1020,11 +1096,25 @@ InitConfigFileParser::parse_mycnf()
   }
 
   res = run_config_rules(ctx);
+  release_current_section = false;
 
 end:
-  for(int i = 0; options[i].name; i++)
+  for (int i = 0; options[i].name; i++)
+  {
+    if (options[i].var_type == GET_STR_ALLOC)
+      my_free(*((char**)options[i].value));
     free(options[i].value);
+  }
 
+  /**
+   * ctx.m_currentSection is released only in case of failure
+   * in success case the memory will be released in storeSection().
+   */
+  if (release_current_section)
+  {
+    delete ctx.m_currentSection;
+    ctx.m_currentSection = NULL;
+  }
   return res;
 }
 

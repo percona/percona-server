@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
+
+#ifdef TEST_MT_SEND
 
 #include "mt-asm.h"
 #include "mt-lock.hpp"
@@ -184,12 +186,12 @@ struct Consumer
   void forceConsume(unsigned D);
 };
 
-struct MY_ALIGNED(NDB_CL) Consumer_pad
+struct alignas(NDB_CL) Consumer_pad
 {
   Consumer c;
 };
 
-struct MY_ALIGNED(NDB_CL) Thread_pad
+struct alignas(NDB_CL) Thread_pad
 {
   Thread t;
 };
@@ -241,6 +243,11 @@ struct Test
     waiting_stop = 0;
     mutex = 0;
     cond = 0;
+  }
+
+  ~Test() {
+    NdbMutex_Destroy(mutex);
+    NdbCondition_Destroy(cond);
   }
 
   void init() {
@@ -391,6 +398,7 @@ main(int argc, char ** argv)
     {
       void * ret;
       NdbThread_WaitFor(rep.t[t].t.thread, &ret);
+      NdbThread_Destroy(&rep.t[t].t.thread);
     }
   }
   printf("\n"); fflush(stdout);
@@ -579,4 +587,6 @@ lookup_lock(const void * ptr)
 {
   return 0;
 }
+#endif
+
 #endif

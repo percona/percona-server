@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,11 +18,13 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 #include <ndb_global.h>
 #include <ndb_version.h>
+
+#include <memory>
 
 #include "angel.hpp"
 #include "ndbd.hpp"
@@ -600,8 +602,10 @@ angel_run(const char* progname,
   }
   g_eventLogger->info("Angel allocated nodeid: %u", nodeid);
 
-  ndb_mgm_configuration * config = retriever.getConfig(nodeid);
-  NdbAutoPtr<ndb_mgm_configuration> config_autoptr(config);
+  std::unique_ptr<ndb_mgm_configuration, ConfigRetriever::ConfigDeleter>
+      config_autoptr{retriever.getConfig(nodeid)};
+  ndb_mgm_configuration* config{config_autoptr.get()};
+
   if (config == 0)
   {
     g_eventLogger->error("Could not fetch configuration/invalid "
@@ -673,6 +677,9 @@ angel_run(const char* progname,
     args.push_back(one_arg);
 
     one_arg.assfmt("--nostart=%d", no_start);
+    args.push_back(one_arg);
+
+    one_arg.assfmt("--angel-pid=%d", getpid());
     args.push_back(one_arg);
 
     pid_t child = retry_spawn_process(progname, args);
@@ -783,6 +790,7 @@ angel_run(const char* progname,
       if (WIFSIGNALED(status))
       {
         child_signal = WTERMSIG(status);
+        g_eventLogger->info("Child process terminated by signal %u", child_signal);
       }
       else
       {
@@ -799,12 +807,20 @@ angel_run(const char* progname,
                        child_error, child_signal, child_sphase);
         angel_exit(0);
       }
+      else
+      {
+         // StopOnError = false, restart with safe defaults
+         initial = false; // to prevent data loss on restart
+         no_start = false;  // to ensure ndbmtd comes up
+         g_eventLogger->info("Angel restarting child process");
+      }
     }
 
     // Check startup failure
     const Uint32 STARTUP_FAILURE_SPHASE = 6;
     Uint32 restart_delay_secs = 0;
     if (error_exit && // Only check startup failure if ndbd exited uncontrolled
+        child_sphase > 0 && // Received valid startphase info from child
         child_sphase <= STARTUP_FAILURE_SPHASE)
     {
       if (++failed_startups_counter >= config_max_start_fail_retries)

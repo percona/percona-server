@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,7 +18,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef NDB_DBLQH_PROXY_HPP
 #define NDB_DBLQH_PROXY_HPP
@@ -35,7 +35,6 @@
 #include <signaldata/StartRec.hpp>
 #include <signaldata/LqhTransReq.hpp>
 #include <signaldata/LqhTransConf.hpp>
-#include <signaldata/EmptyLcp.hpp>
 
 #define JAM_FILE_ID 445
 
@@ -150,6 +149,12 @@ protected:
 
   // GSN_SUB_GCP_COMPLETE_REP
   void execSUB_GCP_COMPLETE_REP(Signal*);
+
+  // GSN_START_LCP_ORD
+  void execSTART_LCP_ORD(Signal*);
+
+  // GSN_UNDO_LOG_LEVEL_REP
+  void execUNDO_LOG_LEVEL_REP(Signal*);
 
   // GSN_PREP_DROP_TAB_REQ
   struct Ss_PREP_DROP_TAB_REQ : SsParallel {
@@ -282,8 +287,9 @@ protected:
   struct Ss_START_RECREQ_2 : SsParallel {
     static const char* name() { return "START_RECREQ_2"; }
     struct Req {
-      enum { SignalLength = 2 };
+      enum { SignalLength = 3 };
       Uint32 lcpId;
+      Uint32 localLcpId;
       Uint32 proxyBlockNo;
     };
     // senderData is unnecessary as signal is unique per proxyBlockNo
@@ -362,7 +368,7 @@ protected:
       m_sendREQ = (SsFUNCREQ)&DblqhProxy::sendEXEC_SR_1;
       m_sendCONF = (SsFUNCREP)0;
       m_gsn = 0;
-    };
+    }
     enum { poolSize = 1 };
     static SsPool<Ss_EXEC_SR_1>& pool(LocalProxy* proxy) {
       return ((DblqhProxy*)proxy)->c_ss_EXEC_SR_1;
@@ -371,7 +377,7 @@ protected:
   SsPool<Ss_EXEC_SR_1> c_ss_EXEC_SR_1;
   Uint32 getSsId(const Ss_EXEC_SR_1::Sig* sig) {
     return SsIdBase | refToNode(sig->nodeId);
-  };
+  }
   void execEXEC_SRREQ(Signal*);
   void execEXEC_SRCONF(Signal*);
   void execEXEC_SR_1(Signal*, GlobalSignalNumber gsn);
@@ -394,7 +400,7 @@ protected:
       m_sendCONF = (SsFUNCREP)&DblqhProxy::sendEXEC_SR_2;
       m_gsn = 0;
       m_sigcount = 0;
-    };
+    }
     enum { poolSize = 1 };
     static SsPool<Ss_EXEC_SR_2>& pool(LocalProxy* proxy) {
       return ((DblqhProxy*)proxy)->c_ss_EXEC_SR_2;
@@ -403,7 +409,7 @@ protected:
   SsPool<Ss_EXEC_SR_2> c_ss_EXEC_SR_2;
   Uint32 getSsId(const Ss_EXEC_SR_2::Sig* sig) {
     return SsIdBase | refToNode(sig->nodeId);
-  };
+  }
   void execEXEC_SR_2(Signal*, GlobalSignalNumber gsn);
   void sendEXEC_SR_2(Signal*, Uint32 ssId);
 
@@ -444,26 +450,34 @@ protected:
   void sendDROP_FRAG_CONF(Signal*, Uint32 ssId);
 
   // LCP handling
-  void execEMPTY_LCP_REQ(Signal*);
   void execLCP_FRAG_ORD(Signal*);
   void execLCP_FRAG_REP(Signal*);
   void execEND_LCPCONF(Signal*);
   void execLCP_COMPLETE_REP(Signal*);
+  void execWAIT_ALL_COMPLETE_LCP_REQ(Signal*);
+  void execWAIT_COMPLETE_LCP_CONF(Signal*);
+  void execINFO_GCP_STOP_TIMER(Signal*);
+  void execSTART_NODE_LCP_REQ(Signal*);
+  void execSTART_NODE_LCP_CONF(Signal*);
+
+  Uint32 m_outstanding_wait_lcp;
+  BlockReference m_wait_all_lcp_sender;
+  bool m_received_wait_all;
+  bool m_lcp_started;
+  Uint32 m_outstanding_start_node_lcp_req;
 
   struct LcpRecord {
     enum {
       L_IDLE         = 0,
       L_RUNNING      = 1,
       L_COMPLETING_1 = 2,
-      L_COMPLETING_2 = 3,
-      L_COMPLETING_3 = 4
+      L_COMPLETING_2 = 3
     } m_state;
     Uint32 m_lcpId;
     Uint32 m_keepGci;
     Uint32 m_lcp_frag_ord_cnt;     // No of LCP_FRAG_ORD received
     Uint32 m_lcp_frag_rep_cnt;     // No of LCP_FRAG_REP sent
-    Uint32 m_complete_outstanding; // Outstanding END_LCPREQ
-    NdbNodeBitmask m_empty_lcp_req;// Nodes waiting for EMPTY_LCP_CONF
+    Uint32 m_complete_outstanding; // Outstanding signals waiting for
     LcpFragOrd m_last_lcp_frag_ord;// Last received LCP_FRAG_ORD
     bool m_lastFragmentFlag;
 
@@ -473,22 +487,12 @@ protected:
       m_lcp_frag_ord_cnt = 0;
       m_lcp_frag_rep_cnt = 0;
       m_lastFragmentFlag = false;
-    };
+    }
   };
   LcpRecord c_lcpRecord;
   Uint32 getNoOfOutstanding(const LcpRecord&) const;
-  void completeLCP_1(Signal* signal);
-  void completeLCP_2(Signal* signal);
-  void completeLCP_3(Signal* signal);
+  void completeLCP(Signal* signal);
   void sendLCP_COMPLETE_REP(Signal*);
-
-  void checkSendEMPTY_LCP_CONF_impl(Signal* signal);
-  void checkSendEMPTY_LCP_CONF(Signal* signal)
-  {
-    if (c_lcpRecord.m_empty_lcp_req.isclear())
-      return;
-    checkSendEMPTY_LCP_CONF_impl(signal);
-  }
 };
 
 

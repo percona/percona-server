@@ -1,6 +1,4 @@
 --skip # Doesn't really check that background scrubbing works
--- source include/have_innodb.inc
--- source include/not_embedded.inc
 
 let $MYSQLD_DATADIR=`select @@datadir`;
 let INNODB_PAGE_SIZE= `select @@innodb_page_size`;
@@ -20,7 +18,7 @@ let $formatno= $maxformatno;
 
 let $tableformat= (
   a int auto_increment primary key,
-  b varchar(256),
+  b varchar(128),
   c text,
   index(b)) engine = innodb row_format;
 

@@ -43,5 +43,4 @@ select * from t;
 # Cleanup recovery files
 --exec rm $MYSQLD_DATADIR/tokudb.rollback2
 --exec rm $MYSQLD_DATADIR/tokudb.environment2
---exec rm $MYSQLD_DATADIR/*.___lock_dont_delete_me2
 drop table t;

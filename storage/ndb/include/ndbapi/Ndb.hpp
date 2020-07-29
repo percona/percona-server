@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -518,7 +518,7 @@
   
    There are four conditions leading to the transfer of database 
    operations from Ndb object buffers to the NDB kernel:
-   -# The NDB Transporter (TCP/IP, SCI or shared memory)
+   -# The NDB Transporter (TCP/IP or shared memory)
       decides that a buffer is full and sends it off. 
       The buffer size is implementation-dependent and
       may change between MySQL Cluster releases.
@@ -601,7 +601,6 @@
    The default method is to select the transaction co-ordinator (TC) determined to be
    the "closest" storage node, using a heuristic for proximity based on
    the type of transporter connection. In order of closest to most distant, these are
-   - SCI 
    - SHM
    - TCP/IP (localhost)
    - TCP/IP (remote host)
@@ -679,17 +678,8 @@
 
    This means that if we can ensure that we use "popular" links we increase
    buffering and thus drastically reduce the communication cost.
-   The same system using SCI has a different cost model:
-
-     <code>[5 microseconds] + ([10 nanoseconds] * [<var>number of bytes</var>])</code>
-
-   Thus, the efficiency of an SCI system is much less dependent on selection of 
-   transaction co-ordinators. 
-   Typically, TCP/IP systems spend 30-60% of their working time on communication,
-   whereas for SCI systems this figure is closer to 5-10%. 
-   Thus, employing SCI for data transport means that less care from the NDB API 
-   programmer is required and greater scalability can be achieved, even for 
-   applications using data from many different parts of the database.
+ 
+   Typically, TCP/IP systems spend 30-60% of their working time on communication.
 
    A simple example is an application that uses many simple updates where
    a transaction needs to update one record. 
@@ -1265,6 +1255,18 @@ public:
    */
   void get_event_buffer_memory_usage(EventBufferMemoryUsage&);
 
+  void setEventBufferQueueEmptyEpoch(bool queue_empty_epoch);
+  
+  /** Note: The getter function getEventBufferQueueEmptyEpoch() is
+   * not provided intentionally to avoid wrong usage, for e.g.,
+   * consuming empty epochs based on the getter. Reason:
+   * setter option applies to queuing *newer* epochs
+   * and the queue may reflect the state before the setting.
+   * Therefore, during a transition period, consumption may find
+   * an empty epoch in the queue even if the getter shows that
+   * the queuing is turned off.
+   */
+
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
    * Wait for Ndb object to successfully set-up connections to 
@@ -1474,6 +1476,21 @@ public:
    *
    * Set *iter=0 to start.  Returns NULL when no more.  If event_types
    * is not NULL, it returns bitmask of received event types.
+   *
+   * This is a wrapper for getNextEventOpInEpoch3, but retains the
+   * old name in order to preserve backward compatibility.
+   */
+  const NdbEventOperation*
+    getGCIEventOperations(Uint32* iter,
+                          Uint32* event_types);
+
+  /**
+   * Iterate over distinct event operations which are part of current
+   * GCI.  Valid after nextEvent.  Used to get summary information for
+   * the epoch (e.g. list of all tables) before processing event data.
+   *
+   * Set *iter=0 to start.  Returns NULL when no more.  If event_types
+   * is not NULL, it returns bitmask of received event types.
    */
 
   const NdbEventOperation*
@@ -1486,12 +1503,14 @@ public:
    *
    * Set *iter=0 to start.  Returns NULL when no more.  If event_types
    * is not NULL, it returns bitmask of received event types.
-   *
-   * This is a wrapper for getNextEventOpInEpoch2, but retains the
-   * old name in order to preserve backward compatibility.
+   * If cumulative_any_value is not NULL, it returns a merged value of
+   * received any_value(s) to show what bits are set for all operations of a
+   * specific table.
    */
   const NdbEventOperation*
-    getGCIEventOperations(Uint32* iter, Uint32* event_types);
+    getNextEventOpInEpoch3(Uint32* iter,
+                           Uint32* event_types,
+                           Uint32* cumulative_any_value);
   
   /** Get the highest epoch that have entered into the event queue.
    * This value can be higher than the epoch returned by the last
@@ -1896,7 +1915,7 @@ public:
       m_first_tuple_id = ~(Uint64)0;
       m_last_tuple_id = ~(Uint64)0;
       m_highest_seen = 0;
-    };
+    }
   };
 
   int initAutoIncrement();

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,7 +18,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef NDBD_HPP
 #define NDBD_HPP
@@ -30,7 +30,8 @@ void
 ndbd_run(bool foreground, int report_fd,
          const char* connect_str, int force_nodeid, const char* bind_address,
          bool no_start, bool initial, bool initialstart,
-         unsigned allocated_nodeid, int connect_retries, int connect_delay);
+         unsigned allocated_nodeid, int connect_retries, int connect_delay,
+         size_t logbuffer_size);
 
 enum NdbShutdownType {
   NST_Normal,

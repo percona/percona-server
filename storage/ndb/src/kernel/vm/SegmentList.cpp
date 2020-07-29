@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -19,7 +19,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <SegmentList.hpp>
 #include <random.h>
@@ -311,7 +311,7 @@ sectionVerify(SegmentUtils& su, Uint32 firstIVal)
 }
 
 
-SegmentListHead::SegmentListHead():headPtr(RNIL) {};
+SegmentListHead::SegmentListHead():headPtr(RNIL) {}
 
 bool
 SegmentListHead::isEmpty() const
@@ -592,13 +592,9 @@ SegmentSubPool::checkInvariants()
   return true;
 }
 
-#ifdef TAP_TEST
-
-#undef JAM_FILE_ID
+#ifdef TEST_SEGMENTLIST
 
 #include <NdbTap.hpp>
-
-#define JAM_FILE_ID 494
 
 /* Redefine ArrayPool dependencies to enable standalone Unit-test compile */
 void ErrorReporter::handleAssert(const char* message, const char* file, int line, int ec)
@@ -616,7 +612,7 @@ SectionSegmentPool g_sectionSegmentPool;
 
 /* Static function */
 void
-SectionSegmentPool::handleOutOfSegments(ArrayPool<SectionSegment>& pool)
+SectionSegmentPool::handleOutOfSegments(SectionSegment_basepool& pool)
 {
   printf("SectionSegmentPool::handleOutOfSegments called");
 }
@@ -624,7 +620,7 @@ SectionSegmentPool::handleOutOfSegments(ArrayPool<SectionSegment>& pool)
 class TestSegmentUtils : public SegmentUtils
 {
 public:
-  TestSegmentUtils() {};
+  TestSegmentUtils() {}
 
   SectionSegment*
   getSegmentPtr(Uint32 iVal)
@@ -641,13 +637,13 @@ public:
   seizeSegment(Ptr<SectionSegment>& p)
   {
     return g_sectionSegmentPool.seize(p);
-  };
+  }
 
   void
   releaseSegment(Uint32 iVal)
   {
     return g_sectionSegmentPool.release(iVal);
-  };
+  }
 
   void
   releaseSegmentList(Uint32 firstSegmentIVal)
@@ -685,7 +681,7 @@ static const TestVariant testVariants[] =
 static Uint32 getActualUsed(SegmentSubPool& ssp)
 {
   return g_sectionSegmentPool.getUsed() - ssp.getNumAvailable();
-};
+}
 
 bool testBasicFillAndDrain()
 {
@@ -777,7 +773,7 @@ bool testBasicFillAndDrain()
   VERIFY(slh.headPtr == RNIL);
 
   return true;
-};
+}
 
 bool testMixedEnqAndDeq()
 {
@@ -1020,7 +1016,7 @@ TAPTEST(SegmentList)
    * 
    * Will print "OK" in success case and return 0
    */
-
+  ndb_init();
   g_sectionSegmentPool.setSize(NUM_SEGMENTS);
 
   printf("g_sectionSegmentPool size is %u\n",
@@ -1047,10 +1043,12 @@ TAPTEST(SegmentList)
 
     printf("\nOK\n");
 
+    ndb_end(0);
     return 1;
   } while(0);
 
   printf("\nFAILED\n");
+  ndb_end(0);
   return 0;
 }
 

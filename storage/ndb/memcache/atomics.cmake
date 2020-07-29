@@ -1,4 +1,4 @@
-# Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -18,16 +18,42 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # Identify support for atomic operations
 IF(NOT MSVC)
 
-# HAVE_GCC_ATOMIC_BUILTINS is already checked by CMake, but if it's not defined
-# we're going to retest using "-march=pentium"
+  CHECK_CXX_SOURCE_COMPILES("
+  int main()
+  {
+    int foo= -10; int bar= 10;
+    long long int foo64= -10; long long int bar64= 10;
+    if (!__atomic_fetch_add(&foo, bar, __ATOMIC_SEQ_CST) || foo)
+      return -1;
+    bar= __atomic_exchange_n(&foo, bar, __ATOMIC_SEQ_CST);
+    if (bar || foo != 10)
+      return -1;
+    bar= __atomic_compare_exchange_n(&bar, &foo, 15, 0,
+                                     __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+    if (bar)
+      return -1;
+    if (!__atomic_fetch_add(&foo64, bar64, __ATOMIC_SEQ_CST) || foo64)
+      return -1;
+    bar64= __atomic_exchange_n(&foo64, bar64, __ATOMIC_SEQ_CST);
+    if (bar64 || foo64 != 10)
+      return -1;
+    bar64= __atomic_compare_exchange_n(&bar64, &foo64, 15, 0,
+                                       __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+    if (bar64)
+      return -1;
+    return 0;
+  }"
+    HAVE_GCC_ATOMIC_BUILTINS)
 
+  # If GCC atomics are not found by the above check, see if they are
+  # available if we compile with "-march=pentium".
 
-  if(CMAKE_COMPILER_IS_GNUCC AND NOT HAVE_GCC_ATOMIC_BUILTINS)
+  if(CMAKE_COMPILER_IS_GNUCC AND NOT (HAVE_GCC_ATOMIC_BUILTINS OR HAVE_GCC_SYNC_BUILTINS))
      set(OLD_FLAGS ${CMAKE_REQUIRED_FLAGS})
      set(CMAKE_REQUIRED_FLAGS "${OLD_FLAGS} -march=pentium")
      CHECK_C_SOURCE_RUNS(
@@ -78,7 +104,7 @@ IF(HAVE_GCC_ATOMICS_WITH_ARCH_FLAG)
   add_definitions(-march=pentium)
 ENDIF()
 
-IF(HAVE_GCC_ATOMIC_BUILTINS OR HAVE_GCC_ATOMICS_WITH_ARCH_FLAG)
+IF(HAVE_GCC_ATOMIC_BUILTINS OR HAVE_GCC_SYNC_BUILTINS OR HAVE_GCC_ATOMICS_WITH_ARCH_FLAG)
   MESSAGE(STATUS "Using gcc atomic builtins") 
 ELSEIF(HAVE_DARWIN_ATOMICS) 
   MESSAGE(STATUS "Using Darwin OSAtomic") 

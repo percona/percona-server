@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,12 @@
  */
 class CheckNodeGroups {
 public:
-  Uint32 blockRef;              // sender's node id
+
+  union {
+    Uint32 blockRef;              // sender's node id
+    Uint32 partitionBalance;     // For GetDefaultFragments
+  };
+
   union {
     Uint32 requestType;           // direct flag, output code
     Uint32 output;
@@ -53,17 +58,20 @@ public:
     Uint32 nodeId;             // nodeId input for GetNodeGroupMembers
     Uint32 extraNodeGroups;    // For GetDefaultFragments
   };
+  Uint32 senderData;            // Sender data, kept in return signal
   NdbNodeBitmaskPOD mask;         /* set of NDB nodes, input for ArbitCheck,
         			   * output for GetNodeGroupMembers
+                                   * Part of direct signal, but sent as first
+                                   * section for async signal.
 				   */
-  Uint32 senderData;            // Sender data, kept in return signal
 
   enum RequestType {
     Direct              = 0x1,
     ArbitCheck          = 0x2,
     GetNodeGroup        = 0x4,
     GetNodeGroupMembers = 0x8,
-    GetDefaultFragments = 0x10
+    GetDefaultFragments = 0x10,
+    GetDefaultFragmentsFullyReplicated = 0x20
   };
 
   enum Output {
@@ -72,7 +80,8 @@ public:
     Partitioning = 3            // possible network partitioning
   };
 
-  STATIC_CONST( SignalLength = 4 + NdbNodeBitmask::Size );
+  STATIC_CONST( SignalLength = 4 + NdbNodeBitmask::Size ); // Only for direct signal.
+  STATIC_CONST( SignalLengthNoBitmask = 4);
 };
 
 

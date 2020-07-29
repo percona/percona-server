@@ -230,7 +230,7 @@ long_value_match
 short_value_match
 1
 original_dictionary_reference_cleared
-1
+0
 modified_dictionary_reference_exists
 1
 modified_dictionary_reference_matches
@@ -696,7 +696,7 @@ long_value_match
 short_value_match
 1
 original_dictionary_reference_cleared
-1
+0
 modified_dictionary_reference_exists
 1
 modified_dictionary_reference_matches
@@ -987,7 +987,7 @@ modified_dictionary_references_cleaned
 original_dictionary_reference_does_not_exist
 1
 error is expected
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
+ERROR HY000: Compression dictionary 'unknown' does not exist
 *** after table alteration
 long_value_match
 1
@@ -1055,7 +1055,7 @@ modified_dictionary_references_cleaned
 original_dictionary_reference_does_not_exist
 1
 error is expected
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
+ERROR HY000: Compression dictionary 'unknown' does not exist
 *** after table alteration
 long_value_match
 1
@@ -1137,7 +1137,7 @@ original_dictionary_reference_exists
 original_dictionary_reference_matches
 1
 error is expected
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
+ERROR HY000: Compression dictionary 'unknown' does not exist
 *** after table alteration
 long_value_match
 1

@@ -4,7 +4,6 @@
 
 # let collation=utf8_unicode_ci;
 # --source include/have_collation.inc
---source include/have_innodb.inc
 
 
 --echo #
@@ -16,7 +15,7 @@
 --echo # MDEV-7649 wrong result when comparing utf8 column with an invalid literal
 --echo #
 
-SET NAMES utf8 COLLATE utf8_unicode_ci;
+SET NAMES utf8mb3 COLLATE utf8mb3_unicode_ci;
 --let ENGINE=InnoDB
 --source include/ctype_utf8_ilseq.inc
 

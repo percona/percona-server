@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,25 +25,26 @@
 #ifndef THREAD_GROUP_INCLUDED
 #define THREAD_GROUP_INCLUDED
 
-#include "thread.h"
 #include <vector>
 
-namespace my_boost{
+#include "client/dump/thread.h"
 
-class thread_group
-{
-public:
-  template <typename TCallable> void create_thread(TCallable entry_point)
-  {
+namespace my_boost {
+
+class thread_group {
+ public:
+  template <typename TCallable>
+  void create_thread(TCallable entry_point) {
     m_threads.push_back(new thread(entry_point));
   }
 
   void join_all();
   ~thread_group();
-private:
-  std::vector<my_boost::thread*> m_threads;
+
+ private:
+  std::vector<my_boost::thread *> m_threads;
 };
 
-}
+}  // namespace my_boost
 
 #endif

@@ -12,8 +12,8 @@ The functionality is disabled by default, and must be enabled by setting ``users
 Version Specific Information
 ============================
 
-  * :rn:`5.7.10-1`:
-     Feature ported from |Percona Server| 5.6.
+  * :rn:`8.0.12-1`:
+     Feature ported from |Percona Server| 5.7.
 
 Other Information
 =================
@@ -158,7 +158,6 @@ Example: ::
 
   :column THREAD_ID: Thread ID
   :column TOTAL_CONNECTIONS: The number of connections created from this thread.
-  :column CONCURRENT_CONNECTIONS: Always zero, will be removed in a future version.
   :column CONNECTED_TIME: The cumulative number of seconds elapsed while there were connections from this thread.
   :column BUSY_TIME: The cumulative number of seconds there was activity from this thread.
   :column CPU_TIME: The cumulative CPU time elapsed while servicing this thread.

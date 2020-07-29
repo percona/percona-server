@@ -1,0 +1,31 @@
+--source include/have_tokudb.inc
+#
+# Bug #23818 Falcon: crash with random updates of long varchar columns
+#      First part. Original bug reports loops 100000 times.
+#
+--echo *** Bug #23818_A ***
+CREATE TABLE t1 (a INT, b VARCHAR(768)) ENGINE=TOKUDB;
+INSERT INTO t1 VALUES (0,null),(0,null),(0,null);
+CREATE INDEX i1 ON t1 (b);
+
+--disable_result_log
+--disable_query_log
+set @a = 32710;
+
+let $k = 200;
+while ($k)
+{
+    SELECT @a + 1 INTO @a;
+    SELECT RAND(@a) * DEGREES(@a) INTO @b;
+    SELECT FLOOR(MOD(@b,255)) INTO @c;
+    SELECT @a, @b, @c, @d;
+    UPDATE t1 SET a = a + 1;
+    UPDATE t1 SET b = REPEAT(HEX(@c), RAND(@c) * 384);
+    SELECT a, LENGTH(b), LEFT(b,10) FROM t1;
+    dec $k;
+}
+--enable_query_log
+--enable_result_log
+
+# Final cleanup.
+DROP TABLE t1;

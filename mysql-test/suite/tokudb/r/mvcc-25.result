@@ -7,17 +7,17 @@ create table bar like foo;
 show create table foo;
 Table	Create Table
 foo	CREATE TABLE `foo` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table bar;
 Table	Create Table
 bar	CREATE TABLE `bar` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 set session transaction isolation level repeatable read;
 begin;
 # should be empty

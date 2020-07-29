@@ -10,11 +10,11 @@ CALL mtr.add_suppression("Column count of mysql\\.user is wrong\\. Expected [0-9
 ALTER TABLE mysql.user RENAME mysql.user_bak;
 
 CREATE TABLE mysql.user(
-  Host CHAR BINARY DEFAULT '',
-  User CHAR BINARY DEFAULT '',
+  Host CHAR COLLATE utf8mb4_bin DEFAULT '',
+  User CHAR COLLATE utf8mb4_bin DEFAULT '',
   PasswONs INT UNSIGNED,
   PRIMARY KEY Host (Host, User)
-) ENGINE=MyISAM;
+) ENGINE=InnoDB;
 
 FLUSH PRIVILEGES;
 
@@ -30,7 +30,7 @@ CREATE TABLE t1(
   id INT,
   KEY(b),
   KEY(e)
-) ENGINE=MyISAM;
+) ENGINE=InnoDB;
 
 --error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 GRANT PROXY ON qa_test_11_dest TO qa_test_11_user;

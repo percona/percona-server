@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,38 +25,39 @@
 #ifndef SINGLE_TRANSACTION_CONNECTION_PROVIDER_INCLUDED
 #define SINGLE_TRANSACTION_CONNECTION_PROVIDER_INCLUDED
 
-#include "thread_specific_connection_provider.h"
-#include "i_connection_provider.h"
-#include "i_callable.h"
-#include "base/message_data.h"
-#include "base/mysql_query_runner.h"
-#include "base/mutex.h"
+#include <functional>
+#include <mutex>
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+#include "client/base/message_data.h"
+#include "client/base/mysql_query_runner.h"
+#include "client/dump/i_connection_provider.h"
+#include "client/dump/thread_specific_connection_provider.h"
+
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 class Single_transaction_connection_provider
-  : public Thread_specific_connection_provider
-{
-public:
+    : public Thread_specific_connection_provider {
+ public:
   Single_transaction_connection_provider(
-    Mysql::Tools::Base::I_connection_factory* connection_factory,
-    unsigned int connections,
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
-    message_handler);
+      Mysql::Tools::Base::I_connection_factory *connection_factory,
+      unsigned int connections,
+      std::function<bool(const Mysql::Tools::Base::Message_data &)>
+          *message_handler);
 
-  virtual Mysql::Tools::Base::Mysql_query_runner* create_new_runner(
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
-    message_handler);
-private:
-  std::vector<Mysql::Tools::Base::Mysql_query_runner*> m_runner_pool;
-  my_boost::mutex m_pool_mutex;
+  virtual Mysql::Tools::Base::Mysql_query_runner *create_new_runner(
+      std::function<bool(const Mysql::Tools::Base::Message_data &)>
+          *message_handler);
+
+ private:
+  std::vector<Mysql::Tools::Base::Mysql_query_runner *> m_runner_pool;
+  std::mutex m_pool_mutex;
   unsigned int m_connections;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

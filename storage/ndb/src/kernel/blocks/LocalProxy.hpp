@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,7 +18,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef NDB_LOCAL_PROXY_HPP
 #define NDB_LOCAL_PROXY_HPP
@@ -228,7 +228,7 @@ protected:
     new (ssptr) Ss;
     ssptr->m_ssId = ssId;
     sp.m_usage++;
-    D("ssSeize()" << V(sp.m_usage) << hex << V(ssId) << " " << Ss::name());
+    //D("ssSeize()" << V(sp.m_usage) << hex << V(ssId) << " " << Ss::name());
     return *ssptr;
   }
 
@@ -248,7 +248,7 @@ protected:
     new (ssptr) Ss;
     ssptr->m_ssId = ssId;
     sp.m_usage++;
-    D("ssSeize" << V(sp.m_usage) << hex << V(ssId) << " " << Ss::name());
+    //D("ssSeize" << V(sp.m_usage) << hex << V(ssId) << " " << Ss::name());
     return *ssptr;
   }
 
@@ -284,7 +284,7 @@ protected:
     SsPool<Ss>& sp = Ss::pool(this);
     ndbrequire(sp.m_usage != 0);
     ndbrequire(ssId != 0);
-    D("ssRelease" << V(sp.m_usage) << hex << V(ssId) << " " << Ss::name());
+    //D("ssRelease" << V(sp.m_usage) << hex << V(ssId) << " " << Ss::name());
     Ss* ssptr = ssSearch<Ss>(ssId);
     ndbrequire(ssptr != 0);
     ssptr->m_ssId = 0;
@@ -500,9 +500,13 @@ protected:
   void sendDUMP_STATE_ORD(Signal*, Uint32 ssId, SectionHandle*);
 
   // GSN_NDB_TAMPER
-  struct Ss_NDB_TAMPER : SsParallel {
+  struct Ss_NDB_TAMPER : SsParallel
+  {
     Uint32 m_errorInsert;
-    Ss_NDB_TAMPER() {
+    Uint32 m_errorInsertExtra;
+    bool m_haveErrorInsertExtra;
+    Ss_NDB_TAMPER()
+    {
       m_sendREQ = &LocalProxy::sendNDB_TAMPER;
       m_sendCONF = 0;
     }
@@ -556,7 +560,7 @@ protected:
       m_sendREQ = &LocalProxy::sendDROP_TRIG_IMPL_REQ;
       m_sendCONF = &LocalProxy::sendDROP_TRIG_IMPL_CONF;
     }
-    enum { poolSize = 21 };
+    enum { poolSize = NDB_MAX_PROXY_DROP_TRIG_IMPL_REQ };
     static SsPool<Ss_DROP_TRIG_IMPL_REQ>& pool(LocalProxy* proxy) {
       return proxy->c_ss_DROP_TRIG_IMPL_REQ;
     }

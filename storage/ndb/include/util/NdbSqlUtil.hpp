@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,7 @@
 #include <ndb_global.h>
 #include <kernel/ndb_limits.h>
 
-struct charset_info_st;
-typedef struct charset_info_st CHARSET_INFO;
+struct CHARSET_INFO;
 
 /**
  * Helper class with comparison functions on NDB (column) data types.
@@ -137,17 +136,16 @@ public:
    */
   static bool get_var_length(Uint32 typeId, const void* p, unsigned attrlen, Uint32& lb, Uint32& len);
 
-  /**
-   * Temporary workaround for bug#7284.
-   */
-  static int strnxfrm_bug7284(CHARSET_INFO* cs, unsigned char* dst, unsigned dstLen, const unsigned char*src, unsigned srcLen);
+  static int strnxfrm_hash(const CHARSET_INFO* cs,
+                           Uint32 typeId,
+                           uchar* dst, unsigned dstLen,
+                           const uchar* src, unsigned srcLen,
+                           unsigned maxLen);
 
-  /**
-   * Wrapper for 'strnxfrm' who change prototype in 5.6
-   */
-  static size_t ndb_strnxfrm(struct charset_info_st * cs,
-                             uchar *dst, size_t dstlen,
-                             const uchar *src, size_t srclen);
+  static Uint32 strnxfrm_hash_len(
+                           const CHARSET_INFO* cs,
+                           unsigned maxLen);
+  
 
   /**
    * Convert attribute data to/from network byte order

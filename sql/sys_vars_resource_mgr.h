@@ -1,7 +1,7 @@
 #ifndef SYS_VARS_RESOURCE_MGR_INCLUDED
 #define SYS_VARS_RESOURCE_MGR_INCLUDED
-#include <hash.h>
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
 
 /**
   Session_sysvar_resource_manager
@@ -59,45 +58,31 @@
 
 */
 
+#include <stddef.h>
+#include <memory>
+
+#include "map_helpers.h"
+#include "sql/psi_memory_key.h"
+
 class Session_sysvar_resource_manager {
+ private:
+  // The value always contains the string that the key points to.
+  malloc_unordered_map<char **, unique_ptr_my_free<char>>
+      m_sysvar_string_alloc_hash{
+          key_memory_THD_Session_sysvar_resource_manager};
 
-private:
-  struct sys_var_ptr
-  {
-    void *data;
-  };
-  /**
-    It maintains a member per Sys_var_charptr session variable to hold the
-    address of non-freed memory, alloced to store the session variable's value.
-  */
-  HASH m_sysvar_string_alloc_hash;
-
-  /**
-    Returns the member that contains the given key (address).
-  */
-  uchar *find(void *key, size_t length);
-
-public:
-
-  Session_sysvar_resource_manager()
-  {
-    (void) memset(&m_sysvar_string_alloc_hash, 0, sizeof(m_sysvar_string_alloc_hash));
-  }
-
+ public:
   /**
     Allocates memory for Sys_var_charptr session variable during session
     initialization.
   */
-  bool init(char **var, const CHARSET_INFO *charset);
+  bool init(char **var);
 
   /**
     Frees the old alloced memory, memdup()'s the given val to a new memory
     address & updated the session variable pointer.
   */
   bool update(char **var, char *val, size_t val_len);
-
-  static uchar *sysvars_mgr_get_key(const char *entry, size_t *length,
-                                    my_bool not_used MY_ATTRIBUTE((unused)));
 
   void claim_memory_ownership();
 
@@ -108,5 +93,3 @@ public:
 };
 
 #endif /* SYS_VARS_RESOURCE_MGR_INCLUDED */
-
-

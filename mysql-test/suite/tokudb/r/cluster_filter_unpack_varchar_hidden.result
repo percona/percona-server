@@ -21,7 +21,7 @@ a	b	c	d	e	f
 5	50	500	5000	50000	500000
 explain select * from t1 where b > "0";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	b	NULL	258	NULL;	5	100.00	Using where
+1	SIMPLE	t1	NULL	range	b	NULL	1023	NULL;	5	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e`,`test`.`t1`.`f` AS `f` from `test`.`t1` where (`test`.`t1`.`b` > '0')
 select * from t1 where b > "0";
@@ -33,7 +33,7 @@ a	b	c	d	e	f
 5	50	500	5000	50000	500000
 explain select * from t1 where d > "0";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	d	NULL	303	NULL;	5	100.00	Using where
+1	SIMPLE	t1	NULL	range	d	NULL	1203	NULL;	5	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e`,`test`.`t1`.`f` AS `f` from `test`.`t1` where (`test`.`t1`.`d` > '0')
 select * from t1 where d > "0";
@@ -45,7 +45,7 @@ a	b	c	d	e	f
 5	50	500	5000	50000	500000
 explain select a from t1 where d > "0";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	d	NULL	316	NULL;	5	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	d	NULL	1246	NULL;	5	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`d` > '0')
 select a from t1 where d > "0";
@@ -91,7 +91,7 @@ a	b	c	d	e	f
 6	60	500	5000	50000	500000
 explain select * from t1 where b > "0";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	b	NULL	258	NULL;	10	100.00	Using where
+1	SIMPLE	t1	NULL	range	b	NULL	1023	NULL;	10	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e`,`test`.`t1`.`f` AS `f` from `test`.`t1` where (`test`.`t1`.`b` > '0')
 select * from t1 where b > "0";
@@ -103,7 +103,7 @@ a	b	c	d	e	f
 6	60	500	5000	50000	500000
 explain select * from t1 where d > "0";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	d	NULL	303	NULL;	10	100.00	Using where
+1	SIMPLE	t1	NULL	range	d	NULL	1203	NULL;	10	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e`,`test`.`t1`.`f` AS `f` from `test`.`t1` where (`test`.`t1`.`d` > '0')
 select * from t1 where d > "0";
@@ -115,7 +115,7 @@ a	b	c	d	e	f
 6	60	500	5000	50000	500000
 explain select a from t1 where d > "0";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	d	NULL	316	NULL;	5	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	d	NULL	1246	NULL;	5	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`d` > '0')
 select a from t1 where d > "0";
@@ -158,7 +158,7 @@ a	b	c	d	e	f
 3	30	200	2000	20000	200000
 explain select * from t1 where b > "0";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	b	NULL	258	NULL;	10	100.00	Using where
+1	SIMPLE	t1	NULL	range	b	NULL	1023	NULL;	10	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e`,`test`.`t1`.`f` AS `f` from `test`.`t1` where (`test`.`t1`.`b` > '0')
 select * from t1 where b > "0";
@@ -167,7 +167,7 @@ a	b	c	d	e	f
 3	30	200	2000	20000	200000
 explain select * from t1 where d > "0";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	d	NULL	303	NULL;	10	100.00	Using where
+1	SIMPLE	t1	NULL	range	d	NULL	1203	NULL;	10	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e`,`test`.`t1`.`f` AS `f` from `test`.`t1` where (`test`.`t1`.`d` > '0')
 select * from t1 where d > "0";
@@ -176,7 +176,7 @@ a	b	c	d	e	f
 3	30	200	2000	20000	200000
 explain select a from t1 where d > "0";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	d	NULL	316	NULL;	2	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	d	NULL	1246	NULL;	2	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`d` > '0')
 select a from t1 where d > "0";
@@ -208,7 +208,7 @@ a	b	c	d	e	f
 3	30	200	2000	20000	200000
 explain select * from t1 where b > "0";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	b	NULL	258	NULL;	2	100.00	Using where
+1	SIMPLE	t1	NULL	range	b	NULL	1023	NULL;	2	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e`,`test`.`t1`.`f` AS `f` from `test`.`t1` where (`test`.`t1`.`b` > '0')
 select * from t1 where b > "0";
@@ -217,7 +217,7 @@ a	b	c	d	e	f
 3	30	200	2000	20000	200000
 explain select * from t1 where d > "0";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	d	NULL	303	NULL;	2	100.00	Using where
+1	SIMPLE	t1	NULL	range	d	NULL	1203	NULL;	2	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e`,`test`.`t1`.`f` AS `f` from `test`.`t1` where (`test`.`t1`.`d` > '0')
 select * from t1 where d > "0";
@@ -226,7 +226,7 @@ a	b	c	d	e	f
 3	30	200	2000	20000	200000
 explain select a from t1 where d > "0";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	d	NULL	316	NULL;	2	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	d	NULL	1246	NULL;	2	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`d` > '0')
 select a from t1 where d > "0";

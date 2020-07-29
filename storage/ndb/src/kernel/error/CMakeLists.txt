@@ -1,5 +1,4 @@
-# Copyright (C) 2008 MySQL AB
-# Use is subject to license terms
+# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -19,12 +18,13 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
 
-ADD_CONVENIENCE_LIBRARY(ndberror
-            TimeModule.cpp
-            ErrorReporter.cpp
-            ndbd_exit_codes.c)
+ADD_LIBRARY(ndberror STATIC
+  TimeModule.cpp
+  ErrorReporter.cpp
+  ndbd_exit_codes.cpp
+  )

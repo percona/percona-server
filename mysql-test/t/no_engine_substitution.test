@@ -1,13 +1,9 @@
 --source include/have_example_plugin.inc
---source include/not_embedded.inc
 
 --echo #
 --echo # Bug#27502530: DISABLING NO_ENGINE_SUBSTITUTION DOES NOT BEHAVE AS
 --echo #               DOCUMENTED
 --echo #
-
-CALL mtr.add_suppression("default_storage_engine is set to a disabled storage engine .*");
-CALL mtr.add_suppression("default_tmp_storage_engine is set to a disabled storage engine .*");
 
 --echo # Started the server by disabling InnoDB using system variable 'disabled_storage_engines'
 SELECT @@disabled_storage_engines;

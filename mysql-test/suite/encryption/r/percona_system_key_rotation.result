@@ -1,0 +1,35 @@
+CREATE TABLE t0 (a VARCHAR(255)) ENCRYPTION='KEYRING';
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 10;
+ERROR HY000: InnoDB system key 10 cannot be rotated, because it does not exist.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY -1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INNODB SYSTEM KEY -1' at line 1
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY K;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INNODB SYSTEM KEY K' at line 1
+ALTER INSTANCE ROTATE INNODB MASTER KEY 0;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '0' at line 1
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 4294967294;
+ERROR HY000: InnoDB system key 4294967294 cannot be rotated, because it does not exist.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 4294967295;
+ERROR HY000: InnoDB system key cannot have value greater than 4294967294.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
+CREATE TABLE t1 (a VARCHAR(255)) ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=1;
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 1;
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 2;
+ERROR HY000: InnoDB system key 2 cannot be rotated, because it does not exist.
+CREATE TABLE t2 (a VARCHAR(255)) ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=2;
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 2;
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 4294967294;
+ERROR HY000: InnoDB system key 4294967294 cannot be rotated, because it does not exist.
+CREATE TABLE t4294967295 (a VARCHAR(255)) ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=4294967294;
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 4294967294;
+UNINSTALL PLUGIN keyring_file;
+# It should not be possible to rotate key percona_innodb without keyring_file installed
+# Key ids 0,1 and 4294967294 exist.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
+ERROR HY000: InnoDB system key 0 cannot be rotated, because it does not exist.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 1;
+ERROR HY000: InnoDB system key 1 cannot be rotated, because it does not exist.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 4294967294;
+ERROR HY000: InnoDB system key 4294967294 cannot be rotated, because it does not exist.
+DROP TABLE t0,t1,t2,t4294967295;
+# restart:

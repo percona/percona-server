@@ -1,5 +1,5 @@
 #ifndef MYSQL_PLUGIN_AUTH_COMMON_INCLUDED
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file
+  @file include/mysql/plugin_auth_common.h
 
   This file defines constants and data structures that are the same for
   both client- and server-side authentication plugins.
@@ -112,44 +112,71 @@ authenticated_as when proxy mapping should be done by the server.
 #include <windows.h>
 #endif
 
-typedef struct st_plugin_vio_info
-{
-  enum { MYSQL_VIO_INVALID, MYSQL_VIO_TCP, MYSQL_VIO_SOCKET,
-         MYSQL_VIO_PIPE, MYSQL_VIO_MEMORY } protocol;
-  int socket;     /**< it's set, if the protocol is SOCKET or TCP */
+struct MYSQL_PLUGIN_VIO_INFO {
+  enum {
+    MYSQL_VIO_INVALID,
+    MYSQL_VIO_TCP,
+    MYSQL_VIO_SOCKET,
+    MYSQL_VIO_PIPE,
+    MYSQL_VIO_MEMORY
+  } protocol;
+  int socket; /**< it's set, if the protocol is SOCKET or TCP */
 #ifdef _WIN32
-  HANDLE handle;  /**< it's set, if the protocol is PIPE or MEMORY */
+  HANDLE handle; /**< it's set, if the protocol is PIPE or MEMORY */
 #endif
-} MYSQL_PLUGIN_VIO_INFO;
+};
+
+/* state of an asynchronous operation */
+enum net_async_status {
+  NET_ASYNC_COMPLETE = 0,
+  NET_ASYNC_NOT_READY,
+  NET_ASYNC_ERROR,
+  NET_ASYNC_COMPLETE_NO_MORE_RESULTS
+};
 
 /**
   Provides plugin access to communication channel
 */
-typedef struct st_plugin_vio
-{
+typedef struct MYSQL_PLUGIN_VIO {
   /**
     Plugin provides a pointer reference and this function sets it to the
     contents of any incoming packet. Returns the packet length, or -1 if
     the plugin should terminate.
   */
-  int (*read_packet)(struct st_plugin_vio *vio, 
-                     unsigned char **buf);
-  
+  int (*read_packet)(struct MYSQL_PLUGIN_VIO *vio, unsigned char **buf);
+
   /**
     Plugin provides a buffer with data and the length and this
     function sends it as a packet. Returns 0 on success, 1 on failure.
   */
-  int (*write_packet)(struct st_plugin_vio *vio, 
-                      const unsigned char *packet, 
+  int (*write_packet)(struct MYSQL_PLUGIN_VIO *vio, const unsigned char *packet,
                       int packet_len);
 
   /**
-    Fills in a st_plugin_vio_info structure, providing the information
+    Fills in a MYSQL_PLUGIN_VIO_INFO structure, providing the information
     about the connection.
   */
-  void (*info)(struct st_plugin_vio *vio, struct st_plugin_vio_info *info);
+  void (*info)(struct MYSQL_PLUGIN_VIO *vio,
+               struct MYSQL_PLUGIN_VIO_INFO *info);
+
+  /**
+    Non blocking version of read_packet. This function points buf to starting
+    position of incoming packet. When this function returns NET_ASYNC_NOT_READY
+    plugin should call this function again until all incoming packets are read.
+    If return code is NET_ASYNC_COMPLETE, plugin can do further processing of
+    read packets.
+  */
+  enum net_async_status (*read_packet_nonblocking)(struct MYSQL_PLUGIN_VIO *vio,
+                                                   unsigned char **buf,
+                                                   int *result);
+  /**
+    Non blocking version of write_packet. Sends data available in pkt of length
+    pkt_len to server in asynchrnous way.
+  */
+  enum net_async_status (*write_packet_nonblocking)(
+      struct MYSQL_PLUGIN_VIO *vio, const unsigned char *pkt, int pkt_len,
+      int *result);
 
 } MYSQL_PLUGIN_VIO;
 
 #endif
-

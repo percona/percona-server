@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -18,11 +18,29 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+# Disable specific types of warnings for current directory
+# if the compiler supports the flag
+FOREACH(warning
+    "unused-but-set-variable"
+    "strict-aliasing"
+    "unused-parameter"
+    # Downgrade -Werror to warning for "may be used uninitialized"
+    "error=maybe-uninitialized"
+    )
+  MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
+  IF(HAS_WARN_FLAG)
+    STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+    STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")
+  ENDIF()
+ENDFOREACH()
 
 # NdbApi examples
-ADD_EXECUTABLE(ndb_ndbapi_array_simple ndbapi_array_simple/ndbapi_array_simple.cpp)
-ADD_EXECUTABLE(ndb_ndbapi_array_using_adapter ndbapi_array_using_adapter/ndbapi_array_using_adapter.cpp)
+ADD_EXECUTABLE(ndb_ndbapi_array_simple
+  ndbapi_array_simple/ndbapi_array_simple.cpp)
+ADD_EXECUTABLE(ndb_ndbapi_array_using_adapter
+  ndbapi_array_using_adapter/ndbapi_array_using_adapter.cpp)
 ADD_EXECUTABLE(ndb_ndbapi_async ndbapi_async/ndbapi_async.cpp)
 ADD_EXECUTABLE(ndb_ndbapi_async1 ndbapi_async1/ndbapi_async1.cpp)
 ADD_EXECUTABLE(ndb_ndbapi_blob ndbapi_blob/ndbapi_blob.cpp)
@@ -60,7 +78,7 @@ SET(EXAMPLES
   ndb_mgmapi_logevent2
 )
 FOREACH(EXAMPLE ${EXAMPLES})
+  SET_TARGET_PROPERTIES(${EXAMPLE} PROPERTIES ENABLE_EXPORTS TRUE)
   TARGET_LINK_LIBRARIES(${EXAMPLE} libmysql)
   TARGET_LINK_LIBRARIES(${EXAMPLE} ndbclient_so)
 ENDFOREACH()
-

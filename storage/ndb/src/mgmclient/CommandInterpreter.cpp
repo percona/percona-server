@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 #include <util/BaseString.hpp>
 #include <util/Vector.hpp>
 #include <kernel/BlockNumbers.h>
+#include <kernel/signaldata/DumpStateOrd.hpp>
 
 /** 
  *  @class CommandInterpreter
@@ -41,9 +42,12 @@ class CommandInterpreter {
 public:
   /**
    *   Constructor
-   *   @param mgmtSrvr: Management server to use when executing commands
+   *   @param host: Management server to use when executing commands
    */
-  CommandInterpreter(const char *, int verbose);
+  CommandInterpreter(const char* host,
+                     const char* default_prompt,
+                     int verbose,
+                     int connect_retry_delay);
   ~CommandInterpreter();
   
   /**
@@ -102,6 +106,7 @@ private:
   int  executePurge(char* parameters);
   int  executeConnect(char* parameters, bool interactive);
   int  executeShutdown(char* parameters);
+  int  executePrompt(char* parameters);
   void executeClusterLog(char* parameters);
 
 public:
@@ -117,6 +122,7 @@ public:
   int  executeTestOff(int processId, const char* parameters, bool all);
   int  executeStatus(int processId, const char* parameters, bool all);
   int  executeEventReporting(int processId, const char* parameters, bool all);
+  int  executeNodeLog(int processId, const char* parameters, bool all);
   int  executeDumpState(int processId, const char* parameters, bool all);
   int  executeReport(int processId, const char* parameters, bool all);
   int  executeStartBackup(char * parameters, bool interactive);
@@ -129,6 +135,11 @@ public:
                     int *node_ids, int no_of_nodes);
   int executeCreateNodeGroup(char* parameters);
   int executeDropNodeGroup(char* parameters);
+  const char* get_current_prompt() const
+  {
+    // return the current prompt
+    return m_prompt;
+  }
 public:
   bool connect(bool interactive);
   void disconnect(void);
@@ -162,6 +173,10 @@ private:
   int m_error;
   struct NdbThread* m_event_thread;
   NdbMutex *m_print_mutex;
+  int m_connect_retry_delay;
+  const char* m_default_prompt;
+  const char* m_prompt;
+  BaseString m_prompt_copy;
 };
 
 NdbMutex* print_mutex;
@@ -172,9 +187,11 @@ NdbMutex* print_mutex;
 
 #include "ndb_mgmclient.hpp"
 
-Ndb_mgmclient::Ndb_mgmclient(const char *host,int verbose)
+Ndb_mgmclient::Ndb_mgmclient(const char *host, const char* default_prompt,
+                             int verbose, int connect_retry_delay)
 {
-  m_cmd= new CommandInterpreter(host,verbose);
+  m_cmd= new CommandInterpreter(host, default_prompt,
+                                verbose, connect_retry_delay);
 }
 Ndb_mgmclient::~Ndb_mgmclient()
 {
@@ -184,6 +201,11 @@ bool Ndb_mgmclient::execute(const char *line, int try_reconnect,
                             bool interactive, int *error)
 {
   return m_cmd->execute(line, try_reconnect, interactive, error);
+}
+const char*Ndb_mgmclient::get_current_prompt() const
+{
+  // return the current prompt
+  return m_cmd->get_current_prompt();
 }
 
 /*
@@ -223,6 +245,8 @@ static const char* helpText =
 "                                       Start backup (default WAIT COMPLETED,SNAPSHOTEND)\n"
 "ABORT BACKUP <backup id>               Abort backup\n"
 "SHUTDOWN                               Shutdown all processes in cluster\n"
+"PROMPT [<prompt-string>]               Toggle the prompt between string specified\n"
+"                                       or default prompt if no string specified\n"
 "CLUSTERLOG ON [<severity>] ...         Enable Cluster logging\n"
 "CLUSTERLOG OFF [<severity>] ...        Disable Cluster logging\n"
 "CLUSTERLOG TOGGLE [<severity>] ...     Toggle severity filter on/off\n"
@@ -230,6 +254,8 @@ static const char* helpText =
 "<id> START                             Start data node (started with -n)\n"
 "<id> RESTART [-n] [-i] [-a] [-f]       Restart data or management server node\n"
 "<id> STOP [-a] [-f]                    Stop data or management server node\n"
+"<id> NODELOG DEBUG ON                  Enable Debug logging in node log\n"
+"<id> NODELOG DEBUG OFF                 Disable Debug logging in node log\n"
 "ENTER SINGLE USER MODE <id>            Enter single user mode\n"
 "EXIT SINGLE USER MODE                  Exit single user mode\n"
 "<id> STATUS                            Print status\n"
@@ -448,6 +474,14 @@ static const char* helpTextExitSingleUserMode =
 "                   (that is, all running mysqld processes) to access the database. \n" 
 ;
 
+static const char* helpTextNodelog =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for NODELOG command\n"
+"---------------------------------------------------------------------------\n"
+"<id> NODELOG DEBUG ON   Enable debug messages in node log\n"
+"<id> NODELOG DEBUG OFF  Disable debug messages in node log\n"
+;
+
 static const char* helpTextStatus =
 "---------------------------------------------------------------------------\n"
 " NDB Cluster -- Management Client -- Help for STATUS command\n"
@@ -555,6 +589,17 @@ static const char* helpTextQuit =
 ;
 
 
+static const char* helpTextPrompt =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for PROMPT command\n"
+"---------------------------------------------------------------------------\n"
+"PROMPT  Toggle the prompt between string specified\n"
+"        or default prompt if no string specified\n\n"
+"PROMPT [<prompt-string>]       Changes the prompt to <prompt-string>\n"
+"                               No string resets the prompt to default\n\n"
+;
+
+
 #ifdef VM_TRACE // DEBUG ONLY
 static const char* helpTextDebug =
 "---------------------------------------------------------------------------\n"
@@ -600,10 +645,16 @@ struct st_cmd_help {
   {"EXIT SINGLE USER MODE", helpTextExitSingleUserMode, NULL},
   {"STATUS", helpTextStatus, NULL},
   {"CLUSTERLOG", helpTextClusterlog, NULL},
+  {"NODELOG", helpTextNodelog, NULL},
+  {"NODELOG DEBUG", helpTextNodelog, NULL},
+  {"NODELOG DEBUG", helpTextNodelog, NULL},
+  {"NODELOG DEBUG ON", helpTextNodelog, NULL},
+  {"NODELOG DEBUG OFF", helpTextNodelog, NULL},
   {"PURGE STALE SESSIONS", helpTextPurgeStaleSessions, NULL},
   {"CONNECT", helpTextConnect, NULL},
   {"REPORT", helpTextReport, helpTextReportFn},
   {"QUIT", helpTextQuit, NULL},
+  {"PROMPT", helpTextPrompt, NULL},
 #ifdef VM_TRACE // DEBUG ONLY
   {"DEBUG", helpTextDebug, NULL},
 #endif //VM_TRACE
@@ -635,13 +686,18 @@ convert(const char* s, int& val) {
 /*
  * Constructor
  */
-CommandInterpreter::CommandInterpreter(const char *host,int verbose) :
+CommandInterpreter::CommandInterpreter(const char *host,
+                                       const char* default_prompt,
+                                       int verbose, int connect_retry_delay) :
   m_constr(host),
   m_connected(false),
   m_verbose(verbose),
   m_try_reconnect(0),
   m_error(-1),
-  m_event_thread(NULL)
+  m_event_thread(NULL),
+  m_connect_retry_delay(connect_retry_delay),
+  m_default_prompt(default_prompt),
+  m_prompt(default_prompt)
 {
   m_print_mutex= NdbMutex_Create();
 }
@@ -811,7 +867,7 @@ printLogEvent(struct ndb_logevent* event)
             reason_str.appfmt(" (extra info %d)", extra);
         }
         if (sphase < 255)
-          sphase_str.appfmt(" Occured during startphase %u.", sphase);
+          sphase_str.appfmt(" Occurred during startphase %u.", sphase);
         ndbout_c("Node %u: Forced node shutdown completed%s.%s%s",
                  R, action_str.c_str(), sphase_str.c_str(), 
                  reason_str.c_str());
@@ -921,6 +977,12 @@ CommandInterpreter::connect(bool interactive)
     m_mgmsrv2 = ndb_mgm_create_handle();
     if(m_mgmsrv2 == NULL) {
       ndbout_c("Can't create 2:nd handle to management server.");
+      /**
+       * Disconnect(), in class destructor calls ndb_mgm_destroy_handle only when
+       * m_event_thread & m_connected is set. So, ndb_mgm_destroy_handle() has to be called
+       * on failures before setting m_event_thread & m_connected.
+       */
+      ndb_mgm_destroy_handle(&m_mgmsrv);
       exit(-1);
     }
   }
@@ -928,11 +990,24 @@ CommandInterpreter::connect(bool interactive)
   if (ndb_mgm_set_connectstring(m_mgmsrv, m_constr))
   {
     printError();
+    ndb_mgm_destroy_handle(&m_mgmsrv);
+    if(interactive)
+    {
+      ndb_mgm_destroy_handle(&m_mgmsrv2);
+    }
     exit(-1);
   }
 
-  if(ndb_mgm_connect(m_mgmsrv, m_try_reconnect-1, 5, 1))
+  if(ndb_mgm_connect(m_mgmsrv, m_try_reconnect-1, m_connect_retry_delay, 1))
+  {
+    ndb_mgm_destroy_handle(&m_mgmsrv);
+    if(interactive)
+    {
+      ndb_mgm_destroy_handle(&m_mgmsrv2);
+    }
     DBUG_RETURN(m_connected); // couldn't connect, always false
+  }
+
 
   const char *host= ndb_mgm_get_connected_host(m_mgmsrv);
   unsigned port= ndb_mgm_get_connected_port(m_mgmsrv);
@@ -940,7 +1015,7 @@ CommandInterpreter::connect(bool interactive)
     BaseString constr;
     constr.assfmt("%s:%d",host,port);
     if(!ndb_mgm_set_connectstring(m_mgmsrv2, constr.c_str()) &&
-       !ndb_mgm_connect(m_mgmsrv2, m_try_reconnect-1, 5, 1))
+       !ndb_mgm_connect(m_mgmsrv2, m_try_reconnect-1, m_connect_retry_delay, 1))
     {
       DBUG_PRINT("info",("2:ndb connected to Management Server ok at: %s:%d",
                          host, port));
@@ -1060,7 +1135,7 @@ class ClusterInfo {
 
 public:
   ClusterInfo() :
-    m_status(NULL) {};
+    m_status(NULL) {}
 
   ~ClusterInfo() {
     if (m_status)
@@ -1217,7 +1292,6 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
     disconnect();
     connect(interactive);
   }
-
   if (native_strcasecmp(firstToken, "SHOW") == 0) {
     Guard g(m_print_mutex);
     m_error = executeShow(allAfterFirstToken);
@@ -1274,6 +1348,10 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
 	  native_strncasecmp(allAfterFirstToken, "NODEGROUP",
                       sizeof("NODEGROUP") - 1) == 0){
     m_error = executeDropNodeGroup(allAfterFirstToken);
+    DBUG_RETURN(true);
+  }
+  else if (native_strcasecmp(firstToken, "PROMPT") == 0) {
+    m_error = executePrompt(allAfterFirstToken);
     DBUG_RETURN(true);
   }
   else if (native_strcasecmp(firstToken, "ALL") == 0) {
@@ -1336,6 +1414,7 @@ static const CommandInterpreter::CommandFunctionPair commands[] = {
   ,{ "STATUS", &CommandInterpreter::executeStatus }
   ,{ "LOGLEVEL", &CommandInterpreter::executeLogLevel }
   ,{ "CLUSTERLOG", &CommandInterpreter::executeEventReporting }
+  ,{ "NODELOG", &CommandInterpreter::executeNodeLog }
 #ifdef ERROR_INSERT
   ,{ "ERROR", &CommandInterpreter::executeError }
 #endif
@@ -1644,6 +1723,32 @@ CommandInterpreter::executeShutdown(char* parameters)
 }
 
 /*****************************************************************************
+ * PROMPT
+ *****************************************************************************/
+
+int
+CommandInterpreter::executePrompt(char* parameters)
+{
+  if( parameters != NULL )
+  {
+    /* Assign parameter passed to the prompt */
+    m_prompt_copy.assign(parameters);
+    m_prompt_copy.append(" ");
+    m_prompt= m_prompt_copy.c_str();
+    ndbout << "Prompt set to " << m_prompt
+           << endl;
+    return 0;
+  }
+
+  /* Restore prompt to default */
+  m_prompt= m_default_prompt;
+  ndbout << "Returning to default prompt of "
+         << m_prompt << endl;
+  return 0;
+}
+
+
+/*****************************************************************************
  * SHOW
  *****************************************************************************/
 
@@ -1714,6 +1819,13 @@ print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
 	    if (master_id && node_state->dynamic_id == master_id)
 	      ndbout << ", *";
         }
+        else
+        {
+          if (node_state->is_single_user)
+          {
+            ndbout << ", allowed single user";
+          }
+        }
 	ndbout << ")" << endl;
       } else {
 	ndb_mgm_first(it);
@@ -1722,8 +1834,16 @@ print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
 	  ndb_mgm_get_string_parameter(it, CFG_NODE_HOST, &config_hostname);
 	  if (config_hostname == 0 || config_hostname[0] == 0)
 	    config_hostname= "any host";
-	  ndbout_c(" (not connected, accepting connect from %s)",
-		   config_hostname);
+          if (type == NDB_MGM_NODE_TYPE_API && node_state->is_single_user)
+          {
+            ndbout_c(" (not connected, accepting connect from %s, "
+              "allowed single user)", config_hostname);
+          }
+          else
+          {
+            ndbout_c(" (not connected, accepting connect from %s)",
+              config_hostname);
+          }
 	}
 	else
 	{
@@ -2850,6 +2970,60 @@ CommandInterpreter::executeTestOff(int processId,
   return 0;
 }
 
+
+//*****************************************************************************
+//*****************************************************************************
+
+int
+CommandInterpreter::executeNodeLog(int processId,
+                                   const char* parameters, 
+                                   bool all)
+{
+  Vector<BaseString> command_list;
+  if (parameters)
+    split_args(parameters, command_list);
+
+  int ret_val;
+  int params[1];
+  int num_params = 1;
+  if (command_list.size() != 2)
+  {
+    ndbout_c("ERROR: Wrong number of argument(s).");
+    ret_val = -1;
+    return ret_val;
+  }
+
+  const char *item = command_list[0].c_str();
+  if (native_strcasecmp(item, "DEBUG") == 0)
+  {
+    const char *item = command_list[1].c_str();
+    if (native_strcasecmp(item, "ON") == 0)
+    {
+      DBUG_PRINT("info",("ON"));
+      params[0] = DumpStateOrd::EnableEventLoggerDebug;
+    }
+    else if (native_strcasecmp(item, "OFF") == 0)
+    {
+      DBUG_PRINT("info",("OFF"));
+      params[0] = DumpStateOrd::DisableEventLoggerDebug;
+    }
+    else
+    {
+      ndbout << "Invalid argument." << endl;
+      ret_val = -1;
+      return ret_val;
+   }
+  }
+  else
+  {
+    ndbout << "Invalid argument." << endl;
+    ret_val = -1;
+    return ret_val;
+  }
+ 
+  struct ndb_mgm_reply reply;
+  return ndb_mgm_dump_state(m_mgmsrv, processId, params, num_params, &reply);
+}
 
 //*****************************************************************************
 //*****************************************************************************

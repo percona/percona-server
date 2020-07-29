@@ -5,8 +5,6 @@
 # sorting algorithm caused a server exit.
 #
 
---source include/have_innodb.inc
-
 CREATE TABLE t1(
   c1 INT, c2 INT, c3 INT, c4 INT, c5 INT, c6 INT, c7 INT, c8 INT, c9 INT, c10 INT,
   c11 INT, c12 INT, c13 INT, c14 INT, c15 INT, c16 INT, c17 INT, c18 INT, c19 INT, c20 INT,

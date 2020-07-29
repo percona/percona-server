@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,9 @@ set -e
 : ${load:=1}
 : ${loops:=100}
 : ${queries:=1000}
-: ${host:=loki43}
+: ${host:=localhost}
 : ${port:=4401}
-: ${RQG_HOME:=/net/fimafeng09/export/home/tmp/oleja/mysql/randgen/randgen-2.2.0}
+: ${RQG_HOME:=/home/oaske/randgen/latest}
 
 
 while getopts ":nm:r:l:h:p:" opt; do
@@ -95,9 +95,12 @@ gensql=${RQG_HOME}/gensql.pl
 gendata=${RQG_HOME}/gendata.pl
 ecp="set optimizer_switch = 'engine_condition_pushdown=on';"
 
-dsn=dbi:mysql:host=${host}:port=${port}:user=root:database=${pre}_innodb
-mysqltest="$MYSQLINSTALL/bin/mysqltest -uroot --host=${host} --port=${port}"
-mysql="$MYSQLINSTALL/bin/mysql --host=${host} --port=${port}"
+#dsn=dbi:mysql:host=${host}:port=${port}:user=root:database=${pre}_innodb
+#mysqltest="$MYSQLINSTALL/bin/mysqltest -uroot --host=${host} --port=${port}"
+dsn=dbi:mysql:host=${host}:mysql_socket=/tmp/mysql.sock:user=root:database=${pre}_innodb
+mysqltest="$MYSQLINSTALL/bin/mysqltest -uroot --port=${port}"
+#mysql="$MYSQLINSTALL/bin/mysql --host=${host} --port=${port} --user=root"
+mysql="$MYSQLINSTALL/bin/mysql --port=${port} --user=root"
 
 # Create database with a case sensitive collation to ensure a deterministic 
 # resultset when 'LIMIT' is specified:
@@ -111,8 +114,46 @@ then
 	$mysql -uroot -e "create database ${pre}_innodb ${charset_spec}; create database ${pre}_ndb ${charset_spec}"
 	${gendata} --dsn=$dsn ${data}
 cat > /tmp/sproc.$$ <<EOF
+
+
+DROP PROCEDURE IF EXISTS modifydata;
 DROP PROCEDURE IF EXISTS copydb;
+DROP PROCEDURE IF EXISTS alterengine;
+DROP PROCEDURE IF EXISTS analyzedb;
+
 delimiter |;
+
+# modifydata will change the non-unique integer contents
+# to contain more duplicates. Improves test coverage of
+# firstmatch duplicate elimination, as well as join result
+# produced over multiple result batches.
+CREATE PROCEDURE modifydata (db varchar(64))
+BEGIN
+
+  declare tabname varchar(255);
+  declare done integer default 0;
+  declare c cursor for
+  SELECT table_name
+  FROM INFORMATION_SCHEMA.TABLES where table_schema = db;
+  declare continue handler for not found set done = 1;
+
+  open c;
+
+  repeat
+    fetch c into tabname;
+    if not done then
+       set @ddl = CONCAT('UPDATE ', db, '.', tabname,
+                         ' set col_int = col_int % 4',
+                         ', col_int_key = col_int_key % 4');
+       select @ddl;
+       PREPARE stmt from @ddl;
+       EXECUTE stmt;
+    end if;
+  until done end repeat;
+  close c;
+END
+\G
+
 CREATE PROCEDURE copydb(dstdb varchar(64), srcdb varchar(64),
                         dstengine varchar(64))
 BEGIN
@@ -275,7 +316,6 @@ BEGIN
 END
 \G
 
-DROP PROCEDURE IF EXISTS alterengine\G
 CREATE PROCEDURE alterengine (db varchar(64), newengine varchar(64))
 BEGIN
 
@@ -333,6 +373,7 @@ BEGIN
 END
 \G
 
+CALL modifydata('${pre}_innodb')\G
 CALL copydb('${pre}_ndb', '${pre}_innodb', 'ndb')\G
 CALL analyzedb('${pre}_ndb')\G
 
@@ -360,8 +401,9 @@ check_query(){
 $ecp
 --echo kalle
 --sorted_result
---error 0,233,1242,4006
+--error 0,233,1242,4006,1055
 $sql
+--enable_warnings
 --exit
 EOF
 
@@ -460,7 +502,8 @@ do
 	echo "--eval set ndb_join_pushdown='\$NDB_JOIN_PUSHDOWN';"
 	echo "$ecp"
 	${gensql} --seed=$us --queries=$queries --dsn=$dsn --grammar=$grammar|
-        awk '{ print "--sorted_result"; print "--error 0,233,1242,4006"; print; }'
+        awk '{ print "--sorted_result"; print "--error 0,233,1055,1242,4006"; print; }'
+        echo "--enable_warnings"
 	echo "--exit"
     ) > ${opre}_test.sql
 

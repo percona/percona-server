@@ -22,7 +22,7 @@ set enabled='YES', timed='NO';
 **** On Master ****
 select * from performance_schema.setup_instruments
 where timed='NO' and name not like "memory/%";
-NAME	ENABLED	TIMED
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
 select "This better be in the master" as in_master_digest;
 in_master_digest
 This better be in the master
@@ -56,7 +56,7 @@ select digest, digest_text, count_star
 from performance_schema.events_statements_summary_by_digest
 where digest_text like "%in_%_digest%";
 digest	digest_text	count_star
-?	SELECT ? AS `in_master_digest` 	1
+?	SELECT ? AS `in_master_digest`	1
 insert into test.marker values (2);
 **** On Slave ****
 select * from test.marker;
@@ -65,7 +65,7 @@ a
 2
 select * from performance_schema.setup_instruments
 where timed='YES';
-NAME	ENABLED	TIMED
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
 select "This better be in the slave" as in_slave_digest;
 in_slave_digest
 This better be in the slave
@@ -99,7 +99,7 @@ select digest, digest_text, count_star
 from performance_schema.events_statements_summary_by_digest
 where digest_text like "%in_%_digest%";
 digest	digest_text	count_star
-?	SELECT ? AS `in_slave_digest` 	1
+?	SELECT ? AS `in_slave_digest`	1
 **** On Master ****
 delete from performance_schema.setup_objects
 where object_schema='master';

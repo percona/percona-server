@@ -1,7 +1,5 @@
---source include/not_embedded.inc
 --source include/not_valgrind.inc
 --source include/have_debug.inc
---source include/have_innodb.inc
 --source include/have_log_bin.inc
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
@@ -15,7 +13,7 @@ BEGIN;
 INSERT INTO t1 VALUES (2);
 SET SESSION debug="d,crash_commit_after_prepare";
 --exec echo "wait" > $restart_file
---error 2006, 2013
+--error CR_SERVER_GONE_ERROR, CR_SERVER_LOST
 COMMIT;
 
 --source include/wait_until_disconnected.inc
@@ -33,7 +31,7 @@ BEGIN;
 INSERT INTO t1 VALUES (2);
 SET SESSION debug="d,crash_commit_after_prepare";
 --exec echo "wait" > $restart_file
---error 2006, 2013
+--error CR_SERVER_GONE_ERROR, CR_SERVER_LOST
 COMMIT;
 
 --source include/wait_until_disconnected.inc

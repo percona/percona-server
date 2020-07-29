@@ -1,4 +1,4 @@
-call mtr.add_suppression("InnoDB: The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles!");
+call mtr.add_suppression("The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles!");
 CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT) ENGINE=InnoDB;
 CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE t3 (a INT PRIMARY KEY, b TEXT, c TEXT) ENGINE=InnoDB;
@@ -22,11 +22,9 @@ BEGIN;
 INSERT INTO t1 VALUES (3,REPEAT('c',50000));
 SET DEBUG_SYNC='now WAIT_FOR rec_not_blob';
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-SELECT @@tx_isolation;
-@@tx_isolation
+SELECT @@transaction_isolation;
+@@transaction_isolation
 READ-UNCOMMITTED
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SELECT a, RIGHT(b,20) FROM t1;
 a	RIGHT(b,20)
 1	aaaaaaaaaaaaaaaaaaaa
@@ -51,13 +49,12 @@ UPDATE t3 SET c=REPEAT('f',3000) WHERE a=1;
 # Connection con1:
 SET DEBUG_SYNC='now WAIT_FOR go_sel';
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-SELECT @@tx_isolation;
-@@tx_isolation
+SELECT @@transaction_isolation;
+@@transaction_isolation
 READ-UNCOMMITTED
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SELECT a, RIGHT(b,20), RIGHT(c,20) FROM t3;
 a	RIGHT(b,20)	RIGHT(c,20)
+1		ffffffffffffffffffff
 2	gggggggggggggggggggg	hhhhhhhhhhhhhhhhhhhh
 set debug_sync='now SIGNAL go_upd';
 # Connection default:
@@ -138,11 +135,11 @@ data longtext COLLATE utf8mb4_unicode_ci NOT NULL,
 PRIMARY KEY (id),
 UNIQUE KEY unq_id (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,'');
 SET @old_mode=@@sql_mode;
 SET GLOBAL SQL_MODE="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ALTER TABLE t1 ADD COLUMN d3 DATETIME NOT NULL;
 ALTER TABLE t1 ADD COLUMN d2 DATETIME NOT NULL;
 ALTER TABLE t1 ADD COLUMN d1 DATETIME NOT NULL;

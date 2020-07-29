@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -261,7 +261,7 @@ struct SubSyncReq {
   friend class Suma;
 
   friend bool printSUB_SYNC_REQ(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLength = 8 );
+  STATIC_CONST( SignalLength = 9 );
   
   Uint32 senderRef;
   Uint32 senderData;
@@ -271,10 +271,11 @@ struct SubSyncReq {
   Uint32 requestInfo;
   Uint32 fragCount;
   Uint32 fragId; // ZNIL if not used
+  Uint32 batchSize;
 
   enum {
     LM_Exclusive = 0x1
-    ,Reorg = 0x2
+    ,ReorgDelete = 0x2
     ,NoDisk = 0x4
     ,TupOrder = 0x8
     ,LM_CommittedRead = 0x10
@@ -589,6 +590,9 @@ struct SumaContinueB
     ,SUB_STOP_REQ = 7
     ,RETRY_DICT_LOCK = 8
     ,HANDOVER_WAIT_TIMEOUT = 9
+    ,WAIT_SCAN_TAB_REQ = 10
+    ,WAIT_GET_FRAGMENT = 11
+    ,SEND_SUB_GCP_COMPLETE_REP = 12
   };
 };
 

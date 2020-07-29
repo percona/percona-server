@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,6 @@
 
 #include <ndb_global.h>
 
-#include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <NdbApi.hpp>
 #include <NdbTest.hpp>
@@ -96,6 +95,10 @@ static NdbScanOperation* sop = 0;
 
 static int
 ndberror(char const* fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 1, 2);
+
+static int
+ndberror(char const* fmt, ...)
 {
     va_list ap;
     char buf[200];
@@ -115,6 +118,10 @@ ndberror(char const* fmt, ...)
 	ndbout << "op  : " << op->getNdbError() << endl;
     return -1;
 }
+
+static int
+chkerror(char const* fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 1, 2);
 
 static int
 chkerror(char const* fmt, ...)
@@ -557,7 +564,7 @@ testcase(Ndb_cluster_connection&cc, int flag)
     return 0;
 }
 
-NDB_COMMAND(testDataBuffers, "testDataBuffers", "testDataBuffers", "testDataBuffers", 65535)
+int main(int argc, char** argv)
 {
     int i;
     ndb_init();

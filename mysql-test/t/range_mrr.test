@@ -2,12 +2,7 @@
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
-
-# 
-# Run range.inc with MRR
-#
-
---source include/have_mrr.inc
+--source include/have_myisam.inc
 
 set optimizer_switch='mrr=on,mrr_cost_based=off';
 

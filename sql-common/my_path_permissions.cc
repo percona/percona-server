@@ -18,19 +18,19 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
-   02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <errno.h>
 #include "my_dir.h"
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
 /**
   Check if a file/dir is world-writable (only on non-Windows platforms)
 
-  @param [in] Path of the file/dir to be checked
+  @param [in] path Path of the file/dir to be checked
 
   @returns Status of the file/dir check
     @retval -2 Permission denied to check attributes of file/dir
@@ -39,23 +39,21 @@ extern "C" {
     @retval  1 File/dir is world-writable
  */
 
-int is_file_or_dir_world_writable(const char *path)
-{
+int is_file_or_dir_world_writable(const char *path) {
   MY_STAT stat_info;
-  (void)path; // avoid unused param warning when built on Windows
+  (void)path;  // avoid unused param warning when built on Windows
 #ifndef _WIN32
-  if (!my_stat(path, &stat_info, MYF(0)))
-  {
-      return (errno == EACCES) ? -2 : -1;
+  if (!my_stat(path, &stat_info, MYF(0))) {
+    return (errno == EACCES) ? -2 : -1;
   }
   if ((stat_info.st_mode & S_IWOTH) &&
-      ((stat_info.st_mode & S_IFMT) == S_IFREG ||   /* file   */
-       (stat_info.st_mode & S_IFMT) == S_IFDIR))    /* or dir */
+      ((stat_info.st_mode & S_IFMT) == S_IFREG || /* file   */
+       (stat_info.st_mode & S_IFMT) == S_IFDIR))  /* or dir */
     return 1;
 #endif
   return 0;
 }
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif

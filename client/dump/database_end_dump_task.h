@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,23 +25,22 @@
 #ifndef DATABASE_END_DUMP_TASK_INCLUDED
 #define DATABASE_END_DUMP_TASK_INCLUDED
 
-#include "abstract_database_dump_task.h"
-#include "database.h"
+#include "client/dump/abstract_database_dump_task.h"
+#include "client/dump/database.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-class Database_end_dump_task : public Abstract_database_dump_task
-{
-public:
-  Database_end_dump_task(Database* related_database);
+class Database_end_dump_task : public Abstract_database_dump_task {
+ public:
+  Database_end_dump_task(Database *related_database);
 
   ~Database_end_dump_task();
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

@@ -1,17 +1,16 @@
 source include/not_valgrind.inc;
 source include/have_memcached_plugin.inc;
 source include/not_windows.inc;
-source include/have_innodb.inc;
 
 --disable_query_log
 CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
 CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
-CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
-CALL mtr.add_suppression("InnoDB: Error: MySQL is freeing a thd");
+CALL mtr.add_suppression("Warning: MySQL is trying to drop");
+CALL mtr.add_suppression("Error: MySQL is freeing a thd");
 --enable_query_log
 
 --enable_connect_log
-SET @tx_isolation= @@global.tx_isolation;
+SET @transaction_isolation= @@global.transaction_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
 # Create the memcached tables
@@ -46,9 +45,9 @@ CREATE TABLE t1        (c1  VARCHAR(32),
                         c11 VARCHAR(32),
 			c2  VARCHAR(1024),
 			c21 VARCHAR(1024),
-			c3 INT, c4 BIGINT UNSIGNED, c5 INT, 
+			c3 INT, c4 BIGINT UNSIGNED, c5 INT,
                         FOREIGN KEY ft1(c11) REFERENCES t2(c1))
- 
+
 ENGINE = INNODB;
 
 CREATE UNIQUE INDEX it1 ON t1 (c1);
@@ -64,13 +63,11 @@ INSERT INTO t1 VALUES ('C','Cc', 'Cottbus', 'West', 0, 0 ,0);
 INSERT INTO t1 VALUES ('H','Hh', 'Hamburg', 'Norderstedt', 0, 0, 0);
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11220
+--source ../include/load_daemon_memcached_expecting_success.inc
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2,c21 FROM t1;
-
-SELECT SLEEP(2);
 
 perl;
 use DBI;
@@ -80,7 +77,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,B,H,C:\n";
+print "Here are the memcached results with D,B,H,C:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("B");
@@ -103,7 +100,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after set:\n";
+print "Here are the memcached results after set:\n";
 $val = $memd->set("E","Dd|Essen|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
@@ -123,7 +120,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after add:\n";
+print "Here are the memcached results after add:\n";
 $val = $memd->add("F","Dd|Frankfurt|Sachsenhause");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -141,7 +138,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after replace:\n";
+print "Here are the memcached results after replace:\n";
 $val = $memd->replace("F","Dd,Frankfurt a. M.|Sachsenhausen");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -159,7 +156,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after delete:\n";
+print "Here are the memcached results after delete:\n";
 $val = $memd->delete("F");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -177,7 +174,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after add Frankfurt|Airport:\n";
+print "Here are the memcached results after add Frankfurt|Airport:\n";
 $val = $memd->add("F","Bb|Frankfurt|Airport");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -196,7 +193,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after replace Frankfurt a.M|Sachsenhausen.:\n";
+print "Here are the memcached results after replace Frankfurt a.M|Sachsenhausen.:\n";
 $val = $memd->replace("F","Xx|Frankfurt a. M.|Sachsenhausen");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -211,6 +208,6 @@ UNINSTALL PLUGIN daemon_memcached;
 DROP TABLE test.t1;
 DROP TABLE test.t2;
 DROP DATABASE innodb_memcache;
- 
-SET @@global.tx_isolation= @tx_isolation;
+
+SET @@global.transaction_isolation= @transaction_isolation;
 

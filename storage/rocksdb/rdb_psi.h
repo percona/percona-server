@@ -18,9 +18,11 @@
 #define _rdb_psi_h_
 
 /* MySQL header files */
-#include "my_global.h"
 #include "my_thread.h"
+#include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_thread.h"
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,20 +25,20 @@
 #ifndef ABSTRACT_DATA_OBJECT_INCLUDED
 #define ABSTRACT_DATA_OBJECT_INCLUDED
 
-#include "i_data_object.h"
-#include "my_global.h"
 #include <string>
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+#include "client/dump/i_data_object.h"
+#include "my_inttypes.h"
+
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 /**
   Base class for all main DB objects.
  */
-class Abstract_data_object : public I_data_object
-{
-public:
+class Abstract_data_object : public I_data_object {
+ public:
   virtual ~Abstract_data_object();
 
   /**
@@ -55,11 +55,11 @@ public:
    */
   std::string get_name() const;
 
-protected:
-  Abstract_data_object(uint64 id, const std::string& name,
-    const std::string& schema);
+ protected:
+  Abstract_data_object(uint64 id, const std::string &name,
+                       const std::string &schema);
 
-private:
+ private:
   /**
     An unique ID of this DB object. This helps progress watching with multiple
     parts of chain during object processing (including queuing).
@@ -75,8 +75,8 @@ private:
   std::string m_name;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

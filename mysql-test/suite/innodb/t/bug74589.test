@@ -1,7 +1,6 @@
 # Bug 74589. A severe error occurred during the log apply phase of an online
 # "ALTER TABLE" operation that was converting a table with a UTF-8 charset to
 # "ROW_FORMAT=REDUNDANT"
---source include/have_innodb.inc
 
 CREATE TABLE t1(a INT UNSIGNED,
                 PRIMARY KEY USING HASH (a))

@@ -1,0 +1,89 @@
+SELECT PLUGIN_NAME, PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME LIKE 'authentication_ldap_simple%';
+PLUGIN_NAME	PLUGIN_STATUS
+authentication_ldap_simple	ACTIVE
+SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
+Variable_name	Value
+authentication_ldap_simple_auth_method_name	SIMPLE
+authentication_ldap_simple_bind_base_dn	
+authentication_ldap_simple_bind_root_dn	
+authentication_ldap_simple_bind_root_pwd	
+authentication_ldap_simple_ca_path	
+authentication_ldap_simple_group_search_attr	cn
+authentication_ldap_simple_group_search_filter	(|(&(objectClass=posixGroup)(memberUid={UA}))(&(objectClass=group)(member={UD})))
+authentication_ldap_simple_init_pool_size	10
+authentication_ldap_simple_log_status	1
+authentication_ldap_simple_max_pool_size	1000
+authentication_ldap_simple_server_host	
+authentication_ldap_simple_server_port	389
+authentication_ldap_simple_ssl	OFF
+authentication_ldap_simple_tls	OFF
+authentication_ldap_simple_user_search_attr	uid
+SET GLOBAL authentication_ldap_simple_bind_base_dn = 'ou=people,dc=planetexpress,dc=com';
+SET GLOBAL authentication_ldap_simple_server_host = '172.18.0.2';
+SET GLOBAL authentication_ldap_simple_server_port = 389;
+SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
+Variable_name	Value
+authentication_ldap_simple_auth_method_name	SIMPLE
+authentication_ldap_simple_bind_base_dn	ou=people,dc=planetexpress,dc=com
+authentication_ldap_simple_bind_root_dn	
+authentication_ldap_simple_bind_root_pwd	
+authentication_ldap_simple_ca_path	
+authentication_ldap_simple_group_search_attr	cn
+authentication_ldap_simple_group_search_filter	(|(&(objectClass=posixGroup)(memberUid={UA}))(&(objectClass=group)(member={UD})))
+authentication_ldap_simple_init_pool_size	10
+authentication_ldap_simple_log_status	1
+authentication_ldap_simple_max_pool_size	1000
+authentication_ldap_simple_server_host	172.18.0.2
+authentication_ldap_simple_server_port	389
+authentication_ldap_simple_ssl	OFF
+authentication_ldap_simple_tls	OFF
+authentication_ldap_simple_user_search_attr	uid
+CREATE USER zoidberg IDENTIFIED WITH authentication_ldap_simple BY 'cn=John A. Zoidberg,ou=people,dc=planetexpress,dc=com';
+CREATE USER nonexistent IDENTIFIED WITH authentication_ldap_simple BY 'uid=nonexistent';
+SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
+Variable_name	Value
+authentication_ldap_simple_auth_method_name	SIMPLE
+authentication_ldap_simple_bind_base_dn	ou=people,dc=planetexpress,dc=com
+authentication_ldap_simple_bind_root_dn	
+authentication_ldap_simple_bind_root_pwd	
+authentication_ldap_simple_ca_path	
+authentication_ldap_simple_group_search_attr	cn
+authentication_ldap_simple_group_search_filter	(|(&(objectClass=posixGroup)(memberUid={UA}))(&(objectClass=group)(member={UD})))
+authentication_ldap_simple_init_pool_size	10
+authentication_ldap_simple_log_status	1
+authentication_ldap_simple_max_pool_size	1000
+authentication_ldap_simple_server_host	172.18.0.2
+authentication_ldap_simple_server_port	389
+authentication_ldap_simple_ssl	OFF
+authentication_ldap_simple_tls	OFF
+authentication_ldap_simple_user_search_attr	uid
+SET GLOBAL authentication_ldap_simple_server_host = 'badhost';
+connect(localhost,zoidberg,zoidberg,test,13000,/work/build/mysql-test/var/tmp/mysqld.1.sock);
+ERROR 28000: Access denied for user 'zoidberg'@'localhost' (using password: YES)
+SET GLOBAL authentication_ldap_simple_server_host = '172.18.0.2';
+SET GLOBAL authentication_ldap_simple_server_port = 388;
+connect(localhost,zoidberg,zoidberg,test,13000,/work/build/mysql-test/var/tmp/mysqld.1.sock);
+ERROR 28000: Access denied for user 'zoidberg'@'localhost' (using password: YES)
+SET GLOBAL authentication_ldap_simple_server_port = 389;
+SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
+Variable_name	Value
+authentication_ldap_simple_auth_method_name	SIMPLE
+authentication_ldap_simple_bind_base_dn	ou=people,dc=planetexpress,dc=com
+authentication_ldap_simple_bind_root_dn	
+authentication_ldap_simple_bind_root_pwd	
+authentication_ldap_simple_ca_path	
+authentication_ldap_simple_group_search_attr	cn
+authentication_ldap_simple_group_search_filter	(|(&(objectClass=posixGroup)(memberUid={UA}))(&(objectClass=group)(member={UD})))
+authentication_ldap_simple_init_pool_size	10
+authentication_ldap_simple_log_status	1
+authentication_ldap_simple_max_pool_size	1000
+authentication_ldap_simple_server_host	172.18.0.2
+authentication_ldap_simple_server_port	389
+authentication_ldap_simple_ssl	OFF
+authentication_ldap_simple_tls	OFF
+authentication_ldap_simple_user_search_attr	uid
+DROP USER zoidberg;
+DROP USER nonexistent;
+SET GLOBAL authentication_ldap_simple_bind_base_dn = '';
+SET GLOBAL authentication_ldap_simple_server_host = '';
+SET GLOBAL authentication_ldap_simple_log_status = 1;

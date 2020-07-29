@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,29 +25,28 @@
 #ifndef ABSTRACT_DATABASE_DUMP_TASK_INCLUDED
 #define ABSTRACT_DATABASE_DUMP_TASK_INCLUDED
 
-#include "abstract_dump_task.h"
-#include "database.h"
+#include "client/dump/abstract_dump_task.h"
+#include "client/dump/database.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 /**
   Abstract class for defining single database definition dump task.
  */
-class Abstract_database_dump_task : public Abstract_dump_task
-{
-public:
-  Abstract_database_dump_task(Database* related_database);
+class Abstract_database_dump_task : public Abstract_dump_task {
+ public:
+  Abstract_database_dump_task(Database *related_database);
 
   /**
     Returns database the current task is created for.
    */
-  Database* get_related_database();
+  Database *get_related_database();
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

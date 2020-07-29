@@ -2,7 +2,6 @@
 # Tests for START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION
 ########################################################################
 
---source include/have_innodb.inc
 --source include/count_sessions.inc
 
 --connect (con1,localhost,root,,)

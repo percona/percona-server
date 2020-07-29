@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -17,42 +17,36 @@
    GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef GROUP_REPLICATION_PRIV_INCLUDE
-#define	GROUP_REPLICATION_PRIV_INCLUDE
+#define GROUP_REPLICATION_PRIV_INCLUDE
 
-#ifndef MYSQL_SERVER
-#define MYSQL_SERVER
-#endif
+/**
+  @file include/mysql/group_replication_priv.h
+*/
 
-#ifndef HAVE_REPLICATION
-#define HAVE_REPLICATION
-#endif
-
-#include <my_global.h>
-#include <my_thread.h>
-#include <my_sys.h>
-
-#include <debug_sync.h>
-#include <log_event.h>
-#include <replication.h>
-#include <rpl_channel_service_interface.h>
-#include <rpl_gtid.h>
-#include <rpl_write_set_handler.h>
-
+#include "my_sys.h"
+#include "my_thread.h"
+#include "sql/binlog_ostream.h"
+#include "sql/binlog_reader.h"
+#include "sql/debug_sync.h"
+#include "sql/log_event.h"
+#include "sql/replication.h"
+#include "sql/rpl_channel_service_interface.h"
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_write_set_handler.h"
 
 /**
   Server side initializations.
 */
 int group_replication_init();
 
-
 /**
   Returns the server connection attribute
 
-  @Note This method implementation is on sql_class.cc
+  @note This method implementation is on sql_class.cc
 
   @return the pthread for the connection attribute.
 */
@@ -65,12 +59,16 @@ my_thread_attr_t *get_connection_attrib();
   @param[out] port
   @param[out] uuid
   @param[out] server_version
-  @param[out] server_ssl_variables
-
 */
 void get_server_parameters(char **hostname, uint *port, char **uuid,
-                           unsigned int *server_version,
-                           st_server_ssl_variables* server_ssl_variables);
+                           unsigned int *server_version);
+
+/**
+  Returns the server ssl configuration values.
+
+  @param[out] server_ssl_variables
+*/
+void get_server_ssl_parameters(st_server_ssl_variables *server_ssl_variables);
 
 /**
   Returns the server_id.
@@ -86,14 +84,12 @@ ulong get_server_id();
 */
 ulong get_auto_increment_increment();
 
-
 /**
   Returns the server auto_increment_offset
 
   @return auto_increment_offset
 */
 ulong get_auto_increment_offset();
-
 
 /**
   Set server auto_increment_increment
@@ -102,14 +98,12 @@ ulong get_auto_increment_offset();
 */
 void set_auto_increment_increment(ulong auto_increment_increment);
 
-
 /**
   Set server auto_increment_offset
 
   @param[in] auto_increment_offset
 */
 void set_auto_increment_offset(ulong auto_increment_offset);
-
 
 /**
   Returns a struct containing all server startup information needed to evaluate
@@ -120,9 +114,8 @@ void set_auto_increment_offset(ulong auto_increment_offset);
   @param[in] has_lock Caller should set this to true if the calling
   thread holds gtid_mode_lock; otherwise set it to false.
 */
-void get_server_startup_prerequirements(Trans_context_info& requirements,
+void get_server_startup_prerequirements(Trans_context_info &requirements,
                                         bool has_lock);
-
 
 /**
   Returns the server GTID_EXECUTED encoded as a binary string.
@@ -146,9 +139,8 @@ bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
 
   @return a pointer to text representation of the encoded set
 */
-char* encoded_gtid_set_to_string(uchar *encoded_gtid_set, size_t length);
+char *encoded_gtid_set_to_string(uchar *encoded_gtid_set, size_t length);
 #endif
-
 
 /**
   Return last gno for a given sidno, see
@@ -156,20 +148,17 @@ char* encoded_gtid_set_to_string(uchar *encoded_gtid_set, size_t length);
 */
 rpl_gno get_last_executed_gno(rpl_sidno sidno);
 
-
 /**
   Return sidno for a given sid, see Sid_map::add_sid() for details.
 */
 rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid);
-
 
 /**
   Set slave thread default options.
 
   @param[in] thd  The thread
 */
-void set_slave_thread_options(THD* thd);
-
+void set_slave_thread_options(THD *thd);
 
 /**
   Add thread to Global_THD_manager singleton.
@@ -177,7 +166,6 @@ void set_slave_thread_options(THD* thd);
   @param[in] thd  The thread
 */
 void global_thd_manager_add_thd(THD *thd);
-
 
 /**
   Remove thread from Global_THD_manager singleton.
@@ -193,7 +181,17 @@ void global_thd_manager_remove_thd(THD *thd);
 
   @return the algorithm name
 */
-const char* get_write_set_algorithm_string(unsigned int algorithm);
+const char *get_write_set_algorithm_string(unsigned int algorithm);
+
+/**
+  Returns true if the given transaction is committed.
+
+  @param[in] gtid  The transaction identifier
+
+  @return true   the transaction is committed
+          false  otherwise
+*/
+bool is_gtid_committed(const Gtid &gtid);
 
 /**
   Returns the value of slave_max_allowed_packet.
@@ -202,5 +200,19 @@ const char* get_write_set_algorithm_string(unsigned int algorithm);
 */
 unsigned long get_slave_max_allowed_packet();
 
-#endif	/* GROUP_REPLICATION_PRIV_INCLUDE */
+/**
+  @returns the maximum value of slave_max_allowed_packet.
+ */
+unsigned long get_max_slave_max_allowed_packet();
 
+/**
+  @returns if the server is restarting after a clone
+*/
+bool is_server_restarting_after_clone();
+
+/**
+  @returns if the server already dropped its data when cloning
+*/
+bool is_server_data_dropped();
+
+#endif /* GROUP_REPLICATION_PRIV_INCLUDE */

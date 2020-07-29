@@ -1,4 +1,4 @@
--- source include/not_embedded.inc
+-- source include/no_valgrind_without_big.inc
 
 # Dump all databases
 --exec $MYSQL_DUMP -uroot --all-databases > $MYSQLTEST_VARDIR/tmp/bug20902791.sql
@@ -18,7 +18,10 @@ DROP DATABASE sys;
 SHOW DATABASES;
 
 # Finally reload the sys schema to return to normal
---exec $MYSQL_UPGRADE --skip-verbose --force
+--let $restart_parameters = restart:--upgrade=FORCE
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
+
 SHOW DATABASES;
 
 # Restore the saved contents of mysql.user and mysql.tables_priv
@@ -26,3 +29,4 @@ SHOW DATABASES;
 --source include/backup_tables_priv_and_users.inc
 
 FLUSH PRIVILEGES;
+--source include/force_restart.inc

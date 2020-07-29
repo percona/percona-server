@@ -146,7 +146,8 @@ while ($_dt_tables)
   let $_dt_order_by_length=
     `SELECT SUM(LENGTH(column_name) + 3) FROM information_schema.columns
             WHERE table_schema = '$_dt_database' AND
-                  table_name = '$_dt_table'
+                  table_name = '$_dt_table' AND
+                  column_type != 'JSON'
                   $mask_column_clause`;
   if (!$_dt_order_by_length)
   {
@@ -171,7 +172,8 @@ while ($_dt_tables)
     `SELECT GROUP_CONCAT(column_name ORDER BY ORDINAL_POSITION SEPARATOR '`,`')
             FROM information_schema.columns
             WHERE table_schema = '$_dt_database' AND
-                  table_name = '$_dt_table'
+                  table_name = '$_dt_table' AND
+                  column_type != 'json'
                   $mask_column_clause`;
   # Restore group_concat_max_len.
   if ($_dt_old_group_concat_max_len)
@@ -201,7 +203,10 @@ while ($_dt_tables)
   {
     --echo $statement
   }
+  set @save_sbs = @@sort_buffer_size;
+  set @@sort_buffer_size = 1048576;
   --eval $statement
+  set @@sort_buffer_size = @save_sbs;
 
   # Compare files.
   if ($_dt_prev_outfile)

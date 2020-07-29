@@ -25,7 +25,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 restore: t1 .ibd and .cfg files
 # restart:--keyring-file-data=MYSQLTEST_VARDIR/keys2.txt
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: Schema mismatch (Table is in an encrypted tablespace, but the encryption meta-data file cannot be found while importing.)
+ERROR HY000: Got error 500 'Table encrypted but decryption failed. This could be because correct encryption management plugin is not loaded, used encryption key is not available or encryption method does not match.' from InnoDB
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

@@ -17,33 +17,34 @@
 #ifndef _HA_TOKUPART_H
 #define _HA_TOKUPART_H
 
-#include "partitioning/partition_base.h"
+#include "sql/partitioning/partition_base.h"
 
 /* This class must contain engine-specific functions for partitioning */
 class ha_tokupart : public native_part::Partition_base {
-   public:
-    ha_tokupart(handlerton *hton, TABLE_SHARE *table_arg)
-        : native_part::Partition_base(hton, table_arg){};
+ public:
+  ha_tokupart(handlerton *hton, TABLE_SHARE *table_arg)
+      : Partition_base(hton, table_arg){};
 
-    ha_tokupart(handlerton *hton,
-                TABLE_SHARE *table_arg,
-                partition_info *part_info,
-                native_part::Partition_base *clone_base,
-                MEM_ROOT *clone_mem_root)
-        : native_part::Partition_base(hton, table_arg, clone_base,
-                                      clone_mem_root) {
-        this->get_partition_handler()->set_part_info(part_info, true);
-    }
+  ha_tokupart(handlerton *hton, TABLE_SHARE *table_arg,
+              partition_info *part_info,
+              native_part::Partition_base *clone_base, MEM_ROOT *clone_mem_root)
+      : native_part::Partition_base(hton, table_arg, clone_base,
+                                    clone_mem_root) {
+    this->get_partition_handler()->set_part_info(part_info, true);
+  }
 
-    ~ha_tokupart() override {}
+  ~ha_tokupart() override {}
 
-    enum row_type get_partition_row_type(uint part_id) override;
+  enum row_type get_partition_row_type(const dd::Table *, uint) override {
+    return ROW_TYPE_NOT_USED;
+  }
 
-   private:
-    handler *get_file_handler(TABLE_SHARE *share, MEM_ROOT *alloc) override;
-    handler *clone(const char *name, MEM_ROOT *mem_root) override;
-    ulong index_flags(uint inx, uint part, bool all_parts) const override;
-    const char **bas_ext() const override;
+ private:
+  handler *get_file_handler(TABLE_SHARE *share, MEM_ROOT *alloc) const override;
+  handler *clone(const char *name, MEM_ROOT *mem_root) override;
+  ulong index_flags(uint inx, uint part, bool all_parts) const override;
+
+  bool rpl_lookup_rows() override;
 };
 
 #endif  // _HA_TOKUPART_H

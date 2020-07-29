@@ -1,10 +1,7 @@
 --source include/have_debug_sync.inc
---source include/have_innodb.inc
---source include/have_debug_sync.inc
 --source include/count_sessions.inc
 
 # saving global variables which will be changed in this test
-SET @innodb_show_verbose_locks_save = @@global.innodb_show_verbose_locks;
 SET @innodb_show_locks_held_save = @@global.innodb_show_locks_held;
 SET @innodb_status_output_locks_save = @@global.innodb_status_output_locks;
 
@@ -16,12 +13,6 @@ INSERT INTO t(id) VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 # blocked by locked records
 
 # first, check regular output with monitor turned off
-SET GLOBAL innodb_show_verbose_locks = 0;
---let expected_locks= 0
---source suite/innodb/include/percona_extended_innodb_status.inc
-
-# then, verbose output with monitor turned off
-SET GLOBAL innodb_show_verbose_locks = 1;
 --let expected_locks= 4
 --source suite/innodb/include/percona_extended_innodb_status.inc
 
@@ -44,7 +35,6 @@ SET GLOBAL innodb_show_locks_held = 0;
 --source suite/innodb/include/percona_extended_innodb_status.inc
 
 # restoring affected global variables
-SET GLOBAL innodb_show_verbose_locks = @innodb_show_verbose_locks_save;
 SET GLOBAL innodb_show_locks_held = @innodb_show_locks_held_save;
 SET GLOBAL innodb_status_output_locks = @innodb_status_output_locks_save;
 
@@ -62,7 +52,7 @@ DROP TABLE t;
 --let SEARCH_FILE=$innodb_status
 --let SEARCH_PATTERN=Buffer pool size, bytes 25149440
 --echo Grepping InnoDB status for $SEARCH_PATTERN
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $innodb_status
 
 
@@ -74,7 +64,7 @@ connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 
 --connection default
-CREATE TABLE t1(id INT(15) NOT NULL AUTO_INCREMENT, a INT, PRIMARY KEY(id)) ENGINE=InnoDB;
+CREATE TABLE t1(id INT NOT NULL AUTO_INCREMENT, a INT, PRIMARY KEY(id)) ENGINE=InnoDB;
 
 --connection con1
 SET DEBUG_SYNC='innobase_lock_autoinc SIGNAL autoinc_lock.locked WAIT_FOR autoinc_lock.continue'; 

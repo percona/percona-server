@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,15 +22,13 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "row.h"
+#include "client/dump/row.h"
 
 using namespace Mysql::Tools::Dump;
 
-Row::~Row()
-{
+Row::~Row() {
   Mysql::Tools::Base::Mysql_query_runner::cleanup_result(m_row_data);
 }
 
-Row::Row(const Mysql::Tools::Base::Mysql_query_runner::Row& row_data)
-  : m_row_data(row_data)
-{}
+Row::Row(const Mysql::Tools::Base::Mysql_query_runner::Row &row_data)
+    : m_row_data(row_data) {}

@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 # Bug PS-3969: Adding a status variable to catch when statement was too big to fit buffer.
 
 # Test it with default audit_log_strategy

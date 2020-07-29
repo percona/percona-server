@@ -5,7 +5,6 @@
 # require syncing two utility threads, which would require too much supporting code in the
 # server. 
 #
---source include/have_innodb.inc
 
 RESET CHANGED_PAGE_BITMAPS;
 

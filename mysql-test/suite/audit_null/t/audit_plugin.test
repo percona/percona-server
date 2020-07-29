@@ -2,7 +2,6 @@
 # Test for WL#3771 (audit null plugin)
 # Created by HHunger 2009-09-02
 #
---source include/not_embedded.inc
 
 # Adjustment to the OS dependent extension of shared libraries.
 let $expected_extension= so;
@@ -18,7 +17,7 @@ if(`SELECT CONVERT(@@version_compile_os USING latin1)
 let $expected_calls= 65;
 if(`SELECT $PS_PROTOCOL > 0`)
 {
-   let $expected_calls= 107;
+   let $expected_calls= 112;
 }
 if(`SELECT $SP_PROTOCOL > 0`)
 {

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@
 class MapTableItem 
 {
 public:
-    MapTableItem() : name(0), value(0), next(0) {};
+    MapTableItem() : name(0), value(0), next(0) {}
     const char *name;
     const char *value;
     MapTableItem *next;
@@ -45,7 +45,7 @@ public:
 class CharsetMapImpl : public NdbLockable 
 {
 public:    
-    CharsetMapImpl() : NdbLockable() , ready(0) , collisions(0) {};
+    CharsetMapImpl() : NdbLockable() , ready(0) , collisions(0) {}
        
     /** getName() returns a character set name that in most cases 
      will be a preferred name from 
@@ -56,8 +56,6 @@ public:
      such as "keybcs2" or "dec8".
      */
     const char * getName(int);
-            
-    const char * mysql_charset_name[256];
 
     int UTF16Charset;
     int UTF8Charset;
@@ -72,4 +70,10 @@ private:
     const char * get(const char *) const;
     int hash(const char *) const;
     MapTableItem map[CHARSET_MAP_HASH_TABLE_SIZE];
+    /*
+     * MY_ALL_CHARSETS_SIZE is actually 2048.
+     * But the actual number of charsets is very low.
+     * So, CharsetMapImpl now supports upto 512 charsets.
+     * */
+    const char * mysql_charset_name[512];
 };

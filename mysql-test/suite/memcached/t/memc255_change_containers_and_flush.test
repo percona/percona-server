@@ -1,7 +1,6 @@
 source include/not_valgrind.inc;
 source include/have_memcached_plugin.inc;
 source include/not_windows.inc;
-source include/have_innodb.inc;
 
 --disable_query_log
 CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
@@ -10,7 +9,7 @@ CALL mtr.add_suppression("Warning: MySQL is trying to drop");
 --enable_query_log
 
 --enable_connect_log
-SET @tx_isolation= @@global.tx_isolation;
+SET @transaction_isolation= @@global.transaction_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
 # Create the memcached tables
@@ -46,8 +45,8 @@ INSERT INTO t1 VALUES ('C', 'Cottbus', 0, 0 ,0);
 INSERT INTO t1 VALUES ('H', 'Hamburg', 0, 0, 0);
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
-SELECT SLEEP(2);
+--let $memcached_address=127.0.0.1:11255
+--source ../include/load_daemon_memcached_expecting_success.inc
 
 perl;
 use DBI;
@@ -72,11 +71,12 @@ $memd->disconnect_all;
 EOF
 
 
+# Stop plugin before innodb_memcached configuration
+UNINSTALL PLUGIN daemon_memcached;
+
 DROP TABLE t1;
 DROP TABLE t2;
 
-# Stop plugin befor innodb_memcached configuration
-UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
 
-SET @@global.tx_isolation= @tx_isolation;
+SET @@global.transaction_isolation= @transaction_isolation;

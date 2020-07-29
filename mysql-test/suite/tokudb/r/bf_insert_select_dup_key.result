@@ -5,6 +5,8 @@ CREATE TABLE `t1` (
 `val` varchar(32) DEFAULT NULL,
 PRIMARY KEY (`num`)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 values (null,null);
 INSERT INTO t1 SELECT null,val FROM t1;
 INSERT INTO t1 SELECT null,val FROM t1;
@@ -34,6 +36,9 @@ CREATE TABLE `t2` (
 `count` bigint(20) NOT NULL,
 UNIQUE (num)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 set tokudb_bulk_fetch=ON;
 INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
 INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;

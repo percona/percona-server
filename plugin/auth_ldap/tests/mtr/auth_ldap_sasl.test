@@ -1,0 +1,10 @@
+INSTALL PLUGIN authentication_ldap_sasl SONAME 'authentication_ldap_sasl.so';
+SELECT PLUGIN_NAME, PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME LIKE 'authentication_ldap_sasl%';
+SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_sasl%';
+SET GLOBAL authentication_ldap_sasl_bind_base_dn = 'cn=users,cn=accounts,dc=example,dc=test';
+SET GLOBAL authentication_ldap_sasl_server_host = 'freeipa';
+SET GLOBAL authentication_ldap_sasl_server_port = 636;
+SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_sasl%';
+CREATE USER user1 IDENTIFIED WITH authentication_ldap_sasl BY 'uid=user1,cn=users,cn=accounts,dc=example,dc=test';
+DROP USER user1;
+UNINSTALL PLUGIN authentication_ldap_sasl;

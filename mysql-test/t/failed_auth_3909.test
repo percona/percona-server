@@ -1,5 +1,3 @@
-source include/not_embedded.inc;
-
 #
 # MDEV-3909 remote user enumeration
 #

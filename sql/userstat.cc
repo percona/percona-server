@@ -20,7 +20,7 @@
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#include "my_global.h"   // unlikely
+#include "my_compiler.h"  // unlikely
 #include "userstat.h"
 
 /**
@@ -30,8 +30,7 @@
   @return start_cpu_nsecs   Start value of cpu_time or 0.0 in case of error
 */
 void userstat_start_timer(double *start_busy_usecs,
-                          double *start_cpu_nsecs)
-{
+                          double *start_cpu_nsecs) noexcept {
   *start_busy_usecs = 0.0;
   *start_cpu_nsecs = 0.0;
 
@@ -44,7 +43,7 @@ void userstat_start_timer(double *start_busy_usecs,
 
   /* Gets the start time, in order to measure how long this command takes. */
   struct timeval start_time;
-  if (!gettimeofday(&start_time, NULL))
+  if (!gettimeofday(&start_time, nullptr))
     *start_busy_usecs = start_time.tv_sec * 1000000.0 + start_time.tv_usec;
 }
 
@@ -60,15 +59,14 @@ void userstat_start_timer(double *start_busy_usecs,
                             of error
 */
 void userstat_finish_timer(double start_busy_usecs, double start_cpu_nsecs,
-                           double *busy_sec, double *cpu_sec)
-{
+                           double *busy_sec, double *cpu_sec) noexcept {
   *busy_sec = 0.0;
   *cpu_sec = 0.0;
 
   /* Gets the end time. */
   struct timeval end_time;
   double end_busy_usecs = 0.0;
-  if (start_busy_usecs > 0.0 && !gettimeofday(&end_time, NULL))
+  if (start_busy_usecs > 0.0 && !gettimeofday(&end_time, nullptr))
     end_busy_usecs = end_time.tv_sec * 1000000.0 + end_time.tv_usec;
 
   /* Calculates the difference between the end and start times. */
@@ -80,10 +78,11 @@ void userstat_finish_timer(double start_busy_usecs, double start_cpu_nsecs,
     }
   }
 
+  double end_cpu_nsecs = 0.0;
+
 #ifdef HAVE_CLOCK_GETTIME
   /* Get end cputime */
   struct timespec tp;
-  double end_cpu_nsecs = 0.0;
   if (start_cpu_nsecs > 0.0 && !clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp))
     end_cpu_nsecs = tp.tv_sec * 1000000000.0 + tp.tv_nsec;
 #endif

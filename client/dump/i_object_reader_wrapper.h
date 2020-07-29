@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,28 +25,26 @@
 #ifndef I_OBJECT_READER_WRAPPER_INCLUDED
 #define I_OBJECT_READER_WRAPPER_INCLUDED
 
-#include "i_object_reader.h"
+#include "client/dump/i_object_reader.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 /**
   Represents class that directs execution of dump tasks to Object Readers.
  */
-class I_object_reader_wrapper
-{
-public:
-  virtual ~I_object_reader_wrapper()
-  {}
+class I_object_reader_wrapper {
+ public:
+  virtual ~I_object_reader_wrapper() {}
   /**
     Add new Object Reader to supply direct execution of dump tasks to.
    */
-  virtual void register_object_reader(I_object_reader* new_object_reader)= 0;
+  virtual void register_object_reader(I_object_reader *new_object_reader) = 0;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

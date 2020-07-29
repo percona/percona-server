@@ -1,6 +1,4 @@
-SET @tx_isolation= @@global.tx_isolation;
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+SET @transaction_isolation= @@global.transaction_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
 "innodb_only", "innodb_only", "innodb_only");
@@ -13,7 +11,7 @@ DROP TABLE IF EXISTS t2;
 CREATE TABLE t1        (c1  VARCHAR(32),
 c2  VARCHAR(1024),
 c21 VARCHAR(1024),
-c3 INT, c4 BIGINT UNSIGNED, c5 INT) 
+c3 INT, c4 BIGINT UNSIGNED, c5 INT)
 ENGINE = INNODB;
 CREATE UNIQUE INDEX it1 ON t1 (c1);
 CREATE TABLE t2        (c1 VARCHAR(32),
@@ -21,7 +19,7 @@ c11 VARCHAR(32),
 c2 VARCHAR(255),
 c21 VARCHAR(255),
 c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1),
-FOREIGN KEY ft2(c11) REFERENCES t1(c1))
+CONSTRAINT ft2 FOREIGN KEY (c11) REFERENCES t1(c1))
 ENGINE = INNODB;
 INSERT INTO t1 VALUES ('Dd', 'Hessen', 'M', 0, 0, 0);
 INSERT INTO t1 VALUES ('Bb', 'Brandenburg', 'M', 0, 0, 0);
@@ -38,7 +36,7 @@ Bb	Brandenburg	M
 Cc	Lausitz	S
 Dd	Hessen	M
 Hh	Schleswig-Holstein	S
-Here the memcached results with D,B,H,C:
+Here are the memcached results with D,B,H,C:
 Hessen|M
 Brandenburg|M
 Schleswig-Holstein|S
@@ -49,7 +47,7 @@ Bb	Brandenburg	M	Berlin	Mitte
 Cc	Lausitz	S	Cottbus	West
 Dd	Hessen	M	Darmstadt	City
 Hh	Schleswig-Holstein	S	Hamburg	Norderstedt
-Here the memcached results after set:
+Here are the memcached results after set:
 Hessen|O
 SELECT t1.c1,t1.c2,t1.c21,t2.c2,t2.c21 FROM t1,t2 WHERE t2.c11=t1.c1;
 c1	c2	c21	c2	c21
@@ -57,7 +55,7 @@ Bb	Brandenburg	M	Berlin	Mitte
 Cc	Lausitz	S	Cottbus	West
 Dd	Hessen	M	Darmstadt	City
 Hh	Schleswig-Holstein	S	Hamburg	Norderstedt
-Here the memcached results after add:
+Here are the memcached results after add:
 Mecklenburg|V
 SELECT t1.c1,t1.c2,t1.c21,t2.c2,t2.c21 FROM t1,t2 WHERE t2.c11=t1.c1;
 c1	c2	c21	c2	c21
@@ -65,7 +63,7 @@ Bb	Brandenburg	M	Berlin	Mitte
 Cc	Lausitz	S	Cottbus	West
 Dd	Hessen	M	Darmstadt	City
 Hh	Schleswig-Holstein	S	Hamburg	Norderstedt
-Here the memcached results after replace:
+Here are the memcached results after replace:
 Mecklenburg-Vorpommern|V
 SELECT t1.c1,t1.c2,t1.c21,t2.c2,t2.c21 FROM t1,t2 WHERE t2.c11=t1.c1;
 c1	c2	c21	c2	c21
@@ -73,7 +71,7 @@ Bb	Brandenburg	M	Berlin	Mitte
 Cc	Lausitz	S	Cottbus	West
 Dd	Hessen	M	Darmstadt	City
 Hh	Schleswig-Holstein	S	Hamburg	Norderstedt
-Here the memcached results after delete:
+Here are the memcached results after delete:
 SELECT t1.c1,t1.c2,t1.c21,t2.c2,t2.c21 FROM t1,t2 WHERE t2.c11=t1.c1;
 c1	c2	c21	c2	c21
 Bb	Brandenburg	M	Berlin	Mitte
@@ -81,8 +79,8 @@ Cc	Lausitz	S	Cottbus	West
 Dd	Hessen	M	Darmstadt	City
 Hh	Schleswig-Holstein	S	Hamburg	Norderstedt
 INSERT INTO t2 VALUES ('E','Ff', 'Essen','Ost', 0, 0, 0);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`c11`) REFERENCES `t1` (`c1`))
-Here the memcached results after add Frankfurt|Airport:
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `ft2` FOREIGN KEY (`c11`) REFERENCES `t1` (`c1`))
+Here are the memcached results after add Frankfurt|Airport:
 Mecklenburg-Vorpommern|A
 INSERT INTO t2 VALUES ('E','Ff', 'Essen','Ost', 0, 0, 0);
 SELECT t1.c1,t1.c2,t1.c21,t2.c2,t2.c21 FROM t1,t2 WHERE t2.c11=t1.c1;
@@ -96,6 +94,4 @@ DROP TABLE test.t2;
 DROP TABLE test.t1;
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
-SET @@global.tx_isolation= @tx_isolation;
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+SET @@global.transaction_isolation= @transaction_isolation;

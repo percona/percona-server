@@ -1,18 +1,11 @@
 --source include/have_debug.inc
---source include/not_embedded.inc
---source include/have_sha256_rsa_auth.inc
 
 --echo # 1. Setup
 --echo # We let our server restart attempts write to the file $error_log.
 let $error_log= $MYSQLTEST_VARDIR/log/my_restart.err;
 
-perl;
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/my_restart.err";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-EOF
+--error 0,1
+--remove_file $error_log
 
 let SEARCH_FILE= $error_log;
 
@@ -45,7 +38,7 @@ let generate_ssl_certs=ON;
 let generate_rsa_keys=OFF;
 
 let debug_pattern= "d,null_rsa_error";
-let error_pattern= Could not generate RSA private key required for X509 certificate;
+let error_pattern= Could not generate RSA private key required for X.509 certificate;
 --source include/openssl_cert_generation_debug_test.inc
 
 let debug_pattern= "d,key_file_write_error";
@@ -69,7 +62,7 @@ let error_pattern= Could not read CA certificate file: ;
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/server-key.pem
 
 let debug_pattern= "d,x509_cert_generation_error";
-let error_pattern= Could not generate X509 certificate;
+let error_pattern= Could not generate X.509 certificate;
 --source include/openssl_cert_generation_debug_test.inc
 
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca-key.pem
@@ -109,17 +102,7 @@ let error_pattern= Could not write public key file: ;
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
-perl;
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/tmp/mysqld.1.expect";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/my_restart.err";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-EOF
+--error 0,1
+--remove_file $restart_file
+--remove_file $error_log 10
 

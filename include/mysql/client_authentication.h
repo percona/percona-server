@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,18 +21,23 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef CLIENT_AUTHENTICATION_H
 #define CLIENT_AUTHENTICATION_H
-#include <my_global.h>
+
+/**
+  @file include/mysql/client_authentication.h
+*/
+
 #include "mysql.h"
 #include "mysql/client_plugin.h"
 
-C_MODE_START
 int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
 int sha256_password_init(char *, size_t, int, va_list);
 int sha256_password_deinit(void);
 int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
 int caching_sha2_password_init(char *, size_t, int, va_list);
 int caching_sha2_password_deinit(void);
-C_MODE_END
-
+net_async_status caching_sha2_password_auth_client_nonblocking(
+    MYSQL_PLUGIN_VIO *vio, MYSQL *mysql, int *res);
+net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
+                                                         MYSQL *mysql,
+                                                         int *res);
 #endif
-

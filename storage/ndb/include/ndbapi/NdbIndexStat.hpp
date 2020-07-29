@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2005, 2006, 2008 MySQL AB, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,10 +46,6 @@ class NdbIndexStat {
 public:
   NdbIndexStat();
   ~NdbIndexStat();
-
-  // dummy defs to make handler compile at "ndb api" patch level
-  int alloc_cache(Uint32 entries) { return 0; }
-  enum { RR_UseDb = 1, RR_NoUpdate = 2 };
 
   /*
    * Get latest error.  Can be printed like any NdbError instance and
@@ -101,6 +96,7 @@ public:
    */
 
   enum {
+    InvalidKeySize = 911, // index has an unsupported key size
     NoSysTables = 4714,   // all sys tables missing
     NoIndexStats = 4715,  // given index has no stored stats
     UsageError = 4716,    // wrong state, invalid input
@@ -362,6 +358,11 @@ public:
   int create_listener(Ndb* ndb);
 
   /*
+   * Check if the listener has been created.
+   */
+  bool has_listener() const;
+
+  /*
    * Start listening for events (call NdbEventOperation::execute).
    */
   int execute_listener(Ndb* ndb);
@@ -380,7 +381,7 @@ public:
   int next_listener(Ndb* ndb);
 
   /*
-   * Drop the listener.
+   * Drop the listener if it exists.  Always succeeds.
    */
   int drop_listener(Ndb* ndb);
 

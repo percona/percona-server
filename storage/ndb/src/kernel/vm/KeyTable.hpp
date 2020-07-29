@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,33 +33,27 @@
 /**
  * KeyTable2 is DLHashTable2 with hardcoded Uint32 key named "key".
  */
-template <typename P, typename T>
-class KeyTableImpl : public DLHashTableImpl<P, T> {
+/**
+ * Using TT instead of T since VisualStudio2013 tries to access private
+ * typedef of DLMHashTable instance!
+ */
+template <typename P, typename TT = typename P::Type>
+class KeyTable : public DLHashTable<P, TT> {
 public:
-  KeyTableImpl(P & pool) :
-    DLHashTableImpl<P, T>(pool) {
+  KeyTable(P & pool) :
+    DLHashTable<P, TT>(pool) {
   }
 
-  bool find(Ptr<T>& ptr, const T& rec) const {
-    return DLHashTableImpl<P, T>::find(ptr, rec);
+  bool find(Ptr<TT>& ptr, const TT& rec) const {
+    return DLHashTable<P, TT>::find(ptr, rec);
   }
 
-  bool find(Ptr<T>& ptr, Uint32 key) const {
-    T rec;
+  bool find(Ptr<TT>& ptr, Uint32 key) const {
+    TT rec;
     rec.key = key;
-    return DLHashTableImpl<P, T>::find(ptr, rec);
+    return DLHashTable<P, TT>::find(ptr, rec);
   }
 };
-
-// Specializations
-
-template <typename T>
-class KeyTable : public KeyTableImpl<ArrayPool<T>, T>
-{
-public:
-  KeyTable(ArrayPool<T> & p) : KeyTableImpl<ArrayPool<T>, T>(p) {}
-};
-
 
 #undef JAM_FILE_ID
 

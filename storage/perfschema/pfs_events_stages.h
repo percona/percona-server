@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,12 @@
   Events waits data structures (declarations).
 */
 
-#include "pfs_events.h"
+#include <sys/types.h>
+#include <atomic>
+
+#include "mysql/components/services/psi_stage_bits.h"
+#include "storage/perfschema/pfs_events.h"
+#include "storage/perfschema/pfs_global.h"
 
 struct PFS_thread;
 struct PFS_account;
@@ -36,8 +41,7 @@ struct PFS_user;
 struct PFS_host;
 
 /** A stage record. */
-struct PFS_events_stages : public PFS_events
-{
+struct PFS_events_stages : public PFS_events {
   PSI_stage_progress m_progress;
 };
 
@@ -49,7 +53,7 @@ extern bool flag_events_stages_history;
 extern bool flag_events_stages_history_long;
 
 extern bool events_stages_history_long_full;
-extern PFS_ALIGNED PFS_cacheline_uint32 events_stages_history_long_index;
+extern PFS_cacheline_atomic_uint32 events_stages_history_long_index;
 extern PFS_events_stages *events_stages_history_long_array;
 extern ulong events_stages_history_long_size;
 
@@ -69,4 +73,3 @@ void aggregate_user_stages(PFS_user *user);
 void aggregate_host_stages(PFS_host *host);
 
 #endif
-

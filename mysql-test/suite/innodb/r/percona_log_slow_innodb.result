@@ -20,7 +20,7 @@ SUM(a)
 [log_grep.inc] lines:   1
 [log_grep.inc] file: percona.slow_extended.innodb_0 pattern: ^# Bytes_sent: \d+  Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+$
 [log_grep.inc] lines:   0
-[log_grep.inc] file: percona.slow_extended.innodb_0 pattern: ^# QC_Hit: (Yes|No)  Full_scan: (Yes|No)  Full_join: (Yes|No)  Tmp_table: (Yes|No)  Tmp_table_on_disk: (Yes|No)$
+[log_grep.inc] file: percona.slow_extended.innodb_0 pattern: ^# Full_scan: (Yes|No)  Full_join: (Yes|No)  Tmp_table: (Yes|No)  Tmp_table_on_disk: (Yes|No)$
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.innodb_0 pattern: ^# Filesort: (Yes|No)  Filesort_on_disk: (Yes|No)  Merge_passes: \d+$
 [log_grep.inc] lines:   0
@@ -57,7 +57,7 @@ SELECT 5;
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.innodb_2 pattern: ^# Bytes_sent: \d+  Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+$
 [log_grep.inc] lines:   0
-[log_grep.inc] file: percona.slow_extended.innodb_2 pattern: ^# QC_Hit: (Yes|No)  Full_scan: (Yes|No)  Full_join: (Yes|No)  Tmp_table: (Yes|No)  Tmp_table_on_disk: (Yes|No)$
+[log_grep.inc] file: percona.slow_extended.innodb_2 pattern: ^# Full_scan: (Yes|No)  Full_join: (Yes|No)  Tmp_table: (Yes|No)  Tmp_table_on_disk: (Yes|No)$
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.innodb_2 pattern: ^# Filesort: (Yes|No)  Filesort_on_disk: (Yes|No)  Merge_passes: \d+$
 [log_grep.inc] lines:   0
@@ -97,31 +97,29 @@ UNLOCK TABLES;
 [log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^# Bytes_sent: \d+.*$
 [log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^# InnoDB_trx_id: [0-9a-fA-F]+$
-[log_grep.inc] lines:   0
+[log_grep.inc] lines:   1
 [log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^# Bytes_sent: \d+  Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+$
 [log_grep.inc] lines:   0
-[log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^# QC_Hit: (Yes|No)  Full_scan: (Yes|No)  Full_join: (Yes|No)  Tmp_table: (Yes|No)  Tmp_table_on_disk: (Yes|No)$
+[log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^# Full_scan: (Yes|No)  Full_join: (Yes|No)  Tmp_table: (Yes|No)  Tmp_table_on_disk: (Yes|No)$
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^# Filesort: (Yes|No)  Filesort_on_disk: (Yes|No)  Merge_passes: \d+$
 [log_grep.inc] lines:   0
-[log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^#   InnoDB_IO_r_ops: 0  InnoDB_IO_r_bytes: 0  InnoDB_IO_r_wait: 0\.0*$
-[log_grep.inc] lines:   0
-[log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^#   InnoDB_IO_r_ops: [1-9]\d*  InnoDB_IO_r_bytes: [1-9]\d*  InnoDB_IO_r_wait: (0\.\d*[1-9]\d*|[1-9]\d*\.\d+)$
-[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^#   InnoDB_IO_r_ops: \d+  InnoDB_IO_r_bytes: \d+  InnoDB_IO_r_wait: \d+\.\d+$
+[log_grep.inc] lines:   1
 [log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^#   InnoDB_rec_lock_wait: \d*\.\d*  InnoDB_queue_wait: \d*\.\d*$
-[log_grep.inc] lines:   0
+[log_grep.inc] lines:   1
 [log_grep.inc] file: percona.slow_extended.innodb_3 pattern: InnoDB_rec_lock_wait: 0\.0*
-[log_grep.inc] lines:   0
+[log_grep.inc] lines:   1
 [log_grep.inc] file: percona.slow_extended.innodb_3 pattern: InnoDB_rec_lock_wait: (0\.\d*[1-9]\d*|[1-9]\d*\.\d+)
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.innodb_3 pattern: InnoDB_queue_wait: 0\.0*
-[log_grep.inc] lines:   0
+[log_grep.inc] lines:   1
 [log_grep.inc] file: percona.slow_extended.innodb_3 pattern: InnoDB_queue_wait: (0\.\d*[1-9]\d*|[1-9]\d*\.\d+)
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^#   InnoDB_pages_distinct: [1-9]\d*$
-[log_grep.inc] lines:   0
+[log_grep.inc] lines:   1
 [log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^# No InnoDB statistics available for this query$
-[log_grep.inc] lines:   2
+[log_grep.inc] lines:   1
 UNLOCK TABLES;
 BEGIN;
 SELECT * FROM t2 FOR UPDATE;
@@ -144,7 +142,7 @@ COMMIT;
 [log_grep.inc] lines:   1
 [log_grep.inc] file: percona.slow_extended.innodb_4 pattern: ^# Bytes_sent: \d+  Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+$
 [log_grep.inc] lines:   0
-[log_grep.inc] file: percona.slow_extended.innodb_4 pattern: ^# QC_Hit: (Yes|No)  Full_scan: (Yes|No)  Full_join: (Yes|No)  Tmp_table: (Yes|No)  Tmp_table_on_disk: (Yes|No)$
+[log_grep.inc] file: percona.slow_extended.innodb_4 pattern: ^# Full_scan: (Yes|No)  Full_join: (Yes|No)  Tmp_table: (Yes|No)  Tmp_table_on_disk: (Yes|No)$
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.innodb_4 pattern: ^# Filesort: (Yes|No)  Filesort_on_disk: (Yes|No)  Merge_passes: \d+$
 [log_grep.inc] lines:   0
@@ -167,12 +165,30 @@ COMMIT;
 [log_grep.inc] file: percona.slow_extended.innodb_4 pattern: ^# No InnoDB statistics available for this query$
 [log_grep.inc] lines:   1
 SET SESSION long_query_time=0;
+DROP TABLE t1, t2;
 #
 # PS-4788: Setting log_slow_verbosity and enabling the slow_query_log could lead to a server crash
 #
-SET @saved_slow_query_log = @@GLOBAL.slow_query_log;
 SET SESSION log_slow_verbosity='microtime,innodb,query_plan';
-SET @@GLOBAL.slow_query_log=1;
+SET GLOBAL slow_query_log=1;
 SELECT * FROM INFORMATION_SCHEMA.TABLES;
-SET GLOBAL slow_query_log = @saved_slow_query_log;
-DROP TABLE t1, t2;
+SET GLOBAL slow_query_log = 0;
+#
+# Test for PS-5027 : handle_fatal_signal (sig=11) in THD::mark_innodb_used
+#
+# restart:--log-error=MYSQLTEST_VARDIR/tmp/percona_bug5027.err --slow_query_log=0
+include/assert.inc ["Expected slow_query_log=0"]
+CREATE TABLE t5027(c0 INT UNSIGNED AUTO_INCREMENT PRIMARY KEY) ENGINE=INNODB;
+BEGIN;
+SELECT database_name, table_name FROM mysql.innodb_table_stats WHERE table_name='t5027' FOR UPDATE;
+database_name	table_name
+test	t5027
+SET SESSION log_slow_verbosity='microtime,innodb,query_plan';
+SELECT * FROM t5027;
+c0
+SET @@global.slow_query_log=on;
+INSERT INTO t5027 VALUES (),();
+Pattern "Cannot save table statistics for table \`test\`\.\`t5027\`: Lock wait timeout" found
+ROLLBACK;
+DROP TABLE t5027;
+# restart

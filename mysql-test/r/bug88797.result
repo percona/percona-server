@@ -9,5 +9,7 @@ CREATE TABLE t1 (a text not null);
 INSERT INTO t1 VALUES (854);
 CREATE TABLE t (a CHAR(80));
 CREATE TEMPORARY TABLE tmp ENGINE=ARCHIVE AS SELECT VALUES(a) FROM t1;
+Warnings:
+Warning	1681	'VALUES function' is deprecated and will be removed in a future release.
 INSERT INTO t SELECT * FROM tmp;
 DROP TABLE t, t1;

@@ -24,9 +24,6 @@ else()
     cmake_minimum_required(VERSION 2.8.0 FATAL_ERROR)
 endif()
 
-# This is only used by plugins, so we need -fPIC
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS}")
-
 # if(NOT CMAKE_BUILD_TYPE)
 #     set(CMAKE_BUILD_TYPE Release
 #         CACHE STRING "Set build type to Debug o Release (default Release)" FORCE)
@@ -128,6 +125,9 @@ option(EVENT__DISABLE_MM_REPLACEMENT
 option(EVENT__DISABLE_THREAD_SUPPORT
     "Define if libevent should not be compiled with thread support" OFF)
 
+option(EVENT__DISABLE_OPENSSL
+    "Define if libevent should build without support for OpenSSL encrpytion" OFF)
+
 option(EVENT__DISABLE_BENCHMARK
     "Defines if libevent should build without the benchmark exectuables" ON)
 
@@ -174,7 +174,7 @@ if (EVENT__COVERAGE)
 endif()
 
 # GCC specific options.
-if (CMAKE_COMPILER_IS_GNUCC)
+if (MY_COMPILER_IS_GNU)
     option(EVENT__DISABLE_GCC_WARNINGS "Disable verbose warnings with GCC" OFF)
     option(EVENT__ENABLE_GCC_HARDENING "Enable compiler security checks" OFF)
     option(EVENT__ENABLE_GCC_FUNCTION_SECTIONS "Enable gcc function sections" OFF)
@@ -217,6 +217,7 @@ if (APPLE)
     # Get rid of deprecated warnings for OpenSSL on OSX 10.7 and greater.
     add_compiler_flags(
         -Wno-error=deprecated-declarations
+        -Wno-unused-function
         -Qunused-arguments
     )
 endif()
@@ -688,19 +689,16 @@ if(EVENT__HAVE_EVENT_PORTS)
     list(APPEND SRC_CORE evport.c)
 endif()
 
+if (NOT EVENT__DISABLE_OPENSSL)
 #   SSL is configured in cmake/ssl.cmake
 #   find_package(OpenSSL REQUIRED)
 
-set(EVENT__HAVE_OPENSSL 1)
+    set(EVENT__HAVE_OPENSSL 1)
 
-message(STATUS "OpenSSL include: ${OPENSSL_INCLUDE_DIR}")
-message(STATUS "OpenSSL lib: ${OPENSSL_LIBRARIES}")
-
-include_directories(${OPENSSL_INCLUDE_DIR})
-
-list(APPEND SRC_CORE bufferevent_openssl.c)
-list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
-list(APPEND LIB_APPS ${OPENSSL_LIBRARIES})
+    list(APPEND SRC_CORE bufferevent_openssl.c)
+    list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
+    list(APPEND LIB_APPS ${OPENSSL_LIBRARIES})
+endif()
 
 if (NOT EVENT__DISABLE_THREAD_SUPPORT)
     if (WIN32)
@@ -759,6 +757,10 @@ if(WIN32)
             -D_CRT_SECURE_NO_WARNINGS
             -D_CRT_NONSTDC_NO_DEPRECATE)
 
+    # Removing WIN32_LEAN_AND_MEAN definition to avoid:
+    # "warning C4005: 'WIN32_LEAN_AND_MEAN': macro redefinition" in several files
+    remove_definitions(-DWIN32_LEAN_AND_MEAN)
+
     include_directories(./WIN32-Code)
 endif()
 
@@ -786,9 +788,9 @@ include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR}/include)
 if (EVENT__BUILD_SHARED_LIBRARIES)
   set(EVENT__LIBRARY_TYPE SHARED)
 
-  if ((CMAKE_COMPILER_IS_GNUCC) OR (${CMAKE_C_COMPILER_ID} STREQUAL "Clang"))
-        add_compiler_flags(-fvisibility=hidden)
-  elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "SunPro")
+  if (MY_COMPILER_IS_GNU_OR_CLANG)
+    add_compiler_flags(-fvisibility=hidden)
+  elseif (MY_COMPILER_IS_SUNPRO)
     add_compiler_flags(-xldscope=hidden)
   endif()
 
@@ -887,7 +889,7 @@ endif (EVENT__BUILD_SHARED_LIBRARIES)
 ##         http-connect
 ##         time-test)
 ## 
-##     if (OPENSSL_LIBRARIES)
+##     if (NOT EVENT__DISABLE_OPENSSL AND OPENSSL_LIBRARIES)
 ##         set(CMAKE_REQUIRED_LIBRARIES ${OPENSSL_LIBRARIES})
 ##         CHECK_FUNCTION_EXISTS_EX(ERR_remove_thread_state EVENT__HAVE_ERR_REMOVE_THREAD_STATE)
 ##         set(CMAKE_REQUIRED_LIBRARIES "")

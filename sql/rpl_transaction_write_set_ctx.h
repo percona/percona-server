@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,12 +23,13 @@
 #ifndef RPL_TRANSACTION_WRITE_SET_CTX_H
 #define RPL_TRANSACTION_WRITE_SET_CTX_H
 
-#include "my_global.h"
-#include <vector>
-#include <map>
+#include <stddef.h>
 #include <list>
-#include <set>
+#include <map>
 #include <string>
+#include <vector>
+
+#include "my_inttypes.h"
 
 /**
   Server side support to provide a service to plugins to report if
@@ -36,9 +37,8 @@
   Its value is reset on Transaction_ctx::cleanup().
   Its value is set through service service_rpl_transaction_ctx.
 */
-class Rpl_transaction_write_set_ctx
-{
-public:
+class Rpl_transaction_write_set_ctx {
+ public:
   Rpl_transaction_write_set_ctx();
   virtual ~Rpl_transaction_write_set_ctx() {}
 
@@ -51,10 +51,10 @@ public:
   void add_write_set(uint64 hash);
 
   /*
-    Function to get the pointer of the write set in the
+    Function to get the pointer of the write set vector in the
     transaction_ctx object.
   */
-  std::set<uint64> *get_write_set();
+  std::vector<uint64> *get_write_set();
 
   /*
     Cleanup function of the vector which stores the PKE.
@@ -82,7 +82,8 @@ public:
   /*
     function to check if the transaction was marked as having missing keys.
 
-    @retval true  If the transaction was marked as being referenced by a foreign key
+    @retval true  If the transaction was marked as being referenced by a foreign
+    key
   */
   bool get_has_related_foreign_keys();
 
@@ -92,7 +93,7 @@ public:
 
     @param[in] name - the identifier name of the SAVEPOINT.
   */
-  void add_savepoint(char* name);
+  void add_savepoint(char *name);
 
   /**
     Function to delete a SAVEPOINT identifier in the savepoint map in the
@@ -100,7 +101,7 @@ public:
 
     @param[in] name - the identifier name of the SAVEPOINT.
   */
-  void del_savepoint(char* name);
+  void del_savepoint(char *name);
 
   /**
     Function to delete all data added to write set and savepoint since
@@ -108,7 +109,7 @@ public:
 
     @param[in] name - the identifier name of the SAVEPOINT.
   */
-  void rollback_to_savepoint(char* name);
+  void rollback_to_savepoint(char *name);
 
   /**
     Function to push savepoint data to a list and clear the savepoint map in
@@ -122,10 +123,8 @@ public:
   */
   void restore_savepoint_list();
 
-private:
+ private:
   std::vector<uint64> write_set;
-  std::set<uint64> write_set_unique;
-
   bool m_has_missing_keys;
   bool m_has_related_foreign_keys;
 
@@ -140,7 +139,7 @@ private:
     Create a savepoint context hierarchy to support encapsulation of
     identifier name when function or trigger are executed.
   */
-  std::list<std::map<std::string, size_t> > savepoint_list;
+  std::list<std::map<std::string, size_t>> savepoint_list;
 };
 
-#endif	/* RPL_TRANSACTION_WRITE_SET_CTX_H */
+#endif /* RPL_TRANSACTION_WRITE_SET_CTX_H */

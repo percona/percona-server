@@ -1,9 +1,0 @@
-# PS-4711 test
-# All PFS objects deinitialization must be before PFS shutdown, otherwise
-# there will be crash on server shutdown
-
---source include/not_embedded.inc
---source include/have_perfschema.inc
---source include/have_tokudb.inc
-
---source include/restart_mysqld.inc

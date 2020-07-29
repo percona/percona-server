@@ -1,6 +1,5 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
---source include/have_innodb.inc
 
 --echo #
 --echo # Bug 84366: InnoDB index dives do not detect concurrent tree changes, return
@@ -45,9 +44,7 @@ SET DEBUG_SYNC = "now WAIT_FOR estimate_ready";
 
 SET @@GLOBAL.innodb_purge_run_now = TRUE;
 
---let $status_var= innodb_purge_trx_id_age
---let $status_var_value= 0
---source include/wait_for_status_var.inc
+--source include/wait_innodb_all_purged.inc
 
 SET DEBUG_SYNC = "now SIGNAL estimate_finish";
 

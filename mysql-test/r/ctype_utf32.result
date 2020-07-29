@@ -100,7 +100,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `l` varchar(10) CHARACTER SET utf32 DEFAULT NULL,
   `r` varchar(10) CHARACTER SET utf32 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select hex(l), hex(r) from t1;
 hex(l)	hex(r)
 00000421000004210000042100000421000004210000042100000421000004210000042100000420	00000420000004210000042100000421000004210000042100000421000004210000042100000421
@@ -126,7 +126,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) CHARACTER SET utf32 DEFAULT NULL,
   KEY `a` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
 explain select * from t1 where a like 'abc%';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -241,6 +241,8 @@ select 'AMZ'like 'A%M%Z';
 'AMZ'like 'A%M%Z'
 1
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET character_set_connection=utf32;
 CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf32);
 INSERT INTO t1 VALUES ('фыва'),('Фыва'),('фЫва'),('фыВа'),('фывА'),('ФЫВА');
@@ -337,113 +339,6 @@ abc
 select insert(_utf32 0x000000610000006200000063,1,2,_utf32 0x000000640000006500000066);
 insert(_utf32 0x000000610000006200000063,1,2,_utf32 0x000000640000006500000066)
 defc
-SET NAMES latin1;
-CREATE TABLE t1 (
-word VARCHAR(64),
-bar INT(11) default 0,
-PRIMARY KEY (word))
-ENGINE=MyISAM
-CHARSET utf32
-COLLATE utf32_general_ci ;
-INSERT INTO t1 (word) VALUES ("aar");
-INSERT INTO t1 (word) VALUES ("a");
-INSERT INTO t1 (word) VALUES ("aardvar");
-INSERT INTO t1 (word) VALUES ("aardvark");
-INSERT INTO t1 (word) VALUES ("aardvara");
-INSERT INTO t1 (word) VALUES ("aardvarz");
-EXPLAIN SELECT * FROM t1 ORDER BY word;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using filesort
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`word` AS `word`,`test`.`t1`.`bar` AS `bar` from `test`.`t1` order by `test`.`t1`.`word`
-SELECT * FROM t1 ORDER BY word;
-word	bar
-a	0
-aar	0
-aardvar	0
-aardvara	0
-aardvark	0
-aardvarz	0
-EXPLAIN SELECT word FROM t1 ORDER BY word;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	PRIMARY	258	NULL	6	100.00	Using index
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`word` AS `word` from `test`.`t1` order by `test`.`t1`.`word`
-SELECT word FROM t1 ORDER by word;
-word
-a
-aar
-aardvar
-aardvara
-aardvark
-aardvarz
-DROP TABLE t1;
-CREATE TABLE t1 (
-word VARCHAR(64) ,
-PRIMARY KEY (word))
-ENGINE=MyISAM
-CHARSET utf32
-COLLATE utf32_general_ci;
-INSERT INTO t1 (word) VALUES ("aar");
-INSERT INTO t1 (word) VALUES ("a");
-INSERT INTO t1 (word) VALUES ("aardvar");
-INSERT INTO t1 (word) VALUES ("aardvark");
-INSERT INTO t1 (word) VALUES ("aardvara");
-INSERT INTO t1 (word) VALUES ("aardvarz");
-EXPLAIN SELECT * FROM t1 ORDER BY WORD;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	PRIMARY	258	NULL	6	100.00	Using index
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`word` AS `word` from `test`.`t1` order by `test`.`t1`.`word`
-SELECT * FROM t1 ORDER BY word;
-word
-a
-aar
-aardvar
-aardvara
-aardvark
-aardvarz
-DROP TABLE t1;
-CREATE TABLE t1 (
-word TEXT,
-bar INT(11) AUTO_INCREMENT,
-PRIMARY KEY (bar))
-ENGINE=MyISAM
-CHARSET utf32
-COLLATE utf32_general_ci ;
-INSERT INTO t1 (word) VALUES ("aar");
-INSERT INTO t1 (word) VALUES ("a" );
-INSERT INTO t1 (word) VALUES ("aardvar");
-INSERT INTO t1 (word) VALUES ("aardvark");
-INSERT INTO t1 (word) VALUES ("aardvara");
-INSERT INTO t1 (word) VALUES ("aardvarz");
-EXPLAIN SELECT * FROM t1 ORDER BY word;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using filesort
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`word` AS `word`,`test`.`t1`.`bar` AS `bar` from `test`.`t1` order by `test`.`t1`.`word`
-SELECT * FROM t1 ORDER BY word;
-word	bar
-a	2
-aar	1
-aardvar	3
-aardvara	5
-aardvark	4
-aardvarz	6
-EXPLAIN SELECT word FROM t1 ORDER BY word;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using filesort
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`word` AS `word` from `test`.`t1` order by `test`.`t1`.`word`
-SELECT word FROM t1 ORDER BY word;
-word
-a
-aar
-aardvar
-aardvara
-aardvark
-aardvarz
-DROP TABLE t1;
 SELECT hex(cast(0xAA as char character set utf32));
 hex(cast(0xAA as char character set utf32))
 000000AA
@@ -509,6 +404,7 @@ a	00000061
 b	00000062
 c	00000063
 drop table t1;
+set names latin1;
 set @ivar= 1234;
 set @str1 = 'select ?';
 set @str2 = convert(@str1 using utf32);
@@ -517,12 +413,14 @@ execute stmt1 using @ivar;
 ?
 1234
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 (a enum('x','y','z') character set utf32);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('x','y','z') CHARACTER SET utf32 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `a` enum('x','y','z') CHARACTER SET utf32 COLLATE utf32_general_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values ('x');
 insert into t1 values ('y');
 insert into t1 values ('z');
@@ -535,8 +433,8 @@ alter table t1 change a a enum('x','y','z','d','e','ä','ö','ü') character set
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('x','y','z','d','e','ä','ö','ü') CHARACTER SET utf32 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `a` enum('x','y','z','d','e','ä','ö','ü') CHARACTER SET utf32 COLLATE utf32_general_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values ('D');
 insert into t1 values ('E ');
 insert into t1 values ('ä');
@@ -557,8 +455,8 @@ create table t1 (a set ('x','y','z','ä','ö','ü') character set utf32);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` set('x','y','z','ä','ö','ü') CHARACTER SET utf32 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `a` set('x','y','z','ä','ö','ü') CHARACTER SET utf32 COLLATE utf32_general_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values ('x');
 insert into t1 values ('y');
 insert into t1 values ('z');
@@ -631,7 +529,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(1) CHARACTER SET utf32 COLLATE utf32_bin DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES (_utf8mb4 0xEFBE9D),(_utf8mb4 0xF0908E84);
 INSERT INTO t1 VALUES (_utf8mb4 0xCE85),(_utf8mb4 0xF4808080);
 SELECT HEX(a), HEX(CONVERT(a USING utf8mb4)) FROM t1 ORDER BY a;
@@ -706,17 +604,6 @@ hex(substr(_utf32 0x000000e4000000e500000068,-2))
 select hex(substr(_utf32 0x000000e4000000e500000068,-3));
 hex(substr(_utf32 0x000000e4000000e500000068,-3))
 000000E4000000E500000068
-CREATE TABLE t1 (
-a varchar(250) NOT NULL default '',
-KEY a (a)
-) ENGINE=MyISAM DEFAULT CHARSET=utf32 COLLATE utf32_general_ci;
-insert into t1 values (0x803d);
-insert into t1 values (0x005b);
-select hex(a) from t1;
-hex(a)
-0000005B
-0000803D
-drop table t1;
 create table t1 (utext varchar(20) character set utf32);
 insert into t1 values ("lily");
 insert into t1 values ("river");
@@ -736,30 +623,6 @@ lily
 river
 drop table t1;
 deallocate prepare stmt;
-create table t1 (
-a char(10) character set utf32 not null, 
-index a (a)
-) engine=myisam;
-insert into t1 values (repeat(0x0000201f, 10));
-insert into t1 values (repeat(0x00002020, 10));
-insert into t1 values (repeat(0x00002021, 10));
-explain select hex(a) from t1 order by a;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	a	40	NULL	3	100.00	Using index
-Warnings:
-Note	1003	/* select#1 */ select hex(`test`.`t1`.`a`) AS `hex(a)` from `test`.`t1` order by `test`.`t1`.`a`
-select hex(a) from t1 order by a;
-hex(a)
-0000201F0000201F0000201F0000201F0000201F0000201F0000201F0000201F0000201F0000201F
-00002020000020200000202000002020000020200000202000002020000020200000202000002020
-00002021000020210000202100002021000020210000202100002021000020210000202100002021
-alter table t1 drop index a;
-select hex(a) from t1 order by a;
-hex(a)
-0000201F0000201F0000201F0000201F0000201F0000201F0000201F0000201F0000201F0000201F
-00002020000020200000202000002020000020200000202000002020000020200000202000002020
-00002021000020210000202100002021000020210000202100002021000020210000202100002021
-drop table t1;
 CREATE TABLE t1 (
 status enum('active','passive') character set utf32 collate utf32_general_ci 
 NOT NULL default 'passive'
@@ -767,15 +630,15 @@ NOT NULL default 'passive'
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `status` enum('active','passive') CHARACTER SET utf32 NOT NULL DEFAULT 'passive'
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `status` enum('active','passive') CHARACTER SET utf32 COLLATE utf32_general_ci NOT NULL DEFAULT 'passive'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD a int NOT NULL AFTER status;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `status` enum('active','passive') CHARACTER SET utf32 NOT NULL DEFAULT 'passive',
-  `a` int(11) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `status` enum('active','passive') CHARACTER SET utf32 COLLATE utf32_general_ci NOT NULL DEFAULT 'passive',
+  `a` int NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 End of 4.1 tests
 CREATE TABLE t1 (a varchar(64) character set utf32, b decimal(10,3));
@@ -826,7 +689,7 @@ set names latin1;
 create table t1(a blob, b text charset utf32);
 select data_type, character_octet_length, character_maximum_length
 from information_schema.columns where table_name='t1';
-data_type	character_octet_length	character_maximum_length
+DATA_TYPE	CHARACTER_OCTET_LENGTH	CHARACTER_MAXIMUM_LENGTH
 blob	65535	65535
 text	65535	16383
 drop table t1;
@@ -867,8 +730,6 @@ hex(a)
 0010FFFF
 drop table t1;
 SET sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (utf32 varchar(2) character set utf32);
 Wrong character with pad
 insert into t1 values (0x110000);
@@ -982,47 +843,29 @@ a
 1
 drop table t1;
 SET sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (a varchar(17000) character set utf32);
 Warnings:
 Note	1246	Converting column 'a' from VARCHAR to TEXT
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` mediumtext CHARACTER SET utf32
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `a` mediumtext CHARACTER SET utf32 COLLATE utf32_general_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 SET sql_mode = default;
-create table t1 (a varchar(250) character set utf32 primary key) engine=MyISAM;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` varchar(250) CHARACTER SET utf32 NOT NULL,
-  PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-drop table t1;
-create table t1 (a varchar(334) character set utf32 primary key) engine=MyISAM;
-ERROR 42000: Specified key was too long; max key length is 1000 bytes
 create table t1 (a varchar(150) character set utf32 primary key);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(150) CHARACTER SET utf32 NOT NULL,
+  `a` varchar(150) CHARACTER SET utf32 COLLATE utf32_general_ci NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
-SET GLOBAL innodb_large_prefix=OFF;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
-create table t1 (a varchar(334) character set utf32 primary key);
+create table t1 (a varchar(334) character set utf32 primary key) ROW_FORMAT=COMPACT;
 ERROR 42000: Specified key was too long; max key length is 767 bytes
 SET sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-create table t1 (a varchar(333) character set utf32, key(a));
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
+create table t1 (a varchar(333) character set utf32, key(a))
+row_format=dynamic;
 insert into t1 values (repeat('a',333)), (repeat('b',333));
 flush tables;
 check table t1;
@@ -1030,9 +873,6 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
 SET sql_mode = default;
-SET GLOBAL innodb_large_prefix=default;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 SET collation_connection=utf32_general_ci;
 CREATE TABLE t1 AS SELECT repeat('a',20) AS s1 LIMIT 0;
 SET timestamp=1216359724;
@@ -1058,7 +898,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `s1` varchar(64) CHARACTER SET utf32 DEFAULT NULL,
   `s2` varchar(64) CHARACTER SET utf32 DEFAULT NULL
-) ENGINE=default_engine DEFAULT CHARSET=latin1
+) ENGINE=default_engine DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 delete from t1;
 insert into t1 values('aaa','aaa');
 insert into t1 values('aaa|qqq','qqq');
@@ -1073,7 +913,6 @@ insert into t1 values('aaa','aba');
 insert into t1 values(null,'abc');
 insert into t1 values('def',null);
 insert into t1 values(null,null);
-insert into t1 values('ghi','ghi[');
 select HIGH_PRIORITY s1 regexp s2 from t1;
 s1 regexp s2
 1
@@ -1089,7 +928,8 @@ s1 regexp s2
 NULL
 NULL
 NULL
-NULL
+SELECT 'ghi' REGEXP 'ghi[';
+ERROR HY000: The regular expression contains an unclosed bracket expression.
 drop table t1;
 set names latin1;
 select hex(char(0x01 using utf32));
@@ -1119,7 +959,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `s1` varchar(2) CHARACTER SET utf32 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES ('ab'),('AE'),('ab'),('AE');
 SELECT * FROM t1 ORDER BY s1;
 s1
@@ -1153,7 +993,7 @@ def	test	t1	t1	s1	s1	252	255	0	Y	16	0	60
 def	test	t1	t1	s2	s2	252	65535	0	Y	16	0	60
 def	test	t1	t1	s3	s3	252	16777215	0	Y	16	0	60
 def	test	t1	t1	s4	s4	252	4294967295	0	Y	16	0	60
-def					HEX(s1)	253	8160	0	Y	0	0	45
+def					HEX(s1)	253	8160	0	Y	0	31	255
 s1	s2	s3	s4	HEX(s1)
 SET NAMES latin1;
 SELECT *, HEX(s1) FROM t1;
@@ -1162,23 +1002,23 @@ def	test	t1	t1	s1	s1	252	63	0	Y	16	0	8
 def	test	t1	t1	s2	s2	252	16383	0	Y	16	0	8
 def	test	t1	t1	s3	s3	252	4194303	0	Y	16	0	8
 def	test	t1	t1	s4	s4	252	1073741823	0	Y	16	0	8
-def					HEX(s1)	253	2040	0	Y	0	0	8
+def					HEX(s1)	253	2040	0	Y	0	31	8
 s1	s2	s3	s4	HEX(s1)
 SET NAMES utf8mb4;
 SELECT *, HEX(s1) FROM t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	t1	t1	s1	s1	252	252	0	Y	16	0	45
-def	test	t1	t1	s2	s2	252	65532	0	Y	16	0	45
-def	test	t1	t1	s3	s3	252	16777212	0	Y	16	0	45
-def	test	t1	t1	s4	s4	252	4294967292	0	Y	16	0	45
-def					HEX(s1)	253	8160	0	Y	0	0	45
+def	test	t1	t1	s1	s1	252	252	0	Y	16	0	255
+def	test	t1	t1	s2	s2	252	65532	0	Y	16	0	255
+def	test	t1	t1	s3	s3	252	16777212	0	Y	16	0	255
+def	test	t1	t1	s4	s4	252	4294967292	0	Y	16	0	255
+def					HEX(s1)	253	8160	0	Y	0	31	255
 s1	s2	s3	s4	HEX(s1)
 CREATE TABLE t2 AS SELECT CONCAT(s1) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `CONCAT(s1)` varchar(255) CHARACTER SET utf32 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2;
 #
 # Bug#45263 utf32_general_ci, bad effects around CREATE TABLE AS SELECT
@@ -1212,23 +1052,10 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `format(123,2,'no_NO')` varchar(37) CHARACTER SET utf32 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 format(123,2,'no_NO')
 123,00
-DROP TABLE t1;
-#
-# Bug#42511 mysqld: ctype-ucs2.c:2044: my_strnncollsp_utf32: Assertion (tlen % 4) == 0' faied
-#
-CREATE TABLE t1 (
-b char(250) CHARACTER SET utf32,
-key (b)
-) ENGINE=MYISAM;
-INSERT INTO t1 VALUES ('d'),('f');
-SELECT * FROM t1 WHERE b BETWEEN 'a' AND 'z';
-b
-d
-f
 DROP TABLE t1;
 #
 # Bug#11753363 (Bug#44793) Character sets: case clause, ucs2 or utf32, failure
@@ -1249,6 +1076,8 @@ DROP TABLE t1;
 # Bug#11750518 41090: ORDER BY TRUNCATES GROUP_CONCAT RESULT
 #
 SET NAMES utf8, @@character_set_connection=utf32;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT id, CHAR_LENGTH(GROUP_CONCAT(body)) AS l
 FROM (SELECT 'a' AS id, REPEAT('foo bar', 100) AS body
 UNION ALL
@@ -1422,36 +1251,6 @@ FFFD
 select hex(weight_string(_utf32 0x10001));
 hex(weight_string(_utf32 0x10001))
 FFFD
-select @@collation_connection;
-@@collation_connection
-utf32_general_ci
-select hex(weight_string('a' LEVEL 1));
-hex(weight_string('a' LEVEL 1))
-0041
-select hex(weight_string('A' LEVEL 1));
-hex(weight_string('A' LEVEL 1))
-0041
-select hex(weight_string('abc' LEVEL 1));
-hex(weight_string('abc' LEVEL 1))
-004100420043
-select hex(weight_string('abc' as char(2) LEVEL 1));
-hex(weight_string('abc' as char(2) LEVEL 1))
-00410042
-select hex(weight_string('abc' as char(3) LEVEL 1));
-hex(weight_string('abc' as char(3) LEVEL 1))
-004100420043
-select hex(weight_string('abc' as char(5) LEVEL 1));
-hex(weight_string('abc' as char(5) LEVEL 1))
-00410042004300200020
-select hex(weight_string('abc' as char(5) LEVEL 1 REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 REVERSE))
-20002000430042004100
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC))
-FFBEFFBDFFBCFFDFFFDF
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE))
-DFFFDFFFBCFFBDFFBEFF
 set collation_connection=utf32_bin;
 select @@collation_connection;
 @@collation_connection
@@ -1600,36 +1399,31 @@ hex(weight_string(cast(_latin1 0x808080 as char), 5, 4, 0xC0))
 select hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0))
 0020AC0020AC0020AC00002000002000002000002000002000
-select @@collation_connection;
-@@collation_connection
-utf32_bin
-select hex(weight_string('a' LEVEL 1));
-hex(weight_string('a' LEVEL 1))
-000061
-select hex(weight_string('A' LEVEL 1));
-hex(weight_string('A' LEVEL 1))
-000041
-select hex(weight_string('abc' LEVEL 1));
-hex(weight_string('abc' LEVEL 1))
-000061000062000063
-select hex(weight_string('abc' as char(2) LEVEL 1));
-hex(weight_string('abc' as char(2) LEVEL 1))
-000061000062
-select hex(weight_string('abc' as char(3) LEVEL 1));
-hex(weight_string('abc' as char(3) LEVEL 1))
-000061000062000063
-select hex(weight_string('abc' as char(5) LEVEL 1));
-hex(weight_string('abc' as char(5) LEVEL 1))
-000061000062000063000020000020
-select hex(weight_string('abc' as char(5) LEVEL 1 REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 REVERSE))
-200000200000630000620000610000
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC))
-FFFF9EFFFF9DFFFF9CFFFFDFFFFFDF
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE))
-DFFFFFDFFFFF9CFFFF9DFFFF9EFFFF
 #
 # End of 5.6 tests
+#
+#
+# Start of 8.0 tests
+#
+#
+# Bug#28275881: ASSERT `RC == TYPE_OK' IN CREATE TABLE WITH CHARSET UTF32
+#
+CREATE TABLE  table425 (b1
+SET('wgrpqu','Oklahoma','grpquarwkazzjeiwvdmdivjqsxmhjwagewclcfykywlcnemiuaabr
+rifnhuufzasunkrcpvasdqkxbwptigbpnesqigwegcnfeuvrgnecpthmhffqbythjwpukqubzpomnt
+rddrwhzjtqvbjiklcekxqyoxsolbxthdcprswpjxixmvfwmsyseblwcvumvyvbitxqjxdzdytunqvv
+rmpyxrencqhuyrfluezqekmqpwutxnzddrbjycyoyqbzsoxvillooqxuvoxcgohdbytybwcqxdwtqr
+ebgjzbycekyjgbpmqadutrqluyxhrdodxqqjwasfkvetfobocgpftrhvxugmmszwpoglvarsfiljrz
+imqeplevleqdhepkhcfrahcpjj') NULL ) DEFAULT CHARACTER SET = utf32;
+ERROR HY000: Too long enumeration/set value for column b1.
+CREATE FUNCTION hello (s SET('wgrpqu','Oklahoma','grpquarwkazzjeiwvdmdivjqsxmh
+jwagewclcfykywlcnemiuaabrrifnhuufzasunkrcpvasdqkxbwptigbpnesqigwegcnfeuvrgnecp
+thmhffqbythjwpukqubzpomntrddrwhzjtqvbjiklcekxqyoxsolbxthdcprswpjxixmvfwmsysebl
+wcvumvyvbitxqjxdzdytunqvvrmpyxrencqhuyrfluezqekmqpwutxnzddrbjycyoyqbzsoxvilloo
+qxuvoxcgohdbytybwcqxdwtqrebgjzbycekyjgbpmqadutrqluyxhrdodxqqjwasfkvetfobocgpft
+rhvxugmmszwpoglvarsfiljrzimqeplevleqdhepkhcfrahcpjj') CHARACTER SET utf32)
+RETURNS CHAR(50) DETERMINISTIC RETURN CONCAT('Hello, ',s,'!');
+ERROR HY000: Too long enumeration/set value for column s.
+#
+# End of 8.0 tests
 #

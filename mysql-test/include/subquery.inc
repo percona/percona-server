@@ -19,11 +19,11 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t11,t12;
 --enable_warnings
 select (select 2);
-explain extended select (select 2);
+explain select (select 2);
 SELECT (SELECT 1) UNION SELECT (SELECT 2);
-explain extended SELECT (SELECT 1) UNION SELECT (SELECT 2);
+explain SELECT (SELECT 1) UNION SELECT (SELECT 2);
 SELECT (SELECT (SELECT 0 UNION SELECT 0));
-explain extended SELECT (SELECT (SELECT 0 UNION SELECT 0));
+explain SELECT (SELECT (SELECT 0 UNION SELECT 0));
 -- error ER_ILLEGAL_REFERENCE
 SELECT (SELECT 1 FROM (SELECT 1) as b HAVING a=1) as a;
 -- error ER_ILLEGAL_REFERENCE
@@ -31,7 +31,7 @@ SELECT (SELECT 1 FROM (SELECT 1) as b HAVING b=1) as a,(SELECT 1 FROM (SELECT 1)
 SELECT (SELECT 1),MAX(1) FROM (SELECT 1) as a;
 -- error ER_ILLEGAL_REFERENCE
 SELECT (SELECT a) as a;
-EXPLAIN EXTENDED SELECT 1 FROM (SELECT 1 as a) as b  HAVING (SELECT a)=1;
+EXPLAIN SELECT 1 FROM (SELECT 1 as a) as b  HAVING (SELECT a)=1;
 SELECT 1 FROM (SELECT 1 as a) as b HAVING (SELECT a)=1;
 -- error ER_BAD_FIELD_ERROR
 SELECT (SELECT 1), a;
@@ -43,10 +43,6 @@ SELECT * FROM (SELECT 1 as id) b WHERE id IN (SELECT * FROM (SELECT 1 as id) c O
 SELECT * FROM (SELECT 1) a  WHERE 1 IN (SELECT 1,1);
 SELECT 1 IN (SELECT 1);
 SELECT 1 FROM (SELECT 1 as a) b WHERE 1 IN (SELECT (SELECT a));
--- error ER_WRONG_USAGE
-select (SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE(1));
--- error ER_PARSE_ERROR
-SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE((SELECT 1));
 -- error ER_BAD_FIELD_ERROR
 SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NULL;
 -- error ER_BAD_FIELD_ERROR
@@ -91,17 +87,17 @@ insert into t3 values (6),(7),(3);
 select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1);
 (select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1)) union (select * from t4 order by a limit 2) limit 3;
 (select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1)) union (select * from t4 where t4.b=(select max(t2.a)*4 from t2) order by a);
-explain extended (select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1)) union (select * from t4 where t4.b=(select max(t2.a)*4 from t2) order by a);
+explain (select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1)) union (select * from t4 where t4.b=(select max(t2.a)*4 from t2) order by a);
 select (select a from t3 where a<t2.a*4 order by 1 desc limit 1), a from t2;
 select (select t3.a from t3 where a<8 order by 1 desc limit 1), a from
 (select * from t2 where a>1) as tt;
-explain extended select (select t3.a from t3 where a<8 order by 1 desc limit 1), a from
+explain select (select t3.a from t3 where a<8 order by 1 desc limit 1), a from
 (select * from t2 where a>1) as tt;
 select * from t1 where t1.a=(select t2.a from t2 where t2.b=(select max(a) from t3) order by 1 desc limit 1);
 select * from t1 where t1.a=(select t2.a from t2 where t2.b=(select max(a) from t3 where t3.a > t1.a) order by 1 desc limit 1);
 select * from t1 where t1.a=(select t2.a from t2 where t2.b=(select max(a) from t3 where t3.a < t1.a) order by 1 desc limit 1);
 select b,(select avg(t2.a+(select min(t3.a) from t3 where t3.a >= t4.a)) from t2) from t4;
-explain extended select b,(select avg(t2.a+(select min(t3.a) from t3 where t3.a >= t4.a)) from t2) from t4;
+explain select b,(select avg(t2.a+(select min(t3.a) from t3 where t3.a >= t4.a)) from t2) from t4;
 select * from t3 where exists (select * from t2 where t2.b=t3.a);
 select * from t3 where not exists (select * from t2 where t2.b=t3.a);
 select * from t3 where a in (select b from t2);
@@ -117,7 +113,7 @@ insert into t2 values (100, 5);
 select * from t3 where a < any (select b from t2);
 select * from t3 where a < all (select b from t2);
 select * from t3 where a >= any (select b from t2);
-explain extended select * from t3 where a >= any (select b from t2);
+explain select * from t3 where a >= any (select b from t2);
 select * from t3 where a >= all (select b from t2);
 delete from t2 where a=100;
 -- error ER_OPERAND_COLUMNS
@@ -137,15 +133,16 @@ insert into t5 values (5);
 select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
 insert into t5 values (2);
 select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
-explain extended select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
+explain select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
 -- error ER_SUBQUERY_NO_1_ROW
 select (select a from t1 where t1.a=t2.a union all select a from t5 where t5.a=t2.a), a from t2;
 create table t6 (patient_uq int, clinic_uq int, index i1 (clinic_uq));
 create table t7( uq int primary key, name char(25));
 insert into t7 values(1,"Oblastnaia bolnitsa"),(2,"Bolnitsa Krasnogo Kresta");
 insert into t6 values (1,1),(1,2),(2,2),(1,3);
+--sorted_result
 select * from t6 where exists (select * from t7 where uq = clinic_uq);
-explain extended select * from t6 where exists (select * from t7 where uq = clinic_uq);
+explain select * from t6 where exists (select * from t7 where uq = clinic_uq);
 
 # not unique fields
 -- error ER_NON_UNIQ_ERROR
@@ -174,7 +171,7 @@ CREATE TABLE `t8` (
 INSERT INTO t8 (pseudo,email) VALUES ('joce','test');
 INSERT INTO t8 (pseudo,email) VALUES ('joce1','test1');
 INSERT INTO t8 (pseudo,email) VALUES ('2joce1','2test1');
-EXPLAIN EXTENDED SELECT pseudo,(SELECT email FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce')) FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce');
+EXPLAIN SELECT pseudo,(SELECT email FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce')) FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce');
 -- error ER_OPERAND_COLUMNS
 SELECT pseudo FROM t8 WHERE pseudo=(SELECT pseudo,email FROM
 t8 WHERE pseudo='joce');
@@ -197,14 +194,14 @@ CREATE TABLE `t1` (
 ) ENGINE=MyISAM ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 (topic,date,pseudo) VALUES
 ('43506','2002-10-02','joce'),('40143','2002-08-03','joce');
-EXPLAIN EXTENDED SELECT DISTINCT date FROM t1 WHERE date='2002-08-03';
-EXPLAIN EXTENDED SELECT (SELECT DISTINCT date FROM t1 WHERE date='2002-08-03');
+EXPLAIN SELECT DISTINCT date FROM t1 WHERE date='2002-08-03';
+EXPLAIN SELECT (SELECT DISTINCT date FROM t1 WHERE date='2002-08-03');
 SELECT DISTINCT date FROM t1 WHERE date='2002-08-03';
 SELECT (SELECT DISTINCT date FROM t1 WHERE date='2002-08-03');
 SELECT 1 FROM t1 WHERE 1=(SELECT 1 UNION SELECT 1) UNION ALL SELECT 1;
 -- error ER_SUBQUERY_NO_1_ROW
 SELECT 1 FROM t1 WHERE 1=(SELECT 1 UNION ALL SELECT 1) UNION SELECT 1;
-EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1=(SELECT 1 UNION SELECT 1);
+EXPLAIN SELECT 1 FROM t1 WHERE 1=(SELECT 1 UNION SELECT 1);
 drop table t1;
 
 #forumconthardwarefr7 searchconthardwarefr7
@@ -301,9 +298,9 @@ SELECT numreponse, (SELECT numeropost FROM t1 HAVING numreponse=a) FROM (SELECT 
 SELECT numreponse, (SELECT numeropost FROM t1 HAVING numreponse=1) FROM (SELECT * FROM t1) as a;
 INSERT INTO t1 (numeropost,numreponse,pseudo) VALUES (1,1,'joce'),(1,2,'joce'),(1,3,'test');
 -- error ER_SUBQUERY_NO_1_ROW
-EXPLAIN EXTENDED SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT 1 FROM t1 WHERE numeropost='1');
-EXPLAIN EXTENDED SELECT MAX(numreponse) FROM t1 WHERE numeropost='1';
-EXPLAIN EXTENDED SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT MAX(numreponse) FROM t1 WHERE numeropost='1');
+EXPLAIN SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT 1 FROM t1 WHERE numeropost='1');
+EXPLAIN SELECT MAX(numreponse) FROM t1 WHERE numeropost='1';
+EXPLAIN SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT MAX(numreponse) FROM t1 WHERE numeropost='1');
 drop table t1;
 
 CREATE TABLE t1 (a int(1));
@@ -408,11 +405,11 @@ SELECT * FROM (SELECT 1) b WHERE 1 IN (SELECT *);
 CREATE TABLE t2 (id int(11) default NULL, KEY id (id)) ENGINE=MyISAM CHARSET=latin1;
 INSERT INTO t2 VALUES (1),(2);
 SELECT * FROM t2 WHERE id IN (SELECT 1);
-EXPLAIN EXTENDED SELECT * FROM t2 WHERE id IN (SELECT 1);
+EXPLAIN SELECT * FROM t2 WHERE id IN (SELECT 1);
 SELECT * FROM t2 WHERE id IN (SELECT 1 UNION SELECT 3);
 SELECT * FROM t2 WHERE id IN (SELECT 1+(select 1));
-EXPLAIN EXTENDED SELECT * FROM t2 WHERE id IN (SELECT 1+(select 1));
-EXPLAIN EXTENDED SELECT * FROM t2 WHERE id IN (SELECT 1 UNION SELECT 3);
+EXPLAIN SELECT * FROM t2 WHERE id IN (SELECT 1+(select 1));
+EXPLAIN SELECT * FROM t2 WHERE id IN (SELECT 1 UNION SELECT 3);
 SELECT * FROM t2 WHERE id IN (SELECT 5 UNION SELECT 3);
 SELECT * FROM t2 WHERE id IN (SELECT 5 UNION SELECT 2);
 -- error ER_UPDATE_TABLE_USED
@@ -468,7 +465,7 @@ select 1.5 > ALL (SELECT * from t1);
 select 10.5 > ALL (SELECT * from t1);
 select 1.5 > ANY (SELECT * from t1);
 select 10.5 > ANY (SELECT * from t1);
-explain extended select (select a+1) from t1;
+explain select (select a+1) from t1;
 select (select a+1) from t1;
 drop table t1;
 
@@ -481,18 +478,18 @@ CREATE TABLE t2 (a int(11) default '0', INDEX (a));
 INSERT INTO t1 VALUES (1),(2),(3),(4);
 INSERT INTO t2 VALUES (1),(2),(3);
 SELECT t1.a, t1.a in (select t2.a from t2) FROM t1;
-explain extended SELECT t1.a, t1.a in (select t2.a from t2) FROM t1;
+explain SELECT t1.a, t1.a in (select t2.a from t2) FROM t1;
 CREATE TABLE t3 (a int(11) default '0');
 INSERT INTO t3 VALUES (1),(2),(3);
 SELECT t1.a, t1.a in (select t2.a from t2,t3 where t3.a=t2.a) FROM t1;
-explain extended SELECT t1.a, t1.a in (select t2.a from t2,t3 where t3.a=t2.a) FROM t1;
+explain SELECT t1.a, t1.a in (select t2.a from t2,t3 where t3.a=t2.a) FROM t1;
 drop table t1,t2,t3;
 
 #LIMIT is not supported now
 create table t1 (a float);
 -- error ER_NOT_SUPPORTED_YET
 select 10.5 IN (SELECT * from t1 LIMIT 1);
--- error ER_WRONG_USAGE
+-- error ER_PARSE_ERROR
 select 10.5 IN (SELECT * from t1 LIMIT 1 UNION SELECT 1.5);
 -- error ER_NOT_SUPPORTED_YET
 select 10.5 IN (SELECT * from t1 UNION SELECT 1.5 LIMIT 1);
@@ -567,9 +564,8 @@ drop table t1;
 
 #test of uncacheable subqueries
 CREATE TABLE t1 (a int(1));
-EXPLAIN EXTENDED SELECT (SELECT RAND() FROM t1) FROM t1;
-EXPLAIN EXTENDED SELECT (SELECT ENCRYPT('test') FROM t1) FROM t1;
-EXPLAIN EXTENDED SELECT (SELECT BENCHMARK(1,1) FROM t1) FROM t1;
+EXPLAIN SELECT (SELECT RAND() FROM t1) FROM t1;
+EXPLAIN SELECT (SELECT BENCHMARK(1,1) FROM t1) FROM t1;
 drop table t1;
 
 
@@ -615,25 +611,25 @@ select * from t1;
 drop table t1, t2, t3;
 
 SELECT * FROM (SELECT 1 as a,(SELECT a)) a;
-CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT 1)) a;
+CREATE TABLE t1 charset utf8mb4 SELECT * FROM (SELECT 1 as a,(SELECT 1)) a;
 SHOW CREATE TABLE t1;
 drop table t1;
-CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT a)) a;
+CREATE TABLE t1 charset utf8mb4 SELECT * FROM (SELECT 1 as a,(SELECT a)) a;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
-CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT a+0)) a;
+CREATE TABLE t1 charset utf8mb4 SELECT * FROM (SELECT 1 as a,(SELECT a+0)) a;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
-CREATE TABLE t1 SELECT (SELECT 1 as a UNION SELECT 1+1 limit 1,1) as a;
+CREATE TABLE t1 charset utf8mb4 SELECT (SELECT 1 as a UNION SELECT 1+1 limit 1,1) as a;
 select * from t1;
 SHOW CREATE TABLE t1;
 drop table t1;
 
 create table t1 (a int);
 insert into t1 values (1), (2), (3);
-explain extended select a,(select (select rand() from t1 limit 1)  from t1 limit 1)
+explain select a,(select (select rand() from t1 limit 1)  from t1 limit 1)
 from t1;
 drop table t1;
 
@@ -697,10 +693,10 @@ CREATE TABLE `t1` (
 ) ENGINE=MyISAM PACK_KEYS=1 ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 (pseudo) VALUES ('test');
 SELECT 0 IN (SELECT 1 FROM t1 a);
-EXPLAIN EXTENDED SELECT 0 IN (SELECT 1 FROM t1 a);
+EXPLAIN SELECT 0 IN (SELECT 1 FROM t1 a);
 INSERT INTO t1 (pseudo) VALUES ('test1');
 SELECT 0 IN (SELECT 1 FROM t1 a);
-EXPLAIN EXTENDED SELECT 0 IN (SELECT 1 FROM t1 a);
+EXPLAIN SELECT 0 IN (SELECT 1 FROM t1 a);
 drop table t1;
 
 CREATE TABLE `t1` (
@@ -746,7 +742,7 @@ drop table t1;
 #
 create table t1 (id int not null auto_increment primary key, salary int, key(salary));
 insert into t1 (salary) values (100),(1000),(10000),(10),(500),(5000),(50000);
-explain extended SELECT id FROM t1 where salary = (SELECT MAX(salary) FROM t1);
+explain SELECT id FROM t1 where salary = (SELECT MAX(salary) FROM t1);
 drop table t1;
 
 CREATE TABLE t1 (
@@ -863,7 +859,7 @@ create table t1 (s1 char(5));
 select (select 'a','b' from t1 union select 'a','b' from t1) from t1;
 insert into t1 values ('tttt');
 select * from t1 where ('a','b')=(select 'a','b' from t1 union select 'a','b' from t1);
-explain extended (select * from t1);
+explain (select * from t1);
 (select * from t1);
 drop table t1;
 
@@ -878,10 +874,15 @@ select s1, s1 NOT IN (SELECT s1 FROM t2) from t1;
 select s1, s1 = ANY (SELECT s1 FROM t2) from t1;
 select s1, s1 <> ALL (SELECT s1 FROM t2) from t1;
 select s1, s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2') from t1;
-explain extended select s1, s1 NOT IN (SELECT s1 FROM t2) from t1;
-explain extended select s1, s1 = ANY (SELECT s1 FROM t2) from t1;
-explain extended select s1, s1 <> ALL (SELECT s1 FROM t2) from t1;
-explain extended select s1, s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2') from t1;
+# Ignore possible changes in key_len for different character sets
+--replace_column 8 6
+explain select s1, s1 NOT IN (SELECT s1 FROM t2) from t1;
+--replace_column 8 6
+explain select s1, s1 = ANY (SELECT s1 FROM t2) from t1;
+--replace_column 8 6
+explain select s1, s1 <> ALL (SELECT s1 FROM t2) from t1;
+--replace_column 8 6
+explain select s1, s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2') from t1;
 drop table t1,t2;
 
 #
@@ -891,27 +892,27 @@ create table t2 (a int, b int);
 create table t3 (a int);
 insert into t3 values (6),(7),(3);
 select * from t3 where a >= all (select b from t2);
-explain extended select * from t3 where a >= all (select b from t2);
+explain select * from t3 where a >= all (select b from t2);
 select * from t3 where a >= some (select b from t2);
-explain extended select * from t3 where a >= some (select b from t2);
+explain select * from t3 where a >= some (select b from t2);
 select * from t3 where a >= all (select b from t2 group by 1);
-explain extended select * from t3 where a >= all (select b from t2 group by 1);
+explain select * from t3 where a >= all (select b from t2 group by 1);
 select * from t3 where a >= some (select b from t2 group by 1);
-explain extended select * from t3 where a >= some (select b from t2 group by 1);
+explain select * from t3 where a >= some (select b from t2 group by 1);
 select * from t3 where NULL >= any (select b from t2);
-explain extended select * from t3 where NULL >= any (select b from t2);
+explain select * from t3 where NULL >= any (select b from t2);
 select * from t3 where NULL >= any (select b from t2 group by 1);
-explain extended select * from t3 where NULL >= any (select b from t2 group by 1);
+explain select * from t3 where NULL >= any (select b from t2 group by 1);
 select * from t3 where NULL >= some (select b from t2);
-explain extended select * from t3 where NULL >= some (select b from t2);
+explain select * from t3 where NULL >= some (select b from t2);
 select * from t3 where NULL >= some (select b from t2 group by 1);
-explain extended select * from t3 where NULL >= some (select b from t2 group by 1);
+explain select * from t3 where NULL >= some (select b from t2 group by 1);
 #
 # optimized static ALL/ANY with grouping
 #
 insert into t2 values (2,2), (2,1), (3,3), (3,1);
 select * from t3 where a > all (select max(b) from t2 group by a);
-explain extended select * from t3 where a > all (select max(b) from t2 group by a);
+explain select * from t3 where a > all (select max(b) from t2 group by a);
 drop table t2, t3;
 
 #
@@ -926,6 +927,7 @@ CREATE TABLE `t3` (`taskgenid` mediumint(9) NOT NULL auto_increment,`dbid` int(1
 INSERT INTO `t3` (`taskgenid`, `dbid`, `taskid`, `mon`, `tues`,`wed`, `thur`, `fri`, `sat`, `sun`, `how_often`, `userid`, `active`) VALUES (1,-1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 1);
 CREATE TABLE `t4` (`task_id` smallint(6) NOT NULL default '0',`description` varchar(200) NOT NULL default '') ENGINE=MyISAM CHARSET=latin1;
 INSERT INTO `t4` (`task_id`, `description`) VALUES (1, 'Daily Check List'),(2, 'Weekly Status');
+--sorted_result
 select  dbid, name, (date_format(now() , '%Y-%m-%d') - INTERVAL how_often DAY) >= ifnull((SELECT date_format(max(create_date),'%Y-%m-%d') FROM t1 WHERE dbid = b.db_id AND taskid = a.taskgenid), '1950-01-01') from t3 a, t2 b, t4  WHERE dbid = - 1 AND primary_uid = '1' AND t4.task_id = taskid;
 SELECT dbid, name FROM t3 a, t2 b, t4 WHERE dbid = - 1 AND primary_uid = '1' AND ((date_format(now() , '%Y-%m-%d') - INTERVAL how_often DAY) >= ifnull((SELECT date_format(max(create_date),'%Y-%m-%d') FROM t1 WHERE dbid = b.db_id AND taskid = a.taskgenid), '1950-01-01')) AND t4.task_id = taskid;
 drop table t1,t2,t3,t4;
@@ -960,7 +962,7 @@ create table t1 (s1 char);
 insert into t1 values ('e');
 select * from t1 where 'f' > any (select s1 from t1);
 select * from t1 where 'f' > any (select s1 from t1 union select s1 from t1);
-explain extended select * from t1 where 'f' > any (select s1 from t1 union select s1 from t1);
+explain select * from t1 where 'f' > any (select s1 from t1 union select s1 from t1);
 drop table t1;
 
 #
@@ -1083,13 +1085,13 @@ create table t1 (id int not null, text varchar(20) not null default '', primary 
 insert into t1 (id, text) values (1, 'text1'), (2, 'text2'), (3, 'text3'), (4, 'text4'), (5, 'text5'), (6, 'text6'), (7, 'text7'), (8, 'text8'), (9, 'text9'), (10, 'text10'), (11, 'text11'), (12, 'text12');
 select * from t1 where id not in (select id from t1 where id < 8);
 select * from t1 as tt where not exists (select id from t1 where id < 8 and (id = tt.id or id is null) having id is not null);
-explain extended select * from t1 where id not in (select id from t1 where id < 8);
-explain extended select * from t1 as tt where not exists (select id from t1 where id < 8 and (id = tt.id or id is null) having id is not null);
+explain select * from t1 where id not in (select id from t1 where id < 8);
+explain select * from t1 as tt where not exists (select id from t1 where id < 8 and (id = tt.id or id is null) having id is not null);
 insert into t1 (id, text) values (1000, 'text1000'), (1001, 'text1001');
 create table t2 (id int not null, text varchar(20) not null default '', primary key (id));
 insert into t2 (id, text) values (1, 'text1'), (2, 'text2'), (3, 'text3'), (4, 'text4'), (5, 'text5'), (6, 'text6'), (7, 'text7'), (8, 'text8'), (9, 'text9'), (10, 'text10'), (11, 'text1'), (12, 'text2'), (13, 'text3'), (14, 'text4'), (15, 'text5'), (16, 'text6'), (17, 'text7'), (18, 'text8'), (19, 'text9'), (20, 'text10'),(21, 'text1'), (22, 'text2'), (23, 'text3'), (24, 'text4'), (25, 'text5'), (26, 'text6'), (27, 'text7'), (28, 'text8'), (29, 'text9'), (30, 'text10'), (31, 'text1'), (32, 'text2'), (33, 'text3'), (34, 'text4'), (35, 'text5'), (36, 'text6'), (37, 'text7'), (38, 'text8'), (39, 'text9'), (40, 'text10'), (41, 'text1'), (42, 'text2'), (43, 'text3'), (44, 'text4'), (45, 'text5'), (46, 'text6'), (47, 'text7'), (48, 'text8'), (49, 'text9'), (50, 'text10');
 select * from t1 a left join t2 b on (a.id=b.id or b.id is null) join t1 c on (if(isnull(b.id), 1000, b.id)=c.id);
-explain extended select * from t1 a left join t2 b on (a.id=b.id or b.id is null) join t1 c on (if(isnull(b.id), 1000, b.id)=c.id);
+explain select * from t1 a left join t2 b on (a.id=b.id or b.id is null) join t1 c on (if(isnull(b.id), 1000, b.id)=c.id);
 drop table t1,t2;
 
 #
@@ -1301,7 +1303,7 @@ DROP TABLE t1;
 create table t1 (a int, b int);
 insert into t1 values (1,2),(3,4);
 select * from t1 up where exists (select * from t1 where t1.a=up.a);
-explain extended select * from t1 up where exists (select * from t1 where t1.a=up.a);
+explain select * from t1 up where exists (select * from t1 where t1.a=up.a);
 drop table t1;
 
 
@@ -1864,20 +1866,20 @@ drop table t1;
 create table t1(a int, primary key (a));
 insert into t1 values (10);
 
-create table t2 (a int primary key, b varchar(32), c int, unique key b(c, b));
+create table t2 (a int primary key, b varchar(32), c int, unique key b(c, b)) charset utf8mb4;
 insert into t2(a, c, b) values (1,10,'359'), (2,10,'35988'), (3,10,'35989');
 
-explain SELECT sql_no_cache t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
+explain SELECT t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
   ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899'
              ORDER BY t2.c DESC, t2.b DESC LIMIT 1) WHERE t1.a = 10;
-SELECT sql_no_cache t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
+SELECT t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
   ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899'
             ORDER BY t2.c DESC, t2.b DESC LIMIT 1) WHERE t1.a = 10;
 
-explain SELECT sql_no_cache t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
+explain SELECT t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
   ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899'
             ORDER BY t2.c, t2.b LIMIT 1) WHERE t1.a = 10;
-SELECT sql_no_cache t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
+SELECT t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
   ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899'
             ORDER BY t2.c, t2.b LIMIT 1) WHERE t1.a = 10;
 
@@ -1946,12 +1948,12 @@ DROP TABLE t1,t2;
 CREATE TABLE t1 (a DATETIME);
 INSERT INTO t1 VALUES ('1998-09-23'), ('2003-03-25');
 
-CREATE TABLE t2 AS SELECT
+CREATE TABLE t2 charset utf8mb4 AS SELECT
   (SELECT a FROM t1 WHERE a < '2000-01-01') AS sub_a
    FROM t1 WHERE a > '2000-01-01';
 SHOW CREATE TABLE t2;
 
-CREATE TABLE t3 AS (SELECT a FROM t1 WHERE a < '2000-01-01') UNION (SELECT a FROM t1 WHERE a > '2000-01-01');
+CREATE TABLE t3 charset utf8mb4 AS (SELECT a FROM t1 WHERE a < '2000-01-01') UNION (SELECT a FROM t1 WHERE a > '2000-01-01');
 SHOW CREATE TABLE t3;
 
 DROP TABLE t1,t2,t3;
@@ -2417,19 +2419,15 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (i INT);
 
 (SELECT i FROM t1) UNION (SELECT i FROM t1);
-SELECT sql_no_cache * FROM t1 WHERE NOT EXISTS
+SELECT * FROM t1 WHERE NOT EXISTS
   (
    (SELECT i FROM t1) UNION
    (SELECT i FROM t1)
   );
 
-#TODO:not supported
---error ER_PARSE_ERROR
 SELECT * FROM t1
 WHERE NOT EXISTS (((SELECT i FROM t1) UNION (SELECT i FROM t1)));
 
-#TODO:not supported
---error ER_PARSE_ERROR
 explain select ((select t11.i from t1 t11) union (select t12.i from t1 t12))
   from t1;
 
@@ -2515,12 +2513,12 @@ insert into t2(y,z) select t1.b, RAND()*1000 from t1, t3;
 enable_query_log;
 
 SET SESSION sort_buffer_size = 32 * 1024;
-SELECT SQL_NO_CACHE COUNT(*)
+SELECT COUNT(*)
   FROM (SELECT  a, b, (SELECT x FROM t2 WHERE y=b ORDER BY z DESC LIMIT 1) c
           FROM t1) t;
 
 SET SESSION sort_buffer_size = 8 * 1024 * 1024;
-SELECT SQL_NO_CACHE COUNT(*)
+SELECT COUNT(*)
   FROM (SELECT  a, b, (SELECT x FROM t2 WHERE y=b ORDER BY z DESC LIMIT 1) c
           FROM t1) t;
 
@@ -2874,7 +2872,7 @@ DROP TABLE t1,t2;
 
 
 #
-# Bug#28728 crash with EXPLAIN EXTENDED for a query with a derived table
+# Bug#28728 crash with EXPLAIN for a query with a derived table
 #           over a grouping subselect
 #
 
@@ -2882,7 +2880,7 @@ CREATE TABLE t1 (a int);
 
 INSERT INTO t1 VALUES (1), (2);
 
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT * FROM (SELECT count(*) FROM t1 GROUP BY a) as res;
 
 DROP TABLE t1;
@@ -2893,7 +2891,7 @@ DROP TABLE t1;
 #
 
 CREATE TABLE t1 (
-  a varchar(255) default NULL,
+  a varchar(200) default NULL,
   b timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
   INDEX idx(a,b)
 );
@@ -3061,11 +3059,11 @@ INSERT INTO t1 VALUES (1),(2);
 INSERT INTO t2 VALUES (1),(2);
 
 SELECT 2 FROM t1 WHERE EXISTS ((SELECT 1 FROM t2 WHERE t1.a=t2.a));
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT 2 FROM t1 WHERE EXISTS ((SELECT 1 FROM t2 WHERE t1.a=t2.a));
 
 
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT 2 FROM t1 WHERE EXISTS ((SELECT 1 FROM t2 WHERE t1.a=t2.a) UNION
                                (SELECT 1 FROM t2 WHERE t1.a = t2.a));
 
@@ -3180,7 +3178,7 @@ INSERT INTO `C` VALUES (9,9), (0,0), (8,6), (3,6), (7,6), (0,4),
 
 --disable_warnings
 SELECT * FROM C WHERE `int_key` IN (SELECT `int_nokey`);
-EXPLAIN EXTENDED SELECT * FROM C WHERE `int_key` IN (SELECT `int_nokey`);
+EXPLAIN SELECT * FROM C WHERE `int_key` IN (SELECT `int_nokey`);
 --enable_warnings
 
 DROP TABLE C;
@@ -3281,12 +3279,12 @@ select a, oref, a in (select max(ie)
   from t1 where oref=t2.oref group by grp) Z from t2;
 
 # This must have a trigcond
-explain extended
+explain
 select a, oref, a in (select max(ie) 
   from t1 where oref=t2.oref group by grp) z from t2;
 
 # This must not have a trigcond:
-explain extended
+explain
 select a, oref from t2 
 where a in (select max(ie) from t1 where oref=t2.oref group by grp);
 select a, oref, a in (
@@ -3303,7 +3301,7 @@ show status like 'Handler_read_rnd_next';
 select ' ^ This must show 11' Z;
 
 # This must show trigcond:
-explain extended select a in (select max(ie) from t1 where oref=4 group by grp) from t3;
+explain select a in (select max(ie) from t1 where oref=4 group by grp) from t3;
 
 drop table t1, t2, t3;
 
@@ -3325,7 +3323,7 @@ select oref, a, a in (select a from t1 where oref=t2.oref) Z from t2;
 
 # The next explain shows "using index" but that is just incorrect display
 # (there is a bug filed about this).
-explain extended 
+explain
 select oref, a, a in (select a from t1 where oref=t2.oref) z from t2;
 
 flush status;
@@ -3375,7 +3373,7 @@ select a, oref,
 from t3;
 
 # This must have trigcond in WHERE and HAVING:
-explain extended
+explain
 select a, oref, 
        t3.a in (select t1.a from t1, t2 where t1.b=t2.a and t2.b=t3.oref) z 
 from t3;
@@ -3403,7 +3401,7 @@ select a, oref,
 from t3;
 
 --echo This must show a trig_cond:
-explain extended
+explain
 select a, oref, 
        t3.a in (select t1.a from t1, t2 where t1.b=t2.a and t2.b=t3.oref) z 
 from t3;
@@ -3431,7 +3429,7 @@ select a, oref,
        a in (select count(*) from t1 group by grp having grp=t2.oref) Z from t2;
 
 --echo This must show a trig_cond:
-explain extended
+explain
 select a, oref, 
        a in (select count(*) from t1 group by grp having grp=t2.oref) z from t2;
 
@@ -3460,13 +3458,13 @@ create table t1 (a int, b int, c int, key(a,b));
 insert into t1 select 2*A, 2*A, 100 from t3;
 
 # First test index subquery engine
-explain extended select a,b, oref, (a,b) in (select a,b from t1 where c=t2.oref) z from t2;
+explain select a,b, oref, (a,b) in (select a,b from t1 where c=t2.oref) z from t2;
 select a,b, oref, (a,b) in (select a,b from t1 where c=t2.oref) z from t2;
 
 # Then check that we do turn off 'ref' scans in the subquery
 create table t4 (x int);
 insert into t4 select A.a + 10*B.a from t1 A, t1 B;
-explain extended 
+explain
   select a,b, oref, 
          (a,b) in (select a,b from t1,t4 where c=t2.oref) z 
   from t2;
@@ -3509,12 +3507,12 @@ insert into t2 values ('new1', 10,10);
 insert into t1 values ('new1', 1234, 10, NULL); 
 # new1, 10, 10, NULL,
 select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) Z from t2 where a=10 and b=10; 
-explain extended
+explain
 select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) z from t2 where a=10 and b=10; 
 drop table t1, t2;
 
 # Now test different column types:
-create table t1 (oref char(4), grp int, ie int);
+create table t1 (oref char(4), grp int, ie int) charset utf8mb4;
 insert into t1 (oref, grp, ie) values
  ('aa', 10, 2),
  ('aa', 10, 1),
@@ -3531,7 +3529,7 @@ insert into t1 (oref, grp, ie) values
  ('ff', 20, 2),
  ('ff', 20, 1);
 
-create table t2 (oref char(4), a int);
+create table t2 (oref char(4), a int) charset utf8mb4;
 insert into t2 values 
   ('ee', NULL),
   ('bb', 2),
@@ -3678,7 +3676,7 @@ select oref, a, b from t2 where (a,b) in (select ie1,ie2 from t1 where oref=t2.o
 
 select oref, a, b from t2 where (a,b) not in (select ie1,ie2 from t1 where oref=t2.oref);
 
-explain extended 
+explain
 select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) z from t2;
 
 drop table t1,t2;
@@ -3790,7 +3788,7 @@ CREATE TABLE t2 (b int, PRIMARY KEY(b));
 INSERT INTO t1 VALUES (1), (NULL), (4);
 INSERT INTO t2 VALUES (3), (1),(2), (5), (4), (7), (6);
 
-EXPLAIN EXTENDED 
+EXPLAIN
 SELECT a FROM t1, t2 WHERE a=b AND (b NOT IN (SELECT a FROM t1));
 SELECT a FROM t1, t2 WHERE a=b AND (b NOT IN (SELECT a FROM t1));
 SELECT a FROM t1, t2 WHERE a=b AND (b NOT IN (SELECT a FROM t1 WHERE a > 4));
@@ -3942,7 +3940,7 @@ INSERT INTO t1 VALUES (1,1,1), (1,1,1);
 # references whose qualifying query is the one which has "GROUP BY b",
 # so "c" is not dependent on the group column:
 --error ER_WRONG_FIELD_WITH_GROUP
-EXPLAIN EXTENDED 
+EXPLAIN
   SELECT cc FROM 
     ( SELECT 
       (SELECT COUNT(a) FROM 
@@ -4408,6 +4406,7 @@ WHERE t1.id=t2.id AND 1 IN (SELECT id FROM t1) WITH CHECK OPTION;
 --error ER_VIEW_CHECK_FAILED
 INSERT INTO v2(a,b) VALUES (2,2);
 INSERT INTO v2(a,b) VALUES (1,2);
+--sorted_result
 SELECT * FROM v1;
 
 CREATE VIEW v3 AS
@@ -4462,31 +4461,31 @@ INSERT INTO t1 VALUES (1),(2);
 
 CREATE TABLE t2( a INT, b INT );
 
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * 
 FROM (SELECT a INTO @var FROM t1 WHERE a = 2) t1a;
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * 
 FROM (SELECT a INTO OUTFILE 'file' FROM t1 WHERE a = 2) t1a;
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * 
 FROM (SELECT a INTO DUMPFILE 'file' FROM t1 WHERE a = 2) t1a;
 
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM ( 
   SELECT 1 a 
   UNION 
   SELECT a INTO @var FROM t1 WHERE a = 2 
 ) t1a;
 
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM ( 
   SELECT 1 a 
   UNION 
   SELECT a INTO OUTFILE 'file' FROM t1 WHERE a = 2 
 ) t1a;
 
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM ( 
   SELECT 1 a 
   UNION 
@@ -4513,25 +4512,25 @@ SELECT * FROM (
 SELECT * FROM ((SELECT 1 a) UNION SELECT 1 a);
 SELECT * FROM (SELECT 1 a UNION (SELECT 1 a)) alias;
 SELECT * FROM (SELECT 1 UNION SELECT 1) t1a;
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM ((SELECT 1 a INTO @a)) t1a;
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM ((SELECT 1 a INTO OUTFILE 'file' )) t1a;
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM ((SELECT 1 a INTO DUMPFILE 'file' )) t1a;
 
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM (SELECT 1 a UNION (SELECT 1 a INTO @a)) t1a;
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM (SELECT 1 a UNION (SELECT 1 a INTO DUMPFILE 'file' )) t1a;
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM (SELECT 1 a UNION (SELECT 1 a INTO OUTFILE 'file' )) t1a;
 
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM (SELECT 1 a UNION ((SELECT 1 a INTO @a))) t1a;
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM (SELECT 1 a UNION ((SELECT 1 a INTO DUMPFILE 'file' ))) t1a;
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM (SELECT 1 a UNION ((SELECT 1 a INTO OUTFILE 'file' ))) t1a;
 
 SELECT * FROM (SELECT 1 a ORDER BY a) t1a;
@@ -4541,7 +4540,9 @@ SELECT * FROM (SELECT 1 a UNION SELECT 1 a ORDER BY a LIMIT 1) t1a;
 
 # Test of rule
 # table_factor:  '(' get_select_lex query_expression_body ')' opt_table_alias
+--sorted_result
 SELECT * FROM t1 JOIN  (SELECT 1 UNION SELECT 1)  alias ON 1;
+--sorted_result
 SELECT * FROM t1 JOIN ((SELECT 1 UNION SELECT 1)) alias ON 1;
 --error ER_DERIVED_MUST_HAVE_ALIAS
 SELECT * FROM t1 JOIN  (SELECT 1 UNION SELECT 1)  ON 1;
@@ -4556,7 +4557,9 @@ SELECT * FROM t1 JOIN  (t1 t1a)  t1a ON 1;
 --error ER_PARSE_ERROR
 SELECT * FROM t1 JOIN ((t1 t1a)) t1a ON 1;
 
+--sorted_result
 SELECT * FROM t1 JOIN  (t1 t1a)  ON 1;
+--sorted_result
 SELECT * FROM t1 JOIN ((t1 t1a)) ON 1;
 
 SELECT * FROM (t1 t1a);
@@ -4577,41 +4580,41 @@ SELECT * FROM t1 WHERE a = ALL ( SELECT 1 );
 SELECT * FROM t1 WHERE a = ALL ( SELECT 1 UNION SELECT 1 );
 SELECT * FROM t1 WHERE a = ANY ( SELECT 3 UNION SELECT 1 );
 
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION SELECT 1 INTO @a);
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION SELECT 1 INTO OUTFILE 'file' );
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION SELECT 1 INTO DUMPFILE 'file' );
 
 SELECT * FROM t1 WHERE a = ( SELECT 1 );
 SELECT * FROM t1 WHERE a = ( SELECT 1 UNION SELECT 1 );
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM t1 WHERE a = ( SELECT 1 INTO @a);
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM t1 WHERE a = ( SELECT 1 INTO OUTFILE 'file' );
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM t1 WHERE a = ( SELECT 1 INTO DUMPFILE 'file' );
 
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM t1 WHERE a = ( SELECT 1 UNION SELECT 1 INTO @a);
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM t1 WHERE a = ( SELECT 1 UNION SELECT 1 INTO OUTFILE 'file' );
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM t1 WHERE a = ( SELECT 1 UNION SELECT 1 INTO DUMPFILE 'file' );
 
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT ( SELECT 1 INTO @v );
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT ( SELECT 1 INTO OUTFILE 'file' );
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT ( SELECT 1 INTO DUMPFILE 'file' );
 
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT ( SELECT 1 UNION SELECT 1 INTO @v );
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT ( SELECT 1 UNION SELECT 1 INTO OUTFILE 'file' );
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT ( SELECT 1 UNION SELECT 1 INTO DUMPFILE 'file' );
 
 # Make sure context is popped when we leave the nested select
@@ -4623,41 +4626,36 @@ SELECT * FROM t2 WHERE (a, b) IN (SELECT a, b FROM t2);
 
 # Make sure the parser does not allow nested UNIONs anywhere
 
---error ER_PARSE_ERROR
+--error ER_NOT_SUPPORTED_YET
 SELECT 1 UNION ( SELECT 1 UNION SELECT 1 );
---error ER_PARSE_ERROR
 ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
 
---error ER_PARSE_ERROR
+--error ER_NOT_SUPPORTED_YET
 SELECT ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
 --error ER_PARSE_ERROR
 SELECT ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
 SELECT ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
 SELECT ((SELECT 1 UNION SELECT 1 UNION SELECT 1));
 
---error ER_PARSE_ERROR
+--error ER_DERIVED_MUST_HAVE_ALIAS
 SELECT * FROM ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
 --error ER_DERIVED_MUST_HAVE_ALIAS
 SELECT * FROM ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1 );
 SELECT * FROM ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1 ) a;
 SELECT * FROM ( SELECT 1 UNION SELECT 1 UNION SELECT 1 ) a;
 
---error ER_PARSE_ERROR
+--error ER_NOT_SUPPORTED_YET
 SELECT * FROM t1 WHERE a =     ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
---error ER_PARSE_ERROR
+--error ER_NOT_SUPPORTED_YET
 SELECT * FROM t1 WHERE a = ALL ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
---error ER_PARSE_ERROR
+--error ER_NOT_SUPPORTED_YET
 SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
---error ER_PARSE_ERROR
+--error ER_NOT_SUPPORTED_YET
 SELECT * FROM t1 WHERE a IN    ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
 
---error ER_PARSE_ERROR
 SELECT * FROM t1 WHERE a =     ( ( SELECT 1 UNION SELECT 1 )  UNION SELECT 1 );
---error ER_PARSE_ERROR
 SELECT * FROM t1 WHERE a = ALL ( ( SELECT 1 UNION SELECT 1 )  UNION SELECT 1 );
---error ER_PARSE_ERROR
 SELECT * FROM t1 WHERE a = ANY ( ( SELECT 1 UNION SELECT 1 )  UNION SELECT 1 );
---error ER_PARSE_ERROR
 SELECT * FROM t1 WHERE a IN    ( ( SELECT 1 UNION SELECT 1 )  UNION SELECT 1 );
 
 SELECT * FROM t1 WHERE a =     ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
@@ -4665,17 +4663,17 @@ SELECT * FROM t1 WHERE a = ALL ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
 SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
 SELECT * FROM t1 WHERE a IN    ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
 
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM t1 WHERE EXISTS ( SELECT 1 UNION SELECT 1 INTO @v );
 SELECT EXISTS(SELECT 1+1);
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT EXISTS(SELECT 1+1 INTO @test);
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM t1 WHERE a IN ( SELECT 1 UNION SELECT 1 INTO @v );
 
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM t1 WHERE EXISTS ( SELECT 1 INTO @v );
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM t1 WHERE a IN ( SELECT 1 INTO @v );
 
 DROP TABLE t1, t2;
@@ -4721,11 +4719,11 @@ INSERT INTO t1 VALUES (repeat('a',@@global.max_allowed_packet));
 INSERT INTO t1 VALUES (repeat('b',@@global.max_allowed_packet));
 
 --error ER_BAD_FIELD_ERROR
-EXPLAIN EXTENDED SELECT DISTINCT 1 FROM t1,
+EXPLAIN SELECT DISTINCT 1 FROM t1,
 (SELECT a AS away FROM t1 GROUP BY a WITH ROLLUP) AS d1  
 WHERE t1.a = d1.a;
---error ER_WRONG_USAGE
-EXPLAIN EXTENDED SELECT DISTINCT 1 FROM t1,
+--error ER_BAD_FIELD_ERROR
+EXPLAIN SELECT DISTINCT 1 FROM t1,
 (SELECT DISTINCTROW a AS away FROM t1 GROUP BY a WITH ROLLUP) AS d1  
 WHERE t1.a = d1.a;
 
@@ -5129,6 +5127,64 @@ SELECT * FROM t1 WHERE t1.number < ANY(SELECT number FROM t2 GROUP BY number);
 SELECT * FROM t1 WHERE t1.number < ANY(SELECT number FROM t2);
 
 DROP TABLE t1,t2;
+#
+# BUG#10308: purge log with subselect
+# Bug#28553: mysqld crash in "purge master log before(select time from information_schema)"
+#
+--disable_query_log
+CALL mtr.add_suppression("file *  was not purged because it is the active log file.");
+--enable_query_log
+--error 1064
+purge master logs before (select adddate(current_timestamp(), interval -4 day));
+--disable_warnings
+purge master logs before adddate(current_timestamp(), interval -4 day);
+--enable_warnings
+
+#
+# Bug31048: Many nested subqueries may cause server crash.
+#
+create table t1(a int,b int,key(a),key(b));
+insert into t1(a,b) values (1,2),(2,1),(2,3),(3,4),(5,4),(5,5),
+  (6,7),(7,4),(5,3);
+
+let $nesting= 26;
+let $should_work_nesting= 4;
+let $start= select sum(a),a from t1 where a> ( select sum(a) from t1 ;
+let $end= )group by a ;
+let $start_app= where a> ( select sum(a) from t1 ;
+let $end_pre= )group by b limit 1 ;
+
+--disable_result_log
+--disable_query_log
+# At least 4 level nesting should work without errors
+while ($should_work_nesting)
+{
+--echo $should_work_nesting
+  eval $start $end;
+  eval explain $start $end;
+  let $start= $start
+  $start_app;
+  let $end= $end_pre
+  $end;
+  dec $should_work_nesting;
+}
+# Other may fail with the 'stack overrun error'
+while ($nesting)
+{
+--echo $nesting
+--error 0,1436
+  eval $start $end;
+--error 0,1436
+  eval explain $start $end;
+  let $start= $start
+  $start_app;
+  let $end= $end_pre
+  $end;
+  dec $nesting;
+}
+--enable_result_log
+--enable_query_log
+drop table t1;
 
 --echo End of 5.1 tests
  
@@ -5292,7 +5348,7 @@ SELECT i, v, (SELECT COUNT(DISTINCT i)
 FROM t2;
 
 --echo 
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT i, v, (SELECT COUNT(DISTINCT i)
               FROM t1
               WHERE v  = t2.v) as subsel
@@ -5394,14 +5450,14 @@ SELECT 1 AS RESULT FROM t2,t1 WHERE d = c;
 # so here it ends up as NULL
 --echo base query
 SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 ;
-EXPLAIN EXTENDED SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 ;
+EXPLAIN SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 ;
 --echo first equivalent variant
 SELECT (SELECT 1 FROM t2 WHERE d = IFNULL(c,NULL)) AS RESULT FROM t1 GROUP BY c ;
-EXPLAIN EXTENDED SELECT (SELECT 1 FROM t2 WHERE d = IFNULL(c,NULL)) AS RESULT FROM t1 GROUP BY c;
+EXPLAIN SELECT (SELECT 1 FROM t2 WHERE d = IFNULL(c,NULL)) AS RESULT FROM t1 GROUP BY c;
 --echo second equivalent variant
 # used to fail with 1242: Subquery returns more than 1 row
 SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 GROUP BY c ;
-EXPLAIN EXTENDED SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 GROUP BY c ;
+EXPLAIN SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 GROUP BY c ;
 
 DROP TABLE t1,t2;
 
@@ -5493,10 +5549,10 @@ DROP TABLE t1, t2;
 --echo # BUG#12616253 - WRONG RESULT WITH EXISTS(SUBQUERY) (MISSING ROWS)
 --echo #
 
-CREATE TABLE t1 (f1 varchar(1));
+CREATE TABLE t1 (f1 varchar(1)) charset utf8mb4;
 INSERT INTO t1 VALUES ('v'),('s');
 
-CREATE TABLE t2 (f1_key varchar(1), KEY (f1_key));
+CREATE TABLE t2 (f1_key varchar(1), KEY (f1_key)) charset utf8mb4;
 INSERT INTO t2 VALUES ('j'),('v'),('c'),('m'),('d'),
 ('d'),('y'),('t'),('d'),('s');
 
@@ -5508,6 +5564,7 @@ SELECT DISTINCT f1_key
 FROM t2 
 WHERE f1_key != table2.f1_key AND f1_key >= table1.f1 );
 
+--sorted_result
 eval $query;
 eval explain $query;
 
@@ -5522,7 +5579,7 @@ col_int_key int,
 col_varchar_key varchar(1),
 col_varchar_nokey varchar(1),
 KEY (col_int_key)
-);
+) charset latin1;
 INSERT INTO t1 VALUES (224,'p','p'),(9,'e','e');
 
 CREATE TABLE t3 (
@@ -5530,7 +5587,7 @@ col_int_key int,
 col_varchar_key varchar(1),
 KEY col_int_key (col_int_key),
 KEY col_varchar_key (col_varchar_key,col_int_key))
-;
+charset latin1;
 INSERT INTO t3 VALUES (4,'p'),(8,'e'),(10,'a');
 
 # At jcl>=1, if join buffering is on t1 bug doesn't happen, so we
@@ -5546,6 +5603,7 @@ WHERE 'e' <> t1f.col_varchar_nokey )
 FROM
 t1 AS t1f STRAIGHT_JOIN t3 AS t3f;
 
+--sorted_result
 eval $query;
 eval explain $query;
 
@@ -5584,7 +5642,7 @@ DROP TABLE t1, t2, t3;
 CREATE TABLE ot (
   col_int_nokey int(11), 
   col_varchar_nokey varchar(1)
-) ;
+) charset latin1;
 
 INSERT INTO ot VALUES (1,'x');
 
@@ -5592,7 +5650,7 @@ CREATE TABLE it (
   col_int_key int(11), 
   col_varchar_key varchar(1), 
   KEY idx_cvk_cik (col_varchar_key,col_int_key)
-) ;
+) charset latin1 ;
 
 INSERT INTO it VALUES (NULL,'x'), (NULL,'f');
 
@@ -5605,7 +5663,7 @@ WHERE col_varchar_nokey IN
     WHERE col_int_key IS NULL);
 
 --echo
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT col_int_nokey 
 FROM ot 
 WHERE col_varchar_nokey IN
@@ -5622,7 +5680,7 @@ WHERE col_varchar_nokey IN
     WHERE coalesce(col_int_nokey, 1) );
 
 --echo
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT col_int_nokey 
 FROM ot 
 WHERE col_varchar_nokey IN
@@ -5638,7 +5696,7 @@ CREATE TABLE it (
    col_varchar_key2 varchar(1),
    KEY idx_cvk_cvk2_cik (col_varchar_key, col_varchar_key2, col_int_key),
    KEY idx_cvk_cik (col_varchar_key, col_int_key)
-);
+) charset latin1;
 
 INSERT INTO it VALUES (NULL,'x','x'), (NULL,'f','f');
 
@@ -5650,7 +5708,7 @@ WHERE (col_varchar_nokey, 'x') IN
      WHERE col_int_key IS NULL);
 
 --echo
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT col_int_nokey
 FROM ot
 WHERE (col_varchar_nokey, 'x') IN
@@ -5691,7 +5749,7 @@ CREATE TABLE t1 (
   PRIMARY KEY (pk),
   KEY col_int_key (col_int_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-);
+) charset latin1;
 
 INSERT INTO t1 VALUES (1,0,'j','j'),(2,8,'v','v'),
 (3,1,'c','c'),(4,8,'m','m'),(5,9,'d','d');
@@ -5714,7 +5772,7 @@ WHERE alias2.col_varchar_key IN (
 )
 ;
 
-eval EXPLAIN EXTENDED $query;
+eval EXPLAIN $query;
 --sorted_result
 eval $query;
 
@@ -5722,7 +5780,7 @@ eval $query;
 
 eval CREATE VIEW v2 AS $query;
 
-EXPLAIN EXTENDED SELECT * FROM v2;
+EXPLAIN SELECT * FROM v2;
 --sorted_result
 SELECT * FROM v2;
 
@@ -5740,7 +5798,7 @@ WHERE alias2.col_varchar_key IN (
     AND sq2_alias1.col_varchar_key > alias1.col_varchar_key
 );
 
-eval EXPLAIN EXTENDED $query;
+eval EXPLAIN $query;
 --sorted_result
 eval $query;
 
@@ -5929,7 +5987,7 @@ CREATE TABLE t1 (
   col_varchar_key varchar(1) NOT NULL,
   col_varchar_nokey varchar(1) NOT NULL,
   KEY col_varchar_key (col_varchar_key)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t1 VALUES
  ('v','v'), ('s','s'), ('l','l'), ('y','y'), ('c','c'),
@@ -5940,7 +5998,7 @@ INSERT INTO t1 VALUES
 CREATE TABLE t2 (
   col_int_nokey INT NOT NULL,
   col_varchar_nokey varchar(1) NOT NULL
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t2 VALUES
  (4,'j'), (6,'v'), (3,'c'), (5,'m'), (3,'d'), (246,'d'), (2,'y'), (9,'t'),
@@ -5978,7 +6036,7 @@ WHERE (SELECT i1 FROM t0 WHERE i1 = 7) NOT IN
  );
 
 eval $query;
-eval explain extended $query;
+eval explain $query;
 
 DROP TABLE t0, t1, t2;
 
@@ -6021,7 +6079,7 @@ WHERE ((SELECT i1 FROM t0 WHERE i1 = 7),
        (SELECT i1 FROM t0 WHERE i1 = 2)) NOT IN
     (SELECT col_int_key,col_int_nokey FROM t2);
 
-eval explain extended $query;
+eval explain $query;
 eval $query;
 
 DROP TABLE t0, t1, t2;
@@ -6076,12 +6134,12 @@ let $query=SELECT * FROM t1
 WHERE ((a,b) NOT IN (SELECT t2.a,t2.b FROM
         t4 STRAIGHT_JOIN t2 WHERE t4.a=t2.b)) IS NULL;
 
-eval EXPLAIN EXTENDED $query;
+eval EXPLAIN $query;
 eval $query;
 
 ALTER TABLE t2 DROP INDEX a_b;
 
-EVAL EXPLAIN EXTENDED $query;
+EVAL EXPLAIN $query;
 eval $query;
 
 DROP TABLE t1,t2,t4;
@@ -6179,7 +6237,7 @@ INSERT INTO t1 VALUES (0,8), (8,7);
 CREATE TABLE t2 (c INT NOT NULL);
 INSERT INTO t2 VALUES (10);
 
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT 1 FROM t2 WHERE c > ANY (SELECT a FROM t1 WHERE b >= 3) IS TRUE;
 SELECT 1 FROM t2 WHERE c > ANY (SELECT a FROM t1 WHERE b >= 3) IS TRUE;
 
@@ -6420,6 +6478,14 @@ let $query= SELECT * FROM t1 GROUP BY t1_id ORDER BY t1_id DESC LIMIT 1;
 eval EXPLAIN $query;
 eval $query;
 eval EXPLAIN SELECT ($query) AS C FROM DUAL;
+eval SELECT ($query) AS C FROM DUAL;
+
+--echo # Without LIMIT, ORDER BY is removed from subquery
+let $query= SELECT * FROM t1 GROUP BY t1_id ORDER BY t1_id DESC;
+eval EXPLAIN $query;
+eval $query;
+eval EXPLAIN SELECT ($query) AS C FROM DUAL;
+--error ER_SUBQUERY_NO_1_ROW
 eval SELECT ($query) AS C FROM DUAL;
 DROP TABLE t1;
 
@@ -6666,3 +6732,47 @@ eval EXPLAIN $query2;
 eval $query2;
 
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#13915291 NOT IN (SUBQUERY) GIVES WRONG RESULT WHEN PREFIX INDEX OF INNER TABLE IS USED
+--echo #
+
+CREATE TABLE t1 (
+  a1 char(8) DEFAULT NULL,
+  a2 char(8) DEFAULT NULL,
+  KEY a1 (a1(2))
+) charset latin1;
+CREATE TABLE t2 (
+  b1 char(8) DEFAULT NULL,
+  b2 char(8) DEFAULT NULL
+) charset latin1;
+INSERT INTO t1 VALUES
+ ('1 - 00', '2 - 00'),('1 - 01', '2 - 01'),('1 - 02', '2 - 02');
+INSERT INTO t2 VALUES
+ ('1 - 01', '2 - 01'),('1 - 01', '2 - 01'),
+ ('1 - 02', '2 - 02'),('1 - 02', '2 - 02'),('1 - 03', '2 - 03');
+ANALYZE TABLE t1,t2;
+
+SELECT a1 FROM t1 WHERE a1 > '1';
+# The correct result:
+SELECT * FROM t2 WHERE b1 NOT IN ('1 - 00', '1 - 01', '1 - 02');
+
+# Same, with subquery:
+let $query=
+SELECT * FROM t2 WHERE b1 NOT IN
+(SELECT a1 FROM t1 FORCE INDEX(a1) WHERE a1 > '1');
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2;
+#
+# BUG#33245 "Crash on VIEW referencing FROM table in an IN clause"
+# (this is a second copy of testcase that uses disconnect/connect commands
+#  which increase probability of crash)
+--disconnect default
+--connect (default,localhost,root,,test)
+CREATE TABLE t1 (f1 INT NOT NULL);
+CREATE VIEW v1 (a) AS SELECT f1 IN (SELECT f1 FROM t1) FROM t1;
+SELECT * FROM v1;
+drop view v1;
+drop table t1;

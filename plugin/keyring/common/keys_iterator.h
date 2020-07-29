@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,29 +23,28 @@
 #ifndef MYSQL_KEYS_ITERATOR_H
 #define MYSQL_KEYS_ITERATOR_H
 
+#include <vector>
 #include "i_keys_container.h"
 #include "logger.h"
-#include <vector>
 
 namespace keyring {
 
-class Keys_iterator
-{
-public:
-  Keys_iterator() {};
-  Keys_iterator(ILogger* logger);
+class Keys_iterator {
+ public:
+  Keys_iterator() {}
+  Keys_iterator(ILogger *logger);
   void init(void);
   bool get_key(Key_metadata **km);
   void deinit(void);
 
   ~Keys_iterator(void);
-public:
+
+ public:
   ILogger *logger;
   std::vector<Key_metadata> key_metadata_list;
   std::vector<Key_metadata>::iterator key_metadata_list_iterator;
 };
 
-}//namespace keyring
+}  // namespace keyring
 
-#endif //MYSQL_KEYS_ITERATOR_H
-
+#endif  // MYSQL_KEYS_ITERATOR_H

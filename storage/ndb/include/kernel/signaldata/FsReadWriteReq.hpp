@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,6 +59,10 @@ class FsReadWriteReq {
   friend class Pgman;
   friend class Restore;
   friend class Dblqh;
+  friend class Backup;
+  friend class Dbtup;
+  friend class Ndbcntr;
+  friend class Dbdih;
 
   /**
    * For printing
@@ -75,6 +79,7 @@ public:
     fsFormatListOfMemPages=2,
     fsFormatGlobalPage=3,
     fsFormatSharedPage=4,
+    fsFormatMemAddress=5,
     fsFormatMax
   };
   
@@ -109,6 +114,11 @@ private:
       Uint32 varIndex;
       Uint32 fileOffset;
     } arrayOfPages;
+    struct {
+      Uint32 fileOffset;
+      Uint32 memoryOffset;
+      Uint32 size;
+    } memoryAddress;
     struct {
       Uint32 varIndex[1]; // Size = numberOfPages
       Uint32 fileOffset;

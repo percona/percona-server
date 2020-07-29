@@ -1,0 +1,42 @@
+CREATE TABLE t1 (a varchar(255)) ENCRYPTION='KEYRING';
+CREATE TABLE t2 (a varchar(255)) ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=1;
+CREATE TABLE t3 (a varchar(255)) ENCRYPTION_KEY_ID=2;
+CREATE TABLE t4 (a varchar(255)) ENCRYPTION_KEY_ID=3;
+# Check that percona_innodb-0 with version 1 and server_uuid exists in keyring
+# Check that percona_innodb-1 with version 1 and server_uuid exists in keyring
+# Check that percona_innodb-2 with version 1 and server_uuid exists in keyring
+# Check that percona_innodb-3 with version 1 and server_uuid exists in keyring
+CREATE TABLE t5 (a varchar(255));
+ALTER TABLE t5 ENCRYPTION_KEY_ID=4;
+# Check that percona_innodb-4 with version 1 and server_uuid exists in keyring
+# Now rotate key 0 and check if new and old versions of the keys exist in keyring
+# Successful rotation of percona_innodb-0 to version 2
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
+# Check that percona_innodb-0 with version 1 and server_uuid STILL exists in keyring
+# Check that percona_innodb-0 with version 2 and server_uuid exists in keyring
+# Now rotate key 1 and check if new and old versions of the keys exist in keyring
+# Successful rotation of percona_innodb-1 to version 2
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 1;
+# Check that percona_innodb-1 with version 1 and server_uuid STILL exists in keyring
+# Check that percona_innodb-1 with version 2 and server_uuid exists in keyring
+# Now rotate key 2 and check if new and old versions of the keys exist in keyring
+# Successful rotation of percona_innodb-2 to version 2.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 2;
+# Check that percona_innodb-2 with version 1 and server_uuid STILL exists in keyring
+# Check that percona_innodb-2 with version 2 and server_uuid exists in keyring
+# Now rotate key 3 and check if new and old versions of the keys exist in keyring
+# Successful rotation of percona_innodb-3 to version 2.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 3;
+# Check that percona_innodb-3 with version 1 and server_uuid STILL exists in keyring
+# Check that percona_innodb-3 with version 2 and server_uuid exists in keyring
+# Now rotate key 4 and check if new and old versions of the keys exist in keyring.
+# Successful rotation of percona_innodb-4 to version 2.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 4;
+# Check that percona_innodb-4 with version 1 and server_uuid STILL exists in keyring
+# Check that percona_innodb-4 with version 2 and server_uuid exists in keyring
+# Now rotate key 4 and check if new and old versions of the keys exist in keyring
+# Successful rotation of percona_innodb-4 to version 3
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 4;
+# Check that percona_innodb-4 with version 2 and server_uuid STILL exists in keyring
+# Check that percona_innodb-4 with version 3 and server_uuid exists in keyring
+DROP TABLE t1,t2,t3,t4,t5;

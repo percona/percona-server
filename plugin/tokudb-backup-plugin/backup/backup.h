@@ -11,32 +11,26 @@ extern "C" {
 
 // These public API's should be in C.
 
-typedef int (*backup_poll_fun_t)(float progress, const char *progress_string, void *poll_extra);
+typedef int (*backup_poll_fun_t)(float progress, const char *progress_string,
+                                 void *poll_extra);
 
-typedef void (*backup_error_fun_t)(int error_number, const char *error_string, void *error_extra);
+typedef void (*backup_error_fun_t)(int error_number, const char *error_string,
+                                   void *error_extra);
 
 // The exclude_copy callback if called for every file that will be copied.
 // When it returns 0, the file is copied.  Otherwise, the file copy is skipped.
-typedef int (*backup_exclude_copy_fun_t)(const char *source_file,void *extra);
+typedef int (*backup_exclude_copy_fun_t)(const char *source_file, void *extra);
 
 typedef void (*backup_before_stop_capt_fun_t)(void *extra);
 typedef void (*backup_after_stop_capt_fun_t)(void *extra);
 
-
-int tokubackup_create_backup(const char *source_dirs[],
-                             const char *dest_dirs[],
-                             int dir_count,
-                             backup_poll_fun_t poll_fun,
-                             void *poll_extra,
-                             backup_error_fun_t error_fun,
-                             void *error_extra,
-                             backup_exclude_copy_fun_t check_fun,
-                             void *exclude_copy_extra,
-                             backup_before_stop_capt_fun_t bsc_fun,
-                             void *bsc_extra,
-                             backup_after_stop_capt_fun_t asc_fun,
-                             void *asc_extra)
-    throw() __attribute__((visibility("default")));
+int tokubackup_create_backup(
+    const char *source_dirs[], const char *dest_dirs[], int dir_count,
+    backup_poll_fun_t poll_fun, void *poll_extra, backup_error_fun_t error_fun,
+    void *error_extra, backup_exclude_copy_fun_t check_fun,
+    void *exclude_copy_extra, backup_before_stop_capt_fun_t bsc_fun,
+    void *bsc_extra, backup_after_stop_capt_fun_t asc_fun,
+    void *asc_extra) throw() __attribute__((visibility("default")));
 // Effect: Backup the directories in source_dirs into correspnding dest_dirs.
 // Periodically call poll_fun.
 //  If poll_fun returns 0, then the backup continues.
@@ -72,10 +66,11 @@ int tokubackup_create_backup(const char *source_dirs[],
 //     into the log).  There are thus two ways for the caller to find out the
 //     error: the error_fun is called and the error number is returned.
 //   This single function provides almost everything we need to do a
-//     backup.  For example the mysql code can abort backup when the user types ctrl-C 
-//     by returning a nonzero value from poll_fun.
+//     backup.  For example the mysql code can abort backup when the user types
+//     ctrl-C by returning a nonzero value from poll_fun.
 
-void tokubackup_throttle_backup(unsigned long bytes_per_second) throw() __attribute__((visibility("default")));
+void tokubackup_throttle_backup(unsigned long bytes_per_second) throw()
+    __attribute__((visibility("default")));
 // Effect: Throttle the rate at which copying happens.
 //   This function can be called by any thread at any time, and will throttle
 //   future backups as well as any currently running backup.
@@ -85,17 +80,19 @@ void tokubackup_throttle_backup(unsigned long bytes_per_second) throw() __attrib
 //   if you have a critical query running and want to absolutely minimize the
 //   impact of backup, without actually aborting the backup.
 //  Pass in ULONG_MAX completely unthrottle the backup.  (This system may
-//   actually throttle the backup to that rate, but 
+//   actually throttle the backup to that rate, but
 //   ULONG_MAX comes out to 16 Yobibytes/second, which is effectively
 //   infinite).
 //  The system throttles the reads out of the source directory, not writes into
-//   the destination directory.  If the underlying data directory is being modified
-//   at a high rate, then the destination directory will receive those modifications
-//   at the same rate, plus receive the throttled read data from the source.
+//   the destination directory.  If the underlying data directory is being
+//   modified at a high rate, then the destination directory will receive those
+//   modifications at the same rate, plus receive the throttled read data from
+//   the source.
 
-const extern char *tokubackup_version_string  __attribute__((visibility("default")));
+const extern char *tokubackup_version_string
+    __attribute__((visibility("default")));
 
 const int BACKUP_SUCCESS = 0;
 }
 
-#endif // end of header guardian.
+#endif  // end of header guardian.

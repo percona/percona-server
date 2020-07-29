@@ -1,6 +1,5 @@
 # Created: 2015-05-15  Lalit Choudhary
 
--- source include/not_embedded.inc
 --source include/big_test.inc
 --echo #
 --echo # WL#7755  mysqlpump: Extend mysqldump functionalities with mysqldump option.
@@ -132,8 +131,8 @@ DROP DATABASE db1_1gb;
 SHOW VARIABLES LIKE "master_info_repository";
 SHOW VARIABLES LIKE "relay_log_info_repository";
 
-SET GLOBAL master_info_repository= 'TABLE';
-SET GLOBAL relay_log_info_repository= 'TABLE';
+SET GLOBAL master_info_repository= 'FILE';
+SET GLOBAL relay_log_info_repository= 'FILE';
 
 SHOW VARIABLES LIKE "master_info_repository";
 SHOW VARIABLES LIKE "relay_log_info_repository";
@@ -150,14 +149,42 @@ SHOW VARIABLES LIKE "relay_log_info_repository";
 --let SEARCH_PATTERN= CREATE TABLE `mysql`.`slave_relay_log_info`
 --source include/search_pattern.inc
 
-SET GLOBAL master_info_repository= 'FILE';
-SET GLOBAL relay_log_info_repository= 'FILE';
+SET GLOBAL master_info_repository= 'TABLE';
+SET GLOBAL relay_log_info_repository= 'TABLE';
 
 SHOW VARIABLES LIKE "master_info_repository";
 SHOW VARIABLES LIKE "relay_log_info_repository";
 
 # Cleanup
 --remove_file $SEARCH_FILE
+
+--echo #
+--echo # Dump a table that has column statistics
+--echo #
+CREATE SCHEMA column_statistics_dump;
+USE column_statistics_dump;
+CREATE TABLE t1 (col1 INT);
+INSERT INTO t1 VALUES (1), (2);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 22 BUCKETS;
+
+--echo # Verify that the number of buckets specified (22) is also present in the
+--echo # dump file.
+SELECT schema_name, table_name, column_name,
+       JSON_EXTRACT(HISTOGRAM, '$."number-of-buckets-specified"')
+FROM information_schema.COLUMN_STATISTICS;
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/output_file.sql
+
+--exec $MYSQL_PUMP --column-statistics column_statistics_dump t1 > $assert_file
+
+--let $assert_select= \/\*!80002 ANALYZE TABLE `column_statistics_dump`.`t1` UPDATE HISTOGRAM ON `col1` WITH 22 BUCKETS \*\/;
+--let $assert_count= 1
+--let $assert_text= Check for ANALYZE TABLE with histogram clause
+--source include/assert_grep.inc
+
+--remove_file $MYSQLTEST_VARDIR/tmp/output_file.sql
+
+DROP SCHEMA column_statistics_dump;
 
 --echo #
 --echo # Bug #27096081: MYSQLPUMP VALIDATES ALL DATABASE OBJECTS BY
@@ -195,7 +222,7 @@ FLUSH PRIVILEGES;
 
 --let SEARCH_FILE= $MYSQLTEST_VARDIR/log/bug27096081.log
 --let SEARCH_PATTERN= \[NOTE\] \(1449\) The user specified as a definer \('u1'@'%'\) does not exist
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
 --error 23, 42, 169, 1449
@@ -203,7 +230,7 @@ FLUSH PRIVILEGES;
 
 --let SEARCH_FILE= $MYSQLTEST_VARDIR/log/bug27096081.log
 --let SEARCH_PATTERN= \[ERROR\] \(1449\) The user specified as a definer \('u1'@'%'\) does not exist
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
 CREATE USER 'u1'@'%' IDENTIFIED BY 'abc';

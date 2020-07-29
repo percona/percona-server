@@ -5,7 +5,6 @@
 # constraint defined failed with an incorrect duplicate entry error rather than
 # a foreign key constraint violation error.
 #
---source include/have_innodb.inc
 
 CREATE TABLE t1(c INT,PRIMARY KEY (c)) Engine=InnoDB;
 INSERT IGNORE INTO t1 VALUES(),(),();

@@ -17,6 +17,10 @@
 /* This C++ file's header file */
 #include "./rdb_mutex_wrapper.h"
 
+/* MySQL header files */
+#include "my_systime.h"
+#include "sql/current_thd.h"
+
 /* MyRocks header files */
 #include "./ha_rocksdb.h"
 #include "./rdb_utils.h"
@@ -33,7 +37,7 @@ using namespace rocksdb;
 namespace myrocks {
 
 static PSI_stage_info stage_waiting_on_row_lock2 = {0, "Waiting for row lock",
-                                                    0};
+                                                    0, nullptr};
 
 static const int64_t ONE_SECOND_IN_MICROSECS = 1000 * 1000;
 // A timeout as long as one full non-leap year worth of microseconds is as

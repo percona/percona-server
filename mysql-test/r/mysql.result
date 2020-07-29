@@ -1,13 +1,13 @@
 drop table if exists t1;
 create table t1(a int);
 insert into t1 values(1);
-ERROR at line 9: DELIMITER must be followed by a 'delimiter' character or string
 
 Test default delimiter ;
 a
 1
 
 Test delimiter without arg
+ERROR at line 9: DELIMITER must be followed by a 'delimiter' character or string
 
 Test delimiter :
 a
@@ -90,21 +90,21 @@ drop table t1;
 i	j	k
 NULL	1	NULL
 Field	Type	Null	Key	Default	Extra
-i	int(11)	YES		NULL	
-j	int(11)	NO		NULL	
-k	int(11)	YES		NULL	
+i	int	YES		NULL	
+j	int	NO		NULL	
+k	int	YES		NULL	
 +------+---+------+
 | i    | j | k    |
 +------+---+------+
 | NULL | 1 | NULL |
 +------+---+------+
-+-------+---------+------+-----+---------+-------+
-| Field | Type    | Null | Key | Default | Extra |
-+-------+---------+------+-----+---------+-------+
-| i     | int(11) | YES  |     | NULL    |       |
-| j     | int(11) | NO   |     | NULL    |       |
-| k     | int(11) | YES  |     | NULL    |       |
-+-------+---------+------+-----+---------+-------+
++-------+------+------+-----+---------+-------+
+| Field | Type | Null | Key | Default | Extra |
++-------+------+------+-----+---------+-------+
+| i     | int  | YES  |     | NULL    |       |
+| j     | int  | NO   |     | NULL    |       |
+| k     | int  | YES  |     | NULL    |       |
++-------+------+------+-----+---------+-------+
 i	s1
 1	x
 2	NULL
@@ -125,14 +125,15 @@ NULL
 +--------------+
 create table t1(a int, b varchar(255), c int);
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 b	varchar(255)	YES		NULL	
-c	int(11)	YES		NULL	
+c	int	YES		NULL	
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 b	varchar(255)	YES		NULL	
-c	int(11)	YES		NULL	
+c	int	YES		NULL	
 drop table t1;
+ERROR 1059 (42000) at line 1: Identifier name 'verylongdatabasenamethatshouldblowthe256byteslongbufferincom_connectfunctionxkxkxkxkxkxkxkxkxkxkxkxk' is too long
 1
 1
 ERROR 1064 (42000) at line 3: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
@@ -200,7 +201,6 @@ COUNT (*)
 1
 ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'invalid_hostname' (errno)
 End of 5.0 tests
-WARNING: --server-arg option not supported in this configuration.
 *************************** 1. row ***************************
 1: 1
 2: 2
@@ -398,12 +398,10 @@ WARNING: --server-arg option not supported in this configuration.
 | 1 |
 +---+
 SET @@global.sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Warning (Code 1286): Unknown storage engine 'nonexistent'
-Warning (Code 1266): Using storage engine MyISAM for table 't2'
+Warning (Code 1266): Using storage engine InnoDB for table 't2'
 Warning (Code 1286): Unknown storage engine 'nonexistent2'
-Warning (Code 1266): Using storage engine MyISAM for table 't2'
+Warning (Code 1266): Using storage engine InnoDB for table 't2'
 Error (Code 1050): Table 't2' already exists
 drop tables t1, t2;
 SET @@global.sql_mode=DEFAULT;
@@ -516,16 +514,15 @@ mysql: [Warning] Using a password on the command line interface can be insecure.
 mysql: [Warning] Using a password on the command line interface can be insecure.
 1
 1
-ERROR 1243 (HY000) at line 15: Unknown prepared statement handler (x) given to EXECUTE
 a
 1
 2
+ERROR 1243 (HY000) at line 15: Unknown prepared statement handler (x) given to EXECUTE
 #
 # Bug #16102788: INDETERMINATE BEHAVIOR DUE TO EMPTY OPTION VALUES
-# Bug #23023457: DEBIAN/UBUNTU PACKAGES FAIL TO INSTALL BECAUSE OF EMPTY CONFIG VALUES
 #
-mysql: [Warning] mysql: Empty value for 'port' specified. Will throw an error in future versions
-mysql: [Warning] mysql: Empty value for 'port' specified. Will throw an error in future versions
+mysql: [ERROR] mysql: Empty value for 'port' specified.
+mysql: [ERROR] mysql: Empty value for 'port' specified.
 #
 # Bug #21464621: MYSQL CLI SHOULD SUGGEST CONNECT-EXPIRED-PASSWORD WHEN ERROR 1862 OCCURS
 #
@@ -537,5 +534,10 @@ mysql: [Warning] Using a password on the command line interface can be insecure.
 user()
 bug21464621@localhost
 DROP USER bug21464621;
+#
+# WL#13038: Make mysql command line tool's --binary-as-hex be on by
+#   default for interactive terminals
+#
+include/assert_grep.inc [check the output of mysql for the binary-as-hex mark in mysql status]
 
 End of tests

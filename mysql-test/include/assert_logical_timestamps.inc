@@ -8,9 +8,9 @@
 # --let $binlog_file= FILENAME
 # [--let $binlog_position= OFFSET]
 # --let $logical_timestamps= LC1 SN1[;LC2 SN2[;LC3 SN3...]]
+# [--let $logical_timestamps_mix= LC1 SN1[;LC2 SN2[;LC3 SN3...]]]
 # [--let $save_binlog_position= 1]
 # [--let $dont_print_logical_timestamps= 1]
-# [--let $logical_timestamps_mix= LC1 SN1[;LC2 SN2[;LC3 SN3...]]]
 # --source include/assert_logical_timestamps.inc
 #
 # Parameters:
@@ -30,6 +30,11 @@
 #     not be any other space characters than those separating
 #     last_committed from sequence_number.
 #
+#   $logical_timestamps_mix
+#     This is an optional list to be used instead of $logical_timestamps if
+#     the current binlog format is mixed. It is reset at the end of
+#     this include file.
+#
 #   $save_binlog_position
 #     If this flag is set, the script will source
 #     include/save_binlog_position.inc after it has finished the
@@ -41,7 +46,14 @@
 #     By default, $logical_timestamps is printed to the result log. If
 #     this flag is set, that is suppressed.
 
---let $include_filename= include/assert_logical_timestamps.inc [$logical_timestamps]
+if ($logical_timestamps_mix == '')
+{
+  --let $include_filename= include/assert_logical_timestamps.inc [$logical_timestamps]
+}
+if ($logical_timestamps_mix != '')
+{
+  --let $include_filename= include/assert_logical_timestamps.inc [logical_timestamps=$logical_timestamps logical_timestamps_mix=$logical_timestamps_mix]
+}
 if ($dont_print_logical_timestamps)
 {
   --let $include_filename= include/assert_logical_timestamps.inc
@@ -51,7 +63,7 @@ if ($dont_print_logical_timestamps)
 --let $expected_logical_timestamps= $logical_timestamps
 if ($logical_timestamps_mix != '')
 {
-  --let $binlog_format= `SELECT @@GLOBAL.BINLOG_FORMAT`
+  --let $binlog_format= `SELECT @@GLOBAL.binlog_format`
   if ($binlog_format == 'MIXED')
   {
     --let $expected_logical_timestamps= $logical_timestamps_mix
@@ -78,13 +90,12 @@ if ($binlog_position)
 
 --remove_file $assert_file
 
---let $logical_timestamps_mix=
 
 if ($save_binlog_position)
 {
   --source include/save_binlog_position.inc
 }
 
-
---let $include_filename= include/assert_logical_timestamps.inc [$logical_timestamps]
+--let $include_filename= include/assert_logical_timestamps.inc [logical_timestamps=$logical_timestamps logical_timestamps_mix=$logical_timestamps_mix]
 --source include/end_include_file.inc
+--let $logical_timestamps_mix=

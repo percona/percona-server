@@ -5,5 +5,7 @@ CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
 BEGIN;
 INSERT INTO t1 VALUES (1);
 # Kill the server
+Pattern "Difficult to find free blocks" found
+Pattern "END OF INNODB MONITOR OUTPUT" found
 # restart
 DROP TABLE t1;

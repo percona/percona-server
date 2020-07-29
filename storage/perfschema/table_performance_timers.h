@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -17,8 +17,8 @@
   GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef TABLE_PERFORMANCE_TIMERS_H
 #define TABLE_PERFORMANCE_TIMERS_H
@@ -28,18 +28,23 @@
   Table PERFORMANCE_TIMERS (declarations).
 */
 
-#include <my_rdtsc.h>
-#include "pfs_column_types.h"
-#include "pfs_engine_table.h"
+#include "my_base.h"
+#include "my_rdtsc.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_engine_table.h"
+
+class Field;
+class Plugin_table;
+struct TABLE;
+struct THR_LOCK;
 
 /**
-  @addtogroup Performance_schema_tables
+  @addtogroup performance_schema_tables
   @{
 */
 
 /** A row of PERFORMANCE_SCHEMA.PERFORMANCE_TIMERS. */
-struct row_performance_timers
-{
+struct row_performance_timers {
   /** Column TIMER_NAME. */
   enum_timer_name m_timer_name;
   /**
@@ -50,36 +55,32 @@ struct row_performance_timers
 };
 
 /** Table PERFORMANCE_SCHEMA.PERFORMANCE_TIMERS. */
-class table_performance_timers : public PFS_engine_table
-{
-public:
+class table_performance_timers : public PFS_engine_table {
+ public:
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
 
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
   virtual void reset_position(void);
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
-protected:
+ protected:
   table_performance_timers();
 
-public:
-  ~table_performance_timers()
-  {}
+ public:
+  ~table_performance_timers() {}
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
-  /** Fields definition. */
-  static TABLE_FIELD_DEF m_field_def;
+  /** Table definition. */
+  static Plugin_table m_table_def;
 
   /** Current row. */
   row_performance_timers *m_row;

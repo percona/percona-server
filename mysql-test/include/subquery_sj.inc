@@ -22,11 +22,11 @@ insert into t1 values (1,10), (2,20), (3,30),  (4,40);
 insert into t2 values (2), (3), (4), (5);
 insert into t3 values (10,3), (20,4), (30,5);
 select * from t2 where t2.a in (select a from t1);
-explain extended select * from t2 where t2.a in (select a from t1);
+explain select * from t2 where t2.a in (select a from t1);
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
-explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
+explain select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
-explain extended select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
+explain select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 drop table t1, t2, t3;
 create table t1 (a int, b int, index a (a,b));
 create table t2 (a int, index a (a));
@@ -41,15 +41,15 @@ select rand()*100000+200,rand()*100000 from t0 A, t0 B, t0 C, t0 D;
 insert into t2 values (2), (3), (4), (5);
 insert into t3 values (10,3), (20,4), (30,5);
 select * from t2 where t2.a in (select a from t1);
-explain extended select * from t2 where t2.a in (select a from t1);
+explain select * from t2 where t2.a in (select a from t1);
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
-explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
+explain select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
-explain extended select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
+explain select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 insert into t1 values (3,31);
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30 and t1.b <> 31);
-explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
+explain select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 drop table t0, t1, t2, t3;
 
 
@@ -94,18 +94,18 @@ explain select * from t1 where a in (select pk from t10 where t10.a in (select p
 select * from t1 where a in (select pk from t10 where t10.a in (select pk from t12));
 
 --echo flattening subquery w/ several tables
-explain extended select * from t1 where a in (select t10.pk from t10, t12 where t12.pk=t10.a);
+explain select * from t1 where a in (select t10.pk from t10, t12 where t12.pk=t10.a);
 
 --echo subqueries within outer joins go into ON expr.
 # TODO: psergey: check if case conversions like those are ok (it broke on  windows)
---replace_result a A b B
-explain extended
+--replace_regex /\ba\b/A/ /\bb\b/B/
+explain
 select * from t1 left join (t2 a, t2 b) on ( a.a= t1.a and b.a in (select pk from t10));
 
 # TODO: psergey: check if case conversions like those are ok (it broke on  windows)
 --echo t2 should be wrapped into OJ-nest, so we have "t1 LJ (t2 J t10)"
---replace_result a A b B
-explain extended
+--replace_regex /\ba\b/A/ /\bb\b/B/
+explain
 select * from t1 left join t2 on (t2.a= t1.a and t2.a in (select pk from t10));
 
 --echo we shouldn't flatten if we're going to get a join of > MAX_TABLES.
@@ -138,7 +138,7 @@ execute s1;
 
 # Try I2O orders
 insert into t1 select (A.a + 10 * B.a),1 from t0 A, t0 B;
-explain extended select * from t1 where a in (select pk from t10 where pk<3);
+explain select * from t1 where a in (select pk from t10 where pk<3);
 
 drop table t0, t1, t2;
 drop table t10, t11, t12;
@@ -167,21 +167,35 @@ while ($i)
          SELECT * FROM t1 WHERE (t1.i) IN 
            (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
          eval EXPLAIN $query;
+         --sorted_result
          eval $query;
 
          eval PREPARE stmt FROM "$query";
+         --sorted_result
          EXECUTE stmt;
+         --sorted_result
          EXECUTE stmt;
          DEALLOCATE PREPARE stmt;
+
+         let $query=
+         SELECT * FROM t1 WHERE EXISTS 
+           (SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+            WHERE t1.i = t3.i);
+         eval EXPLAIN $query;
+         --sorted_result
+         eval $query;
 
          let $query=
          SELECT * FROM t1 WHERE (t1.i) IN 
            (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
          eval EXPLAIN $query;
+         --sorted_result
          eval $query;
 
          eval PREPARE stmt FROM "$query";
+         --sorted_result
          EXECUTE stmt;
+         --sorted_result
          EXECUTE stmt;
          DEALLOCATE PREPARE stmt;
 
@@ -189,36 +203,42 @@ while ($i)
          SELECT * FROM t1 WHERE (t1.i) IN 
            (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
          eval EXPLAIN $query;
+         --sorted_result
          eval $query;
 
          let $query=
          SELECT * FROM t1 WHERE (t1.i) IN 
            (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
          eval EXPLAIN $query;
+         --sorted_result
          eval $query;
 
          let $query=
          SELECT * FROM t1 WHERE (11) IN 
            (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
          eval EXPLAIN $query;
+         --sorted_result
          eval $query;
 
          let $query=
          SELECT * FROM t1 WHERE (11) IN 
-           (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+           (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i <> 0);
          eval EXPLAIN $query;
+         --sorted_result
          eval $query;
 
          let $query=
          SELECT * FROM t1 WHERE (11) IN 
            (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
          eval EXPLAIN $query;
+         --sorted_result
          eval $query;
 
          let $query=
          SELECT * FROM t1 WHERE (11) IN 
            (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
          eval EXPLAIN $query;
+         --sorted_result
          eval $query;
 
 	 dec $k;
@@ -417,16 +437,24 @@ create table t3 (a int);
 insert into t3 select A.a + 10*B.a from t0 A, t0 B;
 
 explain select * from t3 where a in (select kp1 from t1 where kp1<20);
+--sorted_result
 select * from t3 where a in (select kp1 from t1 where kp1<20);
 
 explain select * from t3 where a in (select kp1 from t1 where kp1<20) and a<20;
+--sorted_result
 select * from t3 where a in (select kp1 from t1 where kp1<20) and a<20;
 
 create table t4 (pk int primary key);
 insert into t4 select a from t3;
 
-explain select * from t3 where a in 
+explain select * from t3 where a in
           (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
+
+# In subquery_sj_loosescan_bka_nobnl (ie., with loose scan), demonstrates
+# how NestedLoopSemiJoinWithDuplicateRemovalIterator is used.
+explain format=tree select * from t3 where a in
+          (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
+--sorted_result
 select * from t3 where a in 
   (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
 
@@ -438,6 +466,7 @@ drop table t1, t3, t4;
 create table t1 (a int);
 insert into t1 values (0),(0),(0),(1),(1),(1),(2),(2),(2),(3),(3),(3);
 
+set session internal_tmp_mem_storage_engine='memory';
 set @save_max_heap_table_size=@@max_heap_table_size;
 set @@max_heap_table_size= 16384;
 
@@ -456,6 +485,7 @@ where c.a in (select a from t1 d);
 show status like 'Created_tmp_disk_tables';
 
 set @@max_heap_table_size= @save_max_heap_table_size;
+set session internal_tmp_mem_storage_engine=default;
 flush status;
 select count(*) from t0 a, t0 b, t0 c
 where c.a in (select a from t1 d);
@@ -473,6 +503,7 @@ insert into t2 values (1),(2);
 create table t3 ( a int , filler char(100), key(a)); 
 insert into t3 select A.a + 10*B.a, 'filler' from t0 A, t0 B;
 explain select * from t3 where a in (select a from t2) and (a > 5 or a < 10); 
+--sorted_result
 select * from t3 where a in (select a from t2); 
 
 drop table t0, t2, t3;
@@ -503,7 +534,7 @@ drop table t1;
 create table t1 (a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t2 as select * from t1;
-create table t3 (a int, b int, filler char(100), key(a));
+create table t3 (a int, b int, filler char(100), key(a)) charset utf8mb4;
 insert into t3 select A.a + 10*B.a, A.a + 10*B.a, 'filler' from t1 A, t1 B, t1 C;
 explain select * from t1, t3 where t3.a in (select a from t2) and (t3.a < 10 or t3.a >30) and t1.a =3;
 --replace_regex /"rows_produced_per_join": 792/"rows_produced_per_join": 793/
@@ -744,7 +775,7 @@ insert into t3_16 values
  (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
 
 # single value transformer
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select b1 from t2_16 where b1 > '0');
 
@@ -753,7 +784,7 @@ from t1_16
 where a1 in (select b1 from t2_16 where b1 > '0');
 
 # row value transformer
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_16
 where (a1,a2) in (select b1, b2 from t2_16 where b1 > '0');
 
@@ -762,7 +793,7 @@ from t1_16
 where (a1,a2) in (select b1, b2 from t2_16 where b1 > '0');
 
 # string function with a blob argument, the return type may be != blob
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select substring(b1,1,16) from t2_16 where b1 > '0');
 
@@ -773,7 +804,7 @@ where a1 in (select substring(b1,1,16) from t2_16 where b1 > '0');
 # group_concat with a blob argument - depends on
 # the variable group_concat_max_len, and
 # convert_blob_length == max_len*collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select group_concat(b1) from t2_16 group by b2);
 
@@ -783,7 +814,7 @@ where a1 in (select group_concat(b1) from t2_16 group by b2);
 
 set @@group_concat_max_len = 256; # anything < (CONVERT_IF_BIGGER_TO_BLOB = 512)
 
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select group_concat(b1) from t2_16 group by b2);
 
@@ -792,9 +823,9 @@ from t1_16
 where a1 in (select group_concat(b1) from t2_16 group by b2);
 
 # BLOB column at the second (intermediate) level of nesting
-create table t1 (a1 char(8), a2 char(8));
-create table t2 (b1 char(8), b2 char(8));
-create table t3 (c1 char(8), c2 char(8));
+create table t1 (a1 char(8), a2 char(8)) charset latin1;
+create table t2 (b1 char(8), b2 char(8)) charset latin1;
+create table t3 (c1 char(8), c2 char(8)) charset latin1;
 insert into t1 values ('1 - 00', '2 - 00');
 insert into t1 values ('1 - 01', '2 - 01');
 insert into t1 values ('1 - 02', '2 - 02');
@@ -812,7 +843,7 @@ insert into t3 values ('1 - 06', '2 - 06');
 insert into t3 values ('1 - 07', '2 - 07');
 insert into t3 values ('1 - 08', '2 - 08');
 
-explain extended
+explain
 select * from t1
 where concat(a1,'x') IN
       (select left(a1,8) from t1_16
@@ -857,7 +888,7 @@ insert into t3_512 values
  (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
 
 # single value transformer
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select b1 from t2_512 where b1 > '0');
 
@@ -866,7 +897,7 @@ from t1_512
 where a1 in (select b1 from t2_512 where b1 > '0');
 
 # row value transformer
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_512
 where (a1,a2) in (select b1, b2 from t2_512 where b1 > '0');
 
@@ -875,7 +906,7 @@ from t1_512
 where (a1,a2) in (select b1, b2 from t2_512 where b1 > '0');
 
 # string function with a blob argument, the return type may be != blob
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select substring(b1,1,512) from t2_512 where b1 > '0');
 
@@ -886,7 +917,7 @@ where a1 in (select substring(b1,1,512) from t2_512 where b1 > '0');
 # group_concat with a blob argument - depends on
 # the variable group_concat_max_len, and
 # convert_blob_length == max_len*collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
 
@@ -896,7 +927,7 @@ where a1 in (select group_concat(b1) from t2_512 group by b2);
 
 set @@group_concat_max_len = 256; # anything < (CONVERT_IF_BIGGER_TO_BLOB = 512)
 
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
 
@@ -939,7 +970,7 @@ insert into t3_513 values
  (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
 
 # single value transformer
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_513
 where a1 in (select b1 from t2_513 where b1 > '0');
 
@@ -948,7 +979,7 @@ from t1_513
 where a1 in (select b1 from t2_513 where b1 > '0');
 
 # row value transformer
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_513
 where (a1,a2) in (select b1, b2 from t2_513 where b1 > '0');
 
@@ -957,7 +988,7 @@ from t1_513
 where (a1,a2) in (select b1, b2 from t2_513 where b1 > '0');
 
 # string function with a blob argument, the return type may be != blob
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_513
 where a1 in (select substring(b1,1,513) from t2_513 where b1 > '0');
 
@@ -968,7 +999,7 @@ where a1 in (select substring(b1,1,513) from t2_513 where b1 > '0');
 # group_concat with a blob argument - depends on
 # the variable group_concat_max_len, and
 # convert_blob_length == max_len*collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_513
 where a1 in (select group_concat(b1) from t2_513 group by b2);
 
@@ -1011,7 +1042,7 @@ insert into t3_1024 values
  (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
 
 # single value transformer
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select b1 from t2_1024 where b1 > '0');
 
@@ -1020,7 +1051,7 @@ from t1_1024
 where a1 in (select b1 from t2_1024 where b1 > '0');
 
 # row value transformer
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_1024
 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0');
 
@@ -1029,7 +1060,7 @@ from t1_1024
 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0');
 
 # string function with a blob argument, the return type may be != blob
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0');
 
@@ -1040,7 +1071,7 @@ where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0');
 # group_concat with a blob argument - depends on
 # the variable group_concat_max_len, and
 # convert_blob_length == max_len*collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
 
@@ -1050,7 +1081,7 @@ where a1 in (select group_concat(b1) from t2_1024 group by b2);
 
 set @@group_concat_max_len = 256; # anything < (CONVERT_IF_BIGGER_TO_BLOB = 1024)
 
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
 
@@ -1093,7 +1124,7 @@ insert into t3_1025 values
  (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
 
 # single value transformer
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select b1 from t2_1025 where b1 > '0');
 
@@ -1102,7 +1133,7 @@ from t1_1025
 where a1 in (select b1 from t2_1025 where b1 > '0');
 
 # row value transformer
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_1025
 where (a1,a2) in (select b1, b2 from t2_1025 where b1 > '0');
 
@@ -1111,7 +1142,7 @@ from t1_1025
 where (a1,a2) in (select b1, b2 from t2_1025 where b1 > '0');
 
 # string function with a blob argument, the return type may be != blob
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select substring(b1,1,1025) from t2_1025 where b1 > '0');
 
@@ -1122,7 +1153,7 @@ where a1 in (select substring(b1,1,1025) from t2_1025 where b1 > '0');
 # group_concat with a blob argument - depends on
 # the variable group_concat_max_len, and
 # convert_blob_length == max_len*collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
 
@@ -1132,7 +1163,7 @@ where a1 in (select group_concat(b1) from t2_1025 group by b2);
 
 set @@group_concat_max_len = 256; # anything < (CONVERT_IF_BIGGER_TO_BLOB = 1025)
 
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
 
@@ -1373,6 +1404,17 @@ SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a+0 AND
                          (ot1.a, ot2.a) IN (SELECT it1.a+0, it2.a+0
                                             FROM it1 JOIN it2 ON it1.a=it2.a);
+
+# In subquery_sj_dupsweed (ie., duplicate weedout active), demonstrates
+# how weedouts that intersect with outer joins are being dropped and then
+# reintroduced again at the very top of the join tree.
+#
+# In subquery_sj_{all,firstmatch}_*, demonstrates how partially overlapping
+# outer joins and first matches are rejected by the join optimizer and cannot
+# exist (DBUG_ASSERTs in FindSubstructure verify it).
+EXPLAIN FORMAT=tree SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)
+         LEFT JOIN ot3 ON ot2.a=ot3.a AND ot3.a IN (SELECT a FROM it3);
 
 --sorted_result
 SELECT *
@@ -1741,14 +1783,15 @@ CREATE TABLE t0 (
   vnokey VARCHAR(1),
   PRIMARY KEY (pk),
   KEY vkey(vkey)
-);
+) charset utf8mb4;
 
 INSERT INTO t0 
 VALUES (1,'g','g'), (2,'v','v'), (3,'t','t'), (4,'u','u'), (5,'n','n');
 
-EXPLAIN EXTENDED SELECT vkey FROM t0 WHERE pk IN 
+EXPLAIN SELECT vkey FROM t0 WHERE pk IN
   (SELECT t1.pk FROM t0 t1 JOIN t0 t2 ON t2.vkey = t1.vnokey);
 
+--sorted_result
 SELECT vkey FROM t0 WHERE pk IN 
   (SELECT t1.pk FROM t0 t1 JOIN t0 t2 ON t2.vkey = t1.vnokey);
 
@@ -1786,7 +1829,9 @@ DELIMITER ;|
 INSERT INTO t1 VALUES (1),(2),(3);
 INSERT INTO t2 VALUES (2),(3),(4);
 
+--sorted_result
 CALL p1;
+--sorted_result
 CALL p1;
 
 DROP TABLE t1,t2;
@@ -1945,7 +1990,7 @@ CREATE TABLE t0 (
   varchar_nokey varchar(1) DEFAULT NULL,
   KEY int_key (int_key),
   KEY varchar_key (varchar_key,int_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t0 VALUES
 (1,'m','m'),
@@ -1975,7 +2020,7 @@ CREATE TABLE t1 (
   varchar_nokey varchar(1) DEFAULT NULL,
   KEY int_key (int_key),
   KEY varchar_key (varchar_key,int_key)
-);
+) charset utf8mb4;
 INSERT INTO t1 VALUES (7,NULL,NULL),(4,'x','x');
 
 CREATE TABLE t2 (
@@ -1984,14 +2029,16 @@ CREATE TABLE t2 (
   varchar_nokey varchar(1) DEFAULT NULL,
   KEY int_key (int_key),
   KEY varchar_key (varchar_key,int_key)
-);
+) charset utf8mb4;
 INSERT INTO t2 VALUES (123,NULL,NULL);
 
+--sorted_result
 SELECT int_key  
 FROM t0  
 WHERE varchar_nokey  IN (  
   SELECT t1 .varchar_key  from t1
 );
+--sorted_result
 SELECT t0.int_key  
 FROM t0
 WHERE t0.varchar_nokey  IN (  
@@ -2007,6 +2054,7 @@ WHERE t0.varchar_nokey  IN (
   FROM t1 AS t1_1  JOIN t1 AS t1_2 ON t1_1 .int_key
 );
 
+--sorted_result
 SELECT t0.int_key  
 FROM t0, t2
 WHERE t0.varchar_nokey  IN (  
@@ -2121,6 +2169,7 @@ FROM t2
 WHERE LEFT(country,1) = "A" 
 ; 
 
+--sorted_result
 SELECT city, country_id
 FROM t1
 WHERE country_id IN (
@@ -2129,6 +2178,7 @@ WHERE country_id IN (
   WHERE LEFT(country,1) = "A" 
 );
 
+--sorted_result
 SELECT city, country_id
 FROM t1
 WHERE country_id IN (
@@ -2146,6 +2196,8 @@ WHERE country_id IN (
 );
 ";
 
+
+--sorted_result
 execute stmt;
 
 deallocate prepare stmt;
@@ -2177,7 +2229,9 @@ FROM t1
 WHERE t1field IN (SELECT * FROM v2);
 ";
 
+--sorted_result
 EXECUTE stmt;
+--sorted_result
 EXECUTE stmt;
 
 PREPARE stmt FROM
@@ -2201,9 +2255,9 @@ DROP VIEW v2, v3;
 --echo # Bug#48623 Multiple subqueries are optimized incorrectly
 --echo # 
 
-CREATE TABLE ot(val VARCHAR(10));
-CREATE TABLE it1(val VARCHAR(10));
-CREATE TABLE it2(val VARCHAR(10));
+CREATE TABLE ot(val VARCHAR(10)) charset utf8mb4;
+CREATE TABLE it1(val VARCHAR(10)) charset utf8mb4;
+CREATE TABLE it2(val VARCHAR(10)) charset utf8mb4;
 
 INSERT INTO ot  VALUES('aaa'), ('bbb'), ('eee'), ('mmm'), ('ppp');
 INSERT INTO it1 VALUES('aaa'), ('aaa'), ('bbb'), ('eee'), ('mmm'), ('ppp');
@@ -2241,10 +2295,13 @@ INSERT INTO t1 VALUES (1,10),(2,11),(1,13);
 CREATE TABLE t2 AS SELECT * FROM t1;
 CREATE TABLE t3 AS SELECT * FROM t1;
 
+# not with prepared statements because of Bug#16926177
+--disable_ps_protocol
 SELECT COUNT(*) FROM t1
 GROUP BY t1.a 
 HAVING t1.a IN (SELECT t3.a FROM t3
                 WHERE t3.b IN (SELECT b FROM t2 WHERE t2.a=t1.a));
+--enable_ps_protocol
 
 DROP TABLE t1, t2, t3;
 
@@ -2365,15 +2422,15 @@ DROP TABLE t1;
 --echo # Bug#45191: Incorrectly initialized semi-join led to a wrong result.
 --echo #
 CREATE TABLE staff (EMPNUM   CHAR(3) NOT NULL,
-    EMPNAME  CHAR(20), GRADE DECIMAL(4), CITY CHAR(15));
+    EMPNAME  CHAR(20), GRADE DECIMAL(4), CITY CHAR(15)) charset latin1;
 
 CREATE TABLE proj (PNUM CHAR(3) NOT NULL,
     PNAME    CHAR(20), PTYPE CHAR(6),
     BUDGET   DECIMAL(9),
-    CITY     CHAR(15));
+    CITY     CHAR(15)) charset latin1;
 
 CREATE TABLE works (EMPNUM CHAR(3) NOT NULL,
-    PNUM CHAR(3) NOT NULL, HOURS DECIMAL(5));
+    PNUM CHAR(3) NOT NULL, HOURS DECIMAL(5)) charset latin1;
 INSERT INTO staff VALUES ('E1','Alice',12,'Deale');
 INSERT INTO staff VALUES ('E2','Betty',10,'Vienna');
 INSERT INTO staff VALUES ('E3','Carmen',13,'Vienna');
@@ -2407,6 +2464,7 @@ WHERE EMPNUM IN
    WHERE PNUM IN
      (SELECT PNUM  FROM proj));
 
+--sorted_result
 SELECT EMPNUM, EMPNAME
 FROM staff
 WHERE EMPNUM IN
@@ -2463,7 +2521,7 @@ create table t3 (
 insert into t3 values (1,1, 'foo'), (2,2,'bar');
 
 --echo The following must be converted to a semi-join:
-explain extended SELECT a.idIndividual FROM t1 a 
+explain SELECT a.idIndividual FROM t1 a
 WHERE a.idIndividual IN 
 	(	SELECT c.idObj FROM t3 cona 
 		INNER JOIN t2 c ON c.idContact=cona.idContact 
@@ -2497,9 +2555,9 @@ SELECT one,two from t1 where ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag 
 SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N' group by one,two) as 'test' from t1;
 SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0') as 'test' from t1;
 SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0' group by one,two) as 'test' from t1;
-explain extended SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0') as 'test' from t1;
-explain extended SELECT one,two from t1 where ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N');
-explain extended SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0' group by one,two) as 'test' from t1;
+explain SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0') as 'test' from t1;
+explain SELECT one,two from t1 where ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N');
+explain SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0' group by one,two) as 'test' from t1;
 DROP TABLE t1,t2;
 
 
@@ -2519,7 +2577,7 @@ DROP TABLE t1;
 # Bug#30788 Inconsistent retrieval of char/varchar
 #
 
-CREATE TABLE t1 (a CHAR(1), b VARCHAR(10));
+CREATE TABLE t1 (a CHAR(1), b VARCHAR(10)) charset utf8mb4;
 INSERT INTO t1 VALUES ('a', 'aa');
 INSERT INTO t1 VALUES ('a', 'aaa');
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
@@ -2528,7 +2586,7 @@ CREATE INDEX I2 ON t1 (b);
 EXPLAIN SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
 
-CREATE TABLE t2 (a VARCHAR(1), b VARCHAR(10));
+CREATE TABLE t2 (a VARCHAR(1), b VARCHAR(10)) charset utf8mb4;
 INSERT INTO t2 SELECT * FROM t1;
 CREATE INDEX I1 ON t2 (a);
 CREATE INDEX I2 ON t2 (b);
@@ -2605,19 +2663,19 @@ CREATE TABLE t1
  (EMPNUM   CHAR(3) NOT NULL,
   EMPNAME  CHAR(20),
   GRADE    DECIMAL(4),
-  CITY     CHAR(15));
+  CITY     CHAR(15)) charset latin1;
 
 CREATE TABLE t2
  (PNUM     CHAR(3) NOT NULL,
   PNAME    CHAR(20),
   PTYPE    CHAR(6),
   BUDGET   DECIMAL(9),
-  CITY     CHAR(15));
+  CITY     CHAR(15)) charset latin1;
 
 CREATE TABLE t3
  (EMPNUM   CHAR(3) NOT NULL,
   PNUM     CHAR(3) NOT NULL,
-  HOURS    DECIMAL(5));
+  HOURS    DECIMAL(5)) charset latin1;
 
 INSERT INTO t1 VALUES ('E1','Alice',12,'Deale');
 INSERT INTO t1 VALUES ('E2','Betty',10,'Vienna');
@@ -2772,7 +2830,7 @@ WHERE 1 IN(SELECT 1
              WHERE 1 IN(SELECT 1
                           FROM t3));
 
-explain extended SELECT *
+explain SELECT *
 FROM t1
 WHERE 1 IN(SELECT 1
              FROM t2
@@ -2787,6 +2845,7 @@ insert into t2 select * from t1;
 insert into t3 select * from t1;
 create table t4 select * from t1;
 
+--sorted_result
 SELECT *
 FROM t1
 WHERE 1 IN(SELECT 1
@@ -2805,6 +2864,7 @@ WHERE 1 IN(SELECT 1
                       WHERE 1 IN(SELECT 1
                                  FROM t4)));
 
+--sorted_result
 SELECT *
 FROM t1
 WHERE 1 IN(SELECT 1
@@ -2883,7 +2943,7 @@ CREATE TABLE t1 (
   c varchar(4),
   d varchar(4),
   PRIMARY KEY (pk)
-);
+) charset utf8mb4;
 INSERT INTO t1 VALUES (1,'o','ffff','ffff','ffoo'),(2,'f','ffff','ffff','ffff');
 
 CREATE TABLE t2 LIKE t1;
@@ -2926,7 +2986,7 @@ CREATE TABLE t1 (
   PRIMARY KEY  (ID),
   INDEX (Population),
   INDEX (Country) 
-);
+) charset utf8mb4;
 CREATE TABLE t2 (
   Code char(3) NOT NULL default '',
   Name char(52) NOT NULL default '',
@@ -2936,14 +2996,14 @@ CREATE TABLE t2 (
   PRIMARY KEY  (Code),
   UNIQUE INDEX (Name),
   INDEX (Population)
-);
+) charset utf8mb4;
 CREATE TABLE t3 (
   Country char(3) NOT NULL default '',
   Language char(30) NOT NULL default '',
   Percentage float(3,1) NOT NULL default '0.0',
   PRIMARY KEY  (Country, Language),
   INDEX (Percentage)
-);
+) charset utf8mb4;
 
 --disable_query_log
 INSERT INTO t1 VALUES
@@ -2956,7 +3016,7 @@ INSERT INTO t1 VALUES
 (13,'Apeldoorn','NLD',153491),(14,'Nijmegen','NLD',152463),
 (15,'Enschede','NLD',149544),(16,'Haarlem','NLD',148772),
 (17,'Almere','NLD',142465),(18,'Arnhem','NLD',138020),
-(19,'Zaanstad','NLD',135621),(20,'Â´s-Hertogenbosch','NLD',129170),
+(19,'Zaanstad','NLD',135621),(20,'\'s-Hertogenbosch','NLD',129170),
 (21,'Amersfoort','NLD',126270),(22,'Maastricht','NLD',122087),
 (23,'Dordrecht','NLD',119811),(24,'Leiden','NLD',117196),
 (25,'Haarlemmermeer','NLD',110722),(26,'Zoetermeer','NLD',110214),
@@ -3028,7 +3088,7 @@ CREATE TABLE t1 (
   Capital int(11) DEFAULT NULL,
   Code2 char(2) NOT NULL DEFAULT '',
   PRIMARY KEY (Code)
-);
+) charset utf8mb4;
 
 CREATE TABLE t2 (
   ID int(11) NOT NULL AUTO_INCREMENT,
@@ -3040,6 +3100,8 @@ CREATE TABLE t2 (
   KEY CountryCode (CountryCode)
 );
 
+--character_set latin1
+set names latin1;
 --echo Fill the table with test data
 --disable_query_log
 insert into t2 (ID, Name, CountryCode, Population) values 
@@ -3226,6 +3288,7 @@ insert into t2 (ID, Name, CountryCode, Population) values
 (3531,'Mozyr','BLR',110000), (3532,'Novopolotsk','BLR',106000), (3533,'Lida','BLR',101000),
 (3534,'Soligorsk','BLR',101000), (3535,'Molodetšno','BLR',97000);
 
+
 insert into t1 (Code, Name, Continent) values 
 ('AFG','Afghanistan','Asia'), ('ANT','Netherlands Antilles','North America'),
 ('ALB','Albania','Europe'), ('AND','Andorra','Europe'),
@@ -3259,7 +3322,7 @@ drop table t1, t2;
 
 
 #
-# BUG#35160 "Subquery optimization: table pullout is not reflected in EXPLAIN EXTENDED"
+# BUG#35160 "Subquery optimization: table pullout is not reflected in EXPLAIN"
 #
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4);
@@ -3272,7 +3335,7 @@ insert into t2 select * from t1;
 
 # Table t2 should be pulled out because t2.a=t0.a equality
 --echo Table t2, unlike table t1, should be displayed as pulled out
-explain extended select * from t0
+explain select * from t0
 where t0.a in ( select t1.a from t1,t2 where t2.a=t0.a and
 t1.b=t2.b);
 
@@ -3286,21 +3349,9 @@ t1.b=t2.b);
 update t1 set a=3, b=11 where a=4;
 update t2 set b=11 where a=3;
 
-# the query just below may exhibit BUG#49129:
-create temporary table tmp select * from t0 where t0.a in 
-  (select t1.a from t1, t2 where t2.a=t0.a and t1.b=t2.b);
-# detect it and warn in result file if it's the case:
-create temporary table tmp_as_ref (a int);
-insert into tmp_as_ref values(0),(1),(2),(3); # correct desired result
-if (`select count(*) from tmp_as_ref left join tmp on tmp.a=tmp_as_ref.a
-where tmp.a is null`)
-{
-  --echo 
-  --echo # The result below is wrong due to Bug#49129
-}
-select * from tmp;
+select * from t0 where t0.a in (select t1.a from t1, t2 where t2.a=t0.a and t1.b=t2.b);
 
-drop table t0, t1, t2, tmp, tmp_as_ref;
+drop table t0, t1, t2;
 
 #
 # BUG#35767: Processing of uncorrelated subquery with semi-join cause wrong result and crash
@@ -3469,7 +3520,7 @@ drop table t0, t1, t2, t3;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1 (a int) as select A.a + 10 *(B.a + 10*C.a) as a  from t0 A, t0 B, t0 C;
-create table t2 (id int, a int, primary key(id), key(a)) as select a as id, a as a  from t1;
+create table t2 (id int, a int, primary key(id), key(a)) charset utf8mb4 as select a as id, a as a  from t1;
 show create table t2;
 set @a=0;
 create table t3 as select * from t2 limit 0;
@@ -3569,7 +3620,7 @@ CREATE TABLE t1 (
   j longtext,
   k geometry,
   PRIMARY KEY (pk)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES (1,'o','ffff','ffff','ffoo','ffff','ffff','ffff','ffff','ffff','ffff',ST_GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))')), (2,'f','ffff','ffff','ffff', 'ffff','ffff','ffff','ffff','ffff','ffff',ST_GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))'));
 
@@ -3580,52 +3631,60 @@ INSERT INTO t2 VALUES (1,'i','iiii','iiii','iiii','iiii','ffff','ffff','ffff','f
 # table would contain GEOMETRY or different kinds of BLOB/TEXT columns
 let $query=
 SELECT pk FROM t1 WHERE (a, b) IN (SELECT a, b FROM t2 WHERE pk > 0);
-eval EXPLAIN EXTENDED $query;
+eval EXPLAIN $query;
 eval $query;
 
 let $query=
 SELECT pk FROM t1 WHERE (b, c) IN (SELECT b, c FROM t2 WHERE pk > 0);
-eval EXPLAIN EXTENDED $query;
+eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 let $query=
 SELECT pk FROM t1 WHERE (b, d) IN (SELECT b, d FROM t2 WHERE pk > 0);
-eval EXPLAIN EXTENDED $query;
+eval EXPLAIN $query;
 eval $query;
 
 let $query=
 SELECT pk FROM t1 WHERE (b, e) IN (SELECT b, e FROM t2 WHERE pk > 0);
-eval EXPLAIN EXTENDED $query;
+eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 let $query=
 SELECT pk FROM t1 WHERE (b, f) IN (SELECT b, f FROM t2 WHERE pk > 0);
-eval EXPLAIN EXTENDED $query;
+eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 let $query=
 SELECT pk FROM t1 WHERE (b, g) IN (SELECT b, g FROM t2 WHERE pk > 0);
-eval EXPLAIN EXTENDED $query;
+eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 let $query=
 SELECT pk FROM t1 WHERE (b, h) IN (SELECT b, h FROM t2 WHERE pk > 0);
-eval EXPLAIN EXTENDED $query;
+eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 let $query=
 SELECT pk FROM t1 WHERE (b, i) IN (SELECT b, i FROM t2 WHERE pk > 0);
-eval EXPLAIN EXTENDED $query;
+eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 let $query=
 SELECT pk FROM t1 WHERE (b, j) IN (SELECT b, j FROM t2 WHERE pk > 0);
-eval EXPLAIN EXTENDED $query;
+eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 let $query=
 SELECT pk FROM t1 WHERE (b, k) IN (SELECT b, k FROM t2 WHERE pk > 0);
-eval EXPLAIN EXTENDED $query;
+eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1, t2;
@@ -3691,7 +3750,7 @@ drop table t1,t2,t3,t4;
 CREATE TABLE t1 (
   id INT PRIMARY KEY,
   partner_id VARCHAR(35)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES
  (1, 'partner1'), (2, 'partner2'),
@@ -3702,7 +3761,7 @@ CREATE TABLE t2 (
   t1_line_id INT,
   article_id VARCHAR(20),
   PRIMARY KEY(id, t1_line_id)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES
  (1, 1, 'sup'), (2, 1, 'sup'),
@@ -3714,7 +3773,7 @@ CREATE TABLE t3 (
   user_id VARCHAR(50),
   article_id VARCHAR(20) NOT NULL,
   PRIMARY KEY(user_id)
-);
+) charset utf8mb4;
 
 INSERT INTO t3 VALUES('nicke', 'imp');
 
@@ -3782,7 +3841,7 @@ CREATE TABLE t3 (i INTEGER);
 INSERT INTO t1 VALUES (1), (2);
 INSERT INTO t2 VALUES (6);
 INSERT INTO t3 VALUES (1), (2);
-explain extended SELECT * FROM t1 WHERE (t1.i) IN 
+explain SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t3 LEFT JOIN t2 ON t2.i=t3.i);
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t3 LEFT JOIN t2 ON t2.i=t3.i);
@@ -3811,7 +3870,9 @@ WHERE country_id IN (SELECT vf_country_id FROM v1);
 ";
 
 --echo
+--sorted_result
 EXECUTE stmt;
+--sorted_result
 EXECUTE stmt;
 
 DROP TABLE t1,t2;
@@ -3905,7 +3966,7 @@ DROP TABLE t1,t2a,t2b,t2c;
 
 CREATE TABLE t1 (
   varchar_nokey varchar(1) NOT NULL
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES
  ('v'), ('u'), ('n'), ('l'), ('h'), ('u'), ('n'), ('j'), ('k'),
@@ -3917,7 +3978,7 @@ CREATE TABLE t2 (
   varchar_nokey varchar(1) NOT NULL,
   PRIMARY KEY(pk),
   KEY varchar_key(varchar_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES
  (11,'m','m'), (12,'j','j'), (13,'z','z'), (14,'a','a'), (15,'',''),
@@ -3977,6 +4038,7 @@ SELECT * FROM ot1,ot4
 WHERE (ot1.a,ot4.a) IN (SELECT it2.a,it3.a
                         FROM it2,it3);
 
+--sorted_result
 eval $query;
 eval explain $query;
 
@@ -4074,6 +4136,7 @@ CREATE TABLE t3 (
 );
 INSERT INTO t3 VALUES (4,4);
 
+--sorted_result
 SELECT *
 FROM t1
 WHERE f2 IN (SELECT a1.col_varchar_1024_utf8 AS f2
@@ -4144,7 +4207,7 @@ CREATE TABLE t1 (
   PRIMARY KEY (pk),
   KEY col_varchar_1024_utf8_key(col_varchar_1024_utf8_key(333)),
   KEY col_varchar_10_latin1_key(col_varchar_10_latin1_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES
 (1, 'a', 'a'),
@@ -4155,9 +4218,9 @@ INSERT INTO t1 VALUES
 CREATE TABLE t2 (
   pk int NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (pk)
-) ENGINE=Innodb;
+) charset utf8mb4 ENGINE=Innodb;
 
-CREATE TABLE t3
+CREATE TABLE t3 charset utf8mb4
 SELECT alias1.col_varchar_10_latin1_key
 FROM t1 AS alias1
      LEFT JOIN t1 AS alias2
@@ -4197,7 +4260,7 @@ CREATE TABLE t1 (
   PRIMARY KEY(pk),
   KEY col_int_key(col_int_key),
   KEY col_varchar_key(col_varchar_key, col_int_key)
-) engine=innodb;
+) charset utf8mb4 engine=innodb;
 
 INSERT INTO t1 VALUES
 (1,7,'a','a'),
@@ -4224,7 +4287,7 @@ CREATE TABLE t2 (
   col_varchar_key varchar(1) NOT NULL,
   PRIMARY KEY(pk),
   KEY col_varchar_key(col_varchar_key, col_int_key)
-) engine=innodb;
+) charset utf8mb4 engine=innodb;
 
 INSERT INTO t2(pk,col_int_key,col_varchar_key) VALUES
 (8,7,'c'),
@@ -4279,7 +4342,7 @@ CREATE TABLE t1 (
   col_varchar_key varchar(1) ,
   col_varchar_nokey varchar(1) ,
   KEY col_varchar_key(col_varchar_key)
-);
+) charset latin1;
 
 INSERT INTO t1 VALUES
 ('i','i'),
@@ -4300,7 +4363,7 @@ INSERT INTO t1 VALUES
 
 CREATE TABLE t2 (
   col_varchar_nokey varchar(1)
-);
+) charset latin1;
 
 INSERT INTO t2 VALUES
 ('b');
@@ -4335,7 +4398,7 @@ CREATE TABLE t1 (
  KEY col_int_key (col_int_key),
  KEY col_datetime_key(col_datetime_key),
  KEY col_varchar_key (col_varchar_key,col_int_key)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t1 VALUES
  (7,'2004-06-06 04:22:12','v'), (0,'2005-11-13 01:12:31','s'),
@@ -4351,7 +4414,7 @@ INSERT INTO t1 VALUES
 
 CREATE TABLE t2 (
  col_varchar_nokey VARCHAR(1) NOT NULL
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t2 VALUES ('v'), ('y'), ('j'), ('c'), ('d'), ('r');
 
@@ -4408,7 +4471,7 @@ DROP TABLE t1, t2;
 
 CREATE TABLE t1 (
  g1 VARCHAR(1) NOT NULL
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t1 VALUES ('d'), ('s');
 
@@ -4419,7 +4482,7 @@ CREATE TABLE t2 (
  col_varchar_nokey VARCHAR(1) NOT NULL,
  PRIMARY KEY (pk),
  KEY col_varchar_key(col_varchar_key, col_int_key)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t2 VALUES
  (1,4,'j','j'), (2,6,'v','v'), (3,3,'c','c'), (4,5,'m','m'),
@@ -4677,7 +4740,7 @@ DROP VIEW v1;
 CREATE TABLE t1 (
   col_varchar_key VARCHAR(1),
   KEY col_varchar_key (col_varchar_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES
  ('o'), ('w'), ('m'), ('q'),
@@ -4688,7 +4751,7 @@ CREATE TABLE t2 (
   col_int_key INTEGER,
   col_varchar_key varchar(1),
   KEY col_int_key (col_int_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES
  (8,5,'u'),(4,5,'p'),(8,1,'o'),(NULL,7,'v'),
@@ -4727,7 +4790,7 @@ CREATE TABLE t1 (
   PRIMARY KEY (pk),
   KEY col_int_key (col_int_key),
   KEY col_varchar_key (col_varchar_key, col_int_key)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t1 VALUES
 (10,8,'x','x'),
@@ -4801,6 +4864,7 @@ WHERE ot1.a IN (SELECT a FROM it1) AND
       ot2.a IN (SELECT a FROM it2);
 
 eval explain $query;
+--sorted_result
 eval $query;
 
 DROP TABLE ot1, ot2, it1, it2;
@@ -4886,7 +4950,7 @@ DROP TABLE t1, t2, t3;
 CREATE TABLE t1 (
   col_int_nokey INT,
   col_varchar_nokey VARCHAR(1)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES
  (1,'o'),
@@ -4961,6 +5025,7 @@ WHERE t1a.col_int_key IN (
 );
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 ALTER TABLE t1 ENGINE=Innodb;
@@ -4982,7 +5047,7 @@ CREATE TABLE t1 (
   a VARCHAR(1),
   b VARCHAR(1),
   KEY a (a)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES
  (NULL,8,'x','x'), (7,4,'q','q'), (6,8,'c','c');
@@ -4990,7 +5055,7 @@ INSERT INTO t1 VALUES
 CREATE TABLE t2 (
   a VARCHAR(1),
   KEY a (a)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES
  ('c'), (NULL), ('x'), ('q');
@@ -5006,6 +5071,7 @@ WHERE (a, a) IN
 ;
 
 eval explain $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1, t2;
@@ -5022,7 +5088,7 @@ CREATE TABLE t1 (
   col_varchar_nokey varchar(1),
   KEY col_int_key (col_int_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-) ;
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES
  (8,'x','x'), (0,'p','p'), (8,'c','c');
@@ -5033,7 +5099,7 @@ CREATE TABLE t2 (
   col_varchar_nokey varchar(1),
   PRIMARY KEY (pk),
   KEY col_varchar_key (col_varchar_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES
  (1,'v','v'), (2,'v','v'), (3,'c','c'), (4,NULL,NULL),
@@ -5076,7 +5142,7 @@ CREATE TABLE t1 (
   col_varchar_nokey varchar(1) DEFAULT NULL,
   KEY col_int_key (col_int_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES (4,'v','v');
 INSERT INTO t1 VALUES (62,'v','v');
@@ -5115,7 +5181,7 @@ CREATE TABLE t1 (
   col_int_key INT NOT NULL,
   col_varchar_nokey VARCHAR(1) NOT NULL,
   KEY col_int_key (col_int_key)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t1 VALUES
  (7,'v'), (0,'s'), (9,'l'), (3,'y'), (4,'c'), (2,'i'), (5,'h'), (3,'q'),
@@ -5130,7 +5196,7 @@ CREATE TABLE t2 (
   PRIMARY KEY (pk),
   KEY col_int_key (col_int_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t2 VALUES
  (1,0,'j','j'), (2,8,'v','v'), (3,1,'c','c'), (4,8,'m','m'),
@@ -5172,7 +5238,7 @@ CREATE TABLE t1 (
  col_int_nokey int NOT NULL,
  col_varchar_key varchar(1) NOT NULL,
  KEY col_varchar_key (col_varchar_key)
-) engine=InnoDB;
+) charset utf8mb4 engine=InnoDB;
 
 INSERT INTO t1 VALUES
  (1,'v'), (7,'s'), (4,'l'), (7,'y'), (0,'c'), (2,'i'), (9,'h'), (4,'q'),
@@ -5182,7 +5248,7 @@ INSERT INTO t1 VALUES
 CREATE TABLE t2 (
  col_int_nokey int NOT NULL,
  col_varchar_nokey varchar(1) NOT NULL
-) engine=InnoDB;
+) charset utf8mb4 engine=InnoDB;
 
 INSERT INTO t2 VALUES
  (4,'j'), (6,'v'), (3,'c'), (5,'m'), (3,'d'), (246,'d'), (2,'y'), (9,'t'),
@@ -5234,7 +5300,7 @@ CREATE TABLE t1 (
   col_varchar_key VARCHAR(1),
   col_varchar_nokey VARCHAR(1),
   KEY (col_varchar_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES (100,'m','m'),
 (200,'b','b'), (300,'x','x');
@@ -5243,7 +5309,7 @@ CREATE TABLE t2 (
   col_varchar_key VARCHAR(1),
   col_varchar_nokey VARCHAR(1),
   KEY (col_varchar_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES ('b','b');
 
@@ -5251,7 +5317,7 @@ CREATE TABLE t3 (
   col_varchar_key VARCHAR(1),
   col_varchar_nokey VARCHAR(1),
   KEY (col_varchar_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t3 VALUES ('k','k');
 
@@ -5284,7 +5350,7 @@ CREATE TABLE t1 (
   vc_nokey varchar(1) DEFAULT NULL,
   KEY int_key (int_key),
   KEY vc_key (vc_key, int_key)
-) ENGINE=MyISAM;
+) charset utf8mb4 ENGINE=MyISAM;
 
 INSERT INTO t1 VALUES
  (8,'x','x'), (7,'d','d'), (1,'r','r'), (7,'f','f'),
@@ -5298,7 +5364,7 @@ CREATE TABLE t2 (
   vc_key varchar(1) DEFAULT NULL,
   KEY int_key (int_key),
   KEY vc_key (vc_key, int_key)
-) ENGINE=MyISAM;
+) charset utf8mb4 ENGINE=MyISAM;
 
 INSERT INTO t2 VALUES (8,'g');
 
@@ -5385,9 +5451,12 @@ WHERE col_int_key IN (
   FROM v1 AS alias1
   WHERE alias1.col_varchar_key < 'v'
 );
+--sorted_result
 eval $query;
 eval prepare stmt FROM "$query";
+--sorted_result
 execute stmt;
+--sorted_result
 execute stmt;
 
 DEALLOCATE PREPARE stmt;
@@ -5410,7 +5479,7 @@ CREATE TABLE t1 (
   KEY col_int_key (col_int_key),
   KEY col_datetime_key (col_datetime_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES (0,'2002-02-13 17:30:06','j','j');
 INSERT INTO t1 VALUES (8,'2008-09-27 00:34:58','v','v');
@@ -5423,7 +5492,7 @@ CREATE TABLE t2 (
   KEY col_int_key (col_int_key),
   KEY col_datetime_key (col_datetime_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES (7,'2003-08-21 00:00:00','b','b');
 
@@ -5461,14 +5530,14 @@ CREATE TABLE t1 (
   col_varchar_key VARCHAR(1),
   KEY col_int_key (col_int_key),
   KEY col_varchar_key (col_varchar_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES (8,'x');
 
 CREATE TABLE t2 (
   col_varchar_key VARCHAR(1),
   KEY col_varchar_key (col_varchar_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES ('x'), ('y');
 
@@ -5499,7 +5568,7 @@ CREATE TABLE t1 (
   PRIMARY KEY (pk),
   KEY col_int_key (col_int_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t1 VALUES (10,NULL,8,'x');
 
@@ -5507,7 +5576,7 @@ CREATE TABLE t2 (
   pk int NOT NULL,
   col_varchar_nokey varchar(1) DEFAULT NULL,
   PRIMARY KEY (pk)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t2 VALUES (1,'x');
 
@@ -5517,7 +5586,7 @@ CREATE TABLE t3 (
   col_varchar_nokey varchar(1) DEFAULT NULL,
   PRIMARY KEY (pk),
   KEY col_varchar_key (col_varchar_key)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t3 VALUES
  (1,'v','v'), (2,'v','v'), (3,'c','c'), (4,NULL,NULL);
@@ -5623,7 +5692,7 @@ CREATE TABLE t1 (
   col_varchar_nokey VARCHAR(1),
   PRIMARY KEY (pk),
   KEY (col_varchar_key)
-) ENGINE=INNODB;
+) charset utf8mb4 ENGINE=INNODB;
 
 INSERT INTO t1 (
   col_int_key, col_int_nokey,
@@ -5641,7 +5710,7 @@ CREATE TABLE t2 (
   col_int_key INT,
   PRIMARY KEY (pk),
   KEY (col_int_key)
-) AUTO_INCREMENT=10 ENGINE=INNODB;
+) charset utf8mb4 AUTO_INCREMENT=10 ENGINE=INNODB;
 
 INSERT INTO t2 (col_int_key, col_int_nokey) VALUES
  (8, NULL), (7, 8), (1, 1), (7, 9), (9, 4), (NULL, 3), (1, 2), (9, NULL),
@@ -5653,7 +5722,7 @@ CREATE TABLE t3 (
   col_varchar_key VARCHAR(1),
   PRIMARY KEY (pk),
   KEY (col_varchar_key)
-) ENGINE=INNODB;
+) charset utf8mb4 ENGINE=INNODB;
 
 INSERT INTO t3 (col_varchar_key) VALUES
  ('c'), ('c'), ('q'), ('g'), ('e'), ('l'), (NULL), ('c'), ('h'), ('d'),
@@ -5754,7 +5823,7 @@ CREATE TABLE t1 (
   PRIMARY KEY (pk),
   KEY col_int_key (col_int_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES (26,6,NULL,'f','f');
 INSERT INTO t1 VALUES (29,6,8,'c','c');
@@ -5768,7 +5837,7 @@ CREATE TABLE t2 (
   PRIMARY KEY (pk),
   KEY col_int_key (col_int_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES (1,2,4,'v','v');
 INSERT INTO t2 VALUES (2,150,62,'v','v');
@@ -5973,13 +6042,13 @@ CREATE TABLE t1 (
   pk INT,
   col_varchar_key VARCHAR(1),
   col_varchar_nokey VARCHAR(1)
-);
+) charset latin1;
 
 CREATE TABLE t2 (
   pk INT,
   col_varchar_key VARCHAR(1),
   col_varchar_nokey VARCHAR(1)
-);
+) charset latin1;
 
 INSERT INTO t2 VALUES
  (10,'j','j'), (11,'z','z'), (12,'c','c'), (13,'a','a'),
@@ -5991,7 +6060,7 @@ CREATE TABLE t3 (
   col_int_key INT,
   col_varchar_key VARCHAR(1),
   KEY col_int_key (col_int_key)
-);
+) charset latin1;
 
 INSERT INTO t3 VALUES
  (15,NULL,'u'), (16,1,'m'), (17,9,NULL), (18,2,'o'),
@@ -6010,6 +6079,14 @@ SELECT sq2_alias2.col_varchar_key AS sq2_field1,
 FROM t3 AS sq2_alias1 LEFT OUTER JOIN t3 AS sq2_alias2
      ON sq2_alias1.pk = sq2_alias2.col_int_key;
 
+#
+# Note that due to the UNION DISTINCT, view_inline_2 will get a unique index
+# on the temporary table it is materialized into (both parts of the query are
+# materialized straight into the same table). This enables more semijoin
+# optimizations than one would expect; in particular, we can do semijoin
+# table pullout (rewriting the IN into a simple inner join) if enabled,
+# and use unique_subquery instead of index_subquery if not.
+#
 CREATE VIEW view_inline_2 AS
 SELECT 'p', 'p' UNION SELECT 'k', 's';
 
@@ -6120,7 +6197,7 @@ CREATE TABLE t1 (
   col_varchar_key VARCHAR(1),
   PRIMARY KEY (pk),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-);
+) charset utf8mb4;
 
 CREATE TABLE t2 (
   pk INT,
@@ -6128,7 +6205,7 @@ CREATE TABLE t2 (
   col_varchar_key VARCHAR(1),
   col_varchar_nokey VARCHAR(1),
   PRIMARY KEY (pk)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 CREATE TABLE t3 (
   i INT
@@ -6223,7 +6300,7 @@ WHERE outr.col_int_nokey IN (
   OR
   outr.col_varchar_key IS NULL
 );
-eval EXPLAIN EXTENDED $query;
+eval EXPLAIN $query;
 --sorted_result
 eval $query;
 
@@ -6240,14 +6317,14 @@ SET TIMESTAMP = DEFAULT;
 CREATE TABLE t1 (
   ik INT,
   vc varchar(1)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES (8, 'x'), (NULL, 'x');
 
 CREATE TABLE t2 (
   ik INT,
   vc varchar(1)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES
  (0, 'x'), (7, 'i'), (7, 'e'), (1, 'p'), (7, 's'), (1, 'j');
@@ -6258,6 +6335,7 @@ FROM t2 LEFT JOIN t1 ON t2.vc=t1.vc
 WHERE t2.vc IN (SELECT vc FROM t2 AS t3);
 
 eval explain format=json $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1, t2;
@@ -6289,7 +6367,9 @@ FROM t1 AS alias1
 eval explain $query;
 
 eval PREPARE stmt FROM "$query";
+--sorted_result
 EXECUTE stmt;
+--sorted_result
 EXECUTE stmt;
 
 DEALLOCATE PREPARE stmt;
@@ -6305,7 +6385,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (
   col_varchar_nokey VARCHAR(1)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES
  ('v'), ('s'), ('l'), ('y'), ('c'), ('i'), ('h'), ('q'), ('a'), ('v'),
@@ -6315,7 +6395,7 @@ CREATE TABLE t2 (
   col_varchar_key VARCHAR(1),
   col_varchar_nokey VARCHAR(1),
   KEY col_varchar_key(col_varchar_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES
  ('j','j'), ('v','v'), ('c','c'), ('m','m'), ('d','d'), ('d','d'), ('y','y');
@@ -6334,6 +6414,7 @@ WHERE (col_varchar_nokey, col_varchar_nokey) IN
    );
 
 eval explain format=json $query;
+--sorted_result
 eval $query;
 
 SET @@optimizer_switch= @optimizer_switch_saved;
@@ -6370,6 +6451,7 @@ WHERE (col_int_nokey, col_int_nokey) IN
    );
 
 eval explain format=json $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1, t2;
@@ -6384,7 +6466,7 @@ CREATE TABLE t1 (
   KEY col_int_key (col_int_key),  
   KEY col_datetime_key (col_datetime_key),  
   KEY col_varchar_key (col_varchar_key,col_int_key)
-) engine=MyISAM;
+) charset utf8mb4 engine=MyISAM;
  
 INSERT INTO t1 VALUES
  (10,7,'2004-06-06 04:22:12','v','v'), (11,0,'2005-11-13 01:12:31','s','s'),
@@ -6408,7 +6490,7 @@ CREATE TABLE t2 (
   KEY col_int_key (col_int_key),
   KEY col_datetime_key (col_datetime_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-) engine=MyISAM;
+) charset utf8mb4 engine=MyISAM;
  
 INSERT INTO t2 VALUES
  (1,0,'2002-02-13 17:30:06','j','j'), (2,8,'2008-09-27 00:34:58','v','v'),
@@ -6421,7 +6503,8 @@ INSERT INTO t2 VALUES
  (15,7,'2008-07-02 00:00:00','g','g'), (16,4,'1900-01-01 00:00:00','p','p'),
  (17,1,'2002-12-08 11:34:58','q','q'), (18,9,'1900-01-01 00:00:00','w','w'),
  (19,4,'1900-01-01 00:00:00','d','d'), (20,8,'2002-08-25 20:35:06','e','e');
- 
+
+--sorted_result
 SELECT alias1.col_datetime_key
 FROM t2 AS alias1
      RIGHT JOIN t2 AS alias2
@@ -6451,6 +6534,7 @@ WHERE (alias2.col_varchar_key, alias2.col_varchar_key) IN
         WHERE sq2_alias2.col_int_key < 2);
 
 eval explain format=json $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1, t2;
@@ -6547,7 +6631,7 @@ set @@optimizer_switch=@old_opt_switch;
 
 CREATE TABLE t1 (
   col_varchar_nokey varchar(1)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t1 VALUES ('c'),(NULL),('x');
 
@@ -6556,7 +6640,7 @@ CREATE TABLE t2 (
   col_varchar_key varchar(1),
   PRIMARY KEY (pk),
   KEY col_varchar_key (col_varchar_key)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t2 VALUES (10,'l'),(11,'p');
 
@@ -6625,7 +6709,7 @@ CREATE TABLE t2 (
   c1 VARCHAR(1) NOT NULL,
   PRIMARY KEY (pk),
   KEY c1_key (c1)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t2 VALUES (1,'j'),(2,'v'),(3,'c');
 
@@ -6634,7 +6718,7 @@ CREATE TABLE t3 (
   c1 VARCHAR(1) NOT NULL,
   PRIMARY KEY (pk),
   KEY c1_key (c1)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t3 VALUES (10,'v'),(11,'s');
 
@@ -6687,7 +6771,7 @@ CREATE TABLE t1 (
   pk int(11) NOT NULL,
   col_varchar_nokey varchar(1) DEFAULT NULL,
   PRIMARY KEY (pk)
-);
+) charset utf8mb4;
 INSERT INTO t1 VALUES (1,'x');
 
 CREATE TABLE t2 (
@@ -6698,7 +6782,7 @@ CREATE TABLE t2 (
   KEY col_int_key (col_int_key),
   KEY col_date_key (col_date_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-);
+) charset utf8mb4;
 INSERT INTO t2 VALUES ('2000-12-03', 8, 'x', 'x'),('2008-05-03', 7, 'd', 'd'),
 ('2005-12-06', 1, 'r', 'r'),('2000-04-10', 7, 'f', 'f'),
 ('2002-11-05', 9, 'y', 'y'),('2000-09-06', NULL, 'u', 'u'),
@@ -6714,7 +6798,7 @@ CREATE TABLE t3 (
   pk int(11) NOT NULL,
   col_varchar_nokey varchar(1) DEFAULT NULL,
   PRIMARY KEY (pk)
-);
+) charset utf8mb4;
 INSERT INTO t3 VALUES (1, 'c'),(2, 'c'),(3, 'q'),(4, 'g'),(5, 'e'),(6, 'l'),
 (7, NULL),(8, 'v'),(9, 'c'),(10, 'u'),(11, 'x'),(12, 'x'),(13, 'x'),(14, 'l'),
 (15, 'e'),(16, 's'),(17, 'k'),(18, 'm'),(19, 'x'),(20, 's');
@@ -6905,6 +6989,11 @@ ORDER BY col_int_key
 ;
 
 eval explain $query;
+
+# In subquery_sj_loosescan_bka_nobnl (ie., with loose scan), shows a case
+# where we can't use NestedLoopSemiJoinWithDuplicateRemovalIterator since we
+# have a table that is both firstmatch (semijoin) _and_ outer join.
+eval explain format=tree $query;
 
 eval $query;
 
@@ -7139,7 +7228,32 @@ WHERE t1.a IN (SELECT t2.a
                                              WHERE t3.b=1));
 
 ANALYZE TABLE t;
-eval EXPLAIN extended $query;
+eval EXPLAIN $query;
 eval $query;
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#24287772 SUBQUERY RETURNS EMPTY LIST WHILE IDENTICAL QUERY
+--echo #              WITH JOIN RETURNS RESULT
+--echo #
+
+CREATE TABLE t SELECT 4096 c;
+
+SELECT c FROM t WHERE 1 IN
+(SELECT t.c = page_size FROM information_schema.innodb_cmpmem);
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug #29132639: WL#12470: SIG 6 IN CONNECTJOINS|SQL/SQL_EXECUTOR.C
+--echo #
+
+CREATE TABLE t1 ( f1 TIME, f2 VARCHAR(1) );
+INSERT INTO t1 VALUES ('08:35:24', 'X'), ('14:51:13', 'S'), ('11:22:33', 'Q');
+CREATE TABLE t2 ( pk INTEGER );
+INSERT INTO t2 VALUES (1), (2);
+ANALYZE TABLE t1, t2;
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
+SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
+DROP TABLE t1, t2;

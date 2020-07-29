@@ -21,8 +21,8 @@
   GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
 /**
@@ -62,4 +62,33 @@
 */
 void handle_std_exception(const char *funcname);
 
-#endif // SQL_EXCEPTION_HANDLER_H_INCLUDED
+/**
+  Handle a GIS exception of any type.
+
+  This function constitutes the exception handling barrier between
+  Boost.Geometry and MySQL code. It handles all exceptions thrown in
+  GIS code and raises the corresponding error in MySQL.
+
+  Pattern for use in other functions:
+
+  @code
+  try
+  {
+    something_that_throws();
+  }
+  catch (...)
+  {
+    handle_gis_exception("st_foo");
+  }
+  @endcode
+
+  Other exception handling code put into the catch block, before or
+  after the call to handle_gis_exception(), must not throw exceptions.
+
+  @param funcname Function name for use in error message
+
+  @see handle_std_exception
+ */
+void handle_gis_exception(const char *funcname);
+
+#endif  // SQL_EXCEPTION_HANDLER_H_INCLUDED

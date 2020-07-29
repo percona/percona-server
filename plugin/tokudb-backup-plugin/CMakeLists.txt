@@ -26,15 +26,19 @@ IF(NOT TOKUDB_OK OR NOT HAVE_O_DIRECT OR NOT HAVE_CLOCK_MONOTONIC OR APPLE)
   RETURN()
 ENDIF()
 
-# check that compiler supports cxx11 and set options
-INCLUDE (check_stdcxx11)
-IF (!HAVE_STDCXX11)
-  MESSAGE (${MYROCKS_STATUS_MODE} "${CMAKE_CXX_COMPILER} doesn't support -std=c++11, you need one that does. Not building tokudb-backup-plugin")
-  RETURN ()
-ENDIF ()
 
-# disable -Wvla
-append_cflags_if_supported(-Wno-vla)
+
+# Suppress warnings for all compilers
+remove_compile_flags(-Wvla)
+
+
+# Suppress warnings for all clang versions
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  append_cflags_if_supported(-Wno-deprecated-dynamic-exception-spec)
+  remove_compile_flags(-Wextra-semi -Wconditional-uninitialized)
+ENDIF()
+
+
 
 # compiler_options.cmake sets "-D_FORTIFY_SOURCE=2" for clang what causes
 # "error: redefinition of 'read'" for "Percona-TokuBackup/backup/backup.cc"
@@ -58,7 +62,7 @@ IF(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Percona-TokuBackup/backup/CMakeLists.txt"
 ELSE()
   MESSAGE(STATUS "tokudb-backup-plugin no backup ${CMAKE_CURRENT_SOURCE_DIR}")
 ENDIF()
-MYSQL_ADD_PLUGIN(tokudb_backup ${TOKUDB_BACKUP_SOURCES} MODULE_ONLY MODULE_OUTPUT_NAME "tokudb_backup")
+MYSQL_ADD_PLUGIN(tokudb_backup ${TOKUDB_BACKUP_SOURCES} MODULE_ONLY MODULE_OUTPUT_NAME "tokudb_backup" LINK_LIBRARIES stdc++)
 #
 # RPM installs documentation directly from the source tree
 #

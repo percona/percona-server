@@ -1628,14 +1628,14 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` enum('','a','b') NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a enum (' ','a','b ') not null default 'b ');
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` enum('','a','b') NOT NULL DEFAULT 'b'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a enum ('0','1'));
 insert into t1 set a='foobar';
@@ -1648,83 +1648,30 @@ a
 drop table t1;
 set names latin1;
 create table t1 (a enum(0xE4, '1', '2') not null default 0xE4);
+Warnings:
+Warning	1300	Invalid utf8mb4 character string: 'E4'
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-a	enum('ä','1','2')	NO		ä	
+a	enum('','1','2')	NO			
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('ä','1','2') NOT NULL DEFAULT 'ä'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
-drop table t1;
-set names latin1;
-CREATE TABLE t1 (
-a INT  default 1,
-b ENUM('value','öäü_value','ÊÃÕ') character set latin1 NOT NULL
-);
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT '1',
-  `b` enum('value','öäü_value','ÊÃÕ') NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
-show columns from t1;
-Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		1	
-b	enum('value','öäü_value','ÊÃÕ')	NO		NULL	
-drop table t1;
-CREATE TABLE t1 (c enum('a', 'A') BINARY);
-INSERT INTO t1 VALUES ('a'),('A');
-SELECT * FROM t1;
-c
-a
-A
-DROP TABLE t1;
-CREATE TABLE t1 (c enum('ae','oe','ue','ss') collate latin1_german2_ci);
-INSERT INTO t1 VALUES ('ä'),('ö'),('ü'),('ß');
-SELECT * FROM t1;
-c
-ae
-oe
-ue
-ss
-DROP TABLE t1;
-CREATE TABLE t1 (
-a ENUM('ä','ö','ü') character set utf8 default 'ü'
-);
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` enum('ä','ö','ü') CHARACTER SET utf8 DEFAULT 'ü'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
-insert into t1 values ('ä'), ('ö'), ('ü');
-select a from t1 order by a;
-a
-ä
-ö
-ü
-drop table t1;
-set names utf8;
-CREATE TABLE t1 (
-a ENUM('Ã¤','Ã¶','Ã¼') character set latin1 default 'Ã¼'
-);
-insert into t1 values ('Ã¤'),('Ã¶'),('Ã¼');
-set names latin1;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` enum('ä','ö','ü') DEFAULT 'ü'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
-select a from t1 order by a;
-a
-ä
-ö
-ü
+  `a` enum('','1','2') NOT NULL DEFAULT ''
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a enum ('Y','N') CHARACTER SET utf8 COLLATE utf8_bin);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 insert into t1 values ('Y');
 alter table t1 add b set ('Y','N') CHARACTER SET utf8 COLLATE utf8_bin;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 alter table t1 add c enum ('Y','N') CHARACTER SET utf8 COLLATE utf8_bin;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 select * from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	t1	t1	a	a	254	1	1	Y	384	0	8
@@ -1746,34 +1693,17 @@ alter table t1 add f2 enum(0xFFFF);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` enum('ÿÿ') DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
-drop table t1;
-create table t1(russian enum('E','F','EÿF','FÿE') NOT NULL DEFAULT'E');
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `russian` enum('E','F','EÿF','FÿE') NOT NULL DEFAULT 'E'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `f1` int DEFAULT NULL,
+  `f2` enum('') DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1(denormal enum('E','F','E,F','F,E') NOT NULL DEFAULT'E');
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `denormal` enum('E','F','E,F','F,E') NOT NULL DEFAULT 'E'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
-create table t1(russian_deviant enum('E','F','EÿF','F,E') NOT NULL DEFAULT'E');
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `russian_deviant` enum('E','F','EÿF','F,E') NOT NULL DEFAULT 'E'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
-drop table t1;
-create table t1(exhausting_charset enum('ABCDEFGHIJKLMNOPQRSTUVWXYZ','	
- !"','#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~','xx\','yy\€','zz‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ'));
-ERROR 42000: Field separator argument is not what is expected; check the manual
 CREATE TABLE t1 (
 id INT AUTO_INCREMENT PRIMARY KEY,
 c1 ENUM('a', '', 'b')
@@ -1802,8 +1732,8 @@ ERROR 01000: Data truncated for column 'c1' at row 1
 INSERT INTO t1 (c1) VALUES ('');
 SELECT c1 + 0, COUNT(c1) FROM t1 GROUP BY c1;
 c1 + 0	COUNT(c1)
-2	2
 3	1
+2	2
 CREATE TABLE t2 SELECT * FROM t1;
 SELECT c1 + 0 FROM t2;
 c1 + 0

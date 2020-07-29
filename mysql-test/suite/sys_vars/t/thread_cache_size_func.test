@@ -27,7 +27,6 @@
 # Setup
 #
 
-
 --source include/one_thread_per_connection.inc
 SET @global_thread_cache_size = @@GLOBAL.thread_cache_size;
 
@@ -55,7 +54,7 @@ CONNECT (conn4,localhost,root,,);
 CONNECTION default;
 
 # Wait until all connections done
-let $wait_condition= SELECT COUNT(*)= 5 FROM INFORMATION_SCHEMA.PROCESSLIST;
+let $wait_condition= SELECT COUNT(*)= 6 FROM INFORMATION_SCHEMA.PROCESSLIST;
 --source include/wait_condition.inc
 
 SHOW STATUS LIKE 'Threads_cached';
@@ -75,13 +74,17 @@ DISCONNECT conn4;
 # Checking the status
 #
 
+# Wait until all disconnects ready
+let $wait_condition= SELECT COUNT(*)= 2 FROM INFORMATION_SCHEMA.PROCESSLIST;
+--source include/wait_condition.inc
+
 --echo # Threads_cached must become 3
 --let $status_var= Threads_cached
 --let $status_var_value= 3
 --source include/wait_for_status_var.inc
 
---echo # Active connections must become 1
---let $count= 1
+--echo # Active connections must become 2
+--let $count= 2
 --let $table= INFORMATION_SCHEMA.PROCESSLIST
 --source include/wait_until_rows_count.inc
 
@@ -99,20 +102,24 @@ CONNECT (conn2,localhost,root,,);
 CONNECTION default;
 
 # Wait until all connects ready
-let $wait_condition= SELECT COUNT(*)= 3 FROM INFORMATION_SCHEMA.PROCESSLIST;
+let $wait_condition= SELECT COUNT(*)= 4 FROM INFORMATION_SCHEMA.PROCESSLIST;
 --source include/wait_condition.inc
 
 --echo ** Disconnecting conn1,conn2 **
 DISCONNECT conn1;
 DISCONNECT conn2;
 
+# Wait until all disconnects ready
+let $wait_condition= SELECT COUNT(*)= 2 FROM INFORMATION_SCHEMA.PROCESSLIST;
+--source include/wait_condition.inc
+
 --echo # Threads_cached must become 1
 --let $status_var= Threads_cached
 --let $status_var_value= 1
 --source include/wait_for_status_var.inc
 
---echo # Active connections must become 1
---let $count= 1
+--echo # Active connections must become 2
+--let $count= 2
 --let $table= INFORMATION_SCHEMA.PROCESSLIST
 --source include/wait_until_rows_count.inc
 

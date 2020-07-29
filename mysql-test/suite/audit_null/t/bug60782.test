@@ -7,7 +7,6 @@
 #########################################################################
 
 --source include/have_null_audit_plugin.inc
---source include/not_embedded.inc
 
 SET @general_log_save = @@general_log;
 SET GLOBAL general_log=OFF;

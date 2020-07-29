@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,11 +18,14 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
+
 #include <gtest/gtest.h>
+#include <limits.h>
+
 /*
 
   ==== Purpose ====
@@ -41,15 +44,14 @@
   the overflow error when receiving a number like 18446744073709551915
 
 */
-#include <m_string.h>
-#include <my_sys.h>
+#include "m_string.h"
+#include "my_sys.h"
 
-TEST(StringToULLTest, OverflowedNumber)
-{
+TEST(StringToULLTest, OverflowedNumber) {
   unsigned long long number;
   int error;
-  const char * str= "18446744073709551915";
-  number= my_strtoll10(str, 0, &error);
+  const char *str = "18446744073709551915";
+  number = my_strtoll10(str, nullptr, &error);
   EXPECT_EQ(number, ULLONG_MAX);
   EXPECT_EQ(error, MY_ERRNO_ERANGE);
 }

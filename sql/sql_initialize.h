@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,25 +23,26 @@
 #ifndef SQL_INITIALIZE_H
 #define SQL_INITIALIZE_H 1
 
-#include "bootstrap_impl.h"
+#include <string>
 
-class Compiled_in_command_iterator : public Command_iterator
-{
-public:
-  Compiled_in_command_iterator() : is_active(false)
-  {}
-  virtual ~Compiled_in_command_iterator()
-  {
-    end();
-  }
-  void begin(void);
-  int next(std::string &query, int *read_error, int *iterator_type);
-  void end(void);
-private:
-  bool is_active;
+#include "sql/bootstrap_impl.h"
+
+class Compiled_in_command_iterator : public bootstrap::Command_iterator {
+ public:
+  Compiled_in_command_iterator() {}
+  virtual ~Compiled_in_command_iterator() {}
+  virtual bool begin(void) override;
+  int next(std::string &query) override;
+  void report_error_details(log_function_t log) override;
+  virtual void end(void) override;
+
+ private:
+  int m_cmds_ofs{0};
+  int m_cmd_ofs{0};
 };
 
-extern my_bool opt_initialize_insecure;
+extern bool opt_initialize_insecure;
 bool initialize_create_data_directory(const char *data_home);
+extern bool mysql_initialize_directory_freshly_created;
 
 #endif /* SQL_INITIALIZE_H */

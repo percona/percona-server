@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <memory>
 
 #include <ndb_global.h>
 #include <ndb_opts.h>
@@ -29,9 +30,10 @@
 #include <NdbOut.hpp>
 
 #include <NdbApi.hpp>
-#include <NdbMain.h>
 #include <NDBT.hpp> 
 #include <NdbSleep.h>
+
+#include "my_alloc.h"
  
 int scanReadRecords(Ndb*, 
 		    const NdbDictionary::Table*, 
@@ -48,8 +50,6 @@ static const char* _dbname = "TEST_DB";
 static const char* _delimiter = "\t";
 static int _header, _parallelism, _useHexFormat, _lock,
   _order, _descending;
-
-const char *load_default_groups[]= { "mysql_cluster",0 };
 
 static int _tup = 0;
 static int _dumpDisk = 0;
@@ -118,40 +118,33 @@ static void short_usage_sub(void)
   printf("index : order rows by given index, requires --order option\n");
 }
 
-static void usage()
-{
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
-}
-
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
-  ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  ndb_load_defaults(NULL, load_default_groups,&argc,&argv);
+  Ndb_opts opts(argc, argv, my_long_options);
+  opts.set_usage_funcs(short_usage_sub);
   const char* _tabname;
-  int ho_error;
 #ifndef DBUG_OFF
   opt_debug= "d:t:O,/tmp/ndb_select_all.trace";
 #endif
-  if ((ho_error=handle_options(&argc, &argv, my_long_options,
-			       ndb_std_get_one_option)))
+  if (opts.handle_options())
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   if (argc == 0) {
     ndbout << "Missing table name. Please see the below usage for correct command." << endl;
-    usage();
+    opts.usage();
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
   if (argc > (!_order? 1 : 2))
   {
     ndbout << "Error. TOO MANY ARGUMENTS GIVEN." << endl;
     ndbout << "Please see the below usage for correct command." << endl;
-    usage();
+    opts.usage();
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
   _tabname = argv[0];
   Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   con.set_name("ndb_select_all");
-  if(con.connect(12, 5, 1) != 0)
+  if(con.connect(opt_connect_retries - 1, opt_connect_retry_delay, 1) != 0)
   {
     ndbout << "Unable to connect to management server." << endl;
     return NDBT_ProgramExit(NDBT_FAILED);
@@ -228,7 +221,7 @@ int scanReadRecords(Ndb* pNdb,
   NdbScanOperation	       *pOp;
   NdbIndexScanOperation * pIOp= 0;
 
-  NDBT_ResultRow * row = new NDBT_ResultRow(*pTab, delimiter);
+  std::unique_ptr<NDBT_ResultRow> row(new NDBT_ResultRow(*pTab, delimiter));
 
   while (true){
 
@@ -291,51 +284,7 @@ int scanReadRecords(Ndb* pNdb,
       pNdb->closeTransaction(pTrans);
       return -1;
     }
-    
-    if(0){
-      NdbScanFilter sf(pOp);
-#if 0
-      sf.begin(NdbScanFilter::AND);
-      sf.le(0, (Uint32)10);
-      
-      sf.end();
-#elif 0
-      sf.begin(NdbScanFilter::OR);
-      sf.begin(NdbScanFilter::AND);
-      sf.ge(0, (Uint32)10);
-      sf.lt(0, (Uint32)20);
-      sf.end();
-      sf.begin(NdbScanFilter::AND);
-      sf.ge(0, (Uint32)30);
-      sf.lt(0, (Uint32)40);
-      sf.end();
-      sf.end();
-#elif 1
-      sf.begin(NdbScanFilter::AND);
-      sf.begin(NdbScanFilter::OR);
-      sf.begin(NdbScanFilter::AND);
-      sf.ge(0, (Uint32)10);
-      sf.lt(0, (Uint32)20);
-      sf.end();
-      sf.begin(NdbScanFilter::AND);
-      sf.ge(0, (Uint32)30);
-      sf.lt(0, (Uint32)40);
-      sf.end();
-      sf.end();
-      sf.begin(NdbScanFilter::OR);
-      sf.begin(NdbScanFilter::AND);
-      sf.ge(0, (Uint32)0);
-      sf.lt(0, (Uint32)50);
-      sf.end();
-      sf.begin(NdbScanFilter::AND);
-      sf.ge(0, (Uint32)100);
-      sf.lt(0, (Uint32)200);
-      sf.end();
-      sf.end();
-      sf.end();
-#endif
-    }
-    
+
     bool disk= false;
     for(int a = 0; a<pTab->getNoOfColumns(); a++)
     {

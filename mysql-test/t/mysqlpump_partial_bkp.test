@@ -1,11 +1,9 @@
---source include/not_embedded.inc
-
 --echo #
 --echo # Bug#26199978 - WRONG ERROR MESSAGE FOR PARTIAL BACKUPS WITH GTID_MODE = ON
 --echo #
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
 --enable_reconnect
 --exec echo "restart: --enforce-gtid-consistency=ON --gtid-mode=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -39,3 +37,7 @@ DROP DATABASE bug26199978;
 
 --echo # Cleanup
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp bug26199978_*.sql
+
+# Restore default settings
+let $restart_parameters = restart:;
+--source include/restart_mysqld.inc

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ Name:          Ndb.cpp
 #include <NdbTick.h>
 
 /****************************************************************************
-void connect();
+void doConnect();
 
 Connect to any node which has no connection at the moment.
 ****************************************************************************/
@@ -301,7 +301,7 @@ found_middle:
 }//Ndb::getConnectedNdbTransaction()
 
 /*****************************************************************************
-disconnect();
+void doDisconnect();
 
 Remark:        Disconnect all connections to the database. 
 *****************************************************************************/
@@ -312,6 +312,36 @@ Ndb::doDisconnect()
   NdbTransaction* tNdbCon;
   CHECK_STATUS_MACRO_VOID;
 
+  /**
+   * Clean up active NdbTransactions by releasing all NdbOperations,
+   * ScanOperations, and NdbQuery owned by it. Release of
+   * Scan- and QueryOperations will also close any open cursors
+   * still remaining. Thus, any 'buddy transactions' connected to
+   * such scan operations, will also be closed, *and removed* from
+   * theTransactionList.
+   */
+  tNdbCon = theTransactionList;
+  while (tNdbCon != NULL) {
+    tNdbCon->releaseOperations();
+    tNdbCon->releaseLockHandles();
+    tNdbCon = tNdbCon->theNext;
+  }//while
+
+  /**
+   * Disconnect and release all NdbTransactions in,
+   * the now cleaned up, theTransactionList.
+   */
+  tNdbCon = theTransactionList;
+  while (tNdbCon != NULL) {
+    NdbTransaction* tmpNdbCon = tNdbCon;
+    tNdbCon = tNdbCon->theNext;
+    releaseConnectToNdb(tmpNdbCon);
+  }//while
+
+  /**
+   * Transactions in theConnectionArray[] are idle, and thus in a 
+   * known 'clean' state already. Disconnect and release right away.
+   */
   Uint32 tNoOfDbNodes = theImpl->theNoOfDBnodes;
   Uint8 *theDBnodes= theImpl->theDBnodes;
   DBUG_PRINT("info", ("theNoOfDBnodes=%d", tNoOfDbNodes));
@@ -325,14 +355,8 @@ Ndb::doDisconnect()
       releaseConnectToNdb(tmpNdbCon);
     }//while
   }//for
-  tNdbCon = theTransactionList;
-  while (tNdbCon != NULL) {
-    NdbTransaction* tmpNdbCon = tNdbCon;
-    tNdbCon = tNdbCon->theNext;
-    releaseConnectToNdb(tmpNdbCon);
-  }//while
   DBUG_VOID_RETURN;
-}//Ndb::disconnect()
+}//Ndb::doDisconnect()
 
 /*****************************************************************************
 int waitUntilReady(int timeout);
@@ -404,7 +428,7 @@ Ndb::computeHash(Uint32 *retval,
   const NdbTableImpl* impl = &NdbTableImpl::getImpl(*table);
   const NdbColumnImpl* const * cols = impl->m_columns.getBase();
   Uint32 len;
-  char* pos;
+  unsigned char *pos, *bufEnd;
   void* malloced_buf = NULL;
 
   Uint32 colcnt = impl->m_columns.size();
@@ -461,16 +485,11 @@ Ndb::computeHash(Uint32 *retval,
     if (unlikely(lb == 0 && keyData[i].len != maxlen))
       goto emalformedkey;
     
-    if (partcols[i]->m_cs)
-    {
-      Uint32 xmul = partcols[i]->m_cs->strxfrm_multiply;
-      xmul = xmul ? xmul : 1;
-      len = xmul * (maxlen - lb);
-    }
+    if (partcols[i]->m_cs != NULL)
+      len = NdbSqlUtil::strnxfrm_hash_len(partcols[i]->m_cs, (maxlen - lb));
 
     len = (lb + len + 3) & ~(Uint32)3;
     sumlen += len;
-
   }
 
   if (!buf)
@@ -497,7 +516,9 @@ Ndb::computeHash(Uint32 *retval,
       goto ebuftosmall;
   }
 
-  pos = (char*)buf;
+  pos= (unsigned char*) buf;
+  bufEnd = pos + bufLen;
+
   for (Uint32 i = 0; i<parts; i++)
   {
     Uint32 lb, len;
@@ -506,21 +527,11 @@ Ndb::computeHash(Uint32 *retval,
     CHARSET_INFO* cs;
     if ((cs = partcols[i]->m_cs))
     {
-      Uint32 xmul = cs->strxfrm_multiply;
-      if (xmul == 0)
-	xmul = 1;
-      /*
-       * Varchar end-spaces are ignored in comparisons.  To get same hash
-       * we blank-pad to maximum length via strnxfrm.
-       */
-      Uint32 maxlen = (partcols[i]->m_attrSize * partcols[i]->m_arraySize);
-      Uint32 dstLen = xmul * (maxlen - lb);
-      int n = NdbSqlUtil::strnxfrm_bug7284(cs, 
-					   (unsigned char*)pos, 
-					   dstLen, 
-					   ((unsigned char*)keyData[i].ptr)+lb,
-					   len);
-      
+      const Uint32 maxlen = (partcols[i]->m_attrSize * partcols[i]->m_arraySize) - lb;
+      int n = NdbSqlUtil::strnxfrm_hash(cs, partcols[i]->m_type,
+                                   pos, bufEnd-pos, 
+                                   ((uchar*)keyData[i].ptr)+lb, len, maxlen);
+
       if (unlikely(n == -1))
 	goto emalformedstring;
       
@@ -589,7 +600,7 @@ Ndb::computeHash(Uint32 *retval,
                  void* buf, Uint32 bufLen)
 {
   Uint32 len;
-  char* pos = NULL;
+  unsigned char *pos, *bufEnd;
   void* malloced_buf = NULL;
 
   Uint32 parts = keyRec->distkey_index_length;
@@ -626,7 +637,8 @@ Ndb::computeHash(Uint32 *retval,
     bufLen -= Uint32(use - org);
   }
 
-  pos= (char*) buf;
+  pos= (unsigned char*) buf;
+  bufEnd = pos + bufLen;
 
   for (Uint32 i = 0; i < parts; i++)
   {
@@ -664,19 +676,18 @@ Ndb::computeHash(Uint32 *retval,
 
     const CHARSET_INFO* cs = keyAttr.charset_info;
     if (cs)
-    {
-      Uint32 xmul = cs->strxfrm_multiply;
-      if (xmul == 0)
-        xmul = 1;
-      /*
-       * Varchar end-spaces are ignored in comparisons.  To get same hash
-       * we blank-pad to maximum length via strnxfrm.
-       */
-      Uint32 dstLen = xmul * maxlen;
-      int n = NdbSqlUtil::strnxfrm_bug7284((CHARSET_INFO*)cs,
-                                           (unsigned char*)pos,
-                                           dstLen, src,
-                                           len);
+    {      
+      NdbSqlUtil::Type::Enum typeId;
+      if (keyAttr.flags & NdbRecord::IsVar1ByteLen) {
+        typeId = NdbSqlUtil::Type::Varchar;
+      } else if (keyAttr.flags & NdbRecord::IsVar2ByteLen) {
+        typeId = NdbSqlUtil::Type::Longvarchar;
+      } else {
+        typeId = NdbSqlUtil::Type::Char;
+      }
+      const int n = NdbSqlUtil::strnxfrm_hash(cs, typeId,
+                                         pos, bufEnd-pos,
+                                         src, len, maxlen);
       if (unlikely(n == -1))
         goto emalformedstring;
       len = n;
@@ -747,17 +758,87 @@ Ndb::startTransaction(const NdbRecord *keyRec, const char *keyData,
 NdbTransaction* 
 Ndb::startTransaction(const NdbDictionary::Table *table,
 		      const struct Key_part_ptr * keyData, 
-		      void* buf, Uint32 bufLen)
+		      void* xfrmbuf, Uint32 xfrmbuflen)
 {
   int ret;
   Uint32 hash;
-  if ((ret = computeHash(&hash, table, keyData, buf, bufLen)) == 0)
+  if ((ret = computeHash(&hash, table, keyData, xfrmbuf, xfrmbuflen)) == 0)
   {
     return startTransaction(table, table->getPartitionId(hash));
   }
 
   theError.code = ret;
   return 0;
+}
+
+Uint32
+NdbImpl::select_node(NdbTableImpl *table_impl,
+                     const Uint16 *nodes,
+                     Uint32 cnt)
+{
+  if (table_impl == NULL)
+  {
+    return m_ndb_cluster_connection.select_any(this);
+  }
+
+  Uint32 nodeId;
+  bool readBackup = table_impl->m_read_backup;
+  bool fullyReplicated = table_impl->m_fully_replicated;
+
+  if (cnt && !readBackup && !fullyReplicated)
+  {
+    /**
+     * We select the primary replica node normally. If the user
+     * have specified location domains we will always ensure that
+     * we pick a node within the same location domain before we
+     * pick the primary replica.
+     *
+     * The reason is that the transaction could be large and involve
+     * many more operations not necessarily using the same partition
+     * key. The jump to the primary is to a different location domain,
+     * so we keeping the TC local to this domain always seems preferrable
+     * to picking the perfect path for this operation.
+     */
+    if (m_optimized_node_selection)
+    {
+      nodeId = m_ndb_cluster_connection.select_location_based(this,
+                                                              nodes,
+                                                              cnt);
+    }
+    else
+    {
+      /* Backwards compatible setting */
+      nodeId = nodes[0];
+    }
+  }
+  else if (fullyReplicated)
+  {
+    /**
+     * Consider any fragment and any replica.
+     * Both for hinted and not hinted (cnt==0) select.
+     */
+    cnt = table_impl->m_fragments.size();
+    nodes = table_impl->m_fragments.getBase();
+    nodeId = m_ndb_cluster_connection.select_node(this, nodes, cnt);
+  }
+  else if (cnt == 0)
+  {
+    /**
+     * For unhinted select, let caller select node.
+     * Except for fully replicated tables, see above.
+     */
+    nodeId = m_ndb_cluster_connection.select_any(this);
+  }
+  else
+  {
+    /**
+     * Read backup tables.
+     * Consider one fragment and any replica for readBackup
+     */
+    require(readBackup);
+    nodeId = m_ndb_cluster_connection.select_node(this, nodes, cnt);
+  }
+  return nodeId;
 }
 
 NdbTransaction*
@@ -774,13 +855,10 @@ Ndb::startTransaction(const NdbDictionary::Table* table,
 
     Uint32 nodeId;
     const Uint16 *nodes;
-    Uint32 cnt = NdbTableImpl::getImpl(* table).get_nodes(partitionId, 
-                                                          &nodes);
-    if(cnt)
-      nodeId= nodes[0];
-    else
-      nodeId= 0;
-    
+    NdbTableImpl *impl =  & NdbTableImpl::getImpl(*table);
+    Uint32 cnt = impl->get_nodes(partitionId,
+                                 &nodes);
+    nodeId = theImpl->select_node(impl, nodes, cnt);
     theImpl->incClientStat(TransStartCount, 1);
 
     NdbTransaction *trans= startTransactionLocal(0, nodeId, 0);
@@ -863,10 +941,17 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
       
       const Uint16 *nodes;
       Uint32 cnt= impl->get_nodes(table->getPartitionId(hashValue),  &nodes);
-      if(cnt)
+      nodeId = theImpl->select_node(impl, nodes, cnt);
+    }
+    else
+    {
+      /* No hint available, calling select_node with zero count */
+      NdbTableImpl* impl = NULL;
+      if (table != NULL)
       {
-        nodeId= nodes[0];
+        impl = &NdbTableImpl::getImpl(*table);
       }
+      nodeId = theImpl->select_node(impl, NULL, 0);
     }
 
     /* TODO : Should call method above rather than duplicate call to
@@ -951,6 +1036,15 @@ Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId, Uint32 instance)
 
   DBUG_ENTER("Ndb::startTransactionLocal");
   DBUG_PRINT("enter", ("nodeid: %d", nodeId));
+
+#ifdef VM_TRACE
+  DBUG_EXECUTE_IF("ndb_start_transaction_fail",
+                  {
+                    /* Cluster failure */
+                    theError.code = 4009;
+                    DBUG_RETURN(0);
+                  };);
+#endif
 
   if(unlikely(theRemainingStartTransactions == 0))
   {
@@ -1047,7 +1141,7 @@ Ndb::closeTransaction(NdbTransaction* aConnection)
 {
   DBUG_ENTER("Ndb::closeTransaction");
   NdbTransaction* tCon;
-  NdbTransaction* tPreviousCon;
+  NdbTransaction* tPreviousCon = nullptr;
 
   if (aConnection == NULL) {
 //-----------------------------------------------------
@@ -1892,12 +1986,18 @@ const char *
 Ndb::externalizeTableName(const char * internalTableName, bool fullyQualifiedNames)
 {
   if (fullyQualifiedNames) {
-    register const char *ptr = internalTableName;
+    const char *ptr = internalTableName;
    
     // Skip database name
-    while (*ptr && *ptr++ != table_name_separator);
+    while (*ptr && *ptr++ != table_name_separator)
+    {
+      ;
+    }
     // Skip schema name
-    while (*ptr && *ptr++ != table_name_separator);
+    while (*ptr && *ptr++ != table_name_separator)
+    {
+      ;
+    }
     return ptr;
   }
   else
@@ -1914,7 +2014,7 @@ const char *
 Ndb::externalizeIndexName(const char * internalIndexName, bool fullyQualifiedNames)
 {
   if (fullyQualifiedNames) {
-    register const char *ptr = internalIndexName;
+    const char *ptr = internalIndexName;
    
     // Scan name from the end
     while (*ptr++)
@@ -2051,7 +2151,7 @@ Ndb::getDatabaseFromInternalName(const char * internalName)
     return BaseString(NULL);
   }
   strcpy(databaseName, internalName);
-  register char *ptr = databaseName;
+  char *ptr = databaseName;
    
   /* Scan name for the first table_name_separator */
   while (*ptr && *ptr != table_name_separator)
@@ -2071,13 +2171,13 @@ Ndb::getSchemaFromInternalName(const char * internalName)
     errno = ENOMEM;
     return BaseString(NULL);
   }
-  register const char *ptr1 = internalName;
+  const char *ptr1 = internalName;
    
   /* Scan name for the second table_name_separator */
   while (*ptr1 && *ptr1 != table_name_separator)
     ptr1++;
   strcpy(schemaName, ptr1 + 1);
-  register char *ptr = schemaName;
+  char *ptr = schemaName;
   while (*ptr && *ptr != table_name_separator)
     ptr++;
   *ptr = '\0';
@@ -2170,7 +2270,30 @@ NdbEventOperation *Ndb::getEventOperation(NdbEventOperation* tOp)
 int
 Ndb::pollEvents2(int aMillisecondNumber, Uint64 *highestQueuedEpoch)
 {
-  return theEventBuffer->pollEvents(aMillisecondNumber, highestQueuedEpoch);
+  if (unlikely(aMillisecondNumber < 0))
+  {
+    g_eventLogger->error("Ndb::pollEvents2: negative aMillisecondNumber %d 0x%x %s",
+                         aMillisecondNumber,
+                         getReference(),
+                         getNdbObjectName());
+    return -1;
+  }
+
+  /* Look for already available events without polling transporter. */
+  const int found = theEventBuffer->pollEvents(highestQueuedEpoch);
+  if (found)
+    return found;
+
+  /**
+   * We need to poll the transporter, and possibly wait, to make sure
+   * that arrived events are delivered to their clients as soon as possible.
+   * ::trp_deliver_signal() will wakeup the client when event arrives.
+   */
+  PollGuard poll_guard(* theImpl);
+  poll_guard.wait_n_unlock(aMillisecondNumber, 0, WAIT_EVENT);
+  // PollGuard ends here
+
+  return theEventBuffer->pollEvents(highestQueuedEpoch);
 }
 
 bool
@@ -2197,76 +2320,35 @@ Ndb::printOverflowErrorAndExit()
 }
 
 int
-Ndb::pollEvents(int aMillisecondNumber, Uint64 *latestGCI)
+Ndb::pollEvents(int aMillisecondNumber, Uint64 *highestQueuedEpoch)
 {
-  /**
-   * aMillisecondNumber = 0 : one poll call
-   * else divide aMillisecondNumber into a 1-hour time slot
-   * and call poll with this time slot until it expires.
-   * Note: The else-part: it will cover aMillisecondNumber < 0,
-   * which is converted to unsigned and become large,
-   * as well as aMillisecondNumber > 0.
+  /* Look for already available events without polling transporter */
+  /** Note: pollEvents() does not call pollEvents2() as the other backward
+   * compatibility methods do, but directly call theEventBuffer->pollEvents.
+   * This is to simplify the code by avoiding the
+   * handling of negative aMillisecondNumber rejected by pollEvents2(),
+   * but accepted by pollEvents() as an *infinite* maxwait.
    */
-  const Uint32 waitSlot = 3600*1000; // in millisecs
-  const Uint32 totalWaitTime = (Uint32)aMillisecondNumber;
-  const NDB_TICKS startTime = NdbTick_getCurrentTicks();
-  Uint32 remaining = totalWaitTime;
-  Uint32 waited = 0;
-
-  do
+  int found = theEventBuffer->pollEvents(highestQueuedEpoch);
+  if (!found)
   {
-    const Uint32 pollTimeout = (remaining > waitSlot) ? waitSlot :
-      remaining;
-    const int res = pollEvents2((int)pollTimeout, latestGCI);
+    /**
+     * We need to poll the transporter, and possibly wait, to make sure
+     * that arrived events are delivered to their clients as soon as possible.
+     * ::trp_deliver_signal() will wakeup the client when event arrives,
+     * or a new (empty) epoch is completed
+     */
+    PollGuard poll_guard(* theImpl);
+    poll_guard.wait_n_unlock(aMillisecondNumber, 0, WAIT_EVENT);
+    // PollGuard ends here
 
-    if ((latestGCI) && (isExpectingHigherQueuedEpochs() == false))
-      *latestGCI= NDB_FAILURE_GCI;
+    found = theEventBuffer->pollEvents(highestQueuedEpoch);
+  }
 
-    if (res < 0)
-    {
-      return res;
-    }
+  if ((highestQueuedEpoch) && (isExpectingHigherQueuedEpochs() == false))
+    *highestQueuedEpoch= NDB_FAILURE_GCI;
 
-    if (res > 0)
-    {
-      EventBufData *data = theEventBuffer->m_available_data.m_head;
-      while (data)
-      {
-        // All including exceptional event data must have an associated buffer
-        assert(data->sdata);
-
-        const Uint32 type =
-          SubTableData::getOperation(data->sdata->requestInfo);
-
-        if ((type != NdbDictionary::Event::_TE_EMPTY))
-        {
-          /* res >0  will be returned here, making the consumer
-           * to call nextEvent().
-           * nextEvent() call will handle the new types:
-           * _TE_INCONSISTENT and _TE_OUT_OF_MEMORY:
-           *
-           * Consumer handles other types as usual.
-           */
-          return res;
-	}
-
-        // Consumer cannot handle the new type TE_EMPTY, filter it.
-        (void)nextEvent2();
-        data = theEventBuffer->m_available_data.m_head;
-      }
-      // Event queue is scanned and no regular event data is found
-      assert(data==NULL);
-      return 0;
-    }
-
-    waited =
-      (Uint32)NdbTick_Elapsed(startTime, NdbTick_getCurrentTicks()).milliSec();
-
-    remaining = totalWaitTime - waited;
-
-  } while (totalWaitTime > waited);
-
-  return 0;
+  return found;
 }
 
 int
@@ -2288,23 +2370,26 @@ NdbEventOperation *Ndb::nextEvent()
   NdbDictionary::Event::TableEvent errType;
 
   // Remove the event data from the head
-  NdbEventOperation *op = nextEvent2();
+  NdbEventOperation *op = theEventBuffer->nextEvent2();
+  if (op == NULL)
+    return NULL;
 
-  while (op)
+  if (unlikely(op->isErrorEpoch(&errType)))
   {
-    if (op->isErrorEpoch(&errType))
-    {
-      if (errType ==  NdbDictionary::Event::TE_INCONSISTENT)
-        return NULL;
+    if (errType ==  NdbDictionary::Event::TE_INCONSISTENT)
+      return NULL;
 
-      if (errType ==  NdbDictionary::Event::TE_OUT_OF_MEMORY)
-        printOverflowErrorAndExit();
-    }
+    if (errType ==  NdbDictionary::Event::TE_OUT_OF_MEMORY)
+      printOverflowErrorAndExit();
+  }
 
-    if (!op->isEmptyEpoch())
-      break; // return non-empty epoch
-
-    op = nextEvent2(); // remove empty epoch and check the next one
+  if (unlikely(op->isEmptyEpoch()))
+  {
+    g_eventLogger->error("Ndb::nextEvent: Found exceptional event type "
+                         "TE_EMPTY when using old event API. "
+                         "Turn off empty epoch queuing by "
+                         "setEventBufferQueueEmptyEpoch(false).");
+    exit(-1);
   }
   return op;
 }
@@ -2324,8 +2409,15 @@ Ndb::isConsistentGCI(Uint64 gci)
 const NdbEventOperation*
 Ndb::getNextEventOpInEpoch2(Uint32* iter, Uint32* event_types)
 {
+  return getNextEventOpInEpoch3(iter, event_types, NULL);
+}
+
+const NdbEventOperation*
+Ndb::getNextEventOpInEpoch3(Uint32* iter, Uint32* event_types,
+                           Uint32* cumulative_any_value)
+{
   NdbEventOperationImpl* op =
-    theEventBuffer->getGCIEventOperations(iter, event_types);
+    theEventBuffer->getEpochEventOperations(iter, event_types, cumulative_any_value);
   if (op != NULL)
     return op->m_facade;
   return NULL;
@@ -2334,7 +2426,7 @@ Ndb::getNextEventOpInEpoch2(Uint32* iter, Uint32* event_types)
 const NdbEventOperation*
 Ndb::getGCIEventOperations(Uint32* iter, Uint32* event_types)
 {
-  return getNextEventOpInEpoch2(iter, event_types);
+  return getNextEventOpInEpoch3(iter, event_types, NULL);
   /*
    * No event operation is added to gci_ops list for exceptional event data.
    * So it is not possible to get them in event_types. No check needed.
@@ -2367,6 +2459,11 @@ void Ndb::setReportThreshEventFreeMem(unsigned thresh)
     theEventBuffer->m_min_free_thresh= thresh;
     theEventBuffer->m_max_free_thresh= 100;
   }
+}
+
+void Ndb::setEventBufferQueueEmptyEpoch(bool queue_empty_epoch)
+{
+  theEventBuffer->setEventBufferQueueEmptyEpoch(queue_empty_epoch);
 }
 
 Uint64 Ndb::allocate_transaction_id()
@@ -2578,6 +2675,49 @@ Ndb::getNdbErrorDetail(const NdbError& err, char* buff, Uint32 buffLen) const
         DBUG_PRINT("info", ("Index id %u not found", indexObjectId));
         DBUG_RETURN(NULL);
       }
+    }
+    case 255: /* ZFK_NO_PARENT_ROW_EXISTS - Insert/Update failure */
+    case 256: /* ZFK_CHILD_ROW_EXISTS - Update/Delete failure */
+    case 21080: /* Drop parent failed - child row exists */
+    {
+      /* Foreign key violation errors.
+       * `details` has the violated fk id.
+       * We'll fetch the fully qualified fk name
+       * and put that in caller's buffer */
+      const UintPtr uip = (UintPtr) err.details;
+      const Uint32 foreignKeyId = (Uint32) (uip - (UintPtr(0)));
+
+      NdbDictionary::Dictionary::List allForeignKeys;
+      int rc = theDictionary->listObjects(allForeignKeys,
+                                          NdbDictionary::Object::ForeignKey,
+                                          true); // FullyQualified names
+      if (rc)
+      {
+        DBUG_PRINT("info", ("listObjects call 1 failed with rc %u", rc));
+        DBUG_RETURN(NULL);
+      }
+
+      DBUG_PRINT("info", ("Retrieved details for %u foreign keys",
+                          allForeignKeys.count));
+
+      for (unsigned i = 0; i < allForeignKeys.count; i++)
+      {
+        if (allForeignKeys.elements[i].id == foreignKeyId)
+        {
+          const char *foreignKeyName = allForeignKeys.elements[i].name;
+          DBUG_PRINT("info", ("Found the Foreign Key : %s", foreignKeyName));
+
+          /* Copy foreignKeyName to caller's buffer.
+           * If the buffer size is not enough, fk name will be truncated */
+          strncpy(buff, foreignKeyName, buffLen);
+          buff[buffLen-1] = 0;
+
+          DBUG_RETURN(buff);
+        }
+      }
+
+      DBUG_PRINT("info", ("Foreign key id %u not found", foreignKeyId));
+      DBUG_RETURN(NULL);
     }
     default:
     {

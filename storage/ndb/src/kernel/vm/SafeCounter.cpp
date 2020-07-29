@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,9 @@
 SafeCounterManager::SafeCounterManager(class SimulatedBlock & block)
   : m_block(block),
     m_activeCounters(m_counterPool)
+#ifdef ERROR_INSERT
+  ,m_fakeEmpty(false)
+#endif
 {}
   
 bool
@@ -52,6 +55,12 @@ SafeCounterManager::getNoOfFree() const {
 
 bool
 SafeCounterManager::seize(ActiveCounterPtr& ptr){
+#ifdef ERROR_INSERT
+  if (unlikely(m_fakeEmpty))
+  {
+    return false;
+  }
+#endif
   return m_activeCounters.seizeFirst(ptr);
 }
 
@@ -61,7 +70,8 @@ SafeCounterManager::release(ActiveCounterPtr& ptr){
 }
 
 void
-SafeCounterManager::getPtr(ActiveCounterPtr& ptr, Uint32 ptrI){
+SafeCounterManager::getPtr(ActiveCounterPtr& ptr, Uint32 ptrI) const
+{
   m_activeCounters.getPtr(ptr, ptrI);
 }
 
@@ -96,12 +106,11 @@ SafeCounterManager::printNODE_FAILREP(){
 }
 
 void
-SafeCounterManager::execNODE_FAILREP(Signal* signal){
+SafeCounterManager::execNODE_FAILREP(Signal* signal,
+                                     const NdbNodeBitmask& nodes)
+{
   Uint32 * theData = signal->getDataPtrSend();
   ActiveCounterPtr ptr;
-  NdbNodeBitmask nodes;
-  nodes.assign(NdbNodeBitmask::Size, 
-	       ((const NodeFailRep*)signal->getDataPtr())->theNodes);
 
   for(m_activeCounters.first(ptr); !ptr.isNull(); m_activeCounters.next(ptr)){
     if(nodes.overlaps(ptr.p->m_nodes)){
@@ -129,9 +138,17 @@ SafeCounterManager::reference() const {
 }
 
 void
-SafeCounterManager::progError(int line, int err_code, const char* extra){
-  m_block.progError(line, err_code, extra);
+SafeCounterManager::progError(int line, int err_code, const char* extra, const char* check){
+  m_block.progError(line, err_code, extra, check);
 }
+
+#ifdef ERROR_INSERT
+void
+SafeCounterManager::setFakeEmpty(bool val)
+{
+  m_fakeEmpty=val;
+}
+#endif
 
 bool
 SafeCounterHandle::clearWaitingFor(SafeCounterManager& mgr, Uint32 nodeId)

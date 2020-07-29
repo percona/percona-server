@@ -1,1 +1,1 @@
---transaction-isolation=READ-COMMITTED
+--transaction-isolation=READ-COMMITTED --gtid_mode=off

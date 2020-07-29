@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,47 +23,38 @@
 #ifndef MYSQL_BUFFER_H
 #define MYSQL_BUFFER_H
 
-#include "keyring_memory.h"
-#include "i_serialized_object.h"
+#include <stddef.h>
 
-namespace keyring
-{
+#include "my_inttypes.h"
+#include "plugin/keyring/common/i_serialized_object.h"
+#include "plugin/keyring/common/keyring_memory.h"
 
-class Buffer : public ISerialized_object
-{
-public:
-  Buffer() : data(NULL)
-  {
-    mark_as_empty();
-  }
-  Buffer(size_t memory_size) : data(NULL)
-  {
-    reserve(memory_size);
-  }
-  ~Buffer()
-  {
-    if(data != NULL)
-      delete[] data;
+namespace keyring {
+
+class Buffer : public ISerialized_object {
+ public:
+  Buffer() : data(nullptr) { mark_as_empty(); }
+  Buffer(size_t memory_size) : data(nullptr) { reserve(memory_size); }
+  ~Buffer() {
+    if (data != nullptr) delete[] data;
   }
 
-  inline void free();
-  my_bool get_next_key(IKey **key);
-  my_bool has_next_key();
+  void free();
+  bool get_next_key(IKey **key);
+  bool has_next_key();
   void reserve(size_t memory_size);
 
   uchar *data;
   size_t size;
   size_t position;
-private:
-  Buffer(const Buffer&);
-  Buffer& operator=(const Buffer&);
 
-  inline void mark_as_empty()
-  {
-    size= position= 0;
-  }
+ private:
+  Buffer(const Buffer &);
+  Buffer &operator=(const Buffer &);
+
+  inline void mark_as_empty() { size = position = 0; }
 };
 
-} //namespace keyring
+}  // namespace keyring
 
-#endif //MYSQL_BUFFER_H
+#endif  // MYSQL_BUFFER_H

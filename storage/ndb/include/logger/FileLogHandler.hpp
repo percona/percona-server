@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ class FileLogHandler : public LogHandler
 {
 public:
 
-  virtual const char* handler_type() {return "FILE"; };
+  virtual const char* handler_type() {return "FILE"; }
 
   /**
    * Creates a new file handler with the specified filename, 
@@ -77,10 +77,11 @@ public:
   virtual bool getParams(BaseString &config);
 
   virtual off_t getCurrentSize();
-  virtual off_t getMaxSize() { return m_maxFileSize; };
+  virtual off_t getMaxSize() { return m_maxFileSize; }
 
 protected:	
-  virtual void writeHeader(const char* pCategory, Logger::LoggerLevel level);
+  virtual void writeHeader(const char* pCategory, Logger::LoggerLevel level,
+                           time_t now);
   virtual void writeMessage(const char* pMsg);
   virtual void writeFooter();
   

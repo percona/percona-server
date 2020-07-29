@@ -18,18 +18,13 @@ GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 ----
 
 The rapidjson library included in this directory is based on
 https://github.com/Tencent/rapidjson/,
 commit 418331e99f859f00bdc8306f69eba67e8693c55e
-
-There is one change made to the library:
-
-1) Rapidjson-specific changes in commit 91153f3385c4917a215aa4c7818b3f6265608286
-   have been applied, so that negative zero is handled properly (bug#19504183).
 
 We only include the contents of the folder "include/" so that we don't include
 any code licensed under the JSON License.

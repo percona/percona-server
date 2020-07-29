@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,8 +28,10 @@
 #include <ndb_global.h>
 #include <BaseString.hpp>
 #include <UtilBuffer.hpp>
+#include <unordered_map>
 
 enum PropertiesType {
+  PropertiesType_Undefined = -1,
   PropertiesType_Uint32 = 0,
   PropertiesType_char = 1,
   PropertiesType_Properties = 2,
@@ -49,6 +50,9 @@ struct Property {
   Property(const char* name, Uint64 val);
   Property(const char* name, const char * value);
   Property(const char* name, const class Properties * value);
+  // We have no copy or move constructors so delete also assignment operator.
+  Property& operator=(const Property&) = delete;
+  Property& operator=(Property&&) = delete;
   ~Property();
 private:
   friend class Properties;
@@ -67,6 +71,7 @@ public:
   Properties(bool case_insensitive= false);
   Properties(const Properties &);
   Properties(const Property *, int len);
+  Properties& operator=(const Properties&);
   virtual ~Properties();
 
   /**
@@ -89,6 +94,7 @@ public:
   bool put64(const char * name, Uint64 value, bool replace = false);
   bool put(const char * name, const char * value, bool replace = false);
   bool put(const char * name, const Properties * value, bool replace = false);
+  bool append(const char * name, const char * value);
 
   /**
    * Same as put above,
@@ -138,26 +144,27 @@ public:
   /**
    *  Iterator over names 
    */
-  class Iterator { 
+  class Iterator
+  {
   public:
     Iterator(const Properties* prop);
+    ~Iterator();
 
     const char* first();
     const char* next();
   private:
     const Properties*  m_prop;
-    Uint32 m_iterator;
+    class IteratorImpl *m_iterImpl;
   };
   friend class Properties::Iterator;
 
   Uint32 getPackedSize() const;
-  bool pack(Uint32 * buf) const;
-  bool pack(UtilBuffer &buf) const;
   bool unpack(const Uint32 * buf, Uint32 bufLen);
   bool unpack(UtilBuffer &buf);
   
   Uint32 getPropertiesErrno() const { return propErrno; }
   Uint32 getOSErrno() const { return osErrno; }
+
 private:
   Uint32 propErrno;
   Uint32 osErrno;
@@ -241,19 +248,5 @@ inline bool
 Properties::unpack(UtilBuffer &buf) {
   return unpack((const Uint32 *)buf.get_data(), buf.length());
 }
-
-inline bool
-Properties::pack(UtilBuffer &buf) const {
-  Uint32 size = getPackedSize();
-  void *tmp_buf = buf.append(size);
-  if(tmp_buf == 0)
-    return false;
-  bool ret = pack((Uint32 *)tmp_buf);
-  if(ret == false)
-    return false;
-  return true;
-}
-
-
 
 #endif

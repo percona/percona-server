@@ -1,6 +1,5 @@
 set default_storage_engine='tokudb';
 set default_storage_engine='tokudb';
-drop table if exists t1,t2;
 set time_zone="+03:00";
 CREATE TABLE t1 (a int, t timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 CREATE TABLE t2 (a int, t datetime);
@@ -155,7 +154,7 @@ t1	CREATE TABLE `t1` (
   `t1` timestamp NOT NULL DEFAULT '2003-01-01 00:00:00',
   `t2` datetime DEFAULT NULL,
   `t3` timestamp NOT NULL DEFAULT '1971-01-01 00:00:00'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 t1	timestamp	NO		2003-01-01 00:00:00	
@@ -179,10 +178,10 @@ t1	CREATE TABLE `t1` (
   `t1` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `t2` datetime DEFAULT NULL,
   `t3` timestamp NOT NULL DEFAULT '1971-01-01 00:00:00'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-t1	timestamp	NO		CURRENT_TIMESTAMP	
+t1	timestamp	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
 t2	datetime	YES		NULL	
 t3	timestamp	NO		1971-01-01 00:00:00	
 drop table t1;
@@ -205,7 +204,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `t1` timestamp NOT NULL DEFAULT '2003-01-01 00:00:00' ON UPDATE CURRENT_TIMESTAMP,
   `t2` datetime DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 t1	timestamp	NO		2003-01-01 00:00:00	on update CURRENT_TIMESTAMP
@@ -230,10 +229,10 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `t1` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `t2` datetime DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-t1	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
+t1	timestamp	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
 t2	datetime	YES		NULL	
 drop table t1;
 create table t1 (t1 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, t2 datetime, t3 timestamp NOT NULL DEFAULT '1971-01-01 00:00:00');
@@ -256,10 +255,10 @@ t1	CREATE TABLE `t1` (
   `t1` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `t2` datetime DEFAULT NULL,
   `t3` timestamp NOT NULL DEFAULT '1971-01-01 00:00:00'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-t1	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
+t1	timestamp	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
 t2	datetime	YES		NULL	
 t3	timestamp	NO		1971-01-01 00:00:00	
 drop table t1;
@@ -282,10 +281,10 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `t1` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `t2` datetime DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-t1	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
+t1	timestamp	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
 t2	datetime	YES		NULL	
 truncate table t1;
 insert into t1 values ('2004-04-01 00:00:00', '2004-04-01 00:00:00');
@@ -337,7 +336,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` timestamp NULL DEFAULT NULL,
   `b` timestamp NULL DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values (NULL, NULL);
 SET TIMESTAMP=1000000017;
 insert into t1 values ();
@@ -352,7 +351,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `b` timestamp NULL DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values (NULL, NULL);
 SET TIMESTAMP=1000000018;
 insert into t1 values ();
@@ -367,7 +366,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` timestamp NULL DEFAULT NULL,
   `b` timestamp NULL DEFAULT '2003-01-01 00:00:00'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values (NULL, NULL);
 insert into t1 values (DEFAULT, DEFAULT);
 select * from t1;
@@ -391,23 +390,6 @@ select max(t) from t1 group by a;
 max(t)
 2004-01-01 01:00:00
 2004-02-01 00:00:00
-drop table t1;
-set sql_mode='maxdb';
-Warnings:
-Warning	3090	Changing sql mode 'MAXDB,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
-create table t1 (a timestamp, b timestamp);
-Warnings:
-Warning	3226	With the MAXDB SQL mode enabled, TIMESTAMP is identical with DATETIME. The MAXDB SQL mode is deprecated and will be removed in a future release. Please disable the MAXDB SQL mode and use DATETIME instead.
-Warning	3226	With the MAXDB SQL mode enabled, TIMESTAMP is identical with DATETIME. The MAXDB SQL mode is deprecated and will be removed in a future release. Please disable the MAXDB SQL mode and use DATETIME instead.
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE "t1" (
-  "a" datetime DEFAULT NULL,
-  "b" datetime DEFAULT NULL
-)
-set sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table t1;
 create table t1 (a int auto_increment primary key, b int, c timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 insert into t1 (a, b, c) values (1, 0, '2001-01-01 01:01:01'),
@@ -464,25 +446,28 @@ CREATE TABLE t1 (
 `posted_on` timestamp NOT NULL default '1971-01-01 00:00:00',
 PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 AUTO_INCREMENT=1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 show fields from t1;
 Field	Type	Null	Key	Default	Extra
-id	int(11)	NO	PRI	NULL	auto_increment
+id	int	NO	PRI	NULL	auto_increment
 username	varchar(80)	NO			
 posted_on	timestamp	NO		1971-01-01 00:00:00	
 select is_nullable from INFORMATION_SCHEMA.COLUMNS where TABLE_NAME='t1' and COLUMN_NAME='posted_on';
-is_nullable
+IS_NULLABLE
 NO
 drop table t1;
 CREATE TABLE t1 ( f1 INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
 f2 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 f3 TIMESTAMP NOT NULL default '1971-01-01 00:00:00');
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (f2,f3) VALUES (NOW(), "1971-01-01 00:00:00");
 UPDATE t1 SET f2=NOW(), f3=FROM_UNIXTIME('9999999999') WHERE f1=1;
-Warnings:
-Warning	1048	Column 'f3' cannot be null
+ERROR 23000: Column 'f3' cannot be null
 SELECT f1,f2-f3 FROM t1;
 f1	f2-f3
-1	20010909044659
+1	300808044659
 DROP TABLE t1;
 End of 5.0 tests
 #
@@ -544,34 +529,8 @@ a
 2010-02-01 09:31:03
 2010-02-01 09:31:04
 CREATE TABLE t2 ( a TIMESTAMP, KEY ( a DESC ) );
-INSERT INTO t2 VALUES( '2010-02-01 09:31:01' );
-INSERT INTO t2 VALUES( '2010-02-01 09:31:02' );
-INSERT INTO t2 VALUES( '2010-02-01 09:31:03' );
-INSERT INTO t2 VALUES( '2010-02-01 09:31:04' );
-INSERT INTO t2 VALUES( '2010-02-01 09:31:05' );
-INSERT INTO t2 VALUES( '2010-02-01 09:31:06' );
-INSERT INTO t2 VALUES( '2010-02-01 09:31:07' );
-INSERT INTO t2 VALUES( '2010-02-01 09:31:08' );
-INSERT INTO t2 VALUES( '2010-02-01 09:31:09' );
-INSERT INTO t2 VALUES( '2010-02-01 09:31:10' );
-INSERT INTO t2 VALUES( '2010-02-01 09:31:11' );
-# The bug would cause the range optimizer's comparison to use an open
-# interval here. This reveals itself only in the number of reads 
-# performed.
-FLUSH STATUS;
-EXPLAIN
-SELECT * FROM t2 WHERE a < '2010-02-01 09:31:02.0';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-x	x	x	NULL	x	x	x	x	x	x	100.00	Using where; Using index
-Warnings:
-x	x	x
-SELECT * FROM t2 WHERE a < '2010-02-01 09:31:02.0';
-a
-2010-02-01 09:31:01
-SHOW STATUS LIKE 'Handler_read_next';
-Variable_name	Value
-Handler_read_next	1
-DROP TABLE t1, t2;
+ERROR 42000: The storage engine for the table doesn't support descending indexes
+DROP TABLE t1;
 End of 5.1 tests
 
 Bug#50888 valgrind warnings in Field_timestamp::val_str
@@ -741,13 +700,13 @@ CREATE TABLE t1 (f1 TIMESTAMP, f2 TIMESTAMP);
 ALTER TABLE t1 ADD COLUMN (f3 TIMESTAMP NOT NULL);
 ALTER TABLE t1 ADD COLUMN (f4 TIMESTAMP DEFAULT NULL);
 ALTER TABLE t1 ADD COLUMN (f5 TIMESTAMP DEFAULT '0:0:0');
+ERROR 42000: Invalid default value for 'f5'
 ALTER TABLE t1 ADD COLUMN (f6 TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 # Following is expected out of SHOW CREATE TABLE
 #  `f1` timestamp NULL DEFAULT NULL,
 #  `f2` timestamp NULL DEFAULT NULL,
 #  `f3` timestamp NOT NULL,
 #  `f4` timestamp NULL DEFAULT NULL,
-#  `f5` timestamp NULL DEFAULT '0000-00-00 00:00:00'
 #  `f6` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -756,13 +715,12 @@ t1	CREATE TABLE `t1` (
   `f2` timestamp NULL DEFAULT NULL,
   `f3` timestamp NOT NULL,
   `f4` timestamp NULL DEFAULT NULL,
-  `f5` timestamp NULL DEFAULT '0000-00-00 00:00:00',
   `f6` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # The new behavior affects CREATE SELECT with column definitions
 # before SELECT keyword. The columns f1,f2 in t2 do not get promoted
 # with the new behavior.
-CREATE TABLE t2 (f1 TIMESTAMP, f2 TIMESTAMP) SELECT f1,f2,f3,f4,f5,f6 FROM t1;
+CREATE TABLE t2 (f1 TIMESTAMP, f2 TIMESTAMP) SELECT f1,f2,f3,f4,f6 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -770,9 +728,8 @@ t2	CREATE TABLE `t2` (
   `f2` timestamp NULL DEFAULT NULL,
   `f3` timestamp NOT NULL,
   `f4` timestamp NULL DEFAULT NULL,
-  `f5` timestamp NULL DEFAULT '0000-00-00 00:00:00',
   `f6` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 DROP TABLE t2;
 # With --explicit_defaults_for_timestamp,
@@ -787,8 +744,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` timestamp NOT NULL,
   `c2` timestamp NOT NULL DEFAULT '2001-01-01 01:01:01',
-  `c3` int(11) NOT NULL DEFAULT '42'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `c3` int NOT NULL DEFAULT '42'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES (NULL, DEFAULT, DEFAULT);
 ERROR 23000: Column 'c1' cannot be null
 INSERT INTO t1 VALUES ('2005-05-05 06:06:06', NULL, DEFAULT);
@@ -800,11 +757,8 @@ SELECT * FROM t1;
 c1	c2	c3
 2005-05-05 06:06:06	2001-01-01 01:01:01	42
 UPDATE t1 SET c1=NULL,c2=NULL,c3=NULL;
-Warnings:
-Warning	1048	Column 'c1' cannot be null
-Warning	1048	Column 'c2' cannot be null
-Warning	1048	Column 'c3' cannot be null
+ERROR 23000: Column 'c1' cannot be null
 SELECT * FROM t1;
 c1	c2	c3
-0000-00-00 00:00:00	0000-00-00 00:00:00	0
+2005-05-05 06:06:06	2001-01-01 01:01:01	42
 DROP TABLE t1;

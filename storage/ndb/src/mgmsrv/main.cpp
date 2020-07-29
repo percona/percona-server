@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include "MgmtSrvr.hpp"
 #include "EventLogger.hpp"
 #include "Config.hpp"
+#include "my_alloc.h"
 
 #include <version.h>
 #include <kernel_types.h>
@@ -41,6 +42,9 @@
 #include <ndb_mgmclient.hpp>
 
 #include <EventLogger.hpp>
+#include <LogBuffer.hpp>
+#include <OutputStream.hpp>
+
 extern EventLogger * g_eventLogger;
 
 #if defined VM_TRACE || defined ERROR_INSERT
@@ -96,6 +100,7 @@ read_and_execute(Ndb_mgmclient* com, const char * prompt, int _try_reconnect)
 /* Global variables */
 bool g_StopServer= false;
 bool g_RestartServer= false;
+bool g_StopLogging= false;
 static MgmtSrvr* mgm;
 static MgmtSrvr::MgmtOpts opts;
 static const char* opt_logname = "MgmtSrvr";
@@ -180,23 +185,136 @@ static void short_usage_sub(void)
   ndb_service_print_options("ndb_mgmd");
 }
 
-static void usage()
-{
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
-}
-
-static char **defaults_argv;
-
 static void mgmd_exit(int result)
 {
   g_eventLogger->close();
 
-  /* Free memory allocated by 'load_defaults' */
-  ndb_free_defaults(defaults_argv);
-
   ndb_end(opt_ndb_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
 
   ndb_daemon_exit(result);
+}
+
+struct ThreadData
+{
+  FILE* f;
+  LogBuffer* logBuf;
+};
+
+/**
+ * This function/thread is responsible for getting
+ * bytes from the log buffer and writing them
+ * to the mgmd local log file.
+ */
+
+void* async_local_log_func(void* args)
+{
+  ThreadData* data = (ThreadData*)args;
+  FILE* f = data->f;
+  LogBuffer* logBuf = data->logBuf;
+  const size_t get_bytes = 512;
+  char buf[get_bytes + 1];
+  size_t bytes;
+  int part_bytes = 0, bytes_printed = 0;
+
+  while(!g_StopLogging)
+  {
+    part_bytes = 0;
+    bytes_printed = 0;
+
+    if((bytes = logBuf->get(buf, get_bytes)))
+    {
+      fwrite(buf, bytes, 1, f);
+      fflush(f);
+    }
+  }
+
+  while((bytes = logBuf->get(buf, get_bytes, 1)))// flush remaining logs
+  {
+    fwrite(buf, bytes, 1, f);
+    fflush(f);
+  }
+
+  // print lost count in the end, if any
+  size_t lost_count = logBuf->getLostCount();
+  if(lost_count)
+  {
+    fprintf(f, "\n*** %lu BYTES LOST ***\n", (unsigned long)lost_count);
+    fflush(f);
+  }
+
+  return NULL;
+}
+
+static void mgmd_run()
+{
+  LogBuffer* logBufLocalLog = new LogBuffer(32768); // 32kB
+
+  struct NdbThread* locallog_threadvar= NULL;
+  ThreadData thread_args=
+  {
+    stdout,
+    logBufLocalLog,
+  };
+
+  // Create log thread which logs data to the mgmd local log.
+  locallog_threadvar = NdbThread_Create(async_local_log_func,
+                       (void**)&thread_args,
+                       0,
+                       (char*)"async_local_log_thread",
+                       NDB_THREAD_PRIO_MEAN);
+
+  BufferedOutputStream* ndbouts_bufferedoutputstream = new BufferedOutputStream(logBufLocalLog);
+
+  // Make ndbout point to the BufferedOutputStream.
+  NdbOut_ReInit(ndbouts_bufferedoutputstream, ndbouts_bufferedoutputstream);
+
+  /* Start mgm services */
+  if (!mgm->start()) {
+    delete mgm;
+    mgmd_exit(1);
+  }
+
+  if (opts.interactive) {
+    int port= mgm->getPort();
+    BaseString con_str;
+    if(opts.bind_address)
+      con_str.appfmt("host=%s:%d", opts.bind_address, port);
+    else
+      con_str.appfmt("localhost:%d", port);
+    Ndb_mgmclient com(con_str.c_str(), "ndb_mgm> ", 1, 5);
+    while(!g_StopServer){
+      if (!read_and_execute(&com, "ndb_mgm> ", 1))
+        g_StopServer = true;
+    }
+  }
+  else
+  {
+    g_eventLogger->info("MySQL Cluster Management Server %s started",
+                        NDB_VERSION_STRING);
+
+    while (!g_StopServer)
+      NdbSleep_MilliSleep(500);
+  }
+
+  g_eventLogger->info("Shutting down server...");
+  delete mgm;
+  g_eventLogger->info("Shutdown complete");
+
+  if(g_RestartServer){
+    g_eventLogger->info("Restarting server...");
+    g_RestartServer= g_StopServer= false;
+  }
+
+  /**
+   * Stopping the log thread is done at the very end since the
+   * node logs should be available until complete shutdown.
+   */
+  void* dummy_return_status;
+  g_StopLogging = true;
+  NdbThread_WaitFor(locallog_threadvar, &dummy_return_status);
+  delete ndbouts_bufferedoutputstream;
+  NdbThread_Destroy(&locallog_threadvar);
+  delete logBufLocalLog;
 }
 
 #include "../common/util/parse_mask.hpp"
@@ -204,13 +322,10 @@ static void mgmd_exit(int result)
 static int mgmd_main(int argc, char** argv)
 {
   NDB_INIT(argv[0]);
+  Ndb_opts ndb_opts(argc, argv, my_long_options, load_default_groups);
+  ndb_opts.set_usage_funcs(short_usage_sub);
 
   printf("MySQL Cluster Management Server %s\n", NDB_VERSION_STRING);
-
-  ndb_opt_set_usage_funcs(short_usage_sub, usage);
-
-  ndb_load_defaults(NULL, load_default_groups,&argc,&argv);
-  defaults_argv= argv; /* Must be freed by 'free_defaults' */
 
   int ho_error;
 #ifndef DBUG_OFF
@@ -218,8 +333,7 @@ static int mgmd_main(int argc, char** argv)
                     "d:t:i:F:o,/tmp/ndb_mgmd.trace");
 #endif
 
-  if ((ho_error=handle_options(&argc, &argv, my_long_options,
-                               ndb_std_get_one_option)))
+  if ((ho_error=ndb_opts.handle_options()))
     mgmd_exit(ho_error);
 
   if (opts.interactive ||
@@ -232,6 +346,20 @@ static int mgmd_main(int argc, char** argv)
   {
     fprintf(stderr, "ERROR: Both --mycnf and -f is not supported\n");
     mgmd_exit(1);
+  }
+
+  /*validation is added to prevent user using
+  wrong short option for --config-file.*/
+  if (opt_ndb_connectstring)
+  {
+    // file path mostly starts with . or /
+    if (strncmp(opt_ndb_connectstring, "/", 1) == 0 ||
+        strncmp(opt_ndb_connectstring, ".", 1) == 0)
+    {
+      fprintf(stderr, "ERROR: --ndb-connectstring can't start with '.' or"
+          " '/'\n");
+      mgmd_exit(1);
+    }
   }
 
   if (opt_nowait_nodes)
@@ -269,15 +397,17 @@ static int mgmd_main(int argc, char** argv)
      Install signal handler for SIGPIPE
      Done in TransporterFacade as well.. what about Configretriever?
    */
-#if !defined NDB_WIN32
+#ifndef _WIN32
   signal(SIGPIPE, SIG_IGN);
 #endif
 
   while (!g_StopServer)
   {
+    NdbOut_Init();
     mgm= new MgmtSrvr(opts);
     if (mgm == NULL) {
       g_eventLogger->critical("Out of memory, couldn't create MgmtSrvr");
+      fprintf(stderr, "CRITICAL: Out of memory, couldn't create MgmtSrvr\n");
       mgmd_exit(1);
     }
 
@@ -299,6 +429,7 @@ static int mgmd_main(int argc, char** argv)
       NodeId localNodeId= mgm->getOwnNodeId();
       if (localNodeId == 0) {
         g_eventLogger->error("Couldn't get own node id");
+        fprintf(stderr, "ERROR: Couldn't get own node id\n");
         delete mgm;
         mgmd_exit(1);
       }
@@ -309,46 +440,13 @@ static int mgmd_main(int argc, char** argv)
       {
         g_eventLogger->error("Couldn't start as daemon, error: '%s'",
                              ndb_daemon_error);
+        fprintf(stderr, "Couldn't start as daemon, error: '%s' \n",
+                ndb_daemon_error);
         mgmd_exit(1);
       }
     }
 
-    /* Start mgm services */
-    if (!mgm->start()) {
-      delete mgm;
-      mgmd_exit(1);
-    }
-
-    if (opts.interactive) {
-      int port= mgm->getPort();
-      BaseString con_str;
-      if(opts.bind_address)
-        con_str.appfmt("host=%s:%d", opts.bind_address, port);
-      else
-        con_str.appfmt("localhost:%d", port);
-      Ndb_mgmclient com(con_str.c_str(), 1);
-      while(!g_StopServer){
-        if (!read_and_execute(&com, "ndb_mgm> ", 1))
-          g_StopServer = true;
-      }
-    }
-    else
-    {
-      g_eventLogger->info("MySQL Cluster Management Server %s started",
-                          NDB_VERSION_STRING);
-
-      while (!g_StopServer)
-        NdbSleep_MilliSleep(500);
-    }
-
-    g_eventLogger->info("Shutting down server...");
-    delete mgm;
-    g_eventLogger->info("Shutdown complete");
-
-    if(g_RestartServer){
-      g_eventLogger->info("Restarting server...");
-      g_RestartServer= g_StopServer= false;
-    }
+    mgmd_run();
   }
 
   mgmd_exit(0);

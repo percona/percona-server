@@ -948,7 +948,7 @@ drop table t2;
 
 create table t3 (
   pk int primary key, 
-  key1 char(10) collate utf8_bin,
+  key1 char(10) collate utf8mb4_bin,
   col1 int,
   key (key1)
 ) engine=rocksdb;
@@ -1022,9 +1022,9 @@ INSERT INTO t1 VALUES (1,'foo'), (2,'bar');
 DROP TABLE t1;
 
 --echo #
---echo # MDEV-4304: RocksDB: Index-only scan by a field with utf8_bin collation returns garbage symbols
+--echo # MDEV-4304: RocksDB: Index-only scan by a field with utf8mb4_bin collation returns garbage symbols
 --echo #
-CREATE TABLE t1 (pk INT PRIMARY KEY, c1 CHAR(1), c2 CHAR(1), KEY(c1)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_bin;
+CREATE TABLE t1 (pk INT PRIMARY KEY, c1 CHAR(1), c2 CHAR(1), KEY(c1)) ENGINE=RocksDB CHARSET UTF8MB4 COLLATE utf8mb4_bin;
 INSERT INTO t1 VALUES (1,'h','h');
 SELECT * FROM t1;
 SELECT c1 FROM t1;
@@ -1228,7 +1228,7 @@ drop table t1;
 create table t1 (i int primary key auto_increment) engine=RocksDB;
 
 insert into t1 values (null),(null);
---replace_column 7 #
+--replace_column 7 # 12 # 13 #
 show table status like 't1';
 drop table t1;
 
@@ -1294,7 +1294,7 @@ create table t1 (
   col1 varchar(255),
   key(col1)
 ) engine=rocksdb;
-insert into t1 select a, repeat('123456789ABCDEF-', 15) from t0;
+insert into t1 select a, repeat('123456789ABCDEF-', 5) from t0;
 select * from t1 where pk=3;
 drop table t0, t1;
 
@@ -1330,8 +1330,8 @@ create table t1 (
   pk int primary key,
   col1 int, 
   col2 int,
-  key(col1) comment 'cf3',
-  key(col2) comment 'cf4'
+  key(col1) comment 'cfname=cf3',
+  key(col2) comment 'cfname=cf4'
 ) engine=rocksdb;
 
 insert into t1 values (1,1,1), (2,2,2), (3,3,3), (4,4,4), (5,5,5);
@@ -1357,9 +1357,9 @@ create table t1 (
   pk int,
   col1 int, 
   col2 int,
-  key(col1) comment 'cf3',
-  key(col2) comment 'cf4',
-  primary key (pk) comment 'cf5'
+  key(col1) comment 'cfname=cf3',
+  key(col2) comment 'cfname=cf4',
+  primary key (pk) comment 'cfname=cf5'
 ) engine=rocksdb;
 insert into t1 values (1,1,1), (2,2,2), (3,3,3), (4,4,4), (5,5,5);
 
@@ -1395,7 +1395,7 @@ create table t1 (
   id int not null,
   key1 int,
   PRIMARY KEY (id),
-  index (key1) comment '$per_index_cf'
+  index (key1) comment 'cfname=$per_index_cf'
 ) engine=rocksdb;
 
 
@@ -1410,7 +1410,7 @@ create table t1 (
   id2 int,
   value1 int,
   value2 int,
-  primary key(id1, id2) COMMENT 'new_column_family',
+  primary key(id1, id2) COMMENT 'cfname=new_column_family',
   key(id2)
 ) engine=rocksdb default charset=latin1 collate=latin1_bin;
 
@@ -1723,11 +1723,11 @@ drop table t1;
 --echo #Index on blob column
 SET @old_mode = @@sql_mode;
 SET sql_mode = 'strict_all_tables';
-create table t1 (a int, b text, c varchar(400), Primary Key(a), Key(c, b(255))) engine=rocksdb;
+create table t1 (a int, b text, c varchar(255), Primary Key(a), Key(c, b(255))) engine=rocksdb;
 drop table t1;
 set @orig_rocksdb_large_prefix=@@global.rocksdb_large_prefix;
 set @@global.rocksdb_large_prefix=1;
-create table t1 (a int, b text, c varchar(400), Primary Key(a), Key(b(1255))) engine=rocksdb;
+create table t1 (a int, b text, c varchar(255), Primary Key(a), Key(b(255))) engine=rocksdb;
 set @@global.rocksdb_large_prefix=@orig_rocksdb_large_prefix;
 insert into t1 values (1, '1abcde', '1abcde'), (2, '2abcde', '2abcde'), (3, '3abcde', '3abcde');
 select * from t1;
@@ -1966,8 +1966,8 @@ DROP TABLE t1;
 --echo #
 
 CREATE TABLE t1(
-  c1 varchar(10) character set utf8 collate utf8_general_ci NOT NULL, 
-  c2 varchar(10) character set utf8 collate utf8_general_ci, 
+  c1 varchar(10) character set UTF8MB4 collate utf8mb4_general_ci NOT NULL, 
+  c2 varchar(10) character set UTF8MB4 collate utf8mb4_general_ci, 
   c3 INT, 
   INDEX idx(c1,c2)
 ) ENGINE=ROCKSDB;
@@ -2000,13 +2000,13 @@ DROP TABLE t1;
 # value is 4 while MyRocks will show it as 3.
 CREATE TABLE t1(a INT AUTO_INCREMENT KEY) ENGINE=ROCKSDB;
 INSERT INTO t1 VALUES(0),(-1),(0);
---replace_column 6 # 7 # 8 # 9 # 10 #
+--replace_column 6 # 7 # 8 # 9 # 10 # 12 # 13 #
 SHOW TABLE STATUS LIKE 't1';
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(a INT AUTO_INCREMENT KEY) ENGINE=ROCKSDB;
 INSERT INTO t1 VALUES(0),(10),(0);
---replace_column 6 # 7 # 8 # 9 # 10 #
+--replace_column 6 # 7 # 8 # 9 # 10 # 12 # 13 #
 SHOW TABLE STATUS LIKE 't1';
 SELECT * FROM t1;
 DROP TABLE t1;

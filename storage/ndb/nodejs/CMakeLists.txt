@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.  
+# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -18,112 +18,180 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# Install rule for source distribution
 
-INSTALL(
-  DIRECTORY . 
-  DESTINATION ${INSTALL_MYSQLSHAREDIR}/nodejs
-  COMPONENT nodejs)
+# The build environment depends on NDB_NODEJS_EXTRAS_PATH
+# or WITH_NODEJS_INCLUDE_PATH
+
+SET(WITH_NODEJS_INCLUDE_PATH "" CACHE PATH "location of node.js header files")
+
+SET(NODE_VERSION 6.10.2)
+
+IF(NDB_NODEJS_EXTRAS_PATH)
+  SET(NODE_LIBRARIES ${NDB_NODEJS_EXTRAS_PATH}/windows-libs/${NODE_VERSION})
+  SET(NODE_HEADERS ${NDB_NODEJS_EXTRAS_PATH}/node-headers/${NODE_VERSION})
+  SET(WITH_NODEJS_INCLUDE_PATH ${NODE_HEADERS}/include/node)
+  MESSAGE(STATUS "Using node.js version " ${NODE_VERSION})
+ENDIF()
+
+IF(WITH_NODEJS_INCLUDE_PATH)
+  MESSAGE(STATUS "Building jones-ndb to install in share/nodejs")
+  MESSAGE(STATUS "Using node.js from " ${WITH_NODEJS_INCLUDE_PATH})
+ELSE()
+  RETURN()
+ENDIF()
 
 
 # Build rules.
 #
-# The build environment depends on NDB_NODEJS_PATH and NDB_NODEJS_EXTRAS_PATH
-
-IF(NOT NDB_NODEJS_PATH)
-  MESSAGE(STATUS "Skipping mysql-js (No NDB_NODEJS_PATH)")
-  RETURN()
-ENDIF()
-
-IF(NDB_NODEJS_EXTRAS_PATH)
-  MESSAGE(STATUS "Building mysql-js using " ${NDB_NODEJS_EXTRAS_PATH})
-ELSE()
-  MESSAGE(STATUS "Skipping mysql-js (NO NDB_NODEJS_EXTRAS_PATH)")
-  RETURN()
-ENDIF()
-
-set(NODE_VERSION 0.10.4)
-set(NODE_GYP ${NDB_NODEJS_EXTRAS_PATH}/node-gyp/${NODE_VERSION})
-set(NODE_INCLUDES ${NODE_GYP}/src ${NODE_GYP}/deps/uv/include ${NODE_GYP}/deps/v8/include)
-
-include_directories(${NODE_INCLUDES})
-include_directories(Adapter/impl/common/include)
-include_directories(Adapter/impl/ndb/include) 
-
-link_directories(
-  ${NDB_SOURCE_DIR}/src
-  ${MYSQL_HOME}/lib)
-
-add_definitions(-D_BUILDING_V8_SHARED=1 -DBUILDING_UV_SHARED=1)
-add_definitions(-D_BUILDING_NODE_EXTENSION)
-
-set(ADAPTER_SOURCE_FILES
-  Adapter/impl/common/src/async_common.cpp
-  Adapter/impl/common/src/unified_debug.cpp
-  Adapter/impl/common/src/common_v8_values.cpp
-  Adapter/impl/ndb/src/AsyncNdbContext_wrapper.cpp
-  Adapter/impl/ndb/src/AsyncNdbContext.cpp
-  Adapter/impl/ndb/src/BlobHandler.cpp
-  Adapter/impl/ndb/src/ColumnHandler.cpp
-  Adapter/impl/ndb/src/ColumnProxy.cpp
-  Adapter/impl/ndb/src/DBDictionaryImpl.cpp
-  Adapter/impl/ndb/src/DBOperationHelper.cpp
-  Adapter/impl/ndb/src/DBOperationSet_wrapper.cpp
-  Adapter/impl/ndb/src/DBOperationSet.cpp
-  Adapter/impl/ndb/src/DBSessionImpl_wrapper.cpp
-  Adapter/impl/ndb/src/DBSessionImpl.cpp
-  Adapter/impl/ndb/src/DBTransactionContext_wrapper.cpp
-  Adapter/impl/ndb/src/DBTransactionContext.cpp
-  Adapter/impl/ndb/src/EncoderCharset.cpp
-  Adapter/impl/ndb/src/IndexBoundHelper.cpp
-  Adapter/impl/ndb/src/KeyOperation.cpp  
-  Adapter/impl/ndb/src/Ndb_cluster_connection_wrapper.cpp
-  Adapter/impl/ndb/src/Ndb_init_wrapper.cpp
-  Adapter/impl/ndb/src/Ndb_util_wrapper.cpp
-  Adapter/impl/ndb/src/Ndb_wrapper.cpp
-  Adapter/impl/ndb/src/NdbError_wrapper.cpp
-  Adapter/impl/ndb/src/NdbInterpretedCode_wrapper.cpp
-  Adapter/impl/ndb/src/NdbRecordObject.cpp
-  Adapter/impl/ndb/src/NdbScanFilter_wrapper.cpp
-  Adapter/impl/ndb/src/NdbTypeEncoders.cpp
-  Adapter/impl/ndb/src/Record_wrapper.cpp
-  Adapter/impl/ndb/src/Record.cpp
-  Adapter/impl/ndb/src/ScanOperation_wrapper.cpp
-  Adapter/impl/ndb/src/ScanOperation.cpp
-  Adapter/impl/ndb/src/ValueObject.cpp
-  Adapter/impl/ndb/src/node_module.cpp
+INCLUDE_DIRECTORIES(
+  ${WITH_NODEJS_INCLUDE_PATH}
+  jones-ndb/impl/include/common
+  jones-ndb/impl/include/ndb
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
 )
 
 
-if(WIN32) 
-  set(ADAPTER_REQUIRED_LIBS ndbclient_static mysqlclient node)
-  add_definitions(-DWIN32)
-  add_definitions(-D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE)
-  if(CMAKE_CL_64)
-    link_directories(${NODE_GYP}/x64)
-  else()
-    link_directories(${NODE_GYP}/ia32) 
-  endif()
-else()
-  set(ADAPTER_REQUIRED_LIBS ndbclient_so mysqlclient)
-  add_definitions(-D_GNU_SOURCE -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64)
-endif()
- 
+ADD_DEFINITIONS(-DNODE_GYP_MODULE_NAME=ndb_adapter)
+ADD_DEFINITIONS(-DBUILDING_NODE_EXTENSION)
 
-add_library(ndb_adapter MODULE ${ADAPTER_SOURCE_FILES})
+set(ADAPTER_SOURCE_FILES
+  jones-ndb/impl/src/common/async_common.cpp
+  jones-ndb/impl/src/common/unified_debug.cpp
+  jones-ndb/impl/src/ndb/AsyncNdbContext.cpp
+  jones-ndb/impl/src/ndb/AsyncNdbContext_wrapper.cpp
+  jones-ndb/impl/src/ndb/BatchImpl.cpp
+  jones-ndb/impl/src/ndb/BatchImpl_wrapper.cpp
+  jones-ndb/impl/src/ndb/BlobHandler.cpp
+  jones-ndb/impl/src/ndb/ColumnHandler.cpp
+  jones-ndb/impl/src/ndb/ColumnProxy.cpp
+  jones-ndb/impl/src/ndb/DBDictionaryImpl.cpp
+  jones-ndb/impl/src/ndb/DBOperationHelper.cpp
+  jones-ndb/impl/src/ndb/EncoderCharset.cpp
+  jones-ndb/impl/src/ndb/IndexBoundHelper.cpp
+  jones-ndb/impl/src/ndb/KeyOperation.cpp
+  jones-ndb/impl/src/ndb/NdbError_wrapper.cpp
+  jones-ndb/impl/src/ndb/NdbInterpretedCode_wrapper.cpp
+  jones-ndb/impl/src/ndb/NdbRecordObject.cpp
+  jones-ndb/impl/src/ndb/NdbScanFilter_wrapper.cpp
+  jones-ndb/impl/src/ndb/NdbTypeEncoders.cpp
+  jones-ndb/impl/src/ndb/Ndb_cluster_connection_wrapper.cpp
+  jones-ndb/impl/src/ndb/Ndb_init_wrapper.cpp
+  jones-ndb/impl/src/ndb/Ndb_util_wrapper.cpp
+  jones-ndb/impl/src/ndb/Ndb_wrapper.cpp
+  jones-ndb/impl/src/ndb/QueryOperation.cpp
+  jones-ndb/impl/src/ndb/QueryOperation_wrapper.cpp
+  jones-ndb/impl/src/ndb/Record.cpp
+  jones-ndb/impl/src/ndb/Record_wrapper.cpp
+  jones-ndb/impl/src/ndb/ScanOperation.cpp
+  jones-ndb/impl/src/ndb/ScanOperation_wrapper.cpp
+  jones-ndb/impl/src/ndb/SessionImpl.cpp
+  jones-ndb/impl/src/ndb/SessionImpl_wrapper.cpp
+  jones-ndb/impl/src/ndb/TransactionImpl.cpp
+  jones-ndb/impl/src/ndb/TransactionImpl_wrapper.cpp
+  jones-ndb/impl/src/ndb/ValueObject.cpp
+  jones-ndb/impl/src/ndb/node_module.cpp
+)
 
-target_link_libraries(ndb_adapter ${ADAPTER_REQUIRED_LIBS})
 
-if(APPLE) 
-  set(FINAL_LINK_FLAGS "-undefined dynamic_lookup")
-elseif(WIN32)
-  set(FINAL_LINK_FLAGS "/FORCE:MULTIPLE")
-endif()
+###### COMPILER AND LINKER OPTIONS
 
-set_target_properties(ndb_adapter PROPERTIES
-                      PREFIX ""
-                      SUFFIX ".node"
-                      LINK_FLAGS "${FINAL_LINK_FLAGS}")
+# Enable asserts:
+REMOVE_DEFINITIONS(-DNDEBUG)
+FOREACH(flag
+    CMAKE_C_FLAGS_DEBUG
+    CMAKE_C_FLAGS_RELWITHDEBINFO
+    CMAKE_C_FLAGS_RELEASE
+    CMAKE_C_FLAGS_MINSIZEREL
+    CMAKE_CXX_FLAGS_DEBUG
+    CMAKE_CXX_FLAGS_RELWITHDEBINFO
+    CMAKE_CXX_FLAGS_RELEASE
+    CMAKE_CXX_FLAGS_MINSIZEREL
+    )
+  STRING(REPLACE "-DNDEBUG"  "" "${flag}" "${${flag}}")
+ENDFOREACH()
 
+IF(WIN32)
+  SET(ADAPTER_REQUIRED_LIBS ndbclient_static node)
+  ADD_DEFINITIONS(-DWIN32)
+  ADD_DEFINITIONS(-D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE)
+  IF(CMAKE_CL_64)
+    LINK_DIRECTORIES(${NODE_LIBRARIES}/win-x64)
+  ELSE()
+    LINK_DIRECTORIES(${NODE_LIBRARIES}/win-x86)
+  ENDIF()
+ELSE()
+  # Remove any -std=xxx compiler flag present, and add -std=c++14
+  SET(CXX_FLAGS_VAL ${CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE_UPPER}})
+  STRING(REGEX REPLACE "-std=[cgnu]+..[0-9]+" ""
+    CXX_FLAGS_VAL "${CXX_FLAGS_VAL}")
+  SET(CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE_UPPER} "${CXX_FLAGS_VAL} -std=c++14")
+
+  SET(ADAPTER_REQUIRED_LIBS ndbclient_static)
+
+  # Remove -Wundef from C++ compiler flags since there are several
+  # undefined identifiers which are evaluated in for example v8config.h
+  STRING(REPLACE "-Wundef " "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+
+#  IT SHOULD BE POSSIBLE TO LINK DYNAMICALLY WITH PROPER RPATH
+#  set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+ENDIF()
+
+
+# Disable certain compiler warnings
+FOREACH(warning
+    "unused-parameter"
+    "cast-function-type"
+    "undefined-reinterpret-cast"
+    "cast-qual"
+    )
+  MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
+  IF(HAS_WARN_FLAG)
+    STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+  ENDIF()
+ENDFOREACH()
+
+ADD_LIBRARY(ndb_adapter MODULE ${ADAPTER_SOURCE_FILES})
+
+TARGET_LINK_LIBRARIES(ndb_adapter ${ADAPTER_REQUIRED_LIBS})
+
+
+# non-gcc linker flags to deal with undefined & multiply-defined symbols
+IF(APPLE)
+  SET(FINAL_LINK_FLAGS "-undefined dynamic_lookup")
+ELSEIF(WIN32)
+  SET(FINAL_LINK_FLAGS "/FORCE:MULTIPLE")
+ELSEIF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
+  SET(FINAL_LINK_FLAGS "-z muldefs")
+ENDIF()
+
+SET_TARGET_PROPERTIES(ndb_adapter PROPERTIES
+  PREFIX ""
+  SUFFIX ".node"
+  LINK_FLAGS "${FINAL_LINK_FLAGS}"
+  )
+
+# Install rules
+
+SET(nodejs_install ${INSTALL_MYSQLSHAREDIR}/nodejs)
+
+INSTALL(
+  DIRECTORY perftest samples
+  DESTINATION ${nodejs_install}
+  COMPONENT nodejs)
+
+INSTALL(
+  DIRECTORY jones-ndb
+  DESTINATION ${nodejs_install}/node_modules
+  COMPONENT nodejs)
+
+INSTALL(
+  TARGETS ndb_adapter
+  DESTINATION ${nodejs_install}/node_modules/jones-ndb/build/Static
+  COMPONENT nodejs)
+
+INSTALL(
+  FILES ReadMe jones_deployments.js run-jones-test-suite.js
+  DESTINATION ${nodejs_install}
+  COMPONENT nodejs)

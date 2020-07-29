@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 #include <GlobalData.hpp>
 #include <TransporterDefinitions.hpp>
 #include <portlib/ndb_prefetch.h>
+#include <portlib/NdbTick.h>
 
 #define JAM_FILE_ID 244
 
@@ -152,6 +153,11 @@ public:
                               Uint32 *no_exec_loops, Uint32 *tot_exec_time,
                               Uint32 *no_extra_loops, Uint32 *tot_extra_time);
 
+  /* Get/Set high resolution timer in microseconds */
+  NDB_TICKS getHighResTimer() { return curr_ticks; }
+  const NDB_TICKS* getHighResTimerPtr() { return &curr_ticks; } 
+  void setHighResTimer(NDB_TICKS ticks)
+  { curr_ticks = ticks;}
 private:
   void highestAvailablePrio(Priority prio);
   void reportJob(Priority aPriority);
@@ -159,6 +165,7 @@ private:
 
   Uint32 theDoJobTotalCounter;
   Uint32 theDoJobCallCounter;
+  NDB_TICKS curr_ticks;
   Uint8 theJobPriority[4096];
   APZJobBuffer theJobBuffers[JB_LEVELS];
 
@@ -307,7 +314,7 @@ inline
 void
 APZJobBuffer::retrieve(Signal* signal, Uint32 myRptr)
 {              
-  register BufferEntry& buf = buffer[myRptr];
+  BufferEntry& buf = buffer[myRptr];
   
   buf.header.theSignalId = globalData.theSignalId++;
 
@@ -330,7 +337,7 @@ APZJobBuffer::retrieveDump(Signal* signal, Uint32 myRptr)
    * Note that signal id is not taken from global data
    */
   
-  register BufferEntry& buf = buffer[myRptr];
+  BufferEntry& buf = buffer[myRptr];
   signal->header = buf.header;
   
   Uint32 *from = (Uint32*) &buf.theDataRegister[0];
@@ -349,7 +356,7 @@ APZJobBuffer::insert(Signal* signal,
   Uint32 tOccupancy = theOccupancy + 1;
   Uint32 myWPtr = wPtr;
   if (tOccupancy < bufSize) {
-    register BufferEntry& buf = buffer[myWPtr];
+    BufferEntry& buf = buffer[myWPtr];
     Uint32 cond =  (++myWPtr == bufSize) - 1;
     wPtr = myWPtr & cond;
     theOccupancy = tOccupancy;
@@ -372,7 +379,7 @@ void
 APZJobBuffer::insert(Signal* signal, BlockNumber bnr,
 		     GlobalSignalNumber gsn, Uint32 myWPtr)
 {
-  register BufferEntry& buf = buffer[myWPtr];
+  BufferEntry& buf = buffer[myWPtr];
   signal2buffer(signal, bnr, gsn, buf);
 }
 

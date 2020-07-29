@@ -1,7 +1,6 @@
 #
 # Test interaction between changed page tracking and userstat.
 #
---source include/have_innodb.inc
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 

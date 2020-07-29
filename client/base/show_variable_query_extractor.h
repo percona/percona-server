@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,41 +25,41 @@
 #ifndef SHOW_VARIABLE_QUERY_EXTRACTOR_INCLUDED
 #define SHOW_VARIABLE_QUERY_EXTRACTOR_INCLUDED
 
-#include "i_callable.h"
-#include "base/mysql_query_runner.h"
-#include "mysql.h"
-#include<string>
-#include<vector>
+#include <string>
+#include <vector>
 
-namespace Mysql{
-namespace Tools{
-namespace Base{
+#include "client/base/mysql_query_runner.h"
+#include "my_inttypes.h"
+#include "mysql.h"
+
+namespace Mysql {
+namespace Tools {
+namespace Base {
 
 /**
   Extracts the value of server variable.
  */
-class Show_variable_query_extractor
-{
-public:
+class Show_variable_query_extractor {
+ public:
   /**
     Extract the value of server variable.
 
     @param[in] query_runner MySQL query runner to use.
     @param[in] variable Name of variable to get value of.
     @param[out] value reference to String to store variable value to.
-    @param[out] value reference to bool to store if variable was found.
+    @param[out] exists reference to bool to store if variable was found.
     @return nonzero if error was encountered.
    */
-  static int64 get_variable_value(
-    Mysql_query_runner* query_runner, std::string variable,
-    std::string& value, bool& exists);
+  static int64 get_variable_value(Mysql_query_runner *query_runner,
+                                  std::string variable, std::string &value,
+                                  bool &exists);
 
-private:
+ private:
   Show_variable_query_extractor();
   /**
     Result row callback to be used in query runner.
    */
-  int64 extract_variable(const Mysql_query_runner::Row& result_row);
+  int64 extract_variable(const Mysql_query_runner::Row &result_row);
 
   /**
   Temporary placeholder for extracted value.
@@ -72,8 +72,8 @@ private:
   bool m_exists;
 };
 
-}
-}
-}
+}  // namespace Base
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

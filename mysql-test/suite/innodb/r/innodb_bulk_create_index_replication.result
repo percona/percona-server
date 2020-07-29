@@ -22,7 +22,7 @@ CREATE TABLE t1(
 class	INT,
 id	INT,
 title	VARCHAR(100)
-) ENGINE=InnoDB ;
+) charset latin1 ENGINE=InnoDB ;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 50
@@ -115,7 +115,7 @@ CREATE TABLE t_part (
 class INT ,
 id INT ,
 title VARCHAR(30)
-) ENGINE=InnoDB
+) charset latin1 ENGINE=InnoDB
 PARTITION BY RANGE(id)
 SUBPARTITION BY KEY(id)
 SUBPARTITIONS 4
@@ -151,8 +151,8 @@ include/sync_slave_sql_with_master.inc
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `class` int(11) DEFAULT NULL,
-  `id` int(11) DEFAULT NULL,
+  `class` int DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `title` varchar(100) DEFAULT NULL,
   KEY `idx_id` (`id`),
   KEY `idx_title` (`title`)
@@ -160,12 +160,12 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t_part;
 Table	Create Table
 t_part	CREATE TABLE `t_part` (
-  `class` int(11) DEFAULT NULL,
-  `id` int(11) DEFAULT NULL,
+  `class` int DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `title` varchar(30) DEFAULT NULL,
   KEY `idx` (`class`,`id`,`title`(10))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
+/*!50100 PARTITION BY RANGE (`id`)
 SUBPARTITION BY KEY (id)
 SUBPARTITIONS 4
 (PARTITION p0 VALUES LESS THAN (5000) ENGINE = InnoDB,

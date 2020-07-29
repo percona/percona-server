@@ -1,5 +1,3 @@
---source include/have_innodb.inc
-
 SELECT @@global.innodb_encrypt_online_alter_logs;
 
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR

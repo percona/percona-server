@@ -4,7 +4,9 @@
 #
 SELECT @tmp_max:= @@global.max_allowed_packet;
 @tmp_max:= @@global.max_allowed_packet
-4194304
+67108864
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SET @@global.max_allowed_packet=16999424;
 CREATE TABLE t1 (a INT UNSIGNED, b INT UNSIGNED, PRIMARY KEY (a, b))
 ENGINE=INNODB;
@@ -37,9 +39,9 @@ numterms	query lengt	increment
 SELECT LENGTH(@terms);
 LENGTH(@terms)
 16149996
-SELECT @@global.thread_stack, @@global.max_allowed_packet;
-@@global.thread_stack	@@global.max_allowed_packet
-262144	16999424
+SELECT @@global.max_allowed_packet;
+@@global.max_allowed_packet
+16999424
 DROP FUNCTION f1;
 DROP PROCEDURE p1;
 DROP TABLE t1;

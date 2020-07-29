@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,15 @@
 #include <NdbBackup.hpp>
 #include <Bitmask.hpp>
 #include <DbUtil.hpp>
+#include <NdbMgmd.hpp>
+
+#define CHK(b,e) \
+  if (!(b)) { \
+    g_err << "ERR: " << #b << " failed at line " << __LINE__ \
+          << ": " << e << endl; \
+    ctx->stopTest(); \
+    return NDBT_FAILED; \
+  }
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
@@ -618,30 +627,645 @@ int runSystemRestart3(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
+int runSystemRestartLCP_1(NDBT_Context *ctx, NDBT_Step *step)
+{
+  Ndb *pNdb = GETNDB(step);
+  int result = NDBT_OK;
+  int i = 0;
+  int count = 0;
+  int timeout = 300;
+  int loops = ctx->getNumLoops();
+  int records = 10000;
+  NdbRestarter restarter;
+  HugoTransactions hugoTrans(*ctx->getTab());
+  UtilTransactions utilTrans(*ctx->getTab());
+  const Uint32 nodeCount = restarter.getNumDbNodes();
+  if(nodeCount < 2){
+    g_err << "PLCP_1 - Needs atleast 2 nodes to test" << endl;
+    return NDBT_OK;
+  }
+
+  g_err << " loops to execute is " << loops << endl;
+  while(++i <= loops && result != NDBT_FAILED)
+  {
+    {
+      /* Delay first SCAN_FRAGREQ of LCP scan by 3 seconds */
+      CHECK(restarter.insertErrorInAllNodes(10047) == 0);
+    }
+    g_err << "Start loop " << i << endl;
+    g_err << "Loading " << records << " records..." << endl;
+    if (hugoTrans.loadTable(pNdb, records) != NDBT_OK)
+    {
+      g_err << "Failed to load table" << endl;
+      return NDBT_FAILED;
+    }
+    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+    CHECK(count == records);
+
+    int remaining_records = records / 10;
+    Uint32 num_deleted_records = records / 10;
+    Uint32 batch = 1;
+    Uint32 row_step = 10;
+
+    g_err << "Deleting 90% of " << records << " records..." << endl;
+    for (Uint32 start = 1; start < 10; start++)
+    {
+      CHECK(hugoTrans.pkDelRecords(pNdb,
+                                   num_deleted_records,
+                                   batch,
+                                   true,
+                                   0,
+                                   start,
+                                   row_step) == 0);
+      if (result == NDBT_FAILED)
+        return result;
+    }
+    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+    g_err << "count = " << count << endl;
+    CHECK(count == (records / 10));
+
+    /**
+     * Test is designed primarily for T17 with 4 rows per
+     * fixed size page.
+     *
+     * When this loop starts we should more or less have ensured
+     * that each row is alone on its page.
+     *
+     * So now we delete rows and reinsert them again.
+     */
+    {
+      g_err << "Start LCP" << endl;
+      int val = DumpStateOrd::DihStartLcpImmediately;
+      if(restarter.dumpStateAllNodes(&val, 1) != 0)
+      {
+        g_err << "ERR: "<< step->getName() 
+              << " failed on line " << __LINE__ << endl; 
+        return NDBT_FAILED;
+      }
+    }
+    g_err << "Mix deletes and inserts on remaining rows" << endl;
+    Uint32 num_records = 100;
+    for (Uint32 start = 0;
+                start < Uint32(remaining_records);
+                start+= num_records)
+    {
+      CHECK(hugoTrans.pkDelRecords(pNdb,
+                                   num_records,
+                                   batch,
+                                   true,
+                                   0,
+                                   start,
+                                   row_step) == NDBT_OK);
+      if (result == NDBT_FAILED)
+        return result;
+      CHECK(hugoTrans.loadTableStartFrom(pNdb,
+                                         start,
+                                         num_records,
+                                         batch,
+                                         true,
+                                         0,
+                                         false,
+                                         0,
+                                         false,
+                                         true,
+                                         row_step) == NDBT_OK);
+      if (result == NDBT_FAILED)
+        return result;
+    }
+    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+    CHECK(count == (remaining_records));
+    CHECK(hugoTrans.scanReadRecords(pNdb,remaining_records,0,64,
+                                    NdbOperation::LM_Read,0,1) == 0);
+    if (result == NDBT_FAILED)
+      return result;
+
+    NdbSleep_SecSleep(10);
+
+    g_err << "Restarting cluster..." << endl;
+    CHECK(restarter.restartAll() == 0);
+    CHECK(restarter.waitClusterStarted(timeout) == 0);
+    CHECK(pNdb->waitUntilReady(timeout) == 0);
+    if (result == NDBT_FAILED)
+      return result;
+
+    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+    CHECK(count == (remaining_records));
+    CHECK(hugoTrans.scanReadRecords(pNdb,remaining_records,0,64,
+                                    NdbOperation::LM_Read,0,1) == 0);
+    if (result == NDBT_FAILED)
+      return result;
+    Uint32 start = 0;
+    row_step = 10;
+    CHECK(hugoTrans.pkDelRecords(pNdb,
+                                 remaining_records,
+                                 100,
+                                 true,
+                                 0,
+                                 start,
+                                 row_step) == 0);
+    if (result == NDBT_FAILED)
+      return result;
+    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+    CHECK(count == 0);
+    CHECK(hugoTrans.scanReadRecords(pNdb,0,0,64,
+                                    NdbOperation::LM_Read,0,1) == 0);
+  }
+  return NDBT_OK;
+}
+
+int runSystemRestartLCP_2(NDBT_Context *ctx, NDBT_Step *step)
+{
+  Ndb *pNdb = GETNDB(step);
+  int result = NDBT_OK;
+  int i = 0;
+  int count = 0;
+  int timeout = 300;
+  int loops = ctx->getNumLoops();
+  int records = 10000;
+  NdbRestarter restarter;
+  HugoTransactions hugoTrans(*ctx->getTab());
+  UtilTransactions utilTrans(*ctx->getTab());
+  const Uint32 nodeCount = restarter.getNumDbNodes();
+  if(nodeCount < 2){
+    g_err << "PLCP_2 - Needs atleast 2 nodes to test" << endl;
+    return NDBT_OK;
+  }
+
+  g_err << " loops to execute is " << loops << endl;
+  while(++i <= loops && result != NDBT_FAILED)
+  {
+    {
+      /* Delay first SCAN_FRAGREQ of LCP scan by 3 seconds */
+      CHECK(restarter.insertErrorInAllNodes(10047) == 0);
+    }
+    g_err << "Start loop " << i << endl;
+    g_err << "Loading " << records << " records..." << endl;
+    if (hugoTrans.loadTable(pNdb, records) != NDBT_OK)
+    {
+      g_err << "Failed to load table" << endl;
+      return NDBT_FAILED;
+    }
+    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+    CHECK(count == records);
+
+    {
+      /**
+       * Drop pages at the top while running LCP. Given
+       * that we delay start of LCP for 3 seconds, we
+       * have 3 seconds to delete records at the top.
+       * This will ensure that we reach code paths where
+       * LCP scan will see max page id that is less than
+       * the max page id at start of LCP scan.
+       *
+       * NOTE: This is currently not implemented
+       */
+      g_err << "Start LCP" << endl;
+      int val = DumpStateOrd::DihStartLcpImmediately;
+      if(restarter.dumpStateAllNodes(&val, 1) != 0)
+      {
+        g_err << "ERR: "<< step->getName() 
+              << " failed on line " << __LINE__ << endl; 
+        return NDBT_FAILED;
+      }
+      g_err << "Delete top 90% of the rows" << endl;
+      Uint32 num_deleted_records = (9 * records) / 10;
+      Uint32 start = records / 10;
+      Uint32 row_step = 1;
+      CHECK(hugoTrans.pkDelRecords(pNdb,
+                                   num_deleted_records,
+                                   100,
+                                   true,
+                                   0,
+                                   start,
+                                   row_step) == 0);
+      if (result == NDBT_FAILED)
+        return result;
+
+      g_err << "Reinsert deleted rows again" << endl;
+      NdbSleep_SecSleep(5);
+      CHECK(hugoTrans.loadTableStartFrom(pNdb,
+                                         start,
+                                         num_deleted_records,
+                                         100,
+                                         true,
+                                         0,
+                                         false,
+                                         0,
+                                         false,
+                                         true,
+                                         1) == NDBT_OK);
+      if (result == NDBT_FAILED)
+        return result;
+      CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+      CHECK(count == records);
+    }
+
+    g_err << "Restarting cluster..." << endl;
+    CHECK(restarter.restartAll() == 0);
+    CHECK(restarter.waitClusterStarted(timeout) == 0);
+    CHECK(pNdb->waitUntilReady(timeout) == 0);
+    if (result == NDBT_FAILED)
+      return result;
+
+    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+    CHECK(count == records);
+    CHECK(hugoTrans.scanReadRecords(pNdb,records,0,64,
+                                    NdbOperation::LM_Read,0,1) == 0);
+    if (result == NDBT_FAILED)
+      return result;
+  }
+  return NDBT_OK;
+}
+
+int runSystemRestartLCP_3(NDBT_Context *ctx, NDBT_Step *step)
+{
+  Ndb *pNdb = GETNDB(step);
+  int result = NDBT_OK;
+  int i = 0;
+  int count = 0;
+  int timeout = 300;
+  int loops = ctx->getNumLoops();
+  int records = 10000;
+  NdbRestarter restarter;
+  HugoTransactions hugoTrans(*ctx->getTab());
+  UtilTransactions utilTrans(*ctx->getTab());
+  const Uint32 nodeCount = restarter.getNumDbNodes();
+  if(nodeCount < 2){
+    g_err << "PLCP_3 - Needs atleast 2 nodes to test" << endl;
+    return NDBT_OK;
+  }
+
+  g_err << "Loading " << records << " records..." << endl;
+  if (hugoTrans.loadTable(pNdb, records) != NDBT_OK)
+  {
+    g_err << "Failed to load table" << endl;
+    return NDBT_FAILED;
+  }
+
+  g_err << " loops to execute is " << loops << endl;
+  while(++i <= loops && result != NDBT_FAILED)
+  {
+    {
+      /* Delay first SCAN_FRAGREQ of LCP scan by 3 seconds */
+      CHECK(restarter.insertErrorInAllNodes(10047) == 0);
+    }
+    g_err << "Start loop " << i << endl;
+    Uint32 num_deleted_records = records / 10;
+    Uint32 batch = 1;
+    Uint32 row_step = 10;
+
+    for (Uint32 k = 0; k < 6; k++)
+    {
+      /**
+       * We start by deleting 90% of the rows with row_step set to 10.
+       * This ensures that lots of pages in the page array will become
+       * empty. Next we start an LCP and start inserting again. Given
+       * that the start of the LCP takes 3 seconds we have 3 seconds to
+       * fill some pages and drop them again and fill them again. All
+       * ensuring that we reach those code paths where we set the
+       * page_to_skip_lcp code paths.
+       */
+      g_err << "Deleting 90% of " << records << " records..." << endl;
+      for (Uint32 start = 1; start < 10; start++)
+      {
+        CHECK(hugoTrans.pkDelRecords(pNdb,
+                                     num_deleted_records,
+                                     batch,
+                                     true,
+                                     0,
+                                     start,
+                                     row_step) == 0);
+        if (result == NDBT_FAILED)
+          return result;
+      }
+      CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+      CHECK(count == (records / 10));
+
+      if (k == 0)
+      {
+        g_err << "Start LCP" << endl;
+        int val = DumpStateOrd::DihStartLcpImmediately;
+        if(restarter.dumpStateAllNodes(&val, 1) != 0)
+        {
+          g_err << "ERR: "<< step->getName() 
+                << " failed on line " << __LINE__ << endl; 
+          return NDBT_FAILED;
+        }
+      }
+      g_err << "Insert the deleted records" << endl;
+      for (Uint32 start = 1; start < 10; start++)
+      {
+        CHECK((result = hugoTrans.loadTableStartFrom(pNdb,
+                                           start,
+                                           num_deleted_records,
+                                           100,
+                                           true,
+                                           0,
+                                           false,
+                                           0,
+                                           false,
+                                           true,
+                                           10)) == NDBT_OK);
+        if (result == NDBT_FAILED)
+          return result;
+      }
+      CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+      CHECK(count == records);
+    }
+    NdbSleep_SecSleep(10);
+
+    g_err << "Restarting cluster..." << endl;
+    CHECK(restarter.restartAll() == 0);
+    CHECK(restarter.waitClusterStarted(timeout) == 0);
+    CHECK(pNdb->waitUntilReady(timeout) == 0);
+    if (result == NDBT_FAILED)
+      return result;
+
+    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+    CHECK(count == records);
+    CHECK(hugoTrans.scanReadRecords(pNdb,records,0,64,
+                                    NdbOperation::LM_Read,0,1) == 0);
+    if (result == NDBT_FAILED)
+      return result;
+  }
+  return NDBT_OK;
+}
+
+int runSystemRestartLCP_4(NDBT_Context *ctx, NDBT_Step *step)
+{
+  Ndb *pNdb = GETNDB(step);
+  int result = NDBT_OK;
+  int i = 0;
+  int count = 0;
+  int timeout = 300;
+  int loops = ctx->getNumLoops();
+  int records = 10000;
+  NdbRestarter restarter;
+  HugoTransactions hugoTrans(*ctx->getTab());
+  UtilTransactions utilTrans(*ctx->getTab());
+  const Uint32 nodeCount = restarter.getNumDbNodes();
+  if(nodeCount < 2){
+    g_err << "PLCP_4 - Needs atleast 2 nodes to test" << endl;
+    return NDBT_OK;
+  }
+
+  g_err << "Loading " << records << " records..." << endl;
+  if (hugoTrans.loadTable(pNdb, records) != NDBT_OK)
+  {
+    g_err << "Failed to load table" << endl;
+    return NDBT_FAILED;
+  }
+
+  g_err << " loops to execute is " << loops << endl;
+  while(++i <= loops && result != NDBT_FAILED)
+  {
+    /**
+     * We start an LCP with all rows inserted, thus all pages
+     * will have the A state.
+     * Next we delete all rows and start a new LCP, this means
+     * that all pages will be in D state at start of second LCP.
+     * This should force LCP scan to issue DELETE BY PAGEID for
+     * the pages.
+     *
+     * It is important to delete a range to ensure pages are
+     * dropped. It is also important to avoid deleting too much.
+     * We need to make sure that some page deleted is a change
+     * page.
+     *
+     * Finally we insert pages during start of LCP to ensure that
+     * we get page_to_skip_lcp bit set.
+     */
+    g_err << "Start loop " << i << endl;
+    {
+      /* Delay first SCAN_FRAGREQ of LCP scan by 3 seconds */
+      CHECK(restarter.insertErrorInAllNodes(10047) == 0);
+    }
+    {
+      g_err << "Start LCP" << endl;
+      int val = DumpStateOrd::DihStartLcpImmediately;
+      if(restarter.dumpStateAllNodes(&val, 1) != 0)
+      {
+        g_err << "ERR: "<< step->getName() 
+              << " failed on line " << __LINE__ << endl; 
+        return NDBT_FAILED;
+      }
+    }
+    NdbSleep_SecSleep(5);
+    g_err << "Delete 10% upper rows again" << endl;
+    Uint32 num_rows = records/10;
+    Uint32 start = ((9 * records)/10);
+    CHECK(hugoTrans.pkDelRecords(pNdb,
+                                 num_rows,
+                                 100,
+                                 true,
+                                 0,
+                                 start,
+                                 1) == 0);
+    if (result == NDBT_FAILED)
+      return result;
+
+    NdbSleep_SecSleep(10);
+    {
+      g_err << "Start LCP" << endl;
+      int val = DumpStateOrd::DihStartLcpImmediately;
+      if(restarter.dumpStateAllNodes(&val, 1) != 0)
+      {
+        g_err << "ERR: "<< step->getName() 
+              << " failed on line " << __LINE__ << endl; 
+        return NDBT_FAILED;
+      }
+    }
+    NdbSleep_SecSleep(1);
+
+    g_err << "Loading " << records << " records..." << endl;
+    CHECK(hugoTrans.loadTableStartFrom(pNdb,
+                                       start,
+                                       num_rows,
+                                       100,
+                                       true,
+                                       0,
+                                       false,
+                                       0,
+                                       false,
+                                       true,
+                                       1) == NDBT_OK);
+    if (result == NDBT_FAILED)
+      return result;
+
+    NdbSleep_SecSleep(10);
+
+    g_err << "Restarting cluster..." << endl;
+    CHECK(restarter.restartAll() == 0);
+    CHECK(restarter.waitClusterStarted(timeout) == 0);
+    CHECK(pNdb->waitUntilReady(timeout) == 0);
+    if (result == NDBT_FAILED)
+      return result;
+
+    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+    CHECK(count == records);
+    CHECK(hugoTrans.scanReadRecords(pNdb,records,0,64,
+                                    NdbOperation::LM_Read,0,1) == 0);
+    if (result == NDBT_FAILED)
+      return result;
+  }
+  return NDBT_OK;
+}
+
+int runSystemRestartLCP_5(NDBT_Context *ctx, NDBT_Step *step)
+{
+  Ndb *pNdb = GETNDB(step);
+  int result = NDBT_OK;
+  int i = 0;
+  int count = 0;
+  int timeout = 300;
+  int loops = ctx->getNumLoops();
+  int records = 10000;
+  NdbRestarter restarter;
+  HugoTransactions hugoTrans(*ctx->getTab());
+  UtilTransactions utilTrans(*ctx->getTab());
+  const Uint32 nodeCount = restarter.getNumDbNodes();
+  if(nodeCount < 2){
+    g_err << "PLCP_5 - Needs atleast 2 nodes to test" << endl;
+    return NDBT_OK;
+  }
+
+  g_err << "Loading " << records << " records..." << endl;
+  if (hugoTrans.loadTable(pNdb, records) != NDBT_OK)
+  {
+    g_err << "Failed to load table" << endl;
+    return NDBT_FAILED;
+  }
+  {
+    g_err << "Start LCP" << endl;
+    int val = DumpStateOrd::DihStartLcpImmediately;
+    if(restarter.dumpStateAllNodes(&val, 1) != 0)
+    {
+      g_err << "ERR: "<< step->getName() 
+            << " failed on line " << __LINE__ << endl; 
+      return NDBT_FAILED;
+    }
+  }
+  NdbSleep_SecSleep(15);
+
+  g_err << " loops to execute is " << loops << endl;
+  while(++i <= loops && result != NDBT_FAILED)
+  {
+    g_err << "Start loop " << i << endl;
+    /**
+     * We start an LCP with all rows inserted, this LCP is needed
+     * since the test needs change pages, change pages will never
+     * be part of first LCP. Next we touch a few rows by deleting
+     * them.
+     * Next we start a LCP and delete a few rows during LCP.
+     * These should hit LCP_SKIP state for deleted rows.
+     */
+
+    g_err << "Delete 10% upper rows" << endl;
+    Uint32 num_rows = records/10;
+    Uint32 start = ((9 * records)/10);
+    CHECK(hugoTrans.pkDelRecords(pNdb,
+                                 num_rows,
+                                 100,
+                                 true,
+                                 0,
+                                 start,
+                                 1) == 0);
+    if (result == NDBT_FAILED)
+      return result;
+
+    {
+      /* Delay first SCAN_FRAGREQ of LCP scan by 3 seconds */
+      CHECK(restarter.insertErrorInAllNodes(10047) == 0);
+    }
+    {
+      g_err << "Start LCP" << endl;
+      int val = DumpStateOrd::DihStartLcpImmediately;
+      if(restarter.dumpStateAllNodes(&val, 1) != 0)
+      {
+        g_err << "ERR: "<< step->getName() 
+              << " failed on line " << __LINE__ << endl; 
+        return NDBT_FAILED;
+      }
+    }
+    NdbSleep_SecSleep(1);
+    g_err << "Delete 10% more upper rows" << endl;
+    num_rows = records/10;
+    start = ((8 * records)/10);
+    CHECK(hugoTrans.pkDelRecords(pNdb,
+                                 num_rows,
+                                 100,
+                                 true,
+                                 0,
+                                 start,
+                                 1) == 0);
+    if (result == NDBT_FAILED)
+      return result;
+
+    NdbSleep_SecSleep(10);
+
+    g_err << "Reloading records..." << endl;
+    CHECK(hugoTrans.loadTableStartFrom(pNdb,
+                                       start,
+                                       2 * num_rows,
+                                       100,
+                                       true,
+                                       0,
+                                       false,
+                                       0,
+                                       false,
+                                       true,
+                                       1) == NDBT_OK);
+    if (result == NDBT_FAILED)
+      return result;
+
+    g_err << "Restarting cluster..." << endl;
+    CHECK(restarter.restartAll() == 0);
+    CHECK(restarter.waitClusterStarted(timeout) == 0);
+    CHECK(pNdb->waitUntilReady(timeout) == 0);
+    if (result == NDBT_FAILED)
+      return result;
+
+    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+    CHECK(count == records);
+    CHECK(hugoTrans.scanReadRecords(pNdb,records,0,64,
+                                    NdbOperation::LM_Read,0,1) == 0);
+    if (result == NDBT_FAILED)
+      return result;
+  }
+  return NDBT_OK;
+}
+
 int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);
   int result = NDBT_OK;
   int timeout = 300;
   Uint32 loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
+  int records = int((Uint64(1000) * Uint64(ctx->getNumRecords()) / Uint64(1000)));
   int count;
+  int remaining_records;
+  int remove_records;
+  int num_parts = ctx->getProperty("NumParts");
+  int row_step = ctx->getProperty("Step");
+  int batch = ctx->getProperty("Batch");
   NdbRestarter restarter;
   Uint32 i = 1;
 
   const Uint32 nodeCount = restarter.getNumDbNodes();
   if(nodeCount < 2){
-    g_info << "SR4 - Needs atleast 2 nodes to test" << endl;
+    g_err << "SR4 - Needs atleast 2 nodes to test" << endl;
     return NDBT_OK;
   }
 
   Vector<int> nodeIds;
   for(i = 0; i<nodeCount; i++)
     nodeIds.push_back(restarter.getDbNodeId(i));
-  
+
+  i = 1;
   Uint32 currentRestartNodeIndex = 0;
   UtilTransactions utilTrans(*ctx->getTab());
   HugoTransactions hugoTrans(*ctx->getTab());
 
+  if (ctx->getProperty("SetMinTimeLcp"))
   {
     int val = DumpStateOrd::DihMinTimeBetweenLCP;
     if(restarter.dumpStateAllNodes(&val, 1) != 0){
@@ -651,9 +1275,9 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
     }
   }
   
-  while(i<=loops && result != NDBT_FAILED){
-    
-    g_info << "Loop " << i << "/"<< loops <<" started" << endl;
+  while(i<=loops && result != NDBT_FAILED)
+  {
+    g_err << "Loop " << i << "/"<< loops <<" started" << endl;
     /**
      * 1. Load data
      * 2. Restart 1 node -nostart
@@ -665,80 +1289,230 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
      * 8. Restart 1 node -nostart
      * 9. Delete all records
      * 10. Restart cluster and verify records
+     *
+     * Has now been extended to delete a part at a time,
+     * with 2 parts the above behaviour is kept, with
+     * more parts we will loop more in steps 6 to 8.
      */
-    g_info << "Loading records..." << endl;
+    g_err << "Loading " << records << " records..." << endl;
     CHECK(hugoTrans.loadTable(pNdb, records) == 0);
 
-    /*** 1 ***/
-    g_info << "1 - Stopping one node" << endl;
-    CHECK(restarter.restartOneDbNode(nodeIds[currentRestartNodeIndex],
-				     false, 
-				     true,
-				     false) == 0);
-    currentRestartNodeIndex = (currentRestartNodeIndex + 1 ) % nodeCount;
+    if (ctx->getProperty("StopOneNode"))
+    {
+      /*** 1 ***/
+      g_err << "1 - Stopping one node = "
+            << nodeIds[currentRestartNodeIndex] << endl;
+      CHECK(restarter.restartOneDbNode(nodeIds[currentRestartNodeIndex],
+				       false, 
+				       true,
+				       false) == 0);
+      currentRestartNodeIndex = (currentRestartNodeIndex + 1 ) % nodeCount;
+    }
+    if (ctx->getProperty("PerformUpdates"))
+    {
+      g_err << "Updating records..." << endl;
+      CHECK(hugoTrans.pkUpdateRecords(pNdb, records, batch) == 0);
+    }
+    int val = 10047; /* Delay first SCAN_FRAGREQ of LCP scan by 1 second */
+    CHECK(restarter.dumpStateAllNodes(&val, 1) == 0);
+    if (ctx->getProperty("VerifyInsert"))
+    {
+      g_err << "Restarting cluster..." << endl;
+      CHECK(restarter.restartAll() == 0);
+      CHECK(restarter.waitClusterStarted(timeout) == 0);
+      if (ctx->getProperty("SetMinTimeLcp"))
+      {
+        int val = DumpStateOrd::DihMinTimeBetweenLCP;
+        CHECK(restarter.dumpStateAllNodes(&val, 1) == 0);
+      }
+      CHECK(pNdb->waitUntilReady(timeout) == 0);
 
-    g_info << "Updating records..." << endl;
-    CHECK(hugoTrans.pkUpdateRecords(pNdb, records) == 0);
-    
-    g_info << "Restarting cluster..." << endl;
+      g_err << "Verifying records..." << endl;
+      CHECK(hugoTrans.pkReadRecords(pNdb, records, batch) == 0);
+      CHECK(hugoTrans.scanReadRecords(pNdb, records, 0, 64) == 0);
+      CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+      CHECK(count == records);
+      if (result == NDBT_FAILED)
+        return result;
+    }
+
+    if (ctx->getProperty("StopOneNode"))
+    {
+      g_err << "2 - Stopping one node = "
+            << nodeIds[currentRestartNodeIndex] << endl;
+      CHECK(restarter.restartOneDbNode(nodeIds[currentRestartNodeIndex],
+				       false, 
+				       true,
+				       false) == 0);
+      currentRestartNodeIndex = (currentRestartNodeIndex - 1 ) % nodeCount;
+      g_err << "Verifying records again..." << endl;
+      CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+      CHECK(hugoTrans.scanReadRecords(pNdb, records, 0, 64) == 0);
+      CHECK(hugoTrans.pkReadRecords(pNdb, records, batch) == 0);
+      CHECK(count == records);
+      if (result == NDBT_FAILED)
+        return result;
+    }
+
+    remaining_records = records;
+    remove_records = records / num_parts;
+    for (int part = 0; part < num_parts; part++)
+    {
+      int val = 10047; /* Delay first SCAN_FRAGREQ of LCP scan by 1 second */
+      CHECK(restarter.dumpStateAllNodes(&val, 1) == 0);
+
+      if (row_step == 1)
+      {
+        g_err << "Deleting " << remove_records
+              << " records at the end..." << endl;
+      }
+      else
+      {
+        g_err << "Deleting " << remove_records
+              << " records ..." << endl;
+      }
+      int start = (row_step == 1) ? (remaining_records - remove_records) : part;
+      CHECK(hugoTrans.pkDelRecords(pNdb,
+                                   remove_records,
+                                   batch,
+                                   true,
+                                   0,
+                                   start,
+                                   row_step) == 0);
+      if (result == NDBT_FAILED)
+        return result;
+
+      remaining_records -= remove_records;
+
+      if (ctx->getProperty("VerifyDelete"))
+      {
+        g_err << "Verifying " << remaining_records
+              << " records remain..." << endl;
+        if (row_step == 1)
+        {
+          CHECK(hugoTrans.pkReadRecords(pNdb, remaining_records, batch) == 0);
+        }
+        CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+        CHECK(count == (remaining_records));
+        CHECK(hugoTrans.scanReadRecords(pNdb,remaining_records,0,64,
+                                        NdbOperation::LM_Read,0,1) == 0);
+        if (result == NDBT_FAILED)
+          return result;
+        NdbSleep_SecSleep(3);
+      }
+
+      g_err << "Restarting cluster..." << endl;
+      CHECK(restarter.restartAll() == 0);
+      CHECK(restarter.waitClusterStarted(timeout) == 0);
+      if (ctx->getProperty("SetMinTimeLcp"))
+      {
+        int val = DumpStateOrd::DihMinTimeBetweenLCP;
+        CHECK(restarter.dumpStateAllNodes(&val, 1) == 0);
+      }
+      CHECK(pNdb->waitUntilReady(timeout) == 0);
+      if (result == NDBT_FAILED)
+        return result;
+
+      g_err << "Verifying " << remaining_records
+            << " records remain..." << endl;
+      if (remaining_records != 0 && row_step == 1)
+      {
+        CHECK(hugoTrans.pkReadRecords(pNdb, remaining_records) == 0);
+      }
+      CHECK(hugoTrans.scanReadRecords(pNdb,remaining_records,0,64,
+                                      NdbOperation::LM_Read,0,1) == 0);
+      CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+      CHECK(count == (remaining_records));
+      if (result == NDBT_FAILED)
+        return result;
+
+      if (ctx->getProperty("StopOneNode"))
+      {
+        g_err << "3 - Stopping one node = "
+              << nodeIds[currentRestartNodeIndex] << endl;
+        CHECK(restarter.restartOneDbNode(nodeIds[currentRestartNodeIndex],
+				         false, 
+				         true,
+				         false) == 0);
+        currentRestartNodeIndex = (currentRestartNodeIndex + 1 ) % nodeCount;
+
+        g_err << "Verifying records again..." << endl;
+        if (remaining_records != 0 && row_step == 1)
+        {
+          CHECK(hugoTrans.pkReadRecords(pNdb, remaining_records) == 0);
+        }
+        CHECK(hugoTrans.scanReadRecords(pNdb,remaining_records,0,64,
+                                        NdbOperation::LM_Read,0,1) == 0);
+        CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+        CHECK(count == (remaining_records));
+        if (result == NDBT_FAILED)
+          return result;
+      }
+    }
+
+    if (remaining_records != 0)
+    {
+      g_err << "Deleting all records..." << endl;
+      CHECK(utilTrans.clearTable(pNdb, records/2) == 0);
+    }
+
+    g_err << "Restarting cluster..." << endl;
     CHECK(restarter.restartAll() == 0);
     CHECK(restarter.waitClusterStarted(timeout) == 0);
+    if (ctx->getProperty("SetMinTimeLcp"))
     {
       int val = DumpStateOrd::DihMinTimeBetweenLCP;
       CHECK(restarter.dumpStateAllNodes(&val, 1) == 0);
     }
     CHECK(pNdb->waitUntilReady(timeout) == 0);
-
-    g_info << "Verifying records..." << endl;
-    CHECK(hugoTrans.pkReadRecords(pNdb, records) == 0);
+    if (result == NDBT_FAILED)
+      return result;
+    
+    g_err << "Verifying no records remain..." << endl;
     CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
-    CHECK(count == records);
+    CHECK(hugoTrans.scanReadRecords(pNdb,0,0,64,
+                                    NdbOperation::LM_Read,0,1) == 0);
+    CHECK(count == 0);
+    if (result == NDBT_FAILED)
+      return result;
 
-    g_info << "2 - Stopping one node" << endl;
-    CHECK(restarter.restartOneDbNode(nodeIds[currentRestartNodeIndex],
-				     false, 
-				     true,
-				     false) == 0);
-    currentRestartNodeIndex = (currentRestartNodeIndex + 1 ) % nodeCount;
+    if (ctx->getProperty("StopOneNode"))
+    {
+      g_err << "4 - Stopping one node = "
+            << nodeIds[currentRestartNodeIndex] << endl;
+      CHECK(restarter.restartOneDbNode(nodeIds[currentRestartNodeIndex],
+				       false,
+				       true,
+				       false) == 0);
+      currentRestartNodeIndex = (currentRestartNodeIndex - 1 ) % nodeCount;
 
-    g_info << "Deleting 50% of records..." << endl;
-    CHECK(hugoTrans.pkDelRecords(pNdb, records/2) == 0);
+      g_err << "Verifying no records remain again..." << endl;
+      CHECK(hugoTrans.scanReadRecords(pNdb,0,0,64,
+                                      NdbOperation::LM_Read,0,1) == 0);
+      CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+      CHECK(count == 0);
+      if (result == NDBT_FAILED)
+        return result;
+    }
     
-    g_info << "Restarting cluster..." << endl;
     CHECK(restarter.restartAll() == 0);
     CHECK(restarter.waitClusterStarted(timeout) == 0);
+    if (ctx->getProperty("SetMinTimeLcp"))
     {
       int val = DumpStateOrd::DihMinTimeBetweenLCP;
       CHECK(restarter.dumpStateAllNodes(&val, 1) == 0);
     }
     CHECK(pNdb->waitUntilReady(timeout) == 0);
+    if (result == NDBT_FAILED)
+      return result;
 
-    g_info << "Verifying records..." << endl;
-    CHECK(hugoTrans.scanReadRecords(pNdb, records/2, 0, 64) == 0);
-    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
-    CHECK(count == (records/2));
-
-    g_info << "3 - Stopping one node" << endl;
-    CHECK(restarter.restartOneDbNode(nodeIds[currentRestartNodeIndex],
-				     false, 
-				     true,
-				     false) == 0);
-    currentRestartNodeIndex = (currentRestartNodeIndex + 1 ) % nodeCount;
-    g_info << "Deleting all records..." << endl;
-    CHECK(utilTrans.clearTable(pNdb, records/2) == 0);
-
-    g_info << "Restarting cluster..." << endl;
-    CHECK(restarter.restartAll() == 0);
-    CHECK(restarter.waitClusterStarted(timeout) == 0);
-    {
-      int val = DumpStateOrd::DihMinTimeBetweenLCP;
-      CHECK(restarter.dumpStateAllNodes(&val, 1) == 0);
-    }
-    CHECK(pNdb->waitUntilReady(timeout) == 0);
-    
-    ndbout << "Verifying records..." << endl;
+    g_err << "Verifying no records remain yet again..." << endl;
+    CHECK(hugoTrans.scanReadRecords(pNdb,0,0,64,
+                                    NdbOperation::LM_Read,0,1) == 0);
     CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
     CHECK(count == 0);
+    if (result == NDBT_FAILED)
+      return result;
     
     i++;
   }
@@ -1284,6 +2058,7 @@ int runWaitStarted(NDBT_Context* ctx, NDBT_Step* step){
 
   NdbRestarter restarter;
   restarter.waitClusterStarted(300);
+  CHK_NDB_READY(GETNDB(step));
 
   NdbSleep_SecSleep(3);
   return NDBT_OK;
@@ -1495,6 +2270,100 @@ runBug29167(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 int
+runOneNodeWithCleanFilesystem(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  NdbRestarter restarter;
+
+  const int nodeCount = restarter.getNumDbNodes();
+  int master = restarter.getMasterNodeId();
+  int other_ng_node = restarter.getRandomNodeOtherNodeGroup(master, rand());
+  int other_ng = restarter.getNodeGroup(other_ng_node);
+  Vector<int> nodeIds;
+  for(int i = 0; i<nodeCount; i++)
+  {
+    int node = restarter.getDbNodeId(i);
+    if (restarter.getNodeGroup(node) == other_ng)
+      nodeIds.push_back(node);
+  }
+
+  if (nodeIds.size() == 0) {
+    g_err << "[SKIPPED] Test skipped.  Need at least two node groups." << endl;
+    return NDBT_OK;
+  }
+
+  /**
+   * All nodes but one in a node group will be taken down early so
+   * that their filesystem are too old for recreating node group.
+   * The last node is taken down late and causing cluster down, and
+   * before restarted that nodes file system is cleared.
+   * Restarting cluster should now fail in a controlled.
+   */
+  do {
+    ndbout_c("master: %u, victim node group: %u", master, other_ng);
+
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    restarter.dumpStateAllNodes(val2, 2);
+
+    int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
+
+    NdbLogEventHandle handle =
+      ndb_mgm_create_logevent_handle(restarter.handle, filter);
+    struct ndb_logevent event;
+
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+          event.type != NDB_LE_GlobalCheckpointCompleted);
+
+    for(unsigned i=1; i < nodeIds.size(); i++)
+    {
+      int node = nodeIds[i];
+      g_info << "Crashing node " << node << ", will have old logs" << endl;
+      CHECK(restarter.insertErrorInNode(node, 7183) == 0);
+      CHECK(restarter.waitNodesNoStart(&node, 1) == 0);
+
+      // Wait for an global checkpoint to complete
+      while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+          event.type != NDB_LE_GlobalCheckpointCompleted);
+    }
+
+    // Wait for some more global checkpoint to complete
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+          event.type != NDB_LE_GlobalCheckpointCompleted);
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+          event.type != NDB_LE_GlobalCheckpointCompleted);
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+          event.type != NDB_LE_GlobalCheckpointCompleted);
+    ndb_mgm_destroy_logevent_handle(&handle);
+
+    // Crash last node in victim node group
+    int node = nodeIds[0];
+    CHECK(restarter.insertErrorInAllNodes(944) == 0);
+    g_info << "Crashing node " << node << endl;
+    CHECK(restarter.insertErrorInNode(node, 7183) == 0);
+    CHECK(restarter.waitNodesNoStart(&node, 1) == 0);
+    CHECK(restarter.waitClusterNoStart() == 0);
+
+    restarter.dumpStateAllNodes(val2, 2);
+    CHECK(restarter.insertErrorInAllNodes(944) == 0);
+    g_info << "Save file system clean on restart for node " << node << endl;
+    CHECK(restarter.insertError2InNode(node, 2000, 944) == 0);
+
+    restarter.startAll();
+    // Wait a short while for start phase 0, but cluster might already stopped again
+    (void) restarter.waitClusterStartPhase(0, 5 /* attempts */);
+    CHECK(restarter.waitClusterNoStart() == 0);
+    g_info << "Cluster failed start as expected" << endl;
+
+    // A successul test must leave a live cluster behind
+    g_info << "Restore file system on restart for node " << node << endl;
+    CHECK(restarter.insertError2InNode(node, 2001, 0) == 0);
+    restarter.startAll();
+  } while(false);
+
+  return result;
+}
+
+int
 runBug28770(NDBT_Context* ctx, NDBT_Step* step) {
   Ndb* pNdb = GETNDB(step);
   NdbRestarter restarter;
@@ -1606,14 +2475,31 @@ int runSR_DD_1(NDBT_Context* ctx, NDBT_Step* step)
       ndbout << "Crashing cluster" << endl;
       ctx->setProperty("StopAbort", 1000 + rand() % (3000 - 1000));
     }
-    Uint64 end = NdbTick_CurrentMillisecond() + 4000;
+    const NDB_TICKS start = NdbTick_getCurrentTicks();
     Uint32 row = startFrom;
     do {
       ndbout << "Loading from " << row << " to " << row + 1000 << endl;
       if (hugoTrans.loadTableStartFrom(pNdb, row, 1000) != 0)
 	break;
       row += 1000;
-    } while (NdbTick_CurrentMillisecond() < end);
+
+      /**
+       * As table space is a (fixed) limited resource on our
+       * test rigs, we cant allow a fast test client to fill tables at
+       * an unlimited speed. Limit to 10.000 row inserts/sec.
+       */ 
+      const NDB_TICKS now = NdbTick_getCurrentTicks();
+      const Uint64 elapsed_ms = NdbTick_Elapsed(start, now).milliSec();
+      if (elapsed_ms >= 4000)
+        break;
+
+      const Uint64 time_goal = (row-startFrom)/10;
+      if (elapsed_ms < time_goal)
+      {
+        //We are inserting too fast, take a break.
+        NdbSleep_MilliSleep(time_goal-elapsed_ms);
+      }
+    } while (true); //Will break out
 
     if (!all)
     {
@@ -1626,9 +2512,13 @@ int runSR_DD_1(NDBT_Context* ctx, NDBT_Step* step)
     {
       ndbout << "Waiting for cluster to restart" << endl;
     }
+    ndbout << "Waiting for cluster to come up in 'NO_START' state" << endl;
     CHECK(restarter.waitClusterNoStart() == 0);
+    ndbout << "Allow cluster to start up" << endl;
     CHECK(restarter.startAll() == 0);
+    ndbout << "Waiting for cluster to reach 'STARTED' state" << endl;
     CHECK(restarter.waitClusterStarted() == 0);
+    ndbout << "Waiting for cluster to become 'ready'" << endl;
     CHECK(pNdb->waitUntilReady() == 0);
 
     ndbout << "Starting backup..." << flush;
@@ -1708,14 +2598,34 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
       ctx->setProperty("StopAbort", 3000 + rand() % (10000 - 3000));
     }
 
-    Uint64 end = NdbTick_CurrentMillisecond() + 11000;
+    Uint32 total_rows = 0;
+    const NDB_TICKS start = NdbTick_getCurrentTicks();
     do {
       if (hugoTrans.loadTable(pNdb, rows) != 0)
 	break;
       
       if (hugoTrans.clearTable(pNdb, NdbScanOperation::SF_TupScan, rows) != 0)
 	break;
-    } while (NdbTick_CurrentMillisecond() < end);
+
+      total_rows += rows;
+
+      /**
+       * As redo/undo log is a (fixed) limited resource on our
+       * test rigs, we cant allow a fast test client to create such logs at
+       * an unlimited speed. Limit to 10.000 row inserts+deletes/sec.
+       */ 
+      const NDB_TICKS now = NdbTick_getCurrentTicks();
+      const Uint64 elapsed_ms = NdbTick_Elapsed(start, now).milliSec();
+      if (elapsed_ms >= 11000)
+        break;
+
+      const Uint64 time_goal = total_rows/10;
+      if (elapsed_ms < time_goal)
+      {
+        //We are inserting too fast, take a break.
+        NdbSleep_MilliSleep(time_goal-elapsed_ms);
+      }
+    } while (true); //Will break out
     
     if (!all)
     {
@@ -1729,9 +2639,13 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
       ndbout << "Waiting for cluster to restart" << endl;
     }
 
+    ndbout << "Waiting for cluster to come up in 'NO_START' state" << endl;
     CHECK(restarter.waitClusterNoStart() == 0);
+    ndbout << "Allow cluster to start up" << endl;
     CHECK(restarter.startAll() == 0);
+    ndbout << "Waiting for cluster to reach 'STARTED' state" << endl;
     CHECK(restarter.waitClusterStarted() == 0);
+    ndbout << "Waiting for cluster to become 'ready'" << endl;
     CHECK(pNdb->waitUntilReady() == 0);
 
     if (error)
@@ -1821,7 +2735,7 @@ int runSR_DD_3(NDBT_Context* ctx, NDBT_Step* step)
     }
 
     int deletedrows[100];
-    Uint64 end = NdbTick_CurrentMillisecond() + 13000;
+    const NDB_TICKS start = NdbTick_getCurrentTicks();
     do {
       Uint32 cnt = 0;
       for (; cnt<NDB_ARRAY_SIZE(deletedrows); cnt++)
@@ -1857,7 +2771,7 @@ int runSR_DD_3(NDBT_Context* ctx, NDBT_Step* step)
       if (hugoTrans.scanUpdateRecords(pNdb, NdbScanOperation::SF_TupScan,0)!=0
           && !hugoTrans.getRetryMaxReached())
 	break;
-    } while (NdbTick_CurrentMillisecond() < end);
+    } while (NdbTick_Elapsed(start, NdbTick_getCurrentTicks()).milliSec() < 13000);
 
     if (!all)
     {
@@ -1871,9 +2785,14 @@ int runSR_DD_3(NDBT_Context* ctx, NDBT_Step* step)
       ndbout << "Waiting for cluster to restart" << endl;
     }
 
+    ndbout << "Waiting for cluster to come up in 'NO_START' state" << endl;
     CHECK(restarter.waitClusterNoStart() == 0);
+    ndbout << "Allow cluster to start up" << endl;
     CHECK(restarter.startAll() == 0);
+    ndbout << "Waiting for cluster to reach 'STARTED' state" << endl;
     CHECK(restarter.waitClusterStarted() == 0);
+    ndbout << "Waiting for cluster to become 'ready'" << endl;
+    CHK_NDB_READY(pNdb);
     if (error)
     {
       restarter.insertErrorInAllNodes(error);
@@ -2026,8 +2945,9 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
   for (int j = 0; j<res.getNumDbNodes(); j++)
   {
     int node = res.getDbNodeId(j);
-    nodeGroups[node] = res.getNodeGroup(node);
-    nodeGroupMap.set(nodeGroups[node]);
+    nodeGroups[node] = Uint32(res.getNodeGroup(node));
+    if (nodeGroups[node] != Uint32(NDBT_NO_NODE_GROUP_ID))
+      nodeGroupMap.set(nodeGroups[node]);
   }
 
   struct ndb_logevent event;
@@ -2095,7 +3015,7 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(res.restartAll(false, true, true) == 0);
     CHECK(res.waitClusterNoStart() == 0);
     CHECK(res.startAll() == 0);
-    Uint64 now = NdbTick_CurrentMillisecond();
+    const NDB_TICKS start = NdbTick_getCurrentTicks();
     /**
      * running transaction while cluster is down...
      * causes *lots* of printouts...redirect to /dev/null
@@ -2108,7 +3028,8 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
     do
     {
       hugoTrans.scanUpdateRecords(pNdb, 0);
-    } while (NdbTick_CurrentMillisecond() < (now + 30000));
+    } while (NdbTick_Elapsed(start, NdbTick_getCurrentTicks()).milliSec() < 30000);
+
     g_err.m_out = save[0];
     CHECK(res.waitClusterStarted() == 0);
     CHECK(pNdb->waitUntilReady() == 0);
@@ -2136,8 +3057,6 @@ int runBug45154(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
   NdbDictionary::Dictionary * pDict = pNdb->getDictionary();
-  int result = NDBT_OK;
-  Uint32 loops = ctx->getNumLoops();
   Uint32 rows = ctx->getNumRecords();
   NdbRestarter restarter;
 
@@ -2145,79 +3064,111 @@ int runBug45154(NDBT_Context* ctx, NDBT_Step* step)
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
   NdbLogEventHandle handle =
     ndb_mgm_create_logevent_handle(restarter.handle, filter);
-
   struct ndb_logevent event;
 
-  Uint32 frag_data[128];
-  bzero(frag_data, sizeof(frag_data));
-
-  NdbDictionary::HashMap map;
-  pDict->getDefaultHashMap(map, 2*restarter.getNumDbNodes());
-  pDict->createHashMap(map);
-
-  pDict->getDefaultHashMap(map, restarter.getNumDbNodes());
-  pDict->createHashMap(map);  
-
-  for(Uint32 i = 0; i < loops && result != NDBT_FAILED; i++)
+  for(int i = 0; i < ctx->getNumLoops(); i++)
   {
+    /* Create a table with disk storage and a fairly large number of fragments.
+       Insert some rows, force an LCP, then drop the table.
+       Recreate the table with the same id, but fewer fragments.
+       Insert some rows, then force a system restart.
+    */
     ndbout_c("loop %u", i);
-
-    NdbDictionary::Table copy = *ctx->getTab();
-    copy.setName("BUG_45154");
-    copy.setFragmentType(NdbDictionary::Object::DistrKeyLin);
-    copy.setFragmentCount(2 * restarter.getNumDbNodes());
-    copy.setFragmentData(frag_data, 2*restarter.getNumDbNodes());
     pDict->dropTable("BUG_45154");
-    int res = pDict->createTable(copy);
-    if (res != 0)
+    NdbDictionary::Table copy1(* NDBT_Tables::getTable(ctx->getTableName(0)));
+    NdbDictionary::Table copy2(* NDBT_Tables::getTable(ctx->getTableName(0)));
+    const NdbDictionary::Table* actualTable;
+    int tableId;
+    unsigned int nFragments;
+
+    // Create table with disk storage and a fairly large number of fragments
+    copy1.setName("BUG_45154");
+    copy1.setDefaultNoPartitionsFlag(true);
+    copy1.setFragmentType(NdbDictionary::Object::HashMapPartition);
+    copy1.setPartitionBalance(NdbDictionary::Object::PartitionBalance_ForRAByLDMx4);
+    if (pDict->createTable(copy1) != 0)
     {
       ndbout << pDict->getNdbError() << endl;
       return NDBT_FAILED;
     }
-    const NdbDictionary::Table* copyptr= pDict->getTable("BUG_45154");
+    actualTable= pDict->getTable("BUG_45154");
+    tableId = actualTable->getTableId();
+    nFragments = actualTable->getPartitionCount();
+    ndbout_c("[1st table] Id: %u  Fragments: %u (%s)", tableId, nFragments,
+               actualTable->getPartitionBalanceString());
 
+    // Insert rows
     {
-      HugoTransactions hugoTrans(*copyptr);
+      HugoTransactions hugoTrans(*actualTable);
       hugoTrans.loadTable(pNdb, rows);
     }
 
+    // LCP
     int dump[] = { DumpStateOrd::DihStartLcpImmediately };
     for (int l = 0; l<2; l++)
     {
-      CHECK(restarter.dumpStateAllNodes(dump, 1) == 0);
+      if(restarter.dumpStateAllNodes(dump, 1) != 0)
+      {
+        g_err << "Failed at line " << __LINE__ << endl;
+        return NDBT_FAILED;
+      }
       while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
             event.type != NDB_LE_LocalCheckpointStarted);
       while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
             event.type != NDB_LE_LocalCheckpointCompleted);
     }
 
+    // Drop the table
     pDict->dropTable("BUG_45154");
-    copy.setFragmentCount(restarter.getNumDbNodes());
-    copy.setFragmentData(frag_data, restarter.getNumDbNodes());
-    res = pDict->createTable(copy);
-    if (res != 0)
+
+   // Recreate the table with the same id, but fewer fragments.
+    copy2.setName("BUG_45154");
+    copy2.setDefaultNoPartitionsFlag(true);
+    copy2.setFragmentType(NdbDictionary::Object::HashMapPartition);
+    copy2.setPartitionBalance(NdbDictionary::Object::PartitionBalance_ForRAByLDM);
+    if (pDict->createTable(copy2) != 0)
     {
       ndbout << pDict->getNdbError() << endl;
       return NDBT_FAILED;
     }
-    copyptr = pDict->getTable("BUG_45154");
+    actualTable= pDict->getTable("BUG_45154");
 
+    ndbout_c("[2nd table] Id: %u  Fragments: %u (%s)",
+             actualTable->getTableId(), actualTable->getPartitionCount(),
+             actualTable->getPartitionBalanceString());
+
+    if(actualTable->getTableId() != tableId)
     {
-      HugoTransactions hugoTrans(*copyptr);
+      ndbout << "FAIL: Table Id was not reused" << endl;
+      return NDBT_FAILED;
+    }
+
+    if(actualTable->getPartitionCount() >= nFragments)
+    {
+      ndbout << "FAIL: Second table does not have fewer fragments" << endl;
+      return NDBT_FAILED;
+    }
+
+    // Insert rows
+    {
+      HugoTransactions hugoTrans(*actualTable);
       hugoTrans.loadTable(pNdb, rows);
       for (Uint32 pp = 0; pp<3; pp++)
         hugoTrans.scanUpdateRecords(pNdb, rows);
     }
+
+    // System restart
     restarter.restartAll(false, true, true);
     restarter.waitClusterNoStart();
     restarter.startAll();
     restarter.waitClusterStarted();
+    CHK_NDB_READY(pNdb);
 
     pDict->dropTable("BUG_45154");
   }
 
   ctx->stopTest();
-  return result;
+  return NDBT_OK;
 }
 
 int runBug46651(NDBT_Context* ctx, NDBT_Step* step)
@@ -2280,7 +3231,7 @@ int runBug46651(NDBT_Context* ctx, NDBT_Step* step)
   if (res.waitClusterStarted())
     return NDBT_FAILED;
 
-  pNdb->waitUntilReady();
+  CHK_NDB_READY(pNdb);
 
   NdbDictionary::Table newTab = *pTab;
   col.setName("ATTR4");
@@ -2304,7 +3255,7 @@ int runBug46651(NDBT_Context* ctx, NDBT_Step* step)
   if (res.waitClusterStarted())
     return NDBT_FAILED;
 
-  pNdb->waitUntilReady();
+  CHK_NDB_READY(pNdb);
   pDict->dropTable(tab.getName());
 
   return NDBT_OK;
@@ -2313,6 +3264,7 @@ int runBug46651(NDBT_Context* ctx, NDBT_Step* step)
 int
 runBug46412(NDBT_Context* ctx, NDBT_Step* step)
 {
+  Uint32 partialSR = ctx->getProperty("PartialSRvar");
   Uint32 loops = ctx->getNumLoops();
   NdbRestarter res;
   const Uint32 nodeCount = res.getNumDbNodes();
@@ -2323,7 +3275,6 @@ runBug46412(NDBT_Context* ctx, NDBT_Step* step)
 
   for (Uint32 l = 0; l<loops; l++)
   {
-loop:
     printf("checking nodegroups of getNextMasterNodeId(): ");
     int nodes[256];
     bzero(nodes, sizeof(nodes));
@@ -2338,25 +3289,31 @@ loop:
 
     Bitmask<256/32> ng;
     int cnt = 0;
+    int cnt_stop_partial = 0;
     int restartnodes[256];
+    int stopnodes_partial[256];
 
     Uint32 limit = (nodeCount / 2);
     for (Uint32 i = 0; i<limit; i++)
     {
       int tmp = res.getNodeGroup(nodes[i]);
-      printf("node %d ng: %d", nodes[i], tmp);
-      if (ng.get(tmp))
+      if (tmp != NDBT_NO_NODE_GROUP_ID)
       {
-        restartnodes[cnt++] = nodes[i];
-        ndbout_c(" COLLISION");
-        limit++;
-        if (limit > nodeCount)
-          limit = nodeCount;
-      }
-      else
-      {
-        ng.set(tmp);
-        ndbout_c(" OK");
+        printf("node %d ng: %d", nodes[i], tmp);
+        if (ng.get(tmp))
+        {
+          restartnodes[cnt++] = nodes[i];
+          ndbout_c(" COLLISION");
+          limit++;
+          if (limit > nodeCount)
+            limit = nodeCount;
+        }
+        else
+        {
+          stopnodes_partial[cnt_stop_partial++] = nodes[i];
+          ng.set(tmp);
+          ndbout_c(" OK");
+        }
       }
     }
 
@@ -2375,33 +3332,67 @@ loop:
       if (res.waitClusterStarted())
         return NDBT_FAILED;
 
-      goto loop;
+      if (partialSR == 0)
+        continue;
     }
 
     int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
     res.dumpStateAllNodes(val2, 2);
 
-    Bitmask<256/32> mask;
-    for (Uint32 i = 0; i<(nodeCount / 2); i++)
+    if (partialSR == 0)
     {
-      int node = nodes[(nodeCount / 2) - (i + 1)];
-      mask.set(node);
-      res.insertErrorInNode(node, 7218);
-    }
+      Bitmask<256/32> mask;
+      for (Uint32 i = 0; i<(nodeCount / 2); i++)
+      {
+        int node = nodes[(nodeCount / 2) - (i + 1)];
+        mask.set(node);
+        res.insertErrorInNode(node, 7218);
+      }
     
-    for (Uint32 i = 0; i<nodeCount; i++)
-    {
-      int node = nodes[i];
-      if (mask.get(node))
-        continue;
-      res.insertErrorInNode(node, 7220);
+      for (Uint32 i = 0; i<nodeCount; i++)
+      {
+        int node = nodes[i];
+        if (mask.get(node))
+          continue;
+        res.insertErrorInNode(node, 7220);
+      }
+
+      int lcp = 7099;
+      res.dumpStateAllNodes(&lcp, 1);
+
+      res.waitClusterNoStart();
+      res.startAll();
     }
-
-    int lcp = 7099;
-    res.dumpStateAllNodes(&lcp, 1);
-
-    res.waitClusterNoStart();
-    res.startAll();
+    else
+    {
+      ndbout_c("cnt_stop_partial = %u", cnt_stop_partial);
+      for (Uint32 i = 0; i < nodeCount; i++)
+      {
+        int node = nodes[i];
+        bool found = false;
+        for (int j = 0; j < cnt_stop_partial; j++)
+        {
+          if (stopnodes_partial[j] == node)
+            found = true;
+        }
+        if (found)
+        {
+          ndbout_c("Stop node %u", node);
+          res.restartOneDbNode(node, false, true, true, true);
+        }
+      }
+      ndbout_c("Wait for a while to allow the first set of nodes to stop");
+      sleep(6);
+      ndbout_c("Cluster restart");
+      res.restartAll(false, true, true, true);
+      res.waitClusterNoStart();
+      for (Uint32 i = 0; i < nodeCount; i++)
+      {
+        ndbout_c("Start node %u", nodes[i]);
+        res.startNodes(&nodes[i], 1);
+        sleep(4);
+      }
+    }
     if (res.waitClusterStarted())
       return NDBT_FAILED;
   }
@@ -2456,6 +3447,7 @@ runBug48436(NDBT_Context* ctx, NDBT_Step* step)
       case 0:
       case 1:
         res.dumpStateAllNodes(&val, 1);
+        // Fall through
       case 2:
       case 3:
       case 4:
@@ -2476,6 +3468,7 @@ runBug48436(NDBT_Context* ctx, NDBT_Step* step)
         break;
       case 7:
         res.dumpStateAllNodes(&val, 1);
+        // Fall through
       case 8:
         res.restartOneDbNode(nodes[1], false, true, true);
         res.waitNodesNoStart(nodes+1,1);
@@ -2545,7 +3538,7 @@ runBug54611(NDBT_Context* ctx, NDBT_Step* step)
     res.insertErrorInAllNodes(5055);
     res.startAll();
     res.waitClusterStarted();
-    pNdb->waitUntilReady();
+    CHK_NDB_READY(pNdb);
   }
 
   return NDBT_OK;
@@ -2578,6 +3571,7 @@ runBug56961(NDBT_Context* ctx, NDBT_Step* step)
     res.startNodes(&node, 1);
     ndbout_c("Waiting for %d to start", node);
     res.waitClusterStarted();
+    CHK_NDB_READY(pNdb);
 
     ndbout_c("Waiting for %d to restart (5059)", node);
     res.dumpStateOneNode(node, val2, 2);
@@ -2592,7 +3586,7 @@ runBug56961(NDBT_Context* ctx, NDBT_Step* step)
     res.startNodes(&node, 1);
     ndbout_c("Waiting for %d to start", node);
     res.waitClusterStarted();
-    pNdb->waitUntilReady();
+    CHK_NDB_READY(pNdb);
   }
 
   return NDBT_OK;
@@ -2617,7 +3611,7 @@ int runAddNodes(NDBT_Context* ctx, NDBT_Step* step)
   for(int i= 0; i < restarter.getNumDbNodes(); i++ )
   {
     int _node_id= restarter.getDbNodeId(i);
-    if(restarter.getNodeGroup(_node_id) == -256)
+    if(restarter.getNodeGroup(_node_id) == NDBT_NO_NODE_GROUP_ID)
     {
       /* nodes that don't have a nodegroup yet */
       newNodes.push_back(_node_id);
@@ -2661,36 +3655,37 @@ int runAlterTableAndOptimize(NDBT_Context* ctx, NDBT_Step* step)
   DbUtil sql("TEST_DB");
   {
     BaseString query;
-    int numOfTables = ctx->getNumTables();
+    SqlResultSet resultSet;
+    const char* table_name = ctx->getTableName(0);
 
-    /* ALTER ONLINE TABLE <tbl_name> REORGANIZE PARTITION */
-    for(int i= 0; i < numOfTables; i++ )
-    {
-      SqlResultSet resultSet;
-      query.assfmt("ALTER ONLINE TABLE %s REORGANIZE PARTITION",
-                   ctx->getTableName(i));
-      g_info << "Executing query : "<< query.c_str() << endl;
+    /* ALTER TABLE <tbl_name> ALGORITHM=INPLACE, REORGANIZE PARTITION */
+    query.assfmt("ALTER TABLE %s ALGORITHM=INPLACE, REORGANIZE PARTITION",
+                 table_name);
 
-      if(!sql.doQuery(query.c_str(), resultSet)){
-        if(nodesKilledDuringStep &&
-           sql.getErrorNumber() == 0)
-        {
-          /* query failed probably because of a node kill in another step.
-             wait for the nodes to get into start phase before retrying */
-          if(restarter.waitClusterStarted() != 0){
-            g_err << "Cluster went down during reorganize partition" << endl;
-            return NDBT_FAILED;
-          }
-          /* retry the query for same table */
-          i--;
-          nodesKilledDuringStep= false;
-          continue;
-        } else {
-          /* either the query failed due to returning error code from server
-           or cluster crash */
-          g_err << "QUERY : "<< query.c_str() << "; failed" << endl;
+    /* wait until the killing step is about to begin */
+    while(nodesKilledDuringStep && ctx->getProperty("WaitForNodeKillStart"))
+      NdbSleep_MilliSleep(200);
+
+    reorganize_table :
+    g_info << "Executing query : "<< query.c_str() << endl;
+    if(!sql.doQuery(query.c_str(), resultSet)){
+      if(nodesKilledDuringStep &&
+          sql.getErrorNumber() == 0)
+      {
+        /* query failed probably because of a node kill in another step.
+           wait for the nodes to get into start phase before retrying */
+        if(restarter.waitClusterStarted() != 0){
+          g_err << "Cluster went down during reorganize partition" << endl;
           return NDBT_FAILED;
         }
+        /* retry the query for same table */
+        nodesKilledDuringStep= false;
+        goto reorganize_table;
+      } else {
+        /* either the query failed due to returning error code from server
+           or cluster crash */
+        g_err << "QUERY : "<< query.c_str() << "; failed" << endl;
+        return NDBT_FAILED;
       }
     }
 
@@ -2703,16 +3698,11 @@ int runAlterTableAndOptimize(NDBT_Context* ctx, NDBT_Step* step)
     }
 
     /* Reclaim freed space by running optimize table */
-    for(int i= 0; i < numOfTables; i++ )
-    {
-      SqlResultSet result;
-      BaseString query;
-      query.assfmt("OPTIMIZE TABLE %s", ctx->getTableName(i));
-      g_info << "Executing query : "<< query.c_str() << endl;
-      if (!sql.doQuery(query.c_str(), result)){
-        g_err << "Failed executing optimize table" << endl;
-        return NDBT_FAILED;
-      }
+    query.assfmt("OPTIMIZE TABLE %s", table_name);
+    g_info << "Executing query : "<< query.c_str() << endl;
+    if (!sql.doQuery(query.c_str(), resultSet)){
+      g_err << "Failed executing optimize table" << endl;
+      return NDBT_FAILED;
     }
   }
   return NDBT_OK;
@@ -2731,6 +3721,7 @@ int runKillTwoNodes(NDBT_Context* ctx, NDBT_Step* step)
   nodes.push_back(restarter.getDbNodeId(rand() % restarter.getNumDbNodes()));
   /* select a node from different group as next victim */
   nodes.push_back(restarter.getRandomNodeOtherNodeGroup(nodes[0], rand()));
+  ctx->setProperty("WaitForNodeKillStart", (uint)false);
   for(int i = 0; i < 2; i++){
     g_info << "Killing node " << nodes[i] << "..." << endl;
     CHECK(restarter.dumpStateOneNode(nodes[i], val, 2) == 0);
@@ -2913,10 +3904,10 @@ int runStartWithNodeGroupZero(NDBT_Context* ctx, NDBT_Step* step){
     3. Check the group id of the above node
     **/
     /*** 1 ***/
-    g_info << "1- Findind a node of group id other then 0" << endl;
+    g_info << "1- Finding a node of group id other then 0" << endl;
     nodeGroup = restarter.getNodeGroup(nodeId);
     g_info << "    Current node group : " << nodeGroup << endl;
-    if(nodeGroup == 0)
+    if(nodeGroup == 0 || nodeGroup == NDBT_NO_NODE_GROUP_ID)
     {
       g_info << "    Skiping this node" << endl;
       nodeId = restarter.getRandomNodeOtherNodeGroup(nodeId, 4);
@@ -2966,7 +3957,7 @@ int runMixedModeRestart4Node(NDBT_Context* ctx, NDBT_Step* step){
   **/
 
   /*** 1 ***/
-  g_info << "1- Killing four nodes of diffrent groups." << endl;
+  g_info << "1- Killing four nodes of different groups." << endl;
   int nodesarray[256];
   int cnt = 0;
   int timeout = 300;
@@ -2974,6 +3965,8 @@ int runMixedModeRestart4Node(NDBT_Context* ctx, NDBT_Step* step){
   for(int i = 0; i< nodeCount; i++)
   {
     int nodeGroup=restarter.getNodeGroup(nodeIds[i]);
+    if (nodeGroup == NDBT_NO_NODE_GROUP_ID)
+      continue;
     if (seen_groups.get(nodeGroup))
     {
       // One node in this node group already down
@@ -3042,6 +4035,8 @@ int runKillMasterNodes(NDBT_Context* ctx, NDBT_Step* step){
     g_info << "Master Node Id : " << master << endl;
     int nodeGroup = restarter.getNodeGroup(master);
     CHECK(nodeGroup != -1);
+    if (nodeGroup == NDBT_NO_NODE_GROUP_ID)
+      continue;
     if (seen_groups.get(nodeGroup))
     {
       // One node in this node group already down
@@ -3072,6 +4067,134 @@ int runKillMasterNodes(NDBT_Context* ctx, NDBT_Step* step){
   g_info << "runKillMasterNodes finished" << endl;
   return result;
 }
+
+/**************************************************************************
+ * - Cause node takeover during SR by having data changes and multiple LCPs
+ *   while a node is 'down'
+ * - Cause 'interesting' activity during SR/Takeover to find bugs in the
+ *   takeover scenario
+ */
+
+/*  runLoad(): When signalled
+ * - Create load
+ * - Drop the table
+ * - Create the table again during SR */
+
+int
+runLoad(NDBT_Context* ctx, NDBT_Step* step)
+{
+  CHK(!ctx->getPropertyWait("CreateLoad", (Uint32)1),
+      "Not signalled to create load");
+
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *myDict = pNdb->getDictionary();
+  CHK(myDict != NULL, pNdb->getNdbError().message);
+
+  NdbDictionary::Table tab = * ctx->getTab();
+  // Take a copy of the table struct to use after dropping the table
+  const NdbDictionary::Table *copy = new NdbDictionary::Table(tab);
+
+  int records = ctx->getNumRecords();
+
+  while (!ctx->isTestStopped() && ctx->getProperty("CreateLoad", (Uint32)1))
+  {
+    HugoTransactions hugoTrans(tab);
+    CHK(hugoTrans.loadTable(pNdb, records) == 0,
+        hugoTrans.getNdbError());
+    CHK(hugoTrans.clearTable(GETNDB(step), records) == 0,
+        hugoTrans.getNdbError());
+  }
+
+  CHK(myDict->dropTable(tab.getName()) == 0, myDict->getNdbError());
+  ctx->setProperty("TableDropped", Uint32(1));
+
+  CHK(!ctx->getPropertyWait("CreateLoad", (Uint32)1),
+      "Not signalled to create table");
+
+  int retries = 0;
+  while (!ctx->isTestStopped() && myDict->createTable(*copy)!= 0)
+  {
+    /* '4009 - Cluster Failure' is acceptable since SR is in progress.
+     * '711 - System busy with node restart, schema operations not allowed'
+     * is acceptable since the stale node performs an NR during SR.
+     */
+    CHK((myDict->getNdbError().code == 4009 ||
+         myDict->getNdbError().code == 711),
+        myDict->getNdbError().message);
+    retries++;
+    CHK(retries < 180, "Creating table not finished within timeout"); // 3 min
+    NdbSleep_MilliSleep(1000);
+  }
+
+  ctx->setProperty("FinishedCreateTable", Uint32(1));
+
+  return NDBT_OK;
+}
+
+int
+runCheckStaleNodeTakeoverDuringSR(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  CHK(restarter.getNumDbNodes() > 1, "Need > 1 nodes to run the test");
+
+  // Flag to start load
+  ctx->setProperty("CreateLoad", Uint32(1));
+
+  // Restart a random node: Not initial, noStart, abort, no force
+  int victim = restarter.getNode(NdbRestarter::NS_RANDOM);
+  g_err << "Restarting victim node " << victim << endl;
+
+  CHK(restarter.restartOneDbNode(victim, false, true, true) == 0,
+      "Restarting the victim  failed");
+
+  CHK(restarter.waitNodesNoStart(&victim, 1) == 0,
+      "Victim has not reached NoStart state");
+
+  // Perform multiple LCPs
+  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
+  NdbLogEventHandle handle =
+    ndb_mgm_create_logevent_handle(restarter.handle, filter);
+
+  int dump[] = { DumpStateOrd::DihStartLcpImmediately }; // 7099
+  struct ndb_logevent event;
+  int master = restarter.getMasterNodeId();
+  for (int lcp=0; lcp < 3; lcp++)
+  {
+    CHK(restarter.dumpStateOneNode(master, dump, 1) == 0,
+        "Starting LCP failed");
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+          event.type != NDB_LE_LocalCheckpointStarted);
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+          event.type != NDB_LE_LocalCheckpointCompleted);
+  }
+
+  // Flag to stop the load and drop the table
+  ctx->setProperty("CreateLoad", Uint32(0));
+
+  CHK(!ctx->getPropertyWait("TableDropped", (Uint32)1),
+      "Not signalled that the table is dropped");
+
+  // Restart the nodes (SR): Not initial, noStart, abort, no force
+  CHK(restarter.restartAll(false, true, true) == 0,
+      "Starting all nodes failed");
+  CHK(restarter.waitClusterNoStart() == 0,
+      "Nodes have not reached NoStart state");
+
+  CHK(restarter.startAll() == 0,
+      "Starting all nodes failed");
+
+  // Flag to create a table while SR is in progress
+  ctx->setProperty("CreateLoad", Uint32(1));
+
+  // Evaluate the test outcome
+  CHK(restarter.waitClusterStarted() == 0, "Cluster has not started");
+  CHK(ctx->isTestStopped() ||
+      !ctx->getPropertyWait("FinishedCreateTable", (Uint32)1),
+      "Creating table after SR failed");
+
+  return NDBT_OK;
+}
+/**************************************************************************/
 
 NDBT_TESTSUITE(testSystemRestart);
 TESTCASE("SR1", 
@@ -3156,6 +4279,14 @@ TESTCASE("SR4",
 	 "* 8. Restart 1 node -nostart\n"
 	 "* 9. Delete all records\n"
 	 "* 10. Restart cluster and verify records\n"){
+  TC_PROPERTY("StopOneNode", Uint32(1));
+  TC_PROPERTY("NumParts", 2);
+  TC_PROPERTY("SetMinTimeLCP", Uint32(1));
+  TC_PROPERTY("PerformUpdates", Uint32(1));
+  TC_PROPERTY("VerifyInsert", Uint32(1));
+  TC_PROPERTY("VerifyDelete", Uint32(1));
+  TC_PROPERTY("Step", Uint32(1));
+  TC_PROPERTY("Batch", Uint32(1));
   INITIALIZER(runWaitStarted);
   STEP(runSystemRestart4);
 }
@@ -3226,6 +4357,96 @@ TESTCASE("SR10",
   INITIALIZER(runWaitStarted);
   INITIALIZER(runClearTable);
   STEP(runSystemRestart10);
+}
+TESTCASE("SR11", "More tests of SR4 variant\n")
+{
+  TC_PROPERTY("StopOneNode", Uint32(1));
+  TC_PROPERTY("NumParts", 10);
+  TC_PROPERTY("SetMinTimeLCP", Uint32(0));
+  TC_PROPERTY("PerformUpdates", Uint32(0));
+  TC_PROPERTY("VerifyInsert", Uint32(1));
+  TC_PROPERTY("VerifyDelete", Uint32(0));
+  TC_PROPERTY("Step", Uint32(1));
+  TC_PROPERTY("Batch", Uint32(1));
+  INITIALIZER(runWaitStarted);
+  STEP(runSystemRestart4);
+}
+TESTCASE("SR12", "More tests of SR4 variant\n")
+{
+  TC_PROPERTY("StopOneNode", Uint32(0));
+  TC_PROPERTY("NumParts", 10);
+  TC_PROPERTY("SetMinTimeLCP", Uint32(0));
+  TC_PROPERTY("PerformUpdates", Uint32(0));
+  TC_PROPERTY("VerifyInsert", Uint32(0));
+  TC_PROPERTY("VerifyDelete", Uint32(0));
+  TC_PROPERTY("Step", Uint32(1));
+  TC_PROPERTY("Batch", Uint32(1));
+  INITIALIZER(runWaitStarted);
+  STEP(runSystemRestart4);
+}
+TESTCASE("SR13", "More tests of SR4 variant\n")
+{
+  TC_PROPERTY("StopOneNode", Uint32(1));
+  TC_PROPERTY("NumParts", 2);
+  TC_PROPERTY("SetMinTimeLCP", Uint32(0));
+  TC_PROPERTY("PerformUpdates", Uint32(0));
+  TC_PROPERTY("VerifyInsert", Uint32(0));
+  TC_PROPERTY("VerifyDelete", Uint32(0));
+  TC_PROPERTY("Step", Uint32(1));
+  TC_PROPERTY("Batch", Uint32(1));
+  INITIALIZER(runWaitStarted);
+  STEP(runSystemRestart4);
+}
+TESTCASE("SR14", "More tests of SR4 variant\n")
+{
+  TC_PROPERTY("StopOneNode", Uint32(0));
+  TC_PROPERTY("NumParts", 2);
+  TC_PROPERTY("SetMinTimeLCP", Uint32(0));
+  TC_PROPERTY("PerformUpdates", Uint32(0));
+  TC_PROPERTY("VerifyInsert", Uint32(0));
+  TC_PROPERTY("VerifyDelete", Uint32(0));
+  TC_PROPERTY("Step", Uint32(1));
+  TC_PROPERTY("Batch", Uint32(1));
+  INITIALIZER(runWaitStarted);
+  STEP(runSystemRestart4);
+}
+TESTCASE("SR15", "More tests of SR4 variant\n")
+{
+  TC_PROPERTY("StopOneNode", Uint32(0));
+  TC_PROPERTY("NumParts", 2);
+  TC_PROPERTY("SetMinTimeLCP", Uint32(0));
+  TC_PROPERTY("PerformUpdates", Uint32(0));
+  TC_PROPERTY("VerifyInsert", Uint32(0));
+  TC_PROPERTY("VerifyDelete", Uint32(1));
+  TC_PROPERTY("Step", Uint32(1));
+  TC_PROPERTY("Batch", Uint32(1));
+  INITIALIZER(runWaitStarted);
+  STEP(runSystemRestart4);
+}
+TESTCASE("PLCP_1", "Partial LCP test 1\n")
+{
+  INITIALIZER(runWaitStarted);
+  STEP(runSystemRestartLCP_1);
+}
+TESTCASE("PLCP_2", "Partial LCP test 2\n")
+{
+  INITIALIZER(runWaitStarted);
+  STEP(runSystemRestartLCP_2);
+}
+TESTCASE("PLCP_3", "Partial LCP test 3\n")
+{
+  INITIALIZER(runWaitStarted);
+  STEP(runSystemRestartLCP_3);
+}
+TESTCASE("PLCP_4", "Partial LCP test 4\n")
+{
+  INITIALIZER(runWaitStarted);
+  STEP(runSystemRestartLCP_4);
+}
+TESTCASE("PLCP_5", "Partial LCP test 5\n")
+{
+  INITIALIZER(runWaitStarted);
+  STEP(runSystemRestartLCP_5);
 }
 TESTCASE("Bug18385", 
 	 "Perform partition system restart with other nodes with higher GCI"){
@@ -3347,6 +4568,15 @@ TESTCASE("Bug29167", "")
   INITIALIZER(runWaitStarted);
   STEP(runBug29167);
 }
+TESTCASE("OneNodeWithCleanFilesystem",
+         "Test system restart with a nodegroup there one node "
+         "was up to date when cluster went down but filesystem "
+         "is gone on restart, and the other nodes died earlier "
+         "having too old redo logs to use for restart.")
+{
+  INITIALIZER(runWaitStarted);
+  STEP(runOneNodeWithCleanFilesystem);
+}
 TESTCASE("Bug28770",
          "Check readTableFile1 fails, readTableFile2 succeeds\n"
          "1. Restart all node -nostart\n"
@@ -3397,6 +4627,12 @@ TESTCASE("Bug46651", "")
 }
 TESTCASE("Bug46412", "")
 {
+  TC_PROPERTY("PartialSRvar", Uint32(0));
+  INITIALIZER(runBug46412);
+}
+TESTCASE("PartialSR", "")
+{
+  TC_PROPERTY("PartialSRvar", Uint32(1));
   INITIALIZER(runBug46412);
 }
 TESTCASE("Bug48436", "")
@@ -3415,13 +4651,13 @@ TESTCASE("Bug56961", "")
   INITIALIZER(runLoadTable);
   INITIALIZER(runBug56961);
 }
+
 TESTCASE("MTR_AddNodesAndRestart1",
          "1. Insert few rows to table"
          "2. Add nodes to the cluster"
          "3. Reorganize partition and optimize table"
          "Should be run only once")
 {
-  ALL_TABLES();
   INITIALIZER(runWaitStarted);
   INITIALIZER(runFillTable);
   INITIALIZER(runAddNodes);
@@ -3435,7 +4671,7 @@ TESTCASE("MTR_AddNodesAndRestart2",
          "4. Kill 2 nodes during reorganization"
          "Should be run only once")
 {
-  ALL_TABLES();
+  TC_PROPERTY("WaitForNodeKillStart", true);
   TC_PROPERTY("NodesKilledDuringStep", true);
   INITIALIZER(runWaitStarted);
   INITIALIZER(runFillTable);
@@ -3481,7 +4717,14 @@ TESTCASE("KillMasterNodes",
   INITIALIZER(runWaitStarted);
   STEP(runKillMasterNodes);
 }
-NDBT_TESTSUITE_END(testSystemRestart);
+TESTCASE("StaleNodeTakeoverDuringSR",
+         "Check a stale node (away for too long) "
+         "performs takeover during system restart")
+{
+  STEP(runCheckStaleNodeTakeoverDuringSR);
+  STEP(runLoad);
+}
+NDBT_TESTSUITE_END(testSystemRestart)
 
 int main(int argc, const char** argv){
   ndb_init();

@@ -1,7 +1,6 @@
 #
 # Test that innodb_track_changed_pages couldn't be enabled in runtime (bug 1368530)
 
---source include/have_innodb.inc
 --source include/have_debug.inc
 
 --Error ER_WRONG_VALUE_FOR_VAR

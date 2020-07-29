@@ -1,4 +1,4 @@
---source include/not_embedded.inc
+--source include/xplugin_wait_for_interfaces.inc
 --disable_ps_protocol
 
 --echo # Setting general_log content empty.

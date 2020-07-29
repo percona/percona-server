@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,22 +25,21 @@
 #ifndef DUMP_START_DUMP_TASK_INCLUDED
 #define DUMP_START_DUMP_TASK_INCLUDED
 
-#include "abstract_dump_task.h"
+#include "client/dump/abstract_dump_task.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-class Dump_start_dump_task : public Abstract_dump_task
-{
-public:
+class Dump_start_dump_task : public Abstract_dump_task {
+ public:
   Dump_start_dump_task(std::string, std::string);
   std::string m_gtid_mode;
   std::string m_gtid_executed;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

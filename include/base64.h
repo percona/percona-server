@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,9 +23,13 @@
 #ifndef __BASE64_H_INCLUDED__
 #define __BASE64_H_INCLUDED__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+/**
+  @file include/base64.h
+*/
+
+#include <stddef.h>
+
+#include "my_inttypes.h"
 
 /*
   Calculate how much memory needed for dst of base64_encode()
@@ -55,14 +59,10 @@ int base64_encode(const void *src, size_t src_len, char *dst);
 /*
   Decode a base64 string into data
 */
-int64 base64_decode(const char *src, size_t src_len,
-                  void *dst, const char **end_ptr, int flags);
+int64 base64_decode(const char *src, size_t src_len, void *dst,
+                    const char **end_ptr, int flags);
 
 /* Allow multuple chunks 'AAA= AA== AA==', binlog uses this */
 #define MY_BASE64_DECODE_ALLOW_MULTIPLE_CHUNKS 1
 
-
-#ifdef __cplusplus
-}
-#endif
 #endif /* !__BASE64_H_INCLUDED__ */

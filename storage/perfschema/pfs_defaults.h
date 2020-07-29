@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -17,8 +17,8 @@
   GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef PFS_DEFAULTS_H
 #define PFS_DEFAULTS_H
@@ -28,12 +28,14 @@
   Default setup (declarations).
 */
 
+#include "mysql/psi/psi_thread.h"
+
 /**
   Configure the performance schema setup tables with default content.
   The tables populated are:
   - SETUP_ACTORS
   - SETUP_OBJECTS
 */
-void install_default_setup(PSI_bootstrap *boot);
+void install_default_setup(PSI_thread_bootstrap *thread_boot);
 
 #endif

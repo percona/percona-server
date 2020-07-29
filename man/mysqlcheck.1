@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlcheck\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/23/2020
+.\"      Date: 03/06/2020
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 5.7
+.\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLCHECK\FR" "1" "03/23/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLCHECK\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -41,7 +41,7 @@ client performs table maintenance: It checks, repairs, optimizes, or analyzes ta
 Each table is locked and therefore unavailable to other sessions while it is being processed, although for check operations, the table is locked with a
 READ
 lock only (see
-Section\ \&13.3.5, \(lqLOCK TABLES and UNLOCK TABLES Statements\(rq, for more information about
+Section\ \&13.3.6, \(lqLOCK TABLES and UNLOCK TABLES Statements\(rq, for more information about
 READ
 and
 WRITE
@@ -65,7 +65,7 @@ REPAIR TABLE,
 ANALYZE TABLE, and
 OPTIMIZE TABLE
 in a convenient way for the user\&. It determines which statements to use for the operation you want to perform, and then sends the statements to the server to be executed\&. For details about which storage engines each statement works with, see the descriptions for those statements in
-Section\ \&13.7.2, \(lqTable Maintenance Statements\(rq\&.
+Section\ \&13.7.3, \(lqTable Maintenance Statements\(rq\&.
 .PP
 All storage engines do not necessarily support all four maintenance operations\&. In such cases, an error message is displayed\&. For example, if
 test\&.t
@@ -88,7 +88,7 @@ note     : The storage engine for the table doesn\*(Aqt support check
 If
 \fBmysqlcheck\fR
 is unable to repair a table, see
-Section\ \&2.11.12, \(lqRebuilding or Repairing Tables or Indexes\(rq
+Section\ \&2.11.13, \(lqRebuilding or Repairing Tables or Indexes\(rq
 for manual table repair strategies\&. This will be the case, for example, for
 InnoDB
 tables, which can be checked with
@@ -332,11 +332,7 @@ Invoke
 CHECK TABLE
 with the
 FOR UPGRADE
-option to check tables for incompatibilities with the current version of the server\&. This option automatically enables the
-\fB\-\-fix\-db\-names\fR
-and
-\fB\-\-fix\-table\-names\fR
-options\&.
+option to check tables for incompatibilities with the current version of the server\&.
 .RE
 .sp
 .RS 4
@@ -350,7 +346,30 @@ options\&.
 \fB\-\-compress\fR
 .sp
 Compress all information sent between the client and the server if possible\&. See
-Section\ \&4.2.5, \(lqConnection Compression Control\(rq\&.
+Section\ \&4.2.6, \(lqConnection Compression Control\(rq\&.
+.sp
+As of MySQL 8\&.0\&.18, this option is deprecated\&. It will be removed in a future MySQL version\&. See
+the section called \(lqLegacy Connection Compression Configuration\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-compression\-algorithms=\fR\fB\fIvalue\fR\fR
+The permitted compression algorithms for connections to the server\&. The available algorithms are the same as for the
+protocol_compression_algorithms
+system variable\&. The default value is
+uncompressed\&.
+.sp
+For more information, see
+Section\ \&4.2.6, \(lqConnection Compression Control\(rq\&.
+.sp
+This option was added in MySQL 8\&.0\&.18\&.
 .RE
 .sp
 .RS 4
@@ -542,7 +561,7 @@ If you are using this option to repair tables, it runs an extended repair that m
 \fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
 .sp
 A hint about which client\-side authentication plugin to use\&. See
-Section\ \&6.2.13, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -558,9 +577,7 @@ Section\ \&6.2.13, \(lqPluggable Authentication\(rq\&.
 Enable the
 mysql_clear_password
 cleartext authentication plugin\&. (See
-Section\ \&6.4.1.6, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
-.sp
-This option was added in MySQL 5\&.7\&.10\&.
+Section\ \&6.4.1.4, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
 .RE
 .sp
 .RS 4
@@ -575,36 +592,6 @@ This option was added in MySQL 5\&.7\&.10\&.
 \fB\-F\fR
 .sp
 Check only tables that have not been closed properly\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-fix\-db\-names\fR
-.sp
-Convert database names to 5\&.1 format\&. Only database names that contain special characters are affected\&.
-.sp
-This option is deprecated in MySQL 5\&.7\&.6 and will be removed in a future version of MySQL\&. If it is necessary to convert MySQL 5\&.0 database or table names, a workaround is to upgrade a MySQL 5\&.0 installation to MySQL 5\&.1 before upgrading to a more recent release\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-fix\-table\-names\fR
-.sp
-Convert table names to 5\&.1 format\&. Only table names that contain special characters are affected\&. This option also applies to views\&.
-.sp
-This option is deprecated in MySQL 5\&.7\&.6 and will be removed in a future version of MySQL\&. If it is necessary to convert MySQL 5\&.0 database or table names, a workaround is to upgrade a MySQL 5\&.0 installation to MySQL 5\&.1 before upgrading to a more recent release\&.
 .RE
 .sp
 .RS 4
@@ -643,11 +630,7 @@ is given and specifies a valid public key file, it takes precedence over
 For information about the
 caching_sha2_password
 plugin, see
-Section\ \&6.4.1.4, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
-.sp
-The
-\fB\-\-get\-server\-public\-key\fR
-option was added in MySQL 5\&.7\&.23\&.
+Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -809,7 +792,7 @@ The directory in which to look for plugins\&. Specify this option if the
 option is used to specify an authentication plugin but
 \fBmysqlcheck\fR
 does not find it\&. See
-Section\ \&6.2.13, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -894,38 +877,6 @@ Perform a repair that can fix almost anything except unique keys that are not un
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-secure\-auth\fR
-.sp
-Do not send passwords to the server in old (pre\-4\&.1) format\&. This prevents connections except for servers that use the newer password format\&.
-.sp
-As of MySQL 5\&.7\&.5, this option is deprecated and will be removed in a future MySQL release\&. It is always enabled and attempting to disable it (\fB\-\-skip\-secure\-auth\fR,
-\fB\-\-secure\-auth=0\fR) produces an error\&. Before MySQL 5\&.7\&.5, this option is enabled by default but can be disabled\&.
-.if n \{\
-.sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
-Passwords that use the pre\-4\&.1 hashing method are less secure than passwords that use the native password hashing method and should be avoided\&. Pre\-4\&.1 passwords are deprecated and support for them was removed in MySQL 5\&.7\&.5\&. For account upgrade instructions, see
-Section\ \&6.4.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mysql_old_password Plugin\(rq\&.
-.sp .5v
-.RE
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 \fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
 .sp
 The path name to a file containing a client\-side copy of the public key required by the server for RSA key pair\-based password exchange\&. The file must be in PEM format\&. This option applies to clients that authenticate with the
@@ -947,12 +898,8 @@ sha256_password
 and
 caching_sha2_password
 plugins, see
-Section\ \&6.4.1.5, \(lqSHA-256 Pluggable Authentication\(rq, and
-Section\ \&6.4.1.4, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
-.sp
-The
-\fB\-\-server\-public\-key\-path\fR
-option was added in MySQL 5\&.7\&.23\&.
+Section\ \&6.4.1.3, \(lqSHA-256 Pluggable Authentication\(rq, and
+Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1046,6 +993,87 @@ the section called \(lqCommand Options for Encrypted Connections\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-ssl\-fips\-mode={OFF|ON|STRICT}\fR
+Controls whether to enable FIPS mode on the client side\&. The
+\fB\-\-ssl\-fips\-mode\fR
+option differs from other
+\fB\-\-ssl\-\fR\fB\fIxxx\fR\fR
+options in that it is not used to establish encrypted connections, but rather to affect which cryptographic operations are permitted\&. See
+Section\ \&6.5, \(lqFIPS Support\(rq\&.
+.sp
+These
+\fB\-\-ssl\-fips\-mode\fR
+values are permitted:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+OFF: Disable FIPS mode\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+ON: Enable FIPS mode\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+STRICT: Enable
+\(lqstrict\(rq
+FIPS mode\&.
+.RE
+.sp
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+If the OpenSSL FIPS Object Module is not available, the only permitted value for
+\fB\-\-ssl\-fips\-mode\fR
+is
+OFF\&. In this case, setting
+\fB\-\-ssl\-fips\-mode\fR
+to
+ON
+or
+STRICT
+causes the client to produce a warning at startup and to operate in non\-FIPS mode\&.
+.sp .5v
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-tables\fR
 .sp
 Override the
@@ -1063,12 +1091,26 @@ option\&. All name arguments following the option are regarded as table names\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-tls\-ciphersuites=\fR\fB\fIciphersuite_list\fR\fR
+.sp
+The permissible ciphersuites for encrypted connections that use TLSv1\&.3\&. The value is a list of one or more colon\-separated ciphersuite names\&. The ciphersuites that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
+Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
+.sp
+This option was added in MySQL 8\&.0\&.16\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
 .sp
 The permissible TLS protocols for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
 Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
-.sp
-This option was added in MySQL 5\&.7\&.10\&.
 .RE
 .sp
 .RS 4
@@ -1083,9 +1125,7 @@ This option was added in MySQL 5\&.7\&.10\&.
 .sp
 For repair operations on
 MyISAM
-tables, get the table structure from the
-\&.frm
-file so that the table can be repaired even if the
+tables, get the table structure from the data dictionary so that the table can be repaired even if the
 \&.MYI
 header is corrupted\&.
 .RE
@@ -1155,6 +1195,29 @@ NO_WRITE_TO_BINLOG
 to be added to the statements so that they are not logged\&. Use the
 \fB\-\-skip\-write\-binlog\fR
 when these statements should not be sent to replication slaves or run when using the binary logs for recovery from backup\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-zstd\-compression\-level=\fR\fB\fIlevel\fR\fR
+The compression level to use for connections to the server that use the
+zstd
+compression algorithm\&. The permitted levels are from 1 to 22, with larger values indicating increasing levels of compression\&. The default
+zstd
+compression level is 3\&. The compression level setting has no effect on connections that do not use
+zstd
+compression\&.
+.sp
+For more information, see
+Section\ \&4.2.6, \(lqConnection Compression Control\(rq\&.
+.sp
+This option was added in MySQL 8\&.0\&.18\&.
 .RE
 .SH "COPYRIGHT"
 .br

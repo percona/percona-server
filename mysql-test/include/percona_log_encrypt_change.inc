@@ -1,9 +1,6 @@
 # InnoDB transparent tablespace data encryption
 # This test case will verify that log encryption type can't be changed
 
---source include/have_innodb.inc
---source include/not_embedded.inc
-
 call mtr.add_suppression("Redo log encryption mode can't be switched without stopping the server and recreating the redo logs");
 
 # Test: changing when it is explicitly set
@@ -29,6 +26,7 @@ SELECT @@innodb_redo_log_encrypt;
 
 --let MYSQLD_DATADIR = `SELECT @@datadir`
 --let MYSQLD_LOG = $MYSQL_TMP_DIR/server.log
+
 --source include/shutdown_mysqld.inc
 
 --let NEW_CMD = $MYSQLD $extra_args $KEYRING_PARAMS --datadir=$MYSQLD_DATADIR --innodb_redo_log_encrypt=$LOG_ENCRYPT_OTHER_TYPE >$MYSQLD_LOG 2>&1;
@@ -69,6 +67,4 @@ INSERT INTO t1 VALUES(2, "ccccc");
 # Cleanup
 DROP TABLE t1;
 --eval SET GLOBAL innodb_redo_log_encrypt=$LOG_ENCRYPT_TYPE
---remove_file $MYSQL_TMP_DIR/mysecret_keyring_change
 --remove_file $MYSQLD_LOG
-

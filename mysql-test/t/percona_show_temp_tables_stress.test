@@ -1,15 +1,10 @@
---source include/have_innodb.inc
 --source include/have_myisam.inc
---source include/not_embedded.inc
 
 CREATE USER event_runner1@localhost;
 GRANT ALL ON *.* TO event_runner1@localhost;
 
 CREATE USER event_runner2@localhost;
 GRANT ALL ON *.* TO event_runner2@localhost;
-
-SET @saved_event_scheduler = @@GLOBAL.event_scheduler;
-SET GLOBAL event_scheduler = ON;
 
 delimiter |;
 CREATE DEFINER=event_runner1@localhost EVENT query_temp_tables ON SCHEDULE AT CURRENT_TIMESTAMP
@@ -74,12 +69,8 @@ eval KILL CONNECTION $ev_thread2_id;
 
 --source include/no_running_events.inc
 
-SET GLOBAL event_scheduler = @saved_event_scheduler;
-
 DROP EVENT query_temp_tables;
 DROP EVENT query_tables;
 
 DROP USER event_runner1@localhost;
 DROP USER event_runner2@localhost;
-
---source include/no_running_event_scheduler.inc

@@ -12,8 +12,8 @@ You can use *Percona-Toolkit*'s `pt-query-digest <http://www.percona.com/doc/per
 Version Specific Information
 ============================
 
-  * :rn:`5.7.10-1`:
-     * Feature ported from |Percona Server| 5.6.
+  * :rn:`8.0.12-1`:
+     * Feature ported from |Percona Server| 5.7.
 
 System Variables
 ================
@@ -26,9 +26,6 @@ System Variables
      :dyn: Yes
 
 Filters the slow log by the query's execution plan. The value is a comma-delimited string, and can contain any combination of the following values:
-
-  * ``qc_miss``:
-    The query was not found in the query cache.
 
   * ``full_scan``:
     The query performed a full table scan.
@@ -254,7 +251,7 @@ The feature adds more information to the slow log output. Here is a sample log e
   # Schema: imdb  Last_errno: 0  Killed: 0
   # Query_time: 7.725616  Lock_time: 0.000328  Rows_sent: 4  Rows_examined: 1543720  Rows_affected: 0
   # Bytes_sent: 272  Tmp_tables: 0  Tmp_disk_tables: 0  Tmp_table_sizes: 0
-  # QC_Hit: No  Full_scan: Yes  Full_join: No  Tmp_table: No  Tmp_table_on_disk: No
+  # Full_scan: Yes  Full_join: No  Tmp_table: No  Tmp_table_on_disk: No
   # Filesort: No  Filesort_on_disk: No  Merge_passes: 0
   SET timestamp=1370073666;
   SELECT id,title,production_year FROM title WHERE title = 'Bambi';
@@ -290,18 +287,18 @@ keyword is followed by a number other than zero:
 ====================  =================================================
 Killed Numeric Code   Exception
 ====================  =================================================
-0                     NOT_KILLED 
+0                     NOT_KILLED
 1                     KILL_BAD_DATA
 1053                  ER_SERVER_SHUTDOWN (see |MySQL| Documentation)
 1317                  ER_QUERY_INTERRUPTED (see |MySQL| Documentation)
 3024                  ER_QUERY_TIMEOUT (see |MySQL| Documentation)
 Any other number      KILLED_NO_VALUE (Catches all other cases)
 ====================  =================================================
-  
+
 .. seealso::
 
    |MySQL| Documentation: |MySQL| Server Error Codes
-      https://dev.mysql.com/doc/refman/5.7/en/server-error-reference.html
+      https://dev.mysql.com/doc/refman/8.0/en/server-error-reference.html
 
 Connection and Schema Identifier
 --------------------------------
@@ -356,7 +353,7 @@ Query Plan Information
 
 Each query can be executed in various ways. For example, it may use indexes or do a full table scan, or a temporary table may be needed. These are the things that you can usually see by running ``EXPLAIN`` on the query. The feature will now allow you to see the most important facts about the execution in the log file. ::
 
-  # QC_Hit: No  Full_scan: Yes  Full_join: No  Tmp_table: No  Tmp_table_on_disk: No
+  # Full_scan: Yes  Full_join: No  Tmp_table: No  Tmp_table_on_disk: No
   # Filesort: No  Filesort_on_disk: No  Merge_passes: 0
 
 The values and their meanings are documented with the :variable:`log_slow_filter` option.
@@ -399,4 +396,4 @@ Related Reading
 
   * `log_slow_filter Usage <http://www.mysqlperformanceblog.com/2008/09/22/finding-what-created_tmp_disk_tables-with-log_slow_filter/>`_
 
-  * `Added microseconds to the slow query log event time <https://jira.percona.com/browse/PS-1136>`_
+  * `Blueprint in Launchpad <https://blueprints.launchpad.net/percona-server/+spec/microseconds-in-query-log>`_

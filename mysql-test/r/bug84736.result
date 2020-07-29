@@ -2,8 +2,8 @@
 # Bug 84736: 5.7 range optimizer crash
 #
 CREATE TABLE t1 (
-col1 INT(11) NOT NULL,
-col2 INT(11) NOT NULL,
+col1 INT NOT NULL,
+col2 INT NOT NULL,
 col3 TEXT,
 PRIMARY KEY (col1, col2)
 );

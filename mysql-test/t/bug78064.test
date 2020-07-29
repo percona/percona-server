@@ -4,9 +4,6 @@
 # With character_set_server=utf16le, some values of ft_boolean_syntax could
 # cause a server exit for full-text searches.
 #
---source include/have_utf16.inc
---source include/not_embedded.inc
-
 --let $restart_parameters = restart:--character-set-server=utf16le
 --source include/restart_mysqld.inc
 

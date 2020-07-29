@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,6 +83,22 @@ public:
     LQHLogFileInitStatus = 102000,
     _LQHMax = 102999,
 
+    _CMVMIMin = 103000,
+    SetSchedulerResponsiveness = 103000,
+    EnableEventLoggerDebug = 103001,
+    DisableEventLoggerDebug = 103002,
+    CmvmiRelayDumpStateOrd = 103003,
+    CmvmiDummySignal = 103004,
+    CmvmiSendDummySignal = 103005,
+    _CMVMIMax = 103099,
+
+    _THRMANMin = 104000,
+    SetSchedulerSpinTimerAll = 104000,
+    SetSchedulerSpinTimerThread = 104001,
+    SetAllowedSpinOverhead = 104002,
+    SetSpintimePerCall = 104003,
+    EnableAdaptiveSpinning = 104004,
+    _THRMANMax = 104999,
     // 1 QMGR Dump information about phase 1 variables
     // 13 CMVMI Dump signal counter
     // 13 NDBCNTR Dump start phase information
@@ -105,22 +121,35 @@ public:
     NdbfsDumpAllFiles = 401,
     NdbfsDumpOpenFiles = 402,
     NdbfsDumpIdleFiles = 403,
+    NdbfsDumpRequests = 406,
     CmvmiSchedulerExecutionTimer = 502,
     CmvmiRealtimeScheduler = 503,
     CmvmiExecuteLockCPU = 504,
     CmvmiMaintLockCPU = 505,
     CmvmiSchedulerSpinTimer = 506,
+    TupSetTransientPoolMaxSize = 1214,
+    TupResetTransientPoolMaxSize = 1215,
     // 1222-1225 DICT
     DictDumpLockQueue = 1228,
+    DictDumpGetTabInfoQueue = 1229,
     LqhDumpAllDefinedTabs = 1332,
     LqhDumpNoLogPages = 1333,
     LqhDumpOneScanRec = 2300,
     LqhDumpAllScanRec = 2301,
     LqhDumpAllActiveScanRec = 2302,
     LqhDumpLcpState = 2303,
+    LqhSystemError = 2304,
+    LqhFailedHandlingGCP_SAVEREQ = 2305,
+    LqhDumpAllTcRec = 2306,
+    LqhDumpOneTcRec = 2307,
+    // 2308 is used
+    LqhDumpOneCopyTcRec = 2310,
     LqhErrorInsert5042 = 2315,
     LqhDumpPoolLevels = 2353,
     LqhReportCopyInfo = 2354,
+    LqhKillAndSendToDead = 2355,
+    LqhSetTransientPoolMaxSize = 2356,
+    LqhResetTransientPoolMaxSize = 2357,
 
     AccDumpOneScanRec = 2400,
     AccDumpAllScanRec = 2401,
@@ -129,7 +158,10 @@ public:
     AccDumpNumOpRecs = 2404,
     AccDumpFreeOpRecs = 2405,
     AccDumpNotFreeOpRecs = 2406,
+    AccSetTransientPoolMaxSize = 2407,
+    AccResetTransientPoolMaxSize = 2408,
     DumpPageMemory = 1000, // Acc & TUP
+    DumpPageMemoryOnFail = 1001,
     TcDumpSetOfScanFragRec = 2500,
     TcDumpOneScanFragRec = 2501,
     TcDumpSetOfScanRec = 2502,
@@ -144,8 +176,14 @@ public:
     TcDumpOneTcConnectRec = 2516,
     TcDumpSetOfTcConnectRec = 2517,
     TcDumpPoolLevels = 2555,
+    TcSetTransientPoolMaxSize = 2556,
+    TcResetTransientPoolMaxSize = 2557,
     CmvmiDumpConnections = 2600,
     CmvmiDumpLongSignalMemory = 2601,
+    /**
+     * Sets the type of restart when the child process crashes due to error
+     * insert (see NdbRestartType).
+     */
     CmvmiSetRestartOnErrorInsert = 2602,
     CmvmiTestLongSigWithDelay = 2603,
     CmvmiDumpSubscriptions = 2604, /* note: done to respective outfile
@@ -159,6 +197,9 @@ public:
     CmvmiLongSignalMemorySnapshot = 2608,
     CmvmiLongSignalMemorySnapshotCheck = 2609,
     CmvmiSetKillerWatchdog = 2610,
+    CmvmiLongSignalMemorySnapshotCheck2 = 2611,
+
+    CmvmiShowLongSignalOwnership = 2612, /* Show owners of LSM */
 
     LCPContinue = 5900,
     // 7000 DIH
@@ -200,20 +241,30 @@ public:
      * Allows GCP stop thresholds to be set
      */
     DihSetGcpStopVals = 7026,
+    DihStallLcpStart = 7027,
     DihDumpPageRecInfo = 7032,
     DihFragmentsPerNode = 7033,
     DihDisplayPauseState = 7034,
     EnableUndoDelayDataWrite = 7080, // DIH+ACC+TUP
     DihSetTimeBetweenGcp = 7090,
     DihStartLcpImmediately = 7099,
+    DihSaveGcpCommitLag = 7100,
+    DihCheckGcpCommitLag = 7101,
     // 8000 Suma
     // 12000 Tux
     TuxLogToFile = 12001,
     TuxSetLogFlags = 12002,
     TuxMetaDataJunk = 12009,
+    TuxSetTransientPoolMaxSize = 12010,
+    TuxResetTransientPoolMaxSize = 12011,
     
-    DumpTsman = 9800, 
+    DumpTsman = 9800,
+ 
     DumpLgman = 10000,
+    LgmanDumpUndoStateClusterLog = 10001,
+    LgmanDumpUndoStateLocalLog = 10002,
+    LgmanCheckCallbacksClear = 10003,
+    
     DumpPgman = 11000,
     DumpBackup = 13000,
     DumpBackupSetCompressed = 13001,

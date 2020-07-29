@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,23 +18,20 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
-
-   Library for providing TAP support for testing C and C++ was written
-   by Mats Kindahl <mats@mysql.com>.
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
 #ifndef TAP_H
 #define TAP_H
 
-#include "my_global.h"
+#include "my_compiler.h"
 
 /*
   @defgroup MyTAP MySQL support for performing unit tests according to
   the Test Anything Protocol (TAP).
 */
 
-#define NO_PLAN  (0)
+#define NO_PLAN (0)
 
 /**
    Data about test plan.
@@ -115,7 +112,6 @@ extern int skip_big_tests;
 
 void plan(int const count);
 
-
 /**
    Report test result as a TAP line.
 
@@ -133,8 +129,7 @@ void plan(int const count);
 */
 
 void ok(int const pass, char const *fmt, ...)
-  MY_ATTRIBUTE((format(printf,2,3)));
-
+    MY_ATTRIBUTE((format(printf, 2, 3)));
 
 /**
    Report test result as a TAP line.
@@ -145,7 +140,6 @@ void ok(int const pass, char const *fmt, ...)
 */
 
 void ok1(int const pass);
-
 
 /**
    Skip a determined number of tests.
@@ -176,8 +170,7 @@ void ok1(int const pass);
  */
 
 void skip(int how_many, char const *reason, ...)
-    MY_ATTRIBUTE((format(printf,2,3)));
-
+    MY_ATTRIBUTE((format(printf, 2, 3)));
 
 /**
    Helper macro to skip a block of code.  The macro can be used to
@@ -197,8 +190,9 @@ void skip(int how_many, char const *reason, ...)
  */
 
 #define SKIP_BLOCK_IF(SKIP_IF_TRUE, COUNT, REASON) \
-  if (SKIP_IF_TRUE) skip((COUNT),(REASON)); else
-
+  if (SKIP_IF_TRUE)                                \
+    skip((COUNT), (REASON));                       \
+  else
 
 /**
    Helper macro to skip a group of "big" tests. It is used in the following
@@ -214,9 +208,10 @@ void skip(int how_many, char const *reason, ...)
    @see skip_big_tests
  */
 
-#define SKIP_BIG_TESTS(COUNT) \
-  if (skip_big_tests) skip((COUNT), "big test"); else
-
+#define SKIP_BIG_TESTS(COUNT)  \
+  if (skip_big_tests)          \
+    skip((COUNT), "big test"); \
+  else
 
 /**
    Print a diagnostics message.
@@ -224,9 +219,7 @@ void skip(int how_many, char const *reason, ...)
    @param fmt  Diagnostics message in printf() format.
  */
 
-void diag(char const *fmt, ...)
-  MY_ATTRIBUTE((format(printf,1,2)));
-
+void diag(char const *fmt, ...) MY_ATTRIBUTE((format(printf, 1, 2)));
 
 /**
    Print a bail out message.
@@ -247,8 +240,7 @@ void diag(char const *fmt, ...)
 */
 
 void BAIL_OUT(char const *fmt, ...)
-  MY_ATTRIBUTE((noreturn, format(printf,1,2)));
-
+    MY_ATTRIBUTE((noreturn, format(printf, 1, 2)));
 
 /**
    Print summary report and return exit status.
@@ -268,7 +260,6 @@ void BAIL_OUT(char const *fmt, ...)
 
 int exit_status(void);
 
-
 /**
    Skip entire test suite.
 
@@ -278,8 +269,7 @@ int exit_status(void);
  */
 
 void skip_all(char const *reason, ...)
-  MY_ATTRIBUTE((noreturn, format(printf, 1, 2)));
-
+    MY_ATTRIBUTE((noreturn, format(printf, 1, 2)));
 
 /**
    Start section of tests that are not yet ready.
@@ -302,9 +292,7 @@ void skip_all(char const *reason, ...)
    @param message Message that will be printed before the todo tests.
 */
 
-void todo_start(char const *message, ...)
-  MY_ATTRIBUTE((format(printf, 1, 2)));
-
+void todo_start(char const *message, ...) MY_ATTRIBUTE((format(printf, 1, 2)));
 
 /**
    End a section of tests that are not yet ready.

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 package com.mysql.clusterj.tie;
 
 import com.mysql.clusterj.ClusterJFatalInternalException;
+import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.store.ResultData;
 import com.mysql.clusterj.core.store.ScanFilter;
@@ -34,7 +35,9 @@ import com.mysql.clusterj.core.store.Table;
 import com.mysql.clusterj.Query.Ordering;
 
 import com.mysql.ndbjtie.ndbapi.NdbInterpretedCode;
+import com.mysql.ndbjtie.ndbapi.NdbInterpretedCodeConst;
 import com.mysql.ndbjtie.ndbapi.NdbOperationConst;
+import com.mysql.ndbjtie.ndbapi.NdbOperation;
 import com.mysql.ndbjtie.ndbapi.NdbScanFilter;
 import com.mysql.ndbjtie.ndbapi.NdbScanOperation;
 import com.mysql.ndbjtie.ndbapi.NdbScanOperation.ScanFlag;
@@ -208,10 +211,8 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
     public ScanFilter getScanFilter(QueryExecutionContext context) {
         
         ndbInterpretedCode = db.createInterpretedCode(ndbRecordValues.getNdbTable(), 0);
-        handleError(ndbInterpretedCode, ndbOperation);
         ndbScanFilter = db.createScanFilter(ndbInterpretedCode);
-        handleError(ndbScanFilter, ndbOperation);
-        ScanFilter scanFilter = new ScanFilterImpl(ndbScanFilter);
+        ScanFilter scanFilter = new ScanFilterImpl(ndbScanFilter, db);
         context.addFilter(scanFilter);
         return scanFilter;
     }
@@ -220,6 +221,9 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
      * Only used for deletePersistentAll to scan the table and delete all rows.
      */
     public int nextResult(boolean fetch) {
+        if (!clusterTransaction.isEnlisted()) {
+            throw new ClusterJUserException(local.message("ERR_Db_Is_Closing"));
+        }
         int result = ((NdbScanOperation)ndbOperation).nextResult(fetch, false);
         clusterTransaction.handleError(result);
         return result;
@@ -229,7 +233,10 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
      * 
      */
     public int nextResultCopyOut(boolean fetch, boolean force) {
-        allocateValueBuffer();
+        if (!clusterTransaction.isEnlisted()) {
+            throw new ClusterJUserException(local.message("ERR_Db_Is_Closing"));
+        }
+        allocateValueBuffer(false);
         int result = ((NdbScanOperation)ndbOperation).nextResultCopyOut(valueBuffer, fetch, force);
         return result;
     }
@@ -262,9 +269,9 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
     @Override
     public NdbRecordOperationImpl transformNdbRecordOperationImpl() {
         NdbRecordOperationImpl result = new NdbRecordOperationImpl(this);
-        // we gave away our buffers; get new ones for the next result
-        this.valueBuffer = ndbRecordValues.newBuffer();
-        this.keyBuffer = valueBuffer;
+        // we gave away our buffers; get new ones when needed
+        this.valueBuffer = null;
+        this.keyBuffer = null;
         return result;
     }
 

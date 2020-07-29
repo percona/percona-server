@@ -1,5 +1,4 @@
 --echo PS-296: inconsistent maximum key lenghts caused a crash in the query optimizer
---source include/have_innodb.inc
 
 # Test that we can use long strings in memory tables
 CREATE TABLE big_ok (id VARBINARY(3072) NOT NULL, PRIMARY KEY (id)) ENGINE=MEMORY;

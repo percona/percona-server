@@ -1,16 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_ndb.inc
--- source include/not_embedded.inc
-
---disable_warnings
-DROP TABLE IF EXISTS t1,t2,t3;
---enable_warnings
-
-USE test;
 
 CREATE TABLE t1 (
   id INT AUTO_INCREMENT,
@@ -18,12 +6,12 @@ CREATE TABLE t1 (
 ) ENGINE=NDBCLUSTER;
 
 # Test For bug#30417
---error 1296
-
+--error ER_CANT_CREATE_TABLE
 CREATE TABLE t2 (
   id INT AUTO_INCREMENT,
   KEY(id)
 ) ENGINE=NDBCLUSTER;
+SHOW WARNINGS;
 
 SHOW TABLES;
 
@@ -32,21 +20,23 @@ CREATE TABLE t3 (
   KEY(id)
 ) ENGINE=MYISAM;
 
---error 1296
+--error ER_CANT_CREATE_TABLE
 ALTER TABLE t3
 ENGINE NDBCLUSTER;
+SHOW WARNINGS;
 
+--disable_warnings
 SHOW CREATE TABLE t3;
+--enable_warnings
 
 ALTER TABLE t3
 ADD PRIMARY KEY (id);
 
+--disable_warnings
 SHOW CREATE TABLE t3;
+--enable_warnings
 
 DROP TABLE t1, t3;
-
---echo End of 5.1 tests
-
 
 set @@auto_increment_increment=4;
 set @@auto_increment_offset=1;

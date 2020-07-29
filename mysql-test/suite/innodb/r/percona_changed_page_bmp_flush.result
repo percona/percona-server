@@ -15,19 +15,12 @@ INSERT INTO t1 VALUES (3, REPEAT("c", 20000));
 ib_modified_log_1
 ib_modified_log_2
 ib_modified_log_3
-# restart:--innodb-track-changed-pages=1 --innodb-flush-method=ALL_O_DIRECT
-INSERT INTO t1 VALUES (4, REPEAT("d", 20000));
-ib_modified_log_1
-ib_modified_log_2
-ib_modified_log_3
-ib_modified_log_4
 # restart:--innodb-track-changed-pages=1 --innodb-flush-method=O_DIRECT_NO_FSYNC
 INSERT INTO t1 VALUES (4, REPEAT("e", 20000));
 ib_modified_log_1
 ib_modified_log_2
 ib_modified_log_3
 ib_modified_log_4
-ib_modified_log_5
 # restart
 RESET CHANGED_PAGE_BITMAPS;
 DROP TABLE t1;

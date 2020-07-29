@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 #include <HugoQueryBuilder.hpp>
 #include <HugoQueries.hpp>
 #include <NdbTick.h>
+#include "my_alloc.h"
 
 int _verbose = 1;
 int _help = 0;
@@ -45,7 +46,6 @@ unsigned int _seed = 0;
 static const char * _options = "";
 static const char * _db = "TEST_DB";
 
-extern const char *load_default_groups[];
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("hugoJoin"),
@@ -84,23 +84,19 @@ static void short_usage_sub(void)
   ndb_short_usage_sub(NULL);
 }
 
-static void usage()
+static void usage_extra()
 {
   char desc[] =
     "This run random joins on table-list\n";
   puts(desc);
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
-  ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  ndb_load_defaults(NULL, load_default_groups, &argc, &argv);
-  int ho_error;
-  if ((ho_error=handle_options(&argc, &argv, my_long_options,
-			       ndb_std_get_one_option)))
+  Ndb_opts opts(argc, argv, my_long_options);
+  opts.set_usage_funcs(short_usage_sub, usage_extra);
+  if (opts.handle_options())
     return -1;
-
 
   // Connect to Ndb
   Ndb_cluster_connection con;
@@ -165,7 +161,7 @@ int main(int argc, char** argv){
     bool found = false;
     for (int o = 0; _ops[o].name != 0; o++)
     {
-      if (strcasecmp(list[i].c_str(), _ops[o].name) == 0)
+      if (native_strcasecmp(list[i].c_str(), _ops[o].name) == 0)
       {
         found = true;
         mask |= _ops[o].option;

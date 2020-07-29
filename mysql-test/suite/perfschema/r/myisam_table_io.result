@@ -17,8 +17,8 @@ show create table test.no_index_tab;
 Table	Create Table
 no_index_tab	CREATE TABLE `no_index_tab` (
   `a` varchar(255) NOT NULL,
-  `b` int(11) NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `b` int NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into marker set a = 1;
 insert into test.no_index_tab set a = 'foo', b = 1;
 insert into marker set a = 1;
@@ -70,40 +70,40 @@ where event_name like 'wait/io/table/%'
   and object_schema in ("test")
 order by thread_id, event_id;
 event_name	short_source	object_type	object_schema	pretty_name	operation	number_of_bytes
-wait/io/table/sql/handler		TABLE	test	marker	insert	1
-wait/io/table/sql/handler		TABLE	test	marker	insert	1
-wait/io/table/sql/handler		TABLE	test	marker	insert	1
-wait/io/table/sql/handler		TABLE	test	no_index_tab	insert	1
-wait/io/table/sql/handler		TABLE	test	marker	insert	1
-wait/io/table/sql/handler		TABLE	test	no_index_tab	insert	1
-wait/io/table/sql/handler		TABLE	test	marker	insert	1
-wait/io/table/sql/handler		TABLE	test	no_index_tab	insert	1
-wait/io/table/sql/handler		TABLE	test	marker	insert	1
-wait/io/table/sql/handler		TABLE	test	no_index_tab	fetch	3
-wait/io/table/sql/handler		TABLE	test	marker	insert	1
-wait/io/table/sql/handler		TABLE	test	no_index_tab	fetch	1
-wait/io/table/sql/handler		TABLE	test	no_index_tab	update	1
-wait/io/table/sql/handler		TABLE	test	no_index_tab	fetch	1
-wait/io/table/sql/handler		TABLE	test	no_index_tab	update	1
-wait/io/table/sql/handler		TABLE	test	no_index_tab	fetch	1
-wait/io/table/sql/handler		TABLE	test	no_index_tab	update	1
-wait/io/table/sql/handler		TABLE	test	no_index_tab	fetch	1
-wait/io/table/sql/handler		TABLE	test	marker	insert	1
-wait/io/table/sql/handler		TABLE	test	no_index_tab	fetch	2
-wait/io/table/sql/handler		TABLE	test	marker	insert	1
-wait/io/table/sql/handler		TABLE	test	no_index_tab	fetch	1
-wait/io/table/sql/handler		TABLE	test	no_index_tab	fetch	1
-wait/io/table/sql/handler		TABLE	test	no_index_tab	fetch	1
-wait/io/table/sql/handler		TABLE	test	no_index_tab	delete	1
-wait/io/table/sql/handler		TABLE	test	no_index_tab	fetch	1
-wait/io/table/sql/handler		TABLE	test	marker	insert	1
-wait/io/table/sql/handler		TABLE	test	no_index_tab	fetch	2
-wait/io/table/sql/handler		TABLE	test	marker	insert	1
-wait/io/table/sql/handler		TABLE	test	marker	insert	1
-wait/io/table/sql/handler		TABLE	test	no_index_tab	fetch	2
-wait/io/table/sql/handler		TABLE	test	marker	insert	1
-wait/io/table/sql/handler		TABLE	test	marker	insert	1
-show global status like 'performance_schema_%';
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	3
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	update	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	update	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	update	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	2
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	delete	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	2
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	2
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+show global status like 'performance_schema_%_lost';
 Variable_name	Value
 Performance_schema_accounts_lost	0
 Performance_schema_cond_classes_lost	0

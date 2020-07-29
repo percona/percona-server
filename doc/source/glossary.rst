@@ -59,7 +59,7 @@
     The file name of the default MySQL configuration file.
 
   MyISAM
-    A :term:`MySQL` :term:`storage engine` that was the default until
+    A :term:`MySQL` :term:`Storage Engine` that was the default until
     MySQL 5.5.
 
   MySQL
@@ -81,36 +81,11 @@
     is basically accessible from everywhere, but at a potentially higher latency
     and lower performance.
 
-  Percona Server
+  Percona Server for MySQL
     Percona's branch of :term:`MySQL` with performance and management improvements.
 
-    .. variable:: version_suffix
-       :version 5.6.40-84.0: Implemented
-       :cli: Yes
-       :scope: Global
-       :dyn: Yes
-       :vartype: String
-       :default: 
-
-       This variable allows to change the suffix for the |Percona Server|
-       version string returned by the read-only :variable:`version` variable.
-       This allows to append the version number for the server with a custom
-       suffix to reflect some build or configuration specifics.
-
-       .. code-block:: mysql
-
-	  SET GLOBAL version_suffix = '-new-suffix';
-
-    .. variable:: version_comment
-       :version 5.6.20-68.0: Implemented
-       :cli: No
-       :scope: Global
-       :dyn: Yes
-       :vartype: String
-       :default: The value of the CMake ``COMPILATION_COMMENT`` option
-		  
-       This variable is converted from a global read-only to a global read-write
-       variable and thereby it can now be customized.
+  Percona Server
+    See :term:`Percona Server for MySQL`
 
   Storage Engine
     A :term:`Storage Engine` is a piece of software that implements the

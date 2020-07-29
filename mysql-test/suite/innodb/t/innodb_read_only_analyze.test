@@ -1,4 +1,4 @@
---source include/have_innodb.inc
+call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
 
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);

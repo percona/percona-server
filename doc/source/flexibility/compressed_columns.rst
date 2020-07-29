@@ -1,15 +1,15 @@
 .. _compressed_columns:
 
-====================================
-Compressed columns with dictionaries
-====================================
+================================================================================
+|feature|
+================================================================================
 
-In :rn:`5.7.17-11` |Percona Server| has been extended with a new per-column
-compression feature. It is a data type modifier, independent from user-level SQL
-and |InnoDB| data compression, that causes the data stored in the column to be
-compressed on writing to storage and decompressed on reading. For all other
-purposes, the data type is identical to the one without the modifier, i.e. no
-new data types are created. Compression is done by using the ``zlib`` library.
+The ``per-column compression`` feature is a data type modifier, independent from
+user-level SQL and |InnoDB| data compression, that causes the data stored in the
+column to be compressed on writing to storage and decompressed on reading. For
+all other purposes, the data type is identical to the one without the modifier,
+i.e. no new data types are created. Compression is done by using the ``zlib``
+library.
 
 Additionally, it is possible to pre-define a set of strings for each compressed
 column to achieve a better compression ratio on relatively small individual
@@ -22,7 +22,9 @@ This feature provides:
   dictionaries
 * a way to select columns in the table to compress (in contrast to the |InnoDB|
   row compression method)
-  
+
+.. To Reviewer: Is the following statement still relevant?
+
 This feature is based on a patch provided by Weixiang Zhai.
 
 Specifications
@@ -31,17 +33,13 @@ Specifications
 The feature is limited to InnoDB/XtraDB storage engine and to columns of the
 following data types:
 
-* ``BLOB`` (including ``TINYBLOB``, ``MEDIUMBLOB``, ``LONGBLOG``)
+- ``BLOB`` (including ``TINYBLOB``, ``MEDIUMBLOB``, ``LONGBLOG``)
+- ``TEXT`` (including ``TINYTEXT``, ``MEDUUMTEXT``, ``LONGTEXT``)
+- ``VARCHAR`` (including ``NATIONAL VARCHAR``)
+- ``VARBINARY``
+- ``JSON``
 
-* ``TEXT`` (including ``TINYTEXT``, ``MEDUUMTEXT``, ``LONGTEXT``)
-
-* ``VARCHAR`` (including ``NATIONAL VARCHAR``)
-
-* ``VARBINARY``
-
-* ``JSON``
-
-The syntax to declare a compressed column is using an extension of an existing
+A compressed column is declared by using the syntax that extends the existing
 ``COLUMN_FORMAT`` modifier: ``COLUMN_FORMAT COMPRESSED``. If this modifier is
 applied to an unsupported column type or storage engine, an error is returned.
 
@@ -49,7 +47,7 @@ The compression can be specified:
 
 * when creating a table:
   ``CREATE TABLE ... (..., foo BLOB COLUMN_FORMAT COMPRESSED, ...);``
-  
+
 * when altering a table and modifying a column to the compressed format:
   ``ALTER TABLE ... MODIFY [COLUMN] ... COLUMN_FORMAT COMPRESSED``, or
   ``ALTER TABLE ... CHANGE [COLUMN] ... COLUMN_FORMAT COMPRESSED``.
@@ -59,7 +57,7 @@ this syntax extension as follows:
 
 .. code-block:: mysql
 
-  mysql> CREATE TABLE t1(
+   mysql> CREATE TABLE t1(
 	  id INT,
 	  a BLOB,
 	  b JSON COLUMN_FORMAT COMPRESSED,
@@ -74,25 +72,40 @@ compression/decompression request in an ``ALTER TABLE``, it is forced to the
 Two new variables: :variable:`innodb_compressed_columns_zip_level` and
 :variable:`innodb_compressed_columns_threshold` have been implemented.
 
+.. _compression_dictionary:
+
 Compression dictionary support
 ==============================
 
 To achieve a better compression ratio on relatively small individual data items,
-it is possible to pre-define a compression dictionary, which is a set of strings
+it is possible to predefine a compression dictionary, which is a set of strings
 for each compressed column.
 
 Compression dictionaries can be represented as a list of words in the form of a
 string (comma or any other character can be used as a delimiter although not
 required). In other words, ``a,bb,ccc``, ``a bb ccc`` and ``abbccc`` will have
-the same effect. However, the latter is more space-efficient. Quote symbol
-quoting is handled by regular SQL quoting. Maximum supported dictionary length
+the same effect. However, the latter is more compact. Quote symbol
+quoting is handled by regular SQL quoting. The maximum supported dictionary length
 is 32506 bytes (``zlib`` limitation).
 
-The compression dictionary is stored in a new system |InnoDB| table.
-As this table is of the data dictionary kind, concurrent reads are
-allowed, but writes are serialized, and reads are blocked by writes. Table read
-through old read views are unsupported, similarly to |InnoDB| internal DDL
-transactions.
+The compression dictionary is stored in a new system |InnoDB| table.  As this
+table is of the data dictionary kind, concurrent reads are allowed, but writes
+are serialized, and reads are blocked by writes. Table read through old read
+views are not supported, similar to |InnoDB| internal DDL transactions.
+
+Interaction with :variable:`innodb_force_recovery` variable
+-----------------------------------------------------------
+
+Compression dictionary operations are treated like DDL operations with the
+exception when :variable:`innodb_force_value` is set to ``3``: with values
+less than ``3``, compression dictionary operations are allowed, and with
+values >= ``3``, they are forbidden.
+
+.. note::
+
+  Prior to |Percona Server| :rn:`8.0.15-6` using Compression dictionary operations
+  with :variable:`innodb_force_recovery` variable set to value > 0 would result in
+  an error.
 
 Example
 -------
@@ -123,7 +136,7 @@ The following example shows how to insert a sample of JSON data into the table:
 
 .. code-block:: mysql
 
-  SET @json_value =
+   SET @json_value =
    '[\n'
    ' {\n'
    ' "one" = 0,\n'
@@ -150,36 +163,37 @@ The following example shows how to insert a sample of JSON data into the table:
    ' "four" = 0\n'
    ' }\n'
    ']\n'
-  ;
+   ;
 
 .. code-block:: mysql
 
-  mysql> INSERT INTO t1 VALUES(0, @json_value, @json_value);
-  Query OK, 1 row affected (0.01 sec)
+   mysql> INSERT INTO t1 VALUES(0, @json_value, @json_value);
+   Query OK, 1 row affected (0.01 sec)
 
 
 INFORMATION_SCHEMA Tables
 =========================
 
-This feature implemented two new ``INFORMATION_SCHEMA`` tables.
+This feature implements two new ``INFORMATION_SCHEMA`` tables.
 
-.. table:: INFORMATION_SCHEMA.XTRADB_ZIP_DICT
+.. table:: INFORMATION_SCHEMA.COMPRESSION_DICTIONARY
 
-  :column BIGINT(21)_UNSIGNED id: dictionary ID
-  :column VARCHAR(64) name: dictionary name
-  :column BLOB zip_dict: compression dictionary string
+   :column BIGINT(21)_UNSIGNED dict_version: dictionary version
+   :column VARCHAR(64) dict_name: dictionary name
+   :column BLOB dict_data: compression dictionary string
 
-This table provides a view over the internal compression dictionary table.
+This table provides a view over the internal compression dictionary. The
 ``SUPER`` privilege is required to query it.
 
-.. table:: INFORMATION_SCHEMA.XTRADB_ZIP_DICT_COLS
+.. table:: INFORMATION_SCHEMA.COMPRESSION_DICTIONARY_TABLES
 
-  :column BIGINT(21)_UNSIGNED table_id: table ID from ``INFORMATION_SCHEMA.INNODB_SYS_TABLES``
-  :column BIGINT(21)_UNSIGNED column_pos: column position (starts from ``0`` as in ``INFORMATION_SCHEMA.INNODB_SYS_COLUMNS``)
-  :column BIGINT(21)_UNSIGNED dict_id: dictionary ID
+   :column BIGINT(21)_UNSIGNED table_schema: table schema
+   :column BIGINT(21)_UNSIGNED table_name: table ID from ``INFORMATION_SCHEMA.INNODB_SYS_TABLES``
+   :column BIGINT(21)_UNSIGNED column_name: column position (starts from ``0`` as in ``INFORMATION_SCHEMA.INNODB_SYS_COLUMNS``)
+   :column BIGINT(21)_UNSIGNED dict_name: dictionary ID
 
 This table provides a view over the internal table that stores the mapping
-between the compression dictionaries and the columns using them. ``SUPER``
+between the compression dictionaries and the columns using them. The ``SUPER``
 privilege is require to query it.
 
 Limitations
@@ -248,27 +262,11 @@ following fragment (regardless of the values of
 
   /*!50633 CREATE COMPRESSION_DICTIONARY IF NOT EXISTS <dictionary>(...); */
 
-Downgrade scenario
-==================
-
-If it is necessary to perform |Percona Server| downgrade from a version
-:rn:`5.7.17-11` (or newer) to a version older than :rn:`5.7.17-11` and if
-user databases have one or more table with compressed columns, there are two
-options to do this safely:
-
-1. Use ``mysqldump`` in compatible mode (no compressed columns extensions must
-   be specified).
-
-2. Manually remove the ``COMPRESSED`` attribute from all columns which have it
-   via ``ALTER TABLE ... MODIFY ... COLUMN_FORMAT DEFAULT`` before updating
-   server binaries.
-   In this case, the downgraded server can start safely with old data files.
-
 Version Specific Information
 ============================
 
-  * :rn:`5.7.17-11`
-    Feature implemented in |Percona Server| 5.7
+  * :rn:`8.0.13-3`
+    Feature ported from |Percona Server| 5.7.
 
 System Variables
 ================
@@ -313,9 +311,9 @@ This parameter can be tuned in order to skip unnecessary attempts of data
 compression for values that are known in advance by the user to have bad
 compression ratio of their first N bytes.
 
-Other reading
-=============
+.. seealso::
 
-* `How to find a good/optimal dictionary for zlib 'setDictionary' when
-  processing a given set of data?
-  <http://stackoverflow.com/questions/2011653/how-to-find-a-good-optimal-dictionary-for-zlib-setdictionary-when-processing-a>`_
+   How to find a good/optimal dictionary for zlib 'setDictionary' when processing a given set of data?
+      http://stackoverflow.com/questions/2011653/how-to-find-a-good-optimal-dictionary-for-zlib-setdictionary-when-processing-a
+
+.. |feature| replace:: Compressed columns with dictionaries

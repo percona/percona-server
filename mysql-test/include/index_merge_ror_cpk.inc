@@ -346,7 +346,7 @@ WHERE (col_varchar_key, col_varchar_nokey) IN (
   SELECT col_int_key, col_int_key
   FROM t2
   WHERE (col_time_key, col_int_key, col_int_key) IN (
-    ('s','a', 'm'), (0, 'n', 7)
+    (0, 'a', 'm'), (0, 'n', 7)
   )
 );
 }
@@ -356,7 +356,7 @@ WHERE (col_varchar_key, col_varchar_nokey) IN (
   SELECT col_int_key, col_int_key
   FROM t2
   WHERE (col_time_key, col_int_key, col_int_key) IN (
-    ('s','a', 'm'), (0, 'n', 7)
+    (0, 'a', 'm'), (0, 'n', 7)
   )
 );
 --enable_warnings

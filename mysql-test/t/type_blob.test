@@ -1,12 +1,6 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # This test can't be run with running server (--extern) as this uses
 # load_file() on a file in the tree.
 #
-
 #
 # Basic cleanup
 #
@@ -56,6 +50,7 @@ insert into t1 values (null,"a","A");
 insert into t1 values (null,"bbb","BBB");
 insert into t1 values (null,"ccc","CCC");
 select last_insert_id();
+--sorted_result
 select * from t1,t1 as t2;
 
 drop table t1;
@@ -85,11 +80,8 @@ insert into t1 values (NULL,NULL,NULL,NULL);
 update t1 set c="",b=null where c="1";
 
 lock tables t1 READ;
-# We mask out the Privileges column because it differs for embedded server
---replace_column 8 #
 show full fields from t1;
 lock tables t1 WRITE;
---replace_column 8 #
 show full fields from t1;
 unlock tables;
 
@@ -129,16 +121,14 @@ select c from t1 group by c;
 select d from t1 group by d;
 set big_tables=0;
 select distinct * from t1;
+--sorted_result
 select t,count(*) from t1 group by t;
+--sorted_result
 select b,count(*) from t1 group by b;
+--sorted_result
 select c,count(*) from t1 group by c;
+--sorted_result
 select d,count(*) from t1 group by d;
-drop table t1;
-
--- error 1071
-create table t1 (a text, unique (a(2100))); # should give an error
-create table t1 (a text, key (a(2100)));    # key is auto-truncated
-show create table t1;
 drop table t1;
 
 #
@@ -318,7 +308,7 @@ eval select
   collation(load_file('../../std_data/words.dat')),
   coercibility(load_file('../../std_data/words.dat'));
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval explain extended select
+eval explain select
   charset(load_file('$MYSQLTEST_VARDIR/std_data/words.dat')),
   collation(load_file('$MYSQLTEST_VARDIR/std_data/words.dat')),
   coercibility(load_file('$MYSQLTEST_VARDIR/std_data/words.dat'));
@@ -328,17 +318,15 @@ select if(imagem is null, "ERROR", "OK"),length(imagem) from t1 where id = 1;
 drop table t1;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval create table t1 select load_file('$MYSQLTEST_VARDIR/std_data/words.dat') l;
-# We mask out the Privileges column because it differs for embedded server
---replace_column 8 #
 show full fields from t1;
 drop table t1;
 
 #
-# Test blob's with end space (Bug #1651)
+# Test blobs with end space (Bug #1651)
 # This is a bit changed since we now have true varchar
 #
 
-create table t1 (id integer primary key auto_increment, txt text not null, unique index txt_index (txt (20)));
+create table t1 (id integer primary key auto_increment, txt text not null, unique index txt_index (txt (20))) charset latin1;
 --error ER_DUP_ENTRY
 insert into t1 (txt) values ('Chevy'), ('Chevy ');
 --error ER_DUP_ENTRY
@@ -365,9 +353,10 @@ select * from t1 where txt > 'Chevy';
 select * from t1 where txt >= 'Chevy';
 drop table t1;
 
-create table t1 (id integer primary key auto_increment, txt text, index txt_index (txt (20)));
+create table t1 (id integer primary key auto_increment, txt text, index txt_index (txt (20))) charset latin1;
 insert into t1 (txt) values ('Chevy'), ('Chevy '), (NULL);
 select * from t1 where txt='Chevy' or txt is NULL;
+analyze table t1;
 explain select * from t1 where txt='Chevy' or txt is NULL;
 select * from t1 where txt='Chevy ';
 select * from t1 where txt='Chevy ' or txt='Chevy';
@@ -388,6 +377,7 @@ select * from t1 where txt <= 'Chevy';
 select * from t1 where txt > 'Chevy';
 select * from t1 where txt >= 'Chevy';
 alter table t1 modify column txt blob;
+analyze table t1;
 explain select * from t1 where txt='Chevy' or txt is NULL;
 select * from t1 where txt='Chevy' or txt is NULL;
 explain select * from t1 where txt='Chevy' or txt is NULL order by txt;
@@ -847,3 +837,20 @@ SELECT ( SELECT ( b <> 1 ) FROM t2) <> ALL(SELECT 1681007452 FROM t1) FROM t1;
 SELECT ( SELECT ( b <> 1 ) FROM t2) <> ALL(SELECT 1681007452 FROM t1) FROM t1;
 DROP TABLE t1,t2;
 set sql_mode=default;
+
+--echo #
+--echo # Bug#30308063 UBSAN: NULL POINTER PASSED AS ARGUMENT 2,
+--echo #              WHICH IS DECLARED TO NEVER BE NULL
+--echo #
+
+CREATE TABLE t1 (c1 INTEGER PRIMARY KEY, c2 TEXT, c3 INTEGER);
+
+INSERT INTO t1(c1) VALUES(0);
+
+--disable_ps_protocol # Different number of warnings until WL#6570.
+INSERT INTO t1(c1) VALUES(0) ON DUPLICATE KEY
+UPDATE c2 = VALUES(c2), c3 = NULL;
+--enable_ps_protocol
+
+SELECT * FROM t1;
+DROP TABLE t1;

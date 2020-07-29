@@ -23,12 +23,12 @@ FLUSH BINARY LOGS;
 SET binlog_format=ROW;
 INSERT INTO table1_no_encryption SELECT NULL,NOW(),b FROM table1_no_encryption;
 INSERT INTO table1_no_encryption SELECT NULL,NOW(),b FROM table1_no_encryption;
-FOUND /table1_no_encryption/ in master-bin.0*
+Pattern "table1_no_encryption" found
 #####################################################
 # Part 2: restart master, now with binlog encryption
 #####################################################
 UNINSTALL PLUGIN keyring_file;
-include/rpl_restart_server.inc [server_number=1 parameters: --encrypt-binlog=1]
+include/rpl_restart_server.inc [server_number=1 parameters: --binlog-encryption=1]
 connection server_1;
 connection server_1;
 connection server_1;
@@ -58,12 +58,12 @@ INSERT INTO table2_to_encrypt SELECT NULL,NOW(),b FROM table2_to_encrypt;
 INSERT INTO table2_to_encrypt SELECT NULL,NOW(),b FROM table2_to_encrypt;
 # Here we try to find several plain texts that would appear in not encrypted binlog files.
 # The searches should fail as we expect the binlog files to be encrypted.
-NOT FOUND /table2_to_encrypt/ in master-bin.0*
+Pattern "table2_to_encrypt" not found
 #####################################################
 # Part 3: restart master again without encryption
 #####################################################
 UNINSTALL PLUGIN keyring_file;
-include/rpl_restart_server.inc [server_number=1 parameters: --encrypt-binlog=0]
+include/rpl_restart_server.inc [server_number=1 parameters: --binlog-encryption=0]
 connection server_1;
 connection server_1;
 connection server_1;

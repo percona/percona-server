@@ -1,41 +1,40 @@
-DROP TABLE IF EXISTS t1, t2, t3, t, tp, tsp, tmp;
 #
 # Bug#11894100: EXCHANGE PARTITION CAN'T BE EXECUTED IF
 #               ROW_FORMAT WAS SET EXPLICITLY
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # Same definition (both have ROW_FORMAT set)
 SET GLOBAL innodb_default_row_format=compact;
 CREATE TABLE t1 (
 id int(11) NOT NULL AUTO_INCREMENT,
-year year(4) DEFAULT NULL,
+year year DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT=COMPACT
 PARTITION BY HASH (id)
 PARTITIONS 2;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 LIKE t1;
 ALTER TABLE t2 REMOVE PARTITIONING;
 SHOW CREATE TABLE t1;
 Table	t1
 Create Table	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
-/*!50100 PARTITION BY HASH (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+/*!50100 PARTITION BY HASH (`id`)
 PARTITIONS 2 */
 SHOW CREATE TABLE t2;
 Table	t2
 Create Table	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 SELECT TABLE_NAME, TABLE_TYPE, ENGINE, ROW_FORMAT, CREATE_OPTIONS
 FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME IN ('t1', 't2');
@@ -53,21 +52,21 @@ ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 SHOW CREATE TABLE t1;
 Table	t1
 Create Table	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
-/*!50100 PARTITION BY HASH (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+/*!50100 PARTITION BY HASH (`id`)
 PARTITIONS 2 */
 SHOW CREATE TABLE t2;
 Table	t2
 Create Table	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 SELECT TABLE_NAME, TABLE_TYPE, ENGINE, ROW_FORMAT, CREATE_OPTIONS
 FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME IN ('t1', 't2');
@@ -85,29 +84,33 @@ DROP TABLE t2;
 # Only the partitioned table have ROW_FORMAT set.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
-year year(4) DEFAULT NULL,
+year year DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB;
+Warnings:
+Level	Warning
+Code	1681
+Message	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 SHOW CREATE TABLE t1;
 Table	t1
 Create Table	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
-/*!50100 PARTITION BY HASH (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+/*!50100 PARTITION BY HASH (`id`)
 PARTITIONS 2 */
 SHOW CREATE TABLE t2;
 Table	t2
 Create Table	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT TABLE_NAME, TABLE_TYPE, ENGINE, ROW_FORMAT, CREATE_OPTIONS
 FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME IN ('t1', 't2');
@@ -125,37 +128,45 @@ CREATE_OPTIONS
 DROP TABLE t1, t2;
 CREATE TABLE t1 (
 id int(11) NOT NULL AUTO_INCREMENT,
-year year(4) DEFAULT NULL,
+year year DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB
 PARTITION BY HASH (id)
 PARTITIONS 2;
+Warnings:
+Level	Warning
+Code	1681
+Message	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
-year year(4) DEFAULT NULL,
+year year DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = COMPACT;
+Warnings:
+Level	Warning
+Code	1681
+Message	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 SHOW CREATE TABLE t1;
 Table	t1
 Create Table	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`id`)
 PARTITIONS 2 */
 SHOW CREATE TABLE t2;
 Table	t2
 Create Table	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 SELECT TABLE_NAME, TABLE_TYPE, ENGINE, ROW_FORMAT, CREATE_OPTIONS
 FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME IN ('t1', 't2');
@@ -173,37 +184,45 @@ CREATE_OPTIONS	row_format=COMPACT
 DROP TABLE t1, t2;
 CREATE TABLE t1 (
 id int(11) NOT NULL AUTO_INCREMENT,
-year year(4) DEFAULT NULL,
+year year DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB
 PARTITION BY HASH (id)
 PARTITIONS 2;
+Warnings:
+Level	Warning
+Code	1681
+Message	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
-year year(4) DEFAULT NULL,
+year year DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB;
+Warnings:
+Level	Warning
+Code	1681
+Message	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 SHOW CREATE TABLE t1;
 Table	t1
 Create Table	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`id`)
 PARTITIONS 2 */
 SHOW CREATE TABLE t2;
 Table	t2
 Create Table	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT TABLE_NAME, TABLE_TYPE, ENGINE, ROW_FORMAT, CREATE_OPTIONS
 FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME IN ('t1', 't2');
@@ -221,37 +240,45 @@ CREATE_OPTIONS
 DROP TABLE t1, t2;
 CREATE TABLE t1 (
 id int(11) NOT NULL AUTO_INCREMENT,
-year year(4) DEFAULT NULL,
+year year DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = REDUNDANT
 PARTITION BY HASH (id)
 PARTITIONS 2;
+Warnings:
+Level	Warning
+Code	1681
+Message	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
-year year(4) DEFAULT NULL,
+year year DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = REDUNDANT;
+Warnings:
+Level	Warning
+Code	1681
+Message	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 SHOW CREATE TABLE t1;
 Table	t1
 Create Table	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
-/*!50100 PARTITION BY HASH (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+/*!50100 PARTITION BY HASH (`id`)
 PARTITIONS 2 */
 SHOW CREATE TABLE t2;
 Table	t2
 Create Table	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 SELECT TABLE_NAME, TABLE_TYPE, ENGINE, ROW_FORMAT, CREATE_OPTIONS
 FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME IN ('t1', 't2');
@@ -269,38 +296,46 @@ CREATE_OPTIONS	row_format=REDUNDANT
 DROP TABLE t1, t2;
 CREATE TABLE t1 (
 id int(11) NOT NULL AUTO_INCREMENT,
-year year(4) DEFAULT NULL,
+year year DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB
 PARTITION BY HASH (id)
 PARTITIONS 2;
+Warnings:
+Level	Warning
+Code	1681
+Message	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
-year year(4) DEFAULT NULL,
+year year DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = REDUNDANT;
+Warnings:
+Level	Warning
+Code	1681
+Message	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 ERROR HY000: Non matching attribute 'ROW_FORMAT' between partition and table
 SHOW CREATE TABLE t1;
 Table	t1
 Create Table	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`id`)
 PARTITIONS 2 */
 SHOW CREATE TABLE t2;
 Table	t2
 Create Table	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 SELECT TABLE_NAME, TABLE_TYPE, ENGINE, ROW_FORMAT, CREATE_OPTIONS
 FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME IN ('t1', 't2');
@@ -318,38 +353,46 @@ CREATE_OPTIONS	row_format=REDUNDANT
 DROP TABLE t1, t2;
 CREATE TABLE t1 (
 id int(11) NOT NULL AUTO_INCREMENT,
-year year(4) DEFAULT NULL,
+year year DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = COMPACT
 PARTITION BY HASH (id)
 PARTITIONS 2;
+Warnings:
+Level	Warning
+Code	1681
+Message	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
-year year(4) DEFAULT NULL,
+year year DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = REDUNDANT;
+Warnings:
+Level	Warning
+Code	1681
+Message	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 ERROR HY000: Non matching attribute 'ROW_FORMAT' between partition and table
 SHOW CREATE TABLE t1;
 Table	t1
 Create Table	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
-/*!50100 PARTITION BY HASH (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+/*!50100 PARTITION BY HASH (`id`)
 PARTITIONS 2 */
 SHOW CREATE TABLE t2;
 Table	t2
 Create Table	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 SELECT TABLE_NAME, TABLE_TYPE, ENGINE, ROW_FORMAT, CREATE_OPTIONS
 FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME IN ('t1', 't2');
@@ -365,15 +408,71 @@ ROW_FORMAT	Redundant
 CREATE_OPTIONS	row_format=REDUNDANT
 DROP TABLE t1, t2;
 #
+# Bug #28235668: ASSERTION AT UT_DBG_ASSERTION_FAILED (EXPR=0X5173C5C "J < NCOL"
+#
+# Create a partitioned table with virtual columns
+CREATE TABLE t1_1 (
+`col1` int(11) DEFAULT NULL,
+`col2` int(11) DEFAULT NULL,
+`col3` int(11) DEFAULT NULL,
+`col4` text,
+`col5` varchar(500) GENERATED ALWAYS AS (substr(`col4`,1,500)) VIRTUAL,
+`col6` text GENERATED ALWAYS AS (substr(`col4`,1,500)) VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE ((`col1` * 2))
+(PARTITION p0 VALUES LESS THAN (128) ENGINE = InnoDB,
+PARTITION p1 VALUES LESS THAN (256) ENGINE = InnoDB,
+PARTITION p2 VALUES LESS THAN (384) ENGINE = InnoDB,
+PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+# "Clone" table using AS SELECT ...
+CREATE TABLE temp25058 AS SELECT * FROM t1_1 WHERE 1 <> 1;
+SHOW CREATE TABLE temp25058;
+Table	Create Table
+temp25058	CREATE TABLE `temp25058` (
+  `col1` int DEFAULT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` int DEFAULT NULL,
+  `col4` text,
+  `col5` varchar(500) DEFAULT NULL,
+  `col6` text
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Select from this table is ok - no error
+SELECT * FROM temp25058;
+col1	col2	col3	col4	col5	col6
+# Exchanging dissimilar tables is not a supported action for
+# tables with generated columns.
+ALTER TABLE t1_1 ALGORITHM DEFAULT , LOCK SHARED ,
+EXCHANGE PARTITION p2 WITH TABLE temp25058;
+ERROR HY000: 'Exchanging partitions for non-generated columns' is not supported for generated columns.
+# No viritual columns in Innodb or DD
+SHOW CREATE TABLE temp25058;
+Table	Create Table
+temp25058	CREATE TABLE `temp25058` (
+  `col1` int DEFAULT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` int DEFAULT NULL,
+  `col4` text,
+  `col5` varchar(500) DEFAULT NULL,
+  `col6` text
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# No viritual columns in Innodb or DD
+SELECT * FROM temp25058;
+col1	col2	col3	col4	col5	col6
+DROP TABLE temp25058;
+DROP TABLE t1_1;
+#
 # Bug#56484: !table || (!table->read_set ||
 #                       bitmap_is_set(table->read_set, field_index))
+# After WL#8971, the test case was rewritten to use InnoDB.
 #
-CREATE TABLE t1 (a INT NOT NULL,b TIME NOT NULL DEFAULT '00:00:00')
-ENGINE=MyISAM
+CREATE TABLE t1 (a INT NOT NULL, b TIME NOT NULL DEFAULT '00:00:00')
+ENGINE=InnoDB
 PARTITION BY HASH (a) PARTITIONS 2;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-CREATE TABLE t2 (a INT) ENGINE=MYISAM;
+CREATE TABLE t2 (a INT) ENGINE=InnoDB;
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 ERROR HY000: Tables have different definitions
 DROP TABLE t1, t2;
@@ -394,21 +493,16 @@ DROP TABLE t2, t1, t3;
 # Tests for WL#4445
 CREATE TABLE t (a INT,
 b VARCHAR(55),
-PRIMARY KEY (a))
-ENGINE = MyISAM;
+PRIMARY KEY (a));
 CREATE TABLE tp (a INT,
 b VARCHAR(55),
 PRIMARY KEY (a))
-ENGINE = MyISAM
 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100),
 PARTITION p1 VALUES LESS THAN MAXVALUE);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE TABLE tsp (a INT,
 b VARCHAR(55),
 PRIMARY KEY (a))
-ENGINE = MyISAM
 PARTITION BY RANGE (a)
 SUBPARTITION BY HASH(a)
 (PARTITION p0 VALUES LESS THAN (100)
@@ -417,34 +511,26 @@ SUBPARTITION sp1),
 PARTITION p1 VALUES LESS THAN MAXVALUE
 (SUBPARTITION sp2,
 SUBPARTITION sp3));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t VALUES (1, "First value"), (3, "Three"), (5, "Five"), (99, "End of values");
 INSERT INTO tp VALUES (2, "First value"), (10, "Ten"), (50, "Fifty"), (200, "Two hundred, end of values"), (61, "Sixty one"), (62, "Sixty two"), (63, "Sixty three"), (64, "Sixty four"), (161, "161"), (162, "162"), (163, "163"), (164, "164");
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO tsp VALUES (2, "First value"), (10, "Ten"), (50, "Fifty"), (200, "Two hundred, end of values"), (61, "Sixty one"), (62, "Sixty two"), (63, "Sixty three"), (64, "Sixty four"), (161, "161"), (162, "162"), (163, "163"), (164, "164");
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM t;
 a	b
 1	First value
@@ -469,22 +555,20 @@ ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM t;
 a	b
 10	Ten
@@ -526,29 +610,25 @@ a	b
 62	Sixty two
 63	Sixty three
 64	Sixty four
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t;
 ERROR HY000: Found a row that does not match the partition
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM t;
 a	b
 1	First value
@@ -573,15 +653,15 @@ a	b
 ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t IGNORE;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IGNORE' at line 1
 ALTER TABLE tp EXCHANGE PARTITION p0,p1 WITH TABLE t IGNORE;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'p1 WITH TABLE t IGNORE' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',p1 WITH TABLE t IGNORE' at line 1
 ALTER TABLE tp EXCHANGE PARTITION p0,p1 WITH TABLE t;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'p1 WITH TABLE t' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',p1 WITH TABLE t' at line 1
 ALTER TABLE tp EXCHANGE PARTITION (p0,p1) WITH TABLE t;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(p0,p1) WITH TABLE t' at line 1
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE (t,t2);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(t,t2)' at line 1
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t,t2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't2' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',t2' at line 1
 ALTER TABLE tp EXCHANGE PARTITION non_existent WITH TABLE t;
 ERROR HY000: Unknown partition 'non_existent' in table 'tp'
 ALTER TABLE tsp EXCHANGE PARTITION p0 WITH TABLE t;
@@ -591,39 +671,35 @@ ERROR HY000: Table to exchange with partition is partitioned: 'tp'
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SHOW CREATE TABLE tsp;
 Table	Create Table
 tsp	CREATE TABLE `tsp` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-SUBPARTITION BY HASH (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
 (PARTITION p0 VALUES LESS THAN (100)
- (SUBPARTITION sp0 ENGINE = MyISAM,
-  SUBPARTITION sp1 ENGINE = MyISAM),
+ (SUBPARTITION sp0 ENGINE = InnoDB,
+  SUBPARTITION sp1 ENGINE = InnoDB),
  PARTITION p1 VALUES LESS THAN MAXVALUE
- (SUBPARTITION sp2 ENGINE = MyISAM,
-  SUBPARTITION sp3 ENGINE = MyISAM)) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+ (SUBPARTITION sp2 ENGINE = InnoDB,
+  SUBPARTITION sp3 ENGINE = InnoDB)) */
 SELECT * FROM t;
 a	b
 1	First value
@@ -649,22 +725,20 @@ ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM t;
 a	b
 10	Ten
@@ -689,22 +763,20 @@ ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM t;
 a	b
 1	First value
@@ -730,27 +802,25 @@ ALTER TABLE tsp EXCHANGE PARTITION sp1 WITH TABLE t;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tsp;
 Table	Create Table
 tsp	CREATE TABLE `tsp` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-SUBPARTITION BY HASH (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
 (PARTITION p0 VALUES LESS THAN (100)
- (SUBPARTITION sp0 ENGINE = MyISAM,
-  SUBPARTITION sp1 ENGINE = MyISAM),
+ (SUBPARTITION sp0 ENGINE = InnoDB,
+  SUBPARTITION sp1 ENGINE = InnoDB),
  PARTITION p1 VALUES LESS THAN MAXVALUE
- (SUBPARTITION sp2 ENGINE = MyISAM,
-  SUBPARTITION sp3 ENGINE = MyISAM)) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+ (SUBPARTITION sp2 ENGINE = InnoDB,
+  SUBPARTITION sp3 ENGINE = InnoDB)) */
 SELECT * FROM t;
 a	b
 61	Sixty one
@@ -777,18 +847,18 @@ ALTER TABLE tp ENGINE = InnoDB;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM t;
@@ -815,18 +885,18 @@ ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM t;
@@ -850,53 +920,10 @@ a	b
 5	Five
 99	End of values
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
-# test different engines
-ALTER TABLE t ENGINE = MyISAM;
-ALTER TABLE tp ENGINE = InnoDB;
-SHOW CREATE TABLE t;
-Table	Create Table
-t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
-  `b` varchar(55) DEFAULT NULL,
-  PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-SHOW CREATE TABLE tp;
-Table	Create Table
-tp	CREATE TABLE `tp` (
-  `a` int(11) NOT NULL,
-  `b` varchar(55) DEFAULT NULL,
-  PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
-ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
-SHOW CREATE TABLE t;
-Table	Create Table
-t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
-  `b` varchar(55) DEFAULT NULL,
-  PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-SHOW CREATE TABLE tp;
-Table	Create Table
-tp	CREATE TABLE `tp` (
-  `a` int(11) NOT NULL,
-  `b` varchar(55) DEFAULT NULL,
-  PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 # Test different charsets
-ALTER TABLE t ENGINE = MyISAM;
 CREATE TABLE tmp LIKE t;
 INSERT INTO tmp SELECT * FROM t;
 RENAME TABLE t TO tmp2, tmp TO t;
-ALTER TABLE tp ENGINE = MyISAM;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t CHARACTER SET = koi8r COLLATE koi8r_general_ci;
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 ERROR HY000: Non matching attribute 'CHARACTER SET' between partition and table
@@ -905,27 +932,25 @@ DROP TABLE t;
 CREATE TABLE t (a INT,
 b VARCHAR(55),
 PRIMARY KEY (a))
-ENGINE = MyISAM MAX_ROWS = 100000 MIN_ROWS = 1000;
+MAX_ROWS = 100000 MIN_ROWS = 1000;
 INSERT INTO t SELECT * FROM tmp2;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 MIN_ROWS=1000 MAX_ROWS=100000
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci MIN_ROWS=1000 MAX_ROWS=100000
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 ERROR HY000: Non matching attribute 'MAX_ROWS' between partition and table
 SHOW WARNINGS;
@@ -936,35 +961,27 @@ DROP TABLE t;
 RENAME TABLE tmp2 TO t;
 ALTER TABLE t ADD KEY ba_key (b, a);
 ALTER TABLE tp ADD KEY ba_key (b, a);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tsp ADD KEY ba_key (b, a);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `ba_key` (`b`,`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `ba_key` (`b`,`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM t;
 a	b
 10	Ten
@@ -999,10 +1016,6 @@ ALTER TABLE tsp EXCHANGE PARTITION sp1 WITH TABLE t;
 ERROR HY000: Tables have different definitions
 ALTER TABLE t CHANGE c a INT;
 # test temporary table
-ALTER TABLE t ENGINE = MyISAM;
-ALTER TABLE tp ENGINE = MyISAM;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE TEMPORARY TABLE tmp LIKE t;
 INSERT INTO tmp SELECT * FROM t;
 ALTER TABLE t RENAME TO tmp2;
@@ -1010,47 +1023,43 @@ ALTER TABLE tmp RENAME TO t;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TEMPORARY TABLE `t` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `ba_key` (`b`,`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `ba_key` (`b`,`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 ERROR HY000: Table to exchange with partition is temporary: 't'
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TEMPORARY TABLE `t` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `ba_key` (`b`,`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `ba_key` (`b`,`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 DROP TEMPORARY TABLE t;
 ALTER TABLE tmp2 RENAME TO t;
 # Test non partitioned table
@@ -1058,23 +1067,6 @@ ALTER TABLE tp REMOVE PARTITIONING;
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 ERROR HY000: Partition management on a not partitioned table is not possible
 DROP TABLE t, tp, tsp;
-# Test with general_log
-use mysql;
-SET @old_general_log_state = @@global.general_log;
-SET GLOBAL general_log = 0;
-ALTER TABLE general_log ENGINE = MyISAM;
-CREATE TABLE t LIKE general_log;
-ALTER TABLE t PARTITION BY RANGE (thread_id)
-(PARTITION p0 VALUES LESS THAN (123456789),
-PARTITION pMAX VALUES LESS THAN MAXVALUE);
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
-ALTER TABLE t EXCHANGE PARTITION p0 WITH TABLE general_log;
-ERROR HY000: Incorrect usage of PARTITION and log table
-ALTER TABLE general_log ENGINE = CSV;
-SET @@global.general_log = @old_general_log_state;
-DROP TABLE t;
-use test;
 # Test with LOCK TABLE
 CREATE TABLE tp
 (a VARCHAR(24),
@@ -1307,18 +1299,18 @@ INSERT INTO tsp VALUES (2, "First value"), (10, "Ten"), (50, "Fifty"),
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM t;
@@ -1377,18 +1369,18 @@ a	b
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 # No need to use WITHOUT VALIDATION on the original partition
@@ -1420,18 +1412,18 @@ a	b
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 # Test exchange subpartition WITHOUT VALIDATION
@@ -1451,19 +1443,19 @@ ALTER TABLE tsp EXCHANGE PARTITION sp3 WITH TABLE t WITHOUT VALIDATION;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tsp;
 Table	Create Table
 tsp	CREATE TABLE `tsp` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-SUBPARTITION BY HASH (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
 (PARTITION p0 VALUES LESS THAN (100)
  (SUBPARTITION sp0 ENGINE = InnoDB,
   SUBPARTITION sp1 ENGINE = InnoDB),
@@ -1498,19 +1490,19 @@ a	b
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tsp;
 Table	Create Table
 tsp	CREATE TABLE `tsp` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-SUBPARTITION BY HASH (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
 (PARTITION p0 VALUES LESS THAN (100)
  (SUBPARTITION sp0 ENGINE = InnoDB,
   SUBPARTITION sp1 ENGINE = InnoDB),
@@ -1663,18 +1655,18 @@ INSERT INTO t2 VALUES (3, "p1"), (4, "p2"), (7, "p1"), (8, "p2");
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `a` int unsigned NOT NULL AUTO_INCREMENT,
   `b` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/t1_dir/'
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/t1_dir/'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `a` int unsigned NOT NULL AUTO_INCREMENT,
   `b` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (`a`)
 (PARTITION p1 VALUES IN (1,3,5,7,9) DATA DIRECTORY = 'MYSQL_TMP_DIR/p1_dir/' ENGINE = InnoDB,
  PARTITION p2 VALUES IN (0,2,4,6,8) DATA DIRECTORY = 'MYSQL_TMP_DIR/p2_dir/' ENGINE = InnoDB) */
 # List files from t1_dir/test
@@ -1703,54 +1695,54 @@ t2#P#p2.ibd
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `a` int unsigned NOT NULL AUTO_INCREMENT,
   `b` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/p1_dir/'
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/p1_dir/'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `a` int unsigned NOT NULL AUTO_INCREMENT,
   `b` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (`a`)
 (PARTITION p1 VALUES IN (1,3,5,7,9) DATA DIRECTORY = 'MYSQL_TMP_DIR/t1_dir/' ENGINE = InnoDB,
  PARTITION p2 VALUES IN (0,2,4,6,8) DATA DIRECTORY = 'MYSQL_TMP_DIR/p2_dir/' ENGINE = InnoDB) */
 FLUSH TABLES t1, t2;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `a` int unsigned NOT NULL AUTO_INCREMENT,
   `b` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/p1_dir/'
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/p1_dir/'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `a` int unsigned NOT NULL AUTO_INCREMENT,
   `b` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (`a`)
 (PARTITION p1 VALUES IN (1,3,5,7,9) DATA DIRECTORY = 'MYSQL_TMP_DIR/t1_dir/' ENGINE = InnoDB,
  PARTITION p2 VALUES IN (0,2,4,6,8) DATA DIRECTORY = 'MYSQL_TMP_DIR/p2_dir/' ENGINE = InnoDB) */
 ALTER TABLE t2 EXCHANGE PARTITION p1 WITH TABLE t1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `a` int unsigned NOT NULL AUTO_INCREMENT,
   `b` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/t1_dir/'
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/t1_dir/'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `a` int unsigned NOT NULL AUTO_INCREMENT,
   `b` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (`a`)
 (PARTITION p1 VALUES IN (1,3,5,7,9) DATA DIRECTORY = 'MYSQL_TMP_DIR/p1_dir/' ENGINE = InnoDB,
  PARTITION p2 VALUES IN (0,2,4,6,8) DATA DIRECTORY = 'MYSQL_TMP_DIR/p2_dir/' ENGINE = InnoDB) */
 # List files from t1_dir/test
@@ -1774,18 +1766,18 @@ INSERT INTO t2 VALUES (3, "p1"), (4, "p2"), (17, "p1"), (12, "p2");
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `a` int unsigned NOT NULL AUTO_INCREMENT,
   `b` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/t1_dir/'
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/t1_dir/'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `a` int unsigned NOT NULL AUTO_INCREMENT,
   `b` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p1 VALUES LESS THAN (10) DATA DIRECTORY = 'MYSQL_TMP_DIR/p1_dir/' ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (20) DATA DIRECTORY = 'MYSQL_TMP_DIR/p2_dir/' ENGINE = InnoDB) */
 # List files from t1_dir/test
@@ -1814,54 +1806,54 @@ t2#P#p2.ibd
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `a` int unsigned NOT NULL AUTO_INCREMENT,
   `b` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/p1_dir/'
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/p1_dir/'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `a` int unsigned NOT NULL AUTO_INCREMENT,
   `b` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p1 VALUES LESS THAN (10) DATA DIRECTORY = 'MYSQL_TMP_DIR/t1_dir/' ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (20) DATA DIRECTORY = 'MYSQL_TMP_DIR/p2_dir/' ENGINE = InnoDB) */
 FLUSH TABLES t1, t2;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `a` int unsigned NOT NULL AUTO_INCREMENT,
   `b` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/p1_dir/'
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/p1_dir/'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `a` int unsigned NOT NULL AUTO_INCREMENT,
   `b` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p1 VALUES LESS THAN (10) DATA DIRECTORY = 'MYSQL_TMP_DIR/t1_dir/' ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (20) DATA DIRECTORY = 'MYSQL_TMP_DIR/p2_dir/' ENGINE = InnoDB) */
 ALTER TABLE t2 EXCHANGE PARTITION p1 WITH TABLE t1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `a` int unsigned NOT NULL AUTO_INCREMENT,
   `b` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/t1_dir/'
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/t1_dir/'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `a` int unsigned NOT NULL AUTO_INCREMENT,
   `b` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p1 VALUES LESS THAN (10) DATA DIRECTORY = 'MYSQL_TMP_DIR/p1_dir/' ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (20) DATA DIRECTORY = 'MYSQL_TMP_DIR/p2_dir/' ENGINE = InnoDB) */
 # List files from t1_dir/test
@@ -1891,17 +1883,17 @@ insert into t1 values(1,'1987-05-10 '),(2,'1987-05-08');
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `purchased` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/t1_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/t1_dir/'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `purchased` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE ( YEAR(purchased))
-SUBPARTITION BY HASH ( TO_DAYS(purchased))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`purchased`))
+SUBPARTITION BY HASH (to_days(`purchased`))
 (PARTITION p0 VALUES LESS THAN (1990)
  (SUBPARTITION s0 DATA DIRECTORY = 'MYSQL_TMP_DIR/sp0_dir/' ENGINE = InnoDB,
   SUBPARTITION s1 ENGINE = InnoDB),
@@ -1934,17 +1926,17 @@ t2#P#p1#SP#s3.ibd
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `purchased` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/sp0_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/sp0_dir/'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `purchased` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE ( YEAR(purchased))
-SUBPARTITION BY HASH ( TO_DAYS(purchased))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`purchased`))
+SUBPARTITION BY HASH (to_days(`purchased`))
 (PARTITION p0 VALUES LESS THAN (1990)
  (SUBPARTITION s0 DATA DIRECTORY = 'MYSQL_TMP_DIR/t1_dir/' ENGINE = InnoDB,
   SUBPARTITION s1 ENGINE = InnoDB),
@@ -1955,17 +1947,17 @@ ALTER TABLE t2 EXCHANGE PARTITION s0 WITH TABLE t1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `purchased` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/t1_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/t1_dir/'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `purchased` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE ( YEAR(purchased))
-SUBPARTITION BY HASH ( TO_DAYS(purchased))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`purchased`))
+SUBPARTITION BY HASH (to_days(`purchased`))
 (PARTITION p0 VALUES LESS THAN (1990)
  (SUBPARTITION s0 DATA DIRECTORY = 'MYSQL_TMP_DIR/sp0_dir/' ENGINE = InnoDB,
   SUBPARTITION s1 ENGINE = InnoDB),
@@ -2000,17 +1992,17 @@ t1.ibd
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `purchased` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/sp3_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/sp3_dir/'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `purchased` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE ( YEAR(purchased))
-SUBPARTITION BY HASH ( TO_DAYS(purchased))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`purchased`))
+SUBPARTITION BY HASH (to_days(`purchased`))
 (PARTITION p0 VALUES LESS THAN (1990)
  (SUBPARTITION s0 DATA DIRECTORY = 'MYSQL_TMP_DIR/sp0_dir/' ENGINE = InnoDB,
   SUBPARTITION s1 ENGINE = InnoDB),
@@ -2021,17 +2013,17 @@ ALTER TABLE t2 EXCHANGE PARTITION s3 WITH TABLE t1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `purchased` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/t1_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/t1_dir/'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `purchased` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE ( YEAR(purchased))
-SUBPARTITION BY HASH ( TO_DAYS(purchased))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`purchased`))
+SUBPARTITION BY HASH (to_days(`purchased`))
 (PARTITION p0 VALUES LESS THAN (1990)
  (SUBPARTITION s0 DATA DIRECTORY = 'MYSQL_TMP_DIR/sp0_dir/' ENGINE = InnoDB,
   SUBPARTITION s1 ENGINE = InnoDB),
@@ -2045,6 +2037,24 @@ t2#P#p0#SP#s0.ibd
 # List files from sp3_dir/test
 t2#P#p1#SP#s3.ibd
 DROP table t1,t2;
+check table_id after exchange partition
+CREATE TABLE t1 (a INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, b VARCHAR(64)) ENGINE = INNODB ;
+CREATE TABLE t2 (a INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, b VARCHAR(64)) ENGINE = INNODB PARTITION BY LIST (a) (PARTITION p1 VALUES IN (1,3,5,7,9) ,PARTITION p2 VALUES IN (0,2,4,6,8) );
+ALTER TABLE t2 EXCHANGE PARTITION p1 WITH TABLE t1;
+include/assert.inc [Table id of t2 exchanged with t1]
+add column after exchange partition
+ALTER TABLE t2 ADD COLUMN j INT,ALGORITHM=INSTANT;
+ALTER TABLE t2 ADD COLUMN k INT,ALGORITHM=COPY;
+DROP TABLE t1,t2;
+exchange second partition
+CREATE TABLE t1 (a INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, b VARCHAR(64)) ENGINE = INNODB ;
+CREATE TABLE t2 (a INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, b VARCHAR(64)) ENGINE = INNODB PARTITION BY LIST (a) (PARTITION p1 VALUES IN (1,3,5,7,9) ,PARTITION p2 VALUES IN (0,2,4,6,8) );
+ALTER TABLE t2 EXCHANGE PARTITION p2 WITH TABLE t1;
+include/assert.inc [Table id of t2  is same after exchange it's 2nd partition with table t1]
+add column after exchange partition
+ALTER TABLE t2 ADD COLUMN j INT,ALGORITHM=INSTANT;
+ALTER TABLE t2 ADD COLUMN k INT,ALGORITHM=COPY;
+DROP TABLE t1,t2;
 #
 Bug#28687608 exchange partition with different row_format
 #
@@ -2065,7 +2075,7 @@ INSERT INTO t1 VALUES ('2','1962-11-23 11:06:06');
 SET GLOBAL innodb_default_row_format=DYNAMIC;
 ALTER TABLE t1 ADD PARTITION (PARTITION p2 VALUES LESS THAN ('2000-01-01'));
 INSERT INTO t1 VALUES ('3','1999-10-13 05:28:46'), ('4', '1996-09-26 20:00:00');
-SELECT NAME,ROW_FORMAT  FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+SELECT NAME,ROW_FORMAT  FROM INFORMATION_SCHEMA.INNODB_TABLES
 WHERE NAME LIKE '%t1%' ORDER BY TABLE_ID;
 NAME	ROW_FORMAT
 test/t1#P#p0	Compact
@@ -2096,7 +2106,7 @@ ALTER TABLE t1 ADD PARTITION (PARTITION p2 VALUES LESS THAN (300)
 SUBPARTITION sp5));
 INSERT INTO t1(b,a) VALUES('first',40),('second',91),('third',140),
 ('forth',191);
-SELECT NAME,ROW_FORMAT  FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+SELECT NAME,ROW_FORMAT  FROM INFORMATION_SCHEMA.INNODB_TABLES
 WHERE NAME LIKE '%t1%' ORDER BY TABLE_ID;
 NAME	ROW_FORMAT
 test/t1#P#p0#SP#sp0	Compact

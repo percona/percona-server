@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -17,25 +17,26 @@
    GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef BOOTSTRAP_H
 #define BOOTSTRAP_H
 
-#include "my_global.h"
+#include "mysql/thread_type.h"  // enum_thread_type
 
-typedef struct st_mysql_file MYSQL_FILE;
+struct MYSQL_FILE;
 
-/**
-  Execute all commands from a file. Used by the mysql_install_db script to
-  create MySQL privilege tables without having to start a full MySQL server.
-*/
-int bootstrap(MYSQL_FILE *file);
+class THD;
 
-/**
-  Execute a single SQL command.
-*/
-int bootstrap_single_query(const char* query);
+namespace bootstrap {
 
-#endif // BOOTSTRAP_H
+/* Bootstrap handler functor */
+typedef bool (*bootstrap_functor)(THD *thd);
+
+bool run_bootstrap_thread(const char *filename, MYSQL_FILE *file,
+                          bootstrap_functor boot_handler,
+                          enum_thread_type thread_type);
+}  // namespace bootstrap
+
+#endif  // BOOTSTRAP_H

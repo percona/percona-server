@@ -1,8 +1,10 @@
+--source include/have_debug.inc
+
 #
 # Test the effect of various signals on the server
 #
 --let $test_error_log= $MYSQLTEST_VARDIR/tmp/test_threadpool_sig_handler.err
---let $restart_parameters=restart:--log-error=$test_error_log
+--let $restart_parameters=restart:--log-error=$test_error_log --debug=d,simulate_sighup_print_status
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --source include/restart_mysqld.inc
 
@@ -44,10 +46,10 @@ exec kill -TERM `cat $mysqld_pid_file`;
 # Test for SIGHUP output
 --let SEARCH_FILE=$test_error_log
 --let SEARCH_PATTERN=Status information:
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 # Test for SIGTERM output
 --let SEARCH_PATTERN=mysqld.*: Shutdown complete
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --remove_file $test_error_log

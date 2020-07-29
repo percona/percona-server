@@ -18,5 +18,8 @@ SELECT * FROM t1 WHERE a=1 FOR UPDATE;
 COMMIT;
 COMMIT;
 Grepping the error log for both deadlocked transaction queries
+Pattern "Transactions deadlock detected, dumping detailed information." found
+Pattern "SELECT \* FROM t1 WHERE a=0 FOR UPDATE" found
+Pattern "SELECT \* FROM t1 WHERE a=1 FOR UPDATE" found
 DROP TABLE t1;
 SET GLOBAL innodb_print_all_deadlocks = @saved_print_all_deadlocks;

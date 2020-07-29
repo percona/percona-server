@@ -14,7 +14,7 @@ id	code	name
 7	4	Matt
 update ignore t1 set id = 8, name = 'Sinisa' where id < 3;
 Warnings:
-Warning	1062	Duplicate entry '8' for key 'PRIMARY'
+Warning	1062	Duplicate entry '8' for key 't1.PRIMARY'
 select id, code, name from t1 order by id;
 id	code	name
 2	1	Monty
@@ -26,7 +26,7 @@ id	code	name
 8	1	Sinisa
 update ignore t1 set id = id + 10, name = 'Ralph' where id < 4;
 Warnings:
-Warning	1062	Duplicate entry 'Ralph' for key 'name'
+Warning	1062	Duplicate entry 'Ralph' for key 't1.name'
 select id, code, name from t1 order by id;
 id	code	name
 3	2	David
@@ -45,6 +45,10 @@ PRIMARY KEY (id),
 KEY parent_id (parent_id),
 KEY level (level)
 ) engine=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,0,0),(3,1,1),(4,1,1),(8,2,2),(9,2,2),(17,3,2),(22,4,2),(24,4,2),(28,5,2),(29,5,2),(30,5,2),(31,6,2),(32,6,2),(33,6,2),(203,7,2),(202,7,2),(20,3,2),(157,0,0),(193,5,2),(40,7,2),(2,1,1),(15,2,2),(6,1,1),(34,6,2),(35,6,2),(16,3,2),(7,1,1),(36,7,2),(18,3,2),(26,5,2),(27,5,2),(183,4,2),(38,7,2),(25,5,2),(37,7,2),(21,4,2),(19,3,2),(5,1,1),(179,5,2);
 update t1 set parent_id=parent_id+100;
 select * from t1 where parent_id=102;
@@ -98,33 +102,33 @@ id	parent_id	level
 1179	105	2
 update ignore t1 set id=id+1;
 Warnings:
-Warning	1062	Duplicate entry '1002' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1004' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1005' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1009' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1018' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1025' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1029' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1030' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1031' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1032' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1033' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1034' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1021' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1003' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1016' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1007' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1035' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1036' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1017' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1008' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1037' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1019' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1027' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1028' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1026' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1020' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1006' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1002' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1004' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1005' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1009' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1018' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1025' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1029' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1030' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1031' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1032' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1033' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1034' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1021' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1003' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1016' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1007' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1035' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1036' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1017' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1008' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1037' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1019' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1027' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1028' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1026' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1020' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '1006' for key 't1.PRIMARY'
 select * from t1;
 id	parent_id	level
 1001	100	0
@@ -168,7 +172,7 @@ id	parent_id	level
 1180	105	2
 update ignore t1 set id=1023 where id=1010;
 Warnings:
-Warning	1062	Duplicate entry '1023' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1023' for key 't1.PRIMARY'
 select * from t1 where parent_id=102;
 id	parent_id	level
 1008	102	2
@@ -209,16 +213,19 @@ optimize table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	id	A	#	NULL	NULL		BTREE		
-t1	1	parent_id	1	parent_id	A	#	NULL	NULL		BTREE		
-t1	1	level	1	level	A	#	NULL	NULL		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	id	A	#	NULL	NULL		BTREE			YES	NULL
+t1	1	parent_id	1	parent_id	A	#	NULL	NULL		BTREE			YES	NULL
+t1	1	level	1	level	A	#	NULL	NULL		BTREE			YES	NULL
 drop table t1;
 CREATE TABLE t1 (
 gesuchnr int(11) DEFAULT '0' NOT NULL,
 benutzer_id int(11) DEFAULT '0' NOT NULL,
 PRIMARY KEY (gesuchnr,benutzer_id)
 ) engine=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 replace into t1 (gesuchnr,benutzer_id) values (2,1);
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
@@ -252,8 +259,8 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	1	skr	1	a	A	#	NULL	NULL	YES	BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	skr	1	a	A	#	NULL	NULL	YES	BTREE			YES	NULL
 drop table t1;
 create table t1 (a int,b varchar(20),key(a)) engine=MyISAM;
 insert into t1 values (1,""), (2,"testing");
@@ -269,6 +276,8 @@ ref_email varchar(100) DEFAULT '' NOT NULL,
 detail varchar(200),
 PRIMARY KEY (user_id,ref_email)
 )engine=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (10292,'sanjeev','29153373','sansh777@hotmail.com','xxx'),(10292,'shirish','2333604','shirish@yahoo.com','ddsds'),(10292,'sonali','323232','sonali@bolly.com','filmstar');
 select * from t1 where user_id=10292;
 user_id	name	phone	ref_email	detail
@@ -295,21 +304,19 @@ user_id	name	phone	ref_email	detail
 10291	sanjeev	29153373	sansh777@hotmail.com	xxx
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (a int not null, b int not null,c int not null,
 key(a),primary key(a,b), unique(c),key(a),unique(b)) ENGINE = MyISAM;
 Warnings:
 Warning	1831	Duplicate index 'a_2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 SET sql_mode = default;
 show index from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	a	A	#	NULL	NULL		BTREE		
-t1	0	PRIMARY	2	b	A	#	NULL	NULL		BTREE		
-t1	0	c	1	c	A	#	NULL	NULL		BTREE		
-t1	0	b	1	b	A	#	NULL	NULL		BTREE		
-t1	1	a	1	a	A	#	NULL	NULL		BTREE		
-t1	1	a_2	1	a	A	#	NULL	NULL		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	a	A	#	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	2	b	A	#	NULL	NULL		BTREE			YES	NULL
+t1	0	c	1	c	A	#	NULL	NULL		BTREE			YES	NULL
+t1	0	b	1	b	A	#	NULL	NULL		BTREE			YES	NULL
+t1	1	a	1	a	A	#	NULL	NULL		BTREE			YES	NULL
+t1	1	a_2	1	a	A	#	NULL	NULL		BTREE			YES	NULL
 drop table t1;
 create table t1 (col1 int not null, col2 char(4) not null, primary key(col1)) ENGINE = MEMORY;
 alter table t1 engine=MyISAM;
@@ -383,12 +390,16 @@ passwd varchar(32) binary DEFAULT '' NOT NULL,
 PRIMARY KEY (id),
 UNIQUE ggid (ggid)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 insert into t1 (ggid,passwd) values ('test1','xxx');
 insert into t1 (ggid,passwd) values ('test2','yyy');
 insert into t1 (ggid,passwd) values ('test2','this will fail');
-ERROR 23000: Duplicate entry 'test2' for key 'ggid'
+ERROR 23000: Duplicate entry 'test2' for key 't1.ggid'
 insert into t1 (ggid,id) values ('this will fail',1);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 select * from t1 where ggid='test1';
 id	ggid	email	passwd
 1	test1		xxx
@@ -401,7 +412,7 @@ id	ggid	email	passwd
 replace into t1 (ggid,id) values ('this will work',1);
 replace into t1 (ggid,passwd) values ('test2','this will work');
 update t1 set id=100,ggid='test2' where id=1;
-ERROR 23000: Duplicate entry 'test2' for key 'ggid'
+ERROR 23000: Duplicate entry 'test2' for key 't1.ggid'
 select * from t1;
 id	ggid	email	passwd
 1	this will work		
@@ -425,6 +436,10 @@ approved datetime,
 dummy_primary_key int(11) NOT NULL auto_increment,
 PRIMARY KEY (dummy_primary_key)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES ('user_0','somepassword','N',0,0,0,'2000-09-07','23:06:59','2000-09-07 23:06:59',1);
 INSERT INTO t1 VALUES ('user_1','somepassword','Y',1,1,1,'2000-09-07','23:06:59','2000-09-07 23:06:59',2);
 INSERT INTO t1 VALUES ('user_2','somepassword','N',2,2,1.4142135623731,'2000-09-07','23:06:59','2000-09-07 23:06:59',3);
@@ -446,6 +461,10 @@ KEY (id),
 KEY parent_id (parent_id),
 KEY level (level)
 ) engine=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,0,0),(3,1,1),(4,1,1),(8,2,2),(9,2,2),(17,3,2),(22,4,2),(24,4,2),(28,5,2),(29,5,2),(30,5,2),(31,6,2),(32,6,2),(33,6,2),(203,7,2),(202,7,2),(20,3,2),(157,0,0),(193,5,2),(40,7,2),(2,1,1),(15,2,2),(6,1,1),(34,6,2),(35,6,2),(16,3,2),(7,1,1),(36,7,2),(18,3,2),(26,5,2),(27,5,2),(183,4,2),(38,7,2),(25,5,2),(37,7,2),(21,4,2),(19,3,2),(5,1,1);
 INSERT INTO t1 values (179,5,2);
 update t1 set parent_id=parent_id+100;
@@ -683,8 +702,8 @@ optimize table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	a	A	#	NULL	NULL		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	a	A	#	NULL	NULL		BTREE			YES	NULL
 drop table t1;
 create table t1 (i int, j int ) ENGINE=MyISAM;
 insert into t1 values (1,2);
@@ -712,13 +731,13 @@ explain select * from t1 where a > 0 and a < 50;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	PRIMARY	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b`,'1' AS `c`,'1' AS `d`,'1' AS `e`,'1' AS `f`,'1' AS `g`,'1' AS `h`,'1' AS `i`,'1' AS `j`,'1' AS `k`,'1' AS `l`,'1' AS `m`,'1' AS `n`,'1' AS `o`,'1' AS `p`,'1' AS `q`,'1' AS `r`,'1' AS `s`,'1' AS `t`,'1' AS `u`,'1' AS `v`,'1' AS `w`,'1' AS `x`,'1' AS `y`,'1' AS `z`,'1' AS `a1`,'1' AS `a2`,'1' AS `a3`,'1' AS `a4`,'1' AS `a5`,'1' AS `a6`,'1' AS `a7`,'1' AS `a8`,'1' AS `a9`,'1' AS `b1`,'1' AS `b2`,'1' AS `b3`,'1' AS `b4`,'1' AS `b5`,'1' AS `b6` from dual where (('1' > 0) and ('1' < 50))
+Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b`,'1' AS `c`,'1' AS `d`,'1' AS `e`,'1' AS `f`,'1' AS `g`,'1' AS `h`,'1' AS `i`,'1' AS `j`,'1' AS `k`,'1' AS `l`,'1' AS `m`,'1' AS `n`,'1' AS `o`,'1' AS `p`,'1' AS `q`,'1' AS `r`,'1' AS `s`,'1' AS `t`,'1' AS `u`,'1' AS `v`,'1' AS `w`,'1' AS `x`,'1' AS `y`,'1' AS `z`,'1' AS `a1`,'1' AS `a2`,'1' AS `a3`,'1' AS `a4`,'1' AS `a5`,'1' AS `a6`,'1' AS `a7`,'1' AS `a8`,'1' AS `a9`,'1' AS `b1`,'1' AS `b2`,'1' AS `b3`,'1' AS `b4`,'1' AS `b5`,'1' AS `b6` from dual where true
 drop table t1;
 create table t1 (id int NOT NULL,id2 int NOT NULL,id3 int NOT NULL,dummy1 char(30),primary key (id,id2),index index_id3 (id3)) engine=MyISAM;
 insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJKL');
 LOCK TABLES t1 WRITE;
 insert into t1 values (99,1,2,'D'),(1,1,2,'D');
-ERROR 23000: Duplicate entry '1-1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1-1' for key 't1.PRIMARY'
 select id from t1;
 id
 0
@@ -738,7 +757,7 @@ insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJ
 LOCK TABLES t1 WRITE;
 begin;
 insert into t1 values (99,1,2,'D'),(1,1,2,'D');
-ERROR 23000: Duplicate entry '1-1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1-1' for key 't1.PRIMARY'
 select id from t1;
 id
 0
@@ -747,7 +766,7 @@ id
 99
 insert ignore into t1 values (100,1,2,'D'),(1,1,99,'D');
 Warnings:
-Warning	1062	Duplicate entry '1-1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1-1' for key 't1.PRIMARY'
 commit;
 select id,id3 from t1;
 id	id3
@@ -766,7 +785,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(20) DEFAULT NULL,
   KEY `a` (`a`(5))
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create temporary table t1 (a int not null auto_increment, primary key(a)) engine=MyISAM;
 insert into t1 values (NULL),(NULL),(NULL);
@@ -894,11 +913,9 @@ drop table t1;
 create table t1 (t int not null default 1, key (t)) engine=MyISAM;
 desc t1;
 Field	Type	Null	Key	Default	Extra
-t	int(11)	NO	MUL	1	
+t	int	NO	MUL	1	
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 number bigint(20) NOT NULL default '0',
 cname char(15) NOT NULL default '',
@@ -912,6 +929,15 @@ version smallint(6) NOT NULL default '0',
 assigned_scps int(11) default '0',
 status tinyint(4) default '0'
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (4077711111,'SeanWheeler',90,2,20020111112846,500,00000000000000,-1,2,3,1);
 INSERT INTO t1 VALUES (9197722223,'berry',90,3,20020111112809,500,20020102114532,501,4,10,0);
 INSERT INTO t1 VALUES (650,'San Francisco',0,0,20011227111336,342,00000000000000,-1,1,24,1);
@@ -931,6 +957,15 @@ version smallint(6) NOT NULL default '0',
 assigned_scps int(11) default '0',
 status tinyint(4) default '0'
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (4077711111,'SeanWheeler',0,2,20020111112853,500,00000000000000,-1,2,3,1);
 INSERT INTO t2 VALUES (9197722223,'berry',90,3,20020111112818,500,20020102114532,501,4,10,0);
 INSERT INTO t2 VALUES (650,'San Francisco',90,0,20020109113158,342,00000000000000,-1,1,24,1);
@@ -965,12 +1000,9 @@ SET sql_mode = default;
 create table t1 (id int unsigned not null auto_increment, code tinyint unsigned not null, name char(20) not null, primary key (id), key (code), unique (name)) engine=MyISAM;
 BEGIN;
 SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
-SELECT @@tx_isolation,@@global.tx_isolation;
-@@tx_isolation	@@global.tx_isolation
+SELECT @@transaction_isolation, @@global.transaction_isolation;
+@@transaction_isolation	@@global.transaction_isolation
 SERIALIZABLE	REPEATABLE-READ
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 insert into t1 (code, name) values (1, 'Tim'), (1, 'Monty'), (2, 'David');
 select id, code, name from t1 order by id;
 id	code	name
@@ -1004,7 +1036,13 @@ id	code	name
 COMMIT;
 DROP TABLE t1;
 create table t1 (n int(10), d int(10)) engine=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t2 (n int(10), d int(10)) engine=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values(1,1),(1,2);
 insert into t2 values(1,10),(2,20);
 UPDATE t1,t2 SET t1.d=t2.d,t2.d=30 WHERE t1.n=t2.n;
@@ -1208,6 +1246,8 @@ create table t1 (a int not null, b int not null, key (a)) engine=MyISAM;
 insert into t1 values (1,1),(1,2),(1,3),(3,1),(3,2),(3,3),(3,1),(3,2),(3,3),(2,1),(2,2),(2,3);
 SET @tmp=0;
 update t1 set b=(@tmp:=@tmp+1) order by a;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 update t1 set b=99 where a=1 order by b asc limit 1;
 update t1 set b=100 where a=1 order by b desc limit 2;
 update t1 set a=a+10+b where a=1 order by b;
@@ -1248,8 +1288,12 @@ a
 2
 drop table t1;
 CREATE TABLE t1 (col1 int(1))ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (col1 int(1),stamp TIMESTAMP,INDEX stamp_idx
 (stamp))ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (1),(2),(3);
 insert into t2 values (1, 20020204130000),(2, 20020204130000),(4,20020204310000 ),(5,20020204230000);
 Warnings:
@@ -1272,6 +1316,10 @@ PRIMARY KEY  (`id`),
 KEY `id_object` (`id_object`),
 KEY `id_version` (`id_version`)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES("6", "3382", "9", "Test", NULL), ("7", "102", "5", "Le Pekin (Test)", NULL),("584", "1794", "4", "Test de resto", NULL),("837", "1822", "6", "Test 3", NULL),("1119", "3524", "1", "Societe Test", NULL),("1122", "3525", "1", "Fournisseur Test", NULL);
 CREATE TABLE t2 (
 `id` int(10) unsigned NOT NULL auto_increment,
@@ -1279,6 +1327,9 @@ CREATE TABLE t2 (
 PRIMARY KEY  (`id`),
 KEY `id_version` (`id_version`)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES("3524", "1"),("3525", "1"),("1794", "4"),("102", "5"),("1822", "6"),("3382", "9");
 SELECT t2.id, t1.`label` FROM t2 INNER JOIN
 (SELECT t1.id_object as id_object FROM t1 WHERE t1.`label` LIKE '%test%') AS lbl
@@ -1356,8 +1407,8 @@ create table t2 like t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `a` int DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1,t2;
 flush status;
 show status like "binlog_cache_use";
@@ -1402,6 +1453,9 @@ alter table t1 add key (c1,c1,c2);
 ERROR 42S21: Duplicate column name 'c1'
 drop table t1;
 create table t1(a int(1) , b int(1)) engine=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values ('1111', '3333');
 select distinct concat(a, b) from t1;
 concat(a, b)
@@ -1468,9 +1522,9 @@ count(*)
 0
 explain select count(*) from t1 where x > -16;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	8	NULL	2	50.00	Using where; Using index
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where (`test`.`t1`.`x` > <cache>(-(16)))
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where true
 select count(*) from t1 where x > -16;
 count(*)
 2
@@ -1502,7 +1556,7 @@ t1	CREATE TABLE `t1` (
   `v` varchar(10) DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `t` text
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create table t2 like t1;
 show create table t2;
 Table	Create Table
@@ -1510,7 +1564,7 @@ t2	CREATE TABLE `t2` (
   `v` varchar(10) DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `t` text
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create table t3 select * from t1;
 show create table t3;
 Table	Create Table
@@ -1518,7 +1572,7 @@ t3	CREATE TABLE `t3` (
   `v` varchar(10) DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `t` text
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 modify c varchar(10);
 show create table t1;
 Table	Create Table
@@ -1526,7 +1580,7 @@ t1	CREATE TABLE `t1` (
   `v` varchar(10) DEFAULT NULL,
   `c` varchar(10) DEFAULT NULL,
   `t` text
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 modify v char(10);
 show create table t1;
 Table	Create Table
@@ -1534,7 +1588,7 @@ t1	CREATE TABLE `t1` (
   `v` char(10) DEFAULT NULL,
   `c` varchar(10) DEFAULT NULL,
   `t` text
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 modify t varchar(10);
 Warnings:
 Note	1265	Data truncated for column 't' at row 2
@@ -1544,13 +1598,14 @@ t1	CREATE TABLE `t1` (
   `v` char(10) DEFAULT NULL,
   `c` varchar(10) DEFAULT NULL,
   `t` varchar(10) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select concat('*',v,'*',c,'*',t,'*') from t1;
 concat('*',v,'*',c,'*',t,'*')
 *+*+*+ *
 *+*+*+         *
 drop table t1,t2,t3;
-create table t1 (v varchar(10), c char(10), t text, key(v), key(c), key(t(10))) stats_persistent=0;
+create table t1 (v varchar(10), c char(10), t text, key(v), key(c), key(t(10)))
+stats_persistent=0 charset latin1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1632,7 +1687,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`v` between 'a' and 'a ') and (`test`.`t1`.`v` between 'a  ' and 'b\n'))
 alter table t1 add unique(v);
-ERROR 23000: Duplicate entry '{ ' for key 'v_2'
+ERROR 23000: Duplicate entry '{ ' for key 't1.v_2'
 alter table t1 add key(v);
 Warnings:
 Warning	1831	Duplicate index 'v_2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
@@ -1653,8 +1708,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	v,v_2	#	13	const	#	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`t` AS `t` from `test`.`t1` where (`test`.`t1`.`v` = 'a')
-select v,count(*) from t1 group by v limit 10;
-v	count(*)
+select TRIM(v),count(*) from t1 group by TRIM(v) order by TRIM(v) limit 10;
+TRIM(v)	count(*)
 a	1
 a	10
 b	10
@@ -1665,8 +1720,8 @@ f	10
 g	10
 h	10
 i	10
-select v,count(t) from t1 group by v limit 10;
-v	count(t)
+select TRIM(v),count(t) from t1 group by TRIM(v) order by TRIM(v) limit 10;
+TRIM(v)	count(t)
 a	1
 a	10
 b	10
@@ -1677,8 +1732,8 @@ f	10
 g	10
 h	10
 i	10
-select v,count(c) from t1 group by v limit 10;
-v	count(c)
+select TRIM(v),count(c) from t1 group by TRIM(v) order by TRIM(v) limit 10;
+TRIM(v)	count(c)
 a	1
 a	10
 b	10
@@ -1689,8 +1744,8 @@ f	10
 g	10
 h	10
 i	10
-select sql_big_result v,count(t) from t1 group by v limit 10;
-v	count(t)
+select sql_big_result TRIM(v),count(t) from t1 group by TRIM(v) order by TRIM(v) limit 10;
+TRIM(v)	count(t)
 a	1
 a	10
 b	10
@@ -1701,8 +1756,8 @@ f	10
 g	10
 h	10
 i	10
-select sql_big_result v,count(c) from t1 group by v limit 10;
-v	count(c)
+select sql_big_result TRIM(v),count(c) from t1 group by TRIM(v) order by TRIM(v) limit 10;
+TRIM(v)	count(c)
 a	1
 a	10
 b	10
@@ -1713,7 +1768,7 @@ f	10
 g	10
 h	10
 i	10
-select c,count(*) from t1 group by c limit 10;
+select c,count(*) from t1 group by c order by c limit 10;
 c	count(*)
 a	1
 a	10
@@ -1725,7 +1780,7 @@ f	10
 g	10
 h	10
 i	10
-select c,count(t) from t1 group by c limit 10;
+select c,count(t) from t1 group by c order by c limit 10;
 c	count(t)
 a	1
 a	10
@@ -1749,8 +1804,8 @@ f	10
 g	10
 h	10
 i	10
-select t,count(*) from t1 group by t limit 10;
-t	count(*)
+select TRIM(t),count(*) from t1 group by TRIM(t) order by TRIM(t) limit 10;
+TRIM(t)	count(*)
 a	1
 a	10
 b	10
@@ -1761,8 +1816,8 @@ f	10
 g	10
 h	10
 i	10
-select t,count(t) from t1 group by t limit 10;
-t	count(t)
+select TRIM(t),count(t) from t1 group by TRIM(t) order by TRIM(t) limit 10;
+TRIM(t)	count(t)
 a	1
 a	10
 b	10
@@ -1773,8 +1828,8 @@ f	10
 g	10
 h	10
 i	10
-select sql_big_result t,count(t) from t1 group by t limit 10;
-t	count(t)
+select sql_big_result TRIM(t),count(t) from t1 group by TRIM(t) order by TRIM(t) limit 10;
+TRIM(t)	count(t)
 a	1
 a	10
 b	10
@@ -1839,7 +1894,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	v	v	303	const	#	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`t` AS `t` from `test`.`t1` where (`test`.`t1`.`v` = 'a')
-select v,count(*) from t1 group by v limit 10;
+select v,count(*) from t1 group by v order by v limit 10;
 v	count(*)
 a	1
 a	10
@@ -1851,8 +1906,8 @@ f	10
 g	10
 h	10
 i	10
-select v,count(t) from t1 group by v limit 10;
-v	count(t)
+select TRIM(v),count(t) from t1 group by v order by v limit 10;
+TRIM(v)	count(t)
 a	1
 a	10
 b	10
@@ -1863,8 +1918,8 @@ f	10
 g	10
 h	10
 i	10
-select sql_big_result v,count(t) from t1 group by v limit 10;
-v	count(t)
+select sql_big_result TRIM(v),count(t) from t1 group by v order by v limit 10;
+TRIM(v)	count(t)
 a	1
 a	10
 b	10
@@ -1911,7 +1966,7 @@ Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where (`test`.`t1`.`v` = 'a  ')
 explain select count(*) from t1 where v like 'a%';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	v	v	33	NULL	#	100.00	Using where
+1	SIMPLE	t1	NULL	range	v	v	33	NULL	#	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where (`test`.`t1`.`v` like 'a%')
 explain select count(*) from t1 where v between 'a' and 'a ';
@@ -1929,8 +1984,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	v	v	33	const	#	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`t` AS `t` from `test`.`t1` where (`test`.`t1`.`v` = 'a')
-select v,count(*) from t1 group by v limit 10;
-v	count(*)
+select TRIM(v),count(*) from t1 group by v order by v limit 10;
+TRIM(v)	count(*)
 a	1
 a	10
 b	10
@@ -1941,8 +1996,8 @@ f	10
 g	10
 h	10
 i	10
-select v,count(t) from t1 group by v limit 10;
-v	count(t)
+select TRIM(v),count(t) from t1 group by v order by v limit 10;
+TRIM(v)	count(t)
 a	1
 a	10
 b	10
@@ -1953,8 +2008,8 @@ f	10
 g	10
 h	10
 i	10
-select sql_big_result v,count(t) from t1 group by v limit 10;
-v	count(t)
+select sql_big_result TRIM(v),count(t) from t1 group by v order by v limit 10;
+TRIM(v)	count(t)
 a	1
 a	10
 b	10
@@ -1976,8 +2031,8 @@ t1	CREATE TABLE `t1` (
   KEY `t` (`t`(10)),
   KEY `v` (`v`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
-select v,count(*) from t1 group by v limit 10;
-v	count(*)
+select TRIM(v),count(*) from t1 group by v order by v limit 10;
+TRIM(v)	count(*)
 a	1
 a	10
 b	10
@@ -1988,8 +2043,8 @@ f	10
 g	10
 h	10
 i	10
-select v,count(t) from t1 group by v limit 10;
-v	count(t)
+select TRIM(v),count(t) from t1 group by v order by v limit 10;
+TRIM(v)	count(t)
 a	1
 a	10
 b	10
@@ -2000,8 +2055,8 @@ f	10
 g	10
 h	10
 i	10
-select sql_big_result v,count(t) from t1 group by v limit 10;
-v	count(t)
+select sql_big_result TRIM(v),count(t) from t1 group by v order by v limit 10;
+TRIM(v)	count(t)
 a	1
 a	10
 b	10
@@ -2013,19 +2068,20 @@ g	10
 h	10
 i	10
 drop table t1;
+SET NAMES utf8mb4;
 create table t1 (a char(10), unique (a));
 insert into t1 values ('a   ');
 insert into t1 values ('a ');
-ERROR 23000: Duplicate entry 'a' for key 'a'
+ERROR 23000: Duplicate entry 'a' for key 't1.a'
 alter table t1 modify a varchar(10);
-insert into t1 values ('a '),('a  '),('a   '),('a         ');
-ERROR 23000: Duplicate entry 'a ' for key 'a'
-insert into t1 values ('a     ');
-ERROR 23000: Duplicate entry 'a     ' for key 'a'
-insert into t1 values ('a          ');
-ERROR 23000: Duplicate entry 'a         ' for key 'a'
-insert into t1 values ('a ');
-ERROR 23000: Duplicate entry 'a ' for key 'a'
+insert into t1 values ('a'),('á'),('à'),('å');
+ERROR 23000: Duplicate entry 'a' for key 't1.a'
+insert into t1 values ('á');
+ERROR 23000: Duplicate entry 'á' for key 't1.a'
+insert into t1 values ('A');
+ERROR 23000: Duplicate entry 'A' for key 't1.a'
+insert into t1 values ('å');
+ERROR 23000: Duplicate entry 'å' for key 't1.a'
 update t1 set a='a  ' where a like 'a%';
 select concat(a,'.') from t1;
 concat(a,'.')
@@ -2043,6 +2099,7 @@ select concat(a,'.') from t1;
 concat(a,'.')
 a  .
 drop table t1;
+SET NAMES DEFAULT;
 create table t1 (v varchar(10), c char(10), t text, key(v(5)), key(c(5)), key(t(5)));
 show create table t1;
 Table	Create Table
@@ -2053,14 +2110,16 @@ t1	CREATE TABLE `t1` (
   KEY `v` (`v`(5)),
   KEY `c` (`c`(5)),
   KEY `t` (`t`(5))
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (v char(10) character set utf8);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` char(10) CHARACTER SET utf8 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `v` char(10) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (v varchar(10), c char(10)) row_format=fixed;
 show create table t1;
@@ -2068,14 +2127,14 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `v` varchar(10) DEFAULT NULL,
   `c` char(10) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 ROW_FORMAT=FIXED
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=FIXED
 insert into t1 values('a','a'),('a ','a ');
 select concat('*',v,'*',c,'*') from t1;
 concat('*',v,'*',c,'*')
 *a*a*
 *a *a*
 drop table t1;
-create table t1 (v varchar(65530), key(v(10)));
+create table t1 (v varchar(65530), key(v(10))) charset latin1;
 insert into t1 values(repeat('a',65530));
 select length(v) from t1 where v=repeat('a',65530);
 length(v)
@@ -2085,17 +2144,15 @@ create table t1(a int, b varchar(12), key ba(b, a));
 insert into t1 values (1, 'A'), (20, NULL);
 explain select * from t1 where a=20 and b is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	ba	ba	20	const,const	1	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	ref	ba	ba	56	const,const	1	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` = 20) and isnull(`test`.`t1`.`b`))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` = 20) and (`test`.`t1`.`b` is null))
 select * from t1 where a=20 and b is null;
 a	b
 20	NULL
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-create table t1 (v varchar(65530), key(v));
+create table t1 (v varchar(65530), key(v)) charset latin1;
 Warnings:
 Warning	1071	Specified key was too long; max key length is 1000 bytes
 drop table t1;
@@ -2106,20 +2163,21 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `v` mediumtext
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (v varchar(65530) character set utf8);
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Note	1246	Converting column 'v' from VARCHAR to TEXT
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` mediumtext CHARACTER SET utf8
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `v` mediumtext CHARACTER SET utf8 COLLATE utf8_general_ci
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 SET sql_mode = default;
 set default_storage_engine=MEMORY;
-create table t1 (v varchar(16384)) engine=MyISAM;
+create table t1 (v varchar(16384)) charset latin1 engine=MyISAM;
 drop table t1;
 create table t1 (a char(1), b char(1), key(a, b)) engine=MyISAM;
 insert into t1 values ('8', '6'), ('4', '7');
@@ -2131,6 +2189,9 @@ min(b)
 6
 drop table t1;
 CREATE TABLE t1 ( `a` int(11) NOT NULL auto_increment, `b` int(11) default NULL,PRIMARY KEY  (`a`),UNIQUE KEY `b` (`b`)) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 (b) values (1);
 replace into t1 (b) values (2), (1), (3);
 select * from t1;
@@ -2154,7 +2215,7 @@ key (rowid), unique(val)) engine=MyISAM;
 replace into t1 (val) values ('1'),('2');
 replace into t1 (val) values ('1'),('2');
 insert into t1 (val) values ('1'),('2');
-ERROR 23000: Duplicate entry '1' for key 'val'
+ERROR 23000: Duplicate entry '1' for key 't1.val'
 select * from t1;
 rowid	val
 3	1

@@ -1,21 +1,16 @@
 #
 # Test heap tables with variable-sized records.
 #
---source include/have_innodb.inc
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
 
 set @@session.max_heap_table_size=16*1024*1024;
 
 --error 1234
-CREATE TABLE t1 (a INT NOT NULL, b VARCHAR(400), c INT, PRIMARY KEY (a), KEY (c)) ENGINE=HEAP COMMENT="testing heaps" KEY_BLOCK_SIZE=128;
+CREATE TABLE t1 (a INT NOT NULL, b VARCHAR(400), c INT, PRIMARY KEY (a), KEY (c)) ENGINE=HEAP COMMENT="testing heaps" KEY_BLOCK_SIZE=128 CHARACTER SET=latin1;
 
 --error 1234
-CREATE TABLE t1 (a INT NOT NULL, b INT, c VARCHAR(400), PRIMARY KEY (a), KEY (b)) ENGINE=HEAP COMMENT="testing heaps" KEY_BLOCK_SIZE=4;
+CREATE TABLE t1 (a INT NOT NULL, b INT, c VARCHAR(400), PRIMARY KEY (a), KEY (b)) ENGINE=HEAP COMMENT="testing heaps" KEY_BLOCK_SIZE=4 CHARACTER SET=latin1;
 
-CREATE TABLE t1 (a INT NOT NULL, b INT, c VARCHAR(400), d VARCHAR(400), PRIMARY KEY (a), KEY (b)) ENGINE=HEAP COMMENT="testing heaps" KEY_BLOCK_SIZE=24;
+CREATE TABLE t1 (a INT NOT NULL, b INT, c VARCHAR(400), d VARCHAR(400), PRIMARY KEY (a), KEY (b)) ENGINE=HEAP COMMENT="testing heaps" KEY_BLOCK_SIZE=24 CHARACTER SET=latin1;
 
 --replace_column 6 X 7 X 8 X 9 X 10 X 11 X 12 X 13 X 14 X
 --query_vertical SHOW TABLE STATUS LIKE "t1"
@@ -170,7 +165,7 @@ DROP TABLE t1;
 --echo #
 
 CREATE TABLE `t1` (
-  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `id` INT NOT NULL AUTO_INCREMENT,
   `json_column` TEXT,
   PRIMARY KEY (`id`)
 ) ENGINE=MEMORY;
@@ -202,7 +197,7 @@ DROP TABLE t1;
 --echo # PS-3943: Explicit key_block_size is kept and doesn't change
 --echo #
 CREATE TABLE `t1` (
-  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `id` INT NOT NULL AUTO_INCREMENT,
   `json_column` TEXT,
   PRIMARY KEY (`id`)
 ) ENGINE=MEMORY KEY_BLOCK_SIZE=200;

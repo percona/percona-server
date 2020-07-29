@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -18,14 +18,36 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-MYSQL_ADD_PLUGIN(test_framework test_framework.cc
-  MODULE_ONLY MODULE_OUTPUT_NAME "libtest_framework")
+# We are not interesting in profiling tests.
+DISABLE_MISSING_PROFILE_WARNING()
 
-MYSQL_ADD_PLUGIN(test_services test_services.cc
-  MODULE_ONLY MODULE_OUTPUT_NAME "libtest_services")
-
-MYSQL_ADD_PLUGIN(test_services_thread test_services_threaded.cc
-  MODULE_ONLY MODULE_OUTPUT_NAME "libtest_services_threaded")
-
+MYSQL_ADD_PLUGIN(test_framework
+  test_framework.cc
+  MODULE_ONLY
+  MODULE_OUTPUT_NAME "libtest_framework"
+  TEST_ONLY
+  )
+MYSQL_ADD_PLUGIN(test_services
+  test_services.cc
+  MODULE_ONLY
+  MODULE_OUTPUT_NAME "libtest_services"
+  TEST_ONLY
+  )
+MYSQL_ADD_PLUGIN(test_services_thread
+  test_services_threaded.cc
+  MODULE_ONLY
+  MODULE_OUTPUT_NAME "libtest_services_threaded"
+  TEST_ONLY
+  )
+MYSQL_ADD_PLUGIN(test_services_plugin_registry
+  test_services_plugin_registry.cc
+  MODULE_ONLY
+  TEST_ONLY
+  )
+MYSQL_ADD_PLUGIN(test_services_host_application_signal
+  test_services_host_application_signal.cc
+  MODULE_ONLY
+  TEST_ONLY
+  )

@@ -1,9 +1,8 @@
 --source include/have_keyring_vault_plugin.inc
---source include/not_embedded.inc
 --source include/not_repeat.inc
 
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not open file with credentials.'");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'File '../../../../../bad_dir/bad_keyring_vault.conf' not found");
+call mtr.add_suppression("Plugin keyring_vault reported: 'Could not open file with credentials.'");
+call mtr.add_suppression("Plugin keyring_vault reported: 'File '../../../../../bad_dir/bad_keyring_vault.conf' not found");
 
 --source generate_default_mount_conf_files.inc
 --source is_vault_server_up.inc

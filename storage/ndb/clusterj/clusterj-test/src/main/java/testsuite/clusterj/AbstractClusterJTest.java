@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,6 +59,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.TimeZone;
+import java.util.concurrent.TimeUnit;
 
 import junit.framework.TestCase;
 
@@ -69,6 +71,10 @@ public abstract class AbstractClusterJTest extends TestCase {
     /** My logger */
     static final Logger logger = LoggerFactoryService.getFactory()
             .getInstance("com.mysql.clusterj.test");
+
+    /** My class loader */
+    private static ClassLoader ABSTRACT_CLUSTERJ_TEST_CLASS_LOADER =
+            AbstractClusterJTest.class.getClassLoader();
 
     protected static final String JDBC_DRIVER_NAME = "jdbc.driverName";
     protected static final String JDBC_URL = "jdbc.url";
@@ -85,6 +91,7 @@ public abstract class AbstractClusterJTest extends TestCase {
     protected Session session;
     protected SessionFactory sessionFactory;
     protected Transaction tx;
+
     /**
      *
      * Error messages collected during a test.
@@ -235,6 +242,20 @@ public abstract class AbstractClusterJTest extends TestCase {
         }
     }
 
+    protected void verifyException(String message, Exception ex, String exceptionPattern) {
+        if(ex == null) {
+            error(message + ", didn't fail.");
+            return;
+        }
+        // Some exception messages have multiple lines.
+        // Enable single line mode in the expectedPattern regex to get a proper match.
+        exceptionPattern = "(?s)" + exceptionPattern;
+        if(!ex.getMessage().matches(exceptionPattern)) {
+            error(message + ", failed with wrong exception :");
+            error(ex.getMessage());
+        }
+    }
+
     protected void failOnError() {
         if (errorMessages != null) {
             fail(errorMessages.toString());
@@ -256,38 +277,15 @@ public abstract class AbstractClusterJTest extends TestCase {
         }
     }
 
-    /** Get a connection with special properties. If the connection is open,
-     * close it and get a new one.
-     * 
-     */
-    protected void getConnection(Properties extraProperties) {
-        // characterEncoding = utf8 property is especially useful
-        Properties properties = new Properties();
-        properties.put("user", jdbcUsername);
-        properties.put("password", jdbcPassword);
-        properties.putAll(extraProperties);
-        try {
-            if (connection != null && !connection.isClosed()) {
-                connection.close();
-                connection = null;
-            }
-            if (debug) System.out.println("Getting new connection with properties " + properties);
-            connection = DriverManager.getConnection(jdbcURL, properties);
-        } catch (SQLException ex) {
-            ex.printStackTrace();
-            throw new ClusterJException("Exception getting connection to " + jdbcURL + "; username " + jdbcUsername, ex);
-            // TODO Auto-generated catch block
-        }
-    }
-
     /** Get a connection with properties from the Properties instance.
      * 
      */
     protected Connection getConnection() {
+        Properties props = modifyProperties();
         if (connection == null) {
             try {
-                Class.forName(jdbcDriverName, true, Thread.currentThread().getContextClassLoader());
-                connection = DriverManager.getConnection(jdbcURL, jdbcUsername, jdbcPassword);
+                Class.forName(jdbcDriverName, true, ABSTRACT_CLUSTERJ_TEST_CLASS_LOADER);
+                connection = DriverManager.getConnection(jdbcURL, props);
             } catch (SQLException ex) {
                 throw new ClusterJException("Exception getting connection to " + jdbcURL + "; username " + jdbcUsername, ex);
             } catch (ClassNotFoundException ex) {
@@ -295,22 +293,6 @@ public abstract class AbstractClusterJTest extends TestCase {
             }
         }
         return connection;
-    }
-
-    /** Get a connection with properties from a file.
-     * 
-     * @param propertiesFileName the name of the properties file
-     */
-    protected void getConnection(String propertiesFileName) {
-        loadProperties(propertiesFileName);
-        loadDriver();
-        String url = props.getProperty(JDBC_URL);
-        try {
-            connection = DriverManager.getConnection(url);
-            setAutoCommit(connection, false);
-        } catch (SQLException e) {
-            throw new RuntimeException("Could not get Connection: " + url, e);
-        }
     }
 
     /**
@@ -419,8 +401,7 @@ public abstract class AbstractClusterJTest extends TestCase {
         if (result == null) {
             try {
                 // try to load the resource from the class loader
-                ClassLoader cl = this.getClass().getClassLoader();
-                InputStream stream = cl.getResourceAsStream(fileName);
+                InputStream stream = ABSTRACT_CLUSTERJ_TEST_CLASS_LOADER.getResourceAsStream(fileName);
                 result = new Properties();
                 result.load(stream);
                 return result;
@@ -472,16 +453,26 @@ public abstract class AbstractClusterJTest extends TestCase {
         }
     }
 
-    /** Load properties from clusterj.properties */
-    protected void loadProperties() {
-        loadProperties(PROPS_FILE_NAME);
+    /** Generate the timezone in UTC offset of format +/-HH:MM */
+    private static String getTimeZoneInUTCOffset() {
+        long now = System.currentTimeMillis();
+        long timeZoneOffset = TimeZone.getDefault().getOffset(now);
+        long offsetHours = TimeUnit.MILLISECONDS.toHours(timeZoneOffset);
+        long offsetMinutes = TimeUnit.MILLISECONDS.toMinutes(timeZoneOffset -
+                               TimeUnit.HOURS.toMillis(offsetHours));
+        // prevent cases like -02:-02
+        offsetMinutes = Math.abs(offsetMinutes);
+        String timeZoneUTCOffset = "";
+        if (timeZoneOffset >= 0) {
+            timeZoneUTCOffset += "+";
+        }
+        timeZoneUTCOffset += String.format("%02d:%02d", offsetHours, offsetMinutes);
+        return timeZoneUTCOffset;
     }
 
-    /** Load properties from an arbitrary file name */
-    protected void loadProperties(String propsFileName) {
-//        if (props == null) {
-            props = getProperties(propsFileName);
-//        }
+    /** Load properties from clusterj.properties */
+    protected void loadProperties() {
+        props = getProperties(PROPS_FILE_NAME);
         jdbcDriverName = props.getProperty(Constants.PROPERTY_JDBC_DRIVER_NAME);
         jdbcURL = props.getProperty(Constants.PROPERTY_JDBC_URL);
         jdbcUsername = props.getProperty(Constants.PROPERTY_JDBC_USERNAME);
@@ -489,6 +480,11 @@ public abstract class AbstractClusterJTest extends TestCase {
         if (jdbcPassword == null) {
             jdbcPassword = "";
         }
+        // Set the time zone of the current session through sessionVariables
+        props.put("sessionVariables", "time_zone='" + getTimeZoneInUTCOffset() + "'");
+        props.put("useSSL", "false");
+        props.put("user", jdbcUsername);
+        props.put("password",jdbcPassword);
     }
 
     /** Load the schema for tests */
@@ -507,11 +503,11 @@ public abstract class AbstractClusterJTest extends TestCase {
         StringBuffer buffer = new StringBuffer();
         String line;
         try {
-            inputStream = Thread.currentThread().getContextClassLoader().getResourceAsStream("schema.sql");
+            inputStream = ABSTRACT_CLUSTERJ_TEST_CLASS_LOADER.getResourceAsStream("schema.sql");
             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
             while (reader.ready()) {
                 line = reader.readLine();
-                if (line.contains("#")) {
+                if (line.contains("#") || line.startsWith("--")) {
                     // comment line; ignore
                     continue;
                 }
@@ -586,6 +582,8 @@ System.out.println(this.getClass().getName());
         }
         session = null;
         sessionFactory = null;
+        // close the jdbc connection
+        closeConnection();
     }
 
     protected void removeAll(Class<?> cls) {

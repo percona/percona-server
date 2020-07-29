@@ -3,8 +3,6 @@
 #
 
 -- source include/have_log_bin.inc
--- source include/not_embedded.inc
--- source include/have_innodb.inc
 -- source include/have_debug.inc
 
 RESET MASTER;
@@ -24,6 +22,16 @@ drop table t1,t2;
 #
 # binlog rotation after one big transaction
 #
+
+# test requires big transaction, which compression would invalidate
+# so, we are disabling compression explcitly just for this test case.
+--disable_result_log
+--disable_query_log
+SET @saved_btc = @@session.binlog_transaction_compression;
+SET @@session.binlog_transaction_compression = FALSE;
+--enable_result_log
+--enable_query_log
+
 reset master;
 let $1=100;
 
@@ -42,6 +50,12 @@ drop table t1;
 --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
 --source include/show_binlog_events.inc
 --let $binlog_file=
+
+--disable_result_log
+--disable_query_log
+SET @@session.binlog_transaction_compression = @saved_btc;
+--enable_result_log
+--enable_query_log
 
 #
 # Bug#22540 - Incorrect value in column End_log_pos of
@@ -76,6 +90,15 @@ drop table t1;
 # now show that nothing breaks if we need to read from the cache more
 # than once, resulting in split event-headers
 
+# test requires big transaction, which compression would invalidate
+# so, we are disabling compression explcitly just for this test case.
+--disable_result_log
+--disable_query_log
+SET @saved_btc = @@session.binlog_transaction_compression;
+SET @@session.binlog_transaction_compression = FALSE;
+--enable_result_log
+--enable_query_log
+
 set @bcs = @@binlog_cache_size;
 set global binlog_cache_size=4096;
 reset master;
@@ -104,6 +127,11 @@ drop table t1;
 
 set global binlog_cache_size=@bcs;
 set session autocommit = @ac;
+--disable_result_log
+--disable_query_log
+SET @@session.binlog_transaction_compression = @saved_btc;
+--enable_result_log
+--enable_query_log
 
 #
 # Bug#33798: prepared statements improperly handle large unsigned ints
@@ -227,8 +255,8 @@ create table if not exists t3 like tt1;
 
 --disable_warnings
 USE mysql;
-INSERT IGNORE INTO user SET host='localhost', user='@#@', authentication_string=password('Just a test');
-UPDATE user SET authentication_string=password('Another password') WHERE host='localhost' AND user='@#@';
+INSERT IGNORE INTO user SET host='localhost', user='@#@', authentication_string='*1111111111111111111111111111111111111111';
+UPDATE user SET authentication_string='*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' WHERE host='localhost' AND user='@#@';
 DELETE FROM user WHERE host='localhost' AND user='@#@';
 --enable_warnings
 
@@ -249,6 +277,15 @@ drop table t1,t2,t3,tt1;
 #Bug #26079 max_binlog_size + innodb = not make new binlog and hang server
 # server should not hang, binlog must rotate in the end
 reset master;
+
+# temporarily disable compression for this test case, since it needs
+# to create a large binlog to rotate it.
+--disable_result_log
+--disable_query_log
+SET @saved_btc = @@session.binlog_transaction_compression;
+SET @@session.binlog_transaction_compression = FALSE;
+--enable_result_log
+--enable_query_log
 --disable_warnings
 drop table if exists t3;
 --enable_warnings
@@ -265,6 +302,14 @@ dec $it;
 --echo *** show new binlog index after rotating ***
 --echo File $binlog_file2
 drop table t3;
+
+# clean up
+RESET MASTER;
+--disable_result_log
+--disable_query_log
+SET @@session.binlog_transaction_compression = @saved_btc;
+--enable_result_log
+--enable_query_log
 
 --echo #
 --echo # Bug #45998: database crashes when running "create as select"
@@ -354,7 +399,7 @@ SHOW SESSION VARIABLES LIKE "%_checks";
 --echo # INSERT INTO t1 VALUES(2)
 --echo # foreign_key_checks=1 and unique_checks=1
 --echo # It should not change current session's variables, even error happens
-call mtr.add_suppression("Slave SQL.*Could not execute Write_rows_v1 event on table test.t1; Duplicate entry .2. for key .PRIMARY., Error_code: 1062");
+call mtr.add_suppression("Slave SQL.*Could not execute Write_rows_v1 event on table test.t1; Duplicate entry .2. for key .t1.PRIMARY., Error_code: 1062"); 
 --error 1062
 BINLOG '
 dfLtTBMBAAAAKQAAAKsBAAAAABcAAAAAAAEABHRlc3QAAnQxAAEDAAE=

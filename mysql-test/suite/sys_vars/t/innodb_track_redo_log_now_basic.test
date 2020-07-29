@@ -1,6 +1,5 @@
 # A global BOOL variable
 
---source include/have_innodb.inc
 --source include/have_debug.inc
 
 SELECT @@GLOBAL.innodb_track_redo_log_now;

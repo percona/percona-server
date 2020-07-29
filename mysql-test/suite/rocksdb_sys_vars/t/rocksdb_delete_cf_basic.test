@@ -31,10 +31,10 @@ select count(*) from information_schema.rocksdb_ddl where cf = 'default';
 --eval SET @@global.ROCKSDB_DELETE_CF = NULL
 
 CREATE TABLE cf_deletion_test_table1 (
-  id1 int(10) unsigned NOT NULL DEFAULT '0',
-  id2 int(10) unsigned NOT NULL DEFAULT '0',
-  PRIMARY KEY (id1) COMMENT 'cf_primary_key',
-  KEY `sec_key` (id2) COMMENT 'cf_secondary_key'
+  id1 int unsigned NOT NULL DEFAULT '0',
+  id2 int unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (id1) COMMENT 'cfname=cf_primary_key',
+  KEY `sec_key` (id2) COMMENT 'cfname=cf_secondary_key'
 ) ENGINE=ROCKSDB;
 
 # should fail, CFs are still in use
@@ -44,8 +44,8 @@ CREATE TABLE cf_deletion_test_table1 (
 --eval SET @@global.ROCKSDB_DELETE_CF = 'cf_secondary_key'
 
 CREATE TABLE cf_deletion_test_table2 (
-  id1 int(10) unsigned NOT NULL DEFAULT '0',
-  PRIMARY KEY (id1) COMMENT 'cf_primary_key'
+  id1 int unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (id1) COMMENT 'cfname=cf_primary_key'
 ) ENGINE=ROCKSDB;
 
 DROP TABLE cf_deletion_test_table1;
@@ -62,6 +62,6 @@ DROP TABLE cf_deletion_test_table2;
 # should succeed now
 --eval SET @@global.ROCKSDB_DELETE_CF = 'cf_primary_key'
 
-alter table mysql.slave_worker_info engine = ROCKSDB;
-alter table mysql.slave_relay_log_info engine = ROCKSDB;
-alter table mysql.slave_master_info engine = ROCKSDB;
+alter table mysql.slave_worker_info engine = InnoDB;
+alter table mysql.slave_relay_log_info engine = InnoDB;
+alter table mysql.slave_master_info engine = InnoDB;

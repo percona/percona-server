@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -105,8 +105,8 @@ FastScheduler::doJob(Uint32 loopStartCount)
   if (TloopMax < MIN_NUMBER_OF_SIG_PER_DO_JOB) {
     TloopMax = MIN_NUMBER_OF_SIG_PER_DO_JOB;
   }//if
-  register Signal* signal = getVMSignals();
-  register Uint32 tHighPrio= globalData.highestAvailablePrio;
+  Signal* signal = getVMSignals();
+  Uint32 tHighPrio= globalData.highestAvailablePrio;
   do{
     while ((tHighPrio < LEVEL_IDLE) && (loopCount < TloopMax)) {
 #ifdef VM_TRACE
@@ -126,10 +126,10 @@ FastScheduler::doJob(Uint32 loopStartCount)
         globalEmulatorData.theThreadConfig->scanZeroTimeQueue();
       }
       // To ensure we find bugs quickly
-      register Uint32 gsnbnr = theJobBuffers[tHighPrio].retrieve(signal);
+      Uint32 gsnbnr = theJobBuffers[tHighPrio].retrieve(signal);
       // also strip any instance bits since this is non-MT code
-      register BlockNumber reg_bnr = gsnbnr & NDBMT_BLOCK_MASK;
-      register GlobalSignalNumber reg_gsn = gsnbnr >> 16;
+      BlockNumber reg_bnr = gsnbnr & NDBMT_BLOCK_MASK;
+      GlobalSignalNumber reg_gsn = gsnbnr >> 16;
       globalData.incrementWatchDogCounter(1);
       if (reg_bnr > 0) {
         Uint32 tJobCounter = globalData.JobCounter;
@@ -307,7 +307,6 @@ APZJobBuffer::signal2buffer(Signal* signal,
 			    BufferEntry& buf)
 {
   Uint32 tSignalId = globalData.theSignalId;
-  Uint32 tFirstData = signal->theData[0];
   Uint32 tLength = signal->header.theLength + signal->header.m_noOfSections;
   Uint32 tSigId  = buf.header.theSignalId;
   
@@ -316,26 +315,12 @@ APZJobBuffer::signal2buffer(Signal* signal,
   buf.header.theReceiversBlockNumber = bnr;
   buf.header.theSendersSignalId = tSignalId - 1;
   buf.header.theSignalId = tSigId;
-  buf.theDataRegister[0] = tFirstData;
   
-  Uint32 tLengthCopied = 1;
-  Uint32* tSigDataPtr = &signal->theData[1];
-  Uint32* tDataRegPtr = &buf.theDataRegister[1];
-  while (tLengthCopied < tLength) {
-    Uint32 tData0 = tSigDataPtr[0];
-    Uint32 tData1 = tSigDataPtr[1];
-    Uint32 tData2 = tSigDataPtr[2];
-    Uint32 tData3 = tSigDataPtr[3];
-    
-    tLengthCopied += 4;
-    tSigDataPtr += 4;
+  Uint32* tSigDataPtr = &signal->theData[0];
+  Uint32* tDataRegPtr = &buf.theDataRegister[0];
 
-    tDataRegPtr[0] = tData0;
-    tDataRegPtr[1] = tData1;
-    tDataRegPtr[2] = tData2;
-    tDataRegPtr[3] = tData3;
-    tDataRegPtr += 4;
-  }//while
+  // TODO hint that data is aligned(?) to -4 bytes per 16 bytes for performance
+  memcpy(tDataRegPtr, tSigDataPtr, tLength * sizeof(Uint32));
 }//APZJobBuffer::signal2buffer()
 
 void
@@ -343,7 +328,7 @@ APZJobBuffer::insert(const SignalHeader * const sh,
 		     const Uint32 * const theData, const Uint32 secPtrI[3]){
   Uint32 tOccupancy = theOccupancy + 1;
   Uint32 myWPtr = wPtr;
-  register BufferEntry& buf = buffer[myWPtr];
+  BufferEntry& buf = buffer[myWPtr];
   
   if (tOccupancy < bufSize) {
     Uint32 cond =  (++myWPtr == bufSize) - 1;
@@ -523,8 +508,7 @@ FastScheduler::traceDumpGetJam(Uint32 thr_no,
   thrdTheEmulatedJam = NULL;
   thrdTheEmulatedJamIndex = 0;
 #else
-  const EmulatedJamBuffer *jamBuffer =
-    (EmulatedJamBuffer *)NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM);
+  const EmulatedJamBuffer *jamBuffer = NDB_THREAD_TLS_JAM;
   thrdTheEmulatedJam = jamBuffer->theEmulatedJam;
   thrdTheEmulatedJamIndex = jamBuffer->theEmulatedJamIndex;
 #endif

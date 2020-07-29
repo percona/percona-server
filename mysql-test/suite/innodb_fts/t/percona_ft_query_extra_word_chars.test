@@ -1,7 +1,6 @@
 #
 # Test functionality of ft_query_extra_word_chars option with InnoDB
 #
---source include/have_innodb.inc
 
 --let $ft_query_extra_word_chars = setup
 --source include/percona_ft_query_extra_word_chars.inc

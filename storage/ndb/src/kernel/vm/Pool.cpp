@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 */
 
 
+#include "ndbd_malloc_impl.hpp"
 #include "Pool.hpp"
 #include "SimulatedBlock.hpp"
 
@@ -30,22 +31,59 @@
 
 
 void*
-Pool_context::alloc_page(Uint32 type_id, Uint32 *i)
+Pool_context::alloc_page19(Uint32 type_id, Uint32 *i)
 {
-  return m_block->m_ctx.m_mm.alloc_page(type_id, i,
-                                        Ndbd_mem_manager::NDB_ZONE_LO);
+  return m_block->m_ctx.m_mm.alloc_page(type_id,
+                                        i,
+                                        Ndbd_mem_manager::NDB_ZONE_LE_19);
 }
-  
+
+void*
+Pool_context::alloc_page27(Uint32 type_id, Uint32 *i)
+{
+  return m_block->m_ctx.m_mm.alloc_page(type_id,
+                                        i,
+                                        Ndbd_mem_manager::NDB_ZONE_LE_27);
+}
+
+void*
+Pool_context::alloc_page30(Uint32 type_id, Uint32 *i)
+{
+  return m_block->m_ctx.m_mm.alloc_page(type_id,
+                                        i,
+                                        Ndbd_mem_manager::NDB_ZONE_LE_30);
+}
+
+void*
+Pool_context::alloc_page32(Uint32 type_id, Uint32 *i)
+{
+  return m_block->m_ctx.m_mm.alloc_page(type_id,
+                                        i,
+                                        Ndbd_mem_manager::NDB_ZONE_LE_32);
+}
+
 void 
 Pool_context::release_page(Uint32 type_id, Uint32 i)
 {
   m_block->m_ctx.m_mm.release_page(type_id, i);
 }
 
+Ndbd_mem_manager*
+Pool_context::get_mem_manager() const
+{
+  return &m_block->m_ctx.m_mm;
+}
+
 void*
 Pool_context::get_memroot() const
 {
   return m_block->m_ctx.m_mm.get_memroot();
+}
+
+void*
+Pool_context::get_valid_page(Uint32 page_num) const
+{
+  return m_block->m_ctx.m_mm.get_valid_page(page_num);
 }
 
 void

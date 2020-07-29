@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,12 +18,13 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA 
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
 #ifndef COUNTINGPOOL_HPP
 #define COUNTINGPOOL_HPP
 
+#include <cstdint>
 #include <ndb_global.h>
 #include "blocks/diskpage.hpp"
 #include "blocks/dbtup/tuppage.hpp"
@@ -34,13 +35,9 @@
 #define JAM_FILE_ID 332
 
 
-#ifndef UINT32_MAX
-#define UINT32_MAX (4294967295U)
-#endif
-
 // Implementation CountingPool
 
-template<typename T, class P>
+template<class P, typename T = typename P::Type>
 class CountingPool : public P
 {
   Uint32 m_inuse;
@@ -48,6 +45,7 @@ class CountingPool : public P
   Uint32 m_max_allowed;
 protected:
 public:
+  typedef T Type;
   CountingPool() :m_inuse(0), m_inuse_high(0), m_max_allowed(UINT32_MAX)
     {}
 
@@ -83,18 +81,18 @@ public:
     release(p);
   }
 
-  T* getPtr(Uint32 i)
+  T* getPtr(Uint32 i) const
   {
     return P::getPtr(i);
   }
 
-  void getPtr(Ptr<T>& p, Uint32 i)
+  void getPtr(Ptr<T>& p, Uint32 i) const
   {
     p.i = i;
     p.p = getPtr(i);
   }
 
-  void getPtr(Ptr<T>& p)
+  void getPtr(Ptr<T>& p) const
   {
     p.p = getPtr(p.i);
   }

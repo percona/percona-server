@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,6 +71,8 @@ printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
     fprintf(output, "Interpreted ");
   if(LqhKeyReq::getScanTakeOverFlag(attrLen))
     fprintf(output, "ScanTakeOver ");
+  if(LqhKeyReq::getReorgFlag(attrLen))
+    fprintf(output, "reorg: %u ", LqhKeyReq::getReorgFlag(attrLen));
   if(LqhKeyReq::getMarkerFlag(reqInfo))
     fprintf(output, "CommitAckMarker ");
   if(LqhKeyReq::getNoDiskFlag(reqInfo))
@@ -85,6 +87,12 @@ printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
     fprintf(output, "Queue ");
   if(LqhKeyReq::getDeferredConstraints(reqInfo))
     fprintf(output, "Deferred-constraints ");
+  if(LqhKeyReq::getNoTriggersFlag(reqInfo))
+    fprintf(output, "NoTriggers ");
+  if(LqhKeyReq::getUtilFlag(reqInfo))
+    fprintf(output, "UtilFlag ");
+  if(LqhKeyReq::getNoWaitFlag(reqInfo))
+    fprintf(output, "NoWait ");
 
   fprintf(output, "ScanInfo/noFiredTriggers: H\'%x\n", sig->scanInfo);
   
@@ -149,6 +157,10 @@ printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
     printed = true;
   }
 
+  /**
+   * Key info is only sent here if short signal, we assume it
+   * is a long signal.
+   *
   const UintR keyLen = LqhKeyReq::getKeyLen(reqInfo);
   if(keyLen > 0){
     fprintf(output, " KeyInfo: ");
@@ -156,6 +168,7 @@ printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
       fprintf(output, "H\'%.8x ", sig->variableData[nextPos]);
     fprintf(output, "\n");
   }
+  */
 
   if (LqhKeyReq::getRowidFlag(reqInfo))
   {

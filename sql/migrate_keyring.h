@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,58 +23,36 @@
 #ifndef MIGRATE_KEYRING_H_INCLUDED
 #define MIGRATE_KEYRING_H_INCLUDED
 
-#include "mysql/plugin_keyring.h"
-#include "mysql.h"
 #include <string>
-#include <vector>
+#include "mysql.h"
+#include "mysql/plugin_keyring.h"
+#include "sql_common.h"  // NET_SERVER
 
 class THD;
 
-using std::string;
-
 #define MAX_KEY_LEN 16384
 
-enum enum_plugin_type
-{
-  SOURCE_PLUGIN= 0, DESTINATION_PLUGIN
+enum class enum_plugin_type { SOURCE_PLUGIN = 0, DESTINATION_PLUGIN };
+
+class Key_info {
+ public:
+  Key_info() {}
+  Key_info(char *key_id, char *user_id) {
+    m_key_id = key_id;
+    m_user_id = user_id;
+  }
+  Key_info(const Key_info &ki) {
+    this->m_key_id = ki.m_key_id;
+    this->m_user_id = ki.m_user_id;
+  }
+
+ public:
+  std::string m_key_id;
+  std::string m_user_id;
 };
 
-class Key_info
-{
-public:
-  Key_info()
-    : m_key_id_len(0),
-      m_user_id_len(0)
-  {}
-  Key_info(char     *key_id,
-           char     *user_id)
-  {
-    m_key_id_len= strlen(key_id);
-    memcpy(m_key_id, key_id, m_key_id_len);
-    m_key_id[m_key_id_len]= '\0';
-    m_user_id_len= strlen(user_id);
-    memcpy(m_user_id, user_id, m_user_id_len);
-    m_user_id[m_user_id_len]= '\0';
-  }
-  Key_info(const Key_info &ki)
-  {
-    this->m_key_id_len= ki.m_key_id_len;
-    memcpy(this->m_key_id, ki.m_key_id, this->m_key_id_len);
-    this->m_key_id[this->m_key_id_len]= '\0';
-    this->m_user_id_len= ki.m_user_id_len;
-    memcpy(this->m_user_id, ki.m_user_id, this->m_user_id_len);
-    this->m_user_id[this->m_user_id_len]= '\0';
-  }
-public:
-  char     m_key_id[MAX_KEY_LEN];
-  int      m_key_id_len;
-  char     m_user_id[USERNAME_LENGTH];
-  int      m_user_id_len;
-};
-
-class Migrate_keyring
-{
-public:
+class Migrate_keyring {
+ public:
   /**
     Standard constructor.
   */
@@ -82,11 +60,8 @@ public:
   /**
     Initialize all needed parameters to proceed with migration process.
   */
-  bool init(int  argc,
-            char **argv,
-            char *source_plugin,
-            char *destination_plugin,
-            char *user, char *host, char *password,
+  bool init(int argc, char **argv, char *source_plugin,
+            char *destination_plugin, char *user, char *host, char *password,
             char *socket, ulong port);
   /**
     Migrate keys from source keyring to destination keyring.
@@ -97,7 +72,7 @@ public:
   */
   ~Migrate_keyring();
 
-private:
+ private:
   /**
     Load source or destination plugin.
   */
@@ -115,18 +90,19 @@ private:
   */
   bool enable_keyring_operations();
 
-private:
+ private:
   int m_argc;
   char **m_argv;
-  string m_source_plugin_option;
-  string m_destination_plugin_option;
-  string m_source_plugin_name;
-  string m_destination_plugin_name;
-  string m_internal_option;
+  std::string m_source_plugin_option;
+  std::string m_destination_plugin_option;
+  std::string m_source_plugin_name;
+  std::string m_destination_plugin_name;
+  std::string m_internal_option[2];
   st_mysql_keyring *m_source_plugin_handle;
   st_mysql_keyring *m_destination_plugin_handle;
   std::vector<Key_info> m_source_keys;
   MYSQL *mysql;
+  NET_SERVER server_extn;
 };
 
 #endif /* MIGRATE_KEYRING_H_INCLUDED */

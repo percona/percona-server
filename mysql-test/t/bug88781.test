@@ -10,7 +10,7 @@ CREATE USER 'bug88781'@'localhost';
 
 RENAME TABLE mysql.db TO mysql.bak;
 
-CREATE TABLE mysql.db ENGINE=MyISAM SELECT * FROM mysql.bak;
+CREATE TABLE mysql.db ENGINE=InnoDB SELECT * FROM mysql.bak;
 
 --error ER_MISSING_KEY
 GRANT DROP ON none.* TO 'bug88781'@'localhost';

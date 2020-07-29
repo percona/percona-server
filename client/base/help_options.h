@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,22 +25,22 @@
 #ifndef HELP_OPTIONS_INCLUDED
 #define HELP_OPTIONS_INCLUDED
 
-#include "abstract_options_provider.h"
+#include "client/base/abstract_options_provider.h"
+#include "my_compiler.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Base{
+namespace Mysql {
+namespace Tools {
+namespace Base {
 
 class Abtract_program;
 
-namespace Options{
+namespace Options {
 
 /**
   Options provider providing --help option and handling usage printing.
  */
-class Help_options : public Abstract_options_provider
-{
-public:
+class Help_options : public Abstract_options_provider {
+ public:
   /**
     Constructs new help options provider.
     @param program Pointer to main program class, used to collect list of all
@@ -57,18 +57,18 @@ public:
   */
   virtual void print_usage();
 
-private:
-  void help_callback(char* argument MY_ATTRIBUTE((unused)));
-  void version_callback(char* argument MY_ATTRIBUTE((unused)));
+ private:
+  void help_callback(char *argument MY_ATTRIBUTE((unused)));
+  void version_callback(char *argument MY_ATTRIBUTE((unused)));
 
   void print_version_line();
 
   Abstract_program *m_program;
 };
 
-}
-}
-}
-}
+}  // namespace Options
+}  // namespace Base
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

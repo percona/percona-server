@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,8 @@
 #define CFG_NODE_SYSTEM               6
 #define CFG_NODE_DATADIR              7
 #define CFG_TOTAL_SEND_BUFFER_MEMORY  9
+#define CFG_LOCATION_DOMAIN_ID        10
+#define CFG_NODE_DEDICATED            11
 
 /**
  * DB config parameters
@@ -45,7 +47,6 @@
 #define CFG_DB_NO_REPLICAS            101
 #define CFG_DB_NO_TABLES              102
 #define CFG_DB_NO_ATTRIBUTES          103
-#define CFG_DB_NO_INDEXES             104
 #define CFG_DB_NO_TRIGGERS            105
 
 #define CFG_DB_NO_TRANSACTIONS        106
@@ -77,11 +78,6 @@
 #define CFG_DB_NO_REDOLOG_FILES       126
 #define CFG_DB_NO_REDOLOG_PARTS       632
 #define CFG_DB_REDOLOG_FILE_SIZE      140
-
-#define CFG_DB_LCP_DISC_PAGES_TUP     127
-#define CFG_DB_LCP_DISC_PAGES_TUP_SR  128
-#define CFG_DB_LCP_DISC_PAGES_ACC     137
-#define CFG_DB_LCP_DISC_PAGES_ACC_SR  138
 
 #define CFG_DB_TRANSACTION_CHECK_INTERVAL   129
 #define CFG_DB_TRANSACTION_INACTIVE_TIMEOUT 130
@@ -123,8 +119,6 @@
 #define CFG_DB_STRING_MEMORY          161
 
 #define CFG_DB_DISK_SYNCH_SIZE        163
-#define CFG_DB_CHECKPOINT_SPEED       164
-#define CFG_DB_CHECKPOINT_SPEED_RESTART 165
 
 #define CFG_DB_MEMREPORT_FREQUENCY    166
 #define CFG_DB_BACKUP_REPORT_FREQUENCY    167
@@ -227,10 +221,43 @@
 #define CFG_MIXOLOGY_LEVEL            642
 #define CFG_DB_PARALLEL_COPY_THREADS  643
 #define CFG_DB_MAX_SEND_DELAY         644
+#define CFG_DB_BACKUP_DISK_WRITE_PCT  645
+
+#define CFG_DB_SCHED_RESPONSIVENESS   646
+
+#define CFG_DB_SCHED_SCAN_PRIORITY    647
+
+#define CFG_DB_DISK_DATA_FORMAT       648
+#define CFG_DB_ENABLE_PARTIAL_LCP     649
+#define CFG_DB_O_DIRECT_SYNC_FLAG     650
+
+#define CFG_DB_UI_BUILD_MAX_BATCHSIZE 651
+#define CFG_DB_FK_BUILD_MAX_BATCHSIZE 652
+#define CFG_DB_REORG_BUILD_MAX_BATCHSIZE 653
+#define CFG_DB_RECOVERY_WORK          654
+#define CFG_DB_USE_SHM                655
+#define CFG_DB_INSERT_RECOVERY_WORK   656
+#define CFG_DB_WATCHDOG_IMMEDIATE_KILL 657
+#define CFG_DB_ENABLE_REDO_CONTROL    658
+#define CFG_DB_ENABLE_MT_BACKUP       659
+
+#define CFG_DB_RESERVED_INDEX_OPS     660
+#define CFG_DB_RESERVED_TRIGGER_OPS   661
+#define CFG_DB_RESERVED_OPS           662
+#define CFG_DB_RESERVED_LOCAL_SCANS   663
+#define CFG_DB_RESERVED_TRANSACTIONS  664
+#define CFG_DB_RESERVED_SCANS         665
+#define CFG_DB_RESERVED_TRANS_BUFFER_MEM 666
+
+#define CFG_DB_TRANSACTION_MEM        667
+#define CFG_DB_MAX_DD_LATENCY         668
+#define CFG_DB_DD_USING_SAME_DISK     669
+#define CFG_DB_NODE_GROUP_TRANSPORTERS 670
+#define CFG_DB_SPIN_METHOD            671
+#define CFG_DB_SPIN_TIME_PER_CALL     672
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
-#define CFG_RESERVED_SEND_BUFFER_MEMORY 202
 #define CFG_EXTRA_SEND_BUFFER_MEMORY  203
 
 #define CFG_MGMD_MGMD_HEARTBEAT_INTERVAL 204
@@ -271,6 +298,7 @@
 #define CFG_CONNECTION_GROUP          409
 #define CFG_CONNECTION_NODE_ID_SERVER 410
 #define CFG_CONNECTION_OVERLOAD       411
+#define CFG_CONNECTION_PRESEND_CHECKSUM 412
 
 #define CFG_TCP_SERVER                452
 #define CFG_TCP_SEND_BUFFER_SIZE      454
@@ -280,13 +308,19 @@
 #define CFG_TCP_SND_BUF_SIZE          458
 #define CFG_TCP_MAXSEG_SIZE           459
 #define CFG_TCP_BIND_INADDR_ANY       460
+#define CFG_TCP_SPINTIME              461
 
 #define CFG_SHM_SEND_SIGNAL_ID        500
 #define CFG_SHM_CHECKSUM              501
 #define CFG_SHM_KEY                   502
 #define CFG_SHM_BUFFER_MEM            503
-#define CFG_SHM_SIGNUM                504
+#define CFG_SHM_SIGNUM                504 //Deprecated
+#define CFG_SHM_SPINTIME              505
+#define CFG_SHM_SEND_BUFFER_SIZE      506
 
+/**
+ * No longer used, deprecated
+ */
 #define CFG_SCI_HOST1_ID_0            550
 #define CFG_SCI_HOST1_ID_1            551
 #define CFG_SCI_HOST2_ID_0            552
@@ -311,6 +345,7 @@
 #define CFG_DEFAULT_HASHMAP_SIZE      806
 #define CFG_CONNECT_BACKOFF_MAX_TIME 807
 #define CFG_START_CONNECT_BACKOFF_MAX_TIME 808
+#define CFG_API_VERBOSE               809
 
 /**
  * Internal
@@ -328,7 +363,7 @@
 
 #define CONNECTION_TYPE_TCP           0
 #define CONNECTION_TYPE_SHM           1
-#define CONNECTION_TYPE_SCI           2
+#define CONNECTION_TYPE_SCI           2 /* Removed */
 #define CONNECTION_TYPE_OSE           3 /* Removed. */
 
 #define ARBIT_METHOD_DISABLED         0

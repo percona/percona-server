@@ -1,6 +1,5 @@
 /*
- Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
- reserved.
+ Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -20,10 +19,9 @@
 
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- 02110-1301  USA
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
-#include <my_config.h>
+#include "my_config.h"
 #include <unistd.h>
 #include <stdlib.h>  
 #include <stdio.h>
@@ -62,7 +60,7 @@ Configuration::Configuration(Configuration *old) :
   primary_connect_string(old->primary_connect_string),
   server_role(old->server_role),
   config_version(CONFIG_VER_UNKNOWN),
-  primary_conn(old->primary_conn)  {};
+  primary_conn(old->primary_conn)  {}
 
 
 bool Configuration::connectToPrimary() {
@@ -193,7 +191,7 @@ const KeyPrefix * Configuration::getPrefixForKey(const char *key, int nkey) cons
   int low = 1;    // The first actual prefix is prefixes[1]
   int high = nprefixes - 1;
   int mid;
-  register int cmp;
+  int cmp;
   
   while ( low <= high ) {
     mid = (low + high) / 2;

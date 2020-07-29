@@ -18,7 +18,7 @@ rollback;
 # verify that before insert triggers can not insert into the source table
 create trigger t_trigger before insert on t for each row insert into s values (1000000,0);
 begin;
-error 1442;
+error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG;
 insert into t select * from s on duplicate key update x=t.x+1;
 rollback;
 drop trigger t_trigger;
@@ -26,7 +26,7 @@ drop trigger t_trigger;
 # verify that after insert triggers can not insert into the source table
 create trigger t_trigger after insert on t for each row insert into s values (1000000,0);
 begin;
-error 1442;
+error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG;
 insert into t select * from s on duplicate key update x=t.x+1;
 rollback;
 drop trigger t_trigger;
@@ -34,7 +34,7 @@ drop trigger t_trigger;
 # verify that before insert triggers can not delete from the source table
 create trigger t_trigger before insert on t for each row delete from s where id=1000000;
 begin;
-error 1442;
+error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG;
 insert into t select * from s on duplicate key update x=t.x+1;
 rollback;
 drop trigger t_trigger;
@@ -42,7 +42,7 @@ drop trigger t_trigger;
 # verify that after  insert triggers can not delete from the source table
 create trigger t_trigger after insert on t for each row delete from s where id=1000000;
 begin;
-error 1442;
+error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG;
 insert into t select * from s on duplicate key update x=t.x+1;
 rollback;
 drop trigger t_trigger;
@@ -50,7 +50,7 @@ drop trigger t_trigger;
 # verify that before insert triggers can not update the source table
 create trigger t_trigger before insert on t for each row update s set x=x+1 where id=1000000;
 begin;
-error 1442;
+error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG;
 insert into t select * from s on duplicate key update x=t.x+1;
 rollback;
 drop trigger t_trigger;
@@ -58,7 +58,7 @@ drop trigger t_trigger;
 # verify that after insert triggers can not update the source table
 create trigger t_trigger after insert on t for each row update s set x=x+1 where id=1000000;
 begin;
-error 1442;
+error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG;
 insert into t select * from s on duplicate key update x=t.x+1;
 rollback;
 drop trigger t_trigger;
@@ -70,7 +70,7 @@ insert into t values (1,0);
 # verify that before insert triggers can not insert into the source table
 create trigger t_trigger before insert on t for each row insert into s values (1000000,0);
 begin;
-error 1442;
+error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG;
 insert into t select * from s on duplicate key update x=t.x+1;
 rollback;
 drop trigger t_trigger;
@@ -78,7 +78,7 @@ drop trigger t_trigger;
 # verify that after insert triggers can not insert into the source table
 create trigger t_trigger after insert on t for each row insert into s values (1000000,0);
 begin;
-error 1442;
+error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG;
 insert into t select * from s on duplicate key update x=t.x+1;
 rollback;
 drop trigger t_trigger;
@@ -86,7 +86,7 @@ drop trigger t_trigger;
 # verify that before insert triggers can not delete from the source table
 create trigger t_trigger before insert on t for each row delete from s where id=1000000;
 begin;
-error 1442;
+error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG;
 insert into t select * from s on duplicate key update x=t.x+1;
 rollback;
 drop trigger t_trigger;
@@ -94,7 +94,7 @@ drop trigger t_trigger;
 # verify that after  insert triggers can not delete from the source table
 create trigger t_trigger after insert on t for each row delete from s where id=1000000;
 begin;
-error 1442;
+error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG;
 insert into t select * from s on duplicate key update x=t.x+1;
 rollback;
 drop trigger t_trigger;
@@ -102,7 +102,7 @@ drop trigger t_trigger;
 # verify that before insert triggers can not update the source table
 create trigger t_trigger before insert on t for each row update s set x=x+1 where id=1000000;
 begin;
-error 1442;
+error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG;
 insert into t select * from s on duplicate key update x=t.x+1;
 rollback;
 drop trigger t_trigger;
@@ -110,7 +110,7 @@ drop trigger t_trigger;
 # verify that after insert triggers can not update the source table
 create trigger t_trigger after insert on t for each row update s set x=x+1 where id=1000000;
 begin;
-error 1442;
+error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG;
 insert into t select * from s on duplicate key update x=t.x+1;
 rollback;
 drop trigger t_trigger;
@@ -122,7 +122,7 @@ insert into t values (1,0);
 # verify that before insert triggers can not insert into the source table
 create trigger t_trigger before update on t for each row insert into s values (1000000,0);
 begin;
-error 1442;
+error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG;
 insert into t select * from s on duplicate key update x=t.x+1;
 rollback;
 drop trigger t_trigger;
@@ -130,7 +130,7 @@ drop trigger t_trigger;
 # verify that after insert triggers can not insert into the source table
 create trigger t_trigger after update on t for each row insert into s values (1000000,0);
 begin;
-error 1442;
+error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG;
 insert into t select * from s on duplicate key update x=t.x+1;
 rollback;
 drop trigger t_trigger;
@@ -138,7 +138,7 @@ drop trigger t_trigger;
 # verify that before update triggers can not delete from the source table
 create trigger t_trigger before update on t for each row delete from s where id=1000000;
 begin;
-error 1442;
+error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG;
 insert into t select * from s on duplicate key update x=t.x+1;
 rollback;
 drop trigger t_trigger;
@@ -146,7 +146,7 @@ drop trigger t_trigger;
 # verify that after  insert triggers can not delete from the source table
 create trigger t_trigger after update on t for each row delete from s where id=1000000;
 begin;
-error 1442;
+error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG;
 insert into t select * from s on duplicate key update x=t.x+1;
 rollback;
 drop trigger t_trigger;
@@ -154,7 +154,7 @@ drop trigger t_trigger;
 # verify that before update triggers can not update the source table
 create trigger t_trigger before update on t for each row update s set x=x+1 where id=1000000;
 begin;
-error 1442;
+error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG;
 insert into t select * from s on duplicate key update x=t.x+1;
 rollback;
 drop trigger t_trigger;
@@ -162,7 +162,7 @@ drop trigger t_trigger;
 # verify that after insert triggers can not update the source table
 create trigger t_trigger after update on t for each row update s set x=x+1 where id=1000000;
 begin;
-error 1442;
+error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG;
 insert into t select * from s on duplicate key update x=t.x+1;
 rollback;
 drop trigger t_trigger;

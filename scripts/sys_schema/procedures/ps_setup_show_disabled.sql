@@ -1,20 +1,13 @@
 -- Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
--- it under the terms of the GNU General Public License, version 2.0,
--- as published by the Free Software Foundation.
---
--- This program is also distributed with certain software (including
--- but not limited to OpenSSL) that is licensed under separate terms,
--- as designated in a particular file or component or in included license
--- documentation.  The authors of MySQL hereby grant you an additional
--- permission to link the program and your derivative works with the
--- separately licensed software that they have included with MySQL.
+-- it under the terms of the GNU General Public License as published by
+-- the Free Software Foundation; version 2 of the License.
 --
 -- This program is distributed in the hope that it will be useful,
 -- but WITHOUT ANY WARRANTY; without even the implied warranty of
 -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
--- GNU General Public License, version 2.0, for more details.
+-- GNU General Public License for more details.
 --
 -- You should have received a copy of the GNU General Public License
 -- along with this program; if not, write to the Free Software
@@ -124,16 +117,10 @@ Query OK, 0 rows affected (0.01 sec)
 BEGIN
     SELECT @@performance_schema AS performance_schema_enabled;
 
-    -- In 5.7.6 and later the setup_actors table has an ENABLED column to
-    -- specify whether the actor is enabled. Before that all actors matched
-    -- in the setup_actors table were enabled.
-    -- So only execute the query in 5.7.6+
-    /*!50706
     SELECT CONCAT('\'', user, '\'@\'', host, '\'') AS disabled_users
       FROM performance_schema.setup_actors
      WHERE enabled = 'NO'
      ORDER BY disabled_users;
-    */
 
     SELECT object_type,
            CONCAT(object_schema, '.', object_name) AS objects,

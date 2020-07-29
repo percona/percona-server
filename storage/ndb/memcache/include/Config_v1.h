@@ -1,6 +1,5 @@
 /*
- Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
- reserved.
+ Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -20,8 +19,7 @@
 
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- 02110-1301  USA
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 #ifndef NDBMEMCACHE_CONFIG_V1_H
 #define NDBMEMCACHE_CONFIG_V1_H
@@ -65,21 +63,21 @@ protected:
 
 class config_v1_0 : public config_v1 {
 public:
-  config_v1_0(Configuration * cf) : config_v1(cf) {};
+  config_v1_0(Configuration * cf) : config_v1(cf) {}
   virtual void minor_version_config();
 };
 
 
 class config_v1_1 : public config_v1 {
 public:
-  config_v1_1(Configuration * cf) : config_v1(cf) {};
+  config_v1_1(Configuration * cf) : config_v1(cf) {}
   virtual void minor_version_config();  
 };
 
 
 class config_v1_2 : public config_v1 { 
 public:
-  config_v1_2(Configuration * cf) : config_v1(cf) {};
+  config_v1_2(Configuration * cf) : config_v1(cf) {}
   virtual TableSpec * get_container_record(char *name, NdbTransaction *);
   virtual void minor_version_config();
 };

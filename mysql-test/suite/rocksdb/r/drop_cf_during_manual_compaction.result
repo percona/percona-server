@@ -1,5 +1,5 @@
 set @old_debug = @@global.debug;
-create table create_cf ( id int, primary key (id) comment 'cf_primary_key' ) engine=rocksdb;
+create table create_cf ( id int, primary key (id) comment 'cfname=cf_primary_key' ) engine=rocksdb;
 drop table create_cf;
 select * from information_schema.rocksdb_cfstats where cf_name='cf_primary_key';
 CF_NAME	STAT_TYPE	VALUE
@@ -57,7 +57,7 @@ set debug_sync = "now wait_for drop_cf_done";
 select * from information_schema.rocksdb_cfstats where cf_name = 'cf_primary_key';
 CF_NAME	STAT_TYPE	VALUE
 set @@global.debug = @old_debug;
-create table create_cf ( id int, primary key (id) comment 'cf_primary_key' ) engine=rocksdb;
+create table create_cf ( id int, primary key (id) comment 'cfname=cf_primary_key' ) engine=rocksdb;
 drop table create_cf;
 select * from information_schema.rocksdb_cfstats where cf_name='cf_primary_key';
 CF_NAME	STAT_TYPE	VALUE

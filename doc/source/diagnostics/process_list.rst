@@ -9,9 +9,9 @@ This page describes Percona changes to both the standard |MySQL| ``SHOW PROCESSL
 Version Specific Information
 ============================
 
-  * :rn:`5.7.10-1`:
+  * :rn:`8.0.12-1`:
 
-    * Feature ported from |Percona Server| 5.6
+    * Feature ported from |Percona Server| 5.7
 
 INFORMATION_SCHEMA Tables
 =========================

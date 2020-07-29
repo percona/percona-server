@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,7 +18,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef TRANSPORTER_CALLBACK_KERNEL_HPP
 #define TRANSPORTER_CALLBACK_KERNEL_HPP
@@ -48,9 +48,9 @@ public:
   Uint32 m_receiver_thread_idx;
 
   /**
-   * Assign nodes to this TransporterReceiveHandle
+   * Assign trps to this TransporterReceiveHandle
    */
-  void assign_nodes(NodeId *recv_thread_idx_array);
+  void assign_trps(Uint32 *recv_thread_idx_array);
 #endif
 
   /* TransporterCallback interface. */

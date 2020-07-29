@@ -5,30 +5,16 @@
 
 .. _dochome:
 
-===================================
- Percona Server 5.7 - Documentation
-===================================
+================================================================================
+|Percona Server| |version| - Documentation
+================================================================================
 
-|Percona Server| is an enhanced drop-in replacement for |MySQL|. With |Percona Server|,
+|Percona Server| is a free, fully compatible, enhanced, and open source drop-in replacement for any MySQL database. It provides superior performance, scalability, and instrumentation.
 
-  * Your queries will run faster and more consistently.
-
-  * You will consolidate servers on powerful hardware.
-
-  * You will delay sharding, or avoid it entirely.
-
-  * You will save money on hosting fees and power.
-
-  * You will spend less time tuning and administering.
-
-  * You will achieve higher uptime.
-
-  * You will troubleshoot without guesswork.
-
-Does this sound too good to be true? It's not. |Percona Server| offers breakthrough performance, scalability, features, and instrumentation. Its self-tuning algorithms and support for extremely high-performance hardware make it the clear choice for companies who demand the utmost performance and reliability from their database server.
+|Percona Server| is trusted by thousands of enterprises to provide better performance and concurrency for their most demanding workloads. It delivers higher value to MySQL server users with optimized performance, greater performance scalability and availability, enhanced backups, and increased visibility.
 
 Introduction
-============
+================================================================================
 
 .. toctree::
    :maxdepth: 1
@@ -37,45 +23,42 @@ Introduction
    percona_xtradb
    ps-versions-comparison
    feature_comparison
-   changed_in_57
+   changed_in_version
 
 Installation
-============
+================================================================================
 
 .. toctree::
    :maxdepth: 2
    :glob:
 
    installation
-   upgrading_guide_56_57
+   upgrading_guide
 
 Scalability Improvements
-========================
+================================================================================
 
 .. toctree::
    :maxdepth: 1
    :glob:
 
-   scalability/innodb_split_buf_pool_mutex
    scalability/innodb_io
 
 Performance Improvements
-========================
+================================================================================
 
 .. toctree::
    :maxdepth: 1
    :glob:
 
    performance/aio_page_requests
-   performance/query_cache_enhance
-   performance/query_limit_records
-   performance/innodb_numa_support
    performance/threadpool
    performance/xtradb_performance_improvements_for_io-bound_highly-concurrent_workloads
    performance/prefix_index_queries_optimization
+   performance/query_limit_records
 
 Flexibility Improvements
-========================
+================================================================================
 
 .. toctree::
    :maxdepth: 1
@@ -83,21 +66,18 @@ Flexibility Improvements
 
    flexibility/log_warnings_suppress
    flexibility/improved_memory_engine
-   flexibility/max_binlog_files
    flexibility/extended_mysqldump
    flexibility/extended_select_into_outfile
-   flexibility/per_query_variable_statement
    flexibility/extended_mysqlbinlog
-   flexibility/slowlog_rotation
-   flexibility/csv_engine_mode
    flexibility/proxy_protocol_support
-   flexibility/per_session_server-id
    flexibility/compressed_columns
    flexibility/innodb_fts_improvements
    flexibility/binlogging_replication_improvements
+   flexibility/extended_set_var
+   flexibility/sequence_table
 
 Reliability Improvements
-========================
+================================================================================
 
 .. toctree::
    :maxdepth: 1
@@ -107,17 +87,14 @@ Reliability Improvements
    reliability/innodb_corrupt_table_action
 
 Management Improvements
-=======================
+================================================================================
 
 .. toctree::
    :maxdepth: 1
    :glob:
 
    management/udf_percona_toolkit
-   management/innodb_kill_idle_trx
-   management/enforce_engine
-   management/utility_user
-   management/expanded_program_option_modifiers
+   management/kill_idle_trx
    management/changed_page_tracking
    management/pam_plugin
    management/innodb_expanded_fast_index_creation
@@ -129,9 +106,35 @@ Management Improvements
    management/ssl-improvement
    management/utility_user
 
+Security Improvements
+================================================================================
+
+.. toctree::
+  :maxdepth: 1
+  :glob:
+
+  security/pam_plugin
+  security/simple-ldap
+  security/data-at-rest-encryption
+  security/vault
+  security/using-keyring-plugin
+  security/rotating-master-key
+  security/encrypting-tables
+  security/encrypting-tablespaces
+  security/encrypting-system-tablespace
+  security/encrypting-temporary-files
+  security/encrypting-binlogs
+  security/encrypting-redo-log
+  security/encrypting-undo-tablespace
+  security/encrypting-threads
+  security/encrypting-doublewrite-buffers
+  security/verifying-encryption
+  security/data-scrubbing
+  security/ssl-improvement
+  security/data-masking
 
 Diagnostics Improvements
-========================
+================================================================================
 
 .. toctree::
    :maxdepth: 1
@@ -144,12 +147,10 @@ Diagnostics Improvements
    diagnostics/process_list
    diagnostics/misc_info_schema_tables
    diagnostics/thread_based_profiling
-   diagnostics/scalability_metrics_plugin
-   diagnostics/response_time_distribution
    diagnostics/innodb_fragmentation_count
 
 TokuDB
-======
+================================================================================
 
 .. toctree::
    :maxdepth: 1
@@ -172,23 +173,23 @@ TokuDB
    tokudb/removing_tokudb
 
 Percona MyRocks
-===============
+================================================================================
 
 .. toctree::
    :maxdepth: 1
    :glob:
 
-   Introduction <myrocks/index>
-   Installation <myrocks/install>
-   Limitations <myrocks/limitations>
-   Differences <myrocks/differences>
-   Server Variables <myrocks/variables>
-   Status Variables <myrocks/status_variables>
-   myrocks/gap_locks_detection
-   myrocks/data_loading
+   MyRocks Introduction <myrocks/index>
+   MyRocks Installation <myrocks/install>
+   MyRocks Limitations <myrocks/limitations>
+   MyRocks Differences <myrocks/differences>
+   MyRocks Server Variables <myrocks/variables>
+   MyRocks Status Variables <myrocks/status_variables>
+   MyRocks Gap Locks Detection <myrocks/gap_locks_detection>
+   MyRocks Data Loading <myrocks/data_loading>
 
 Reference
-=========
+================================================================================
 
 .. toctree::
    :maxdepth: 1
@@ -206,5 +207,3 @@ Reference
 
 * :ref:`genindex`
 * :ref:`modindex`
-
-

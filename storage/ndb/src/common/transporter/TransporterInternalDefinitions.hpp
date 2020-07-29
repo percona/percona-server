@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,18 +27,9 @@
 
 #include <Checksum.hpp>
 
+//#define DEBUG_TRANSPORTER
 #if defined DEBUG_TRANSPORTER || defined VM_TRACE
 #include <NdbOut.hpp>
-#endif
-
-#define NDB_TCP_TRANSPORTER
-
-#ifdef HAVE_NDB_SHM
-#define NDB_SHM_TRANSPORTER
-#endif
-
-#ifdef HAVE_NDB_SCI
-#define NDB_SCI_TRANSPORTER
 #endif
 
 #ifdef DEBUG_TRANSPORTER

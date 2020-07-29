@@ -4,24 +4,33 @@
 Extended ``mysqlbinlog``
 ========================
 
-|Percona Server| has implemented protocol compression support for the
-:command:`mysqlbinlog` command. 
+|Percona Server| has implemented compression support for
+:command:`mysqlbinlog`. This is similar to support that both ``mysql`` and
+``mysqldump`` programs include (the ``-C``, ``--compress`` options "Use
+compression in server/client protocol"). Using the compressed protocol helps
+reduce the bandwidth use and speed up transfers. 
 
-You can request protocol compression when connecting to a remote server to
-transfer binary log files. The protocol compression helps reduce the
-bandwidth use and improves the transfer speed.
+|Percona Server| has also implemented support for ``SSL``.
+:command:`mysqlbinlog` now accepts the ``SSL`` connection options as all the
+other client programs. This feature can be useful with
+``--read-from-remote-server`` option. Following ``SSL`` options are now
+available:
 
-In the `mysqlbinlog utility
-<https://dev.mysql.com/doc/refman/5.7/en/mysqlbinlog.html>`__ add either the
-``--compress`` or ``-C`` flag to the command-line options.
-
-.. code-block:: MySQL
-
-    $ mysqlbinlog [--compress|-C] --remote-server
-
+ * :option:`--ssl` - Enable SSL for connection (automatically enabled with
+   other flags).
+ * :option:`--ssl-ca=name` - CA file in PEM format (check OpenSSL docs,
+   implies --ssl).
+ * :option:`--ssl-capath=name` - CA directory (check OpenSSL docs, implies
+   --ssl).
+ * :option:`--ssl-cert=name` - X509 cert in PEM format (implies --ssl).
+ * :option:`--ssl-cipher=name` - SSL cipher to use (implies --ssl).
+ * :option:`--ssl-key=name` - X509 key in PEM format (implies --ssl).
+ * :option:`--ssl-verify-server-cert` - Verify server's "Common Name" in its
+   cert against hostname used when connecting. This option is disabled by
+   default.
 
 Version Specific Information
 ============================
 
-  * :rn:`5.7.10-1`
-    Feature ported from |Percona Server| 5.6
+* :rn:`8.0.12-1`: The feature was ported from |Percona Server| 5.7
+

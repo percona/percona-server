@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,6 +75,13 @@ private:
 
   void execGET_CONFIG_REQ(Signal*);
 
+#ifdef ERROR_INSERT
+  Uint32 g_remaining_responses;
+  /* Testing */
+  void execFSOPENCONF(Signal*);
+  void execFSCLOSECONF(Signal*);
+#endif
+
   char theErrorMessage[256];
   void sendSTTORRY(Signal* signal);
 
@@ -103,16 +110,17 @@ private:
     Uint32 prevList;
   };
   typedef Ptr<EventRepSubscriber> SubscriberPtr;
-  
+  typedef ArrayPool<EventRepSubscriber> EventRepSubscriber_pool;
+  typedef DLList<EventRepSubscriber_pool> EventRepSubscriber_list;
   /**
    * Pool of EventRepSubscriber record
    */
-  ArrayPool<EventRepSubscriber> subscriberPool;
+  EventRepSubscriber_pool subscriberPool;
   
   /**
    * List of current subscribers
    */
-  DLList<EventRepSubscriber> subscribers;
+  EventRepSubscriber_list subscribers;
 
 private:
   // Declared but not defined
@@ -141,7 +149,9 @@ private:
     Uint32 m_error;
     Uint32 nextPool;
   };
-  ArrayPool<SyncRecord> c_syncReqPool;
+  typedef ArrayPool<SyncRecord> SyncRecord_pool;
+
+  SyncRecord_pool c_syncReqPool;
 
   void execSYNC_REQ(Signal*);
   void execSYNC_REF(Signal*);

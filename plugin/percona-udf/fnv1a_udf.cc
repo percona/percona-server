@@ -14,14 +14,15 @@
  *
  * gcc -fPIC -Wall -I/usr/include/mysql -shared -o fnv1a_udf.so fnv1a_udf.cc
  * cp fnv1a_udf.so /lib * OR: * cp fnv1a_udf.so /usr/lib
- * mysql mysql -e "CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME 'fnv1a_udf.so'"
+ * mysql mysql -e "CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME
+ * 'fnv1a_udf.so'"
  *
  * For MySQL version 4.1 or older you must add the following flag to the gcc
  * command above: -DNO_DECIMAL_RESULT
  * Otherwise you will get an error like:
  *   fnv1a_udf.cc:167: `DECIMAL_RESULT' undeclared (first use this function)
  * (See http://code.google.com/p/maatkit/issues/detail?id=89)
- * 
+ *
  * If you get the error "ERROR 1126 (HY000): Can't open shared library
  * 'fnv1a_udf.so' (errno: 22 fnv1a_udf.so: cannot open shared object file: No
  * such file or directory)" then you may need to copy the .so file to another
@@ -30,7 +31,7 @@
  * something like /lib.
  *
  * If you get the error "ERROR 1126 (HY000): Can't open shared library
- * 'libfnv1a_udf.so' (errno: 22 /lib/libfnv1a_udf.so: undefined symbol: 
+ * 'libfnv1a_udf.so' (errno: 22 /lib/libfnv1a_udf.so: undefined symbol:
  * __gxx_personality_v0)" then you may need to use g++ instead of gcc.
  *
  * Try both /lib and /usr/lib before changing LD_LIBRARY_PATH.
@@ -108,11 +109,10 @@
  * Share and Enjoy!	:-)
  */
 
-#include <my_global.h>
-#include <my_sys.h>
-#include <mysql.h>
 #include <ctype.h>
 #include <string.h>
+#include "my_sys.h"
+#include "mysql.h"
 
 /* On the first call, use this as the initial_value. */
 #define FNV1A_64_INIT 0xcbf29ce484222325ULL
@@ -124,79 +124,73 @@
 /* Prototypes */
 
 extern "C" {
-   ulonglong hash64a(const void *buf, size_t len, ulonglong hval);
-   my_bool fnv1a_64_init(UDF_INIT* initid, UDF_ARGS* args, char* message);
-   ulonglong fnv1a_64(UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error );
+ulonglong hash64a(const void *buf, size_t len, ulonglong hval);
+bool fnv1a_64_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
+ulonglong fnv1a_64(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
+                   char *error);
 }
 
 /* Implementations */
 
 ulonglong hash64a(const void *buf, size_t len, ulonglong hval) {
-   const unsigned char *bp = (const unsigned char*)buf;
-   const unsigned char *be = bp + len;
+  const unsigned char *bp = (const unsigned char *)buf;
+  const unsigned char *be = bp + len;
 
-   /* FNV-1a hash each octet of the buffer */
-   for (; bp != be; ++bp) {
-      /* xor the bottom with the current octet */
-      hval ^= (ulonglong)*bp;
-      /* multiply by the 64 bit FNV magic prime mod 2^64 */
-      hval *= FNV_64_PRIME;
-   }
+  /* FNV-1a hash each octet of the buffer */
+  for (; bp != be; ++bp) {
+    /* xor the bottom with the current octet */
+    hval ^= (ulonglong)*bp;
+    /* multiply by the 64 bit FNV magic prime mod 2^64 */
+    hval *= FNV_64_PRIME;
+  }
 
-   return hval;
+  return hval;
 }
 
-my_bool
-fnv1a_64_init(UDF_INIT* initid, UDF_ARGS* args, char* message) {
-   if (args->arg_count == 0 ) {
-      strcpy(message,"FNV1A_64 requires at least one argument");
-      return 1;
-   }
-   initid->maybe_null = 0;      /* The result will never be NULL */
-   return 0;
+bool fnv1a_64_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
+  if (args->arg_count == 0) {
+    strcpy(message, "FNV1A_64 requires at least one argument");
+    return true;
+  }
+  initid->maybe_null = 0; /* The result will never be NULL */
+  return false;
 }
 
-ulonglong
-fnv1a_64(UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error) {
+ulonglong fnv1a_64(UDF_INIT *initid MY_ATTRIBUTE((unused)), UDF_ARGS *args,
+                   char *is_null MY_ATTRIBUTE((unused)),
+                   char *error MY_ATTRIBUTE((unused))) {
+  uint null_default = HASH_NULL_DEFAULT;
+  ulonglong result = FNV1A_64_INIT;
+  uint i;
 
-   uint null_default = HASH_NULL_DEFAULT;
-   ulonglong result  = FNV1A_64_INIT;
-   uint i;
-
-   for (i = 0 ; i < args->arg_count; ++i ) {
-      if ( args->args[i] != NULL ) {
-         switch ( args->arg_type[i] ) {
-         case STRING_RESULT:
-         #ifdef NO_DECIMAL_RESULT
-         #else
-         case DECIMAL_RESULT:
-         #endif
-            result
-               = hash64a((const void*) args->args[i], args->lengths[i], result);
-            break;
-         case REAL_RESULT:
-            {
-               double real_val;
-               real_val = *((double*) args->args[i]);
-               result
-                  = hash64a((const void*)&real_val, sizeof(double), result);
-            }
-            break;
-         case INT_RESULT:
-            {
-               long long int_val;
-               int_val = *((long long*) args->args[i]);
-               result = hash64a((const void*)&int_val, sizeof(ulonglong), result);
-            }
-            break;
-         default:
-            break;
-         }
+  for (i = 0; i < args->arg_count; ++i) {
+    if (args->args[i] != NULL) {
+      switch (args->arg_type[i]) {
+        case STRING_RESULT:
+#ifdef NO_DECIMAL_RESULT
+#else
+        case DECIMAL_RESULT:
+#endif
+          result =
+              hash64a((const void *)args->args[i], args->lengths[i], result);
+          break;
+        case REAL_RESULT: {
+          double real_val;
+          real_val = *((double *)args->args[i]);
+          result = hash64a((const void *)&real_val, sizeof(double), result);
+        } break;
+        case INT_RESULT: {
+          long long int_val;
+          int_val = *((long long *)args->args[i]);
+          result = hash64a((const void *)&int_val, sizeof(ulonglong), result);
+        } break;
+        default:
+          break;
       }
-      else {
-         result
-            = hash64a((const void*)&null_default, sizeof(null_default), result);
-      }
-   }
-   return result;
+    } else {
+      result =
+          hash64a((const void *)&null_default, sizeof(null_default), result);
+    }
+  }
+  return result;
 }

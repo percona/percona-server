@@ -1,5 +1,5 @@
-/*
-   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+ /*
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include <HugoTransactions.hpp>
 #include <Bitmask.hpp>
 #include <Vector.hpp>
+#include "my_alloc.h"
 
 static const char* _dbname = "TEST_DB";
 static int g_loops = 7;
@@ -50,12 +51,9 @@ static int testBitmask();
 int 
 main(int argc, char** argv){
   NDB_INIT(argv[0]);
-  const char *load_default_groups[]= { "mysql_cluster",0 };
-  ndb_load_defaults(NULL, load_default_groups,&argc,&argv);
-  int ho_error;
+  Ndb_opts opts(argc, argv, my_long_options);
 
-  if ((ho_error=handle_options(&argc, &argv, my_long_options,
-			       ndb_std_get_one_option)))
+  if (opts.handle_options())
     return NDBT_ProgramExit(NDBT_WRONGARGS);
 
   int res = NDBT_FAILED;
@@ -469,7 +467,7 @@ int simple(int pos, int size)
     printf("dst: "); print(dst, size+31); printf("\n");
   }
   return (cmp(src, dst, size+31)?0 : -1);
-};
+}
 
 struct Alloc
 {
@@ -511,7 +509,8 @@ testRanges(Uint32 bitmask_size)
       // 2) Check data
       // 3) free it
       unsigned j;
-      Uint32 min, max;
+      Uint32 min = 0;
+      Uint32 max = Uint32(~0);
       for(j = 0; j<alloc_list.size(); j++)
       {
 	min = alloc_list[j].pos;
@@ -611,7 +610,7 @@ testRanges(Uint32 bitmask_size)
     /* Verify range setting method works correctly */
     for(Uint32 j = 0; j<sz; j++)
     {
-      bool expect = (j >= start && j<stop);
+      bool expect = (j >= start && j<= stop);
       if(expect)
 	BitmaskImpl::set(sz32, check.getBase(), j);
     }
@@ -647,21 +646,6 @@ testRanges(Uint32 bitmask_size)
 	BitmaskImpl::clear(sz32, check.getBase(), j);
     }
 
-    BitmaskImpl::clear_range(sz32, map.getBase(), start, stop);
-    if (!BitmaskImpl::equal(sz32, map.getBase(), check.getBase()))
-    {
-      ndbout_c(" FAIL 2 sz: %d [ %d %d ]", sz, start, stop);
-      printf("check: ");
-      for(Uint32 j = 0; j<sz32; j++)
-	printf("%.8x ", check[j]);
-      printf("\n");
-
-      printf("map  : ");
-      for(Uint32 j = 0; j<sz32; j++)
-	printf("%.8x ", map[j]);
-      printf("\n");
-      return -1;
-    }
   }
 #endif
 

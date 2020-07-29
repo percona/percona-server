@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -18,35 +18,50 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET(HEAP_PLUGIN_STATIC  "heap")
-SET(HEAP_PLUGIN_MANDATORY  TRUE)
+SET(HEAP_SOURCES
+  _check.cc
+  _rectest.cc
+  hp_block.cc
+  hp_clear.cc
+  hp_close.cc
+  hp_create.cc
+  hp_delete.cc
+  hp_dspace.cc
+  hp_extra.cc
+  hp_hash.cc
+  hp_info.cc
+  hp_open.cc
+  hp_panic.cc
+  hp_record.cc
+  hp_rename.cc
+  hp_rfirst.cc
+  hp_rkey.cc
+  hp_rlast.cc
+  hp_rnext.cc
+  hp_rprev.cc
+  hp_rrnd.cc
+  hp_rsame.cc
+  hp_scan.cc
+  hp_static.cc
+  hp_update.cc
+  hp_write.cc
+  )
 
-SET(HEAP_SOURCES  _check.c _rectest.c hp_block.c hp_clear.c hp_close.c hp_create.c
-				ha_heap.cc
-				hp_delete.c hp_extra.c hp_hash.c hp_info.c hp_open.c hp_panic.c
-				hp_rename.c hp_rfirst.c hp_rkey.c hp_rlast.c hp_rnext.c hp_rprev.c
-				hp_dspace.c hp_record.c
-				hp_rrnd.c hp_rsame.c hp_scan.c hp_static.c hp_update.c hp_write.c)
+ADD_LIBRARY(heap_library STATIC ${HEAP_SOURCES})
+ADD_DEPENDENCIES(heap_library GenError)
+TARGET_LINK_LIBRARIES(heap_library mysys)
 
-MYSQL_ADD_PLUGIN(heap ${HEAP_SOURCES} STORAGE_ENGINE MANDATORY
-                 RECOMPILE_FOR_EMBEDDED DTRACE_INSTRUMENTED)
-
-IF(WITH_EMBEDDED_SERVER)
-  SET(HEAP_NOPFS heap_embedded)
-ELSE()
-  ADD_CONVENIENCE_LIBRARY(heap_nopfs ${HEAP_SOURCES})
-  ADD_DEPENDENCIES(heap_nopfs GenError)
-  SET(HEAP_NOPFS heap_nopfs)
-ENDIF()
+MYSQL_ADD_PLUGIN(heap ha_heap.cc
+  STORAGE_ENGINE MANDATORY
+  LINK_LIBRARIES heap_library
+  )
 
 IF(WITH_UNIT_TESTS)
-  ADD_EXECUTABLE(hp_test1 hp_test1.c)
-  TARGET_LINK_LIBRARIES(hp_test1 ${HEAP_NOPFS} mysys)
-  ADD_TEST(hp_test1 hp_test1)
+  MYSQL_ADD_EXECUTABLE(hp_test1 hp_test1.cc ADD_TEST hp_test1)
+  TARGET_LINK_LIBRARIES(hp_test1 heap_library)
 
-  ADD_EXECUTABLE(hp_test2 hp_test2.c)
-  TARGET_LINK_LIBRARIES(hp_test2 ${HEAP_NOPFS} mysys)
-  ADD_TEST(hp_test2 hp_test2)
+  MYSQL_ADD_EXECUTABLE(hp_test2 hp_test2.cc ADD_TEST hp_test2)
+  TARGET_LINK_LIBRARIES(hp_test2 heap_library)
 ENDIF()

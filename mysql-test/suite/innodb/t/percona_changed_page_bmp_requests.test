@@ -1,7 +1,6 @@
 #
 # Tests for changed page tracking bitmaps: user requests.
 #
---source include/have_innodb.inc
 
 # Delete any existing bitmaps
 

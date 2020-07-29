@@ -1,5 +1,3 @@
---source include/have_innodb.inc
-
 --let $dict1_name = dict1
 --let $dict2_name = dict2
 --let $unknown_dict_name = unknown
@@ -38,14 +36,14 @@ eval CREATE TABLE $modified_table_name LIKE $original_table_name;
 eval ALTER TABLE $modified_table_name DISCARD TABLESPACE;
 eval FLUSH TABLES $original_table_name FOR EXPORT;
 
-eval SELECT space INTO @original_tablespace_id FROM information_schema.innodb_sys_tablespaces
+eval SELECT space INTO @original_tablespace_id FROM information_schema.innodb_tablespaces
   WHERE name = CONCAT(DATABASE(), '/', '$original_table_name');
-SELECT path INTO @original_datafile_path FROM information_schema.innodb_sys_datafiles
+SELECT path INTO @original_datafile_path FROM information_schema.innodb_datafiles
   WHERE space = @original_tablespace_id;
 
-eval SELECT space INTO @modified_tablespace_id FROM information_schema.innodb_sys_tablespaces
+eval SELECT space INTO @modified_tablespace_id FROM information_schema.innodb_tablespaces
   WHERE name = CONCAT(DATABASE(), '/', '$modified_table_name');
-SELECT path INTO @modified_datafile_path FROM information_schema.innodb_sys_datafiles
+SELECT path INTO @modified_datafile_path FROM information_schema.innodb_datafiles
   WHERE space = @modified_tablespace_id;
 
 --let $original_datafile_absolute_path = `SELECT CONCAT(@@datadir, REPLACE(@original_datafile_path, './', ''))`

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,36 +25,37 @@
 #ifndef MYSQL_FIELD_INCLUDED
 #define MYSQL_FIELD_INCLUDED
 
-#include "my_global.h"
-#include "mysql.h"
+#include <sys/types.h>
 #include <string>
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+#include "my_inttypes.h"  // IWYU pragma: keep
+#include "mysql.h"
 
-class Mysql_field
-{
-public:
-  Mysql_field(MYSQL_FIELD* field);
+namespace Mysql {
+namespace Tools {
+namespace Dump {
+
+class Mysql_field {
+ public:
+  Mysql_field(MYSQL_FIELD *field);
 
   std::string get_name() const;
 
-  uint get_character_set_nr() const;
+  unsigned int get_character_set_nr() const;
 
-  uint get_additional_flags() const;
+  unsigned int get_additional_flags() const;
 
   enum enum_field_types get_type() const;
 
-private:
+ private:
   std::string m_name;
   unsigned int m_charsetnr;
   unsigned int m_flags;
   enum enum_field_types m_type;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

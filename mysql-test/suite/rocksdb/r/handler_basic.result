@@ -4,7 +4,7 @@ INDEX b(b)) ENGINE=ROCKSDB;
 INSERT INTO t1 (id,a,b) VALUES (1,'foobar',100),(2,'z',0),(3,'bar',50);
 SHOW SESSION STATUS LIKE 'Handler_write%';
 Variable_name	Value
-Handler_write	3
+Handler_write	11
 UPDATE t1 SET b=1000 WHERE id=1;
 SHOW SESSION STATUS LIKE 'Handler_update%';
 Variable_name	Value
@@ -16,7 +16,7 @@ Handler_delete	1
 INSERT INTO t1 (id,b) VALUES(4,4),(5,5),(6,6),(7,7),(8,8),(9,9),(10,10);
 SHOW SESSION STATUS LIKE 'Handler_write%';
 Variable_name	Value
-Handler_write	10
+Handler_write	18
 FLUSH STATUS;
 SELECT * FROM t1 WHERE id=8;
 id	a	b

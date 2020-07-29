@@ -19,11 +19,6 @@
 --source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
 
 --let $expected_error =
-if ($modified_dict_name == 'unknown')
-{
-  --let $expected_error = ER_COMPRESSION_DICTIONARY_DOES_NOT_EXIST
-}
-
 if ($alter_table_algorithm == 'INPLACE')
 {
   if ($original_column_definition != $modified_column_definition)
@@ -31,6 +26,12 @@ if ($alter_table_algorithm == 'INPLACE')
     --let $expected_error = ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
   }
 }
+
+if ($modified_dict_name == 'unknown')
+{
+  --let $expected_error = ER_COMPRESSION_DICTIONARY_DOES_NOT_EXIST
+}
+
 let $alter_table_statement = ALTER TABLE $original_table_name
   CHANGE COLUMN $original_column_name $modified_column_name $modified_column_definition,
   ALGORITHM = $alter_table_algorithm;

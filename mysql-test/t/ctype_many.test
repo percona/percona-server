@@ -2,16 +2,13 @@
  #Get deafult engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
--- source include/have_ucs2.inc
--- source include/have_utf8mb4.inc
--- source include/have_utf16.inc
--- source include/have_utf32.inc
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 
-SET CHARACTER SET latin1;
+SET CHARACTER SET koi8r;
+--character_set koi8r
 
 CREATE TABLE t1 (
   comment CHAR(32) ASCII NOT NULL,

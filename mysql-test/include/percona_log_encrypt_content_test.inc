@@ -8,7 +8,7 @@ INSERT INTO t1 VALUES(2, "zxcvbnm");
 # Check file content
 --let $MYSQLD_DATADIR= `select @@datadir`
 --let SEARCH_PATTERN= asdfghjkl
--- let SEARCH_FILE= $MYSQLD_DATADIR/ib_logfile0
+-- let SEARCH_FILE= $MYSQLD_DATADIR/ib_logfile1
 -- source include/search_pattern_in_file.inc
 
 DROP TABLE t1;

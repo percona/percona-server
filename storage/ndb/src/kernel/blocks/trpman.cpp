@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,15 @@ extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 430
 
+#if (defined(VM_TRACE) || defined(ERROR_INSERT))
+//#define DEBUG_MULTI_TRP 1
+#endif
+
+#ifdef DEBUG_MULTI_TRP
+#define DEB_MULTI_TRP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_MULTI_TRP(arglist) do { } while (0)
+#endif
 
 Trpman::Trpman(Block_context & ctx, Uint32 instanceno) :
   SimulatedBlock(TRPMAN, ctx, instanceno)
@@ -49,14 +58,12 @@ Trpman::Trpman(Block_context & ctx, Uint32 instanceno) :
   addRecSignal(GSN_DISCONNECT_REP, &Trpman::execDISCONNECT_REP);
   addRecSignal(GSN_CONNECT_REP, &Trpman::execCONNECT_REP);
   addRecSignal(GSN_ROUTE_ORD, &Trpman::execROUTE_ORD);
+  addRecSignal(GSN_SYNC_THREAD_VIA_REQ, &Trpman::execSYNC_THREAD_VIA_REQ);
+  addRecSignal(GSN_ACTIVATE_TRP_REQ, &Trpman::execACTIVATE_TRP_REQ);
 
   addRecSignal(GSN_NDB_TAMPER, &Trpman::execNDB_TAMPER, true);
   addRecSignal(GSN_DUMP_STATE_ORD, &Trpman::execDUMP_STATE_ORD);
   addRecSignal(GSN_DBINFO_SCANREQ, &Trpman::execDBINFO_SCANREQ);
-}
-
-Trpman::~Trpman()
-{
 }
 
 BLOCK_FUNCTIONS(Trpman)
@@ -67,14 +74,43 @@ extern Uint32 MAX_RECEIVED_SIGNALS;
 #endif
 
 bool
-Trpman::handles_this_node(Uint32 nodeId)
+Trpman::handles_this_node(Uint32 nodeId, bool all)
 {
   /* If there's only one receiver then no question */
   if (globalData.ndbMtReceiveThreads <= (Uint32)1)
     return true;
-  
+
+  /**
+   * Multiple receive threads can handle the node, but only one of the receive
+   * threads will act to change state and so forth, we define this to always
+   * be the first transporter for this node. Often this method is called in
+   * the setup and close phase where only one transporter is existing.
+   * Thus we only look for first transporter below.
+   */
+  Uint32 num_ids;
+  Uint32 max_ids = 1;
+  TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
+  if (all)
+  {
+    max_ids = MAX_NODE_GROUP_TRANSPORTERS;
+  }
+  globalTransporterRegistry.lockMultiTransporters();
+  globalTransporterRegistry.get_trps_for_node(nodeId,
+                                              &trp_ids[0],
+                                              num_ids,
+                                              max_ids);
   /* There's a global receiver->thread index - look it up */
-  return (instance() == (get_recv_thread_idx(nodeId) + /* proxy */ 1));
+  bool ret_val = false;
+  for (Uint32 i = 0; i < num_ids; i++)
+  {
+    if (instance() == (get_recv_thread_idx(trp_ids[i]) + /* proxy */ 1))
+    {
+      ret_val = true;
+      break;
+    }
+  }
+  globalTransporterRegistry.unlockMultiTransporters();
+  return ret_val;
 }
 
 void
@@ -185,10 +221,30 @@ Trpman::execCONNECT_REP(Signal *signal)
 }
 
 void
+Trpman::close_com_failed_node(Signal *signal, Uint32 nodeId)
+{
+  if (handles_this_node(nodeId))
+  {
+    jam();
+
+    //-----------------------------------------------------
+    // Report that the connection to the node is closed
+    //-----------------------------------------------------
+    signal->theData[0] = NDB_LE_CommunicationClosed;
+    signal->theData[1] = nodeId;
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
+
+    globalTransporterRegistry.setIOState(nodeId, HaltIO);
+    globalTransporterRegistry.do_disconnect(nodeId);
+  }
+}
+
+void
 Trpman::execCLOSE_COMREQ(Signal* signal)
 {
   // Close communication with the node and halt input/output from
   // other blocks than QMGR
+  jamEntry();
 
   CloseComReqConf * const closeCom = (CloseComReqConf *)&signal->theData[0];
 
@@ -198,27 +254,40 @@ Trpman::execCLOSE_COMREQ(Signal* signal)
   Uint32 noOfNodes = closeCom->noOfNodes;
   Uint32 found_nodes = 0;
 
-  jamEntry();
-  for (unsigned i = 1; i < MAX_NODES; i++)
+  if (closeCom->failedNodeId == 0)
   {
-    if (NodeBitmask::get(closeCom->theNodes, i))
+    jam();
+    /**
+     * When data nodes have failed, we can have several
+     * concurrent failures, these are handled all in one signal, in
+     * this case we send the node bitmask in a section.
+     */
+    ndbrequire(signal->getNoOfSections() == 1);
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr, 0);
+    NdbNodeBitmask nodes;
+    ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
+    copy(nodes.rep.data, ptr);
+    releaseSections(handle);
+
+    unsigned node_id = 0;
+    while ((node_id = nodes.find(node_id + 1)) != NdbNodeBitmask::NotFound)
     {
+      jam();
       found_nodes++;
-      if (handles_this_node(i))
-      {
-        jam();
-
-        //-----------------------------------------------------
-        // Report that the connection to the node is closed
-        //-----------------------------------------------------
-        signal->theData[0] = NDB_LE_CommunicationClosed;
-        signal->theData[1] = i;
-        sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
-
-        globalTransporterRegistry.setIOState(i, HaltIO);
-        globalTransporterRegistry.do_disconnect(i);
-      }
+      jamLine(node_id);
+      close_com_failed_node(signal, node_id);
     }
+  }
+  else
+  {
+    jam();
+    ndbrequire(signal->getNoOfSections() == 0);
+    found_nodes = 1;
+    ndbrequire(noOfNodes == 1);
+    jamLine(Uint16(closeCom->failedNodeId));
+    close_com_failed_node(signal, closeCom->failedNodeId);
   }
   ndbrequire(noOfNodes == found_nodes);
 
@@ -237,7 +306,11 @@ Trpman::execCLOSE_COMREQ(Signal* signal)
      * bitmap is not trampled above
      * signals received from the remote node.
      */
-    sendSignal(TRPMAN_REF, GSN_CLOSE_COMCONF, signal, 19, JBA);
+    sendSignal(TRPMAN_REF,
+               GSN_CLOSE_COMCONF,
+               signal,
+               CloseComReqConf::SignalLength,
+               JBA);
   }
 }
 
@@ -250,7 +323,30 @@ void
 Trpman::execCLOSE_COMCONF(Signal *signal)
 {
   jamEntry();
-  sendSignal(QMGR_REF, GSN_CLOSE_COMCONF, signal, 19, JBA);
+  sendSignal(QMGR_REF,
+             GSN_CLOSE_COMCONF,
+             signal,
+             CloseComReqConf::SignalLength,
+             JBA);
+}
+
+void
+Trpman::enable_com_node(Signal *signal, Uint32 node)
+{
+  if (!handles_this_node(node))
+    return;
+  globalTransporterRegistry.setIOState(node, NoHalt);
+  setNodeInfo(node).m_connected = true;
+
+  //-----------------------------------------------------
+  // Report that the version of the node
+  //-----------------------------------------------------
+  signal->theData[0] = NDB_LE_ConnectedApiVersion;
+  signal->theData[1] = node;
+  signal->theData[2] = getNodeInfo(node).m_version;
+  signal->theData[3] = getNodeInfo(node).m_mysql_version;
+
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
 }
 
 void
@@ -262,39 +358,39 @@ Trpman::execENABLE_COMREQ(Signal* signal)
   /* Need to copy out signal data to not clobber it with sendSignal(). */
   BlockReference senderRef = enableComReq->m_senderRef;
   Uint32 senderData = enableComReq->m_senderData;
-  Uint32 nodes[NodeBitmask::Size];
-  MEMCOPY_NO_WORDS(nodes, enableComReq->m_nodeIds, NodeBitmask::Size);
+  Uint32 enableNodeId = enableComReq->m_enableNodeId;
 
   /* Enable communication with all our NDB blocks to these nodes. */
-  Uint32 search_from = 1;
-  for (;;)
+  if (enableNodeId == 0)
   {
-    Uint32 tStartingNode = NodeBitmask::find(nodes, search_from);
-    if (tStartingNode == NodeBitmask::NotFound)
-      break;
-    search_from = tStartingNode + 1;
-
-    if (!handles_this_node(tStartingNode))
-      continue;
-    globalTransporterRegistry.setIOState(tStartingNode, NoHalt);
-    setNodeInfo(tStartingNode).m_connected = true;
-
-    //-----------------------------------------------------
-    // Report that the version of the node
-    //-----------------------------------------------------
-    signal->theData[0] = NDB_LE_ConnectedApiVersion;
-    signal->theData[1] = tStartingNode;
-    signal->theData[2] = getNodeInfo(tStartingNode).m_version;
-    signal->theData[3] = getNodeInfo(tStartingNode).m_mysql_version;
-
-    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
-    //-----------------------------------------------------
+    ndbrequire(signal->getNoOfSections() == 1);
+    Uint32 nodes[NodeBitmask::Size];
+    memset (nodes, 0, sizeof(nodes));
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr, 0);
+    ndbrequire(ptr.sz <= NodeBitmask::Size);
+    copy(nodes, ptr);
+    releaseSections(handle);
+    Uint32 search_from = 1;
+    for (;;)
+    {
+      Uint32 tStartingNode = NodeBitmask::find(nodes, search_from);
+      if (tStartingNode == NodeBitmask::NotFound)
+        break;
+      search_from = tStartingNode + 1;
+      enable_com_node(signal, tStartingNode);
+    }
+  }
+  else
+  {
+    enable_com_node(signal, enableNodeId);
   }
 
   EnableComConf *enableComConf = (EnableComConf *)signal->getDataPtrSend();
   enableComConf->m_senderRef = reference();
   enableComConf->m_senderData = senderData;
-  MEMCOPY_NO_WORDS(enableComConf->m_nodeIds, nodes, NodeBitmask::Size);
+  enableComConf->m_enableNodeId = enableNodeId;
   sendSignal(senderRef, GSN_ENABLE_COMCONF, signal,
              EnableComConf::SignalLength, JBA);
 }
@@ -405,6 +501,11 @@ Trpman::execDBINFO_SCANREQ(Signal *signal)
 
     while (rnode < MAX_NODES)
     {
+      if (globalTransporterRegistry.get_node_transporter(rnode) == NULL)
+      {
+        rnode++;
+        continue;
+      }
       if (!handles_this_node(rnode))
       {
         rnode++;
@@ -421,52 +522,34 @@ Trpman::execDBINFO_SCANREQ(Signal *signal)
         row.write_uint32(rnode); // Remote node id
         row.write_uint32(globalTransporterRegistry.getPerformState(rnode)); // State
 
-        if (globalTransporterRegistry.get_transporter(rnode) != NULL)
+        /* Connect address */
+        if (globalTransporterRegistry.get_connect_address(rnode).s_addr != 0)
         {
           jam();
-          /* Connect address */
-          if (globalTransporterRegistry.get_connect_address(rnode).s_addr != 0)
-          {
-            jam();
-            struct in_addr conn_addr = globalTransporterRegistry.
-                                         get_connect_address(rnode);
-            char *addr_str = Ndb_inet_ntop(AF_INET,
-                                           static_cast<void*>(&conn_addr),
-                                           addr_buf,
-                                           (socklen_t)sizeof(addr_buf));
-            row.write_string(addr_str);
-          }
-          else
-          {
-            jam();
-            row.write_string("-");
-          }
-          
-          /* Bytes sent/received */
-          row.write_uint64(globalTransporterRegistry.get_bytes_sent(rnode));
-          row.write_uint64(globalTransporterRegistry.get_bytes_received(rnode));
-          
-          /* Connect count, overload and Slowdown states */
-          row.write_uint32(globalTransporterRegistry.get_connect_count(rnode));
-          row.write_uint32(globalTransporterRegistry.get_status_overloaded().get(rnode));
-          row.write_uint32(globalTransporterRegistry.get_overload_count(rnode));
-          row.write_uint32(globalTransporterRegistry.get_status_slowdown().get(rnode));
-          row.write_uint32(globalTransporterRegistry.get_slowdown_count(rnode));
+          struct in_addr conn_addr = globalTransporterRegistry.
+                                       get_connect_address(rnode);
+          char *addr_str = Ndb_inet_ntop(AF_INET,
+                                         static_cast<void*>(&conn_addr),
+                                         addr_buf,
+                                         sizeof(addr_buf));
+          row.write_string(addr_str);
         }
         else
         {
-          /* Null transporter */
           jam();
-          row.write_string("-");  /* Remote address */
-          row.write_uint64(0);    /* Bytes sent */
-          row.write_uint64(0);    /* Bytes received */
-          row.write_uint32(0);    /* Connect count */
-          row.write_uint32(0);    /* Overloaded */
-          row.write_uint32(0);    /* Overload_count */
-          row.write_uint32(0);    /* Slowdown */
-          row.write_uint32(0);    /* Slowdown_count */
+          row.write_string("-");
         }
 
+        /* Bytes sent/received */
+        row.write_uint64(globalTransporterRegistry.get_bytes_sent(rnode));
+        row.write_uint64(globalTransporterRegistry.get_bytes_received(rnode));
+
+        /* Connect count, overload and Slowdown states */
+        row.write_uint32(globalTransporterRegistry.get_connect_count(rnode));
+        row.write_uint32(globalTransporterRegistry.get_status_overloaded().get(rnode));
+        row.write_uint32(globalTransporterRegistry.get_overload_count(rnode));
+        row.write_uint32(globalTransporterRegistry.get_status_slowdown().get(rnode));
+        row.write_uint32(globalTransporterRegistry.get_slowdown_count(rnode));
         ndbinfo_send_row(signal, req, row, rl);
         break;
       }
@@ -594,7 +677,7 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
     for (Uint32 n = 1; n < signal->getLength(); n++)
     {
       Uint32 nodeId = signal->theData[n];
-      if (!handles_this_node(nodeId))
+      if (!handles_this_node(nodeId, true))
         continue;
 
       if ((nodeId > 0) &&
@@ -602,12 +685,15 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
       {
         if (block)
         {
-          g_eventLogger->info("TRPMAN : Blocking receive from node %u", nodeId);
+          g_eventLogger->info("(%u)TRPMAN : Blocking receive from node %u",
+                              instance(),
+                              nodeId);
           globalTransporterRegistry.blockReceive(*recvdata, nodeId);
         }
         else
         {
-          g_eventLogger->info("TRPMAN : Unblocking receive from node %u", 
+          g_eventLogger->info("(%u)TRPMAN : Unblocking receive from node %u",
+                              instance(),
                               nodeId);
 
           globalTransporterRegistry.unblockReceive(*recvdata, nodeId);
@@ -634,7 +720,9 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
     assert(recvdata != 0);
     for (Uint32 node = 1; node < MAX_NDB_NODES; node++)
     {
-      if (!handles_this_node(node))
+      if (node == getOwnNodeId())
+        continue;
+      if (!handles_this_node(node, true))
         continue;
       if (globalTransporterRegistry.is_connected(node))
       {
@@ -660,7 +748,9 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
             default:
               break;
             }
-            g_eventLogger->info("TRPMAN : Blocking receive from node %u", node);
+            g_eventLogger->info("(%u)TRPMAN : Blocking receive from node %u",
+                                instance(),
+                                node);
             globalTransporterRegistry.blockReceive(*recvdata, node);
           }
         }
@@ -673,16 +763,136 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
     assert(recvdata != 0);
     for (Uint32 node = 1; node < MAX_NODES; node++)
     {
-      if (!handles_this_node(node))
+      if (node == getOwnNodeId())
+        continue;
+      if (!handles_this_node(node, true))
         continue;
       if (globalTransporterRegistry.isBlocked(node))
       {
-        g_eventLogger->info("TRPMAN : Unblocking receive from node %u", node);
+        g_eventLogger->info("(%u)TRPMAN : Unblocking receive from node %u",
+                            instance(),
+                            node);
         globalTransporterRegistry.unblockReceive(*recvdata, node);
       }
     }
   }
+  if (arg == 9988 ||  /* Block send to node X */
+      arg == 9989)    /* Unblock send to node X */
+  {
+    bool block = (arg == 9988);
+    TransporterReceiveHandle * recvdata = mt_get_trp_receive_handle(instance());
+    assert(recvdata != 0);
+    for (Uint32 n = 1; n < signal->getLength(); n++)
+    {
+      Uint32 nodeId = signal->theData[n];
+      if (!handles_this_node(nodeId))
+        continue;
+
+      if ((nodeId > 0) &&
+          (nodeId < MAX_NODES))
+      {
+        g_eventLogger->info("TRPMAN : Send to %u is %sblocked",
+                            nodeId, 
+                            (globalTransporterRegistry.
+                             isSendBlocked(nodeId)?"":"not "));
+        if (block)
+        {
+          g_eventLogger->info("TRPMAN : Blocking send to node %u", nodeId);
+          globalTransporterRegistry.blockSend(*recvdata, nodeId);
+        }
+        else
+        {
+          g_eventLogger->info("TRPMAN : Unblocking send to node %u", 
+                              nodeId);
+
+          globalTransporterRegistry.unblockSend(*recvdata, nodeId);
+        }
+      }
+      else
+      {
+        ndbout_c("TRPMAN : Ignoring dump %u for node %u",
+                 arg, nodeId);
+      }
+    }
+
+  }
+
 #endif
+}
+
+void
+Trpman::sendSYNC_THREAD_VIA_CONF(Signal* signal, Uint32 senderData, Uint32 retVal)
+{
+  jamEntry();
+  SyncThreadViaReqConf* conf = (SyncThreadViaReqConf*)signal->getDataPtr();
+  conf->senderData = senderData;
+  const BlockReference receiver = isMultiThreaded() ?
+    TRPMAN_REF :
+    QMGR_REF;
+  sendSignal(receiver, GSN_SYNC_THREAD_VIA_CONF, signal, signal->getLength(), JBA);
+}
+
+void
+Trpman::execSYNC_THREAD_VIA_REQ(Signal *signal)
+{
+  jam();
+  SyncThreadViaReqConf* req = (SyncThreadViaReqConf*)signal->getDataPtr();
+
+  /* Some ugliness as we have nowhere handy to put the sender's reference */
+  ndbassert(refToMain(req->senderRef) ==
+            (isMultiThreaded() ?
+             TRPMAN :
+             QMGR));
+
+  Callback cb =
+    { safe_cast(&Trpman::sendSYNC_THREAD_VIA_CONF), req->senderData};
+  /* Make sure all external signals handled by transporters belonging to this
+   * TRPMAN have been processed.
+   */
+  synchronize_external_signals(signal, cb);
+}
+
+bool
+Trpman::getParam(const char* name, Uint32* count)
+{
+  /* Trpman uses synchronize_threads_for_block(THRMAN) prior sending
+   * NODE_FAILREP.
+   * An overestimate of the maximum possible concurrent NODE_FAILREP is one
+   * node failure per NODE_FAILREP, and all nodes failing!
+   */
+  if (strcmp(name, "ActiveThreadSync") != 0)
+  {
+    return false;
+  }
+  *count = MAX_DATA_NODE_ID;
+  return true;
+}
+
+void
+Trpman::execACTIVATE_TRP_REQ(Signal *signal)
+{
+  ActivateTrpReq* req = (ActivateTrpReq*)&signal->theData[0];
+  Uint32 node_id = req->nodeId;
+  Uint32 trp_id = req->trpId;
+  BlockReference ret_ref = req->senderRef;
+  if (is_recv_thread_for_new_trp(node_id, trp_id))
+  {
+    epoll_add_trp(node_id, trp_id);
+    DEB_MULTI_TRP(("(%u)ACTIVATE_TRP_REQ is receiver (%u,%u)",
+                   instance(), node_id, trp_id));
+    ActivateTrpConf* conf =
+      CAST_PTR(ActivateTrpConf, signal->getDataPtrSend());
+    conf->nodeId = node_id;
+    conf->trpId = trp_id;
+    conf->senderRef = reference();
+    sendSignal(ret_ref, GSN_ACTIVATE_TRP_CONF, signal,
+               ActivateTrpConf::SignalLength, JBB);
+  }
+  else
+  {
+    DEB_MULTI_TRP(("(%u)ACTIVATE_TRP_REQ is not receiver (%u,%u)",
+                   instance(), node_id, trp_id));
+  }
 }
 
 TrpmanProxy::TrpmanProxy(Block_context & ctx) :
@@ -694,6 +904,9 @@ TrpmanProxy::TrpmanProxy(Block_context & ctx) :
   addRecSignal(GSN_CLOSE_COMREQ, &TrpmanProxy::execCLOSE_COMREQ);
   addRecSignal(GSN_CLOSE_COMCONF, &TrpmanProxy::execCLOSE_COMCONF);
   addRecSignal(GSN_ROUTE_ORD, &TrpmanProxy::execROUTE_ORD);
+  addRecSignal(GSN_SYNC_THREAD_VIA_REQ, &TrpmanProxy::execSYNC_THREAD_VIA_REQ);
+  addRecSignal(GSN_SYNC_THREAD_VIA_CONF, &TrpmanProxy::execSYNC_THREAD_VIA_CONF);
+  addRecSignal(GSN_ACTIVATE_TRP_REQ, &TrpmanProxy::execACTIVATE_TRP_REQ);
 }
 
 TrpmanProxy::~TrpmanProxy()
@@ -706,7 +919,7 @@ TrpmanProxy::newWorker(Uint32 instanceNo)
   return new Trpman(m_ctx, instanceNo);
 }
 
-BLOCK_FUNCTIONS(TrpmanProxy);
+BLOCK_FUNCTIONS(TrpmanProxy)
 
 // GSN_OPEN_COMORD
 
@@ -732,11 +945,23 @@ TrpmanProxy::execCLOSE_COMREQ(Signal* signal)
   Ss_CLOSE_COMREQ& ss = ssSeize<Ss_CLOSE_COMREQ>();
   const CloseComReqConf* req = (const CloseComReqConf*)signal->getDataPtr();
   ss.m_req = *req;
+  if (req->failedNodeId == 0)
+  {
+    ndbrequire(signal->getNoOfSections() == 1);
+    SectionHandle handle(this, signal);
+    saveSections(ss, handle);
+  }
+  else
+  {
+    ndbrequire(signal->getNoOfSections() == 0);
+  }
   sendREQ(signal, ss);
 }
 
 void
-TrpmanProxy::sendCLOSE_COMREQ(Signal *signal, Uint32 ssId, SectionHandle*)
+TrpmanProxy::sendCLOSE_COMREQ(Signal *signal,
+                              Uint32 ssId,
+                              SectionHandle *handle)
 {
   jam();
   Ss_CLOSE_COMREQ& ss = ssFind<Ss_CLOSE_COMREQ>(ssId);
@@ -745,8 +970,12 @@ TrpmanProxy::sendCLOSE_COMREQ(Signal *signal, Uint32 ssId, SectionHandle*)
   *req = ss.m_req;
   req->xxxBlockRef = reference();
   req->failNo = ssId;
-  sendSignal(workerRef(ss.m_worker), GSN_CLOSE_COMREQ, signal,
-             CloseComReqConf::SignalLength, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker),
+                      GSN_CLOSE_COMREQ,
+                      signal,
+                      CloseComReqConf::SignalLength,
+                      JBB,
+                      handle);
 }
 
 void
@@ -787,11 +1016,15 @@ TrpmanProxy::execENABLE_COMREQ(Signal* signal)
   Ss_ENABLE_COMREQ& ss = ssSeize<Ss_ENABLE_COMREQ>();
   const EnableComReq* req = (const EnableComReq*)signal->getDataPtr();
   ss.m_req = *req;
+  SectionHandle handle(this, signal);
+  saveSections(ss, handle);
   sendREQ(signal, ss);
 }
 
 void
-TrpmanProxy::sendENABLE_COMREQ(Signal *signal, Uint32 ssId, SectionHandle*)
+TrpmanProxy::sendENABLE_COMREQ(Signal *signal,
+                               Uint32 ssId,
+                               SectionHandle *handle)
 {
   jam();
   Ss_ENABLE_COMREQ& ss = ssFind<Ss_ENABLE_COMREQ>(ssId);
@@ -800,8 +1033,12 @@ TrpmanProxy::sendENABLE_COMREQ(Signal *signal, Uint32 ssId, SectionHandle*)
   *req = ss.m_req;
   req->m_senderRef = reference();
   req->m_senderData = ssId;
-  sendSignal(workerRef(ss.m_worker), GSN_ENABLE_COMREQ, signal,
-             EnableComReq::SignalLength, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker),
+                      GSN_ENABLE_COMREQ,
+                      signal,
+                      EnableComReq::SignalLength,
+                      JBB,
+                      handle);
 }
 
 void
@@ -845,14 +1082,93 @@ TrpmanProxy::execROUTE_ORD(Signal* signal)
   ndbassert(nodeId != 0);
 
   Uint32 workerIndex = 0;
-  
+
   if (globalData.ndbMtReceiveThreads > (Uint32) 1)
   {
-    workerIndex = get_recv_thread_idx(nodeId);
+    /**
+     * This signal is sent from QMGR at API node failures to ensure that all
+     * signals have been received from the API before continue. We know that
+     * API nodes have only one transporter, so therefore we can use
+     * get_trps_for_node returning only one transporter id.
+     */
+    TrpId trp_id;
+    Uint32 num_ids;
+    globalTransporterRegistry.lockMultiTransporters();
+    globalTransporterRegistry.get_trps_for_node(nodeId, &trp_id, num_ids, 1);
+    globalTransporterRegistry.unlockMultiTransporters();
+    workerIndex = get_recv_thread_idx(trp_id);
     ndbrequire(workerIndex < globalData.ndbMtReceiveThreads);
   }
   
   SectionHandle handle(this, signal);
   sendSignal(workerRef(workerIndex), GSN_ROUTE_ORD, signal,
              signal->getLength(), JBB, &handle);
+}
+
+// GSN_SYNC_THREAD_VIA
+
+void
+TrpmanProxy::execSYNC_THREAD_VIA_REQ(Signal* signal)
+{
+  jamEntry();
+  Ss_SYNC_THREAD_VIA& ss = ssSeize<Ss_SYNC_THREAD_VIA>();
+  const SyncThreadViaReqConf* req =
+    (const SyncThreadViaReqConf*)signal->getDataPtr();
+  ss.m_req = *req;
+  sendREQ(signal, ss);
+}
+
+void
+TrpmanProxy::sendSYNC_THREAD_VIA_REQ(Signal *signal,
+                                     Uint32 ssId,
+                                     SectionHandle*)
+{
+  jam();
+  SyncThreadViaReqConf* req = (SyncThreadViaReqConf*)signal->getDataPtr();
+  req->senderRef = reference();
+  req->senderData = ssId;
+  Ss_SYNC_THREAD_VIA& ss = ssFind<Ss_SYNC_THREAD_VIA>(ssId);
+  sendSignal(workerRef(ss.m_worker), GSN_SYNC_THREAD_VIA_REQ, signal,
+             SyncThreadViaReqConf::SignalLength, JBA);
+}
+
+void
+TrpmanProxy::execSYNC_THREAD_VIA_CONF(Signal* signal)
+{
+  jamEntry();
+  const SyncThreadViaReqConf* conf =
+    (const SyncThreadViaReqConf*)signal->getDataPtr();
+  Uint32 ssId = conf->senderData;
+  Ss_SYNC_THREAD_VIA& ss = ssFind<Ss_SYNC_THREAD_VIA>(ssId);
+  recvCONF(signal, ss);
+}
+
+void
+TrpmanProxy::sendSYNC_THREAD_VIA_CONF(Signal *signal, Uint32 ssId)
+{
+  jam();
+  Ss_SYNC_THREAD_VIA& ss = ssFind<Ss_SYNC_THREAD_VIA>(ssId);
+
+  if (!lastReply(ss))
+  {
+    jam();
+    return;
+  }
+
+  SyncThreadViaReqConf* conf = (SyncThreadViaReqConf*)signal->getDataPtr();
+  *conf = ss.m_req;
+  sendSignal(conf->senderRef, GSN_SYNC_THREAD_VIA_CONF, signal,
+             NodeFailRep::SignalLength, JBB);
+  ssRelease<Ss_SYNC_THREAD_VIA>(ssId);
+}
+
+void
+TrpmanProxy::execACTIVATE_TRP_REQ(Signal *signal)
+{
+  for (Uint32 i = 0; i < c_workers; i++)
+  {
+    jam();
+    Uint32 ref = numberToRef(number(), workerInstance(i), getOwnNodeId());
+    sendSignal(ref, GSN_ACTIVATE_TRP_REQ, signal, signal->getLength(), JBB);
+  }
 }

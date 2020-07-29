@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,28 +25,28 @@
 #ifndef DEBUG_OPTIONS_INCLUDED
 #define DEBUG_OPTIONS_INCLUDED
 
-#include "abstract_options_provider.h"
+#include "client/base/abstract_options_provider.h"
+#include "my_compiler.h"
 #include "nullable.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Base{
+namespace Mysql {
+namespace Tools {
+namespace Base {
 
 class Abstract_program;
 
-namespace Options{
+namespace Options {
 
 /**
   Options provider providing debugging options.
  */
-class Debug_options : public Abstract_options_provider
-{
-public:
+class Debug_options : public Abstract_options_provider {
+ public:
   /**
     Constructs new debug options provider.
     @param program Pointer to main program class.
    */
-  Debug_options(Abstract_program* program);
+  Debug_options(Abstract_program *program);
   /**
     Creates all options that will be provided.
     Implementation of Abstract_options_provider virtual method.
@@ -57,19 +57,18 @@ public:
   */
   virtual void options_parsed();
 
-private:
-
+ private:
   void debug_option_callback(char *argument MY_ATTRIBUTE((unused)));
 
-  Abstract_program* m_program;
-  bool m_debug_info_flag;
-  bool m_debug_check_flag;
+  Abstract_program *m_program;
+  bool m_debug_info_flag{false};
+  bool m_debug_check_flag{false};
   Nullable<std::string> m_dbug_option;
 };
 
-}
-}
-}
-}
+}  // namespace Options
+}  // namespace Base
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

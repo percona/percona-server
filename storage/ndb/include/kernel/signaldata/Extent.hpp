@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ struct AllocExtentReq {
    * For printing
    */
   
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 4 );
 
   enum ErrorCode {
     UnmappedExtentPageIsNotImplemented = 1,
@@ -54,6 +54,7 @@ struct AllocExtentReq {
       Uint32 tablespace_id;
       Uint32 table_id;
       Uint32 fragment_id;
+      Uint32 create_table_version;
     } request;
     struct 
     {

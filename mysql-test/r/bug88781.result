@@ -6,7 +6,7 @@
 CALL mtr.add_suppression("Did not write failed 'GRANT DROP ON none\\.\\* TO 'bug88781'@'localhost'' into binary log while granting/revoking privileges in databases\\.");
 CREATE USER 'bug88781'@'localhost';
 RENAME TABLE mysql.db TO mysql.bak;
-CREATE TABLE mysql.db ENGINE=MyISAM SELECT * FROM mysql.bak;
+CREATE TABLE mysql.db ENGINE=InnoDB SELECT * FROM mysql.bak;
 GRANT DROP ON none.* TO 'bug88781'@'localhost';
 ERROR HY000: The table 'mysql.db' does not have the necessary key(s) defined on it. Please check the table definition and create index(s) accordingly.
 DROP TABLE mysql.db;

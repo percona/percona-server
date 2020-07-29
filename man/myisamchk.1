@@ -2,12 +2,12 @@
 .\"     Title: \fBmyisamchk\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/23/2020
+.\"      Date: 03/06/2020
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 5.7
+.\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYISAMCHK\FR" "1" "03/23/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYISAMCHK\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -53,8 +53,8 @@ REPAIR TABLE
 statements to check and repair
 MyISAM
 tables\&. See
-Section\ \&13.7.2.2, \(lqCHECK TABLE Statement\(rq, and
-Section\ \&13.7.2.5, \(lqREPAIR TABLE Statement\(rq\&.
+Section\ \&13.7.3.2, \(lqCHECK TABLE Statement\(rq, and
+Section\ \&13.7.3.5, \(lqREPAIR TABLE Statement\(rq\&.
 .PP
 The use of
 \fBmyisamchk\fR
@@ -241,7 +241,7 @@ CHECK TABLE
 instead of
 \fBmyisamchk\fR
 to check tables\&. See
-Section\ \&13.7.2.2, \(lqCHECK TABLE Statement\(rq\&.
+Section\ \&13.7.3.2, \(lqCHECK TABLE Statement\(rq\&.
 .sp .5v
 .RE
 .PP
@@ -639,8 +639,8 @@ myisam_stats_method
 system variable\&. For more information, see the description of
 myisam_stats_method
 in
-Section\ \&5.1.7, \(lqServer System Variables\(rq, and
-Section\ \&8.3.7, \(lqInnoDB and MyISAM Index Statistics Collection\(rq\&.
+Section\ \&5.1.8, \(lqServer System Variables\(rq, and
+Section\ \&8.3.8, \(lqInnoDB and MyISAM Index Statistics Collection\(rq\&.
 .PP
 ft_min_word_len
 and
@@ -1420,11 +1420,10 @@ output:
 .nf
 MyISAM file:         person
 Record format:       Packed
-Character set:       latin1_swedish_ci (8)
+Character set:       utf8mb4_0900_ai_ci (255)
 File\-version:        1
-Creation time:       2009\-08\-19 16:47:41
-Recover time:        2009\-08\-19 16:47:56
-Status:              checked,analyzed,optimized keys
+Creation time:       2017\-03\-30 21:21:30
+Status:              checked,analyzed,optimized keys,sorted index pages
 Auto increment key:              1  Last value:                306688
 Data records:               306688  Deleted blocks:                 0
 Datafile parts:             306688  Deleted data:                   0
@@ -1433,18 +1432,18 @@ Datafile length:           9347072  Keyfile length:           6066176
 Max datafile length:    4294967294  Max keyfile length:   17179868159
 Recordlength:                   54
 table description:
-Key Start Len Index   Type                 Rec/key         Root  Blocksize
-1   2     4   unique  long                       1        99328       1024
-2   6     20  multip\&. varchar prefix           512      3563520       1024
-    27    20          varchar                  512
-3   48    3   multip\&. uint24 NULL           306688      6065152       1024
+Key Start Len Index   Type                     Rec/key         Root  Blocksize
+1   2     4   unique  long                           1                    1024
+2   6     80  multip\&. varchar prefix                 0                    1024
+    87    80          varchar                        0
+3   168   3   multip\&. uint24 NULL                    0                    1024
 Field Start Length Nullpos Nullbit Type
-1     1     1
-2     2     4                      no zeros
-3     6     21                     varchar
-4     27    21                     varchar
-5     48    3      1       1       no zeros
-6     51    3      1       2       no zeros
+1     1     1                                                         
+2     2     4                      no zeros                           
+3     6     81                     varchar                            
+4     87    81                     varchar                            
+5     168   3      1       1       no zeros                           
+6     171   3      1       2       no zeros                           
 .fi
 .if n \{\
 .RE

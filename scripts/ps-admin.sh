@@ -2,7 +2,7 @@
 #
 # Script for doing various administrative tasks in Percona Server
 # like installing/uninstalling TokuDB/RocksDB storage engines
-# and plugins like Query Response Time, Audit Log, PAM and MySQLX
+# and plugins like Audit Log and PAM
 #
 set -u
 
@@ -20,8 +20,6 @@ ENABLE_TOKUBACKUP=0
 DISABLE_TOKUBACKUP=0
 ENABLE_ROCKSDB=0
 DISABLE_ROCKSDB=0
-ENABLE_QRT=0
-DISABLE_QRT=0
 ENABLE_AUDIT=0
 DISABLE_AUDIT=0
 ENABLE_PAM=0
@@ -38,7 +36,6 @@ STATUS_THP_SYSTEM=0
 STATUS_THP_MYCNF=0
 STATUS_TOKUDB_PLUGIN=0
 STATUS_ROCKSDB_PLUGIN=0
-STATUS_QRT_PLUGIN=0
 STATUS_AUDIT_PLUGIN=0
 STATUS_PAM_PLUGIN=0
 STATUS_PAM_COMPAT_PLUGIN=0
@@ -68,7 +65,7 @@ fi
 if ! getopt --test
   then
   go_out="$(getopt --options=c:u:p::S:h:P:edbrfmkotzawinjKxgD \
-  --longoptions=config-file:,user:,password::,socket:,host:,port:,enable-tokudb,disable-tokudb,enable-tokubackup,disable-tokubackup,help,defaults-file:,force-envfile,force-mycnf,enable-rocksdb,disable-rocksdb,enable-qrt,disable-qrt,enable-audit,disable-audit,enable-pam,disable-pam,enable-pam-compat,disable-pam-compat,enable-mysqlx,disable-mysqlx,docker \
+  --longoptions=config-file:,user:,password::,socket:,host:,port:,enable-tokudb,disable-tokudb,enable-tokubackup,disable-tokubackup,help,defaults-file:,force-envfile,force-mycnf,enable-rocksdb,disable-rocksdb,enable-audit,disable-audit,enable-pam,disable-pam,enable-pam-compat,disable-pam-compat,enable-mysqlx,disable-mysqlx,docker \
   --name="$(basename "$0")" -- "$@")"
   test $? -eq 0 || exit 1
   eval set -- $go_out
@@ -154,14 +151,6 @@ do
     shift
     DISABLE_ROCKSDB=1
     ;;
-    -t | --enable-qrt )
-    shift
-    ENABLE_QRT=1
-    ;;
-    -z | --disable-qrt )
-    shift
-    DISABLE_QRT=1
-    ;;
     -a | --enable-audit )
     shift
     ENABLE_AUDIT=1
@@ -226,8 +215,6 @@ do
     printf "  --disable-tokubackup, -r\t\t disable Percona TokuBackup and remove preload-hotbackup option in my.cnf\n"
     printf "  --enable-rocksdb, -k\t\t\t enable RocksDB storage engine plugin\n"
     printf "  --disable-rocksdb, -o\t\t\t disable RocksDB storage engine plugin\n"
-    printf "  --enable-qrt, -t\t\t\t enable Query Response Time plugin\n"
-    printf "  --disable-qrt, -z\t\t\t disable Query Response Time plugin\n"
     printf "  --enable-audit, -a\t\t\t enable Audit Log plugin\n"
     printf "  --disable-audit, -w\t\t\t disable Audit Log plugin\n"
     printf "  --enable-pam, -i\t\t\t enable PAM Authentication plugin\n"
@@ -265,7 +252,7 @@ PORT=${PORT:+"-P ${PORT}"}
 if [ ${ENABLE_TOKUDB} = 1 -a ${DISABLE_TOKUDB} = 1 ]; then
   printf "ERROR: Only --enable-tokudb OR --disable-tokudb can be specified - not both!\n"
   exit 1
-elif [ ${ENABLE_TOKUDB} = 0 -a ${DISABLE_TOKUDB} = 0 -a ${ENABLE_TOKUBACKUP} = 0 -a ${DISABLE_TOKUBACKUP} = 0 -a ${ENABLE_ROCKSDB} = 0 -a ${DISABLE_ROCKSDB} = 0 -a ${ENABLE_QRT} = 0 -a ${DISABLE_QRT} = 0 -a ${ENABLE_AUDIT} = 0 -a ${DISABLE_AUDIT} = 0 -a ${ENABLE_PAM} = 0 -a ${DISABLE_PAM} = 0 -a ${ENABLE_PAM_COMPAT} = 0 -a ${DISABLE_PAM_COMPAT} = 0 -a ${ENABLE_MYSQLX} = 0 -a ${DISABLE_MYSQLX} = 0 ]; then
+elif [ ${ENABLE_TOKUDB} = 0 -a ${DISABLE_TOKUDB} = 0 -a ${ENABLE_TOKUBACKUP} = 0 -a ${DISABLE_TOKUBACKUP} = 0 -a ${ENABLE_ROCKSDB} = 0 -a ${DISABLE_ROCKSDB} = 0 -a ${ENABLE_AUDIT} = 0 -a ${DISABLE_AUDIT} = 0 -a ${ENABLE_PAM} = 0 -a ${DISABLE_PAM} = 0 -a ${ENABLE_PAM_COMPAT} = 0 -a ${DISABLE_PAM_COMPAT} = 0 -a ${ENABLE_MYSQLX} = 0 -a ${DISABLE_MYSQLX} = 0 ]; then
   printf "ERROR: You should specify one of the --enable or --disable options.\n"
   printf "Use --help for printing options.\n"
   exit 1
@@ -274,9 +261,6 @@ elif [ ${ENABLE_TOKUBACKUP} = 1 -a ${DISABLE_TOKUBACKUP} = 1 ]; then
   exit 1
 elif [ ${ENABLE_ROCKSDB} = 1 -a ${DISABLE_ROCKSDB} = 1 ]; then
   printf "ERROR: Only --enable-rocksdb OR --disable-rocksdb can be specified - not both!\n\n"
-  exit 1
-elif [ ${ENABLE_QRT} = 1 -a ${DISABLE_QRT} = 1 ]; then
-  printf "ERROR: Only --enable-qrt OR --disable-qrt can be specified - not both!\n\n"
   exit 1
 elif [ ${ENABLE_AUDIT} = 1 -a ${DISABLE_AUDIT} = 1 ]; then
   printf "ERROR: Only --enable-audit OR --disable-audit can be specified - not both!\n\n"
@@ -290,6 +274,23 @@ elif [ ${ENABLE_PAM_COMPAT} = 1 -a ${DISABLE_PAM_COMPAT} = 1 ]; then
 elif [ ${ENABLE_MYSQLX} = 1 -a ${DISABLE_MYSQLX} = 1 ]; then
   printf "ERROR: Only --enable-mysqlx OR --disable-mysqlx can be specified - not both!\n\n"
   exit 1
+fi
+
+# Check SELinux status - needs to be disabled/permissive for LD_PRELOAD
+if [ -n "$(which sestatus)" -a ${ENABLE_TOKUDB} = 1 ]; then
+  printf "Checking SELinux status...\n"
+  STATUS_SELINUX=$(sestatus | grep "SELinux status:" | awk '{print $3}')
+  if [ ${STATUS_SELINUX} = "enabled" ]; then
+    MODE_SELINUX=$(sestatus | grep "Current mode:" | awk '{print $3}')
+    if [ ${MODE_SELINUX} = "enforcing"  ]; then
+      printf "ERROR: SELinux is in enforcing mode and needs to be disabled (or put into permissive mode) for TokuDB to work correctly.\n\n"
+      exit 1
+    else
+      printf "INFO: SELinux is in permissive mode.\n\n"
+    fi
+  else
+    printf "INFO: SELinux is disabled.\n\n"
+  fi
 fi
 
 # List plugins
@@ -354,7 +355,7 @@ fi
 # Check if RocksDB plugin available on the system
 if [ ${ENABLE_ROCKSDB} = 1 ]; then
   printf "Checking if RocksDB plugin is available for installation ...\n"
-  for ha_rocksdb_loc in "${SCRIPT_PWD%/*}/lib/mysql/plugin" "/usr/lib64/mysql/plugin" "/usr/lib/mysql/plugin"; do
+  for ha_rocksdb_loc in "${SCRIPT_PWD%/*}/lib/plugin" "/usr/lib64/mysql/plugin" "/usr/lib/mysql/plugin"; do
     if [ -r "${ha_rocksdb_loc}/ha_rocksdb.so" ]; then
       HAROCKSDB_LOCATION="${ha_rocksdb_loc}/ha_rocksdb.so"
       break
@@ -565,22 +566,6 @@ if [ ${ENABLE_TOKUBACKUP} = 1 -o ${DISABLE_TOKUBACKUP} = 1 ]; then
     printf "INFO: TokuBackup plugin is not installed.\n\n"
   else
     printf "INFO: TokuBackup plugin is installed.\n\n"
-  fi
-fi
-
-# Check Query Response Time plugin status
-if [ ${ENABLE_QRT} = 1 -o ${DISABLE_QRT} = 1 ]; then
-  printf "Checking Query Response Time plugin status...\n"
-  STATUS_QRT_PLUGIN=$(echo "${LIST_PLUGINS}" | grep -c "QUERY_RESPONSE_TIME")
-  if [ ${STATUS_QRT_PLUGIN} = 0 ]; then
-    printf "INFO: Query Response Time plugin is not installed.\n\n"
-  elif [ ${STATUS_QRT_PLUGIN} -gt 3 ]; then
-    printf "INFO: Query Response Time plugin is installed.\n\n"
-  else
-    printf "ERROR: Query Response Time plugin is partially installed.\n"
-    printf "Check this page for manual install/uninstall steps:\n"
-    printf "https://www.percona.com/doc/percona-server/5.7/diagnostics/response_time_distribution.html\n\n"
-    exit 1
   fi
 fi
 
@@ -862,23 +847,6 @@ EOFROCKSDBENABLE
   fi
 fi
 
-# Install Query Response Time plugin
-if [ ${ENABLE_QRT} = 1 -a ${STATUS_QRT_PLUGIN} = 0 ]; then
-  printf "Installing Query Response Time plugin...\n"
-${MYSQL_CLIENT_BIN} -u ${USER} ${PASSWORD} ${SOCKET} ${HOST} ${PORT} 2>/dev/null<<EOFQRTENABLE
-INSTALL PLUGIN QUERY_RESPONSE_TIME_AUDIT SONAME 'query_response_time.so';
-INSTALL PLUGIN QUERY_RESPONSE_TIME SONAME 'query_response_time.so';
-INSTALL PLUGIN QUERY_RESPONSE_TIME_READ SONAME 'query_response_time.so';
-INSTALL PLUGIN QUERY_RESPONSE_TIME_WRITE SONAME 'query_response_time.so';
-EOFQRTENABLE
-  if [ $? -eq 0 ]; then
-    printf "INFO: Successfully installed Query Response Time plugin.\n\n"
-  else
-    printf "ERROR: Failed to install Query Response Time plugin. Please check error log.\n\n"
-    exit 1
-  fi
-fi
-
 # Install Audit Log plugin
 if [ ${ENABLE_AUDIT} = 1 -a ${STATUS_AUDIT_PLUGIN} = 0 ]; then
   printf "Installing Audit Log plugin...\n"
@@ -985,22 +953,6 @@ if [ ${DISABLE_ROCKSDB} = 1 -a ${STATUS_ROCKSDB_PLUGIN} -gt 0 ]; then
     fi
   done
   printf "INFO: Successfully uninstalled RocksDB engine plugin.\n\n"
-fi
-
-# Uninstall Query Response Time plugin
-if [ ${DISABLE_QRT} = 1 -a ${STATUS_QRT_PLUGIN} -gt 0 ]; then
-  printf "Uninstalling Query Response Time plugin...\n"
-  for plugin in QUERY_RESPONSE_TIME QUERY_RESPONSE_TIME_AUDIT QUERY_RESPONSE_TIME_READ QUERY_RESPONSE_TIME_WRITE; do
-    SPECIFIC_PLUGIN_STATUS=$(echo "${LIST_PLUGINS}" | grep -c "${plugin}#")
-    if [ ${SPECIFIC_PLUGIN_STATUS} -gt 0 ]; then
-      ${MYSQL_CLIENT_BIN} -u ${USER} ${PASSWORD} ${SOCKET} ${HOST} ${PORT} -e "UNINSTALL PLUGIN ${plugin};" 2>/dev/null
-      if [ $? -ne 0 ]; then
-        printf "ERROR: Failed to uninstall Query Response Time plugin. Please check error log.\n\n"
-        exit 1
-      fi
-    fi
-  done
-  printf "INFO: Successfully uninstalled Query Response Time plugin.\n\n"
 fi
 
 # Uninstall Audit Log plugin

@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # test of problems with having (Reported by Mark Rogers)
 #
 
@@ -15,7 +10,8 @@ select count(a) as b from t1 where a=0 having b > 0;
 insert into t1 values (null);
 select count(a) as b from t1 where a=0 having b > 0;
 select count(a) as b from t1 where a=0 having b >=0;
-explain extended select count(a) as b from t1 where a=0 having b >=0;
+analyze table t1;
+explain select count(a) as b from t1 where a=0 having b >=0;
 drop table t1; 
 
 #
@@ -89,12 +85,12 @@ drop table t1;
 CREATE TABLE t1 (
   `id` bigint(20) NOT NULL default '0',
   `description` text
-) ENGINE=MyISAM;
+);
 
 CREATE TABLE t2 (
   `id` bigint(20) NOT NULL default '0',
   `description` varchar(20)
-) ENGINE=MyISAM;
+);
 
 INSERT INTO t1  VALUES (1, 'test');
 INSERT INTO t2 VALUES (1, 'test');
@@ -102,7 +98,7 @@ INSERT INTO t2 VALUES (1, 'test');
 CREATE TABLE t3 (
   `id`       bigint(20) NOT NULL default '0',
   `order_id` bigint(20) NOT NULL default '0'
-) ENGINE=MyISAM;
+);
 
 select
 	a.id, a.description,
@@ -151,6 +147,7 @@ SELECT a FROM t1 GROUP BY a HAVING a > 1;
 SELECT a FROM t1 GROUP BY a HAVING 1 != 1 AND a > 1;
 SELECT 0 AS x, a FROM t1 GROUP BY x,a HAVING x=1 AND a > 1;
 
+analyze table t1;
 EXPLAIN SELECT a FROM t1 GROUP BY a HAVING 1 != 1 AND a > 1;
 EXPLAIN SELECT 0 AS x, a FROM t1 GROUP BY x,a HAVING x=1 AND a > 1;
 
@@ -364,12 +361,14 @@ select * from t1 a, t1 b group by a.s1 having s1 is null;
 
 drop table t1;
 
+set names latin1;
 create table t1 (s1 char character set latin1 collate latin1_german1_ci);
 insert ignore into t1 values ('ü'),('y');
 
 --source include/turn_off_only_full_group_by.inc
 select s1,count(s1) from t1
 group by s1 collate latin1_swedish_ci having s1 = 'y';
+set names utf8mb4;
 # ANSI requires: 1 row, with count(s1) = 2
 # MySQL returns: 1 row, with count(s1) = 1
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
@@ -485,7 +484,7 @@ WHERE table2.f1 = 2
 GROUP BY table1.f1, table2.f2
 HAVING (table2.f2 = 8 AND table1.f1 >= 6);
 
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT table1.f1, table2.f2
 FROM t1 AS table1
 JOIN t1 AS table2 ON table1.f3 = table2.f3
@@ -493,7 +492,7 @@ WHERE table2.f1 = 2
 GROUP BY table1.f1, table2.f2
 HAVING (table2.f2 = 8 AND table1.f1 >= 6);
 
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT table1.f1, table2.f2
 FROM t1 AS table1
 JOIN t1 AS table2 ON table1.f3 = table2.f3
@@ -598,29 +597,6 @@ DROP TABLE t1,t2;
 --echo End of 5.1 tests
 
 --echo #
---echo # BUG#46077 "wrong result: HAVING + ORDER BY + MyISAM + ICP
---echo # returns extra rows"
---echo #
-
-CREATE TABLE `t1` (
-  `pk` int(11) NOT NULL AUTO_INCREMENT,
-  `int_key` int(11) NOT NULL,
-  PRIMARY KEY (`pk`),
-  KEY `int_key` (`int_key`)
-) AUTO_INCREMENT=3 DEFAULT CHARSET=latin1;
-
-INSERT INTO `t1` VALUES (1,7),(2,9);
-
-SELECT `pk`, `int_key` field1
-FROM t1 WHERE  `pk`  <  3
-HAVING  field1  <  8
-ORDER  BY field1;
-
-drop table `t1`;
-
---echo End of 5.5 tests
-
---echo #
 --echo # Bug#12402590 ASSERT AT PROTOCOL::END_STATEMENT ON MYSQL-TRUNK
 --echo #              RUNNING RQG_OPT_SUBQUERY TEST
 --echo #
@@ -646,31 +622,6 @@ HAVING (1 ,6) IN (SELECT 3, 6)
 ORDER BY t1.f1;
 
 DROP TABLE t1, t2;
-
---echo #
---echo # Bug#13406172: HAVING CLAUSE ON AGGREGATED COLUMN RETURNS
---echo #               WRONG RESULT WITH MYISAM
---echo #
-
-CREATE TABLE ot (i int) ENGINE=MyISAM;
-INSERT INTO ot VALUES (1);
-
-CREATE TABLE it (i int) ENGINE=MyISAM;
-INSERT INTO it VALUES (7), (8);
-
-SELECT COUNT(i) AS x 
-FROM ot 
-WHERE (i) IN (SELECT i FROM it WHERE it.i <= 4) OR i IS NULL 
-HAVING x > 1;
-
-CREATE FUNCTION f(a INTEGER) RETURNS INTEGER DETERMINISTIC RETURN a*a;
-SELECT BIT_AND(i) AS x
-FROM ot
-WHERE f(2) < 2
-HAVING x < 2;
-
-DROP TABLE it,ot;
-DROP FUNCTION f;
 
 --echo #
 --echo # Bug#11760517: MIN/MAX FAILS TO EVALUATE HAVING CONDITION, 
@@ -760,6 +711,14 @@ CREATE TABLE series (
   val INT(10) UNSIGNED NOT NULL
 );
 INSERT INTO series VALUES(1);
+CREATE TABLE seq_calls (
+  c INT
+);
+INSERT INTO seq_calls VALUES(0);
+
+# This function toggles between 0 and 1 at each call.
+# As it doesn't depend only on its input parameters (which are none),
+# per the SQL std it is not deterministic.
 
 DELIMITER |;
 CREATE FUNCTION next_seq_value() RETURNS INT
@@ -767,6 +726,7 @@ BEGIN
  DECLARE next_val INT;
  SELECT val INTO next_val FROM series;
  UPDATE series SET val=mod(val + 1, 2);
+ UPDATE seq_calls SET c=c+1;
  RETURN next_val;
 END;
 |
@@ -776,11 +736,21 @@ CREATE TABLE t1 (t INT, u INT, KEY(t));
 INSERT INTO t1 VALUES(10, 10), (11, 11), (12, 12), (12, 13),(14, 15), (15, 16),
                      (16, 17), (17, 18);
 ANALYZE TABLE t1;
+# Print starting point, for debugging
+SELECT * FROM series, seq_calls;
+
 SELECT t, next_seq_value() r FROM t1 FORCE INDEX(t)
        GROUP BY t HAVING r = 1  ORDER BY t1.u;
 
 # Statement with select distinct so reference to functions in having will
 # result in re-execution of functions.
+SELECT * FROM series, seq_calls;
+UPDATE series set val=0;
+
+# NOTE: This currently gives the wrong result, because HAVING
+# and the materialization both evaluate next_seq_value() instead
+# of sharing the result between them. See the comment in
+# JOIN::create_iterators() for more details.
 SELECT DISTINCT t1.t, next_seq_value() r  FROM t1, t1 P
        WHERE P.t = t1.t HAVING r = 1 ORDER BY t1.u;
 
@@ -788,7 +758,13 @@ SELECT DISTINCT t1.t, next_seq_value() r  FROM t1, t1 P
 PREPARE STMT FROM 'SELECT t, next_seq_value() r FROM t1 FORCE INDEX(t)
               GROUP BY t HAVING (SELECT 1 FROM t1 WHERE r = 1 LIMIT 1)
               ORDER BY t1.u';
+SELECT * FROM series, seq_calls;
+UPDATE series set val=0;
+
 EXECUTE stmt;
+SELECT * FROM series, seq_calls;
+UPDATE series set val=1;
+
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
@@ -797,12 +773,14 @@ DEALLOCATE PREPARE stmt;
 INSERT INTO t1 SELECT * FROM t1;
 ALTER TABLE t1 ADD KEY(t, u);
 ANALYZE TABLE t1;
+SELECT * FROM series, seq_calls;
+UPDATE series set val=0;
 SELECT next_seq_value() r, MIN(u) FROM t1 GROUP BY t HAVING r = 1;
 
 # Cleanup
 DROP TABLE t1;
 DROP FUNCTION next_seq_value;
-DROP TABLE series;
+DROP TABLE series, seq_calls;
 
 
 --echo #
@@ -851,38 +829,6 @@ FROM (SELECT 1) AS e
 
 DROP TABLE a;
 
---echo # Bug#21067109: Assert 'join == __NULL' failed in ::optimize()
-
-CREATE TABLE t1 (
-  col_int_key INT,
-  pk INT NOT NULL,
-  PRIMARY KEY (pk),
-  KEY col_int_key (col_int_key)
-) ENGINE=MyISAM;
-
-INSERT INTO t1 VALUES (6, 1);
-
-CREATE TABLE t2 (
-  pk INT NOT NULL,
-  PRIMARY KEY (pk)
-) ENGINE=MyISAM;
-
-INSERT INTO t2 VALUES (5), (6), (7), (8);
-
---error ER_SUBQUERY_NO_1_ROW
-SELECT col_int_key
-FROM t1 AS alias1
-HAVING (2, 7) NOT IN
- (SELECT pk, SUM(pk)
-  FROM t1
-  WHERE pk <> (SELECT t2_alias1 .pk
-               FROM t2 AS t2_alias1 JOIN t2 AS t2_alias2
-              )
-  GROUP BY pk
- );
-
-DROP TABLE t1, t2;
-
 --echo #
 --echo # Bug #22655856: COLUMN NAME IN HAVING, WHICH IS CONTAINED IN SELECT
 --echo #                LIST '*', PRODUCES ERROR
@@ -900,3 +846,63 @@ INSERT INTO t2 VALUES(2);
 SELECT c1 FROM t1 WHERE EXISTS(SELECT * FROM t2 HAVING c2>0);
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # BUG#26781725 INCORRECT RESULTS FOR QUERY(MAX FUNC+HAVING CLAUSE) WHEN USED INSIDE VIEW
+--echo #
+
+CREATE TABLE CC (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+);
+INSERT INTO CC VALUES
+ (10,'v','v'),(18,'a','a'),(19,'v','v'),(20,'u','u'),(21,'s','s'),(22,'y','y'),
+ (23,'z','z'),(28,'y','y');
+
+let $query=
+SELECT MAX(col_varchar_key) AS field1 FROM CC AS alias1
+ HAVING field1 <> 5;
+
+eval $query;
+eval CREATE OR REPLACE VIEW v1 AS $query;
+
+SELECT * FROM v1;
+
+DROP TABLE CC;
+DROP VIEW v1;
+
+--echo # Bug#28934388: LIMIT is applied before HAVING when you have a subquery
+
+CREATE TABLE t (id INT PRIMARY KEY, value INT);
+INSERT INTO t VALUES (1, 99), (2,98), (3, 97);
+
+CREATE TABLE o(c INTEGER);
+INSERT INTO o(c) VALUES(1), (2);
+
+# The query from the bug report
+SELECT t1.id, (SELECT t2.value FROM t t2 WHERE t1.id = t2.id) AS sub_value
+FROM t t1
+HAVING sub_value = 99
+ORDER BY value
+LIMIT 1;
+
+# The query extended with a random function
+SELECT t1.id, (SELECT t2.value FROM t t2 WHERE t1.id = t2.id) AS sub_value
+FROM t t1
+HAVING sub_value = 99 AND RAND() >= 0.0E0
+ORDER BY value
+LIMIT 1;
+
+# The query embedded in a subquery, with an outer reference
+SELECT (SELECT (SELECT t2.value+o.c FROM t t2 WHERE t1.id = t2.id) AS sub_value
+        FROM t t1
+        HAVING sub_value = 99
+        ORDER BY value
+        LIMIT 1) AS sub_value
+FROM o;
+
+DROP TABLE t, o;
+

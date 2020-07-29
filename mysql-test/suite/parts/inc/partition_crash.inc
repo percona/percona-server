@@ -5,9 +5,9 @@
 --echo # State before crash
 --source include/table_files_replace_pattern.inc
 --list_files $DATADIR/test
-SHOW CREATE TABLE t1;
+SHOW CREATE TABLE `t1/a\b#2`;
 --sorted_result
-SELECT * FROM t1;
+SELECT * FROM `t1/a\b#2`;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --disable_reconnect
 # CR_SERVER_LOST
@@ -23,7 +23,7 @@ let $WAIT_COUNT=6000;
 --echo # State after crash recovery
 --source include/table_files_replace_pattern.inc
 --list_files $DATADIR/test
-SHOW CREATE TABLE t1;
+SHOW CREATE TABLE `t1/a\b#2`;
 --sorted_result
-SELECT * FROM t1;
-DROP TABLE t1;
+SELECT * FROM `t1/a\b#2`;
+DROP TABLE `t1/a\b#2`;

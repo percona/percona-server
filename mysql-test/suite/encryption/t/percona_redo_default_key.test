@@ -1,0 +1,115 @@
+--source include/have_debug.inc
+
+let $MYSQLD_BASEDIR= `select @@basedir`;
+--mkdir $MYSQL_TMP_DIR/datadir1
+
+let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/datadir1/data;
+--source include/shutdown_mysqld.inc
+
+--let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql
+--let KEYRING_FILE_PATH=$MYSQL_TMP_DIR/mysecret_keyring
+--let KEYRING_DATA="--keyring_file_data=$KEYRING_FILE_PATH"
+--let BOOTSTRAP_LOG=$MYSQL_TMP_DIR/bootstrap.log
+
+--echo # create bootstrap file
+write_file $BOOTSTRAP_SQL;
+CREATE DATABASE test;
+EOF
+
+--let BOOTSTRAP_CMD = $MYSQLD_CMD --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD $KEYRING_DATA --innodb_redo_log_encrypt=KEYRING_KEY > $BOOTSTRAP_LOG 2>&1
+
+--exec $BOOTSTRAP_CMD
+
+--remove_file $BOOTSTRAP_LOG
+--remove_file $MYSQLD_DATADIR1/ib_logfile0
+--remove_file $MYSQLD_DATADIR1/ib_logfile1
+
+--let $test_error_log=$MYSQL_TMP_DIR/error_log.err
+
+# We crash before percona_redo:0 gets rotated to percona_redo-UUID:1 (it gets rotated when UUID becomes available)
+
+--error 137
+--exec $MYSQLD_CMD --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 $KEYRING_DATA $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD --log-error=$test_error_log --innodb_redo_log_encrypt=KEYRING_KEY --debug=d,crash_before_redo_key_is_rotated
+
+# Here we check that server discovers that redo log was encrypted with percona_redo:0 (default encryption key for redo log file)
+# and is able to decrypt it.
+
+--let $restart_parameters = "restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 $KEYRING_DATA $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD --log-error=$test_error_log --innodb_redo_log_encrypt=KEYRING_KEY"
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD KEYRING_PLUGIN_EARLY_LOAD
+--source include/start_mysqld.inc
+
+--source include/shutdown_mysqld.inc
+
+# We will now remove the redo log files and check that default percona_redo:0 key was reused and
+# it was rotated to already existing percona_redo-UUID:1 key (after SERVER_UUID became available).
+
+--remove_file $MYSQLD_DATADIR1/ib_logfile0
+--remove_file $MYSQLD_DATADIR1/ib_logfile1
+
+--let $restart_parameters = "restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 $KEYRING_DATA $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD --log-error=$test_error_log --innodb_redo_log_encrypt=KEYRING_KEY"
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD KEYRING_PLUGIN_EARLY_LOAD
+--source include/start_mysqld.inc
+
+--let $server_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--source include/shutdown_mysqld.inc
+
+# Check that default percona_redo key exists only in version 0
+
+--let $percona_redo_default_key_name_v0=percona_redo:0
+
+--let SEARCH_PATTERN=$percona_redo_default_key_name_v0
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$KEYRING_FILE_PATH
+--source include/search_pattern_in_file.inc
+
+--let $percona_redo_default_key_name_v1=percona_redo:1
+
+--let SEARCH_PATTERN=$percona_redo_default_key_name_v1
+--let ABORT_ON=FOUND
+--source include/search_pattern_in_file.inc
+
+# Check that percona_redo-UUID key exists only in version 1
+
+--let $percona_key_name_v1=percona_redo-$server_uuid:1
+
+--let SEARCH_PATTERN=$percona_key_name_v1
+--let ABORT_ON=NOT_FOUND
+--source include/search_pattern_in_file.inc
+
+--let $percona_key_name_v2=percona_redo-$server_uuid:2
+
+--let SEARCH_PATTERN=$percona_key_name_v2
+--let ABORT_ON=FOUND
+--source include/search_pattern_in_file.inc
+
+# First we rotate percona_redo-UUID key to version 2. After that we shutdown the server and remove redo log files.
+# Next we start the server with activated code assertion - to check that when server UUID becomes available,
+# the percona_redo-UUID:2 will be used instead of percona_redo default key.
+
+--let $restart_parameters = "restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 $KEYRING_DATA $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD --log-error=$test_error_log --innodb_redo_log_encrypt=KEYRING_KEY"
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD KEYRING_PLUGIN_EARLY_LOAD
+--source include/start_mysqld.inc
+
+--echo # Rotate percona_redo-UUID key to version 2.
+ALTER INSTANCE ROTATE REDO SYSTEM KEY;
+
+--source include/shutdown_mysqld.inc
+
+--remove_file $MYSQLD_DATADIR1/ib_logfile0
+--remove_file $MYSQLD_DATADIR1/ib_logfile1
+
+--let $restart_parameters = "restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 $KEYRING_DATA $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD --log-error=$test_error_log --innodb_redo_log_encrypt=KEYRING_KEY --debug=+d,assert_default_to_ver2_rotation"
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD KEYRING_PLUGIN_EARLY_LOAD
+--source include/start_mysqld.inc
+
+--source include/shutdown_mysqld.inc
+
+--echo # Restart the server with default options.
+--let $restart_parameters=
+--source include/start_mysqld.inc
+
+--remove_file $test_error_log
+--remove_file $BOOTSTRAP_SQL
+--remove_file $KEYRING_FILE_PATH
+--force-rmdir $MYSQL_TMP_DIR/datadir1

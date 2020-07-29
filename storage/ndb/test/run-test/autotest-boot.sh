@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -184,10 +184,7 @@ echo "$DATE $RUN" > $LOCK
 # trap them, and remove the #
 # Lock file before exit     #
 #############################
-if [ `uname -s` != "SunOS" ]
-then
-	trap "rm -f $LOCK" ERR
-fi
+trap "rm -f $LOCK" EXIT
 
 # You can add more to this path#
 ################################
@@ -242,7 +239,12 @@ then
 # and ensure that the local repo is up to date.
                 git -C ${git_local_repo} fetch ${git_remote_repo}
 
-                git clone -b${clone0} ${git_local_repo} ${dst_place0}
+                if [ -z "$clone0" ]
+                then
+                  git clone ${git_local_repo} ${dst_place0}
+                else
+                  git clone -b${clone0} ${git_local_repo} ${dst_place0}
+                fi
                 [ ! -n "${tag0}" ] || git -C ${dst_place0} reset --hard ${tag0}
 		for patch in $patch0 ; do
 			( cd $dst_place0 && patch -p0 ) < $patch
@@ -278,9 +280,11 @@ fi
 
 function build_cluster()
 {
-    if grep -qc autotest storage/ndb/compile-cluster 2>/dev/null
+    mkdir build_dir
+    cd build_dir
+    if grep -qc autotest ../storage/ndb/compile-cluster 2>/dev/null
     then
-        storage/ndb/compile-cluster --autotest $*
+        ../storage/ndb/compile-cluster --autotest $*
     else
         BUILD/compile-ndb-autotest $*
     fi
@@ -327,7 +331,7 @@ fi
 script=$install_dir0/mysql-test/ndb/autotest-run.sh
 for R in $RUN
 do
-    sh -x $script $save_args --conf=$conf --run-dir=$install_dir --install-dir0=$install_dir0 --install-dir1=$install_dir1 --suite=$R --nolock $extra_args
+    bash -x $script $save_args --conf=$conf --run-dir=$install_dir --install-dir0=$install_dir0 --install-dir1=$install_dir1 --suite=$R --nolock $extra_args
 done
 
 if [ "$build" ]
@@ -339,5 +343,3 @@ then
 	rm -rf $dst_place1
     fi
 fi
-
-rm -f $LOCK

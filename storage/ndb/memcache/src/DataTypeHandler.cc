@@ -1,6 +1,5 @@
 /*
- Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
- reserved.
+ Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -20,19 +19,15 @@
 
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- 02110-1301  USA
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
-#include <my_config.h>
+#include "my_config.h"
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <errno.h>
-
-/* C++ files must define __STDC_FORMAT_MACROS in order to get PRIu64 */
-#define __STDC_FORMAT_MACROS 
 #include <inttypes.h>
 
 #include <NdbApi.hpp>
@@ -43,6 +38,7 @@
 
 #include "DataTypeHandler.h"
 #include "debug.h"
+#include "my_byteorder.h"
 #include "int3korr.h"
    
 
@@ -996,7 +992,7 @@ DateTime_CopyBuffer::DateTime_CopyBuffer(size_t len, const char *str) :
   
   too_long = ( len > 60);  
   if(! too_long) {
-    register unsigned int i = 0;
+    unsigned int i = 0;
     if(*c == '-' || *c == '+') {
       *buf++ = *c++;  // tolerate initial + or -
       i++;
@@ -1184,7 +1180,7 @@ int readFraction(const NdbDictionary::Column *col, const char *buf) {
   int prec  = col->getPrecision();
   int usec = 0;
   if(prec > 0) {  
-    register int bufsz = (1 + prec) / 2;
+    int bufsz = (1 + prec) / 2;
     usec = unpack_bigendian(buf, bufsz);
     while(prec < 5) usec *= 100, prec += 2;
   }
@@ -1193,7 +1189,7 @@ int readFraction(const NdbDictionary::Column *col, const char *buf) {
 
 int writeFraction(const NdbDictionary::Column *col, int usec, char *buf) {
   int prec  = col->getPrecision();
-  register int bufsz = 0;
+  int bufsz = 0;
   if(prec > 0) {
     bufsz = (1 + prec) / 2;
     while(prec < 5) usec /= 100, prec += 2;
@@ -1212,7 +1208,7 @@ public:
   FractionPrinter(const NdbDictionary::Column *col, int _usec) :
     fsp(col->getPrecision()),
     microsec(_usec)
-  {};
+  {}
   const char * print(void);
 };
 

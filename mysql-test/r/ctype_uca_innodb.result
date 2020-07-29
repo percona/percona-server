@@ -4,7 +4,10 @@
 #
 # MDEV-7649 wrong result when comparing utf8 column with an invalid literal
 #
-SET NAMES utf8 COLLATE utf8_unicode_ci;
+SET NAMES utf8mb3 COLLATE utf8mb3_unicode_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 #
 # Start of ctype_utf8_ilseq.inc
 #
@@ -16,10 +19,10 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `ch` varchar(60) CHARACTER SET utf8 COLLATE utf8_unicode_ci DEFAULT NULL,
-  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`),
   KEY `ch` (`ch`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 (ch) VALUES ('admin'),('admin1');
 SELECT ch FROM t1 WHERE ch='admin𝌆';
 ch
@@ -40,8 +43,12 @@ INSERT INTO t1 (ch) VALUES ('a'), ('a?'), ('a??'), ('a???'), ('a????');
 INSERT INTO t1 (ch) VALUES ('ab'),('a?b'),('a??b'),('a???b'),('a????b');
 INSERT INTO t1 (ch) VALUES ('az'),('a?z'),('a??z'),('a???z'),('a????z');
 INSERT INTO t1 (ch) VALUES ('z');
-INSERT INTO t1 (ch) VALUES (_utf8 0x61D080);
-INSERT INTO t1 (ch) VALUES (_utf8 0x61D680);
+INSERT INTO t1 (ch) VALUES (_utf8mb3 0x61D080);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 (ch) VALUES (_utf8mb3 0x61D680);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='a𝌆' ORDER BY ch;
 ch
 Warnings:

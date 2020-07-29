@@ -1,13 +1,14 @@
 call mtr.add_suppression("Did not write failed .* ");
+call mtr.add_suppression("Wrong password");
 SELECT user FROM mysql.user WHERE user LIKE 'frank';
 user
 CREATE USER 'frank'@'localhost' IDENTIFIED BY 'password';
 ERROR HY000: Operation CREATE USER failed for 'frank'@'localhost'
 CREATE USER 'frank'@'%' IDENTIFIED BY 'password';
 ERROR HY000: Operation CREATE USER failed for 'frank'@'%'
-SET PASSWORD FOR 'frank'@'localhost' = PASSWORD('');
+SET PASSWORD FOR 'frank'@'localhost' = '';
 ERROR 42000: Can't find any matching row in the user table
-SET PASSWORD FOR 'frank'@'%' = PASSWORD('');
+SET PASSWORD FOR 'frank'@'%' = '';
 ERROR 42000: Can't find any matching row in the user table
 GRANT ALL ON mysql.* TO 'frank'@'localhost';
 ERROR 42000: There is no such grant defined for user 'frank' on host 'localhost'
@@ -54,9 +55,7 @@ test
 CREATE USER 'frankjr'@'localhost' IDENTIFIED BY 'password';
 GRANT ALL ON mysql.* TO 'frankjr'@'localhost';
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'frankjr'@'localhost';
-SET PASSWORD FOR 'frankjr'@'localhost' = PASSWORD('');
-Warnings:
-Warning	1287	'SET PASSWORD FOR <user> = PASSWORD('<plaintext_password>')' is deprecated and will be removed in a future release. Please use SET PASSWORD FOR <user> = '<plaintext_password>' instead
+SET PASSWORD FOR 'frankjr'@'localhost' = '';
 DROP USER 'frankjr'@'localhost';
 CREATE DATABASE mysqltest;
 CREATE TABLE mysqltest.t1 (a INT, b INT);
@@ -70,9 +69,7 @@ ERROR 42000: SELECT command denied to user 'frank'@'localhost' for table 't1'
 ALTER TABLE mysqltest.t1 DROP COLUMN b;
 ERROR 42000: ALTER command denied to user 'frank'@'localhost' for table 't1'
 DROP DATABASE mysqltest;
-SET PASSWORD FOR 'mysqltest_1'@'localhost' = PASSWORD('newpass');
-Warnings:
-Warning	1287	'SET PASSWORD FOR <user> = PASSWORD('<plaintext_password>')' is deprecated and will be removed in a future release. Please use SET PASSWORD FOR <user> = '<plaintext_password>' instead
+SET PASSWORD FOR 'mysqltest_1'@'localhost' = 'newpass';
 SET @testtemp= @@global.innodb_fast_shutdown;
 SET @@global.innodb_fast_shutdown= 2;
 SELECT @@global.innodb_fast_shutdown;
@@ -90,13 +87,11 @@ plugin	authentication_string
 test_plugin_server	frank
 ERROR 28000: Access denied for user 'plug'@'localhost' (using password: YES)
 GRANT PROXY ON frank TO plug;
+REVOKE PROXY ON frank FROM plug;
 SELECT * FROM mysql.proxies_priv;
 Host	User	Proxied_host	Proxied_user	With_grant	Grantor	Timestamp
 xx	root			1		xx
-xx	root			1		xx
 xx	root	%	frank	0	root@localhost	xx
-xx	plug	%	frank	0	root@localhost	xx
-REVOKE PROXY ON frank FROM plug;
 ERROR 28000: Access denied for user 'plug'@'localhost' (using password: YES)
 DROP USER plug;
 #
@@ -135,22 +130,22 @@ ERROR HY000: Operation SHOW CREATE USER failed for 'frank'@'localhost'
 # restart
 SHOW GLOBAL STATUS LIKE "Connections";
 Variable_name	Value
-Connections	3
+Connections	8
 SHOW GLOBAL STATUS LIKE "Threads%";
 Variable_name	Value
 Threads_cached	0
 Threads_connected	1
 Threads_created	1
-Threads_running	1
+Threads_running	2
 SHOW GLOBAL STATUS LIKE "Connections";
 Variable_name	Value
-Connections	4
+Connections	9
 SHOW GLOBAL STATUS LIKE "Threads%";
 Variable_name	Value
 Threads_cached	0
 Threads_connected	2
 Threads_created	2
-Threads_running	1
+Threads_running	2
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
 SELECT * FROM performance_schema.users WHERE USER="frank";
@@ -170,7 +165,29 @@ COUNT(DISTINCT PROCESSLIST_ID)
 1
 SELECT COUNT(*) from performance_schema.threads where type='FOREGROUND';
 COUNT(*)
-2
-KILL 3;
-ERROR HY000: You are not owner of thread 3
+3
+KILL 9;
+ERROR HY000: You are not owner of thread 9
 REVOKE PROXY ON 'frank'@'%' FROM 'root'@'localhost';
+CREATE USER u1 IDENTIFIED BY 'password';
+GRANT ALL ON *.* TO u1 WITH GRANT OPTION;
+ALTER USER 'u1'@'%' IDENTIFIED BY 'newpass';
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_USER privilege(s) for this operation
+# restart:--utility-user-dynamic-privileges=SYSTEM_USER
+ALTER USER 'u1'@'%' IDENTIFIED BY 'newpass';
+# restart:--utility-user-dynamic-privileges=sYstem_USEr
+ALTER USER 'u1'@'%' IDENTIFIED BY 'newpass2';
+DROP USER u1;
+# restart:<hidden args>
+FOUND /Utility user 'frank'@'%' in use with dynamic privileges 'SYSTEM_USER,PRIVILEGE_1,PRIVILEGE2,PRIVILEGE4'./ in my_restart.err
+# restart:<hidden args>
+FOUND /Utility user 'frank'@'%' in use with dynamic privileges 'SYSTEM_USER,PRIVILEGE_2'./ in my_restart.err
+# restart:<hidden args>
+FOUND /Utility user 'frank'@'%' in use with dynamic privileges 'SYSTEM_USER,PRIVILEGE_3'./ in my_restart.err
+# restart:<hidden args>
+FOUND /Wrong format of --utility-user-dynamic-privileges parameter value: SYSTEM_USER,PRIVILEGE_1,/ in my_restart.err
+# restart:<hidden args>
+FOUND /Wrong format of --utility-user-dynamic-privileges parameter value: ,SYSTEM_USER,PRIVILEGE_1/ in my_restart.err
+# restart:<hidden args>
+FOUND /Wrong format of --utility-user-dynamic-privileges parameter value: SYSTEM_USER;PRIVILEGE_1/ in my_restart.err
+# restart

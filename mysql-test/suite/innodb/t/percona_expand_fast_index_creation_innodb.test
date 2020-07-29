@@ -1,8 +1,6 @@
 #
 # InnoDB-related expanded fast index creation tests
 #
---source include/have_innodb.inc
-
 # Test for Percona Server bug 1133926 (A crash that leaves behind an
 # InnoDB temporary table with indexes results in an unbootable server)
 # https://bugs.launchpad.net/percona-server/+bug/1133926
@@ -49,7 +47,7 @@ DROP TABLE t1;
 CREATE TEMPORARY TABLE t1(id int, key id (id)) engine=innodb;
 INSERT INTO t1 VALUES(0xABE3);
 
-ALTER TABLE t1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+ALTER TABLE t1 ROW_FORMAT=COMPACT;
 
 SELECT * FROM t1;
 

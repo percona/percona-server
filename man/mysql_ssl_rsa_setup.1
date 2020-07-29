@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_ssl_rsa_setup\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/23/2020
+.\"      Date: 03/06/2020
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 5.7
+.\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_SSL_RSA_SETUP\FR" "1" "03/23/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL_SSL_RSA_SETUP\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -229,8 +229,11 @@ creates no RSA files\&. Otherwise, it invokes
 \fBopenssl\fR
 to create them\&. These files enable secure password exchange using RSA over unencrypted connections for accounts authenticated by the
 sha256_password
+or
+caching_sha2_password
 plugin; see
-Section\ \&6.4.1.5, \(lqSHA-256 Pluggable Authentication\(rq\&.
+Section\ \&6.4.1.3, \(lqSHA-256 Pluggable Authentication\(rq, and
+Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .PP
 For information about the characteristics of files created by
@@ -358,8 +361,8 @@ Restart the server\&.
 .PP
 \fBmysql_ssl_rsa_setup\fR
 supports the following command\-line options, which can be specified on the command line or in the
-[mysql_ssl_rsa_setup],
-[mysql_install_db], and
+[mysql_ssl_rsa_setup]
+and
 [mysqld]
 groups of an option file\&. For information about option files used by MySQL programs, see
 Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.

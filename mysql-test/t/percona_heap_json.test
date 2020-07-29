@@ -1,7 +1,6 @@
 #
 # Tests for JSON data type in MEMORY tables
 #
---source include/have_innodb.inc
 
 --echo #
 --echo # Bug 1536469 (Assertion `length == 0 || json_binary::parse_binary(ptr, length).is_valid()'

@@ -21,36 +21,53 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 ======= */
 
-#ident "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
+#ident \
+    "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
 #ifndef _HATOKU_DEFINES_H
 #define _HATOKU_DEFINES_H
 
-#include <my_config.h>
+#define LOG_COMPONENT_TAG "tokudb"
+
+#include "my_config.h"
 #define MYSQL_SERVER 1
 #include "mysql_version.h"
-#include "sql_table.h"
-#include "handler.h"
-#include "table.h"
-#include "log.h"
-#include "sql_class.h"
-#include "sql_show.h"
-#include "item_cmpfunc.h"
-#include <binlog.h>
-#include "debug_sync.h"
+
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"
+#include "sql/handler.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/mysqld.h"
+#include "sql/sql_class.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_show.h"
+#include "sql/sql_table.h"
+#include "sql/sql_thd_internal_api.h"
+#include "sql/table.h"
+
+#include "my_icp.h"
+#include "my_thread.h"
+#include "mysql/components/my_service.h"
+#include "mysql/components/services/log_builtins.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/mysql_thread.h"
 
 #undef PACKAGE
 #undef VERSION
 #undef HAVE_DTRACE
 #undef _DTRACE_VERSION
 
-/* We define DTRACE after mysql_priv.h in case it disabled dtrace in the main server */
+/* We define DTRACE after mysql_priv.h in case it disabled dtrace in the main
+ * server */
 #ifdef HAVE_DTRACE
 #define _DTRACE_VERSION 1
 #else
 #endif
 
-#include <mysql/plugin.h>
+#include "mysql/plugin.h"
 
 #include <ctype.h>
 #include <stdint.h>
@@ -66,12 +83,12 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #include <unordered_map>
 
 #include "db.h"
+#include "partitioned_counter.h"
 #include "toku_os.h"
 #include "toku_time.h"
-#include "partitioned_counter.h"
 
 #ifdef USE_PRAGMA_INTERFACE
-#pragma interface               /* gcc class implementation */
+#pragma interface /* gcc class implementation */
 #endif
 
 // TOKU_INCLUDE_WRITE_FRM_DATA and TOKU_INCLUDE_DISCOVER_FRM work together as
@@ -85,20 +102,19 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 // In most cases, they should all be in or out without mixing. There may be
 // extreme cases though where one side (WRITE) is supported but perhaps
 // 'DISCOVERY' may not be, thus the need for individual indicators.
-#define TOKU_USE_DB_TYPE_TOKUDB 1           // has DB_TYPE_TOKUDB patch
-#define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 1 // has tokudb row format compression patch
+#define TOKU_USE_DB_TYPE_TOKUDB 1  // has DB_TYPE_TOKUDB patch
 #if defined(HTON_SUPPORTS_EXTENDED_KEYS)
 #define TOKU_INCLUDE_EXTENDED_KEYS 1
 #endif
 #define TOKU_OPTIMIZE_WITH_RECREATE 1
-#define TOKU_INCLUDE_WRITE_FRM_DATA 1
-#define TOKU_INCLUDE_DISCOVER_FRM 1
+#define TOKU_INCLUDE_WRITE_FRM_DATA 0
+#define TOKU_INCLUDE_DISCOVER_FRM 0
 #define TOKU_INCLUDE_RFR 1
 #define TOKU_INCLUDE_UPSERT 1
 
 #if defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
 #include "discover.h"
-#endif // defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM 
+#endif  // defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
 
 // MySQL does not support thdvar memalloc correctly
 // see http://bugs.mysql.com/bug.php?id=71759
@@ -122,20 +138,25 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 //
 // returns maximum length of dictionary name, such as key-NAME
-// NAME_CHAR_LEN is max length of the key name, and have upper bound of 10 for key-
+// NAME_CHAR_LEN is max length of the key name, and have upper bound of 10 for
+// key-
 //
 #define MAX_DICT_NAME_LEN NAME_CHAR_LEN + 10
 
 // QQQ how to tune these?
-#define HA_TOKUDB_RANGE_COUNT   100
+#define HA_TOKUDB_RANGE_COUNT 100
 /* extra rows for estimate_rows_upper_bound() */
-#define HA_TOKUDB_EXTRA_ROWS    100
+#define HA_TOKUDB_EXTRA_ROWS 100
 
 /* Bits for share->status */
 #define STATUS_PRIMARY_KEY_INIT 0x1
 
+// minimum allowable size for locktree a.k.a tokudb_max_lock_memory
+#define HA_TOKUDB_MIN_LOCK_MEMORY (1 << 17)  // 131077
+
 #if defined(TOKUDB_VERSION_MAJOR) && defined(TOKUDB_VERSION_MINOR)
-#define TOKUDB_PLUGIN_VERSION ((TOKUDB_VERSION_MAJOR << 8) + TOKUDB_VERSION_MINOR)
+#define TOKUDB_PLUGIN_VERSION \
+  ((TOKUDB_VERSION_MAJOR << 8) + TOKUDB_VERSION_MINOR)
 #else
 #define TOKUDB_PLUGIN_VERSION 0
 #endif
@@ -146,18 +167,19 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 // branch heuristics as determined by profiling. Mostly copied from InnoDB.
 // Use:
 //   "if (TOKUDB_LIKELY(x))" where the chances of "x" evaluating true are higher
-//   "if (TOKUDB_UNLIKELY(x))" where the chances of "x" evaluating false are higher
-#if defined(__GNUC__) && (__GNUC__ > 2) && ! defined(__INTEL_COMPILER)
+//   "if (TOKUDB_UNLIKELY(x))" where the chances of "x" evaluating false are
+//   higher
+#if defined(__GNUC__) && (__GNUC__ > 2) && !defined(__INTEL_COMPILER)
 
 // Tell the compiler that 'expr' probably evaluates to 'constant'.
-#define TOKUDB_EXPECT(expr,constant) __builtin_expect(expr, constant)
+#define TOKUDB_EXPECT(expr, constant) __builtin_expect(expr, constant)
 
 #else
 
 #error "No TokuDB branch prediction operations in use!"
-#define TOKUDB_EXPECT(expr,constant) (expr)
+#define TOKUDB_EXPECT(expr, constant) (expr)
 
-#endif // defined(__GNUC__) && (__GNUC__ > 2) && ! defined(__INTEL_COMPILER)
+#endif  // defined(__GNUC__) && (__GNUC__ > 2) && ! defined(__INTEL_COMPILER)
 
 // Tell the compiler that cond is likely to hold
 #define TOKUDB_LIKELY(cond) TOKUDB_EXPECT(cond, 1)
@@ -170,18 +192,19 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 // mysql 5.6.15 removed the test macro, so we define our own
 #define tokudb_test(e) ((e) ? 1 : 0)
 
-inline const char* tokudb_thd_get_proc_info(const THD* thd) {
-    return thd->proc_info;
+inline const char *tokudb_thd_get_proc_info(const THD *thd) {
+  return thd->proc_info;
 }
-inline void tokudb_thd_set_proc_info(THD* thd, const char* proc_info) {
-    thd_proc_info(thd, proc_info);
+inline void tokudb_thd_set_proc_info(THD *thd, const char *proc_info) {
+  thd_proc_info(thd, proc_info);
 }
 
-// uint3korr reads 4 bytes and valgrind reports an error, so we use this function instead
+// uint3korr reads 4 bytes and valgrind reports an error, so we use this
+// function instead
 inline uint tokudb_uint3korr(const uchar *a) {
-    uchar b[4] = {};
-    memcpy(b, a, 3);
-    return uint3korr(b);
+  uchar b[4] = {};
+  memcpy(b, a, 3);
+  return uint3korr(b);
 }
 
 typedef unsigned int pfs_key_t;
@@ -192,11 +215,11 @@ typedef unsigned int pfs_key_t;
 #define mutex_t_lock(M) M.lock()
 #endif  // SAFE_MUTEX || HAVE_PSI_MUTEX_INTERFACE
 
-#if defined(SAFE_MUTEX)
+#if defined(SAFE_MUTEX) || defined(HAVE_PSI_MUTEX_INTERFACE)
 #define mutex_t_unlock(M) M.unlock(__FILE__, __LINE__)
 #else  // SAFE_MUTEX
 #define mutex_t_unlock(M) M.unlock()
-#endif  // SAFE_MUTEX
+#endif  // SAFE_MUTEX || HAVE_PSI_MUTEX_INTERFACE
 
 #if defined(HAVE_PSI_RWLOCK_INTERFACE)
 #define rwlock_t_lock_read(M) M.lock_read(__FILE__, __LINE__)

@@ -1,7 +1,6 @@
 #
 # Test for bug 79042 (handle_fatal_signal (sig=11) at get_filename_hash_pins)
 #
---source include/have_perfschema.inc
 
 UPDATE performance_schema.setup_consumers SET enabled='NO' where name='thread_instrumentation';
 --disable_result_log

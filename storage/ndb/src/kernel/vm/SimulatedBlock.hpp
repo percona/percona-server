@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 #ifndef SIMULATEDBLOCK_H
 #define SIMULATEDBLOCK_H
 
+#include <new>
+
 #include <NdbTick.h>
 #include <kernel_types.h>
 #include <util/version.h>
@@ -39,6 +41,7 @@
 #include "Pool.hpp"
 #include <NodeInfo.hpp>
 #include <NodeState.hpp>
+#include "OutputStream.hpp"
 #include "GlobalData.hpp"
 #include "LongSignal.hpp"
 #include <SignalLoggerManager.hpp>
@@ -47,7 +50,6 @@
 #include <ErrorHandlingMacros.hpp>
 
 #include "IntrusiveList.hpp"
-#include "ArrayPool.hpp"
 #include "DLHashTable.hpp"
 #include "WOPool.hpp"
 #include "RWPool.hpp"
@@ -65,6 +67,11 @@
 #include <blocks/record_types.hpp>
 
 #include "Ndbinfo.hpp"
+#include "portlib/NdbMem.h"
+#include <ndb_global.h>
+#include "BlockThreadBitmask.hpp"
+
+struct CHARSET_INFO;
 
 #define JAM_FILE_ID 248
 
@@ -126,6 +133,16 @@ struct PackedWordsContainer
   Uint32 noOfPackedWords;
   Uint32 packedWords[30];
 }; // 128 bytes
+
+#define LIGHT_LOAD_CONST 0
+#define MEDIUM_LOAD_CONST 1
+#define OVERLOAD_CONST 2
+enum OverloadStatus
+{
+  LIGHT_LOAD = LIGHT_LOAD_CONST,
+  MEDIUM_LOAD = MEDIUM_LOAD_CONST,
+  OVERLOAD = OVERLOAD_CONST
+};
 
 /**
   Description of NDB Software Architecture
@@ -398,7 +415,7 @@ struct PackedWordsContainer
    live system.
 */
 
-class SimulatedBlock :
+class alignas(NDB_CL) SimulatedBlock :
   public SegmentUtils  /* SimulatedBlock implements the Interface */
 {
   friend class TraceLCP;
@@ -418,9 +435,40 @@ class SimulatedBlock :
   friend class LockQueue;
   friend class SimplePropertiesSectionWriter;
   friend class SegmentedSectionGuard;
+  friend class DynArr256Pool; // for cerrorInsert
 public:
   friend class BlockComponent;
   virtual ~SimulatedBlock();
+
+  static void * operator new (size_t sz)
+  {
+    void* ptr = NdbMem_AlignedAlloc(NDB_CL, sz);
+    require(ptr != NULL);
+#ifdef VM_TRACE
+#ifndef NDB_PURIFY
+#ifdef VM_TRACE
+    const int initValue = 0xf3;
+#else
+    const int initValue = 0x0;
+#endif
+
+    char* charptr = (char*)ptr;
+    const int p = (sz / 4096);
+    const int r = (sz % 4096);
+
+    for(int i = 0; i<p; i++)
+      memset(charptr+(i*4096), initValue, 4096);
+
+    if(r > 0)
+      memset(charptr+p*4096, initValue, r);
+#endif
+#endif
+    return ptr;
+  }
+  static void operator delete  ( void* ptr )
+  {
+    NdbMem_AlignedFree(ptr);
+  }
 
   static const Uint32 BOUNDED_DELAY = 0xFFFFFF00;
 protected:
@@ -485,6 +533,7 @@ public:
   }
   void addInstance(SimulatedBlock* b, Uint32 theInstanceNo);
   virtual void loadWorkers() {}
+  virtual void prepare_scan_ctx(Uint32 scanPtrI) {}
 
   struct ThreadContext
   {
@@ -492,6 +541,7 @@ public:
     EmulatedJamBuffer* jamBuffer;
     Uint32 * watchDogCounter;
     SectionSegmentPool::Cache * sectionPoolCache;
+    NDB_TICKS* pHighResTimer;
   };
   /* Setup state of a block object for executing in a particular thread. */
   void assignToThread(ThreadContext ctx);
@@ -538,6 +588,7 @@ public:
    * via DI*GET*NODES*REQ signals.
    */
   static Uint32 getInstanceKey(Uint32 tabId, Uint32 fragId);
+  static Uint32 getInstanceKeyCanFail(Uint32 tabId, Uint32 fragId);
   static Uint32 getInstanceFromKey(Uint32 instanceKey); // local use only
 
   /**
@@ -545,9 +596,26 @@ public:
    *   thread running an instance any of the threads in blocks[]
    *   will have executed a signal
    */
-  void synchronize_threads_for_blocks(Signal*, const Uint32 blocks[],
-                                      const Callback&, JobBufferLevel = JBB);
+  void synchronize_threads(Signal * signal,
+                           const BlockThreadBitmask& threads,
+                           const Callback & cb,
+                           JobBufferLevel req_prio,
+                           JobBufferLevel conf_prio);
+
+  void synchronize_threads_for_blocks(
+           Signal*,
+           const Uint32 blocks[],
+           const Callback&,
+           JobBufferLevel req_prio = JBB,
+           JobBufferLevel conf_prio = ILLEGAL_JB_LEVEL);
   
+  /**
+   * This method will make sure that all external signals from nodes handled by
+   * transporters in current thread are processed.
+   * Should be called from a TRPMAN-worker.
+   */
+  void synchronize_external_signals(Signal* signal, const Callback& cb);
+
   /**
    * This method make sure that the path specified in blocks[]
    *   will be traversed before returning
@@ -574,13 +642,18 @@ public:
 private:
   struct SyncThreadRecord
   {
+    BlockThreadBitmask m_threads;
     Callback m_callback;
     Uint32 m_cnt;
+    Uint32 m_next;
     Uint32 nextPool;
   };
-  ArrayPool<SyncThreadRecord> c_syncThreadPool;
+  typedef ArrayPool<SyncThreadRecord> SyncThreadRecord_pool;
+
+  SyncThreadRecord_pool c_syncThreadPool;
   void execSYNC_THREAD_REQ(Signal*);
   void execSYNC_THREAD_CONF(Signal*);
+  void sendSYNC_THREAD_REQ(Signal*, Ptr<SimulatedBlock::SyncThreadRecord>);
 
   void execSYNC_REQ(Signal*);
 
@@ -589,8 +662,9 @@ private:
 public:
   virtual const char* get_filename(Uint32 fd) const { return "";}
 
-  void EXECUTE_DIRECT(ExecFunction f,
-                      Signal *signal);
+  void EXECUTE_DIRECT_FN(ExecFunction f,
+                         Signal *signal);
+
 protected:
   static Callback TheEmptyCallback;
   void TheNULLCallbackFunction(class Signal*, Uint32, Uint32);
@@ -598,8 +672,57 @@ protected:
   void execute(Signal* signal, Callback & c, Uint32 returnCode);
   
 
+  /**
+   * Various methods to get data from ndbd/ndbmtd such as time
+   * spent in sleep, sending and executing, number of signals
+   * in queue, and send buffer level.
+   *
+   * Also retrieving a thread name (this name must be pointing to a
+   * static pointer since it will be stored and kept for a long
+   * time. So the pointer cannot be changed.
+   *
+   * Finally also the ability to query for send thread information.
+   */
   void getSendBufferLevel(NodeId node, SB_LevelType &level);
   Uint32 getSignalsInJBB();
+  void setOverloadStatus(OverloadStatus new_status);
+  void setWakeupThread(Uint32 wakeup_instance);
+  void setNodeOverloadStatus(OverloadStatus new_status);
+  void setSendNodeOverloadStatus(OverloadStatus new_status);
+  void startChangeNeighbourNode();
+  void setNeighbourNode(NodeId node);
+  void setNoSend();
+  void endChangeNeighbourNode();
+  void getPerformanceTimers(Uint64 &micros_sleep,
+                            Uint64 &spin_time,
+                            Uint64 &buffer_full_micros_sleep,
+                            Uint64 &micros_send);
+  void getSendPerformanceTimers(Uint32 send_instance,
+                                Uint64 & exec_time,
+                                Uint64 & sleep_time,
+                                Uint64 & spin_time,
+                                Uint64 & user_time_os,
+                                Uint64 & kernel_time_os,
+                                Uint64 & elapsed_time_os);
+  Uint32 getConfiguredSpintime();
+  void setSpintime(Uint32 new_spintime);
+  Uint32 getWakeupLatency();
+  void setWakeupLatency(Uint32);
+  Uint32 getNumSendThreads();
+  Uint32 getNumThreads();
+  const char * getThreadName();
+  const char * getThreadDescription();
+  void flush_send_buffers();
+  void set_watchdog_counter();
+  void assign_recv_thread_new_trp(Uint32 trp_id);
+  void assign_multi_trps_to_send_threads();
+  bool epoll_add_trp(NodeId node_id, TrpId trp_id);
+  bool is_recv_thread_for_new_trp(NodeId node_id, TrpId trp_id);
+
+  NDB_TICKS getHighResTimer() const 
+  {
+    return *m_pHighResTimer;
+  }
 
   /**********************************************************
    * Send signal - dialects
@@ -682,20 +805,53 @@ protected:
 			   Uint32 length,
 			   SectionHandle* sections) const;
 
+  /**
+   * EXECUTE_DIRECT comes in five variants.
+   *
+   * EXECUTE_DIRECT_FN/2 with explicit function, not signal number, see above.
+   *
+   * EXECUTE_DIRECT/4 calls another block within same thread.
+   *
+   * EXECUTE_DIRECT_MT/5 used when other block may be in another thread.
+   *
+   * EXECUTE_DIRECT_WITH_RETURN/4 calls another block within same thread and
+   *   expects that result is passed in signal using prepareRETURN_DIRECT.
+   *
+   * EXECUTE_DIRECT_WITH_SECTIONS/5 with sections to block in same thread.
+   */
+  void EXECUTE_DIRECT(Uint32 block,
+		      Uint32 gsn,
+		      Signal* signal,
+		      Uint32 len);
   /*
    * Instance defaults to instance of sender.  Using explicit
    * instance argument asserts that the call is thread-safe.
    */
-  void EXECUTE_DIRECT(Uint32 block, 
-		      Uint32 gsn, 
-		      Signal* signal, 
-		      Uint32 len,
-                      Uint32 givenInstanceNo);
-  void EXECUTE_DIRECT(Uint32 block, 
-		      Uint32 gsn, 
-		      Signal* signal, 
-		      Uint32 len);
-  
+  void EXECUTE_DIRECT_MT(Uint32 block,
+		         Uint32 gsn,
+		         Signal* signal,
+		         Uint32 len,
+                         Uint32 givenInstanceNo);
+  void EXECUTE_DIRECT_WITH_RETURN(Uint32 block,
+                                  Uint32 gsn,
+                                  Signal* signal,
+                                  Uint32 len);
+  void EXECUTE_DIRECT_WITH_SECTIONS(Uint32 block,
+                                    Uint32 gsn,
+                                    Signal* signal,
+                                    Uint32 len,
+                                    SectionHandle* sections);
+  /**
+   * prepareRETURN_DIRECT is used to pass a return signal
+   * direct back to caller of EXECUTE_DIRECT_WITH_RETURN.
+   *
+   * The call to prepareRETURN_DIRECT should be immediately followed by
+   * return and bring back control to caller of EXECUTE_DIRECT_WITH_RETURN.
+   */
+  void prepareRETURN_DIRECT(Uint32 gsn,
+                            Signal* signal,
+                            Uint32 len);
+
   class SectionSegmentPool& getSectionSegmentPool();
   void release(SegmentedSectionPtr & ptr);
   void release(SegmentedSectionPtrPOD & ptr) {
@@ -707,7 +863,7 @@ protected:
   void releaseSections(struct SectionHandle&);
 
   bool import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len);
-  bool import(SegmentedSectionPtr& ptr, const Uint32* src, Uint32 len);
+  bool import(SegmentedSectionPtr& ptr, const Uint32* src, Uint32 len) const;
   bool import(SectionHandle * dst, LinearSectionPtr src[3],Uint32 cnt);
 
   bool appendToSection(Uint32& firstSegmentIVal, const Uint32* src, Uint32 len);
@@ -717,7 +873,8 @@ protected:
   void handle_invalid_sections_in_send_signal(const Signal*) const;
   void handle_lingering_sections_after_execute(const Signal*) const;
   void handle_invalid_fragmentInfo(Signal*) const;
-  void handle_send_failed(SendStatus, Signal*) const;
+  template<typename SecPtr>
+  void handle_send_failed(SendStatus, Signal*, Uint32, SecPtr[]) const;
   void handle_out_of_longsignal_memory(Signal*) const;
 
   /**
@@ -746,6 +903,10 @@ protected:
    *   is guaranteed to be correctly serialized wrt to NODE_FAILREP
    */
   bool checkNodeFailSequence(Signal*);
+
+#ifdef ERROR_INSERT
+  void setDelayedPrepare();
+#endif
 
   /**********************************************************
    * Fragmented signals
@@ -777,7 +938,8 @@ protected:
   /* If send size is > FRAGMENT_WORD_SIZE, fragments of this size
    * will be sent by the sendFragmentedSignal variants
    */
-  STATIC_CONST( FRAGMENT_WORD_SIZE = 240 );
+  static constexpr Uint32 FRAGMENT_WORD_SIZE = 240;
+  static constexpr Uint32 BATCH_FRAGMENT_WORD_SIZE = 240 * 8;
 
   void sendFragmentedSignal(BlockReference ref, 
 			    GlobalSignalNumber gsn, 
@@ -816,6 +978,46 @@ protected:
 			    Uint32 noOfSections,
 			    Callback & = TheEmptyCallback,
 			    Uint32 messageSize = FRAGMENT_WORD_SIZE);
+
+  void sendBatchedFragmentedSignal(BlockReference ref,
+                                   GlobalSignalNumber gsn,
+                                   Signal* signal,
+                                   Uint32 length,
+                                   JobBufferLevel jbuf,
+                                   SectionHandle * sections,
+                                   bool noRelease,
+                                         Callback & = TheEmptyCallback,
+                                   Uint32 messageSize = BATCH_FRAGMENT_WORD_SIZE);
+
+  void sendBatchedFragmentedSignal(NodeReceiverGroup rg,
+                                   GlobalSignalNumber gsn,
+                                   Signal* signal,
+                                   Uint32 length,
+                                   JobBufferLevel jbuf,
+                                   SectionHandle * sections,
+                                   bool noRelease,
+                                   Callback & = TheEmptyCallback,
+                                   Uint32 messageSize = BATCH_FRAGMENT_WORD_SIZE);
+
+  void sendBatchedFragmentedSignal(BlockReference ref,
+                                   GlobalSignalNumber gsn,
+                                   Signal* signal,
+                                   Uint32 length,
+                                   JobBufferLevel jbuf,
+                                   LinearSectionPtr ptr[3],
+                                   Uint32 noOfSections,
+                                   Callback & = TheEmptyCallback,
+                                   Uint32 messageSize = BATCH_FRAGMENT_WORD_SIZE);
+
+  void sendBatchedFragmentedSignal(NodeReceiverGroup rg,
+                                   GlobalSignalNumber gsn,
+                                   Signal* signal,
+                                   Uint32 length,
+                                   JobBufferLevel jbuf,
+                                   LinearSectionPtr ptr[3],
+                                   Uint32 noOfSections,
+                                   Callback & = TheEmptyCallback,
+                                   Uint32 messageSize = BATCH_FRAGMENT_WORD_SIZE);
 
   /**
    * simBlockNodeFailure
@@ -882,7 +1084,9 @@ protected:
               ( m_sectionPtrI[2] == RNIL ) );
     }
   }; // sizeof() = 32 bytes
-  
+  typedef ArrayPool<FragmentInfo> FragmentInfo_pool;
+  typedef DLHashTable<FragmentInfo_pool, FragmentInfo> FragmentInfo_hash;
+
   /**
    * Struct used when sending fragmented signals
    */
@@ -921,6 +1125,8 @@ protected:
     };
     Uint32 prevList;
   };
+  typedef ArrayPool<FragmentSendInfo> FragmentSendInfo_pool;
+  typedef DLList<FragmentSendInfo_pool> FragmentSendInfo_list;
   
   /**
    * sendFirstFragment
@@ -984,11 +1190,16 @@ protected:
    * If the cause of the shutdown is known use extradata to add an 
    * errormessage describing the problem
    */
-  void progError(int line, int err_code, const char* extradata=NULL) const
-    ATTRIBUTE_NORETURN;
+  [[noreturn]] void progError(int line,
+                              int err_code,
+                              const char* extradata=NULL,
+                              const char* check="") const;
 private:
-  void  signal_error(Uint32, Uint32, Uint32, const char*, int) const
-    ATTRIBUTE_NORETURN;
+  [[noreturn]] void signal_error(Uint32,
+                                 Uint32,
+                                 Uint32,
+                                 const char*,
+                                 int) const;
   const NodeId         theNodeId;
   const BlockNumber    theNumber;
   const Uint32 theInstance;
@@ -1016,6 +1227,9 @@ private:
   EmulatedJamBuffer *m_jamBuffer;
   /* For multithreaded ndb, the thread-specific watchdog counter. */
   Uint32 *m_watchDogCounter;
+
+  /* Read-only high res timer pointer */
+  const NDB_TICKS* m_pHighResTimer;
 
   SectionSegmentPool::Cache * m_sectionPoolCache;
   
@@ -1107,7 +1321,7 @@ protected:
    */
   void infoEvent(const char * msg, ...) const
     ATTRIBUTE_FORMAT(printf, 2, 3);
-  void warningEvent(const char * msg, ...) const
+  void warningEvent(const char * msg, ...)
     ATTRIBUTE_FORMAT(printf, 2, 3);
   
   /**
@@ -1123,21 +1337,43 @@ protected:
 
   const NodeVersionInfo& getNodeVersionInfo() const;
   NodeVersionInfo& setNodeVersionInfo();
-  
+
+  Uint32 change_and_get_io_laggers(int change);
   /**********************
    * Xfrm stuff
+   *
+   * xfrm the attr / key for **hash** generation.
+   * - Keys being equal should generate identical xfrm'ed strings.
+   * - Uniquenes of two non equal keys are preferred, but not required.
    */
   
   /**
    * @return length
    */
-  Uint32 xfrm_key(Uint32 tab, const Uint32* src, 
-		  Uint32 *dst, Uint32 dstSize,
-		  Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX]) const;
+  Uint32 xfrm_key_hash(Uint32 tab, const Uint32* src,
+		       Uint32 *dst, Uint32 dstSize,
+		       Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX]) const;
 
-  Uint32 xfrm_attr(Uint32 attrDesc, CHARSET_INFO* cs,
-                   const Uint32* src, Uint32 & srcPos,
-                   Uint32* dst, Uint32 & dstPos, Uint32 dstSize) const;
+  Uint32 xfrm_attr_hash(Uint32 attrDesc, const CHARSET_INFO* cs,
+                        const Uint32* src, Uint32 & srcPos,
+                        Uint32* dst, Uint32 & dstPos, Uint32 dstSize) const;
+
+
+  /*******************
+   * Compare either a full (non-NULL) key, or a single attr.
+   *
+   * Character strings are compared taking their normalized
+   * 'weight' into considderation, as defined by their collation.
+   *
+   * No intermediate xfrm'ed string are produced during the compare.
+   *
+   * return '<0', '==0' or '>0' for 's1<s2', s1==s2, 's2>s2' resp.
+   */
+  int cmp_key(Uint32 tab, const Uint32* s1, const Uint32 *s2) const;
+
+  int cmp_attr(Uint32 attrDesc, const CHARSET_INFO* cs,
+	       const Uint32 *s1, Uint32 s1Len,
+	       const Uint32 *s2, Uint32 s2Len) const;
   
   /**
    *
@@ -1164,15 +1400,15 @@ protected:
    * Get receiver thread index for node
    * MAX_NODES == no receiver thread
    */
-  Uint32 get_recv_thread_idx(NodeId nodeId);
+  Uint32 get_recv_thread_idx(TrpId trp_id);
 
 private:
   NewVARIABLE* NewVarRef;      /* New Base Address Table for block  */
   Uint16       theBATSize;     /* # entries in BAT */
 
 protected:  
-  SafeArrayPool<GlobalPage>& m_global_page_pool;
-  ArrayPool<GlobalPage>& m_shared_page_pool;
+  GlobalPage_safepool& m_global_page_pool;
+  GlobalPage_pool& m_shared_page_pool;
   
   void execNDB_TAMPER(Signal * signal);
   void execNODE_STATE_REP(Signal* signal);
@@ -1183,8 +1419,9 @@ protected:
   void execSTOP_FOR_CRASH(Signal* signal);
   void execAPI_START_REP(Signal* signal);
   void execNODE_START_REP(Signal* signal);
-  void execSEND_PACKED(Signal* signal);
   void execLOCAL_ROUTE_ORD(Signal*);
+public:
+  void execSEND_PACKED(Signal* signal);
 private:
   /**
    * Node state
@@ -1192,13 +1429,13 @@ private:
   NodeState theNodeState;
 
   Uint32 c_fragmentIdCounter;
-  ArrayPool<FragmentInfo> c_fragmentInfoPool;
-  DLHashTable<FragmentInfo> c_fragmentInfoHash;
+  FragmentInfo_pool c_fragmentInfoPool;
+  FragmentInfo_hash c_fragmentInfoHash;
   
   bool c_fragSenderRunning;
-  ArrayPool<FragmentSendInfo> c_fragmentSendPool;
-  DLList<FragmentSendInfo> c_linearFragmentSendList;
-  DLList<FragmentSendInfo> c_segmentedFragmentSendList;
+  FragmentSendInfo_pool c_fragmentSendPool;
+  FragmentSendInfo_list c_linearFragmentSendList;
+  FragmentSendInfo_list c_segmentedFragmentSendList;
 
 protected:
   Uint32 debugPrintFragmentCounts();
@@ -1230,11 +1467,13 @@ public:
       Uint32 prevList;
     };
     typedef Ptr<ActiveMutex> ActiveMutexPtr;
+    typedef ArrayPool<ActiveMutex> ActiveMutex_pool;
+    typedef DLList<ActiveMutex_pool> ActiveMutex_list;
     
     bool seize(ActiveMutexPtr& ptr);
     void release(Uint32 activeMutexPtrI);
     
-    void getPtr(ActiveMutexPtr& ptr);
+    void getPtr(ActiveMutexPtr& ptr) const;
     
     void create(Signal*, ActiveMutexPtr&);
     void destroy(Signal*, ActiveMutexPtr&);
@@ -1252,13 +1491,14 @@ public:
     void execUTIL_UNLOCK_CONF(Signal* signal);
     
     SimulatedBlock & m_block;
-    ArrayPool<ActiveMutex> m_mutexPool;
-    DLList<ActiveMutex> m_activeMutexes;
+    ActiveMutex_pool m_mutexPool;
+    ActiveMutex_list m_activeMutexes;
     
     BlockReference reference() const;
-    void progError(int line,
-                   int err_code,
-                   const char* extra = 0) ATTRIBUTE_NORETURN;
+    [[noreturn]] void progError(int line,
+                                int err_code,
+                                const char* extra = 0,
+                                const char* check = "");
   };
   
   friend class MutexManager;
@@ -1320,6 +1560,7 @@ protected:
     THE_NULL_CALLBACK = 0 // must assign TheNULLCallbackFunction
   };
 
+  void block_require(void);
   void execute(Signal* signal, CallbackPtr & cptr, Uint32 returnCode);
   const CallbackEntry& getCallbackEntry(Uint32 ci);
   void sendCallbackConf(Signal* signal, Uint32 fullBlockNo,
@@ -1344,23 +1585,50 @@ public:
   Uint32 m_currentGsn;
 #endif
 
-#ifdef VM_TRACE
-  Ptr<void> **m_global_variables, **m_global_variables_save;
-  void clear_global_variables();
-  void init_globals_list(void ** tmp, size_t cnt);
+#if defined (USE_INIT_GLOBAL_VARIABLES)
+  void init_global_ptrs(void ** tmp, size_t cnt);
+  void init_global_uint32_ptrs(void ** tmp, size_t cnt);
+  void init_global_uint32(void ** tmp, size_t cnt);
   void disable_global_variables();
   void enable_global_variables();
 #endif
 
 #ifdef VM_TRACE
 public:
+  FileOutputStream debugOutFile;
   NdbOut debugOut;
-  NdbOut& debugOutStream() { return debugOut; };
+  NdbOut& debugOutStream() { return debugOut; }
   bool debugOutOn();
   void debugOutLock() { globalSignalLoggers.lock(); }
   void debugOutUnlock() { globalSignalLoggers.unlock(); }
   const char* debugOutTag(char* buf, int line);
 #endif
+
+  const char* getPartitionBalanceString(Uint32 fct)
+  {
+    switch (fct)
+    {
+      case NDB_PARTITION_BALANCE_SPECIFIC:
+        return "NDB_PARTITION_BALANCE_SPECIFIC";
+      case NDB_PARTITION_BALANCE_FOR_RA_BY_NODE:
+        return "NDB_PARTITION_BALANCE_FOR_RA_BY_NODE";
+      case NDB_PARTITION_BALANCE_FOR_RP_BY_NODE:
+        return "NDB_PARTITION_BALANCE_FOR_RP_BY_NODE";
+      case NDB_PARTITION_BALANCE_FOR_RP_BY_LDM:
+        return "NDB_PARTITION_BALANCE_FOR_RP_BY_LDM";
+      case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
+        return "NDB_PARTITION_BALANCE_FOR_RA_BY_LDM";
+      case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_2:
+        return "NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_2";
+      case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_3:
+        return "NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_3";
+      case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_4:
+        return "NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_4";
+      default:
+        ndbabort();
+    }
+    return NULL;
+  }
 
   void ndbinfo_send_row(Signal* signal,
                         const DbinfoScanReq& req,
@@ -1376,6 +1644,12 @@ public:
   void ndbinfo_send_scan_conf(Signal* signal,
                               DbinfoScanReq& req,
                               const Ndbinfo::Ratelimit& rl) const;
+
+#ifdef NDB_DEBUG_RES_OWNERSHIP
+  /* Utils to lock and unlock the global section segment pool */
+  void lock_global_ssp();
+  void unlock_global_ssp();
+#endif
 
 
 protected:
@@ -1432,9 +1706,6 @@ SimulatedBlock::executeFunction_async(GlobalSignalNumber gsn,
                                       Signal *signal)
 {
   ExecFunction f = theExecArray[gsn];
-#ifdef VM_TRACE
-  clear_global_variables();
-#endif
   if (unlikely(gsn > MAX_GSN))
   {
     handle_execute_error(gsn);
@@ -1467,6 +1738,10 @@ SimulatedBlock::executeFunction(GlobalSignalNumber gsn,
                                 Signal* signal,
                                 ExecFunction f)
 {
+#ifdef NDB_DEBUG_RES_OWNERSHIP
+  /* Use block num + gsn composite as owner id by default */
+  setResOwner((Uint32(refToBlock(reference())) << 16) | gsn);
+#endif
   if (likely(f != 0))
   {
     (this->*f)(signal);
@@ -1481,6 +1756,12 @@ SimulatedBlock::executeFunction(GlobalSignalNumber gsn,
    * This point only passed if an error has occurred
    */
   handle_execute_error(gsn);
+}
+
+inline
+void SimulatedBlock::block_require(void)
+{
+  ndbabort();
 }
 
 inline
@@ -1639,6 +1920,18 @@ SimulatedBlock::getNodeVersionInfo() const {
 }
 
 inline
+Uint32 SimulatedBlock::change_and_get_io_laggers(Int32 change)
+{
+  globalData.lock_IO_lag();
+  Int32 io_laggers = Int32(globalData.get_io_laggers());
+  require((io_laggers + change) >= 0);
+  Uint32 new_io_laggers = Uint32(io_laggers + change);
+  globalData.set_io_laggers(new_io_laggers);
+  globalData.unlock_IO_lag();
+  return new_io_laggers;
+}
+
+inline
 NodeVersionInfo &
 SimulatedBlock::setNodeVersionInfo() {
   return globalData.m_versionInfo;
@@ -1661,19 +1954,19 @@ SimulatedBlock::subTime(Uint32 gsn, Uint64 time){
 
 inline
 void
-SimulatedBlock::EXECUTE_DIRECT(ExecFunction f,
-                               Signal *signal)
+SimulatedBlock::EXECUTE_DIRECT_FN(ExecFunction f,
+                                  Signal *signal)
 {
   (this->*f)(signal);
 }
 
 inline
 void
-SimulatedBlock::EXECUTE_DIRECT(Uint32 block, 
-			       Uint32 gsn, 
-			       Signal* signal, 
-			       Uint32 len,
-                               Uint32 instanceNo)
+SimulatedBlock::EXECUTE_DIRECT_MT(Uint32 block, 
+			          Uint32 gsn, 
+			          Signal* signal, 
+			          Uint32 len,
+                                  Uint32 instanceNo)
 {
   SimulatedBlock* rec_block;
   SimulatedBlock* main_block = globalData.getBlock(block);
@@ -1793,6 +2086,49 @@ SimulatedBlock::EXECUTE_DIRECT(Uint32 block,
 #endif
 }
 
+inline
+void
+SimulatedBlock::EXECUTE_DIRECT_WITH_RETURN(Uint32 block,
+                                           Uint32 gsn,
+                                           Signal* signal,
+                                            Uint32 len)
+{
+  EXECUTE_DIRECT(block, gsn, signal, len);
+  // TODO check prepareRETURN_DIRECT have been called
+}
+
+inline
+void
+SimulatedBlock::EXECUTE_DIRECT_WITH_SECTIONS(Uint32 block,
+                                             Uint32 gsn,
+                                             Signal* signal,
+                                             Uint32 len,
+                                             SectionHandle* sections)
+{
+  signal->header.m_noOfSections = sections->m_cnt;
+  for (Uint32 i = 0; i < sections->m_cnt; i++)
+  {
+    signal->m_sectionPtrI[i] = sections->m_ptr[i].i;
+  }
+  sections->clear();
+  EXECUTE_DIRECT(block, gsn, signal, len);
+}
+
+inline
+void
+SimulatedBlock::prepareRETURN_DIRECT(Uint32 gsn,
+                                     Signal* signal,
+                                     Uint32 len)
+{
+  signal->setLength(len);
+  if (unlikely(gsn > MAX_GSN))
+  {
+    handle_execute_error(gsn);
+    return;
+  }
+  signal->header.theVerId_signalNumber = gsn;
+}
+
 // Do a consictency check before reusing a signal.
 inline void 
 SimulatedBlock::check_sections(Signal* signal, 
@@ -1836,10 +2172,10 @@ BLOCK::addRecSignal(GlobalSignalNumber gsn, ExecSignalLocal f, bool force){ \
 
 #ifdef ERROR_INSERT
 #define RSS_AP_SNAPSHOT(x) Uint32 rss_##x
-#define RSS_AP_SNAPSHOT_SAVE(x) rss_##x = x.getNoOfFree()
-#define RSS_AP_SNAPSHOT_CHECK(x) ndbrequire(rss_##x == x.getNoOfFree())
-#define RSS_AP_SNAPSHOT_SAVE2(x,y) rss_##x = x.getNoOfFree()+(y)
-#define RSS_AP_SNAPSHOT_CHECK2(x,y) ndbrequire(rss_##x == x.getNoOfFree()+(y))
+#define RSS_AP_SNAPSHOT_SAVE(x) rss_##x = x.getUsed()
+#define RSS_AP_SNAPSHOT_CHECK(x) ndbrequire(rss_##x == x.getUsed())
+#define RSS_AP_SNAPSHOT_SAVE2(x,y) rss_##x = x.getUsed()-(y)
+#define RSS_AP_SNAPSHOT_CHECK2(x,y) ndbrequire(rss_##x == x.getUsed()-(y))
 
 #define RSS_OP_COUNTER(x) Uint32 x
 #define RSS_OP_COUNTER_INIT(x) x = 0
@@ -1887,8 +2223,9 @@ struct Hash2FragmentMap
   Uint32 nextPool;
   Uint32 m_object_id;
 };
+typedef ArrayPool<Hash2FragmentMap> Hash2FragmentMap_pool;
 
-extern ArrayPool<Hash2FragmentMap> g_hash_map;
+extern Hash2FragmentMap_pool g_hash_map;
 
 /**
  * Guard class for auto release of segmentedsectionptr's

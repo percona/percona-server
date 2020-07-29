@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -18,7 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # This is the CMakeLists for InnoDB
 
@@ -32,10 +32,10 @@ IF(LZ4_INCLUDE_DIR AND LZ4_LIBRARY)
 ENDIF()
 
 # OS tests
-IF(UNIX)
-  IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+IF(UNIX AND NOT IGNORE_AIO_CHECK)
+  IF(LINUX)
 
-    ADD_DEFINITIONS("-DUNIV_LINUX -D_GNU_SOURCE=1")
+    ADD_DEFINITIONS("-DUNIV_LINUX")
 
     CHECK_INCLUDE_FILES (libaio.h HAVE_LIBAIO_H)
     CHECK_LIBRARY_EXISTS(aio io_queue_init "" HAVE_LIBAIO)
@@ -45,7 +45,7 @@ IF(UNIX)
       LINK_LIBRARIES(aio)
     ENDIF()
 
-  ELSEIF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
+  ELSEIF(SOLARIS)
     ADD_DEFINITIONS("-DUNIV_SOLARIS")
   ENDIF()
 ENDIF()
@@ -59,15 +59,18 @@ ENDIF()
 
 SET(MUTEXTYPE "event" CACHE STRING "Mutex type: event, sys or futex")
 
-IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-# After: WL#5825 Using C++ Standard Library with MySQL code
-#       we no longer use -fno-exceptions
-#	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
+IF(MY_COMPILER_IS_GNU_OR_CLANG)
+  # Turn off unused parameter warnings.
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-unused-parameter")
+  # Turn off warnings about implicit casting away const.
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-cast-qual")
+ENDIF()
 
-# Add -Wconversion if compiling with GCC
-## As of Mar 15 2011 this flag causes 3573+ warnings. If you are reading this
-## please fix them and enable the following code:
-#SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wconversion")
+IF(MY_COMPILER_IS_GNU)
+  # Add -Wconversion if compiling with GCC
+  ## As of Mar 15 2011 this flag causes 3573+ warnings. If you are reading this
+  ## please fix them and enable the following code:
+  #SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wconversion")
 
   IF (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64" OR
       CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
@@ -113,7 +116,9 @@ ENDIF()
 IF(NOT MSVC)
   CHECK_C_SOURCE_RUNS(
   "
+  #ifndef _GNU_SOURCE
   #define _GNU_SOURCE
+  #endif
   #include <fcntl.h>
   #include <linux/falloc.h>
   int main()
@@ -126,14 +131,34 @@ IF(NOT MSVC)
   }"
   HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE
   )
+  CHECK_C_SOURCE_COMPILES(
+  "
+  #ifndef _GNU_SOURCE
+  #define _GNU_SOURCE
+  #endif
+  #include <fcntl.h>
+  #include <linux/falloc.h>
+  int main()
+  {
+    /* Ignore the return value for now. Check if the flags exist.
+    The return value is checked  at runtime. */
+    fallocate(0, FALLOC_FL_ZERO_RANGE, 0, 0);
+
+    return(0);
+  }"
+  HAVE_FALLOC_FL_ZERO_RANGE
+  )
 ENDIF()
 
 IF(HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE)
  ADD_DEFINITIONS(-DHAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE=1)
 ENDIF()
 
+IF(HAVE_FALLOC_FL_ZERO_RANGE)
+ ADD_DEFINITIONS(-DHAVE_FALLOC_FL_ZERO_RANGE=1)
+ENDIF()
+
 IF(NOT MSVC)
-# either define HAVE_IB_GCC_ATOMIC_BUILTINS or not
 IF(NOT CMAKE_CROSSCOMPILING)
   CHECK_C_SOURCE_RUNS(
   "#include<stdint.h>
@@ -249,11 +274,8 @@ ENDIF()
 
 ENDIF(NOT MSVC)
 
-CHECK_FUNCTION_EXISTS(asprintf  HAVE_ASPRINTF)
-CHECK_FUNCTION_EXISTS(vasprintf  HAVE_VASPRINTF)
-
 # Solaris atomics
-IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
+IF(SOLARIS)
   IF(NOT CMAKE_CROSSCOMPILING)
   CHECK_C_SOURCE_COMPILES(
   "#include <mbarrier.h>
@@ -282,7 +304,7 @@ ELSE()
 ENDIF()
 
 # Include directories under innobase
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/
+		    ${CMAKE_SOURCE_DIR}/storage/innobase/include
 		    ${CMAKE_SOURCE_DIR}/storage/innobase/handler
-                    ${CMAKE_SOURCE_DIR}/libbinlogevents/include )
-
+                    )

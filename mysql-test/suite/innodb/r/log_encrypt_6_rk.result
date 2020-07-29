@@ -53,10 +53,10 @@ a	LEFT(b,10)
 UNINSTALL PLUGIN keyring_file;
 DROP DATABASE tde_db;
 # Try starting without keyring : Error
-# Search for error message
-Pattern "InnoDB: Redo log was encrypted, but keyring plugin is not loaded" found
 # Restart without keyring plugin possible if redo files removed
 # Start the DB server with datadir1
+# Search for error message
+Pattern "Redo log was encrypted, but keyring plugin is not loaded" found
 # Try starting without keyring and  --innodb_force_recovery=SRV_FORCE_NO_LOG_REDO.
 # Start the DB server with datadir1
 SELECT 1;

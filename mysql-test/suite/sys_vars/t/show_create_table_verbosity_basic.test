@@ -4,14 +4,14 @@
 SELECT @@session.show_create_table_verbosity;
 SHOW SESSION VARIABLES LIKE 'show_create_table_verbosity';
 --disable_warnings
-SELECT * FROM information_schema.session_variables WHERE variable_name='show_create_table_verbosity';
+SELECT * FROM performance_schema.session_variables WHERE variable_name='show_create_table_verbosity';
 --enable_warnings
 
 --echo #Also can be set as a global variable.
 SELECT @@global.show_create_table_verbosity;
 SHOW GLOBAL VARIABLES LIKE 'show_create_table_verbosity';
 --disable_warnings
-SELECT * FROM information_schema.global_variables WHERE variable_name='show_create_table_verbosity';
+SELECT * FROM performance_schema.global_variables WHERE variable_name='show_create_table_verbosity';
 --enable_warnings
 
 --echo #Test setting the variable to various values.

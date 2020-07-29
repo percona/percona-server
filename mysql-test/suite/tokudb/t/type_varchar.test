@@ -1,38 +1,25 @@
 source include/have_tokudb.inc;
 set default_storage_engine='tokudb';
---disable_warnings
-drop table if exists t1, t2;
---enable_warnings
+
 
 create table t1 (v varchar(30), c char(3), e enum('abc','def','ghi'), t text);
-let $MYSQLD_DATADIR= `select @@datadir`;
-copy_file $MYSQL_TEST_DIR/std_data/vchar.frm $MYSQLD_DATADIR/test/vchar.frm;
-truncate table vchar;
-replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
 show create table t1;
-replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
-show create table vchar;
 insert into t1 values ('abc', 'de', 'ghi', 'jkl');
 insert into t1 values ('abc ', 'de ', 'ghi', 'jkl ');
 insert into t1 values ('abc    ', 'd  ', 'ghi', 'jkl    ');
-insert into vchar values ('abc', 'de', 'ghi', 'jkl');
-insert into vchar values ('abc ', 'de ', 'ghi', 'jkl ');
-insert into vchar values ('abc    ', 'd  ', 'ghi', 'jkl    ');
 select length(v),length(c),length(e),length(t) from t1;
-select length(v),length(c),length(e),length(t) from vchar;
-alter table vchar add i int;
-replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
-show create table vchar;
-select length(v),length(c),length(e),length(t) from vchar;
-drop table t1, vchar;
-create table t1 (v varchar(20));
+drop table t1;
+
+create table t1 (v varchar(20)) charset latin1;
 insert into t1 values('a ');
 select v='a' from t1;
 select binary v='a' from t1;
 select binary v='a ' from t1;
 insert into t1 values('a');
+--disable_result_log
 --error ER_DUP_ENTRY
 alter table t1 add primary key (v);
+--enable_result_log
 drop table t1;
 create table t1 (v varbinary(20));
 insert into t1 values('a');
@@ -45,7 +32,7 @@ drop table t1;
 # have any problems with varchar with one or two byte length_bytes
 #
 
-create table t1 (v varchar(254), index (v));
+create table t1 (v varchar(254), index (v)) charset latin1;
 insert into t1 values ("This is a test ");
 insert into t1 values ("Some sample data");
 insert into t1 values (" garbage ");
@@ -137,7 +124,7 @@ drop table t1, t2;
 #
 # Bug #10543: convert varchar with index to text
 #
-create table t1 (f1 varchar(65500));
+create table t1 (f1 varchar(65500)) charset latin1;
 create index index1 on t1(f1(10));
 replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
 show create table t1;

@@ -1,9 +1,7 @@
 --source include/no_valgrind_without_big.inc
---source include/have_myisam.inc
-# Some bugs in this test have MyISAM specific tests
 
--- source include/have_ucs2.inc
--- source include/have_utf8mb4.inc
+# Plugin 'InnoDB' has ref_count=1 after shutdown
+call mtr.add_suppression("Plugin \'InnoDB\'");
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
@@ -32,19 +30,8 @@ select 'a  a' > 'a', 'a  \t' < 'a';
 #
 # Bug #6787 LIKE not working properly with _ and utf8 data
 #
-select 'c' like '\_' as want0; 
-
-#
-# Bug #5679 utf8_unicode_ci LIKE--trailing % doesn't equal zero characters
-#
-CREATE TABLE t (
-  c char(20) NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
-INSERT INTO t VALUES ('a'),('ab'),('aba');
-ALTER TABLE t ADD INDEX (c);
-SELECT c FROM t WHERE c LIKE 'a%';
-#should find 3 rows but only found 2
-DROP TABLE t;
+select 'c' like '\_' as want0;
+# End
 
 create table t1 (c1 char(10) character set utf8 collate utf8_bin);
 
@@ -411,16 +398,6 @@ FROM t1 ORDER BY id;
 DROP TABLE t1;
 
 #
-# Bug #27079 Crash while grouping empty ucs2 strings
-#
-CREATE TABLE t1 (
- c1 text character set ucs2 collate ucs2_polish_ci NOT NULL
-) ENGINE=MyISAM;
-insert into t1 values (''),('a');
-SELECT COUNT(*), c1 FROM t1 GROUP BY c1;
-DROP TABLE IF EXISTS t1;
-
-#
 # Bug#27345 Incorrect data returned when range-read from utf8_danish_ci indexes
 #
 set names utf8;
@@ -498,7 +475,7 @@ SET collation_connection=ucs2_czech_ci;
 --echo # MDEV-7649 wrong result when comparing utf8 column with an invalid literal
 --echo #
 
-SET NAMES utf8 COLLATE utf8_unicode_ci;
+SET NAMES utf8mb3 COLLATE utf8mb3_unicode_ci;
 --let ENGINE=MyISAM
 --source include/ctype_utf8_ilseq.inc
 --let ENGINE=HEAP
@@ -520,12 +497,10 @@ SET NAMES utf8 COLLATE utf8_unicode_ci;
 set collation_connection=ucs2_unicode_ci;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
---source include/weight_string_l1.inc
 
 set @@collation_connection=utf8_unicode_ci;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
---source include/weight_string_l1.inc
 
 set @@collation_connection=utf8_czech_ci;
 --source include/weight_string_chde.inc
@@ -563,8 +538,6 @@ SET NAMES utf8mb4 COLLATE utf8mb4_unicode_520_ci;
 --echo #                 ABOUT LDML DEFINITION PROBLEMS
 --echo #
 
--- source include/not_embedded.inc
-
 --echo #
 --echo # Restart the server with a collation with invalid grammar rules.
 --let $restart_parameters=restart:--character-sets-dir=$MYSQL_TEST_DIR/std_data/bug16204175/
@@ -592,3 +565,51 @@ call mtr.add_suppression("Shift expected at '' for COLLATION : utf8_test");
 --echo #
 --echo # End of 5.6 tests
 --echo #
+
+#
+# Test that CHAR columns with properly with NO PAD collations
+# in operations involving the MEMORY engine. These two strings
+# should hash to the same value, but won't unless trailing spaces
+# are stripped before hashing and comparison (since one field will
+# have three spaces at the end and another one two).
+#
+
+SET NAMES utf8mb4;
+
+CREATE TABLE t1 (
+        f1 CHAR(4) NOT NULL
+);
+
+INSERT INTO t1 VALUES ('é');
+INSERT INTO t1 VALUES (_utf16 0x00650301);  # LATIN SMALL LETTER E, COMBINING ACUTE ACCENT
+
+SELECT DISTINCT f1 FROM t1;
+SELECT SQL_BIG_RESULT DISTINCT f1 FROM t1;
+
+DROP TABLE t1;
+SET NAMES DEFAULT;
+
+--echo #
+--echo # Bug #27578340: INCONSISTENT RESULTS FOR SELECTS FROM TABLE WITH CHAR(N) COLUMN
+--echo #                AND NO_PAD COLLATION
+--echo #
+CREATE TABLE t1 (
+    f1 CHAR(20) COLLATE utf8mb4_0900_ai_ci  # A NO PAD collation.
+);
+INSERT INTO t1 VALUES ('ABC  ');
+INSERT INTO t1 VALUES ('XYZ');
+INSERT INTO t1 VALUES ('XYZ ');
+INSERT INTO t1 VALUES ('ABC ');
+
+--echo #
+--echo # We should get the same results with and without an index.
+--echo # The former should match both XYZ values, the latter should match nothing.
+--echo # This is because CHAR conceptually never stores trailing spaces (in MySQL).
+--echo #
+SELECT CONCAT(f1, '|') FROM t1 WHERE f1 = 'XYZ';
+SELECT CONCAT(f1, '|') FROM t1 WHERE f1 = 'XYZ ';
+CREATE INDEX f1_index ON t1 ( f1 );
+SELECT CONCAT(f1, '|') FROM t1 WHERE f1 = 'XYZ';
+SELECT CONCAT(f1, '|') FROM t1 WHERE f1 = 'XYZ ';
+
+DROP TABLE t1;

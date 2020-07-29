@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,39 +26,39 @@
 #define BOOL_OPTION_INCLUDED
 
 #include <string>
-#include <my_getopt.h>
-#include "abstract_option.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Base{
-namespace Options{
+#include "client/base/abstract_option.h"
+#include "my_getopt.h"
+
+namespace Mysql {
+namespace Tools {
+namespace Base {
+namespace Options {
 
 /**
   Boolean option with value specified as argument.
  */
-class Bool_option : public Abstract_option<Bool_option>
-{
-public:
+class Bool_option : public Abstract_option<Bool_option> {
+ public:
   /**
     Constructs new boolean option with value received from argument.
     @param value Pointer to double object to receive option value.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
-  Bool_option(bool* value, std::string name, std::string description);
+  Bool_option(bool *value, std::string name, std::string description);
 
   /**
     Sets value for this option. If it is specified before handling commandline
     options then supplied value is used as default value of this option.
    */
-  Bool_option* set_value(bool value);
+  Bool_option *set_value(bool value);
 };
 
-}
-}
-}
-}
+}  // namespace Options
+}  // namespace Base
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

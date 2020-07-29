@@ -1,10 +1,5 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_ndb.inc
---source include/not_embedded.inc
+--source suite/ndb/include/backup_restore_setup.inc
 
 --disable_warnings
 drop table if exists t1, t1sum;
@@ -27,7 +22,9 @@ create table t1sum (
 --let $prec=(3)
 --let $frac=.123
 --source ndb_wl946_create.inc
+--disable_warnings
 show create table t1;
+--enable_warnings
 --source show_attributes.inc
 --source show_indexes.inc
 
@@ -71,7 +68,9 @@ drop table t1;
 --let $prec=(6)
 --let $frac=.123456
 --source ndb_wl946_create.inc
+--disable_warnings
 show create table t1;
+--enable_warnings
 --source show_attributes.inc
 --source show_indexes.inc
 
@@ -117,7 +116,9 @@ drop table t1;
 --let $prec=(3)
 --let $frac=.123
 --source ndb_wl946_create.inc
+--disable_warnings
 show create table t1;
+--enable_warnings
 --source show_attributes.inc
 --source show_indexes.inc
 
@@ -133,14 +134,16 @@ load data local infile 'suite/ndb/data/wl946_main3.dat'
 drop table t1;
 
 --echo # restore meta from backup
---exec $NDB_RESTORE --no-defaults -b $backup_id_3 -n 1 -m --print-meta $NDB_BACKUPS-$backup_id_3 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $backup_id_3 -n 1 -m --print-meta $NDB_BACKUPS-$backup_id_3 >> $NDB_TOOLS_OUTPUT
+--disable_warnings
 show create table t1;
+--enable_warnings
 --source show_attributes.inc
 --source show_indexes.inc
 
 --echo # restore data from backup
---exec $NDB_RESTORE --no-defaults -b $backup_id_3 -n 1 -r $NDB_BACKUPS-$backup_id_3 >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $backup_id_3 -n 2 -r $NDB_BACKUPS-$backup_id_3 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $backup_id_3 -n 1 -r $NDB_BACKUPS-$backup_id_3 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $backup_id_3 -n 2 -r $NDB_BACKUPS-$backup_id_3 >> $NDB_TOOLS_OUTPUT
 
 --echo # check contents
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
@@ -152,7 +155,9 @@ drop table t1;
 --let $prec=(6)
 --let $frac=.123456
 --source ndb_wl946_create.inc
+--disable_warnings
 show create table t1;
+--enable_warnings
 --source show_attributes.inc
 --source show_indexes.inc
 
@@ -168,14 +173,16 @@ load data local infile 'suite/ndb/data/wl946_main6.dat'
 drop table t1;
 
 --echo # restore meta from backup
---exec $NDB_RESTORE --no-defaults -b $backup_id_6 -n 1 -m --print-meta $NDB_BACKUPS-$backup_id_6 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $backup_id_6 -n 1 -m --print-meta $NDB_BACKUPS-$backup_id_6 >> $NDB_TOOLS_OUTPUT
+--disable_warnings
 show create table t1;
+--enable_warnings
 --source show_attributes.inc
 --source show_indexes.inc
 
 --echo # restore data from backup
---exec $NDB_RESTORE --no-defaults -b $backup_id_6 -n 1 -r $NDB_BACKUPS-$backup_id_6 >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $backup_id_6 -n 2 -r $NDB_BACKUPS-$backup_id_6 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $backup_id_6 -n 1 -r $NDB_BACKUPS-$backup_id_6 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $backup_id_6 -n 2 -r $NDB_BACKUPS-$backup_id_6 >> $NDB_TOOLS_OUTPUT
 
 --echo # check contents
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
@@ -209,13 +216,15 @@ drop table t1;
 --let $prec=(6)
 --let $frac=.123456
 --source ndb_wl946_create.inc
+--disable_warnings
 show create table t1;
+--enable_warnings
 --source show_attributes.inc
 --source show_indexes.inc
 
 --echo # restore data from backup with promote
---exec $NDB_RESTORE --no-defaults -b $backup_id_3 -n 1 -r --promote-attributes $NDB_BACKUPS-$backup_id_3 >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $backup_id_3 -n 2 -r --promote-attributes $NDB_BACKUPS-$backup_id_3 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $backup_id_3 -n 1 -r --promote-attributes $NDB_BACKUPS-$backup_id_3 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $backup_id_3 -n 2 -r --promote-attributes $NDB_BACKUPS-$backup_id_3 >> $NDB_TOOLS_OUTPUT
 
 --echo # check contents
 # replace fraction .000123 by .123
@@ -228,13 +237,15 @@ drop table t1;
 --let $prec=(3)
 --let $frac=.123
 --source ndb_wl946_create.inc
+--disable_warnings
 show create table t1;
+--enable_warnings
 --source show_attributes.inc
 --source show_indexes.inc
 
 --echo # restore data from backup with demote
---exec $NDB_RESTORE --no-defaults -b $backup_id_6 -n 1 -r --lossy-conversions $NDB_BACKUPS-$backup_id_6 >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $backup_id_6 -n 2 -r --lossy-conversions $NDB_BACKUPS-$backup_id_6 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $backup_id_6 -n 1 -r --lossy-conversions $NDB_BACKUPS-$backup_id_6 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $backup_id_6 -n 2 -r --lossy-conversions $NDB_BACKUPS-$backup_id_6 >> $NDB_TOOLS_OUTPUT
 
 --echo # check contents truncated to prec 3
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
@@ -243,3 +254,5 @@ set time_zone = default;
 select @@session.time_zone;
 
 drop table t1, t1sum;
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

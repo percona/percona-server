@@ -1,6 +1,3 @@
---source include/have_innodb.inc
---source include/have_partition.inc
-
 --let $number_of_steps = 13
 --let $partitioning = simple
 

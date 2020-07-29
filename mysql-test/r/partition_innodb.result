@@ -1,5 +1,114 @@
 drop table if exists t1, t2;
 #
+#BUG 18618561: FAILED ALTER TABLE ENGINE CHANGE WITH PARTITIONS
+#              CORRUPTS FRM
+# After WL#8971, the test case was rewritten to use InnoDB.
+CREATE TABLE t1 (fld1 INT PRIMARY KEY) ENGINE= INNODB PARTITION BY HASH(fld1)
+PARTITIONS 5;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `fld1` int NOT NULL,
+  PRIMARY KEY (`fld1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`fld1`)
+PARTITIONS 5 */
+ALTER TABLE t1 ENGINE= ARCHIVE;
+ERROR 42000: The storage engine for the table doesn't support native partitioning
+#After the patch, the ENGINE is correctly displayed as InnoDB
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `fld1` int NOT NULL,
+  PRIMARY KEY (`fld1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`fld1`)
+PARTITIONS 5 */
+#Cleanup.
+DROP TABLE t1;
+#
+# Bug#11763825/56590: PARTITIONS: FULLTEXT SEARCHES FAIL
+# (bad/confusing error message)
+# After WL#8971, the test case was rewritten to use InnoDB.
+# The errors returned are  different.
+#
+CREATE TABLE t1
+(a INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+b VARCHAR(200),
+c TEXT)
+ENGINE=InnoDB
+PARTITION BY HASH(a) PARTITIONS 1;
+CREATE FULLTEXT INDEX msg ON t1 (b, c);
+ERROR HY000: The used table type doesn't support FULLTEXT indexes
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+b VARCHAR(200),
+c TEXT,
+FULLTEXT (b, c))
+ENGINE=InnoDB
+PARTITION BY HASH(a) PARTITIONS 1;
+ERROR HY000: The used table type doesn't support FULLTEXT indexes
+#
+# BUG#11933226 - 60681: CHECKSUM TABLE RETURNS 0 FOR PARTITIONED TABLE
+# After WL#8971, the test case was rewritten to use InnoDB.
+#
+CREATE TABLE t1 (
+i INT
+)
+ENGINE=InnoDB
+PARTITION BY RANGE (i)
+(PARTITION p3 VALUES LESS THAN (3),
+PARTITION p5 VALUES LESS THAN (5),
+PARTITION pMax VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6);
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	2653438147
+ALTER TABLE t1 CHECKSUM = 1;
+CHECKSUM TABLE t1 EXTENDED;
+Table	Checksum
+test.t1	2653438147
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	2653438147
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci CHECKSUM=1
+/*!50100 PARTITION BY RANGE (`i`)
+(PARTITION p3 VALUES LESS THAN (3) ENGINE = InnoDB,
+ PARTITION p5 VALUES LESS THAN (5) ENGINE = InnoDB,
+ PARTITION pMax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+DROP TABLE t1;
+# Same test without partitioning
+CREATE TABLE t1 (
+i INT
+) ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6);
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	2653438147
+ALTER TABLE t1 CHECKSUM = 1;
+CHECKSUM TABLE t1 EXTENDED;
+Table	Checksum
+test.t1	2653438147
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	2653438147
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci CHECKSUM=1
+DROP TABLE t1;
+#
 # Bug#13694811: THE OPTIMIZER WRONGLY USES THE FIRST
 #               INNODB PARTITION STATISTICS
 #
@@ -26,7 +135,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN SELECT b FROM t1 WHERE b between 'L' and 'N' AND a > -100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	pNeg_pNegsp0,pNeg_pNegsp1,pNeg_pNegsp2,pNeg_pNegsp3,pNeg_pNegsp4,pNeg_pNegsp5,pNeg_pNegsp6,pNeg_pNegsp7,pNeg_pNegsp8,pNeg_pNegsp9,p0_p0sp0,p0_p0sp1,p0_p0sp2,p0_p0sp3,p0_p0sp4,p0_p0sp5,p0_p0sp6,p0_p0sp7,p0_p0sp8,p0_p0sp9,pMAX_pMAXsp0,pMAX_pMAXsp1,pMAX_pMAXsp2,pMAX_pMAXsp3,pMAX_pMAXsp4,pMAX_pMAXsp5,pMAX_pMAXsp6,pMAX_pMAXsp7,pMAX_pMAXsp8,pMAX_pMAXsp9	range	PRIMARY,b	b	71	NULL	8	100.00	Using where; Using index
+1	SIMPLE	t1	pNeg_pNegsp0,pNeg_pNegsp1,pNeg_pNegsp2,pNeg_pNegsp3,pNeg_pNegsp4,pNeg_pNegsp5,pNeg_pNegsp6,pNeg_pNegsp7,pNeg_pNegsp8,pNeg_pNegsp9,p0_p0sp0,p0_p0sp1,p0_p0sp2,p0_p0sp3,p0_p0sp4,p0_p0sp5,p0_p0sp6,p0_p0sp7,p0_p0sp8,p0_p0sp9,pMAX_pMAXsp0,pMAX_pMAXsp1,pMAX_pMAXsp2,pMAX_pMAXsp3,pMAX_pMAXsp4,pMAX_pMAXsp5,pMAX_pMAXsp6,pMAX_pMAXsp7,pMAX_pMAXsp8,pMAX_pMAXsp9	range	PRIMARY,b	b	263	NULL	8	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` between 'L' and 'N') and (`test`.`t1`.`a` > <cache>(-(100))))
 DROP TABLE t1;
@@ -55,6 +164,8 @@ PARTITION BY RANGE (TO_DAYS(c3))
 (PARTITION p200912 VALUES LESS THAN (to_days('2010-01-01')),
 PARTITION p201103 VALUES LESS THAN (to_days('2011-04-01')),
 PARTITION p201912 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1(c2,c3) values ("Test row",'2010-01-01 00:00:00');
 SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 't1' AND TABLE_SCHEMA = 'test';
 PARTITION_NAME	TABLE_ROWS
@@ -167,7 +278,6 @@ id	name	myDate
 # No changes.
 COMMIT;
 DROP TABLE t1;
-SET AUTOCOMMIT= default;
 #
 # Bug#51830: Incorrect partition pruning on range partition (regression)
 #
@@ -192,59 +302,50 @@ ERROR HY000: Table has no partition for value 110
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 90;
+EXPLAIN SELECT * FROM t1 WHERE a > 90;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 90)
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 90;
+EXPLAIN SELECT * FROM t1 WHERE a >= 90;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` >= 90)
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 90;
+EXPLAIN SELECT * FROM t1 WHERE a = 90;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 90)
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 89;
+EXPLAIN SELECT * FROM t1 WHERE a = 89;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p90	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 89)
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 89;
+EXPLAIN SELECT * FROM t1 WHERE a >= 89;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p90	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` >= 89)
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 89;
+EXPLAIN SELECT * FROM t1 WHERE a > 89;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 89)
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 100;
+EXPLAIN SELECT * FROM t1 WHERE a = 100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 100)
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 100;
+EXPLAIN SELECT * FROM t1 WHERE a >= 100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` >= 100)
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 100;
+EXPLAIN SELECT * FROM t1 WHERE a > 100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 100)
 DROP TABLE t1;
 #
@@ -279,30 +380,6 @@ insert into t1 values ('g', 10, 'w', '2001-10-27 06:34:00');
 update t1 set a = 'c' where a > 'f';
 drop table t1;
 create table t1 (a varchar(5))
-engine=memory
-partition by range columns(a)
-( partition p0 values less than ('m'),
-partition p1 values less than ('za'));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-insert into t1 values  ('j');
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-update t1 set a = 'z' where (a >= 'j');
-drop table t1;
-create table t1 (a varchar(5))
-engine=myisam
-partition by range columns(a)
-( partition p0 values less than ('m'),
-partition p1 values less than ('za'));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-insert into t1 values  ('j');
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-update t1 set a = 'z' where (a >= 'j');
-drop table t1;
-create table t1 (a varchar(5))
 engine=innodb
 partition by range columns(a)
 ( partition p0 values less than ('m'),
@@ -332,17 +409,13 @@ PARTITION p2 VALUES LESS THAN MAXVALUE
 );
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4), (5,5), (6,6), (7,7), (8,8),
 (9,9), (10,10), (11,11);
-SET @old_tx_isolation := @@session.tx_isolation;
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+SET @old_transaction_isolation := @@session.transaction_isolation;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 SET autocommit = 0;
 UPDATE t1 SET DATA = data*2 WHERE id = 3;
 UPDATE t1 SET data = data*2 WHERE data = 2;
-SET @@session.tx_isolation = @old_tx_isolation;
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
-SET autocommit= default;
+SET @@session.transaction_isolation = @old_transaction_isolation;
+SET autocommit = default;
 DROP TABLE t1;
 # Bug#37721, test of ORDER BY on PK and WHERE on INDEX
 CREATE TABLE t1 (
@@ -409,59 +482,54 @@ right(a,1)
 2
 1
 DROP TABLE t1;
-# Bug#32948
-CREATE TABLE t1 (c1 INT, PRIMARY KEY (c1)) ENGINE=INNODB;
-CREATE TABLE t2 (c1 INT, PRIMARY KEY (c1),
-FOREIGN KEY (c1) REFERENCES t1 (c1)
-ON DELETE CASCADE)
-ENGINE=INNODB;
-ALTER TABLE t1 PARTITION BY HASH(c1) PARTITIONS 5;
-ERROR HY000: Foreign keys are not yet supported in conjunction with partitioning
-ALTER TABLE t2 PARTITION BY HASH(c1) PARTITIONS 5;
-ERROR HY000: Foreign keys are not yet supported in conjunction with partitioning
-ALTER TABLE t1 ENGINE=MyISAM;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
-DROP TABLE t2;
-DROP TABLE t1;
 create table t1 (a int) engine=innodb partition by hash(a) ;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show table status like 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Dynamic	0	#	#	0	0	#	NULL	#	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Dynamic	0	#	#	0	0	#	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL	partitioned	
 drop table t1;
 create table t1 (a int)
 engine = innodb
 partition by key (a);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Dynamic	0	#	#	0	0	#	NULL	#	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Dynamic	0	#	#	0	0	#	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL	partitioned	
 insert into t1 values (0), (1), (2), (3);
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Dynamic	4	#	#	0	0	#	NULL	#	#	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Dynamic	4	#	#	0	0	#	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL	partitioned	
 drop table t1;
 create table t1 (a int auto_increment primary key)
 engine = innodb
 partition by key (a);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Dynamic	0	#	#	0	0	#	1	#	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Dynamic	0	#	#	0	0	#	1	#	#	NULL	utf8mb4_0900_ai_ci	NULL	partitioned	
 insert into t1 values (NULL), (NULL), (NULL), (NULL);
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Dynamic	4	#	#	0	0	#	5	#	#	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Dynamic	4	#	#	0	0	#	5	#	#	NULL	utf8mb4_0900_ai_ci	NULL	partitioned	
 insert into t1 values (NULL), (NULL), (NULL), (NULL);
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Dynamic	8	#	#	0	0	#	9	#	#	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Dynamic	8	#	#	0	0	#	9	#	#	NULL	utf8mb4_0900_ai_ci	NULL	partitioned	
 drop table t1;
 create table t1 (a int)
 partition by key (a)
@@ -479,12 +547,11 @@ engine = innodb
 partition by range (year(a))
 (partition p0 values less than (2006),
 partition p1 values less than (2007));
-explain partitions select * from t1
+explain select * from t1
 where a between '2006-01-01' and '2007-06-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` between '2006-01-01' and '2007-06-01')
 drop table t1;
 create table t1 (a int)
@@ -500,9 +567,9 @@ ERROR 42000: Unknown storage engine 'x'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
+  `a` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (`a`)
 (PARTITION p0 VALUES IN (0) ENGINE = InnoDB) */
 drop table t1;
 create table t1
@@ -566,29 +633,6 @@ SELECT COUNT(*) FROM t1;
 COUNT(*)
 2
 DROP TABLE t1;
-create table t1 (int_column int, char_column char(5))
-PARTITION BY RANGE (int_column) subpartition by key (char_column) subpartitions 2
-(PARTITION p1 VALUES LESS THAN (5) ENGINE = InnoDB);
-alter table t1
-ENGINE = MyISAM
-PARTITION BY RANGE (int_column)
-subpartition by key (char_column) subpartitions 2
-(PARTITION p1 VALUES LESS THAN (5));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `int_column` int(11) DEFAULT NULL,
-  `char_column` char(5) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (int_column)
-SUBPARTITION BY KEY (char_column)
-SUBPARTITIONS 2
-(PARTITION p1 VALUES LESS THAN (5) ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-drop table t1;
 CREATE TABLE t1 (a INT) ENGINE=InnoDB
 PARTITION BY list(a) (PARTITION p1 VALUES IN (1));
 CREATE INDEX i1 ON t1 (a);
@@ -598,8 +642,6 @@ DROP TABLE t1;
 #
 DROP TABLE IF EXISTS t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (a INT, b TIMESTAMP DEFAULT '0000-00-00 00:00:00')
 ENGINE=INNODB PARTITION BY LINEAR HASH (a) PARTITIONS 1;
 SET @old_mode = @@sql_mode;
@@ -628,10 +670,10 @@ ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) NOT NULL,
-  `b` int(11) NOT NULL,
+  `a` bigint NOT NULL,
+  `b` int NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 2 */
 SELECT * FROM t1;
@@ -650,16 +692,13 @@ t1#P#p0.cfg
 t1#P#p0.ibd
 t1#P#p1.cfg
 t1#P#p1.ibd
-t1.frm
 # Copying the .cfg and .ibd files as backup
 UNLOCK TABLES;
 # List of files after UNLOCK (no .cfg files).
 t1#P#p0.ibd
 t1#P#p1.ibd
-t1.frm
 ALTER TABLE t1 DISCARD TABLESPACE;
 # List of files after DISCARD (no .cfg/.ibd files).
-t1.frm
 # Moving the .cfg and .ibd files back from backup
 ALTER TABLE t1 IMPORT TABLESPACE;
 # List of files after IMPORT (.cfg files still there).
@@ -667,7 +706,6 @@ t1#P#p0.cfg
 t1#P#p0.ibd
 t1#P#p1.cfg
 t1#P#p1.ibd
-t1.frm
 DROP TABLE t1;
 # List of files after DROP (.cfg files should also be removed).
 #
@@ -715,6 +753,9 @@ f2 INT(11) NOT NULL
 )
 ENGINE=InnoDB
 PARTITION BY KEY (f1,f2) PARTITIONS 2;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (9585,5);
 ALTER TABLE t1 CHANGE f1 f1 INT AFTER f2, ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
@@ -726,6 +767,11 @@ f4 INT(11) NOT NULL
 )
 ENGINE=InnoDB
 PARTITION BY KEY (f2,f3) PARTITIONS 2;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (10,9585,5,20);
 ALTER TABLE t2 CHANGE f3 f3 INT AFTER f4, ALGORITHM=INPLACE;
 CHECK TABLE t2;
@@ -766,6 +812,9 @@ f2 INT(11) NOT NULL
 )
 ENGINE=InnoDB
 PARTITION BY HASH (MOD(f1,f2)) PARTITIONS 2;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t4 VALUES (9585,5);
 ALTER TABLE t4 CHANGE f1 f1 INT AFTER f2, ALGORITHM=INPLACE;
 CHECK TABLE t4;
@@ -808,6 +857,12 @@ f5 INT(11) NOT NULL
 )
 ENGINE=InnoDB
 PARTITION BY KEY (f1,f5) PARTITIONS 2;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t7 VALUES (9585,10,20,10,5);
 ALTER TABLE t7 CHANGE f5 f5 INT AFTER f3, ALGORITHM=INPLACE;
 CHECK TABLE t7;
@@ -915,6 +970,9 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a int, PRIMARY KEY (a)) ENGINE=InnoDB
 PARTITION BY HASH (a) PARTITIONS 2;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE
 CREATE_TIME IS NOT NULL AND TABLE_NAME='t1';
 COUNT(*)
@@ -925,7 +983,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE
 CREATE_TIME IS NOT NULL AND UPDATE_TIME IS NOT NULL
-AND TABLE_NAME='t1';
+AND TABLE_NAME='t1' OR FALSE;
 COUNT(*)
 1
 DROP TABLE t1;
@@ -942,13 +1000,16 @@ PRIMARY KEY (`f1`,`f4`)
 PARTITION BY LIST (`f4`)
 (PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
 PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir' ENGINE = InnoDB);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `f1` int unsigned NOT NULL AUTO_INCREMENT,
   `f2` mediumtext NOT NULL,
   `f3` char(100) NOT NULL,
-  `f4` tinyint(1) unsigned NOT NULL,
+  `f4` tinyint unsigned NOT NULL,
   PRIMARY KEY (`f1`,`f4`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (`f4`)
@@ -961,10 +1022,10 @@ test.t1	optimize	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `f1` int unsigned NOT NULL AUTO_INCREMENT,
   `f2` mediumtext NOT NULL,
   `f3` char(100) NOT NULL,
-  `f4` tinyint(1) unsigned NOT NULL,
+  `f4` tinyint unsigned NOT NULL,
   PRIMARY KEY (`f1`,`f4`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (`f4`)
@@ -972,8 +1033,6 @@ t1	CREATE TABLE `t1` (
  PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir/' ENGINE = InnoDB) */
 t1#p#p1.ibd
 t1#p#p0.ibd
-t1#p#p1.isl
-t1.frm
 ALTER TABLE t1 OPTIMIZE PARTITION p0;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	note	Table does not support optimize on partitions. All partitions will be rebuilt and analyzed.
@@ -981,10 +1040,10 @@ test.t1	optimize	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `f1` int unsigned NOT NULL AUTO_INCREMENT,
   `f2` mediumtext NOT NULL,
   `f3` char(100) NOT NULL,
-  `f4` tinyint(1) unsigned NOT NULL,
+  `f4` tinyint unsigned NOT NULL,
   PRIMARY KEY (`f1`,`f4`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (`f4`)
@@ -992,8 +1051,6 @@ t1	CREATE TABLE `t1` (
  PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir/' ENGINE = InnoDB) */
 t1#p#p1.ibd
 t1#p#p0.ibd
-t1#p#p1.isl
-t1.frm
 ALTER TABLE t1 OPTIMIZE PARTITION p1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	note	Table does not support optimize on partitions. All partitions will be rebuilt and analyzed.
@@ -1001,10 +1058,10 @@ test.t1	optimize	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `f1` int unsigned NOT NULL AUTO_INCREMENT,
   `f2` mediumtext NOT NULL,
   `f3` char(100) NOT NULL,
-  `f4` tinyint(1) unsigned NOT NULL,
+  `f4` tinyint unsigned NOT NULL,
   PRIMARY KEY (`f1`,`f4`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (`f4`)
@@ -1012,33 +1069,29 @@ t1	CREATE TABLE `t1` (
  PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir/' ENGINE = InnoDB) */
 t1#p#p1.ibd
 t1#p#p0.ibd
-t1#p#p1.isl
-t1.frm
 ALTER TABLE t1 REBUILD PARTITION ALL;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `f1` int unsigned NOT NULL AUTO_INCREMENT,
   `f2` mediumtext NOT NULL,
   `f3` char(100) NOT NULL,
-  `f4` tinyint(1) unsigned NOT NULL,
+  `f4` tinyint unsigned NOT NULL,
   PRIMARY KEY (`f1`,`f4`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (`f4`)
 (PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
- PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir' ENGINE = InnoDB) */
+ PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir/' ENGINE = InnoDB) */
 t1#p#p1.ibd
 t1#p#p0.ibd
-t1#p#p1.isl
-t1.frm
 ALTER TABLE t1 ADD extracol VARCHAR(32) NULL;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `f1` int unsigned NOT NULL AUTO_INCREMENT,
   `f2` mediumtext NOT NULL,
   `f3` char(100) NOT NULL,
-  `f4` tinyint(1) unsigned NOT NULL,
+  `f4` tinyint unsigned NOT NULL,
   `extracol` varchar(32) DEFAULT NULL,
   PRIMARY KEY (`f1`,`f4`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
@@ -1047,166 +1100,7 @@ t1	CREATE TABLE `t1` (
  PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir' ENGINE = InnoDB) */
 t1#p#p1.ibd
 t1#p#p0.ibd
-t1#p#p1.isl
-t1.frm
 DROP TABLE t1;
-CREATE TABLESPACE ts1 ADD DATAFILE 'MYSQL_TMP_DIR/ts1.ibd' ENGINE=Innodb;
-CREATE TABLE `t1` (
-`f1` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-`f2` MEDIUMTEXT NOT NULL,
-`f3` CHAR(100) NOT NULL,
-`f4` TINYINT(1) unsigned NOT NULL,
-PRIMARY KEY (`f1`,`f4`)
-) TABLESPACE ts1 ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=latin1
-PARTITION BY LIST (`f4`)
-(PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
-PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_tblspc' ENGINE = InnoDB);
-Warnings:
-Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `f2` mediumtext NOT NULL,
-  `f3` char(100) NOT NULL,
-  `f4` tinyint(1) unsigned NOT NULL,
-  PRIMARY KEY (`f1`,`f4`)
-) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (`f4`)
-(PARTITION p0 VALUES IN (0) TABLESPACE = `ts1` ENGINE = InnoDB,
- PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_tblspc/' ENGINE = InnoDB) */
-OPTIMIZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
-test.t1	optimize	status	OK
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `f2` mediumtext NOT NULL,
-  `f3` char(100) NOT NULL,
-  `f4` tinyint(1) unsigned NOT NULL,
-  PRIMARY KEY (`f1`,`f4`)
-) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (`f4`)
-(PARTITION p0 VALUES IN (0) TABLESPACE = `ts1` ENGINE = InnoDB,
- PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_tblspc/' ENGINE = InnoDB) */
-ALTER TABLE t1 OPTIMIZE PARTITION p0;
-Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	Table does not support optimize on partitions. All partitions will be rebuilt and analyzed.
-test.t1	optimize	status	OK
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `f2` mediumtext NOT NULL,
-  `f3` char(100) NOT NULL,
-  `f4` tinyint(1) unsigned NOT NULL,
-  PRIMARY KEY (`f1`,`f4`)
-) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (`f4`)
-(PARTITION p0 VALUES IN (0) TABLESPACE = `ts1` ENGINE = InnoDB,
- PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_tblspc/' ENGINE = InnoDB) */
-ALTER TABLE t1 OPTIMIZE PARTITION p1;
-Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	Table does not support optimize on partitions. All partitions will be rebuilt and analyzed.
-test.t1	optimize	status	OK
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `f2` mediumtext NOT NULL,
-  `f3` char(100) NOT NULL,
-  `f4` tinyint(1) unsigned NOT NULL,
-  PRIMARY KEY (`f1`,`f4`)
-) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (`f4`)
-(PARTITION p0 VALUES IN (0) TABLESPACE = `ts1` ENGINE = InnoDB,
- PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_tblspc/' ENGINE = InnoDB) */
-DROP TABLE t1;
-DROP TABLESPACE ts1;
-CREATE TABLESPACE ts1 ADD DATAFILE 'MYSQL_TMP_DIR/ts1.ibd' ENGINE=Innodb;
-CREATE TABLESPACE ts2 ADD DATAFILE 'MYSQL_TMP_DIR/ts2.ibd' ENGINE=Innodb;
-CREATE TABLE `t1` (
-`f1` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-`f4` TINYINT(1) unsigned NOT NULL,
-PRIMARY KEY (`f1`,`f4`)
-)  ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=latin1
-PARTITION BY LIST (`f4`)
-(PARTITION p0 VALUES IN (0) TABLESPACE ts1 ENGINE = InnoDB,
-PARTITION p1 VALUES IN (1) TABLESPACE ts2 ENGINE = InnoDB);
-Warnings:
-Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `f4` tinyint(1) unsigned NOT NULL,
-  PRIMARY KEY (`f1`,`f4`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (`f4`)
-(PARTITION p0 VALUES IN (0) TABLESPACE = `ts1` ENGINE = InnoDB,
- PARTITION p1 VALUES IN (1) TABLESPACE = `ts2` ENGINE = InnoDB) */
-OPTIMIZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
-test.t1	optimize	status	OK
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `f4` tinyint(1) unsigned NOT NULL,
-  PRIMARY KEY (`f1`,`f4`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (`f4`)
-(PARTITION p0 VALUES IN (0) TABLESPACE = `ts1` ENGINE = InnoDB,
- PARTITION p1 VALUES IN (1) TABLESPACE = `ts2` ENGINE = InnoDB) */
-DROP TABLE t1;
-DROP TABLESPACE ts1;
-DROP TABLESPACE ts2;
-CREATE TABLESPACE ts1 ADD DATAFILE 'MYSQL_TMP_DIR/ts1.ibd' ENGINE=Innodb;
-CREATE TABLE `t1` (
-`f1` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-`f4` TINYINT(1) unsigned NOT NULL,
-PRIMARY KEY (`f1`,`f4`)
-)  ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=latin1
-PARTITION BY LIST (`f4`)
-(PARTITION p0 VALUES IN (0) TABLESPACE ts1 ENGINE = InnoDB,
-PARTITION p1 VALUES IN (1) TABLESPACE innodb_file_per_table DATA DIRECTORY='MYSQL_TMP_DIR/temp_dir' ENGINE = InnoDB,
-PARTITION p2 VALUES IN (2) TABLESPACE innodb_file_per_table ENGINE = InnoDB,
-PARTITION p3 VALUES IN (3) TABLESPACE innodb_system ENGINE = InnoDB);
-Warnings:
-Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `f4` tinyint(1) unsigned NOT NULL,
-  PRIMARY KEY (`f1`,`f4`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (`f4`)
-(PARTITION p0 VALUES IN (0) TABLESPACE = `ts1` ENGINE = InnoDB,
- PARTITION p1 VALUES IN (1) TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir/' ENGINE = InnoDB,
- PARTITION p2 VALUES IN (2) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
- PARTITION p3 VALUES IN (3) TABLESPACE = `innodb_system` ENGINE = InnoDB) */
-OPTIMIZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
-test.t1	optimize	status	OK
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `f4` tinyint(1) unsigned NOT NULL,
-  PRIMARY KEY (`f1`,`f4`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (`f4`)
-(PARTITION p0 VALUES IN (0) TABLESPACE = `ts1` ENGINE = InnoDB,
- PARTITION p1 VALUES IN (1) TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir/' ENGINE = InnoDB,
- PARTITION p2 VALUES IN (2) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
- PARTITION p3 VALUES IN (3) TABLESPACE = `innodb_system` ENGINE = InnoDB) */
-DROP TABLE t1;
-DROP TABLESPACE ts1;
 
 Bug #25942592    INNODB: FAILING ASSERTION: INDEX->PAGE != 0XFFFFFFFF
 IN BTR0CUR.CC LINE 816
@@ -1230,13 +1124,19 @@ SELECT COUNT(*)FROM t2,t2 AS b WHERE t2.c1=''AND t2.c2=b.c1;
 ERROR HY000: Tablespace has been discarded for table 't2'
 DROP TABLE t1,t2;
 
-Bug #26034430	ASSERTION `PART_REC_BUF_PTR' FAILED.
+Bug #26034430    ASSERTION `PART_REC_BUF_PTR' FAILED.
 
 
 CREATE TABLE t1 ( a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, PRIMARY KEY(a,b)) PARTITION BY RANGE (a)(PARTITION x1 VALUES LESS THAN (1));
 SELECT * FROM t1 WHERE (a = 1 and b = 1 and c = 'b') OR (a > 2) ORDER BY a DESC;
 a	b	c
-CREATE TABLE t(id INT(11) UNSIGNED NOT NULL AUTO_INCREMENT, dttm DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, msg TEXT,PRIMARY KEY (id,dttm))ENGINE=INNODB DEFAULT CHARSET=UTF8MB4 ROW_FORMAT=DYNAMIC PARTITION BY RANGE COLUMNS(dttm) (PARTITION pf_201612 VALUES LESS THAN ('20170101') ENGINE = INNODB);
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'b'
+CREATE TABLE t(id INT(11) UNSIGNED NOT NULL AUTO_INCREMENT, dttm DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, msg
+TEXT,PRIMARY KEY (id,dttm))ENGINE=INNODB DEFAULT CHARSET=UTF8MB4 ROW_FORMAT=DYNAMIC PARTITION BY RANGE
+COLUMNS(dttm) (PARTITION pf_201612 VALUES LESS THAN ('20170101') ENGINE = INNODB);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SELECT * FROM t WHERE dttm > '2017-01-19' ORDER BY id DESC;
 id	dttm	msg
 DROP TABLE t,t1;
@@ -1273,34 +1173,6 @@ begin;
 update test12 set grade=0,date=now()  where age=20 and
 partition_id=1;
 drop table test12;
-
-
-Bug #26390658   RENAMING A PARTITIONED TABLE DOES NOT UPDATE
-MYSQL.INNODB_TABLE_STATS.
-
-CREATE DATABASE test_jfg;
-CREATE TABLE test_jfg.test_jfg1 (id int(10) unsigned NOT NULL,PRIMARY
-KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC;
-CREATE TABLE test_jfg.test_jfg2 (id int(10) unsigned NOT NULL,PRIMARY
-KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
-PARTITION BY RANGE ( id ) (PARTITION p1000 VALUES LESS THAN (1000)
-ENGINE = InnoDB,PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE =
-InnoDB);
-SELECT database_name, table_name FROM mysql.innodb_table_stats WHERE
-database_name = 'test_jfg';
-database_name	table_name
-test_jfg	test_jfg1
-test_jfg	test_jfg2#P#p1000
-test_jfg	test_jfg2#P#pmax
-RENAME TABLE test_jfg.test_jfg1 TO test_jfg.test_jfg11;
-RENAME TABLE test_jfg.test_jfg2 TO test_jfg.test_jfg12;
-SELECT database_name, table_name FROM mysql.innodb_table_stats WHERE
-database_name = 'test_jfg';
-database_name	table_name
-test_jfg	test_jfg11
-test_jfg	test_jfg12#P#p1000
-test_jfg	test_jfg12#P#pmax
-DROP DATABASE test_jfg;
 #
 # Bug#27073100: PARTITION UPDATE_TIME NOT CORRECT AFTER RESTART/REBUILD
 #
@@ -1312,6 +1184,9 @@ BY RANGE (YEAR(fld3))
 (PARTITION p01 VALUES LESS THAN (1985) ENGINE = InnoDB,
 PARTITION p02 VALUES LESS THAN (1986) ENGINE = InnoDB,
 PARTITION p03 VALUES LESS THAN MAXVALUE ENGINE = InnoDB);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES('11', '11111', '1984-11-16',
 '2008-11-16'), ('12', '11112', '1985-11-16', '2008-11-16'),
 ('13', '11113', '1986-11-16', '2008-11-16');
@@ -1332,7 +1207,7 @@ TABLE_NAME	COUNT(UPDATE_TIME)
 t1	0
 # Update the table where partition p02 is updated.
 UPDATE t1 SET fld2 = 71000 WHERE fld1 = 12 AND fld3 = '1985-11-16';
-# Without fix, the count for 'update_time' will be 2. After fix,
+# Without fix, the count for 'update_time' will be 3. After fix,
 # it will be 1 since only partition 'p02' is updated.
 SELECT TABLE_NAME, COUNT(UPDATE_TIME)
 FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = 'test' AND
@@ -1354,6 +1229,8 @@ KEY `idx_dt` (`dt`)
 (PARTITION p20170218 VALUES LESS THAN (736744) ENGINE = InnoDB,
 PARTITION p20170219 VALUES LESS THAN (736745) ENGINE = InnoDB,
 PARTITION pMax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1, '2018-04-25 10:18:00', '1');
 INSERT INTO t1 VALUES (2, '2018-04-25 10:18:01', '2');
 INSERT INTO t1 VALUES (3, '2018-04-25 10:18:02', '3');
@@ -1372,4 +1249,672 @@ id	dt	data
 1	2018-04-25 10:18:00	11
 2	2018-04-25 10:18:01	22
 3	2018-04-25 10:18:02	3
+DROP TABLE t1;
+#
+# WL#1074 - Descending index support.
+#
+CREATE TABLE t1
+(a VARCHAR(10),
+b VARCHAR(10),
+PRIMARY KEY (a DESC, b DESC),
+KEY ab_asc (a ASC, b ASC),
+KEY a_asc_b_desc (a ASC, b DESC),
+key a_desc_b_asc (a DESC, b ASC))
+ENGINE = InnoDB
+PARTITION BY KEY (a, b) PARTITIONS 3;
+INSERT INTO t1 VALUES ("0", "0"), ("1", "1"), ("2", "2"), ("3", "3"),
+("4", "4"), ("55", "55"), ("54", "54"), ("1", "2"), ("1", "4"), ("1", "3"),
+("55", "54"), ("0", "1");
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# Test non ordered index access
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`PRIMARY`);
+a	b
+4	4
+3	3
+2	2
+1	4
+1	3
+1	2
+1	1
+0	1
+0	0
+55	55
+55	54
+54	54
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`ab_asc`);
+a	b
+0	0
+0	1
+1	1
+1	2
+1	3
+1	4
+2	2
+3	3
+4	4
+54	54
+55	54
+55	55
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`a_asc_b_desc`);
+a	b
+0	1
+0	0
+1	4
+1	3
+1	2
+1	1
+2	2
+3	3
+4	4
+54	54
+55	55
+55	54
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`a_desc_b_asc`);
+a	b
+4	4
+3	3
+2	2
+1	1
+1	2
+1	3
+1	4
+0	0
+0	1
+55	54
+55	55
+54	54
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+# Test sorted index access
+FLUSH STATUS;
+SELECT * FROM t1 ORDER BY a DESC, b DESC;
+a	b
+55	55
+55	54
+54	54
+4	4
+3	3
+2	2
+1	4
+1	3
+1	2
+1	1
+0	1
+0	0
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+FLUSH STATUS;
+SELECT * FROM t1 ORDER BY a, b;
+a	b
+0	0
+0	1
+1	1
+1	2
+1	3
+1	4
+2	2
+3	3
+4	4
+54	54
+55	54
+55	55
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+FLUSH STATUS;
+SELECT * FROM t1 ORDER BY a, b DESC;
+a	b
+0	1
+0	0
+1	4
+1	3
+1	2
+1	1
+2	2
+3	3
+4	4
+54	54
+55	55
+55	54
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+FLUSH STATUS;
+SELECT * FROM t1 ORDER BY a DESC, b;
+a	b
+55	54
+55	55
+54	54
+4	4
+3	3
+2	2
+1	1
+1	2
+1	3
+1	4
+0	0
+0	1
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+EXPLAIN FORMAT=JSON SELECT * FROM t1 ORDER BY a DESC, b DESC;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "X"
+    },
+    "ordering_operation": {
+      "using_filesort": false,
+      "table": {
+        "table_name": "t1",
+        "partitions": [
+          "p0",
+          "p1",
+          "p2"
+        ],
+        "access_type": "index",
+        "key": "PRIMARY",
+        "used_key_parts": [
+          "a",
+          "b"
+        ],
+        "key_length": "84",
+        "rows_examined_per_scan": "X",
+        "rows_produced_per_join": "X",
+        "filtered": "X",
+        "using_index": true,
+        "cost_info": {
+          "read_cost": "X",
+          "eval_cost": "X",
+          "prefix_cost": "X",
+          "data_read_per_join": "X"
+        },
+        "used_columns": [
+          "a",
+          "b"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a` desc,`test`.`t1`.`b` desc
+EXPLAIN FORMAT=JSON SELECT * FROM t1 ORDER BY a, b;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "X"
+    },
+    "ordering_operation": {
+      "using_filesort": false,
+      "table": {
+        "table_name": "t1",
+        "partitions": [
+          "p0",
+          "p1",
+          "p2"
+        ],
+        "access_type": "index",
+        "key": "ab_asc",
+        "used_key_parts": [
+          "a",
+          "b"
+        ],
+        "key_length": "84",
+        "rows_examined_per_scan": "X",
+        "rows_produced_per_join": "X",
+        "filtered": "X",
+        "using_index": true,
+        "cost_info": {
+          "read_cost": "X",
+          "eval_cost": "X",
+          "prefix_cost": "X",
+          "data_read_per_join": "X"
+        },
+        "used_columns": [
+          "a",
+          "b"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b`
+EXPLAIN FORMAT=JSON SELECT * FROM t1 ORDER BY a, b DESC;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "X"
+    },
+    "ordering_operation": {
+      "using_filesort": false,
+      "table": {
+        "table_name": "t1",
+        "partitions": [
+          "p0",
+          "p1",
+          "p2"
+        ],
+        "access_type": "index",
+        "key": "a_asc_b_desc",
+        "used_key_parts": [
+          "a",
+          "b"
+        ],
+        "key_length": "84",
+        "rows_examined_per_scan": "X",
+        "rows_produced_per_join": "X",
+        "filtered": "X",
+        "using_index": true,
+        "cost_info": {
+          "read_cost": "X",
+          "eval_cost": "X",
+          "prefix_cost": "X",
+          "data_read_per_join": "X"
+        },
+        "used_columns": [
+          "a",
+          "b"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b` desc
+EXPLAIN FORMAT=JSON SELECT * FROM t1 ORDER BY a DESC, b;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "X"
+    },
+    "ordering_operation": {
+      "using_filesort": false,
+      "table": {
+        "table_name": "t1",
+        "partitions": [
+          "p0",
+          "p1",
+          "p2"
+        ],
+        "access_type": "index",
+        "key": "a_desc_b_asc",
+        "used_key_parts": [
+          "a",
+          "b"
+        ],
+        "key_length": "84",
+        "rows_examined_per_scan": "X",
+        "rows_produced_per_join": "X",
+        "filtered": "X",
+        "using_index": true,
+        "cost_info": {
+          "read_cost": "X",
+          "eval_cost": "X",
+          "prefix_cost": "X",
+          "data_read_per_join": "X"
+        },
+        "used_columns": [
+          "a",
+          "b"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a` desc,`test`.`t1`.`b`
+# Test index access in different sort order
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a, b;
+a	b
+0	0
+0	1
+1	1
+1	2
+1	3
+1	4
+2	2
+3	3
+4	4
+54	54
+55	54
+55	55
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_key	3
+Handler_read_last	3
+Handler_read_prev	12
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a DESC, b;
+a	b
+55	54
+55	55
+54	54
+4	4
+3	3
+2	2
+1	1
+1	2
+1	3
+1	4
+0	0
+0	1
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a, b DESC;
+a	b
+0	1
+0	0
+1	4
+1	3
+1	2
+1	1
+2	2
+3	3
+4	4
+54	54
+55	55
+55	54
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a DESC, b;
+a	b
+55	54
+55	55
+54	54
+4	4
+3	3
+2	2
+1	1
+1	2
+1	3
+1	4
+0	0
+0	1
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+EXPLAIN FORMAT=JSON SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a, b;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "X"
+    },
+    "ordering_operation": {
+      "using_filesort": false,
+      "table": {
+        "table_name": "t1",
+        "partitions": [
+          "p0",
+          "p1",
+          "p2"
+        ],
+        "access_type": "index",
+        "key": "PRIMARY",
+        "used_key_parts": [
+          "a",
+          "b"
+        ],
+        "key_length": "84",
+        "rows_examined_per_scan": "X",
+        "rows_produced_per_join": "X",
+        "filtered": "X",
+        "backward_index_scan": true,
+        "using_index": true,
+        "cost_info": {
+          "read_cost": "X",
+          "eval_cost": "X",
+          "prefix_cost": "X",
+          "data_read_per_join": "X"
+        },
+        "used_columns": [
+          "a",
+          "b"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` FORCE INDEX (PRIMARY) order by `test`.`t1`.`a`,`test`.`t1`.`b`
+EXPLAIN FORMAT=JSON SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a DESC, b;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "X"
+    },
+    "ordering_operation": {
+      "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "X"
+      },
+      "table": {
+        "table_name": "t1",
+        "partitions": [
+          "p0",
+          "p1",
+          "p2"
+        ],
+        "access_type": "index",
+        "key": "PRIMARY",
+        "used_key_parts": [
+          "a",
+          "b"
+        ],
+        "key_length": "84",
+        "rows_examined_per_scan": "X",
+        "rows_produced_per_join": "X",
+        "filtered": "X",
+        "using_index": true,
+        "cost_info": {
+          "read_cost": "X",
+          "eval_cost": "X",
+          "prefix_cost": "X",
+          "data_read_per_join": "X"
+        },
+        "used_columns": [
+          "a",
+          "b"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` FORCE INDEX (PRIMARY) order by `test`.`t1`.`a` desc,`test`.`t1`.`b`
+EXPLAIN FORMAT=JSON SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a, b DESC;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "X"
+    },
+    "ordering_operation": {
+      "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "X"
+      },
+      "table": {
+        "table_name": "t1",
+        "partitions": [
+          "p0",
+          "p1",
+          "p2"
+        ],
+        "access_type": "index",
+        "key": "PRIMARY",
+        "used_key_parts": [
+          "a",
+          "b"
+        ],
+        "key_length": "84",
+        "rows_examined_per_scan": "X",
+        "rows_produced_per_join": "X",
+        "filtered": "X",
+        "using_index": true,
+        "cost_info": {
+          "read_cost": "X",
+          "eval_cost": "X",
+          "prefix_cost": "X",
+          "data_read_per_join": "X"
+        },
+        "used_columns": [
+          "a",
+          "b"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` FORCE INDEX (PRIMARY) order by `test`.`t1`.`a`,`test`.`t1`.`b` desc
+# Test HANDLER statements.
+FLUSH STATUS;
+HANDLER t1 OPEN;
+HANDLER t1 READ `PRIMARY` FIRST;
+a	b
+55	55
+HANDLER t1 READ `PRIMARY` NEXT;
+a	b
+55	54
+HANDLER t1 READ `PRIMARY` NEXT;
+a	b
+54	54
+HANDLER t1 READ `PRIMARY` NEXT;
+a	b
+4	4
+HANDLER t1 READ `PRIMARY` NEXT;
+a	b
+3	3
+HANDLER t1 READ `PRIMARY` LAST;
+a	b
+0	0
+HANDLER t1 READ `PRIMARY` PREV;
+a	b
+0	1
+HANDLER t1 READ `PRIMARY` PREV;
+a	b
+1	1
+HANDLER t1 READ `PRIMARY` PREV;
+a	b
+1	2
+HANDLER t1 READ ab_asc FIRST;
+a	b
+0	0
+HANDLER t1 READ ab_asc NEXT;
+a	b
+0	1
+HANDLER t1 READ ab_asc NEXT;
+a	b
+1	1
+HANDLER t1 READ ab_asc NEXT;
+a	b
+1	2
+HANDLER t1 READ ab_asc NEXT;
+a	b
+1	3
+HANDLER t1 READ ab_asc LAST;
+a	b
+55	55
+HANDLER t1 READ ab_asc PREV;
+a	b
+55	54
+HANDLER t1 READ ab_asc PREV;
+a	b
+54	54
+HANDLER t1 READ ab_asc PREV;
+a	b
+4	4
+HANDLER t1 CLOSE;
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	18
+Handler_external_lock	36
+Handler_read_first	6
+Handler_read_key	12
+Handler_read_last	6
+Handler_read_next	8
+Handler_read_prev	6
 DROP TABLE t1;

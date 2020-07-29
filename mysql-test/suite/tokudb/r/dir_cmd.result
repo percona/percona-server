@@ -50,9 +50,5 @@ SET @@tokudb_dir_cmd_last_error_string = "blablabla";
 SELECT @@tokudb_dir_cmd_last_error_string;
 @@tokudb_dir_cmd_last_error_string
 blablabla
-SET STATEMENT tokudb_dir_cmd_last_error_string = "statement_blablabla" FOR
-SELECT @@tokudb_dir_cmd_last_error_string;
-@@tokudb_dir_cmd_last_error_string
-statement_blablabla
 DROP TABLE t1;
 SET GLOBAL tokudb_dir_per_db = default;

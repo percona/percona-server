@@ -1,6 +1,6 @@
 #ifndef REWRITER_INCLUDED
 #define REWRITER_INCLUDED
-/*  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -20,12 +20,16 @@
 
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
-    02110-1301  USA */
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_config.h"
-#include <hash.h>
-#include "rule.h"
+
+#include <memory>
+#include <string>
+
+#include "map_helpers.h"
+#include "my_inttypes.h"
+#include "plugin/rewriter/rule.h"
 
 /**
   @file rewriter.h
@@ -35,9 +39,7 @@
   file.
 */
 
-
 class Persisted_rule;
-
 
 /**
   Implementation of the post parse query rewriter. The public interface
@@ -45,16 +47,7 @@ class Persisted_rule;
   table, and rewrite_query(), which rewrites a query if applicable.
 */
 class Rewriter {
-
-public:
-
-  enum Load_status {
-    REWRITER_OK,
-    REWRITER_ERROR_TABLE_MALFORMED,
-    REWRITER_ERROR_LOAD_FAILED,
-    REWRITER_ERROR_READ_FAILED
-  };
-
+ public:
   Rewriter();
 
   /**
@@ -62,7 +55,7 @@ public:
     that fail to load, this number will be lower than the number of rows in
     the database.
   */
-  int get_number_loaded_rules() const { return m_digests.records; }
+  int get_number_loaded_rules() const { return m_digests.size(); }
 
   ~Rewriter();
 
@@ -71,10 +64,10 @@ public:
 
     @return A Rewrite_result object.
   */
-  Rewrite_result rewrite_query(MYSQL_THD thd, const uchar* key);
+  Rewrite_result rewrite_query(MYSQL_THD thd, const uchar *key);
 
   /// Empty the hashtable and reload all rules from disk table.
-  Load_status refresh(MYSQL_THD thd);
+  longlong refresh(MYSQL_THD thd);
 
   /**
     Implementation of the loading procedure. The server doesn't handle
@@ -82,19 +75,19 @@ public:
     table in this function, intended to be run in a new thread. The main
     thread will do join().
 
-    @param sessions_thd The session to be used for loading rules.
+    @param session_thd The session to be used for loading rules.
   */
   void do_refresh(MYSQL_THD session_thd);
 
-private:
-  Rewriter::Load_status m_refresh_status;
+ private:
+  longlong m_refresh_status;
 
   /// The in-memory rules hash table.
-  HASH m_digests;
+  malloc_unordered_multimap<std::string, std::unique_ptr<Rule>> m_digests{
+      PSI_INSTRUMENT_ME};
 
   /// Loads the rule retrieved from the database in the hash table.
   bool load_rule(MYSQL_THD thd, Persisted_rule *diskrule);
-
 };
 
 #endif /* REWRITER_INCLUDED */

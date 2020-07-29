@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_ndb.inc
 --source include/have_log_bin.inc
 
@@ -81,4 +76,6 @@ where
 
 --echo Disable
 set global ndb_log_empty_epochs=0;
+
+--remove_file $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -18,11 +18,13 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA 
 
 MACRO (MYSQL_USE_BUNDLED_LIBEVENT)
   SET(WITH_LIBEVENT "bundled" CACHE STRING "Use bundled libevent library")
   SET(LIBEVENT_LIBRARIES  event)
+  ## openssl is in the 'libevent.a' static lib
+  SET(LIBEVENT_OPENSSL )
   SET(LIBEVENT_INCLUDE_DIRS
     "${CMAKE_SOURCE_DIR}/extra/libevent/include"
     "${CMAKE_BINARY_DIR}/extra/libevent/include")
@@ -69,9 +71,12 @@ MACRO (MYSQL_CHECK_LIBEVENT)
     ## libevent.so is historical, use libevent_core.so if found.
     FIND_LIBRARY(LIBEVENT_CORE event_core PATHS ${LIBEVENT_LIB_PATHS})
     FIND_LIBRARY(LIBEVENT_EXTRA event_extra PATHS ${LIBEVENT_LIB_PATHS})
+
+    ## libevent_openssl.so is split out on Linux distros
+    FIND_LIBRARY(LIBEVENT_OPENSSL event_openssl PATHS ${LIBEVENT_LIB_PATHS})
     FIND_LIBRARY(LIBEVENT_LIB event PATHS ${LIBEVENT_LIB_PATHS})
 
-    IF (NOT LIBEVENT_LIB AND NOT LIBEVENT_CORE)
+    if (NOT LIBEVENT_LIB AND NOT LIBEVENT_CORE)
         MESSAGE(SEND_ERROR "Cannot find appropriate event lib in /usr/local/lib or /opt/local/lib. Use bundled libevent")
     ENDIF()
 
@@ -93,7 +98,7 @@ MACRO (MYSQL_CHECK_LIBEVENT)
       IF (LIBEVENT2_INCLUDE_DIR)
         ADD_DEFINITIONS("-DHAVE_LIBEVENT2")
       ELSE()
-        ADD_DEFINITIONS("-DHAVE_LIBEVENT1")
+        MESSAGE(SEND_ERROR "Found libevent libraries, but can not find appropriate event2/ directory in include paths. Install the development package of libevent 2.x")
       ENDIF()
     ELSE()
       IF(WITH_LIBEVENT STREQUAL "system")
@@ -103,6 +108,13 @@ MACRO (MYSQL_CHECK_LIBEVENT)
     ENDIF()
 
   ENDIF()
-  MESSAGE(STATUS "LIBEVENT_INCLUDE_DIRS ${LIBEVENT_INCLUDE_DIRS}")
-  MESSAGE(STATUS "LIBEVENT_LIBRARIES ${LIBEVENT_LIBRARIES}")
+ENDMACRO()
+
+# Use pkg-config to find lots of SYSTEM_LIBEVENT related information,
+# including SYSTEM_LIBEVENT_VERSION which will be something like "2.1.8-stable".
+MACRO(MYSQL_CHECK_LIBEVENT_VERSION)
+  IF(LINUX)
+    MYSQL_CHECK_PKGCONFIG()
+    PKG_CHECK_MODULES(SYSTEM_LIBEVENT libevent)
+  ENDIF()
 ENDMACRO()

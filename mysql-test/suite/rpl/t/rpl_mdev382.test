@@ -1,14 +1,14 @@
---source include/have_innodb.inc
 --source include/have_myisam.inc
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
 
 # MDEV-382: multiple SQL injections in replication code.
 
+call mtr.add_suppression("Statement is unsafe because it accesses a non-transactional table after accessing a transactional table");
+
 # Test previous SQL injection attack against binlog for SAVEPOINT statement.
 # The test would cause syntax error on slave due to improper quoting of
 # the savepoint name.
-connection master;
 create table t1 (a int primary key) engine=innodb;
 create table t2 (a int primary key) engine=myisam;
 
@@ -115,8 +115,9 @@ let $pos2= query_get_value(SHOW MASTER STATUS, Position, 1);
 
 --source include/show_binlog_events.inc
 let $MYSQLD_DATADIR= `select @@datadir`;
---replace_regex /LOCAL INFILE '.*SQL_LOAD.*' INTO/LOCAL INFILE '<name>' INTO/
---exec $MYSQL_BINLOG --short-form --start-position=$binlog_start --stop-position=$pos2 $MYSQLD_DATADIR/master-bin.000001
+--let $mysqlbinlog_parameters=--short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --start-position=$binlog_start --stop-position=$pos2 $MYSQLD_DATADIR/master-bin.000001
+--source include/mysqlbinlog.inc
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp/ SQL_LOAD_MB*
 
 sync_slave_with_master;
 connection slave;
@@ -169,7 +170,8 @@ let $pos2= query_get_value(SHOW MASTER STATUS, Position, 1);
 
 --source include/show_binlog_events.inc
 
---exec $MYSQL_BINLOG --short-form --start-position=$binlog_start --stop-position=$pos2 $MYSQLD_DATADIR/master-bin.000001
+--let $mysqlbinlog_parameters=--short-form --start-position=$binlog_start --stop-position=$pos2 $MYSQLD_DATADIR/master-bin.000001
+--source include/mysqlbinlog.inc
 
 sync_slave_with_master;
 connection slave;
@@ -183,7 +185,6 @@ use `db1``; select 'oops!'`;
 CREATE TABLE `t``1` ( `a``` INT PRIMARY KEY) ENGINE=innodb;
 CREATE TABLE `t``2` ( `b``` INT PRIMARY KEY, `c``` INT NOT NULL,
     FOREIGN KEY fk (`c```) REFERENCES `t``1`(`a```)) ENGINE=innodb;
---replace_regex /[0-9]+_ibfk_[0-9]+/INNODB_FOREIGN_KEY_NAME/
 --error ER_TRUNCATE_ILLEGAL_FK
 TRUNCATE `t``1`;
 DROP TABLE `t``2`;

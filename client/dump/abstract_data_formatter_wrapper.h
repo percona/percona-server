@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,36 +25,38 @@
 #ifndef ABSTRACT_DATA_FORMATTER_WRAPPER_INCLUDED
 #define ABSTRACT_DATA_FORMATTER_WRAPPER_INCLUDED
 
-#include "i_data_formatter_wrapper.h"
-#include "abstract_chain_element.h"
+#include <functional>
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+#include "client/dump/abstract_chain_element.h"
+#include "client/dump/i_data_formatter_wrapper.h"
+
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 /**
   Implementation of common logic for classes that directs execution of
   dump tasks to Data Formatters.
  */
 class Abstract_data_formatter_wrapper : public I_data_formatter_wrapper,
-  public Abstract_chain_element
-{
-public:
-  void register_data_formatter(I_data_formatter* new_data_formatter);
+                                        public Abstract_chain_element {
+ public:
+  void register_data_formatter(I_data_formatter *new_data_formatter);
 
-protected:
+ protected:
   Abstract_data_formatter_wrapper(
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
-    message_handler, Simple_id_generator* object_id_generator);
+      std::function<bool(const Mysql::Tools::Base::Message_data &)>
+          *message_handler,
+      Simple_id_generator *object_id_generator);
 
-  void format_object(Item_processing_data* current_processing_data);
+  void format_object(Item_processing_data *current_processing_data);
 
-private:
-  std::vector<I_data_formatter*> m_formatters;
+ private:
+  std::vector<I_data_formatter *> m_formatters;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

@@ -1,10 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_multi_ndb.inc
--- source include/not_embedded.inc
 
 --disable_warnings
 connection server1;
@@ -296,14 +290,14 @@ select * from t1 order by a;
 
 set auto_increment_offset = @old_auto_increment_offset;
 set auto_increment_increment = @old_auto_increment_increment;
-set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+set ndb_autoincrement_prefetch_sz = 1;
 
 drop table t1;
 
 connection server2;
 set auto_increment_offset = @old_auto_increment_offset;
 set auto_increment_increment = @old_auto_increment_increment;
-set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+set ndb_autoincrement_prefetch_sz = 1;
 
 # bug#46712 Auto_increment work incorrectly when using triggers and NDB Cluster
 #
@@ -394,7 +388,9 @@ create table t1 (a int primary key auto_increment, b int) engine=ndb;
 
 insert into t1 values (null,1),(null,2),(null,3);
 
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 drop table t1;
 
@@ -406,7 +402,9 @@ engine=ndb;
 
 alter table t1 auto_increment=32000000;
 
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 drop table t1;
 
@@ -459,5 +457,13 @@ set @@insert_id=1;
 --error ER_DUP_ENTRY
 insert into t1 values(null);
 
+set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
 connection server1;
+set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+drop table t1;
+
+#
+# Bug 30316314 INCREASE AUTO INCREMENT PREFETCH SIZE
+#
+create table t1 (a tinyint not null auto_increment primary key) engine ndb;
 drop table t1;

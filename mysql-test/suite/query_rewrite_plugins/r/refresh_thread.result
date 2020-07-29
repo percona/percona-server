@@ -2,12 +2,6 @@
 # Tests of the dedicated thread for refreshing the rules table.
 #
 SET sql_mode = 'PIPES_AS_CONCAT';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 #
 # We will now test shutting down the server while refreshing rules. We
@@ -22,10 +16,10 @@ CALL mtr.add_suppression( "Got error from storage engine while refreshing " ||
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT "Rewrite"', 'SELECT "Rewritten"' );
 SET GLOBAL debug= '+d,dbug.block_do_refresh';
-SHOW PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
-<id>	root	<host>	<db>	<command>	<time>	<state>	<info>	0	0
-<id>	root	<host>	<db>	<command>	<time>	<state>	<info>	0	0
+# Two root connections are supposed to show here
+SELECT COUNT(user) FROM information_schema.processlist WHERE user LIKE 'root';
+COUNT(user)
+2
 # We have to do this in order to avoid deadlock on the memory table's
 # mutex.
 SET @@global.rewriter_enabled = OFF;
@@ -33,21 +27,20 @@ CALL query_rewrite.flush_rewrite_rules();
 # We don't care if we time out here, as long as we manage to restart the
 # server.
 SET debug_sync = 'now WAIT_FOR parked';
-SHOW PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
-<id>	root	<host>	<db>	<command>	<time>	<state>	<info>	0	0
-<id>	root	<host>	<db>	<command>	<time>	<state>	<info>	0	0
-#
-# Restart the server
-#
+# Two root connections are supposed to show here
+SELECT COUNT(user) FROM information_schema.processlist WHERE user LIKE 'root';
+COUNT(user)
+2
+# restart
 SELECT 'Rewrite';
 Rewritten
 Rewritten
 Warnings:
 Note	1105	Query 'SELECT 'Rewrite'' rewritten to 'SELECT "Rewritten"' by a query rewrite plugin
-SHOW PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
-<id>	root	<host>	<db>	<command>	<time>	<state>	<info>	0	0
+# One root connection is supposed to show here, as the rewrite thread is now gone
+SELECT COUNT(user) FROM information_schema.processlist WHERE user LIKE 'root';
+COUNT(user)
+1
 SET @@global.rewriter_enabled = DEFAULT;
 Warnings:
 Warning	1620	Plugin is busy and will be uninstalled on shutdown

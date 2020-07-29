@@ -15,13 +15,13 @@ ALTER TABLE t1 ADD FULLTEXT INDEX idx_2 (b);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
   `a` varchar(200) DEFAULT NULL,
   `b` text,
   PRIMARY KEY (`id`),
   FULLTEXT KEY `idx_1` (`a`),
   FULLTEXT KEY `idx_2` (`b`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_PERSISTENT=0
 START TRANSACTION;
 INSERT INTO t1 (a,b) VALUES
 ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),

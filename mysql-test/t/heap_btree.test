@@ -1,5 +1,3 @@
-# Test needs myisam for some myisam specific testcases
---source include/have_myisam.inc
 #
 # Test of heap tables.
 #
@@ -26,25 +24,6 @@ create table t1 (a int not null,b int not null, primary key using BTREE (a)) eng
 insert into t1 values(-2,-2),(-1,-1),(0,0),(1,1),(2,2),(3,3),(4,4);
 delete from t1 where a > -3;
 select * from t1;
-drop table t1;
-
-create table t1 (a int not null,b int not null, primary key using BTREE (a)) engine=heap comment="testing heaps";
-insert into t1 values(1,1),(2,2),(3,3),(4,4);
-alter table t1 modify a int not null auto_increment, engine=myisam, comment="new myisam table";
-#show table status like "t1";
-select * from t1;
-drop table t1;
-
-create table t1 (a int not null) engine=heap;
-insert into t1 values (869751),(736494),(226312),(802616),(728912);
-select * from t1 where a > 736494;
-alter table t1 add unique uniq_id using BTREE (a);
-select * from t1 where a > 736494;
-select * from t1 where a = 736494;
-select * from t1 where a=869751 or a=736494;
-select * from t1 where a in (869751,736494,226312,802616);
-alter table t1 engine=myisam;
-explain select * from t1 where a in (869751,736494,226312,802616);
 drop table t1;
 
 create table t1 (x int not null, y int not null, key x  using BTREE (x,y), unique y  using BTREE (y))
@@ -110,7 +89,7 @@ drop table t1;
 # Test when using part key searches
 #
 
-create table t1 (btn char(10) not null, key using BTREE (btn)) engine=heap;
+create table t1 (btn char(10) not null, key using BTREE (btn)) charset utf8mb4 engine=heap;
 insert into t1 values ("hello"),("hello"),("hello"),("hello"),("hello"),("a"),("b"),("c"),("d"),("e"),("f"),("g"),("h"),("i");
 explain select * from t1 where btn like "i%";
 --replace_column 10 #
@@ -239,7 +218,7 @@ SELECT INDEX_LENGTH FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=DATABASE()
 DROP TABLE t1;
 
 #
-# BUG#12873 - BTREE index on MEMORY table with multiple NULL values doesn't
+# BUG#12873 - BTREE index on MEMORY table with multiple NULL values does not
 # work properly
 #
 CREATE TABLE t1 (a INT, UNIQUE USING BTREE(a)) ENGINE=MEMORY;
@@ -272,3 +251,18 @@ DROP TABLE t1;
 INSERT t1 VALUES (1, REPEAT('a', 300));
 DROP TABLE t1;
 --echo End of 5.5 tests
+
+--echo # Bug#24364448: Check that btree indexes may be used to provide ordering
+
+CREATE TABLE t1(
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  c1 INT NOT NULL,
+  c2 INT NOT NULL,
+  UNIQUE KEY USING BTREE (c2,c1)) ENGINE = MEMORY;
+
+INSERT INTO t1(c1,c2) VALUES (5,1), (4,1), (3,5), (2,3), (1,3);
+
+EXPLAIN SELECT c2, COUNT(c1) FROM t1 GROUP BY c2;
+SELECT c2, COUNT(c1) FROM t1 GROUP BY c2;
+
+DROP TABLE t1;

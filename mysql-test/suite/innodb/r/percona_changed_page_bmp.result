@@ -60,10 +60,10 @@ ib_modified_log_2
 DROP TABLE t1, t2;
 call mtr.add_suppression("Failed to find tablespace for table");
 call mtr.add_suppression("Allocated tablespace [0-9]+, old maximum was");
+call mtr.add_suppression("InnoDB: Error: page [0-9]* log sequence number [0-9]*");
 8th restart
 # restart:--innodb-force-recovery=6
 RESET CHANGED_PAGE_BITMAPS;
-call mtr.add_suppression("InnoDB: Error: page [0-9]* log sequence number [0-9]*");
 9th restart
 # restart
 10th restart
@@ -77,17 +77,9 @@ SELECT @@innodb_track_changed_pages;
 0
 11th restart
 # restart
-call mtr.add_suppression("New log files created");
-call mtr.add_suppression("Creating foreign key constraint system tables");
-call mtr.add_suppression("Cannot open table mysql/[a-z_]+ from the internal data dictionary");
-call mtr.add_suppression("Info table is not ready to be used");
-call mtr.add_suppression("Can't open the mysql.plugin table.");
-call mtr.add_suppression("Gtid table is not ready to be used");
-call mtr.add_suppression("Failed to open optimizer cost constant tables");
-call mtr.add_suppression("Can't open and lock time zone table");
-call mtr.add_suppression("Can't open and lock privilege tables");
 12th restart
-# restart:--innodb-data-home-dir=tmpdatadir
+# restart:--innodb-data-home-dir=tmpdatadir --datadir=MYSQLD_DATADIR1
 ib_modified_log_1
+include/assert.inc [INFORMATION_SCHEMA.INNODB_CHANGED_PAGES is not empty]
 13th restart
-# restart
+# restart:--innodb-track-changed-pages=TRUE

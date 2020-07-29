@@ -3,7 +3,6 @@
 # innodb_autoinc_lock_mode=1 is broken
 ##########################################################################
 
---source include/have_innodb.inc
 --source include/have_debug_sync.inc
 
 CREATE TABLE t(

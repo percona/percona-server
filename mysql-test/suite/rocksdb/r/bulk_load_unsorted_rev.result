@@ -1,6 +1,6 @@
 SET rocksdb_bulk_load_size=3;
 SET rocksdb_bulk_load_allow_unsorted=1;
-CREATE TABLE t1(a INT, b INT, PRIMARY KEY(a) COMMENT "rev:cf1")
+CREATE TABLE t1(a INT, b INT, PRIMARY KEY(a) COMMENT "cfname=rev:cf1")
 ENGINE=ROCKSDB;
 SET rocksdb_bulk_load=1;
 SELECT * FROM t1 FORCE INDEX (PRIMARY);
@@ -14,7 +14,7 @@ a	b
 -1	3
 -3	5
 DROP TABLE t1;
-CREATE TABLE t1(a INT, b INT, PRIMARY KEY(a) COMMENT "rev:cf1", KEY(b))
+CREATE TABLE t1(a INT, b INT, PRIMARY KEY(a) COMMENT "cfname=rev:cf1", KEY(b))
 ENGINE=ROCKSDB;
 SET rocksdb_bulk_load=1;
 SELECT * FROM t1 FORCE INDEX (PRIMARY);
@@ -28,9 +28,9 @@ a	b
 -1	3
 -3	5
 DROP TABLE t1;
-CREATE TABLE t1(a INT, b INT, PRIMARY KEY(a) COMMENT "rev:cf1")
+CREATE TABLE t1(a INT, b INT, PRIMARY KEY(a) COMMENT "cfname=rev:cf1")
 ENGINE=ROCKSDB;
-CREATE TABLE t2(a INT, b INT, PRIMARY KEY(a) COMMENT "rev:cf1")
+CREATE TABLE t2(a INT, b INT, PRIMARY KEY(a) COMMENT "cfname=rev:cf1")
 ENGINE=ROCKSDB;
 SET rocksdb_bulk_load=1;
 INSERT INTO t1 VALUES (1,1);
@@ -51,14 +51,12 @@ a	b
 2	2
 1	1
 DROP TABLE t1, t2;
-CREATE TABLE t1(a INT, b INT, PRIMARY KEY(a) COMMENT "rev:cf1")
+CREATE TABLE t1(a INT, b INT, PRIMARY KEY(a) COMMENT "cfname=rev:cf1")
 ENGINE=ROCKSDB;
-CREATE TABLE t2(a INT, b INT, PRIMARY KEY(b) COMMENT "rev:cf1")
+CREATE TABLE t2(a INT, b INT, PRIMARY KEY(b) COMMENT "cfname=rev:cf1")
 ENGINE=ROCKSDB;
-CREATE TABLE t3(a INT, b INT, PRIMARY KEY(a) COMMENT "rev:cf1")
+CREATE TABLE t3(a INT, b INT, PRIMARY KEY(a) COMMENT "cfname=rev:cf1")
 ENGINE=ROCKSDB PARTITION BY KEY() PARTITIONS 4;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t3', is deprecated and will be removed in a future release. Please use native partitioning instead.
 set session transaction isolation level repeatable read;
 start transaction with consistent snapshot;
 select VALUE > 0 as 'Has opened snapshots' from information_schema.rocksdb_dbstats where stat_type='DB_NUM_SNAPSHOTS';
@@ -69,29 +67,22 @@ set rocksdb_bulk_load_size=100000;
 LOAD DATA INFILE <input_file> INTO TABLE t1;
 LOAD DATA INFILE <input_file> INTO TABLE t2;
 LOAD DATA INFILE <input_file> INTO TABLE t3;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t3', is deprecated and will be removed in a future release. Please use native partitioning instead.
 set rocksdb_bulk_load=0;
 SHOW TABLE STATUS WHERE name LIKE 't%';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	ROCKSDB	10	Fixed	1000000	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t2	ROCKSDB	10	Fixed	1000000	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t3	ROCKSDB	10	Fixed	1000000	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t3', is deprecated and will be removed in a future release. Please use native partitioning instead.
+t1	ROCKSDB	10	Fixed	1000000	#	#	#	#	#	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
+t2	ROCKSDB	10	Fixed	1000000	#	#	#	#	#	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
+t3	ROCKSDB	10	Fixed	1000000	#	#	#	#	#	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
 ANALYZE TABLE t1, t2, t3;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 test.t3	analyze	status	OK
-test.t3	analyze	warning	The partition engine, used by table 'test.t3', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW TABLE STATUS WHERE name LIKE 't%';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	ROCKSDB	10	Fixed	1000000	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t2	ROCKSDB	10	Fixed	1000000	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t3	ROCKSDB	10	Fixed	1000000	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t3', is deprecated and will be removed in a future release. Please use native partitioning instead.
+t1	ROCKSDB	10	Fixed	1000000	#	#	#	#	#	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
+t2	ROCKSDB	10	Fixed	1000000	#	#	#	#	#	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
+t3	ROCKSDB	10	Fixed	1000000	#	#	#	#	#	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
 select count(a) from t1;
 count(a)
 1000000

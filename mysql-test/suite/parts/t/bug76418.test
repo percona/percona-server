@@ -2,9 +2,6 @@
 # lp:1657941 / Oracle Bug #76418 "Server crashes when querying partitioning table"
 #
 
---source include/have_innodb.inc
---source include/have_partition.inc
-
 CREATE TABLE t1(
   id INT UNSIGNED NOT NULL,
   dttm DATETIME NOT NULL,

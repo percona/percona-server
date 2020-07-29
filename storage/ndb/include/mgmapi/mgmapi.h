@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,10 @@
 
 #ifndef MGMAPI_H
 #define MGMAPI_H
+
+#ifdef _WIN32
+#include <WinSock2.h>
+#endif
 
 #include "mgmapi_config_parameters.h"
 #include "ndb_logevent.h"
@@ -268,6 +272,8 @@ extern "C" {
 
     /** MySQL version number */
     int mysql_version;
+    /** Node is the single user **/
+    int is_single_user;
   };
   
   /**
@@ -416,6 +422,11 @@ extern "C" {
    * @param   name          Name
    */
   void ndb_mgm_set_name(NdbMgmHandle handle, const char *name);
+
+  /** Get the name previously set for the handle
+   *
+   */
+  const char * ndb_mgm_get_name(const NdbMgmHandle handle);
 
   /**
    * Set 'ignore_sigpipe' behaviour
@@ -1053,7 +1064,7 @@ extern "C" {
    *
    * @return fd    filedescriptor to read events from
    */
-#ifdef NDB_WIN
+#ifdef _WIN32
   SOCKET ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[]);
 #else
   int ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[]);
@@ -1103,7 +1114,7 @@ extern "C" {
    *
    * @return       filedescriptor, -1 on failure.
    */
-#ifdef NDB_WIN
+#ifdef _WIN32
   SOCKET ndb_logevent_get_fd(const NdbLogEventHandle);
 #else
   int ndb_logevent_get_fd(const NdbLogEventHandle);
@@ -1317,7 +1328,7 @@ extern "C" {
    * @return handle->socket
    *
    */
-#ifdef NDB_WIN
+#ifdef _WIN32
   SOCKET ndb_mgm_get_fd(NdbMgmHandle handle);
 #else
   int ndb_mgm_get_fd(NdbMgmHandle handle);

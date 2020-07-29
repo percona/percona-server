@@ -1,7 +1,5 @@
 --source include/have_rocksdb.inc
 
---source include/have_partition.inc
-
 --echo # Tests for MyRocks + partitioning
 
 --echo #
@@ -23,9 +21,9 @@ drop table t1,t2;
 --echo #
 CREATE TABLE t1 (
  id INT PRIMARY KEY,
- a set ('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z')  CHARACTER SET utf8,
- b set ('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z')  CHARACTER SET utf8 default null,
- c set ('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z')  CHARACTER SET utf8 not null,
+ a set ('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z')  CHARACTER SET utf8mb4,
+ b set ('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z')  CHARACTER SET utf8mb4 default null,
+ c set ('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z')  CHARACTER SET utf8mb4 not null,
  INDEX (a),
  INDEX (b),
  INDEX (c)
@@ -43,7 +41,7 @@ create table t1 (
   pk int primary key,
   col1 int,
   col2 int,
-  key (col1) comment 'rev:cf_issue105'
+  key (col1) comment 'cfname=rev:cf_issue105'
 ) engine=rocksdb partition by hash(pk) partitions 2;
 
 insert into t1 values (1,10,10);
@@ -97,7 +95,7 @@ drop table t1, t2;
 --echo #
 CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(5)) ENGINE=ROCKSDB PARTITION BY HASH(c1) PARTITIONS 4;
 INSERT INTO t1 VALUES(1,'a');
---error ER_ERROR_ON_RENAME
+--error ER_BAD_DB_ERROR
 RENAME TABLE t1 TO db3.t3;
 SELECT * FROM t1;
 SHOW TABLES;

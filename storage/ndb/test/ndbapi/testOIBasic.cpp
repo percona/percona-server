@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,15 +22,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-/*
- * testOIBasic - ordered index test
- *
- * dummy push to re-created mysql-5.1-telco ...
- */
-
 #include <ndb_global.h>
 
-#include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <NdbApi.hpp>
 #include <NdbTest.hpp>
@@ -38,8 +31,10 @@
 #include <NdbCondition.h>
 #include <NdbThread.h>
 #include <NdbTick.h>
+#include <NdbHost.h>
 #include <NdbSleep.h>
-#include <my_sys.h>
+#include "m_ctype.h"
+#include "my_sys.h"
 #include <NdbSqlUtil.hpp>
 #include <ndb_version.h>
 
@@ -50,7 +45,6 @@ struct Opt {
   uint m_batch;
   const char* m_bound;
   const char* m_case;
-  bool m_collsp;
   bool m_cont;
   bool m_core;
   const char* m_csname;
@@ -82,7 +76,6 @@ struct Opt {
     m_batch(32),
     m_bound("01234"),
     m_case(0),
-    m_collsp(false),
     m_cont(false),
     m_core(false),
     m_csname("random"),
@@ -127,7 +120,6 @@ printhelp()
     << "  -batch N      pk operations in batch [" << d.m_batch << "]" << endl
     << "  -bound xyz    use only these bound types 0-4 [" << d.m_bound << "]" << endl
     << "  -case abc     only given test cases (letters a-z)" << endl
-    << "  -collsp       use strnncollsp instead of strnxfrm" << endl
     << "  -cont         on error continue to next test case [" << d.m_cont << "]" << endl
     << "  -core         core dump on error [" << d.m_core << "]" << endl
     << "  -csname S     charset or collation [" << d.m_csname << "]" << endl
@@ -167,7 +159,7 @@ static const bool g_compare_null = true;
 static const char* hexstr = "0123456789abcdef";
 
 // random ints
-#ifdef NDB_WIN
+#ifdef _WIN32
 #define random() rand()
 #define srandom(SEED) srand(SEED)
 #endif
@@ -373,26 +365,26 @@ struct Par : public Opt {
 };
 
 static bool
-usetable(Par par, uint i)
+usetable(const Par& par, uint i)
 {
   return par.m_table == 0 || strchr(par.m_table, '0' + i) != 0;
 }
 
 static bool
-useindex(Par par, uint i)
+useindex(const Par& par, uint i)
 {
   return par.m_index == 0 || strchr(par.m_index, '0' + i) != 0;
 }
 
 static uint
-thrrow(Par par, uint j)
+thrrow(const Par& par, uint j)
 {
   return par.m_usedthreads * j + par.m_no;
 }
 
 #if 0
 static bool
-isthrrow(Par par, uint i)
+isthrrow(const Par& par, uint i)
 {
   return i % par.m_usedthreads == par.m_no;
 }
@@ -479,27 +471,23 @@ Tmr::over(const Tmr& t1)
 static const uint maxcsnumber = 512;
 static const uint maxcharcount = 32;
 static const uint maxcharsize = 4;
-static const uint maxxmulsize = 8;
 
 // single mb char
 struct Chr {
   uchar m_bytes[maxcharsize];
-  uchar m_xbytes[maxxmulsize * maxcharsize];
-  uint m_size;
+  uint m_size;   //Actual size of m_bytes[]
   Chr();
 };
 
 Chr::Chr()
 {
   memset(m_bytes, 0, sizeof(m_bytes));
-  memset(m_xbytes, 0, sizeof(m_xbytes));
   m_size = 0;
 }
 
 // charset and random valid chars to use
 struct Chs {
   CHARSET_INFO* m_cs;
-  uint m_xmul;
   Chr* m_chr;
   Chs(CHARSET_INFO* cs);
   ~Chs();
@@ -511,69 +499,38 @@ operator<<(NdbOut& out, const Chs& chs);
 Chs::Chs(CHARSET_INFO* cs) :
   m_cs(cs)
 {
-  m_xmul = m_cs->strxfrm_multiply;
-  if (m_xmul == 0)
-    m_xmul = 1;
-  require(m_xmul <= maxxmulsize);
+  require(m_cs->mbmaxlen <= maxcharsize);
+
   m_chr = new Chr [maxcharcount];
   uint i = 0;
   uint miss1 = 0;
-  uint miss2 = 0;
-  uint miss3 = 0;
   uint miss4 = 0;
   while (i < maxcharcount) {
     uchar* bytes = m_chr[i].m_bytes;
-    uchar* xbytes = m_chr[i].m_xbytes;
-    uint& size = m_chr[i].m_size;
-    bool ok;
-    size = m_cs->mbminlen + urandom(m_cs->mbmaxlen - m_cs->mbminlen + 1);
-    require(m_cs->mbminlen <= size && size <= m_cs->mbmaxlen);
-    // prefer longer chars
-    if (size == m_cs->mbminlen && m_cs->mbminlen < m_cs->mbmaxlen && urandom(5) != 0)
-      continue;
-    for (uint j = 0; j < size; j++) {
-      bytes[j] = urandom(256);
-    }
-    int not_used;
-    // check wellformed
-    const char* sbytes = (const char*)bytes;
-    if ((*cs->cset->well_formed_len)(cs, sbytes, sbytes + size, 1, &not_used) != size) {
+    uint size = 0;
+    bool ok = false;
+    do {
+      bytes[size++] = urandom(256);
+
+      int not_used;
+      const char* sbytes = (const char*)bytes;
+      if ((*cs->cset->well_formed_len)(cs, sbytes, sbytes+size,
+				       size, &not_used) == size) {
+        // Break when a well_formed Chr has been produced.
+	ok = true;
+        break;
+      }
+    } while (size < m_cs->mbmaxlen);
+
+    if (!ok) {  //Chr never became well_formed.
       miss1++;
       continue;
     }
-    // check no proper prefix wellformed
-    ok = true;
-    for (uint j = 1; j < size; j++) {
-      if ((*cs->cset->well_formed_len)(cs, sbytes, sbytes + j, 1, &not_used) == j) {
-        ok = false;
-        break;
-      }
-    }
-    if (!ok) {
-      miss2++;
-      continue;
-    }
-    // normalize
-    memset(xbytes, 0, sizeof(m_chr[i].m_xbytes));
-    // currently returns buffer size always
-    size_t xlen = NdbSqlUtil::ndb_strnxfrm(cs, xbytes, m_xmul * size, bytes, size);
-    // check we got something
-    ok = false;
-    for (uint j = 0; j < (uint)xlen; j++) {
-      if (xbytes[j] != 0) {
-        ok = true;
-        break;
-      }
-    }
-    if (!ok) {
-      miss3++;
-      continue;
-    }
-    // check for duplicate (before normalize)
-    ok = true;
+
+    // check for duplicate
     for (uint j = 0; j < i; j++) {
       const Chr& chr = m_chr[j];
-      if (chr.m_size == size && memcmp(chr.m_bytes, bytes, size) == 0) {
+      if ((*cs->coll->strnncollsp)(cs, chr.m_bytes, chr.m_size, bytes, size) == 0) {
         ok = false;
         break;
       }
@@ -582,6 +539,7 @@ Chs::Chs(CHARSET_INFO* cs) :
       miss4++;
       continue;
     }
+    m_chr[i].m_size = size;
     i++;
   }
   bool disorder = true;
@@ -589,9 +547,10 @@ Chs::Chs(CHARSET_INFO* cs) :
   while (disorder) {
     disorder = false;
     for (uint i = 1; i < maxcharcount; i++) {
-      uint len = sizeof(m_chr[i].m_xbytes);
-      if (memcmp(m_chr[i-1].m_xbytes, m_chr[i].m_xbytes, len) > 0) {
-        Chr chr = m_chr[i];
+      if ((*cs->coll->strnncollsp)(cs,
+				   m_chr[i-1].m_bytes, m_chr[i-1].m_size,
+				   m_chr[i].m_bytes,   m_chr[i].m_size) > 0) {
+        const Chr chr = m_chr[i];
         m_chr[i] = m_chr[i-1];
         m_chr[i-1] = chr;
         disorder = true;
@@ -599,7 +558,7 @@ Chs::Chs(CHARSET_INFO* cs) :
       }
     }
   }
-  LL3("inited charset " << *this << " miss=" << miss1 << "," << miss2 << "," << miss3 << "," << miss4 << " bubbles=" << bubbles);
+  LL3("inited charset " << *this << " miss=" << miss1 << "," << miss4 << " bubbles=" << bubbles);
 }
 
 Chs::~Chs()
@@ -611,11 +570,19 @@ static NdbOut&
 operator<<(NdbOut& out, const Chs& chs)
 {
   CHARSET_INFO* cs = chs.m_cs;
-  out << cs->name << "[" << cs->mbminlen << "-" << cs->mbmaxlen << "," << chs.m_xmul << "]";
+  out << cs->name << "[" << cs->mbminlen << "-" << cs->mbmaxlen << "]";
   return out;
 }
 
 static Chs* cslist[maxcsnumber];
+
+static void
+initcslist()
+{
+  for (uint i = 0; i < maxcsnumber; i++) {
+    cslist[i] = 0;
+  }
+}
 
 static void
 resetcslist()
@@ -627,7 +594,7 @@ resetcslist()
 }
 
 static Chs*
-getcs(Par par)
+getcs(const Par& par)
 {
   CHARSET_INFO* cs;
   if (par.m_cs != 0) {
@@ -655,6 +622,7 @@ getcs(Par par)
       }
     }
   }
+  ndbout << "Use charset: " << cs->name << endl;
   if (cslist[cs->number] == 0)
     cslist[cs->number] = new Chs(cs);
   return cslist[cs->number];
@@ -1021,7 +989,7 @@ verifytables()
 }
 
 static void
-makebuiltintables(Par par)
+makebuiltintables(const Par& par)
 {
   LL2("makebuiltintables");
   resetcslist();
@@ -1235,6 +1203,7 @@ struct Con {
   ~Con() {
     if (m_tx != 0)
       closeTransaction();
+    delete m_scanfilter;
   }
   int connect();
   void connect(const Con& con);
@@ -1256,9 +1225,9 @@ struct Con {
   int setFilter(int num, int cond, const void* value, uint len);
   int execute(ExecType et);
   int execute(ExecType et, uint& err);
-  int readTuple(Par par);
-  int readTuples(Par par);
-  int readIndexTuples(Par par);
+  int readTuple(const Par& par);
+  int readTuples(const Par& par);
+  int readIndexTuples(const Par& par);
   int executeScan();
   int nextScanResult(bool fetchAllowed);
   int nextScanResult(bool fetchAllowed, uint& err);
@@ -1463,7 +1432,7 @@ Con::execute(ExecType et, uint& err)
 }
 
 int
-Con::readTuple(Par par)
+Con::readTuple(const Par& par)
 {
   require(m_tx != 0 && m_op != 0);
   NdbOperation::LockMode lm = par.m_lockmode;
@@ -1472,7 +1441,7 @@ Con::readTuple(Par par)
 }
 
 int
-Con::readTuples(Par par)
+Con::readTuples(const Par& par)
 {
   require(m_tx != 0 && m_scanop != 0);
   int scan_flags = 0;
@@ -1483,7 +1452,7 @@ Con::readTuples(Par par)
 }
 
 int
-Con::readIndexTuples(Par par)
+Con::readIndexTuples(const Par& par)
 {
   require(m_tx != 0 && m_indexscanop != 0);
   int scan_flags = 0;
@@ -1605,7 +1574,7 @@ Con::printerror(NdbOut& out)
         // 631 is new, occurs only on 4 db nodes, needs to be checked out
         if (code == 266 || code == 274 || code == 296 || code == 297 || code == 499 || code == 631)
           m_errtype = ErrDeadlock;
-        if (code == 826 || code == 827 || code == 902)
+        if (code == 625 || code == 826 || code == 827 || code == 902 || code == 921)
           m_errtype = ErrNospace;
       }
       if (m_op && m_op->getNdbError().code != 0) {
@@ -1627,7 +1596,7 @@ Con::printerror(NdbOut& out)
 // dictionary operations
 
 static int
-invalidateindex(Par par, const ITab& itab)
+invalidateindex(const Par& par, const ITab& itab)
 {
   Con& con = par.con();
   const Tab& tab = par.tab();
@@ -1707,7 +1676,7 @@ createtable(Par par)
 }
 
 static int
-dropindex(Par par, const ITab& itab)
+dropindex(const Par& par, const ITab& itab)
 {
   Con& con = par.con();
   const Tab& tab = par.tab();
@@ -1737,7 +1706,7 @@ dropindex(Par par)
 }
 
 static int
-createindex(Par par, const ITab& itab)
+createindex(const Par& par, const ITab& itab)
 {
   Con& con = par.con();
   const Tab& tab = par.tab();
@@ -1792,18 +1761,18 @@ struct Val {
   void copy(const Val& val2);
   void copy(const void* addr);
   const void* dataaddr() const;
-  void calc(Par par, uint i);
-  void calckey(Par par, uint i);
-  void calckeychars(Par par, uint i, uint& n, uchar* buf);
-  void calcnokey(Par par);
-  void calcnokeychars(Par par, uint& n, uchar* buf);
+  void calc(const Par& par, uint i);
+  void calckey(const Par& par, uint i);
+  void calckeychars(const Par& par, uint i, uint& n, uchar* buf);
+  void calcnokey(const Par& par);
+  void calcnokeychars(const Par& par, uint& n, uchar* buf);
   // operations
-  int setval(Par par) const;
-  int setval(Par par, const ICol& icol) const;
+  int setval(const Par& par) const;
+  int setval(const Par& par, const ICol& icol) const;
   // compare
-  int cmp(Par par, const Val& val2) const;
-  int cmpchars(Par par, const uchar* buf1, uint len1, const uchar* buf2, uint len2) const;
-  int verify(Par par, const Val& val2) const;
+  int cmp(const Par& par, const Val& val2) const;
+  int cmpchars(const Par& par, const uchar* buf1, uint len1, const uchar* buf2, uint len2) const;
+  int verify(const Par& par, const Val& val2) const;
 private:
   Val& operator=(const Val& val2);
 };
@@ -1917,7 +1886,7 @@ Val::dataaddr() const
 }
 
 void
-Val::calc(Par par, uint i)
+Val::calc(const Par& par, uint i)
 {
   const Col& col = m_col;
   col.m_pk ? calckey(par, i) : calcnokey(par);
@@ -1926,7 +1895,7 @@ Val::calc(Par par, uint i)
 }
 
 void
-Val::calckey(Par par, uint i)
+Val::calckey(const Par& par, uint i)
 {
   const Col& col = m_col;
   m_null = false;
@@ -1970,17 +1939,21 @@ Val::calckey(Par par, uint i)
 }
 
 void
-Val::calckeychars(Par par, uint i, uint& n, uchar* buf)
+Val::calckeychars(const Par& par, uint i, uint& n, uchar* buf)
 {
   const Col& col = m_col;
   const Chs* chs = col.m_chs;
   n = 0;
   uint len = 0;
+  uint rem = i;
   while (len < col.m_length) {
-    if (i % (1 + n) == 0) {
+    if (rem == 0) {
       break;
     }
-    const Chr& chr = chs->m_chr[i % maxcharcount];
+    uint ix = (rem % maxcharcount);
+    rem = (rem / maxcharcount);
+
+    const Chr& chr = chs->m_chr[ix];
     require(n + chr.m_size <= col.m_bytelength);
     memcpy(buf + n, chr.m_bytes, chr.m_size);
     n += chr.m_size;
@@ -1989,7 +1962,7 @@ Val::calckeychars(Par par, uint i, uint& n, uchar* buf)
 }
 
 void
-Val::calcnokey(Par par)
+Val::calcnokey(const Par& par)
 {
   const Col& col = m_col;
   m_null = false;
@@ -2043,7 +2016,7 @@ Val::calcnokey(Par par)
 }
 
 void
-Val::calcnokeychars(Par par, uint& n, uchar* buf)
+Val::calcnokeychars(const Par& par, uint& n, uchar* buf)
 {
   const Col& col = m_col;
   const Chs* chs = col.m_chs;
@@ -2072,7 +2045,7 @@ Val::calcnokeychars(Par par, uint& n, uchar* buf)
 // operations
 
 int
-Val::setval(Par par) const
+Val::setval(const Par& par) const
 {
   Con& con = par.con();
   const Col& col = m_col;
@@ -2090,7 +2063,7 @@ Val::setval(Par par) const
 }
 
 int
-Val::setval(Par par, const ICol& icol) const
+Val::setval(const Par& par, const ICol& icol) const
 {
   Con& con = par.con();
   require(!m_null);
@@ -2103,7 +2076,7 @@ Val::setval(Par par, const ICol& icol) const
 // compare
 
 int
-Val::cmp(Par par, const Val& val2) const
+Val::cmp(const Par& par, const Val& val2) const
 {
   const Col& col = m_col;
   const Col& col2 = val2.m_col;
@@ -2131,8 +2104,16 @@ Val::cmp(Par par, const Val& val2) const
     break;
   case Col::Char:
     {
-      uint len = col.m_bytelength;
-      return cmpchars(par, m_char, len, val2.m_char, len);
+      uint len1, len2;
+      len1 = len2 = col.m_bytelength;
+      const Chs* chs = col.m_chs;
+      CHARSET_INFO* cs = chs->m_cs;
+      if (cs->pad_attribute == NO_PAD)
+      {
+        len1 = cs->cset->lengthsp(cs, (const char *)m_char, len1);
+        len2 = cs->cset->lengthsp(cs, (const char *)val2.m_char, len2);
+      }
+      return cmpchars(par, m_char, len1, val2.m_char, len2);
     }
     break;
   case Col::Varchar:
@@ -2157,29 +2138,18 @@ Val::cmp(Par par, const Val& val2) const
 }
 
 int
-Val::cmpchars(Par par, const uchar* buf1, uint len1, const uchar* buf2, uint len2) const
+Val::cmpchars(const Par& par, const uchar* buf1, uint len1, const uchar* buf2, uint len2) const
 {
   const Col& col = m_col;
   const Chs* chs = col.m_chs;
   CHARSET_INFO* cs = chs->m_cs;
-  int k;
-  if (!par.m_collsp) {
-    uchar x1[maxxmulsize * NDB_MAX_TUPLE_SIZE];
-    uchar x2[maxxmulsize * NDB_MAX_TUPLE_SIZE];
-    // make strxfrm pad both to same length
-    uint len = maxxmulsize * col.m_bytelength;
-    int n1 = NdbSqlUtil::strnxfrm_bug7284(cs, x1, chs->m_xmul * len, buf1, len1);
-    int n2 = NdbSqlUtil::strnxfrm_bug7284(cs, x2, chs->m_xmul * len, buf2, len2);
-    require(n1 != -1 && n1 == n2);
-    k = memcmp(x1, x2, n1);
-  } else {
-    k = (*cs->coll->strnncollsp)(cs, buf1, len1, buf2, len2, false);
-  }
+  // Use character set collation-dependent compare function
+  const int k = (*cs->coll->strnncollsp)(cs, buf1, len1, buf2, len2);
   return k < 0 ? -1 : k > 0 ? +1 : 0;
 }
 
 int
-Val::verify(Par par, const Val& val2) const
+Val::verify(const Par& par, const Val& val2) const
 {
   CHK(cmp(par, val2) == 0);
   return 0;
@@ -2284,22 +2254,22 @@ struct Row {
   ~Row();
   void copy(const Row& row2, bool copy_bi);
   void copyval(const Row& row2, uint colmask = ~0);
-  void calc(Par par, uint i, uint colmask = ~0);
+  void calc(const Par& par, uint i, uint colmask = ~0);
   // operations
-  int setval(Par par, uint colmask = ~0);
-  int setval(Par par, const ITab& itab);
-  int insrow(Par par);
-  int updrow(Par par);
-  int updrow(Par par, const ITab& itab);
-  int delrow(Par par);
-  int delrow(Par par, const ITab& itab);
-  int selrow(Par par);
-  int selrow(Par par, const ITab& itab);
-  int setrow(Par par);
+  int setval(const Par& par, uint colmask = ~0);
+  int setval(const Par& par, const ITab& itab);
+  int insrow(const Par& par);
+  int updrow(const Par& par);
+  int updrow(const Par& par, const ITab& itab);
+  int delrow(const Par& par);
+  int delrow(const Par& par, const ITab& itab);
+  int selrow(const Par& par);
+  int selrow(const Par& par, const ITab& itab);
+  int setrow(const Par& par);
   // compare
-  int cmp(Par par, const Row& row2) const;
-  int cmp(Par par, const Row& row2, const ITab& itab) const;
-  int verify(Par par, const Row& row2, bool pkonly) const;
+  int cmp(const Par& par, const Row& row2) const;
+  int cmp(const Par& par, const Row& row2, const ITab& itab) const;
+  int verify(const Par& par, const Row& row2, bool pkonly) const;
 private:
   Row& operator=(const Row& row2);
 };
@@ -2365,7 +2335,7 @@ Row::copyval(const Row& row2, uint colmask)
 }
 
 void
-Row::calc(Par par, uint i, uint colmask)
+Row::calc(const Par& par, uint i, uint colmask)
 {
   const Tab& tab = m_tab;
   for (uint k = 0; k < tab.m_cols; k++) {
@@ -2379,7 +2349,7 @@ Row::calc(Par par, uint i, uint colmask)
 // operations
 
 int
-Row::setval(Par par, uint colmask)
+Row::setval(const Par& par, uint colmask)
 {
   const Tab& tab = m_tab;
   Rsq rsq(tab.m_cols);
@@ -2394,7 +2364,7 @@ Row::setval(Par par, uint colmask)
 }
 
 int
-Row::setval(Par par, const ITab& itab)
+Row::setval(const Par& par, const ITab& itab)
 {
   Rsq rsq(itab.m_icols);
   for (uint k = 0; k < itab.m_icols; k++) {
@@ -2409,7 +2379,7 @@ Row::setval(Par par, const ITab& itab)
 }
 
 int
-Row::insrow(Par par)
+Row::insrow(const Par& par)
 {
   Con& con = par.con();
   const Tab& tab = m_tab;
@@ -2425,7 +2395,7 @@ Row::insrow(Par par)
 }
 
 int
-Row::updrow(Par par)
+Row::updrow(const Par& par)
 {
   Con& con = par.con();
   const Tab& tab = m_tab;
@@ -2441,7 +2411,7 @@ Row::updrow(Par par)
 }
 
 int
-Row::updrow(Par par, const ITab& itab)
+Row::updrow(const Par& par, const ITab& itab)
 {
   Con& con = par.con();
   const Tab& tab = m_tab;
@@ -2458,7 +2428,7 @@ Row::updrow(Par par, const ITab& itab)
 }
 
 int
-Row::delrow(Par par)
+Row::delrow(const Par& par)
 {
   Con& con = par.con();
   const Tab& tab = m_tab;
@@ -2473,7 +2443,7 @@ Row::delrow(Par par)
 }
 
 int
-Row::delrow(Par par, const ITab& itab)
+Row::delrow(const Par& par, const ITab& itab)
 {
   Con& con = par.con();
   const Tab& tab = m_tab;
@@ -2489,7 +2459,7 @@ Row::delrow(Par par, const ITab& itab)
 }
 
 int
-Row::selrow(Par par)
+Row::selrow(const Par& par)
 {
   Con& con = par.con();
   const Tab& tab = m_tab;
@@ -2501,7 +2471,7 @@ Row::selrow(Par par)
 }
 
 int
-Row::selrow(Par par, const ITab& itab)
+Row::selrow(const Par& par, const ITab& itab)
 {
   Con& con = par.con();
   const Tab& tab = m_tab;
@@ -2514,7 +2484,7 @@ Row::selrow(Par par, const ITab& itab)
 }
 
 int
-Row::setrow(Par par)
+Row::setrow(const Par& par)
 {
   Con& con = par.con();
   const Tab& tab = m_tab;
@@ -2529,7 +2499,7 @@ Row::setrow(Par par)
 // compare
 
 int
-Row::cmp(Par par, const Row& row2) const
+Row::cmp(const Par& par, const Row& row2) const
 {
   const Tab& tab = m_tab;
   require(&tab == &row2.m_tab);
@@ -2544,7 +2514,7 @@ Row::cmp(Par par, const Row& row2) const
 }
 
 int
-Row::cmp(Par par, const Row& row2, const ITab& itab) const
+Row::cmp(const Par& par, const Row& row2, const ITab& itab) const
 {
   const Tab& tab = m_tab;
   int c = 0;
@@ -2562,7 +2532,7 @@ Row::cmp(Par par, const Row& row2, const ITab& itab) const
 }
 
 int
-Row::verify(Par par, const Row& row2, bool pkonly) const
+Row::verify(const Par& par, const Row& row2, bool pkonly) const
 {
   const Tab& tab = m_tab;
   const Row& row1 = *this;
@@ -2651,7 +2621,7 @@ operator<<(NdbOut& out, const Row& row)
 
 struct Set {
   const Tab& m_tab;
-  uint m_rows;
+  const uint m_rows;
   Row** m_row;
   uint* m_rowkey; // maps row number (from 0) in scan to tuple key
   Row* m_keyrow;
@@ -2660,31 +2630,31 @@ struct Set {
   Set(const Tab& tab, uint rows);
   ~Set();
   void reset();
-  bool compat(Par par, uint i, const Row::Op op) const;
+  bool compat(const Par& par, uint i, const Row::Op op) const;
   void push(uint i);
   void copyval(uint i, uint colmask = ~0); // from bi
-  void calc(Par par, uint i, uint colmask = ~0);
+  void calc(const Par& par, uint i, uint colmask = ~0);
   uint count() const;
   const Row* getrow(uint i, bool dirty = false) const;
   int setrow(uint i, const Row* src, bool force=false);
   // transaction
-  void post(Par par, ExecType et);
+  void post(const Par& par, ExecType et);
   // operations
-  int insrow(Par par, uint i);
-  int updrow(Par par, uint i);
-  int updrow(Par par, const ITab& itab, uint i);
-  int delrow(Par par, uint i);
-  int delrow(Par par, const ITab& itab, uint i);
-  int selrow(Par par, const Row& keyrow);
-  int selrow(Par par, const ITab& itab, const Row& keyrow);
-  int setrow(Par par, uint i);
-  int getval(Par par);
-  int getkey(Par par, uint* i);
+  int insrow(const Par& par, uint i);
+  int updrow(const Par& par, uint i);
+  int updrow(const Par& par, const ITab& itab, uint i);
+  int delrow(const Par& par, uint i);
+  int delrow(const Par& par, const ITab& itab, uint i);
+  int selrow(const Par& par, const Row& keyrow);
+  int selrow(const Par& par, const ITab& itab, const Row& keyrow);
+  int setrow(const Par& par, uint i);
+  int getval(const Par& par);
+  int getkey(const Par& par, uint* i);
   int putval(uint i, bool force, uint n = ~0);
   // compare
-  void sort(Par par, const ITab& itab);
-  int verify(Par par, const Set& set2, bool pkonly, bool dirty = false) const;
-  int verifyorder(Par par, const ITab& itab, bool descending) const;
+  void sort(const Par& par, const ITab& itab);
+  int verify(const Par& par, const Set& set2, bool pkonly, bool dirty = false) const;
+  int verifyorder(const Par& par, const ITab& itab, bool descending) const;
   // protect structure
   NdbMutex* m_mutex;
   void lock() const {
@@ -2694,16 +2664,15 @@ struct Set {
     NdbMutex_Unlock(m_mutex);
   }
 private:
-  void sort(Par par, const ITab& itab, uint lo, uint hi);
+  void sort(const Par& par, const ITab& itab, uint lo, uint hi);
   Set& operator=(const Set& set2);
 };
 
 // construct
 
 Set::Set(const Tab& tab, uint rows) :
-  m_tab(tab)
+  m_tab(tab), m_rows(rows)
 {
-  m_rows = rows;
   m_row = new Row* [m_rows];
   for (uint i = 0; i < m_rows; i++) {
     m_row[i] = 0;
@@ -2737,13 +2706,14 @@ void
 Set::reset()
 {
   for (uint i = 0; i < m_rows; i++) {
+    delete m_row[i];
     m_row[i] = 0;
   }
 }
 
 // this sucks
 bool
-Set::compat(Par par, uint i, const Row::Op op) const
+Set::compat(const Par& par, uint i, const Row::Op op) const
 {
   Con& con = par.con();
   int ret = -1;
@@ -2825,7 +2795,7 @@ Set::copyval(uint i, uint colmask)
 }
 
 void
-Set::calc(Par par, uint i, uint colmask)
+Set::calc(const Par& par, uint i, uint colmask)
 {
   require(m_row[i] != 0);
   Row& row = *m_row[i];
@@ -2868,11 +2838,16 @@ Set::setrow(uint i, const Row* src, bool force)
 {
   require(i < m_rows);
   if (m_row[i] != 0)
+  {
     if (!force)
       return -1;
+    delete m_row[i];
+    m_row[i] = 0;
+  }
   
   Row* newRow= new Row(src->m_tab);
   newRow->copy(*src, true);
+  m_row[i] = newRow;
   return 0;
 }
 
@@ -2880,7 +2855,7 @@ Set::setrow(uint i, const Row* src, bool force)
 // transaction
 
 void
-Set::post(Par par, ExecType et)
+Set::post(const Par& par, ExecType et)
 {
   LL4("post");
   Con& con = par.con();
@@ -2946,7 +2921,7 @@ Set::post(Par par, ExecType et)
 // operations
 
 int
-Set::insrow(Par par, uint i)
+Set::insrow(const Par& par, uint i)
 {
   require(m_row[i] != 0);
   Row& row = *m_row[i];
@@ -2955,7 +2930,7 @@ Set::insrow(Par par, uint i)
 }
 
 int
-Set::updrow(Par par, uint i)
+Set::updrow(const Par& par, uint i)
 {
   require(m_row[i] != 0);
   Row& row = *m_row[i];
@@ -2964,7 +2939,7 @@ Set::updrow(Par par, uint i)
 }
 
 int
-Set::updrow(Par par, const ITab& itab, uint i)
+Set::updrow(const Par& par, const ITab& itab, uint i)
 {
   require(m_row[i] != 0);
   Row& row = *m_row[i];
@@ -2973,7 +2948,7 @@ Set::updrow(Par par, const ITab& itab, uint i)
 }
 
 int
-Set::delrow(Par par, uint i)
+Set::delrow(const Par& par, uint i)
 {
   require(m_row[i] != 0);
   Row& row = *m_row[i];
@@ -2982,7 +2957,7 @@ Set::delrow(Par par, uint i)
 }
 
 int
-Set::delrow(Par par, const ITab& itab, uint i)
+Set::delrow(const Par& par, const ITab& itab, uint i)
 {
   require(m_row[i] != 0);
   Row& row = *m_row[i];
@@ -2991,7 +2966,7 @@ Set::delrow(Par par, const ITab& itab, uint i)
 }
 
 int
-Set::selrow(Par par, const Row& keyrow)
+Set::selrow(const Par& par, const Row& keyrow)
 {
   const Tab& tab = par.tab();
   LL5("selrow " << tab.m_name << " keyrow " << keyrow);
@@ -3002,7 +2977,7 @@ Set::selrow(Par par, const Row& keyrow)
 }
 
 int
-Set::selrow(Par par, const ITab& itab, const Row& keyrow)
+Set::selrow(const Par& par, const ITab& itab, const Row& keyrow)
 {
   LL5("selrow " << itab.m_name << " keyrow " << keyrow);
   m_keyrow->copyval(keyrow, itab.m_keymask);
@@ -3012,7 +2987,7 @@ Set::selrow(Par par, const ITab& itab, const Row& keyrow)
 }
 
 int
-Set::setrow(Par par, uint i)
+Set::setrow(const Par& par, uint i)
 {
   require(m_row[i] != 0);
   CHK(m_row[i]->setrow(par) == 0);
@@ -3020,7 +2995,7 @@ Set::setrow(Par par, uint i)
 }
 
 int
-Set::getval(Par par)
+Set::getval(const Par& par)
 {
   Con& con = par.con();
   const Tab& tab = m_tab;
@@ -3033,7 +3008,7 @@ Set::getval(Par par)
 }
 
 int
-Set::getkey(Par par, uint* i)
+Set::getkey(const Par& par, uint* i)
 {
   const Tab& tab = m_tab;
   uint k = tab.m_keycol;
@@ -3082,14 +3057,14 @@ Set::putval(uint i, bool force, uint n)
 // compare
 
 void
-Set::sort(Par par, const ITab& itab)
+Set::sort(const Par& par, const ITab& itab)
 {
   if (m_rows != 0)
     sort(par, itab, 0, m_rows - 1);
 }
 
 void
-Set::sort(Par par, const ITab& itab, uint lo, uint hi)
+Set::sort(const Par& par, const ITab& itab, uint lo, uint hi)
 {
   require(lo < m_rows && hi < m_rows && lo <= hi);
   Row* const p = m_row[lo];
@@ -3122,7 +3097,7 @@ Set::sort(Par par, const ITab& itab, uint lo, uint hi)
  * to set1: false = use latest row, true = use committed row.
  */
 int
-Set::verify(Par par, const Set& set2, bool pkonly, bool dirty) const
+Set::verify(const Par& par, const Set& set2, bool pkonly, bool dirty) const
 {
   const Set& set1 = *this;
   require(&set1.m_tab == &set2.m_tab && set1.m_rows == set2.m_rows);
@@ -3164,7 +3139,7 @@ Set::verify(Par par, const Set& set2, bool pkonly, bool dirty) const
 }
 
 int
-Set::verifyorder(Par par, const ITab& itab, bool descending) const
+Set::verifyorder(const Par& par, const ITab& itab, bool descending) const
 {
   for (uint n = 0; n < m_rows; n++) {
     uint i2 = m_rowkey[n];
@@ -3215,8 +3190,8 @@ struct BVal : public Val {
   const ICol& m_icol;
   int m_type;
   BVal(const ICol& icol);
-  int setbnd(Par par) const;
-  int setflt(Par par) const;
+  int setbnd(const Par& par) const;
+  int setflt(const Par& par) const;
 };
 
 BVal::BVal(const ICol& icol) :
@@ -3226,7 +3201,7 @@ BVal::BVal(const ICol& icol) :
 }
 
 int
-BVal::setbnd(Par par) const
+BVal::setbnd(const Par& par) const
 {
   Con& con = par.con();
   require(g_compare_null || !m_null);
@@ -3237,7 +3212,7 @@ BVal::setbnd(Par par) const
 }
 
 int
-BVal::setflt(Par par) const
+BVal::setflt(const Par& par) const
 {
   static uint index_bound_to_filter_bound[5] = {
     NdbScanFilter::COND_GE,
@@ -3282,10 +3257,10 @@ struct BSet {
   ~BSet();
   void reset();
   void calc(Par par);
-  void calcpk(Par par, uint i);
-  int setbnd(Par par) const;
-  int setflt(Par par) const;
-  void filter(Par par, const Set& set, Set& set2) const;
+  void calcpk(const Par& par, uint i);
+  int setbnd(const Par& par) const;
+  int setflt(const Par& par) const;
+  void filter(const Par& par, const Set& set, Set& set2) const;
 };
 
 BSet::BSet(const Tab& tab, const ITab& itab) :
@@ -3302,6 +3277,9 @@ BSet::BSet(const Tab& tab, const ITab& itab) :
 
 BSet::~BSet()
 {
+  for (uint i = 0; i < m_alloc; i++) {
+    delete m_bval[i];
+  }
   delete [] m_bval;
 }
 
@@ -3369,7 +3347,7 @@ BSet::calc(Par par)
 }
 
 void
-BSet::calcpk(Par par, uint i)
+BSet::calcpk(const Par& par, uint i)
 {
   const ITab& itab = m_itab;
   reset();
@@ -3386,7 +3364,7 @@ BSet::calcpk(Par par, uint i)
 }
 
 int
-BSet::setbnd(Par par) const
+BSet::setbnd(const Par& par) const
 {
   if (m_bvals != 0) {
     Rsq rsq1(m_bvals);
@@ -3400,7 +3378,7 @@ BSet::setbnd(Par par) const
 }
 
 int
-BSet::setflt(Par par) const
+BSet::setflt(const Par& par) const
 {
   Con& con = par.con();
   CHK(con.getNdbScanFilter() == 0);
@@ -3424,7 +3402,7 @@ BSet::setflt(Par par) const
 }
 
 void
-BSet::filter(Par par, const Set& set, Set& set2) const
+BSet::filter(const Par& par, const Set& set, Set& set2) const
 {
   const Tab& tab = m_tab;
   const ITab& itab = m_itab;
@@ -3643,7 +3621,7 @@ pkdelete(Par par)
 
 #if 0
 static int
-pkread(Par par)
+pkread(const Par& par)
 {
   Con& con = par.con();
   const Tab& tab = par.tab();
@@ -3677,7 +3655,7 @@ pkread(Par par)
 #endif
 
 static int
-pkreadfast(Par par, uint count)
+pkreadfast(const Par& par, uint count)
 {
   Con& con = par.con();
   const Tab& tab = par.tab();
@@ -3704,7 +3682,7 @@ pkreadfast(Par par, uint count)
 // hash index operations
 
 static int
-hashindexupdate(Par par, const ITab& itab)
+hashindexupdate(const Par& par, const ITab& itab)
 {
   Con& con = par.con();
   const Tab& tab = par.tab();
@@ -3754,7 +3732,7 @@ hashindexupdate(Par par, const ITab& itab)
 }
 
 static int
-hashindexdelete(Par par, const ITab& itab)
+hashindexdelete(const Par& par, const ITab& itab)
 {
   Con& con = par.con();
   Set& set = par.set();
@@ -3800,7 +3778,7 @@ hashindexdelete(Par par, const ITab& itab)
 }
 
 static int
-hashindexread(Par par, const ITab& itab)
+hashindexread(const Par& par, const ITab& itab)
 {
   Con& con = par.con();
   const Tab& tab = par.tab();
@@ -3835,7 +3813,7 @@ hashindexread(Par par, const ITab& itab)
 // scan read
 
 static int
-scanreadtable(Par par)
+scanreadtable(const Par& par)
 {
   Con& con = par.con();
   const Tab& tab = par.tab();
@@ -3874,7 +3852,7 @@ scanreadtable(Par par)
 }
 
 static int
-scanreadtablefast(Par par, uint countcheck)
+scanreadtablefast(const Par& par, uint countcheck)
 {
   Con& con = par.con();
   const Tab& tab = par.tab();
@@ -3901,7 +3879,7 @@ scanreadtablefast(Par par, uint countcheck)
 
 // try to get interesting bounds
 static void
-calcscanbounds(Par par, const ITab& itab, BSet& bset, const Set& set, Set& set1)
+calcscanbounds(const Par& par, const ITab& itab, BSet& bset, const Set& set, Set& set1)
 {
   while (true) {
     bset.calc(par);
@@ -3917,7 +3895,7 @@ calcscanbounds(Par par, const ITab& itab, BSet& bset, const Set& set, Set& set1)
 }
 
 static int
-scanreadindex(Par par, const ITab& itab, BSet& bset, bool calc)
+scanreadindex(const Par& par, const ITab& itab, BSet& bset, bool calc)
 {
   Con& con = par.con();
   const Tab& tab = par.tab();
@@ -3949,6 +3927,61 @@ scanreadindex(Par par, const ITab& itab, BSet& bset, bool calc)
     }
     uint i = (uint)-1;
     CHK(set2.getkey(par, &i) == 0);
+
+    // Debug code to track down 'putval()' of duplicate records.
+    if (!par.m_dups && set2.m_row[i] != nullptr) {
+      Row tmp(tab);
+      for (uint k = 0; k < tab.m_cols; k++) {
+        Val& val = *tmp.m_val[k];
+        NdbRecAttr* rec = set2.m_rec[k];
+        require(rec != 0);
+        if (rec->isNULL()) {
+          val.m_null = true;
+          continue;
+        }
+        const char* aRef = rec->aRef();
+        val.copy(aRef);
+        val.m_null = false;
+      }
+
+      LL0("scanreadindex read duplicate, total rows expected in set: " << set1.count());
+      LL0("  read so far: " << set2.count());
+      LL0("  nextScanResult returned: " << ret << ", err: " << err);
+      LL0("");
+
+      LL0("  Row key existed, key=" << i << " row#" << n
+	   << "\n     old=" << *set2.m_row[i]
+           << "\n     new=" << tmp
+      );
+
+      LL0("------------ Set expected -----------");
+      for (uint i=0; i<set1.m_rows; i++) {
+	Row *row = set1.m_row[i];
+	if (row != nullptr) {
+	  LL0("Row#" << i << ", " << *row);
+	}
+      }
+
+      LL0("------------ Set read ---------------");
+      for (uint i=0; i<set2.m_rows; i++) {
+	Row *row = set2.m_row[i];
+	if (row != nullptr) {
+	  LL0("Row#" << i << ", " << *row);
+	}
+      }
+      LL0("-------------------------------------");
+
+      LL0("scanreadindex read duplicate, total rows expected in set: " << set1.count());
+      LL0("  read so far: " << set2.count());
+      LL0("  nextScanResult returned: " << ret << ", err: " << err);
+      LL0("");
+
+      LL0("  Row key existed, key=" << i << " row#" << n
+	   << "\n     old=" << *set2.m_row[i]
+           << "\n     new=" << tmp
+      );
+    }
+
     CHK(set2.putval(i, par.m_dups, n) == 0);
     LL4("key " << i << " row " << n << " " << *set2.m_row[i]);
     n++;
@@ -3980,10 +4013,10 @@ scanreadindexmrr(Par par, const ITab& itab, int numBsets)
   Set** actualResults;
   uint* setSizes;
 
-  CHK((boundSets= (BSet**) malloc(numBsets * sizeof(BSet*))) != 0);
-  CHK((expectedResults= (Set**) malloc(numBsets * sizeof(Set*))) != 0);
-  CHK((actualResults= (Set**) malloc(numBsets * sizeof(Set*))) != 0);
-  CHK((setSizes= (uint*) malloc(numBsets * sizeof(uint))) != 0);
+  boundSets=       new BSet* [numBsets];
+  expectedResults= new Set* [numBsets];
+  actualResults=   new Set* [numBsets];
+  setSizes=        new uint[numBsets];
 
   for (int n=0; n < numBsets; n++)
   {
@@ -4048,8 +4081,8 @@ scanreadindexmrr(Par par, const ITab& itab, int numBsets)
     CHK((uint) rowNum < set2.m_rows);
     actualResults[rangeNum]->m_row[i]= set2.m_row[i];
     actualResults[rangeNum]->m_rowkey[rowNum]= i;
-    set2.m_row[i]= 0;
     LL4("range " << rangeNum << " key " << i << " row " << rowNum << " " << *set2.m_row[i]);
+    set2.m_row[i]= 0;
     rows_received++;
   }
   con.closeTransaction();
@@ -4080,18 +4113,17 @@ scanreadindexmrr(Par par, const ITab& itab, int numBsets)
     delete expectedResults[n];
     delete actualResults[n];
   }
-
-  free(boundSets);
-  free(expectedResults);
-  free(actualResults);
-  free(setSizes);
+  delete [] boundSets;
+  delete [] expectedResults;
+  delete [] actualResults;
+  delete [] setSizes;
 
   LL3("scanreadindexmrr " << itab.m_name << " done rows=" << rows_received);
   return 0;
 }
 
 static int
-scanreadindexfast(Par par, const ITab& itab, const BSet& bset, uint countcheck)
+scanreadindexfast(const Par& par, const ITab& itab, const BSet& bset, uint countcheck)
 {
   Con& con = par.con();
   const Tab& tab = par.tab();
@@ -4119,7 +4151,7 @@ scanreadindexfast(Par par, const ITab& itab, const BSet& bset, uint countcheck)
 }
 
 static int
-scanreadfilter(Par par, const ITab& itab, BSet& bset, bool calc)
+scanreadfilter(const Par& par, const ITab& itab, BSet& bset, bool calc)
 {
   Con& con = par.con();
   const Tab& tab = par.tab();
@@ -4164,7 +4196,7 @@ scanreadfilter(Par par, const ITab& itab, BSet& bset, bool calc)
 }
 
 static int
-scanreadindex(Par par, const ITab& itab)
+scanreadindex(const Par& par, const ITab& itab)
 {
   const Tab& tab = par.tab();
   for (uint i = 0; i < par.m_ssloop; i++) {
@@ -4184,7 +4216,7 @@ scanreadindex(Par par, const ITab& itab)
 }
 
 static int
-scanreadindex(Par par)
+scanreadindex(const Par& par)
 {
   const Tab& tab = par.tab();
   for (uint i = 0; i < tab.m_itabs; i++) {
@@ -4445,7 +4477,7 @@ out:
 }
 
 static int
-scanupdateindex(Par par, const ITab& itab)
+scanupdateindex(const Par& par, const ITab& itab)
 {
   const Tab& tab = par.tab();
   for (uint i = 0; i < par.m_ssloop; i++) {
@@ -4460,7 +4492,7 @@ scanupdateindex(Par par, const ITab& itab)
 }
 
 static int
-scanupdateindex(Par par)
+scanupdateindex(const Par& par)
 {
   const Tab& tab = par.tab();
   for (uint i = 0; i < tab.m_itabs; i++) {
@@ -4474,7 +4506,7 @@ scanupdateindex(Par par)
 
 #if 0
 static int
-scanupdateall(Par par)
+scanupdateall(const Par& par)
 {
   CHK(scanupdatetable(par) == 0);
   CHK(scanupdateindex(par) == 0);
@@ -4505,7 +4537,7 @@ readverifyfull(Par par)
   }
   // each thread scans different indexes
   for (uint i = 0; i < tab.m_itabs; i++) {
-    if (i % par.m_usedthreads != par.m_no)
+    if ((i % par.m_usedthreads) != par.m_no)
       continue;
     if (tab.m_itab[i] == 0)
       continue;
@@ -4702,7 +4734,7 @@ static Spt sptlist[] = {
 static uint sptcount = sizeof(sptlist)/sizeof(sptlist[0]);
 
 static int
-savepointreadpk(Par par, Spt spt)
+savepointreadpk(const Par& par, Spt spt)
 {
   LL3("savepointreadpk");
   Con& con = par.con();
@@ -4745,7 +4777,7 @@ savepointreadpk(Par par, Spt spt)
 }
 
 static int
-savepointreadhashindex(Par par, Spt spt)
+savepointreadhashindex(const Par& par, Spt spt)
 {
   if (spt.m_lm == NdbOperation::LM_CommittedRead && !spt.m_same) {
     LL1("skip hash index dirty read");
@@ -4793,7 +4825,7 @@ savepointreadhashindex(Par par, Spt spt)
 }
 
 static int
-savepointscantable(Par par, Spt spt)
+savepointscantable(const Par& par, Spt spt)
 {
   LL3("savepointscantable");
   Con& con = par.con();
@@ -4844,7 +4876,7 @@ savepointscantable(Par par, Spt spt)
 }
 
 static int
-savepointscanindex(Par par, Spt spt)
+savepointscanindex(const Par& par, Spt spt)
 {
   LL3("savepointscanindex");
   Con& con = par.con();
@@ -4895,10 +4927,10 @@ savepointscanindex(Par par, Spt spt)
   return 0;
 }
 
-typedef int (*SptFun)(Par, Spt);
+typedef int (*SptFun)(const Par&, Spt);
 
 static int
-savepointtest(Par par, Spt spt, SptFun fun)
+savepointtest(const Par& par, Spt spt, SptFun fun)
 {
   Con& con = par.con();
   Par par2 = par;
@@ -5102,10 +5134,11 @@ enum TMode { ST = 1, MT = 2 };
 extern "C" { static void* runthread(void* arg); }
 
 struct Thr {
+  const char* m_name;
   enum State { Wait, Start, Stop, Exit };
   State m_state;
   Par m_par;
-  pthread_t m_id;
+  my_thread_t m_id;
   NdbThread* m_thread;
   NdbMutex* m_mutex;
   NdbCondition* m_cond;
@@ -5113,7 +5146,7 @@ struct Thr {
   int m_ret;
   void* m_status;
   char m_tmp[20]; // used for debug msg prefix
-  Thr(Par par, uint n);
+  Thr(const Par& par, uint n);
   ~Thr();
   int run();
   void start();
@@ -5134,11 +5167,11 @@ struct Thr {
   }
   void join() {
     NdbThread_WaitFor(m_thread, &m_status);
-    m_thread = 0;
   }
 };
 
-Thr::Thr(Par par, uint n) :
+Thr::Thr(const Par& par, uint n) :
+  m_name(0),
   m_state(Wait),
   m_par(par),
   m_thread(0),
@@ -5151,7 +5184,7 @@ Thr::Thr(Par par, uint n) :
   m_par.m_no = n;
   char buf[10];
   sprintf(buf, "thr%03u", par.m_no);
-  const char* name = strcpy(new char[10], buf);
+  m_name = strcpy(new char[10], buf);
   // mutex
   m_mutex = NdbMutex_Create();
   m_cond = NdbCondition_Create();
@@ -5159,7 +5192,7 @@ Thr::Thr(Par par, uint n) :
   // run
   const uint stacksize = 256 * 1024;
   const NDB_THREAD_PRIO prio = NDB_THREAD_PRIO_LOW;
-  m_thread = NdbThread_Create(runthread, (void**)this, stacksize, name, prio);
+  m_thread = NdbThread_Create(runthread, (void**)this, stacksize, m_name, prio);
 }
 
 Thr::~Thr()
@@ -5176,13 +5209,14 @@ Thr::~Thr()
     NdbMutex_Destroy(m_mutex);
     m_mutex = 0;
   }
+  delete [] m_name;
 }
 
 static void*
 runthread(void* arg)
 {
   Thr& thr = *(Thr*)arg;
-  thr.m_id = pthread_self();
+  thr.m_id = my_thread_self();
   if (thr.run() < 0) {
     LL1("exit on error");
   } else {
@@ -5264,11 +5298,11 @@ static Thr*
 getthr()
 {
   if (g_thrlist != 0) {
-    pthread_t id = pthread_self();
+    my_thread_t id = my_thread_self();
     for (uint n = 0; n < g_opt.m_threads; n++) {
       if (g_thrlist[n] != 0) {
         Thr& thr = *g_thrlist[n];
-        if (pthread_equal(thr.m_id, id))
+        if (my_thread_equal(thr.m_id, id))
           return &thr;
       }
     }
@@ -5745,9 +5779,9 @@ runtest(Par par)
   int totret = 0;
   if (par.m_seed == -1) {
     // good enough for daily run
-    ushort seed = (ushort)getpid();
+    const int seed = NdbHost_GetProcessId();
     LL0("random seed: " << seed);
-    srandom((uint)seed);
+    srandom(seed);
   } else if (par.m_seed != 0) {
     LL0("random seed: " << par.m_seed);
     srandom(par.m_seed);
@@ -5838,6 +5872,7 @@ static const char* g_progname = "testOIBasic";
 int
 main(int argc,  char** argv)
 {
+  initcslist();
   ndb_init();
   uint i;
   ndbout << g_progname;
@@ -5871,10 +5906,6 @@ main(int argc,  char** argv)
         g_opt.m_case = strdup(argv[0]);
         continue;
       }
-    }
-    if (strcmp(arg, "-collsp") == 0) {
-      g_opt.m_collsp = true;
-      continue;
     }
     if (strcmp(arg, "-cont") == 0) {
       g_opt.m_cont = true;
@@ -6045,6 +6076,17 @@ main(int argc,  char** argv)
     g_ncc = 0;
   }
 // ok
+  if (tablist)
+  {
+    for (uint i = 0; i < tabcount; i++) {
+      delete tablist[i];
+    }
+    delete [] tablist;
+  }
+  for (uint i = 0; i < maxcsnumber; i++) {
+    delete cslist[i];
+  }
+  ndb_end(0);
   return NDBT_ProgramExit(NDBT_OK);
 failed:
   return NDBT_ProgramExit(NDBT_FAILED);

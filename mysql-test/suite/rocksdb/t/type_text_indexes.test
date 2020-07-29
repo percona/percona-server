@@ -55,7 +55,7 @@ CREATE TABLE t1 (
   m MEDIUMTEXT,
   l LONGTEXT,
   pk MEDIUMTEXT,
-  PRIMARY KEY mt (pk(1)),
+  PRIMARY KEY mt (pk(2)),
   INDEX (m(128))
 ) ENGINE=rocksdb;
 

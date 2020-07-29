@@ -2,8 +2,6 @@
 # This test case will verify that no unencrypted data is in the logs
 
 --source include/no_valgrind_without_big.inc
---source include/have_innodb.inc
---source include/not_embedded.inc
 
 # Test: command line parameter
 
@@ -30,5 +28,5 @@ SET GLOBAL innodb_redo_log_encrypt=OFF;
 
 # Cleanup
 --eval SET GLOBAL innodb_redo_log_encrypt=$LOG_ENCRYPT_TYPE
---remove_file $MYSQL_TMP_DIR/mysecret_keyring_content
+#--remove_file $MYSQL_TMP_DIR/mysecret_keyring_content
 

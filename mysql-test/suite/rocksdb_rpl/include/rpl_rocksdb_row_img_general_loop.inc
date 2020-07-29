@@ -13,7 +13,7 @@
 #
 # Sample usage:
 #   -- let $row_img_test_script= extra/rpl_tests/rpl_row_img.test
-#   -- source suite/rocksdb_rpl/include/rpl_rocksdb_row_img_general_loop.inc
+#   -- source suite/rocksdb.rpl/include/rpl_rocksdb_row_img_general_loop.inc
 
 
 -- let $engine_type_a= 2

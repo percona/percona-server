@@ -119,8 +119,6 @@ fi
 # Create options 
 libs="@QUOTED_CMAKE_CXX_LINK_FLAGS@-L$pkglibdir@RPATH_OPTION@"
 libs="$libs -l@LIBMYSQL_OS_OUTPUT_NAME@ @CONFIG_CLIENT_LIBS@"
-embedded_libs="@QUOTED_CMAKE_CXX_LINK_FLAGS@-L$pkglibdir@RPATH_OPTION@"
-embedded_libs="$embedded_libs -l@LIBEMBED_OS_OUTPUT_NAME@ @CONFIG_EMBEDD_LIBS@"
 
 cflags="-I$pkgincludedir @CFLAGS@"
 cxxflags="-I$pkgincludedir @CXXFLAGS@"
@@ -140,7 +138,7 @@ Options:
         --plugindir      [$plugindir]
         --socket         [$socket]
         --port           [$port]
-        --version        [$version]@LIBMYSQLD_LIBS_USAGE@
+        --version        [$version]
         --variable=VAR   VAR is one of:
                 pkgincludedir [$pkgincludedir]
                 pkglibdir     [$pkglibdir]
@@ -162,7 +160,6 @@ while test $# -gt 0; do
         --socket)  echo "$socket" ;;
         --port)    echo "$port" ;;
         --version) echo "$version" ;;
-        --embedded-libs | --embedded | --libmysqld-libs) @DISABLE_EMBEDDED_SH@ echo "$embedded_libs" ;;
         --variable=*)
           var=`echo "$1" | sed 's,^[^=]*=,,'`
           case "$var" in

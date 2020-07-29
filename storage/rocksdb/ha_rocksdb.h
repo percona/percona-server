@@ -23,6 +23,7 @@
 
 /* C++ standard header files */
 #include <cinttypes>
+#include <regex>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -30,11 +31,12 @@
 #include <vector>
 
 /* MySQL header files */
-#include "field.h"
-#include "handler.h"   /* handler */
-#include "my_global.h" /* ulonglong */
+#include "ib_ut0counter.h"
 #include "my_icp.h"
-#include "sql_bitmap.h"
+#include "mysql/psi/mysql_rwlock.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/sql_bitmap.h"
 #include "sql_string.h"
 
 /* RocksDB header files */
@@ -79,12 +81,13 @@ class Rdb_transaction;
 class Rdb_transaction_impl;
 class Rdb_writebatch_impl;
 class Rdb_field_encoder;
+class Regex_list_handler;
 
 extern char *rocksdb_read_free_rpl_tables;
 #if defined(HAVE_PSI_INTERFACE)
 extern PSI_rwlock_key key_rwlock_read_free_rpl_tables;
 #endif
-extern Regex rdb_read_free_regex_handler;
+extern Regex_list_handler rdb_read_free_regex_handler;
 
 /**
   @brief
@@ -281,7 +284,7 @@ class ha_rocksdb : public my_core::handler {
     to be updated.
     @note Valid inside UPDATE statements, IIF(old_pk_slice is set).
   */
-  my_core::key_map m_update_scope;
+  my_core::Bitmap<((MAX_INDEXES + 7) / 8 * 8)> m_update_scope;
 
   /* SST information used for bulk loading the primary key */
   std::shared_ptr<Rdb_sst_info> m_sst_info;
@@ -368,7 +371,7 @@ class ha_rocksdb : public my_core::handler {
     current lookup to be covered. If the bitmap field is null, that means this
     index does not cover the current lookup for any record.
    */
-  MY_BITMAP m_lookup_bitmap = {nullptr, 0, 0, nullptr, nullptr};
+  MY_BITMAP m_lookup_bitmap;
 
   int alloc_key_buffers(const TABLE *const table_arg,
                         const Rdb_tbl_def *const tbl_def_arg,
@@ -412,18 +415,6 @@ class ha_rocksdb : public my_core::handler {
     DBUG_RETURN(rocksdb_hton_name);
   }
 
-  /* The following is only used by SHOW KEYS: */
-  const char *index_type(uint inx) override {
-    DBUG_ENTER_FUNC();
-
-    DBUG_RETURN("LSMTREE");
-  }
-
-  /** @brief
-    The file extensions.
-   */
-  const char **bas_ext() const override;
-
   /*
     Returns the name of the table's base name
   */
@@ -441,12 +432,9 @@ class ha_rocksdb : public my_core::handler {
         We are saying that this engine is just statement capable to have
         an engine that can only handle statement-based logging. This is
         used in testing.
-      HA_REC_NOT_IN_SEQ
-        If we don't set it, filesort crashes, because it assumes rowids are
-        1..8 byte numbers
     */
     DBUG_RETURN(HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
-                HA_REC_NOT_IN_SEQ | HA_CAN_INDEX_BLOBS |
+                HA_CAN_INDEX_BLOBS |
                 (m_pk_can_be_decoded ? HA_PRIMARY_KEY_IN_READ_INDEX : 0) |
                 HA_PRIMARY_KEY_REQUIRED_FOR_POSITION | HA_NULL_IN_KEY |
                 HA_PARTIAL_COLUMN_READ | HA_ONLINE_ANALYZE);
@@ -470,13 +458,7 @@ class ha_rocksdb : public my_core::handler {
   */
   ulong index_flags(uint inx, uint part, bool all_parts) const override;
 
-  bool rpl_can_handle_stm_event() const override;
-
-  const key_map *keys_to_use_for_scanning() override {
-    DBUG_ENTER_FUNC();
-
-    DBUG_RETURN(&key_map_full);
-  }
+  bool rpl_can_handle_stm_event() const noexcept override;
 
   bool primary_key_is_clustered() const override {
     DBUG_ENTER_FUNC();
@@ -488,16 +470,10 @@ class ha_rocksdb : public my_core::handler {
     return m_store_row_debug_checksums && (rand() % 100 < m_checksums_pct);
   }
 
-  MY_NODISCARD
-  int rename_partitioned_table(const char *const from, const char *const to,
-                               const std::string &partition_string);
-
-  MY_NODISCARD
-  int rename_non_partitioned_table(const char *const from,
-                                   const char *const to);
-
-  MY_NODISCARD
-  int rename_table(const char *const from, const char *const to) override;
+  int rename_table(const char *const from, const char *const to,
+                   const dd::Table *from_table_def,
+                   dd::Table *to_table_def) override
+      MY_ATTRIBUTE((__warn_unused_result__));
 
   int convert_record_from_storage_format(const rocksdb::Slice *const key,
                                          const rocksdb::Slice *const value,
@@ -564,7 +540,8 @@ class ha_rocksdb : public my_core::handler {
     DBUG_RETURN(MAX_REF_PARTS);
   }
 
-  uint max_supported_key_part_length(HA_CREATE_INFO *) const override;
+  uint max_supported_key_part_length(
+      HA_CREATE_INFO *create_info) const override;
 
   /** @brief
     unireg.cc will call this to make sure that the storage engine can handle
@@ -624,7 +601,8 @@ class ha_rocksdb : public my_core::handler {
   virtual double read_time(uint, uint, ha_rows rows) override;
   virtual void print_error(int error, myf errflag) override;
 
-  int open(const char *const name, int mode, uint test_if_locked) override
+  int open(const char *const name, int mode, uint test_if_locked,
+           const dd::Table *table_def) override
       MY_ATTRIBUTE((__warn_unused_result__));
   int close(void) override MY_ATTRIBUTE((__warn_unused_result__));
 
@@ -882,7 +860,8 @@ class ha_rocksdb : public my_core::handler {
       MY_ATTRIBUTE((__warn_unused_result__));
   int external_lock(THD *const thd, int lock_type) override
       MY_ATTRIBUTE((__warn_unused_result__));
-  int truncate() override MY_ATTRIBUTE((__warn_unused_result__));
+  int truncate(dd::Table *table_def) override
+      MY_ATTRIBUTE((__warn_unused_result__));
 
   int reset() override {
     DBUG_ENTER_FUNC();
@@ -899,17 +878,12 @@ class ha_rocksdb : public my_core::handler {
   ha_rows records_in_range(uint inx, key_range *const min_key,
                            key_range *const max_key) override
       MY_ATTRIBUTE((__warn_unused_result__));
-  int delete_non_partitioned_table(const char *const from)
-      MY_ATTRIBUTE((__warn_unused_result__));
-  int delete_partitioned_table(const char *const from,
-                               const std::string &partition_info_str)
-      MY_ATTRIBUTE((__warn_unused_result__));
 
   int delete_table(Rdb_tbl_def *const tbl);
-  int delete_table(const char *const from) override
+  int delete_table(const char *const from, const dd::Table *table_def) override
       MY_ATTRIBUTE((__warn_unused_result__));
   int create(const char *const name, TABLE *const form,
-             HA_CREATE_INFO *const create_info) override
+             HA_CREATE_INFO *const create_info, dd::Table *table_def) override
       MY_ATTRIBUTE((__warn_unused_result__));
   int create_table(const std::string &table_name, const TABLE *table_arg,
                    ulonglong auto_increment_value);
@@ -920,16 +894,6 @@ class ha_rocksdb : public my_core::handler {
   THR_LOCK_DATA **store_lock(THD *const thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type) override
       MY_ATTRIBUTE((__warn_unused_result__));
-
-  my_bool register_query_cache_table(THD *const thd, char *const table_key,
-                                     size_t key_length,
-                                     qc_engine_callback *const engine_callback,
-                                     ulonglong *const engine_data) override {
-    DBUG_ENTER_FUNC();
-
-    /* Currently, we don't support query cache */
-    DBUG_RETURN(FALSE);
-  }
 
   bool get_error_message(const int error, String *const buf) override;
 
@@ -949,19 +913,22 @@ class ha_rocksdb : public my_core::handler {
 
   enum_alter_inplace_result check_if_supported_inplace_alter(
       TABLE *altered_table,
-      my_core::Alter_inplace_info *const ha_alter_info) override;
+      my_core::Alter_inplace_info *ha_alter_info) override;
 
-  bool prepare_inplace_alter_table(
-      TABLE *const altered_table,
-      my_core::Alter_inplace_info *const ha_alter_info) override;
+  bool prepare_inplace_alter_table(TABLE *altered_table,
+                                   my_core::Alter_inplace_info *ha_alter_info,
+                                   const dd::Table *old_table_def,
+                                   dd::Table *new_table_def) override;
 
-  bool inplace_alter_table(
-      TABLE *const altered_table,
-      my_core::Alter_inplace_info *const ha_alter_info) override;
+  bool inplace_alter_table(TABLE *altered_table,
+                           my_core::Alter_inplace_info *ha_alter_info,
+                           const dd::Table *old_table_def,
+                           dd::Table *new_table_def) override;
 
   bool commit_inplace_alter_table(
       TABLE *const altered_table,
-      my_core::Alter_inplace_info *const ha_alter_info, bool commit) override;
+      my_core::Alter_inplace_info *const ha_alter_info, bool commit,
+      const dd::Table *old_table_def, dd::Table *new_table_def) override;
 
   bool is_read_free_rpl_table() const;
   int adjust_handler_stats_sst_and_memtable();

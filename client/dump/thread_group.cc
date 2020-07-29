@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,22 +22,18 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "thread_group.h"
+#include "client/dump/thread_group.h"
 
-void my_boost::thread_group::join_all()
-{
-  for (std::vector<my_boost::thread*>::iterator it= m_threads.begin();
-    it != m_threads.end(); ++it)
-  {
+void my_boost::thread_group::join_all() {
+  for (std::vector<my_boost::thread *>::iterator it = m_threads.begin();
+       it != m_threads.end(); ++it) {
     (*it)->join();
   }
 }
 
-my_boost::thread_group::~thread_group()
-{
-  for (std::vector<my_boost::thread*>::iterator it= m_threads.begin();
-    it != m_threads.end(); ++it)
-  {
+my_boost::thread_group::~thread_group() {
+  for (std::vector<my_boost::thread *>::iterator it = m_threads.begin();
+       it != m_threads.end(); ++it) {
     delete *it;
   }
 }

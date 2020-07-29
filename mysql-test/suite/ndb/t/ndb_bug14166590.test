@@ -2,7 +2,6 @@
 # Testing Bug#14166590 DATA NODE CRASHES AT LINE 1388 IN DBTC
 ###########################################################################################
 
--- source include/not_embedded.inc
 -- source include/have_ndb.inc
 # We are using some debug-only features in this test
 --source include/have_ndb_debug.inc
@@ -48,3 +47,4 @@ commit;
 
 connection con1;
 drop table t1;
+--remove_file $NDB_TOOLS_OUTPUT

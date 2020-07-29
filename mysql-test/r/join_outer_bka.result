@@ -5,6 +5,9 @@ grp int(11) default NULL,
 a bigint(20) unsigned default NULL,
 c char(10) NOT NULL default ''
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,1,'a'),(2,2,'b'),(2,3,'c'),(3,4,'E'),(3,5,'C'),(3,6,'D'),(NULL,NULL,'');
 create table t2 (id int, a bigint unsigned not null, c char(10), d int, primary key (a));
 insert into t2 values (1,1,"a",1),(3,4,"A",4),(3,5,"B",5),(3,6,"C",6),(4,7,"D",7);
@@ -14,6 +17,15 @@ grp	a	c	id	a	c	d
 3	4	E	3	4	A	4
 3	5	C	3	5	B	5
 3	6	D	3	6	C	6
+EXPLAIN FORMAT=tree select t1.*,t2.* from t1 left join t2 on (t1.a=t2.a) order by t1.grp,t1.a,t2.c;
+EXPLAIN
+-> Sort: t1.grp, t1.a, t2.c
+    -> Stream results
+        -> Batched key access left join
+            -> Batch input rows
+                -> Table scan on t1  (cost=1.22 rows=7)
+            -> Multi-range index lookup on t2 using PRIMARY (a=t1.a)
+
 select t1.*,t2.* from t1 left join t2 on (t1.a=t2.a) order by t1.grp,t1.a,t2.c;
 grp	a	c	id	a	c	d
 NULL	NULL		NULL	NULL	NULL	NULL
@@ -94,13 +106,13 @@ explain select t1.*,t2.* from t1,t2 where t1.a=t2.a and isnull(t2.a)=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`grp` AS `grp`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`id` AS `id`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t2` where 0
+Note	1003	/* select#1 */ select `test`.`t1`.`grp` AS `grp`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`id` AS `id`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t2` where false
 explain select t1.*,t2.* from t1 left join t2 on t1.a=t2.a where isnull(t2.a)=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	NULL
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	8	test.t1.a	1	100.00	Using where; Using join buffer (Batched Key Access)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`grp` AS `grp`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`id` AS `id`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where (isnull(`test`.`t2`.`a`) = 1)
+Note	1003	/* select#1 */ select `test`.`t1`.`grp` AS `grp`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`id` AS `id`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where ((`test`.`t2`.`a` is null) = 1)
 select t1.*,t2.*,t3.a from t1 left join t2 on (t1.a=t2.a) left join t1 as t3 on (t2.a=t3.a);
 grp	a	c	id	a	c	d	a
 1	1	a	1	1	a	1	1
@@ -174,7 +186,7 @@ usr_id	uniq_id	increment	usr2_id	c_amount	max
 3	4	84676	NULL	NULL	NULL
 INSERT INTO t2 VALUES (2,3,3000,6000,0,0,746584,837484,'yes');
 INSERT INTO t2 VALUES (2,3,3000,6000,0,0,746584,837484,'yes');
-ERROR 23000: Duplicate entry '2-3' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2-3' for key 't2.PRIMARY'
 INSERT INTO t2 VALUES (7,3,1000,2000,0,0,746294,937484,'yes');
 SELECT t1.usr_id,t1.uniq_id,t1.increment,t2.usr2_id,t2.c_amount,t2.max FROM t1 LEFT JOIN t2 ON t2.id = t1.uniq_id WHERE t1.uniq_id = 4 ORDER BY t2.c_amount;
 usr_id	uniq_id	increment	usr2_id	c_amount	max
@@ -198,6 +210,12 @@ co_requisit int(11),
 preco_requisit int(11),
 PRIMARY KEY (cod_asig)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (10360,'asdfggfg','Introduccion a los  Ordenadores I','asdfggfg','Introduccio Ordinadors I',6.0,NULL,NULL,NULL);
 INSERT INTO t1 VALUES (10361,'Components i Circuits Electronics I','Componentes y Circuitos Electronicos I','Components i Circuits Electronics I','Comp. i Circ. Electr. I',6.0,NULL,NULL,NULL);
 INSERT INTO t1 VALUES (10362,'Laboratori d`Ordinadors','Laboratorio de Ordenadores','Laboratori d`Ordinadors','Laboratori Ordinadors',4.5,NULL,NULL,NULL);
@@ -213,6 +231,11 @@ Places smallint(6) DEFAULT '0' NOT NULL,
 PlacesOcupades int(11) DEFAULT '0',
 PRIMARY KEY (idAssignatura,Grup)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (10360,12,333,0);
 INSERT INTO t2 VALUES (10361,30,2,0);
 INSERT INTO t2 VALUES (10361,40,3,0);
@@ -250,6 +273,12 @@ PRIMARY KEY (id),
 UNIQUE dni_pasaporte (dni_pasaporte,idPla),
 UNIQUE dni_pasaporte_2 (dni_pasaporte,idPla,cod_asig,any,quatrimestre)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (1,'11111111',1,10362,98,1,'M');
 CREATE TABLE t4 (
 id int(11) NOT NULL auto_increment,
@@ -260,6 +289,11 @@ PRIMARY KEY (id),
 KEY papa (idPla,papa),
 UNIQUE papa_2 (idPla,papa,fill)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t4 VALUES (1,-1,10360,1);
 INSERT INTO t4 VALUES (2,-1,10361,1);
 INSERT INTO t4 VALUES (3,-1,10362,1);
@@ -293,6 +327,8 @@ id smallint(5) unsigned NOT NULL auto_increment,
 name char(60) DEFAULT '' NOT NULL,
 PRIMARY KEY (id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,'Antonio Paz');
 INSERT INTO t1 VALUES (2,'Lilliana Angelovska');
 INSERT INTO t1 VALUES (3,'Thimble Smith');
@@ -302,6 +338,9 @@ owner smallint(5) unsigned DEFAULT '0' NOT NULL,
 name char(60),
 PRIMARY KEY (id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1,1,'El Gato');
 INSERT INTO t2 VALUES (2,1,'Perrito');
 INSERT INTO t2 VALUES (3,3,'Happy');
@@ -317,15 +356,15 @@ Lilliana Angelovska	NULL	NULL
 explain select t1.name, t2.name, t2.id from t1 left join t2 on (t1.id = t2.owner) where t2.id is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Not exists; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Not exists; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`owner` = `test`.`t1`.`id`)) where isnull(`test`.`t2`.`id`)
+Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`owner` = `test`.`t1`.`id`)) where (`test`.`t2`.`id` is null)
 explain select t1.name, t2.name, t2.id from t1 left join t2 on (t1.id = t2.owner) where t2.name is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`owner` = `test`.`t1`.`id`)) where isnull(`test`.`t2`.`name`)
+Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`owner` = `test`.`t1`.`id`)) where (`test`.`t2`.`name` is null)
 select count(*) from t1 left join t2 on (t1.id = t2.owner);
 count(*)
 4
@@ -341,15 +380,15 @@ Lilliana Angelovska	NULL	NULL
 explain select t1.name, t2.name, t2.id from t2 right join t1 on (t1.id = t2.owner) where t2.id is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Not exists; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Not exists; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`owner` = `test`.`t1`.`id`)) where isnull(`test`.`t2`.`id`)
+Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`owner` = `test`.`t1`.`id`)) where (`test`.`t2`.`id` is null)
 explain select t1.name, t2.name, t2.id from t2 right join t1 on (t1.id = t2.owner) where t2.name is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`owner` = `test`.`t1`.`id`)) where isnull(`test`.`t2`.`name`)
+Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`owner` = `test`.`t1`.`id`)) where (`test`.`t2`.`name` is null)
 select count(*) from t2 right join t1 on (t1.id = t2.owner);
 count(*)
 4
@@ -363,14 +402,23 @@ select t1.name, t2.name, t2.id,t3.id from t1 right join t2 on (t1.id = t2.owner)
 name	name	id	id
 Antonio Paz	El Gato	1	1
 Antonio Paz	Perrito	2	1
-Thimble Smith	Happy	3	3
 NULL	NULL	NULL	2
+Thimble Smith	Happy	3	3
+explain format=tree select t1.name, t2.name, t2.id, t2.owner, t3.id from t1 left join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
+EXPLAIN
+-> Nested loop left join  (cost=2.49 rows=9)
+    -> Index scan on t3 using PRIMARY  (cost=0.84 rows=3)
+    -> Nested loop inner join  (cost=1.13 rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (id=t3.id)  (cost=0.28 rows=1)
+        -> Filter: (t2.`owner` = t3.id)  (cost=0.28 rows=3)
+            -> Table scan on t2  (cost=0.28 rows=3)
+
 select t1.name, t2.name, t2.id, t2.owner, t3.id from t1 left join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
 name	name	id	owner	id
 Antonio Paz	El Gato	1	1	1
 Antonio Paz	Perrito	2	1	1
-Thimble Smith	Happy	3	3	3
 NULL	NULL	NULL	NULL	2
+Thimble Smith	Happy	3	3	3
 drop table t1,t2;
 create table t1 (id int not null, str char(10), index(str));
 insert into t1 values (1, null), (2, null), (3, "foo"), (4, "bar");
@@ -382,31 +430,52 @@ select * from t1 where str is null;
 id	str
 1	NULL
 2	NULL
+explain select * from t1 where str is null;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	str	str	41	const	1	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`str` AS `str` from `test`.`t1` where (`test`.`t1`.`str` is null)
+explain format=tree select * from t1 where str is null;
+EXPLAIN
+-> Index lookup on t1 using str (str=NULL), with index condition: (t1.str is null)  (cost=0.35 rows=1)
+
 drop table t1;
 CREATE TABLE t1 (
 t1_id bigint(21) NOT NULL auto_increment,
 PRIMARY KEY (t1_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 t2_id bigint(21) NOT NULL auto_increment,
 PRIMARY KEY (t2_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t3 (
 t3_id bigint(21) NOT NULL auto_increment,
 PRIMARY KEY (t3_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t4 (
 seq_0_id bigint(21) DEFAULT '0' NOT NULL,
 seq_1_id bigint(21) DEFAULT '0' NOT NULL,
 KEY seq_0_id (seq_0_id),
 KEY seq_1_id (seq_1_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t5 (
 seq_0_id bigint(21) DEFAULT '0' NOT NULL,
 seq_1_id bigint(21) DEFAULT '0' NOT NULL,
 KEY seq_1_id (seq_1_id),
 KEY seq_0_id (seq_0_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (1);
 insert into t2 values (1);
 insert into t3 values (1);
@@ -475,19 +544,19 @@ count	color
 7	green
 select * from t2 natural join t1;
 color	count	name
+black	5	grape
 green	10	lime
 green	7	lime
-black	5	grape
 select t2.count, t1.name from t2 natural join t1;
 count	name
 10	lime
-7	lime
 5	grape
+7	lime
 select t2.count, t1.name from t2 inner join t1 using (color);
 count	name
 10	lime
-7	lime
 5	grape
+7	lime
 drop table t1;
 drop table t2;
 CREATE TABLE t1 (
@@ -502,21 +571,6 @@ INSERT INTO t2 VALUES ('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'
 SELECT t1.pcode, IF(ISNULL(t2.pcode), 0, COUNT(*)) AS count FROM t1
 LEFT JOIN t2 ON t1.pcode = t2.pcode GROUP BY t1.pcode;
 pcode	count
-kld2000	1
-klw1000	0
-klw1020	0
-klw1500	0
-klw2000	0
-klw2001	0
-klw2002	0
-klw2500	0
-kmw1000	0
-kmw1500	0
-kmw2000	0
-kmw2001	0
-kmw2100	0
-kmw3000	0
-kmw3200	0
 kvw2000	26
 kvw2001	0
 kvw3000	36
@@ -543,6 +597,21 @@ kvw5510	0
 kvw5600	0
 kvw5601	0
 kvw6000	2
+klw1000	0
+klw1020	0
+klw1500	0
+klw2000	0
+klw2001	0
+klw2002	0
+kld2000	1
+klw2500	0
+kmw1000	0
+kmw1500	0
+kmw2000	0
+kmw2001	0
+kmw2100	0
+kmw3000	0
+kmw3200	0
 SELECT SQL_BIG_RESULT t1.pcode, IF(ISNULL(t2.pcode), 0, COUNT(*)) AS count FROM t1 LEFT JOIN t2 ON t1.pcode = t2.pcode GROUP BY t1.pcode;
 pcode	count
 kld2000	1
@@ -588,8 +657,6 @@ kvw5601	0
 kvw6000	2
 drop table t1,t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 id int(11),
 pid int(11),
@@ -597,6 +664,10 @@ rep_del tinyint(4),
 KEY id (id),
 KEY pid (pid)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,NULL,NULL);
 INSERT INTO t1 VALUES (2,1,NULL);
 select * from t1 LEFT JOIN t1 t2 ON (t1.id=t2.pid) AND t2.rep_del IS NULL;
@@ -615,6 +686,7 @@ name tinytext DEFAULT '' NOT NULL,
 UNIQUE id (id)
 );
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'name' can't have a default value
 INSERT INTO t1 VALUES (1,'yes'),(2,'no');
 CREATE TABLE t2 (
@@ -622,13 +694,16 @@ id int(11) DEFAULT '0' NOT NULL,
 idx int(11) DEFAULT '0' NOT NULL,
 UNIQUE id (id,idx)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1,1);
 explain SELECT * from t1 left join t2 on t1.id=t2.id where t2.id IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t2	NULL	ref	id	id	4	test.t1.id	1	100.00	Using where; Not exists; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`name` AS `name`,`test`.`t2`.`id` AS `id`,`test`.`t2`.`idx` AS `idx` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`id` = `test`.`t1`.`id`)) where isnull(`test`.`t2`.`id`)
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`name` AS `name`,`test`.`t2`.`id` AS `id`,`test`.`t2`.`idx` AS `idx` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`id` = `test`.`t1`.`id`)) where (`test`.`t2`.`id` is null)
 SELECT * from t1 left join t2 on t1.id=t2.id where t2.id IS NULL;
 id	name	id	idx
 2	no	NULL	NULL
@@ -651,7 +726,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	index	NULL	PRIMARY	4	NULL	3	100.00	Using index
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	2	const	1	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`fooID` AS `fooID`,`test`.`t2`.`barID` AS `barID`,`test`.`t1`.`fooID` AS `fooID` from `test`.`t2` left join `test`.`t1` on(((`test`.`t2`.`fooID` = 30) and (`test`.`t1`.`fooID` = 30))) where 1
+Note	1003	/* select#1 */ select `test`.`t2`.`fooID` AS `fooID`,`test`.`t2`.`barID` AS `barID`,`test`.`t1`.`fooID` AS `fooID` from `test`.`t2` left join `test`.`t1` on(((`test`.`t2`.`fooID` = 30) and (`test`.`t1`.`fooID` = 30))) where true
 select * from t2 left join t1 on t1.fooID = t2.fooID and t1.fooID = 30;
 fooID	barID	fooID
 10	1	NULL
@@ -703,22 +778,24 @@ insert into t2 values (1,3), (2,3);
 insert into t3 values (2,4),        (3,4);
 select * from t1 left join t2  on  b1 = a1 left join t3  on  c1 = a1  and  b1 is null;
 a1	a2	b1	b2	c1	c2
-3	2	NULL	NULL	3	4
 1	2	1	3	NULL	NULL
 2	2	2	3	NULL	NULL
+3	2	NULL	NULL	3	4
 explain select * from t1 left join t2  on  b1 = a1 left join t3  on  c1 = a1  and  b1 is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t2`.`b1` AS `b1`,`test`.`t2`.`b2` AS `b2`,`test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`b1` = `test`.`t1`.`a1`)) left join `test`.`t3` on(((`test`.`t3`.`c1` = `test`.`t1`.`a1`) and isnull(`test`.`t2`.`b1`))) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t2`.`b1` AS `b1`,`test`.`t2`.`b2` AS `b2`,`test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`b1` = `test`.`t1`.`a1`)) left join `test`.`t3` on(((`test`.`t3`.`c1` = `test`.`t1`.`a1`) and (`test`.`t2`.`b1` is null))) where true
 drop table t1, t2, t3;
 create table t1 (
 a int(11),
 b char(10),
 key (a)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 (a) values (1),(2),(3),(4);
 create table t2 (a int);
 select * from t1 left join t2 on t1.a=t2.a where not (t2.a <=> t1.a);
@@ -740,12 +817,18 @@ home tinyint(3) unsigned default '0',
 unique key match_id (match_id),
 key match_id_2 (match_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values("1", "2");
 create table t2 (
 player_id tinyint(3) unsigned default '0',
 match_1_h tinyint(3) unsigned default '0',
 key player_id (player_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t2 values("1", "5");
 insert into t2 values("2", "9");
 insert into t2 values("3", "3");
@@ -763,7 +846,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	s	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using temporary; Using filesort
 1	SIMPLE	m	NULL	const	match_id,match_id_2	match_id	1	const	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`s`.`player_id` AS `player_id`,`test`.`s`.`match_1_h` AS `match_1_h`,'*' AS `*`,`test`.`m`.`match_id` AS `match_id`,`test`.`m`.`home` AS `home`,(`test`.`s`.`match_1_h` - `test`.`m`.`home`) AS `UUX` from `test`.`t2` `s` left join `test`.`t1` `m` on((`test`.`m`.`match_id` = 1)) where 1 order by `test`.`m`.`match_id` desc
+Note	1003	/* select#1 */ select `test`.`s`.`player_id` AS `player_id`,`test`.`s`.`match_1_h` AS `match_1_h`,'*' AS `*`,`test`.`m`.`match_id` AS `match_id`,`test`.`m`.`home` AS `home`,(`test`.`s`.`match_1_h` - `test`.`m`.`home`) AS `UUX` from `test`.`t2` `s` left join `test`.`t1` `m` on((`test`.`m`.`match_id` = 1)) where true order by `test`.`m`.`match_id` desc
 explain select s.*, '*', m.*, (s.match_1_h - m.home) UUX from 
 (t2 s left join t1 m on m.match_id = 1) 
 order by UUX desc;
@@ -771,7 +854,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	s	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using temporary; Using filesort
 1	SIMPLE	m	NULL	const	match_id,match_id_2	match_id	1	const	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`s`.`player_id` AS `player_id`,`test`.`s`.`match_1_h` AS `match_1_h`,'*' AS `*`,`test`.`m`.`match_id` AS `match_id`,`test`.`m`.`home` AS `home`,(`test`.`s`.`match_1_h` - `test`.`m`.`home`) AS `UUX` from `test`.`t2` `s` left join `test`.`t1` `m` on((`test`.`m`.`match_id` = 1)) where 1 order by `UUX` desc
+Note	1003	/* select#1 */ select `test`.`s`.`player_id` AS `player_id`,`test`.`s`.`match_1_h` AS `match_1_h`,'*' AS `*`,`test`.`m`.`match_id` AS `match_id`,`test`.`m`.`home` AS `home`,(`test`.`s`.`match_1_h` - `test`.`m`.`home`) AS `UUX` from `test`.`t2` `s` left join `test`.`t1` `m` on((`test`.`m`.`match_id` = 1)) where true order by `UUX` desc
 select s.*, '*', m.*, (s.match_1_h - m.home) UUX from 
 (t2 s left join t1 m on m.match_id = 1) 
 order by UUX desc;
@@ -826,6 +909,10 @@ flag_name varchar(64) default NULL,
 flag_value text,
 UNIQUE KEY ts_id (ts_id,inst_id,flag_name)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t2 (
 ts_id bigint(20) default NULL,
 inst_id tinyint(4) default NULL,
@@ -833,6 +920,10 @@ flag_name varchar(64) default NULL,
 flag_value text,
 UNIQUE KEY ts_id (ts_id,inst_id,flag_name)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES
 (111056548820001, 0, 'flag1', NULL),
 (111056548820001, 0, 'flag2', NULL),
@@ -853,6 +944,9 @@ id int(11) unsigned NOT NULL auto_increment,
 text_id int(10) unsigned default NULL,
 PRIMARY KEY  (id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES("1", "0");
 INSERT INTO t1 VALUES("2", "10");
 CREATE TABLE t2 (
@@ -890,7 +984,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `a1`,`test`.`t2`.`a2` AS `a2` from `test`.`t2` where 1
+Note	1003	/* select#1 */ select '1' AS `a1`,`test`.`t2`.`a2` AS `a2` from <constant table> left join `test`.`t2` on(false) where true
 SELECT * FROM t1 LEFT JOIN (t2,t3) ON a1=0;
 a1	a2	a3
 1	NULL	NULL
@@ -900,7 +994,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t3`.`a3` AS `a3` from (`test`.`t2` join `test`.`t3`) where 1
+Note	1003	/* select#1 */ select '1' AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t3`.`a3` AS `a3` from <constant table> left join (`test`.`t2` join `test`.`t3`) on(false) where true
 SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=0 WHERE a0=a1;
 a0	a1	a2	a3
 1	1	NULL	NULL
@@ -911,7 +1005,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `a0`,'1' AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t3`.`a3` AS `a3` from (`test`.`t2` join `test`.`t3`) where 1
+Note	1003	/* select#1 */ select '1' AS `a0`,'1' AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t3`.`a3` AS `a3` from <constant table> left join (`test`.`t2` join `test`.`t3`) on(false) where true
 INSERT INTO t0 VALUES (0);
 INSERT INTO t1 VALUES (0);
 SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
@@ -924,7 +1018,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `a0`,'1' AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t3`.`a3` AS `a3` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(0) where 1
+Note	1003	/* select#1 */ select '1' AS `a0`,'1' AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t3`.`a3` AS `a3` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(false) where true
 drop table t1,t2;
 create table t1 (a int, b int);
 insert into t1 values (1,1),(2,2),(3,3);
@@ -1005,10 +1099,23 @@ Warning	1260	Row 2 was cut by GROUP_CONCAT()
 drop table t1, t2;
 set group_concat_max_len=default;
 create table t1 (gid smallint(5) unsigned not null, x int(11) not null, y int(11) not null, art int(11) not null, primary key  (gid,x,y));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert t1 values (1, -5, -8, 2), (1, 2, 2, 1), (1, 1, 1, 1);
 create table t2 (gid smallint(5) unsigned not null, x int(11) not null, y int(11) not null, id int(11) not null, primary key  (gid,id,x,y), key id (id));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert t2 values (1, -5, -8, 1), (1, 1, 1, 1), (1, 2, 2, 1);
 create table t3 ( set_id smallint(5) unsigned not null, id tinyint(4) unsigned not null, name char(12) not null, primary key  (id,set_id));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert t3 values (0, 1, 'a'), (1, 1, 'b'), (0, 2, 'c'), (1, 2, 'd'), (1, 3, 'e'), (1, 4, 'f'), (1, 5, 'g'), (1, 6, 'h');
 explain select name from t1 left join t2 on t1.x = t2.x and t1.y = t2.y
 left join t3 on t1.art = t3.id where t2.id =1 and t2.x = -5 and t2.y =-8
@@ -1018,7 +1125,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	const	PRIMARY,id	PRIMARY	14	const,const,const,const	1	100.00	Using index
 1	SIMPLE	t3	NULL	const	PRIMARY	PRIMARY	3	const,const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select 'd' AS `name` from `test`.`t1` join `test`.`t2` join `test`.`t3` where (('2' = '2'))
+Note	1003	/* select#1 */ select 'd' AS `name` from `test`.`t1` join `test`.`t2` join `test`.`t3` where true
 drop tables t1,t2,t3;
 CREATE TABLE t1 (EMPNUM INT, GRP INT);
 INSERT INTO t1 VALUES (0, 10);
@@ -1273,9 +1380,9 @@ EXPLAIN
 SELECT t1.id, a FROM t1 LEFT JOIN t2 ON t1.id=t2.id WHERE t2.b IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	idx	NULL	NULL	NULL	9	11.11	Using where; Not exists; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	idx	NULL	NULL	NULL	9	11.11	Using where; Not exists; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`a` AS `a` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`id` = `test`.`t1`.`id`)) where isnull(`test`.`t2`.`b`)
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`a` AS `a` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`id` = `test`.`t1`.`id`)) where (`test`.`t2`.`b` is null)
 flush status;
 SELECT t1.id, a FROM t1 LEFT JOIN t2 ON t1.id=t2.id WHERE t2.b IS NULL;
 id	a
@@ -1300,7 +1407,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 1	SIMPLE	t2	NULL	index	NULL	PRIMARY	4	NULL	3	33.33	Using where; Not exists; Using index
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `c`,'0' AS `e`,`test`.`t2`.`d` AS `d` from `test`.`t1` left join `test`.`t2` on(('0' <> 0)) where (isnull(`test`.`t2`.`d`))
+Note	1003	/* select#1 */ select '1' AS `c`,'0' AS `e`,`test`.`t2`.`d` AS `d` from `test`.`t1` left join `test`.`t2` on(('0' <> 0)) where ((`test`.`t2`.`d` is null))
 SELECT * FROM t1 LEFT JOIN t2 ON e<>0 WHERE c=1 AND d IS NULL;
 c	e	d
 1	0	NULL
@@ -1324,7 +1431,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select rollup_const('1') AS `a`,count(`test`.`t2`.`b`) AS `COUNT( t2.b )`,sum(`test`.`t2`.`b`) AS `SUM( t2.b )`,max(`test`.`t2`.`b`) AS `MAX( t2.b )` from `test`.`t2` where 1 group by rollup_const('1') with rollup
+Note	1003	/* select#1 */ select rollup_const('1') AS `a`,count(`test`.`t2`.`b`) AS `COUNT( t2.b )`,sum(`test`.`t2`.`b`) AS `SUM( t2.b )`,max(`test`.`t2`.`b`) AS `MAX( t2.b )` from <constant table> left join `test`.`t2` on((`test`.`t2`.`a` = '1')) where true group by rollup_const('1') with rollup
 SELECT t1.a, COUNT( t2.b ), SUM( t2.b ), MAX( t2.b )
 FROM t1 LEFT JOIN t2 USING( a )
 GROUP BY t1.a WITH ROLLUP;
@@ -1354,14 +1461,13 @@ CREATE TABLE t1(f1 INT, f2 INT, f3 INT);
 INSERT INTO t1 VALUES (1, NULL, 3);
 CREATE TABLE t2(f1 INT, f2 INT);
 INSERT INTO t2 VALUES (2, 1);
-EXPLAIN EXTENDED SELECT * FROM t1 LEFT JOIN t2 ON t1.f2 = t2.f2
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.f2 = t2.f2
 WHERE (COALESCE(t1.f1, t2.f1), f3) IN ((1, 3), (2, 2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select '1' AS `f1`,NULL AS `f2`,'3' AS `f3`,NULL AS `f1`,NULL AS `f2` from `test`.`t2` where ((coalesce('1',NULL),'3') in ((1,3),(2,2)))
+Note	1003	/* select#1 */ select '1' AS `f1`,NULL AS `f2`,'3' AS `f3`,NULL AS `f1`,NULL AS `f2` from <constant table> left join `test`.`t2` on(multiple equal(NULL, NULL)) where true
 SELECT * FROM t1 LEFT JOIN t2 ON t1.f2 = t2.f2
 WHERE (COALESCE(t1.f1, t2.f1), f3) IN ((1, 3), (2, 2));
 f1	f2	f3	f1	f2
@@ -1387,16 +1493,16 @@ RIGHT OUTER JOIN t1 tt1 ON 1
 STRAIGHT_JOIN    t1 tt9 ON 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tt1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	tt2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	tt3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	tt4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	tt5	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	tt6	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	tt7	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	tt8	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	tt9	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	tt2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	tt3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	tt4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	tt5	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	tt6	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	tt7	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	tt8	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	tt9	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `tt1` left join (`test`.`t1` `tt2` left join (`test`.`t1` `tt3` left join `test`.`t1` `tt4` on(1) left join `test`.`t1` `tt5` on(1) left join `test`.`t1` `tt6` on(1) left join `test`.`t1` `tt7` on(1) left join `test`.`t1` `tt8` on(1)) on(1)) on(1) straight_join `test`.`t1` `tt9` where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `tt1` left join (`test`.`t1` `tt2` left join (`test`.`t1` `tt3` left join `test`.`t1` `tt4` on(true) left join `test`.`t1` `tt5` on(true) left join `test`.`t1` `tt6` on(true) left join `test`.`t1` `tt7` on(true) left join `test`.`t1` `tt8` on(true)) on(true)) on(true) straight_join `test`.`t1` `tt9` where true
 SET optimizer_search_depth = DEFAULT;
 DROP TABLE t1;
 #
@@ -1415,17 +1521,17 @@ EXPLAIN SELECT STRAIGHT_JOIN COUNT(*) FROM t1 ta1
 RIGHT JOIN t2 ta2 JOIN t2 ta3 ON ta2.f1 ON ta3.f1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	ta2	NULL	ALL	NULL	NULL	NULL	NULL	20	90.00	Using where
-1	SIMPLE	ta3	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	ta1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	ta3	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using join buffer (hash join)
+1	SIMPLE	ta1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select straight_join count(0) AS `COUNT(*)` from `test`.`t2` `ta2` join `test`.`t2` `ta3` left join `test`.`t1` `ta1` on(`test`.`ta3`.`f1`) where `test`.`ta2`.`f1`
+Note	1003	/* select#1 */ select straight_join count(0) AS `COUNT(*)` from `test`.`t2` `ta2` join `test`.`t2` `ta3` left join `test`.`t1` `ta1` on((0 <> `test`.`ta3`.`f1`)) where (0 <> `test`.`ta2`.`f1`)
 DROP TABLE t1, t2;
 #
 # Bug#48971 Segfault in add_found_match_trig_cond () at sql_select.cc:5990
 #
 CREATE TABLE t1(f1 INT, PRIMARY KEY (f1));
 INSERT INTO t1 VALUES (1),(2);
-EXPLAIN EXTENDED SELECT STRAIGHT_JOIN jt1.f1 FROM t1 AS jt1
+EXPLAIN SELECT STRAIGHT_JOIN jt1.f1 FROM t1 AS jt1
 LEFT JOIN t1 AS jt2
 RIGHT JOIN t1 AS jt3
 JOIN t1 AS jt4 ON 1
@@ -1435,15 +1541,14 @@ RIGHT JOIN t1 AS jt6 ON jt6.f1
 ON 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	jt1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	jt6	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	jt3	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	jt4	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	jt5	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	jt2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	jt6	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (hash join)
+1	SIMPLE	jt3	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (hash join)
+1	SIMPLE	jt4	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index; Using join buffer (hash join)
+1	SIMPLE	jt5	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (hash join)
+1	SIMPLE	jt2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select straight_join `test`.`jt1`.`f1` AS `f1` from `test`.`t1` `jt1` left join (`test`.`t1` `jt6` left join (`test`.`t1` `jt3` join `test`.`t1` `jt4` left join `test`.`t1` `jt5` on(1) left join `test`.`t1` `jt2` on(1)) on((`test`.`jt6`.`f1` and 1))) on(1) where 1
-EXPLAIN EXTENDED SELECT STRAIGHT_JOIN jt1.f1 FROM t1 AS jt1
+Note	1003	/* select#1 */ select straight_join `test`.`jt1`.`f1` AS `f1` from `test`.`t1` `jt1` left join (`test`.`t1` `jt6` left join (`test`.`t1` `jt3` join `test`.`t1` `jt4` left join `test`.`t1` `jt5` on(true) left join `test`.`t1` `jt2` on(true)) on(((0 <> `test`.`jt6`.`f1`)))) on(true) where true
+EXPLAIN SELECT STRAIGHT_JOIN jt1.f1 FROM t1 AS jt1
 RIGHT JOIN t1 AS jt2
 RIGHT JOIN t1 AS jt3
 JOIN t1 AS jt4 ON 1
@@ -1453,14 +1558,13 @@ RIGHT JOIN t1 AS jt6 ON jt6.f1
 ON 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	jt6	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	jt3	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	jt4	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	jt5	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	jt2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	jt1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	jt3	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (hash join)
+1	SIMPLE	jt4	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index; Using join buffer (hash join)
+1	SIMPLE	jt5	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (hash join)
+1	SIMPLE	jt2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (hash join)
+1	SIMPLE	jt1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select straight_join `test`.`jt1`.`f1` AS `f1` from `test`.`t1` `jt6` left join (`test`.`t1` `jt3` join `test`.`t1` `jt4` left join `test`.`t1` `jt5` on(1) left join `test`.`t1` `jt2` on(1)) on((`test`.`jt6`.`f1` and 1)) left join `test`.`t1` `jt1` on(1) where 1
+Note	1003	/* select#1 */ select straight_join `test`.`jt1`.`f1` AS `f1` from `test`.`t1` `jt6` left join (`test`.`t1` `jt3` join `test`.`t1` `jt4` left join `test`.`t1` `jt5` on(true) left join `test`.`t1` `jt2` on(true)) on(((0 <> `test`.`jt6`.`f1`))) left join `test`.`t1` `jt1` on(true) where true
 DROP TABLE t1;
 #
 # Bug#57688 Assertion `!table || (!table->write_set || bitmap_is_set(table->write_set, field
@@ -1474,10 +1578,10 @@ EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
 WHERE t1.f1 = 4
 GROUP BY t2.f1, t2.f2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	Using temporary
 1	SIMPLE	t2	NULL	ref	PRIMARY	PRIMARY	4	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select '4' AS `f1`,`test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2` where 1 group by `test`.`t2`.`f1`,`test`.`t2`.`f2`
+Note	1003	/* select#1 */ select '4' AS `f1`,`test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from <constant table> left join `test`.`t2` on((`test`.`t2`.`f1` = 4)) where true group by `test`.`t2`.`f1`,`test`.`t2`.`f2`
 SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
 WHERE t1.f1 = 4
 GROUP BY t2.f1, t2.f2;
@@ -1487,7 +1591,7 @@ EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
 WHERE t1.f1 = 4 AND t2.f1 IS NOT NULL AND t2.f2 IS NOT NULL
 GROUP BY t2.f1, t2.f2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	Using filesort
+1	SIMPLE	t1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t2	NULL	ref	PRIMARY	PRIMARY	4	const	1	50.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select '4' AS `f1`,`test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2` where ((`test`.`t2`.`f1` = 4) and (`test`.`t2`.`f2` is not null)) group by `test`.`t2`.`f1`,`test`.`t2`.`f2`
@@ -1515,7 +1619,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 1	SIMPLE	t2	NULL	const	col_int_unique	col_int_unique	5	const	1	100.00	Impossible ON condition
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `pk`,NULL AS `col_int`,'2' AS `col_int_unique`,NULL AS `pk`,NULL AS `col_int`,NULL AS `col_int_unique` from `test`.`t1` left join `test`.`t2` on((multiple equal('2', NULL) and multiple equal(NULL, NULL))) where 1
+Note	1003	/* select#1 */ select '1' AS `pk`,NULL AS `col_int`,'2' AS `col_int_unique`,NULL AS `pk`,NULL AS `col_int`,NULL AS `col_int_unique` from `test`.`t1` left join `test`.`t2` on((multiple equal('2', NULL) and multiple equal(NULL, NULL))) where true
 SELECT * FROM t1 LEFT JOIN t2
 ON t1.col_int_unique = t2.col_int_unique AND t1.col_int = t2.col_int 
 WHERE t1.pk=1;
@@ -1534,6 +1638,8 @@ PRIMARY KEY (`pk`),
 KEY `time_key` (`time_key`),
 KEY `varchar_key` (`varchar_key`)
 ) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `BB` VALUES (10,'18:27:58',NULL,NULL);
 SELECT table1.time_key AS field1, table2.pk 
 FROM BB table1  LEFT JOIN BB table2 
@@ -1745,10 +1851,10 @@ explain SELECT t1.a FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t2.a)
 ON 0 WHERE t1.a OR t3.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join (`test`.`t2` left join `test`.`t3` on(`test`.`t2`.`a`)) on(0) where (`test`.`t1`.`a` or `test`.`t3`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join (`test`.`t2` left join `test`.`t3` on((0 <> `test`.`t2`.`a`))) on(false) where ((0 <> `test`.`t1`.`a`) or (0 <> `test`.`t3`.`a`))
 SELECT t1.a FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t2.a)
 ON 0 WHERE t1.a OR t3.a;
 a
@@ -1757,11 +1863,11 @@ explain SELECT t1.a FROM t1 LEFT JOIN
 ON 0 WHERE t1.a OR t4.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` left join `test`.`t4` on(1)) on(`test`.`t2`.`a`)) on(0) where (`test`.`t1`.`a` or `test`.`t4`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` left join `test`.`t4` on(true)) on((0 <> `test`.`t2`.`a`))) on(false) where ((0 <> `test`.`t1`.`a`) or (0 <> `test`.`t4`.`a`))
 SELECT t1.a FROM t1 LEFT JOIN
 (t2 LEFT JOIN (t3 LEFT JOIN t4 ON 1) ON t2.a)
 ON 0 WHERE t1.a OR t4.a;
@@ -1798,18 +1904,41 @@ SELECT t1.col_int
 FROM t1
 LEFT JOIN t2
 LEFT JOIN t3
-JOIN t4  
+JOIN t4
 ON t3.col_int  = t4.pk
 ON t2.col_varchar_10 = t3.col_varchar_10
 ON t2.col_int = t1.pk
 WHERE   t1.col_int_key IS NULL OR t4.pk < t3.col_int;
 col_int
+EXPLAIN FORMAT=tree SELECT t1.col_int
+FROM t1
+LEFT JOIN t2
+LEFT JOIN t3
+JOIN t4
+ON t3.col_int  = t4.pk
+ON t2.col_varchar_10 = t3.col_varchar_10
+ON t2.col_int = t1.pk
+WHERE   t1.col_int_key IS NULL OR t4.pk < t3.col_int;
+EXPLAIN
+-> Filter: <if>(found_match(t3..t4), (<cache>(('-448724992' is null)) or (t4.pk < t3.col_int)), true)
+    -> Nested loop left join
+        -> Rows fetched before execution
+        -> Nested loop left join  (cost=1.10 rows=0)
+            -> Filter: (t2.col_int = '6')  (cost=0.60 rows=1)
+                -> Table scan on t2  (cost=0.60 rows=1)
+            -> Nested loop inner join  (cost=0.25 rows=0)
+                -> Filter: (t3.col_varchar_10 = t2.col_varchar_10)  (cost=0.00 rows=0)
+                    -> Table scan on t3  (cost=0.00 rows=0)
+                -> Single-row index lookup on t4 using PRIMARY (pk=t3.col_int)  (cost=0.35 rows=1)
+
 DROP TABLE t1,t2,t3,t4;
 
 # BUG#12567331 - INFINITE LOOP WHEN RESOLVING AN ALIASED COLUMN
 # USED IN GROUP BY
 
 CREATE TABLE t1 (pk int(11));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 PREPARE prep_stmt_9846 FROM '
 SELECT alias1.pk AS field1 FROM
 t1 AS alias1
@@ -1877,6 +2006,8 @@ INSERT INTO t1 VALUES (100), (101);
 CREATE TABLE t2 (i2 int, i3 int);
 INSERT INTO t2 VALUES (20,1),(10,2);
 CREATE TABLE t3 (i4 int(11));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (1),(2);
 
 SELECT (
@@ -1904,14 +2035,20 @@ CREATE TABLE t1 (
 pk int(11) NOT NULL,
 col_varchar_10_latin1_key varchar(10) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,'1');
 CREATE TABLE t2 (
 pk int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1);
 CREATE TABLE t3 (
 pk int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (1);
 CREATE TABLE t4 (
 pk int(11) NOT NULL,
@@ -1919,17 +2056,27 @@ col_int int(11) DEFAULT NULL,
 col_int_key int(11) DEFAULT NULL,
 col_varchar_10_latin1_key varchar(10) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t4 VALUES (1,1,1,'1');
 CREATE TABLE t5 (
 col_int int(11) DEFAULT NULL,
 col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t5 VALUES (1,'1');
 CREATE TABLE t6 (
 col_int_key int(11) DEFAULT NULL,
 col_varchar_10_latin1_key varchar(10) DEFAULT NULL,
 pk int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t6 VALUES (1,'1',1);
 SELECT STRAIGHT_JOIN t6a.pk, t2.pk
 FROM
@@ -2003,14 +2150,14 @@ WHERE t6b.col_int_key IS TRUE
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t6a	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t6b	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
+1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t6b	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select straight_join `test`.`t6a`.`pk` AS `pk`,`test`.`t2`.`pk` AS `pk` from `test`.`t6` `t6a` join `test`.`t1` left join (`test`.`t4` join `test`.`t3`) on(((`test`.`t4`.`col_int_key` = `test`.`t1`.`pk`) and `test`.`t4`.`col_int`)) join `test`.`t5` join `test`.`t6` `t6b` left join `test`.`t2` on(((`test`.`t4`.`col_varchar_10_latin1_key` = `test`.`t1`.`col_varchar_10_latin1_key`) and (`test`.`t5`.`col_varchar_10_utf8_key` = 0))) where ((`test`.`t5`.`col_int` = `test`.`t1`.`pk`) and (`test`.`t6b`.`col_int_key` is true) and (`test`.`t5`.`col_varchar_10_utf8_key` = convert(`test`.`t6b`.`col_varchar_10_latin1_key` using utf8)) and (`test`.`t6a`.`pk` is true))
+Note	1003	/* select#1 */ select straight_join `test`.`t6a`.`pk` AS `pk`,`test`.`t2`.`pk` AS `pk` from `test`.`t6` `t6a` join `test`.`t1` left join (`test`.`t4` join `test`.`t3`) on(((`test`.`t4`.`col_int_key` = `test`.`t1`.`pk`) and (0 <> `test`.`t4`.`col_int`))) join `test`.`t5` join `test`.`t6` `t6b` left join `test`.`t2` on(((`test`.`t4`.`col_varchar_10_latin1_key` = `test`.`t1`.`col_varchar_10_latin1_key`) and (`test`.`t5`.`col_varchar_10_utf8_key` = 0))) where ((`test`.`t5`.`col_int` = `test`.`t1`.`pk`) and ((0 <> `test`.`t6b`.`col_int_key`) is true) and (`test`.`t5`.`col_varchar_10_utf8_key` = convert(`test`.`t6b`.`col_varchar_10_latin1_key` using utf8)) and ((0 <> `test`.`t6a`.`pk`) is true))
 SELECT t6a.pk, t2.pk
 FROM
 t6 AS t6a
@@ -2083,14 +2230,28 @@ WHERE t6b.col_int_key IS TRUE
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t6a	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t6b	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
+1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t6b	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t6a`.`pk` AS `pk`,`test`.`t2`.`pk` AS `pk` from `test`.`t6` `t6a` join `test`.`t1` left join (`test`.`t4` join `test`.`t3`) on(((`test`.`t4`.`col_int_key` = `test`.`t1`.`pk`) and `test`.`t4`.`col_int`)) join `test`.`t5` join `test`.`t6` `t6b` left join `test`.`t2` on(((`test`.`t4`.`col_varchar_10_latin1_key` = `test`.`t1`.`col_varchar_10_latin1_key`) and (`test`.`t5`.`col_varchar_10_utf8_key` = 0))) where ((`test`.`t5`.`col_int` = `test`.`t1`.`pk`) and (`test`.`t6b`.`col_int_key` is true) and (`test`.`t5`.`col_varchar_10_utf8_key` = convert(`test`.`t6b`.`col_varchar_10_latin1_key` using utf8)) and (`test`.`t6a`.`pk` is true))
+Note	1003	/* select#1 */ select `test`.`t6a`.`pk` AS `pk`,`test`.`t2`.`pk` AS `pk` from `test`.`t6` `t6a` join `test`.`t1` left join (`test`.`t4` join `test`.`t3`) on(((`test`.`t4`.`col_int_key` = `test`.`t1`.`pk`) and (0 <> `test`.`t4`.`col_int`))) join `test`.`t5` join `test`.`t6` `t6b` left join `test`.`t2` on(((`test`.`t4`.`col_varchar_10_latin1_key` = `test`.`t1`.`col_varchar_10_latin1_key`) and (`test`.`t5`.`col_varchar_10_utf8_key` = 0))) where ((`test`.`t5`.`col_int` = `test`.`t1`.`pk`) and ((0 <> `test`.`t6b`.`col_int_key`) is true) and (`test`.`t5`.`col_varchar_10_utf8_key` = convert(`test`.`t6b`.`col_varchar_10_latin1_key` using utf8)) and ((0 <> `test`.`t6a`.`pk`) is true))
+EXPLAIN SELECT * FROM t5 LEFT JOIN t6 ON t5.col_int=1000
+WHERE t6.col_int_key IS TRUE;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t5`.`col_int` AS `col_int`,`test`.`t5`.`col_varchar_10_utf8_key` AS `col_varchar_10_utf8_key`,`test`.`t6`.`col_int_key` AS `col_int_key`,`test`.`t6`.`col_varchar_10_latin1_key` AS `col_varchar_10_latin1_key`,`test`.`t6`.`pk` AS `pk` from `test`.`t5` join `test`.`t6` where ((`test`.`t5`.`col_int` = 1000) and ((0 <> `test`.`t6`.`col_int_key`) is true))
+EXPLAIN SELECT * FROM t5 LEFT JOIN t6 ON t5.col_int=1000
+WHERE t6.col_int_key IS NOT TRUE;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t5`.`col_int` AS `col_int`,`test`.`t5`.`col_varchar_10_utf8_key` AS `col_varchar_10_utf8_key`,`test`.`t6`.`col_int_key` AS `col_int_key`,`test`.`t6`.`col_varchar_10_latin1_key` AS `col_varchar_10_latin1_key`,`test`.`t6`.`pk` AS `pk` from `test`.`t5` left join `test`.`t6` on((`test`.`t5`.`col_int` = 1000)) where ((0 <> `test`.`t6`.`col_int_key`) is not true)
 drop table t1,t2,t3,t4,t5,t6;
 #
 # Verify that the "not exists" optimization works.
@@ -2102,9 +2263,9 @@ INSERT INTO t2 VALUES(1),(2);
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE t2.a IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Not exists; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Not exists; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where isnull(`test`.`t2`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where (`test`.`t2`.`a` is null)
 FLUSH STATUS;
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE t2.a IS NULL;
 a	a
@@ -2137,7 +2298,7 @@ DROP TABLE t1, t2;
 #
 # Bug#13980954 Missing data on left join + null value + where..in
 #
-CREATE TABLE t1 (ik INT, vc varchar(1)) ENGINE=Innodb;
+CREATE TABLE t1 (ik INT, vc varchar(1)) charset utf8mb4 ENGINE=Innodb;
 explain format=json SELECT straight_join t1.vc, t1.ik
 FROM t1 JOIN t1 AS t2 ON t1.vc=t2.vc LEFT JOIN t1 AS t3 ON t1.vc=t3.vc;
 EXPLAIN
@@ -2145,7 +2306,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "3.60"
+      "query_cost": "1.05"
     },
     "nested_loop": [
       {
@@ -2156,10 +2317,10 @@ EXPLAIN
           "rows_produced_per_join": 1,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "1.00",
-            "eval_cost": "0.20",
-            "prefix_cost": "1.20",
-            "data_read_per_join": "8"
+            "read_cost": "0.25",
+            "eval_cost": "0.10",
+            "prefix_cost": "0.35",
+            "data_read_per_join": "16"
           },
           "used_columns": [
             "ik",
@@ -2174,12 +2335,12 @@ EXPLAIN
           "rows_examined_per_scan": 1,
           "rows_produced_per_join": 1,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
-            "read_cost": "1.00",
-            "eval_cost": "0.20",
-            "prefix_cost": "2.40",
-            "data_read_per_join": "8"
+            "read_cost": "0.25",
+            "eval_cost": "0.10",
+            "prefix_cost": "0.70",
+            "data_read_per_join": "16"
           },
           "used_columns": [
             "vc"
@@ -2194,12 +2355,12 @@ EXPLAIN
           "rows_examined_per_scan": 1,
           "rows_produced_per_join": 1,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
-            "read_cost": "1.00",
-            "eval_cost": "0.20",
-            "prefix_cost": "3.60",
-            "data_read_per_join": "8"
+            "read_cost": "0.25",
+            "eval_cost": "0.10",
+            "prefix_cost": "1.05",
+            "data_read_per_join": "16"
           },
           "used_columns": [
             "vc"
@@ -2235,7 +2396,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	const	a	a	5	const	1	100.00	Using index
 1	SIMPLE	t2	NULL	const	a	a	5	const	0	0.00	unique row not found
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `a`,NULL AS `a` from `test`.`t1` left join `test`.`t1` `t2` on(multiple equal(12, NULL)) where 1
+Note	1003	/* select#1 */ select '1' AS `a`,NULL AS `a` from `test`.`t1` left join `test`.`t1` `t2` on(multiple equal(12, NULL)) where true
 select * from t1 left join t1 as t2
 on t2.a=12
 where t1.a=1;
@@ -2470,6 +2631,299 @@ id	dt_id	simple	cond	nullif	ifnull	coal	intv	iff
 4	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 DROP VIEW small_view, big_view;
 DROP TABLE small, big;
+#
+# Bug#16893426 OPTIMIZER FAILS TO OPTIMIZE EXPRESSION OF THE
+#              FORM 'FOO' IS NULL
+#
+CREATE TABLE t1 (
+id int(11) NOT NULL PRIMARY KEY,
+name varchar(20),
+INDEX (name)
+) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE TABLE t2 (
+id int(11) NOT NULL PRIMARY KEY,
+f_id int(11),
+FOREIGN KEY (f_id) REFERENCES t2(id)
+) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+INSERT INTO t1 VALUES (1,'A1'),(2,'A2'),(3,'B');
+INSERT INTO t2 VALUES (1,1),(2,2),(3,2),(4,3),(5,3);
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+EXPLAIN SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE t1.name LIKE 'A%';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	PRIMARY,name	name	83	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	ref	f_id	f_id	5	test.t1.id	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`f_id` AS `f_id`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`name` AS `name` from `test`.`t2` join `test`.`t1` where ((`test`.`t2`.`f_id` = `test`.`t1`.`id`) and (`test`.`t1`.`name` like 'A%'))
+SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE t1.name LIKE 'A%';
+id	f_id	id	name
+1	1	1	A1
+2	2	2	A2
+3	2	2	A2
+PREPARE stmt FROM "SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE t1.name LIKE 'A%'";
+EXECUTE stmt;
+id	f_id	id	name
+1	1	1	A1
+2	2	2	A2
+3	2	2	A2
+DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE t1.name LIKE 'A%' OR 'ASDFGH' IS NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	PRIMARY,name	name	83	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	ref	f_id	f_id	5	test.t1.id	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`f_id` AS `f_id`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`name` AS `name` from `test`.`t2` join `test`.`t1` where ((`test`.`t2`.`f_id` = `test`.`t1`.`id`) and (`test`.`t1`.`name` like 'A%'))
+SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE t1.name LIKE 'A%' OR 'ASDFGH' IS NULL;
+id	f_id	id	name
+1	1	1	A1
+2	2	2	A2
+3	2	2	A2
+PREPARE stmt FROM "SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE t1.name LIKE 'A%' OR 'ASDFGH' IS NULL";
+EXECUTE stmt;
+id	f_id	id	name
+1	1	1	A1
+2	2	2	A2
+3	2	2	A2
+DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE 0 OR 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`f_id` AS `f_id`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`name` AS `name` from `test`.`t2` left join `test`.`t1` on(multiple equal(`test`.`t2`.`f_id`, `test`.`t1`.`id`)) where false
+SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE 0 OR 0;
+id	f_id	id	name
+PREPARE stmt FROM "SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE 0 OR 0";
+EXECUTE stmt;
+id	f_id	id	name
+DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE 1 OR 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	f_id	5	NULL	5	100.00	Using index
+1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f_id	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`f_id` AS `f_id`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`name` AS `name` from `test`.`t2` left join `test`.`t1` on((`test`.`t1`.`id` = `test`.`t2`.`f_id`)) where true
+SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE 1 OR 0;
+id	f_id	id	name
+1	1	1	A1
+2	2	2	A2
+3	2	2	A2
+4	3	3	B
+5	3	3	B
+PREPARE stmt FROM "SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE 1 OR 0";
+EXECUTE stmt;
+id	f_id	id	name
+1	1	1	A1
+2	2	2	A2
+3	2	2	A2
+4	3	3	B
+5	3	3	B
+DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE NOT(NOT (0)) OR 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	f_id	5	NULL	5	100.00	Using index
+1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f_id	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`f_id` AS `f_id`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`name` AS `name` from `test`.`t2` left join `test`.`t1` on((`test`.`t1`.`id` = `test`.`t2`.`f_id`)) where true
+SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE NOT(NOT (0)) OR 1;
+id	f_id	id	name
+1	1	1	A1
+2	2	2	A2
+3	2	2	A2
+4	3	3	B
+5	3	3	B
+PREPARE stmt FROM "SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE NOT(NOT (0)) OR 1";
+EXECUTE stmt;
+id	f_id	id	name
+1	1	1	A1
+2	2	2	A2
+3	2	2	A2
+4	3	3	B
+5	3	3	B
+DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE NOT(NOT (0)) OR 0 = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`f_id` AS `f_id`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`name` AS `name` from `test`.`t2` left join `test`.`t1` on(multiple equal(`test`.`t2`.`f_id`, `test`.`t1`.`id`)) where false
+SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE NOT(NOT (0)) OR 0 = 1;
+id	f_id	id	name
+PREPARE stmt FROM "SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE NOT(NOT (0)) OR 0 = 1";
+EXECUTE stmt;
+id	f_id	id	name
+DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE 1 IS NOT TRUE AND 0 IS TRUE ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`f_id` AS `f_id`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`name` AS `name` from `test`.`t2` left join `test`.`t1` on(multiple equal(`test`.`t2`.`f_id`, `test`.`t1`.`id`)) where false
+SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE 1 IS NOT TRUE AND 0 IS TRUE ;
+id	f_id	id	name
+PREPARE stmt FROM "SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE 1 IS NOT TRUE AND 0 IS TRUE ";
+EXECUTE stmt;
+id	f_id	id	name
+EXPLAIN SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE 'a' LIKE 1 OR 2 LIKE '2%' ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	f_id	5	NULL	5	100.00	Using index
+1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f_id	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`f_id` AS `f_id`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`name` AS `name` from `test`.`t2` left join `test`.`t1` on((`test`.`t1`.`id` = `test`.`t2`.`f_id`)) where true
+SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE 'a' LIKE 1 OR 2 LIKE '2%' ;
+id	f_id	id	name
+1	1	1	A1
+2	2	2	A2
+3	2	2	A2
+4	3	3	B
+5	3	3	B
+PREPARE stmt FROM "SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE 'a' LIKE 1 OR 2 LIKE '2%' ";
+EXECUTE stmt;
+id	f_id	id	name
+1	1	1	A1
+2	2	2	A2
+3	2	2	A2
+4	3	3	B
+5	3	3	B
+EXPLAIN SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE 1 IS NOT NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	f_id	5	NULL	5	100.00	Using index
+1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f_id	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`f_id` AS `f_id`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`name` AS `name` from `test`.`t2` left join `test`.`t1` on((`test`.`t1`.`id` = `test`.`t2`.`f_id`)) where true
+SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE 1 IS NOT NULL;
+id	f_id	id	name
+1	1	1	A1
+2	2	2	A2
+3	2	2	A2
+4	3	3	B
+5	3	3	B
+PREPARE stmt FROM "SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE 1 IS NOT NULL";
+EXECUTE stmt;
+id	f_id	id	name
+1	1	1	A1
+2	2	2	A2
+3	2	2	A2
+4	3	3	B
+5	3	3	B
+EXPLAIN SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE (1<2 AND 2<3) OR (1>1 AND 2<3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	f_id	5	NULL	5	100.00	Using index
+1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f_id	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`f_id` AS `f_id`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`name` AS `name` from `test`.`t2` left join `test`.`t1` on((`test`.`t1`.`id` = `test`.`t2`.`f_id`)) where true
+SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE (1<2 AND 2<3) OR (1>1 AND 2<3);
+id	f_id	id	name
+1	1	1	A1
+2	2	2	A2
+3	2	2	A2
+4	3	3	B
+5	3	3	B
+PREPARE stmt FROM "SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE (1<2 AND 2<3) OR (1>1 AND 2<3)";
+EXECUTE stmt;
+id	f_id	id	name
+1	1	1	A1
+2	2	2	A2
+3	2	2	A2
+4	3	3	B
+5	3	3	B
+EXPLAIN SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE (1>=1 AND 2<=2) OR (1=1 AND 2<3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	f_id	5	NULL	5	100.00	Using index
+1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f_id	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`f_id` AS `f_id`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`name` AS `name` from `test`.`t2` left join `test`.`t1` on((`test`.`t1`.`id` = `test`.`t2`.`f_id`)) where true
+SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE (1>=1 AND 2<=2) OR (1=1 AND 2<3);
+id	f_id	id	name
+1	1	1	A1
+2	2	2	A2
+3	2	2	A2
+4	3	3	B
+5	3	3	B
+PREPARE stmt FROM "SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE (1>=1 AND 2<=2) OR (1=1 AND 2<3)";
+EXECUTE stmt;
+id	f_id	id	name
+1	1	1	A1
+2	2	2	A2
+3	2	2	A2
+4	3	3	B
+5	3	3	B
+EXPLAIN SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE (1<>1 AND 2=2) OR (1 BETWEEN 0 AND 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	f_id	5	NULL	5	100.00	Using index
+1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.f_id	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`f_id` AS `f_id`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`name` AS `name` from `test`.`t2` left join `test`.`t1` on((`test`.`t1`.`id` = `test`.`t2`.`f_id`)) where true
+SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE (1<>1 AND 2=2) OR (1 BETWEEN 0 AND 2);
+id	f_id	id	name
+1	1	1	A1
+2	2	2	A2
+3	2	2	A2
+4	3	3	B
+5	3	3	B
+PREPARE stmt FROM "SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+WHERE (1<>1 AND 2=2) OR (1 BETWEEN 0 AND 2)";
+EXECUTE stmt;
+id	f_id	id	name
+1	1	1	A1
+2	2	2	A2
+3	2	2	A2
+4	3	3	B
+5	3	3	B
+DROP TABLE t1,t2;
+#
+# Bug#22103398 BUG#16893426:SIG11 IN
+# ST_SELECT_LEX::FLATTEN_SUBQUERIES | SQL_RESOLVER.CC
+#
+CREATE TABLE t1(c1 INT,	c2 INT,	c3 CHAR(1), KEY(c3))ENGINE=InnoDB;
+CREATE TABLE t2(c1 INT,	c2 INT,	c3 CHAR(1), KEY(c3))ENGINE=InnoDB;
+SELECT b.c2 AS f1 FROM (t2 AS a JOIN
+((t2 AS b JOIN t2 AS c ON (c.c3=b.c3)))
+ON (c.c1=b.c2))
+WHERE (c.c3 IN (SELECT subquery1_b.c3 AS subquery1_f1
+FROM (t1 AS subquery1_a JOIN t2 AS subquery1_b ON
+(subquery1_b.c1=subquery1_a.c1)))) AND
+(a.c1=a.c1 AND (SELECT''FROM DUAL) IS NULL);
+f1
+DROP TABLE t1, t2;
+# End of Bug#16893426
 # Bug#22561937 Wrong result on outer join with multiple join conditions
 #              and derived table
 CREATE TABLE t1 (
@@ -2497,7 +2951,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	table1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
 1	SIMPLE	table2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.table1.col_int	1	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`table2`.`pk` AS `pk`,`test`.`table1`.`col_int` AS `col_int` from `test`.`t2` `table1` left join `test`.`t1` `table2` on(((`test`.`table2`.`pk` = `test`.`table1`.`col_int`) and (`test`.`table1`.`col_int` < `test`.`table1`.`col_int`))) where 1
+Note	1003	/* select#1 */ select `test`.`table2`.`pk` AS `pk`,`test`.`table1`.`col_int` AS `col_int` from `test`.`t2` `table1` left join `test`.`t1` `table2` on(((`test`.`table2`.`pk` = `test`.`table1`.`col_int`) and (`test`.`table1`.`col_int` < `test`.`table1`.`col_int`))) where true
 SELECT table2.pk, table1.col_int
 FROM t2 AS table1
 LEFT JOIN t1 AS table2
@@ -2523,7 +2977,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	table1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
 1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.table1.col_int	1	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`table1`.`col_int` AS `col_int` from `test`.`t2` `table1` left join (`test`.`t1`) on(((`test`.`t1`.`pk` = `test`.`table1`.`col_int`) and (`test`.`t1`.`pk` < `test`.`table1`.`col_int`))) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`table1`.`col_int` AS `col_int` from `test`.`t2` `table1` left join (`test`.`t1`) on(((`test`.`t1`.`pk` = `test`.`table1`.`col_int`) and (`test`.`t1`.`pk` < `test`.`table1`.`col_int`))) where true
 SELECT table2.pk, table1.col_int
 FROM t2 AS table1
 LEFT JOIN (SELECT * FROM t1) AS table2
@@ -2607,7 +3061,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	ta	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	tb	NULL	eq_ref	PRIMARY	PRIMARY	4	test.ta.a2	1	100.00	Using where; Using join buffer (Batched Key Access)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`ta`.`a1` AS `a1`,`test`.`tb`.`b1` AS `b1`,`test`.`tb`.`b2` AS `b2` from `test`.`ta` left join `test`.`tb` on(((`test`.`tb`.`b3` = 0) and (`test`.`tb`.`b1` = `test`.`ta`.`a2`))) where 1
+Note	1003	/* select#1 */ select `test`.`ta`.`a1` AS `a1`,`test`.`tb`.`b1` AS `b1`,`test`.`tb`.`b2` AS `b2` from `test`.`ta` left join `test`.`tb` on(((`test`.`tb`.`b3` = 0) and (`test`.`tb`.`b1` = `test`.`ta`.`a2`))) where true
 SELECT ta.a1, tb.b1, tb.b2
 FROM ta LEFT OUTER JOIN tb
 ON ta.a2 = tb.b1 AND tb.b3 = 0;
@@ -2619,6 +3073,7 @@ DROP TABLE ta, tb;
 CREATE TABLE m (
 machineid VARCHAR(32) NOT NULL,
 orderid bigint unsigned DEFAULT NULL,
+extra bigint unsigned DEFAULT NULL,
 PRIMARY KEY (machineid)
 );
 INSERT INTO m (machineid, orderid)
@@ -2634,9 +3089,9 @@ SELECT o.*,'|' as sep, m.*
 FROM o LEFT JOIN m
 ON m.machineid = o.machineid AND
 m.orderid = o.orderid;
-orderid	machineid	sep	machineid	orderid
-2	m2	|	m2	2
-1	m2	|	NULL	NULL
+orderid	machineid	sep	machineid	orderid	extra
+2	m2	|	m2	2	NULL
+1	m2	|	NULL	NULL	NULL
 DROP TABLE m, o;
 # Bug#23086825: Incorrect query results using left join against derived
 CREATE TABLE t1 (
@@ -2666,8 +3121,8 @@ USING (ionumber)
 USING (adslot);
 adslot	ionumber1	ionumber2	ioattribute
 1	01602	01602	BOB
-3	01602	01602	BOB
 2	NULL	NULL	NULL
+3	01602	01602	BOB
 DROP TABLE t1, t2, t3;
 #
 # Bug #26432173: INCORRECT SUBQUERY OPTIMIZATION WITH
@@ -2683,9 +3138,9 @@ FROM t2) AS subq
 ON subq.t1_a = t1.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,'red' AS `st_value` from `test`.`t1` left join (`test`.`t2`) on((`test`.`t2`.`t1_a` = `test`.`t1`.`a`)) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,'red' AS `st_value` from `test`.`t1` left join (`test`.`t2`) on((`test`.`t2`.`t1_a` = `test`.`t1`.`a`)) where true
 EXPLAIN SELECT t1.a, subq.st_value
 FROM t1
 LEFT JOIN (SELECT t2.t1_a, 'red' AS st_value
@@ -2694,9 +3149,9 @@ ON subq.t1_a = t1.a
 ORDER BY t1.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,'red' AS `st_value` from `test`.`t1` left join (`test`.`t2`) on((`test`.`t2`.`t1_a` = `test`.`t1`.`a`)) where 1 order by `test`.`t1`.`a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,'red' AS `st_value` from `test`.`t1` left join (`test`.`t2`) on((`test`.`t2`.`t1_a` = `test`.`t1`.`a`)) where true order by `test`.`t1`.`a`
 EXPLAIN SELECT t1.a, subq.st_value
 FROM (SELECT t2.t1_a, 'red' AS st_value
 FROM t2) AS subq
@@ -2757,11 +3212,11 @@ LEFT JOIN t4 ON t3.i= t4.i
 )ON t2.i= t1.i;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t2`.`i` AS `i`,`test`.`t3`.`i` AS `i`,`test`.`t4`.`i` AS `i` from `test`.`t1` left join (`test`.`t2` left join `test`.`t3` on((`test`.`t3`.`i` = `test`.`t1`.`i`)) left join `test`.`t4` on((`test`.`t4`.`i` = `test`.`t3`.`i`))) on((`test`.`t2`.`i` = `test`.`t1`.`i`)) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t2`.`i` AS `i`,`test`.`t3`.`i` AS `i`,`test`.`t4`.`i` AS `i` from `test`.`t1` left join (`test`.`t2` left join `test`.`t3` on((`test`.`t3`.`i` = `test`.`t2`.`i`)) left join `test`.`t4` on((`test`.`t4`.`i` = `test`.`t3`.`i`))) on((`test`.`t2`.`i` = `test`.`t1`.`i`)) where true
 EXPLAIN SELECT *
 FROM t1 LEFT JOIN
 (
@@ -2770,22 +3225,22 @@ LEFT JOIN t4 ON t3.i= t4.i
 )ON t2.i= t1.i;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t2`.`i` AS `i`,`test`.`t3`.`i` AS `i`,`test`.`t4`.`i` AS `i` from `test`.`t1` left join (`test`.`t2` join `test`.`t3` left join `test`.`t4` on((`test`.`t4`.`i` = `test`.`t1`.`i`))) on(((`test`.`t2`.`i` = `test`.`t1`.`i`) and (`test`.`t3`.`i` = `test`.`t1`.`i`))) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t2`.`i` AS `i`,`test`.`t3`.`i` AS `i`,`test`.`t4`.`i` AS `i` from `test`.`t1` left join (`test`.`t2` join `test`.`t3` left join `test`.`t4` on((`test`.`t4`.`i` = `test`.`t2`.`i`))) on(((`test`.`t2`.`i` = `test`.`t1`.`i`) and (`test`.`t3`.`i` = `test`.`t1`.`i`))) where true
 EXPLAIN SELECT *
 FROM t1 LEFT JOIN t2 ON t2.i= t1.i
 LEFT JOIN t3 ON t3.i= t2.i
 LEFT JOIN t4 ON t3.i= t4.i;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t2`.`i` AS `i`,`test`.`t3`.`i` AS `i`,`test`.`t4`.`i` AS `i` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t1`.`i`)) left join `test`.`t3` on((`test`.`t3`.`i` = `test`.`t2`.`i`)) left join `test`.`t4` on((`test`.`t4`.`i` = `test`.`t3`.`i`)) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t2`.`i` AS `i`,`test`.`t3`.`i` AS `i`,`test`.`t4`.`i` AS `i` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t1`.`i`)) left join `test`.`t3` on((`test`.`t3`.`i` = `test`.`t2`.`i`)) left join `test`.`t4` on((`test`.`t4`.`i` = `test`.`t3`.`i`)) where true
 flush status;
 SELECT *
 FROM t1 LEFT JOIN
@@ -2795,9 +3250,9 @@ LEFT JOIN t4 ON t3.i= t4.i
 )ON t2.i= t1.i;
 i	i	i	i
 0	0	0	0
-4	4	4	NULL
-3	3	NULL	NULL
 2	NULL	NULL	NULL
+3	3	NULL	NULL
+4	4	4	NULL
 SHOW STATUS LIKE 'HANDLER_%';
 Variable_name	Value
 Handler_commit	0
@@ -2827,9 +3282,9 @@ LEFT JOIN t4 ON t3.i= t4.i
 )ON t2.i= t1.i;
 i	i	i	i
 0	0	0	0
-4	4	4	NULL
 2	NULL	NULL	NULL
 3	NULL	NULL	NULL
+4	4	4	NULL
 SHOW STATUS LIKE 'HANDLER_%';
 Variable_name	Value
 Handler_commit	0
@@ -2857,9 +3312,9 @@ LEFT JOIN t3 ON t3.i= t2.i
 LEFT JOIN t4 ON t3.i= t4.i;
 i	i	i	i
 0	0	0	0
-4	4	4	NULL
-3	3	NULL	NULL
 2	NULL	NULL	NULL
+3	3	NULL	NULL
+4	4	4	NULL
 SHOW STATUS LIKE 'HANDLER_%';
 Variable_name	Value
 Handler_commit	0
@@ -2898,7 +3353,7 @@ ON a.id = b.id
 WHERE b.tall IS NOT NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t2`.`id` AS `id`,2 AS `tall` from `test`.`t1` left join (`test`.`t2`) on((`test`.`t2`.`id` = `test`.`t1`.`id`)) where (2 is not null)
 SELECT *
@@ -2937,4 +3392,299 @@ GROUP BY je;
 je
 NULL
 DROP TABLE t1, t2;
+#
+# Bug#22489105 WL#9571 : SIG11 IN ITEM_SUBSELECT::EXEC | SQL/ITEM_SUBSELECT.CC
+#
+SELECT (SELECT * FROM (SELECT 'a') t) AS f1 HAVING (f1 = 'a' OR TRUE);
+f1
+a
+SELECT (SELECT * FROM (SELECT 'a') t) + 1 AS f1 HAVING (f1 = 'a' OR TRUE);
+f1
+1
+SELECT 1 + (SELECT * FROM (SELECT 'a') t) AS f1 HAVING (f1 = 'a' OR TRUE);
+f1
+1
+#
+# Bug#28237111: WL#9571: TABLE FULL ERROR
+#
+CREATE TABLE t1 (pk INTEGER, f1 INTEGER, primary key(pk));
+CREATE TABLE t2 (pk INTEGER, f1 INTEGER, primary key(pk));
+CREATE TABLE t3 (pk INTEGER);
+INSERT INTO t1 VALUES (1,1),(2,1),(3,1);
+INSERT INTO t2 VALUES (1,1),(2,1),(3,1);
+INSERT INTO t3 VALUES (1);
+SELECT  * FROM (t1 RIGHT JOIN
+(SELECT * FROM t3 WHERE (DAYNAME('1995')))  AS table2 ON
+(( t1.f1 ,t1.pk) IN (SELECT 7,4 UNION SELECT 9,2))) WHERE
+(NOT EXISTS (SELECT t1.f1 FROM (t1 INNER JOIN t2 ON (t1.pk=t2.f1))
+WHERE 0 IS NOT NULL)) AND t1.f1 >  50;
+pk	f1	pk
+Warnings:
+Warning	1292	Incorrect datetime value: '1995'
+DROP TABLE t3,t1,t2;
+#
+# Bug#28341790: WL#9571: SIG11 IN ITEM_COND::FIX_FIELDS() AT SQL/ITEM_CMPFUNC.CC
+#
+CREATE TABLE t1 (col_varchar varchar(1) DEFAULT NULL);
+INSERT INTO t1 VALUES ('Z') ;
+CREATE TABLE t2 (col_varchar varchar(1) DEFAULT NULL);
+INSERT INTO t2 VALUES ('Z') ;
+PREPARE prep_stmt FROM " SELECT 1 FROM ( ( SELECT * FROM t1 WHERE col_varchar
+>= 1 )  AS table1 RIGHT JOIN t2 ON ( ( NULL < NULL ) IS NULL OR 1 = 0 ) ) " ;
+EXECUTE prep_stmt ;
+1
+1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'Z'
+EXECUTE prep_stmt ;
+1
+1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'Z'
+DROP TABLE t1,t2;
+#
+# More coverage for IS TRUE in LEFT JOIN conditions
+#
+CREATE TABLE t1(c1 INT);
+INSERT INTO t1 VALUES(1),(2);
+CREATE TABLE t2(c2 INT);
+INSERT INTO t2 VALUES(1);
+SELECT * FROM t1 LEFT JOIN t2 ON c1=c2;
+c1	c2
+1	1
+2	NULL
+SELECT * FROM t1 LEFT JOIN t2 ON c1=c2 WHERE c2 IS NULL;
+c1	c2
+2	NULL
+SELECT * FROM t1 LEFT JOIN t2 ON c1=c2 WHERE c2 IS NOT NULL;
+c1	c2
+1	1
+SELECT * FROM t1 LEFT JOIN t2 ON c1=c2 WHERE (c2 IS NOT NULL) = 1;
+c1	c2
+1	1
+SELECT * FROM t1 LEFT JOIN t2 ON c1=c2 WHERE (c2 IS NOT NULL) IS TRUE;
+c1	c2
+1	1
+SELECT * FROM t1 LEFT JOIN t2 ON c1=c2 WHERE (c2 IS NOT NULL) = 0;
+c1	c2
+2	NULL
+SELECT * FROM t1 LEFT JOIN t2 ON c1=c2 WHERE (c2 IS NOT NULL) IS FALSE;
+c1	c2
+2	NULL
+DROP TABLE t1,t2;
+#
+# Bug#29402481: INCORRECT RESULT FROM OUTER JOIN QUERIES
+#
+CREATE TABLE t1 (
+pk int primary key auto_increment,
+col_int_unique int unique
+) ENGINE=InnoDB;
+INSERT INTO t1(col_int_unique) values (6),(7);
+CREATE TABLE t2 (
+pk int primary key auto_increment,
+col_int_key int(11) DEFAULT NULL,
+col_int_unique int(11) DEFAULT NULL,
+UNIQUE KEY `ix2` (col_int_key,col_int_unique),
+KEY col_int_key (col_int_key)
+) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE TABLE t3 (
+pk int NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t3(pk) values (6),(7);
+SELECT STRAIGHT_JOIN t1.col_int_unique, t2.col_int_key, t3.pk
+FROM
+(t1 LEFT JOIN t2 ON t1.col_int_unique = t2.col_int_key)
+LEFT JOIN t3 ON t3.pk = t1.col_int_unique AND
+t1.col_int_unique = t2.col_int_key;
+col_int_unique	col_int_key	pk
+6	NULL	NULL
+7	NULL	NULL
+DROP TABLE t1,t2,t3;
+#
+# Bug#29493830 CONST'IFIED OUTER JOIN RETURN INCORRECT RESULTS
+#
+CREATE TABLE t1 (
+col_int_unique INT DEFAULT NULL,
+col_int_key INT DEFAULT NULL,
+UNIQUE KEY col_int_unique (col_int_unique)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (5,0);
+CREATE TABLE t2 (
+col_char_16_unique char(16) DEFAULT NULL,
+col_int_key INT DEFAULT NULL,
+col_int_unique INT DEFAULT NULL,
+UNIQUE KEY col_int_unique (col_int_unique)
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES ("just",21,5);
+CREATE TABLE t3 (
+col_int INT DEFAULT NULL,
+col_char_16_unique CHAR(16) DEFAULT NULL,
+UNIQUE KEY col_char_16_unique (col_char_16_unique)
+) ENGINE=InnoDB;
+INSERT INTO t3 VALUES (9,"foo");
+CREATE TABLE t4 (
+col_int INT DEFAULT NULL,
+col_int_unique INT DEFAULT NULL,
+UNIQUE KEY col_int_unique (col_int_unique)
+) ENGINE=InnoDB;
+INSERT INTO t4 VALUES (9,5);
+explain SELECT STRAIGHT_JOIN
+t3.col_int, t4.col_int,
+t3.col_int = t4.col_int or t4.col_int IS NULL
+FROM (t1
+LEFT JOIN t2
+ON t1.col_int_key = t2.col_int_key AND
+t1.col_int_unique = t2.col_int_unique
+LEFT JOIN t3
+ON t3.col_char_16_unique = t2.col_char_16_unique
+LEFT JOIN t4
+ON t4.col_int = t3.col_int AND    #Note, this pred term
+t4.col_int_unique = t1.col_int_unique
+) WHERE t1.col_int_unique = 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	col_int_unique	col_int_unique	5	const	1	100.00	NULL
+1	SIMPLE	t2	NULL	const	col_int_unique	col_int_unique	5	const	1	100.00	Impossible ON condition
+1	SIMPLE	t3	NULL	const	col_char_16_unique	NULL	NULL	NULL	1	100.00	Impossible ON condition
+1	SIMPLE	t4	NULL	const	col_int_unique	col_int_unique	5	const	1	100.00	Impossible ON condition
+Warnings:
+Note	1003	/* select#1 */ select straight_join NULL AS `col_int`,NULL AS `col_int`,((NULL = NULL) or (NULL is null)) AS `t3.col_int = t4.col_int or t4.col_int IS NULL` from `test`.`t1` left join `test`.`t2` on((multiple equal('0', NULL) and multiple equal(5, NULL))) left join `test`.`t3` on(multiple equal(NULL, NULL)) left join `test`.`t4` on((multiple equal(NULL, NULL) and multiple equal(5, NULL))) where true
+SELECT STRAIGHT_JOIN
+t3.col_int, t4.col_int,
+t3.col_int = t4.col_int or t4.col_int IS NULL
+FROM (t1
+LEFT JOIN t2
+ON t1.col_int_key = t2.col_int_key AND
+t1.col_int_unique = t2.col_int_unique
+LEFT JOIN t3
+ON t3.col_char_16_unique = t2.col_char_16_unique
+LEFT JOIN t4
+ON t4.col_int = t3.col_int AND    #Note, this pred term
+t4.col_int_unique = t1.col_int_unique
+) WHERE t1.col_int_unique = 5;
+col_int	col_int	t3.col_int = t4.col_int or t4.col_int IS NULL
+NULL	NULL	1
+DROP TABLE t1, t2, t3, t4;
+#
+# Bug #30659532: WL#13476: DIFFERENT NUMBER OF ROWS WITH NESTED LOOP JOINS
+#
+CREATE TABLE t1 (
+pk INTEGER NOT NULL
+);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+CREATE TABLE t2 (
+pk INTEGER NOT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t2 VALUES (3);
+CREATE TABLE t3 (
+f1 INTEGER,
+f2 INTEGER,
+KEY k2 (f2)
+);
+INSERT INTO t3 VALUES (NULL,NULL);
+INSERT INTO t3 VALUES (NULL,295010100);
+INSERT INTO t3 VALUES (NULL,NULL);
+INSERT INTO t3 VALUES (NULL,-1762438755);
+INSERT INTO t3 VALUES (NULL,4);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.pk = t2.pk LEFT JOIN t3 ON t2.pk = t3.f2 WHERE t2.pk < 5;
+EXPLAIN
+-> Batched key access left join
+    -> Batch input rows
+        -> Nested loop inner join  (cost=1.40 rows=2)
+            -> Filter: (t1.pk < 5)  (cost=0.70 rows=2)
+                -> Table scan on t1  (cost=0.70 rows=2)
+            -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk)  (cost=0.30 rows=1)
+    -> Multi-range index lookup on t3 using k2 (f2=t1.pk)
+
+SELECT * FROM t1 LEFT JOIN t2 ON t1.pk = t2.pk LEFT JOIN t3 ON t2.pk = t3.f2 WHERE t2.pk < 5;
+pk	pk	f1	f2
+1	1	NULL	NULL
+2	2	NULL	NULL
+DROP TABLE t1, t2, t3;
+#
+# Bug #30654713: WL#13476: DIFFERENT ROWS WITH BATCHED KEY ACCESS LEFT JOIN
+#
+CREATE TABLE t1 (
+col_int INTEGER,
+a INTEGER,
+b varchar(10),
+KEY key_a (a)
+);
+INSERT INTO t1 VALUES (5,NULL,'p');
+INSERT INTO t1 VALUES (6,NULL,'');
+INSERT INTO t1 VALUES (7,NULL,'');
+INSERT INTO t1 VALUES (8,NULL,'Z');
+INSERT INTO t1 VALUES (9,4,'g');
+INSERT INTO t1 VALUES (10,NULL,'if');
+INSERT INTO t1 VALUES (11,NULL,'j');
+INSERT INTO t1 VALUES (12,9,'');
+CREATE TABLE t2 (
+a INTEGER,
+b varchar(10),
+KEY key_b (b)
+);
+INSERT INTO t2 VALUES (1,'j');
+INSERT INTO t2 VALUES (2,'o');
+INSERT INTO t2 VALUES (3,'z');
+INSERT INTO t2 VALUES (4,'really');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN format=tree SELECT t1.col_int as t1_ci, t1.a as t1_a, t1.b as t1_b, t2.a as t2_a, t2.b as t2_b, t3.col_int as t3_ci, t3.a as t3_a, t3.b as t3_b
+FROM t1
+LEFT JOIN ( t2 LEFT JOIN t1 AS t3 ON t2.a=t3.a )
+ON t1.b = t2.b;
+EXPLAIN
+-> Nested loop left join
+    -> Table scan on t1  (cost=1.31 rows=8)
+    -> Batched key access left join
+        -> Batch input rows
+            -> Index lookup on t2 using key_b (b=t1.b)  (cost=0.26 rows=1)
+        -> Multi-range index lookup on t3 using key_a (a=t2.a)
+
+SELECT t1.col_int as t1_ci, t1.a as t1_a, t1.b as t1_b, t2.a as t2_a, t2.b as t2_b, t3.col_int as t3_ci, t3.a as t3_a, t3.b as t3_b
+FROM t1
+LEFT JOIN ( t2 LEFT JOIN t1 AS t3 ON t2.a=t3.a )
+ON t1.b = t2.b;
+t1_ci	t1_a	t1_b	t2_a	t2_b	t3_ci	t3_a	t3_b
+10	NULL	if	NULL	NULL	NULL	NULL	NULL
+11	NULL	j	1	j	NULL	NULL	NULL
+12	9		NULL	NULL	NULL	NULL	NULL
+5	NULL	p	NULL	NULL	NULL	NULL	NULL
+6	NULL		NULL	NULL	NULL	NULL	NULL
+7	NULL		NULL	NULL	NULL	NULL	NULL
+8	NULL	Z	3	z	NULL	NULL	NULL
+9	4	g	NULL	NULL	NULL	NULL	NULL
+DROP TABLE t1, t2;
+#
+# Bug#30520749 - REGRESSION: LEFT JOIN WITH IMPOSSIBLE ON CONDITION PERFORMS SLOWLY
+#
+set optimizer_switch='block_nested_loop=off';
+CREATE TABLE t1 ( f1 INTEGER );
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+CREATE TABLE t2 AS SELECT * FROM t1;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON 1=2;
+EXPLAIN
+-> Nested loop left join  (cost=6.01 rows=25)
+    -> Table scan on t1  (cost=1.00 rows=5)
+    -> Zero rows (Impossible filter)  (cost=0.60 rows=5)
+
+DROP TABLE t1, t2;
+set optimizer_switch='block_nested_loop=on';
 set optimizer_switch=default;

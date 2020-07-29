@@ -1,8 +1,9 @@
 # verify that values(x) works in update expression
 
-source include/have_tokudb.inc;
+--source include/not_log_bin.inc
+--source include/have_tokudb.inc
 
-source ../include/setup_fast_update_upsert.inc;
+--source ../include/setup_fast_update_upsert.inc
 set tokudb_enable_fast_upsert=1;
 
 create table t (id int primary key, x int not null) engine = tokudb;

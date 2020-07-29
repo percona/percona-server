@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,26 +25,30 @@
 #ifndef I_OUTPUT_WRITER_INCLUDED
 #define I_OUTPUT_WRITER_INCLUDED
 
-#include "i_chain_element.h"
 #include <string>
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+#include "client/dump/i_chain_element.h"
 
-class I_output_writer : public virtual I_chain_element
-{
-public:
+namespace Mysql {
+namespace Tools {
+namespace Dump {
+
+class I_output_writer : public virtual I_chain_element {
+ public:
   /**
     Adds new block of data atomically to output. Atomicity assures that
     specified block of data will be added to output as one part, will not be
     divided or interleaved with another data.
    */
-  virtual void append(const std::string& data_to_append)= 0;
+  virtual void append(const std::string &data_to_append) = 0;
+  /**
+    Initialize writer
+  */
+  virtual bool init() = 0;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

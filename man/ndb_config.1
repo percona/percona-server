@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/23/2020
+.\"      Date: 03/06/2020
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 5.7
+.\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_CONFIG\FR" "1" "03/23/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_CONFIG\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -68,7 +68,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.243.\ \&Command\-line options for the ndb_config program
+.B Table\ \&22.255.\ \&Command\-line options for the ndb_config program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -104,7 +104,7 @@ T}:T{
 Set the path to config.ini file
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -114,7 +114,7 @@ Obtain configuration data from the node having this ID (must be a data
               node)
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -125,7 +125,7 @@ Dumps information about all NDB configuration parameters in text format
               to obtain XML output
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -137,7 +137,7 @@ Print connections information ([tcp], [tcp default], [sci], [sci
               --nodes
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -146,7 +146,7 @@ T}:T{
 Print only configuration parameters that have non-default values
 T}:T{
 .PP
-ADDED: NDB 7.5.7, NDB 7.6.3
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -157,7 +157,7 @@ T}:T{
 Field separator
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -166,7 +166,7 @@ T}:T{
 Specify host
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -175,7 +175,7 @@ T}:T{
 Read configuration data from my.cnf file
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -184,7 +184,7 @@ T}:T{
 Get configuration of node with this ID
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -195,7 +195,7 @@ Print node information ([ndbd] or [ndbd default] section of cluster
               --connections
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -204,7 +204,7 @@ T}:T{
 Short form for --ndb-connectstring
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -215,7 +215,7 @@ T}:T{
 One or more query options (attributes)
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -226,7 +226,7 @@ T}:T{
 Dumps all parameters and values to a single comma-delimited string
 T}:T{
 .PP
-ADDED: NDB 7.4.16, NDB 7.5.7
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -237,7 +237,7 @@ T}:T{
 Row separator
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -247,7 +247,7 @@ Print SYSTEM section information only (see ndb_config --configinfo
               output). Cannot be used with --nodes or --connections
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -256,7 +256,7 @@ T}:T{
 Specify node type
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -267,7 +267,7 @@ Use --xml with --configinfo to obtain a dump of all NDB configuration
               minimum values
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all MySQL 8.0 based releases)
 T}
 .TE
 .sp 1
@@ -529,8 +529,8 @@ information only\(emthat is, information about parameters found in the
 [shm], or
 [shm default]
 sections of the cluster configuration file (see
-Section\ \&21.3.3.10, \(lqNDB Cluster TCP/IP Connections\(rq, and
-Section\ \&21.3.3.12, \(lqNDB Cluster Shared Memory Connections\(rq, for more information)\&.
+Section\ \&22.3.3.10, \(lqNDB Cluster TCP/IP Connections\(rq, and
+Section\ \&22.3.3.12, \(lqNDB Cluster Shared-Memory Connections\(rq, for more information)\&.
 .sp
 This option is mutually exclusive with
 \fB\-\-nodes\fR
@@ -558,17 +558,11 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --diff-default
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.6.3
 T}
 T{
 \fBType\fR
@@ -806,7 +800,7 @@ T}
 .TE
 .sp 1
 Specifies the connection string to use in connecting to the management server\&. The format for the connection string is the same as described in
-Section\ \&21.3.3.3, \(lqNDB Cluster Connection Strings\(rq, and defaults to
+Section\ \&22.3.3.3, \(lqNDB Cluster Connection Strings\(rq, and defaults to
 localhost:1186\&.
 .RE
 .sp
@@ -848,10 +842,7 @@ T}:T{
 T}
 .TE
 .sp 1
-Specify the node ID of the node for which configuration information is to be obtained\&. Formerly,
-\fB\-\-id\fR
-could be used as a synonym for this option; in NDB 7\&.5 and later, the only form accepted is
-\fB\-\-nodeid\fR\&.
+Specify the node ID of the node for which configuration information is to be obtained\&.
 .RE
 .sp
 .RS 4
@@ -899,7 +890,7 @@ to print information relating only to parameters defined in an
 or
 [ndbd default]
 section of the cluster configuration file (see
-Section\ \&21.3.3.6, \(lqDefining NDB Cluster Data Nodes\(rq)\&.
+Section\ \&22.3.3.6, \(lqDefining NDB Cluster Data Nodes\(rq)\&.
 .sp
 This option is mutually exclusive with
 \fB\-\-connections\fR
@@ -960,11 +951,6 @@ returns the node ID, node type,
 DataMemory, and
 DataDir
 for each node\&.
-.sp
-Formerly,
-id
-was accepted as a synonym for
-nodeid, but has been removed in NDB 7\&.5 and later\&.
 .if n \{\
 .sp
 .\}
@@ -1003,17 +989,11 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --query-all
-T}
-T{
-\fBIntroduced\fR
-T}:T{
-5.7.18-ndb-7.5.7
 T}
 T{
 \fBType\fR
@@ -1027,8 +1007,6 @@ T}
 .TE
 .sp 1
 Returns a comma\-delimited list of all query options (node attributes; note that this list is a single string\&.
-.sp
-This option was introduced in NDB 7\&.5\&.7 (Bug #60095, Bug #11766869)\&.
 .RE
 .sp
 .RS 4

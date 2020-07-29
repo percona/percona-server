@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -18,12 +18,12 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# We want boost 1.59.0 in order to build our boost/geometry code.
+# We want boost 1.70.0 in order to build our boost/geometry code.
 # The boost tarball is fairly big, and takes several minutes
 # to download. So we recommend downloading/unpacking it
-# only once, in a place visible from any bzr sandbox.
+# only once, in a place visible from any git sandbox.
 # We use only header files, so there should be no binary dependencies.
 
 # Downloading the tarball takes about 5 minutes here at the office.
@@ -38,13 +38,29 @@
 # we assume that the correct version (see below)
 # is installed on the compile host in the standard location.
 
-SET(BOOST_PACKAGE_NAME "boost_1_59_0")
+SET(BOOST_PACKAGE_NAME "boost_1_70_0")
 SET(BOOST_TARBALL "${BOOST_PACKAGE_NAME}.tar.gz")
 SET(BOOST_DOWNLOAD_URL
-  "http://jenkins.percona.com/downloads/boost/${BOOST_TARBALL}"
+  "https://dl.bintray.com/boostorg/release/1.70.0/source/${BOOST_TARBALL}"
   )
 
-SET(OLD_PACKAGE_NAMES "boost_1_55_0 boost_1_56_0 boost_1_57_0 boost_1_58_0")
+SET(OLD_PACKAGE_NAMES
+  "boost_1_55_0"
+  "boost_1_56_0"
+  "boost_1_57_0"
+  "boost_1_58_0"
+  "boost_1_59_0"
+  "boost_1_60_0"
+  "boost_1_61_0"
+  "boost_1_62_0"
+  "boost_1_63_0"
+  "boost_1_64_0"
+  "boost_1_65_0"
+  "boost_1_66_0"
+  "boost_1_67_0"
+  "boost_1_68_0"
+  "boost_1_69_0"
+)
 
 MACRO(RESET_BOOST_VARIABLES)
   UNSET(BOOST_INCLUDE_DIR)
@@ -90,8 +106,9 @@ MACRO(COULD_NOT_FIND_BOOST)
     "This CMake script will look for boost in <directory>. "
     "If it is not there, it will download and unpack it "
     "(in that directory) for you.\n"
-    "If you are inside a firewall, you may need to use an http proxy:\n"
-    "export http_proxy=http://example.com:80\n"
+    "You can also download boost manually, from ${BOOST_DOWNLOAD_URL}\n"
+    "If you are inside a firewall, you may need to use an https proxy:\n"
+    "export https_proxy=http://example.com:80\n"
     )
 ENDMACRO()
 
@@ -158,6 +175,17 @@ IF (WITH_BOOST)
   ENDIF()
   IF(LOCAL_BOOST_ZIP)
     MESSAGE(STATUS "Local boost zip ${LOCAL_BOOST_ZIP}")
+    GET_FILE_SIZE(${LOCAL_BOOST_ZIP} LOCAL_BOOST_ZIP_SIZE)
+    IF(LOCAL_BOOST_ZIP_SIZE EQUAL 0)
+      # A previous failed download has left an empty file, most likely the
+      # user pressed Ctrl-C to kill a hanging connection due to missing vpn
+      # proxy.  Remove it!
+      MESSAGE("${LOCAL_BOOST_ZIP} is zero length. Deleting it.")
+      FILE(REMOVE ${WITH_BOOST}/${BOOST_TARBALL})
+      UNSET(LOCAL_BOOST_ZIP)
+      UNSET(LOCAL_BOOST_ZIP CACHE)
+    ENDIF()
+    UNSET(LOCAL_BOOST_ZIP_ZERO_LENGTH)
   ENDIF()
 ENDIF()
 
@@ -251,7 +279,7 @@ ENDIF()
 # //  BOOST_VERSION % 100 is the patch level
 # //  BOOST_VERSION / 100 % 1000 is the minor version
 # //  BOOST_VERSION / 100000 is the major version
-# #define BOOST_VERSION 105900
+# #define BOOST_VERSION 107000
 FILE(STRINGS "${BOOST_INCLUDE_DIR}/boost/version.hpp"
   BOOST_VERSION_NUMBER
   REGEX "^#define[\t ]+BOOST_VERSION[\t ][0-9]+.*"
@@ -269,9 +297,9 @@ IF(NOT BOOST_MAJOR_VERSION EQUAL 10)
   COULD_NOT_FIND_BOOST()
 ENDIF()
 
-IF(NOT BOOST_MINOR_VERSION EQUAL 59)
+IF(NOT BOOST_MINOR_VERSION EQUAL 70)
   MESSAGE(WARNING "Boost minor version found is ${BOOST_MINOR_VERSION} "
-    "we need 59"
+    "we need 70"
     )
   COULD_NOT_FIND_BOOST()
 ENDIF()
@@ -279,14 +307,16 @@ ENDIF()
 MESSAGE(STATUS "BOOST_INCLUDE_DIR ${BOOST_INCLUDE_DIR}")
 
 # We have a limited set of patches/bugfixes here:
-SET(BOOST_PATCHES_DIR "${CMAKE_SOURCE_DIR}/include/boost_1_59_0/patches")
-
-# We have a limited set of source files here:
-SET(BOOST_SOURCES_DIR "${CMAKE_SOURCE_DIR}/include/boost_1_59_0")
+SET(BOOST_PATCHES_DIR "${CMAKE_SOURCE_DIR}/include/boost_1_70_0/patches")
 
 # Bug in sqrt(NaN) on 32bit platforms
 IF(SIZEOF_VOIDP EQUAL 4)
   ADD_DEFINITIONS(-DBOOST_GEOMETRY_SQRT_CHECK_FINITENESS)
+ENDIF()
+
+# Boost gets confused about language support with Clang 7 + MSVC 15.9
+IF(WIN32_CLANG)
+  ADD_DEFINITIONS(-DBOOST_NO_CXX17_HDR_STRING_VIEW)
 ENDIF()
 
 IF(LOCAL_BOOST_DIR OR LOCAL_BOOST_ZIP)

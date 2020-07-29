@@ -17,8 +17,6 @@ SELECT * FROM t5980;
 a	b
 1	Create the tablespace
 ### files in MYSQLD_DATADIR/test
-t5980.frm
-t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.ibd
 #
@@ -30,7 +28,7 @@ t5980	CREATE TABLE `t5980` (
   `a` int(11) NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 #
 # Backup the cfg and ibd files.
 #
@@ -40,8 +38,6 @@ a	b
 1	Create the tablespace
 UNLOCK TABLES;
 ### files in MYSQLD_DATADIR/test
-t5980.frm
-t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
 t5980.ibd
@@ -85,8 +81,6 @@ a	b	c
 2	Duplicate value since primary key has been dropped	third column added
 UNLOCK TABLES;
 ### files in MYSQLD_DATADIR/test
-t5980.frm
-t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
 t5980.cfg.bak2
@@ -118,7 +112,6 @@ ALTER TABLE t5980 DISCARD TABLESPACE;
 SELECT * FROM t5980;
 ERROR HY000: Tablespace has been discarded for table 't5980'
 ### files in MYSQLD_DATADIR/test
-t5980.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
 t5980.cfg.bak2
@@ -166,8 +159,6 @@ ALTER TABLE t5980 IMPORT TABLESPACE;
 Warnings:
 Warning	1814	InnoDB: Tablespace has been discarded for table 't5980'
 ### files in MYSQLD_DATADIR/test
-t5980.frm
-t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg
 t5980.cfg.bak
@@ -212,25 +203,41 @@ a	b	c
 #
 # Show that the system tables have this table in them correctly.
 #
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/t5980	test/t5980	97	6	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	Any	ibdata1
+mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t5980	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/t5980	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
+innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
+mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+test/t5980	TABLESPACE	InnoDB	NORMAL	test/t5980	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
 #
 # Drop the imported table and show that the system tables are updated.
 #
 DROP TABLE t5980;
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	Any	ibdata1
+mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
+mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 ### files in MYSQLD_DATADIR/test
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
@@ -246,8 +253,6 @@ SELECT * FROM t5980;
 a	b
 1	Create the tablespace a third time
 ### files in MYSQLD_DATADIR/test
-t5980.frm
-t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
 t5980.cfg.bak2
@@ -262,8 +267,6 @@ t5980.ibd.bak2
 # restart
 SET GLOBAL innodb_file_per_table=ON;
 ### files in MYSQLD_DATADIR/test
-t5980.frm
-t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
 t5980.cfg.bak2
@@ -288,8 +291,6 @@ SELECT * FROM t5980;
 a	b
 1	Create the tablespace a third time
 ### files in MYSQLD_DATADIR/test
-t5980.frm
-t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
 t5980.cfg.bak2
@@ -300,7 +301,6 @@ ALTER TABLE t5980 DISCARD TABLESPACE;
 SELECT * FROM t5980;
 ERROR HY000: Tablespace has been discarded for table 't5980'
 ### files in MYSQLD_DATADIR/test
-t5980.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
 t5980.cfg.bak2
@@ -310,7 +310,6 @@ t5980.ibd.bak2
 # Restore the backup of *.ibd and *.cfg files
 #
 ### files in MYSQLD_DATADIR/test
-t5980.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg
 t5980.cfg.bak
@@ -331,10 +330,8 @@ t5980	CREATE TABLE `t5980` (
   `a` int(11) NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 ### files in MYSQLD_DATADIR/test
-t5980.frm
-t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg
 t5980.cfg.bak
@@ -349,7 +346,6 @@ ALTER TABLE t5980 DISCARD TABLESPACE;
 SELECT * FROM t5980;
 ERROR HY000: Tablespace has been discarded for table 't5980'
 ### files in MYSQLD_DATADIR/test
-t5980.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
 t5980.cfg.bak2
@@ -370,13 +366,11 @@ test.t5980	check	error	Corrupt
 # Relocate this discarded file to the default directory
 # instead of the remote directory it was discarded from.
 # Put cfg and idb files into the default directory.
-# Delete the isl file and the remote cfg file.
 # Restart the engine again.
 # The tablespace is still in the discarded state.
 #
 ### files in MYSQLD_DATADIR/test
 t5980.cfg
-t5980.frm
 t5980.ibd
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
@@ -408,12 +402,9 @@ test.t5980	check	error	Corrupt
 #
 # Restore the ibd and cfg files to the remote directory.
 # Delete the ibd and cfg files from the default directory.
-# The isl file is missing, but is no longer needed since the
-# remote location is in the data dictionary.
 # Import the tablespace and check it out.
 #
 ### files in MYSQLD_DATADIR/test
-t5980.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg
 t5980.cfg.bak
@@ -435,19 +426,27 @@ t5980	CREATE TABLE `t5980` (
   `a` int(11) NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 #
 # Show that the system tables have this table in them correctly.
 #
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/t5980	test/t5980	97	5	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	Any	ibdata1
+mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t5980	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/t5980	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
+innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
+mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+test/t5980	TABLESPACE	InnoDB	NORMAL	test/t5980	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
 DROP TABLE t5980;
 #
 # Create a local and remote tablespaces, discard two and make
@@ -480,52 +479,54 @@ Table	Create Table
 t5980a	CREATE TABLE `t5980a` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t5980b;
 Table	Create Table
 t5980b	CREATE TABLE `t5980b` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SHOW CREATE TABLE t5980c;
 Table	Create Table
 t5980c	CREATE TABLE `t5980c` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t5980d;
 Table	Create Table
 t5980d	CREATE TABLE `t5980d` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/t5980a	test/t5980a	33	5	Dynamic	0	Single
 test/t5980b	test/t5980b	97	5	Dynamic	0	Single
 test/t5980c	test/t5980c	33	5	Dynamic	0	Single
 test/t5980d	test/t5980d	97	5	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	Any	ibdata1
+mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t5980a	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980a.ibd
 test/t5980b	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
 test/t5980c	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
 test/t5980d	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/t5980a	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t5980a.ibd
-test/t5980b	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
-test/t5980c	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t5980c.ibd
-test/t5980d	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
+innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
+mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+test/t5980a	TABLESPACE	InnoDB	NORMAL	test/t5980a	MYSQLD_DATADIR/test/t5980a.ibd
+test/t5980b	TABLESPACE	InnoDB	NORMAL	test/t5980b	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
+test/t5980c	TABLESPACE	InnoDB	NORMAL	test/t5980c	MYSQLD_DATADIR/test/t5980c.ibd
+test/t5980d	TABLESPACE	InnoDB	NORMAL	test/t5980d	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
 ### files in MYSQLD_DATADIR/test
-t5980a.frm
 t5980a.ibd
-t5980b.frm
-t5980b.isl
-t5980c.frm
 t5980c.ibd
-t5980d.frm
-t5980d.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980b.ibd
 t5980d.ibd
@@ -538,10 +539,6 @@ UNLOCK TABLES;
 ALTER TABLE t5980a DISCARD TABLESPACE;
 ALTER TABLE t5980b DISCARD TABLESPACE;
 ### files in MYSQLD_DATADIR/test
-t5980a.frm
-t5980b.frm
-t5980c.frm
-t5980d.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
 SELECT * FROM t5980a;
 ERROR HY000: Tablespace has been discarded for table 't5980a'
@@ -556,44 +553,54 @@ Table	Create Table
 t5980a	CREATE TABLE `t5980a` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t5980b;
 Table	Create Table
 t5980b	CREATE TABLE `t5980b` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SHOW CREATE TABLE t5980c;
 ERROR HY000: Tablespace is missing for table `test`.`t5980c`.
 SHOW CREATE TABLE t5980d;
 ERROR HY000: Tablespace is missing for table `test`.`t5980d`.
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/t5980a	test/t5980a	33	5	Dynamic	0	Single
 test/t5980b	test/t5980b	97	5	Dynamic	0	Single
 test/t5980c	test/t5980c	33	5	Dynamic	0	Single
 test/t5980d	test/t5980d	97	5	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	Any	ibdata1
+mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t5980a	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980a.ibd
 test/t5980b	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
 test/t5980c	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
 test/t5980d	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
+mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+Warnings:
+Warning	1812	Tablespace is missing for table test/t5980#.
+Warning	1812	Tablespace is missing for table test/t5980#.
+Warning	1812	Tablespace is missing for table test/t5980#.
+Warning	1812	Tablespace is missing for table test/t5980#.
 ### files in MYSQLD_DATADIR/test
-t5980a.frm
-t5980b.frm
-t5980c.frm
-t5980d.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
 #
 # Discarded and missing tablespaces cannot be TRUNCATED
 #
 TRUNCATE TABLE t5980a;
-ERROR HY000: Tablespace has been discarded for table 't5980a'
+ERROR HY000: Tablespace has been discarded for table 'test/t5980a'
+call mtr.add_suppression("Table .* does not exist .* though MySQL .* rename");
 TRUNCATE TABLE t5980b;
-ERROR HY000: Tablespace has been discarded for table 't5980b'
+ERROR HY000: Tablespace has been discarded for table 'test/t5980b'
 TRUNCATE TABLE t5980c;
 ERROR HY000: Tablespace is missing for table `test`.`t5980c`.
 TRUNCATE TABLE t5980d;
@@ -627,31 +634,44 @@ Table	Create Table
 t5980aa	CREATE TABLE `t5980aa` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t5980bb;
 Table	Create Table
 t5980bb	CREATE TABLE `t5980bb` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SHOW CREATE TABLE t5980c;
 ERROR HY000: Tablespace is missing for table `test`.`t5980c`.
 SHOW CREATE TABLE t5980d;
 ERROR HY000: Tablespace is missing for table `test`.`t5980d`.
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t5980aa	test/t5980a	33	5	Dynamic	0	Single
-test/t5980bb	test/t5980b	97	5	Dynamic	0	Single
+mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
+test/t5980aa	test/t5980aa	33	5	Dynamic	0	Single
+test/t5980bb	test/t5980bb	97	5	Dynamic	0	Single
 test/t5980c	test/t5980c	33	5	Dynamic	0	Single
 test/t5980d	test/t5980d	97	5	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-test/t5980a	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980a.ibd
-test/t5980b	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
+innodb_system	System	DEFAULT	0	Any	ibdata1
+mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+test/t5980aa	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980a.ibd
+test/t5980bb	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
 test/t5980c	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
 test/t5980d	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
+mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+Warnings:
+Warning	1812	Tablespace is missing for table test/t5980#.
+Warning	1812	Tablespace is missing for table test/t5980#.
+Warning	1812	Tablespace is missing for table test/t5980#.
+Warning	1812	Tablespace is missing for table test/t5980#.
 #
 # Discarded tablespaces cannot be ALTERED with ALGORITHM=COPY.
 #
@@ -659,20 +679,27 @@ ALTER TABLE t5980aa ADD PRIMARY KEY(a), ALGORITHM=COPY;
 ERROR HY000: Tablespace has been discarded for table 't5980aa'
 ALTER TABLE t5980bb ADD PRIMARY KEY(a), ALGORITHM=COPY;
 ERROR HY000: Tablespace has been discarded for table 't5980bb'
+ALTER TABLE t5980aa CHANGE a c INT, ALGORITHM=COPY;
+ERROR HY000: Tablespace has been discarded for table 't5980aa'
+ALTER TABLE t5980bb CHANGE a c INT, ALGORITHM=COPY;
+ERROR HY000: Tablespace has been discarded for table 't5980bb'
 #
-# Discarded tablespaces can be ALTERED with ALGORITHM=INPLACE.
+# Discarded tablespaces can be ALTERED with ALGORITHM=INPLACE
+# only if a rebuild is not required.
 #
 ALTER TABLE t5980aa ADD PRIMARY KEY(a), ALGORITHM=INPLACE;
-Warnings:
-Warning	1814	InnoDB: Tablespace has been discarded for table 't5980aa'
+ERROR HY000: Tablespace has been discarded for table 'test/t5980aa'
 ALTER TABLE t5980bb ADD PRIMARY KEY(a), ALGORITHM=INPLACE;
+ERROR HY000: Tablespace has been discarded for table 'test/t5980bb'
+ALTER TABLE t5980aa RENAME t5980aaa, ALGORITHM=INPLACE;
+ALTER TABLE t5980aaa RENAME t5980aa, ALGORITHM=INPLACE;
 Warnings:
-Warning	1814	InnoDB: Tablespace has been discarded for table 't5980bb'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't5980aaa'
+ALTER TABLE t5980bb RENAME t5980bbb, ALGORITHM=INPLACE;
+ALTER TABLE t5980bbb RENAME t5980bb, ALGORITHM=INPLACE;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't5980bbb'
 ### files in MYSQLD_DATADIR/test
-t5980aa.frm
-t5980bb.frm
-t5980c.frm
-t5980d.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
 #
 # Missing tablespaces cannot be ALTERED.
@@ -688,36 +715,43 @@ ERROR HY000: Tablespace has been discarded for table 't5980bb'
 SHOW CREATE TABLE t5980aa;
 Table	Create Table
 t5980aa	CREATE TABLE `t5980aa` (
-  `a` int(11) NOT NULL,
-  `b` text,
-  PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `a` int(11) DEFAULT NULL,
+  `b` text
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t5980bb;
 Table	Create Table
 t5980bb	CREATE TABLE `t5980bb` (
-  `a` int(11) NOT NULL,
-  `b` text,
-  PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+  `a` int(11) DEFAULT NULL,
+  `b` text
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/t5980aa	test/t5980aa	33	5	Dynamic	0	Single
 test/t5980bb	test/t5980bb	97	5	Dynamic	0	Single
 test/t5980c	test/t5980c	33	5	Dynamic	0	Single
 test/t5980d	test/t5980d	97	5	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	Any	ibdata1
+mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+test/t5980aa	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980a.ibd
+test/t5980bb	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
 test/t5980c	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
 test/t5980d	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
-test/t5980aa	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980aa.ibd
-test/t5980bb	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
+mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+Warnings:
+Warning	1812	Tablespace is missing for table test/t5980#.
+Warning	1812	Tablespace is missing for table test/t5980#.
+Warning	1812	Tablespace is missing for table test/t5980#.
+Warning	1812	Tablespace is missing for table test/t5980#.
 ### files in MYSQLD_DATADIR/test
-t5980aa.frm
-t5980bb.frm
-t5980c.frm
-t5980d.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
 #
 # Restart the server to check if the discarded flag is persistent
@@ -739,40 +773,47 @@ RENAME TABLE t5980bb TO t5980b;
 SHOW CREATE TABLE t5980a;
 Table	Create Table
 t5980a	CREATE TABLE `t5980a` (
-  `a` int(11) NOT NULL,
-  `b` text,
-  PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `a` int(11) DEFAULT NULL,
+  `b` text
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Warnings:
 Warning	1814	InnoDB: Tablespace has been discarded for table 't5980a'
 SHOW CREATE TABLE t5980b;
 Table	Create Table
 t5980b	CREATE TABLE `t5980b` (
-  `a` int(11) NOT NULL,
-  `b` text,
-  PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+  `a` int(11) DEFAULT NULL,
+  `b` text
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 Warnings:
 Warning	1814	InnoDB: Tablespace has been discarded for table 't5980b'
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t5980a	test/t5980aa	33	5	Dynamic	0	Single
-test/t5980b	test/t5980bb	97	5	Dynamic	0	Single
+mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
+test/t5980a	test/t5980a	33	5	Dynamic	0	Single
+test/t5980b	test/t5980b	97	5	Dynamic	0	Single
 test/t5980c	test/t5980c	33	5	Dynamic	0	Single
 test/t5980d	test/t5980d	97	5	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	Any	ibdata1
+mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+test/t5980a	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980a.ibd
+test/t5980b	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
 test/t5980c	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
 test/t5980d	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
-test/t5980aa	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980aa.ibd
-test/t5980bb	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
+mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+Warnings:
+Warning	1812	Tablespace is missing for table test/t5980#.
+Warning	1812	Tablespace is missing for table test/t5980#.
+Warning	1812	Tablespace is missing for table test/t5980#.
+Warning	1812	Tablespace is missing for table test/t5980#.
 ### files in MYSQLD_DATADIR/test
-t5980a.frm
-t5980b.frm
-t5980c.frm
-t5980d.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
 #
 # Discard tablespaces again and try another ALTER TABLE ROW_FORMAT.
@@ -796,13 +837,12 @@ ALTER TABLE t5980b ROW_FORMAT=REDUNDANT, ALGORITHM=COPY;
 ERROR HY000: Tablespace has been discarded for table 't5980b'
 #
 # ALTER TABLE ALGORITHM=INPLACE can use a discarded tablespace.
+# only if a rebuild is not required.
 #
 ALTER TABLE t5980a ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE, LOCK=NONE;
-Warnings:
-Warning	1814	InnoDB: Tablespace has been discarded for table 't5980a'
+ERROR HY000: Tablespace has been discarded for table 'test/t5980a'
 ALTER TABLE t5980b ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE, LOCK=NONE;
-Warnings:
-Warning	1814	InnoDB: Tablespace has been discarded for table 't5980b'
+ERROR HY000: Tablespace has been discarded for table 'test/t5980b'
 #
 # Discarded tablespaces that were ALTERED IN_PLACE are still discarded.
 #
@@ -815,10 +855,6 @@ ERROR HY000: Tablespace has been discarded for table 't5980a'
 SELECT * FROM t5980b;
 ERROR HY000: Tablespace has been discarded for table 't5980b'
 ### files in MYSQLD_DATADIR/test
-t5980a.frm
-t5980b.frm
-t5980c.frm
-t5980d.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
 #
 # Discard tablespaces again and try ALTER TABLE ADD COLUMN.
@@ -842,44 +878,47 @@ ALTER TABLE t5980b ADD COLUMN c CHAR(20), ALGORITHM=COPY;
 ERROR HY000: Tablespace has been discarded for table 't5980b'
 #
 # ALTER TABLE ALGORITHM=INPLACE can use a discarded tablespace.
+# only if a rebuild is not required.
 #
 ALTER TABLE t5980a ADD COLUMN c CHAR(20), ALGORITHM=INPLACE;
-Warnings:
-Warning	1814	InnoDB: Tablespace has been discarded for table 't5980a'
+ERROR HY000: Tablespace has been discarded for table 'test/t5980a'
 ALTER TABLE t5980b ADD COLUMN c CHAR(20), ALGORITHM=INPLACE;
-Warnings:
-Warning	1814	InnoDB: Tablespace has been discarded for table 't5980b'
+ERROR HY000: Tablespace has been discarded for table 'test/t5980b'
 #
 # Discarded tablespaces that were ALTERED IN_PLACE are still discarded.
 #
 DELETE FROM t5980a;
 ERROR HY000: Tablespace has been discarded for table 't5980a'
-UPDATE t5980a SET c="Tablespace is DISCARDED";
+UPDATE t5980a SET b="Tablespace is DISCARDED";
 ERROR HY000: Tablespace has been discarded for table 't5980a'
-INSERT INTO t5980a VALUES (1, "Inserted into discarded local tablespace after ALTER ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE", "new column");
+INSERT INTO t5980a VALUES (1, "Inserted into discarded local tablespace after ALTER ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE");
 ERROR HY000: Tablespace has been discarded for table 't5980a'
-INSERT INTO t5980b VALUES (1, "Inserted into discarded local tablespace after ALTER ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE", "new column");
+INSERT INTO t5980b VALUES (1, "Inserted into discarded local tablespace after ALTER ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE");
 ERROR HY000: Tablespace has been discarded for table 't5980b'
 SELECT * FROM t5980a;
 ERROR HY000: Tablespace has been discarded for table 't5980a'
 SELECT * FROM t5980b;
 ERROR HY000: Tablespace has been discarded for table 't5980b'
 ### files in MYSQLD_DATADIR/test
-t5980a.frm
-t5980b.frm
-t5980c.frm
-t5980d.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
 DROP TABLE t5980a;
 DROP TABLE t5980b;
 DROP TABLE t5980c;
 DROP TABLE t5980d;
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	Any	ibdata1
+mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
+mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 ### files in MYSQLD_DATADIR/test
 ### files in MYSQL_TMP_DIR/alt_dir/test
 #

@@ -20,15 +20,15 @@ while ($i < $n) {
     inc $i;
 }
 
-error 1264,1467;
+error ER_WARN_DATA_OUT_OF_RANGE,ER_AUTOINC_READ_FAILED;
 insert into t set id=null;
 select last_insert_id() from t limit 1;
 
-error 1264,1467;
+error ER_WARN_DATA_OUT_OF_RANGE,ER_AUTOINC_READ_FAILED;
 insert into t set id=null;
 select last_insert_id() from t limit 1;
 
-error 1264,1467;
+error ER_WARN_DATA_OUT_OF_RANGE,ER_AUTOINC_READ_FAILED;
 insert into t set id=null;
 select last_insert_id() from t limit 1;
 
@@ -49,15 +49,15 @@ while ($i < $n) {
     inc $i;
 }
 
-error 1264,1467;
+error ER_WARN_DATA_OUT_OF_RANGE,ER_AUTOINC_READ_FAILED;
 insert into t set id=null;
 select last_insert_id() from t limit 1;
 
-error 1264,1467;
+error ER_WARN_DATA_OUT_OF_RANGE,ER_AUTOINC_READ_FAILED;
 insert into t set id=null;
 select last_insert_id() from t limit 1;
 
-error 1264,1467;
+error ER_WARN_DATA_OUT_OF_RANGE,ER_AUTOINC_READ_FAILED;
 insert into t set id=null;
 select last_insert_id() from t limit 1;
 
@@ -78,15 +78,15 @@ while ($i < $n) {
     inc $i;
 }
 
-error 1264,1467;
+error ER_WARN_DATA_OUT_OF_RANGE,ER_AUTOINC_READ_FAILED;
 insert into t set id=null;
 select last_insert_id() from t limit 1;
 
-error 1264,1467;
+error ER_WARN_DATA_OUT_OF_RANGE,ER_AUTOINC_READ_FAILED;
 insert into t set id=null;
 select last_insert_id() from t limit 1;
 
-error 1264,1467;
+error ER_WARN_DATA_OUT_OF_RANGE,ER_AUTOINC_READ_FAILED;
 insert into t set id=null;
 select last_insert_id() from t limit 1;
 
@@ -107,15 +107,15 @@ while ($i < $n) {
     inc $i;
 }
 
-error 1264,1467;
+error ER_WARN_DATA_OUT_OF_RANGE,ER_AUTOINC_READ_FAILED;
 insert into t set id=null;
 select last_insert_id() from t limit 1;
 
-error 1264,1467;
+error ER_WARN_DATA_OUT_OF_RANGE,ER_AUTOINC_READ_FAILED;
 insert into t set id=null;
 select last_insert_id() from t limit 1;
 
-error 1264,1467;
+error ER_WARN_DATA_OUT_OF_RANGE,ER_AUTOINC_READ_FAILED;
 insert into t set id=null;
 select last_insert_id() from t limit 1;
 

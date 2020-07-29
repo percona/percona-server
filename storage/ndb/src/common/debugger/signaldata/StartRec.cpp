@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005-2007 MySQL AB, 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,13 +49,19 @@ printSTART_REC_REQ(FILE * output,
 	  sig->newestGci,
           sig->senderData);
 
-  NdbNodeBitmask mask;
-  mask.assign(NdbNodeBitmask::Size, sig->sr_nodes);
-  
-  char buf[100];
-  fprintf(output,
-          " sr_nodes: %s\n", mask.getText(buf));
+  if (len == sig->SignalLength_v1)
+  {
+    NdbNodeBitmask48 mask;
+    mask.assign(NdbNodeBitmask48::Size, sig->sr_nodes);
 
+    char buf[NdbNodeBitmask48::TextLength + 1];
+    fprintf(output,
+          " sr_nodes: %s\n", mask.getText(buf));
+  }
+  else
+  {
+    fprintf(output , "sr_nodes in signal section\n");
+  }
   return true;
 }
 
@@ -85,9 +90,10 @@ printSTART_FRAG_REQ(FILE * output,
 {
   StartFragReq* sig = (StartFragReq*)theData;
 
-  fprintf(output, " table: %d frag: %d lcpId: %d lcpNo: %d #nodes: %d \n",
+  fprintf(output, " table: %d frag: %d lcpId: %d lcpNo: %d #nodes: %d"
+                  ", reqinfo: %x \n",
 	  sig->tableId, sig->fragId, sig->lcpId, sig->lcpNo, 
-	  sig->noOfLogNodes);
+	  sig->noOfLogNodes,sig->requestInfo);
 
   for(Uint32 i = 0; i<sig->noOfLogNodes; i++)
   {
@@ -96,7 +102,14 @@ printSTART_FRAG_REQ(FILE * output,
 	    sig->startGci[i],
 	    sig->lastGci[i]);
   }
-    
+  if (len == StartFragReq::SignalLength)
+  {
+    fprintf(output, "\nnodeRestorableGci: %u", sig->nodeRestorableGci);
+  }
+  else
+  {
+    fprintf(output, "\nnodeRestorableGci: 0 (from older version)");
+  }
   fprintf(output, "\n");
   return true; 
 }

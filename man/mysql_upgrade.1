@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_upgrade\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/23/2020
+.\"      Date: 03/06/2020
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 5.7
+.\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_UPGRADE\FR" "1" "03/23/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL_UPGRADE\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -33,6 +33,29 @@ mysql_upgrade \- check and upgrade MySQL tables
 .HP \w'\fBmysql_upgrade\ [\fR\fB\fIoptions\fR\fR\fB]\fR\ 'u
 \fBmysql_upgrade [\fR\fB\fIoptions\fR\fR\fB]\fR
 .SH "DESCRIPTION"
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+As of MySQL 8\&.0\&.16, the MySQL server performs the upgrade tasks previously handled by
+\fBmysql_upgrade\fR
+(for details, see
+Section\ \&2.11.3, \(lqWhat the MySQL Upgrade Process Upgrades\(rq)\&. Consequently,
+\fBmysql_upgrade\fR
+is unneeded and is deprecated as of that version, and will be removed in a future MySQL version\&. Because
+\fBmysql_upgrade\fR
+no longer performs upgrade tasks, it exits with status 0 unconditionally\&.
+.sp .5v
+.RE
 .PP
 Each time you upgrade MySQL, you should execute
 \fBmysql_upgrade\fR, which looks for incompatibilities with the upgraded MySQL server:
@@ -58,7 +81,8 @@ schema so that you can take advantage of new privileges or capabilities that mig
 .sp -1
 .IP \(bu 2.3
 .\}
-It upgrades the Performance Schema and
+It upgrades the Performance Schema,
+INFORMATION_SCHEMA, and
 sys
 schema\&.
 .RE
@@ -77,90 +101,11 @@ It examines user schemas\&.
 If
 \fBmysql_upgrade\fR
 finds that a table has a possible incompatibility, it performs a table check and, if problems are found, attempts a table repair\&. If the table cannot be repaired, see
-Section\ \&2.11.12, \(lqRebuilding or Repairing Tables or Indexes\(rq
+Section\ \&2.11.13, \(lqRebuilding or Repairing Tables or Indexes\(rq
 for manual table repair strategies\&.
 .PP
 \fBmysql_upgrade\fR
 communicates directly with the MySQL server, sending it the SQL statements required to perform an upgrade\&.
-.if n \{\
-.sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBImportant\fR
-.ps -1
-.br
-.PP
-As of MySQL 5\&.7\&.12, the default
-\fB\-\-early\-plugin\-load\fR
-value is empty\&. To load the
-keyring_file
-plugin, you must use an explicit
-\fB\-\-early\-plugin\-load\fR
-option with a nonempty value\&.
-.PP
-In MySQL 5\&.7\&.11, the default
-\fB\-\-early\-plugin\-load\fR
-value was the name of the
-keyring_file
-plugin library file, so that plugin was loaded by default\&.
-InnoDB
-tablespace encryption requires the
-keyring_file
-plugin to be loaded prior to
-InnoDB
-initialization, so this change of default value introduces an incompatibility for upgrades from 5\&.7\&.11 to 5\&.7\&.12 or higher\&. Administrators who have encrypted
-InnoDB
-tablespaces must take explicit action to ensure continued loading of the
-keyring_file
-plugin: Start the server with an
-\fB\-\-early\-plugin\-load\fR
-option that names the plugin library file\&. For additional information, see
-Section\ \&6.4.4, \(lqThe MySQL Keyring\(rq\&.
-.sp .5v
-.RE
-.if n \{\
-.sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBImportant\fR
-.ps -1
-.br
-.PP
-If you upgrade to MySQL 5\&.7\&.2 or later from a version older than 5\&.7\&.2, a change to the
-mysql\&.user
-table requires a special sequence of steps to perform an upgrade using
-\fBmysql_upgrade\fR\&. For details, see
-Section\ \&2.11.3, \(lqChanges in MySQL 5.7\(rq\&.
-.sp .5v
-.RE
-.if n \{\
-.sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
-.PP
-On Windows, you must run
-\fBmysql_upgrade\fR
-with administrator privileges\&. You can do this by running a Command Prompt as Administrator and running the command\&. Failure to do so may result in the upgrade failing to execute correctly\&.
-.sp .5v
-.RE
 .if n \{\
 .sp
 .\}
@@ -364,7 +309,7 @@ FOR UPGRADE
 option of the
 CHECK TABLE
 statement\&. For details about what this option entails, see
-Section\ \&13.7.2.2, \(lqCHECK TABLE Statement\(rq\&.
+Section\ \&13.7.3.2, \(lqCHECK TABLE Statement\(rq\&.
 .PP
 \fBmysql_upgrade\fR
 marks all checked and repaired tables with the current MySQL version number\&. This ensures that the next time you run
@@ -377,6 +322,24 @@ mysql_upgrade_info
 in the data directory\&. This is used to quickly check whether all tables have been checked for this release so that table\-checking can be skipped\&. To ignore this file and perform the check regardless, use the
 \fB\-\-force\fR
 option\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+The
+mysql_upgrade_info
+file is deprecated and will be removed in a future MySQL version\&.
+.sp .5v
+.RE
 .PP
 \fBmysql_upgrade\fR
 checks
@@ -385,27 +348,12 @@ system table rows and, for any row with an empty
 plugin
 column, sets that column to
 \*(Aqmysql_native_password\*(Aq
-or
-\*(Aqmysql_old_password\*(Aq
-depending on the hash format of the
-Password
-column value\&.
-.PP
-Support for pre\-4\&.1 password hashing and
-mysql_old_password
-has been removed, so
-\fBmysql_upgrade\fR
-sets empty
-plugin
-values to
-\*(Aqmysql_native_password\*(Aq
-if the credentials use a hash format compatible with that plugin\&. Rows with a pre\-4\&.1 password hash must be upgraded manually\&. For account upgrade instructions, see
-Section\ \&6.4.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mysql_old_password Plugin\(rq\&.
+if the credentials use a hash format compatible with that plugin\&. Rows with a pre\-4\&.1 password hash must be upgraded manually\&.
 .PP
 \fBmysql_upgrade\fR
 does not upgrade the contents of the time zone tables or help tables\&. For upgrade instructions, see
-Section\ \&5.1.12, \(lqMySQL Server Time Zone Support\(rq, and
-Section\ \&5.1.13, \(lqServer-Side Help Support\(rq\&.
+Section\ \&5.1.13, \(lqMySQL Server Time Zone Support\(rq, and
+Section\ \&5.1.14, \(lqServer-Side Help Support\(rq\&.
 .PP
 Unless invoked with the
 \fB\-\-skip\-sys\-schema\fR
@@ -434,17 +382,6 @@ upgrade to succeed\&.
 To upgrade in this case, remove or rename the existing
 sys
 schema first\&.
-.PP
-\fBmysql_upgrade\fR
-checks for partitioned
-InnoDB
-tables that were created using the generic partitioning handler and attempts to upgrade them to
-InnoDB
-native partitioning\&. (Bug #76734, Bug #20727344) You can upgrade such tables individually in the
-\fBmysql\fR
-client using the
-ALTER TABLE \&.\&.\&. UPGRADE PARTITIONING
-SQL statement\&.
 .PP
 \fBmysql_upgrade\fR
 supports the following options, which can be specified on the command line or in the
@@ -506,7 +443,30 @@ Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 \fB\-C\fR
 .sp
 Compress all information sent between the client and the server if possible\&. See
-Section\ \&4.2.5, \(lqConnection Compression Control\(rq\&.
+Section\ \&4.2.6, \(lqConnection Compression Control\(rq\&.
+.sp
+As of MySQL 8\&.0\&.18, this option is deprecated\&. It will be removed in a future MySQL version\&. See
+the section called \(lqLegacy Connection Compression Configuration\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-compression\-algorithms=\fR\fB\fIvalue\fR\fR
+The permitted compression algorithms for connections to the server\&. The available algorithms are the same as for the
+protocol_compression_algorithms
+system variable\&. The default value is
+uncompressed\&.
+.sp
+For more information, see
+Section\ \&4.2.6, \(lqConnection Compression Control\(rq\&.
+.sp
+This option was added in MySQL 8\&.0\&.18\&.
 .RE
 .sp
 .RS 4
@@ -565,7 +525,7 @@ Print debugging information and memory and CPU usage statistics when the program
 \fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
 .sp
 A hint about which client\-side authentication plugin to use\&. See
-Section\ \&6.2.13, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -666,6 +626,31 @@ mysql_upgrade_info
 file and force execution even if
 \fBmysql_upgrade\fR
 has already been executed for the current version of MySQL\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-get\-server\-public\-key\fR
+.sp
+Request from the server the public key required for RSA key pair\-based password exchange\&. This option applies to clients that authenticate with the
+caching_sha2_password
+authentication plugin\&. For that plugin, the server does not send the public key unless requested\&. This option is ignored for accounts that do not authenticate with that plugin\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
+.sp
+If
+\fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
+is given and specifies a valid public key file, it takes precedence over
+\fB\-\-get\-server\-public\-key\fR\&.
+.sp
+For information about the
+caching_sha2_password
+plugin, see
+Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -823,7 +808,7 @@ The directory in which to look for plugins\&. Specify this option if the
 option is used to specify an authentication plugin but
 \fBmysql_upgrade\fR
 does not find it\&. See
-Section\ \&6.2.13, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -865,6 +850,39 @@ Print the program name and all options that it gets from option files\&.
 .sp
 The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally result in use of a protocol other than the one you want\&. For details on the permissible values, see
 Section\ \&4.2.4, \(lqConnecting to the MySQL Server Using Command Options\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
+.sp
+The path name to a file containing a client\-side copy of the public key required by the server for RSA key pair\-based password exchange\&. The file must be in PEM format\&. This option applies to clients that authenticate with the
+sha256_password
+or
+caching_sha2_password
+authentication plugin\&. This option is ignored for accounts that do not authenticate with one of those plugins\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
+.sp
+If
+\fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
+is given and specifies a valid public key file, it takes precedence over
+\fB\-\-get\-server\-public\-key\fR\&.
+.sp
+For
+sha256_password, this option applies only if MySQL was built using OpenSSL\&.
+.sp
+For information about the
+sha256_password
+and
+caching_sha2_password
+plugins, see
+Section\ \&6.4.1.3, \(lqSHA-256 Pluggable Authentication\(rq, and
+Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -949,12 +967,107 @@ the section called \(lqCommand Options for Encrypted Connections\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-ssl\-fips\-mode={OFF|ON|STRICT}\fR
+Controls whether to enable FIPS mode on the client side\&. The
+\fB\-\-ssl\-fips\-mode\fR
+option differs from other
+\fB\-\-ssl\-\fR\fB\fIxxx\fR\fR
+options in that it is not used to establish encrypted connections, but rather to affect which cryptographic operations are permitted\&. See
+Section\ \&6.5, \(lqFIPS Support\(rq\&.
+.sp
+These
+\fB\-\-ssl\-fips\-mode\fR
+values are permitted:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+OFF: Disable FIPS mode\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+ON: Enable FIPS mode\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+STRICT: Enable
+\(lqstrict\(rq
+FIPS mode\&.
+.RE
+.sp
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+If the OpenSSL FIPS Object Module is not available, the only permitted value for
+\fB\-\-ssl\-fips\-mode\fR
+is
+OFF\&. In this case, setting
+\fB\-\-ssl\-fips\-mode\fR
+to
+ON
+or
+STRICT
+causes the client to produce a warning at startup and to operate in non\-FIPS mode\&.
+.sp .5v
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-tls\-ciphersuites=\fR\fB\fIciphersuite_list\fR\fR
+.sp
+The permissible ciphersuites for encrypted connections that use TLSv1\&.3\&. The value is a list of one or more colon\-separated ciphersuite names\&. The ciphersuites that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
+Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
+.sp
+This option was added in MySQL 8\&.0\&.16\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
 .sp
 The permissible TLS protocols for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
 Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
-.sp
-This option was added in MySQL 5\&.7\&.10\&.
 .RE
 .sp
 .RS 4
@@ -1040,6 +1153,29 @@ if you want its actions to be written to the binary log\&.
 .sp
 When the server is running with global transaction identifiers (GTIDs) enabled (gtid_mode=ON), do not enable binary logging by
 \fBmysql_upgrade\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-zstd\-compression\-level=\fR\fB\fIlevel\fR\fR
+The compression level to use for connections to the server that use the
+zstd
+compression algorithm\&. The permitted levels are from 1 to 22, with larger values indicating increasing levels of compression\&. The default
+zstd
+compression level is 3\&. The compression level setting has no effect on connections that do not use
+zstd
+compression\&.
+.sp
+For more information, see
+Section\ \&4.2.6, \(lqConnection Compression Control\(rq\&.
+.sp
+This option was added in MySQL 8\&.0\&.18\&.
 .RE
 .SH "COPYRIGHT"
 .br

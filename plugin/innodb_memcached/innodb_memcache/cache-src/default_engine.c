@@ -119,8 +119,8 @@ static bool handled_vbucket(struct default_engine *e, uint16_t vbid) {
 static bool get_item_info(ENGINE_HANDLE *handle, const void *cookie,
                           const item* item, item_info *item_info);
 
-static const char * vbucket_state_name(enum vbucket_state s) {
-    static const char * vbucket_states[] = {
+static const char const * vbucket_state_name(enum vbucket_state s) {
+    static const char const * vbucket_states[] = {
         "dead", "active", "replica", "pending"
     };
     return vbucket_states[s];

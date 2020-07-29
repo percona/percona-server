@@ -3,7 +3,6 @@
 --echo # file fts0que.cc
 --echo #
 
---source include/have_innodb.inc
 --source include/have_debug.inc
 
 SET @saved_innodb_ft_result_cache_limit= @@global.innodb_ft_result_cache_limit;

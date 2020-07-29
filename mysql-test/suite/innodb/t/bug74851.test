@@ -1,7 +1,6 @@
 # Bug 74851. With foreign_key_checks disabled, an assertion was raised when
 # adding a foreign key constraint on a renamed column that was part of
 # a previous foreign key constraint.
---source include/have_innodb.inc
 
 CREATE TABLE t1(a1 INT,a2 INT)ENGINE=InnoDB;
 SET foreign_key_checks = 0;

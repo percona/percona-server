@@ -3,17 +3,17 @@
 # MYR-179 : Basic Sysbench run fails with basic MyROCKS install due to lack of open files
 
 # test for over limit
-CALL mtr.add_suppression("RocksDB: rocksdb_max_open_files should not be greater than the open_files_limit*");
+CALL mtr.add_suppression("rocksdb_max_open_files should not be greater than the open_files_limit*");
 
 --let $over_rocksdb_max_open_files=`SELECT @@global.open_files_limit + 100`
 --let $under_rocksdb_max_open_files=`SELECT @@global.open_files_limit -1`
 --let SEARCH_FILE=$MYSQLTEST_VARDIR/tmp/rocksdb.max_open_files.err
---let SEARCH_PATTERN=RocksDB: rocksdb_max_open_files should not be greater than the open_files_limit
+--let SEARCH_PATTERN=rocksdb_max_open_files should not be greater than the open_files_limit
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $over_rocksdb_max_open_files over_rocksdb_max_open_files
---let $restart_parameters=restart:--log-error=$SEARCH_FILE --rocksdb_max_open_files=$over_rocksdb_max_open_files
+--let $restart_parameters=restart:--log-error=$SEARCH_FILE --rocksdb_max_open_files=$over_rocksdb_max_open_files --log-error-verbosity=3
 --source include/restart_mysqld.inc
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 # test for within limit
 --replace_result $under_rocksdb_max_open_files under_rocksdb_max_open_files

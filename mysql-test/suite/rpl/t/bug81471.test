@@ -4,8 +4,6 @@
 # The --character-set-server option could set connection character set system
 # variables to values such as ucs2 that are not permitted.
 #
---source include/have_utf16.inc
---source include/not_embedded.inc
 --source include/master-slave.inc
 
 --let $rpl_server_number = 2

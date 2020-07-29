@@ -224,15 +224,15 @@ call mtr.add_suppression("Slave: Can't find record in 'u2'.*");
 
 # query the t2 table on the slave
 --source include/rpl_connection_slave.inc
-select count(*) from t2 force index(primary);
+select id from t2 force index(primary);
 select * from t2 where id=1;
 select i1 from t2 where i1=1;
 select i2 from t2 where i2=100;
 
 # query the u2 table on the slave
-select count(*) from u2 force index(primary);
-select count(*) from u2 force index(i1);
-select count(*) from u2 force index(i2);
+select id from u2 force index(primary);
+select i1 from u2 force index(i1);
+select i2 from u2 force index(i2);
 select * from u2 where id=1;
 select i1 from u2 where i1=1;
 select i2 from u2 where i2=100;
@@ -293,13 +293,13 @@ call mtr.add_suppression("Slave: Can't find record in 'u2'.*");
 
 # query the t2 table on the slave
 --source include/rpl_connection_slave.inc
-select count(*) from t2 force index(primary);
+select id from t2 force index(primary);
 select * from t2 where id=1;
 select i1 from t2 where i1=1;
 select i2 from t2 where i2=100;
 
 # query the u2 table on the slave
-select count(*) from u2 force index(primary);
+select id from u2 force index(primary);
 select * from u2 where id=1;
 select i1 from u2 where i1=1;
 select i2 from u2 where i2=100;
@@ -344,9 +344,9 @@ update t3 set i2=100, value=100 where id=1;
 
 # query the t3 table on the slave
 --source include/rpl_connection_slave.inc
-select count(*) from t3 force index(primary);
-select count(*) from t3 force index(i1);
-select count(*) from t3 force index(i2);
+select id from t3 force index(primary);
+select i1 from t3 force index(i1);
+select i2 from t3 force index(i2);
 select * from t3 where id=1;
 select i1 from t3 where i1=1;
 select i2 from t3 where i2=100;
@@ -376,9 +376,9 @@ delete from t4 where id=1;
 # query the t4 table on the slave
 --source include/rpl_connection_slave.inc
 --echo [on slave]
-select count(*) from t4 force index(primary);
-select count(*) from t4 force index(i1);
-select count(*) from t4 force index(i2);
+select id from t4 force index(primary);
+select i1 from t4 force index(i1);
+select i2 from t4 force index(i2);
 select i1 from t4 where i1=100;
 
 --echo

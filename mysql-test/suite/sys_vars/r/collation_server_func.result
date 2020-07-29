@@ -15,6 +15,8 @@ latin1_danish_ci
 DROP TABLE IF EXISTS t1,t2;
 '---check if setting collation_server update character_set_server---'
 SET @@session.collation_server = utf8_spanish_ci;
+Warnings:
+Warning	3778	'utf8_spanish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@collation_server, @@character_set_server;
 @@collation_server	@@character_set_server
 utf8_spanish_ci	utf8
@@ -24,7 +26,7 @@ CREATE DATABASE db1;
 USE db1;
 SHOW CREATE DATABASE db1;
 Database	Create Database
-db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET latin1 COLLATE latin1_german1_ci */
+db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET latin1 COLLATE latin1_german1_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
 CREATE TABLE t1(a CHAR(20));
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -33,6 +35,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_german1_ci
 '---check if updating collation_server effects new table/column---'
 SET @@session.collation_server = latin1_swedish_ci;
+set names latin1;
 CREATE TABLE t2(a CHAR(10));
 SHOW CREATE TABLE t2;
 Table	Create Table

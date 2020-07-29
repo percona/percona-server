@@ -5,7 +5,7 @@ b2 BOOLEAN
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 b1	tinyint(1)	YES		NULL	
 b2	tinyint(1)	YES		NULL	
 INSERT INTO t1 (b1,b2) VALUES (1,TRUE);
@@ -46,15 +46,11 @@ INSERT INTO t1 (b1,b2) VALUES ('a','b');
 ERROR HY000: Incorrect integer value: 'a' for column 'b1' at row 1
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 (b1,b2) VALUES ('a','b');
 Warnings:
 Warning	1366	Incorrect integer value: 'a' for column 'b1' at row 1
 Warning	1366	Incorrect integer value: 'b' for column 'b2' at row 1
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT b1,b2 FROM t1;
 b1	b2
 -1	-2
@@ -66,15 +62,11 @@ INSERT INTO t1 (b1,b2) VALUES (128,-129);
 ERROR 22003: Out of range value for column 'b1' at row 1
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 (b1,b2) VALUES (128,-129);
 Warnings:
 Warning	1264	Out of range value for column 'b1' at row 1
 Warning	1264	Out of range value for column 'b2' at row 1
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT b1,b2 FROM t1;
 b1	b2
 -1	-2

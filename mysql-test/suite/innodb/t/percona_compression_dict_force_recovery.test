@@ -1,0 +1,139 @@
+--disable_query_log
+call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode");
+call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode");
+call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode");
+call mtr.add_suppression("innodb_force_recovery is on. We do not allow database modifications by the user. Shut down mysqld and edit my.cnf to set innodb_force_recovery=0");
+--enable_query_log
+
+
+CREATE COMPRESSION_DICTIONARY d1('blah');
+CREATE TABLE `t1` (`a` text COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d1`) ENGINE=InnoDB;
+INSERT INTO t1 VALUES('satya');
+
+--echo #########################################################
+--let $restart_parameters = "restart: --innodb_force_recovery=6"
+--source include/restart_mysqld.inc
+--echo #########################################################
+
+--echo # drop existing compression dictionary with references by tables
+--error ER_READ_ONLY_MODE
+DROP COMPRESSION_DICTIONARY d1;
+
+--echo # drop existing table
+--error ER_ENGINE_CANT_DROP_TABLE
+DROP TABLE t1;
+
+--echo # drop existing compression dictionary with no references
+--error ER_READ_ONLY_MODE
+DROP COMPRESSION_DICTIONARY d1;
+
+--echo # create new compression dictionary
+--error ER_READ_ONLY_MODE
+CREATE COMPRESSION_DICTIONARY d1('blah');
+
+--echo #########################################################
+--let $restart_parameters = "restart: --innodb_force_recovery=5"
+--source include/restart_mysqld.inc
+--echo #########################################################
+
+--echo # drop existing compression dictionary with references by tables
+--error ER_OPEN_AS_READONLY
+DROP COMPRESSION_DICTIONARY d1;
+
+--echo # drop existing table
+--error ER_ENGINE_CANT_DROP_TABLE
+DROP TABLE t1;
+
+--echo # drop existing compression dictionary with no references
+--error ER_OPEN_AS_READONLY
+DROP COMPRESSION_DICTIONARY d1;
+
+--echo # create new compression dictionary
+--error ER_OPEN_AS_READONLY
+CREATE COMPRESSION_DICTIONARY d1('blah');
+
+--echo #########################################################
+--let $restart_parameters = "restart: --innodb_force_recovery=4"
+--source include/restart_mysqld.inc
+--echo #########################################################
+
+--echo # drop existing compression dictionary with references by tables
+--error ER_OPEN_AS_READONLY
+DROP COMPRESSION_DICTIONARY d1;
+
+--echo # drop existing table
+--error ER_OPEN_AS_READONLY
+DROP TABLE t1;
+
+--echo # drop existing compression dictionary with no references
+--error ER_OPEN_AS_READONLY
+DROP COMPRESSION_DICTIONARY d1;
+
+--echo # create new compression dictionary
+--error ER_OPEN_AS_READONLY
+CREATE COMPRESSION_DICTIONARY d1('blah');
+
+
+--echo #########################################################
+--let $restart_parameters = "restart: --innodb_force_recovery=3"
+--source include/restart_mysqld.inc
+--echo #########################################################
+
+--echo # drop existing compression dictionary with references by tables
+--error ER_INNODB_FORCED_RECOVERY
+DROP COMPRESSION_DICTIONARY d1;
+
+--echo # drop existing table
+--error ER_INNODB_FORCED_RECOVERY
+DROP TABLE t1;
+
+--echo # drop existing compression dictionary with no references
+--error ER_INNODB_FORCED_RECOVERY
+DROP COMPRESSION_DICTIONARY d1;
+
+--echo # create new compression dictionary
+CREATE COMPRESSION_DICTIONARY d2('blah');
+
+--echo #########################################################
+--let $restart_parameters = "restart: --innodb_force_recovery=2"
+--source include/restart_mysqld.inc
+--echo #########################################################
+
+--echo # drop existing compression dictionary with references by tables
+--error ER_COMPRESSION_DICTIONARY_IS_REFERENCED
+DROP COMPRESSION_DICTIONARY d1;
+
+--echo # drop existing table
+DROP TABLE t1;
+
+--echo # drop existing compression dictionary with no references
+DROP COMPRESSION_DICTIONARY d1;
+
+--echo # create new compression dictionary
+CREATE COMPRESSION_DICTIONARY d1('blah');
+CREATE TABLE `t1` (`a` text COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d1`) ENGINE=InnoDB;
+
+--echo #########################################################
+--let $restart_parameters = "restart: --innodb_force_recovery=1"
+--source include/restart_mysqld.inc
+--echo #########################################################
+
+--echo # drop existing compression dictionary with references by tables
+--error ER_COMPRESSION_DICTIONARY_IS_REFERENCED
+DROP COMPRESSION_DICTIONARY d1;
+
+--echo # drop existing table
+DROP TABLE t1;
+
+--echo # drop existing compression dictionary with no references
+DROP COMPRESSION_DICTIONARY d1;
+
+--echo # create new compression dictionary
+CREATE COMPRESSION_DICTIONARY d1('blah');
+CREATE TABLE `t1` (`a` text COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d1`) ENGINE=InnoDB;
+
+--let $restart_parameters = 
+--source include/restart_mysqld.inc
+DROP TABLE t1;
+DROP COMPRESSION_DICTIONARY d1;
+DROP COMPRESSION_DICTIONARY d2;

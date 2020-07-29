@@ -42,7 +42,7 @@ Field 3,'Field 4|
 |Field 5' ,'Field 6|	NULL
 |Field 6|	| 'Field 7'|
 drop table t1;
-create table t1 (a int, b char(10));
+create table t1 (a int, b char(10)) charset latin1;
 load data infile '../../std_data/loaddata3.dat' ignore into table t1 fields terminated by '' enclosed by '' ignore 1 lines;
 Warnings:
 Warning	1366	Incorrect integer value: 'error      ' for column 'a' at row 3
@@ -70,8 +70,6 @@ a	b
 0	
 drop table t1;
 SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1(id integer not null auto_increment primary key);
 insert into t1 values(0);
 select * from t1;
@@ -81,8 +79,6 @@ select * from t1;
 id
 0
 SET @@SQL_MODE=@OLD_SQL_MODE;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table t1;
 create table t1 (a varchar(20), b varchar(20));
 load data infile '../../std_data/loaddata_dq.dat' into table t1 fields terminated by ',' enclosed by '"' escaped by '"' (a,b);
@@ -222,15 +218,11 @@ drop table t1, t2;
 create table t1(f1 int);
 insert into t1 values(1),(null);
 create table t2(f2 int auto_increment primary key);
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select * from t2;
 f2
 1
 2
 SET @@SQL_MODE=@OLD_SQL_MODE;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table t1,t2;
 create table t1(f1 int, f2 timestamp not null default current_timestamp);
 create table t2(f1 int);
@@ -238,12 +230,12 @@ insert into t2 values(1),(2);
 Warnings:
 Warning	1261	Row 1 doesn't contain data for all columns
 Warning	1261	Row 2 doesn't contain data for all columns
+SET @previous_sql_mode = @@sql_mode;
+SET sql_mode = 'ALLOW_INVALID_DATES';
 select f1 from t1 where f2 <> '0000-00-00 00:00:00' order by f1;
 f1
 1
 2
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'f2' at row 1
 delete from t1;
 Warnings:
 Warning	1261	Row 1 doesn't contain data for all columns
@@ -252,8 +244,7 @@ select f1 from t1 where f2 <> '0000-00-00 00:00:00' order by f1;
 f1
 1
 2
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'f2' at row 1
+SET sql_mode = @previous_sql_mode;
 drop table t1,t2;
 CREATE TABLE t1 (c1 INT, c2 TIMESTAMP, c3 REAL, c4 DOUBLE);
 INSERT INTO t1 (c1, c2, c3, c4) VALUES (10, '1970-02-01 01:02:03', 1.1E-100, 1.1E+100);
@@ -352,8 +343,6 @@ SET SESSION character_set_connection=latin1;
 SET @OLD_SQL_MODE=@@SESSION.SQL_MODE;
 test LOAD DATA INFILE
 SET sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT '1 \\aa\n' INTO DUMPFILE 'MYSQLTEST_VARDIR/tmp/bug37114.txt';
 CREATE TABLE t1 (id INT, val1 CHAR(3));
 SET sql_mode = 'NO_BACKSLASH_ESCAPES';
@@ -465,8 +454,6 @@ LOAD_FILE("MYSQLTEST_VARDIR/tmp/bug37114.txt")
 5 	tab
 
 set session sql_mode=@OLD_SQL_MODE;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE t1,t2;
 #
 # Bug #51893: crash with certain characters given to load_file 
@@ -575,6 +562,8 @@ SELECT HEX(val) FROM t1;
 HEX(val)
 22525420406E696F757A656368756E3A20E7A781E381AFE3838FE38383E38394E383BCE382A8E383B3E38389E58EA8E381AAE38293E381A0E38191E3828CE381A9E38081E382A2E383B3E3838FE38383E38394E383BCE382A8E383B3E38389E38284E683A8E58A87E79A84E381AAE3818AE8A9B1E38292E38182E381BEE3828AE7A98DE6A5B5E79A84E381ABE69182E58F96E38197E381AAE38184E79086E794B1E381AFE38081E78FBEE5AE9FE381AEE4BABAE7949FE381AFE59FBAE69CACE79A84E381ABE38186E381BEE3818FE38184E3818BE381AAE38184E38197E4B88DE5B9B3E7AD89E381A0E38197E79086E4B88DE5B0BDE381A0E38197E8BE9BE38184
 CREATE DATABASE d2 CHARSET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 USE d2;
 CREATE TABLE t1 (val TEXT);
 LOAD DATA INFILE '../../std_data/bug20683959loaddata.txt' INTO TABLE t1;
@@ -618,3 +607,90 @@ SELECT HEX(a) FROM t1;
 HEX(a)
 815C825C
 DROP TABLE t1;
+#
+# Regression test added in WL#8063
+#
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890;
+ERROR 42000: Identifier name 't123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789' is too long
+CREATE TABLE t1(a VARCHAR(20));
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1 ();
+LOAD DATA INFILE '../../std_data/loaddata_incomplete_mb.dat' INTO TABLE t1 IGNORE 20 LINES;
+LOAD DATA INFILE '../../std_data/loaddata_incomplete_escape.dat' INTO TABLE t1 IGNORE 20 LINES;
+CREATE PROCEDURE p1() LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1;
+ERROR 0A000: LOAD DATA is not allowed in stored procedures
+SET @save_local_infile = @@local_infile;
+SET GLOBAL local_infile = OFF;
+LOAD DATA LOCAL INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1;
+ERROR 42000: Loading local data is disabled; this must be enabled on both the client and server sides
+SET GLOBAL local_infile = @save_local_infile;
+DROP TABLE t1;
+CREATE TABLE t2(a BLOB);
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t2 FIELDS TERMINATED BY '' LINES TERMINATED BY '';
+ERROR 42000: You can't use fixed rowlength with BLOBs; please use 'fields terminated by'
+DROP TABLE t2;
+CREATE TABLE t3(a VARCHAR(20), i INT NOT NULL);
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t3 (a) SET i = NULL;
+ERROR 23000: Column 'i' cannot be null
+DROP TABLE t3;
+#
+# Bug#28460369 LOAD DATA INFILE THROWS ERROR WITH NOT NULL COLUMN DEFINED
+#              VIA SET
+#
+# Verify that LOAD DATA rejects rows with no data for GEOMETRY NOT NULL
+# columns. However, if the column is set using the SET clause,
+# LOAD DATA should succeed.
+CREATE TABLE t1 (x DOUBLE, y DOUBLE, g GEOMETRY NOT NULL SRID 4326);
+LOAD DATA INFILE '../../std_data/x_y_data.csv'
+  INTO TABLE t1
+FIELDS TERMINATED BY ','
+  (x, y);
+ERROR HY000: Field 'g' doesn't have a default value
+LOAD DATA INFILE '../../std_data/x_y_data.csv'
+  INTO TABLE t1
+FIELDS TERMINATED BY ','
+  (x, y) SET g = ST_SRID(POINT(x, y), 4326);
+SELECT x, y, ST_AsText(g), ST_SRID(g) FROM t1;
+x	y	ST_AsText(g)	ST_SRID(g)
+10	20	POINT(20 10)	4326
+30	40	POINT(40 30)	4326
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Bug#30126375 - LOAD DATA WITH SET CLAUSE IGNORES NO_AUTO_VALUE_ON_ZERO
+#                MODE
+#-----------------------------------------------------------------------
+SET @old_sql_mode = @@sql_mode;
+SET @@sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, j INT);
+INSERT INTO t1 VALUES (0, 1);
+# NO_AUTO_VALUE_ON_ZERO should prevent generation of new
+# auto-increment value. So row should get 0 as id.
+SELECT * FROM t1;
+id	j
+0	1
+# LOAD DATA from file with separators.
+SELECT * FROM t1 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1.txt';
+DELETE FROM t1;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t1 SET j = 2;;
+# The above LOAD DATA should preserve id (i.e. 0) for the row.
+SELECT * FROM t1;
+id	j
+0	2
+# LOAD DATA from file in fixed row format.
+SELECT * FROM t1 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' FIELDS TERMINATED BY '' ENCLOSED BY '';
+DELETE FROM t1;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '' SET j = 3;;
+# The above LOAD DATA should preserve id (i.e. 0) for the row too.
+SELECT * FROM t1;
+id	j
+0	3
+# LOAD DATA from XML file.
+# Use mysqldump --xml to produce t1.xml file.
+DELETE FROM t1;
+LOAD XML INFILE "MYSQLTEST_VARDIR/tmp/t1.xml" IGNORE INTO TABLE t1 SET j = 4;;
+# The above LOAD DATA should preserve id (i.e. 0) for the row as well.
+SELECT * FROM t1;
+id	j
+0	4
+# Clean up.
+DROP TABLE t1;
+SET sql_mode=@old_sql_mode;

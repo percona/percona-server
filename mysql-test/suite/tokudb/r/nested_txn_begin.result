@@ -80,7 +80,7 @@ a	b
 begin;
 insert into t1 values (7,70);
 insert into t1 values (8,80), (9,90), (1,10), (10,100);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 insert into t1 values (11,110);
 rollback;
 select * From t1;
@@ -94,7 +94,7 @@ a	b
 begin;
 insert into t1 values (7,70);
 insert into t1 values (8,80), (9,90), (1,10), (10,100);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 insert into t1 values (11,110);
 commit;
 select * From t1;
@@ -111,7 +111,7 @@ delete from t1;
 alter table t1 add index (b);
 insert ignore into t1 values (1,10),(2,20),(3,30),(1,10),(4,40);
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't1.PRIMARY'
 select * From t1;
 a	b
 1	10
@@ -121,7 +121,7 @@ a	b
 begin;
 insert ignore into t1 values (5,50),(3,30),(6,60),(7,70);
 Warnings:
-Warning	1062	Duplicate entry '3' for key 'PRIMARY'
+Warning	1062	Duplicate entry '3' for key 't1.PRIMARY'
 select * From t1;
 a	b
 1	10
@@ -141,7 +141,7 @@ a	b
 begin;
 insert ignore into t1 values (5,50),(3,30),(6,60),(7,70);
 Warnings:
-Warning	1062	Duplicate entry '3' for key 'PRIMARY'
+Warning	1062	Duplicate entry '3' for key 't1.PRIMARY'
 select * From t1;
 a	b
 1	10

@@ -6,12 +6,12 @@ create table foo (a int, b int, c int, primary key (a), key (b))engine=TokuDB;
 show create table foo;
 Table	Create Table
 foo	CREATE TABLE `foo` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into foo values (1,10,100),(2,20,200),(3,30,300),(4,40,400),(5,50,500),(6,60,600),(7,70,700),(8,80,800),(9,90,900);
 begin;
 select * from foo;

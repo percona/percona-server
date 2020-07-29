@@ -1,6 +1,5 @@
 /*
- Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
- reserved.
+ Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -20,8 +19,7 @@
 
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- 02110-1301  USA
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 #ifndef NDBMEMCACHE_EXTERNALVALUE_H
 #define NDBMEMCACHE_EXTERNALVALUE_H
@@ -50,7 +48,7 @@ class ExternalValue {
     size_t length;
     int nparts;
      
-    Spec(int sz) : part_size(sz), id(0), length(0), nparts(0) {};
+    Spec(int sz) : part_size(sz), id(0), length(0), nparts(0) {}
     bool readFromHeader(Operation &);
     void setLength(int length);
   };
@@ -118,7 +116,7 @@ private:
 
 inline bool ExternalValue::shouldExternalize(size_t len) const {
   return (len > value_size_in_header);
-};
+}
 
 
 #endif

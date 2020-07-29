@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <algorithm>
+
 #include <ndb_global.h>
+#include "m_ctype.h"
 #include <ndb_opts.h>
 #include <NdbApi.hpp>
 #include <NdbIndexStat.hpp>
@@ -30,11 +33,7 @@
 #include <ndb_version.h>
 #include <NDBT_Stats.hpp>
 #include <math.h>
-
-#undef min
-#undef max
-#define min(a, b) ((a) <= (b) ? (a) : (b))
-#define max(a, b) ((a) >= (b) ? (a) : (b))
+#include <NdbHost.h>
 
 struct Opts {
   int loglevel;
@@ -48,8 +47,8 @@ struct Opts {
   uint rpkvar;
   uint scanpct;
   uint eqscans;
-  my_bool keeptable;
-  my_bool abort;
+  bool keeptable;
+  bool abort;
   const char* dump;
   Opts() :
     loglevel(0),
@@ -123,7 +122,6 @@ static const Uint32 g_ndbrec_c_offset=offsetof(my_record, m_c);
 static const Uint32 g_ndbrec_c_nb_offset=2;
 static const Uint32 g_ndbrec_d_offset=offsetof(my_record, m_d);
 static const Uint32 g_ndbrec_d_nb_offset=3;
-static const Uint32 g_ndbrecord_bytes=sizeof(my_record);
 
 static NdbTransaction* g_con = 0;
 static NdbOperation* g_op = 0;
@@ -154,6 +152,9 @@ static int& g_loglevel = g_opts.loglevel; // default log level
 
 #define chkrc(x) \
   do { if (likely(x)) break; ndbout << "line " << __LINE__ << " FAIL " << #x << endl; if (g_opts.abort) abort(); return -1; } while (0)
+
+#define chkrc_break(x) \
+  if (unlikely(!(x))) { ndbout << "line " << __LINE__ << " FAIL " << #x << endl; break; }
 
 #define llx(n, x) \
   do { if (likely(g_loglevel < n)) break; ndbout << x << endl; } while (0)
@@ -521,7 +522,7 @@ Val::cmp(const Val& val2, uint numattrs, uint* num_eq) const
       const uint l1 = (uint)c[0];
       const uint l2 = (uint)val2.c[0];
       require(l1 <= g_charlen && l2 <= g_charlen);
-      k = g_cs->coll->strnncollsp(g_cs, s1, l1, s2, l2, 0);
+      k = g_cs->coll->strnncollsp(g_cs, s1, l1, s2, l2);
     } else if (! c_null) {
       k = +1;
     } else if (! val2.c_null) {
@@ -1133,13 +1134,13 @@ Rng::Rng()
 uint
 Rng::minattrs() const
 {
-  return min(m_bnd[0].m_val.m_numattrs, m_bnd[1].m_val.m_numattrs);
+  return std::min(m_bnd[0].m_val.m_numattrs, m_bnd[1].m_val.m_numattrs);
 }
 
 uint
 Rng::maxattrs() const
 {
-  return max(m_bnd[0].m_val.m_numattrs, m_bnd[1].m_val.m_numattrs);
+  return std::max(m_bnd[0].m_val.m_numattrs, m_bnd[1].m_val.m_numattrs);
 }
 
 bool
@@ -1231,8 +1232,8 @@ Rng::rowcount() const
 
   // verify is expensive due to makeranges() multiple tries
   const bool verify = (urandom(10) == 0);
-  const int lo = max(lim[0], 0);
-  const int hi = min(lim[1], (int)g_opts.rows - 1);
+  const int lo = std::max(lim[0], 0);
+  const int hi = std::min(lim[1], (int)g_opts.rows - 1);
   if (verify) {
     int pos = -1; // before, within, after
     for (i = 0; i < (int)g_opts.rows; i++) {
@@ -2089,7 +2090,7 @@ runtest()
   uint seed = g_opts.seed;
   if (seed != 1) { // not loop number
     if (seed == 0) { // random
-      seed = 2 + (ushort)getpid();
+      seed = 2 + NdbHost_GetProcessId();
     }
     ll0("random seed is " << seed);
     srand(seed);
@@ -2117,15 +2118,15 @@ runtest()
       srand(seed);
     }
     makekeys();
-    chkrc(loaddata(g_loop != 0) == 0);
+    chkrc_break(loaddata(g_loop != 0) == 0);
     makeranges();
-    chkrc(scanranges() == 0);
-    chkrc(updatestat() == 0);
-    chkrc(runlistener() == 0);
-    chkrc(readstat() == 0);
-    chkrc(queryranges() == 0);
+    chkrc_break(scanranges() == 0);
+    chkrc_break(updatestat() == 0);
+    chkrc_break(runlistener() == 0);
+    chkrc_break(readstat() == 0);
+    chkrc_break(queryranges() == 0);
     loopstats();
-    chkrc(loopdumps() == 0);
+    chkrc_break(loopdumps() == 0);
   }
   finalstats();
 
@@ -2215,9 +2216,6 @@ my_long_options[] =
     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }
 };
 
-const char*
-load_default_groups[] = { "mysql_cluster", 0 };
-
 static void
 short_usage_sub()
 {
@@ -2228,7 +2226,6 @@ static void
 usage()
 {
   ndbout << my_progname << ": ordered index stats test" << endl;
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
 static int
@@ -2237,7 +2234,7 @@ checkoptions()
   chkrc(g_opts.rows != 0);
   chkrc(g_opts.nullkeys <= 100);
   chkrc(g_opts.rpk != 0);
-  g_opts.rpk = min(g_opts.rpk, g_opts.rows);
+  g_opts.rpk = std::min(g_opts.rpk, g_opts.rows);
   chkrc(g_opts.rpkvar != 0);
   chkrc(g_opts.scanpct <= 100);
   chkrc(g_opts.eqscans <= 100);

@@ -1,17 +1,9 @@
-SET @orig_sql_mode= @@sql_mode;
-SET sql_mode= (SELECT replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE USER mysqltest_1@'127.0.0.1/255.255.255.255';
 GRANT ALL ON test.* TO mysqltest_1@'127.0.0.1/255.255.255.255';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-SET sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SHOW GRANTS FOR mysqltest_1@'127.0.0.1/255.255.255.255';
 Grants for mysqltest_1@127.0.0.1/255.255.255.255
-GRANT USAGE ON *.* TO 'mysqltest_1'@'127.0.0.1/255.255.255.255'
-GRANT ALL PRIVILEGES ON `test`.* TO 'mysqltest_1'@'127.0.0.1/255.255.255.255'
+GRANT USAGE ON *.* TO `mysqltest_1`@`127.0.0.1/255.255.255.255`
+GRANT ALL PRIVILEGES ON `test`.* TO `mysqltest_1`@`127.0.0.1/255.255.255.255`
 REVOKE ALL ON test.* FROM mysqltest_1@'127.0.0.1/255.255.255.255';
 DROP USER mysqltest_1@'127.0.0.1/255.255.255.255';
 SELECT USER();
@@ -56,16 +48,7 @@ FLUSH PRIVILEGES;
 DELETE FROM mysql.user WHERE user='b20438524';
 FLUSH PRIVILEGES;
 # must find the pattern
-#
-# Bug #23329861: WARNING ABOUT LOCALHOST WHEN USING SKIP-NAME-RESOLVE
-#
-CREATE USER b20438524@'%' IDENTIFIED BY 'pwd';
-# set some valid addresses
-UPDATE mysql.user SET host='localhost' WHERE user='b20438524';
-FLUSH PRIVILEGES;
-# must not find the pattern
-Pattern "'user' entry 'b20438524@localhost' ignored in --skip-name-resolve mode" not found
-DELETE FROM mysql.user WHERE user='b20438524';
+Pattern "'user' entry 'b20438524@localhost1' ignored in --skip-name-resolve mode" found
 #
 # Bug #98908: Crash in ACL_PROXY_USER::check_validity with --skip-name-resolve=1
 #             https://bugs.mysql.com/bug.php?id=98908
@@ -77,7 +60,17 @@ Warnings:
 Warning	1285	MySQL is started in --skip-name-resolve mode; you must restart it without this switch for this grant to work
 # restart:--skip-name-resolve=1
 Grants for dba@localhost
-GRANT USAGE ON *.* TO 'dba'@'localhost'
+GRANT USAGE ON *.* TO `dba`@`localhost`
 DROP USER dba@'localhost';
 DROP USER ''@'';
 End of 5.7 tests
+#
+# Bug #23329861: WARNING ABOUT LOCALHOST WHEN USING SKIP-NAME-RESOLVE
+#
+CREATE USER b20438524@'%' IDENTIFIED BY 'pwd';
+# set some valid addresses
+UPDATE mysql.user SET host='localhost' WHERE user='b20438524';
+FLUSH PRIVILEGES;
+# must not find the pattern
+Pattern "'user' entry 'b20438524@localhost' ignored in --skip-name-resolve mode" not found
+DELETE FROM mysql.user WHERE user='b20438524';

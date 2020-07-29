@@ -1,5 +1,3 @@
---source include/have_innodb.inc
-
 # A dynamic, global variable
 
 SET @start_value = @@GLOBAL.innodb_cleaner_lsn_age_factor;

@@ -1,5 +1,4 @@
 --source include/have_rocksdb.inc
---source include/have_innodb.inc
 
 # 
 # Basic CREATE TABLE statements
@@ -29,7 +28,7 @@ SHOW CREATE TABLE t2;
 --error ER_ILLEGAL_HA_CREATE_OPTION 
 CREATE TEMPORARY TABLE t2 (a INT PRIMARY KEY) ENGINE=ROCKSDB;
 
---disable_parsing
+--disable_testcase BUG#0
 
 DROP TABLE t2;
 
@@ -38,7 +37,7 @@ CREATE TEMPORARY TABLE t2 LIKE t1;
 SHOW CREATE TABLE t2;
 DROP TEMPORARY TABLE t2;
 
---enable_parsing
+--enable_testcase
 
 DROP TABLE t2;
 
@@ -194,19 +193,23 @@ DROP TABLE t1;
 # End of 5.6 tests
 
 # MYR-167 : MyRocks doesn't issue error if I try to create encrypted table
---error ER_ILLEGAL_HA_CREATE_OPTION
+--error ER_CHECK_NOT_IMPLEMENTED
 CREATE TABLE t1 (a INT) ENCRYPTION='y' ENGINE=ROCKSDB;
 
---error ER_NOT_SUPPORTED_YET
 CREATE TABLE t1 (a INT) ENCRYPTION='n' ENGINE=ROCKSDB;
+DROP TABLE t1;
 
---error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t1 (a INT) ENCRYPTION='n' ENGINE=INNODB;
+ALTER TABLE t1 ENGINE=ROCKSDB;
+DROP TABLE t1;
+
+--error ER_CHECK_NOT_IMPLEMENTED
 CREATE TABLE t1 (a INT) ENCRYPTION='1' ENGINE=ROCKSDB;
 
---error ER_ILLEGAL_HA_CREATE_OPTION
+--error ER_CHECK_NOT_IMPLEMENTED
 CREATE TABLE t1 (a INT) ENCRYPTION='AES' ENGINE=ROCKSDB;
 
---error ER_ILLEGAL_HA_CREATE_OPTION
+--error ER_CHECK_NOT_IMPLEMENTED
 CREATE TABLE t1 (a INT) ENCRYPTION='867-5309' ENGINE=ROCKSDB;
 
 # MYR-168 : Alter rocksdb table into innodb general tablespace silently works

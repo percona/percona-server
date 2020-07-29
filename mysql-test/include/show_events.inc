@@ -8,6 +8,13 @@
 # See include/show_binlog_events.inc
 
 --let $include_filename= show_events.inc
+if ($is_relay_log)
+{
+  if ($rpl_channel_name)
+  {
+    --let $include_filename= $include_filename [FOR CHANNEL $rpl_channel_name]
+  }
+}
 --source include/begin_include_file.inc
 
 --let $_se_old_statement= $statement
@@ -17,7 +24,10 @@
 if ($is_relay_log)
 {
   --let $statement= SHOW RELAYLOG EVENTS
-  --let $_se_for_channel= FOR CHANNEL '$rpl_channel_name'
+  if ($rpl_channel_name)
+  {
+    --let $_se_for_channel= FOR CHANNEL $rpl_channel_name
+  }
 }
 --let $statement_masked= $statement
 
@@ -28,7 +38,8 @@ if ($binlog_file)
   {
     if ($is_relay_log)
     {
-      --let $_binlog_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
+      --source include/rpl_get_end_of_relay_log.inc
+      --let $_binlog_file= $relay_log_file
     }
     if (!$is_relay_log)
     {
@@ -47,7 +58,7 @@ if (!$_binlog_start)
   # position.  The first event(Description Event) is always ignored. For
   # description event's length might be changed because of adding new events,
   # 'SHOW BINLOG EVENTS LIMIT 1' is used to get the right value.
-  --let $_binlog_start= query_get_value(SHOW BINLOG EVENTS LIMIT 1, End_log_pos, 1)
+  --let $_binlog_start= query_get_value($statement LIMIT 1 $_se_for_channel, End_log_pos, 1)
 }
 
 --let $statement= $statement FROM $_binlog_start
@@ -90,7 +101,8 @@ if ($show_binlog_events_mask_columns == '')
   }
 }
 let $script=
-  s{/\* xid=.* \*/}{/\* XID \*/};
+  s{/\* xid=.* \*/}{/\* XID # \*/};
+  s{COMMIT /\* XID # \*/}{COMMIT /\* XID \*/};
   s{table_id: [0-9]+}{table_id: #};
   s{file_id=[0-9]+}{file_id=#};
   s{block_len=[0-9]+}{block_len=#};
@@ -98,10 +110,23 @@ let $script=
   s{SQL_LOAD-[a-z,0-9,-]*.[a-z]*}{SQL_LOAD-<SERVER UUID>-<MASTER server-id>-<file-id>.<extension>};
   s{rand_seed1=[0-9]*,rand_seed2=[0-9]*}{rand_seed1=<seed 1>,rand_seed2=<seed 2>};
   s{((?:master|slave|slave-relay)-bin\.[0-9]{6};pos=)[0-9]+DOLLAR}{DOLLAR1POS};
+  s{(binlog\.[0-9]{6};pos=)[0-9]+DOLLAR}{DOLLAR1POS};
   s{SONAME ".*"}{SONAME "LIB"};
   s{DOLLARmysqltest_vardir}{MYSQLTEST_VARDIR}g;
 ||
 --let $pre_script= my DOLLARmysqltest_vardir = DOLLARENV{'MYSQLTEST_VARDIR'};
+
+if (!$keep_transaction_payload_events)
+{
+  --let $script= $script DOLLAR_ = '' if (m{\t(?:Transaction_payload)\t});
+}
+if ($keep_transaction_payload_events)
+{
+  let $pre_script= $pre_script
+    my DOLLARdec_size_regex = '(decompressed_size=[0-9]+ bytes)';
+  ||
+  --let $script= $script s{DOLLARdec_size_regex}{decompressed_size=## bytes};
+}
 
 if (!$keep_view_change_events)
 {
@@ -131,6 +156,23 @@ if ($mask_anonymous_gtid_events)
 {
   --let $script= $script s{Anonymous_Gtid}{Gtid};
   --let $script= $script s{ANONYMOUS}{Gtid_set};
+}
+# To mask random password generated with create/alter user
+if ($mask_user_password_events)
+{
+ --let $script= $script s{'caching_sha2_password' AS '(.*)'}{'caching_sha2_password' AS '<non-deterministic-password-hash>'}g;
+ --let $script= $script s{SET PASSWORD FOR .*}{SET PASSWORD FOR '<some_user>'='<non-deterministic-password-hash>'};
+}
+# Skip 'AS <..> WITH <..>' clause in the GRANT statement in case the
+# partial revokes is ON 
+if ($mask_grant_as_events)
+{
+ --let $script= $script s{ AS .* WITH ROLE .*}{};
+}
+
+if (!$keep_ddl_xid)
+{
+  --let $script= $script s{ /\* XID # \*/}{};
 }
 --delimiter ;
 

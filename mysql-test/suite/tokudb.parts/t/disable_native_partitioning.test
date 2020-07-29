@@ -1,6 +1,0 @@
---source include/have_tokudb.inc
---source ../include/have_native_partitioning.inc
-
---let $disable_native_partition_opt = "tokudb_enable_native_partition"
---let $engine = TokuDB
---source ../../parts/inc/disable_native_partitioning.inc

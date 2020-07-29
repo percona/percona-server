@@ -1,5 +1,7 @@
---source include/master-slave.inc
 --source include/have_binlog_format_statement.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+--source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc
 #
@@ -11,11 +13,15 @@
 call mtr.add_suppression("Recovery from master pos .*");
 call mtr.add_suppression("Corrupted table mysql.slave_worker_info");
 call mtr.add_suppression("Could not delete from Slave Workers info repository");
+# The following suppression is needed because of the Percona patch for
+# PS-5824 "MTS STOP SLAVE takes over a minute when master crashed during event logging"
+# (https://jira.percona.com/browse/PS-5824)
+# Oracle Bug #96400 "MTS STOP SLAVE takes over a minute when master crashed during event logging"
+# (https://bugs.mysql.com/bug.php?id=96400)
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 --source include/stop_slave.inc
 RESET SLAVE ALL;
-SET @@global.master_info_repository="TABLE";
-SET @@global.relay_log_info_repository="TABLE";
 SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
 SET @@global.slave_parallel_workers=2;
 --replace_result $MASTER_MYPORT MASTER_PORT
@@ -55,7 +61,7 @@ eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$
 --let $assert_cond= `SELECT COUNT(*) = 0 FROM mysql.slave_worker_info`
 --source include/assert.inc
 
---let $rpl_channel_name= ch_b
+--let $rpl_channel_name= 'ch_b'
 --source include/start_slave.inc
 
 #
@@ -64,11 +70,11 @@ eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$
 --echo
 --echo === RESTART SERVER ===
 --let $rpl_server_number= 1
---let $rpl_server_parameters= --gtid-mode=off --master-info-repository=TABLE --relay-log-info-repository=TABLE
+--let $rpl_server_parameters= --gtid-mode=off
 --source include/rpl_restart_server.inc
 
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --relay-log-recovery --skip-slave-start --gtid-mode=off --master-info-repository=TABLE --relay-log-info-repository=TABLE
+--let $rpl_server_parameters= --relay-log-recovery --skip-slave-start --gtid-mode=off
 --source include/rpl_restart_server.inc
 
 --source include/rpl_connection_slave.inc

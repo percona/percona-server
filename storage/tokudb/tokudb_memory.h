@@ -22,7 +22,8 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 ======= */
 
-#ident "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
+#ident \
+    "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
 #ifndef _TOKUDB_MEMORY_H
 #define _TOKUDB_MEMORY_H
@@ -32,59 +33,54 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 namespace tokudb {
 namespace memory {
 
-void* malloc(size_t s, myf flags);
-void* realloc(void* p, size_t s, myf flags);
-void free(void* ptr);
-char* strdup(const char* p, myf flags);
-void* multi_malloc(myf myFlags, ...);
+void *malloc(size_t s, myf flags);
+void *realloc(void *p, size_t s, myf flags);
+void free(void *ptr);
+char *strdup(const char *p, myf flags);
+void *multi_malloc(myf myFlags, ...);
 
-
-inline void* malloc(size_t s, myf flags) {
-    return ::my_malloc(0, s, flags);
+inline void *malloc(size_t s, myf flags) { return ::my_malloc(0, s, flags); }
+inline void *realloc(void *p, size_t s, myf flags) {
+  if (s == 0) return p;
+  return ::my_realloc(0, p, s, flags);
 }
-inline void* realloc(void* p, size_t s, myf flags) {
-    if (s == 0)
-        return p;
-    return ::my_realloc(0, p, s, flags);
+inline void free(void *ptr) {
+  if (ptr) ::my_free(ptr);
 }
-inline void free(void* ptr) {
-    if (ptr)
-        ::my_free(ptr);
+inline char *strdup(const char *p, myf flags) {
+  return ::my_strdup(0, p, flags);
 }
-inline char* strdup(const char* p, myf flags) {
-    return ::my_strdup(0, p, flags);
-}
-inline void* multi_malloc(myf myFlags, ...) {
-    va_list args;
-    char** ptr;
-    char* start;
-    char* res;
-    size_t tot_length,length;
+inline void *multi_malloc(myf myFlags, ...) {
+  va_list args;
+  char **ptr;
+  char *start;
+  char *res;
+  size_t tot_length, length;
 
-    va_start(args,myFlags);
-    tot_length = 0;
-    while ((ptr = va_arg(args, char**))) {
-        length = va_arg(args, uint);
-        tot_length += ALIGN_SIZE(length);
-    }
-    va_end(args);
+  va_start(args, myFlags);
+  tot_length = 0;
+  while ((ptr = va_arg(args, char **))) {
+    length = va_arg(args, uint);
+    tot_length += ALIGN_SIZE(length);
+  }
+  va_end(args);
 
-    if (!(start = (char*)malloc(tot_length, myFlags))) {
-        return 0;
-    }
+  if (!(start = (char *)malloc(tot_length, myFlags))) {
+    return 0;
+  }
 
-    va_start(args, myFlags);
-    res = start;
-    while ((ptr = va_arg(args, char**))) {
-        *ptr = res;
-        length = va_arg(args,uint);
-        res += ALIGN_SIZE(length);
-    }
-    va_end(args);
-    return start;
+  va_start(args, myFlags);
+  res = start;
+  while ((ptr = va_arg(args, char **))) {
+    *ptr = res;
+    length = va_arg(args, uint);
+    res += ALIGN_SIZE(length);
+  }
+  va_end(args);
+  return start;
 }
 
-} // namespace thread
-} // namespace tokudb
+}  // namespace memory
+}  // namespace tokudb
 
-#endif // _TOKUDB_MEMORY_H
+#endif  // _TOKUDB_MEMORY_H

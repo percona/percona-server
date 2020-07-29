@@ -1,7 +1,6 @@
 #
 # Test the extended slow query log output format for various log_slow_verbosity values.
 #
---source include/have_innodb.inc
 
 --source include/log_prepare.inc
 
@@ -29,7 +28,7 @@ SELECT * FROM t1;
 # but the query does not involve InnoDB tables
 #
 
-SET SESSION log_slow_verbosity='microtime,innodb,query_plan'; 
+SET SESSION log_slow_verbosity='microtime,innodb,query_plan';
 --let log_file=percona.slow_extended.log_slow_verbosity_1
 
 --source include/log_start.inc

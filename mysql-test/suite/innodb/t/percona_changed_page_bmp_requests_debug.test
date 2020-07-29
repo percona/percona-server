@@ -1,9 +1,7 @@
 #
 # Tests for changed page tracking user requests that need a debug build
 #
---source include/have_innodb.inc
 --source include/have_debug.inc
---source include/not_embedded.inc
 
 #
 # Bug 1382336: Purging bitmaps exactly up to the last tracked LSN aborts change tracking
@@ -32,31 +30,35 @@ DROP TABLE t1;
 --echo # https://jira.percona.com/browse/PS-4723
 --echo #
 
-call mtr.add_suppression("InnoDB: New log files created");
-call mtr.add_suppression("InnoDB: Creating foreign key constraint system tables");
-call mtr.add_suppression("InnoDB: Cannot open table mysql/[a-z_]+ from the internal data dictionary");
-call mtr.add_suppression("Info table is not ready to be used");
-call mtr.add_suppression("Table `mysql`\\.`innodb_table_stats` not found");
-call mtr.add_suppression("Can't open the mysql\\.plugin table");
-call mtr.add_suppression("Can't open and lock privilege tables");
-call mtr.add_suppression("Gtid table is not ready to be used");
-call mtr.add_suppression("Failed to open optimizer cost constant tables");
-call mtr.add_suppression("Can't open and lock time zone table");
-
 --let $MYSQLD_DATADIR = `SELECT @@datadir`
 --let $CUSTOM_SUFFIX = custom
 --let $select_lsn_query = SELECT MIN(start_lsn) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE space_id = 0 AND end_lsn = (SELECT MAX(end_lsn) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE space_id = 0)
 
+--let BOOTSTRAP_ERR=$MYSQLTEST_VARDIR/tmp/bootstrap2.log
+--let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql
+
+--write_file $BOOTSTRAP_SQL
+CREATE DATABASE test DEFAULT CHARACTER SET latin1;
+EOF
+
 --echo
 --echo # Creating a custom data directory.
+--let $MYSQLD_DATADIR1=$MYSQL_TMP_DIR/datadir1
 --let $CUSTOM_INNODB_DATA_HOME_DIR = $MYSQLD_DATADIR$CUSTOM_SUFFIX
 --mkdir $CUSTOM_INNODB_DATA_HOME_DIR
 
+--let CUSTOM_DIR_OPTS=--innodb-data-home-dir=$CUSTOM_INNODB_DATA_HOME_DIR --innodb-log-group-home-dir=$CUSTOM_INNODB_DATA_HOME_DIR --innodb-file-per-table=0 --datadir=$MYSQLD_DATADIR1  --innodb-track-changed-pages=1 --innodb-max-bitmap-file-size=4096
+
 --echo
 --echo # Restarting with custom InnoDB data directories.
---let $restart_hide_args = 1
---let $restart_parameters = restart:--innodb-track-changed-pages=1 --innodb-max-bitmap-file-size=4096 --innodb-data-home-dir=$CUSTOM_INNODB_DATA_HOME_DIR --innodb-log-group-home-dir=$CUSTOM_INNODB_DATA_HOME_DIR --innodb-file-per-table=0
---source include/restart_mysqld.inc
+--source include/shutdown_mysqld.inc
+--exec $MYSQLD --no-defaults --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR --basedir=$MYSQLD_BASEDIR  --init-file=$BOOTSTRAP_SQL $CUSTOM_DIR_OPTS </dev/null > $BOOTSTRAP_ERR 2>&1
+--remove_file $BOOTSTRAP_SQL
+--remove_file $BOOTSTRAP_ERR
+
+--let $restart_parameters=restart:$CUSTOM_DIR_OPTS
+--replace_result $CUSTOM_INNODB_DATA_HOME_DIR CUSTOM_INNODB_DATA_HOME_DIR $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--source include/start_mysqld.inc
 
 --let $assert_text = InnoDB redo log tracking must be enabled
 --let $assert_cond = @@innodb_track_changed_pages = 1
@@ -86,27 +88,27 @@ SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
 
 --echo
 --echo # Listing .xdb files after the flush.
---echo # The output must show three .xdb files: ib_modified_log_1_0.xdb, ib_modified_log_2_nnn.xdb and ib_modified_log_3_nnn.xdb.
+--echo # The output must show 6 .xdb files: ib_modified_log_1_0.xdb to ib_modified_log_6_nnn.xdb.
 --replace_regex /_[[:digit:]]+\.xdb$/_<nnn>.xdb/
 --list_files $CUSTOM_INNODB_DATA_HOME_DIR *.xdb
 
 --echo
 --echo # Purging changed page bitmaps (tracking enabled).
---echo # The first two .xdb files (ib_modified_log_1_0.xdb and ib_modified_log_2_nnn.xdb) must be deleted.
+--echo # All but the last one bitmap file must be deleted
 --let $previous_lsn = `$select_lsn_query`
 --replace_regex /[[:digit:]]+/PREVIOUS_LSN/
 eval PURGE CHANGED_PAGE_BITMAPS BEFORE $previous_lsn;
 
 --echo
 --echo # Listing .xdb files after the purge (tracking enabled).
---echo # The output must show only one .xdb file - ib_modified_log_3_nnn.xdb.
+--echo # The output must show only one .xdb file - ib_modified_log_6_nnn.xdb.
 --replace_regex /_[[:digit:]]+\.xdb$/_<nnn>.xdb/
 --list_files $CUSTOM_INNODB_DATA_HOME_DIR *.xdb
 
 --echo
 --echo # Restarting with redo log tracking disabled.
---let $restart_hide_args = 1
---let $restart_parameters = restart:--innodb-track-changed-pages=0 --innodb-max-bitmap-file-size=4096 --innodb-data-home-dir=$CUSTOM_INNODB_DATA_HOME_DIR --innodb-log-group-home-dir=$CUSTOM_INNODB_DATA_HOME_DIR
+--let $restart_parameters = restart:$CUSTOM_DIR_OPTS --innodb-track-changed-pages=0
+--replace_result $CUSTOM_INNODB_DATA_HOME_DIR CUSTOM_INNODB_DATA_HOME_DIR $MYSQLD_DATADIR1 MYSQLD_DATADIR1
 --source include/restart_mysqld.inc
 
 --let $assert_text = InnoDB redo log tracking must be disabled
@@ -115,20 +117,20 @@ eval PURGE CHANGED_PAGE_BITMAPS BEFORE $previous_lsn;
 
 --echo
 --echo # Listing .xdb files after the restart with tracking disabled.
---echo # The output must show the same two .xdb files: ib_modified_log_3_nnn.xdb and ib_modified_log_4_nnn.xdb.
+--echo # The output must show the same and a new .xdb file: ib_modified_log_6_nnn.xdb and ib_modified_log_7_nnn.xdb.
 --replace_regex /_[[:digit:]]+\.xdb$/_<nnn>.xdb/
 --list_files $CUSTOM_INNODB_DATA_HOME_DIR *.xdb
 
 --echo
 --echo # Purging changed page bitmaps (tracking disabled).
---echo # The third .xdb file (ib_modified_log_3_nnn.xdb) must be deleted.
+--echo # The next-to-last one .xdb file (ib_modified_log_6_nnn.xdb) must be deleted.
 --let $previous_lsn = query_get_value(SHOW STATUS LIKE 'innodb_lsn_current', Value, 1)
 --replace_regex /[[:digit:]]+/PREVIOUS_LSN/
 eval PURGE CHANGED_PAGE_BITMAPS BEFORE $previous_lsn;
 
 --echo
 --echo # Listing .xdb files after the purge (tracking disabled).
---echo # The output must show only one .xdb file - ib_modified_log_4_nnn.xdb.
+--echo # The output must show only the last one .xdb file - ib_modified_log_7_nnn.xdb.
 --replace_regex /_[[:digit:]]+\.xdb$/_<nnn>.xdb/
 --list_files $CUSTOM_INNODB_DATA_HOME_DIR *.xdb
 
@@ -137,10 +139,9 @@ eval PURGE CHANGED_PAGE_BITMAPS BEFORE $previous_lsn;
 DROP TABLE t1;
 
 --echo # Restarting with initial parameters.
---let $restart_hide_args = 1
 --let $restart_parameters =
 --source include/restart_mysqld.inc
 
 --echo # Cleaning up
---remove_files_wildcard $CUSTOM_INNODB_DATA_HOME_DIR
---rmdir $CUSTOM_INNODB_DATA_HOME_DIR
+--force-rmdir $CUSTOM_INNODB_DATA_HOME_DIR
+--force-rmdir $MYSQLD_DATADIR1

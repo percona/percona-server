@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -18,85 +18,97 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi)
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
 
-ADD_CONVENIENCE_LIBRARY(ndbkernel
-    VMSignal.cpp
-    Emulator.cpp
-    Configuration.cpp
-    WatchDog.cpp
-    SectionReader.cpp
-    SegmentList.cpp
-    Mutex.cpp
-    SafeCounter.cpp
-    Rope.cpp
-    ndbd_malloc_impl.cpp
-    ndbd_malloc.cpp
-    Pool.cpp
-    WOPool.cpp
-    RWPool.cpp
-    DynArr256.cpp
-    LockQueue.cpp
-    GlobalData.cpp
-    SafeMutex.cpp
-    Ndbinfo.cpp
-    NdbinfoTables.cpp
-    ArenaPool.cpp
-    mt_thr_config.cpp
+ADD_LIBRARY(ndbkernel STATIC
+  ArenaPool.cpp
+  Configuration.cpp
+  DynArr256.cpp
+  Emulator.cpp
+  GlobalData.cpp
+  LockQueue.cpp
+  Mutex.cpp
+  Ndbinfo.cpp
+  NdbinfoTables.cpp
+  Pool.cpp
+  Rope.cpp
+  SafeCounter.cpp
+  SafeMutex.cpp
+  SectionReader.cpp
+  SegmentList.cpp
+  StaticSlotPool.cpp
+  TransientPagePool.cpp
+  TransientSlotPool.cpp
+  VMSignal.cpp
+  WatchDog.cpp
+  mt_thr_config.cpp
+  ndbd_malloc.cpp
+  ndbd_malloc_impl.cpp
 )
+#    WOPool.cpp
+#    RWPool.cpp
 
-ADD_CONVENIENCE_LIBRARY(ndbsched
-    TimeQueue.cpp
-    ThreadConfig.cpp
-    FastScheduler.cpp
-    TransporterCallback_nonmt.cpp
-    SimulatedBlock_nonmt.cpp
-    LongSignal_nonmt.cpp
-    SimplePropertiesSection_nonmt.cpp
-    dummy_nonmt.cpp
+ADD_LIBRARY(ndbsched STATIC
+  FastScheduler.cpp
+  LongSignal_nonmt.cpp
+  SimplePropertiesSection_nonmt.cpp
+  SimulatedBlock_nonmt.cpp
+  ThreadConfig.cpp
+  TimeQueue.cpp
+  TransporterCallback_nonmt.cpp
+  dummy_nonmt.cpp
 )
 
 IF(WITH_NDBMTD)
-  ADD_CONVENIENCE_LIBRARY(ndbsched_mt
-    SimulatedBlock_mt.cpp
-    TransporterCallback_mt.cpp
+  ADD_LIBRARY(ndbsched_mt STATIC
     LongSignal_mt.cpp
     SimplePropertiesSection_mt.cpp
+    SimulatedBlock_mt.cpp
+    TransporterCallback_mt.cpp
+    dummy_mt.cpp
     mt.cpp
-    dummy_mt.cpp)
+    )
 ENDIF()
 
-ADD_CONVENIENCE_LIBRARY(ndbtest
-    test_context.cpp
-    ../blocks/dbtup/tuppage.cpp
+ADD_LIBRARY(ndbtest STATIC
+  test_context.cpp
+  ../blocks/dbtup/tuppage.cpp
 )
 
-ADD_EXECUTABLE(mt_thr_config-t mt_thr_config.cpp)
-SET_TARGET_PROPERTIES(mt_thr_config-t
-                      PROPERTIES COMPILE_FLAGS "-DTEST_MT_THR_CONFIG")
-TARGET_LINK_LIBRARIES(mt_thr_config-t ndbgeneral)
+NDB_ADD_TEST(mt_thr_config-t mt_thr_config.cpp LIBS ndbgeneral)
 
-FOREACH(testprog CountingPool DynArr256 IntrusiveList LHLevel)
-  ADD_EXECUTABLE(${testprog}-t ${testprog}.cpp)
-  SET_TARGET_PROPERTIES(${testprog}-t PROPERTIES COMPILE_FLAGS "-DTAP_TEST")
-  TARGET_LINK_LIBRARIES(${testprog}-t ndbtest ndbkernel ndbsched ndberror
-                ndbtransport ndbmgmcommon ndbmgmapi ndbportlib ndbgeneral)
+# ${ALL_UNIT_TEST_LIBS} may be listed twice in the linker command due
+# to inter-library dependencies
+SET(ALL_UNIT_TEST_LIBS
+  ndberror
+  ndbgeneral
+  ndbkernel
+  ndbmgmapi
+  ndbmgmcommon
+  ndbportlib
+  ndbsched
+  ndbtest
+  ndbtransport
+  )
+
+FOREACH(testprog
+    CountingPool
+    DynArr256
+    IntrusiveList
+    LHLevel
+    Rope
+    SegmentList
+    )
+  NDB_ADD_TEST("${testprog}-t" "${testprog}.cpp"
+    LIBS ${ALL_UNIT_TEST_LIBS} ${ALL_UNIT_TEST_LIBS})
 ENDFOREACH(testprog)
 
-# Todo : Fix
-#FOREACH(testprog SegmentList)
-#  ADD_EXECUTABLE(${testprog}-t ${testprog}.cpp)
-#  SET_TARGET_PROPERTIES(${testprog}-t PROPERTIES COMPILE_FLAGS "-DTAP_TEST")
-#  TARGET_LINK_LIBRARIES(${testprog}-t ndbtest ndbkernel ndbsched ndberror
-#                ndbtransport ndbmgmcommon ndbmgmapi ndbportlib ndbgeneral)
-#ENDFOREACH(testprog)
+NDB_ADD_TEST(ndbd_malloc-t ndbd_malloc_impl.cpp LIBS ${ALL_UNIT_TEST_LIBS} ${ALL_UNIT_TEST_LIBS})
 
 IF(WITH_NDBMTD)
-  ADD_EXECUTABLE(mt-send-t mt-send-t.cpp)
-  TARGET_LINK_LIBRARIES(mt-send-t ndbtest ndbkernel ndbsched ndberror
-                 ndbtransport ndbmgmcommon ndbmgmapi ndbportlib ndbgeneral)
+  NDB_ADD_TEST(mt-send-t mt-send-t.cpp LIBS ${ALL_UNIT_TEST_LIBS})
 ENDIF()

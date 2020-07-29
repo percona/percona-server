@@ -1,6 +1,5 @@
 --source include/have_keyring_vault_plugin.inc
 --source include/have_keyring_udf_plugin.inc
---source include/not_embedded.inc
 --source include/not_repeat.inc
 
 call mtr.add_suppression("Error while fetching key: key_id cannot be empty");

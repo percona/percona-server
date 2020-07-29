@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,17 +23,20 @@
 #ifndef _my_dur_prop_h
 #define _my_dur_prop_h
 
-enum durability_properties
-{
+/**
+  @file include/dur_prop.h
+*/
+
+enum durability_properties {
   /*
     Preserves the durability properties defined by the engine
   */
-  HA_REGULAR_DURABILITY= 0,
+  HA_REGULAR_DURABILITY = 0,
   /*
      Ignore the durability properties defined by the engine and
      write only in-memory entries.
   */
-  HA_IGNORE_DURABILITY= 1
+  HA_IGNORE_DURABILITY = 1
 };
 
 #endif /* _my_dur_prop_h */

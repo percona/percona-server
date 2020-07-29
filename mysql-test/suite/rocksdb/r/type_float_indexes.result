@@ -6,9 +6,12 @@ r REAL(20,3),
 d DOUBLE,
 dp DOUBLE PRECISION (64,10)
 ) ENGINE=rocksdb;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 SHOW INDEX IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	f	A	1000	NULL	NULL		LSMTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	f	A	1000	NULL	NULL		SE_SPECIFIC			YES	NULL
 INSERT INTO t1 (f,r,d,dp) VALUES
 (1.2345,1422.22,1.2345,1234567.89),
 (0,0,0,0),
@@ -48,11 +51,14 @@ dp DOUBLE PRECISION (64,10),
 pk DOUBLE PRIMARY KEY,
 UNIQUE KEY r_dp (r,dp)
 ) ENGINE=rocksdb;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 SHOW INDEX IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	pk	A	1000	NULL	NULL		LSMTREE		
-t1	0	r_dp	1	r	A	500	NULL	NULL	YES	LSMTREE		
-t1	0	r_dp	2	dp	A	1000	NULL	NULL	YES	LSMTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	pk	A	1000	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	0	r_dp	1	r	A	500	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+t1	0	r_dp	2	dp	A	1000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 INSERT INTO t1 (f,r,d,dp,pk) VALUES
 (1.2345,1422.22,1.2345,1234567.89,1),
 (0,0,0,0,2),
@@ -78,10 +84,13 @@ dp DOUBLE PRECISION (64,10),
 pk FLOAT PRIMARY KEY,
 UNIQUE KEY(d)
 ) ENGINE=rocksdb;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 SHOW INDEX IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	pk	A	1000	NULL	NULL		LSMTREE		
-t1	0	d	1	d	A	1000	NULL	NULL	YES	LSMTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	pk	A	1000	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	0	d	1	d	A	1000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 INSERT INTO t1 (f,r,d,dp,pk) VALUES
 (1.2345,1422.22,1.2345,1234567.89,1),
 (0,0,0,0,2),
@@ -109,10 +118,13 @@ dp DOUBLE PRECISION (64,10),
 pk FLOAT PRIMARY KEY,
 KEY(d)
 ) ENGINE=rocksdb;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 SHOW INDEX IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	pk	A	1000	NULL	NULL		LSMTREE		
-t1	1	d	1	d	A	500	NULL	NULL	YES	LSMTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	pk	A	1000	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	d	1	d	A	500	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 INSERT INTO t1 (f,r,d,dp,pk) VALUES
 (1.2345,1422.22,1.2345,1234567.89,1),
 (0,0,0,0,2),
@@ -140,10 +152,13 @@ dp DOUBLE PRECISION (64,10),
 pk FLOAT PRIMARY KEY,
 UNIQUE KEY(f)
 ) ENGINE=rocksdb;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 SHOW INDEX IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	pk	A	1000	NULL	NULL		LSMTREE		
-t1	0	f	1	f	A	1000	NULL	NULL	YES	LSMTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	pk	A	1000	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	0	f	1	f	A	1000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 INSERT INTO t1 (f,r,d,dp,pk) VALUES
 (1.2345,1422.22,1.2345,1234567.89,1),
 (0,0,0,0,2),
@@ -152,7 +167,7 @@ INSERT INTO t1 (f,r,d,dp,pk) VALUES
 (4644,1422.22,466664.999,0.5,5);
 INSERT INTO t1 (f,r,d,dp,pk) VALUES
 (1.2345,0,0,0,6);
-ERROR 23000: Duplicate entry '1.2345' for key 'f'
+ERROR 23000: Duplicate entry '1.2345' for key 't1.f'
 EXPLAIN SELECT DISTINCT f FROM t1 ORDER BY f;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	f	f	5	NULL	#	100.00	Using index
@@ -174,10 +189,13 @@ dp DOUBLE PRECISION (64,10),
 pk FLOAT PRIMARY KEY,
 KEY(f)
 ) ENGINE=rocksdb;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 SHOW INDEX IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	pk	A	1000	NULL	NULL		LSMTREE		
-t1	1	f	1	f	A	500	NULL	NULL	YES	LSMTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	pk	A	1000	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	f	1	f	A	500	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 INSERT INTO t1 (f,r,d,dp,pk) VALUES
 (1.2345,1422.22,1.2345,1234567.89,1),
 (0,0,0,0,2),

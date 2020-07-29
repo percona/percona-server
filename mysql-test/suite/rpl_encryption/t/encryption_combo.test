@@ -50,10 +50,9 @@ INSERT INTO table1_no_encryption SELECT NULL,NOW(),b FROM table1_no_encryption;
 
 --let $master_datadir= `SELECT @@datadir`
 
---let PRINT_SEARCH_RESULT=1
 --let SEARCH_FILE= $master_datadir/master-bin.0*
 --let SEARCH_PATTERN= table1_no_encryption
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo #####################################################
 --echo # Part 2: restart master, now with binlog encryption
@@ -61,7 +60,7 @@ INSERT INTO table1_no_encryption SELECT NULL,NOW(),b FROM table1_no_encryption;
 
 UNINSTALL PLUGIN keyring_file;
 
---let $rpl_server_parameters= --encrypt-binlog=1
+--let $rpl_server_parameters= --binlog-encryption=1
 --let $rpl_server_number= 1
 --source include/rpl_restart_server.inc
 
@@ -83,7 +82,7 @@ INSERT INTO table2_to_encrypt SELECT NULL,NOW(),b FROM table2_to_encrypt;
 
 --let SEARCH_FILE= $master_datadir/master-bin.0*
 --let SEARCH_PATTERN= table2_to_encrypt
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo #####################################################
 --echo # Part 3: restart master again without encryption
@@ -91,7 +90,7 @@ INSERT INTO table2_to_encrypt SELECT NULL,NOW(),b FROM table2_to_encrypt;
 
 UNINSTALL PLUGIN keyring_file;
 
---let $rpl_server_parameters= --encrypt-binlog=0
+--let $rpl_server_parameters= --binlog-encryption=0
 --let $rpl_server_number= 1
 --source include/rpl_restart_server.inc
 

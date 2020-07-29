@@ -24,9 +24,15 @@ CREATE TABLE t1 (a INT,
 SHOW INDEX IN t1;
 DROP TABLE t1;
 
+--error ER_CHECK_NOT_IMPLEMENTED
 CREATE TABLE t1 (a INT,
   b CHAR(8),
   PRIMARY KEY ind2(b(1) DESC) KEY_BLOCK_SIZE=32768 COMMENT 'big key_block_size value'
+) ENGINE=ROCKSDB;
+
+CREATE TABLE t1 (a INT,
+  b CHAR(8),
+  PRIMARY KEY ind2(b(1)) KEY_BLOCK_SIZE=32768 COMMENT 'big key_block_size value'
 ) ENGINE=ROCKSDB;
 
 --replace_column 7 #

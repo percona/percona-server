@@ -15,6 +15,6 @@ Warning	1048	Column 'f2' cannot be null
 Warning	1048	Column 'f3' cannot be null
 INSERT IGNORE INTO local_1_1 SELECT * FROM local_1_1;
 Warnings:
-Warning	1062	Duplicate entry 'egqeqfxwaejpqixuvvtentruyqadxiyb' for key 'PRIMARY'
-Warning	1062	Duplicate entry 'you' for key 'PRIMARY'
+Warning	1062	Duplicate entry 'egqeqfxwaejpqixuvvtentruyqadxiyb' for key 'local_1_1.PRIMARY'
+Warning	1062	Duplicate entry 'you' for key 'local_1_1.PRIMARY'
 DROP TABLE local_1_1;

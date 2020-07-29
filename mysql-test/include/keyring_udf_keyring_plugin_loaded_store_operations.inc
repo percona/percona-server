@@ -102,3 +102,9 @@ select @x;
 --error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
 select keyring_key_store('','AES', '0123456789012345') into @x;
 select @x;
+
+# Store really long key
+select repeat('abcdefgh', 2049) into @x;
+--error ER_CLIENT_KEYRING_UDF_KEY_TOO_LONG
+select keyring_key_store('long_key', 'AES', @x);
+select repeat('abcdefgh', 17) into @x;

@@ -15,9 +15,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/not_embedded.inc
---source include/have_ssl.inc
---source include/have_sha256_rsa_auth.inc
 --source include/mysql_upgrade_preparation.inc
 
 # This test will intentionally generate errors in the server error log
@@ -35,12 +32,6 @@ call mtr.add_suppression(".*Password salt for user.*");
 --echo Checking the password authentication using the mysql_native_password plugin at the client and mysql_native_password plugin at the server side
 --echo ===========================================================================================================================================
 --echo 
-
-select @@Global.old_passwords;
---echo 0 Expected
-
-select @@session.old_passwords;
---echo 0 Expected
 
 # Checking the password authentication with mysql_native_password plugin
 # Creating 2 users and encrypting the server side password with the mysql_native_password plugin
@@ -87,37 +78,6 @@ connection default;
 
 SET PASSWORD FOR 'Tanjotuser1'@'localhost'='abc';
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='abc';
-
-# Validating the old_passwords value from the created users.
-
-
---echo **** connecting Tanjotuser1 with server 
---exec $MYSQL -uTanjotuser1 -pabc -hlocalhost --default_auth=mysql_native_password -e "select @@session.old_passwords"
---echo 0 Expected
-
---echo **** connecting Tanjotuser2 with server 
---exec $MYSQL -uTanjotuser2 -pabc -h127.0.0.1 --default_auth=mysql_native_password -e "select @@session.old_passwords"
---echo 0 Expected
-
-
-
---echo **** connecting Tanjotuser1 with server 
---exec $MYSQL -uTanjotuser1 -pabc -hlocalhost --default_auth=sha256_password -e "select @@session.old_passwords"
---echo 0 Expected
-
---echo **** connecting Tanjotuser2 with server 
---exec $MYSQL -uTanjotuser2 -pabc -h127.0.0.1 --default_auth=sha256_password -e "select @@session.old_passwords"
---echo 0 Expected
-
-
-
---echo **** connecting Tanjotuser1 with server 
---exec $MYSQL -uTanjotuser1 -pabc -hlocalhost -e "select @@session.old_passwords"
---echo 0 Expected
-
---echo **** connecting Tanjotuser2 with server 
---exec $MYSQL -uTanjotuser2 -pabc -h127.0.0.1 -e "select @@session.old_passwords"
---echo 0 Expected
 
 # Verifying the client connection using the  mysql_native_password plugin and NULL password
 
@@ -263,8 +223,6 @@ CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'mysql_native_password';
 
 # setting the password for the 2 users using the mysql_native_password plugin
 
-SET @@session.old_passwords=0;
-
 SET PASSWORD FOR 'Tanjotuser1'@'localhost'='$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________';
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________';
 
@@ -353,12 +311,6 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 
 
 
-select @@Global.old_passwords;
---echo 2 Expected
-
-select @@session.old_passwords;
---echo 0 Expected
-
 # Checking the password authentication with mysql_native_password plugin
 # Creating 2 users and encrypting the server side password with the mysql_native_password plugin
 
@@ -401,42 +353,8 @@ connect(con92,127.0.0.1,Tanjotuser2," ",,);
 
 connection default;
 
-SET @@session.old_passwords=0;
-
 SET PASSWORD FOR 'Tanjotuser1'@'localhost'='abc';
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='abc';
-
-
-# Validating the old_passwords value from the created users.
-
-
---echo **** connecting Tanjotuser1 with server 
---exec $MYSQL -uTanjotuser1 -pabc -hlocalhost --default_auth=mysql_native_password -e "select @@session.old_passwords"
---echo 0 Expected
-
---echo **** connecting Tanjotuser2 with server 
---exec $MYSQL -uTanjotuser2 -pabc -h127.0.0.1 --default_auth=mysql_native_password -e "select @@session.old_passwords"
---echo 0 Expected
-
-
---echo **** connecting Tanjotuser1 with server 
---exec $MYSQL -uTanjotuser1 -pabc -hlocalhost --default_auth=sha256_password -e "select @@session.old_passwords"
---echo 0 Expected
-
---echo **** connecting Tanjotuser2 with server 
---exec $MYSQL -uTanjotuser2 -pabc -h127.0.0.1 --default_auth=sha256_password -e "select @@session.old_passwords"
---echo 0 Expected
-
-
-
---echo **** connecting Tanjotuser1 with server 
---exec $MYSQL -uTanjotuser1 -pabc -hlocalhost -e "select @@session.old_passwords"
---echo 0 Expected
-
---echo **** connecting Tanjotuser2 with server 
---exec $MYSQL -uTanjotuser2 -pabc -h127.0.0.1 -e "select @@session.old_passwords"
---echo 0 Expected
-
 
 # Verifying the client connection using the same mysql_native_password plugin and NULL password
 
@@ -554,20 +472,6 @@ connect(con107,localhost,Tanjotuser1,"&",,);
 connect(con108,127.0.0.1,Tanjotuser2,"&",,);
 --enable_query_log
 
-
-# Below section is hashed till the bug16040690 is fixed.
-
-#--error ER_SERVER_IS_IN_SECURE_AUTH_MODE
-#connect(con113,localhost,Tanjotuser1,"abc ",,);
-#--error ER_SERVER_IS_IN_SECURE_AUTH_MODE
-#connect(con114,127.0.0.1,Tanjotuser2,"abc ",,);
-
-#--error ER_SERVER_IS_IN_SECURE_AUTH_MODE
-#connect(con115,localhost,Tanjotuser1," abc",,);
-#--error ER_SERVER_IS_IN_SECURE_AUTH_MODE
-#connect(con116,127.0.0.1,Tanjotuser2," abc",,);
-
-
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --replace_result "NO" "" "YES" ""
 --disable_query_log
@@ -633,8 +537,6 @@ CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_native_password';
 CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'mysql_native_password';
 
 # setting the password for the 2 users using the mysql_native_password plugin
-
-SET @@session.old_passwords=0;
 
 SET PASSWORD FOR 'Tanjotuser1'@'localhost'='$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________';
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________';
@@ -782,5 +684,7 @@ connection default;
 
 DROP USER 'Tanjotuser1'@'localhost';
 DROP USER 'Tanjotuser2'@'127.0.0.1';
-SET @@global.old_passwords=default;
-SET @@session.old_passwords=default;
+
+# Restore default settings in opt file and clean up
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

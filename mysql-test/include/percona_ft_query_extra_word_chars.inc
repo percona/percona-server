@@ -12,7 +12,7 @@ if ($ft_query_extra_word_chars == 'setup')
   --echo # Setup ft_query_extra_word_chars testing
   --echo #
 
-  SET NAMES utf8;
+  SET NAMES utf8mb4;
 
   CREATE TABLE words(id INT PRIMARY KEY AUTO_INCREMENT,
                      a TEXT COLLATE utf8mb4_bin);

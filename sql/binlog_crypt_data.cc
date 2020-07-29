@@ -16,126 +16,116 @@
 
 #include "binlog_crypt_data.h"
 
-#include "my_global.h"
+#include "my_byteorder.h"
+#include "my_dbug.h"
 #include "my_sys.h"
+#include "mysql/service_mysql_alloc.h"
 #ifdef MYSQL_SERVER
-#include <mysql/service_mysql_keyring.h>
-#include "system_key.h"
-#include "log.h"
 #include <sstream>
+#include "log.h"
+#include "mysql/service_mysql_keyring.h"
+#include "system_key.h"
 #endif
 
-Binlog_crypt_data::Binlog_crypt_data()
-  : key_length(0)
-  , key(NULL)
-  , enabled(false)
-  , scheme(0)
-{}
+Binlog_crypt_data::Binlog_crypt_data() noexcept
+    : key_length(0), key(nullptr), enabled(false), scheme(0) {}
 
-Binlog_crypt_data::~Binlog_crypt_data()
-{
-  free_key(key, key_length);
-}
+Binlog_crypt_data::~Binlog_crypt_data() { free_key(key, key_length); }
 
 Binlog_crypt_data::Binlog_crypt_data(const Binlog_crypt_data &b)
-{
-  enabled = b.enabled;
-  key_version = b.key_version;
-  if (b.key_length && b.key != NULL)
-  {
-    key= reinterpret_cast<uchar*>(my_malloc(PSI_NOT_INSTRUMENTED, b.key_length, MYF(MY_WME)));
+    : key_version(b.key_version),
+      key_length(b.key_length),
+      enabled(b.enabled),
+      offs(b.offs) {
+  if (b.key_length && b.key != nullptr) {
+    key = reinterpret_cast<uchar *>(
+        my_malloc(PSI_NOT_INSTRUMENTED, b.key_length, MYF(MY_WME)));
     memcpy(key, b.key, b.key_length);
-  }
-  else
-    key= NULL;
+  } else
+    key = nullptr;
 
-  key_length= b.key_length;
-  memcpy(iv, b.iv, BINLOG_IV_LENGTH);
-  memcpy(nonce, b.nonce, BINLOG_NONCE_LENGTH);
+  memcpy(iv, b.iv, binary_log::Start_encryption_event::IV_LENGTH);
+  memcpy(nonce, b.nonce, binary_log::Start_encryption_event::NONCE_LENGTH);
 }
 
-void Binlog_crypt_data::free_key(uchar *&key, size_t &key_length)
-{
-  if (key != NULL)
-  {
+void Binlog_crypt_data::free_key(uchar *&key, size_t &key_length) noexcept {
+  if (key != nullptr) {
     DBUG_ASSERT(key_length == 16);
     memset_s(key, 512, 0, key_length);
     my_free(key);
-    key= NULL;
-    key_length= 0;
+    key = nullptr;
+    key_length = 0;
   }
 }
 
-Binlog_crypt_data& Binlog_crypt_data::operator=(Binlog_crypt_data b)
-{
-  enabled= b.enabled;
-  key_version= b.key_version;
-  key_length= b.key_length;
+Binlog_crypt_data &Binlog_crypt_data::operator=(Binlog_crypt_data b) noexcept {
+  enabled = b.enabled;
+  key_version = b.key_version;
+  key_length = b.key_length;
   std::swap(this->key, b.key);
-  key_length= b.key_length;
-  memcpy(iv, b.iv, BINLOG_IV_LENGTH);
-  memcpy(nonce, b.nonce, BINLOG_NONCE_LENGTH);
+  key_length = b.key_length;
+  memcpy(iv, b.iv, binary_log::Start_encryption_event::IV_LENGTH);
+  memcpy(nonce, b.nonce, binary_log::Start_encryption_event::NONCE_LENGTH);
   return *this;
 }
 
-bool Binlog_crypt_data::load_latest_binlog_key()
-{
+bool Binlog_crypt_data::load_latest_binlog_key() {
   free_key(key, key_length);
-  bool error= false;
+  bool error = false;
 #ifdef MYSQL_SERVER
-  char *system_key_type = NULL;
+  char *system_key_type = nullptr;
   size_t system_key_len = 0;
-  uchar *system_key = NULL;
+  uchar *system_key = nullptr;
 
-  DBUG_EXECUTE_IF("binlog_encryption_error_on_key_fetch",
-                  { return true; } );
+  DBUG_EXECUTE_IF("binlog_encryption_error_on_key_fetch", { return true; });
 
-  if (my_key_fetch(PERCONA_BINLOG_KEY_NAME, &system_key_type, NULL,
-                   reinterpret_cast<void**>(&system_key), &system_key_len) ||
-      (system_key == NULL &&
-       (my_key_generate(PERCONA_BINLOG_KEY_NAME, "AES", NULL, 16) ||
-        my_key_fetch(PERCONA_BINLOG_KEY_NAME, &system_key_type, NULL,
-                     reinterpret_cast<void**>(&system_key), &system_key_len) ||
-        system_key == NULL)))
-         return true;
+  if (my_key_fetch(PERCONA_BINLOG_KEY_NAME, &system_key_type, nullptr,
+                   reinterpret_cast<void **>(&system_key), &system_key_len) ||
+      (system_key == nullptr &&
+       (my_key_generate(PERCONA_BINLOG_KEY_NAME, "AES", nullptr, 16) ||
+        my_key_fetch(PERCONA_BINLOG_KEY_NAME, &system_key_type, nullptr,
+                     reinterpret_cast<void **>(&system_key), &system_key_len) ||
+        system_key == nullptr)))
+    return true;
 
   DBUG_ASSERT(strncmp(system_key_type, "AES", 3) == 0);
   my_free(system_key_type);
 
-  error= (parse_system_key(system_key, system_key_len, &key_version, &key, &key_length) == reinterpret_cast<uchar*>(NullS));
+  error = (parse_system_key(system_key, system_key_len, &key_version, &key,
+                            &key_length) == reinterpret_cast<uchar *>(NullS));
   my_free(system_key);
 #endif
   return error;
 }
 
-bool Binlog_crypt_data::init_with_loaded_key(uint sch, const uchar* nonce)
-{
-  scheme= sch;
+bool Binlog_crypt_data::init_with_loaded_key(
+    uint sch, const uchar *nonce MY_ATTRIBUTE((unused))) noexcept {
+  scheme = sch;
 #ifdef MYSQL_SERVER
-  DBUG_ASSERT(key != NULL);
-  DBUG_ASSERT(nonce != NULL);
-  memcpy(this->nonce, nonce, BINLOG_NONCE_LENGTH);
+  DBUG_ASSERT(key != nullptr);
+  DBUG_ASSERT(nonce != nullptr);
+  memcpy(this->nonce, nonce, binary_log::Start_encryption_event::NONCE_LENGTH);
 #endif
-  enabled= true;
+  enabled = true;
   return false;
 }
 
-bool Binlog_crypt_data::init(uint sch, uint kv, const uchar* nonce)
-{
+bool Binlog_crypt_data::init(uint sch MY_ATTRIBUTE((unused)),
+                             uint kv MY_ATTRIBUTE((unused)),
+                             const uchar *nonce MY_ATTRIBUTE((unused))) {
   free_key(key, key_length);
 #ifdef MYSQL_SERVER
-  char *key_type = NULL;
+  char *key_type = nullptr;
   std::ostringstream percona_binlog_with_ver_ss;
   percona_binlog_with_ver_ss << PERCONA_BINLOG_KEY_NAME << ':' << kv;
-  if (my_key_fetch(percona_binlog_with_ver_ss.str().c_str(), &key_type, NULL,
-                   reinterpret_cast<void**>(&key), &key_length) ||
-      key == NULL)
+  if (my_key_fetch(percona_binlog_with_ver_ss.str().c_str(), &key_type, nullptr,
+                   reinterpret_cast<void **>(&key), &key_length) ||
+      key == nullptr)
     return true;
   DBUG_ASSERT(strncmp(key_type, "AES", 3) == 0);
   my_free(key_type);
 
-  if(init_with_loaded_key(sch, nonce))
-  {
+  if (init_with_loaded_key(sch, nonce)) {
     free_key(key, key_length);
     return true;
   }
@@ -143,15 +133,14 @@ bool Binlog_crypt_data::init(uint sch, uint kv, const uchar* nonce)
   return false;
 }
 
-void Binlog_crypt_data::set_iv(uchar* iv, uint32 offs) const
-{
-  DBUG_ASSERT(key != NULL);
+void Binlog_crypt_data::set_iv(uchar *iv, uint32 offs) const {
+  DBUG_ASSERT(key != nullptr);
   DBUG_ASSERT(key_length == 16);
 
-  uchar iv_plain[BINLOG_IV_LENGTH];
-  memcpy(iv_plain, nonce, BINLOG_NONCE_LENGTH);
-  int4store(iv_plain + BINLOG_NONCE_LENGTH, offs);
+  uchar iv_plain[binary_log::Start_encryption_event::IV_LENGTH];
+  memcpy(iv_plain, nonce, binary_log::Start_encryption_event::NONCE_LENGTH);
+  int4store(iv_plain + binary_log::Start_encryption_event::NONCE_LENGTH, offs);
 
-  my_aes_encrypt(iv_plain, BINLOG_IV_LENGTH, iv,
-                 key, key_length, my_aes_128_ecb, NULL, false);
+  my_aes_encrypt(iv_plain, binary_log::Start_encryption_event::IV_LENGTH, iv,
+                 key, key_length, my_aes_128_ecb, nullptr, false);
 }

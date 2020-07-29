@@ -1,4 +1,4 @@
-# Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,24 +20,25 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-Next QMGR 943
-Next NDBCNTR 1006
-Next NDBFS 2000
-Next DBACC 3002
+Next QMGR 950
+Next NDBCNTR 1008
+Next NDBFS 2002
+Next DBACC 3006
 Next DBTUP 4039
-Next DBLQH 5088
-Next DBDICT 6216
-Next DBDIH 7245
-Next DBTC 8109
+Next DBLQH 5098
+Next DBDICT 6223
+Next DBDIH 7249
+Next DBTC 8117
 Next CMVMI 9000
-Next BACKUP 10042
-Next DBUTIL 11002
+Next BACKUP 10051
+Next PGMAN 11010
 Next DBTUX 12010
-Next SUMA 13049
-Next LGMAN 15001
-Next TSMAN 16001
+Next SUMA 13054
+Next LGMAN 15002
+Next TSMAN 16002
 Next DBSPJ 17000
 Next TRIX 18000
+Next DBUTIL 19001
 
 TESTING NODE FAILURE, ARBITRATION
 ---------------------------------
@@ -109,6 +110,9 @@ Insert system error in GCP participant when receiving GCP_SAVEREQ.
 5007:
 Delay GCP_SAVEREQ by 10 secs
 
+5090:
+Delay opening next redo log file.
+
 7165: Delay INCL_NODE_REQ in starting node yeilding error in GCP_PREPARE
 
 7030: Delay in GCP_PREPARE until node has completed a node failure
@@ -140,6 +144,8 @@ GCP Stop so that isolation is required to remove a node.
 7238: Delay GCP_PREPARE processing indefinitely
 7239: Delay GCP_COMMIT processing indefinitely
 7244: Delay SUB_GCP_COMPLETE_REP processing indefinitely
+7247: Delay WAIT_GCP_REQ processing indefinitely
+7248: Skip most recent LCP during a restart
 
 Related (LQH):
   5085 : Ignore request to kill via DUMP 2305
@@ -150,6 +156,7 @@ Related (NDBCNTR)
   1004 : Ignore SYSTEM_ERROR for GCP Stop
   1005 : Treat SYSTEM_ERROR for GCP Stop as CRASH_INSERTION
          (expected way for testcase to kill node)
+  1007 : Treat NDBD_EXIT_UPGRADE_INITIAL_REQUIRED as CRASH_INSERTION
 
 Related (QMGR)
   942  : Test 'forced isolation' (ISOLATE_ORD) by other nodes
@@ -250,7 +257,18 @@ LQH
 
 QMGR
 942:  (See above) 
-
+946:  Make node inactive for 180s during node restart, which results in missed
+      heartbeats when HeartbeatIntervalDbDb is set to around 40s or lesser and
+      TimeBetweenWatchDogCheck is set to its max. value (to prevent termination
+      due to watchdog timeout)
+      Steps to make, say, data node 2 miss heartbeats:
+      1) Start cluster
+      2) ndb_mgm -e "all restart -n"
+      3) ndb_mgm -e "2 error 946"
+      4) ndb_mgm -e "all start"
+947:  Treat restart error due to a node disconnection as CRASH_INSERTION.
+948:  Cause node to crash when first hearing of a node failure
+949:  Pause before enabling this node to accept connections from API nodes
 
 ERROR CODES FOR TESTING NODE FAILURE, FAILURE IN COPY FRAGMENT PROCESS:
 -----------------------------------------------------------------------
@@ -304,7 +322,7 @@ Delay execution of ABORT signal 2 seconds to generate time-out.
 Delay execution of ABORTREQ signal 2 seconds to generate time-out.
 
 5031: lqhKeyRef, ZNO_TC_CONNECT_ERROR
-5032: lqhKeyRef, ZTEMPORARY_REDO_LOG_FAILURE
+5032: lqhKeyRef, simulate a temporary redo error ZTEMPORARY_REDO_LOG_FAILURE
 5033: lqhKeyRef, ZTAIL_PROBLEM_IN_LOG_ERROR
 
 5034: Don't pop scan queue
@@ -325,6 +343,17 @@ Delay execution of ABORTREQ signal 2 seconds to generate time-out.
            Crash on "next" ABORT
 
 5047: ZTRANSPORTER_OVERLOADED_ERROR in execLQHKEYREQ
+
+Error insertions used to test ACCKEYCONF/ABORT interleaving
+
+5094: Allow one ACCKEYCONF to be processed then set 5095
+5095: Cause ACCKEYCONF messages to be indefinitely stalled
+      Allow one ABORT signal to be processed then set 5096
+5096: Cause ABORT messages to be indefinitely stalled
+      ACCKEYCONF signal clears ERROR Insertion
+5097: ndbabort()
+
+
 
 ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTC
 -------------------------------------------------
@@ -501,7 +530,6 @@ Test Crashes in handling node restarts
 
 7174: Crash starting node before sending DICT_LOCK_REQ
 7175: Master sends one fake START_PERMREF (ZNODE_ALREADY_STARTING_ERROR)
-7176: Slave NR pretends master does not support DICT lock (rolling upgrade)
 
 DICT:
 6000  Crash during NR when receiving DICTSTARTREQ
@@ -550,9 +578,6 @@ Test failures in various states in take over functionality
 7163: Block take over at sending of UPDATE_TOREQ at end of copy frag
 7164: Block take over at sending of END_TOREQ
 7169: Block take over at sending of UPDATE_TOREQ at end of copy
-
-5008: Crash at reception of EMPTY_LCPREQ (at master take over after NF)
-5009: Crash at sending of EMPTY_LCPCONF (at master take over after NF)
 
 Test Crashes in Handling Graceful Shutdown
 ------------------------------------------
@@ -605,6 +630,17 @@ Backup Stuff:
 10040: Resume backup (from 10039)
 10038: Receive abort backup in the middle of locking tables.
 10041: delay backup after create trigger. for testing undo log file.
+10042: Send SCAN_NEXTREQ with 10ms delay
+10043: Block indefinitely without closing file
+10044: Crash insertion at FSAPPENDREF
+10045: Crash insertion at FSAPPENDREF
+10046: DIH scan tab around Get next fragment
+10047: Delay start of scan for LCPs
+10048: Ensure that LCP runs with exactly 1 part
+10049: Abort backup with LogBufferFull when STOP_BACKUP_REQ breaks to sync path before trigger deletion
+10050: Change #records and #bytes backed up to a value > 2^32 to test
+       NDB_LE_BackupCompleted prints the 64-bit value out correctly
+       without truncating it to 32 bit values.
 
 11001: Send UTIL_SEQUENCE_REF (in master)
 
@@ -695,8 +731,6 @@ System Restart:
 7070: Set TimeBetweenLcp to min value
 7071: Set TimeBetweenLcp to max value
 7072: Split START_FRAGREQ into several log nodes
-7073: Don't include own node in START_FRAGREQ
-7074: 7072 + 7073
 
 Scan:
 ------
@@ -748,6 +782,14 @@ Dbdict:
 6203 Set error code before CREATE_FRAGMENTATION in master (index)
 
 6215 Randomly fail GET_TABINFOREQ with Busy (no CLEAR_ERROR_INSERT_VALUE)
+6216 Delay GET_TABINFOREQ processing indefinitely
+6217 Delay CREATE_TABLE_REQ, ALTER_TABLE_REQ and DROP_TABLE_REQ processing indefinitely
+6218 Delay CREATE_INDEX_REQ, CREATE_FILEGROUP_REQ, CREATE_FILE_REQ, CREATE_FK_REQ indefinitely
+6219 Delay DROP_INDEX_REQ, DROP_FILEGROUP_REQ, DROP_FILE_REQ, DROP_FK_REQ processing indefinitely
+6220 Delay LIST_TABLES_REQ indefinitely
+6221 Delay INDEX_STAT_REQ indefinitely
+6222 Delay CREATE_HASH_MAP_REQ indefinitely
+6223 Only send SCHEMA_TRANS_IMPL_REQ to self preparatory to crashing
 
 Dbtup:
 4014 - handleInsert - Out of undo buffer
@@ -781,14 +823,19 @@ SUMA:
 13040: Crash in SUB_CREATE_REQ if m_restart_server_node_id != RNIL
 13041: Crash in SUB_CREATE_REQ (no matter)
 13042: Crash in SUB_START_REQ (if m_restart_server_node_id != 0)
+13051: Delay the DROP_TRIG_IMPL_REQ
 
 LGMAN:
 -----
-15000: Fail to create log file
+15000: Fail to create log file CreateFileImplRef::FileSizeTooLarge
+15001: Fail to create file group due to
+       CreateFilegroupImplRef::OutOfLogBufferMemory
 
 TSMAN:
 -----
 16000: Fail to create data file
+16001: Fail to create file group due to
+       CreateFilegroupImplRef::OutOfFilegroupRecords
 
 ACC bug#34348
 -------------
@@ -807,3 +854,7 @@ Index stats:
 18022: fail RT_CLEAN_OLD (non-fatal) - as in 18021
 18023: fail RT_CLEAN_ALL (non-fatal) - as in 18021
 18024: fail RT_SCAN_FRAG - simulate TC error 630
+
+DBUTIL
+-------
+19000: fail UTIL_PREPARE_REQ with PREPARE_SEIZE_ERROR

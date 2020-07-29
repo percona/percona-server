@@ -14,17 +14,15 @@ c1	char(1)	YES		NULL
 c20	char(20)	YES		NULL	
 c255	char(255)	NO	PRI	NULL	
 INSERT INTO t1 (c,c0,c1,c20,c255) VALUES ('','','','','');
-INSERT INTO t1 (c,c0,c1,c20,c255) VALUES ('a','','b','abcdefghi klmnopqrst', 'Creating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn\'t already exist which would work.');
+INSERT INTO t1 (c,c0,c1,c20,c255) VALUES ('a','','b','abcdefghi klmnopqrst', 'Creating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn');
 SELECT c,c0,c1,c20,c255 FROM t1;
 c	c0	c1	c20	c255
 				
-a		b	abcdefghi klmnopqrst	Creating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn't already exist which would work.
+a		b	abcdefghi klmnopqrst	Creating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn
 INSERT INTO t1 (c,c0,c1,c20,c255) VALUES ('abc', 'a', 'abc', REPEAT('a',21), REPEAT('x',256));
 ERROR 22001: Data too long for column 'c' at row 1
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 (c,c0,c1,c20,c255) VALUES ('abc', 'a', 'abc', REPEAT('a',21), REPEAT('x',256));
 Warnings:
 Warning	1265	Data truncated for column 'c' at row 1
@@ -33,38 +31,32 @@ Warning	1265	Data truncated for column 'c1' at row 1
 Warning	1265	Data truncated for column 'c20' at row 1
 Warning	1265	Data truncated for column 'c255' at row 1
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set @orig_tx_iso=@@session.transaction_isolation;
 set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t1 (c,c0,c1,c20,c255) SELECT c255, c255, c255, c255, CONCAT('a',c255,c1) FROM t1;
-ERROR 22001: Data too long for column 'c' at row 5
+ERROR 22001: Data too long for column 'c' at row 2
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 (c,c0,c1,c20,c255) SELECT c255, c255, c255, c255, CONCAT('a',c255,c1) FROM t1;
 Warnings:
-Warning	1265	Data truncated for column 'c' at row 5
-Warning	1265	Data truncated for column 'c0' at row 5
-Warning	1265	Data truncated for column 'c1' at row 5
-Warning	1265	Data truncated for column 'c20' at row 5
-Warning	1265	Data truncated for column 'c' at row 6
-Warning	1265	Data truncated for column 'c0' at row 6
-Warning	1265	Data truncated for column 'c1' at row 6
-Warning	1265	Data truncated for column 'c20' at row 6
-Warning	1265	Data truncated for column 'c255' at row 6
+Warning	1265	Data truncated for column 'c' at row 2
+Warning	1265	Data truncated for column 'c0' at row 2
+Warning	1265	Data truncated for column 'c1' at row 2
+Warning	1265	Data truncated for column 'c20' at row 2
+Warning	1265	Data truncated for column 'c' at row 3
+Warning	1265	Data truncated for column 'c0' at row 3
+Warning	1265	Data truncated for column 'c1' at row 3
+Warning	1265	Data truncated for column 'c20' at row 3
+Warning	1265	Data truncated for column 'c255' at row 3
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set session transaction_isolation=@orig_tx_iso;
 SELECT c,c0,c1,c20,c255 FROM t1;
 c	c0	c1	c20	c255
 				
 				a
-C		C	Creating an article	aCreating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn't already exist which would work.b
+C		C	Creating an article	aCreating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesnb
 a		a	aaaaaaaaaaaaaaaaaaaa	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-a		b	abcdefghi klmnopqrst	Creating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn't already exist which would work.
+a		b	abcdefghi klmnopqrst	Creating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn
 x		x	xxxxxxxxxxxxxxxxxxxx	axxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 SELECT DISTINCT c20, REPEAT('a',LENGTH(c20)), COUNT(*) FROM t1 GROUP BY c1, c20;
 c20	REPEAT('a',LENGTH(c20))	COUNT(*)
@@ -81,19 +73,18 @@ INSERT INTO t1 VALUES('a');
 ERROR 22001: Data too long for column 'c1' at row 1
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 VALUES('a');
 Warnings:
 Warning	1265	Data truncated for column 'c1' at row 1
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT * FROM t1;
 c1
 
 DROP TABLE t1;
-CREATE TABLE t1(a char(10) character set utf8 collate utf8_bin primary key) engine=rocksdb;
+CREATE TABLE t1(a char(10) character set utf8mb3 collate utf8mb3_bin primary key) engine=rocksdb;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t1 VALUES ('one'),('two'),('three'),('four'),('five');
 SELECT * FROM t1 UNION SELECT * FROM t1;
 a

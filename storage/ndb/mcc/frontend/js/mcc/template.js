@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2019 Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -78,6 +78,6 @@ if (mcc...tests) {
 /******************************** Initialize  *********************************/
 
 dojo.ready(function initialize() {
-    mcc.util.dbg("definition module initialized");
+    console.info('[INF]definition module initialized');
 });
 

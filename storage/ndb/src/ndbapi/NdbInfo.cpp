@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -105,12 +105,11 @@ bool NdbInfo::load_hardcoded_tables(void)
 
 bool NdbInfo::addColumn(Uint32 tableId, Column aCol)
 {
-  Table * table = NULL;
-
   // Find the table with correct id
-  for (size_t i = 0; i < m_tables.entries(); i++)
+  Table * table = nullptr;
+  for (auto &key_and_value : m_tables)
   {
-    table = m_tables.value(i);
+    table = key_and_value.second.get();
     if (table->m_table_id == tableId)
       break;
   }
@@ -286,9 +285,9 @@ bool NdbInfo::load_tables()
   // Consistency check the loaded table list
   {
     Vector<Uint32> m_table_ids;
-    for (size_t i = 0; i < m_tables.entries(); i++)
+    for (auto &key_and_value : m_tables)
     {
-      Table* const tab = m_tables.value(i);
+      Table* const tab = key_and_value.second.get();
       // Table id should be valid
       assert(tab->m_table_id != Table::InvalidTableId);
       // Save the table id at position "table id" in
@@ -388,17 +387,13 @@ void NdbInfo::releaseScanOperation(NdbInfoScanOperation* scan_op) const
 void NdbInfo::flush_tables()
 {
   // Delete all but the hardcoded tables
-  while (m_tables.entries() > NUM_HARDCODED_TABLES)
+  for (auto it = m_tables.begin(); it != m_tables.end(); )
   {
-    for (size_t i = 0; i<m_tables.entries(); i++)
-    {
-      Table * tab = m_tables.value(i);
-      if (! (tab == m_tables_table || tab == m_columns_table))
-      {
-        m_tables.remove(i);
-        break;
-      }
-    }
+    Table * tab = it->second.get();
+    if (! (tab == m_tables_table || tab == m_columns_table))
+      it = m_tables.erase(it);
+    else
+      ++it;
   }
   assert(m_tables.entries() == NUM_HARDCODED_TABLES);
 }
@@ -467,9 +462,9 @@ NdbInfo::openTable(Uint32 tableId,
 
   // Find the table with correct id
   const Table* table = NULL;
-  for (size_t i = 0; i < m_tables.entries(); i++)
+  for (auto &key_and_value : m_tables)
   {
-    const Table* tmp = m_tables.value(i);
+    const Table* tmp = key_and_value.second.get();
     if (tmp->m_table_id == tableId)
     {
       table = tmp;
@@ -529,7 +524,7 @@ NdbInfo::Table::Table(const char *name, Uint32 id, const VirtualTable* virt) :
   m_table_id(id),
   m_virt(virt)
 {
-};
+}
 
 NdbInfo::Table::Table(const NdbInfo::Table& tab) :
   m_virt(tab.m_virt)
@@ -558,7 +553,7 @@ NdbInfo::Table::~Table()
 {
   for (unsigned i = 0; i < m_columns.size(); i++)
     delete m_columns[i];
-};
+}
 
 const char * NdbInfo::Table::getName() const
 {

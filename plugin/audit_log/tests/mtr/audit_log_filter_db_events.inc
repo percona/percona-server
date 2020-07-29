@@ -1,6 +1,3 @@
-
-SET GLOBAL event_scheduler = ON;
-
 CREATE TABLE db1.t (a INT);
 CREATE TABLE db1.trig (a INT);
 CREATE TABLE db2.t (a INT);
@@ -120,5 +117,3 @@ eval DROP TABLE db1.a$i;
 inc $i;
 }
 DROP TABLE db1.b0;
-
-SET GLOBAL event_scheduler = OFF;

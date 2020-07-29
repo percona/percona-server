@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -103,7 +103,7 @@ NdbTransaction::NdbTransaction( Ndb* aNdb ) :
   theListState = NotInList;
   theError.code = 0;
   //theId = NdbObjectIdMap::InvalidId;
-  theId = theNdb->theImpl->theNdbObjectIdMap.map(this);
+  theId = theNdb->theImpl->mapRecipient(this);
 
 #define CHECK_SZ(mask, sz) assert((sizeof(mask)/sizeof(mask[0])) == sz)
 
@@ -119,7 +119,7 @@ Remark:        Deletes the connection object.
 NdbTransaction::~NdbTransaction()
 {
   DBUG_ENTER("NdbTransaction::~NdbTransaction");
-  theNdb->theImpl->theNdbObjectIdMap.unmap(theId, this);
+  theNdb->theImpl->unmapRecipient(theId, this);
   DBUG_VOID_RETURN;
 }//NdbTransaction::~NdbTransaction()
 
@@ -183,7 +183,7 @@ NdbTransaction::init()
   pendingBlobWriteBytes = 0;
   if (theId == NdbObjectIdMap::InvalidId)
   {
-    theId = theNdb->theImpl->theNdbObjectIdMap.map(this);
+    theId = theNdb->theImpl->mapRecipient(this);
     if (theId == NdbObjectIdMap::InvalidId)
     {
       theError.code = 4000;
@@ -529,12 +529,6 @@ NdbTransaction::execute(ExecType aTypeOfExec,
     if (theCompletedLastOp == NULL)
       theCompletedLastOp = tCompletedLastOp;
   }
-#if ndb_api_count_completed_ops_after_blob_execute
-  { NdbOperation* tOp; unsigned n = 0;
-    for (tOp = theCompletedFirstOp; tOp != NULL; tOp = tOp->next()) n++;
-    ndbout << "completed ops: " << n << endl;
-  }
-#endif
 
   /* Sometimes the original error is trampled by 'Trans already aborted',
    * detect this case and attempt to restore the original error
@@ -788,6 +782,16 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
     DBUG_VOID_RETURN;
   }//if
 
+  /**
+   * Perform scan finalisation here
+   */
+  NdbScanOperation* tScanOp = m_theFirstScanOperation;
+  while (tScanOp)
+  {
+    tScanOp->finaliseScan();
+    tScanOp = (NdbScanOperation*)tScanOp->next();
+  }
+
   NdbQueryImpl* const lastLookupQuery = getLastLookupQuery(m_firstQuery);
 
   if (tTransactionIsStarted == true) {
@@ -989,6 +993,7 @@ NdbTransaction::sendTC_HBREP()		// Send a TC_HBREP signal;
   }
 
   if (tSignal->setSignal(GSN_TC_HBREP, refToBlock(m_tcRef)) == -1) {
+    tNdb->releaseSignal(tSignal);
     return -1;
   }
 
@@ -1261,7 +1266,7 @@ NdbTransaction::release(){
   theMagicNumber = 0xFE11DC;
   theInUseState = false;
 #ifdef VM_TRACE
-  if (theListState != NotInList) {
+  if (theListState != NotInList && theListState != InPreparedList) {
     theNdb->printState("release %lx", (long)this);
     abort();
   }
@@ -1303,8 +1308,6 @@ NdbTransaction::releaseOperations()
   theFirstExecOpInList = NULL;
   theLastOpInList = NULL;
   theLastExecOpInList = NULL;
-  theScanningOp = NULL;
-  m_scanningQuery = NULL;
   m_theFirstScanOperation = NULL;
   m_theLastScanOperation = NULL;
   m_firstExecutedScanOp = NULL;
@@ -1320,6 +1323,8 @@ NdbTransaction::releaseCompletedOperations()
   releaseOps(theCompletedFirstOp);
   theCompletedFirstOp = NULL;
   theCompletedLastOp = NULL;
+  theErrorLine = 0;
+  theErrorOperation = NULL;
 }//NdbTransaction::releaseCompletedOperations()
 
 
@@ -1420,6 +1425,12 @@ NdbTransaction::releaseScanOperation(NdbIndexScanOperation** listhead,
   
   if (op != NULL)
   {
+    if (unlikely(theErrorOperation == op))
+    {
+      /* Remove ref to scan op before release */
+      theErrorLine = 0;
+      theErrorOperation = NULL;
+    }
     op->release();
     theNdb->releaseScanOperation(op);
     return true;
@@ -1542,8 +1553,7 @@ NdbTransaction::checkSchemaObjects(const NdbTableImpl *tab,
 
 
 /*****************************************************************************
-NdbOperation* getNdbOperation(const NdbTableImpl* tab, NdbOperation* aNextOp,
-                              bool useRec)
+NdbOperation* getNdbOperation(const NdbTableImpl* tab, NdbOperation* aNextOp)
 
 Return Value    Return a pointer to a NdbOperation object if getNdbOperation 
                 was succesful.
@@ -1559,22 +1569,20 @@ NdbOperation*
 NdbTransaction::getNdbOperation(const NdbTableImpl * tab,
                                 NdbOperation* aNextOp)
 { 
-  NdbOperation* tOp;
-
   if (theScanningOp != NULL || m_scanningQuery != NULL){
     setErrorCode(4607);
     return NULL;
   }
-  
-  tOp = theNdb->getOperation();
-  if (tOp == NULL)
-    goto getNdbOp_error1;
-
   if (!checkSchemaObjects(tab))
   {
     setErrorCode(1231);
     return NULL;
-  } 
+  }
+  
+  NdbOperation* tOp = theNdb->getOperation();
+  if (tOp == NULL)
+    goto getNdbOp_error1;
+
   if (aNextOp == NULL) {
     if (theLastOpInList != NULL) {
        theLastOpInList->next(tOp);
@@ -1685,12 +1693,12 @@ NdbTransaction::getNdbIndexScanOperation(const NdbIndexImpl* index,
   if (theCommitStatus == Started){
     const NdbTableImpl * indexTable = index->getIndexTable();
     if (indexTable != 0){
-      NdbIndexScanOperation* tOp = getNdbScanOperation(indexTable);
       if (!checkSchemaObjects(table, index))
       {
         setErrorCode(1231);
         return NULL;
       } 
+      NdbIndexScanOperation* tOp = getNdbScanOperation(indexTable);
       if(tOp)
       {
 	tOp->m_currentTable = table;
@@ -1751,23 +1759,23 @@ Remark:         Get an operation from NdbScanOperation object idlelist and get t
 NdbIndexScanOperation*
 NdbTransaction::getNdbScanOperation(const NdbTableImpl * tab)
 { 
-  NdbIndexScanOperation* tOp;
-  
-  tOp = theNdb->getScanOperation();
-  if (tOp == NULL)
-    goto getNdbOp_error1;
   if (!checkSchemaObjects(tab))
   {
     setErrorCode(1231);
     return NULL;
   } 
   
+  NdbIndexScanOperation* tOp = theNdb->getScanOperation();
+  if (tOp == NULL)
+    goto getNdbOp_error1;
+
   if (tOp->init(tab, this) != -1) {
     define_scan_op(tOp);
     // Mark that this NdbIndexScanOperation is used as NdbScanOperation
     tOp->m_type = NdbOperation::TableScan; 
     return tOp;
   } else {
+    tOp->release();
     theNdb->releaseScanOperation(tOp);
   }//if
   return NULL;
@@ -1883,17 +1891,15 @@ NdbTransaction::getNdbIndexOperation(const NdbIndexImpl * anIndex,
                                      const NdbTableImpl * aTable,
                                      NdbOperation* aNextOp)
 { 
-  NdbIndexOperation* tOp;
-  
-  tOp = theNdb->getIndexOperation();
-  if (tOp == NULL)
-    goto getNdbOp_error1;
-
   if (!checkSchemaObjects(aTable, anIndex))
   {
     setErrorCode(1231);
     return NULL;
   } 
+  NdbIndexOperation* tOp = theNdb->getIndexOperation();
+  if (tOp == NULL)
+    goto getNdbOp_error1;
+
   if (aNextOp == NULL) {
     if (theLastOpInList != NULL) {
        theLastOpInList->next(tOp);
@@ -2201,7 +2207,7 @@ transactions.
     }
 
     /**********************************************************************/
-    /*	A serious error has occured. This could be due to deadlock or */
+    /*	A serious error has occurred. This could be due to deadlock or */
     /*	lack of resources or simply a programming error in NDB. This  */
     /*	transaction will be aborted. Actually it has already been     */
     /*	and we only need to report completion and return with the     */
@@ -2335,7 +2341,7 @@ NdbTransaction::receiveTCKEY_FAILCONF(const TcKeyFailConf * failConf)
   */
   if(checkState_TransId(&failConf->transId1)){
     /*
-      A node failure of the TC node occured. The transaction has
+      A node failure of the TC node occurred. The transaction has
       been committed.
     */
     theCommitStatus = Committed;
@@ -2676,6 +2682,7 @@ NdbTransaction::readTuple(const NdbRecord *key_rec, const char *key_row,
                           const NdbOperation::OperationOptions *opts,
                           Uint32 sizeOfOptions)
 {
+  bool upgraded_lock = false;
   /* Check that the NdbRecord specifies the full primary key. */
   if (!(key_rec->flags & NdbRecord::RecHasAllKeys))
   {
@@ -2683,10 +2690,12 @@ NdbTransaction::readTuple(const NdbRecord *key_rec, const char *key_row,
     return NULL;
   }
 
-  /* It appears that unique index operations do no support readCommitted. */
   if (key_rec->flags & NdbRecord::RecIsIndex &&
       lock_mode == NdbOperation::LM_CommittedRead)
+  {
     lock_mode= NdbOperation::LM_Read;
+    upgraded_lock = true;
+  }
 
   NdbOperation::OperationType opType=
     (lock_mode == NdbOperation::LM_Exclusive ?
@@ -2700,6 +2709,11 @@ NdbTransaction::readTuple(const NdbRecord *key_rec, const char *key_row,
   if (!op)
     return NULL;
 
+  if (upgraded_lock)
+  {
+    DBUG_PRINT("info", ("Set ReadCommittedBase true"));
+    op->setReadCommittedBase();
+  }
   if (op->theLockMode == NdbOperation::LM_CommittedRead)
   {
     op->theDirtyIndicator= 1;
@@ -2864,21 +2878,17 @@ NdbTransaction::refreshTuple(const NdbRecord *key_rec, const char *key_row,
                              const NdbOperation::OperationOptions *opts,
                              Uint32 sizeOfOptions)
 {
-  /* Check TC node version lockless */
-  {
-    Uint32 tcVer = theNdb->theImpl->getNodeInfo(theDBnode).m_info.m_version;
-    if (unlikely(! ndb_refresh_tuple(tcVer)))
-    {
-      /* Function not implemented yet */
-      setOperationErrorCodeAbort(4003);
-      return NULL;
-    }
-  }
-
   /* Check that the NdbRecord specifies the full primary key. */
   if (!(key_rec->flags & NdbRecord::RecHasAllKeys))
   {
     setOperationErrorCodeAbort(4292);
+    return NULL;
+  }
+
+  if (key_rec->flags & NdbRecord::RecTableHasBlob)
+  {
+    // Table with blobs does not support refreshTuple()
+    setOperationErrorCodeAbort(4343);
     return NULL;
   }
 
@@ -2996,7 +3006,7 @@ NdbTransaction::getMaxPendingBlobReadBytes() const
   /* 0 == max */
   return (maxPendingBlobReadBytes == 
           (~Uint32(0)) ? 0 : maxPendingBlobReadBytes);
-};
+}
 
 Uint32
 NdbTransaction::getMaxPendingBlobWriteBytes() const
@@ -3004,7 +3014,7 @@ NdbTransaction::getMaxPendingBlobWriteBytes() const
   /* 0 == max */
   return (maxPendingBlobWriteBytes == 
           (~Uint32(0)) ? 0 : maxPendingBlobWriteBytes);
-};
+}
 
 void
 NdbTransaction::setMaxPendingBlobReadBytes(Uint32 bytes)

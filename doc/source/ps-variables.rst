@@ -1,8 +1,8 @@
 .. _ps_variables:
 
-====================================================
- List of variables introduced in Percona Server 5.7
-====================================================
+================================================================================
+ List of variables introduced in |Percona Server| 8.0
+================================================================================
 
 System Variables
 ================
@@ -77,26 +77,11 @@ System Variables
      - Yes
      - Global
      - No
-   * - :variable:`binlog_space_limit`
-     - Yes
-     - Yes
-     - Global
-     - Yes
    * - :variable:`csv_mode`
      - Yes
      - Yes
      - Both
      - Yes
-   * - :variable:`encrypt_binlog`
-     - Yes
-     - Yes
-     - Global
-     - No
-   * - :variable:`encrypt-tmp-files`
-     - Yes
-     - Yes
-     - Global
-     - No
    * - :variable:`enforce_storage_engine`
      - Yes
      - Yes
@@ -117,11 +102,6 @@ System Variables
      - Yes
      - Global
      - No
-   * - :variable:`ft_query_extra_word_chars`
-     - Yes
-     - Yes
-     - Both
-     - Yes
    * - :variable:`have_backup_locks`
      - Yes
      - No
@@ -137,16 +117,6 @@ System Variables
      - No
      - Global
      - No
-   * - :variable:`innodb_background_scrub_data_compressed`
-     - Yes
-     - Yes
-     - Global
-     - Yes
-   * - :variable:`innodb_background_scrub_data_uncompressed`
-     - Yes
-     - Yes
-     - Global
-     - Yes
    * - :variable:`innodb_cleaner_lsn_age_factor`
      - Yes
      - Yes
@@ -156,11 +126,6 @@ System Variables
      - Yes
      - Yes
      - Global
-     - Yes
-   * - :variable:`innodb_default_encryption_key_id`
-     - Yes
-     - Yes
-     - Session
      - Yes
    * - :variable:`innodb_empty_free_list_algorithm`
      - Yes
@@ -192,37 +157,7 @@ System Variables
      - Yes
      - Global
      - Yes
-   * - :variable:`innodb_online_encryption_rotate_key_age`
-     - Yes
-     - Yes
-     - Global
-     - Yes
-   * - :variable:`innodb_online_encryption_threads`
-     - Yes
-     - Yes
-     - Global
-     - Yes
-   * - :variable:`innodb_parallel_dblwr_encrypt`
-     - Yes
-     - Yes
-     - Global
-     - Yes
    * - :variable:`innodb_print_lock_wait_timeout_info`
-     - Yes
-     - Yes
-     - Global
-     - Yes
-   * - :variable:`innodb_redo_log_encrypt`
-     - Yes
-     - Yes
-     - Global
-     - Yes
-   * - :variable:`innodb_scrub_log`
-     - Yes
-     - Yes
-     - Global
-     - Yes
-   * - :variable:`innodb_scrub_log_speed`
      - Yes
      - Yes
      - Global
@@ -232,16 +167,6 @@ System Variables
      - Yes
      - Global
      - Yes
-   * - :variable:`innodb_show_verbose_locks`
-     - Yes
-     - Yes
-     - Global
-     - Yes
-   * - :variable:`innodb_sys_tablespace_encrypt`
-     - Yes
-     - Yes
-     - Global
-     - No
    * - :variable:`innodb_temp_tablespace_encrypt`
      - Yes
      - Yes
@@ -252,16 +177,6 @@ System Variables
      - Yes
      - Global
      - No
-   * - :variable:`innodb_undo_log_encrypt`
-     - Yes
-     - Yes
-     - Global
-     - Yes
-   * - :variable:`innodb_use_global_flush_log_at_trx_commit`
-     - Yes
-     - Yes
-     - Global
-     - Yes
    * - :variable:`keyring_vault_config`
      - Yes
      - Yes
@@ -302,36 +217,11 @@ System Variables
      - Yes
      - Global
      - Yes
-   * - :variable:`max_binlog_files`
-     - Yes
-     - Yes
-     - Global
-     - Yes
-   * - :variable:`max_slowlog_files`
-     - Yes
-     - Yes
-     - Global
-     - Yes
-   * - :variable:`max_slowlog_size`
-     - Yes
-     - Yes
-     - Global
-     - Yes
    * - :variable:`proxy_protocol_networks`
      - Yes
      - Yes
      - Global
      - No
-   * - :variable:`pseudo_server_id`
-     - Yes
-     - No
-     - Session
-     - Yes
-   * - :variable:`query_cache_strip_comments`
-     - Yes
-     - Yes
-     - Global
-     - Yes
    * - :variable:`query_response_time_flush`
      - Yes
      - No

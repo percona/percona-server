@@ -2,7 +2,8 @@
  |Percona Server| Feature Comparison
 =====================================
 
-|Percona Server| is an enhanced drop-in replacement for |MySQL|. With |Percona Server|,
+|Percona Server| is an enhanced drop-in replacement for |MySQL|. With |Percona
+Server|,
 
   * Your queries will run faster and more consistently.
 
@@ -18,265 +19,194 @@
 
   * You will troubleshoot without guesswork.
 
-We provide these benefits by significantly enhancing |Percona Server| as compared to the standard |MySQL| database server:
+We provide these benefits by significantly enhancing |Percona Server| as
+compared to the standard |MySQL| database server:
 
-.. tabularcolumns:: |p{5cm}|p{5cm}|p{5cm}|
++---------------------------------------+-------------------------+--------------+
+|Features                               | |Percona Server| 8.0.13 |MySQL 8.0.13  |
++=======================================+=========================+==============+
+|Open source                            | Yes                     | Yes          |      
++---------------------------------------+-------------------------+--------------+
+|ACID Compliance                        | Yes                     | Yes          |                     
++---------------------------------------+-------------------------+--------------+
+|Multi-Version Concurrency Control      | Yes                     | Yes          |                      
++---------------------------------------+-------------------------+--------------+
+|Row-Level Locking                      | Yes                     | Yes          |
++---------------------------------------+-------------------------+--------------+
+|Automatic Crash Recovery               | Yes                     | Yes          |
++---------------------------------------+-------------------------+--------------+
+|Table Partitioning                     | Yes                     | Yes          |
++---------------------------------------+-------------------------+--------------+
+|Views                                  | Yes                     | Yes          |
++---------------------------------------+-------------------------+--------------+
+|Subqueries                             | Yes                     | Yes          |
++---------------------------------------+-------------------------+--------------+
+|Triggers                               | Yes                     | Yes          |
++---------------------------------------+-------------------------+--------------+
+|Stored Procedures                      | Yes                     | Yes          |
++---------------------------------------+-------------------------+--------------+
+|Foreign Keys                           | Yes                     | Yes          |
++---------------------------------------+-------------------------+--------------+
+|Window Functions                       | Yes                     | Yes          |
++---------------------------------------+-------------------------+--------------+
+|Common Table Expressions               | Yes                     | Yes          |
++---------------------------------------+-------------------------+--------------+
+|Geospatial Features (GIS, SPRS)        | Yes                     | Yes          |
++---------------------------------------+-------------------------+--------------+
+|GTID Replication                       | Yes                     | Yes          |
++---------------------------------------+-------------------------+--------------+
+|Group Replication                      | Yes                     | Yes          |
++---------------------------------------+-------------------------+--------------+
+|MyRocks Storage Engine                 | Yes                     | No           |
++---------------------------------------+-------------------------+--------------+
+|TokuDB Storage Engine                  | Yes                     | No           |
++---------------------------------------+-------------------------+--------------+
 
-.. list-table::
-    :header-rows: 1
+Improvements for Developers
+================================================================================
 
-    * - Features
-      - Percona Server 5.7.27
-      - MySQL 5.7.27
-    * - Open source
-      - Yes
-      - Yes
-    * - ACID Compliance
-      - Yes
-      - Yes
-    * - Multi-Version Concurrency Control
-      - Yes
-      - Yes
-    * - Row-Level Locking
-      - Yes
-      - Yes
-    * - Automatic Crash Recovery
-      - Yes
-      - Yes
-    * - Table Partitioning
-      - Yes
-      - Yes
-    * - Views
-      - Yes
-      - Yes
-    * - Subqueries
-      - Yes
-      - Yes
-    * - Triggers
-      - Yes
-      - Yes
-    * - Stored Procedures
-      - Yes
-      - Yes
-    * - Foreign Keys
-      - Yes
-      - Yes
-    * - GTID Replication
-      - Yes
-      - Yes
-    * - Group Replication
-      - Yes
-      - Yes
-    * - MyRocks Storage Engine
-      - Yes
-      - No
-    * - TokuDB Storage Engine
-      - Yes
-      - No
++---------------------------------------+-------------------------+--------------+
+|Feature                                | |Percona Server| 8.0.13 |MySQL 8.0.13  |
++=======================================+=========================+==============+
+|NoSQL Socket-Level Interface           | Yes                     | Yes          |
++---------------------------------------+-------------------------+--------------+
+|X API Support                          | Yes                     | Yes          |
++---------------------------------------+-------------------------+--------------+
+|JSON Functions                         | Yes                     | Yes          |
++---------------------------------------+-------------------------+--------------+
+|InnoDB Full-Text Search Improvements   | Yes                     | No           |
++---------------------------------------+-------------------------+--------------+
+|Extra Hash/Digest Functions            | Yes                     | No           |
++---------------------------------------+-------------------------+--------------+
 
-.. tabularcolumns:: |p{5cm}|p{5cm}|p{5cm}|
+Extra Diagnostic Features
+================================================================================
 
-.. list-table::
-   :header-rows: 1
++---------------------------------------+------------------------+--------------+
+|Feature                                ||Percona Server| 8.0.13 |MySQL 8.0.13  |
++=======================================+========================+==============+
+|INFORMATION_SCHEMA Tables              | 95                     | 65           |
++---------------------------------------+------------------------+--------------+
+|Global Performance and Status Counters | 853                    | 434          |
++---------------------------------------+------------------------+--------------+
+|Optimizer Histograms                   | Yes                    | Yes          |
++---------------------------------------+------------------------+--------------+
+|Per-Table Performance Counters         | Yes                    | No           |
++---------------------------------------+------------------------+--------------+
+|Per-Index Performance Counters         | Yes                    | No           |
++---------------------------------------+------------------------+--------------+
+|Per-User Performance Counters          | Yes                    | No           |
++---------------------------------------+------------------------+--------------+
+|Per-Client Performance Counters        | Yes                    | No           |
++---------------------------------------+------------------------+--------------+
+|Per-Thread Performance Counters        | Yes                    | No           |
++---------------------------------------+------------------------+--------------+
+|Enhanced SHOW ENGINE INNODB STATUS     | Yes                    | No           |
++---------------------------------------+------------------------+--------------+
+|Temporary tables Information           | Yes                    | No           |
++---------------------------------------+------------------------+--------------+
+|Extended Slow Query Logging            | Yes                    | No           |
++---------------------------------------+------------------------+--------------+
+|User Statistics                        | Yes                    | No           |
++---------------------------------------+------------------------+--------------+
 
-   * - Extra Features for Developers
-     - Percona Server 5.7.27
-     - MySQL 5.7.27
-   * - NoSQL Socket-Level Interface
-     - Yes
-     - Yes
-   * - X API Support
-     - Yes
-     - Yes
-   * - InnoDB Full-Text Search Improvements
-     - Yes
-     - No
-   * - Extra Hash/Digest Functions
-     - Yes
-     - No
+Performance & Scalability Enhancements
+================================================================================
 
-.. tabularcolumns:: |p{5cm}|p{5cm}|p{5cm}|
++--------------------------------------------------+------------------------+--------------+
+| Feature                                          ||Percona Server| 8.0.13 |MySQL 8.0.13  |
++==================================================+========================+==============+
+|InnoDB Resource Groups                            | Yes                    | Yes          |
++--------------------------------------------------+------------------------+--------------+
+|Configurable Page Sizes                           | Yes                    | Yes          |
++--------------------------------------------------+------------------------+--------------+
+|Contention-Aware Transaction Scheduling           | Yes                    | Yes          |
++--------------------------------------------------+------------------------+--------------+
+|Improved Scalability by Splitting Mutexes         | Yes                    | Yes          |
++--------------------------------------------------+------------------------+--------------+
+|Improved MEMORY Storage Engine                    | Yes                    | No           |
++--------------------------------------------------+------------------------+--------------+
+|Improved Flushing                                 | Yes                    | No           |
++--------------------------------------------------+------------------------+--------------+
+|Parallel Doublewrite Buffer                       | Yes                    | No           |
++--------------------------------------------------+------------------------+--------------+
+|Configurable Fast Index Creation                  | Yes                    | No           |
++--------------------------------------------------+------------------------+--------------+
+|Per-Column Compression for VARCHAR/BLOB and JSON  | Yes                    | No           |
++--------------------------------------------------+------------------------+--------------+
+|Compressed Columns with Dictionaries              | Yes                    | No           |
++--------------------------------------------------+------------------------+--------------+
 
-.. list-table::
-   :header-rows: 1
+Security Features
+================================================================================
 
-   * - Instrumentation and Troubleshooting Features
-     - Percona Server 5.7.27
-     - MySQL 5.7.27
-   * - INFORMATION_SCHEMA Tables
-     - 71
-     - 61
-   * - Global Performance and Status Counters
-     - 432
-     - 357
-   * - Per-Table Performance Counters
-     - Yes
-     - No
-   * - Per-Index Performance Counters
-     - Yes
-     - No
-   * - Per-User Performance Counters
-     - Yes
-     - No
-   * - Per-Client Performance Counters
-     - Yes
-     - No
-   * - Per-Thread Performance Counters
-     - Yes
-     - No
-   * - Global Query Reponse Time Statistics
-     - Yes
-     - No
-   * - Enhanced SHOW ENGINE INNODB STATUS
-     - Yes
-     - No
-   * - Undo Segment Information
-     - Yes
-     - No
-   * - Temporary Tables Information
-     - Yes
-     - No
-   * - Extended Slow Query Logging
-     - Yes
-     - No
-   * - User Statistics
-     - Yes
-     - No
++--------------------------------------+------------------------+----------------+
+| Feature                              ||Percona Server| 8.0.13 |MySQL 8.0.13    |
++======================================+========================+================+
+|SQL Roles                             | Yes                    | Yes            |
++--------------------------------------+------------------------+----------------+
+|SHA-2 Based Password Hashing          | Yes                    | Yes            |
++--------------------------------------+------------------------+----------------+
+|Password Rotation Policy              | Yes                    | Yes            |
++--------------------------------------+------------------------+----------------+
+|PAM Authentication                    | Yes                    | Enterprise Only|
++--------------------------------------+------------------------+----------------+
+|Audit Logging Plugin                  | Yes                    | Enterprise Only|
++--------------------------------------+------------------------+----------------+
 
-.. tabularcolumns:: |p{5cm}|p{5cm}|p{5cm}|
+Encryption Features
+================================================================================
 
-.. list-table::
-   :header-rows: 1
++------------------------------------------------------------------+------------------------+----------------+
+| Feature                                                          ||Percona Server| 8.0.13 |MySQL 8.0.13    |
++==================================================================+========================+================+
+|Storing Keyring in a File                                         | Yes                    | Yes            |
++------------------------------------------------------------------+------------------------+----------------+
+|Storing Keyring in Hashicorp Vault                                | Yes                    | No             |
++------------------------------------------------------------------+------------------------+----------------+
+|Encrypt InnoDB Data                                               | Yes                    | Yes            |
++------------------------------------------------------------------+------------------------+----------------+
+|Encrypt InnoDB Logs                                               | Yes                    | Yes            |
++------------------------------------------------------------------+------------------------+----------------+
+|Encrypt Built-in InnoDB Tablespaces (General, System, Undo, Temp) | Yes                    | No             |
++------------------------------------------------------------------+------------------------+----------------+
+|Encrypt Binary Logs                                               | Yes                    | No             |
++------------------------------------------------------------------+------------------------+----------------+
+|Encrypt Temporary Files                                           | Yes                    | No             |
++------------------------------------------------------------------+------------------------+----------------+
+|Key Rotation with Scrubbing                                       | Yes                    | No             |
++------------------------------------------------------------------+------------------------+----------------+
+|Enforce Encryption                                                | Yes                    | No             |
++------------------------------------------------------------------+------------------------+----------------+
 
-   * - Performance and Scalability Features
-     - Percona Server 5.7.27
-     - MySQL 5.7.27
-   * - Improved scalability by splitting mutexes
-     - Yes
-     - No
-   * - Improved MEMORY Storage Engine
-     - Yes
-     - No
-   * - Improved Flushing
-     - Yes
-     - No
-   * - Parallel Doublewrite Buffer
-     - Yes
-     - No
-   * - Configurable Page Sizes
-     - Yes
-     - Yes
-   * - Configurable Fast Index Creation
-     - Yes
-     - No
-   * - Per-column Compression for VARCHAR/BLOB and JSON
-     - Yes
-     - No
-   * - Compressed columns with Dictionaries
-     - Yes
-     - No
+Operational Improvements
+================================================================================
 
-.. tabularcolumns:: |p{5cm}|p{5cm}|p{5cm}|
++------------------------------------------------------------------+------------------------+----------------+
+| Feature                                                          ||Percona Server| 8.0.13 |MySQL 8.0.13    |
++==================================================================+========================+================+
+|Atomic DDL                                                        | Yes                    | Yes            |
++------------------------------------------------------------------+------------------------+----------------+
+|Transactional Data Dictionary                                     | Yes                    | Yes            |
++------------------------------------------------------------------+------------------------+----------------+
+|Instant DDL                                                       | Yes                    | Yes            |
++------------------------------------------------------------------+------------------------+----------------+
+|SET PERSIST                                                       | Yes                    | Yes            |
++------------------------------------------------------------------+------------------------+----------------+
+|Invisible Indexes                                                 | Yes                    | Yes            |
++------------------------------------------------------------------+------------------------+----------------+
+|Changed Page Tracking                                             | Yes                    | No             |
++------------------------------------------------------------------+------------------------+----------------+
+|Threadpool                                                        | Yes                    | Enterprise Only|
++------------------------------------------------------------------+------------------------+----------------+
+|Backup Locks                                                      | Yes                    | Yes            |
++------------------------------------------------------------------+------------------------+----------------+
+|Extended SHOW GRANTS                                              | Yes                    | No             |
++------------------------------------------------------------------+------------------------+----------------+
+|Improved Handling of Corrupted Tables                             | Yes                    | No             |
++------------------------------------------------------------------+------------------------+----------------+
+|Ability to Kill Idle Transactions                                 | Yes                    | No             |
++------------------------------------------------------------------+------------------------+----------------+
+|Improvements to START TRANSACTION WITH CONSISTENT SNAPSHOT        | Yes                    | No             |
++------------------------------------------------------------------+------------------------+----------------+
 
-.. list-table::
-   :header-rows: 1
-
-   * - Security Features
-     - Percona Server 5.7.27
-     - MySQL 5.7.27
-   * - PAM Authentication Plugin
-     - Yes
-     - Enterprise-Only
-   * - Audit Logging Plugin
-     - Yes
-     - Enterprise-only
-
-.. tabularcolumns:: |p{5cm}|p{5cm}|p{5cm}|
-
-.. list-table::
-   :header-rows: 1
-
-   * - Encryption Features
-     - Percona Server 5.7.27
-     - MySQL 5.7.27
-   * - Encrypt InnodDB data
-     - Yes
-     - Yes
-   * - Encrypt InnoDB tablespaces
-     - Experimental
-     - No
-   * - Encrypt InnoDB logs
-     - Experimental
-     - No
-   * - Encrypt Binary logs
-     - Experimental
-     - No
-   * - Encrypt temporary files
-     - Experimental
-     - No
-   * - Key Rotation
-     - Experimental
-     - No
-   * - Scrubbing
-     - Experimental
-     - No
-   * - Enforce Encryption
-     - Experimental
-     - No
-   * - Storing Keyring in a file
-     - Yes
-     - Yes
-   * - Storing Keyring in a Hashicorp Vault
-     - Yes
-     - No
-
-.. tabularcolumns:: |p{5cm}|p{5cm}|p{5cm}|
-
-.. list-table::
-   :header-rows: 1
-
-   * - Operational Improvements
-     - Percona Server 5.7.27
-     - MySQL 5.7.27
-   * - Changed Page Tracking
-     - Yes
-     - Yes
-   * - Threadpool
-     - Yes
-     - Enterprise-only
-   * - Backup Locks
-     - Yes
-     - No
-   * - Extended SHOW GRANTS
-     - Yes
-     - No
-   * - Improved Handling of Corrupted Tables
-     - Yes
-     - No
-   * - Ability to kill Idle Transactions
-     - Yes
-     - No
-   * - Improvements to START TRANSACTION WITH CONSISTENT SNAPSHOT
-     - Yes
-     - No
-
-.. tabularcolumns:: |p{5cm}|p{5cm}|p{5cm}|
-
-.. list-table::
-   :header-rows: 1
-
-   * - Features for Running Database as a Service (DBaaS)
-     - Percona Server 5.7.27
-     - MySQL 5.7.27
-   * - Special Utility User
-     - Yes
-     - No
-   * - Enforce a Specific Storage Engine
-     - Yes
-     - No
-   * - Expanded Program Option Modifiers
-     - Yes
-     - No
-
-
-.. [#n-1] Feature available in Enterprise version only

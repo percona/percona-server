@@ -2,18 +2,15 @@
 # This test case will test basic encryption support features.
 
 --source include/no_valgrind_without_big.inc
---source include/have_innodb.inc
---source include/not_embedded.inc
 --source include/not_windows.inc
 
 --disable_query_log
 call mtr.add_suppression("keyring_file initialization failure. Please check if the keyring_file_data points to readable keyring file or keyring file can be created in the specified location. The keyring_file will stay unusable until correct path to the keyring file gets provided");
 call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
-call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
+call mtr.add_suppression("Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
 call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded.");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace .* because it could not be opened");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Can't set redo log tablespace to be encrypted.");
+call mtr.add_suppression("Ignoring tablespace .* because it could not be opened");
 call mtr.add_suppression("InnoDB: Resizing redo log from");
 call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files.");
 call mtr.add_suppression("InnoDB: New log files created, LSN=");
@@ -41,12 +38,12 @@ CREATE DATABASE test;
 EOF
 --echo # Stop the MTR default DB server
 --source include/shutdown_mysqld.inc
-let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --innodb_undo_tablespaces=2 --secure-file-priv="" >$MYSQL_TMP_DIR/bootstrap1.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --secure-file-priv="" >$MYSQL_TMP_DIR/bootstrap1.log 2>&1;
 
 --echo # Run the bootstrap command of datadir1
 --exec $NEW_CMD
 
---let $restart_parameters= restart: --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --datadir=$MYSQLD_DATADIR1 --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --innodb_undo_tablespaces=2 $KEYRING_PLUGIN_OPT --loose-keyring_file_data=$MYSQL_TMP_DIR/mydummy_keyring
+--let $restart_parameters = restart: --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --datadir=$MYSQLD_DATADIR1 --innodb_undo_directory=$MYSQLD_UNDO_DATADIR $KEYRING_PLUGIN_OPT --loose-keyring-file-data=$MYSQL_TMP_DIR/mydummy_key
 --replace_regex /\.dll/.so/
 --source include/start_mysqld_no_echo.inc
 
@@ -111,15 +108,16 @@ UNINSTALL PLUGIN keyring_file;
 
 DROP TABLE tde_db.t1,tde_db.t2,tde_db.t3,tde_db.t4,tde_db.t5,tde_db.t6;
 DROP DATABASE tde_db;
---let $restart_parameters= restart:
+--let $restart_parameters = restart:
 --replace_regex /\.dll/.so/
 --source include/restart_mysqld_no_echo.inc
 
 # Cleanup
-
+--remove_file $MYSQL_TMP_DIR/mydummy_key
 --force-rmdir $MYSQL_TMP_DIR/log_encrypt_dir1
 --force-rmdir $MYSQL_TMP_DIR/innodb_undo_data_dir
 --remove_file $MYSQL_TMP_DIR/bootstrap1.log
+--remove_file $MYSQL_TMP_DIR/my_key_log3
 --remove_file $BOOTSTRAP_SQL
 --disable_query_log
 eval SET GLOBAL innodb_file_per_table=$old_innodb_file_per_table;

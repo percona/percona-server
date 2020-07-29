@@ -46,8 +46,6 @@
 --source include/have_ndb.inc
 # The test requires MyISAM engine
 --source include/have_myisam.inc
-# Test requires GTIDs off
---source include/not_gtid_enabled.inc
 --source suite/ndb_rpl/ndb_master-slave.inc
 
 --disable_query_log
@@ -72,7 +70,7 @@ CREATE TABLE t_self_logging (a VARCHAR(100)) ENGINE = NDB;
 
 --echo ==== Test ====
 
---echo ---- binlog_format=row ----
+--echo ---- binlog_format='row' ----
 
 --echo * Modify tables of more than one engine, one of which is self-logging
 --eval CREATE TRIGGER trig_1 AFTER INSERT ON t_self_logging FOR EACH ROW BEGIN INSERT INTO t VALUES (1); END

@@ -73,9 +73,9 @@ select pk, col1, hex(col1), length(col1) from t1 order by col1;
 select pk, col1, hex(col1), length(col1) from t1 order by col1;
 drop table t1;
 
-create table t1 (pk int primary key, a varchar(512), key(a)) engine=rocksdb;
-insert into t1 values (1, concat('a', repeat(' ', 300)));
-insert into t1 values (2, concat('b', repeat(' ', 300)));
+create table t1 (pk int primary key, a varchar(191), key(a)) engine=rocksdb;
+insert into t1 values (1, concat('a', repeat(' ', 100)));
+insert into t1 values (2, concat('b', repeat(' ', 100)));
 
 select pk,length(a) from t1 force index(a) where a < 'zz' order by pk;
 select pk,length(a),rtrim(a) from t1 force index(a) where a < 'zz' order by pk;

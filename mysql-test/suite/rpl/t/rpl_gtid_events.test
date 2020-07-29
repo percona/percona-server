@@ -194,13 +194,7 @@ CREATE TEMPORARY TABLE binlogs
 --let $table= binlogs
 --source include/rpl_read_binlog_index_into_table.inc
 
---let $encrypt_binlog= `SELECT @@GLOBAL.ENCRYPT_BINLOG`
-
 --let $event_sequence= Format_desc # Previous_gtids(.|#)*
-if ($encrypt_binlog)
-{
-  --let $event_sequence= Format_desc # Start_encryption # Previous_gtids(.|#)*
-}
 # Verify that each binlog contains the events.
 --let $count= `SELECT COUNT(*) FROM binlogs`
 --let $i= 0

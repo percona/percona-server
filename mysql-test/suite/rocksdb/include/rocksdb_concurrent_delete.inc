@@ -6,8 +6,8 @@
 # Usage:
 #
 # let $order = ASC;  # or DESC
-# let $comment = "rev:cf2";  # or ""
-# --source suite/rocksdb/t/rocksdb_concurrent_delete.inc
+# let $comment = "cfname=rev:cf2";  # or ""
+# --source suite/rocksdb/include/rocksdb_concurrent_delete.inc
 
 let $first_row = -1; # Error this should never happen
 if ($order == 'ASC')
@@ -29,7 +29,7 @@ eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation_level;
 
 SET debug_sync='RESET';
 
-eval CREATE TABLE t1 (pk INT PRIMARY KEY COMMENT $comment, a INT) ENGINE=RocksDB;
+eval CREATE TABLE t1 (pk INT PRIMARY KEY COMMENT '$comment', a INT) ENGINE=RocksDB;
 INSERT INTO t1 VALUES(1,1), (2,2), (3,3), (4,4), (5,5);
 
 # This will cause the SELECT to block after finding the first row, but

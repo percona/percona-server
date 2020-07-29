@@ -1,8 +1,6 @@
 DROP TABLE IF EXISTS t1,t2;
 CREATE TABLE t1(c1 INT UNSIGNED NOT NULL, c2 INT SIGNED NULL, c3 INT, INDEX idx2(c2));
-INSERT INTO t1 VALUES(0,-128,0),(1,1,1),(2,2,2),(0,\N,3),(101,-101,4),(102,-102,5),(103,-103,6),(104,-104,7),(105,-105,8);
-Warnings:
-Warning	1287	'\N' is deprecated and will be removed in a future release. Please use NULL instead
+INSERT INTO t1 VALUES(0,-128,0),(1,1,1),(2,2,2),(0,NULL,3),(101,-101,4),(102,-102,5),(103,-103,6),(104,-104,7),(105,-105,8);
 SELECT * FROM t1;
 c1	c2	c3
 0	-128	0
@@ -68,13 +66,13 @@ UPDATE t1 SET c2=-2147483649 WHERE c1=109 ORDER BY c1;
 Warnings:
 Warning	1264	Out of range value for column 'c2' at row 13
 SET SQL_MODE=DEFAULT;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT c1,c2 FROM t1 WHERE c1=109;
 c1	c2
 109	-2147483648
 INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
 SET SQL_MODE=STRICT_ALL_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 UPDATE t1 SET c1=NULL WHERE c2=-110;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t1 SET c1=NULL WHERE c2=-110 /* updates to default value 0 */;
@@ -88,8 +86,6 @@ UPDATE t1 SET c1=NULL WHERE c2=-111 /* updates to default value 0 */;
 Warnings:
 Warning	1048	Column 'c1' cannot be null
 SET SQL_MODE=DEFAULT;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT * FROM t1 WHERE c1=0;
 c1	c2	c3
 0	-102	5
@@ -123,12 +119,12 @@ c1	c2	c3
 CREATE TABLE t2(c1 INT SIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 INT UNSIGNED NULL, c3 INT);
 INSERT INTO t2(c1) VALUES(1),(2),(3),(4),(5);
 UPDATE t2 SET c1=1 WHERE c1=3;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 UPDATE IGNORE t2 SET c1=1 WHERE c1>=3;
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
 SELECT c1 FROM t2;
 c1
 1
@@ -201,8 +197,6 @@ c1	c2
 10	11
 2147483647	4294967295
 SET SQL_MODE=DEFAULT;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE mt1 (c1 INT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
 CREATE TABLE mt2 (c1 INT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
 CREATE TABLE mt3 (c1 INT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
@@ -586,17 +580,6 @@ a	b
 108	8
 109	9
 201	1
-select * from mt2;
-a	b
-1	1
-2	2
-3	13
-4	14
-5	15
-6	6
-7	7
-8	8
-9	9
 update mt1,mt2 set mt1.b=mt2.b, mt1.a=mt2.a where mt1.a=mt2.a and not exists (select * from mt2 where mt2.a > 10);
 drop table mt1,mt2;
 TRUNCATE TABLE t2;
@@ -773,6 +756,8 @@ create table mt1 (a int not null, b int not null, key (a));
 insert into mt1 values (1,1),(1,2),(1,3),(3,1),(3,2),(3,3),(3,1),(3,2),(3,3),(2,1),(2,2),(2,3);
 SET @tmp=0;
 update mt1 set b=(@tmp:=@tmp+1) order by a;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 update mt1 set b=99 where a=1 order by b asc limit 1;
 select * from mt1 order by a,b;
 a	b
@@ -866,7 +851,13 @@ id	id_str
 1	test1
 drop table mt1;
 create table mt1 (n int(10) not null primary key, d int(10));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table mt2 (n int(10) not null primary key, d int(10));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into mt1 values(1,1), (3,3);
 insert into mt2 values(1,10),(2,20);
 UPDATE mt2 left outer join mt1 on mt1.n=mt2.n  SET mt1.d=mt2.d;
@@ -880,7 +871,13 @@ n	d
 2	20
 drop table mt1,mt2;
 create table mt1 (n int(10), d int(10));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table mt2 (n int(10), d int(10));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into mt1 values(1,1),(1,2);
 insert into mt2 values(1,10),(2,20);
 UPDATE mt1 straight_join mt2 SET mt1.d=mt2.d,mt2.d=30 WHERE mt1.n=mt2.n;
@@ -894,7 +891,13 @@ n	d
 2	20
 drop table mt1,mt2;
 create table mt1 (n int(10), d int(10));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table mt2 (n int(10), d int(10));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into mt1 values(1,1),(3,2);
 insert into mt2 values(1,10),(1,20);
 UPDATE mt1 straight_join mt2 SET mt1.d=mt2.d,mt2.d=30 WHERE mt1.n=mt2.n;
@@ -923,8 +926,17 @@ select * from mt2;
 n	d
 drop table mt1,mt2;
 CREATE TABLE mt1 (`colA` int(10) unsigned NOT NULL auto_increment, `colB` int(11) NOT NULL default '0', PRIMARY KEY  (`colA`));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO mt1 VALUES (4433,5424);
 CREATE TABLE mt2 (`colC` int(10) unsigned NOT NULL default '0', `colA` int(10) unsigned NOT NULL default '0', `colD` int(10) unsigned NOT NULL default '0', `colE` int(10) unsigned NOT NULL default '0', `colF` int(10) unsigned NOT NULL default '0', PRIMARY KEY  (`colC`,`colA`,`colD`,`colE`));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO mt2 VALUES (3,4433,10005,495,500);
 INSERT INTO mt2 VALUES (3,4433,10005,496,500);
 INSERT INTO mt2 VALUES (3,4433,10009,494,500);
@@ -936,11 +948,11 @@ INSERT INTO mt2 VALUES (3,4433,10005,493,500);
 INSERT INTO mt2 VALUES (3,4433,10005,492,500);
 UPDATE IGNORE mt2,mt1 set mt2.colE = mt2.colE + 1,colF=0 WHERE mt1.colA = mt2.colA AND (mt1.colB & 4096) > 0 AND (colE + 1) < colF;
 Warnings:
-Warning	1062	Duplicate entry '3-4433-10005-493' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3-4433-10005-494' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3-4433-10005-495' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3-4433-10005-496' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3-4433-10005-497' for key 'PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-493' for key 'mt2.PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-494' for key 'mt2.PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-495' for key 'mt2.PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-496' for key 'mt2.PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-497' for key 'mt2.PRIMARY'
 SELECT * FROM mt2;
 colC	colA	colD	colE	colF
 3	4433	10005	492	500
@@ -954,7 +966,11 @@ colC	colA	colD	colE	colF
 3	4433	10013	490	0
 DROP TABLE mt1,mt2;
 create table mt1(id1 smallint(5), field char(5));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table mt2(id2 smallint(5), field char(5));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into mt1 values (1, 'a'), (2, 'aa');
 insert into mt2 values (1, 'b'), (2, 'bb');
 select * from mt1;
@@ -1008,7 +1024,12 @@ delete mt1 from mt1,mt2 where mt1.col1 < (select max(col1) from mt1) and mt1.col
 ERROR HY000: You can't specify target table 'mt1' for update in FROM clause
 drop table mt1,mt2;
 CREATE TABLE IF NOT EXISTS `mt1` (`id` int(11) NOT NULL auto_increment, `tst` text, `tsmt1` text, PRIMARY KEY  (`id`));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE IF NOT EXISTS `mt2` (`ID` int(11) NOT NULL auto_increment, `ParId` int(11) default NULL, `tst` text, `tsmt1` text, PRIMARY KEY  (`ID`), KEY `IX_ParId_mt2` (`ParId`),  FOREIGN KEY (`ParId`) REFERENCES `mt1` (`id`));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO mt1(tst,tsmt1) VALUES("MySQL","MySQL AB"), ("MSSQL","Microsoft"), ("ORACLE","ORACLE");
 INSERT INTO mt2(ParId) VALUES(1), (2), (3);
 select * from mt2;
@@ -1116,9 +1137,7 @@ count(*)
 0
 drop table mt1,mt2,mt3;
 CREATE TABLE t1(c1 TINYINT UNSIGNED NOT NULL, c2 TINYINT SIGNED NULL, c3 INT, INDEX idx2(c2));
-INSERT INTO t1 VALUES(0,-128,0),(1,1,1),(2,2,2),(0,\N,3),(101,-101,4),(102,-102,5),(103,-103,6),(104,-104,7),(105,-105,8);
-Warnings:
-Warning	1287	'\N' is deprecated and will be removed in a future release. Please use NULL instead
+INSERT INTO t1 VALUES(0,-128,0),(1,1,1),(2,2,2),(0,NULL,3),(101,-101,4),(102,-102,5),(103,-103,6),(104,-104,7),(105,-105,8);
 SELECT * FROM t1;
 c1	c2	c3
 0	-128	0
@@ -1189,10 +1208,10 @@ SELECT c1,c2 FROM t1 WHERE c1=109;
 c1	c2
 109	-128
 SET SQL_MODE=DEFAULT;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
 SET SQL_MODE=STRICT_ALL_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 UPDATE t1 SET c1=NULL WHERE c2=-110;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t1 SET c1=NULL WHERE c2=-110 /* updates to default value 0 */;
@@ -1206,8 +1225,6 @@ UPDATE t1 SET c1=NULL WHERE c2=-111 /* updates to default value 0 */;
 Warnings:
 Warning	1048	Column 'c1' cannot be null
 SET SQL_MODE=DEFAULT;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT * FROM t1 WHERE c1=0;
 c1	c2	c3
 0	-102	5
@@ -1241,12 +1258,12 @@ c1	c2	c3
 CREATE TABLE t2(c1 TINYINT SIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 TINYINT UNSIGNED NULL, c3 INT);
 INSERT INTO t2(c1) VALUES(1),(2),(3),(4),(5);
 UPDATE t2 SET c1=1 WHERE c1=3;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 UPDATE IGNORE t2 SET c1=1 WHERE c1>=3;
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
 SELECT c1 FROM t2;
 c1
 1
@@ -1280,8 +1297,6 @@ UPDATE t2 SET c1=0,c2=-128 WHERE c2=2;
 Warnings:
 Warning	1264	Out of range value for column 'c2' at row 1
 SET SQL_MODE=DEFAULT;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT c1,c2 FROM t1 ORDER BY c1;
 c1	c2
 1	2
@@ -1689,8 +1704,6 @@ update mt1,mt2 set mt1.a=mt1.a+100 where mt1.a=101;
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
 SET SQL_MODE=DEFAULT;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select * from mt1;
 a	b
 102	2
@@ -1726,17 +1739,6 @@ a	b
 108	8
 109	9
 127	1
-select * from mt2;
-a	b
-1	1
-2	2
-3	13
-4	14
-5	15
-6	6
-7	7
-8	8
-9	9
 update mt1,mt2 set mt1.b=mt2.b, mt1.a=mt2.a where mt1.a=mt2.a and not exists (select * from mt2 where mt2.a > 10);
 drop table mt1,mt2;
 TRUNCATE TABLE t2;
@@ -1910,9 +1912,7 @@ SELECT * FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
 c1	c2	c3	c1	c2
 DROP TABLE t1,t2,t3,t4;
 CREATE TABLE t1(c1 SMALLINT UNSIGNED NOT NULL, c2 SMALLINT SIGNED NULL, c3 INT, INDEX idx2(c2));
-INSERT INTO t1 VALUES(0,-128,0),(1,1,1),(2,2,2),(0,\N,3),(101,-101,4),(102,-102,5),(103,-103,6),(104,-104,7),(105,-105,8);
-Warnings:
-Warning	1287	'\N' is deprecated and will be removed in a future release. Please use NULL instead
+INSERT INTO t1 VALUES(0,-128,0),(1,1,1),(2,2,2),(0,NULL,3),(101,-101,4),(102,-102,5),(103,-103,6),(104,-104,7),(105,-105,8);
 SELECT * FROM t1;
 c1	c2	c3
 0	-128	0
@@ -1943,8 +1943,6 @@ UPDATE t1 SET c1=-120 WHERE c2=-102;
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
 SET SQL_MODE=DEFAULT;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT c1,c2 FROM t1 WHERE c2=-102;
 c1	c2
 0	-102
@@ -1985,10 +1983,10 @@ SELECT c1,c2 FROM t1 WHERE c1=109;
 c1	c2
 109	-32768
 SET SQL_MODE=DEFAULT;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
 SET SQL_MODE=STRICT_ALL_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 UPDATE t1 SET c1=NULL WHERE c2=-110;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t1 SET c1=NULL WHERE c2=-110 /* updates to default value 0 */;
@@ -2002,8 +2000,6 @@ UPDATE t1 SET c1=NULL WHERE c2=-111 /* updates to default value 0 */;
 Warnings:
 Warning	1048	Column 'c1' cannot be null
 SET SQL_MODE=DEFAULT;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT * FROM t1 WHERE c1=0;
 c1	c2	c3
 0	-102	5
@@ -2037,12 +2033,12 @@ c1	c2	c3
 CREATE TABLE t2(c1 SMALLINT SIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 SMALLINT UNSIGNED NULL, c3 INT);
 INSERT INTO t2(c1) VALUES(1),(2),(3),(4),(5);
 UPDATE t2 SET c1=1 WHERE c1=3;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 UPDATE IGNORE t2 SET c1=1 WHERE c1>=3;
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
 SELECT c1 FROM t2;
 c1
 1
@@ -2115,8 +2111,6 @@ c1	c2
 10	11
 32767	65535
 SET SQL_MODE=DEFAULT;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE mt1 (c1 SMALLINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
 CREATE TABLE mt2 (c1 SMALLINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
 CREATE TABLE mt3 (c1 SMALLINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
@@ -2489,17 +2483,6 @@ a	b
 108	8
 109	9
 201	1
-select * from mt2;
-a	b
-1	1
-2	2
-3	13
-4	14
-5	15
-6	6
-7	7
-8	8
-9	9
 update mt1,mt2 set mt1.b=mt2.b, mt1.a=mt2.a where mt1.a=mt2.a and not exists (select * from mt2 where mt2.a > 10);
 drop table mt1,mt2;
 TRUNCATE TABLE t2;
@@ -2678,9 +2661,7 @@ SELECT * FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
 c1	c2	c3	c1	c2
 DROP TABLE t1,t2,t3,t4;
 CREATE TABLE t1(c1 MEDIUMINT UNSIGNED NOT NULL, c2 MEDIUMINT SIGNED NULL, c3 INT, INDEX idx2(c2));
-INSERT INTO t1 VALUES(0,-128,0),(1,1,1),(2,2,2),(0,\N,3),(101,-101,4),(102,-102,5),(103,-103,6),(104,-104,7),(105,-105,8);
-Warnings:
-Warning	1287	'\N' is deprecated and will be removed in a future release. Please use NULL instead
+INSERT INTO t1 VALUES(0,-128,0),(1,1,1),(2,2,2),(0,NULL,3),(101,-101,4),(102,-102,5),(103,-103,6),(104,-104,7),(105,-105,8);
 SELECT * FROM t1;
 c1	c2	c3
 0	-128	0
@@ -2749,10 +2730,10 @@ SELECT c1,c2 FROM t1 WHERE c1=109;
 c1	c2
 109	-8388608
 SET SQL_MODE=DEFAULT;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
 SET SQL_MODE=STRICT_ALL_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 UPDATE t1 SET c1=NULL WHERE c2=-110;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t1 SET c1=NULL WHERE c2=-110 /* updates to default value 0 */;
@@ -2766,8 +2747,6 @@ UPDATE t1 SET c1=NULL WHERE c2=-111 /* updates to default value 0 */;
 Warnings:
 Warning	1048	Column 'c1' cannot be null
 SET SQL_MODE=DEFAULT;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT * FROM t1 WHERE c1=0;
 c1	c2	c3
 0	-102	5
@@ -2801,12 +2780,12 @@ c1	c2	c3
 CREATE TABLE t2(c1 MEDIUMINT SIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 MEDIUMINT UNSIGNED NULL, c3 INT);
 INSERT INTO t2(c1) VALUES(1),(2),(3),(4),(5);
 UPDATE t2 SET c1=1 WHERE c1=3;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 UPDATE IGNORE t2 SET c1=1 WHERE c1>=3;
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
 SELECT c1 FROM t2;
 c1
 1
@@ -2879,8 +2858,6 @@ c1	c2
 10	11
 8388607	16777215
 SET SQL_MODE=DEFAULT;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE mt1 (c1 MEDIUMINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
 CREATE TABLE mt2 (c1 MEDIUMINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
 CREATE TABLE mt3 (c1 MEDIUMINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
@@ -3253,17 +3230,6 @@ a	b
 108	8
 109	9
 201	1
-select * from mt2;
-a	b
-1	1
-2	2
-3	13
-4	14
-5	15
-6	6
-7	7
-8	8
-9	9
 update mt1,mt2 set mt1.b=mt2.b, mt1.a=mt2.a where mt1.a=mt2.a and not exists (select * from mt2 where mt2.a > 10);
 drop table mt1,mt2;
 TRUNCATE TABLE t2;
@@ -3442,9 +3408,7 @@ SELECT * FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
 c1	c2	c3	c1	c2
 DROP TABLE t1,t2,t3,t4;
 CREATE TABLE t1(c1 BIGINT UNSIGNED NOT NULL, c2 BIGINT SIGNED NULL, c3 INT, INDEX idx2(c2));
-INSERT INTO t1 VALUES(0,-128,0),(1,1,1),(2,2,2),(0,\N,3),(101,-101,4),(102,-102,5),(103,-103,6),(104,-104,7),(105,-105,8);
-Warnings:
-Warning	1287	'\N' is deprecated and will be removed in a future release. Please use NULL instead
+INSERT INTO t1 VALUES(0,-128,0),(1,1,1),(2,2,2),(0,NULL,3),(101,-101,4),(102,-102,5),(103,-103,6),(104,-104,7),(105,-105,8);
 SELECT * FROM t1;
 c1	c2	c3
 0	-128	0
@@ -3513,10 +3477,10 @@ SELECT c1,c2 FROM t1 WHERE c1=109;
 c1	c2
 109	-9223372036854775808
 SET SQL_MODE=DEFAULT;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
 SET SQL_MODE=STRICT_ALL_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 UPDATE t1 SET c1=NULL WHERE c2=-110;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t1 SET c1=NULL WHERE c2=-110 /* updates to default value 0 */;
@@ -3530,8 +3494,6 @@ UPDATE t1 SET c1=NULL WHERE c2=-111 /* updates to default value 0 */;
 Warnings:
 Warning	1048	Column 'c1' cannot be null
 SET SQL_MODE=DEFAULT;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT * FROM t1 WHERE c1=0;
 c1	c2	c3
 0	-102	5
@@ -3565,12 +3527,12 @@ c1	c2	c3
 CREATE TABLE t2(c1 BIGINT SIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 BIGINT UNSIGNED NULL, c3 INT);
 INSERT INTO t2(c1) VALUES(1),(2),(3),(4),(5);
 UPDATE t2 SET c1=1 WHERE c1=3;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 UPDATE IGNORE t2 SET c1=1 WHERE c1>=3;
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
 SELECT c1 FROM t2;
 c1
 1
@@ -3643,8 +3605,6 @@ c1	c2
 10	11
 9223372036854775807	18446744073709551615
 SET SQL_MODE=DEFAULT;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE mt1 (c1 BIGINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
 CREATE TABLE mt2 (c1 BIGINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
 CREATE TABLE mt3 (c1 BIGINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
@@ -4038,17 +3998,6 @@ a	b
 108	8
 109	9
 201	1
-select * from mt2;
-a	b
-1	1
-2	2
-3	13
-4	14
-5	15
-6	6
-7	7
-8	8
-9	9
 update mt1,mt2 set mt1.b=mt2.b, mt1.a=mt2.a where mt1.a=mt2.a and not exists (select * from mt2 where mt2.a > 10);
 drop table mt1,mt2;
 TRUNCATE TABLE t2;

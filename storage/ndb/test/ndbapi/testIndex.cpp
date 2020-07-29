@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2270,7 +2270,7 @@ runBug25059(NDBT_Context* ctx, NDBT_Step* step)
     ops.startTransaction(pNdb);
     ops.pkUpdateRecord(pNdb, 10 + rand() % rows, rows);
     int tmp;
-    int arg;
+    int arg = 0;
     switch(rand() % 2){
     case 0:
       arg = AbortOnError;
@@ -3106,6 +3106,7 @@ runTestDeferredError(NDBT_Context* ctx, NDBT_Step* step)
           CHK_RET_FAILED(res.startAll() == 0);
           ndbout_c("  wait cluster started");
           CHK_RET_FAILED(res.waitClusterStarted() == 0);
+          CHK_NDB_READY(pNdb);
           ndbout_c("  cluster started");
         }
         CHK_RET_FAILED(res.insertErrorInAllNodes(0) == 0);
@@ -3256,7 +3257,7 @@ runDeferredError(NDBT_Context* ctx, NDBT_Step* step)
       {
         CHK_RET_FAILED(res.insertErrorInNode(nodeId, errorno) == 0);
         NdbSleep_MilliSleep(300);
-        CHK_RET_FAILED(res.insertErrorInNode(nodeId, errorno) == 0);
+        CHK_RET_FAILED(res.insertErrorInNode(nodeId, 0) == 0);
       }
       else
       {
@@ -3712,7 +3713,8 @@ TESTCASE("DeferredMixedLoad",
   FINALIZER(createPkIndex_Drop);
 }
 TESTCASE("DeferredMixedLoadError",
-         "Test mixed load of DML with deferred indexes")
+         "Test mixed load of DML with deferred indexes. "
+         "Need --skip-ndb-optimized-node-selection")
 {
   TC_PROPERTY("LoggedIndexes", Uint32(0));
   TC_PROPERTY("OrderedIndex", Uint32(0));
@@ -3782,7 +3784,7 @@ TESTCASE("RefreshWithOrderedIndex",
   FINALIZER(createPkIndex_Drop);
   FINALIZER(runClearTable);
 }
-NDBT_TESTSUITE_END(testIndex);
+NDBT_TESTSUITE_END(testIndex)
 
 int main(int argc, const char** argv){
   ndb_init();

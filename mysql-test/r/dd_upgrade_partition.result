@@ -1,0 +1,76 @@
+#
+# Bug#25153261 : SEG FAULT IN UPGRADING PARTITIONED TABLE
+#
+# Set different paths for --datadir
+# Copy the remote tablespace & DB zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Unzip the zip file.
+# Stop DB server which was created by MTR default
+# Create a bootstrap file in temp location
+MYSQL_TMP_DIR/bootstrap.log
+# Start the server. Without fix, there is a segmentation fault in this step.
+SHOW CREATE TABLE partitions.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(50) CHARACTER SET koi8r COLLATE koi8r_bin DEFAULT NULL,
+  `b` varchar(50) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50500 PARTITION BY RANGE  COLUMNS(a)
+(PARTITION p0 VALUES LESS THAN ('ц├ц┤') ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+# Stop the server
+# Check if .ibds have SDI after upgrade
+# Check SDI from sys_config.ibd
+# Check SDI from t1#P#p1.ibd
+# Check SDI from t1#P#p0.ibd
+# Remove json files
+# Remove copied files
+# Copy the 5.7 data zip file to working directory.
+# Check that the zip file exists in the working directory.
+# Unzip 5.7 data directory.
+# Set data directory to the 5.7 data directory
+# Set log directory
+# Restart server to trigger upgrade
+# Check for errors in the error log
+Pattern "\[ERROR\]" not found
+# Check output of SHOW CREATE TABLE
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(10000) NOT NULL,
+  `b` varchar(10) NOT NULL,
+  PRIMARY KEY (`a`(100),`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 3 */
+# Create equivalent table after upgrade and insert same data
+CREATE TABLE t2 (
+a varchar(10000) NOT NULL,
+b varchar(10) NOT NULL,
+PRIMARY KEY (a(100),b)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 PARTITION BY KEY() PARTITIONS 3;
+INSERT INTO t2 VALUES
+('a','a'),
+('a','b'),
+('b','a'),
+('a','aa'),
+('aa','a'),
+('a','zz'),
+('zz','a');
+# Check partition calculations for upgraded table and newly created table
+SELECT  (SELECT GROUP_CONCAT('(',a,',',b,')') FROM t1 PARTITION(p0))
+= (SELECT GROUP_CONCAT('(',a,',',b,')') FROM t2 PARTITION(p0))
+as `p0_equal`,
+(SELECT GROUP_CONCAT('(',a,',',b,')') FROM t1 PARTITION(p1))
+= (SELECT GROUP_CONCAT('(',a,',',b,')') FROM t2 PARTITION(p1))
+as `p1_equal`,
+(SELECT GROUP_CONCAT('(',a,',',b,')') FROM t1 PARTITION(p2))
+= (SELECT GROUP_CONCAT('(',a,',',b,')') FROM t2 PARTITION(p2))
+as `p2_equal`;
+p0_equal	p1_equal	p2_equal
+1	1	1
+# Stop the server
+# Check for mysql_upgrade_info file in data directory
+# Cleanup
+# Restart the server with default options.
+# restart

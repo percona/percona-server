@@ -1,20 +1,13 @@
 -- Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
--- it under the terms of the GNU General Public License, version 2.0,
--- as published by the Free Software Foundation.
---
--- This program is also distributed with certain software (including
--- but not limited to OpenSSL) that is licensed under separate terms,
--- as designated in a particular file or component or in included license
--- documentation.  The authors of MySQL hereby grant you an additional
--- permission to link the program and your derivative works with the
--- separately licensed software that they have included with MySQL.
+-- it under the terms of the GNU General Public License as published by
+-- the Free Software Foundation; version 2 of the License.
 --
 -- This program is distributed in the hope that it will be useful,
 -- but WITHOUT ANY WARRANTY; without even the implied warranty of
 -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
--- GNU General Public License, version 2.0, for more details.
+-- GNU General Public License for more details.
 --
 -- You should have received a copy of the GNU General Public License
 -- along with this program; if not, write to the Free Software
@@ -57,10 +50,10 @@ SELECT thread_id,
           CONCAT(t.processlist_user, '@', t.processlist_host), 
           REPLACE(t.name, 'thread/', '')) user,
        SUM(mt.current_count_used) AS current_count_used,
-       sys.format_bytes(SUM(mt.current_number_of_bytes_used)) AS current_allocated,
-       sys.format_bytes(IFNULL(SUM(mt.current_number_of_bytes_used) / NULLIF(SUM(current_count_used), 0), 0)) AS current_avg_alloc,
-       sys.format_bytes(MAX(mt.current_number_of_bytes_used)) AS current_max_alloc,
-       sys.format_bytes(SUM(mt.sum_number_of_bytes_alloc)) AS total_allocated
+       format_bytes(SUM(mt.current_number_of_bytes_used)) AS current_allocated,
+       format_bytes(IFNULL(SUM(mt.current_number_of_bytes_used) / NULLIF(SUM(current_count_used), 0), 0)) AS current_avg_alloc,
+       format_bytes(MAX(mt.current_number_of_bytes_used)) AS current_max_alloc,
+       format_bytes(SUM(mt.sum_number_of_bytes_alloc)) AS total_allocated
   FROM performance_schema.memory_summary_by_thread_by_event_name AS mt
   JOIN performance_schema.threads AS t USING (thread_id)
  GROUP BY thread_id, IF(t.name = 'thread/sql/one_connection', 

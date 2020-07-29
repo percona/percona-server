@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,26 +18,26 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
+
+#include <errno.h>
 #include <gtest/gtest.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 
-#include "my_global.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h"
 
 #if !defined(_WIN32)
-TEST(FileUtilsTest, TellPipe)
-{
+TEST(FileUtilsTest, TellPipe) {
   int pipefd[2];
   EXPECT_EQ(0, pipe(pipefd));
-  my_off_t pos= mysql_file_tell(pipefd[1], MYF(0));
+  my_off_t pos = mysql_file_tell(pipefd[1], MYF(0));
   EXPECT_EQ(MY_FILEPOS_ERROR, pos);
   EXPECT_EQ(ESPIPE, my_errno());
   EXPECT_EQ(0, close(pipefd[0]));

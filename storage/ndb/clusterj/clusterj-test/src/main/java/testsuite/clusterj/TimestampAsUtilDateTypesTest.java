@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,8 +30,6 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Date;
 
-import org.junit.Ignore;
-
 import testsuite.clusterj.model.IdBase;
 import testsuite.clusterj.model.TimestampAsUtilDateTypes;
 
@@ -56,18 +54,7 @@ create index idx_timestamp_not_null_btree on timestamptypes(timestamp_not_null_b
 create unique index idx_timestamp_not_null_both on timestamptypes(timestamp_not_null_both);
 
  */
-@Ignore("writeJDBCreadNDB got failure to match column data for row 1 column 3 Expected: Tue Jan 01 01:01:02 CET 1980 actual: Mon Dec 31 23:01:02 CET 1979")
 public class TimestampAsUtilDateTypesTest extends AbstractClusterJModelTest {
-
-    @Override
-    public void localSetUp() {
-        super.localSetUp();
-        getConnection();
-        resetLocalSystemDefaultTimeZone(connection);
-        connection = null;
-        getConnection();
-        setAutoCommit(connection, false);
-    }
 
     static int NUMBER_OF_INSTANCES = 10;
 
@@ -106,7 +93,7 @@ public class TimestampAsUtilDateTypesTest extends AbstractClusterJModelTest {
     public void testWriteNDBReadJDBC() {
         writeNDBreadJDBC();
         failOnError();
-   }
+    }
 
     public void testWriteJDBCReadJDBC() {
         writeJDBCreadJDBC();
@@ -116,9 +103,9 @@ public class TimestampAsUtilDateTypesTest extends AbstractClusterJModelTest {
     public void testWriteNDBReadNDB() {
         writeNDBreadNDB();
         failOnError();
-   }
+    }
 
-   static ColumnDescriptor not_null_hash = new ColumnDescriptor
+    static ColumnDescriptor not_null_hash = new ColumnDescriptor
             ("timestamp_not_null_hash", new InstanceHandler() {
         public void setFieldValue(IdBase instance, Object value) {
             ((TimestampAsUtilDateTypes)instance).setTimestamp_not_null_hash((Date)value);

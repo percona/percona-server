@@ -47,7 +47,7 @@ SHOW COLUMNS IN t1;
 # Valid values
 
 INSERT INTO t1 (c,c0,c1,c20,c255) VALUES ('','','','','');
-INSERT INTO t1 (c,c0,c1,c20,c255) VALUES ('a','','b','abcdefghi klmnopqrst', 'Creating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn\'t already exist which would work.');
+INSERT INTO t1 (c,c0,c1,c20,c255) VALUES ('a','','b','abcdefghi klmnopqrst', 'Creating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn');
 
 --sorted_result
 SELECT c,c0,c1,c20,c255 FROM t1;

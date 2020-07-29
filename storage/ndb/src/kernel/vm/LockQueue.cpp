@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ LockQueue::lock(SimulatedBlock* block,
   const bool trylock = req->requestInfo & UtilLockReq::TryLock;
   const bool notify = req->requestInfo & UtilLockReq::Notify;
   
-  LocalDLFifoList<LockQueueElement> queue(thePool, m_queue);
+  Local_LockQueueElement_fifo queue(thePool, m_queue);
   
   bool grant = true;
   Ptr<LockQueueElement> lockEPtr;
@@ -111,7 +111,7 @@ LockQueue::unlock(SimulatedBlock* block,
   const Uint32 senderData = req->senderData;
   
   Ptr<LockQueueElement> lockEPtr;
-  LocalDLFifoList<LockQueueElement> queue(thePool, m_queue);
+  Local_LockQueueElement_fifo queue(thePool, m_queue);
   
   for (queue.first(lockEPtr); !lockEPtr.isNull(); queue.next(lockEPtr))
   {
@@ -149,7 +149,7 @@ bool
 LockQueue::first(SimulatedBlock* block,
                  Pool& thePool, Iterator & iter)
 {
-  LocalDLFifoList<LockQueueElement> queue(thePool, m_queue);
+  Local_LockQueueElement_fifo queue(thePool, m_queue);
   if (queue.first(iter.m_curr))
   {
     iter.m_block = block;
@@ -164,7 +164,7 @@ bool
 LockQueue::next(Iterator& iter)
 {
   iter.m_prev = iter.m_curr;
-  LocalDLFifoList<LockQueueElement> queue(*iter.thePool, m_queue);
+  Local_LockQueueElement_fifo queue(*iter.thePool, m_queue);
   return queue.next(iter.m_curr);
 }
 
@@ -172,7 +172,7 @@ int
 LockQueue::checkLockGrant(Iterator& iter, UtilLockReq* req)
 {
   SimulatedBlock* block = iter.m_block;
-  LocalDLFifoList<LockQueueElement> queue(*iter.thePool, m_queue);
+  Local_LockQueueElement_fifo queue(*iter.thePool, m_queue);
   if (iter.m_prev.isNull())
   {
     if (iter.m_curr.p->m_req.requestInfo & UtilLockReq::Granted)
@@ -222,7 +222,7 @@ LockQueue::checkLockGrant(Iterator& iter, UtilLockReq* req)
 void
 LockQueue::clear(Pool& thePool)
 {
-  LocalDLFifoList<LockQueueElement> queue(thePool, m_queue);
+  Local_LockQueueElement_fifo queue(thePool, m_queue);
   while (queue.releaseFirst());
 }
 
@@ -230,7 +230,7 @@ void
 LockQueue::dump_queue(Pool& thePool, SimulatedBlock* block)
 {
   Ptr<LockQueueElement> ptr;
-  LocalDLFifoList<LockQueueElement> queue(thePool, m_queue);
+  Local_LockQueueElement_fifo queue(thePool, m_queue);
 
   for (queue.first(ptr); !ptr.isNull(); queue.next(ptr))
   {

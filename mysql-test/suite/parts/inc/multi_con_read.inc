@@ -1,6 +1,4 @@
---source include/have_partition.inc
 --source include/count_sessions.inc
-
 eval CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `k` int(11) NOT NULL DEFAULT '0',

@@ -9,6 +9,7 @@ $data =~ s/sqlx-[a-z0-9]+_[a-z0-9]+/sqlx-nnnn_nnnn/g;
 $data =~ s/#p#/#P#/g;
 $data =~ s/#sp#/#SP#/g;
 $data =~ s/#tmp#/#TMP#/g;
+$data =~ s/_([0-9]+)\.sdi/_id.sdi/g;
 
 write_file($filename, $data);
 

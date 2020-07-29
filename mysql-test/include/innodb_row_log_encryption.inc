@@ -1,7 +1,4 @@
---source include/have_innodb.inc
---source include/not_embedded.inc
 --source include/have_debug_sync.inc
---source include/have_perfschema.inc
 
 # Restart the server with keyring loaded
 --let $restart_parameters="$KEYRING_RESTART_PARAM"
@@ -39,8 +36,17 @@ send ALTER TABLE t1 ADD INDEX secret (credit_card), ALGORITHM=INPLACE, LOCK=NONE
 connect (con2,localhost,root,,);
 SET DEBUG_SYNC= 'now WAIT_FOR opened';
 # TODO: once we add key rotation and scrubbing make sure to add it to this test
-ALTER INSTANCE ROTATE INNODB MASTER KEY;
+send ALTER INSTANCE ROTATE INNODB MASTER KEY;
+
+# Now connection 'default' waits for signal 'rotated', 'con2' waits on lock already acquired by connection 'default'.
+# Let connection 'default' run and release the lock, so 'con2' can continue.
+# This is because exclusive lock in sql/sql_alter_instance.cc bool Rotate_innodb_master_key::execute().
+
+connect (con3,localhost,root,,);
 SET DEBUG_SYNC= 'now SIGNAL rotated';
+
+connection con2;
+reap;
 CREATE TABLE t2(id int) ENGINE=InnoDB;
 SET DEBUG_SYNC= 'row_merge_after_scan SIGNAL opened WAIT_FOR updated';
 send ALTER TABLE t1 ADD INDEX secret2 (private), ALGORITHM=INPLACE, LOCK=NONE;
@@ -64,6 +70,7 @@ DROP TABLE t2;
 
 connection default;
 disconnect con2;
+disconnect con3;
 
 #
 # Verify that both merge blocks and row log blocks are encryted and decrypted

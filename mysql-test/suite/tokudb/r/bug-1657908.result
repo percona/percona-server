@@ -13,8 +13,6 @@ PARTITION p400 VALUES LESS THAN (400) ENGINE = TokuDB
 END|
 ### Create partitioned table
 CALL create_table();
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ## Looking for *.tokudb files in data_dir
 ## Looking for *.tokudb files in data_dir/test
 t1_P_p100_main_id.tokudb
@@ -56,8 +54,6 @@ Tables_in_test
 ## Looking for *.tokudb files in data_dir/test
 ### Create the same table once more
 CALL create_table();
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ## Looking for *.tokudb files in data_dir
 ## Looking for *.tokudb files in data_dir/test
 t1_P_p100_main_id.tokudb

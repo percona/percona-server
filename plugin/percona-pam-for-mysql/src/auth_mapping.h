@@ -53,12 +53,13 @@ char *mapping_iter_get_key(struct mapping_iter *it, char *buf, size_t buf_len);
 
 /** Get value at current iterator position. On success buf returned,
     otherwise NULL */
-char *mapping_iter_get_value(struct mapping_iter *it, char *buf, size_t buf_len);
+char *mapping_iter_get_value(struct mapping_iter *it, char *buf,
+                             size_t buf_len);
 
 /** Get value by given key. On success value_buf returned,
     otherwise NULL */
-char *mapping_lookup_user(const char *key, char *value_buf, size_t value_buf_len,
-                        const char *mapping_string);
+char *mapping_lookup_user(const char *key, char *value_buf,
+                          size_t value_buf_len, const char *mapping_string);
 
 /** Get service name for auth_string. On success buf returned,
     otherwise NULL */

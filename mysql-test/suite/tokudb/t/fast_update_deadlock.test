@@ -1,7 +1,8 @@
-source include/have_tokudb.inc;
+--source include/not_log_bin.inc
+--source include/have_tokudb.inc
 
 set tokudb_enable_fast_update=1;
-source ../include/setup_fast_update_upsert.inc;
+--source ../include/setup_fast_update_upsert.inc
 
 create table t (id bigint primary key,
                 b bigint not null default 0) engine = tokudb;
@@ -24,7 +25,7 @@ send update t set b=b+1 where id=2;
 
 connection conn1;
 sleep 1;
-error 1205,1213;
+error ER_LOCK_WAIT_TIMEOUT,ER_LOCK_DEADLOCK;
 update t set b=b-1 where id=1;
 rollback;
 

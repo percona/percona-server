@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_secure_installation\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/23/2020
+.\"      Date: 03/06/2020
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 5.7
+.\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_SECURE_INSTALLATION\FR" "1" "03/23/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL_SECURE_INSTALLATION\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -111,7 +111,7 @@ prompts you to determine which actions to perform\&.
 .PP
 The
 validate_password
-plugin can be used for password strength checking\&. If the plugin is not installed,
+component can be used for password strength checking\&. If the plugin is not installed,
 \fBmysql_secure_installation\fR
 prompts the user whether to install it\&. Any passwords entered later are checked using the plugin if it is enabled\&.
 .PP
@@ -338,7 +338,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 .sp
 On Windows, this option applies only if the server was started with the
 named_pipe
-system variable enabled to support named\-pipe connections\&. In addition, the user making the connection must be a member of the Windows group specified by the
+system variable enabled to support named\-pipe connections\&. In addition, the the connection must be a member of the Windows group specified by the
 named_pipe_full_access_group
 system variable\&.
 .RE
@@ -367,12 +367,107 @@ the section called \(lqCommand Options for Encrypted Connections\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-ssl\-fips\-mode={OFF|ON|STRICT}\fR
+Controls whether to enable FIPS mode on the client side\&. The
+\fB\-\-ssl\-fips\-mode\fR
+option differs from other
+\fB\-\-ssl\-\fR\fB\fIxxx\fR\fR
+options in that it is not used to establish encrypted connections, but rather to affect which cryptographic operations are permitted\&. See
+Section\ \&6.5, \(lqFIPS Support\(rq\&.
+.sp
+These
+\fB\-\-ssl\-fips\-mode\fR
+values are permitted:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+OFF: Disable FIPS mode\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+ON: Enable FIPS mode\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+STRICT: Enable
+\(lqstrict\(rq
+FIPS mode\&.
+.RE
+.sp
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+If the OpenSSL FIPS Object Module is not available, the only permitted value for
+\fB\-\-ssl\-fips\-mode\fR
+is
+OFF\&. In this case, setting
+\fB\-\-ssl\-fips\-mode\fR
+to
+ON
+or
+STRICT
+causes the client to produce a warning at startup and to operate in non\-FIPS mode\&.
+.sp .5v
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-tls\-ciphersuites=\fR\fB\fIciphersuite_list\fR\fR
+.sp
+The permissible ciphersuites for encrypted connections that use TLSv1\&.3\&. The value is a list of one or more colon\-separated ciphersuite names\&. The ciphersuites that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
+Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
+.sp
+This option was added in MySQL 8\&.0\&.16\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
 .sp
 The permissible TLS protocols for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
 Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
-.sp
-This option was added in MySQL 5\&.7\&.10\&.
 .RE
 .sp
 .RS 4

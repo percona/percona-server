@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -107,7 +107,15 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
   bt.m_tablespace_id = t->m_tablespace_id;
   bt.m_tablespace_version = t->m_tablespace_version;
   bt.setFragmentType(t->getFragmentType());
+  bt.setPartitionBalance(t->getPartitionBalance());
+  bt.setReadBackupFlag(t->getReadBackupFlag());
+  bt.setFullyReplicated(t->getFullyReplicated());
 
+  if (t->getFragmentType() == NdbDictionary::Object::HashMapPartition)
+  {
+    bt.m_hash_map_id = t->m_hash_map_id;
+    bt.m_hash_map_version = t->m_hash_map_version;
+  }
   DBUG_PRINT("info", ("Define BLOB table V%d with"
                       " primary table = %u and Fragment Type = %u",
                       blobVersion,
@@ -2149,6 +2157,7 @@ NdbBlob::atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
       {
         assert(! theNdbOp->m_blob_lock_upgraded);
         theNdbOp->setReadLockMode(NdbOperation::LM_Read);
+        theNdbOp->setReadCommittedBase();
         theNdbOp->m_blob_lock_upgraded = true;
 
         if (!isIndexOp())
@@ -2157,33 +2166,28 @@ NdbBlob::atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
           /* If the kernel supports it we'll ask for a lockhandle
            * to allow us to unlock the main table row when the
            * Blob handle is closed
+           * We've upgraded the lock from Committed/Simple to LM_Read
+           * Now modify the read operation to request an NdbLockHandle
+           * so that we can unlock the main table op on close()
            */
-          if (likely(theNdb->getMinDbNodeVersion() >=
-                     NDBD_UNLOCK_OP_SUPPORTED))
+          if (theNdbOp->m_attribute_record)
           {
-            /* We've upgraded the lock from Committed/Simple to LM_Read
-             * Now modify the read operation to request an NdbLockHandle
-             * so that we can unlock the main table op on close()
-             */
-            if (theNdbOp->m_attribute_record)
+            /* NdbRecord op, need to set-up NdbLockHandle */
+            int rc = theNdbOp->prepareGetLockHandleNdbRecord();
+            if (rc != 0)
             {
-              /* NdbRecord op, need to set-up NdbLockHandle */
-              int rc = theNdbOp->prepareGetLockHandleNdbRecord();
-              if (rc != 0)
-              {
-                setErrorCode(rc, true);
-                return -1;
-              }
+              setErrorCode(rc, true);
+              return -1;
             }
-            else
+          }
+          else
+          {
+            /* NdbRecAttr op, request lock handle read */
+            int rc = theNdbOp->getLockHandleImpl();
+            if (rc != 0)
             {
-              /* NdbRecAttr op, request lock handle read */
-              int rc = theNdbOp->getLockHandleImpl();
-              if (rc != 0)
-              {
-                setErrorCode(rc, true);
-                return -1;
-              }
+              setErrorCode(rc, true);
+              return -1;
             }
           }
         }        
@@ -2222,6 +2226,7 @@ NdbBlob::atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
         assert(! theNdbOp->m_blob_lock_upgraded);
         sop->m_savedLockModeOldApi= NdbOperation::LM_Read;
         theNdbOp->m_blob_lock_upgraded = true;
+        theNdbOp->setReadCommittedBase();
       }
     }
     else
@@ -2236,6 +2241,7 @@ NdbBlob::atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
         assert(! theNdbOp->m_blob_lock_upgraded);
         sop->setReadLockMode(NdbOperation::LM_Read);
         theNdbOp->m_blob_lock_upgraded = true;
+        theNdbOp->setReadCommittedBase();
       }
     }
 
@@ -2682,12 +2688,23 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType,
     {
       DBUG_PRINT("info", 
                  ("Insert waiting for Blob head insert"));
-      /* Require that this insert op is completed 
-       * before beginning more user ops - avoid interleave
-       * with delete etc.
-       */
-      batch= true;
     }
+
+    /**
+     * In both Insert cases (Parts Insert prepared before or after exec)
+     * we need to force execution now.
+     * This is to avoid potential adverse interactions with other
+     * operations on the same blob row in the same batch observing
+     * partially updated blob states.
+     *
+     * This defeats batching in many cases.
+     *
+     * A future optimisation would be to identify cases where the same
+     * key is operated upon multiple times in a single batch and serialise
+     * those specifically, allowing more batching in the more normal
+     * case of disjoint keys.
+     */
+    batch= true;
   }
 
   if (isTableOp()) {
@@ -2782,7 +2799,12 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType,
             setErrorCode(tOp);
             DBUG_RETURN(-1);
           }
-        } 
+        }
+        if (isReadOp() && theNdbOp->getReadCommittedBase())
+        {
+          DBUG_PRINT("info", ("Set ReadCommittedBase on UI lookup"));
+          tOp->setReadCommittedBase();
+        }
       }
       DBUG_PRINT("info", ("Index op : added op before to read table key"));
     }
@@ -2991,6 +3013,18 @@ NdbBlob::postExecute(NdbTransaction::ExecType anExecType)
           setHeadPartitionId(tOp);
 
           DBUG_PRINT("info", ("Insert : added op to update head+inline"));
+
+          /**
+           * Force write back to ensure blob state stable for any subsequent
+           * batched operation on the same key
+           */
+          thePendingBlobOps |= (1 << NdbOperation::WriteRequest);
+          theNdbCon->thePendingBlobOps |= (1 << NdbOperation::WriteRequest);
+          if (executePendingBlobWrites() != 0)
+          {
+            DBUG_PRINT("info", ("Failed flushing pending operations"));
+            DBUG_RETURN(-1);
+          }
         }
       }
       // NOTE : Could map IgnoreError insert error onto Blob here
@@ -3118,6 +3152,18 @@ NdbBlob::postExecute(NdbTransaction::ExecType anExecType)
 
     tOp->m_abortOption = NdbOperation::AbortOnError;
     DBUG_PRINT("info", ("added op to update head+inline"));
+
+    /**
+     * Force write back to ensure blob state stable for any subsequent
+     * batched operation on the same key
+     */
+    thePendingBlobOps |= (1 << NdbOperation::WriteRequest);
+    theNdbCon->thePendingBlobOps |= (1 << NdbOperation::WriteRequest);
+    if (executePendingBlobWrites() != 0)
+    {
+      DBUG_PRINT("info", ("Failed flushing pending operations"));
+      DBUG_RETURN(-1);
+    }
   }
   DBUG_RETURN(0);
 }

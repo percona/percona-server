@@ -11,7 +11,7 @@ SET DEBUG_SYNC="before_opening_datafile SIGNAL open_ready WAIT_FOR finish_open";
 SELECT * FROM t1;
 SET DEBUG_SYNC="now WAIT_FOR open_ready";
 SET DEBUG_SYNC="now SIGNAL finish_open";
-ERROR HY000: File 'custom_data_directory/t1.MYD' not found (Errcode: 40 - Too many levels of symbolic links)
+ERROR HY000: File 'custom_data_directory/t1.MYD' not found (OS errno 40 - Too many levels of symbolic links)
 SET DEBUG_SYNC= 'RESET';
 DROP TABLE t1;
 #
@@ -24,7 +24,7 @@ SET DEBUG_SYNC="before_opening_indexfile SIGNAL open_ready WAIT_FOR finish_open"
 SELECT * FROM t1 ORDER BY a;
 SET DEBUG_SYNC="now WAIT_FOR open_ready";
 SET DEBUG_SYNC="now SIGNAL finish_open";
-ERROR HY000: Got error 40 from storage engine
+ERROR HY000: Got error 40 - 'Too many levels of symbolic links' from storage engine
 SET DEBUG_SYNC= 'RESET';
 DROP TABLE t1;
 #
@@ -37,6 +37,6 @@ SET DEBUG_SYNC="before_opening_datafile SIGNAL open_ready WAIT_FOR finish_open";
 SELECT * FROM user;
 SET DEBUG_SYNC="now WAIT_FOR open_ready";
 SET DEBUG_SYNC="now SIGNAL finish_open";
-ERROR HY000: Table storage engine for 'user' doesn't have this option
+ERROR HY000: File 'custom_data_directory/user.MYD' not found (OS errno 2 - No such file or directory)
 SET DEBUG_SYNC= 'RESET';
 DROP TABLE user;

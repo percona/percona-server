@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,7 +70,7 @@ private :
   {
     STATIC_ASSERT(KeyInfo::HeaderLength == KeyAndAttrInfoHeaderLength);
     STATIC_ASSERT(AttrInfo::HeaderLength == KeyAndAttrInfoHeaderLength);
-  };
+  }
 
 public :
   OldNdbApiSectionIterator(NdbApiSignal* TCREQ,
@@ -86,7 +86,7 @@ public :
   }
   
   ~OldNdbApiSectionIterator()
-  {};
+  {}
 
   void reset()
   {
@@ -129,10 +129,52 @@ NdbOperation::setLastFlag(NdbApiSignal* signal, Uint32 lastFlag)
   TcKeyReq::setExecuteFlag(req->requestInfo, lastFlag);
 }
 
+/**
+ * Set requestInfo late in the process. abortOption and interpreted
+ * indicator is set earlier since its settings depend on if we use
+ * NdbRecord or not.
+ */
+void
+NdbOperation::setRequestInfoTCKEYREQ(bool lastFlag,
+                                     bool longSignal)
+{
+  TcKeyReq * const req = CAST_PTR(TcKeyReq, theTCREQ->getDataPtrSend());
+  Uint32 requestInfo = req->requestInfo;
+  TcKeyReq::setExecuteFlag(requestInfo, lastFlag);
+  TcKeyReq::setSimpleFlag(requestInfo, theSimpleIndicator);
+  TcKeyReq::setCommitFlag(requestInfo, theCommitIndicator);
+  TcKeyReq::setStartFlag(requestInfo, theStartIndicator);
+  TcKeyReq::setDirtyFlag(requestInfo, theDirtyIndicator);
+  TcKeyReq::setOperationType(requestInfo, theOperationType);
+
+  /**
+   * These two operations are not set since init to 0 makes them true,
+   * so we simply make it clear here by comment that they should be
+   * 0 by design.
+   */
+  //tcKeyReq->setKeyLength(tReqInfo, 0);
+  //tcKeyReq->setViaSPJFlag(tReqInfo, 0); 
+
+  TcKeyReq::setQueueOnRedoProblemFlag(requestInfo,
+                                      (m_flags & OF_QUEUEABLE) != 0);
+  TcKeyReq::setDeferredConstraints(requestInfo,
+                                   (m_flags & OF_DEFERRED_CONSTRAINTS) != 0);
+  TcKeyReq::setDisableFkConstraints(requestInfo,
+                                   (m_flags & OF_DISABLE_FK) != 0);
+  TcKeyReq::setDistributionKeyFlag(requestInfo, theDistrKeyIndicator_);
+  TcKeyReq::setScanIndFlag(requestInfo, theScanInfo & 1);
+  TcKeyReq::setReadCommittedBaseFlag(requestInfo,
+                                 theReadCommittedBaseIndicator & longSignal);
+  TcKeyReq::setNoWaitFlag(requestInfo,
+                          (m_flags & OF_NOWAIT) != 0);
+  req->requestInfo = requestInfo;
+}
+
 int
 NdbOperation::doSendKeyReq(int aNodeId, 
                            GenericSectionPtr* secs, 
-                           Uint32 numSecs)
+                           Uint32 numSecs,
+                           bool lastFlag)
 {
   /* Send a KeyRequest - could be TCKEYREQ or TCINDXREQ
    *
@@ -143,25 +185,44 @@ NdbOperation::doSendKeyReq(int aNodeId,
    */
   NdbApiSignal* request = theTCREQ;
   NdbImpl* impl = theNdb->theImpl;
-  Uint32 tcNodeVersion = impl->getNodeNdbVersion(aNodeId);
   bool forceShort = impl->forceShortRequests;
-  bool sendLong = ( tcNodeVersion >= NDBD_LONG_TCKEYREQ ) &&
-    ! forceShort;
-  
-  if (sendLong)
+  bool sendLong = !forceShort;
+  Uint32 tcNodeVersion = impl->getNodeNdbVersion(aNodeId);
+
+
+  setRequestInfoTCKEYREQ(lastFlag, sendLong);
+
+  Uint32 keyInfoLen  = secs[0].sz;
+  Uint32 attrInfoLen = (numSecs == 2) ? secs[1].sz : 0;
+  if (likely(sendLong))
   {
-    return impl->sendSignal(request, aNodeId, secs, numSecs);
+    const Uint32 long_sections_size = keyInfoLen + attrInfoLen;
+    if (long_sections_size <= NDB_MAX_LONG_SECTIONS_SIZE)
+    {
+      return impl->sendSignal(request, aNodeId, secs, numSecs);
+    }
+    else if (ndbd_frag_tckeyreq(tcNodeVersion))
+    {
+      return impl->sendFragmentedSignal(request, aNodeId, secs, numSecs);
+    }
+    else
+    {
+      /* It should not be possible to see a table definition that supports
+       * big rows unless all data nodes that are started also can handle it.
+       */
+      require(ndbd_frag_tckeyreq(tcNodeVersion));
+      return -1;
+    }
   }
   else
   {
     /* Send signal as short request - either for backwards
      * compatibility or testing
+     *
+     * This means that Read Committed Base flag will be
+     * overwritten and thus ignored.
      */
     Uint32 sigCount = 1;
-    Uint32 keyInfoLen  = secs[0].sz;
-    Uint32 attrInfoLen = (numSecs == 2)?
-      secs[1].sz : 
-      0;
     
     Uint32 keyInfoInReq = MIN(keyInfoLen, TcKeyReq::MaxKeyInfo);
     Uint32 attrInfoInReq = MIN(attrInfoLen, TcKeyReq::MaxAttrInfo);
@@ -263,7 +324,6 @@ int
 NdbOperation::doSend(int aNodeId, Uint32 lastFlag)
 {
   assert(theTCREQ != NULL);
-  setLastFlag(theTCREQ, lastFlag);
   Uint32 numSecs= 1;
   GenericSectionPtr secs[2];
 
@@ -288,7 +348,7 @@ NdbOperation::doSend(int aNodeId, Uint32 lastFlag)
       numSecs++;
     }
     
-    if (doSendKeyReq(aNodeId, &secs[0], numSecs) == -1)
+    if (doSendKeyReq(aNodeId, &secs[0], numSecs, lastFlag) == -1)
       return -1;
   }
   else
@@ -331,7 +391,7 @@ NdbOperation::doSend(int aNodeId, Uint32 lastFlag)
       numSecs++;
     }
 
-    if (doSendKeyReq(aNodeId, &secs[0], numSecs) == -1)
+    if (doSendKeyReq(aNodeId, &secs[0], numSecs, lastFlag) == -1)
       return -1;
   }
 
@@ -472,14 +532,7 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
   tTransId1 = (Uint32) aTransId;
   tTransId2 = (Uint32) (aTransId >> 32);
   
-  Uint8 tSimpleIndicator = theSimpleIndicator;
-  Uint8 tCommitIndicator = theCommitIndicator;
-  Uint8 tStartIndicator = theStartIndicator;
   Uint8 tInterpretIndicator = theInterpretIndicator;
-  Uint8 tNoDisk = (m_flags & OF_NO_DISK) != 0;
-  Uint8 tQueable = (m_flags & OF_QUEUEABLE) != 0;
-  Uint8 tDeferred = (m_flags & OF_DEFERRED_CONSTRAINTS) != 0;
-  Uint8 tDisableFk = (m_flags & OF_DISABLE_FK) != 0;
 
   /**
    * A dirty read, can not abort the transaction
@@ -491,45 +544,25 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
   tcKeyReq->transId2           = tTransId2;
   
   tReqInfo = 0;
-  tcKeyReq->setAIInTcKeyReq(tReqInfo, 0); // Not needed
-  tcKeyReq->setSimpleFlag(tReqInfo, tSimpleIndicator);
-  tcKeyReq->setCommitFlag(tReqInfo, tCommitIndicator);
-  tcKeyReq->setStartFlag(tReqInfo, tStartIndicator);
   tcKeyReq->setInterpretedFlag(tReqInfo, tInterpretIndicator);
-  tcKeyReq->setNoDiskFlag(tReqInfo, tNoDisk);
-  tcKeyReq->setQueueOnRedoProblemFlag(tReqInfo, tQueable);
-  tcKeyReq->setDeferredConstraints(tReqInfo, tDeferred);
-  tcKeyReq->setDisableFkConstraints(tReqInfo, tDisableFk);
 
-  OperationType tOperationType = theOperationType;
   Uint8 abortOption = (ao == DefaultAbortOption) ? (Uint8) m_abortOption : (Uint8) ao;
-
-  tcKeyReq->setDirtyFlag(tReqInfo, tDirtyIndicator);
-  tcKeyReq->setOperationType(tReqInfo, tOperationType);
-  tcKeyReq->setKeyLength(tReqInfo, 0); // Not needed
-  tcKeyReq->setViaSPJFlag(tReqInfo, 0);
 
   // A dirty read is always ignore error
   abortOption = tDirtyState ? (Uint8) AO_IgnoreError : (Uint8) abortOption;
   tcKeyReq->setAbortOption(tReqInfo, abortOption);
   m_abortOption = abortOption;
-  
-  Uint8 tDistrKeyIndicator = theDistrKeyIndicator_;
-  Uint8 tScanIndicator = theScanInfo & 1;
 
-  tcKeyReq->setDistributionKeyFlag(tReqInfo, tDistrKeyIndicator);
-  tcKeyReq->setScanIndFlag(tReqInfo, tScanIndicator);
-
-  tcKeyReq->requestInfo  = tReqInfo;
+  tcKeyReq->setNoDiskFlag(tReqInfo, (m_flags & OF_NO_DISK) != 0);
+  tcKeyReq->requestInfo = tReqInfo;
 
 //-------------------------------------------------------------
 // The next step is to fill in the upto three conditional words.
 //-------------------------------------------------------------
   Uint32* tOptionalDataPtr = &tcKeyReq->scanInfo;
-  Uint32 tDistrGHIndex = tScanIndicator;
-  Uint32 tDistrKeyIndex = tDistrGHIndex;
-
   Uint32 tScanInfo = theScanInfo;
+  Uint32 tDistrKeyIndex = tScanInfo & 1;
+
   Uint32 tDistrKey = theDistributionKey;
 
   tOptionalDataPtr[0] = tScanInfo;
@@ -1428,19 +1461,7 @@ NdbOperation::prepareSendNdbRecord(AbortOption ao)
   m_abortOption= theSimpleIndicator && theOperationType==ReadRequest ?
     (Uint8) AO_IgnoreError : (Uint8) abortOption;
 
-  Uint8 tQueable = (m_flags & OF_QUEUEABLE) != 0;
-  Uint8 tDeferred = (m_flags & OF_DEFERRED_CONSTRAINTS) != 0;
-  Uint8 tDisableFk = (m_flags & OF_DISABLE_FK) != 0;
-
   TcKeyReq::setAbortOption(tcKeyReq->requestInfo, m_abortOption);
-  TcKeyReq::setCommitFlag(tcKeyReq->requestInfo, theCommitIndicator);
-  TcKeyReq::setStartFlag(tcKeyReq->requestInfo, theStartIndicator);
-  TcKeyReq::setSimpleFlag(tcKeyReq->requestInfo, theSimpleIndicator);
-  TcKeyReq::setDirtyFlag(tcKeyReq->requestInfo, theDirtyIndicator);
-
-  TcKeyReq::setQueueOnRedoProblemFlag(tcKeyReq->requestInfo, tQueable);
-  TcKeyReq::setDeferredConstraints(tcKeyReq->requestInfo, tDeferred);
-  TcKeyReq::setDisableFkConstraints(tcKeyReq->requestInfo, tDisableFk);
 
   theStatus= WaitResponse;
   theReceiver.prepareSend();
@@ -1471,15 +1492,8 @@ NdbOperation::fillTcKeyReqHdr(TcKeyReq *tcKeyReq,
   tcKeyReq->attrLen= 0;
 
   UintR reqInfo= 0;
-  /* Dirty flag, Commit flag, Start flag, Simple flag set later
-   * in prepareSendNdbRecord()
-   */
   TcKeyReq::setInterpretedFlag(reqInfo, (m_interpreted_code != NULL));
-  /* We will setNoDiskFlag() later when we have checked all columns. */
-  TcKeyReq::setOperationType(reqInfo, theOperationType);
   // AbortOption set later in prepareSendNdbRecord()
-  TcKeyReq::setDistributionKeyFlag(reqInfo, theDistrKeyIndicator_);
-  TcKeyReq::setScanIndFlag(reqInfo, theScanInfo & 1);
   tcKeyReq->requestInfo= reqInfo;
 
   tcKeyReq->transId1= (Uint32)transId;

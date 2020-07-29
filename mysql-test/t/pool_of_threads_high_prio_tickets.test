@@ -1,12 +1,6 @@
 # Start with thread_handling=pool-of-threads
 # and run some basic tests with --thread_pool_high_prio_tickets=2
 
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
-# It is needed because of include/common-tests.inc here
---source include/force_myisam_default.inc
-
 -- source include/have_pool_of_threads.inc
 
 SELECT @@thread_pool_high_prio_tickets;

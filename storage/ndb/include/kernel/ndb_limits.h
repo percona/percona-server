@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,9 @@
  * Note that actual value = MAX_NODES - 1,
  *  since NodeId = 0 can not be used
  */
-#define MAX_NDB_NODES 49
+#define MAX_NDB_NODES 145
+#define MAX_NDB_NODES_v1 49
+#define MAX_NDB_NODE_GROUPS 72
 #define MAX_NODES     256
 #define NDB_UNDEF_NODEGROUP 0xFFFF
 #define MAX_BACKUPS   0xFFFFFFFF
@@ -42,7 +44,7 @@
  * IT SHOULD BE (MAX_NDB_NODES - 1).
  * WHEN MAX_NDB_NODE IS CHANGED, IT SHOULD BE CHANGED ALSO
  **************************************************************************/
-#define MAX_DATA_NODE_ID 48
+#define MAX_DATA_NODE_ID 144
 /**************************************************************************
  * IT SHOULD BE (MAX_NODES - 1).
  * WHEN MAX_NODES IS CHANGED, IT SHOULD BE CHANGED ALSO
@@ -57,6 +59,15 @@
  * The maximum number of replicas in the system
  */
 #define MAX_REPLICAS 4
+
+/**
+ * The maximum number of transporters allowed
+ * A maximum is needed to be able to allocate the array of transporters
+ * We need one 
+ */
+#define MAX_NODE_GROUP_TRANSPORTERS 32
+#define MAX_NTRANSPORTERS (MAX_NODES + \
+                           ((MAX_REPLICAS - 1) * MAX_NODE_GROUP_TRANSPORTERS))
 
 /**
  * The maximum number of local checkpoints stored at a time
@@ -85,23 +96,8 @@
 #define MAX_ATTR_DEFAULT_VALUE_SIZE ((MAX_TUPLE_SIZE_IN_WORDS + 1) * 4)  //Add 1 word for AttributeHeader
 #define MAX_ATTRIBUTES_IN_TABLE 512
 #define MAX_ATTRIBUTES_IN_INDEX 32
-#define MAX_TUPLE_SIZE_IN_WORDS 3500
-
-/**
- * When sending a SUB_TABLE_DATA from SUMA to API
- *
- */
-#define MAX_SUMA_MESSAGE_IN_WORDS 8028
-
-/**
- * When sending a SUB_TABLE_DATA
- *  this is is the maximum size that it can become
- */
-#define CHECK_SUMA_MESSAGE_SIZE(NO_KEYS,KEY_SIZE_IN_WORDS,NO_COLUMNS,TUPLE_SIZE_IN_WORDS) \
-  ((NO_KEYS + KEY_SIZE_IN_WORDS + 2 * (NO_COLUMNS + TUPLE_SIZE_IN_WORDS)) <= MAX_SUMA_MESSAGE_IN_WORDS)
-
+#define MAX_TUPLE_SIZE_IN_WORDS 7500
 #define MAX_KEY_SIZE_IN_WORDS 1023
-#define MAX_FRM_DATA_SIZE 6000
 #define MAX_NULL_BITS 4096
 
 /*
@@ -145,8 +141,10 @@
 
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define MAX_NDB_PARTITIONS 240
-#else
+#elif NDB_VERSION_D < NDB_MAKE_VERSION(7,6,8)
 #define MAX_NDB_PARTITIONS 2048
+#else
+#define MAX_NDB_PARTITIONS 8160
 #endif
 
 #define NDB_PARTITION_BITS 16
@@ -166,11 +164,7 @@
 /*
 * The default batch size. Configurable parameter.
 */
-#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
-#define DEF_BATCH_SIZE 64
-#else
 #define DEF_BATCH_SIZE 256
-#endif
 /*
 * When calculating the number of records sent from LQH in each batch
 * one uses SCAN_BATCH_SIZE divided by the expected size of signals
@@ -271,6 +265,7 @@
  */
 
 #define NDB_MAX_HASHMAP_BUCKETS (3840 * 2 * 3)
+#define NDB_DEFAULT_HASHMAP_MAX_FRAGMENTS 1536
 
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define NDB_DEFAULT_HASHMAP_BUCKETS 240
@@ -289,6 +284,8 @@
 #define NDBMT_MAX_WORKER_INSTANCES (NDBMT_MAX_BLOCK_INSTANCES - 1)
 
 #define NDB_DEFAULT_LOG_PARTS 4
+
+#define NDBMT_MAIN_THREADS         2 /* Without receiver threads */
 
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define NDB_MAX_LOG_PARTS          4
@@ -314,7 +311,7 @@
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define NDB_FS_RW_PAGES 32
 #else
-#define NDB_FS_RW_PAGES 268
+#define NDB_FS_RW_PAGES 268 * 4
 #endif
 
 /**
@@ -354,6 +351,44 @@
 #define MAX_INDEX_STAT_VALUE_CSIZE  512 /* Longvarbinary(2048) */
 #define MAX_INDEX_STAT_VALUE_FORMAT 1
 
+/**
+ * When calculating batch size for unique key builds, reorg builds,
+ * and foreign key builds we will treat this as the maximum normal
+ * row size, if rows are bigger than this we will decrease the
+ * parallelism to adjust for this.
+ * See Suma.cpp
+ */
+#define MAX_NORMAL_ROW_SIZE 2048
+
+/**
+ * Maximum size that an EVENT_REP signal can carry in its
+ * long signal section.
+ */
+#define MAX_EVENT_REP_SIZE_WORDS 1024
+
+#define MAX_UNDO_DATA            20 + MAX_TUPLE_SIZE_IN_WORDS
+// Max. number of pending undo records allowed per LDM
+#define MAX_PENDING_UNDO_RECORDS 100
+
+// Maximum handling of DROP_TRIG_REQs in parallel by LocalProxy
+#define NDB_MAX_PROXY_DROP_TRIG_IMPL_REQ 21
+/* Maximum number of DROP_TRIGGER_REQs SUMA can send parallely after the
+ * execution of SUB_STOP_REQ.
+ *
+ * We do not anticipate multiple parallel sub stop reqs from multiple APIs.
+ * So, it should be fair to restrict the number of API nodes sending
+ * sub stop requests parallely to 2. Any further sub stop requests from any
+ * other API nodes will be delayed. We delay the sub stop requests execution
+ * based on outstanding trigger drop requests. Each sub stop request can
+ * send a maximum of 3 drop trigger requests. So now a maximum of 6 is
+ * allowed to execute parallely from all api nodes.*/
+#define NDB_MAX_SUMA_DROP_TRIG_REQ_SUBSTOP 2 * 3
+/* Max DROP_TRIG_REQ allowed from api_fail_subscriber_list
+ * This is greater than the maximum requests allowed from SUB_STOP_REQ
+ * handling so as to give priority to API failure handling over normal start
+ * and stop subscriptions if they both are competing. */
+#define NDB_MAX_SUMA_DROP_TRIG_REQ_APIFAIL 3 * 3
+
 #ifdef NDB_STATIC_ASSERT
 
 static inline void ndb_limits_constraints()
@@ -372,7 +407,7 @@ static inline void ndb_limits_constraints()
   NDB_STATIC_ASSERT(MAX_NDB_DATA_NODES * MAX_NDBMT_LQH_WORKERS <= MAX_NDB_PARTITIONS);
 
   // The default hashmap should atleast support the maximum default partitioning
-  NDB_STATIC_ASSERT(MAX_NDB_DATA_NODES * MAX_NDBMT_LQH_WORKERS <= NDB_DEFAULT_HASHMAP_BUCKETS);
+  NDB_STATIC_ASSERT(MAX_NDB_DATA_NODES * MAX_NDBMT_LQH_WORKERS <= NDB_MAX_HASHMAP_BUCKETS);
 }
 
 #endif

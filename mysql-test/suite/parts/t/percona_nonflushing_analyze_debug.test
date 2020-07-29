@@ -1,6 +1,4 @@
 --source include/have_debug_sync.inc
---source include/have_innodb.inc
---source include/have_partition.inc
 
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB
        PARTITION BY RANGE (a) (

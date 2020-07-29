@@ -3,8 +3,6 @@
 --source include/have_rocksdb.inc
 --source include/master-slave.inc
 
-CALL mtr.add_suppression('You need to use --log-bin to make --binlog-format work.');
-
 connection master;
 CREATE TABLE t1(a INT PRIMARY KEY, b INT, KEY s_k(b)) ENGINE=ROCKSDB;
 

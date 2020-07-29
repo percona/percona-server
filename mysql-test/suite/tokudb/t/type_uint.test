@@ -11,9 +11,9 @@ SET SQL_WARNINGS=1;
 
 create table t1 (this int unsigned);
 insert into t1 values (1);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (-1);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('5000000000');
 select * from t1;
 drop table t1;

@@ -1,6 +1,5 @@
 # Tests for innodb_track_changed_pages variable
 
---source include/have_innodb.inc
 --source include/have_nodebug.inc
 
 SELECT COUNT(@@GLOBAL.innodb_track_changed_pages);
@@ -9,7 +8,7 @@ SELECT COUNT(@@GLOBAL.innodb_track_changed_pages);
 SET @@GLOBAL.innodb_track_changed_pages=1;
 
 SELECT @@GLOBAL.innodb_track_changed_pages = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_track_changed_pages';
 
 SELECT @@innodb_track_changed_pages = @@GLOBAL.innodb_track_changed_pages;

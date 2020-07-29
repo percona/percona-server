@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,7 +113,7 @@ enum
  * Word 2: Id of receiver for root operation (where the ancestor tuple of this
  *         tuple will go).
  *
- * Both tuple identifiers are unique within this batch and root fragment.
+ * Both tuple identifiers are unique within this batch of SPJ-worker results.
  * With these identifiers, it is possible to relate a tuple to its parent and 
  * children. That way, results for child operations can be updated correctly
  * when the application iterates over the results of the root scan operation.
@@ -170,8 +170,14 @@ public:
 private:
   const Uint32* const m_corrPart;
 }; // class CorrelationData
- 
+
+
 /**
+ * The NdbWorker handles results produced by a request to a single SPJ instance.
+ *
+ * If 'MultiFragment' scan is requested, the NdbWorker handles root and
+ * related child rows from all fragments specified in the MultiFragment scan request.
+ *
  * If a query has a scan operation as its root, then that scan will normally 
  * read from several fragments of its target table. Each such root fragment
  * scan, along with any child lookup operations that are spawned from it,
@@ -181,42 +187,41 @@ private:
  * - When one fragment is complete (for a batch) the API will make these data
  *   avaliable to the application, even if other fragments are not yet complete.
  * - The tuple identifiers that are used for matching children with parents are
- *   only guaranteed to be unique within one batch, operation, and root 
- *   operation fragment. Tuples derived from different root fragments must 
- *   thus be kept apart.
+ *   only guaranteed to be unique within one batch of SPJ-worker results.
+ *   Tuples derived from different worker result sets must thus be kept apart.
  * 
  * This class manages the state of one such read operation, from one particular
- * fragment of the target table of the root operation. If the root operation
- * is a lookup, then there will be only one instance of this class.
+ * request to a SPJ block instance. If the root operation is a lookup,
+ * then there will be only one instance of this class.
  */
-class NdbRootFragment {
+class NdbWorker {
 public:
-  /** Build hash map for mapping from root receiver id to NdbRootFragment 
+  /** Build hash map for mapping from root receiver id to NdbWorker 
    * instance.*/
-  static void buildReciverIdMap(NdbRootFragment* frags, 
-                                Uint32 noOfFrags);
+  static void buildReceiverIdMap(NdbWorker* workers, 
+                                 Uint32 noOfWorkers);
 
-  /** Find NdbRootFragment instance corresponding to a given root receiver id.*/
-  static NdbRootFragment* receiverIdLookup(NdbRootFragment* frags, 
-                                           Uint32 noOfFrags, 
-                                           Uint32 receiverId);
+  /** Find NdbWorker instance corresponding to a given root receiver id.*/
+  static NdbWorker* receiverIdLookup(NdbWorker* frags, 
+                                     Uint32 noOfWorkers, 
+                                     Uint32 receiverId);
 
-  explicit NdbRootFragment();
+  explicit NdbWorker();
 
-  ~NdbRootFragment();
+  ~NdbWorker();
 
   /**
    * Initialize object.
    * @param query Enclosing query.
-   * @param fragNo This object manages state for reading from the fragNo'th 
-   * fragment that the root operation accesses.
+   * @param workerNo This object manages state for reading from the
+   * workerNo'th worker result that the root operation accesses.
    */
-  void init(NdbQueryImpl& query, Uint32 fragNo); 
+  void init(NdbQueryImpl& query, Uint32 workerNo); 
 
-  static void clear(NdbRootFragment* frags, Uint32 noOfFrags);
+  static void clear(NdbWorker* frags, Uint32 noOfWorkers);
 
-  Uint32 getFragNo() const
-  { return m_fragNo; }
+  Uint32 getWorkerNo() const
+  { return m_workerNo; }
 
   /**
    * Prepare for receiving another batch of results.
@@ -259,26 +264,25 @@ public:
   void setConfReceived(Uint32 tcPtrI);
 
   /** 
-   * The root operation will read from a number of fragments of a table.
+   * The worker will read from a number of fragments of a table.
    * This method checks if all results for the current batch has been 
-   * received for a given fragment. This includes both results for the root
+   * received from this worker. This includes both results for the root
    * operation and any child operations. Note that child operations may access
-   * other fragments; the fragment number only refers to what 
-   * the root operation does.
+   * other fragments.
    *
-   * @return True if current batch is complete for this fragment.
+   * @return True if current batch is complete for this worker.
    */
   bool isFragBatchComplete() const
   { 
-    assert(m_fragNo!=voidFragNo);
+    assert(m_workerNo!=voidWorkerNo);
     return m_confReceived && m_outstandingResults==0; 
   }
 
   /**
-   * Get the result stream that handles results derived from this root 
-   * fragment for a particular operation.
+   * Get the result stream that handles results derived from this
+   * SPJ-worker for a particular operation.
    * @param operationNo The id of the operation.
-   * @return The result stream for this root fragment.
+   * @return The result stream for this worker.
    */
   NdbResultStream& getResultStream(Uint32 operationNo) const;
 
@@ -289,24 +293,30 @@ public:
   Uint32 getReceiverTcPtrI() const;
 
   /**
-   * @return True if there are no more batches to be received for this fragment.
+   * @return True if there are no more batches to be received for this worker.
    */
   bool finalBatchReceived() const;
 
   /**
-   * @return True if there are no more results from this root fragment (for 
+   * @return True if there are no more results from this worker (for 
    * the current batch).
    */
   bool isEmpty() const;
 
   /** 
    * This method is used for marking which streams belonging to this
-   * NdbRootFragment which has remaining batches for a sub scan
+   * NdbWorker which has remaining batches for a sub scan
    * instantiated from the current batch of its parent operation.
+   *
+   * moreMask:   Set of streams which we may receive more result from
+   *             in *next* batch.
+   * activeMask: Set of streams currently not returned their last row.
+   *             (Will return 'more' in next or later REQuests)
    */
-  void setRemainingSubScans(Uint32 nodeMask)
-  { 
-    m_remainingScans = nodeMask;
+  void setRemainingSubScans(Uint32 moreMask, Uint32 activeMask)
+  {
+    m_nextScans.assign(SpjTreeNodeMask::Size, &moreMask);
+    m_activeScans.assign(SpjTreeNodeMask::Size, &activeMask);
   }
 
   /** Release resources after last row has been returned */
@@ -314,18 +324,18 @@ public:
 
 private:
   /** No copying.*/
-  NdbRootFragment(const NdbRootFragment&);
-  NdbRootFragment& operator=(const NdbRootFragment&);
+  NdbWorker(const NdbWorker&);
+  NdbWorker& operator=(const NdbWorker&);
 
-  STATIC_CONST( voidFragNo = 0xffffffff);
+  STATIC_CONST(voidWorkerNo = 0xffffffff);
 
   /** Enclosing query.*/
   NdbQueryImpl* m_query;
 
-  /** Number of the root operation fragment.*/
-  Uint32 m_fragNo;
+  /** Number of this worker result set as assigned by ::init().*/
+  Uint32 m_workerNo;
 
-  /** For processing results originating from this root fragment (Array of).*/
+  /** For processing results originating from worker (Array of).*/
   NdbResultStream* m_resultStreams;
 
   /**
@@ -344,7 +354,7 @@ private:
 
   /**
    * The number of outstanding TCKEYREF or TRANSID_AI messages to receive
-   * for the fragment. This includes both messages related to the
+   * for the worker. This includes both messages related to the
    * root operation and any descendant operation that was instantiated as
    * a consequence of tuples found by the root operation.
    * This number may temporarily be negative if e.g. TRANSID_AI arrives 
@@ -362,25 +372,43 @@ private:
   bool m_confReceived;
 
   /**
+   * A bitmask of operation id's which has been set up to receive more
+   * ResultSets by prepareNextReceiveSet().
+   */
+  SpjTreeNodeMask m_preparedReceiveSet;
+
+  /**
    * A bitmask of operation id's for which we will receive more
    * ResultSets in a NEXTREQ.
+   * Note: This is the next set of op's to be prepared (before NEXTREQ)
+   * Note: Due to protocol legacy, only the uppermost scan op's in the branch
+   *       getting new rows are set - However, all descendants will also get
+   *       new ResultSets.
    */
-  Uint32 m_remainingScans;
+  SpjTreeNodeMask m_nextScans;
+
+  /**
+   * A bitmask of operation id's still being 'active' on the SPJ side.
+   * These will sooner or later return 'm_nextScans', but not necessarily
+   * in the next round. It follows from this that 'active' contains 'remaining'.
+   */
+  SpjTreeNodeMask m_activeScans;
 
   /** 
    * Used for implementing a hash map from root receiver ids to a 
-   * NdbRootFragment instance. m_idMapHead is the index of the first
-   * NdbRootFragment in the m_fragNo'th hash bucket. 
+   * NdbWorker instance. m_idMapHead is the index of the first
+   * NdbWorker in the m_workerNo'th hash bucket. 
    */
   int m_idMapHead;
 
   /** 
    * Used for implementing a hash map from root receiver ids to a 
-   * NdbRootFragment instance. m_idMapNext is the index of the next
-   * NdbRootFragment in the same hash bucket as this one. 
+   * NdbWorker instance. m_idMapNext is the index of the next
+   * NdbWorker in the same hash bucket as this one. 
    */
   int m_idMapNext;
-}; //NdbRootFragment
+}; //NdbWorker
+
 
 /**
  * 'class NdbResultSet' is a helper for 'class NdbResultStream'.
@@ -424,11 +452,11 @@ private:
 
 /** 
  * This class manages the subset of result data for one operation that is 
- * derived from one fragment of the root operation. Note that the result tuples
+ * produced from one SPJ-worker. Note that the child result tuples
  * may come from any fragment, but they all have initial ancestors from the 
- * same fragment of the root operation.  
- * For each operation there will thus be one NdbResultStream for each fragment
- * that the root operation reads from (one in the case of lookups.)
+ * root-fragment(s) scanned by the same SPJ-worker.  
+ * For each operation there will thus be one NdbResultStream for each worker
+ * employed by this SPJ query (one in the case of lookups.)
  * This class has an NdbReceiver object for processing tuples as well as 
  * structures for correlating child and parent tuples.
  */
@@ -437,10 +465,10 @@ public:
 
   /**
    * @param operation The operation for which we will receive results.
-   * @param rootFragNo 0..n-1 when the root operation reads from n fragments.
+   * @param worker the NdbWorker delivering the result to this 'stream.
    */
   explicit NdbResultStream(NdbQueryOperationImpl& operation,
-                           NdbRootFragment& rootFrag);
+                           NdbWorker& worker);
 
   ~NdbResultStream();
 
@@ -449,8 +477,8 @@ public:
    */
   void prepare();
 
-  /** Prepare for receiving next batch of scan results. */
-  void prepareNextReceiveSet();
+  /** Prepare for receiving next batch of scan results, return nodes prepared */
+  SpjTreeNodeMask prepareNextReceiveSet();
     
   NdbReceiver& getReceiver()
   { return m_receiver; }
@@ -472,11 +500,11 @@ public:
                       TupleCorrelation correlation);
 
   /**
-   * A complete batch has been received for a fragment on this NdbResultStream,
+   * A complete batch has been received from the 'worker' delivering to NdbResultStream.
    * Update whatever required before the appl. are allowed to navigate the result.
-   * @return true if node and all its siblings have returned all rows.
    */ 
-  bool prepareResultSet(Uint32 remainingScans);
+  void prepareResultSet(SpjTreeNodeMask expectingResults,
+                        SpjTreeNodeMask stillActiveScans);
 
   /**
    * Navigate within the current ResultSet to resp. first and next row.
@@ -488,30 +516,30 @@ public:
   Uint16 firstResult();
   Uint16 nextResult();
 
-  /** 
+  /**
    * Returns true if last row matching the current parent tuple has been 
    * consumed.
    */
   bool isEmpty() const
   { return m_iterState == Iter_finished; }
 
-  /** 
-   * This method 
-   * returns true if this result stream holds the last batch of a sub scan.
+  Uint32 getInternalOpNo() const
+  { return m_operation.getInternalOpNo(); }
+
+  /**
+   * Returns true if this result stream holds the last batch of a sub scan.
    * This means that it is the last batch of the scan that was instantiated 
    * from the current batch of its parent operation.
    */
-  bool isSubScanComplete(Uint32 remainingScans) const
+  bool isSubScanComplete(SpjTreeNodeMask remainingScans) const
   { 
     /**
      * Find the node number seen by the SPJ block. Since a unique index
      * operation will have two distincts nodes in the tree used by the
      * SPJ block, this number may be different from 'opNo'.
      */
-    const Uint32 internalOpNo = m_operation.getInternalOpNo();
-
-    const bool complete = !((remainingScans >> internalOpNo) & 1);
-    return complete; 
+    const Uint32 internalOpNo = getInternalOpNo();
+    return !remainingScans.get(internalOpNo);
   }
 
   bool isScanQuery() const
@@ -522,6 +550,15 @@ public:
 
   bool isInnerJoin() const
   { return (m_properties & Is_Inner_Join); }
+
+  bool isOuterJoin() const
+  { return !(m_properties & Is_Inner_Join); }
+
+  bool isFirstInner() const
+  { return (m_properties & Is_First_Inner); }
+
+  bool useFirstMatch() const
+  { return (m_properties & Is_First_Match); }
 
   /** For debugging.*/
   friend NdbOut& operator<<(NdbOut& out, const NdbResultStream&);
@@ -557,12 +594,45 @@ public:
     Uint16 m_hash_head; // Index of first item in TupleSet[] matching a hashed parentId.
     Uint16 m_hash_next; // 'next' index matching 
 
-    bool   m_skip;      // Skip this tuple in result processing for now
+    /**
+     * If the n'th bit is set, then a matching tuple for the n'th child has been seen.
+     * The information is aggregated by the ancestors as well, such that the topmost
+     * node in the tree can check that there are matching childs for all descendants.
+     * When NULL extended rows are allowed to be produced, 'matching bits' are set
+     * even for these
+     *
+     * Bit 0 has a special usage as a 'skip bit' for the row. If set the row
+     * should be ignored.
+     *
+     * Note that there are no children with an m_internalOpNo of 0, so using
+     * bit-0 as a skip bit should not interfere with matching of child rows.
+     *
+     * There is also a special skip-firstMatch usage of m_matchingChild, where
+     * all bits are set. (Also include the normal bit-0 skip). Using the normal
+     * interpretation of the bits, that translate into: 'Skip the root tuple itself,
+     * even if all 31 children had a match'.
+     * That is an impossible contradiction of the join semantics,
+     * so this special all-set bit pattern could not happen elsewhere.
+     */
+    SpjTreeNodeMask m_hasMatchingChild;
 
-    /** If the n'th bit is set, then a matching tuple for the n,th child has been seen. 
-     * This information is needed when generating left join tuples for those tuples
-     * that had no matching children.*/
-    Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> m_hasMatchingChild;
+    /**
+     * m_hadMatchingChild keep track of previous matches found for this tuple.
+     * Has two usages, depending on whether it is an outer- or firstMatch-semi-join:
+     *
+     * outer-join:
+     *   The aggregated set of (outer joined) nests which matched this tuple.
+     *   (NULL-extensions excluded.) Only the bit representing the firstInner
+     *   of the nest having a matching set of rows is set. Needed in order to
+     *   decide when/if a NULL extension of the rows on this outer joined
+     *   nest should be emitted or not.
+     *
+     * firstMatch semi-join:
+     *   The aggregated set of treeNodes which has a previous match with tuple.
+     *   Used to decide if a firstMatch had already been found for this tuple,
+     *   such that further matches should be skipped.
+     */
+    SpjTreeNodeMask m_hadMatchingChild;
 
     explicit TupleSet() : m_hash_head(tupleNotFound)
     {}
@@ -576,9 +646,9 @@ public:
 private:
   /**
    * This stream handles results derived from specified 
-   * m_rootFrag of the root operation.
+   * 'm_worker' creating partial SPJ results.
    */
-  const NdbRootFragment& m_rootFrag;
+  const NdbWorker& m_worker;
  
   /** Operation to which this resultStream belong.*/
   NdbQueryOperationImpl& m_operation;
@@ -586,11 +656,25 @@ private:
   /** ResultStream for my parent operation, or NULL if I am root */
   NdbResultStream* const m_parent;
 
+  /**
+   * The dependants node map contain those nodes depending on (the existence of)
+   * this internalOpNo. That includes all Op's in the same join nest *after*
+   * this op as well as all nodes in other join nests which are nested within
+   * the nest of this Op. In terms of QueryOperands that translates to:
+   *  - All children of this op.
+   *  - All Op's in branches referring this op as a firstUpper/Inner
+   *
+   * By convention this node itself is also contained in the dependants map
+   */
+  const SpjTreeNodeMask m_dependants;
+
   const enum properties
   {
     Is_Scan_Query = 0x01,
     Is_Scan_Result = 0x02,
-    Is_Inner_Join = 0x10
+    Is_Inner_Join = 0x10,  // As opposed to outer join
+    Is_First_Match = 0x20,   // Return FirstMatch only
+    Is_First_Inner = 0x40
   } m_properties;
 
   /** The receiver object that unpacks transid_AI messages.*/
@@ -638,6 +722,35 @@ private:
   Uint16 findTupleWithParentId(Uint16 parentId) const;
 
   Uint16 findNextTuple(Uint16 tupleNo) const;
+
+  /** Set/clear/check whether the specified tupleNo should become invisible */
+  void setSkipped(Uint16 tupleNo)
+  { m_tupleSet[tupleNo].m_hasMatchingChild.set(0U); }
+
+  void clearSkipped(Uint16 tupleNo)
+  { m_tupleSet[tupleNo].m_hasMatchingChild.clear(0U); }
+
+  bool isSkipped(Uint16 tupleNo) const
+  { return m_tupleSet[tupleNo].m_hasMatchingChild.get(0U); }
+
+  /**
+   * The skip methods above are a 'one time'-skip, where the tuples are
+   * skipped for this result batch only, and the skip recalculated for the
+   * next batch. For FirstMatch we need to skip the matched row for multiple
+   * batches, so we have a special variant for doing firstMatch-skip.
+   * (Also see comment for the 'm_matchingChild' member variable).
+   *
+   * Note that a firstMatch-skip also implies a 'normal' skip, but not the
+   * other way around.
+   */
+  void setSkippedFirstMatch(Uint16 tupleNo)
+  { m_tupleSet[tupleNo].m_hasMatchingChild.set(); }
+
+  void clearSkippedFirstMatch(Uint16 tupleNo)
+  { m_tupleSet[tupleNo].m_hasMatchingChild.clear(); }
+
+  bool isSkippedFirstMatch(Uint16 tupleNo) const
+  { return m_tupleSet[tupleNo].m_hasMatchingChild.is_set(); }
 
   /** No copying.*/
   NdbResultStream(const NdbResultStream&);
@@ -718,28 +831,37 @@ NdbResultSet::init(NdbQueryImpl& query,
 //////////////////////////////////////////////
 
 NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation,
-                                 NdbRootFragment& rootFrag)
+                                 NdbWorker& worker)
 :
-  m_rootFrag(rootFrag),
+  m_worker(worker),
   m_operation(operation),
   m_parent(operation.getParentOperation()
-        ? &rootFrag.getResultStream(*operation.getParentOperation())
+        ? &worker.getResultStream(*operation.getParentOperation())
         : NULL),
+  m_dependants(operation.getDependants()),
   m_properties(
     (enum properties)
      ((operation.getQueryDef().isScanQuery()
        ? Is_Scan_Query : 0)
      | (operation.getQueryOperationDef().isScanOperation()
        ? Is_Scan_Result : 0)
-     | (operation.getQueryOperationDef().getMatchType() != NdbQueryOptions::MatchAll
-       ? Is_Inner_Join : 0))),
+     | (operation.getQueryOperationDef().getMatchType() & NdbQueryOptions::MatchFirst
+	? Is_First_Match : 0)
+     | (operation.getQueryOperationDef().getMatchType() & NdbQueryOptions::MatchNonNull
+       ? Is_Inner_Join : 0)
+     // Is_first_Inner; if outer joined (with upper nest) and another firstInner
+     // than this 'operation' not specified
+     | ((operation.getQueryOperationDef().getMatchType() & NdbQueryOptions::MatchNonNull) == 0 &&
+        (operation.getQueryOperationDef().getFirstInner() == &operation.getQueryOperationDef() ||
+         operation.getQueryOperationDef().getFirstInner() == nullptr)
+       ? Is_First_Inner : 0))),
   m_receiver(operation.getQuery().getNdbTransaction().getNdb()),
   m_resultSets(), m_read(0xffffffff), m_recv(0),
   m_iterState(Iter_finished),
   m_currentRow(tupleNotFound),
   m_maxRows(0),
   m_tupleSet(NULL)
-{};
+{}
 
 NdbResultStream::~NdbResultStream()
 {
@@ -754,25 +876,27 @@ NdbResultStream::prepare()
 {
   NdbQueryImpl &query = m_operation.getQuery();
 
-  const Uint32 batchBufferSize = m_operation.getBatchBufferSize();
+  const Uint32 resultBufferSize = m_operation.getResultBufferSize();
   if (isScanQuery())
   {
     /* Parent / child correlation is only relevant for scan type queries
      * Don't create a m_tupleSet with these correlation id's for lookups!
      */
-    m_maxRows  = m_operation.getMaxBatchRows();
+    const Uint32 fragsPerWorker = query.getFragsPerWorker();
+
+    m_maxRows  = fragsPerWorker * m_operation.getMaxBatchRows();
     m_tupleSet = 
       new (query.getTupleSetAlloc().allocObjMem(m_maxRows)) 
       TupleSet[m_maxRows];
 
     // Scan results may be double buffered
-    m_resultSets[0].init(query, m_maxRows, batchBufferSize); 
-    m_resultSets[1].init(query, m_maxRows, batchBufferSize);
+    m_resultSets[0].init(query, m_maxRows, fragsPerWorker * resultBufferSize); 
+    m_resultSets[1].init(query, m_maxRows, fragsPerWorker * resultBufferSize);
   }
   else
   {
     m_maxRows = 1;
-    m_resultSets[0].init(query, m_maxRows, batchBufferSize);
+    m_resultSets[0].init(query, m_maxRows, resultBufferSize);
   }
 
   /* Alloc buffer for unpacked NdbRecord row */
@@ -815,7 +939,7 @@ NdbResultStream::findTupleWithParentId(Uint16 parentId) const
     while (currentRow != tupleNotFound)
     {
       assert(currentRow < m_maxRows);
-      if (m_tupleSet[currentRow].m_skip == false &&
+      if (!isSkipped(currentRow) &&
           m_tupleSet[currentRow].m_parentId == parentId)
       {
         return currentRow;
@@ -843,7 +967,7 @@ NdbResultStream::findNextTuple(Uint16 tupleNo) const
     while (nextRow != tupleNotFound)
     {
       assert(nextRow < m_maxRows);
-      if (m_tupleSet[nextRow].m_skip == false &&
+      if (!isSkipped(nextRow) &&
           m_tupleSet[nextRow].m_parentId == parentId)
       {
         return nextRow;
@@ -923,9 +1047,11 @@ NdbResultStream::execTRANSID_AI(const Uint32 *ptr, Uint32 len,
  * This NdbResultStream, and all its sibling will receive a batch
  * of results from the datanodes.
  */
-void
+SpjTreeNodeMask
 NdbResultStream::prepareNextReceiveSet()
 {
+  SpjTreeNodeMask prepared;
+
   if (isScanQuery())          // Doublebuffered ResultSet[] if isScanQuery()
   {
     m_recv = (m_recv+1) % 2;  // Receive into next ResultSet
@@ -933,6 +1059,7 @@ NdbResultStream::prepareNextReceiveSet()
   }
 
   m_resultSets[m_recv].prepareReceive(m_receiver);
+  prepared.set(getInternalOpNo());
 
   /**
    * If this stream will get new rows in the next batch, then so will
@@ -942,99 +1069,300 @@ NdbResultStream::prepareNextReceiveSet()
        childNo++)
   {
     NdbQueryOperationImpl& child = m_operation.getChildOperation(childNo);
-    m_rootFrag.getResultStream(child).prepareNextReceiveSet();
+    prepared.bitOR(m_worker.getResultStream(child).prepareNextReceiveSet());
   }
+  return prepared;
 } //NdbResultStream::prepareNextReceiveSet
 
 /**
  * Make preparations for another batch of result to be read:
  *  - Advance to next NdbResultSet. (or reuse last)
  *  - Fill in parent/child result correlations in m_tupleSet[]
- *  - ... or reset m_tupleSet[] if we reuse the previous.
+ *    for those getting a new ResulSet in this batch.
  *  - Apply inner/outer join filtering to remove non qualifying 
  *    rows.
  */
-bool 
-NdbResultStream::prepareResultSet(Uint32 remainingScans)
+void
+NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
+                                  const SpjTreeNodeMask stillActive)
 {
-  bool isComplete = isSubScanComplete(remainingScans); //Childs with more rows
-
   /**
    * Prepare NdbResultSet for reading - either the next
    * 'new' received from datanodes or reuse the last as has been 
    * determined by ::prepareNextReceiveSet()
    */
-  const bool newResults = (m_read != m_recv);
   m_read = m_recv;
   const NdbResultSet& readResult = m_resultSets[m_read];
 
-  if (m_tupleSet!=NULL)
+  if (m_tupleSet != nullptr &&
+      expectingResults.get(getInternalOpNo()))
   {
-    if (newResults)
-    {
-      buildResultCorrelations();
-    }
-    else
-    {
-      // Makes all rows in 'TupleSet' available (clear 'm_skip' flag)
-      for (Uint32 tupleNo=0; tupleNo<readResult.getRowCount(); tupleNo++)
-      {
-        m_tupleSet[tupleNo].m_skip = false;
-      }
-    }
+    buildResultCorrelations();
   }
 
-  /**
-   * Recursively iterate all child results depth first. 
-   * Filter away any result rows which should not be visible (yet) - 
-   * Either due to incomplete child batches, or the join being an 'inner join'.
-   * Set result itterator state to 'before first' resultrow.
-   */
-  for (Uint32 childNo=0; childNo < m_operation.getNoOfChildOperations(); childNo++)
+  SpjTreeNodeMask firstMatchedNodes;
+
+  for (int childNo=m_operation.getNoOfChildOperations()-1; childNo>=0; childNo--)
   {
     const NdbQueryOperationImpl& child = m_operation.getChildOperation(childNo);
-    NdbResultStream& childStream = m_rootFrag.getResultStream(child);
-    const bool allSubScansComplete = childStream.prepareResultSet(remainingScans);
-
-    Uint32 childId = child.getQueryOperationDef().getOpNo();
-
-    /* Condition 1) & 2) calc'ed outside loop, see comments further below: */
-    const bool skipNonMatches = !allSubScansComplete ||      // 1)
-                                childStream.isInnerJoin();   // 2)
-
-    if (m_tupleSet!=NULL)
+    NdbResultStream& childStream = m_worker.getResultStream(child);
+    if (expectingResults.overlaps(childStream.m_dependants))
     {
-      for (Uint32 tupleNo=0; tupleNo<readResult.getRowCount(); tupleNo++)
-      {
-        if (!m_tupleSet[tupleNo].m_skip)
-        {
-          Uint16 tupleId = getTupleId(tupleNo);
-          if (childStream.findTupleWithParentId(tupleId)!=tupleNotFound)
-            m_tupleSet[tupleNo].m_hasMatchingChild.set(childId);
+      // childStream got new result rows
+      childStream.prepareResultSet(expectingResults,stillActive);
+    }
+    else if (traceSignals)
+    {
+      ndbout << "prepareResultSet"
+             << ", no new 'expecting', ignore"
+             << ", opNo: " << getInternalOpNo()
+             << ", child: " << childStream.getInternalOpNo()
+             << ", expectingResults': " << expectingResults.rep.data[0]
+             << ", 'dependants': " << childStream.m_dependants.rep.data[0]
+             << endl;
+    }
+    // Collect set of treeNodes involved in a firstMatch
+    if (childStream.useFirstMatch())
+    {
+      firstMatchedNodes.bitOR(childStream.m_dependants);
+    }
+  }
 
-          /////////////////////////////////
-          //  No child matched for this row. Making parent row visible
-          //  will cause a NULL (outer join) row to be produced.
-          //  Skip NULL row production when:
-          //    1) Some child batches are not complete; they may contain later matches.
-          //    2) Join type is 'inner join', skip as no child are matching.
-          //    3) A match was found in a previous batch.
-          //  Condition 1) & 2) above is precalculated in 'bool skipNonMatches'
-          //
-          else if (skipNonMatches                                       // 1 & 2)
-               ||  m_tupleSet[tupleNo].m_hasMatchingChild.get(childId)) // 3)
-            m_tupleSet[tupleNo].m_skip = true;
+  // The 'highest order' child treeNode in expectingResults decides
+  // whether firstMatch elimination should be done in result set or not.
+  const uint firstInExpected = expectingResults.find_first();
+
+  // Prepare rows from the NdbQueryOperation's accessible now
+  if (m_tupleSet != nullptr)
+  {
+    const SpjTreeNodeMask descendants = m_operation.getDescendants();
+    const Uint32 rowCount = readResult.getRowCount();
+    for (Uint32 tupleNo=0; tupleNo < rowCount; tupleNo++)
+    {
+      /**
+       * FirstMatch handling: If this tupleNo already found a match from all
+       * tables we skip it from further result processing:
+       */
+      if (!firstMatchedNodes.isclear() &&    // Some childrens are semi-joins
+          m_tupleSet[tupleNo].m_hadMatchingChild.contains(firstMatchedNodes))
+      {
+        // We have already found a match for (all of) our firstMatchedNodes.
+        // Should we skip potentially duplicates now? :
+
+        if (firstMatchedNodes.get(firstInExpected))
+        {
+          // Got a new set of firstMatch'ed rows, starting with semi-joined tables.
+          // Skip parent rows which already had its 'firstMatch'
+          if (traceSignals) {
+            ndbout << "prepareResultSet, useFirstMatch"
+                   << ", expecting overlaps -> skip tupleNo"
+                   << ", opNo: " << getInternalOpNo()
+                   << ", row: "  << tupleNo
+                   << endl;
+          }
+
+          // Done with this tupleNo
+          setSkippedFirstMatch(tupleNo);
+          continue;  // Skip further processing of this row
+        }
+        else if (!firstMatchedNodes.overlaps(expectingResults))
+        {
+          // No semi joined tables affected by the 'expecting'.
+          // Do nothing, except keeping 'isSkipped' if already set.
+          if (traceSignals) {
+            ndbout << "prepareResultSet, Join doesn't overlaps FirstMatchNodes"
+                   << ", opNo: " << getInternalOpNo()
+                   << ", row: "  << tupleNo
+                   << ", isSkipped?: " << isSkippedFirstMatch(tupleNo)
+                   << endl;
+          }
+          if (isSkippedFirstMatch(tupleNo))  // already had a firstMatch
+            continue;
+        }
+        else
+        {
+          // Set of new children rows start with a full-join. Thus, the
+          // firstMatch handling is reset as part of preparing the new
+          // joined result set.
+          if (traceSignals) {
+            ndbout << "prepareResultSet, Join-useFirstMatch"
+                   << ", cleared 'hadMatching'-> un-skip"
+                   << ", opNo: " << getInternalOpNo()
+                   << ", row: "  << tupleNo
+                   << endl;
+          }
+          m_tupleSet[tupleNo].m_hadMatchingChild.bitANDC(firstMatchedNodes);
+          clearSkippedFirstMatch(tupleNo);
+        }
+      } // FirstMatch
+
+      for (int childNo=m_operation.getNoOfChildOperations()-1; childNo>=0; childNo--)
+      {	
+        const NdbQueryOperationImpl& child = m_operation.getChildOperation(childNo);
+        const NdbResultStream& childStream = m_worker.getResultStream(child);
+        const Uint32 childId = childStream.getInternalOpNo();
+        const Uint16 tupleId = getTupleId(tupleNo);
+        const Uint16 childIx = childStream.findTupleWithParentId(tupleId);
+
+        /**
+         * For each children; try to locate a matching row for tupleNo.
+         * Note down in hasMatchingChild when matching (grand-) children
+         * are found. If we failed to find a match for an inner joined child,
+         * we can immediately conclude that this tupleNo should be skipped
+         * from the ResultSet.
+         */
+        if (childIx != tupleNotFound)  // Found a matching child
+        {
+          if (traceSignals) {
+            ndbout << "prepareResultSet"
+                   << ", MATCHED"
+                   << ", opNo: " << getInternalOpNo()
+                   << ", row: " << tupleNo
+                   << ", child: " << childId
+                   << ", with extra 'dependants': " << childStream.m_dependants.rep.data[0]
+                   << endl;
+          }
+          m_tupleSet[tupleNo].m_hasMatchingChild.set(childId);
+
+          // Inform all parents about existence of matching grand-children as well
+          m_tupleSet[tupleNo].m_hasMatchingChild.bitOR(
+              childStream.m_tupleSet[childIx].m_hasMatchingChild);
+        }
+        else    // Didn't match
+        {
+          if (traceSignals) {
+            ndbout << "prepareResultSet"
+                   << ", NO MATCH"
+                   << ", opNo: " << getInternalOpNo()
+                   << ", row: " << tupleNo
+                   << ", child: " << childId
+                   << ", with extra 'dependants': " << childStream.m_dependants.rep.data[0]
+                   << endl;
+          }
+          m_tupleSet[tupleNo].m_hasMatchingChild.clear(childId);
+        }
+
+        /**
+         * Need extra match handling on nest-level, that is when we have completed
+         * the firstInner of an outer joined nest. (Note that this loop iterate the
+         * childNo's from last to first).
+         *
+         * This is the place were we also need to check the match properties of
+         * any extra dependencies defined with setFirstInnerJoin(), setUpperJoin()
+         */
+        if (childStream.isFirstInner())  // 'First inner of outer join'
+        {
+          // The join_nest now has complete 'Matching' info for all dependants.
+          // Assert that m_dependants at least contain the (grand-)children
+          DBUG_ASSERT(childStream.m_dependants.get(childId));
+          DBUG_ASSERT(childStream.m_dependants.contains(
+                          childStream.m_operation.getDescendants()));
+
+          if (m_tupleSet[tupleNo].m_hasMatchingChild.contains(childStream.m_dependants))
+          {
+            // Found a match for dependants, remember that to avoid later NULL extensions
+            m_tupleSet[tupleNo].m_hadMatchingChild.set(childId);
+            if (traceSignals) {
+              ndbout << "prepareResultSet"
+                     << ", matched 'innerNest'"
+                     << ", opNo: " << getInternalOpNo()
+                     << ", row: " << tupleNo
+                     << ", child: " << childId
+                     << endl;
+            }
+          }
+          // Below we did not find a match in this result batch
+          else if (m_tupleSet[tupleNo].m_hadMatchingChild.get(childId))
+          {
+            // We had a match in a previous batch -> No NULL extensions
+            if (traceSignals) {
+              ndbout << "prepareResultSet"
+                     << ", no NULLs (previous matches)"
+                     << ", opNo: " << getInternalOpNo()
+                     << ", row: " << tupleNo
+                     << ", child: " << childId
+                     << ", had matches: " << m_tupleSet[tupleNo].m_hadMatchingChild.rep.data[0]
+                     << endl;
+            }
+          }
+          else if (stillActive.overlaps(childStream.m_dependants))
+          {
+            // More rows pending, may have a future match, cant conclude yet
+            if (traceSignals) {
+              ndbout << "prepareResultSet"
+                     << ", no NULLs (still active)"
+                     << ", opNo: " << getInternalOpNo()
+                     << ", row: " << tupleNo
+                     << ", child: " << childId
+                     << ", nestDependants: " << childStream.m_dependants.rep.data[0]
+                     << endl;
+            }
+          }
+          else
+          {
+            // No previous match found and no more rows expected.
+            // Create an NULL-extended row for this join-nest by treating
+            // it as if the descendants matched (which it sort of does as
+            // NULL is an acceptable outcome in an outer join).
+            // This allows tupleNo to be non-skipped wrt to this nest only
+            // (See 'setSkipped()' immediatley below)
+            m_tupleSet[tupleNo].m_hasMatchingChild.bitOR(childStream.m_dependants);
+
+            if (traceSignals) {
+              ndbout << "prepareResultSet"
+                     << ", NULL-extend (never matched)"
+                     << ", opNo: " << getInternalOpNo()
+                     << ", row: " << tupleNo
+                     << ", child: " << childId
+                     << ", nestDependants: " << childStream.m_dependants.rep.data[0]
+                     << endl;
+            }
+
+          }
+        }  //if (isOuterJoin())
+      } //for (childNo..)
+
+      /**
+       * If some descendants of tupleNo didnt 'Match' (possibly with a NULL-row)
+       * this tuple need to be skipped for now. May still be included in later
+       * result batches though, with a new set of descendants' row either matching
+       * or allowing NULL extensions.
+       */
+      if (!m_tupleSet[tupleNo].m_hasMatchingChild.contains(descendants))
+      {
+        setSkipped(tupleNo);
+        if (traceSignals) {
+          ndbout << "prepareResultSet"
+                 << ", Not all desc has matches -> skip tuple"
+                 << ", opNo: " << getInternalOpNo()
+                 << ", row: " << tupleNo
+                 << endl;
         }
       }
-    }
-    isComplete &= allSubScansComplete;
-  }
+      else
+      {
+        clearSkipped(tupleNo);
+        if (!firstMatchedNodes.isclear())  // Some childrens are semi-joins
+        {
+          if (m_tupleSet[tupleNo].m_hasMatchingChild.contains(firstMatchedNodes))
+          {
+            m_tupleSet[tupleNo].m_hadMatchingChild.bitOR(firstMatchedNodes);
+            if (traceSignals) {
+              ndbout << "prepareResultSet"
+                     << ", matched 'semiNest'"
+                     << ", opNo: " << getInternalOpNo()
+                     << ", row: " << tupleNo
+                     << endl;
+            }
+          }
+        }
+      }
+    } //for (tupleNo..)
+  } //if (m_tupleSet ..)
 
   // Set current position 'before first'
   m_iterState = Iter_notStarted;
   m_currentRow = tupleNotFound;
-
-  return isComplete; 
 } // NdbResultStream::prepareResultSet()
 
 
@@ -1071,9 +1399,9 @@ NdbResultStream::buildResultCorrelations()
                                 ? readResult.m_correlations[tupleNo].getParentTupleId()
                                 : tupleNotFound;
 
-      m_tupleSet[tupleNo].m_skip     = false;
       m_tupleSet[tupleNo].m_parentId = parentId;
       m_tupleSet[tupleNo].m_tupleId  = tupleId;
+      m_tupleSet[tupleNo].m_hadMatchingChild.clear();
       m_tupleSet[tupleNo].m_hasMatchingChild.clear();
 
       /* Insert into parentId-hashmap */
@@ -1102,45 +1430,45 @@ NdbResultStream::buildResultCorrelations()
 } // NdbResultStream::buildResultCorrelations
 
 
-///////////////////////////////////////////
-////////  NdbRootFragment methods /////////
-///////////////////////////////////////////
-void NdbRootFragment::buildReciverIdMap(NdbRootFragment* frags, 
-                                        Uint32 noOfFrags)
+/////////////////////////////////////
+////////  NdbWorker methods /////////
+/////////////////////////////////////
+void NdbWorker::buildReceiverIdMap(NdbWorker* workers, 
+                                   Uint32 noOfWorkers)
 {
-  for(Uint32 fragNo = 0; fragNo < noOfFrags; fragNo++)
+  for (Uint32 workerNo = 0; workerNo < noOfWorkers; workerNo++)
   {
-    const Uint32 receiverId = frags[fragNo].getReceiverId();
+    const Uint32 receiverId = workers[workerNo].getReceiverId();
     /** 
      * For reasons unknow, NdbObjectIdMap shifts ids two bits to the left,
      * so we must do the opposite to get a good hash distribution.
      */
     assert((receiverId & 0x3) == 0);
     const int hash = 
-      (receiverId >> 2) % noOfFrags;
-    frags[fragNo].m_idMapNext = frags[hash].m_idMapHead;
-    frags[hash].m_idMapHead = fragNo;
+      (receiverId >> 2) % noOfWorkers;
+    workers[workerNo].m_idMapNext = workers[hash].m_idMapHead;
+    workers[hash].m_idMapHead = workerNo;
   } 
 }
 
 //static
-NdbRootFragment* 
-NdbRootFragment::receiverIdLookup(NdbRootFragment* frags, 
-                                  Uint32 noOfFrags, 
-                                  Uint32 receiverId)
+NdbWorker* 
+NdbWorker::receiverIdLookup(NdbWorker* workers, 
+                            Uint32 noOfWorkers, 
+                            Uint32 receiverId)
 {
   /** 
    * For reasons unknow, NdbObjectIdMap shifts ids two bits to the left,
    * so we must do the opposite to get a good hash distribution.
    */
   assert((receiverId  & 0x3) == 0);
-  const int hash = (receiverId >> 2) % noOfFrags;
-  int current = frags[hash].m_idMapHead;
-  assert(current < static_cast<int>(noOfFrags));
-  while (current >= 0 && frags[current].getReceiverId() != receiverId)
+  const int hash = (receiverId >> 2) % noOfWorkers;
+  int current = workers[hash].m_idMapHead;
+  assert(current < static_cast<int>(noOfWorkers));
+  while (current >= 0 && workers[current].getReceiverId() != receiverId)
   {
-    current = frags[current].m_idMapNext;
-    assert(current < static_cast<int>(noOfFrags));
+    current = workers[current].m_idMapNext;
+    assert(current < static_cast<int>(noOfWorkers));
   }
   if (unlikely (current < 0))
   {
@@ -1148,35 +1476,37 @@ NdbRootFragment::receiverIdLookup(NdbRootFragment* frags,
   }
   else
   {
-    return frags+current;
+    return &workers[current];
   }
 }
 
-
-NdbRootFragment::NdbRootFragment():
+NdbWorker::NdbWorker():
   m_query(NULL),
-  m_fragNo(voidFragNo),
+  m_workerNo(voidWorkerNo),
   m_resultStreams(NULL),
   m_pendingRequests(0),
   m_availResultSets(0),
   m_outstandingResults(0),
   m_confReceived(false),
-  m_remainingScans(0xffffffff),
+  m_preparedReceiveSet(),
+  m_nextScans(),
+  m_activeScans(),
   m_idMapHead(-1),
   m_idMapNext(-1)
 {
+  m_nextScans.set();
 }
 
-NdbRootFragment::~NdbRootFragment()
+NdbWorker::~NdbWorker()
 {
   assert(m_resultStreams==NULL);
 }
 
-void NdbRootFragment::init(NdbQueryImpl& query, Uint32 fragNo)
+void NdbWorker::init(NdbQueryImpl& query, Uint32 workerNo)
 {
-  assert(m_fragNo==voidFragNo);
+  assert(m_workerNo==voidWorkerNo);
   m_query = &query;
-  m_fragNo = fragNo;
+  m_workerNo = workerNo;
 
   m_resultStreams = reinterpret_cast<NdbResultStream*>
      (query.getResultStreamAlloc().allocObjMem(query.getNoOfOperations()));
@@ -1195,7 +1525,7 @@ void NdbRootFragment::init(NdbQueryImpl& query, Uint32 fragNo)
  * returned from datanodes.
  */ 
 void
-NdbRootFragment::postFetchRelease()
+NdbWorker::postFetchRelease()
 {
   if (m_resultStreams != NULL)
   { 
@@ -1213,45 +1543,45 @@ NdbRootFragment::postFetchRelease()
 }
 
 NdbResultStream&
-NdbRootFragment::getResultStream(Uint32 operationNo) const
+NdbWorker::getResultStream(Uint32 operationNo) const
 {
   assert(m_resultStreams);
   return m_resultStreams[operationNo];
 }
 
 /**
- * Throw any pending ResultSets from specified rootFrags[]
+ * Throw any pending ResultSets from specified workers[]
  */
 //static
-void NdbRootFragment::clear(NdbRootFragment* rootFrags, Uint32 noOfFrags)
+void NdbWorker::clear(NdbWorker* workers, Uint32 noOfWorkers)
 {
-  if (rootFrags != NULL)
+  if (workers != NULL)
   {
-    for (Uint32 fragNo = 0; fragNo < noOfFrags; fragNo++)
+    for (Uint32 workerNo = 0; workerNo < noOfWorkers; workerNo++)
     {
-      rootFrags[fragNo].m_pendingRequests = 0;
-      rootFrags[fragNo].m_availResultSets = 0;
+      workers[workerNo].m_pendingRequests = 0;
+      workers[workerNo].m_availResultSets = 0;
     }
   }
 }
 
 /**
  * Check if there has been requested more ResultSets from
- * this fragment which has not been consumed yet.
+ * this worker which has not been consumed yet.
  * (This is also a candicate check for ::hasReceivedMore())
  */
-bool NdbRootFragment::hasRequestedMore() const
+bool NdbWorker::hasRequestedMore() const
 {
   return (m_pendingRequests > 0);
 }
 
 /**
- * Signal that another complete ResultSet is available for 
- * this NdbRootFragment.
+ * Signal that another complete ResultSet is available from 
+ * this worker.
  * Need mutex lock as 'm_availResultSets' is accesed both from
  * receiver and application thread.
  */
-void NdbRootFragment::setReceivedMore()        // Need mutex
+void NdbWorker::setReceivedMore()        // Need mutex
 {
   assert(m_availResultSets==0);
   m_availResultSets++;
@@ -1264,26 +1594,27 @@ void NdbRootFragment::setReceivedMore()        // Need mutex
  * Need mutex lock as 'm_availResultSets' is accesed both from
  * receiver and application thread.
  */
-bool NdbRootFragment::hasReceivedMore() const  // Need mutex
+bool NdbWorker::hasReceivedMore() const  // Need mutex
 {
   return (m_availResultSets > 0);
 }
 
-void NdbRootFragment::prepareNextReceiveSet()
+void NdbWorker::prepareNextReceiveSet()
 {
-  assert(m_fragNo!=voidFragNo);
+  assert(m_workerNo!=voidWorkerNo);
   assert(m_outstandingResults == 0);
 
+  m_preparedReceiveSet.clear();
   for (unsigned opNo=0; opNo<m_query->getNoOfOperations(); opNo++) 
   {
     NdbResultStream& resultStream = getResultStream(opNo);
-    if (!resultStream.isSubScanComplete(m_remainingScans))
+    if (!resultStream.isSubScanComplete(m_nextScans))
     {
       /**
        * Reset resultStream and all its descendants, since all these
        * streams will get a new set of rows in the next batch.
        */ 
-      resultStream.prepareNextReceiveSet();
+      m_preparedReceiveSet.bitOR(resultStream.prepareNextReceiveSet());
     }
   }
   m_confReceived = false;
@@ -1296,7 +1627,7 @@ void NdbRootFragment::prepareNextReceiveSet()
  * Need mutex lock as 'm_availResultSets' is accesed both from
  * receiver and application thread.
  */
-void NdbRootFragment::grabNextResultSet()  // Need mutex
+void NdbWorker::grabNextResultSet()  // Need mutex
 {
   assert(m_availResultSets>0);
   m_availResultSets--;
@@ -1305,48 +1636,48 @@ void NdbRootFragment::grabNextResultSet()  // Need mutex
   m_pendingRequests--;
 
   NdbResultStream& rootStream = getResultStream(0);
-  rootStream.prepareResultSet(m_remainingScans);  
+  rootStream.prepareResultSet(m_preparedReceiveSet, m_activeScans);
 
-  /* Position at the first (sorted?) row available from this fragments.
+  /* Position at the first (sorted?) row available from this worker.
    */
   rootStream.firstResult();
 }
 
-void NdbRootFragment::setConfReceived(Uint32 tcPtrI)
+void NdbWorker::setConfReceived(Uint32 tcPtrI)
 { 
   /* For a query with a lookup root, there may be more than one TCKEYCONF
-     message. For a scan, there should only be one SCAN_TABCONF per root
-     fragment. 
+     message. For a scan, there should only be one SCAN_TABCONF per
+     worker result set. 
   */
   assert(!getResultStream(0).isScanQuery() || !m_confReceived);
   getResultStream(0).getReceiver().m_tcPtrI = tcPtrI;
   m_confReceived = true; 
 }
 
-bool NdbRootFragment::finalBatchReceived() const
+bool NdbWorker::finalBatchReceived() const
 {
   return m_confReceived && getReceiverTcPtrI()==RNIL;
 }
 
-bool NdbRootFragment::isEmpty() const
+bool NdbWorker::isEmpty() const
 { 
   return getResultStream(0).isEmpty();
 }
 
 /**
  * SPJ requests are identified by the receiver-id of the
- * *root* ResultStream for each RootFragment. Furthermore
+ * *root* ResultStream for each NdbWorker. Furthermore
  * a NEXTREQ use the tcPtrI saved in this ResultStream to
  * identify the 'cursor' to restart.
  *
  * We provide some convenient accessors for fetching this info 
  */
-Uint32 NdbRootFragment::getReceiverId() const
+Uint32 NdbWorker::getReceiverId() const
 {
   return getResultStream(0).getReceiver().getId();
 }
 
-Uint32 NdbRootFragment::getReceiverTcPtrI() const
+Uint32 NdbWorker::getReceiverTcPtrI() const
 {
   return getResultStream(0).getReceiver().m_tcPtrI;
 }
@@ -1433,7 +1764,7 @@ NdbQuery::getNdbTransaction() const
 const NdbError& 
 NdbQuery::getNdbError() const {
   return m_impl.getNdbError();
-};
+}
 
 int NdbQuery::isPrunable(bool& prunable) const
 {
@@ -1479,7 +1810,7 @@ NdbQueryOperation::getQueryOperationDef() const
 NdbQuery& 
 NdbQueryOperation::getQuery() const {
   return m_impl.getQuery().getInterface();
-};
+}
 
 NdbRecAttr*
 NdbQueryOperation::getValue(const char* anAttrName,
@@ -1789,11 +2120,12 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   m_operations(0),
   m_countOperations(0),
   m_globalCursor(0),
-  m_pendingFrags(0),
-  m_rootFragCount(0),
-  m_rootFrags(NULL),
+  m_pendingWorkers(0),
+  m_workerCount(0),
+  m_fragsPerWorker(0),
+  m_workers(NULL),
   m_applFrags(),
-  m_finalBatchFrags(0),
+  m_finalWorkers(0),
   m_num_bounds(0),
   m_shortestBound(0xffffffff),
   m_attrInfo(),
@@ -1850,7 +2182,7 @@ NdbQueryImpl::~NdbQueryImpl()
    *  allowed to destruct the Def's.
    */
   assert(m_state==Closed);
-  assert(m_rootFrags==NULL);
+  assert(m_workers==NULL);
 
   // NOTE: m_operations[] was allocated as a single memory chunk with
   // placement new construction of each operation.
@@ -1867,20 +2199,22 @@ NdbQueryImpl::~NdbQueryImpl()
 void
 NdbQueryImpl::postFetchRelease()
 {
-  if (m_rootFrags != NULL)
+  if (m_workers != NULL)
   {
-    for (unsigned i=0; i<m_rootFragCount; i++)
-    { m_rootFrags[i].postFetchRelease();
+    for (unsigned i=0; i<m_workerCount; i++)
+    {
+      m_workers[i].postFetchRelease();
     }
   }
   if (m_operations != NULL)
   {
     for (unsigned i=0; i<m_countOperations; i++)
-    { m_operations[i].postFetchRelease();
+    {
+      m_operations[i].postFetchRelease();
     }
   }
-  delete[] m_rootFrags;
-  m_rootFrags = NULL;
+  delete[] m_workers;
+  m_workers = NULL;
 
   m_rowBufferAlloc.reset();
   m_tupleSetAlloc.reset();
@@ -1894,12 +2228,6 @@ NdbQueryImpl::buildQuery(NdbTransaction& trans,
                          const NdbQueryDefImpl& queryDef)
 {
   assert(queryDef.getNoOfOperations() > 0);
-  // Check for online upgrade/downgrade.
-  if (unlikely(!ndb_join_pushdown(trans.getNdb()->getMinDbNodeVersion())))
-  {
-    trans.setOperationErrorCodeAbort(Err_FunctionNotImplemented);
-    return NULL;
-  }
   NdbQueryImpl* const query = new NdbQueryImpl(trans, queryDef);
   if (unlikely(query==NULL)) {
     trans.setOperationErrorCodeAbort(Err_MemoryAlloc);
@@ -2266,19 +2594,19 @@ NdbQueryImpl::nextResult(bool fetchAllowed, bool forceSend)
 NdbQuery::NextResultOutcome
 NdbQueryImpl::nextRootResult(bool fetchAllowed, bool forceSend)
 {
-  /* To minimize lock contention, each query has the separate root fragment 
-   * conatiner 'm_applFrags'. m_applFrags is only accessed by the application
+  /* To minimize lock contention, each query has the separate NdbWorker 
+   * container 'm_applFrags'. m_applFrags is only accessed by the application
    * thread, so it is safe to use it without locks.
    */
   while (m_state != EndOfData)  // Or likely:  return when 'gotRow' or error
   {
-    const NdbRootFragment* rootFrag = m_applFrags.getCurrent();
-    if (unlikely(rootFrag==NULL))
+    const NdbWorker* worker = m_applFrags.getCurrent();
+    if (unlikely(worker==NULL))
     {
       /* m_applFrags is empty, so we cannot get more results without 
        * possibly blocking.
        *
-       * ::awaitMoreResults() will either copy fragments that are already
+       * ::awaitMoreResults() will either copy worker results that are already
        * complete (under mutex protection), or block until data
        * previously requested arrives.
        */
@@ -2287,8 +2615,8 @@ NdbQueryImpl::nextRootResult(bool fetchAllowed, bool forceSend)
 
       case FetchResult_ok:          // OK - got data wo/ error
         assert(m_state != Failed);
-        rootFrag = m_applFrags.getCurrent();
-        assert (rootFrag!=NULL);
+        worker = m_applFrags.getCurrent();
+        assert (worker!=NULL);
         break;
 
       case FetchResult_noMoreData:  // No data, no error
@@ -2319,32 +2647,32 @@ NdbQueryImpl::nextRootResult(bool fetchAllowed, bool forceSend)
     }
     else
     {
-      rootFrag->getResultStream(0).nextResult();   // Consume current
+      worker->getResultStream(0).nextResult();     // Consume current
       m_applFrags.reorganize();                    // Calculate new current
-      // Reorg. may update 'current' RootFragment
-      rootFrag = m_applFrags.getCurrent();
+      // ::reorganize(). may update 'current' worker.
+      worker = m_applFrags.getCurrent();
     }
 
     /**
      * If allowed to request more rows from datanodes, we do this asynch
      * and request more rows as soon as we have consumed all rows from a
-     * fragment. ::awaitMoreResults() may eventually block and wait for these
-     * when required.
+     * SPJ-worker. ::awaitMoreResults() may eventually block and wait for
+     * these when required.
      */
     if (fetchAllowed)
     {
       // Ask for a new batch if we emptied some.
-      NdbRootFragment** frags;
-      const Uint32 cnt = m_applFrags.getFetchMore(frags);
-      if (cnt > 0 && sendFetchMore(frags, cnt, forceSend) != 0)
+      NdbWorker** workers;
+      const Uint32 cnt = m_applFrags.getFetchMore(workers);
+      if (cnt > 0 && sendFetchMore(workers, cnt, forceSend) != 0)
       {
         return NdbQuery::NextResult_error;
       }
     }
 
-    if (rootFrag!=NULL)
+    if (worker!=NULL)
     {
-      getRoot().fetchRow(rootFrag->getResultStream(0));
+      getRoot().fetchRow(worker->getResultStream(0));
       return NdbQuery::NextResult_gotRow;
     }
   } // m_state != EndOfData
@@ -2382,23 +2710,23 @@ NdbQueryImpl::awaitMoreResults(bool forceSend)
        */
       while (likely(!hasReceivedError()))
       {
-        /* Scan m_rootFrags (under mutex protection) for fragments
-         * which has received a complete batch. Add these to m_applFrags.
+        /* Scan m_workers (under mutex protection) for workers
+         * which has delivered a complete batch. Add these to m_applFrags.
          */
-        m_applFrags.prepareMoreResults(m_rootFrags,m_rootFragCount);
+        m_applFrags.prepareMoreResults(m_workers,m_workerCount);
         if (m_applFrags.getCurrent() != NULL)
         {
           return FetchResult_ok;
         }
 
-        /* There are no more available fragment results available without
+        /* There are no more available worker results available without
          * first waiting for more to be received from the datanodes
          */
-        if (m_pendingFrags == 0)
+        if (m_pendingWorkers == 0)
         {
           // 'No more *pending* results', ::sendFetchMore() may make more available
-          return (m_finalBatchFrags < getRootFragCount()) ? FetchResult_noMoreCache 
-                                                          : FetchResult_noMoreData;
+          return (m_finalWorkers < getWorkerCount()) ? FetchResult_noMoreCache 
+                                                     : FetchResult_noMoreData;
         }
 
         const Uint32 timeout  = ndb->get_waitfor_timeout();
@@ -2433,9 +2761,9 @@ NdbQueryImpl::awaitMoreResults(bool forceSend)
     /* The root operation is a lookup. Lookups are guaranteed to be complete
      * before NdbTransaction::execute() returns. Therefore we do not set
      * the lock, because we know that the signal receiver thread will not
-     * be accessing m_rootFrags at this time.
+     * be accessing m_workers at this time.
      */
-    m_applFrags.prepareMoreResults(m_rootFrags,m_rootFragCount);
+    m_applFrags.prepareMoreResults(m_workers,m_workerCount);
     if (m_applFrags.getCurrent() != NULL)
     {
       return FetchResult_ok;
@@ -2446,8 +2774,8 @@ NdbQueryImpl::awaitMoreResults(bool forceSend)
      *  - There was no matching row for an inner join.
      *  - or, the application called nextResult() twice for a lookup query.
      */
-    assert(m_pendingFrags == 0);
-    assert(m_finalBatchFrags == getRootFragCount());
+    assert(m_pendingWorkers == 0);
+    assert(m_finalWorkers == getWorkerCount());
     return FetchResult_noMoreData;
   } // if(getQueryDef().isScanQuery())
 
@@ -2456,43 +2784,43 @@ NdbQueryImpl::awaitMoreResults(bool forceSend)
 
 /*
   ::handleBatchComplete() is intended to be called when receiving signals only.
-  The PollGuard mutex is then set and the shared 'm_pendingFrags' and
-  'm_finalBatchFrags' can safely be updated and ::setReceivedMore() signaled.
+  The PollGuard mutex is then set and the shared 'm_pendingWorkers' and
+  'm_finalWorkers' can safely be updated and ::setReceivedMore() signaled.
 
   returns: 'true' when application thread should be resumed.
 */
 bool 
-NdbQueryImpl::handleBatchComplete(NdbRootFragment& rootFrag)
+NdbQueryImpl::handleBatchComplete(NdbWorker& worker)
 {
   if (traceSignals) {
     ndbout << "NdbQueryImpl::handleBatchComplete"
-           << ", fragNo=" << rootFrag.getFragNo()
-           << ", pendingFrags=" << (m_pendingFrags-1)
-           << ", finalBatchFrags=" << m_finalBatchFrags
+           << ", from workerNo=" << worker.getWorkerNo()
+           << ", pendingWorkers=" << (m_pendingWorkers-1)
+           << ", finalWorkers=" << m_finalWorkers
            <<  endl;
   }
-  assert(rootFrag.isFragBatchComplete());
+  assert(worker.isFragBatchComplete());
 
-  /* May received fragment data after a SCANREF() (timeout?) 
+  /* May received SPJ results after a SCANREF() (timeout?) 
    * terminated the scan.  We are about to close this query, 
    * and didn't expect any more data - ignore it!
    */
   if (likely(m_errorReceived == 0))
   {
-    assert(m_pendingFrags > 0);                // Check against underflow.
-    assert(m_pendingFrags <= m_rootFragCount); // .... and overflow
-    m_pendingFrags--;
+    assert(m_pendingWorkers > 0);                // Check against underflow.
+    assert(m_pendingWorkers <= m_workerCount);   // .... and overflow
+    m_pendingWorkers--;
 
-    if (rootFrag.finalBatchReceived())
+    if (worker.finalBatchReceived())
     {
-      m_finalBatchFrags++;
-      assert(m_finalBatchFrags <= m_rootFragCount);
+      m_finalWorkers++;
+      assert(m_finalWorkers <= m_workerCount);
     }
 
     /* When application thread ::awaitMoreResults() it will later be
      * added to m_applFrags under mutex protection.
      */
-    rootFrag.setReceivedMore();
+    worker.setReceivedMore();
     return true;
   }
   else if (!getQueryDef().isScanQuery())  // A failed lookup query
@@ -2520,13 +2848,13 @@ NdbQueryImpl::close(bool forceSend)
     if (m_tcState != Inactive)
     {
       /* We have started a scan, but we have not yet received the last batch
-       * for all root fragments. We must therefore close the scan to release 
-       * the scan context at TC.*/
+       * from all SPJ-workers. We must therefore close the scan to release 
+       * the scan context at TC/SPJ.*/
       res = closeTcCursor(forceSend);
     }
 
     // Throw any pending results
-    NdbRootFragment::clear(m_rootFrags,m_rootFragCount);
+    NdbWorker::clear(m_workers,m_workerCount);
     m_applFrags.clear();
 
     Ndb* const ndb = m_transaction.getNdb();
@@ -2597,16 +2925,16 @@ NdbQueryImpl::setErrorCode(int aErrorCode)
 void
 NdbQueryImpl::setFetchTerminated(int errorCode, bool needClose)
 {
-  assert(m_finalBatchFrags < getRootFragCount());
+  assert(m_finalWorkers < getWorkerCount());
   if (!needClose)
   {
-    m_finalBatchFrags = getRootFragCount();
+    m_finalWorkers = getWorkerCount();
   }
   if (errorCode!=0)
   {
     m_errorReceived = errorCode;
   }
-  m_pendingFrags = 0;
+  m_pendingWorkers = 0;
 } // NdbQueryImpl::setFetchTerminated()
 
 
@@ -2633,22 +2961,22 @@ NdbQueryImpl::execTCKEYCONF()
     ndbout << "NdbQueryImpl::execTCKEYCONF()" << endl;
   }
   assert(!getQueryDef().isScanQuery());
-  NdbRootFragment& rootFrag = m_rootFrags[0];
+  NdbWorker& worker = m_workers[0];
 
   // We will get 1 + #leaf-nodes TCKEYCONF for a lookup...
-  rootFrag.setConfReceived(RNIL);
-  rootFrag.incrOutstandingResults(-1);
+  worker.setConfReceived(RNIL);
+  worker.incrOutstandingResults(-1);
 
   bool ret = false;
-  if (rootFrag.isFragBatchComplete())
+  if (worker.isFragBatchComplete())
   { 
-    ret = handleBatchComplete(rootFrag);
+    ret = handleBatchComplete(worker);
   }
 
   if (traceSignals) {
     ndbout << "NdbQueryImpl::execTCKEYCONF(): returns:" << ret
-           << ", m_pendingFrags=" << m_pendingFrags
-           << ", rootStream= {" << rootFrag.getResultStream(0) << "}"
+           << ", m_pendingWorkers=" << m_pendingWorkers
+           << ", rootStream= {" << worker.getResultStream(0) << "}"
            << endl;
   }
   return ret;
@@ -2680,27 +3008,76 @@ NdbQueryImpl::prepareSend()
   // Determine execution parameters 'batch size'.
   // May be user specified (TODO), and/or,  limited/specified by config values
   //
+  Uint32 rootFragments;
   if (getQueryDef().isScanQuery())
   {
+    const NdbQueryOperationImpl &rootOp = getRoot();
+    const NdbDictionary::Table &rootTable = rootOp.getQueryOperationDef().getTable();
+
+    rootFragments = rootTable.getFragmentCount();
+
     /* For the first batch, we read from all fragments for both ordered 
      * and unordered scans.*/
-    if (getQueryOperation(0U).m_parallelism == Parallelism_max)
+    if (getQueryOperation(0U).m_parallelism != Parallelism_max)
     {
-      m_rootFragCount
-        = getRoot().getQueryOperationDef().getTable().getFragmentCount();
+      assert(getQueryOperation(0U).m_parallelism != Parallelism_adaptive);
+      rootFragments = MIN(rootFragments, getQueryOperation(0U).m_parallelism);
+    }
+
+    bool pruned = false;
+    const int error = isPrunable(pruned);
+    if (unlikely(error != 0))
+    {
+      setErrorCode(error);
+      return -1;
+    }
+    /**
+     * A 'pruned scan' will only be sent to the single fragment identified
+     * by the partition key.
+     */  
+    if (pruned)
+    {
+      // Scan pruned to single fragment
+      rootFragments = 1;
+      m_fragsPerWorker = 1;
+    }
+    else if (rootOp.getOrdering() != NdbQueryOptions::ScanOrdering_unordered)
+    {
+      // Merge-sort need one result set from each fragment
+      m_fragsPerWorker = 1;
+    }
+    else if (!ndbd_spj_multifrag_scan(m_transaction.getNdb()->getMinDbNodeVersion()))
+    {
+      // 'MultiFragment' not supported by all datanodes, partially upgraded?
+      m_fragsPerWorker = 1;
     }
     else
     {
-      assert(getQueryOperation(0U).m_parallelism != Parallelism_adaptive);
-      m_rootFragCount
-        = MIN(getRoot().getQueryOperationDef().getTable().getFragmentCount(),
-              getQueryOperation(0U).m_parallelism);
+      NdbNodeBitmask dataNodes;
+      Uint32 cnt = 0;
+
+      // Count number of nodes 'rootTable' is distributed over.
+      for (Uint32 i = 0; i<rootFragments; i++)
+      {
+        Uint32 nodes[1];
+        const Uint32 res = rootTable.getFragmentNodes(i, nodes, NDB_ARRAY_SIZE(nodes));
+        assert(res>0); (void)res;
+        {
+          if (!dataNodes.get(nodes[0]))
+          {
+            dataNodes.set(nodes[0]);
+            cnt++;
+          }
+        }
+      }
+      assert((rootFragments % cnt) == 0);
+      m_fragsPerWorker = rootFragments / cnt;
     }
-    Ndb* const ndb = m_transaction.getNdb();
 
     /** Scan operations need a own sub-transaction object associated with each 
      *  query.
      */
+    Ndb* const ndb = m_transaction.getNdb();
     ndb->theRemainingStartTransactions++; // Compensate; does not start a real Txn
     NdbTransaction *scanTxn = ndb->hupp(&m_transaction);
     if (scanTxn==NULL) {
@@ -2714,18 +3091,21 @@ NdbQueryImpl::prepareSend()
   }
   else  // Lookup query
   {
-    m_rootFragCount = 1;
+    rootFragments = 1;
+    m_fragsPerWorker = 1;
   }
+  m_workerCount = rootFragments / m_fragsPerWorker;
+  assert(m_workerCount > 0);
 
-  int error = m_resultStreamAlloc.init(m_rootFragCount * getNoOfOperations());
+  int error = m_resultStreamAlloc.init(m_workerCount * getNoOfOperations());
   if (error != 0)
   {
     setErrorCode(error);
     return -1;
   }
-  // Allocate space for ptrs to NdbResultStream and NdbRootFragment objects.
-  error = m_pointerAlloc.init(m_rootFragCount * 
-                              (OrderedFragSet::pointersPerFragment));
+  // Allocate space for ptrs to NdbResultStream and NdbWorker objects.
+  error = m_pointerAlloc.init(m_workerCount * 
+                              (OrderedFragSet::pointersPerWorker));
   if (error != 0)
   {
     setErrorCode(error);
@@ -2746,7 +3126,7 @@ NdbQueryImpl::prepareSend()
     const NdbQueryOperationImpl& op = getQueryOperation(opNo);
 
     // Add space for batchBuffer & m_correlations
-    Uint32 opBuffSize = op.getBatchBufferSize();
+    Uint32 opBuffSize = op.getResultBufferSize();
     if (getQueryDef().isScanQuery())
     {
       opBuffSize += (sizeof(TupleCorrelation) * op.getMaxBatchRows());
@@ -2755,7 +3135,7 @@ NdbQueryImpl::prepareSend()
     opBuffSize += op.getRowSize();  // Unpacked row from buffers
     totalBuffSize += opBuffSize;
   }
-  m_rowBufferAlloc.init(m_rootFragCount * totalBuffSize);
+  m_rowBufferAlloc.init(rootFragments * totalBuffSize);
 
   if (getQueryDef().isScanQuery())
   {
@@ -2764,7 +3144,7 @@ NdbQueryImpl::prepareSend()
     {
       totalRows += getQueryOperation(i).getMaxBatchRows();
     }
-    error = m_tupleSetAlloc.init(2 * m_rootFragCount * totalRows);
+    error = m_tupleSetAlloc.init(2 * rootFragments * totalRows);
     if (unlikely(error != 0))
     {
       setErrorCode(error);
@@ -2773,24 +3153,27 @@ NdbQueryImpl::prepareSend()
   }
 
   /**
-   * Allocate and initialize fragment state variables.
+   * Allocate and initialize SPJ-worker state objects.
    * Will also cause a ResultStream object containing a 
    * NdbReceiver to be constructed for each operation in QueryTree
    */
-  m_rootFrags = new NdbRootFragment[m_rootFragCount];
-  if (m_rootFrags == NULL)
+  m_workers = new NdbWorker[m_workerCount];
+  if (m_workers == NULL)
   {
     setErrorCode(Err_MemoryAlloc);
     return -1;
   }
-  for (Uint32 i = 0; i<m_rootFragCount; i++)
+  for (Uint32 i = 0; i<m_workerCount; i++)
   {
-    m_rootFrags[i].init(*this, i); // Set fragment number.
+    m_workers[i].init(*this, i); // Set worker number.
   }
+
+  const Uint32Buffer &queryTree = getQueryDef().getSerialized();
+  const QueryNode *queryNode = (const QueryNode*)queryTree.addr(1);
 
   // Fill in parameters (into ATTRINFO) for QueryTree.
   for (Uint32 i = 0; i < m_countOperations; i++) {
-    const int error = m_operations[i].prepareAttrInfo(m_attrInfo);
+    const int error = m_operations[i].prepareAttrInfo(m_attrInfo, queryNode);
     if (unlikely(error))
     {
       setErrorCode(error);
@@ -2819,13 +3202,13 @@ NdbQueryImpl::prepareSend()
   }
   m_applFrags.prepare(m_pointerAlloc,
                       getRoot().getOrdering(),
-                      m_rootFragCount, 
+                      m_workerCount, 
                       keyRec,
                       getRoot().m_ndbRecord);
 
   if (getQueryDef().isScanQuery())
   {
-    NdbRootFragment::buildReciverIdMap(m_rootFrags, m_rootFragCount);
+    NdbWorker::buildReceiverIdMap(m_workers, m_workerCount);
   }
 
 #ifdef TRACE_SERIALIZATION
@@ -2838,7 +3221,7 @@ NdbQueryImpl::prepareSend()
   ndbout << endl;
 #endif
 
-  assert (m_pendingFrags==0);
+  assert (m_pendingWorkers==0);
   m_state = Prepared;
   return 0;
 } // NdbQueryImpl::prepareSend
@@ -2851,14 +3234,14 @@ class InitialReceiverIdIterator: public GenericSectionIterator
 {
 public:
   
-  InitialReceiverIdIterator(NdbRootFragment rootFrags[],
-                            Uint32 cnt)
-    :m_rootFrags(rootFrags),
-     m_fragCount(cnt),
-     m_currFragNo(0)
+  InitialReceiverIdIterator(NdbWorker workers[],
+                            Uint32 workerCount)
+    :m_workers(workers),
+     m_workerCount(workerCount),
+     m_workerNo(0)
   {}
 
-  virtual ~InitialReceiverIdIterator() {};
+  virtual ~InitialReceiverIdIterator() {}
   
   /**
    * Get next batch of receiver ids. 
@@ -2869,7 +3252,7 @@ public:
   virtual const Uint32* getNextWords(Uint32& sz);
 
   virtual void reset()
-  { m_currFragNo = 0;};
+  { m_workerNo = 0;}
   
 private:
   /** 
@@ -2879,13 +3262,14 @@ private:
    */
   static const Uint32 bufSize = 16;
 
-  /** Set of root fragments which we want to itterate receiver ids for.*/
-  NdbRootFragment* m_rootFrags;
-  const Uint32 m_fragCount;
+  /** Set of SPJ workers which we want to itterate receiver ids for.*/
+  const NdbWorker* const m_workers;
+  const Uint32 m_workerCount;
 
-  /** The next fragment numnber to be processed. (Range for 0 to no of 
-   * fragments.)*/
-  Uint32 m_currFragNo;
+  /**
+   * The next SPJ-worker to be processed. (Range for 0 to no of workers.)
+   */
+  Uint32 m_workerNo;
   /** Buffer for storing one batch of receiver ids.*/
   Uint32 m_receiverIds[bufSize];
 };
@@ -2893,10 +3277,10 @@ private:
 const Uint32* InitialReceiverIdIterator::getNextWords(Uint32& sz)
 {
   /**
-   * For the initial batch, we want to retrieve one batch for each fragment
+   * For the initial batch, we want to retrieve one batch from each worker
    * whether it is a sorted scan or not.
    */
-  if (m_currFragNo >= m_fragCount)
+  if (m_workerNo >= m_workerCount)
   {
     sz = 0;
     return NULL;
@@ -2904,11 +3288,11 @@ const Uint32* InitialReceiverIdIterator::getNextWords(Uint32& sz)
   else
   {
     Uint32 cnt = 0;
-    while (cnt < bufSize && m_currFragNo < m_fragCount)
+    while (cnt < bufSize && m_workerNo < m_workerCount)
     {
-      m_receiverIds[cnt] = m_rootFrags[m_currFragNo].getReceiverId();
+      m_receiverIds[cnt] = m_workers[m_workerNo].getReceiverId();
       cnt++;
-      m_currFragNo++;
+      m_workerNo++;
     }
     sz = cnt;
     return m_receiverIds;
@@ -2916,18 +3300,18 @@ const Uint32* InitialReceiverIdIterator::getNextWords(Uint32& sz)
 }
   
 /** This iterator is used for inserting a sequence of 'TcPtrI'  
- * for a NEXTREQ to a single or multiple fragments via a GenericSectionPtr.*/
+ * for a NEXTREQ to a single or multiple SPJ-workers via a GenericSectionPtr.*/
 class FetchMoreTcIdIterator: public GenericSectionIterator
 {
 public:
-  FetchMoreTcIdIterator(NdbRootFragment* rootFrags[],
+  FetchMoreTcIdIterator(NdbWorker* workers[],
                         Uint32 cnt)
-    :m_rootFrags(rootFrags),
-     m_fragCount(cnt),
-     m_currFragNo(0)
+   : m_workers(workers),
+     m_workerCount(cnt),
+     m_currWorkerNo(0)
   {}
 
-  virtual ~FetchMoreTcIdIterator() {};
+  virtual ~FetchMoreTcIdIterator() {}
   
   /**
    * Get next batch of receiver ids. 
@@ -2938,7 +3322,7 @@ public:
   virtual const Uint32* getNextWords(Uint32& sz);
 
   virtual void reset()
-  { m_currFragNo = 0;};
+  { m_currWorkerNo = 0;}
   
 private:
   /** 
@@ -2948,13 +3332,13 @@ private:
    */
   static const Uint32 bufSize = 16;
 
-  /** Set of root fragments which we want to itterate TcPtrI ids for.*/
-  NdbRootFragment** m_rootFrags;
-  const Uint32 m_fragCount;
+  /** Set of SPJ workers which we want to itterate TcPtrI ids for.*/
+  NdbWorker** const m_workers;
+  const Uint32 m_workerCount;
 
-  /** The next fragment numnber to be processed. (Range for 0 to no of 
-   * fragments.)*/
-  Uint32 m_currFragNo;
+  /** The next worker to be processed. (Range for 0 to no of workers.)
+   */
+  Uint32 m_currWorkerNo;
   /** Buffer for storing one batch of receiver ids.*/
   Uint32 m_receiverIds[bufSize];
 };
@@ -2962,10 +3346,10 @@ private:
 const Uint32* FetchMoreTcIdIterator::getNextWords(Uint32& sz)
 {
   /**
-   * For the initial batch, we want to retrieve one batch for each fragment
+   * For the initial batch, we want to retrieve one batch from each worker
    * whether it is a sorted scan or not.
    */
-  if (m_currFragNo >= m_fragCount)
+  if (m_currWorkerNo >= m_workerCount)
   {
     sz = 0;
     return NULL;
@@ -2973,11 +3357,11 @@ const Uint32* FetchMoreTcIdIterator::getNextWords(Uint32& sz)
   else
   {
     Uint32 cnt = 0;
-    while (cnt < bufSize && m_currFragNo < m_fragCount)
+    while (cnt < bufSize && m_currWorkerNo < m_workerCount)
     {
-      m_receiverIds[cnt] = m_rootFrags[m_currFragNo]->getReceiverTcPtrI();
+      m_receiverIds[cnt] = m_workers[m_currWorkerNo]->getReceiverTcPtrI();
       cnt++;
-      m_currFragNo++;
+      m_currWorkerNo++;
     }
     sz = cnt;
     return m_receiverIds;
@@ -3022,9 +3406,9 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
   Uint32 tTableId = rootTable->m_id;
   Uint32 tSchemaVersion = rootTable->m_version;
 
-  for (Uint32 i=0; i<m_rootFragCount; i++)
+  for (Uint32 i=0; i<m_workerCount; i++)
   {
-    m_rootFrags[i].prepareNextReceiveSet();
+    m_workers[i].prepareNextReceiveSet();
   }
 
   if (rootDef.isScanOperation())
@@ -3033,11 +3417,6 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
 
     bool tupScan = (scan_flags & NdbScanOperation::SF_TupScan);
     bool rangeScan = false;
-
-    bool dummy;
-    const int error = isPrunable(dummy);
-    if (unlikely(error != 0))
-      return error;
 
     /* Handle IndexScan specifics */
     if ( (int) rootTable->m_indexType ==
@@ -3071,19 +3450,22 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     scanTabReq->transId2 = (Uint32) (transId >> 32);
 
     Uint32 batchRows = root.getMaxBatchRows();
-    Uint32 batchByteSize;
-    NdbReceiver::calculate_batch_size(* ndb.theImpl,
-                                      getRootFragCount(),
-                                      batchRows,
-                                      batchByteSize);
-    assert(batchRows==root.getMaxBatchRows());
-    assert(batchRows<=batchByteSize);
+    const Uint32 batchByteSize = root.getMaxBatchBytes();
 
     /**
      * Check if query is a sorted scan-scan.
      * Ordering can then only be guarented by restricting
      * parent batch to contain single rows.
      * (Child scans will have 'normal' batch size).
+     *
+     * Note that this solved the problem only for the 'v1'
+     * version of SPJ requests, and parameter. The v2 protocol
+     * introduced 'batch_size_rows' as part of the parameter,
+     * which took precedence over the batch size set in ScanTabReq.
+     * This resulted in giving not-sorted results even though
+     * sort order was requested. This is now fixed by setting a
+     * 'SFP_SORTED_ORDER' flag in the ScanFragParameter
+     * instead of hacking the batch size on the client side.
      */
     if (root.getOrdering() != NdbQueryOptions::ScanOrdering_unordered &&
         getQueryDef().getQueryType() == NdbQueryDef::MultiScanQuery)
@@ -3094,28 +3476,18 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     scanTabReq->batch_byte_size = batchByteSize;
     scanTabReq->first_batch_size = batchRows;
 
+    if (m_fragsPerWorker > 1)
+    {
+      ScanTabReq::setMultiFragFlag(reqInfo, 1);
+    }
     ScanTabReq::setViaSPJFlag(reqInfo, 1);
     ScanTabReq::setPassAllConfsFlag(reqInfo, 1);
-
-    Uint32 nodeVersion = impl->getNodeNdbVersion(nodeId);
-    if (!ndbd_scan_tabreq_implicit_parallelism(nodeVersion))
-    {
-      // Implicit parallelism implies support for greater
-      // parallelism than storable explicitly in old reqInfo.
-      Uint32 fragments = getRootFragCount();
-      if (fragments > PARALLEL_MASK)
-      {
-        setErrorCode(Err_SendFailed /* TODO: TooManyFragments, to too old cluster version */);
-        return -1;
-      }
-      ScanTabReq::setParallelism(reqInfo, fragments);
-    }
 
     ScanTabReq::setRangeScanFlag(reqInfo, rangeScan);
     ScanTabReq::setDescendingFlag(reqInfo, descending);
     ScanTabReq::setTupScanFlag(reqInfo, tupScan);
     ScanTabReq::setNoDiskFlag(reqInfo, !root.diskInUserProjection());
-    ScanTabReq::set4WordConf(reqInfo, 1);
+    ScanTabReq::setExtendedConf(reqInfo, 1);
 
     // Assume LockMode LM_ReadCommited, set related lock flags
     ScanTabReq::setLockMode(reqInfo, false);  // not exclusive
@@ -3147,12 +3519,12 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
      * Section 2 : Optional KEYINFO section
      */
     GenericSectionPtr secs[3];
-    InitialReceiverIdIterator receiverIdIter(m_rootFrags, m_rootFragCount);
+    InitialReceiverIdIterator receiverIdIter(m_workers, m_workerCount);
     LinearSectionIterator attrInfoIter(m_attrInfo.addr(), m_attrInfo.getSize());
     LinearSectionIterator keyInfoIter(m_keyInfo.addr(), m_keyInfo.getSize());
  
     secs[0].sectionIter= &receiverIdIter;
-    secs[0].sz= getRootFragCount();
+    secs[0].sz= m_workerCount;
 
     secs[1].sectionIter= &attrInfoIter;
     secs[1].sz= m_attrInfo.getSize();
@@ -3245,19 +3617,37 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
       numSections= 2;
     }
 
-    const int res = impl->sendSignal(&tSignal, nodeId, secs, numSections);
+    int res = 0;
+    const Uint32 long_sections_size = m_keyInfo.getSize() + m_attrInfo.getSize();
+    const Uint32 nodeVersion = impl->getNodeNdbVersion(nodeId);
+    if (long_sections_size <= NDB_MAX_LONG_SECTIONS_SIZE)
+    {
+      res = impl->sendSignal(&tSignal, nodeId, secs, numSections);
+    }
+    else if (ndbd_frag_tckeyreq(nodeVersion))
+    {
+      res = impl->sendFragmentedSignal(&tSignal, nodeId, secs, numSections);
+    }
+    else
+    {
+      /* It should not be possible to see a table definition that supports
+       * big rows unless all data nodes that are started also can handle it.
+       */
+      require(ndbd_frag_tckeyreq(nodeVersion));
+    }
+
     if (unlikely(res == -1))
     {
       setErrorCode(Err_SendFailed);  // Error: 'Send to NDB failed'
       return FetchResult_sendFail;
     }
     m_transaction.OpSent();
-    m_rootFrags[0].incrOutstandingResults(1 + getNoOfOperations() +
+    m_workers[0].incrOutstandingResults(1 + getNoOfOperations() +
                                           getNoOfLeafOperations());
   } // if
 
-  assert (m_pendingFrags==0);
-  m_pendingFrags = m_rootFragCount;
+  assert (m_pendingWorkers==0);
+  m_pendingWorkers = m_workerCount;
 
   // Shrink memory footprint by removing structures not required after ::execute()
   m_keyInfo.releaseExtend();
@@ -3285,7 +3675,7 @@ Parameters:     emptyFrag: Root frgament for which to ask for another batch.
 Remark:
 ******************************************************************************/
 int
-NdbQueryImpl::sendFetchMore(NdbRootFragment* rootFrags[],
+NdbQueryImpl::sendFetchMore(NdbWorker* workers[],
                             Uint32 cnt,
                             bool forceSend)
 {
@@ -3293,10 +3683,10 @@ NdbQueryImpl::sendFetchMore(NdbRootFragment* rootFrags[],
 
   for (Uint32 i=0; i<cnt; i++)
   {
-    NdbRootFragment* rootFrag = rootFrags[i];
-    assert(rootFrag->isFragBatchComplete());
-    assert(!rootFrag->finalBatchReceived());
-    rootFrag->prepareNextReceiveSet();
+    NdbWorker* worker = workers[i];
+    assert(worker->isFragBatchComplete());
+    assert(!worker->finalBatchReceived());
+    worker->prepareNextReceiveSet();
   }
 
   Ndb& ndb = *getNdbTransaction().getNdb();
@@ -3314,7 +3704,7 @@ NdbQueryImpl::sendFetchMore(NdbRootFragment* rootFrags[],
   scanNextReq->transId2 = (Uint32) (transId >> 32);
   tSignal.setLength(ScanNextReq::SignalLength);
 
-  FetchMoreTcIdIterator receiverIdIter(rootFrags, cnt);
+  FetchMoreTcIdIterator receiverIdIter(workers, cnt);
 
   GenericSectionPtr secs[1];
   secs[ScanNextReq::ReceiverIdsSectionNum].sectionIter = &receiverIdIter;
@@ -3342,8 +3732,8 @@ NdbQueryImpl::sendFetchMore(NdbRootFragment* rootFrags[],
   }
   impl->do_forceSend(forceSend);
 
-  m_pendingFrags += cnt;
-  assert(m_pendingFrags <= getRootFragCount());
+  m_pendingWorkers += cnt;
+  assert(m_pendingWorkers <= getWorkerCount());
 
   return 0;
 } // NdbQueryImpl::sendFetchMore()
@@ -3370,7 +3760,7 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
   }
 
   /* Wait for outstanding scan results from current batch fetch */
-  while (m_pendingFrags > 0)
+  while (m_pendingWorkers > 0)
   {
     const FetchResult result = static_cast<FetchResult>
         (poll_guard.wait_scan(3*timeout, nodeId, forceSend));
@@ -3390,22 +3780,22 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
     }
   } // while
 
-  assert(m_pendingFrags==0);
-  NdbRootFragment::clear(m_rootFrags,m_rootFragCount);
+  assert(m_pendingWorkers==0);
+  NdbWorker::clear(m_workers,m_workerCount);
   m_errorReceived = 0;                         // Clear errors caused by previous fetching
   m_error.code = 0;
 
-  if (m_finalBatchFrags < getRootFragCount())  // TC has an open scan cursor.
+  if (m_finalWorkers < getWorkerCount())  // TC has an open scan cursor.
   {
     /* Send SCAN_NEXTREQ(close) */
     const int error = sendClose(m_transaction.getConnectedNodeId());
     if (unlikely(error))
       return error;
 
-    assert(m_finalBatchFrags+m_pendingFrags==getRootFragCount());
+    assert(m_finalWorkers+m_pendingWorkers==getWorkerCount());
 
     /* Wait for close to be confirmed: */
-    while (m_pendingFrags > 0)
+    while (m_pendingWorkers > 0)
     {
       const FetchResult result = static_cast<FetchResult>
           (poll_guard.wait_scan(3*timeout, nodeId, forceSend));
@@ -3436,8 +3826,8 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
 int
 NdbQueryImpl::sendClose(int nodeId)
 {
-  assert(m_finalBatchFrags < getRootFragCount());
-  m_pendingFrags = getRootFragCount() - m_finalBatchFrags;
+  assert(m_finalWorkers < getWorkerCount());
+  m_pendingWorkers = getWorkerCount() - m_finalWorkers;
 
   Ndb& ndb = *m_transaction.getNdb();
   NdbApiSignal tSignal(&ndb);
@@ -3484,28 +3874,28 @@ int NdbQueryImpl::isPrunable(bool& prunable)
 
 NdbQueryImpl::OrderedFragSet::OrderedFragSet():
   m_capacity(0),
-  m_activeFragCount(0),
-  m_fetchMoreFragCount(0),
-  m_finalFragReceivedCount(0),
-  m_finalFragConsumedCount(0),
+  m_activeWorkerCount(0),
+  m_fetchMoreWorkerCount(0),
+  m_finalResultReceivedCount(0),
+  m_finalResultConsumedCount(0),
   m_ordering(NdbQueryOptions::ScanOrdering_void),
   m_keyRecord(NULL),
   m_resultRecord(NULL),
-  m_activeFrags(NULL),
-  m_fetchMoreFrags(NULL)
+  m_activeWorkers(NULL),
+  m_fetchMoreWorkers(NULL)
 {
 }
 
 NdbQueryImpl::OrderedFragSet::~OrderedFragSet() 
 { 
-  m_activeFrags = NULL;
-  m_fetchMoreFrags = NULL;
+  m_activeWorkers = NULL;
+  m_fetchMoreWorkers = NULL;
 }
 
 void NdbQueryImpl::OrderedFragSet::clear() 
 { 
-  m_activeFragCount = 0;
-  m_fetchMoreFragCount = 0; 
+  m_activeWorkerCount = 0;
+  m_fetchMoreWorkerCount = 0; 
 }
 
 void
@@ -3515,7 +3905,7 @@ NdbQueryImpl::OrderedFragSet::prepare(NdbBulkAllocator& allocator,
                                       const NdbRecord* keyRecord,
                                       const NdbRecord* resultRecord)
 {
-  assert(m_activeFrags==NULL);
+  assert(m_activeWorkers==NULL);
   assert(m_capacity==0);
   assert(ordering!=NdbQueryOptions::ScanOrdering_void);
   
@@ -3523,13 +3913,13 @@ NdbQueryImpl::OrderedFragSet::prepare(NdbBulkAllocator& allocator,
   { 
     m_capacity = capacity;
 
-    m_activeFrags =  
-      reinterpret_cast<NdbRootFragment**>(allocator.allocObjMem(capacity)); 
-    bzero(m_activeFrags, capacity * sizeof(NdbRootFragment*));
+    m_activeWorkers =  
+      reinterpret_cast<NdbWorker**>(allocator.allocObjMem(capacity)); 
+    memset(m_activeWorkers, 0, capacity * sizeof(NdbWorker*));
 
-    m_fetchMoreFrags = 
-      reinterpret_cast<NdbRootFragment**>(allocator.allocObjMem(capacity));
-    bzero(m_fetchMoreFrags, capacity * sizeof(NdbRootFragment*));
+    m_fetchMoreWorkers = 
+      reinterpret_cast<NdbWorker**>(allocator.allocObjMem(capacity));
+    memset(m_fetchMoreWorkers, 0, capacity * sizeof(NdbWorker*));
   }
   m_ordering = ordering;
   m_keyRecord = keyRecord;
@@ -3538,53 +3928,52 @@ NdbQueryImpl::OrderedFragSet::prepare(NdbBulkAllocator& allocator,
 
 
 /**
- *  Get current RootFragment which to return results from.
+ *  Get current NdbWorker which to return results from.
  *  Logic relies on that ::reorganize() is called whenever the current 
- *  RootFragment is advanced to next result. This will eliminate
- *  empty RootFragments from the OrderedFragSet object
- *
+ *  NdbWorker is advanced to next result. This will eliminate
+ *  empty NdbWorkers from the OrderedFragSet object
  */
-NdbRootFragment* 
+NdbWorker* 
 NdbQueryImpl::OrderedFragSet::getCurrent() const
 { 
   if (m_ordering!=NdbQueryOptions::ScanOrdering_unordered)
   {
     /** 
-     * Must have tuples for each (non-completed) fragment when doing ordered
+     * Must have tuples for each (non-completed) worker when doing ordered
      * scan.
      */
-    if (unlikely(m_activeFragCount+m_finalFragConsumedCount < m_capacity))
+    if (unlikely(m_activeWorkerCount+m_finalResultConsumedCount < m_capacity))
     {
       return NULL;
     }
   }
   
-  if (unlikely(m_activeFragCount==0))
+  if (unlikely(m_activeWorkerCount==0))
   {
     return NULL;
   }
   else
   {
-    assert(!m_activeFrags[m_activeFragCount-1]->isEmpty());
-    return m_activeFrags[m_activeFragCount-1];
+    assert(!m_activeWorkers[m_activeWorkerCount-1]->isEmpty());
+    return m_activeWorkers[m_activeWorkerCount-1];
   }
 } // OrderedFragSet::getCurrent()
 
 /**
- *  Keep the FragSet ordered, both with respect to specified ScanOrdering, and
- *  such that RootFragments which becomes empty are removed from 
- *  m_activeFrags[].
- *  Thus,  ::getCurrent() should be as lightweight as possible and only has
+ *  Keep the set of worker results ordered, both with respect to
+ *  specified ScanOrdering, and such that NdbWorkers which become
+ *  empty are removed from  m_activeWorkers[].
+ *  Thus, ::getCurrent() should be as lightweight as possible and only has
  *  to return the 'next' available from array wo/ doing any housekeeping.
  */
 void
 NdbQueryImpl::OrderedFragSet::reorganize()
 {
-  assert(m_activeFragCount > 0);
-  NdbRootFragment* const frag = m_activeFrags[m_activeFragCount-1];
+  assert(m_activeWorkerCount > 0);
+  NdbWorker* const worker = m_activeWorkers[m_activeWorkerCount-1];
 
-  // Remove the current fragment if the batch has been emptied.
-  if (frag->isEmpty())
+  // Remove the current worker if the batch has been emptied.
+  if (worker->isEmpty())
   {
     /**
      * MT-note: Although ::finalBatchReceived() normally requires mutex,
@@ -3592,48 +3981,48 @@ NdbQueryImpl::OrderedFragSet::reorganize()
      *
      *  - 'not hasRequestedMore()' guaranty that there can't be any
      *     receiver thread simultaneously accessing the mutex protected members.
-     *  -  As this fragment has already been added to (the mutex protected)
+     *  -  As this worker has already been added to (the mutex protected)
      *     class OrderedFragSet, we know that the mutex has been
      *     previously set for this 'frag'. This would have resolved
      *     any cache coherency problems related to mt'ed access to
-     *     'frag->finalBatchReceived()'.
+     *     'worker->finalBatchReceived()'.
      */
-    if (!frag->hasRequestedMore() && frag->finalBatchReceived())
+    if (!worker->hasRequestedMore() && worker->finalBatchReceived())
     {
-      assert(m_finalFragReceivedCount > m_finalFragConsumedCount);
-      m_finalFragConsumedCount++;
+      assert(m_finalResultReceivedCount > m_finalResultConsumedCount);
+      m_finalResultConsumedCount++;
     }
 
     /**
-     * Without doublebuffering we can't 'fetchMore' for fragments until 
-     * the current ResultSet has been consumed bu application.
+     * Without doublebuffering we can't 'fetchMore' from workers until 
+     * the current ResultSet has been consumed by application.
      * (Compared to how ::prepareMoreResults() immediately 'fetchMore')
      */  
     else if (!useDoubleBuffers)
     {
-      m_fetchMoreFrags[m_fetchMoreFragCount++] = frag;
+      m_fetchMoreWorkers[m_fetchMoreWorkerCount++] = worker;
     }
-    m_activeFragCount--;
+    m_activeWorkerCount--;
   }
 
-  // Reorder fragments if add'ed nonEmpty fragment to a sorted scan.
+  // Reorder worker results if add'ed nonEmpty worker to a sorted scan.
   else if (m_ordering!=NdbQueryOptions::ScanOrdering_unordered)
   {
     /** 
      * This is a sorted scan. There are more data to be read from 
-     * m_activeFrags[m_activeFragCount-1]. Move it to its proper place.
+     * m_activeWorkers[m_activeWorkerCount-1]. Move it to its proper place.
      *
      * Use binary search to find the largest record that is smaller than or
-     * equal to m_activeFrags[m_activeFragCount-1].
+     * equal to m_activeWorkers[m_activeWorkerCount-1].
      */
     int first = 0;
-    int last = m_activeFragCount-1;
+    int last = m_activeWorkerCount-1;
     int middle = (first+last)/2;
 
     while (first<last)
     {
-      assert(middle<m_activeFragCount);
-      const int cmpRes = compare(*frag, *m_activeFrags[middle]);
+      assert(middle<m_activeWorkerCount);
+      const int cmpRes = compare(*worker, *m_activeWorkers[middle]);
       if (cmpRes < 0)
       {
         first = middle + 1;
@@ -3650,69 +4039,69 @@ NdbQueryImpl::OrderedFragSet::reorganize()
     }
 
     // Move into correct sorted position
-    if (middle < m_activeFragCount-1)
+    if (middle < m_activeWorkerCount-1)
     {
-      assert(compare(*frag, *m_activeFrags[middle]) >= 0);
-      memmove(m_activeFrags+middle+1, 
-              m_activeFrags+middle, 
-              (m_activeFragCount - middle - 1) * sizeof(NdbRootFragment*));
-      m_activeFrags[middle] = frag;
+      assert(compare(*worker, *m_activeWorkers[middle]) >= 0);
+      memmove(m_activeWorkers+middle+1, 
+              m_activeWorkers+middle, 
+              (m_activeWorkerCount - middle - 1) * sizeof(NdbWorker*));
+      m_activeWorkers[middle] = worker;
     }
     assert(verifySortOrder());
   }
-  assert(m_activeFragCount+m_finalFragConsumedCount    <= m_capacity);
-  assert(m_fetchMoreFragCount+m_finalFragReceivedCount <= m_capacity);
+  assert(m_activeWorkerCount+m_finalResultConsumedCount    <= m_capacity);
+  assert(m_fetchMoreWorkerCount+m_finalResultReceivedCount <= m_capacity);
 } // OrderedFragSet::reorganize()
 
 void 
-NdbQueryImpl::OrderedFragSet::add(NdbRootFragment& frag)
+NdbQueryImpl::OrderedFragSet::add(NdbWorker& worker)
 {
-  assert(m_activeFragCount+m_finalFragConsumedCount < m_capacity);
+  assert(m_activeWorkerCount+m_finalResultConsumedCount < m_capacity);
 
-  m_activeFrags[m_activeFragCount++] = &frag;  // Add avail fragment
+  m_activeWorkers[m_activeWorkerCount++] = &worker;  // Add avail worker
   reorganize();                                // Move into position
 } // OrderedFragSet::add()
 
 /**
- * Scan rootFrags[] for fragments which has received a ResultSet batch.
+ * Scan workers[] for fragments which has received a ResultSet batch.
  * Add these to m_applFrags (Require mutex protection)
  */
 void 
-NdbQueryImpl::OrderedFragSet::prepareMoreResults(NdbRootFragment rootFrags[], Uint32 cnt) 
+NdbQueryImpl::OrderedFragSet::prepareMoreResults(NdbWorker workers[], Uint32 cnt) 
 {
-  for (Uint32 fragNo = 0; fragNo < cnt; fragNo++)
+  for (Uint32 workerNo = 0; workerNo < cnt; workerNo++)
   {
-    NdbRootFragment& rootFrag = rootFrags[fragNo];
-    if (rootFrag.isEmpty() &&         // Current ResultSet is empty
-        rootFrag.hasReceivedMore())   // Another ResultSet is available
+    NdbWorker& worker = workers[workerNo];
+    if (worker.isEmpty() &&         // Current ResultSet is empty
+        worker.hasReceivedMore())   // Another ResultSet is available
     {
-      if (rootFrag.finalBatchReceived())
+      if (worker.finalBatchReceived())
       {
-        m_finalFragReceivedCount++;
+        m_finalResultReceivedCount++;
       }
       /**
        * When doublebuffered fetch is active:
-       * Received fragment is a candidates for immediate prefetch.
+       * Received worker results is a candidates for immediate prefetch.
        */
       else if (useDoubleBuffers)
       {
-        m_fetchMoreFrags[m_fetchMoreFragCount++] = &rootFrag;
+        m_fetchMoreWorkers[m_fetchMoreWorkerCount++] = &worker;
       } // useDoubleBuffers
 
-      rootFrag.grabNextResultSet();   // Get new ResultSet.
-      add(rootFrag);                  // Make avail. to appl. thread
+      worker.grabNextResultSet();   // Get new ResultSet.
+      add(worker);                  // Make avail. to appl. thread
     }
-  } // for all 'rootFrags[]'
+  } // for all 'workers[]'
 
-  assert(m_activeFragCount+m_finalFragConsumedCount    <= m_capacity);
-  assert(m_fetchMoreFragCount+m_finalFragReceivedCount <= m_capacity);
+  assert(m_activeWorkerCount+m_finalResultConsumedCount    <= m_capacity);
+  assert(m_fetchMoreWorkerCount+m_finalResultReceivedCount <= m_capacity);
 } // OrderedFragSet::prepareMoreResults()
 
 /**
  * Determine if a ::sendFetchMore() should be requested at this point.
  */
 Uint32 
-NdbQueryImpl::OrderedFragSet::getFetchMore(NdbRootFragment** &frags)
+NdbQueryImpl::OrderedFragSet::getFetchMore(NdbWorker** &workers)
 {
   /**
    * Decides (pre-)fetch strategy:
@@ -3725,14 +4114,14 @@ NdbQueryImpl::OrderedFragSet::getFetchMore(NdbRootFragment** &frags)
    *     until there are pending request to all datanodes having more
    *     ResultSets
    */
-  if (m_fetchMoreFragCount > 0 &&
-      (!useDoubleBuffers  ||                                         // 1)
-       m_ordering != NdbQueryOptions::ScanOrdering_unordered ||      // 2)
-       m_fetchMoreFragCount+m_finalFragReceivedCount >= m_capacity)) // 3)
+  if (m_fetchMoreWorkerCount > 0 &&
+      (!useDoubleBuffers  ||                                             //1)
+       m_ordering != NdbQueryOptions::ScanOrdering_unordered ||          //2)
+       m_fetchMoreWorkerCount+m_finalResultReceivedCount >= m_capacity)) //3)
   {
-    const int cnt = m_fetchMoreFragCount;
-    frags = m_fetchMoreFrags;
-    m_fetchMoreFragCount = 0;
+    const int cnt = m_fetchMoreWorkerCount;
+    workers = m_fetchMoreWorkers;
+    m_fetchMoreWorkerCount = 0;
     return cnt;
   }
   return 0;
@@ -3741,9 +4130,9 @@ NdbQueryImpl::OrderedFragSet::getFetchMore(NdbRootFragment** &frags)
 bool 
 NdbQueryImpl::OrderedFragSet::verifySortOrder() const
 {
-  for (int i = 0; i<m_activeFragCount-1; i++)
+  for (int i = 0; i<m_activeWorkerCount-1; i++)
   {
-    if (compare(*m_activeFrags[i], *m_activeFrags[i+1]) < 0)
+    if (compare(*m_activeWorkers[i], *m_activeWorkers[i+1]) < 0)
     {
       assert(false);
       return false;
@@ -3758,15 +4147,15 @@ NdbQueryImpl::OrderedFragSet::verifySortOrder() const
  * @return negative if frag1<frag2, 0 if frag1 == frag2, otherwise positive.
 */
 int
-NdbQueryImpl::OrderedFragSet::compare(const NdbRootFragment& frag1,
-                                      const NdbRootFragment& frag2) const
+NdbQueryImpl::OrderedFragSet::compare(const NdbWorker& worker1,
+                                      const NdbWorker& worker2) const
 {
   assert(m_ordering!=NdbQueryOptions::ScanOrdering_unordered);
 
   /* f1<f2 if f1 is empty but f2 is not.*/  
-  if(frag1.isEmpty())
+  if (worker1.isEmpty())
   {
-    if(!frag2.isEmpty())
+    if (!worker2.isEmpty())
     {
       return -1;
     }
@@ -3777,8 +4166,8 @@ NdbQueryImpl::OrderedFragSet::compare(const NdbRootFragment& frag1,
   }
   
   /* Neither stream is empty so we must compare records.*/
-  return compare_ndbrecord(&frag1.getResultStream(0).getReceiver(), 
-                           &frag2.getResultStream(0).getReceiver(),
+  return compare_ndbrecord(&worker1.getResultStream(0).getReceiver(), 
+                           &worker2.getResultStream(0).getReceiver(),
                            m_keyRecord,
                            m_resultRecord,
                            m_ordering 
@@ -3801,7 +4190,7 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_operationDef(def),
   m_parent(NULL),
   m_children(0),
-  m_maxBatchRows(0),   // >0: User specified prefered value, ==0: Use default CFG values
+  m_dependants(0),
   m_params(),
   m_resultBuffer(NULL),
   m_resultRef(NULL),
@@ -3816,7 +4205,9 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_parallelism(def.getOpNo() == 0
                 ? Parallelism_max : Parallelism_adaptive),
   m_rowSize(0xffffffff),
-  m_batchBufferSize(0xffffffff)
+  m_maxBatchRows(0),
+  m_maxBatchBytes(0),
+  m_resultBufferSize(0)
 { 
   if (m_children.expand(def.getNoOfChildOperations()))
   {
@@ -3829,7 +4220,7 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   if (parent != NULL)
   { 
     const Uint32 ix = parent->getOpNo();
-    assert (ix < m_queryImpl.getNoOfOperations());
+    assert (ix < def.getOpNo());
     m_parent = &m_queryImpl.getQueryOperation(ix);
     const int res = m_parent->m_children.push_back(this);
     UNUSED(res);
@@ -3839,6 +4230,28 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
     */
     assert(res == 0);
   }
+
+  // Register the extra 'out of branch' (!isChildOf()) dependencies.
+  // If we are not an ancestor of the 'first' treeNode of the join-nest
+  // we are embedded within, we need to added to 'm_dependants' as
+  // such an 'out of branch' dependant for this 'first_inner'
+  const NdbQueryOperationDefImpl* firstInEmbeddingNestDef =
+    def.getFirstInEmbeddingNest();
+  if (firstInEmbeddingNestDef != nullptr &&
+      !def.isChildOf(firstInEmbeddingNestDef))
+  {
+    const Uint32 ix = firstInEmbeddingNestDef->getOpNo();
+    NdbQueryOperationImpl* firstInEmbeddingNest =
+        &m_queryImpl.getQueryOperation(ix);
+
+    const int res = firstInEmbeddingNest->m_dependants.push_back(this);
+    if (res != 0)
+    {
+      queryImpl.setErrorCode(Err_MemoryAlloc);
+      return;
+    }
+  }
+
   if (def.getType()==NdbQueryOperationDef::OrderedIndexScan)
   {  
     const NdbQueryOptions::ScanOrdering defOrdering = 
@@ -3927,6 +4340,36 @@ Int32 NdbQueryOperationImpl::getNoOfDescendantOperations() const
     children += 1 + getChildOperation(i).getNoOfDescendantOperations();
 
   return children;
+}
+
+SpjTreeNodeMask
+NdbQueryOperationImpl::getDescendants() const
+{
+  SpjTreeNodeMask descendants;
+  for (unsigned i = 0; i < getNoOfChildOperations(); i++)
+  {
+    descendants.bitOR(getChildOperation(i).getDescendants());
+    descendants.set(getChildOperation(i).getInternalOpNo());
+  }
+  return descendants;
+}
+
+SpjTreeNodeMask
+NdbQueryOperationImpl::getDependants() const
+{
+  SpjTreeNodeMask dependants;
+  dependants.set(getInternalOpNo());
+
+  for (unsigned i = 0; i < m_children.size(); i++)
+  {
+    dependants.bitOR(m_children[i]->getDependants());
+  }
+  // Add extra dependants in sub-branches not being children
+  for (unsigned i = 0; i < m_dependants.size(); i++)
+  {
+    dependants.bitOR(m_dependants[i]->getDependants());
+  }
+  return dependants;
 }
 
 Uint32
@@ -4082,7 +4525,7 @@ NdbQueryOperationImpl::firstResult()
     return NdbQuery::NextResult_error;
   }
 
-  const NdbRootFragment* rootFrag;
+  const NdbWorker* worker;
 
 #if 0  // TODO ::firstResult() on root operation is unused, incomplete & untested
   if (unlikely(getParentOperation()==NULL))
@@ -4092,20 +4535,20 @@ NdbQueryOperationImpl::firstResult()
     {
       m_resultStreams[i]->firstResult();
     }
-    rootFrag = m_queryImpl.m_applFrags.reorganize();
-    assert(rootFrag==NULL || rootFrag==m_queryImpl.m_applFrags.getCurrent());
+    worker = m_queryImpl.m_applFrags.reorganize();
+    assert(worker==NULL || worker==m_queryImpl.m_applFrags.getCurrent());
   }
   else
 #endif
 
   {
     assert(getParentOperation()!=NULL);  // TODO, See above
-    rootFrag = m_queryImpl.m_applFrags.getCurrent();
+    worker = m_queryImpl.m_applFrags.getCurrent();
   }
 
-  if (rootFrag != NULL)
+  if (worker != NULL)
   {
-    NdbResultStream& resultStream = rootFrag->getResultStream(*this);
+    NdbResultStream& resultStream = worker->getResultStream(*this);
     if (resultStream.firstResult() != tupleNotFound)
     {
       fetchRow(resultStream);
@@ -4142,10 +4585,10 @@ NdbQueryOperationImpl::nextResult(bool fetchAllowed, bool forceSend)
    */
   else if (m_operationDef.isScanOperation())
   {
-    const NdbRootFragment* rootFrag = m_queryImpl.m_applFrags.getCurrent();
-    if (rootFrag!=NULL)
+    const NdbWorker* worker = m_queryImpl.m_applFrags.getCurrent();
+    if (worker!=NULL)
     {
-      NdbResultStream& resultStream = rootFrag->getResultStream(*this);
+      NdbResultStream& resultStream = worker->getResultStream(*this);
       if (resultStream.nextResult() != tupleNotFound)
       {
         fetchRow(resultStream);
@@ -4297,7 +4740,7 @@ NdbQueryOperationImpl::serializeProject(Uint32Buffer& attrInfo)
     recAttr = recAttr->next();
   }
 
-  bool withCorrelation = getRoot().getQueryDef().isScanQuery();
+  const bool withCorrelation = getQueryDef().isScanQuery();
   if (withCorrelation) {
     Uint32 ah;
     AttributeHeader::init(&ah, AttributeHeader::CORR_FACTOR64, 0);
@@ -4392,22 +4835,38 @@ NdbQueryOperationImpl
      * here - Recalculated when building signal after max-batchRows has been 
      * determined.
      */
+    const Uint32 rootFragments
+       = getRoot().getQueryOperationDef().getTable().getFragmentCount();
     Uint32 batchByteSize;
     /**
      * myClosestScan->m_maxBatchRows may be zero to indicate that we
      * should use default values, or non-zero if the application had an 
      * explicit preference.
+     * ::calculate_batch_size() will then use the configured 'batchSize'
+     * values to set, or cap, #rows / #bytes in batch for *each fragment*.
      */
     maxBatchRows = myClosestScan->m_maxBatchRows;
     NdbReceiver::calculate_batch_size(* ndb.theImpl,
-                                      getRoot().m_parallelism
-                                      == Parallelism_max
-                                      ? m_queryImpl.getRootFragCount()
-                                      : getRoot().m_parallelism,
+                                      getRoot().m_parallelism == Parallelism_max
+                                       ? rootFragments
+                                       : getRoot().m_parallelism,
                                       maxBatchRows,
                                       batchByteSize);
     assert(maxBatchRows > 0);
     assert(maxBatchRows <= batchByteSize);
+
+    /**
+     * There is a 12-bit implementation limit of how large
+     * the 'parent-row-correlation-id' may be. Thus, if rows
+     * from this scan may be 'parents', we have to
+     * reduce number of rows retrieved in each batch.
+     */
+    if (m_children.size() > 0)  //Is a 'parent'
+    {
+      static const Uint32 max_batch_size_rows = 0x1000;
+      const Uint32 fragsPerWorker = getQuery().m_fragsPerWorker;
+      maxBatchRows = MIN(maxBatchRows, max_batch_size_rows/fragsPerWorker);
+    }
   }
 
   // Find the largest value that is acceptable to all lookup descendants.
@@ -4451,7 +4910,8 @@ NdbQueryOperationImpl::setBatchedRows(Uint32 batchedRows)
 }
 
 int 
-NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
+NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo,
+                                       const QueryNode*& queryNode)
 {
   const NdbQueryOperationDefImpl& def = getQueryOperationDef();
 
@@ -4501,25 +4961,40 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
     }
     ndbout << endl;
 #endif
+
+    queryNode = QueryNode::nextQueryNode(queryNode);
   } // if (UniqueIndexAccess ...
 
   // Reserve memory for LookupParameters, fill in contents later when
   // 'length' and 'requestInfo' has been calculated.
   Uint32 startPos = attrInfo.getSize();
   Uint32 requestInfo = 0;
-  bool isRoot = (def.getOpNo()==0);
-
-  QueryNodeParameters::OpType paramType =
-       !def.isScanOperation() ? QueryNodeParameters::QN_LOOKUP
-           : (isRoot) ? QueryNodeParameters::QN_SCAN_FRAG 
-                      : QueryNodeParameters::QN_SCAN_INDEX;
-
-  if (paramType == QueryNodeParameters::QN_SCAN_INDEX)
-    attrInfo.alloc(QN_ScanIndexParameters::NodeSize);
-  else if (paramType == QueryNodeParameters::QN_SCAN_FRAG)
-    attrInfo.alloc(QN_ScanFragParameters::NodeSize);
-  else
+  /**
+   * Create QueryNodeParameters type matching each QueryNode.
+   */
+  const Uint32 type = QueryNode::getOpType(queryNode->len);
+  const QueryNodeParameters::OpType paramType = (QueryNodeParameters::OpType)type;
+  switch (paramType)
+  {
+  case QueryNodeParameters::QN_LOOKUP:
+    assert(!def.isScanOperation());
     attrInfo.alloc(QN_LookupParameters::NodeSize);
+    break;
+  case QueryNodeParameters::QN_SCAN_FRAG:
+    assert(def.isScanOperation());
+    attrInfo.alloc(QN_ScanFragParameters::NodeSize);
+    break;
+  case QueryNodeParameters::QN_SCAN_INDEX_v1:
+    assert(def.isScanOperation() && def.getOpNo()>0);
+    attrInfo.alloc(QN_ScanIndexParameters_v1::NodeSize);
+    break;
+  case QueryNodeParameters::QN_SCAN_FRAG_v1:
+    assert(def.isScanOperation() && def.getOpNo()==0);
+    attrInfo.alloc(QN_ScanFragParameters_v1::NodeSize);
+    break;
+  default:
+    assert(false);
+  }
 
   // SPJ block assume PARAMS to be supplied before ATTR_LIST
   if (m_params.getSize() > 0 &&
@@ -4568,54 +5043,10 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
     return QRY_DEFINITION_TOO_LARGE; //Query definition too large.
   }
 
-  if (paramType == QueryNodeParameters::QN_SCAN_INDEX)
+  switch (paramType)
   {
-    QN_ScanIndexParameters* param = reinterpret_cast<QN_ScanIndexParameters*>(attrInfo.addr(startPos)); 
-    if (unlikely(param==NULL))
-      return Err_MemoryAlloc;
-
-    Ndb& ndb = *m_queryImpl.getNdbTransaction().getNdb();
-
-    Uint32 batchRows = getMaxBatchRows();
-    Uint32 batchByteSize;
-    NdbReceiver::calculate_batch_size(* ndb.theImpl,
-                                      m_queryImpl.getRootFragCount(),
-                                      batchRows,
-                                      batchByteSize);
-    assert(batchRows == getMaxBatchRows());
-    assert(batchRows <= batchByteSize);
-    assert(m_parallelism == Parallelism_max ||
-           m_parallelism == Parallelism_adaptive);
-    if (m_parallelism == Parallelism_max)
-    {
-      requestInfo |= QN_ScanIndexParameters::SIP_PARALLEL;
-    }
-    if (def.hasParamInPruneKey())
-    {
-      requestInfo |= QN_ScanIndexParameters::SIP_PRUNE_PARAMS;
-    }
-    param->requestInfo = requestInfo;
-    // Check that both values fit in param->batchSize.
-    assert(getMaxBatchRows() < (1<<QN_ScanIndexParameters::BatchRowBits));
-    assert(batchByteSize < (1 << (sizeof param->batchSize * 8
-                                  - QN_ScanIndexParameters::BatchRowBits)));
-    param->batchSize = (batchByteSize << 11) | getMaxBatchRows();
-    param->resultData = getIdOfReceiver();
-    QueryNodeParameters::setOpLen(param->len, paramType, length);
-  }
-  else if (paramType == QueryNodeParameters::QN_SCAN_FRAG)
+  case QueryNodeParameters::QN_LOOKUP:
   {
-    QN_ScanFragParameters* param = reinterpret_cast<QN_ScanFragParameters*>(attrInfo.addr(startPos)); 
-    if (unlikely(param==NULL))
-      return Err_MemoryAlloc;
-
-    param->requestInfo = requestInfo;
-    param->resultData = getIdOfReceiver();
-    QueryNodeParameters::setOpLen(param->len, paramType, length);
-  }
-  else
-  {
-    assert(paramType == QueryNodeParameters::QN_LOOKUP);
     QN_LookupParameters* param = reinterpret_cast<QN_LookupParameters*>(attrInfo.addr(startPos)); 
     if (unlikely(param==NULL))
       return Err_MemoryAlloc;
@@ -4623,6 +5054,94 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
     param->requestInfo = requestInfo;
     param->resultData = getIdOfReceiver();
     QueryNodeParameters::setOpLen(param->len, paramType, length);
+    break;
+  }
+  case QueryNodeParameters::QN_SCAN_FRAG:
+  {
+    QN_ScanFragParameters* param = 
+      reinterpret_cast<QN_ScanFragParameters*>(attrInfo.addr(startPos)); 
+    if (unlikely(param==NULL))
+      return Err_MemoryAlloc;
+
+    const Uint32 fragsPerWorker = getQuery().m_fragsPerWorker;
+    const Uint32 batchRows = getMaxBatchRows()*fragsPerWorker;
+    const Uint32 batchByteSize = getMaxBatchBytes()*fragsPerWorker;
+    assert(batchRows <= batchByteSize);
+    assert(m_parallelism == Parallelism_max ||
+           m_parallelism == Parallelism_adaptive);
+    if (m_parallelism == Parallelism_max)
+    {
+      requestInfo |= QN_ScanFragParameters::SFP_PARALLEL;
+    }
+    if (def.hasParamInPruneKey())
+    {
+      requestInfo |= QN_ScanFragParameters::SFP_PRUNE_PARAMS;
+    }
+    if (getOrdering() != NdbQueryOptions::ScanOrdering_unordered)
+    {
+      requestInfo |= QN_ScanFragParameters::SFP_SORTED_ORDER;
+      // Only supported for root yet.
+      DBUG_ASSERT(this == &getRoot());
+    }
+
+    param->requestInfo = requestInfo;
+    param->resultData = getIdOfReceiver();
+    param->batch_size_rows = batchRows;
+    param->batch_size_bytes = batchByteSize;
+    param->unused0 = 0;  //Future
+    param->unused1 = 0;
+    param->unused2 = 0;
+    QueryNodeParameters::setOpLen(param->len, paramType, length);
+    break;
+  }
+  // Check deprecated QueryNode types last:
+  case QueryNodeParameters::QN_SCAN_INDEX_v1: //Deprecated
+  {
+    QN_ScanIndexParameters_v1* param = 
+      reinterpret_cast<QN_ScanIndexParameters_v1*>(attrInfo.addr(startPos)); 
+    if (unlikely(param==NULL))
+      return Err_MemoryAlloc;
+
+    assert(m_parallelism == Parallelism_max ||
+           m_parallelism == Parallelism_adaptive);
+    if (m_parallelism == Parallelism_max)
+    {
+      requestInfo |= QN_ScanIndexParameters_v1::SIP_PARALLEL;
+    }
+    if (def.hasParamInPruneKey())
+    {
+      requestInfo |= QN_ScanIndexParameters_v1::SIP_PRUNE_PARAMS;
+    }
+    param->requestInfo = requestInfo;
+
+    // Get Batch sizes, assert that both values fit in param->batchSize.
+    const Uint32 batchRows = getMaxBatchRows();
+    const Uint32 batchByteSize = getMaxBatchBytes();
+
+    assert(batchRows < (1<<QN_ScanIndexParameters_v1::BatchRowBits));
+    assert(batchByteSize < (1 << (sizeof param->batchSize * 8
+                                  - QN_ScanIndexParameters_v1::BatchRowBits)));
+    param->batchSize = (batchByteSize << QN_ScanIndexParameters_v1::BatchRowBits)
+                      | batchRows;
+    param->resultData = getIdOfReceiver();
+    QueryNodeParameters::setOpLen(param->len, paramType, length);
+    break;
+  }
+  case QueryNodeParameters::QN_SCAN_FRAG_v1: //Deprecated
+  {
+    assert(paramType == QueryNodeParameters::QN_SCAN_FRAG_v1);
+    QN_ScanFragParameters_v1* param =
+      reinterpret_cast<QN_ScanFragParameters_v1*>(attrInfo.addr(startPos)); 
+    if (unlikely(param==NULL))
+      return Err_MemoryAlloc;
+
+    param->requestInfo = requestInfo;
+    param->resultData = getIdOfReceiver();
+    QueryNodeParameters::setOpLen(param->len, paramType, length);
+    break;
+  }
+  default:
+    assert(false);
   }
 
 #ifdef __TRACE_SERIALIZATION
@@ -4640,6 +5159,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
   // to reduce memory footprint.
   m_params.releaseExtend();
 
+  queryNode = QueryNode::nextQueryNode(queryNode);
   return 0;
 } // NdbQueryOperationImpl::prepareAttrInfo
 
@@ -4924,7 +5444,7 @@ bool
 NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len)
 {
   TupleCorrelation tupleCorrelation;
-  NdbRootFragment* rootFrag = m_queryImpl.m_rootFrags;
+  NdbWorker* worker = m_queryImpl.m_workers;
 
   if (getQueryDef().isScanQuery())
   {
@@ -4932,14 +5452,13 @@ NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len)
     const Uint32 receiverId = correlData.getRootReceiverId();
     
     /** receiverId holds the Id of the receiver of the corresponding stream
-     * of the root operation. We can thus find the correct root fragment 
+     * of the root operation. We can thus find the correct worker 
      * number.
      */
-    rootFrag = 
-      NdbRootFragment::receiverIdLookup(m_queryImpl.m_rootFrags,
-                                        m_queryImpl.getRootFragCount(), 
-                                        receiverId);
-    if (unlikely(rootFrag == NULL))
+    worker = NdbWorker::receiverIdLookup(m_queryImpl.m_workers,
+                                         m_queryImpl.getWorkerCount(), 
+                                         receiverId);
+    if (unlikely(worker == NULL))
     {
       assert(false);
       return false;
@@ -4952,19 +5471,19 @@ NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len)
 
   if (traceSignals) {
     ndbout << "NdbQueryOperationImpl::execTRANSID_AI()" 
-           << ", fragment no: " << rootFrag->getFragNo()
+           << ", from workerNo=" << worker->getWorkerNo()
            << ", operation no: " << getQueryOperationDef().getOpNo()
            << endl;
   }
 
   // Process result values.
-  rootFrag->getResultStream(*this).execTRANSID_AI(ptr, len, tupleCorrelation);
-  rootFrag->incrOutstandingResults(-1);
+  worker->getResultStream(*this).execTRANSID_AI(ptr, len, tupleCorrelation);
+  worker->incrOutstandingResults(-1);
 
   bool ret = false;
-  if (rootFrag->isFragBatchComplete())
+  if (worker->isFragBatchComplete())
   {
-    ret = m_queryImpl.handleBatchComplete(*rootFrag);
+    ret = m_queryImpl.handleBatchComplete(*worker);
   }
 
   if (false && traceSignals) {
@@ -5006,7 +5525,7 @@ NdbQueryOperationImpl::execTCKEYREF(const NdbApiSignal* aSignal)
     getQuery().setFetchTerminated(ref->errorCode,false);
   }
 
-  NdbRootFragment& rootFrag = getQuery().m_rootFrags[0];
+  NdbWorker& worker = getQuery().m_workers[0];
 
   /**
    * Error may be either a 'soft' or a 'hard' error.
@@ -5031,17 +5550,17 @@ NdbQueryOperationImpl::execTCKEYREF(const NdbApiSignal* aSignal)
     {
       cnt += getNoOfLeafOperations();
     }
-    rootFrag.incrOutstandingResults(- Int32(cnt));
+    worker.incrOutstandingResults(- Int32(cnt));
     break;
   }
   default:                             // 'Hard error':
-    rootFrag.throwRemainingResults();  // Terminate receive -> complete
+    worker.throwRemainingResults();    // Terminate receive -> complete
   }
 
   bool ret = false;
-  if (rootFrag.isFragBatchComplete())
+  if (worker.isFragBatchComplete())
   { 
-    ret = m_queryImpl.handleBatchComplete(rootFrag);
+    ret = m_queryImpl.handleBatchComplete(worker);
   } 
 
   if (traceSignals) {
@@ -5052,46 +5571,50 @@ NdbQueryOperationImpl::execTCKEYREF(const NdbApiSignal* aSignal)
 } //NdbQueryOperationImpl::execTCKEYREF
 
 bool
-NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI, 
+NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
                                         Uint32 rowCount,
-                                        Uint32 nodeMask,
-                                        NdbReceiver* receiver)
+                                        Uint32 moreMask,
+                                        Uint32 activeMask,
+                                        const NdbReceiver* receiver)
 {
-  assert((tcPtrI==RNIL && nodeMask==0) || 
-         (tcPtrI!=RNIL && nodeMask!=0));
+  assert((tcPtrI==RNIL && moreMask==0) ||
+         (tcPtrI!=RNIL && moreMask!=0));
   assert(checkMagicNumber());
   // For now, only the root operation may be a scan.
   assert(&getRoot() == this);
   assert(m_operationDef.isScanOperation());
 
-  NdbRootFragment* rootFrag = 
-    NdbRootFragment::receiverIdLookup(m_queryImpl.m_rootFrags,
-                                      m_queryImpl.getRootFragCount(), 
-                                      receiver->getId());
-  if (unlikely(rootFrag == NULL))
+  NdbWorker* worker = 
+    NdbWorker::receiverIdLookup(m_queryImpl.m_workers,
+                                m_queryImpl.getWorkerCount(), 
+                                receiver->getId());
+  if (unlikely(worker == NULL))
   {
     assert(false);
     return false;
   }
-  // Prepare for SCAN_NEXTREQ, tcPtrI==RNIL, nodeMask==0 -> EOF
-  rootFrag->setConfReceived(tcPtrI);
-  rootFrag->setRemainingSubScans(nodeMask);
-  rootFrag->incrOutstandingResults(rowCount);
 
   if(traceSignals){
     ndbout << "NdbQueryOperationImpl::execSCAN_TABCONF"
-           << " fragment no: " << rootFrag->getFragNo()
+           << " from workerNo=" << worker->getWorkerNo()
            << " rows " << rowCount
-           << " nodeMask: H'" << hex << nodeMask << ")"
+           << " moreMask: H'" << hex << moreMask
+           << " activeMask: H'" << hex << activeMask
            << " tcPtrI " << tcPtrI
            << endl;
   }
+  DBUG_ASSERT(moreMask!=0 || activeMask==0);
+
+  // Prepare for SCAN_NEXTREQ, tcPtrI==RNIL, moreMask==0 -> EOF
+  worker->setConfReceived(tcPtrI);
+  worker->setRemainingSubScans(moreMask,activeMask);
+  worker->incrOutstandingResults(rowCount);
 
   bool ret = false;
-  if (rootFrag->isFragBatchComplete())
+  if (worker->isFragBatchComplete())
   {
     /* This fragment is now complete */
-    ret = m_queryImpl.handleBatchComplete(*rootFrag);
+    ret = m_queryImpl.handleBatchComplete(*worker);
   }
   if (false && traceSignals) {
     ndbout << "NdbQueryOperationImpl::execSCAN_TABCONF():, returns:" << ret
@@ -5284,9 +5807,10 @@ NdbQueryOperationImpl::prepareInterpretedCode(Uint32Buffer& attrInfo) const
 
 
 Uint32 
-NdbQueryOperationImpl::getIdOfReceiver() const {
-  NdbRootFragment& rootFrag = m_queryImpl.m_rootFrags[0];
-  return rootFrag.getResultStream(*this).getReceiver().getId();
+NdbQueryOperationImpl::getIdOfReceiver() const
+{
+  const NdbWorker& worker = m_queryImpl.m_workers[0];
+  return worker.getResultStream(*this).getReceiver().getId();
 }
 
 Uint32 NdbQueryOperationImpl::getRowSize() const
@@ -5300,20 +5824,27 @@ Uint32 NdbQueryOperationImpl::getRowSize() const
   return m_rowSize;
 }
 
-Uint32 NdbQueryOperationImpl::getBatchBufferSize() const
+Uint32 NdbQueryOperationImpl::getMaxBatchBytes() const
 {
   // Check if batch buffer size has been computed yet.
-  if (m_batchBufferSize == 0xffffffff)
+  if (m_maxBatchBytes == 0)
   {
-    Uint32 batchRows = getMaxBatchRows();
+    Uint32 batchRows     = getMaxBatchRows();
     Uint32 batchByteSize = 0;
-    Uint32 batchFrags = 1;
+    Uint32 batchFrags    = getQuery().m_fragsPerWorker;
+
+    // Set together with 'm_resultBufferSize'
+    assert(m_resultBufferSize == 0);
+
+    const Uint32 rootFragments
+       = getRoot().getQueryOperationDef().getTable().getFragmentCount();
 
     if (m_operationDef.isScanOperation())
     {
       const Ndb* const ndb = getQuery().getNdbTransaction().getNdb();
+      const Uint32 parallelism = rootFragments;
       NdbReceiver::calculate_batch_size(* ndb->theImpl,
-                                        getQuery().getRootFragCount(),
+                                        parallelism,
                                         batchRows,
                                         batchByteSize);
       assert(batchRows == getMaxBatchRows());
@@ -5332,7 +5863,11 @@ Uint32 NdbQueryOperationImpl::getBatchBufferSize() const
        */
       if (getParentOperation() != NULL)
       {
-        batchFrags = getQuery().getRootFragCount();
+        batchFrags = rootFragments;
+      }
+      else
+      {
+        batchFrags = 1;
       }
     }
 
@@ -5342,20 +5877,32 @@ Uint32 NdbQueryOperationImpl::getBatchBufferSize() const
       m_ndbRecord->copyMask(readMask.rep.data, m_read_mask);
     }
 
-    m_batchBufferSize = NdbReceiver::result_bufsize(
-                                                  batchRows, 
-                                                  batchByteSize,
-                                                  batchFrags,
-                                                  m_ndbRecord,
-                                                  readMask.rep.data,
-                                                  m_firstRecAttr,
-                                                  0, 0);
+    const bool withCorrelation = getQueryDef().isScanQuery();
+
+    m_maxBatchBytes = batchByteSize;
+    NdbReceiver::result_bufsize(m_ndbRecord,
+                                readMask.rep.data,
+                                m_firstRecAttr,
+                                0, false,           //No 'key_size' and 'read_range'
+                                withCorrelation,
+                                batchFrags,
+                                batchRows, 
+                                m_maxBatchBytes,
+                                m_resultBufferSize);
   }
-  return m_batchBufferSize;
+
+  return m_maxBatchBytes;
+}
+
+Uint32 NdbQueryOperationImpl::getResultBufferSize() const
+{
+  (void)getMaxBatchBytes();  //Force calculation if required
+  return m_resultBufferSize;
 }
 
 /** For debugging.*/
-NdbOut& operator<<(NdbOut& out, const NdbQueryOperationImpl& op){
+NdbOut& operator<<(NdbOut& out, const NdbQueryOperationImpl& op)
+{
   out << "[ this: " << &op
       << "  m_magic: " << op.m_magic;
   out << " op.operationDef.getOpNo()"
@@ -5373,7 +5920,8 @@ NdbOut& operator<<(NdbOut& out, const NdbQueryOperationImpl& op){
   return out;
 }
 
-NdbOut& operator<<(NdbOut& out, const NdbResultStream& stream){
+NdbOut& operator<<(NdbOut& out, const NdbResultStream& stream)
+{
   out << " received rows: " << stream.m_resultSets[stream.m_recv].getRowCount();
   return out;
 }

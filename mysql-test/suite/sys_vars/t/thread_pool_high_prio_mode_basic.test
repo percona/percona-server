@@ -1,5 +1,4 @@
 --source include/not_windows.inc
---source include/not_embedded.inc
 
 SET @start_global_value = @@GLOBAL.thread_pool_high_prio_mode;
 

@@ -19,13 +19,15 @@
 #include <chrono>
 #include <regex>
 #include <string>
-#include <vector>
 #include <unordered_map>
+#include <vector>
 
 /* MySQL header files */
-#include "log.h"
+#define LOG_COMPONENT_TAG "rocksdb"
+#include "mysql/components/services/log_builtins.h"
+#include "mysql/psi/mysql_rwlock.h"
+
 #include "my_stacktrace.h"
-#include "sql_regex.h"
 #include "sql_string.h"
 
 /* RocksDB header files */
@@ -187,6 +189,22 @@ inline const uchar *rdb_slice_to_uchar_ptr(const rocksdb::Slice *item) {
 }
 
 /*
+  Helper function to trim whitespace from leading and trailing edge of the given
+  string.
+*/
+inline void rdb_trim_whitespace_from_edges(std::string &str) {
+  const auto start = str.find_first_not_of(" ");
+  const auto end = str.find_last_not_of(" ");
+
+  if (start == std::string::npos && end == std::string::npos) {
+    str.erase();
+  } else {
+    if (end != std::string::npos) str.erase(end + 1, std::string::npos);
+    if (start != std::string::npos) str.erase(0, start);
+  }
+}
+
+/*
   Call this function in cases when you can't rely on garbage collector and need
   to explicitly purge all unused dirty pages. This should be a relatively rare
   scenario for cases where it has been verified that this intervention has
@@ -229,10 +247,8 @@ inline void rdb_check_mutex_call_result(const char *function_name,
                                         const bool attempt_lock,
                                         const int result) {
   if (unlikely(result)) {
-    /* NO_LINT_DEBUG */
-    sql_print_error(
-        "%s a mutex inside %s failed with an "
-        "error code %d.",
+    LogPluginErrMsg(
+        ERROR_LEVEL, 0, "%s a mutex inside %s failed with an error code %d.",
         attempt_lock ? "Locking" : "Unlocking", function_name, result);
 
     // This will hopefully result in a meaningful stack trace which we can use
@@ -255,8 +271,7 @@ void rdb_persist_corruption_marker();
   Helper functions to parse strings.
 */
 
-const char *rdb_skip_spaces(const struct charset_info_st *const cs,
-                            const char *str)
+const char *rdb_skip_spaces(const CHARSET_INFO *const cs, const char *str)
     MY_ATTRIBUTE((__warn_unused_result__));
 
 bool rdb_compare_strings_ic(const char *const str1, const char *const str2)
@@ -266,16 +281,16 @@ const char *rdb_find_in_string(const char *str, const char *pattern,
                                bool *const succeeded)
     MY_ATTRIBUTE((__warn_unused_result__));
 
-const char *rdb_check_next_token(const struct charset_info_st *const cs,
-                                 const char *str, const char *const pattern,
+const char *rdb_check_next_token(const CHARSET_INFO *const cs, const char *str,
+                                 const char *const pattern,
                                  bool *const succeeded)
     MY_ATTRIBUTE((__warn_unused_result__));
 
-const char *rdb_parse_id(const struct charset_info_st *const cs,
-                         const char *str, std::string *const id)
+const char *rdb_parse_id(const CHARSET_INFO *const cs, const char *str,
+                         std::string *const id)
     MY_ATTRIBUTE((__warn_unused_result__));
 
-const char *rdb_skip_id(const struct charset_info_st *const cs, const char *str)
+const char *rdb_skip_id(const CHARSET_INFO *const cs, const char *str)
     MY_ATTRIBUTE((__warn_unused_result__));
 
 const std::vector<std::string> parse_into_tokens(const std::string &s,
@@ -293,7 +308,43 @@ std::string rdb_hexdump(const char *data, const std::size_t data_len,
  */
 bool rdb_database_exists(const std::string &db_name);
 
-void warn_about_bad_patterns(const Regex &regex, const char *name);
+class Regex_list_handler {
+ private:
+  const PSI_rwlock_key &m_key;
+
+  char m_delimiter;
+  std::string m_bad_pattern_str;
+  std::unique_ptr<const std::regex> m_pattern;
+
+  mutable mysql_rwlock_t m_rwlock;
+
+  Regex_list_handler(const Regex_list_handler &other) = delete;
+  Regex_list_handler &operator=(const Regex_list_handler &other) = delete;
+
+ public:
+  Regex_list_handler(const PSI_rwlock_key &key, char delimiter = ',')
+      : m_key(key),
+        m_delimiter(delimiter),
+        m_bad_pattern_str(""),
+        m_pattern(nullptr) {
+    mysql_rwlock_init(key, &m_rwlock);
+  }
+
+  ~Regex_list_handler() { mysql_rwlock_destroy(&m_rwlock); }
+
+  // Set the list of patterns
+  bool set_patterns(const std::string &patterns,
+                    std::regex_constants::syntax_option_type flags);
+
+  // See if a string matches at least one pattern
+  bool matches(const std::string &str) const;
+
+  // See the list of bad patterns
+  const std::string &bad_pattern() const { return m_bad_pattern_str; }
+};
+
+void warn_about_bad_patterns(const Regex_list_handler *regex_list_handler,
+                             const char *name);
 
 std::vector<std::string> split_into_vector(const std::string &input,
                                            char delimiter);
@@ -367,9 +418,8 @@ class Rdb_exec_time {
 
     result += "}";
 
-    /* NO_LINT_DEBUG */
-    sql_print_information("MyRocks: rdb execution report (microsec): %s",
-                          result.c_str());
+    LogPluginErrMsg(INFORMATION_LEVEL, 0, "rdb execution report (microsec): %s",
+                    result.c_str());
   }
 };
 

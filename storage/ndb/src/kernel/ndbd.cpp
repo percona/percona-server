@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,7 +18,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <ndb_global.h>
 
@@ -34,6 +34,7 @@
 #include "vm/ThreadConfig.hpp"
 #include "vm/Configuration.hpp"
 
+#include "ndb_stacktrace.h"
 #include "ndbd.hpp"
 
 #include <TransporterRegistry.hpp>
@@ -46,6 +47,9 @@
 #endif
 
 #include <EventLogger.hpp>
+#include <OutputStream.hpp>
+#include <LogBuffer.hpp>
+#include <NdbGetRUsage.h>
 
 #define JAM_FILE_ID 484
 
@@ -54,7 +58,7 @@ extern EventLogger * g_eventLogger;
 static void
 systemInfo(const Configuration & config, const LogLevel & logLevel)
 {
-#ifdef NDB_WIN32
+#ifdef _WIN32
   int processors = 0;
   int speed;
   SYSTEM_INFO sinfo;
@@ -251,13 +255,29 @@ compute_acc_32kpages(const ndb_mgm_configuration_iterator * p)
  * overallocated at any size as long as there is still memory
  * remaining.
  *
- * RG_DISK_OPERATIONS:
+ * RG_TRANSACTION_MEMORY:
  * This is a resource that is either set to zero size but can be overallocated
  * without limit. If a log file group is allocated based on the config, then
  * the size of the UNDO log buffer is used to set the size of this resource.
  * This resource is only used to allocate the UNDO log buffer of an UNDO log
  * file group and there can only be one such group. It is using overallocating
  * if this happens through an SQL command.
+ *
+ * RG_QUERY_MEMORY:
+ * Like transaction memory, query memory may be overallocated. Unlike
+ * transaction memory, query memory may not use the last free 10% of shared
+ * global memory.  This is controlled by setting the reserved memory to zero.
+ * This indicates to memory manager that the resource is low priority and
+ * should not be allowed to starve out other higher priority resource.
+ *
+ * Dbspj is the user of query memory serving join queries and "only" read data.
+ * A bad join query could easily consume a lot of memory.
+ *
+ * Dbtc, which uses transaction memory, on the other hand also serves writes,
+ * and typically memory consumption per request are more limited.
+ *
+ * In situations there there are small amount of free memory left one want to
+ * Dbtc to be prioritized over Dbspj.
  *
  * Overallocating and total memory
  * -------------------------------
@@ -292,6 +312,7 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
   ndb_mgm_get_int64_parameter(p, CFG_DB_SGA, &shared_mem);
   Uint32 shared_pages = Uint32(shared_mem /= GLOBAL_PAGE_SIZE);
 
+  g_eventLogger->info("SharedGlobalMemory set to %u MB", shared_pages/32);
   Uint32 tupmem = 0;
   if (ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE, &tupmem))
   {
@@ -322,6 +343,12 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     rl.m_resource_id = RG_DATAMEM;
     ed.m_mem_manager->set_resource_limit(rl);
   }
+  else
+  {
+    g_eventLogger->alert("No data memory, exiting.");
+    return -1;
+  }
+  g_eventLogger->info("DataMemory set to %u MB", tupmem/32);
 
   Uint32 logParts = NDB_DEFAULT_LOG_PARTS;
   ndb_mgm_get_int_parameter(p, CFG_DB_NO_REDOLOG_PARTS, &logParts);
@@ -352,27 +379,40 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     }
   }
 
-  if (filepages)
-  {
-    Resource_limit rl;
-    rl.m_min = filepages;
-    rl.m_max = filepages;
-    rl.m_resource_id = RG_FILE_BUFFERS;
-    ed.m_mem_manager->set_resource_limit(rl);
-  }
+  Resource_limit rl;
+  rl.m_min = filepages;
+  rl.m_max = filepages;
+  rl.m_resource_id = RG_FILE_BUFFERS;
+  ed.m_mem_manager->set_resource_limit(rl);
+  g_eventLogger->info("RedoLogBuffer uses %u MB", filepages/32);
 
   Uint32 jbpages = compute_jb_pages(&ed);
   if (jbpages)
   {
+    require(globalData.isNdbMt);
     Resource_limit rl;
     rl.m_min = jbpages;
     rl.m_max = jbpages;
     rl.m_resource_id = RG_JOBBUFFER;
     ed.m_mem_manager->set_resource_limit(rl);
+    g_eventLogger->info("Job buffers use %u MB", jbpages/32);
+  }
+  else if (globalData.isNdbMt)
+  {
+    g_eventLogger->alert("No job buffer memory, exiting.");
+    return -1;
+  }
+  else
+  {
+    Resource_limit rl;
+    rl.m_min = 0;
+    rl.m_max = 0; // Not used by ndbd
+    rl.m_resource_id = RG_JOBBUFFER;
+    ed.m_mem_manager->set_resource_limit(rl);
   }
 
   Uint32 sbpages = 0;
-  if (globalTransporterRegistry.get_using_default_send_buffer() == false)
+  if (globalData.isNdbMt)
   {
     /**
      * This path is normally always taken for ndbmtd as the transporter
@@ -402,8 +442,8 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     {
       Uint64 extra_mem = 0;
       ndb_mgm_get_int64_parameter(p, CFG_EXTRA_SEND_BUFFER_MEMORY, &extra_mem);
-      Uint32 extra_mem_pages = Uint32((extra_mem + GLOBAL_PAGE_SIZE - 1) /
-                                      GLOBAL_PAGE_SIZE);
+      Uint32 extra_mem_pages = Uint32(Uint64(extra_mem + GLOBAL_PAGE_SIZE - 1) /
+                                      Uint64(GLOBAL_PAGE_SIZE));
       sbpages += mt_get_extra_send_buffer_pages(sbpages, extra_mem_pages);
     }
 
@@ -413,7 +453,19 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
      * allow over allocation (from SharedGlobalMemory) of up to 25% of
      *   totally allocated SendBuffer
      */
+    require(sbpages + (sbpages * 25) / 100 > 0);
     rl.m_max = sbpages + (sbpages * 25) / 100;
+    rl.m_resource_id = RG_TRANSPORTER_BUFFERS;
+    ed.m_mem_manager->set_resource_limit(rl);
+    g_eventLogger->info("Send buffers use %u MB, can overallocate 25%%"
+                        " more using SharedGlobalMemory",
+                         sbpages/32);
+  }
+  else
+  {
+    Resource_limit rl;
+    rl.m_min = 0;
+    rl.m_max = 0; // Not used by ndbd
     rl.m_resource_id = RG_TRANSPORTER_BUFFERS;
     ed.m_mem_manager->set_resource_limit(rl);
   }
@@ -435,21 +487,96 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
 
     Resource_limit rl;
     rl.m_min = pgman_pages;
+    require(pgman_pages > 0);
     rl.m_max = pgman_pages;
     rl.m_resource_id = RG_DISK_PAGE_BUFFER;  // Add to RG_DISK_PAGE_BUFFER
     ed.m_mem_manager->set_resource_limit(rl);
+  }
+  Uint32 pgman_mbytes = pgman_pages / 32;
+  g_eventLogger->info("DiskPageBuffer uses %u MB", pgman_mbytes);
+
+  Uint32 ldmInstances = 1;
+  if (globalData.ndbMtLqhWorkers > 1)
+  {
+    ldmInstances = globalData.ndbMtLqhThreads;
   }
 
   Uint32 stpages = 64;
   {
     Resource_limit rl;
     rl.m_min = stpages;
-    rl.m_max = 0;
+    rl.m_max = Resource_limit::HIGHEST_LIMIT;
     rl.m_resource_id = RG_SCHEMA_TRANS_MEMORY;
     ed.m_mem_manager->set_resource_limit(rl);
   }
+  g_eventLogger->info("SchemaTransactionMemory uses 2 MB");
 
-  Uint32 undopages = 0;
+  Uint32 transmem = 0;
+  Uint32 tcInstances = 1;
+  if (globalData.ndbMtTcThreads > 1)
+  {
+    tcInstances = globalData.ndbMtTcThreads;
+  }
+
+  Uint64 TransactionMemory = 0;
+
+  ndb_mgm_get_int64_parameter(p, CFG_DB_TRANSACTION_MEM,
+                              &TransactionMemory);
+
+  Uint64 transmem_bytes =
+      globalEmulatorData.theSimBlockList->getTransactionMemoryNeed(
+        tcInstances,
+        ldmInstances,
+        p,
+        false);
+
+  Uint64 reserved_transmem_bytes =
+      globalEmulatorData.theSimBlockList->getTransactionMemoryNeed(
+        tcInstances,
+        ldmInstances,
+        p,
+        true);
+
+  Uint32 reserved_transmem = Uint32(reserved_transmem_bytes / Uint64(32768));
+  transmem = Uint32(transmem_bytes / Uint64(32768));
+
+  if (TransactionMemory != 0)
+  {
+    Uint32 new_transmem = Uint32(TransactionMemory / Uint64(32768));
+    g_eventLogger->warning("Calculated TransactionMemory %u MB replaced by"
+                           " setting it to %u MB",
+                           transmem/32,
+                           new_transmem/32);
+    transmem = new_transmem;
+  }
+  /**
+   * The minimum setting of TransactionMemory is the reserved transaction
+   * memory and an additional 4 MByte (128 pages) per LDM and TC instance.
+   */
+  Uint32 min_transmem = reserved_transmem +
+                        (tcInstances + ldmInstances) * 128;
+
+  if (transmem < min_transmem)
+  {
+    g_eventLogger->info("TransactionMemory %u MB isn't enough, setting it to"
+                        " %u MB",
+                        transmem/32,
+                        min_transmem/32);
+    transmem = min_transmem;
+  }
+  if (TransactionMemory != 0)
+  {
+    g_eventLogger->info("TransactionMemory set to %u MB", transmem/32);
+    g_eventLogger->info("Reserved part of TransactionMemory is %u MB",
+                        reserved_transmem/32);
+  }
+  else
+  {
+    g_eventLogger->info("TransactionMemory calculated to %u MB", transmem/32);
+    g_eventLogger->info("Reserved part of TransactionMemory is %u MB",
+                        reserved_transmem/32);
+  }
+
   {
     /**
      * Request extra undo buffer memory to be allocated when
@@ -464,6 +591,7 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
      *
      */
     Uint32 dl = 0;
+    Uint32 undopages = 0;
     ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &dl);
 
     if (dl == 0)
@@ -478,30 +606,62 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
                                          undo_buffer_size);
 
         undopages = Uint32(undo_buffer_size / GLOBAL_PAGE_SIZE);
-        g_eventLogger->info("reserving %u extra pages for undo buffer memory",
-                            undopages);
-        Resource_limit rl;
-        rl.m_min = undopages;
-        rl.m_max = 0;
-        rl.m_resource_id = RG_DISK_OPERATIONS;
-        ed.m_mem_manager->set_resource_limit(rl);
+        g_eventLogger->info("Reserving %u MB for undo buffer memory",
+                            undopages/32);
+        transmem += undopages;
       }
     }
+    Resource_limit rl;
+    rl.m_min = transmem;
+    rl.m_max = Resource_limit::HIGHEST_LIMIT;
+    rl.m_resource_id = RG_TRANSACTION_MEMORY;
+    ed.m_mem_manager->set_resource_limit(rl);
+    if (undopages == 0)
+    {
+      g_eventLogger->info("No Undo log buffer used, will be allocated from"
+                          " TransactionMemory if later defined by command");
+    }
   }
+  g_eventLogger->info("TransactionMemory can expand and use"
+                      " SharedGlobalMemory if required");
 
-  Uint32 sum = shared_pages + tupmem + filepages + jbpages + sbpages +
-    pgman_pages + stpages + undopages;
+  {
+    Resource_limit rl;
+    /*
+     * Setting m_min = 0 makes QUERY_MEMORY a low priority resource group
+     * which can not use the last 10% of shared global page memory.
+     *
+     * For example TRANSACTION_MEMORY will have access to those last
+     * percent of global shared global page memory.
+     */
+    rl.m_min = 0;
+    rl.m_max = Resource_limit::HIGHEST_LIMIT;
+    rl.m_resource_id = RG_QUERY_MEMORY;
+    ed.m_mem_manager->set_resource_limit(rl);
+  }
+  g_eventLogger->info("QueryMemory can use memory from SharedGlobalMemory"
+                      " until 90%% used");
 
-  if (sum)
   {
     Resource_limit rl;
     rl.m_min = 0;
-    rl.m_max = sum;
-    rl.m_resource_id = 0;
+    rl.m_max = Resource_limit::HIGHEST_LIMIT;
+    rl.m_resource_id = RG_DISK_RECORDS;
     ed.m_mem_manager->set_resource_limit(rl);
   }
 
-  if (!ed.m_mem_manager->init(watchCounter))
+  Uint32 sum = shared_pages + tupmem + filepages + jbpages + sbpages +
+    pgman_pages + stpages + transmem;
+
+  /**
+   * We allocate a bit of extra pages to handle map pages in the NDB memory
+   * manager. We need 2 extra pages per 8 GByte of memory added and one more
+   * page per chunk. We add the first chunk already here.
+   */
+  Uint32 extra_chunk_pages = (2 * (sum / (32768 * 8))) + 3;
+  sum += extra_chunk_pages;
+
+  if (!ed.m_mem_manager->init(watchCounter, sum))
   {
     struct ndb_mgm_param_info dm;
     struct ndb_mgm_param_info sga;
@@ -633,6 +793,7 @@ extern "C"
 void
 handler_shutdown(int signum){
   g_eventLogger->info("Received signal %d. Performing stop.", signum);
+  ndb_print_stacktrace();
   childReportSignal(signum);
   globalData.theRestartFlag = perform_stop;
 }
@@ -650,7 +811,7 @@ handler_error(int signum){
       my_thread_equal(thread_id, my_thread_self()))
   {
     // Shutdown thread received signal
-#ifndef NDB_WIN32
+#ifndef _WIN32
 	signal(signum, SIG_DFL);
     kill(getpid(), signum);
 #endif
@@ -665,6 +826,7 @@ handler_error(int signum){
   handling_error = true;
 
   g_eventLogger->info("Received signal %d. Running error handler.", signum);
+  ndb_print_stacktrace();
   childReportSignal(signum);
   // restart the system
   char errorData[64], *info= 0;
@@ -768,13 +930,105 @@ DWORD WINAPI shutdown_thread(LPVOID)
 }
 #endif
 
+struct ThreadData
+{
+  FILE* f;
+  LogBuffer* logBuf;
+  bool stop;
+};
+
+/**
+ * This function/thread is responsible for getting
+ * bytes from the log buffer and writing them
+ * to the log file.
+ */
+
+void* async_log_func(void* args)
+{
+  ThreadData* data = (ThreadData*)args;
+  FILE* f = data->f;
+  LogBuffer* logBuf = data->logBuf;
+  const size_t get_bytes = 512;
+  char buf[get_bytes + 1];
+  size_t bytes;
+  int part_bytes = 0, bytes_printed = 0;
+
+  while(!data->stop)
+  {
+    part_bytes = 0;
+    bytes_printed = 0;
+
+    if((bytes = logBuf->get(buf, get_bytes)))
+    {
+      fwrite(buf, bytes, 1, f);
+      fflush(f);
+    }
+  }
+
+  while((bytes = logBuf->get(buf, get_bytes, 1)))// flush remaining logs
+  {
+    fwrite(buf, bytes, 1, f);
+    fflush(f);
+  }
+
+  // print lost count in the end, if any
+  size_t lost_count = logBuf->getLostCount();
+  if(lost_count)
+  {
+    fprintf(f, "\n*** %lu BYTES LOST ***\n", (unsigned long)lost_count);
+    fflush(f);
+  }
+
+  return NULL;
+}
+
+static void log_memusage(const char* where=NULL)
+{
+#ifdef DEBUG_RSS
+  const char* location = (where != NULL)?where : "Unknown";
+  ndb_rusage ru;
+  if (Ndb_GetRUsage(&ru, true) != 0)
+  {
+    g_eventLogger->error("Failed to get rusage");
+  }
+  else
+  {
+    g_eventLogger->info("ndbd.cpp %s : RSS : %llu kB", location, ru.ru_rss);
+  }
+#else
+  (void)where;
+#endif
+}
 
 void
 ndbd_run(bool foreground, int report_fd,
          const char* connect_str, int force_nodeid, const char* bind_address,
          bool no_start, bool initial, bool initialstart,
-         unsigned allocated_nodeid, int connect_retries, int connect_delay)
+         unsigned allocated_nodeid, int connect_retries, int connect_delay,
+         size_t logbuffer_size)
 {
+  log_memusage("ndbd_run");
+  LogBuffer* logBuf = new LogBuffer(logbuffer_size);
+  BufferedOutputStream* ndbouts_bufferedoutputstream = new BufferedOutputStream(logBuf);
+
+  // Make ndbout point to the BufferedOutputStream.
+  NdbOut_ReInit(ndbouts_bufferedoutputstream, ndbouts_bufferedoutputstream);
+
+  struct NdbThread* log_threadvar= NULL;
+  ThreadData thread_args=
+  {
+    stdout,
+    logBuf,
+    false
+  };
+
+  // Create log thread.
+  log_threadvar = NdbThread_Create(async_log_func,
+                       (void**)&thread_args,
+                       0,
+                       (char*)"async_log_thread",
+                       NDB_THREAD_PRIO_MEAN);
+
 #ifdef _WIN32
   {
     char shutdown_event_name[32];
@@ -798,6 +1052,8 @@ ndbd_run(bool foreground, int report_fd,
     }
   }
 #endif
+
+  ndb_init_stacktrace();
 
   if (foreground)
     g_eventLogger->info("Ndb started in foreground");
@@ -841,7 +1097,11 @@ ndbd_run(bool foreground, int report_fd,
       "Normal start of data node using checkpoint and log info if existing");
   }
 
+  log_memusage("init1");
+
   globalEmulatorData.create();
+
+  log_memusage("Emulator init");
 
   Configuration* theConfig = globalEmulatorData.theConfiguration;
   if(!theConfig->init(no_start, initial, initialstart))
@@ -849,6 +1109,8 @@ ndbd_run(bool foreground, int report_fd,
     g_eventLogger->error("Failed to init Configuration");
     ndbd_exit(-1);
   }
+
+  log_memusage("Config init");
 
   /**
     Read the configuration from the assigned management server (could be
@@ -874,6 +1136,8 @@ ndbd_run(bool foreground, int report_fd,
     // Ignore error
   }
 
+  log_memusage("Config fetch");
+
   theConfig->setupConfiguration();
 
 
@@ -893,6 +1157,8 @@ ndbd_run(bool foreground, int report_fd,
   */
   NdbThread* pWatchdog = globalEmulatorData.theWatchDog->doStart();
 
+  log_memusage("Watchdog started");
+
   g_eventLogger->info("Memory Allocation for global memory pools Starting");
   {
     /*
@@ -909,6 +1175,8 @@ ndbd_run(bool foreground, int report_fd,
   }
   g_eventLogger->info("Memory Allocation for global memory pools Completed");
 
+  log_memusage("Global memory pools allocated");
+
   /**
     Initialise the data of the run-time environment, this prepares the
     data setup for the various threads that need to communicate using
@@ -916,6 +1184,10 @@ ndbd_run(bool foreground, int report_fd,
     they start they will be ready to communicate.
   */
   globalEmulatorData.theThreadConfig->init();
+
+  globalEmulatorData.theConfiguration->addThread(log_threadvar, NdbfsThread);
+
+  log_memusage("Thread config initialised");
 
 #ifdef VM_TRACE
   // Initialize signal logger before block constructors
@@ -947,13 +1219,15 @@ ndbd_run(bool foreground, int report_fd,
     ndbout_c("Failed to open signal logging file '%s', errno: %d",
              signal_log_name, errno);
   }
-  NdbMem_Free(signal_log_name);
+  free(signal_log_name);
 #endif
 
   /** Create all the blocks used by the run-time environment. */
   g_eventLogger->info("Loading blocks for data node run-time environment");
   // Load blocks (both main and workers)
   globalEmulatorData.theSimBlockList->load(globalEmulatorData);
+
+  log_memusage("Load blocks completed");
 
   catchsigs(foreground);
 
@@ -1046,13 +1320,26 @@ ndbd_run(bool foreground, int report_fd,
   globalEmulatorData.theConfiguration->removeThread(pWatchdog);
   globalEmulatorData.theConfiguration->removeThread(pTrp);
   globalEmulatorData.theConfiguration->removeThread(pSockServ);
+
   NdbShutdown(0, NST_Normal);
 
+  /**
+   * Stopping the log thread is done at the very end since the
+   * data node logs should be available until complete shutdown.
+   */
+  void* dummy_return_status;
+  thread_args.stop = true;
+  logBuf->stop();
+  NdbThread_WaitFor(log_threadvar, &dummy_return_status);
+  globalEmulatorData.theConfiguration->removeThread(log_threadvar);
+  NdbThread_Destroy(&log_threadvar);
+  delete logBuf;
+  delete ndbouts_bufferedoutputstream;
   ndbd_exit(0);
 }
 
 
-extern "C" my_bool opt_core;
+extern "C" bool opt_core;
 
 // instantiated and updated in NdbcntrMain.cpp
 extern Uint32 g_currentStartPhase;
@@ -1140,7 +1427,7 @@ NdbShutdown(int error_code,
       }
     }
 
-#ifndef NDB_WIN32
+#ifndef _WIN32
     if (simulate_error_during_shutdown)
     {
       kill(getpid(), simulate_error_during_shutdown);
@@ -1162,7 +1449,7 @@ NdbShutdown(int error_code,
      *   cause with ndbmtd, there are locks and nasty stuff
      *   and we don't know which we are holding...
      */
-#if NOT_YET
+#ifdef NOT_YET
 
     /**
      * Stop all transporter connection attempts and accepts

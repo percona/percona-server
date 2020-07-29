@@ -89,7 +89,7 @@ USE information_schema;
 --echo 1 Prepare test.
 --echo   connection default (user=root)
 --echo ####################################################################################
---let $count_sessions= 1
+--let $count_sessions= 2
 --source include/wait_until_count_sessions.inc
 
 --echo ####################################################################################
@@ -121,7 +121,7 @@ connection default;
 #    Poll till the connection con100 is in state COMMAND = 'Sleep'.
 let $wait_timeout= 10;
 let $wait_condition=
-SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+SELECT COUNT(*) = 3 FROM INFORMATION_SCHEMA.PROCESSLIST
 WHERE DB = 'information_schema' AND COMMAND = 'Sleep' AND USER = 'ddicttestuser1';
 --source include/wait_condition.inc
 --replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE 
@@ -172,7 +172,7 @@ eval SELECT $columns FROM $table $select_where ORDER BY id;
 --echo   connection default (user=root)
 --echo ####################################################################################
 connection default;
-GRANT PROCESS ON *.* TO ddicttestuser1@'localhost' IDENTIFIED BY 'ddictpass';
+GRANT PROCESS ON *.* TO ddicttestuser1@'localhost';
 --real_sleep 0.3
 
 --echo ####################################################################################
@@ -215,10 +215,8 @@ SELECT * FROM information_schema.processlist;
 --echo   connection default (user=root)
 --echo ####################################################################################
 connection default;
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+CREATE USER ''@'localhost';
 GRANT PROCESS ON *.* TO ''@'localhost';
-set sql_mode= @orig_sql_mode;
 --real_sleep 0.3
 
 --echo ####################################################################################

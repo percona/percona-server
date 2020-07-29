@@ -1,0 +1,2 @@
+# Starting from 8.0.2 default value is 2 (interleaved). Test needs 1 (consecutive)
+--innodb-autoinc-lock-mode=1

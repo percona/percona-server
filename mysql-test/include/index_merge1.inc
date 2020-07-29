@@ -451,7 +451,7 @@ explain select * from t0,t1 where t0.key1 = 5 and
 --echo # Fix for bug#1974
 if ($index_merge_random_rows_in_EXPLAIN)
 {
-  --replace_column 10 #
+  --replace_column 10 # 11 #
 }
 explain select * from t0,t1 where t0.key1 < 3 and
   (t1.key1 = t0.key1 or t1.key8 = t0.key1);
@@ -874,7 +874,7 @@ drop table t0, t1, t2, t3;
 --echo # BUG#44810: index merge and order by with low sort_buffer_size 
 --echo # crashes server!
 --echo #
-CREATE TABLE t1(a VARCHAR(128),b VARCHAR(128),KEY(A),KEY(B));
+CREATE TABLE t1(a VARCHAR(128),b VARCHAR(128),KEY(A),KEY(B)) charset latin1;
 INSERT INTO t1 VALUES (REPEAT('a',128),REPEAT('b',128));
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;

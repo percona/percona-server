@@ -1,5 +1,4 @@
 # Uses GRANT commands that usually disabled in embedded server
--- source include/not_embedded.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc

@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2004-2007 MySQL AB, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,13 +63,18 @@ BackupPrinter::logEntry(const LogEntry & logE)
 {
   if (m_print || m_print_log)
     m_ndbout << logE << endl;
+  else if(m_print_sql_log)
+  {
+    logE.printSqlLog();
+    ndbout << endl;
+  }
   m_logCount++;
 }
 
 void
 BackupPrinter::endOfLogEntrys()
 {
-  if (m_print || m_print_log) 
+  if (m_print || m_print_log || m_print_sql_log)
   {
     info.setLevel(254);
     info << "Printed " << m_dataCount << " tuples and "
@@ -79,7 +83,7 @@ BackupPrinter::endOfLogEntrys()
   }
 }
 bool
-BackupPrinter::update_apply_status(const RestoreMetaData &metaData)
+BackupPrinter::update_apply_status(const RestoreMetaData &metaData, bool snapshotstart)
 {
   if (m_print)
   {

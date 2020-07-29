@@ -2,8 +2,6 @@
 # binlog_skip_flush_commands
 #
 
---source include/have_perfschema.inc
-
 SET @start_global_value = @@global.binlog_skip_flush_commands;
 SELECT @start_global_value;
 

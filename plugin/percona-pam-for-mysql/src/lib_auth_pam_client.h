@@ -27,14 +27,14 @@
 
 #define STDCALL
 
-#include <mysql/client_plugin.h>
+#include "mysql/client_plugin.h"
 
 /**
  Callback type for functions that prompt the user for (echoed or silent) input
  and return it.  Should returns a pointer to malloc-allocated string, the
  caller is responsible for freeing it.  Should return NULL in the case of a
  memory allocation or I/O error. */
-typedef char* (*prompt_fn)(const char *);
+typedef char *(*prompt_fn)(const char *);
 
 /**
  Callback type for functions that show user some info (error or notification).
@@ -66,12 +66,9 @@ extern "C" {
    @retval CR_OK the authentication dialog is completed successfully
    @retval CR_ERROR the authentication dialog is aborted due to error
 */
-int authenticate_user_with_pam_client_common (MYSQL_PLUGIN_VIO *vio,
-                                              struct st_mysql *mysql,
-                                              prompt_fn echoless_prompt_fn,
-                                              prompt_fn echo_prompt_fn,
-                                              info_fn show_error_fn,
-                                              info_fn show_info_fn);
+int authenticate_user_with_pam_client_common(
+    MYSQL_PLUGIN_VIO *vio, struct st_mysql *mysql, prompt_fn echoless_prompt_fn,
+    prompt_fn echo_prompt_fn, info_fn show_error_fn, info_fn show_info_fn);
 
 #ifdef __cplusplus
 }

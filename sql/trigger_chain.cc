@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,18 +22,21 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "my_global.h"
-#include "sql_class.h"
-#include "my_bitmap.h"
+#include "sql/trigger_chain.h"
 
-#include "trigger_chain.h"
-#include "table_trigger_dispatcher.h"
-#include "table.h"
-#include "sql_list.h"
-#include "trigger_loader.h"
-#include "trigger.h"
-#include "sp_head.h"                  // sp_head::mark_used_trigger_fields
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysqld_error.h"          // ER_*
+#include "sql/dd/types/trigger.h"  // name_collation
+#include "sql/mysqld.h"            // table_alias_charset
+#include "sql/sp_head.h"           // sp_head
+#include "sql/trigger.h"           // Trigger
 
+struct MEM_ROOT;
+
+Trigger_chain::~Trigger_chain() { m_triggers.destroy_elements(); }
 
 /**
   Add a new trigger into the list of triggers with the same
@@ -53,54 +56,48 @@
     Diagnostic_area in case when trigger not found.
 */
 
-bool Trigger_chain::add_trigger(MEM_ROOT *mem_root,
-                                Trigger *new_trigger,
+bool Trigger_chain::add_trigger(MEM_ROOT *mem_root, Trigger *new_trigger,
                                 enum_trigger_order_type ordering_clause,
-                                const LEX_STRING &referenced_trigger_name)
-{
-  switch (ordering_clause)
-  {
-  case TRG_ORDER_NONE:
-    return add_trigger(mem_root, new_trigger);
+                                const LEX_CSTRING &referenced_trigger_name) {
+  switch (ordering_clause) {
+    case TRG_ORDER_NONE:
+      return add_trigger(mem_root, new_trigger);
 
-  case TRG_ORDER_FOLLOWS:
-  case TRG_ORDER_PRECEDES:
-    {
+    case TRG_ORDER_FOLLOWS:
+    case TRG_ORDER_PRECEDES: {
       DBUG_ASSERT(referenced_trigger_name.str);
 
       List_iterator<Trigger> it(m_triggers);
-      List_iterator<Trigger> it2= it;
+      List_iterator<Trigger> it2 = it;
 
-      while (true)
-      {
-        Trigger *t= it2++;
+      while (true) {
+        Trigger *t = it2++;
 
-        if (!t)
-        {
-          my_error(ER_REFERENCED_TRG_DOES_NOT_EXIST,
-                   MYF(0), referenced_trigger_name.str);
+        if (!t) {
+          my_error(ER_REFERENCED_TRG_DOES_NOT_EXIST, MYF(0),
+                   referenced_trigger_name.str);
           return true;
         }
 
-        if (my_strcasecmp(table_alias_charset,
-                          t->get_trigger_name().str,
-                          referenced_trigger_name.str) == 0)
-        {
+        if (!my_strnncoll(
+                dd::Trigger::name_collation(),
+                pointer_cast<const uchar *>(t->get_trigger_name().str),
+                t->get_trigger_name().length,
+                pointer_cast<const uchar *>(referenced_trigger_name.str),
+                referenced_trigger_name.length))
           break;
-        }
 
-        it= it2;
+        it = it2;
       }
 
-      if (ordering_clause == TRG_ORDER_FOLLOWS)
-        it= it2;
+      if (ordering_clause == TRG_ORDER_FOLLOWS) it = it2;
 
       bool rc;
 
       if (it.is_before_first())
-        rc= m_triggers.push_front(new_trigger, mem_root);
+        rc = m_triggers.push_front(new_trigger, mem_root);
       else
-        rc= it.after(new_trigger, mem_root);
+        rc = it.after(new_trigger, mem_root);
 
       return rc;
     }
@@ -109,7 +106,6 @@ bool Trigger_chain::add_trigger(MEM_ROOT *mem_root,
   DBUG_ASSERT(false);
   return true;
 }
-
 
 /**
   Add a new trigger into the list of triggers with the same
@@ -124,11 +120,9 @@ bool Trigger_chain::add_trigger(MEM_ROOT *mem_root,
     @retval true  Failure.
 */
 
-bool Trigger_chain::add_trigger(MEM_ROOT *mem_root, Trigger *new_trigger)
-{
+bool Trigger_chain::add_trigger(MEM_ROOT *mem_root, Trigger *new_trigger) {
   return m_triggers.push_back(new_trigger, mem_root);
 }
-
 
 /**
   Run every trigger in the list of triggers.
@@ -141,41 +135,35 @@ bool Trigger_chain::add_trigger(MEM_ROOT *mem_root, Trigger *new_trigger)
                    the rest of triggers located after the failed one.
 */
 
-bool Trigger_chain::execute_triggers(THD *thd)
-{
+bool Trigger_chain::execute_triggers(THD *thd) {
   List_iterator_fast<Trigger> it(m_triggers);
   Trigger *t;
 
-  while ((t= it++))
-  {
-    if (t->execute(thd))
-      return true;
+  while ((t = it++)) {
+    if (t->execute(thd)) return true;
   }
 
   return false;
 }
-
 
 /**
   Iterate over the list of triggers and add tables and routines used by trigger
   to the set of elements used by statement.
 
   @param [in]     thd               thread context
-  @param [in out] prelocking_ctx    prelocking context of the statement
+  @param [in,out] prelocking_ctx    prelocking context of the statement
   @param [in]     table_list        TABLE_LIST for the table
 */
 
 void Trigger_chain::add_tables_and_routines(THD *thd,
                                             Query_tables_list *prelocking_ctx,
-                                            TABLE_LIST *table_list)
-{
+                                            TABLE_LIST *table_list) {
   List_iterator_fast<Trigger> it(m_triggers);
   Trigger *t;
 
-  while ((t= it++))
+  while ((t = it++))
     t->add_tables_and_routines(thd, prelocking_ctx, table_list);
 }
-
 
 /**
   Iterate over the list of triggers and mark fields of subject table
@@ -184,15 +172,12 @@ void Trigger_chain::add_tables_and_routines(THD *thd,
   @param [in] subject_table trigger subject table
 */
 
-void Trigger_chain::mark_fields(TABLE *subject_table)
-{
+void Trigger_chain::mark_fields(TABLE *subject_table) {
   List_iterator_fast<Trigger> it(m_triggers);
   Trigger *t;
 
-  while ((t= it++))
-    t->get_sp()->mark_used_trigger_fields(subject_table);
+  while ((t = it++)) t->get_sp()->mark_used_trigger_fields(subject_table);
 }
-
 
 /**
   Iterate over the list of triggers and check whether some
@@ -205,40 +190,17 @@ void Trigger_chain::mark_fields(TABLE *subject_table)
     @retval false  None of table fields are used in trigger
 */
 
-bool Trigger_chain::has_updated_trigger_fields(const MY_BITMAP *used_fields)
-{
+bool Trigger_chain::has_updated_trigger_fields(const MY_BITMAP *used_fields) {
   List_iterator_fast<Trigger> it(m_triggers);
   Trigger *t;
 
-  while ((t= it++))
-  {
+  while ((t = it++)) {
     // Even if one trigger is unparseable, the whole thing is not usable.
 
-    if (t->has_parse_error())
-      return false;
+    if (t->has_parse_error()) return false;
 
-    if (t->get_sp()->has_updated_trigger_fields(used_fields))
-      return true;
+    if (t->get_sp()->has_updated_trigger_fields(used_fields)) return true;
   }
 
   return false;
-}
-
-
-/**
-  Recalculate action_order value for every trigger in the list.
-*/
-
-void Trigger_chain::renumerate_triggers()
-{
-  ulonglong action_order= 1;
-
-  List_iterator_fast<Trigger> it(m_triggers);
-  Trigger *t;
-
-  while ((t= it++))
-  {
-    t->set_action_order(action_order);
-    ++action_order;
-  }
 }

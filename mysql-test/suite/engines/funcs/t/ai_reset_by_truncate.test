@@ -1,9 +1,9 @@
-if (`SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME="storage_engine" AND VARIABLE_VALUE="tokudb"`)
+if (`SELECT COUNT(*) = 1 FROM performance_schema.session_variables WHERE VARIABLE_NAME="storage_engine" AND VARIABLE_VALUE="tokudb"`)
 {
   --skip Disabled for TokuDB: https://tokutek.atlassian.net/browse/DB-640
 }
 --disable_warnings
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from performance_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --enable_warnings
 
 --disable_warnings
@@ -1509,4 +1509,3 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 DROP TABLE t1;
-

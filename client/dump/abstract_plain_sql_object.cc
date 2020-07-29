@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,23 +22,21 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "abstract_plain_sql_object.h"
+#include "client/dump/abstract_plain_sql_object.h"
 
 using namespace Mysql::Tools::Dump;
 
-std::string Abstract_plain_sql_object::get_sql_formatted_definition() const
-{
+std::string Abstract_plain_sql_object::get_sql_formatted_definition() const {
   return m_sql_formatted_definition;
 }
 
-void Abstract_plain_sql_object::set_sql_formatted_definition(std::string new_def)
-{
-  m_sql_formatted_definition= new_def;
+void Abstract_plain_sql_object::set_sql_formatted_definition(
+    std::string new_def) {
+  m_sql_formatted_definition = new_def;
 }
 
 Abstract_plain_sql_object::Abstract_plain_sql_object(
-  uint64 id, const std::string& name, const std::string& schema,
-  const std::string& sql_formatted_definition)
-  : Abstract_data_object(id, name, schema),
-  m_sql_formatted_definition(sql_formatted_definition)
-{}
+    uint64 id, const std::string &name, const std::string &schema,
+    const std::string &sql_formatted_definition)
+    : Abstract_data_object(id, name, schema),
+      m_sql_formatted_definition(sql_formatted_definition) {}

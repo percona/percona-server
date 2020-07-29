@@ -1,0 +1,12 @@
+--echo #
+--echo # Plugin Data Masking: mask_outer
+--echo #
+SELECT mask_outer('This is a string', 5, 1);
+SELECT mask_outer('This is a string', 1, 5);
+SELECT mask_outer('This is a string', 5, 1, '#');
+SELECT mask_outer(NULL, 5, 1);
+SELECT mask_outer(NULL, 5, 1, '#');
+SELECT mask_outer('This is a string', -1, 5);
+SELECT mask_outer('This is a string', 1, -5);
+SELECT mask_outer('This is a string', 1, 25);
+SELECT mask_outer('This is a string', 100, 500);

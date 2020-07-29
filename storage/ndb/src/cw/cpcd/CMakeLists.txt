@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -18,26 +18,40 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/portlib
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmclient
-                    ${CMAKE_SOURCE_DIR}/sql)
+# Disable specific types of warnings for current directory
+# if the compiler supports the flag
+FOREACH(warning
+    "unused-but-set-variable"
+    "strict-aliasing"
+    "unused-parameter"
+    )
+  MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
+  IF(HAS_WARN_FLAG)
+    STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+  ENDIF()
+ENDFOREACH()
 
+INCLUDE_DIRECTORIES(
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon
+  ${CMAKE_SOURCE_DIR}/storage/ndb/include/portlib
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmclient
+  )
 
 ADD_EXECUTABLE(ndb_cpcd
-        APIService.cpp
-        CPCD.cpp
-        Monitor.cpp
-        Process.cpp
-        common.cpp
-        main.cpp)
+  APIService.cpp
+  CPCD.cpp
+  Monitor.cpp
+  Process.cpp
+  common.cpp
+  main.cpp
+  )
+SET_TARGET_PROPERTIES(ndb_cpcd PROPERTIES ENABLE_EXPORTS TRUE)
 
-TARGET_LINK_LIBRARIES(ndb_cpcd
-               ndbclient_static)
+TARGET_LINK_LIBRARIES(ndb_cpcd ndbclient_static)
 
 INSTALL(TARGETS ndb_cpcd DESTINATION bin)

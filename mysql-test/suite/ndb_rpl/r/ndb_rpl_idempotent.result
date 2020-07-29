@@ -15,6 +15,8 @@ row1	will go away	1
 SELECT @the_epoch:=MAX(epoch) FROM mysql.ndb_apply_status;
 @the_epoch:=MAX(epoch)
 <the_epoch>
+Warnings:
+<the_epoch>	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SELECT * FROM t1 ORDER BY c3;
 c1	c2	c3
 row1	will go away	1
@@ -34,7 +36,7 @@ row4	D	4
 include/check_slave_is_running.inc
 STOP SLAVE;
 include/check_slave_no_error.inc
-call mtr.add_suppression("NDB Slave : At SQL thread start applying epoch .*");
+call mtr.add_suppression("NDB Slave: At SQL thread start applying epoch .*");
 START SLAVE;
 SELECT * FROM t1 ORDER BY c3;
 c1	c2	c3
@@ -77,6 +79,8 @@ Sync slave and retrieve epoch
 SELECT @first_epoch:=MAX(epoch) FROM mysql.ndb_apply_status;
 @first_epoch:=MAX(epoch)
 <first_epoch>
+Warnings:
+<first_epoch>	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Slave contents
 select * from t1 ORDER by a;
 a

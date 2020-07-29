@@ -3,3 +3,6 @@ $KEYRING_PLUGIN_OPT
 --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring
 --default_storage_engine=InnoDB
 --innodb-buffer-pool-size=24M
+--initialize
+--innodb_page_size=32K
+--default-table-encryption=OFF

@@ -8,8 +8,8 @@ t TIME,
 y YEAR
 ) ENGINE=rocksdb;
 SHOW INDEX IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	dt	A	1000	NULL	NULL		LSMTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	dt	A	1000	NULL	NULL		SE_SPECIFIC			YES	NULL
 SET @tm = '2012-04-09 05:27:00';
 INSERT INTO t1 (d,dt,ts,t,y) VALUES
 ('2012-01-12', '2010-11-22 12:33:54', '2011-11-14 21:45:55', '00:12:33', '2000'),
@@ -40,7 +40,7 @@ dt
 2011-08-27 21:33:56
 INSERT INTO t1 (d,dt,ts,t,y) VALUES
 ('2012-01-11', '2010-11-22 12:33:54', '2011-11-14 21:45:55', '00:12:33', '2000');
-ERROR 23000: Duplicate entry '2010-11-22 12:33:54' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2010-11-22 12:33:54' for key 't1.PRIMARY'
 DROP TABLE t1;
 CREATE TABLE t1 (
 d DATE,
@@ -52,9 +52,9 @@ pk TIME PRIMARY KEY,
 INDEX (ts)
 ) ENGINE=rocksdb;
 SHOW INDEX IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	pk	A	1000	NULL	NULL		LSMTREE		
-t1	1	ts	1	ts	A	500	NULL	NULL	YES	LSMTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	pk	A	1000	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	ts	1	ts	A	500	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 SET @tm = '2012-04-09 05:27:00';
 INSERT INTO t1 (d,dt,ts,t,y,pk) VALUES
 ('2012-01-12', '2010-11-22 12:33:54', '2011-11-14 21:45:55', '00:12:33', '2000','12:00:00'),
@@ -88,10 +88,10 @@ pk TIME PRIMARY KEY,
 INDEX (y,t)
 ) ENGINE=rocksdb;
 SHOW INDEX IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	pk	A	1000	NULL	NULL		LSMTREE		
-t1	1	y	1	y	A	250	NULL	NULL	YES	LSMTREE		
-t1	1	y	2	t	A	500	NULL	NULL	YES	LSMTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	pk	A	1000	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	y	1	y	A	250	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+t1	1	y	2	t	A	500	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 SET @tm = '2012-04-09 05:27:00';
 INSERT INTO t1 (d,dt,ts,t,y,pk) VALUES
 ('2012-01-12', '2010-11-22 12:33:54', '2011-11-14 21:45:55', '00:12:33', '2000','18:18:18'),
@@ -115,7 +115,7 @@ y	COUNT(*)
 2012	1
 EXPLAIN SELECT y, COUNT(*) FROM t1 USE INDEX FOR GROUP BY () GROUP BY y;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	y	y	6	NULL	#	100.00	Using index; Using temporary; Using filesort
+1	SIMPLE	t1	NULL	index	y	y	6	NULL	#	100.00	Using index; Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`y` AS `y`,count(0) AS `COUNT(*)` from `test`.`t1` USE INDEX FOR GROUP BY () group by `test`.`t1`.`y`
 SELECT y, COUNT(*) FROM t1 USE INDEX FOR GROUP BY () GROUP BY y;

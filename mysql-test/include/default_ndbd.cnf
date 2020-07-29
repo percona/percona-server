@@ -1,12 +1,11 @@
-
 [cluster_config]
+#UseShm= 1
 MaxNoOfSavedMessages=          1000
 MaxNoOfConcurrentTransactions= 2048
 MaxNoOfConcurrentOperations=   10000
 MaxNoOfConcurrentScans=        64
 BatchSizePerLocalScan=         64
-DataMemory=                    20M
-IndexMemory=                   8M
+DataMemory=                    30M
 Diskless=                      0
 TimeBetweenWatchDogCheck=      30000
 MaxNoOfOrderedIndexes=         128
@@ -25,6 +24,7 @@ BackupMemory=                  4M
 TwoPassInitialNodeRestartCopy=1
 TransactionDeadlockDetectionTimeout=3000
 Checksum=1
+SpinMethod=CostBasedSpinning
 
 # O_DIRECT has issues on 2.4 which have not been handled, Bug #29612
 #ODirect= 1

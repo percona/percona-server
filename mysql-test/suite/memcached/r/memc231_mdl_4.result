@@ -1,6 +1,4 @@
-SET @tx_isolation= @@global.tx_isolation;
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+SET @transaction_isolation= @@global.transaction_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
 "innodb_only", "innodb_only", "innodb_only");
@@ -43,18 +41,15 @@ B	Berlin	Mitte
 C	Cottbus	West
 D	Darmstadt	City
 H	Hamburg	Norderstedt
-SELECT SLEEP(2);
-SLEEP(2)
-0
-Here the memcached results with D,B,H,C:
-Here the memcached results after set:
-Here the memcached results after add:
-Here the memcached results after replace:
-Here the memcached results after delete:
-Here the memcached results after add Frankfurt|:
-Here the memcached results after add |Airport:
-Here the memcached results after replace Frankfurt a.M.:
-Here the memcached results after replace Sachsenhausen:
+Here are the memcached results with D,B,H,C:
+Here are the memcached results after set:
+Here are the memcached results after add:
+Here are the memcached results after replace:
+Here are the memcached results after delete:
+Here are the memcached results after add Frankfurt|:
+Here are the memcached results after add |Airport:
+Here are the memcached results after replace Frankfurt a.M.:
+Here are the memcached results after replace Sachsenhausen:
 DROP VIEW v1;
 DROP TABLE t1;
 DROP TABLE t2;
@@ -63,6 +58,4 @@ disconnect mysqltest1;
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
 DROP USER mysqltest1@localhost;
-SET @@global.tx_isolation= @tx_isolation;
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+SET @@global.transaction_isolation= @transaction_isolation;

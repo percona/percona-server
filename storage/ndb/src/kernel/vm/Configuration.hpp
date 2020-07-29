@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,7 +86,16 @@ public:
   int schedulerSpinTimer() const;
   void schedulerSpinTimer(int value);
 
+  Uint32 spinTimePerCall() const;
+
   Uint32 maxSendDelay() const;
+
+  Uint32 schedulerResponsiveness() const
+  { return _schedulerResponsiveness; }
+  void setSchedulerResponsiveness(Uint32 val)
+  {
+    _schedulerResponsiveness = val;
+  }
 
   bool realtimeScheduler() const;
   void realtimeScheduler(bool realtime_on);
@@ -100,6 +109,7 @@ public:
   void setAllRealtimeScheduler();
   void setAllLockCPU(bool exec_thread);
   int setLockCPU(NdbThread*, enum ThreadTypes type);
+  int setThreadPrio(NdbThread*, enum ThreadTypes type);
   int setRealtimeScheduler(NdbThread*,
                            enum ThreadTypes type,
                            bool real_time,
@@ -137,7 +147,7 @@ public:
 
   const ndb_mgm_configuration_iterator * getOwnConfigIterator() const;
 
-  ConfigRetriever* get_config_retriever() { return m_config_retriever; };
+  ConfigRetriever* get_config_retriever() { return m_config_retriever; }
 
   class LogLevel * m_logLevel;
   ndb_mgm_configuration_iterator * getClusterConfigIterator() const;
@@ -157,8 +167,10 @@ private:
   Uint32 _timeBetweenWatchDogCheck;
   Uint32 _schedulerExecutionTimer;
   Uint32 _schedulerSpinTimer;
+  Uint32 _spinTimePerCall;
   Uint32 _realtimeScheduler;
   Uint32 _maxSendDelay;
+  Uint32 _schedulerResponsiveness;
   Uint32 _timeBetweenWatchDogCheckInitial;
 #ifdef ERROR_INSERT
   Uint32 _mixologyLevel;
@@ -168,8 +180,10 @@ private:
   NdbMutex *threadIdMutex;
 
   ndb_mgm_configuration * m_ownConfig;
+  const class ConfigValues* get_own_config_values();
   ndb_mgm_configuration * m_clusterConfig;
-  UtilBuffer m_clusterConfigPacked;
+  UtilBuffer m_clusterConfigPacked_v1;
+  UtilBuffer m_clusterConfigPacked_v2;
 
   ndb_mgm_configuration_iterator * m_clusterConfigIter;
   ndb_mgm_configuration_iterator * m_ownConfigIterator;
@@ -184,6 +198,7 @@ private:
   bool _initialStart;
 
   void calcSizeAlt(class ConfigValues * );
+  const char *get_type_string(enum ThreadTypes type);
 };
 
 inline

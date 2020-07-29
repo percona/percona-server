@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,23 +29,20 @@
 
 #include "Transporter.hpp"
 #include <SocketAuthenticator.hpp>
+#include "BlockNumbers.h"
 
-#ifdef NDB_TCP_TRANSPORTER
 #include "TCP_Transporter.hpp"
+#include "Multi_Transporter.hpp"
 #include "Loopback_Transporter.hpp"
-#endif
 
-#ifdef NDB_SCI_TRANSPORTER
-#include "SCI_Transporter.hpp"
-#endif
-
-#ifdef NDB_SHM_TRANSPORTER
+#ifndef WIN32
 #include "SHM_Transporter.hpp"
-extern int g_ndb_shm_signum;
 #endif
 
 #include "NdbOut.hpp"
 #include <NdbSleep.h>
+#include <NdbMutex.h>
+#include <NdbSpin.h>
 #include <InputStream.hpp>
 #include <OutputStream.hpp>
 #include <socket_io.h>
@@ -56,6 +53,12 @@ extern int g_ndb_shm_signum;
 
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
+
+#if 0
+#define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
+#else
+#define DEBUG_FPRINTF(a)
+#endif
 
 /**
  * There is a requirement in the Transporter design that
@@ -68,7 +71,7 @@ extern EventLogger * g_eventLogger;
 class TransporterReceiveWatchdog
 {
 public:
-#if NDEBUG 
+#ifdef NDEBUG
   TransporterReceiveWatchdog(TransporterReceiveHandle& recvdata)
   {}
 
@@ -95,35 +98,46 @@ private:
 struct in_addr
 TransporterRegistry::get_connect_address(NodeId node_id) const
 {
-  return theTransporters[node_id]->m_connect_address;
+  return theNodeIdTransporters[node_id]->m_connect_address;
 }
 
 Uint64
 TransporterRegistry::get_bytes_sent(NodeId node_id) const
 {
-  return theTransporters[node_id]->m_bytes_sent;
+  return theNodeIdTransporters[node_id]->get_bytes_sent();
 }
 
 Uint64
 TransporterRegistry::get_bytes_received(NodeId node_id) const
 {
-  return theTransporters[node_id]->m_bytes_received;
+  return theNodeIdTransporters[node_id]->get_bytes_received();
 }
 
 SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
 {
   DBUG_ENTER("SocketServer::Session * TransporterService::newSession");
+  DEBUG_FPRINTF((stderr, "New session created\n"));
   if (m_auth && !m_auth->server_authenticate(sockfd))
   {
-    ndb_socket_close(sockfd, true); // Close with reset
+    DEBUG_FPRINTF((stderr, "Failed to authenticate new session\n"));
+    ndb_socket_close_with_reset(sockfd, true); // Close with reset
     DBUG_RETURN(0);
   }
 
   BaseString msg;
   bool close_with_reset = true;
-  if (!m_transporter_registry->connect_server(sockfd, msg, close_with_reset))
+  bool log_failure = false;
+  if (!m_transporter_registry->connect_server(sockfd,
+                                              msg,
+                                              close_with_reset,
+                                              log_failure))
   {
-    ndb_socket_close(sockfd, close_with_reset);
+    DEBUG_FPRINTF((stderr, "New session failed in connect_server\n"));
+    ndb_socket_close_with_reset(sockfd, close_with_reset);
+    if (log_failure)
+    {
+      g_eventLogger->warning("TR : %s", msg.c_str());
+    }
     DBUG_RETURN(0);
   }
 
@@ -131,6 +145,12 @@ SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
 }
 
 TransporterReceiveData::TransporterReceiveData()
+  : m_transporters(),
+    m_recv_transporters(),
+    m_has_data_transporters(),
+    m_handled_transporters(),
+    m_bad_data_transporters(),
+    m_last_trp_id(0)
 {
   /**
    * With multi receiver threads
@@ -138,7 +158,6 @@ TransporterReceiveData::TransporterReceiveData()
    */
   m_transporters.set();            // Handle all
   m_transporters.clear(Uint32(0)); // Except wakeup socket...
-  m_handled_transporters.clear();
 
 #if defined(HAVE_EPOLL_CREATE)
   m_epoll_fd = -1;
@@ -150,6 +169,8 @@ bool
 TransporterReceiveData::init(unsigned maxTransporters)
 {
   maxTransporters += 1; /* wakeup socket */
+  m_spintime = 0;
+  m_total_spintime = 0;
 #if defined(HAVE_EPOLL_CREATE)
   m_epoll_fd = epoll_create(maxTransporters);
   if (m_epoll_fd == -1)
@@ -165,7 +186,7 @@ TransporterReceiveData::init(unsigned maxTransporters)
     m_epoll_fd = -1;
     goto fallback;
   }
-  bzero(m_epoll_events, maxTransporters * sizeof(struct epoll_event));
+  memset(m_epoll_events, 0, maxTransporters * sizeof(struct epoll_event));
   return true;
 fallback:
 #endif
@@ -173,24 +194,24 @@ fallback:
 }
 
 bool
-TransporterReceiveData::epoll_add(TCP_Transporter *t)
+TransporterReceiveData::epoll_add(Transporter *t)
 {
-  assert(m_transporters.get(t->getRemoteNodeId()));
+  assert(m_transporters.get(t->getTransporterIndex()));
 #if defined(HAVE_EPOLL_CREATE)
   if (m_epoll_fd != -1)
   {
     bool add = true;
     struct epoll_event event_poll;
-    bzero(&event_poll, sizeof(event_poll));
+    memset(&event_poll, 0, sizeof(event_poll));
     NDB_SOCKET_TYPE sock_fd = t->getSocket();
     int node_id = t->getRemoteNodeId();
     int op = EPOLL_CTL_ADD;
     int ret_val, error;
 
-    if (!my_socket_valid(sock_fd))
+    if (!ndb_socket_valid(sock_fd))
       return FALSE;
 
-    event_poll.data.u32 = t->getRemoteNodeId();
+    event_poll.data.u32 = t->getTransporterIndex();
     event_poll.events = EPOLLIN;
     ret_val = epoll_ctl(m_epoll_fd, op, sock_fd.fd, &event_poll);
     if (!ret_val)
@@ -250,146 +271,76 @@ TransporterReceiveData::~TransporterReceiveData()
 }
 
 TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
-                                         TransporterReceiveHandle * recvHandle,
-                                         bool use_default_send_buffer,
+                                         TransporterReceiveHandle *recvHandle,
                                          unsigned _maxTransporters) :
+  callbackObj(callback),
+  receiveHandle(recvHandle),
   m_mgm_handle(0),
+  sendCounter(1),
   localNodeId(0),
+  maxTransporters(_maxTransporters),
+  nTransporters(0),
+  nMultiTransporters(0),
+  nTCPTransporters(0), nSHMTransporters(0),
   connectBackoffMaxTime(0),
-  m_transp_count(0),
-  m_use_default_send_buffer(use_default_send_buffer),
-  m_send_buffers(0), m_page_freelist(0), m_send_buffer_memory(0),
+  m_transp_count(1),
   m_total_max_send_buffer(0)
 {
+  if (receiveHandle != 0)
+  {
+    receiveHandle->nTCPTransporters = 0;
+    receiveHandle->nSHMTransporters = 0;
+  }
   DBUG_ENTER("TransporterRegistry::TransporterRegistry");
 
-  receiveHandle = recvHandle;
-  maxTransporters = _maxTransporters;
-  sendCounter = 1;
-  
-  callbackObj=callback;
-
+  allTransporters     = new Transporter*      [maxTransporters];
   theTCPTransporters  = new TCP_Transporter * [maxTransporters];
-  theSCITransporters  = new SCI_Transporter * [maxTransporters];
   theSHMTransporters  = new SHM_Transporter * [maxTransporters];
-  theTransporterTypes = new TransporterType   [maxTransporters];
-  theTransporters     = new Transporter     * [maxTransporters];
-  performStates       = new PerformState      [maxTransporters];
-  ioStates            = new IOState           [maxTransporters]; 
+  theTransporterTypes = new TransporterType   [MAX_NODES];
+  theNodeIdTransporters = new Transporter   * [MAX_NODES];
+  theMultiTransporters = new Multi_Transporter * [MAX_NODES];
+  performStates       = new PerformState      [MAX_NODES];
+  ioStates            = new IOState           [MAX_NODES]; 
   peerUpIndicators    = new bool              [maxTransporters];
   connectingTime      = new Uint32            [maxTransporters];
   m_disconnect_errnum = new int               [maxTransporters];
+  m_disconnect_enomem_error = new Uint32      [maxTransporters];
   m_error_states      = new ErrorState        [maxTransporters];
 
   m_has_extra_wakeup_socket = false;
 
 #ifdef ERROR_INSERT
   m_blocked.clear();
+  m_blocked_trp.clear();
   m_blocked_disconnected.clear();
+  m_sendBlocked.clear();
 
   m_mixology_level = 0;
 #endif
 
-  // Initialize member variables
-  nTransporters    = 0;
-  nTCPTransporters = 0;
-  nSCITransporters = 0;
-  nSHMTransporters = 0;
-  
   // Initialize the transporter arrays
   ErrorState default_error_state = { TE_NO_ERROR, (const char *)~(UintPtr)0 };
-  for (unsigned i=0; i<maxTransporters; i++) {
-    theTCPTransporters[i] = NULL;
-    theSCITransporters[i] = NULL;
-    theSHMTransporters[i] = NULL;
-    theTransporters[i]    = NULL;
+  for (unsigned i = 0; i < MAX_NODES; i++)
+  {
+    theNodeIdTransporters[i] = NULL;
+    theMultiTransporters[i] = NULL;
     performStates[i]      = DISCONNECTED;
     ioStates[i]           = NoHalt;
     peerUpIndicators[i]   = true; // Assume all nodes are up, will be
                                   // cleared at first connect attempt
     connectingTime[i]     = 0;
     m_disconnect_errnum[i]= 0;
+    m_disconnect_enomem_error[i] = 0;
     m_error_states[i]     = default_error_state;
   }
-
-  DBUG_VOID_RETURN;
-}
-
-#define MIN_SEND_BUFFER_SIZE (4 * 1024 * 1024)
-
-void
-TransporterRegistry::allocate_send_buffers(Uint64 total_send_buffer,
-                                           Uint64 extra_send_buffer)
-{
-  if (!m_use_default_send_buffer)
-    return;
-
-  if (total_send_buffer == 0)
-    total_send_buffer = get_total_max_send_buffer();
-
-  total_send_buffer += extra_send_buffer;
-
-  if (!extra_send_buffer)
-  {
-    /**
-     * If extra send buffer memory is 0 it means we can decide on an
-     * appropriate value for it. We select to always ensure that the
-     * minimum send buffer memory is 4M, otherwise we simply don't
-     * add any extra send buffer memory at all.
-     */
-    if (total_send_buffer < MIN_SEND_BUFFER_SIZE)
-    {
-      total_send_buffer = (Uint64)MIN_SEND_BUFFER_SIZE;
-    }
-  }
-
-  if (m_send_buffers)
-  {
-    /* Send buffers already allocated -> resize the buffer pages */
-    assert(m_send_buffer_memory);
-
-    // TODO resize send buffer pages
-
-    return;
-  }
-
-  /* Initialize transporter send buffers (initially empty). */
-  m_send_buffers = new SendBuffer[maxTransporters];
   for (unsigned i = 0; i < maxTransporters; i++)
   {
-    SendBuffer &b = m_send_buffers[i];
-    b.m_first_page = NULL;
-    b.m_last_page = NULL;
-    b.m_used_bytes = 0;
+    allTransporters[i]    = NULL;
+    theTCPTransporters[i] = NULL;
+    theSHMTransporters[i] = NULL;
   }
-
-  /* Initialize the page freelist. */
-  Uint64 send_buffer_pages =
-    (total_send_buffer + SendBufferPage::PGSIZE - 1)/SendBufferPage::PGSIZE;
-  /* Add one extra page of internal fragmentation overhead per transporter. */
-  send_buffer_pages += nTransporters;
-
-  m_send_buffer_memory =
-    new unsigned char[UintPtr(send_buffer_pages * SendBufferPage::PGSIZE)];
-  if (m_send_buffer_memory == NULL)
-  {
-    ndbout << "Unable to allocate "
-           << send_buffer_pages * SendBufferPage::PGSIZE
-           << " bytes of memory for send buffers, aborting." << endl;
-    abort();
-  }
-
-  m_page_freelist = NULL;
-  for (unsigned i = 0; i < send_buffer_pages; i++)
-  {
-    SendBufferPage *page =
-      (SendBufferPage *)(m_send_buffer_memory + i * SendBufferPage::PGSIZE);
-    page->m_bytes = 0;
-    page->m_next = m_page_freelist;
-    m_page_freelist = page;
-  }
-  m_tot_send_buffer_memory = SendBufferPage::PGSIZE * send_buffer_pages;
-  m_tot_used_buffer_memory = 0;
+  theMultiTransporterMutex = NdbMutex_Create();
+  DBUG_VOID_RETURN;
 }
 
 void TransporterRegistry::set_mgm_handle(NdbMgmHandle h)
@@ -421,50 +372,67 @@ TransporterRegistry::~TransporterRegistry()
   disconnectAll(); 
   removeAll();
   
+  delete[] allTransporters;
   delete[] theTCPTransporters;
-  delete[] theSCITransporters;
   delete[] theSHMTransporters;
   delete[] theTransporterTypes;
-  delete[] theTransporters;
+  delete[] theMultiTransporters;
+  delete[] theNodeIdTransporters;
   delete[] performStates;
   delete[] ioStates;
   delete[] peerUpIndicators;
   delete[] connectingTime;
   delete[] m_disconnect_errnum;
+  delete[] m_disconnect_enomem_error;
   delete[] m_error_states;
-
-  if (m_send_buffers)
-    delete[] m_send_buffers;
-  m_page_freelist = NULL;
-  if (m_send_buffer_memory)
-    delete[] m_send_buffer_memory;
 
   if (m_mgm_handle)
     ndb_mgm_destroy_handle(&m_mgm_handle);
 
   if (m_has_extra_wakeup_socket)
   {
-    my_socket_close(m_extra_wakeup_sockets[0]);
-    my_socket_close(m_extra_wakeup_sockets[1]);
+    ndb_socket_close(m_extra_wakeup_sockets[0]);
+    ndb_socket_close(m_extra_wakeup_sockets[1]);
   }
-
+  NdbMutex_Destroy(theMultiTransporterMutex);
   DBUG_VOID_RETURN;
 }
 
 void
-TransporterRegistry::removeAll(){
-  for(unsigned i = 0; i<maxTransporters; i++){
-    if(theTransporters[i] != NULL)
-      removeTransporter(theTransporters[i]->getRemoteNodeId());
+TransporterRegistry::removeAll()
+{
+  for (Uint32 i = 0; i < nTCPTransporters; i++)
+  {
+    delete theTCPTransporters[i];
   }
+  for (Uint32 i = 0; i < nSHMTransporters; i++)
+  {
+    delete theSHMTransporters[i];
+  }
+  for (Uint32 i = 0; i < nMultiTransporters; i++)
+  {
+    delete theMultiTransporters[i];
+  }
+  nTransporters = 0;
+  nTCPTransporters = 0;
+  nSHMTransporters = 0;
+  nMultiTransporters = 0;
 }
 
 void
 TransporterRegistry::disconnectAll(){
-  for(unsigned i = 0; i<maxTransporters; i++){
-    if(theTransporters[i] != NULL)
-      theTransporters[i]->doDisconnect();
+  DEBUG_FPRINTF((stderr, "(%u)doDisconnect(all), line: %d\n",
+               localNodeId, __LINE__));
+  for (Uint32 i = 0; i < nTCPTransporters; i++)
+  {
+    theTCPTransporters[i]->doDisconnect();
   }
+#ifndef WIN32
+  for (Uint32 i = 0; i < nSHMTransporters; i++)
+  {
+    theSHMTransporters[i]->doDisconnect();
+  }
+#endif
 }
 
 bool
@@ -489,76 +457,291 @@ TransporterRegistry::init(NodeId nodeId) {
 bool
 TransporterRegistry::init(TransporterReceiveHandle& recvhandle)
 {
+  recvhandle.nTCPTransporters = nTCPTransporters;
+  recvhandle.nSHMTransporters = nSHMTransporters;
   return recvhandle.init(maxTransporters);
 }
 
 bool
 TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
                                     BaseString & msg,
-                                    bool& close_with_reset) const
+                                    bool& close_with_reset,
+                                    bool& log_failure)
 {
   DBUG_ENTER("TransporterRegistry::connect_server(sockfd)");
 
-  // Read "hello" that consists of node id and transporter
-  // type from client
+  log_failure = true;
+
+  // Read "hello" that consists of node id and other info
+  // from client
   SocketInputStream s_input(sockfd);
-  char buf[11+1+11+1]; // <int> <int>
+  char buf[256]; // <int> <int> <int> <int> <..expansion..>
   if (s_input.gets(buf, sizeof(buf)) == 0) {
-    msg.assfmt("line: %u : Failed to get nodeid from client", __LINE__);
-    DBUG_PRINT("error", ("Failed to read 'hello' from client"));
+    /* Could be spurious connection, need not log */
+    log_failure = false;
+    msg.assfmt("Ignored connection attempt as failed to "
+               "read 'hello' from client");
+    DBUG_PRINT("error", ("%s", msg.c_str()));
+    DEBUG_FPRINTF((stderr, "%s", msg.c_str()));
     DBUG_RETURN(false);
   }
 
-  int nodeId, remote_transporter_type= -1;
-  int r= sscanf(buf, "%d %d", &nodeId, &remote_transporter_type);
+  int nodeId;
+  int remote_transporter_type;
+  int serverNodeId = -1;
+  int multi_transporter_instance = -1;
+  int r= sscanf(buf, "%d %d %d %d",
+                &nodeId,
+                &remote_transporter_type,
+                &serverNodeId,
+                &multi_transporter_instance);
   switch (r) {
-  case 2:
+  case 4:
+    /* Latest version client */
     break;
-  case 1:
-    // we're running version prior to 4.1.9
-    // ok, but with no checks on transporter configuration compatability
+  case 3:
+    /* Older client, sending just nodeid, transporter type, serverNodeId */
+    break;
+  case 2:
+    /* Older client, sending just nodeid and transporter type */
     break;
   default:
-    msg.assfmt("line: %u : Incorrect reply from client: >%s<", __LINE__, buf);
-    DBUG_PRINT("error", ("Failed to parse 'hello' from client, buf: '%.*s'",
-                         (int)sizeof(buf), buf));
+    /* Could be spurious connection, need not log */
+    log_failure = false;
+    msg.assfmt("Ignored connection attempt as failed to "
+               "parse 'hello' from client.  >%s<", buf);
+    DBUG_PRINT("error", ("%s", msg.c_str()));
+    DEBUG_FPRINTF((stderr, "%s", msg.c_str()));
     DBUG_RETURN(false);
   }
 
-  DBUG_PRINT("info", ("Client hello, nodeId: %d transporter type: %d",
-		      nodeId, remote_transporter_type));
-
+  DBUG_PRINT("info", ("Client hello, nodeId: %d transporter type: %d "
+                      "server nodeid %d instance %d",
+		      nodeId,
+                      remote_transporter_type,
+                      serverNodeId,
+                      multi_transporter_instance));
+  /*
+  DEBUG_FPRINTF((stderr, "Client hello, nodeId: %d transporter type: %d "
+                         "server nodeid %d instance %d",
+		         nodeId,
+                         remote_transporter_type,
+                         serverNodeId,
+                         multi_transporter_instace));
+  */
 
   // Check that nodeid is in range before accessing the arrays
   if (nodeId < 0 ||
-      nodeId >= (int)maxTransporters)
+      nodeId > (int)MAX_NODES)
   {
-    msg.assfmt("line: %u : Incorrect reply from client: >%s<", __LINE__, buf);
-    DBUG_PRINT("error", ("Out of range nodeId: %d from client",
-                         nodeId));
+    /* Strange, log it */
+    msg.assfmt("Ignored connection attempt as client "
+               "nodeid %u out of range", nodeId);
+    DBUG_PRINT("error", ("%s", msg.c_str()));
     DBUG_RETURN(false);
   }
 
+  lockMultiTransporters();
   // Check that transporter is allocated
-  Transporter *t= theTransporters[nodeId];
+  Transporter *t= theNodeIdTransporters[nodeId];
   if (t == 0)
   {
-    msg.assfmt("line: %u : Incorrect reply from client: >%s<, node: %u",
-               __LINE__, buf, nodeId);
-    DBUG_PRINT("error", ("No transporter available for node id %d", nodeId));
+    unlockMultiTransporters();
+    /* Strange, log it */
+    msg.assfmt("Ignored connection attempt as client "
+               "nodeid %u is undefined.",
+               nodeId);
+    DBUG_PRINT("error", ("%s", msg.c_str()));
     DBUG_RETURN(false);
   }
 
-  // Check that the transporter should be connecting
-  if (performStates[nodeId] != TransporterRegistry::CONNECTING)
+  // Check transporter type
+  if (remote_transporter_type != t->m_type &&
+      t->m_type != tt_Multi_TRANSPORTER) // Checked later
   {
-    msg.assfmt("line: %u : Incorrect state for node %u state: %s (%u)",
-               __LINE__, nodeId,
-               getPerformStateString(nodeId),
-               performStates[nodeId]);
+    unlockMultiTransporters();
+    /* Strange, log it */
+    msg.assfmt("Connection attempt from client node %u failed as transporter "
+               "type %u is not as expected %u.",
+               nodeId,
+               remote_transporter_type,
+               t->m_type);
+    DBUG_RETURN(false);
+  }
 
-    DBUG_PRINT("error", ("Transporter for node id %d in wrong state",
-                         nodeId));
+  // Check that the serverNodeId is correct
+  if (serverNodeId != -1)
+  {
+    /* Check that incoming connection was meant for us */
+    if (serverNodeId != t->getLocalNodeId())
+    {
+      unlockMultiTransporters();
+      /* Strange, log it */
+      msg.assfmt("Ignored connection attempt as client "
+                 "node %u attempting to connect to node %u, "
+                 "but this is node %u.",
+                 nodeId,
+                 serverNodeId,
+                 t->getLocalNodeId());
+      DBUG_PRINT("error", ("%s", msg.c_str()));
+      DBUG_RETURN(false);
+    }
+  }
+
+  bool correct_state = false;
+  Multi_Transporter *multi_trp =
+    get_node_multi_transporter(nodeId);
+  if (multi_trp &&
+      multi_transporter_instance > 0)
+  {
+    /* Specific path for non-zero multi transporter instances */
+    DEBUG_FPRINTF((stderr, "connect_server multi trp, node %u instance %u\n",
+                   t->getRemoteNodeId(),
+                   multi_transporter_instance));
+
+    if (performStates[nodeId] == TransporterRegistry::CONNECTED)
+    {
+      /**
+       * The connection is ok if the following is true:
+       * 1) The transporter is a Multi_Transporter object
+       * 2) The instance exists as inactive transporter
+       * 3) The inactive instance referred to isn't already
+       *    connected
+       *
+       * If this all are true we will replace the multi transporter
+       * instance with the transporter instance to connect in this
+       * instance.
+       */
+      if ((multi_transporter_instance - 1) <
+           int(multi_trp->get_num_inactive_transporters()))
+      {
+        Transporter *inst_trp =
+          multi_trp->get_inactive_transporter(multi_transporter_instance - 1);
+
+        /* Check type now that we have the actual instance */
+        if (remote_transporter_type == inst_trp->m_type)
+        {
+          if (!inst_trp->isConnected())
+          {
+            /**
+             * Continue connection setup with
+             * multi-transporter specific instance
+             */
+            correct_state = true;
+            t = inst_trp;
+          }
+          else
+          {
+            /* Strange, log it */
+            msg.assfmt("Ignored connection attempt from node %u as multi "
+                       "transporter instance %u already connected.",
+                       nodeId,
+                       multi_transporter_instance);
+          }
+        }
+        else
+        {
+          /* Strange, log it */
+          msg.assfmt("Ignored multi transporter connection attempt "
+                     "from node %u instance %u as transporter "
+                     "type %u is not as expected %u",
+                     nodeId,
+                     multi_transporter_instance,
+                     remote_transporter_type,
+                     inst_trp->m_type);
+        }
+      }
+      else
+      {
+        /* Strange, log it */
+        msg.assfmt("Ignored connection attempt from node %u as multi "
+                   "transporter instance %u is not in range.",
+                   nodeId,
+                   multi_transporter_instance);
+      }
+    }
+  }
+  else
+  {
+    /**
+     * Normal connection setup
+     * Sub cases :
+     *   Normal setup from recent version  : multi = 0, instance = 0
+     *   Normal setup from old version     : multi = 0, instance = -1
+     *   Normal setup for multi instance 0 : multi = 1, instance = 0
+     *
+     * Not supported :
+     *   multi = 1, instance > 0  : Handled above
+     *   multi = 1, instance < 0  : Do not enable multi transporters before upgrade
+     *   multi = 0, instance > 0  : Invalid
+     */
+    if (!multi_trp)
+    {
+      if (multi_transporter_instance > 0)
+      {
+        unlockMultiTransporters();
+        /* Strange, log it */
+        msg.assfmt("Ignored connection attempt from node %u as multi "
+                   "transporter instance %d specified for non multi-transporter",
+                   nodeId, multi_transporter_instance);
+        DBUG_RETURN(false);
+      }
+    }
+    else
+    {
+      /* multi_trp */
+      if (multi_transporter_instance == 0)
+      {
+        /* Continue connection setup with specific instance 0 */
+        require(multi_trp->get_num_active_transporters() == 1);
+        t = multi_trp->get_active_transporter(0);
+      }
+      else
+      {
+        unlockMultiTransporters();
+        /* Strange, log it */
+        msg.assfmt("Ignored connection attempt from node %u as multi "
+                   "transporter instance %d specified",
+                   nodeId, multi_transporter_instance);
+        DBUG_RETURN(false);
+      }
+    }
+
+    /**
+     * Normal connection setup requires state to be in CONNECTING
+     */
+    if (performStates[nodeId] == TransporterRegistry::CONNECTING)
+    {
+      correct_state = true;
+    }
+    else
+    {
+      msg.assfmt("Ignored connection attempt as this node "
+                 "is not expecting a connection from node %u. "
+                 "State %u",
+                 nodeId,
+                 performStates[nodeId]);
+
+      /**
+       * This is expected if the transporter state is DISCONNECTED,
+       * otherwise it's a bit strange
+       */
+      log_failure = (performStates[nodeId] != TransporterRegistry::DISCONNECTED);
+
+      DEBUG_FPRINTF((stderr, "%s", msg.c_str()));
+    }
+  }
+  unlockMultiTransporters();
+
+  // Check that the transporter should be connecting
+  if (!correct_state)
+  {
+    DBUG_PRINT("error", ("Transporter for node id %d in wrong state %s",
+                         nodeId, msg.c_str()));
+    /*
+    DEBUG_FPRINTF((stderr, "Transporter for node id %d in wrong state %s\n",
+                           nodeId, msg.c_str()));
+    */
 
     // Avoid TIME_WAIT on server by requesting client to close connection
     SocketOutputStream s_output(sockfd);
@@ -583,43 +766,90 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
     DBUG_RETURN(false);
   }
 
-  // Check transporter type
-  if (remote_transporter_type != -1 &&
-      remote_transporter_type != t->m_type)
-  {
-    g_eventLogger->error("Connection from node: %d uses different transporter "
-                         "type: %d, expected type: %d",
-                         nodeId, remote_transporter_type, t->m_type);
-    DBUG_RETURN(false);
-  }
-
   // Send reply to client
   SocketOutputStream s_output(sockfd);
   if (s_output.println("%d %d", t->getLocalNodeId(), t->m_type) < 0)
   {
-    msg.assfmt("line: %u : Failed to reply to connecting socket (node: %u)",
-               __LINE__, nodeId);
-    DBUG_PRINT("error", ("Send of reply failed"));
+    /* Strange, log it */
+    msg.assfmt("Connection attempt failed due to error sending "
+               "reply to client node %u",
+               nodeId);
+    DBUG_PRINT("error", ("%s", msg.c_str()));
     DBUG_RETURN(false);
   }
 
   // Setup transporter (transporter responsible for closing sockfd)
-  bool res = t->connect_server(sockfd, msg);
-
-  if (res && performStates[nodeId] != TransporterRegistry::CONNECTING)
-  {
-    msg.assfmt("line: %u : Incorrect state for node %u state: %s (%u)",
-               __LINE__, nodeId,
-               getPerformStateString(nodeId),
-               performStates[nodeId]);
-    // Connection suceeded, but not connecting anymore, return
-    // false to close the connection
-    DBUG_RETURN(false);
-  }
-
-  DBUG_RETURN(res);
+  DEBUG_FPRINTF((stderr, "connect_server for trp_id %u\n",
+                 t->getTransporterIndex()));
+  DBUG_RETURN(t->connect_server(sockfd, msg));
 }
 
+void
+TransporterRegistry::insert_allTransporters(Transporter *t)
+{
+  TrpId trp_id = t->getTransporterIndex();
+  if (trp_id == 0)
+  {
+    nTransporters++;
+    require(allTransporters[nTransporters] == 0);
+    allTransporters[nTransporters] = t;
+    t->setTransporterIndex(nTransporters);
+  }
+  else
+  {
+    require(allTransporters[trp_id] == 0);
+    allTransporters[trp_id] = t;
+  }
+}
+
+void
+TransporterRegistry::remove_allTransporters(Transporter *t)
+{
+  TrpId trp_id = t->getTransporterIndex();
+  if (trp_id == 0)
+  {
+    return;
+  }
+  else if (t == allTransporters[trp_id])
+  {
+    DEBUG_FPRINTF((stderr,
+                   "remove trp_id %u for node %u from allTransporters\n",
+                   trp_id,
+                   t->getRemoteNodeId()));
+    allTransporters[trp_id] = 0;
+  }
+}
+
+void
+TransporterRegistry::insert_node_transporter(NodeId node_id, Transporter *t)
+{
+  theNodeIdTransporters[node_id] = t;
+}
+
+void
+TransporterRegistry::lockMultiTransporters()
+{
+  NdbMutex_Lock(theMultiTransporterMutex);
+}
+
+void
+TransporterRegistry::unlockMultiTransporters()
+{
+  NdbMutex_Unlock(theMultiTransporterMutex);
+}
+
+Uint32
+TransporterRegistry::get_num_multi_transporters()
+{
+  return nMultiTransporters;
+}
+
+Multi_Transporter*
+TransporterRegistry::get_multi_transporter(Uint32 index)
+{
+  require(index < nMultiTransporters);
+  return theMultiTransporters[index];
+}
 
 bool
 TransporterRegistry::configureTransporter(TransporterConfiguration *config)
@@ -629,13 +859,15 @@ TransporterRegistry::configureTransporter(TransporterConfiguration *config)
   assert(localNodeId);
   assert(config->localNodeId == localNodeId);
 
-  if (remoteNodeId >= maxTransporters)
+  if (remoteNodeId > MAX_NODES)
     return false;
 
-  Transporter* t = theTransporters[remoteNodeId];
+  Transporter* t = theNodeIdTransporters[remoteNodeId];
   if(t != NULL)
   {
     // Transporter already exist, try to reconfigure it
+    require(!t->isMultiTransporter());
+    require(!t->isPartOfMultiTransporter());
     return t->configure(config);
   }
 
@@ -647,8 +879,6 @@ TransporterRegistry::configureTransporter(TransporterConfiguration *config)
     return createTCPTransporter(config);
   case tt_SHM_TRANSPORTER:
     return createSHMTransporter(config);
-  case tt_SCI_TRANSPORTER:
-    return createSCITransporter(config);
   default:
     abort();
     break;
@@ -656,12 +886,57 @@ TransporterRegistry::configureTransporter(TransporterConfiguration *config)
   return false;
 }
 
+bool
+TransporterRegistry::createMultiTransporter(Uint32 node_id, Uint32 num_trps)
+{
+  Multi_Transporter *multi_trp = 0;
+  lockMultiTransporters();
+  Transporter *base_trp = theNodeIdTransporters[node_id];
+  require(!base_trp->isMultiTransporter());
+  require(!base_trp->isPartOfMultiTransporter());
+  multi_trp = new Multi_Transporter(*this, base_trp);
+  theMultiTransporters[nMultiTransporters] = multi_trp;
+  nMultiTransporters++;
+  Uint32 nodeId = base_trp->getRemoteNodeId();
+  TransporterType type = theTransporterTypes[nodeId];
+  for (Uint32 i = 0; i < num_trps; i++)
+  {
+    if (type == tt_TCP_TRANSPORTER)
+    {
+      TCP_Transporter *tcp_trp = (TCP_Transporter*)base_trp;
+      TCP_Transporter *new_trp = new TCP_Transporter(*this, tcp_trp);
+      require(new_trp->initTransporter());
+      multi_trp->add_not_used_trp(new_trp);
+      new_trp->set_multi_transporter_instance(i + 1);
+      theTCPTransporters[nTCPTransporters++] = new_trp;
+    }
+#ifndef WIN32
+    else if (type == tt_SHM_TRANSPORTER)
+    {
+      SHM_Transporter *shm_trp = (SHM_Transporter*)base_trp;
+      SHM_Transporter *new_trp = new SHM_Transporter(*this, shm_trp);
+      require(new_trp->initTransporter());
+      multi_trp->add_not_used_trp(new_trp);
+      new_trp->set_multi_transporter_instance(i + 1);
+      theSHMTransporters[nSHMTransporters++] = new_trp;
+    }
+#endif
+    else
+    {
+      require(false);
+    }
+  }
+  multi_trp->add_active_trp(base_trp);
+  unlockMultiTransporters();
+  return true;
+}
 
 bool
 TransporterRegistry::createTCPTransporter(TransporterConfiguration *config) {
-#ifdef NDB_TCP_TRANSPORTER
 
   TCP_Transporter * t = 0;
+  /* Don't use index 0, special use case for extra  transporters */
+  config->transporterIndex = nTransporters + 1;
   if (config->remoteNodeId == config->localNodeId)
   {
     t = new Loopback_Transporter(* this, config);
@@ -671,91 +946,37 @@ TransporterRegistry::createTCPTransporter(TransporterConfiguration *config) {
     t = new TCP_Transporter(*this, config);
   }
 
-  if (t == NULL) 
+  if (t == NULL)
     return false;
-  else if (!t->initTransporter()) {
+  else if (!t->initTransporter())
+  {
     delete t;
     return false;
   }
 
   // Put the transporter in the transporter arrays
+  nTransporters++;
+  allTransporters[nTransporters]            = t;
   theTCPTransporters[nTCPTransporters]      = t;
-  theTransporters[t->getRemoteNodeId()]     = t;
+  theNodeIdTransporters[t->getRemoteNodeId()] = t;
   theTransporterTypes[t->getRemoteNodeId()] = tt_TCP_TRANSPORTER;
   performStates[t->getRemoteNodeId()]       = DISCONNECTED;
-  nTransporters++;
   nTCPTransporters++;
   m_total_max_send_buffer += t->get_max_send_buffer();
-
   return true;
-#else
-  return false;
-#endif
 }
 
 bool
-TransporterRegistry::createSCITransporter(TransporterConfiguration *config) {
-#ifdef NDB_SCI_TRANSPORTER
-
-  if(!SCI_Transporter::initSCI())
-    abort();
-
-  SCI_Transporter * t = new SCI_Transporter(*this,
-                                            config->localHostName,
-                                            config->remoteHostName,
-                                            config->s_port,
-					    config->isMgmConnection,
-                                            config->sci.sendLimit, 
-					    config->sci.bufferSize,
-					    config->sci.nLocalAdapters,
-					    config->sci.remoteSciNodeId0,
-					    config->sci.remoteSciNodeId1,
-					    localNodeId,
-					    config->remoteNodeId,
-					    config->serverNodeId,
-					    config->checksum,
-					    config->signalId);
-  
-  if (t == NULL) 
-    return false;
-  else if (!t->initTransporter()) {
-    delete t;
-    return false;
-  }
-  // Put the transporter in the transporter arrays
-  theSCITransporters[nSCITransporters]      = t;
-  theTransporters[t->getRemoteNodeId()]     = t;
-  theTransporterTypes[t->getRemoteNodeId()] = tt_SCI_TRANSPORTER;
-  performStates[t->getRemoteNodeId()]       = DISCONNECTED;
-  nTransporters++;
-  nSCITransporters++;
-  m_total_max_send_buffer += t->get_max_send_buffer();
-  
-  return true;
-#else
-  return false;
-#endif
-}
-
-bool
-TransporterRegistry::createSHMTransporter(TransporterConfiguration *config) {
+TransporterRegistry::createSHMTransporter(TransporterConfiguration *config)
+{
+#ifndef WIN32
   DBUG_ENTER("TransporterRegistry::createTransporter SHM");
-#ifdef NDB_SHM_TRANSPORTER
 
-  if (!g_ndb_shm_signum) {
-    g_ndb_shm_signum= config->shm.signum;
-    DBUG_PRINT("info",("Block signum %d",g_ndb_shm_signum));
-    /**
-     * Make sure to block g_ndb_shm_signum
-     *   TransporterRegistry::init is run from "main" thread
-     */
-    NdbThread_set_shm_sigmask(TRUE);
-  }
-
-  if(config->shm.signum != g_ndb_shm_signum)
-    return false;
+  /* Don't use index 0, special use case for extra  transporters */
+  config->transporterIndex = nTransporters + 1;
 
   SHM_Transporter * t = new SHM_Transporter(*this,
+                                            config->transporterIndex,
 					    config->localHostName,
 					    config->remoteHostName,
 					    config->s_port,
@@ -766,147 +987,182 @@ TransporterRegistry::createSHMTransporter(TransporterConfiguration *config) {
 					    config->checksum,
 					    config->signalId,
 					    config->shm.shmKey,
-					    config->shm.shmSize
-					    );
+					    config->shm.shmSize,
+					    config->preSendChecksum,
+                                            config->shm.shmSpintime,
+                                            config->shm.sendBufferSize);
   if (t == NULL)
     return false;
-  else if (!t->initTransporter()) {
-    delete t;
-    return false;
-  }
+
   // Put the transporter in the transporter arrays
+  nTransporters++;
+  allTransporters[nTransporters]            = t;
   theSHMTransporters[nSHMTransporters]      = t;
-  theTransporters[t->getRemoteNodeId()]     = t;
+  theNodeIdTransporters[t->getRemoteNodeId()]     = t;
   theTransporterTypes[t->getRemoteNodeId()] = tt_SHM_TRANSPORTER;
   performStates[t->getRemoteNodeId()]       = DISCONNECTED;
   
-  nTransporters++;
   nSHMTransporters++;
   m_total_max_send_buffer += t->get_max_send_buffer();
 
   DBUG_RETURN(true);
 #else
-  DBUG_RETURN(false);
+  return false;
 #endif
 }
 
-
-void
-TransporterRegistry::removeTransporter(NodeId nodeId) {
-
-  DEBUG("Removing transporter from " << localNodeId
-	<< " to " << nodeId);
-  
-  if(theTransporters[nodeId] == NULL)
-    return;
-  
-  theTransporters[nodeId]->doDisconnect();
-  
-  const TransporterType type = theTransporterTypes[nodeId];
-
-  int ind = 0;
-  switch(type){
-  case tt_TCP_TRANSPORTER:
-#ifdef NDB_TCP_TRANSPORTER
-    for(; ind < nTCPTransporters; ind++)
-      if(theTCPTransporters[ind]->getRemoteNodeId() == nodeId)
-	break;
-    ind++;
-    for(; ind<nTCPTransporters; ind++)
-      theTCPTransporters[ind-1] = theTCPTransporters[ind];
-    nTCPTransporters --;
-#endif
-    break;
-  case tt_SCI_TRANSPORTER:
-#ifdef NDB_SCI_TRANSPORTER
-    for(; ind < nSCITransporters; ind++)
-      if(theSCITransporters[ind]->getRemoteNodeId() == nodeId)
-	break;
-    ind++;
-    for(; ind<nSCITransporters; ind++)
-      theSCITransporters[ind-1] = theSCITransporters[ind];
-    nSCITransporters --;
-#endif
-    break;
-  case tt_SHM_TRANSPORTER:
-#ifdef NDB_SHM_TRANSPORTER
-    for(; ind < nSHMTransporters; ind++)
-      if(theSHMTransporters[ind]->getRemoteNodeId() == nodeId)
-	break;
-    ind++;
-    for(; ind<nSHMTransporters; ind++)
-      theSHMTransporters[ind-1] = theSHMTransporters[ind];
-    nSHMTransporters --;
-#endif
-    break;
-  }
-
-  nTransporters--;
-
-  // Delete the transporter and remove it from theTransporters array
-  delete theTransporters[nodeId];
-  theTransporters[nodeId] = NULL;        
-}
-
+/**
+ * prepareSend() - queue a signal for later asynchronous sending.
+ *
+ * A successfull prepareSend() only guarantee that the signal has been
+ * stored in some send buffers. Normally it will later be sent, but could
+ * also be discarded if the transporter *later* disconnects.
+ *
+ * Signal memory is allocated with the implementation dependent
+ * ::getWritePtr(). On multithreaded implementations, allocation may
+ * take place in thread-local buffer pools which is later 'flushed'
+ * to a global send buffer.
+ *
+ * Asynchronous to prepareSend() there may be Transporters
+ * (dis)connecting which are signaled to the upper layers by calling
+ * disable_/enable_send_buffers().
+ *
+ * The 'sendHandle' interface has the method ::isSendEnabled() which
+ * provides us with a way to check whether communication with a node
+ * is possible. Depending on the sendHandle implementation, 
+ * isSendEnabled() may either have a 'synchronized' or 'optimistic'
+ * implementation:
+ *  - A (thread-) 'synchronized' implementation guarantee that the
+ *    send buffers really are enabled, both thread local and global,
+ *    at the time of send buffer allocation. (May disconnect later though)
+ *  - An 'optimistic' implementation does not really know whether the
+ *    send buffers are (globally) enabled. Send buffers may always be
+ *    allocated and possibly silently discarded later.
+ *    (SEND_DISCONNECTED will never be returned)
+ *
+ * The trp_client implementation is 'synchronized', while the mt-/non-mt
+ * data node implementation is not. Note that a 'SEND_DISCONNECTED'
+ * and 'SEND_BLOCKED' return has always been handled as an 'OK' on 
+ * the data nodes. So not being able to detect 'SEND_DISCONNECTED'
+ * should not matter.
+ *
+ * Note that sending behaves differently wrt disconnect / reconnect
+ * synching compared to 'receive'. Receiver side *is* synchroinized with
+ * the receiver transporter disconnect / reconnect by both requiring the
+ * 'poll-right'. Thus receiver logic may check Transporter::isConnected()
+ * directly.
+ *
+ * See further comments as part of ::performReceive().
+ */
+template <typename AnySectionArg>
 SendStatus
-TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
-                                 const SignalHeader * const signalHeader,
-				 Uint8 prio,
-				 const Uint32 * const signalData,
-				 NodeId nodeId, 
-				 const LinearSectionPtr ptr[3]){
-
-
-  Transporter *t = theTransporters[nodeId];
-  if(t != NULL && 
-     (((ioStates[nodeId] != HaltOutput) && (ioStates[nodeId] != HaltIO)) || 
-      ((signalHeader->theReceiversBlockNumber == 252) ||
-       (signalHeader->theReceiversBlockNumber == 4002)))) {
-	 
-    if(t->isConnected()){
-      Uint32 lenBytes = t->m_packer.getMessageLength(signalHeader, ptr);
-      if(lenBytes <= MAX_SEND_MESSAGE_BYTESIZE){
-	Uint32 * insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
-	if(insertPtr != 0){
-	  t->m_packer.pack(insertPtr, prio, signalHeader, signalData, ptr);
-	  updateWritePtr(sendHandle, nodeId, lenBytes, prio);
+TransporterRegistry::prepareSendTemplate(
+                                 TransporterSendBufferHandle *sendHandle,
+                                 const SignalHeader * signalHeader,
+                                 Uint8 prio,
+                                 const Uint32 * signalData,
+                                 NodeId nodeId,
+                                 TrpId &trp_id,
+                                 AnySectionArg section)
+{
+  Transporter *node_trp = theNodeIdTransporters[nodeId];
+  if (unlikely(node_trp == NULL))
+  {
+    DEBUG("Discarding message to unknown node: " << nodeId);
+    return SEND_UNKNOWN_NODE;
+  }
+  assert(!node_trp->isPartOfMultiTransporter());
+  Transporter *t;
+  t = node_trp->get_send_transporter(signalHeader->theReceiversBlockNumber,
+                                     signalHeader->theSendersBlockRef);
+  assert(!t->isMultiTransporter());
+  trp_id = t->getTransporterIndex();
+  if (unlikely(trp_id == 0))
+  {
+    /**
+     * Can happen in disconnect situations, node is disconnected, so send
+     * to it is successful since the node won't be there to receive the
+     * message.
+     */
+    DEBUG("Discarding message due to trp_id = 0");
+    return SEND_OK;
+  }
+  if(
+    likely((ioStates[nodeId] != HaltOutput) && (ioStates[nodeId] != HaltIO)) || 
+           (signalHeader->theReceiversBlockNumber == QMGR) ||
+           (signalHeader->theReceiversBlockNumber == API_CLUSTERMGR))
+  {
+    if (likely(sendHandle->isSendEnabled(nodeId)))
+    {
+      const Uint32 lenBytes = t->m_packer.getMessageLength(signalHeader, section.m_ptr);
+      if (likely(lenBytes <= MAX_SEND_MESSAGE_BYTESIZE))
+      {
+        SendStatus error = SEND_OK;
+	Uint32 *insertPtr = getWritePtr(sendHandle,
+                                        t,
+                                        trp_id,
+                                        lenBytes,
+                                        prio,
+                                        &error);
+        if (likely(insertPtr != nullptr))
+	{
+	  t->m_packer.pack(insertPtr, prio, signalHeader, signalData, section);
+	  updateWritePtr(sendHandle, t, trp_id, lenBytes, prio);
 	  return SEND_OK;
 	}
-
+        if (unlikely(error == SEND_MESSAGE_TOO_BIG))
+        {
+          g_eventLogger->info("Send message too big");
+	  return SEND_MESSAGE_TOO_BIG;
+        }
         set_status_overloaded(nodeId, true);
-        int sleepTime = 2;
+        const int sleepTime = 2;
 
 	/**
 	 * @note: on linux/i386 the granularity is 10ms
 	 *        so sleepTime = 2 generates a 10 ms sleep.
 	 */
-	for(int i = 0; i<50; i++){
-	  if((nSHMTransporters+nSCITransporters) == 0)
-	    NdbSleep_MilliSleep(sleepTime);
+	for (int i = 0; i < 100; i++)
+	{
+	  NdbSleep_MilliSleep(sleepTime);
           /* FC : Consider counting sleeps here */
-	  insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
-	  if(insertPtr != 0){
-	    t->m_packer.pack(insertPtr, prio, signalHeader, signalData, ptr);
-	    updateWritePtr(sendHandle, nodeId, lenBytes, prio);
-	    break;
+	  insertPtr = getWritePtr(sendHandle,
+                                  t,
+                                  trp_id,
+                                  lenBytes,
+                                  prio,
+                                  &error);
+	  if (likely(insertPtr != nullptr))
+	  {
+	    t->m_packer.pack(insertPtr, prio, signalHeader, signalData, section);
+	    updateWritePtr(sendHandle, t, trp_id, lenBytes, prio);
+	    DEBUG_FPRINTF((stderr, "TE_SEND_BUFFER_FULL\n"));
+	    /**
+	     * Send buffer full, but resend works
+	     */
+	    report_error(nodeId, TE_SEND_BUFFER_FULL);
+	    return SEND_OK;
 	  }
+          if (unlikely(error == SEND_MESSAGE_TOO_BIG))
+          {
+            g_eventLogger->info("Send message too big");
+	    return SEND_MESSAGE_TOO_BIG;
+          }
 	}
-	
-	if(insertPtr != 0){
-	  /**
-	   * Send buffer full, but resend works
-	   */
-	  report_error(nodeId, TE_SEND_BUFFER_FULL);
-	  return SEND_OK;
-	}
-	
+
 	WARNING("Signal to " << nodeId << " lost(buffer)");
+	DEBUG_FPRINTF((stderr, "TE_SIGNAL_LOST_SEND_BUFFER_FULL\n"));
 	report_error(nodeId, TE_SIGNAL_LOST_SEND_BUFFER_FULL);
 	return SEND_BUFFER_FULL;
-      } else {
+      }
+      else
+      {
+        g_eventLogger->info("Send message too big: length %u", lenBytes);
 	return SEND_MESSAGE_TOO_BIG;
       }
-    } else {
+    }
+    else
+    {
 #ifdef ERROR_INSERT
       if (m_blocked.get(nodeId))
       {
@@ -920,96 +1176,12 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
       DEBUG("Signal to " << nodeId << " lost(disconnect) ");
       return SEND_DISCONNECTED;
     }
-  } else {
-    DEBUG("Discarding message to block: " 
-	  << signalHeader->theReceiversBlockNumber 
-	  << " node: " << nodeId);
-    
-    if(t == NULL)
-      return SEND_UNKNOWN_NODE;
-    
-    return SEND_BLOCKED;
   }
-}
-
-SendStatus
-TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
-                                 const SignalHeader * const signalHeader,
-				 Uint8 prio,
-				 const Uint32 * const signalData,
-				 NodeId nodeId, 
-				 class SectionSegmentPool & thePool,
-				 const SegmentedSectionPtr ptr[3]){
-  
-
-  Transporter *t = theTransporters[nodeId];
-  if(t != NULL && 
-     (((ioStates[nodeId] != HaltOutput) && (ioStates[nodeId] != HaltIO)) || 
-      ((signalHeader->theReceiversBlockNumber == 252)|| 
-       (signalHeader->theReceiversBlockNumber == 4002)))) {
-    
-    if(t->isConnected()){
-      Uint32 lenBytes = t->m_packer.getMessageLength(signalHeader, ptr);
-      if(lenBytes <= MAX_SEND_MESSAGE_BYTESIZE){
-	Uint32 * insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
-	if(insertPtr != 0){
-	  t->m_packer.pack(insertPtr, prio, signalHeader, signalData, thePool, ptr);
-	  updateWritePtr(sendHandle, nodeId, lenBytes, prio);
-	  return SEND_OK;
-	}
-	
-	/**
-	 * @note: on linux/i386 the granularity is 10ms
-	 *        so sleepTime = 2 generates a 10 ms sleep.
-	 */
-        set_status_overloaded(nodeId, true);
-        int sleepTime = 2;
-	for(int i = 0; i<50; i++){
-	  if((nSHMTransporters+nSCITransporters) == 0)
-	    NdbSleep_MilliSleep(sleepTime); 
-	  insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
-	  if(insertPtr != 0){
-	    t->m_packer.pack(insertPtr, prio, signalHeader, signalData, thePool, ptr);
-	    updateWritePtr(sendHandle, nodeId, lenBytes, prio);
-	    break;
-	  }
-	}
-	
-	if(insertPtr != 0){
-	  /**
-	   * Send buffer full, but resend works
-	   */
-	  report_error(nodeId, TE_SEND_BUFFER_FULL);
-	  return SEND_OK;
-	}
-	
-	WARNING("Signal to " << nodeId << " lost(buffer)");
-	report_error(nodeId, TE_SIGNAL_LOST_SEND_BUFFER_FULL);
-	return SEND_BUFFER_FULL;
-      } else {
-	return SEND_MESSAGE_TOO_BIG;
-      }
-    } else {
-#ifdef ERROR_INSERT
-      if (m_blocked.get(nodeId))
-      {
-        /* Looks like it disconnected while blocked.  We'll pretend
-         * not to notice for now
-         */
-        WARNING("Signal to " << nodeId << " discarded as node blocked + disconnected");
-        return SEND_OK;
-      }
-#endif
-      DEBUG("Signal to " << nodeId << " lost(disconnect) ");
-      return SEND_DISCONNECTED;
-    }
-  } else {
+  else
+  {
     DEBUG("Discarding message to block: " 
 	  << signalHeader->theReceiversBlockNumber 
 	  << " node: " << nodeId);
-    
-    if(t == NULL)
-      return SEND_UNKNOWN_NODE;
     
     return SEND_BLOCKED;
   }
@@ -1018,88 +1190,62 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
 
 SendStatus
 TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
-                                 const SignalHeader * const signalHeader,
-				 Uint8 prio,
-				 const Uint32 * const signalData,
-				 NodeId nodeId, 
-				 const GenericSectionPtr ptr[3]){
-
-
-  Transporter *t = theTransporters[nodeId];
-  if(t != NULL && 
-     (((ioStates[nodeId] != HaltOutput) && (ioStates[nodeId] != HaltIO)) || 
-      ((signalHeader->theReceiversBlockNumber == 252) ||
-       (signalHeader->theReceiversBlockNumber == 4002)))) {
-	 
-    if(t->isConnected()){
-      Uint32 lenBytes = t->m_packer.getMessageLength(signalHeader, ptr);
-      if(lenBytes <= MAX_SEND_MESSAGE_BYTESIZE){
-        Uint32 * insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
-        if(insertPtr != 0){
-          t->m_packer.pack(insertPtr, prio, signalHeader, signalData, ptr);
-          updateWritePtr(sendHandle, nodeId, lenBytes, prio);
-          return SEND_OK;
-	}
-
-	/**
-	 * @note: on linux/i386 the granularity is 10ms
-	 *        so sleepTime = 2 generates a 10 ms sleep.
-	 */
-        set_status_overloaded(nodeId, true);
-        int sleepTime = 2;
-	for(int i = 0; i<50; i++){
-	  if((nSHMTransporters+nSCITransporters) == 0)
-	    NdbSleep_MilliSleep(sleepTime); 
-	  insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
-	  if(insertPtr != 0){
-	    t->m_packer.pack(insertPtr, prio, signalHeader, signalData, ptr);
-	    updateWritePtr(sendHandle, nodeId, lenBytes, prio);
-	    break;
-	  }
-	}
-	
-	if(insertPtr != 0){
-	  /**
-	   * Send buffer full, but resend works
-	   */
-	  report_error(nodeId, TE_SEND_BUFFER_FULL);
-	  return SEND_OK;
-	}
-	
-	WARNING("Signal to " << nodeId << " lost(buffer)");
-	report_error(nodeId, TE_SIGNAL_LOST_SEND_BUFFER_FULL);
-	return SEND_BUFFER_FULL;
-      } else {
-	return SEND_MESSAGE_TOO_BIG;
-      }
-    } else {
-      DEBUG("Signal to " << nodeId << " lost(disconnect) ");
-      return SEND_DISCONNECTED;
-    }
-  } else {
-    DEBUG("Discarding message to block: " 
-	  << signalHeader->theReceiversBlockNumber 
-	  << " node: " << nodeId);
-    
-    if(t == NULL)
-      return SEND_UNKNOWN_NODE;
-    
-    return SEND_BLOCKED;
-  }
+                                 const SignalHeader *signalHeader,
+                                 Uint8 prio,
+                                 const Uint32 *signalData,
+                                 NodeId nodeId,
+                                 TrpId &trp_id,
+                                 const LinearSectionPtr ptr[3])
+{
+  const Packer::LinearSectionArg section(ptr);
+  return prepareSendTemplate(sendHandle,
+                             signalHeader,
+                             prio,
+                             signalData,
+                             nodeId,
+                             trp_id,
+                             section);
 }
 
-void
-TransporterRegistry::external_IO(Uint32 timeOutMillis) {
-  //-----------------------------------------------------------
-  // Most of the time we will send the buffers here and then wait
-  // for new signals. Thus we start by sending without timeout
-  // followed by the receive part where we expect to sleep for
-  // a while.
-  //-----------------------------------------------------------
-  if(pollReceive(timeOutMillis, * receiveHandle)){
-    performReceive(* receiveHandle);
-  }
-  performSend();
+
+SendStatus
+TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
+                                 const SignalHeader *signalHeader,
+                                 Uint8 prio,
+                                 const Uint32 *signalData,
+                                 NodeId nodeId,
+                                 TrpId &trp_id,
+                                 class SectionSegmentPool &thePool,
+                                 const SegmentedSectionPtr ptr[3])
+{
+  const Packer::SegmentedSectionArg section(thePool,ptr);
+  return prepareSendTemplate(sendHandle,
+                             signalHeader,
+                             prio,
+                             signalData,
+                             nodeId,
+                             trp_id,
+                             section);
+}
+
+
+SendStatus
+TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
+                                 const SignalHeader *signalHeader,
+                                 Uint8 prio,
+                                 const Uint32 *signalData,
+                                 NodeId nodeId,
+                                 const GenericSectionPtr ptr[3])
+{
+  TrpId trp_id = 0;
+  const Packer::GenericSectionArg section(ptr);
+  return prepareSendTemplate(sendHandle,
+                             signalHeader,
+                             prio,
+                             signalData,
+                             nodeId,
+                             trp_id,
+                             section);
 }
 
 bool
@@ -1114,7 +1260,7 @@ TransporterRegistry::setup_wakeup_socket(TransporterReceiveHandle& recvdata)
 
   assert(!recvdata.m_transporters.get(0));
 
-  if (my_socketpair(m_extra_wakeup_sockets))
+  if (ndb_socketpair(m_extra_wakeup_sockets))
   {
     perror("socketpair failed!");
     return false;
@@ -1131,7 +1277,7 @@ TransporterRegistry::setup_wakeup_socket(TransporterReceiveHandle& recvdata)
   {
     int sock = m_extra_wakeup_sockets[0].fd;
     struct epoll_event event_poll;
-    bzero(&event_poll, sizeof(event_poll));
+    memset(&event_poll, 0, sizeof(event_poll));
     event_poll.data.u32 = 0;
     event_poll.events = EPOLLIN;
     int ret_val = epoll_ctl(recvdata.m_epoll_fd, EPOLL_CTL_ADD, sock,
@@ -1151,10 +1297,10 @@ TransporterRegistry::setup_wakeup_socket(TransporterReceiveHandle& recvdata)
   return true;
 
 err:
-  my_socket_close(m_extra_wakeup_sockets[0]);
-  my_socket_close(m_extra_wakeup_sockets[1]);
-  my_socket_invalidate(m_extra_wakeup_sockets+0);
-  my_socket_invalidate(m_extra_wakeup_sockets+1);
+  ndb_socket_close(m_extra_wakeup_sockets[0]);
+  ndb_socket_close(m_extra_wakeup_sockets[1]);
+  ndb_socket_invalidate(m_extra_wakeup_sockets+0);
+  ndb_socket_invalidate(m_extra_wakeup_sockets+1);
   return false;
 }
 
@@ -1164,59 +1310,28 @@ TransporterRegistry::wakeup()
   if (m_has_extra_wakeup_socket)
   {
     static char c = 37;
-    my_send(m_extra_wakeup_sockets[1], &c, 1, 0);
+    ndb_send(m_extra_wakeup_sockets[1], &c, 1, 0);
   }
 }
 
 Uint32
-TransporterRegistry::pollReceive(Uint32 timeOutMillis,
-                                 TransporterReceiveHandle& recvdata)
+TransporterRegistry::check_TCP(TransporterReceiveHandle& recvdata,
+                               Uint32 timeOutMillis)
 {
-  assert((receiveHandle == &recvdata) || (receiveHandle == 0));
-
   Uint32 retVal = 0;
-  recvdata.m_recv_transporters.clear();
-
-  /**
-   * If any transporters have left-over data that was not fully executed in
-   * last loop, don't wait and return 'data available' even if nothing new
-   */
-  if (!recvdata.m_has_data_transporters.isclear())
-  {
-    timeOutMillis = 0;
-    retVal = 1;
-  }
-
-  if (nSCITransporters > 0)
-  {
-    timeOutMillis=0;
-  }
-
-#ifdef NDB_SHM_TRANSPORTER
-  if (nSHMTransporters > 0)
-  {
-    Uint32 res = poll_SHM(0, recvdata);
-    if(res)
-    {
-      retVal |= res;
-      timeOutMillis = 0;
-    }
-  }
-#endif
-
-#ifdef NDB_TCP_TRANSPORTER
 #if defined(HAVE_EPOLL_CREATE)
   if (likely(recvdata.m_epoll_fd != -1))
   {
     int tcpReadSelectReply = 0;
-    Uint32 num_trps = nTCPTransporters + (m_has_extra_wakeup_socket ? 1 : 0);
+    Uint32 num_trps = nTCPTransporters + nSHMTransporters +
+                      (m_has_extra_wakeup_socket ? 1 : 0);
 
     if (num_trps)
     {
       tcpReadSelectReply = epoll_wait(recvdata.m_epoll_fd,
                                       recvdata.m_epoll_events,
                                       num_trps, timeOutMillis);
-      retVal |= tcpReadSelectReply;
+      retVal = tcpReadSelectReply;
     }
 
     int num_socket_events = tcpReadSelectReply;
@@ -1241,92 +1356,297 @@ TransporterRegistry::pollReceive(Uint32 timeOutMillis,
   else
 #endif
   {
-    if (nTCPTransporters > 0 || m_has_extra_wakeup_socket)
+    retVal = poll_TCP(timeOutMillis, recvdata);
+  }
+  return retVal;
+}
+
+Uint32
+TransporterRegistry::poll_SHM(TransporterReceiveHandle& recvdata,
+                              NDB_TICKS start_poll,
+                              Uint32 micros_to_poll)
+{
+  Uint32 res;
+  Uint64 micros_passed;
+  do
+  {
+    bool any_connected = false;
+    res = poll_SHM(recvdata, any_connected);
+    if (res || !any_connected)
     {
-      retVal |= poll_TCP(timeOutMillis, recvdata);
+      /**
+       * If data found or no SHM transporter connected there is no
+       * reason to continue spinning.
+       */
+      break;
+    }
+    NDB_TICKS now = NdbTick_getCurrentTicks();
+    micros_passed =
+      NdbTick_Elapsed(start_poll, now).microSec();
+  } while (micros_passed < Uint64(micros_to_poll));
+  return res;
+}
+
+Uint32
+TransporterRegistry::poll_SHM(TransporterReceiveHandle& recvdata,
+                              bool &any_connected)
+{
+  assert((receiveHandle == &recvdata) || (receiveHandle == 0));
+
+  Uint32 retVal = 0;
+  any_connected = false;
+#ifndef WIN32
+  for (Uint32 i = 0; i < recvdata.nSHMTransporters; i++)
+  {
+    SHM_Transporter * t = theSHMTransporters[i];
+    Uint32 node_id = t->getRemoteNodeId();
+    Uint32 trp_id = t->getTransporterIndex();
+
+    if (!recvdata.m_transporters.get(trp_id))
+      continue;
+
+    if (t->isConnected() && is_connected(node_id))
+    {
+      any_connected = true;
+      if (t->hasDataToRead())
+      {
+        recvdata.m_has_data_transporters.set(trp_id);
+        retVal = 1;
+      }
     }
   }
 #endif
-#ifdef NDB_SCI_TRANSPORTER
-  if (nSCITransporters > 0)
-    retVal |= poll_SCI(timeOutMillis, recvdata);
-#endif
-#ifdef NDB_SHM_TRANSPORTER
-  if (nSHMTransporters > 0)
+  return retVal;
+}
+
+Uint32
+TransporterRegistry::spin_check_transporters(
+                          TransporterReceiveHandle& recvdata)
+{
+  Uint32 res = 0;
+#ifndef WIN32
+  Uint64 micros_passed = 0;
+  bool any_connected = false;
+  Uint64 spintime = Uint64(recvdata.m_spintime);
+
+  if (spintime == 0)
   {
-    int res = poll_SHM(0, recvdata);
+    return res;
+  }
+  NDB_TICKS start = NdbTick_getCurrentTicks();
+  do
+  {
+    {
+      res = poll_SHM(recvdata, any_connected);
+      if (res || !any_connected)
+        break;
+    }
+    if (res || !any_connected)
+      break;
+    res = check_TCP(recvdata, 0);
+    if (res)
+      break;
+    NdbSpin();
+    NDB_TICKS now = NdbTick_getCurrentTicks();
+    micros_passed =
+      NdbTick_Elapsed(start, now).microSec();
+  } while (micros_passed < Uint64(recvdata.m_spintime));
+  recvdata.m_total_spintime += micros_passed;
+#endif
+  return res;
+}
+
+Uint32
+TransporterRegistry::pollReceive(Uint32 timeOutMillis,
+                                 TransporterReceiveHandle& recvdata)
+{
+  bool sleep_state_set = false;
+  assert((receiveHandle == &recvdata) || (receiveHandle == 0));
+
+  Uint32 retVal = 0;
+  recvdata.m_recv_transporters.clear();
+
+  /**
+   * If any transporters have left-over data that was not fully executed in
+   * last loop, don't wait and return 'data available' even if nothing new
+   */
+  if (!recvdata.m_has_data_transporters.isclear())
+  {
+    timeOutMillis = 0;
+    retVal = 1;
+  }
+#ifndef WIN32
+  if (recvdata.nSHMTransporters > 0)
+  {
+    /**
+     * We start by checking shared memory transporters without
+     * any mutexes or other protection. If we find something to
+     * read we will set timeout to 0 and check the TCP transporters
+     * before returning.
+     */
+    bool any_connected = false;
+    Uint32 res = poll_SHM(recvdata, any_connected);
+    if(res)
+    {
+      retVal |= res;
+      timeOutMillis = 0;
+    }
+    else if (timeOutMillis > 0 && any_connected)
+    {
+      /**
+       * We are preparing to wait for socket events. We will start by
+       * polling for a configurable amount of microseconds before we
+       * go to sleep. We will check both shared memory transporters and
+       * TCP transporters in this period. We will check shared memory
+       * transporter four times and then check TCP transporters in a
+       * loop.
+       *
+       * After this polling period, if we are still waiting for data
+       * we will prepare to go to sleep by informing the other side
+       * that we are going to sleep.
+       *
+       * To do this we first grab the mutex used by the sender
+       * to check for sleep/awake state, next we poll the shared
+       * memory holding this mutex. If this check also returns
+       * without finding any data we set the state to sleep,
+       * release the mutex and go to sleep (on an epoll/poll)
+       * that can be woken up by incoming data or a wakeup byte
+       * sent to SHM transporter.
+       */
+      res = spin_check_transporters(recvdata);
+      if (res)
+      {
+        retVal |= res;
+        timeOutMillis = 0;
+      }
+      else
+      {
+        int res = reset_shm_awake_state(recvdata, sleep_state_set);
+        if (res || !sleep_state_set)
+        {
+          /**
+           * If sleep_state_set is false here it means that the
+           * all SHM transporters were disconnected. Alternatively
+           * there was data available on all the connected SHM
+           * transporters. Read the data from TCP transporters and
+           * return.
+           */
+          retVal |= 1;
+          timeOutMillis = 0;
+        }
+      }
+    }
+  }
+#endif
+  retVal |= check_TCP(recvdata, timeOutMillis);
+#ifndef WIN32
+  if (recvdata.nSHMTransporters > 0)
+  {
+    /**
+     * If any SHM transporter was put to sleep above we will
+     * set all connected SHM transporters to awake now.
+     */
+    if (sleep_state_set)
+    {
+      set_shm_awake_state(recvdata);
+    }
+    bool any_connected = false;
+    int res = poll_SHM(recvdata, any_connected);
     retVal |= res;
   }
 #endif
   return retVal;
 }
 
-
-#ifdef NDB_SCI_TRANSPORTER
-Uint32
-TransporterRegistry::poll_SCI(Uint32 timeOutMillis,
-                              TransporterReceiveHandle& recvdata)
+/**
+ * Every time a SHM transporter is sending data and wants the other side
+ * to wake up to handle the data, it follows this procedure.
+ * 1) Write the data in shared memory
+ * 2) Acquire the mutex protecting the awake flag on the receive side.
+ * 3) Read flag
+ * 4) Release mutex
+ * 5.1) If flag says that receiver is awake we're done
+ * 5.2) If flag says that receiver is asleep we will send a byte on the
+ *      transporter socket for the SHM transporter to wake up the other
+ *      side.
+ *
+ * The reset_shm_awake_state is called right before we are going to go
+ * to sleep. To ensure that we don't miss any signals from the other
+ * side we will first check if there is data available on shared memory.
+ * We first grab the mutex before checking this. If no data is available
+ * we can proceed to go to sleep after setting the flag to indicate that
+ * we are asleep. The above procedure used when sending means that we
+ * know that the sender will always know the correct state. The only
+ * error in this is that the sender might think that we are asleep when
+ * we actually is still on our way to go to sleep. In this case no harm
+ * has been done since the only thing that have happened is that one byte
+ * is sent on the SHM socket that wasn't absolutely needed.
+ */
+int
+TransporterRegistry::reset_shm_awake_state(TransporterReceiveHandle& recvdata,
+                                       bool& sleep_state_set)
 {
-  assert((receiveHandle == &recvdata) || (receiveHandle == 0));
-
-  Uint32 retVal = 0;
-  for (int i = 0; i < nSCITransporters; i++)
+  int res = 0;
+#ifndef WIN32
+  for (Uint32 i = 0; i < recvdata.nSHMTransporters; i++)
   {
-    SCI_Transporter * t = theSCITransporters[i];
+    SHM_Transporter * t = theSHMTransporters[i];
     Uint32 node_id = t->getRemoteNodeId();
+    Uint32 trp_id = t->getTransporterIndex();
 
-    if (!recvdata.m_transporters.get(nodeId))
+    if (!recvdata.m_transporters.get(trp_id))
       continue;
 
-    if (t->isConnected() && is_connected(node_id))
+    if (t->isConnected())
     {
-      if (t->hasDataToRead())
+      t->lock_mutex();
+      if (is_connected(node_id))
       {
-        recvdata.m_has_data_transporters.set(node_id);
-	retVal = 1;
-      }
-    }
-  }
-  return retVal;
-}
-#endif
-
-
-#ifdef NDB_SHM_TRANSPORTER
-static int g_shm_counter = 0;
-Uint32
-TransporterRegistry::poll_SHM(Uint32 timeOutMillis,
-                              TransporterReceiveHandle& recvdata)
-{
-  assert((receiveHandle == &recvdata) || (receiveHandle == 0));
-
-  Uint32 retVal = 0;
-  for (int j = 0; j < 100; j++)
-  {
-    for (int i = 0; i<nSHMTransporters; i++)
-    {
-      SHM_Transporter * t = theSHMTransporters[i];
-      Uint32 node_id = t->getRemoteNodeId();
-
-      if (!recvdata.m_transporters.get(node_id))
-        continue;
-
-      if (t->isConnected() && is_connected(node_id))
-      {
-	if (t->hasDataToRead())
+        if (t->hasDataToRead())
         {
-          j = 100;
-          recvdata.m_has_data_transporters.set(node_id);
-          retVal = 1;
-	}
+          recvdata.m_has_data_transporters.set(trp_id);
+          res = 1;
+        }
+        else
+        {
+          sleep_state_set = true;
+          t->set_awake_state(0);
+        }
       }
+      t->unlock_mutex();
     }
   }
-  return retVal;
-}
 #endif
+  return res;
+}
 
-#ifdef NDB_TCP_TRANSPORTER
+/**
+ * We have been sleeping for a while, before proceeding we need to set
+ * the flag to awake in the shared memory. This will flag to all other
+ * nodes using shared memory to communicate that we're awake and don't
+ * need any socket communication to wake up.
+ */
+void
+TransporterRegistry::set_shm_awake_state(TransporterReceiveHandle& recvdata)
+{
+#ifndef WIN32
+  for (Uint32 i = 0; i < recvdata.nSHMTransporters; i++)
+  {
+    SHM_Transporter * t = theSHMTransporters[i];
+    Uint32 id = t->getTransporterIndex();
+
+    if (!recvdata.m_transporters.get(id))
+      continue;
+    if (t->isConnected())
+    {
+      t->lock_mutex();
+      t->set_awake_state(1);
+      t->unlock_mutex();
+    }
+  }
+#endif
+}
+
 /**
  * We do not want to hold any transporter locks during select(), so there
  * is no protection against a disconnect closing the socket during this call.
@@ -1353,23 +1673,52 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
     recvdata.m_socket_poller.add(socket, true, false, false);
   }
 
-  Uint16 idx[MAX_NODES];
-  for (int i = 0; i < nTCPTransporters; i++)
+  Uint16 idx[MAX_NTRANSPORTERS];
+  Uint32 i = 0;
+  for (; i < recvdata.nTCPTransporters; i++)
   {
     TCP_Transporter * t = theTCPTransporters[i];
     const NDB_SOCKET_TYPE socket = t->getSocket();
     Uint32 node_id = t->getRemoteNodeId();
+    Uint32 trp_id = t->getTransporterIndex();
 
-    idx[i] = MAX_NODES + 1;
-    if (!recvdata.m_transporters.get(node_id))
+    idx[i] = maxTransporters + 1;
+    if (!recvdata.m_transporters.get(trp_id))
       continue;
 
-    if (is_connected(node_id) && t->isConnected() && my_socket_valid(socket))
+    if (is_connected(node_id) && t->isConnected() && ndb_socket_valid(socket))
     {
       idx[i] = recvdata.m_socket_poller.add(socket, true, false, false);
     }
   }
 
+#ifndef WIN32
+  for (Uint32 j = 0; j < recvdata.nSHMTransporters; j++)
+  {
+    /**
+     * We need to listen to socket also for shared memory transporters.
+     * These sockets are used as a wakeup mechanism, so we're not sending
+     * any data in it. But we need a socket to be able to wake up things
+     * when the receiver is not awake and we've only sent data on shared
+     * memory transporter.
+     */
+    SHM_Transporter * t = theSHMTransporters[j];
+    const NDB_SOCKET_TYPE socket = t->getSocket();
+    Uint32 node_id = t->getRemoteNodeId();
+    Uint32 trp_id = t->getTransporterIndex();
+    idx[i] = maxTransporters + 1;
+    if (!recvdata.m_transporters.get(trp_id))
+    {
+      i++;
+      continue;
+    }
+    if (is_connected(node_id) && t->isConnected() && ndb_socket_valid(socket))
+    {
+      idx[i] = recvdata.m_socket_poller.add(socket, true, false, false);
+    }
+    i++;
+  }
+#endif
   int tcpReadSelectReply = recvdata.m_socket_poller.poll_unsafe(timeOutMillis);
 
   if (tcpReadSelectReply > 0)
@@ -1382,22 +1731,50 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
         recvdata.m_recv_transporters.set((Uint32)0);
       }
     }
-
-    for (int i = 0; i < nTCPTransporters; i++)
+    i = 0;
+    for (; i < recvdata.nTCPTransporters; i++)
     {
       TCP_Transporter * t = theTCPTransporters[i];
-      if (idx[i] != MAX_NODES + 1)
+      if (idx[i] != maxTransporters + 1)
       {
-        Uint32 node_id = t->getRemoteNodeId();
+        Uint32 trp_id = t->getTransporterIndex();
         if (recvdata.m_socket_poller.has_read(idx[i]))
-          recvdata.m_recv_transporters.set(node_id);
+        {
+          recvdata.m_recv_transporters.set(trp_id);
+        }
       }
     }
+#ifndef WIN32
+    for (Uint32 j = 0; j < recvdata.nSHMTransporters; j++)
+    {
+      /**
+       * If a shared memory transporter have data on its socket we
+       * will get it now, the data is only an indication for us to
+       * wake up, so we're not interested in the data as such.
+       * But to integrate it with epoll handling we will read it
+       * in performReceive still.
+       */
+      SHM_Transporter * t = theSHMTransporters[j];
+      if (idx[i] != maxTransporters + 1)
+      {
+        Uint32 trp_id = t->getTransporterIndex();
+        if (recvdata.m_socket_poller.has_read(idx[i]))
+          recvdata.m_recv_transporters.set(trp_id);
+      }
+      i++;
+    }
+#endif
   }
 
   return tcpReadSelectReply;
 }
-#endif
+
+void
+TransporterRegistry::set_recv_thread_idx(Transporter *t,
+                                         Uint32 recv_thread_idx)
+{
+  t->set_recv_thread_idx(recv_thread_idx);
+}
 
 /**
  * Receive from the set of transporters in the bitmask
@@ -1443,8 +1820,10 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
  * else 1.
  */
 Uint32
-TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
+TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata,
+                                    Uint32 recv_thread_idx)
 {
+  (void)recv_thread_idx;
   TransporterReceiveWatchdog guard(recvdata);
   assert((receiveHandle == &recvdata) || (receiveHandle == 0));
   bool stopReceiving = false;
@@ -1458,10 +1837,10 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
   }
 
 #ifdef ERROR_INSERT
-  if (!m_blocked.isclear())
+  if (!m_blocked_trp.isclear())
   {
     /* Exclude receive from blocked sockets. */
-    recvdata.m_recv_transporters.bitANDC(m_blocked);
+    recvdata.m_recv_transporters.bitANDC(m_blocked_trp);
 
     if (recvdata.m_recv_transporters.isclear()  &&
         recvdata.m_has_data_transporters.isclear())
@@ -1474,48 +1853,83 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
   }
 #endif
 
-#ifdef NDB_TCP_TRANSPORTER
   /**
-   * Receive data from transporters polled to have data.
-   * Add to set of transporters having pending data.
+   * m_recv_transporters set indicates that there might be data
+   * available on the socket used by the transporter. The
+   * doReceive call will read the socket. For TCP transporters
+   * the doReceive call will return an indication if there is
+   * data to receive on socket. This will set m_has_data_transporters.
+   * For SHM transporter the socket is only used to send wakeup
+   * bytes. The m_has_data_transporters bitmap was set already in
+   * pollReceive for SHM transporters.
    */
-  for(Uint32 id = recvdata.m_recv_transporters.find_first();
-      id != BitmaskImpl::NotFound;
-      id = recvdata.m_recv_transporters.find_next(id + 1))
+  for(Uint32 trp_id = recvdata.m_recv_transporters.find_first();
+      trp_id != BitmaskImpl::NotFound;
+      trp_id = recvdata.m_recv_transporters.find_next(trp_id + 1))
   {
-    TCP_Transporter * t = (TCP_Transporter*)theTransporters[id];
-    assert(recvdata.m_transporters.get(id));
-
-    /**
-     * First check connection 'is CONNECTED.
-     * A connection can only be set into, or taken out of, is_connected'
-     * state by ::update_connections(). See comment there about 
-     * synchronication between ::update_connections() and 
-     * performReceive()
-     *
-     * Transporter::isConnected() state my change asynch.
-     * A mismatch between the TransporterRegistry::is_connected(),
-     * and Transporter::isConnected() state is possible, and indicate 
-     * that a change is underway. (Completed by update_connections())
-     */
-    if (is_connected(id))
+    Transporter *transp = allTransporters[trp_id];
+    NodeId node_id = transp->getRemoteNodeId();
+    if (transp->getTransporterType() == tt_TCP_TRANSPORTER)
     {
-      if (t->isConnected())
+      TCP_Transporter * t = (TCP_Transporter*)transp;
+      assert(recvdata.m_transporters.get(trp_id));
+      assert(recv_thread_idx == transp->get_recv_thread_idx());
+
+      /**
+       * First check connection 'is CONNECTED.
+       * A connection can only be set into, or taken out of, is_connected'
+       * state by ::update_connections(). See comment there about 
+       * synchronication between ::update_connections() and 
+       * performReceive()
+       *
+       * Transporter::isConnected() state my change asynch.
+       * A mismatch between the TransporterRegistry::is_connected(),
+       * and Transporter::isConnected() state is possible, and indicate 
+       * that a change is underway. (Completed by update_connections())
+       */
+      if (is_connected(node_id))
       {
-        int nBytes = t->doReceive(recvdata);
-        if (nBytes > 0)
+        if (t->isConnected())
         {
-          recvdata.transporter_recv_from(id);
-          recvdata.m_has_data_transporters.set(id);
+          int nBytes = t->doReceive(recvdata);
+          if (nBytes > 0)
+          {
+            recvdata.transporter_recv_from(node_id);
+            recvdata.m_has_data_transporters.set(trp_id);
+          }
         }
       }
+    }
+    else
+    {
+#ifndef WIN32
+      require(transp->getTransporterType() == tt_SHM_TRANSPORTER);
+      SHM_Transporter * t = (SHM_Transporter*)transp;
+      assert(recvdata.m_transporters.get(trp_id));
+      if (is_connected(node_id) && t->isConnected())
+      {
+        t->doReceive();
+        /**
+         * Ignore any data we read, the data wasn't collected by the
+         * shared memory transporter, it was simply read and thrown
+         * away, it is only a wakeup call to send data over the socket
+         * for shared memory transporters.
+         */
+      }
+#else
+      require(false);
+#endif
     }
   }
   recvdata.m_recv_transporters.clear();
 
   /**
    * Unpack data either received above or pending from prev rounds.
+   * For the Shared memory transporter m_has_data_transporters can
+   * be set in pollReceive as well.
    *
+   * TCP Transporter
+   * ---------------
    * Data to be processed at this stage is in the Transporter 
    * receivebuffer. The data *is received*, and will stay in
    * the  receiveBuffer even if a disconnect is started during
@@ -1532,113 +1946,89 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
    *  CLOSE_COMCONF was sent. For the moment the risk of taking
    *  advantage of this small optimization is not worth the risk.
    */
-  for(Uint32 id = recvdata.m_has_data_transporters.find_first();
-      id != BitmaskImpl::NotFound && !stopReceiving;
-      id = recvdata.m_has_data_transporters.find_next(id + 1))
+  Uint32 trp_id = recvdata.m_last_trp_id;
+  while ((trp_id = recvdata.m_has_data_transporters.find_next(trp_id + 1)) !=
+	 BitmaskImpl::NotFound)
   {
     bool hasdata = false;
-    TCP_Transporter * t = (TCP_Transporter*)theTransporters[id];
+    Transporter * t = (Transporter*)allTransporters[trp_id];
+    NodeId node_id = t->getRemoteNodeId();
 
-    assert(recvdata.m_transporters.get(id));
+    assert(recvdata.m_transporters.get(trp_id));
 
-    if (is_connected(id))
+    if (is_connected(node_id))
     {
       if (t->isConnected())
       {
         if (unlikely(recvdata.checkJobBuffer()))
-          return 1;     // Full, can't unpack more
-        if (unlikely(recvdata.m_handled_transporters.get(id)))
-          continue;     // Skip now to avoid starvation
-        Uint32 * ptr;
-        Uint32 sz = t->getReceiveData(&ptr);
-        Uint32 szUsed = unpack(recvdata, ptr, sz, id, ioStates[id], stopReceiving);
-        if (likely(szUsed))
         {
-          t->updateReceiveDataPtr(szUsed);
-          hasdata = t->hasReceiveData();
+          return 1;     // Full, can't unpack more
+        }
+        if (unlikely(recvdata.m_handled_transporters.get(trp_id)))
+          continue;     // Skip now to avoid starvation
+        if (t->getTransporterType() == tt_TCP_TRANSPORTER)
+        {
+          TCP_Transporter *t_tcp = (TCP_Transporter*)t;
+          Uint32 * ptr;
+          Uint32 sz = t_tcp->getReceiveData(&ptr);
+          Uint32 szUsed = unpack(recvdata,
+                                 ptr,
+                                 sz,
+                                 node_id,
+                                 ioStates[node_id],
+                                 stopReceiving);
+          if (likely(szUsed))
+          {
+            assert(recv_thread_idx == t_tcp->get_recv_thread_idx());
+            t_tcp->updateReceiveDataPtr(szUsed);
+            hasdata = t_tcp->hasReceiveData();
+          }
+        }
+        else
+        {
+#ifndef WIN32
+          require(t->getTransporterType() == tt_SHM_TRANSPORTER);
+          SHM_Transporter *t_shm = (SHM_Transporter*)t;
+          Uint32 * readPtr, * eodPtr, * endPtr;
+          t_shm->getReceivePtr(&readPtr, &eodPtr, &endPtr);
+          recvdata.transporter_recv_from(node_id);
+          Uint32 *newPtr = unpack(recvdata,
+                                  readPtr,
+                                  eodPtr,
+                                  endPtr,
+                                  node_id,
+                                  ioStates[node_id],
+				  stopReceiving);
+          t_shm->updateReceivePtr(recvdata, newPtr);
+          /**
+           * Set hasdata dependent on if data is still available in
+           * transporter to ensure we follow rules about setting
+           * m_has_data_transporters and m_handled_transporters
+           * when returning from performReceive.
+           */
+          hasdata = t_shm->hasDataToRead();
+#else
+          require(false);
+#endif
         }
         // else, we didn't unpack anything:
-        //   Avail ReceiveData to short to be usefull, need to
+        //   Avail ReceiveData to short to be useful, need to
         //   receive more before we can resume this transporter.
       }
     }
     // If transporter still have data, make sure that it's remember to next time
-    recvdata.m_has_data_transporters.set(id, hasdata);
-    recvdata.m_handled_transporters.set(id, hasdata);
-  }
-#endif
-  
-#ifdef NDB_SCI_TRANSPORTER
-  //performReceive
-  //do prepareReceive on the SCI transporters  (prepareReceive(t,,,,))
-  for (int i=0; i<nSCITransporters && !stopReceiving; i++)
-  {
-    SCI_Transporter  *t = theSCITransporters[i];
-    const NodeId nodeId = t->getRemoteNodeId();
-    assert(recvdata.m_transporters.get(nodeId));
-    if(is_connected(nodeId))
+    recvdata.m_has_data_transporters.set(trp_id, hasdata);
+    recvdata.m_handled_transporters.set(trp_id, hasdata);
+
+    if (unlikely(stopReceiving))
     {
-      if(t->isConnected() && t->checkConnected())
-      {
-        if (unlikely(recvdata.checkJobBuffer()))
-          return 1;      // Full, can't unpack more
-        if (unlikely(recvdata.m_handled_transporters.get(nodeId)))
-          continue;      // Skip now to avoid starvation
-
-        Uint32 * readPtr, * eodPtr;
-        t->getReceivePtr(&readPtr, &eodPtr);
-        callbackObj->transporter_recv_from(nodeId);
-        Uint32 *newPtr = unpack(recvdata, readPtr, eodPtr, nodeId, ioStates[nodeId], stopReceiving);
-        t->updateReceivePtr(newPtr);
-      }
-    } 
-    recvdata.m_handled_transporters.set(nodeId);
+      recvdata.m_last_trp_id = trp_id;  //Resume from node after 'last_node'
+      return 1;
+    }
   }
-#endif
-#ifdef NDB_SHM_TRANSPORTER
-  for (int i=0; i<nSHMTransporters && !stopReceiving; i++)
-  {
-    SHM_Transporter *t = theSHMTransporters[i];
-    const NodeId nodeId = t->getRemoteNodeId();
-    assert(recvdata.m_transporters.get(nodeId));
-    if(is_connected(nodeId)){
-      if(t->isConnected() && t->checkConnected())
-      {
-        if (unlikely(recvdata.checkJobBuffer()))
-          return 1;      // Full, can't unpack more
-        if (unlikely(recvdata.m_handled_transporters.get(nodeId)))
-          continue;      // Previously handled, skip to avoid starvation
-
-        Uint32 * readPtr, * eodPtr;
-        t->getReceivePtr(&readPtr, &eodPtr);
-        recvdata.transporter_recv_from(nodeId);
-        Uint32 *newPtr = unpack(recvdata,
-                                readPtr, eodPtr, nodeId, ioStates[nodeId],
-				stopReceiving);
-        t->updateReceivePtr(newPtr);
-      }
-    } 
-    recvdata.m_handled_transporters.set(nodeId);
-  }
-#endif
   recvdata.m_handled_transporters.clear();
+  recvdata.m_last_trp_id = 0;
   return 0;
-}
-
-/**
- * In multi-threaded cases, this must be protected by send lock (can use
- * different locks for each node).
- */
-bool
-TransporterRegistry::performSend(NodeId nodeId)
-{
-  Transporter *t = get_transporter(nodeId);
-  if (t && t->isConnected() && is_connected(nodeId))
-  {
-    return t->doSend();
-  }
-
-  return false;
 }
 
 void
@@ -1650,99 +2040,136 @@ TransporterRegistry::consume_extra_sockets()
   NDB_SOCKET_TYPE sock = m_extra_wakeup_sockets[0];
   do
   {
-    ret = my_recv(sock, buf, sizeof(buf), 0);
-    err = my_socket_errno();
+    ret = ndb_recv(sock, buf, sizeof(buf), 0);
+    err = ndb_socket_errno();
   } while (ret == sizeof(buf) || (ret == -1 && err == EINTR));
 
   /* Notify upper layer of explicit wakeup */
   callbackObj->reportWakeup();
 }
 
+/**
+ * performSend() - Call physical transporters to 'doSend'
+ * of previously prepareSend() signals.
+ *
+ * The doSend() implementations will call
+ * TransporterCallback::get_bytes_to_send_iovec() to fetch
+ * any available data from the send buffer.
+ *
+ * *This* ^^ is the synch point where we under mutex protection
+ * may check for specific nodes being disconnected/disabled.
+ * For disabled nodes we may drain the send buffers instead of
+ * returning anything from get_bytes_to_send_iovec().
+ * Also see comments for prepareSend() above.
+ *
+ * Note that since disconnection may happen asynch from other
+ * threads, we can not reliably check the 'connected' state
+ * before doSend(). Instead we must require that the 
+ * TransporterCallback implementation provide necessary locking
+ * of get_bytes_to_send() vs enable/disable of send buffers.
+ *
+ * Returns:
+ *   true if anything still remains to be sent.
+ *   Will require another ::performSend()
+ *
+ *   false: if nothing more remains, either due to
+ *   the send buffers being empty, we succeeded
+ *   sending everything, or we found the node to be
+ *   disconnected and thus discarded the contents.
+ */
+bool
+TransporterRegistry::performSendNode(NodeId nodeId, bool need_wakeup)
+{
+  Transporter *t = get_node_transporter(nodeId);
+  if (t != NULL)
+  {
+#ifdef ERROR_INSERT
+    if (m_sendBlocked.get(nodeId))
+    {
+      return true;
+    }
+#endif
+    return t->doSend(need_wakeup);
+  }
+  return false;
+}
+
+bool
+TransporterRegistry::performSend(TrpId trp_id, bool need_wakeup)
+{
+  Transporter *t = get_transporter(trp_id);
+  if (t != NULL)
+  {
+#ifdef ERROR_INSERT
+    NodeId nodeId = t->getRemoteNodeId();
+    if (m_sendBlocked.get(nodeId))
+    {
+      return true;
+    }
+#endif
+    return t->doSend(need_wakeup);
+  }
+  return false;
+}
+
 void
 TransporterRegistry::performSend()
 {
-  int i; 
+  Uint32 i; 
   sendCounter = 1;
 
-#ifdef NDB_TCP_TRANSPORTER
-  for (i = m_transp_count; i < nTCPTransporters; i++) 
+  lockMultiTransporters();
+  for (i = m_transp_count; i < (nTransporters + 1); i++) 
   {
-    TCP_Transporter *t = theTCPTransporters[i];
-    if (t && t->has_data_to_send() &&
-        t->isConnected() && is_connected(t->getRemoteNodeId()))
+    Transporter *t = allTransporters[i];
+    if (t != NULL
+#ifdef ERROR_INSERT
+        && !m_sendBlocked.get(t->getRemoteNodeId())
+#endif
+        )
     {
       t->doSend();
     }
   }
-  for (i = 0; i < m_transp_count && i < nTCPTransporters; i++) 
+  for (i = 1; i < m_transp_count && i < (nTransporters + 1); i++) 
   {
-    TCP_Transporter *t = theTCPTransporters[i];
-    if (t && t->has_data_to_send() &&
-        t->isConnected() && is_connected(t->getRemoteNodeId()))
+    Transporter *t = allTransporters[i];
+    if (t != NULL
+#ifdef ERROR_INSERT
+        && !m_sendBlocked.get(t->getRemoteNodeId())
+#endif
+        )
     {
       t->doSend();
     }
   }
   m_transp_count++;
-  if (m_transp_count == nTCPTransporters) m_transp_count = 0;
-#endif
-#ifdef NDB_SCI_TRANSPORTER
-  //scroll through the SCI transporters, 
-  // get each transporter, check if connected, send data
-  for (i=0; i<nSCITransporters; i++) {
-    SCI_Transporter  *t = theSCITransporters[i];
-    const NodeId nodeId = t->getRemoteNodeId();
-    
-    if(is_connected(nodeId))
-    {
-      if(t->isConnected() && t->has_data_to_send())
-      {
-	t->doSend();
-      } //if
-    } //if
-  }
-#endif
-  
-#ifdef NDB_SHM_TRANSPORTER
-  for (i=0; i<nSHMTransporters; i++) 
-  {
-    SHM_Transporter  *t = theSHMTransporters[i];
-    const NodeId nodeId = t->getRemoteNodeId();
-    if(is_connected(nodeId))
-    {
-      if(t->isConnected())
-      {
-	t->doSend();
-      }
-    }
-  }
-#endif
+  if (m_transp_count == (nTransporters + 1))
+    m_transp_count = 1;
+  unlockMultiTransporters();
 }
-
-int
-TransporterRegistry::forceSendCheck(int sendLimit){
-  int tSendCounter = sendCounter;
-  sendCounter = tSendCounter + 1;
-  if (tSendCounter >= sendLimit) {
-    performSend();
-    sendCounter = 1;
-    return 1;
-  }//if
-  return 0;
-}//TransporterRegistry::forceSendCheck()
 
 #ifdef DEBUG_TRANSPORTER
 void
-TransporterRegistry::printState(){
+TransporterRegistry::printState()
+{
   ndbout << "-- TransporterRegistry -- " << endl << endl
-	 << "Transporters = " << nTransporters << endl;
-  for(int i = 0; i<maxTransporters; i++)
-    if(theTransporters[i] != NULL){
-      const NodeId remoteNodeId = theTransporters[i]->getRemoteNodeId();
+         << "Transporters = " << nTransporters << endl;
+  for(Uint32 i = 0; i < maxTransporters; i++)
+  {
+    if (allTransporters[i] != NULL)
+    {
+      const NodeId remoteNodeId = allTransporters[i]->getRemoteNodeId();
       ndbout << "Transporter: " << remoteNodeId 
-	     << " PerformState: " << performStates[remoteNodeId]
-	     << " IOState: " << ioStates[remoteNodeId] << endl;
+             << " PerformState: " << performStates[remoteNodeId]
+             << " IOState: " << ioStates[remoteNodeId] << endl;
     }
+  }
+}
+#else
+void
+TransporterRegistry::printState()
+{
 }
 #endif
 
@@ -1757,42 +2184,120 @@ void
 TransporterRegistry::blockReceive(TransporterReceiveHandle& recvdata,
                                   NodeId nodeId)
 {
-  assert((receiveHandle == &recvdata) || (receiveHandle == 0));
-  assert(recvdata.m_transporters.get(nodeId));
+  TrpId ids[MAX_NODE_GROUP_TRANSPORTERS];
+  Uint32 num_ids;
+  lockMultiTransporters();
+  get_trps_for_node(nodeId, ids, num_ids, MAX_NODE_GROUP_TRANSPORTERS);
 
+  assert((receiveHandle == &recvdata) || (receiveHandle == 0));
+  for (Uint32 i = 0; i < num_ids; i++)
+  {
+    Uint32 trp_id = ids[i];
+    if (recvdata.m_transporters.get(trp_id))
+      m_blocked_trp.set(trp_id);
+  }
   /* Check that node is not already blocked?
    * Stop pulling from its socket (but track received data etc)
    */
   /* Shouldn't already be blocked with data */
-  assert(!m_blocked.get(nodeId));
-
-  m_blocked.set(nodeId);
+  bool last_call = true;
+  for (Uint32 i = 0; i < num_ids; i++)
+  {
+    Uint32 trp_id = ids[i];
+    if (!m_blocked_trp.get(trp_id))
+      last_call = false;
+  }
+  if (last_call)
+    m_blocked.set(nodeId);
+  unlockMultiTransporters();
 }
 
 void
 TransporterRegistry::unblockReceive(TransporterReceiveHandle& recvdata,
                                     NodeId nodeId)
 {
+  TrpId ids[MAX_NODE_GROUP_TRANSPORTERS];
+  Uint32 num_ids;
+  lockMultiTransporters();
+  get_trps_for_node(nodeId, ids, num_ids, MAX_NODE_GROUP_TRANSPORTERS);
+
   assert((receiveHandle == &recvdata) || (receiveHandle == 0));
-  assert(recvdata.m_transporters.get(nodeId));
+  for (Uint32 i = 0; i < num_ids; i++)
+  {
+    Uint32 trp_id = ids[i];
+    if (recvdata.m_transporters.get(trp_id))
+    {
+      assert(m_blocked_trp.get(trp_id));
+      assert(!recvdata.m_has_data_transporters.get(trp_id));
+      m_blocked_trp.clear(trp_id);
+    }
+  }
+  bool last_call = true;
+  for (Uint32 i = 0; i < num_ids; i++)
+  {
+    Uint32 trp_id = ids[i];
+    if (m_blocked_trp.get(trp_id))
+    {
+      last_call = false;
+    }
+  }
 
   /* Check that node is blocked?
    * Resume pulling from its socket
    * Ensure in-flight data is processed if there was some
    */
-  assert(m_blocked.get(nodeId));
-  assert(!recvdata.m_has_data_transporters.get(nodeId));
-
-  m_blocked.clear(nodeId);
-
+  if (last_call)
+    m_blocked.clear(nodeId);
+  unlockMultiTransporters();
   if (m_blocked_disconnected.get(nodeId))
   {
     /* Process disconnect notification/handling now */
-    m_blocked_disconnected.clear(nodeId);
-
     report_disconnect(recvdata, nodeId, m_disconnect_errors[nodeId]);
   }
+  if (last_call)
+  {
+    lockMultiTransporters();
+    m_blocked_disconnected.clear(nodeId);
+    unlockMultiTransporters();
+  }
 }
+
+bool
+TransporterRegistry::isSendBlocked(NodeId nodeId) const
+{
+  return m_sendBlocked.get(nodeId);
+}
+
+void
+TransporterRegistry::blockSend(TransporterReceiveHandle& recvdata,
+                               NodeId nodeId)
+{
+#ifdef VM_TRACE
+  TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
+  Uint32 num_ids;
+  lockMultiTransporters();
+  get_trps_for_node(nodeId, trp_ids, num_ids, MAX_NODE_GROUP_TRANSPORTERS);
+  unlockMultiTransporters();
+#endif
+  assert((receiveHandle == &recvdata) || (receiveHandle == 0));
+  m_sendBlocked.set(nodeId);
+}
+
+void
+TransporterRegistry::unblockSend(TransporterReceiveHandle& recvdata,
+                                 NodeId nodeId)
+{
+#ifdef VM_TRACE
+  TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
+  Uint32 num_ids;
+  lockMultiTransporters();
+  get_trps_for_node(nodeId, trp_ids, num_ids, MAX_NODE_GROUP_TRANSPORTERS);
+  unlockMultiTransporters();
+#endif
+  assert((receiveHandle == &recvdata) || (receiveHandle == 0));
+  m_sendBlocked.clear(nodeId);
+}
+
 #endif
 
 #ifdef ERROR_INSERT
@@ -1865,81 +2370,155 @@ TransporterRegistry::do_connect(NodeId node_id)
   case DISCONNECTING:
     /**
      * NOTE (Need future work)
-     * Going directly from DISCONNECTION to CONNECTING creates
-     * a possile race with ::update_connections(): It will
+     * Going directly from DISCONNECTING to CONNECTING creates
+     * a possible race with ::update_connections(): It will
      * see either of the *ING states, and bring the connection
      * into CONNECTED or *DISCONNECTED* state. Furthermore, the
      * state may be overwritten to CONNECTING by this method.
      * We should probably have waited for DISCONNECTED state,
      * before allowing reCONNECTING ....
      */
+    assert(false);
     break;
   }
+  DEBUG_FPRINTF((stderr, "(%u)REG:do_connect(%u)\n", localNodeId, node_id));
   DBUG_ENTER("TransporterRegistry::do_connect");
   DBUG_PRINT("info",("performStates[%d]=CONNECTING",node_id));
 
-  /*
-    No one else should be using the transporter now, reset
-    its send buffer
-   */
-  callbackObj->reset_send_buffer(node_id);
-
-  Transporter * t = theTransporters[node_id];
+  Transporter * t = theNodeIdTransporters[node_id];
   if (t != NULL)
+  {
+    if (t->isMultiTransporter())
+    {
+      Multi_Transporter *multi_trp = (Multi_Transporter*)t;
+      require(multi_trp->get_num_active_transporters() == 1);
+      t = multi_trp->get_active_transporter(0);
+    }
+    require(!t->isPartOfMultiTransporter());
+    require(!t->isMultiTransporter());
+    DEBUG_FPRINTF((stderr, "(%u)REG:resetBuffers(%u)\n",
+                           localNodeId, node_id));
     t->resetBuffers();
-
+  }
+ 
+  DEBUG_FPRINTF((stderr, "(%u)performStates[%u] = CONNECTING\n",
+                 localNodeId, node_id));
   curr_state= CONNECTING;
   DBUG_VOID_RETURN;
 }
 
 /**
  * This method is used to initiate disconnect from TRPMAN. It is also called
- * from the TCP transporter in case of an I/O error on the socket.
+ * from the TCP/SHM transporter in case of an I/O error on the socket.
  *
  * This works asynchronously, similar to do_connect().
  */
-void
-TransporterRegistry::do_disconnect(NodeId node_id, int errnum)
+bool
+TransporterRegistry::do_disconnect(NodeId node_id,
+                                   int errnum,
+                                   bool send_source)
 {
+  DEBUG_FPRINTF((stderr, "(%u)REG:do_disconnect(%u, %d)\n",
+                         localNodeId, node_id, errnum));
   PerformState &curr_state = performStates[node_id];
   switch(curr_state){
   case DISCONNECTED:
-    return;
+  {
+    return true;
+  }
   case CONNECTED:
+  {
     break;
+  }
   case CONNECTING:
+    /**
+     * This is a correct transition. But it should only occur for nodes
+     * that lack resources, e.g. lack of shared memory resources to
+     * setup the transporter. Therefore we assert here to get a simple
+     * handling of test failures such that we can fix the test config.
+     */
+    //DBUG_ASSERT(false);
     break;
   case DISCONNECTING:
-    return;
+  {
+    return true;
+  }
+  }
+  if (errnum == ENOENT)
+  {
+    m_disconnect_enomem_error[node_id]++;
+    if (m_disconnect_enomem_error[node_id] < 10)
+    {
+      NdbSleep_MilliSleep(40);
+      g_eventLogger->info("Socket error %d on nodeId: %u in state: %u",
+                          errnum, node_id, (Uint32)curr_state);
+      return false;
+    }
+  }
+  if (errnum == 0)
+  {
+    g_eventLogger->info("Node %u disconnected in state: %d",
+                        node_id, (int)curr_state);
+  }
+  else
+  {
+    g_eventLogger->info("Node %u disconnected in %s with errnum: %d"
+                        " in state: %d",
+                        node_id,
+                        send_source ? "send" : "recv",
+                        errnum,
+                        (int)curr_state);
   }
   DBUG_ENTER("TransporterRegistry::do_disconnect");
   DBUG_PRINT("info",("performStates[%d]=DISCONNECTING",node_id));
   curr_state= DISCONNECTING;
+  DEBUG_FPRINTF((stderr, "(%u)performStates[%u] = DISCONNECTING\n",
+                 localNodeId, node_id));
   m_disconnect_errnum[node_id] = errnum;
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(false);
 }
 
+/**
+ * report_connect() / report_disconnect()
+ *
+ * Connect or disconnect the 'TransporterReceiveHandle' and 
+ * enable/disable the send buffers.
+ *
+ * To prevent races wrt poll/receive of data, these methods must
+ * either be called from the same (receive-)thread as performReceive(),
+ * or by the (API) client holding the poll-right.
+ *
+ * The send buffers needs similar protection against concurent
+ * enable/disable of the same send buffers. Thus the sender
+ * side is also handled here.
+ */
 void
 TransporterRegistry::report_connect(TransporterReceiveHandle& recvdata,
                                     NodeId node_id)
 {
+  Transporter *t = theNodeIdTransporters[node_id];
+  if (t->isMultiTransporter())
+  {
+    Multi_Transporter *multi_trp = (Multi_Transporter*)t;
+    require(multi_trp->get_num_active_transporters() == 1);
+    t = multi_trp->get_active_transporter(0);
+  }
+  require(!t->isMultiTransporter());
+  require(!t->isPartOfMultiTransporter());
+  Uint32 id = t->getTransporterIndex();
+  DEBUG_FPRINTF((stderr, "(%u)REG:report_connect(%u)\n",
+                         localNodeId, node_id));
   assert((receiveHandle == &recvdata) || (receiveHandle == 0));
-  assert(recvdata.m_transporters.get(node_id));
+  assert(recvdata.m_transporters.get(id));
 
   DBUG_ENTER("TransporterRegistry::report_connect");
   DBUG_PRINT("info",("performStates[%d]=CONNECTED",node_id));
 
-  /*
-    The send buffers was reset when this connection
-    was set to CONNECTING. In order to make sure no stray
-    signals has been written to the send buffer since then
-    call 'reset_send_buffer' with the "should_be_empty" flag
-    set
-  */
-  callbackObj->reset_send_buffer(node_id, true);
-
-  if (recvdata.epoll_add((TCP_Transporter*)theTransporters[node_id]))
+  if (recvdata.epoll_add(t))
   {
+    callbackObj->enable_send_buffer(node_id, id);
+    DEBUG_FPRINTF((stderr, "(%u)performStates[%u] = CONNECTED\n",
+                   localNodeId, node_id));
     performStates[node_id] = CONNECTED;
     recvdata.reportConnect(node_id);
     DBUG_VOID_RETURN;
@@ -1949,16 +2528,36 @@ TransporterRegistry::report_connect(TransporterReceiveHandle& recvdata,
    * Failed to add to epoll_set...
    *   disconnect it (this is really really bad)
    */
+  DEBUG_FPRINTF((stderr, "(%u)performStates[%u] = DISCONNECTING\n",
+                 localNodeId, node_id));
   performStates[node_id] = DISCONNECTING;
   DBUG_VOID_RETURN;
+}
+
+Multi_Transporter*
+TransporterRegistry::get_node_multi_transporter(NodeId node_id)
+{
+  Uint32 i;
+  Uint32 num_multi_transporters = get_num_multi_transporters();
+  for (i = 0; i < num_multi_transporters; i++)
+  {
+    Multi_Transporter *multi_trp = get_multi_transporter(i);
+    if (multi_trp->getRemoteNodeId() == node_id)
+    {
+      return multi_trp;
+    }
+  }
+  return (Multi_Transporter*)0;
+
 }
 
 void
 TransporterRegistry::report_disconnect(TransporterReceiveHandle& recvdata,
                                        NodeId node_id, int errnum)
 {
+  DEBUG_FPRINTF((stderr, "(%u)REG:report_disconnect(%u, %d)\n",
+                         localNodeId, node_id, errnum));
   assert((receiveHandle == &recvdata) || (receiveHandle == 0));
-  assert(recvdata.m_transporters.get(node_id));
 
   DBUG_ENTER("TransporterRegistry::report_disconnect");
   DBUG_PRINT("info",("performStates[%d]=DISCONNECTED",node_id));
@@ -1975,12 +2574,160 @@ TransporterRegistry::report_disconnect(TransporterReceiveHandle& recvdata,
   }
 #endif
 
-  performStates[node_id] = DISCONNECTED;
-  recvdata.m_recv_transporters.clear(node_id);
-  recvdata.m_has_data_transporters.clear(node_id);
-  recvdata.m_handled_transporters.clear(node_id);
+  /**
+   * No one else should be using the transporter now,
+   * reset its send buffer and recvdata.
+   *
+   * Note that we may 'do_disconnect' due to transporter failure,
+   * while trying to 'CONNECTING'. This cause a transition
+   * from CONNECTING to DISCONNECTING without first being CONNECTED.
+   * Thus there can be multiple reset & disable of the buffers (below)
+   * without being 'enabled' inbetween.
+   */
+  TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
+  Uint32 num_ids;
+  lockMultiTransporters();
+  get_trps_for_node(node_id, trp_ids, num_ids, MAX_NODE_GROUP_TRANSPORTERS);
+
+  bool ready_to_disconnect = true;
+  Transporter *node_trp = theNodeIdTransporters[node_id];
+  for (Uint32 i = 0; i < num_ids; i++)
+  {
+    Uint32 trp_id = trp_ids[i];
+    DEBUG_FPRINTF((stderr, "trp_id = %u, node_id = %u\n", trp_id, node_id));
+    if (recvdata.m_transporters.get(trp_id))
+    {
+      /**
+       * disable_send_buffer ensures that no more signals will be sent
+       * to the disconnected node. Every time we collect data for sending
+       * we will check the send buffer enabled flag holding the m_send_lock
+       * thereby ensuring that after the disable_send_buffer method is
+       * called no more signals are sent.
+       */
+      callbackObj->disable_send_buffer(node_id, trp_id);
+      recvdata.m_recv_transporters.clear(trp_id);
+      recvdata.m_has_data_transporters.clear(trp_id);
+      recvdata.m_handled_transporters.clear(trp_id);
+    }
+    else
+    {
+      /**
+       * Transporter is handled by another receive thread. If the
+       * transporter is still in the allTransporters array it means
+       * that we haven't called report_disconnect in this receive
+       * thread yet. Thus we are not yet ready to disconnect.
+       */
+      require(node_trp->isMultiTransporter());
+      if (allTransporters[trp_id] != 0)
+      {
+        ready_to_disconnect = false;
+        DEBUG_FPRINTF((stderr, "trp_id = %u, node_id = %u,"
+                               " ready_to_disconnect = false\n",
+                               trp_id, node_id));
+      }
+    }
+  }
+  if (node_trp->isMultiTransporter())
+  {
+    /**
+     * Switch back to having only one active transporter which is the
+     * original TCP or SHM transporter. We only handle the single
+     * transporter case when setting up a new connection. We can
+     * only move from single transporter to multi transporter when
+     * the transporter is connected.
+     */
+    Multi_Transporter *multi_trp = (Multi_Transporter*)node_trp;
+    for (Uint32 i = 0; i < num_ids; i++)
+    {
+      Uint32 trp_id = trp_ids[i];
+      if (recvdata.m_transporters.get(trp_id))
+      {
+        /**
+         * Remove the transporter from the set of transporters handled in
+         * this receive thread.
+         *
+         * Removing it from this bitmask means that the receive thread
+         * will ignore this transporter when receiving and polling.
+         */
+        DEBUG_FPRINTF((stderr, "trp_id = %u, node_id = %u,"
+                               " multi remove_all\n",
+                               trp_id, node_id));
+        Transporter *t = multi_trp->get_active_transporter(i);
+        t->doDisconnect();
+        if (t->isPartOfMultiTransporter())
+        {
+          require(num_ids > 1);
+          remove_allTransporters(t);
+        }
+        else
+        {
+          require(num_ids == 1);
+          Uint32 num_multi_trps = multi_trp->get_num_inactive_transporters();
+          for (Uint32 i = 0; i < num_multi_trps; i++)
+          {
+            Transporter *remove_trp = multi_trp->get_inactive_transporter(i);
+            TrpId remove_trp_id = remove_trp->getTransporterIndex();
+            if (remove_trp_id != 0)
+            {
+              NodeId remove_node_id = remove_trp->getRemoteNodeId();
+              require(node_id == remove_node_id);
+              callbackObj->disable_send_buffer(node_id, remove_trp_id);
+              remove_trp->doDisconnect();
+              remove_allTransporters(remove_trp);
+            }
+          }
+        }
+      }
+    }
+    if (ready_to_disconnect)
+    {
+      /**
+       * All multi transporter objects for this node have been removed
+       * from being handled by any receive thread. We set the single
+       * transporter used for setup of connections to be handled by
+       * this receive thread. This assignment means that we can get
+       * an unbalanced load on receive threads. However normally the
+       * transporters should return to using multiple transporters as
+       * soon as the connection is setup again. So this imbalance should
+       * be temporary.
+       */
+      DEBUG_FPRINTF((stderr, "node_id = %u, new_node_trp\n",
+                     node_id));
+      if (multi_trp->get_num_active_transporters() > 1)
+      {
+        /**
+         * Multi socket setup is in use, thus switch to single transporter.
+         * In rare situations we can still have data to send on base
+         * transporter, so need to remove the send buffer before
+         * disconnecting. Also ensure that connection is dropped here.
+         */
+        multi_trp->switch_active_trp();
+        Transporter *base_trp = multi_trp->get_active_transporter(0);
+        NodeId base_node_id = base_trp->getRemoteNodeId();
+        TrpId base_trp_id = base_trp->getTransporterIndex();
+        require(base_node_id == node_id);
+        callbackObj->disable_send_buffer(node_id, base_trp_id);
+        base_trp->doDisconnect();
+      }
+    }
+  }
+  else
+  {
+    Multi_Transporter *multi_trp = get_node_multi_transporter(node_id);
+    (void)multi_trp;
+    DEBUG_FPRINTF((stderr, "node_id = %u, multi_trp not %s\n",
+                   node_id, multi_trp == 0 ? "existing" : "active"));
+  }
   recvdata.m_bad_data_transporters.clear(node_id);
-  recvdata.reportDisconnect(node_id, errnum);
+  recvdata.m_last_trp_id = 0;
+  if (ready_to_disconnect)
+  {
+    DEBUG_FPRINTF((stderr, "(%u)performStates[%u] = DISCONNECTED\n",
+                   localNodeId, node_id));
+    performStates[node_id] = DISCONNECTED;
+    recvdata.reportDisconnect(node_id, errnum);
+  }
+  unlockMultiTransporters();
   DBUG_VOID_RETURN;
 }
 
@@ -1995,6 +2742,8 @@ void
 TransporterRegistry::report_error(NodeId nodeId, TransporterError errorCode,
                                   const char *errorInfo)
 {
+  DEBUG_FPRINTF((stderr, "(%u)REG:report_error(%u, %d, %s\n",
+                         localNodeId, nodeId, (int)errorCode, errorInfo));
   if (m_error_states[nodeId].m_code == TE_NO_ERROR &&
       m_error_states[nodeId].m_info == (const char *)~(UintPtr)0)
   {
@@ -2004,6 +2753,341 @@ TransporterRegistry::report_error(NodeId nodeId, TransporterError errorCode,
 }
 
 /**
+ * Data node transporter model (ndbmtd)
+ * ------------------------------------
+ * The concurrency protection of transporters uses a number of mutexes
+ * together with some things that can only happen in a single thread.
+ * To explain this we will consider send and receive separately.
+ * We also need to consider multi socket transporters distinctively since
+ * they add another layer to the concurrency model.
+ *
+ * Each transporter is protected by two mutexes. One to protect send and
+ * one to protect receives. Actually the send mutex is divided into two
+ * mutexes as well.
+ *
+ * Starting with send when we send a signal we write it only in thread-local
+ * buffers at first. Next at regular times we move them to buffers per
+ * transporter. To move them from these thread-local buffers to the
+ * transporter buffers requires acquiring the send buffer mutex. This
+ * activity is normally called flush buffers.
+ *
+ * Next the transporter buffers are sent, this requires holding the
+ * buffer mutex as well as the send mutex when moving the buffers to the
+ * transporter. While sending only the send mutex is required. This mutex
+ * is held also when performing the send call on the transporter.
+ *
+ * The selection of the transporter to send to next is handled by a
+ * a global send thread mutex. This mutex ensures that we send 50% of the
+ * time to our neighbour nodes (data nodes within the same nodegroup) and
+ * 50% to the rest of the nodes in the cluster. Thus we give much higher
+ * priority to messages performing write transactions in the cluster as
+ * well as local reads within the same nodegroup.
+ *
+ * For receive we use a model where a transporter is only handled by one
+ * receive thread. This thread has its own mutex to protect against
+ * interaction with other threads for transporter connect and disconnect.
+ * This mutex is held while calling performReceive. performReceive
+ * receives data from those transporters that signalled that data was
+ * available in pollReceive. The mutex isn't held while calling pollReceive.
+ *
+ * Connect of the transporter requires not so much protection. Nothing
+ * will be received until we add the transporter to the epoll set (even
+ * shared memory transporters use epoll sets (implemented using poll in
+ * non-Linux platforms). The epoll_add call happens in the receive thread
+ * owning the transporter, thus no call to pollReceive will happen on the
+ * transporter while we are calling update_connections where the
+ * report_connect is called from when a connect has happened.
+ *
+ * After adding the transporter to the epoll set we enable the send
+ * buffers, this uses both the send mutex and the send buffer mutex
+ * on the transporter.
+ *
+ * Finally a signal is sent to TRPMAN in the receive thread (actually
+ * the same thread where the update_connections is sent from. This signal
+ * is simply sent onwards to QMGR plus some logging of the connection
+ * event.
+ *
+ * CONNECT_REP in QMGR updates the node information and initiates the
+ * CM_REGREQ protocol for data nodes and API_REGREQ for API nodes to
+ * include the node in an organised manner. At this point only QMGR
+ * is allowed to receive signals from the node. QMGR will allow for
+ * any block to communicate with the node when finishing the
+ * registration.
+ *
+ * The actual connect logic happens in start_clients_thread that
+ * executes in a single thread that handles all client connect setup.
+ * This thread regularly wakes up and calls connect on transporters
+ * not yet connected. It has backoff logic to ensure these connects
+ * don't happen too often. It will only perform this connect client
+ * attempts when the node is in the state CONNECTING. The QMGR code
+ * will ensure that we set this state when we are ready to include
+ * the node into the cluster again. After a node failure we have to
+ * handle the node failure to completion before we allow the node
+ * to reenter the cluster.
+ *
+ * Connecting a client requires both a connection to be setup, in
+ * addition the client and the server must execute an authentication
+ * protocol and a protocol where we signal what type of transporter
+ * that is connecting.
+ *
+ * The server port to connect the client is either provided by the
+ * configuration (recommended in any scenario where firewalls exists)
+ * in the network. If not configured the server uses a dynamic port
+ * and informs the management server about this port number.
+ *
+ * When the client has successfully connected and the authentication
+ * protocol is successfully completed and the information about the
+ * transporter type is sent, then we will set the transporter state
+ * to connected. This will be picked up by update_connections that
+ * will perform the logic above.
+ *
+ * When the connection has been successfully completed we set the
+ * variable theSocket in the transporter. To ensure that we don't
+ * call any socket actions on a socket we already closed we protect
+ * this assignment with both the send mutex and the receive mutex.
+ *
+ * The actual network logic used by the start_clients_thread is
+ * found in the SocketClient class.
+ *
+ * Similar logic exists also for transporters where the node is the
+ * server part. As part of starting the data node we setup a socket
+ * which we bind to the hostname and server port to use for this
+ * data node. Next we will start to listen for connect attempts by
+ * clients.
+ *
+ * When a client attempts to connect we will see this through the
+ * accept call on the socket. The verification of this client
+ * attempt is handled by the newSession call. For data nodes
+ * this is the newSession here in TransporterRegistry.cpp.
+ * This method will first handle the authentication protocol where
+ * the client follows the NDB connect setup protocol to verify that
+ * it is an NDB connection being setup. Next we call connect_server
+ * in the TransporterRegistry.
+ *
+ * connect_server will receive information about node id, transporter type
+ * that will enable it to verify that the connect is ok to perform at the
+ * moment. It is very normal that there are many attempts to connect that
+ * are unsuccessful since the API nodes are not allowed to connect until
+ * the data node is started and they will regularly attempt to connect
+ * while the data node is starting.
+ *
+ * When the connect has been successfully setup we will use the same logic
+ * as for clients where we set theSocket and set the transporter state to
+ * connected to ensure that update_connections will see the new
+ * connection. So there is a lot of logic to setup the connections, but
+ * really only the setting of theSocket requires mutex protection.
+ *
+ * Disconnects can be discovered by both the send logic as well as the
+ * receive logic when calling socket send and socket recv. In both cases
+ * the transporter will call do_disconnect. The only action here is to
+ * set the state to DISCONNECTING (no action if already set or the state
+ * is already set to DISCONNECTED). While calling this function we can
+ * either hold the send mutex or the receive mutex. But none of these
+ * are needed since we only set the DISCONNECTING state. This state
+ * change will be picked up by start_clients_thread (note that it will
+ * be picked by this method independent of if it connected as a client
+ * or as a server. This method will call doDisconnect on the transporter.
+ * This method will update the state and next it will call
+ * disconnectImpl on the transporter that will close the socket and
+ * ensure that the variable theSocket no longer points to a valid
+ * socket. This is again protected by the send mutex and the receive
+ * mutex to ensure that it doesn't happen while we are calling any
+ * send or recv calls. Here we will also close the socket.
+ *
+ * Setting the state to not connected in doDisconnect will flag to
+ * update_connections that it should call report_disconnect. This
+ * call will disable the send buffer (holding the send mutex and
+ * send buffer mutex), it will also clear bitmasks for the transporter
+ * used by the receive thread. It requires no mutex to protect these
+ * changes since they are performed in the receive thread that is
+ * responsible for receiving on this transporter. The call can be
+ * performed in all receive threads, but will be ignored by any
+ * receive thread not responsible for it.
+ *
+ * Next it will call reportDisconnect that will send a signal
+ * DISCONNECT_REP to our TRPMAN instance. This signal will be
+ * sent to QMGR, the disconnect event will be logged and we will
+ * send a signal to CMVMI to cancel subscriptions for the node.
+ *
+ * QMGR will update node state information and will initiate
+ * node failure handling if not already started.
+ *
+ * QMGR will control when it is ok to communicate with the node
+ * using CLOSE_COMREQ and OPEN_COMREQ calls to TRPMAN.
+ *
+ * Closing the communication to a node can also be initiated from
+ * receiving a signal from another node that the node is dead.
+ * In this case QMGR will send CLOSE_COMREQ to TRPMAN instances and
+ * TRPMAN will set the IO state to HaltIO to ensure no more signals
+ * are handled and it will call do_disconnect in TransporterRegistry
+ * to ensure that the above close sequence is called although the
+ * transporters are still functional.
+ *
+ * Introducing multi transporters
+ * ------------------------------
+ * To enable higher communication throughput between data nodes it is
+ * possible to setup multiple transporters for communicating with another
+ * data node. Currently this feature only allows for multiple transporters
+ * when communicating within the same node group. There is no principal
+ * problem with multiple transporters for other communication between
+ * data nodes as well. For API nodes we already have the ability to
+ * use multiple transporters from an application program by using
+ * multiple node ids. Thus it is not necessary to add multiple
+ * transporters to communicate with API nodes.
+ *
+ * The connect process cannot use multiple transporters. The reason is
+ * that we cannot be certain that the connecting node supports multiple
+ * transporters between two data nodes. We can only check this once the
+ * connection is setup.
+ *
+ * This means that the change from a single socket to multiple sockets
+ * is handled when the node is in a connected state and thus traffic
+ * between the nodes is happening as we setup the multi socket setup.
+ *
+ * Given that multiple transporters can only be used between data nodes
+ * we don't need to handle the Shared memory transporter as used for
+ * multiple transporters since Shared memory transporter can only be
+ * used to communicate between data nodes and API nodes.
+ *
+ * Thus multiple transporters is only handled by TCP transporters.
+ *
+ * Additionally to setup multiple transporters we need to know which
+ * nodes are part of the same node group. This information is available
+ * already in start phase 3 for initial starts and for cluster restarts.
+ * For node restarts and initial node restarts we will wait until start
+ * phase 4 to setup multiple transporters. In addition we have the case
+ * where node groups are added while nodes are up and running, in this
+ * case the nodes in the new node group will setup multiple transporters
+ * when the new node group creation is committed.
+ * 
+ * The setup logic for multiple transporters is described in detail in
+ * QmgrMain.cpp. Here we will focus on how it changes the connect/disconnect
+ * logic and what concurrency protection is required to handle the
+ * multiple transporters.
+ *
+ * We introduce a new mutex that is locked by calling lockMultiTransporters
+ * and unlocked through the call unlockMultiTransporters. This mutex should
+ * always be taken before any other mutex is acquired to avoid deadlocks.
+ *
+ * During setup we communicate between the nodes in the same nodegroup to
+ * decide on the number of multi sockets to use for one transporter. The
+ * multiple transporters are handled also by a new Transporter class called
+ * Multi_Transporter. When the change is performed to use multi transporters
+ * this transporter is placed into the node transporter array. It is never
+ * removed from this array even after a node failure.
+ *
+ * When we setup the multi transporters we assign them to different recv
+ * threads. We also ensure that the port number is copied from the base
+ * transporter to the new multi transporters to ensure that we use the
+ * dynamic port number for a new node after a restart.
+ *
+ * The way to activate the connect of the multiple transporters happens by
+ * inserting them into the allTransporters array. By inserting them into
+ * this array they will be handled by the start_clients_thread.
+ *
+ * The protocol to setup a multi transporter is slightly different since we
+ * need to know the node id, transporter type and additionally the instance
+ * number of the transporter being setup in the connection. To accept a
+ * connection we must be in the CONNECTED state for the node and the instance
+ * number must exist in the multi transporter and must not be already
+ * connected.
+ *
+ * Next step is to perform switch activity, when we agreed with the other
+ * node on to perform this action we will send a crucial signal
+ * ACTIVATE_TRP_REQ. This signal will be sent on the base transporter.
+ * Immediately after sending this signal we will switch to using multi
+ * transporters.
+ *
+ * Before sending this signal we ensure that the only thread active is the
+ * main thread and we lock all send mutex for both the base transporter
+ * and the new multi transporters. We perform this by a new set of
+ * signals to freeze threads.
+ *
+ * When receiving this signal in the other node we need to use
+ * SYNC_THREAD_VIA_REQ. This ensures that all signals sent using the
+ * base transporter have been executed before we start executing the
+ * signals arriving on the new multi transporters. This ensures that
+ * we always keep signal order even in the context of changing
+ * the number of transporters for a node.
+ *
+ * After this we will send the activation request for each new transporter
+ * to each of the TRPMAN instances. When this request arrives the new
+ * transporter will be added to the epoll set of the receive thread. So
+ * from here on the signals sent after the ACTIVATE_TRP_REQ signal can
+ * be processed in the receiving node. When all ACTIVATE_TRP_REQ have
+ * been processed we can send ACTIVATE_TRP_CONF to the requesting node.
+ * If we have received ACTIVATE_TRP_CONF from the other node and we
+ * have received ACTIVATE_TRP_REQ from the other node, then we are ready
+ * to close the socket of the base transporter. While doing this we call
+ * lockMultiTransporters and we lock both the send mutex and the receive
+ * thread mutex to ensure that we don't interact with any socket calls
+ * when performing this action. At this point we also disable the send
+ * buffer of the base transporter.
+ *
+ * At this point the switch to the multi transporter setup is completed.
+ * If we are performing a restart during this setup and the other node
+ * crashes we will also crash since we are in a restart. So only when
+ * we are switching while we are up will this be an issue. When switching
+ * and being up we must handle crashes in all phases of the setup.
+ * We have added a test case that both tests crashes in all phases as
+ * well as long sleeps in all phases.
+ *
+ * Closing the base transporter will cause do_disconnect to be called
+ * on this transporter while the node is still up. Thus we have to
+ * handle this call separately for non-active connections. This should
+ * only happen in the receive thread, so we don't take the send
+ * mutex before changing theSocket here. Since the transporter isn't
+ * active it should not perform any send activity here.
+ *
+ *
+ * Disconnects when using multi transporters still happens through the
+ * do_disconnect call, either activated by an error on any of the multi
+ * sockets or activated by blocks discovering a failed node. This means
+ * that performStates for the node is set to DISCONNECTING. This will
+ * trigger call to doDisconnect from start_clients_thread for each of
+ * the multi transporters and thus every multi transporter will have
+ * the disconnectImpl method called on the transporter.
+ *
+ * This in turn will lead to that update_connections will call
+ * report_disconnect for each of the multi transporters.
+ *
+ * The report_disconnect will discover that a multi transporter is
+ * involved. It will disable send buffers and receive thread bitmasks
+ * will be cleared. It will remove the multi transporter from the
+ * allTransporters array. This is synchronized by acquiring the
+ * lockMultiTransporters before these actions.
+ *
+ * It is possible to arrive here after the switch to multi transporter
+ * still having data in the send buffer (still waiting to send the
+ * ACTIVATE_TRP_REQ signal). This case must be handled by calling
+ * disable send buffer as well as calling doDisconnect on the
+ * base transporter that we already switched away from, otherwise these
+ * send buffers will remain when starting the node up again and cause
+ * a crash.
+ *
+ * As part of report_disconnect we will check if all multi transporters
+ * have been handled by report_disconnect, we check this by looking into
+ * allTransporters array to see if we removed the transporter from this
+ * array for all multi transporters. If all have been removed we switch
+ * back to the base transporter as the active transporter.
+ *
+ * If the failure happens before we switch to the multi transporters we will
+ * disable send buffer and call doDisconnect also on the multi transporters
+ * just in case.
+ *
+ * Finally when all multi transporters have been handled and we have
+ * switched back to the base transporter we will send the DISCONNECT_REP
+ * signal through the reportDisconnect call in the receive thread.
+ *
+ * After this we are again ready to setup the multi transporter again
+ * after node failure handling have completed.
+ *
+ * No special handling of epoll sets (and poll sets in non-Linux platforms)
+ * is required since the sockets are removed from those sets when the
+ * socket is closed.
+ *
+ * update_connections()
+ * --------------------
  * update_connections(), together with the thread running in
  * start_clients_thread(), handle the state changes for transporters as they
  * connect and disconnect.
@@ -2013,26 +3097,41 @@ TransporterRegistry::report_error(NodeId nodeId, TransporterError errorCode,
  * it must either be called from the same (receive-)thread as
  * performReceive(), or protected by aquiring the (client) poll rights.
  */
-void
-TransporterRegistry::update_connections(TransporterReceiveHandle& recvdata)
+Uint32
+TransporterRegistry::update_connections(TransporterReceiveHandle& recvdata,
+                                        Uint32 max_spintime)
 {
+  Uint32 spintime = 0;
   TransporterReceiveWatchdog guard(recvdata);
   assert((receiveHandle == &recvdata) || (receiveHandle == 0));
 
-  for (int i= 0, n= 0; n < nTransporters; i++){
-    Transporter * t = theTransporters[i];
+  for (Uint32 i = 1; i < (nTransporters + 1); i++)
+  {
+    require(i < MAX_NTRANSPORTERS);
+    Transporter * t = allTransporters[i];
     if (!t)
       continue;
-    n++;
 
     const NodeId nodeId = t->getRemoteNodeId();
-    if (!recvdata.m_transporters.get(nodeId))
+    if (!recvdata.m_transporters.get(i))
       continue;
 
     TransporterError code = m_error_states[nodeId].m_code;
     const char *info = m_error_states[nodeId].m_info;
     if (code != TE_NO_ERROR && info != (const char *)~(UintPtr)0)
     {
+      if (performStates[nodeId] == CONNECTING)
+      {
+        fprintf(stderr,
+                "update_connections while CONNECTING, nodeId:%d, error:%d\n",
+                nodeId,
+                code);
+        /* Failed during CONNECTING -> we are still DISCONNECTED */
+        assert(!t->isConnected());
+        assert(false);
+        performStates[nodeId] = DISCONNECTED;
+      }
+
       recvdata.reportError(nodeId, code, info);
       m_error_states[nodeId].m_code = TE_NO_ERROR;
       m_error_states[nodeId].m_info = (const char *)~(UintPtr)0;
@@ -2040,6 +3139,14 @@ TransporterRegistry::update_connections(TransporterReceiveHandle& recvdata)
 
     switch(performStates[nodeId]){
     case CONNECTED:
+#ifndef WIN32
+      if (t->getTransporterType() == tt_SHM_TRANSPORTER)
+      {
+        SHM_Transporter *shm_trp = (SHM_Transporter*)t;
+        spintime = MAX(spintime, shm_trp->get_spintime());
+      }
+#endif
+      break;
     case DISCONNECTED:
       break;
     case CONNECTING:
@@ -2052,6 +3159,10 @@ TransporterRegistry::update_connections(TransporterReceiveHandle& recvdata)
       break;
     }
   }
+  recvdata.nTCPTransporters = nTCPTransporters;
+  recvdata.nSHMTransporters = nSHMTransporters;
+  recvdata.m_spintime = MIN(spintime, max_spintime);
+  return spintime; //Inform caller of spintime calculated on this level
 }
 
 /**
@@ -2072,16 +3183,26 @@ TransporterRegistry::start_clients_thread()
       ndb_mgm_check_connection(m_mgm_handle);
       persist_mgm_count= 0;
     }
-    for (int i= 0, n= 0; n < nTransporters && m_run_start_clients_thread; i++){
-      Transporter * t = theTransporters[i];
+    lockMultiTransporters();
+    for (Uint32 i = 1;
+         i < (nTransporters +1) && m_run_start_clients_thread;
+         i++)
+    {
+      require(i < MAX_NTRANSPORTERS);
+      Transporter * t = allTransporters[i];
       if (!t)
 	continue;
-      n++;
 
       const NodeId nodeId = t->getRemoteNodeId();
       switch(performStates[nodeId]){
       case CONNECTING:
-	if(!t->isConnected() && !t->isServer) {
+      {
+        if (t->isPartOfMultiTransporter())
+        {
+          break;
+        }
+        if (!t->isConnected() && !t->isServer)
+        {
           if (get_and_clear_node_up_indicator(nodeId))
           {
             // Other node have indicated that node nodeId is up, try connect
@@ -2103,15 +3224,19 @@ TransporterRegistry::start_clients_thread()
           {
             DBUG_PRINT("info", ("connecting to node %d using port %d",
                                 nodeId, t->get_s_port()));
+            unlockMultiTransporters();
             connected= t->connect_client();
+            lockMultiTransporters();
           }
 
 	  /**
 	   * If dynamic, get the port for connecting from the management server
 	   */
-	  if( !connected && t->get_s_port() <= 0) {	// Port is dynamic
+	  if (!connected && t->get_s_port() <= 0) // Port is dynamic
+          {
 	    int server_port= 0;
 	    struct ndb_mgm_reply mgm_reply;
+            unlockMultiTransporters();
 
             DBUG_PRINT("info", ("connection to node %d should use "
                                 "dynamic port",
@@ -2132,6 +3257,7 @@ TransporterRegistry::start_clients_thread()
 						     CFG_CONNECTION_SERVER_PORT,
 						     &server_port,
 						     &mgm_reply);
+
 	      DBUG_PRINT("info",("Got dynamic port %d for %d -> %d (ret: %d)",
 				 server_port,t->getRemoteNodeId(),
 				 t->getLocalNodeId(),res));
@@ -2185,12 +3311,18 @@ TransporterRegistry::start_clients_thread()
 	     * old port until we can connect again and get a
 	     * new port.
 	     */
+            lockMultiTransporters();
 	  }
 	}
 	break;
+      }
       case DISCONNECTING:
 	if(t->isConnected())
+        {
+          DEBUG_FPRINTF((stderr, "(%u)doDisconnect(%u), line: %u\n",
+                         localNodeId, t->getRemoteNodeId(), __LINE__));
 	  t->doDisconnect();
+        }
 	break;
       case DISCONNECTED:
       {
@@ -2199,14 +3331,36 @@ TransporterRegistry::start_clients_thread()
           g_eventLogger->warning("Found connection to %u in state DISCONNECTED "
                                  " while being connected, disconnecting!",
                                  t->getRemoteNodeId());
+          DEBUG_FPRINTF((stderr, "(%u)doDisconnect(%u), line: %u\n",
+                         localNodeId, t->getRemoteNodeId(), __LINE__));
           t->doDisconnect();
         }
         break;
+      }
+      case CONNECTED:
+      {
+        if (t->isPartOfMultiTransporter() &&
+            !t->isConnected() &&
+            !t->isServer)
+        {
+          require(t->get_s_port());
+          DBUG_PRINT("info", ("connecting multi-transporter to node %d"
+                     " using port %d",
+                     nodeId,
+                     t->get_s_port()));
+          unlockMultiTransporters();
+          t->connect_client();
+          DEBUG_FPRINTF((stderr, "Connect client of trp id %u, res: %u\n",
+                        t->getTransporterIndex(),
+                        t->isConnected()));
+          lockMultiTransporters();
+        }
       }
       default:
 	break;
       }
     }
+    unlockMultiTransporters();
   }
   DBUG_VOID_RETURN;
 }
@@ -2321,43 +3475,14 @@ TransporterRegistry::start_service(SocketServer& socket_server)
   DBUG_RETURN(true);
 }
 
-#ifdef NDB_SHM_TRANSPORTER
-extern "C"
-void
-shm_sig_handler(int signo)
-{
-  g_shm_counter++;
-}
-#endif
-
 void
 TransporterRegistry::startReceiving()
 {
   DBUG_ENTER("TransporterRegistry::startReceiving");
 
-#ifdef NDB_SHM_TRANSPORTER
+#ifndef WIN32
   m_shm_own_pid = getpid();
-  if (g_ndb_shm_signum)
-  {
-    DBUG_PRINT("info",("Install signal handler for signum %d",
-		       g_ndb_shm_signum));
-    struct sigaction sa;
-    NdbThread_set_shm_sigmask(FALSE);
-    sigemptyset(&sa.sa_mask);
-    sa.sa_handler = shm_sig_handler;
-    sa.sa_flags = 0;
-    int ret;
-    while((ret = sigaction(g_ndb_shm_signum, &sa, 0)) == -1 && errno == EINTR)
-      ;
-    if(ret != 0)
-    {
-      DBUG_PRINT("error",("Install failed"));
-      g_eventLogger->error("Failed to install signal handler for"
-                           " SHM transporter, signum %d, errno: %d (%s)",
-                           g_ndb_shm_signum, errno, strerror(errno));
-    }
-  }
-#endif // NDB_SHM_TRANSPORTER
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -2385,12 +3510,37 @@ NdbOut & operator <<(NdbOut & out, SignalHeader & sh){
   return out;
 } 
 
-Transporter*
-TransporterRegistry::get_transporter(NodeId nodeId) {
-  assert(nodeId < maxTransporters);
-  return theTransporters[nodeId];
+int
+TransporterRegistry::get_transporter_count() const
+{
+  assert(nTransporters > 0);
+  return nTransporters;
 }
 
+bool
+TransporterRegistry::is_shm_transporter(TrpId trp_id)
+{
+  assert(trp_id < maxTransporters);
+  Transporter *trp = allTransporters[trp_id];
+  if (trp->getTransporterType() == tt_SHM_TRANSPORTER)
+    return true;
+  else
+    return false;
+}
+
+Transporter*
+TransporterRegistry::get_transporter(TrpId trp_id) const
+{
+  assert(trp_id < MAX_NTRANSPORTERS);
+  return allTransporters[trp_id];
+}
+
+Transporter*
+TransporterRegistry::get_node_transporter(NodeId nodeId) const
+{
+  assert(nodeId <= MAX_NODES);
+  return theNodeIdTransporters[nodeId];
+}
 
 bool TransporterRegistry::connect_client(NdbMgmHandle *h)
 {
@@ -2403,16 +3553,26 @@ bool TransporterRegistry::connect_client(NdbMgmHandle *h)
     g_eventLogger->error("%s: %d", __FILE__, __LINE__);
     return false;
   }
-  Transporter * t = theTransporters[mgm_nodeid];
+  Transporter * t = theNodeIdTransporters[mgm_nodeid];
   if (!t)
   {
     g_eventLogger->error("%s: %d", __FILE__, __LINE__);
     return false;
   }
 
+  if (t->isMultiTransporter())
+  {
+    Multi_Transporter *multi_trp = (Multi_Transporter*)t;
+    require(multi_trp->get_num_active_transporters() == 1);
+    t = multi_trp->get_active_transporter(0);
+  }
+  require(!t->isMultiTransporter());
+  require(!t->isPartOfMultiTransporter());
   bool res = t->connect_client(connect_ndb_mgmd(h));
   if (res == true)
   {
+    DEBUG_FPRINTF((stderr, "(%u)performStates[%u] = DISCONNECTING,"
+                   " connect_client\n", localNodeId, mgm_nodeid));
     performStates[mgm_nodeid] = TransporterRegistry::CONNECTING;
   }
   DBUG_RETURN(res);
@@ -2463,7 +3623,7 @@ bool TransporterRegistry::report_dynamic_ports(NdbMgmHandle h) const
 NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
 {
   NDB_SOCKET_TYPE sockfd;
-  my_socket_invalidate(&sockfd);
+  ndb_socket_invalidate(&sockfd);
 
   DBUG_ENTER("TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle)");
 
@@ -2485,7 +3645,7 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
    */
   DBUG_PRINT("info", ("Converting handle to transporter"));
   sockfd= ndb_mgm_convert_to_transporter(h);
-  if (!my_socket_valid(sockfd))
+  if (!ndb_socket_valid(sockfd))
   {
     g_eventLogger->error("Failed to convert to transporter (%s: %d)",
                          __FILE__, __LINE__);
@@ -2504,7 +3664,7 @@ TransporterRegistry::connect_ndb_mgmd(const char* server_name,
 {
   NdbMgmHandle h= ndb_mgm_create_handle();
   NDB_SOCKET_TYPE s;
-  my_socket_invalidate(&s);
+  ndb_socket_invalidate(&s);
 
   DBUG_ENTER("TransporterRegistry::connect_ndb_mgmd(SocketClient)");
 
@@ -2541,32 +3701,51 @@ TransporterRegistry::connect_ndb_mgmd(const char* server_name,
 
 Uint32 *
 TransporterRegistry::getWritePtr(TransporterSendBufferHandle *handle,
-                                 NodeId node, Uint32 lenBytes, Uint32 prio)
+                                 Transporter* t,
+                                 Uint32 trp_id,
+                                 Uint32 lenBytes,
+                                 Uint32 prio,
+                                 SendStatus *error)
 {
-  Transporter *t = theTransporters[node];
-  Uint32 *insertPtr = handle->getWritePtr(node, lenBytes, prio,
-                                          t->get_max_send_buffer());
+  NodeId nodeId = t->getRemoteNodeId();
+  Uint32 *insertPtr = handle->getWritePtr(nodeId,
+                                          trp_id,
+                                          lenBytes,
+                                          prio,
+                                          t->get_max_send_buffer(),
+                                          error);
 
-  if (insertPtr == 0) {
+  if (unlikely(insertPtr == nullptr && *error != SEND_MESSAGE_TOO_BIG))
+  {
     //-------------------------------------------------
     // Buffer was completely full. We have severe problems.
     // We will attempt to wait for a small time
     //-------------------------------------------------
-    if(t->send_is_possible(10)) {
+    if (t->send_is_possible(10))
+    {
       //-------------------------------------------------
       // Send is possible after the small timeout.
       //-------------------------------------------------
-      if(!handle->forceSend(node)){
+      if (!handle->forceSend(nodeId, trp_id))
+      {
 	return 0;
-      } else {
+      }
+      else
+      {
 	//-------------------------------------------------
 	// Since send was successful we will make a renewed
 	// attempt at inserting the signal into the buffer.
 	//-------------------------------------------------
-        insertPtr = handle->getWritePtr(node, lenBytes, prio,
-                                        t->get_max_send_buffer());
+        insertPtr = handle->getWritePtr(nodeId,
+                                        trp_id,
+                                        lenBytes,
+                                        prio,
+                                        t->get_max_send_buffer(),
+                                        error);
       }//if
-    } else {
+    }
+    else
+    {
       return 0;
     }//if
   }
@@ -2575,14 +3754,17 @@ TransporterRegistry::getWritePtr(TransporterSendBufferHandle *handle,
 
 void
 TransporterRegistry::updateWritePtr(TransporterSendBufferHandle *handle,
-                                    NodeId node, Uint32 lenBytes, Uint32 prio)
+                                    Transporter* t,
+                                    Uint32 trp_id,
+                                    Uint32 lenBytes,
+                                    Uint32 prio)
 {
-  Transporter *t = theTransporters[node];
-
-  Uint32 used = handle->updateWritePtr(node, lenBytes, prio);
+  NodeId nodeId = t->getRemoteNodeId();
+  Uint32 used = handle->updateWritePtr(nodeId, trp_id, lenBytes, prio);
   t->update_status_overloaded(used);
 
-  if(t->send_limit_reached(used)) {
+  if (t->send_limit_reached(used))
+  {
     //-------------------------------------------------
     // Buffer is full and we are ready to send. We will
     // not wait since the signal is already in the buffer.
@@ -2591,293 +3773,114 @@ TransporterRegistry::updateWritePtr(TransporterSendBufferHandle *handle,
     // we will not worry since we will soon be back for
     // a renewed trial.
     //-------------------------------------------------
-    if(t->send_is_possible(0)) {
+    if (t->send_is_possible(0))
+    {
       //-------------------------------------------------
       // Send was possible, attempt at a send.
       //-------------------------------------------------
-      handle->forceSend(node);
+      handle->forceSend(nodeId, trp_id);
     }//if
   }
 }
-
-Uint32
-TransporterRegistry::get_bytes_to_send_iovec(NodeId node, struct iovec *dst,
-                                             Uint32 max)
-{
-  assert(m_use_default_send_buffer);
-
-  if (max == 0)
-    return 0;
-
-  Uint32 count = 0;
-  SendBuffer *b = m_send_buffers + node;
-  SendBufferPage *page = b->m_first_page;
-  while (page != NULL && count < max)
-  {
-    dst[count].iov_base = page->m_data+page->m_start;
-    dst[count].iov_len = page->m_bytes;
-    assert(page->m_start + page->m_bytes <= page->max_data_bytes());
-    page = page->m_next;
-    count++;
-  }
-
-  return count;
-}
-
-Uint32
-TransporterRegistry::bytes_sent(NodeId node, Uint32 bytes)
-{
-  assert(m_use_default_send_buffer);
-
-  SendBuffer *b = m_send_buffers + node;
-  Uint32 used_bytes = b->m_used_bytes;
-
-  if (bytes == 0)
-    return used_bytes;
-
-  used_bytes -= bytes;
-  b->m_used_bytes = used_bytes;
-
-  SendBufferPage *page = b->m_first_page;
-  while (bytes && bytes >= page->m_bytes)
-  {
-    SendBufferPage * tmp = page;
-    bytes -= page->m_bytes;
-    page = page->m_next;
-    release_page(tmp);
-  }
-
-  if (used_bytes == 0)
-  {
-    b->m_first_page = 0;
-    b->m_last_page = 0;
-  }
-  else
-  {
-    page->m_start += bytes;
-    page->m_bytes -= bytes;
-    assert(page->m_start + page->m_bytes <= page->max_data_bytes());
-    b->m_first_page = page;
-  }
-
-  return used_bytes;
-}
-
-bool
-TransporterRegistry::has_data_to_send(NodeId node)
-{
-  assert(m_use_default_send_buffer);
-
-  SendBuffer *b = m_send_buffers + node;
-  return (b->m_first_page != NULL && b->m_first_page->m_bytes);
-}
-
-void
-TransporterRegistry::reset_send_buffer(NodeId node, bool should_be_empty)
-{
-  assert(m_use_default_send_buffer);
-
-  // Make sure that buffer is already empty if the "should_be_empty"
-  // flag is set. This is done to quickly catch any stray signals
-  // written to the send buffer while not being connected
-  if (should_be_empty && !has_data_to_send(node))
-    return;
-  assert(!should_be_empty);
-
-  SendBuffer *b = m_send_buffers + node;
-  SendBufferPage *page = b->m_first_page;
-  while (page != NULL)
-  {
-    SendBufferPage *next = page->m_next;
-    release_page(page);
-    page = next;
-  }
-  b->m_first_page = NULL;
-  b->m_last_page = NULL;
-  b->m_used_bytes = 0;
-}
-
-TransporterRegistry::SendBufferPage *
-TransporterRegistry::alloc_page()
-{
-  SendBufferPage *page = m_page_freelist;
-  if (page != NULL)
-  {
-    m_tot_used_buffer_memory += SendBufferPage::PGSIZE;
-    m_page_freelist = page->m_next;
-    return page;
-  }
-
-  ndbout << "ERROR: out of send buffers in kernel." << endl;
-  return NULL;
-}
-
-void
-TransporterRegistry::release_page(SendBufferPage *page)
-{
-  assert(page != NULL);
-  page->m_next = m_page_freelist;
-  m_tot_used_buffer_memory -= SendBufferPage::PGSIZE;
-  m_page_freelist = page;
-}
-
-/**
- * These are the TransporterSendBufferHandle methods used by the
- * single-threaded ndbd.
- */
-Uint32 *
-TransporterRegistry::getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
-                                 Uint32 max_use)
-{
-  assert(m_use_default_send_buffer);
-
-  SendBuffer *b = m_send_buffers + node;
-
-  /* First check if we have room in already allocated page. */
-  SendBufferPage *page = b->m_last_page;
-  if (page != NULL && page->m_bytes + page->m_start + lenBytes <= page->max_data_bytes())
-  {
-    return (Uint32 *)(page->m_data + page->m_start + page->m_bytes);
-  }
-
-  if (b->m_used_bytes + lenBytes > max_use)
-    return NULL;
-
-  /* Allocate a new page. */
-  page = alloc_page();
-  if (page == NULL)
-    return NULL;
-  page->m_next = NULL;
-  page->m_bytes = 0;
-  page->m_start = 0;
-
-  if (b->m_last_page == NULL)
-  {
-    b->m_first_page = page;
-    b->m_last_page = page;
-  }
-  else
-  {
-    assert(b->m_first_page != NULL);
-    b->m_last_page->m_next = page;
-    b->m_last_page = page;
-  }
-  return (Uint32 *)(page->m_data);
-}
-
-/**
- * This is used by the ndbd, so here only one thread is using this, so
- * values will always be consistent.
- */
-void
-TransporterRegistry::getSendBufferLevel(NodeId node, SB_LevelType &level)
-{
-  SendBuffer *b = m_send_buffers + node;
-  calculate_send_buffer_level(b->m_used_bytes,
-                              m_tot_send_buffer_memory,
-                              m_tot_used_buffer_memory,
-                              0,
-                              level);
-  return;
-}
-
-Uint32
-TransporterRegistry::updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio)
-{
-  assert(m_use_default_send_buffer);
-
-  SendBuffer *b = m_send_buffers + node;
-  SendBufferPage *page = b->m_last_page;
-  assert(page != NULL);
-  assert(page->m_bytes + lenBytes <= page->max_data_bytes());
-  page->m_bytes += lenBytes;
-  b->m_used_bytes += lenBytes;
-  return b->m_used_bytes;
-}
-
-bool
-TransporterRegistry::forceSend(NodeId node)
-{
-  Transporter *t = get_transporter(node);
-  if (t)
-    return t->doSend();
-  else
-    return false;
-}
-
-
-void
-TransporterRegistry::print_transporters(const char* where, NdbOut& out)
-{
-  out << where << " >>" << endl;
-
-  for(unsigned i = 0; i < maxTransporters; i++){
-    if(theTransporters[i] == NULL)
-      continue;
-
-    const NodeId remoteNodeId = theTransporters[i]->getRemoteNodeId();
-    struct in_addr conn_addr = get_connect_address(remoteNodeId);
-    char addr_buf[NDB_ADDR_STRLEN];
-    char *addr_str = Ndb_inet_ntop(AF_INET,
-                                   static_cast<void*>(&conn_addr),
-                                   addr_buf,
-                                   (socklen_t)sizeof(addr_buf));
-
-    out << i << " "
-        << getPerformStateString(remoteNodeId) << " to node: "
-        << remoteNodeId << " at " << addr_str << endl;
-  }
-
-  out << "<<" << endl;
-
-  for (unsigned i= 0; i < m_transporter_interface.size(); i++){
-    Transporter_interface tf= m_transporter_interface[i];
-
-    out << i
-        << " remote node: " << tf.m_remote_nodeId
-        << " port: " << tf.m_s_service_port
-        << " interface: " << tf.m_interface << endl;
-  }
-}
-
+	   
 void 
 TransporterRegistry::inc_overload_count(Uint32 nodeId)
 {
   assert(nodeId < MAX_NODES);
-  assert(theTransporters[nodeId] != NULL);
-  theTransporters[nodeId]->inc_overload_count();
+  assert(theNodeIdTransporters[nodeId] != NULL);
+  theNodeIdTransporters[nodeId]->inc_overload_count();
 }
 
 void 
 TransporterRegistry::inc_slowdown_count(Uint32 nodeId)
 {
   assert(nodeId < MAX_NODES);
-  assert(theTransporters[nodeId] != NULL);
-  theTransporters[nodeId]->inc_slowdown_count();
+  assert(theNodeIdTransporters[nodeId] != NULL);
+  theNodeIdTransporters[nodeId]->inc_slowdown_count();
 }
 
 Uint32
 TransporterRegistry::get_overload_count(Uint32 nodeId)
 {
   assert(nodeId < MAX_NODES);
-  assert(theTransporters[nodeId] != NULL);
-  return theTransporters[nodeId]->get_overload_count();
+  assert(theNodeIdTransporters[nodeId] != NULL);
+  return theNodeIdTransporters[nodeId]->get_overload_count();
 }
 
 Uint32
 TransporterRegistry::get_slowdown_count(Uint32 nodeId)
 {
   assert(nodeId < MAX_NODES);
-  assert(theTransporters[nodeId] != NULL);
-  return theTransporters[nodeId]->get_slowdown_count();
+  assert(theNodeIdTransporters[nodeId] != NULL);
+  return theNodeIdTransporters[nodeId]->get_slowdown_count();
 }
 
 Uint32
 TransporterRegistry::get_connect_count(Uint32 nodeId)
 {
   assert(nodeId < MAX_NODES);
-  assert(theTransporters[nodeId] != NULL);
-  return theTransporters[nodeId]->get_connect_count();
+  assert(theNodeIdTransporters[nodeId] != NULL);
+  return theNodeIdTransporters[nodeId]->get_connect_count();
+}
+
+void
+TransporterRegistry::get_trps_for_node(Uint32 nodeId,
+                                       TrpId *trp_ids,
+                                       Uint32 &num_ids,
+                                       Uint32 max_size)
+{
+  Transporter *t = theNodeIdTransporters[nodeId];
+  if (!t)
+  {
+    num_ids = 0;
+  }
+  else if (t->isMultiTransporter())
+  {
+    Multi_Transporter *multi_trp = (Multi_Transporter*)t;
+    num_ids = multi_trp->get_num_active_transporters();
+    num_ids = MIN(num_ids, max_size);
+    for (Uint32 i = 0; i < num_ids; i++)
+    {
+      Transporter* tmp_trp = multi_trp->get_active_transporter(i);
+      trp_ids[i] = tmp_trp->getTransporterIndex();
+      require(trp_ids[i] != 0);
+    }
+  }
+  else
+  {
+    num_ids = 1;
+    trp_ids[0] = t->getTransporterIndex();
+    require(trp_ids[0] != 0);
+  }
+  require(max_size >= 1);
+}
+
+TrpId
+TransporterRegistry::getTransporterIndex(Transporter* t)
+{
+  return t->getTransporterIndex();
+}
+
+bool
+TransporterRegistry::isMultiTransporter(Transporter* t)
+{
+  return t->isMultiTransporter();
+}
+
+void
+TransporterRegistry::switch_active_trp(Multi_Transporter *t)
+{
+  require(t->isMultiTransporter());
+  t->switch_active_trp();
+}
+
+Uint32
+TransporterRegistry::get_num_active_transporters(Multi_Transporter *t)
+{
+  require(t->isMultiTransporter());
+  {
+    return t->get_num_active_transporters();
+  }
 }
 
 /**

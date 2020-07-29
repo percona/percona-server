@@ -1,10 +1,3 @@
---source include/have_innodb.inc
---source include/have_partition.inc
-
---disable_warnings
-DROP TABLE IF EXISTS t1, t2, t3, t, tp, tsp, tmp;
---enable_warnings
-
 --echo #
 --echo # Bug#11894100: EXCHANGE PARTITION CAN'T BE EXECUTED IF
 --echo #               ROW_FORMAT WAS SET EXPLICITLY
@@ -18,7 +11,7 @@ SET GLOBAL innodb_default_row_format=compact;
 
 CREATE TABLE t1 (
  id int(11) NOT NULL AUTO_INCREMENT,
- year year(4) DEFAULT NULL,
+ year year DEFAULT NULL,
  modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
  PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT=COMPACT
@@ -48,7 +41,7 @@ DROP TABLE t2;
 --echo # Only the partitioned table have ROW_FORMAT set.
 CREATE TABLE t2 (
  id int(11) NOT NULL AUTO_INCREMENT,
- year year(4) DEFAULT NULL,
+ year year DEFAULT NULL,
  modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
  PRIMARY KEY (id)
 ) ENGINE=InnoDB;
@@ -64,7 +57,7 @@ WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME IN ('t1', 't2');
 DROP TABLE t1, t2;
 CREATE TABLE t1 (
  id int(11) NOT NULL AUTO_INCREMENT,
- year year(4) DEFAULT NULL,
+ year year DEFAULT NULL,
  modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
  PRIMARY KEY (id)
 ) ENGINE=InnoDB
@@ -72,7 +65,7 @@ PARTITION BY HASH (id)
 PARTITIONS 2;
 CREATE TABLE t2 (
  id int(11) NOT NULL AUTO_INCREMENT,
- year year(4) DEFAULT NULL,
+ year year DEFAULT NULL,
  modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
  PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = COMPACT;
@@ -88,7 +81,7 @@ WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME IN ('t1', 't2');
 DROP TABLE t1, t2;
 CREATE TABLE t1 (
  id int(11) NOT NULL AUTO_INCREMENT,
- year year(4) DEFAULT NULL,
+ year year DEFAULT NULL,
  modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
  PRIMARY KEY (id)
 ) ENGINE=InnoDB
@@ -96,7 +89,7 @@ PARTITION BY HASH (id)
 PARTITIONS 2;
 CREATE TABLE t2 (
  id int(11) NOT NULL AUTO_INCREMENT,
- year year(4) DEFAULT NULL,
+ year year DEFAULT NULL,
  modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
  PRIMARY KEY (id)
 ) ENGINE=InnoDB;
@@ -112,7 +105,7 @@ WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME IN ('t1', 't2');
 DROP TABLE t1, t2;
 CREATE TABLE t1 (
  id int(11) NOT NULL AUTO_INCREMENT,
- year year(4) DEFAULT NULL,
+ year year DEFAULT NULL,
  modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
  PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = REDUNDANT
@@ -120,7 +113,7 @@ PARTITION BY HASH (id)
 PARTITIONS 2;
 CREATE TABLE t2 (
  id int(11) NOT NULL AUTO_INCREMENT,
- year year(4) DEFAULT NULL,
+ year year DEFAULT NULL,
  modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
  PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = REDUNDANT;
@@ -136,7 +129,7 @@ WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME IN ('t1', 't2');
 DROP TABLE t1, t2;
 CREATE TABLE t1 (
  id int(11) NOT NULL AUTO_INCREMENT,
- year year(4) DEFAULT NULL,
+ year year DEFAULT NULL,
  modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
  PRIMARY KEY (id)
 ) ENGINE=InnoDB
@@ -144,7 +137,7 @@ PARTITION BY HASH (id)
 PARTITIONS 2;
 CREATE TABLE t2 (
  id int(11) NOT NULL AUTO_INCREMENT,
- year year(4) DEFAULT NULL,
+ year year DEFAULT NULL,
  modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
  PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = REDUNDANT;
@@ -161,7 +154,7 @@ WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME IN ('t1', 't2');
 DROP TABLE t1, t2;
 CREATE TABLE t1 (
  id int(11) NOT NULL AUTO_INCREMENT,
- year year(4) DEFAULT NULL,
+ year year DEFAULT NULL,
  modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
  PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = COMPACT
@@ -169,7 +162,7 @@ PARTITION BY HASH (id)
 PARTITIONS 2;
 CREATE TABLE t2 (
  id int(11) NOT NULL AUTO_INCREMENT,
- year year(4) DEFAULT NULL,
+ year year DEFAULT NULL,
  modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
  PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = REDUNDANT;
@@ -185,14 +178,58 @@ WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME IN ('t1', 't2');
 DROP TABLE t1, t2;
 
 --echo #
+--echo # Bug #28235668: ASSERTION AT UT_DBG_ASSERTION_FAILED (EXPR=0X5173C5C "J < NCOL"
+--echo #
+
+--echo # Create a partitioned table with virtual columns
+CREATE TABLE t1_1 (
+  `col1` int(11) DEFAULT NULL,
+  `col2` int(11) DEFAULT NULL,
+  `col3` int(11) DEFAULT NULL,
+  `col4` text,
+  `col5` varchar(500) GENERATED ALWAYS AS (substr(`col4`,1,500)) VIRTUAL,
+  `col6` text GENERATED ALWAYS AS (substr(`col4`,1,500)) VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE ((`col1` * 2))
+(PARTITION p0 VALUES LESS THAN (128) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (256) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (384) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */;
+
+--echo # "Clone" table using AS SELECT ...
+CREATE TABLE temp25058 AS SELECT * FROM t1_1 WHERE 1 <> 1;
+
+SHOW CREATE TABLE temp25058;
+
+--echo # Select from this table is ok - no error
+SELECT * FROM temp25058;
+
+--echo # Exchanging dissimilar tables is not a supported action for
+--echo # tables with generated columns.
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+ALTER TABLE t1_1 ALGORITHM DEFAULT , LOCK SHARED ,
+EXCHANGE PARTITION p2 WITH TABLE temp25058;
+
+--echo # No viritual columns in Innodb or DD
+SHOW CREATE TABLE temp25058;
+
+--echo # No viritual columns in Innodb or DD
+SELECT * FROM temp25058;
+
+DROP TABLE temp25058;
+DROP TABLE t1_1;
+
+--echo #
 --echo # Bug#56484: !table || (!table->read_set ||
 --echo #                       bitmap_is_set(table->read_set, field_index))
+--echo # After WL#8971, the test case was rewritten to use InnoDB.
 --echo #
-CREATE TABLE t1 (a INT NOT NULL,b TIME NOT NULL DEFAULT '00:00:00')
-ENGINE=MyISAM
+
+CREATE TABLE t1 (a INT NOT NULL, b TIME NOT NULL DEFAULT '00:00:00')
+ENGINE=InnoDB
 PARTITION BY HASH (a) PARTITIONS 2;
 
-CREATE TABLE t2 (a INT) ENGINE=MYISAM;
+CREATE TABLE t2 (a INT) ENGINE=InnoDB;
 --error ER_TABLES_DIFFERENT_METADATA
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 DROP TABLE t1, t2;
@@ -221,13 +258,11 @@ DROP TABLE t2, t1, t3;
 --echo # Tests for WL#4445
 CREATE TABLE t (a INT,
   b VARCHAR(55),
-  PRIMARY KEY (a))
-ENGINE = MyISAM;
+  PRIMARY KEY (a));
 
 CREATE TABLE tp (a INT,
   b VARCHAR(55),
   PRIMARY KEY (a))
-ENGINE = MyISAM
 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100),
  PARTITION p1 VALUES LESS THAN MAXVALUE);
@@ -235,7 +270,6 @@ PARTITION BY RANGE (a)
 CREATE TABLE tsp (a INT,
   b VARCHAR(55),
   PRIMARY KEY (a))
-ENGINE = MyISAM
 PARTITION BY RANGE (a)
 SUBPARTITION BY HASH(a)
 (PARTITION p0 VALUES LESS THAN (100)
@@ -340,21 +374,11 @@ SELECT * FROM t;
 --sorted_result
 SELECT * FROM tp;
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
---echo # test different engines
-ALTER TABLE t ENGINE = MyISAM;
-ALTER TABLE tp ENGINE = InnoDB;
-SHOW CREATE TABLE t;
-SHOW CREATE TABLE tp;
---error ER_MIX_HANDLER_ERROR
-ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
-SHOW CREATE TABLE t;
-SHOW CREATE TABLE tp;
+
 --echo # Test different charsets
-ALTER TABLE t ENGINE = MyISAM;
 CREATE TABLE tmp LIKE t;
 INSERT INTO tmp SELECT * FROM t;
 RENAME TABLE t TO tmp2, tmp TO t;
-ALTER TABLE tp ENGINE = MyISAM;
 ALTER TABLE t CHARACTER SET = koi8r COLLATE koi8r_general_ci;
 --error ER_PARTITION_EXCHANGE_DIFFERENT_OPTION
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
@@ -363,7 +387,7 @@ DROP TABLE t;
 CREATE TABLE t (a INT,
   b VARCHAR(55),
   PRIMARY KEY (a))
-ENGINE = MyISAM MAX_ROWS = 100000 MIN_ROWS = 1000;
+MAX_ROWS = 100000 MIN_ROWS = 1000;
 INSERT INTO t SELECT * FROM tmp2;
 SHOW CREATE TABLE t;
 SHOW CREATE TABLE tp;
@@ -403,8 +427,6 @@ ALTER TABLE t CHANGE c a INT;
 #                         pack_keys, delay_key_write, checksum etc.
 # test foreign keys
 --echo # test temporary table
-ALTER TABLE t ENGINE = MyISAM;
-ALTER TABLE tp ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp LIKE t;
 INSERT INTO tmp SELECT * FROM t;
 ALTER TABLE t RENAME TO tmp2;
@@ -433,23 +455,6 @@ ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 # Add test for privileges
 # check if correct error whithout partitioning support
 DROP TABLE t, tp, tsp;
-
-
---echo # Test with general_log
-use mysql;
-SET @old_general_log_state = @@global.general_log;
-SET GLOBAL general_log = 0;
-ALTER TABLE general_log ENGINE = MyISAM;
-CREATE TABLE t LIKE general_log;
-ALTER TABLE t PARTITION BY RANGE (thread_id)
-(PARTITION p0 VALUES LESS THAN (123456789),
- PARTITION pMAX VALUES LESS THAN MAXVALUE);
---error ER_WRONG_USAGE
-ALTER TABLE t EXCHANGE PARTITION p0 WITH TABLE general_log;
-ALTER TABLE general_log ENGINE = CSV;
-SET @@global.general_log = @old_general_log_state;
-DROP TABLE t;
-use test;
 
 --echo # Test with LOCK TABLE
 # Test with only one table locked at a time, both table locked + read, write
@@ -915,11 +920,58 @@ DROP table t1,t2;
 --rmdir $mysql_tmp_dir/sp0_dir
 --rmdir $mysql_tmp_dir/sp3_dir
 
+
+--echo check table_id after exchange partition
+CREATE TABLE t1 (a INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, b VARCHAR(64)) ENGINE = INNODB ;
+
+CREATE TABLE t2 (a INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, b VARCHAR(64)) ENGINE = INNODB PARTITION BY LIST (a) (PARTITION p1 VALUES IN (1,3,5,7,9) ,PARTITION p2 VALUES IN (0,2,4,6,8) );
+
+### table_id swaps with test/t1
+let $table_id_before_exchange = `SELECT table_id FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE '%test%t1%'`;
+
+ALTER TABLE t2 EXCHANGE PARTITION p1 WITH TABLE t1;
+
+let  $table_id_after_exchange = `SELECT DISTINCT TABLE_ID FROM INFORMATION_SCHEMA.INNODB_COLUMNS WHERE TABLE_ID IN (SELECT TABLE_ID FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE '%test%t2%')`;
+
+--let $assert_cond = $table_id_before_exchange = $table_id_after_exchange
+--let $assert_text = Table id of t2 exchanged with t1
+--source include/assert.inc
+
+-- echo add column after exchange partition
+ALTER TABLE t2 ADD COLUMN j INT,ALGORITHM=INSTANT;
+ALTER TABLE t2 ADD COLUMN k INT,ALGORITHM=COPY;
+
+ DROP TABLE t1,t2;
+
+ --echo exchange second partition
+CREATE TABLE t1 (a INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, b VARCHAR(64)) ENGINE = INNODB ;
+
+CREATE TABLE t2 (a INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, b VARCHAR(64)) ENGINE = INNODB PARTITION BY LIST (a) (PARTITION p1 VALUES IN (1,3,5,7,9) ,PARTITION p2 VALUES IN (0,2,4,6,8) );
+
+
+### table id remains same when changing other than first partition
+let $table_id_before_exchange = `SELECT TABLE_ID FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE '%test%t2%p1' OR NAME LIKE '%test%t2%p1'`;
+
+ALTER TABLE t2 EXCHANGE PARTITION p2 WITH TABLE t1;
+
+let  $table_id_after_exchange = `SELECT DISTINCT TABLE_ID FROM INFORMATION_SCHEMA.INNODB_COLUMNS WHERE TABLE_ID IN (SELECT TABLE_ID FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE '%test%t2%')`;
+
+--let $assert_cond = $table_id_before_exchange = $table_id_after_exchange
+--let $assert_text = Table id of t2  is same after exchange it's 2nd partition with table t1
+--source include/assert.inc
+
+-- echo add column after exchange partition
+ALTER TABLE t2 ADD COLUMN j INT,ALGORITHM=INSTANT;
+ALTER TABLE t2 ADD COLUMN k INT,ALGORITHM=COPY;
+
+DROP TABLE t1,t2;
+
 --echo #
 --echo Bug#28687608 exchange partition with different row_format
 --echo #
 
 SET @orig_default_row_format = @@global.innodb_default_row_format;
+
 SET GLOBAL innodb_default_row_format=COMPACT;
 CREATE TABLE t1 (
   col1 INT UNSIGNED,
@@ -942,7 +994,7 @@ ALTER TABLE t1 ADD PARTITION (PARTITION p2 VALUES LESS THAN ('2000-01-01'));
 INSERT INTO t1 VALUES ('3','1999-10-13 05:28:46'), ('4', '1996-09-26 20:00:00');
 
 --replace_result #p# #P# #sp# #SP#
-SELECT NAME,ROW_FORMAT  FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+SELECT NAME,ROW_FORMAT  FROM INFORMATION_SCHEMA.INNODB_TABLES
 WHERE NAME LIKE '%t1%' ORDER BY TABLE_ID;
 
 CREATE TABLE t2 LIKE t1;
@@ -979,7 +1031,7 @@ INSERT INTO t1(b,a) VALUES('first',40),('second',91),('third',140),
 ('forth',191);
 
 --replace_result #p# #P# #sp# #SP#
-SELECT NAME,ROW_FORMAT  FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+SELECT NAME,ROW_FORMAT  FROM INFORMATION_SCHEMA.INNODB_TABLES
 WHERE NAME LIKE '%t1%' ORDER BY TABLE_ID;
 
 CREATE TABLE t2 like t1;

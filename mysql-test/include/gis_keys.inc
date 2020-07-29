@@ -1,4 +1,3 @@
---source include/have_geometry.inc
 
 #
 # Spatial objects with keys
@@ -9,7 +8,7 @@
 #
 
 CREATE TABLE t1 (p POINT);
-CREATE TABLE t2 (p POINT, INDEX(p));
+CREATE TABLE t2 (p POINT);
 INSERT INTO t1 VALUES (ST_POINTFROMTEXT('POINT(1 2)'));
 INSERT INTO t2 VALUES (ST_POINTFROMTEXT('POINT(1 2)'));
 
@@ -38,8 +37,8 @@ SELECT COUNT(*) FROM t2 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 SELECT COUNT(*) FROM t2 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 
 EXPLAIN 
-SELECT COUNT(*) FROM t2 IGNORE INDEX(p) WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
-SELECT COUNT(*) FROM t2 IGNORE INDEX(p) WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
+SELECT COUNT(*) FROM t2 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
+SELECT COUNT(*) FROM t2 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 
 DROP TABLE t1, t2;
 
@@ -54,9 +53,9 @@ DROP TABLE t1, t2;
 drop table if exists t1;
 --enable_warnings
 --echo # The minimal test case.
-create table t1 (a int not null, b linestring not null, unique key b (b(12)), unique key a (a));
+create table t1 (a int not null, b linestring not null, unique key a (a));
 drop table t1;
 --echo # The original test case.
-create table t1 (a int not null, b linestring not null, unique key b (b(12)));
+create table t1 (a int not null, b linestring not null);
 create unique index a on t1(a);
 drop table t1;

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,30 +25,29 @@
 #ifndef MYSQL_OBJECT_READER_OPTIONS_INCLUDED
 #define MYSQL_OBJECT_READER_OPTIONS_INCLUDED
 
-#include "base/abstract_options_provider.h"
-#include "mysql_chain_element_options.h"
+#include "client/base/abstract_options_provider.h"
+#include "client/dump/mysql_chain_element_options.h"
+#include "my_inttypes.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 #define MAX_EXTENDED_INSERT 0x100000
 
 class Mysql_object_reader_options
-  : public Mysql::Tools::Base::Options::Abstract_options_provider
-{
-public:
+    : public Mysql::Tools::Base::Options::Abstract_options_provider {
+ public:
   Mysql_object_reader_options(
-    const Mysql_chain_element_options* mysql_chain_element_options);
+      const Mysql_chain_element_options *mysql_chain_element_options);
 
   void create_options();
 
   uint64 m_row_group_size;
-  const Mysql_chain_element_options* m_mysql_chain_element_options;
+  const Mysql_chain_element_options *m_mysql_chain_element_options;
 };
-
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

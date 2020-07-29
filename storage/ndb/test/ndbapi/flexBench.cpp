@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,6 @@ Arguments:
 #include <ndb_global.h>
 #include "NdbApi.hpp"
 
-#include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
 #include <NdbTick.h>
@@ -76,7 +75,7 @@ Arguments:
 #define MAXLONGKEYTOTALSIZE 1023 // words = 4092 bytes
 
 extern "C" { static void* flexBenchThread(void*); }
-static int readArguments(int argc, const char** argv);
+static int readArguments(int argc, char** argv);
 static int createTables(Ndb*);
 static int dropTables(Ndb*);
 static void sleepBeforeStartingTest(int seconds);
@@ -292,7 +291,7 @@ tellThreads(ThreadData* pt, StartType what)
 
 static Ndb_cluster_connection *g_cluster_connection= 0;
 
-NDB_COMMAND(flexBench, "flexBench", "flexBench", "flexbench", 65535)
+int main(int argc, char** argv)
 {
   ndb_init();
   ThreadData*           pThreadsData;
@@ -620,7 +619,7 @@ static void* flexBenchThread(void* pArg)
     tNoOfTables * tNoOfAttributes * sizeof(int) * tAttributeSize ;
   int               nRefBuffSize = 
     tNoOfOperations * tNoOfAttributes * sizeof(int) * tAttributeSize ;
-  unsigned**        longKeyAttrValue;
+  unsigned**        longKeyAttrValue = nullptr;
   NdbRecord**       pRec= NULL;
   unsigned char**   pAttrSet= NULL;
   int               nRefOpOffset= 0;
@@ -1094,7 +1093,7 @@ static void* flexBenchThread(void* pArg)
 }
 
 
-static int readArguments(int argc, const char** argv)
+static int readArguments(int argc, char** argv)
 {
 
   int i = 1;

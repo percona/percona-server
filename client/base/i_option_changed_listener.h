@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,38 +25,40 @@
 #ifndef I_OPTION_CHANGED_LISTENER_INCLUDED
 #define I_OPTION_CHANGED_LISTENER_INCLUDED
 
-#include "i_option.h"
 #include <string>
 
-namespace Mysql{
-namespace Tools{
-namespace Base{
-namespace Options{
+#include "client/base/i_option.h"
+
+namespace Mysql {
+namespace Tools {
+namespace Base {
+namespace Options {
 
 /**
   Interface for listeners on some of option changes.
  */
-class I_option_changed_listener
-{
-public:
+class I_option_changed_listener {
+ public:
+  virtual ~I_option_changed_listener() {}
+
   /**
     Called after specified option has name changed.
     It is also called when new option is added, old_name is empty string in
     that case.
    */
-  virtual void notify_option_name_changed(
-    I_option* source, std::string old_name)= 0;
+  virtual void notify_option_name_changed(I_option *source,
+                                          std::string old_name) = 0;
   /**
     Called after specified option has option ID changed.
     It is also called when new option is added, old_optid is 0 in that case.
    */
-  virtual void notify_option_optid_changed(
-    I_option* source, uint32 old_optid)= 0;
+  virtual void notify_option_optid_changed(I_option *source,
+                                           uint32 old_optid) = 0;
 };
 
-}
-}
-}
-}
+}  // namespace Options
+}  // namespace Base
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

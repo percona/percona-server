@@ -1,6 +1,4 @@
---source include/have_innodb.inc
-# embedded does not support restart
--- source include/not_embedded.inc
+--skip #has import
 -- source include/not_valgrind.inc
 
 call mtr.add_suppression("cannot be decrypted. Are you using correct keyring that contain the");
@@ -39,7 +37,7 @@ EOF
 --let MYSQLD_DATADIR =`SELECT @@datadir`
 --let t1_IBD = $MYSQLD_DATADIR/test/t1.ibd
 
---error ER_TABLE_SCHEMA_MISMATCH
+--error ER_GET_ERRMSG
 ALTER TABLE t1 IMPORT TABLESPACE;
 SHOW CREATE TABLE t1;
 --error ER_TABLESPACE_DISCARDED

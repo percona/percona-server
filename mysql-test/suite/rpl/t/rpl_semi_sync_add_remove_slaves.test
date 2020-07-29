@@ -20,7 +20,7 @@
 #
 #========
 #
-# 9 servers + 5000 inserts involved in test. Hence marking it as big-test.
+# 9 servers + 1000 inserts involved in test. Hence marking it as big-test.
 #
 --source include/big_test.inc
 --source include/not_group_replication_plugin.inc
@@ -71,9 +71,9 @@ while ($i < 10)
 --eval SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = $slaves
 
 --echo #
---echo # 4. Insert 5000 tuples in background using 10 parallel connections.
+--echo # 4. Insert 1000 tuples in background using 10 parallel connections.
 --echo #
---exec_in_background $MYSQL_SLAP --create-schema=test --delimiter=";" --iterations=500 --query="INSERT INTO t1 values (1)" --concurrency=10 --silent 2>&1
+--exec_in_background $MYSQL_SLAP --create-schema=test --delimiter=";" --iterations=100 --query="INSERT INTO t1 values (1)" --concurrency=10 --silent 2>&1
 
 --echo #
 --echo # 5. While the insert operations are going in the background, keep
@@ -150,7 +150,7 @@ while ($iter <= 9)
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 --let $wait_timeout= 60
---let $wait_condition= SELECT count(*) = 5000 FROM t1
+--let $wait_condition= SELECT count(*) = 1000 FROM t1
 --source include/wait_condition.inc
 --let $slave_timeout=600
 --source include/rpl_sync.inc

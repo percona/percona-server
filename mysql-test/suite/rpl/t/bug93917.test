@@ -3,7 +3,6 @@
 --echo # (https://bugs.mysql.com/bug.php?id=93917)
 --echo #
 
---source include/have_innodb.inc
 --source include/have_blackhole.inc
 --source include/have_binlog_format_row.inc
 

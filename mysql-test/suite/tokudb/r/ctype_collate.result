@@ -1,6 +1,4 @@
 SET DEFAULT_STORAGE_ENGINE='tokudb';
-DROP TABLE IF EXISTS t1;
-DROP TABLE IF EXISTS t2;
 CREATE TABLE t1 (
 latin1_f CHAR(32) CHARACTER SET latin1 NOT NULL
 );
@@ -30,8 +28,6 @@ INSERT INTO t1 (latin1_f) VALUES (_latin1'U');
 INSERT INTO t1 (latin1_f) VALUES (_latin1'u');
 INSERT INTO t1 (latin1_f) VALUES (_latin1'UE');
 INSERT INTO t1 (latin1_f) VALUES (_latin1'ue');
-INSERT INTO t1 (latin1_f) VALUES (_latin1'Ü');
-INSERT INTO t1 (latin1_f) VALUES (_latin1'ü');
 INSERT INTO t1 (latin1_f) VALUES (_latin1'SS');
 INSERT INTO t1 (latin1_f) VALUES (_latin1'ss');
 INSERT INTO t1 (latin1_f) VALUES (_latin1'ß');
@@ -49,25 +45,23 @@ AE
 ae
 AF
 af
-b
 B
+b
 SS
 ss
 U
 u
 UE
 ue
-y
 Y
-Ü
-ü
-z
+y
 Z
-å
-Å
-Ä
-ä
-ß
+z
+Ã…
+Ã¥
+Ã¤
+Ã„
+ÃŸ
 SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_swedish_ci;
 latin1_f
 a
@@ -78,50 +72,46 @@ AE
 ae
 AF
 af
-b
 B
+b
 SS
 ss
 U
 u
 UE
 ue
-y
 Y
-Ü
-ü
-z
+y
 Z
-å
-Å
-Ä
-ä
-ß
+z
+Ã…
+Ã¥
+Ã¤
+Ã„
+ÃŸ
 SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_german2_ci;
 latin1_f
 a
-Å
-å
+Ã…
+Ã¥
 A
 AD
 ad
 AE
 ae
-Ä
-ä
+Ã„
+Ã¤
 AF
 af
-b
 B
+b
 SS
 ss
-ß
+ÃŸ
 U
 u
 UE
 ue
-Ü
-ü
 Y
 y
 Z
@@ -136,21 +126,19 @@ AE
 ae
 AF
 af
-Ä
-ä
-Å
-å
-b
+Ã„
+Ã¤
+Ã…
+Ã¥
 B
+b
 SS
 ss
-ß
+ÃŸ
 U
 u
 UE
 ue
-Ü
-ü
 Y
 y
 Z
@@ -177,13 +165,11 @@ u
 ue
 y
 z
-Ä
-Å
-Ü
-ß
-ä
-å
-ü
+Ã„
+Ã…
+ÃŸ
+Ã¤
+Ã¥
 SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE koi8r_general_ci;
 ERROR 42000: COLLATION 'koi8r_general_ci' is not valid for CHARACTER SET 'latin1'
 SELECT latin1_f COLLATE latin1_swedish_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
@@ -196,50 +182,46 @@ AE
 ae
 AF
 af
-b
 B
+b
 SS
 ss
 U
 u
 UE
 ue
-y
 Y
-Ü
-ü
-z
+y
 Z
-å
-Å
-Ä
-ä
-ß
+z
+Ã…
+Ã¥
+Ã¤
+Ã„
+ÃŸ
 SELECT latin1_f COLLATE latin1_german2_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
 latin1_f_as
 a
-Å
-å
+Ã…
+Ã¥
 A
 AD
 ad
 AE
 ae
-Ä
-ä
+Ã„
+Ã¤
 AF
 af
-b
 B
+b
 SS
 ss
-ß
+ÃŸ
 U
 u
 UE
 ue
-Ü
-ü
 Y
 y
 Z
@@ -254,21 +236,19 @@ AE
 ae
 AF
 af
-Ä
-ä
-Å
-å
-b
+Ã„
+Ã¤
+Ã…
+Ã¥
 B
+b
 SS
 ss
-ß
+ÃŸ
 U
 u
 UE
 ue
-Ü
-ü
 Y
 y
 Z
@@ -295,13 +275,11 @@ u
 ue
 y
 z
-Ä
-Å
-Ü
-ß
-ä
-å
-ü
+Ã„
+Ã…
+ÃŸ
+Ã¤
+Ã¥
 SELECT latin1_f COLLATE koi8r_general_ci  AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
 ERROR 42000: COLLATION 'koi8r_general_ci' is not valid for CHARACTER SET 'latin1'
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f;
@@ -310,30 +288,30 @@ A	2
 AD	2
 AE	2
 AF	2
+Ã„	2
+Ã…	2
 B	2
-SS	2
 U	2
 UE	2
-Ü	4
+SS	2
+ÃŸ	1
+Y	2
 Z	2
-Å	2
-Ä	2
-ß	1
 SELECT ANY_VALUE(latin1_f),count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_swedish_ci;
 ANY_VALUE(latin1_f)	count(*)
 A	2
 AD	2
 AE	2
 AF	2
+Ã„	2
+Ã…	2
 B	2
-SS	2
 U	2
 UE	2
-Ü	4
+SS	2
+ÃŸ	1
+Y	2
 Z	2
-Å	2
-Ä	2
-ß	1
 SELECT ANY_VALUE(latin1_f),count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_german2_ci;
 ANY_VALUE(latin1_f)	count(*)
 A	4
@@ -341,9 +319,9 @@ AD	2
 AE	4
 AF	2
 B	2
-SS	3
 U	2
-UE	4
+UE	2
+SS	3
 Y	2
 Z	2
 SELECT ANY_VALUE(latin1_f),count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_general_ci;
@@ -352,45 +330,42 @@ A	2
 AD	2
 AE	2
 AF	2
-Ä	2
-Å	2
+Ã„	2
+Ã…	2
 B	2
-SS	2
-ß	1
 U	2
 UE	2
-Ü	2
+SS	2
+ÃŸ	1
 Y	2
 Z	2
 SELECT ANY_VALUE(latin1_f),count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_bin;
 ANY_VALUE(latin1_f)	count(*)
 A	1
-AD	1
-AE	1
-AF	1
-B	1
-SS	1
-U	1
-UE	1
-Y	1
-Z	1
 a	1
+AD	1
 ad	1
+AE	1
 ae	1
+AF	1
 af	1
+Ã„	1
+Ã¤	1
+Ã…	1
+Ã¥	1
+B	1
 b	1
-ss	1
+U	1
 u	1
+UE	1
 ue	1
+SS	1
+ss	1
+ÃŸ	1
+Y	1
 y	1
+Z	1
 z	1
-Ä	1
-Å	1
-Ü	1
-ß	1
-ä	1
-å	1
-ü	1
 SELECT ANY_VALUE(latin1_f),count(*) FROM t1 GROUP BY latin1_f COLLATE koi8r_general_ci;
 ERROR 42000: COLLATION 'koi8r_general_ci' is not valid for CHARACTER SET 'latin1'
 SELECT DISTINCT latin1_f                           FROM t1;
@@ -399,14 +374,14 @@ A
 AD
 AE
 AF
-Ä
-Å
+Ã„
+Ã…
 B
 U
 UE
-Ü
 SS
-ß
+ÃŸ
+Y
 Z
 SELECT DISTINCT latin1_f COLLATE latin1_swedish_ci FROM t1;
 latin1_f COLLATE latin1_swedish_ci
@@ -414,14 +389,14 @@ A
 AD
 AE
 AF
-Ä
-Å
+Ã„
+Ã…
 B
 U
 UE
-Ü
 SS
-ß
+ÃŸ
+Y
 Z
 SELECT DISTINCT latin1_f COLLATE latin1_german2_ci FROM t1;
 latin1_f COLLATE latin1_german2_ci
@@ -441,14 +416,13 @@ A
 AD
 AE
 AF
-Ä
-Å
+Ã„
+Ã…
 B
 U
 UE
-Ü
 SS
-ß
+ÃŸ
 Y
 Z
 SELECT DISTINCT latin1_f COLLATE latin1_bin        FROM t1;
@@ -461,21 +435,19 @@ AE
 ae
 AF
 af
-Ä
-ä
-Å
-å
+Ã„
+Ã¤
+Ã…
+Ã¥
 B
 b
 U
 u
 UE
 ue
-Ü
-ü
 SS
 ss
-ß
+ÃŸ
 Y
 y
 Z
@@ -485,8 +457,8 @@ ERROR HY000: Unknown collation: 'koi8r'
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `latin1_f` char(32) NOT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+  `latin1_f` char(32) CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW FIELDS FROM  t1;
 Field	Type	Null	Key	Default	Extra
 latin1_f	char(32)	NO		NULL	
@@ -496,7 +468,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `latin1_f` char(32) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW FIELDS FROM  t1;
 Field	Type	Null	Key	Default	Extra
 latin1_f	char(32)	YES		NULL	
@@ -504,7 +476,7 @@ ALTER TABLE t1 CHARACTER SET latin1 COLLATE latin1_bin;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `latin1_f` char(32) COLLATE latin1_bin DEFAULT NULL
+  `latin1_f` char(32) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
 ) ENGINE=TokuDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin
 SHOW FIELDS FROM  t1;
 Field	Type	Null	Key	Default	Extra
@@ -515,19 +487,18 @@ Variable_name	Value
 character_set_client	latin1
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 charset('a')	collation('a')	coercibility('a')	'a'='A'
-latin1	latin1_swedish_ci	4	1
-explain extended SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
+utf8mb4	utf8mb4_0900_ai_ci	4	1
+explain SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select charset('a') AS `charset('a')`,collation('a') AS `collation('a')`,coercibility('a') AS `coercibility('a')`,('a' = 'A') AS `'a'='A'`
 SET CHARACTER SET koi8r;
 SHOW VARIABLES LIKE 'collation_client';
 Variable_name	Value
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 charset('a')	collation('a')	coercibility('a')	'a'='A'
-latin1	latin1_swedish_ci	4	1
+utf8mb4	utf8mb4_0900_ai_ci	4	1
 SET CHARACTER SET 'DEFAULT';
 ERROR 42000: Unknown character set: 'DEFAULT'
 DROP TABLE t1;

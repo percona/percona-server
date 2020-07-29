@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,9 +23,8 @@
 */
 
 #include "ndbd_malloc.hpp"
-#include <my_sys.h>
+#include "my_sys.h"
 #include <ndb_global.h>
-#include <NdbMem.h>
 #include <NdbThread.h>
 #include <NdbOut.hpp>
 
@@ -33,6 +32,8 @@
 #ifdef TRACE_MALLOC
 #include <stdio.h>
 #endif
+
+#include "memory_debugging.h"
 
 #define JAM_FILE_ID 287
 
@@ -181,7 +182,7 @@ static void xxx(size_t size, size_t *s_m, size_t *s_k, size_t *s_b)
 static Uint64 g_allocated_memory;
 void *ndbd_malloc(size_t size)
 {
-  void *p = NdbMem_Allocate(size);
+  void *p = malloc(size);
   if (p)
   {
     g_allocated_memory += size;
@@ -203,7 +204,7 @@ void *ndbd_malloc(size_t size)
 
 void ndbd_free(void *p, size_t size)
 {
-  NdbMem_Free(p);
+  free(p);
   if (p)
   {
     g_allocated_memory -= size;

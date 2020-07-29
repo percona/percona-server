@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-
+import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 
 import java.util.ArrayList;
@@ -41,6 +41,9 @@ import java.util.Map;
  * the implementation.
  */
 public class ClusterJHelper {
+
+    /** My class loader */
+    static ClassLoader CLUSTERJ_HELPER_CLASS_LOADER = ClusterJHelper.class.getClassLoader();
 
     /** Return a new Dbug instance.
      * 
@@ -58,7 +61,7 @@ public class ClusterJHelper {
      * @throws ClusterFatalUserException if the connection to the cluster cannot be made
      */
     public static SessionFactory getSessionFactory(Map props) {
-        return getSessionFactory(props, Thread.currentThread().getContextClassLoader());
+        return getSessionFactory(props, CLUSTERJ_HELPER_CLASS_LOADER);
     }
 
     /** Locate a SessionFactory implementation by services lookup of
@@ -84,7 +87,7 @@ public class ClusterJHelper {
      * @return the service instance
      */
     public static <T> T getServiceInstance(Class<T> cls) {
-        return getServiceInstance(cls, Thread.currentThread().getContextClassLoader());
+        return getServiceInstance(cls, CLUSTERJ_HELPER_CLASS_LOADER);
     }
 
     /** Locate all service implementations by services lookup of
@@ -121,7 +124,7 @@ public class ClusterJHelper {
                 bufferedReader = new BufferedReader(inputStreamReader);
                 factoryName = bufferedReader.readLine();
                 Class<T> serviceClass = (Class<T>)Class.forName(factoryName, true, loader);
-                T service = serviceClass.newInstance();
+                T service = serviceClass.getConstructor().newInstance();
                 if (service != null) {
                     result.add(service);
                 }
@@ -133,6 +136,10 @@ public class ClusterJHelper {
                 errorMessages.append(ex.toString());
             } catch (IllegalAccessException ex) {
                 errorMessages.append(ex.toString());
+            } catch (InvocationTargetException e) {
+                errorMessages.append(e.toString());
+            } catch (NoSuchMethodException e) {
+                errorMessages.append(e.toString());
             } finally {
                 try {
                     if (inputStream != null) {
@@ -175,23 +182,23 @@ public class ClusterJHelper {
      * looking up. If the implementation class is not loadable or does not
      * implement the interface, throw an exception.
      * @param cls
-     * @param implementationClassName
+     * @param implementationClassName name of implementation class to load
+     * @param loader the ClassLoader to use to find the service
      * @return the implementation instance for a service
      */
     @SuppressWarnings("unchecked") // (Class<T>)clazz
-    public static <T> T getServiceInstance(Class<T> cls, String implementationClassName) {
+    public static <T> T getServiceInstance(Class<T> cls, String implementationClassName, ClassLoader loader) {
         if (implementationClassName == null) {
-            return getServiceInstance(cls);
+            return getServiceInstance(cls, loader);
         } else {
             try {
-                ClassLoader loader = Thread.currentThread().getContextClassLoader();
                 Class<?> clazz = Class.forName(implementationClassName, true, loader);
                 Class<T> serviceClass = null;
                 if (!(cls.isAssignableFrom(clazz))) {
                    throw new ClassCastException(cls.getName() + " " + implementationClassName);
                 }
                 serviceClass = (Class<T>)clazz;
-                T service = serviceClass.newInstance();
+                T service = serviceClass.getConstructor().newInstance();
                 return service;
             } catch (ClassNotFoundException e) {
                 throw new ClusterJFatalUserException(implementationClassName, e);
@@ -201,8 +208,25 @@ public class ClusterJHelper {
                 throw new ClusterJFatalUserException(implementationClassName, e);
             } catch (IllegalAccessException e) {
                 throw new ClusterJFatalUserException(implementationClassName, e);
+            } catch (InvocationTargetException e) {
+                throw new ClusterJFatalUserException(implementationClassName, e);
+            } catch (NoSuchMethodException e) {
+                throw new ClusterJFatalUserException(implementationClassName, e);
             }
         }
+    }
+
+    /** Locate a service implementation for a service.
+     * If the implementation name is not null, use it instead of
+     * looking up. If the implementation class is not loadable or does not
+     * implement the interface, throw an exception.
+     * Use the ClusterJHelper class loader to find the service.
+     * @param cls
+     * @param implementationClassName
+     * @return the implementation instance for a service
+     */
+    public static <T> T getServiceInstance(Class<T> cls, String implementationClassName) {
+        return getServiceInstance(cls, implementationClassName, CLUSTERJ_HELPER_CLASS_LOADER);
     }
 
     /** Get the named boolean property from either the environment or system properties.

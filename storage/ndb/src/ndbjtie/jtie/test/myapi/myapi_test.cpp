@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -226,9 +226,6 @@ test6()
     printf("\nA::take_ref(A::deliver_ref())...\n");
     A::take_ref(A::deliver_ref());
 
-    printf("\nA::take_null_ref(A::deliver_null_ref())...\n");
-    A::take_null_ref(A::deliver_null_ref());
-
     printf("\nA::print(A *)...\n");
     A::print(a);
 
@@ -340,7 +337,7 @@ test6()
 
     printf("\ndelete A...\n");
     delete a;
-};
+}
 
 void
 test7()

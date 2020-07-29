@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -18,81 +18,71 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # Common defines and includes
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
-		    ${CMAKE_SOURCE_DIR}/sql
-		    ${CMAKE_SOURCE_DIR}/bld/include
-		    ${CMAKE_SOURCE_DIR}/regex
-		    ${CMAKE_SOURCE_DIR}/libevent
-		    ${CMAKE_SOURCE_DIR}/include/mysql
-		    ${CMAKE_C_IMPLICIT_LINK_DIRECTORIES}
-		    ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/include
-		    ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/include/memcached
-		    ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached
-
-		)
+INCLUDE_DIRECTORIES(
+  ${CMAKE_SOURCE_DIR}/include/mysql
+  ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/include
+  ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/include/memcached
+  ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached
+  ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/utilities
+  )
 INCLUDE_DIRECTORIES(SYSTEM ${LIBEVENT_INCLUDE_DIRS})
 
-SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/utilities")
-
-# Remove "-Wdeclaration-after-statement" and "-Wvla" flags if exist to reduce the number of warnings
-STRING(REGEX REPLACE "-Wdeclaration-after-statement" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-STRING(REGEX REPLACE "-Wvla" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+# If current CMAKE_C_FLAGS is with Werror, turn it off to compile successfully
+IF(CMAKE_C_FLAGS MATCHES "-Werror")
+  STRING(REGEX REPLACE "-Werror( |$)" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+ENDIF(CMAKE_C_FLAGS MATCHES "-Werror")
 
 # Set extra flags for the C compiler
-IF(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
-  # Disable "-Wunused-parameter -Wsign-compare -Wmissing-field-initializers -Wunused-but-set-variable" flags
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -Wno-unused-parameter -Wno-sign-compare -Wno-missing-field-initializers -std=gnu99")
-  MY_CHECK_C_COMPILER_FLAG("-Wunused-but-set-variable" HAVE_UNUSET_BUT_SET_VARIABLE) # Requires GCC 4.5+
-  IF(HAVE_UNUSET_BUT_SET_VARIABLE)
-    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-but-set-variable")
-  ENDIF()
+IF(MY_COMPILER_IS_GNU_OR_CLANG)
+  STRING_APPEND(CMAKE_C_FLAGS " -std=gnu99")
 ENDIF()
 
+
 SET(LIBMEMCACHED_UTILITIES_SOURCES
-		include/memcached/config_parser.h
-		include/memcached/genhash.h
-		include/memcached/util.h
-		utilities/config_parser.c
-		utilities/engine_loader.c
-		utilities/engine_loader.h
-		utilities/extension_loggers.c
-		utilities/genhash.c
-		utilities/genhash_int.h
-		utilities/util.c)
+  include/memcached/config_parser.h
+  include/memcached/genhash.h
+  include/memcached/util.h
+  utilities/config_parser.c
+  utilities/engine_loader.c
+  utilities/engine_loader.h
+  utilities/extension_loggers.c
+  utilities/genhash.c
+  utilities/genhash_int.h
+  utilities/util.c)
 
-ADD_CONVENIENCE_LIBRARY(memcached_utilities ${LIBMEMCACHED_UTILITIES_SOURCES})
-
-SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/daemon")
+ADD_LIBRARY(memcached_utilities STATIC ${LIBMEMCACHED_UTILITIES_SOURCES})
 
 SET(MEMCACHED_SOURCES
-		daemon/memcached_mysql.h
-		daemon/memcached_mysql.cc
-		daemon/cache.h
-		daemon/cache.c
-		config_static.h
-		daemon/daemon.c
-		daemon/hash.c
-		daemon/hash.h
-		daemon/memcached.c
-		daemon/memcached.h
-		daemon/sasl_defs.c
-		daemon/sasl_defs.h
-		daemon/stats.c
-		daemon/stats.h
-		daemon/thread.c
-		daemon/topkeys.c
-		daemon/topkeys.h
-		trace.h)
+  daemon/memcached_mysql.h
+  daemon/memcached_mysql.cc
+  daemon/cache.h
+  daemon/cache.c
+  config_static.h
+  daemon/daemon.c
+  daemon/hash.c
+  daemon/hash.h
+  daemon/memcached.c
+  daemon/memcached.h
+  daemon/sasl_defs.c
+  daemon/sasl_defs.h
+  daemon/stats.c
+  daemon/stats.h
+  daemon/thread.c
+  daemon/topkeys.c
+  daemon/topkeys.h
+  trace.h)
 
-SET(SASL_LIBRARY)
+SET(MEMCACHED_SASL_LIBRARY)
 IF(ENABLE_MEMCACHED_SASL)
-  SET(SASL_LIBRARY "sasl2")
+  SET(MEMCACHED_SASL_LIBRARY "sasl2")
 ENDIF()
 
 MYSQL_ADD_PLUGIN(libmemcached ${MEMCACHED_SOURCES}
-                 LINK_LIBRARIES ${LIBEVENT_LIBRARIES}
-                 memcached_utilities ${SASL_LIBRARY}
-		 MODULE_ONLY MODULE_OUTPUT_NAME "libmemcached")
+  LINK_LIBRARIES
+  ${LIBEVENT_LIBRARIES}
+  memcached_utilities
+  ${MEMCACHED_SASL_LIBRARY}
+  MODULE_ONLY MODULE_OUTPUT_NAME "libmemcached")

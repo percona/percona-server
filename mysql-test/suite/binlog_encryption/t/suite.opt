@@ -1,1 +1,0 @@
---encrypt-binlog=1 --master-verify-checksum=1 $KEYRING_PLUGIN_OPT --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=../../tmp/keyring1

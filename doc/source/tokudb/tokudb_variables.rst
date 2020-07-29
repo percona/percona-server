@@ -175,7 +175,7 @@ TokuDB Server Variables
      - Yes
      - Session, Global
      - Yes
-   * - :variable:`tokudb_data_dir`
+   * - :variable:`tokudb_datair`
      - Yes
      - Yes
      - Global
@@ -541,7 +541,7 @@ For more information see :ref:`toku_backup`.
   :scope: Session, Global
   :dyn: Yes
   :vartype: Numeric
-  :default: 4194304
+  :default: 512 MB
   :range: 4096 - 4294967295
 
 This variable controls the maximum size of node in memory before messages
@@ -607,7 +607,7 @@ the pool size to be num_cpu_threads * 2.
   :scope: Global
   :dyn: No
   :vartype: Boolean
-  :default: ON
+  :default: OFF
 
 This variable enables/disables startup checking if jemalloc is linked and
 correct version and that transparent huge pages are disabled. Used for
@@ -823,7 +823,6 @@ value ``ULONG``::
 
 .. variable:: tokudb_dir_per_db
 
-  :version 5.7.15-9: Implemented
   :cli: Yes
   :conf: Yes
   :scope: Global
@@ -954,7 +953,7 @@ execution.
   :scope: Global
   :dyn: No
   :vartype: Boolean
-  :default: ON
+  :default: OFF
 
 This variable is used to control if partial eviction of nodes is enabled or
 disabled.
@@ -1232,7 +1231,6 @@ nodes per second are optimized. The default ``0`` imposes no limit.
 
 .. variable:: tokudb_pk_insert_mode
 
-  :version 5.7.12-5: Variable has been removed
   :cli: Yes
   :conf: Yes
   :scope: Session, Global
@@ -1243,10 +1241,10 @@ nodes per second are optimized. The default ``0`` imposes no limit.
 
 .. note::
 
-  The :variable:`tokudb_pk_insert_mode` session variable has been removed in
-  |Percona Server| :rn:`5.7.12-5` and the behavior is now that of the former
-  :variable:`tokudb_pk_insert_mode` set to ``1``. The optimization will be used
-  where safe and not used where not safe.
+  The :variable:`tokudb_pk_insert_mode` session variable was removed
+  and the behavior is now that of the former
+  :variable:`tokudb_pk_insert_mode` set to ``1``. The optimization
+  will be used where safe and not used where not safe.
 
 .. variable:: tokudb_prelock_empty
 
@@ -1278,13 +1276,13 @@ turning off preemptive pre-locking.
   :dyn: Yes
   :vartype: Numeric
   :range: 4096 - 4294967295
-  :default: 65536 (64KB)
+  :default: 16384 (16KB)
 
 Fractal tree leaves are subdivided into read blocks, in order to speed up point
 queries. This variable controls the target uncompressed size of the read
-blocks. The units are bytes and the default is 65,536 (64 KB). A smaller value
+blocks. The units are bytes and the default is 64 KB. A smaller value
 favors read performance for point and small range scans over large range scans
-and higher compression. The minimum value of this variable is 4096.
+and higher compression. The minimum value of this variable is 4096 (4KB).
 
 Changing the value of :variable:`tokudb_read_block_size` only affects
 subsequently created tables. The value of this variable cannot be changed for
@@ -1333,10 +1331,9 @@ PROCESSLIST`` several times to understand what progress is being made.
   :dyn: Yes
   :vartype: ENUM
   :range: ``TOKUDB_DEFAULT``, ``TOKUDB_FAST``, ``TOKUDB_SMALL``, ``TOKUDB_ZLIB``, ``TOKUDB_QUICKLZ``, ``TOKUDB_LZMA``, ``TOKUDB_SNAPPY``, ``TOKUDB_UNCOMPRESSED``
-  :default: ``TOKUDB_ZLIB``
+  :default: ``TOKUDB_QUICKLZ``
 
-This controls the default compression algorithm used to compress data when no
-row format is specified in the ``CREATE TABLE`` command. For more information
+This controls the default compression algorithm used to compress data. For more information
 on compression algorithms see :ref:`Compression Details <tokudb_compression>`.
 
 .. variable:: tokudb_rpl_check_readonly
@@ -1465,6 +1462,11 @@ This variable specifies the directory where the |TokuDB| bulk loader stores
 temporary files. The bulk loader can create large temporary files while it is
 loading a table, so putting these temporary files on a disk separate from the
 data directory can be useful.
+
+For example, it can make sense to use a high-performance disk for the
+data directory and a very inexpensive disk for the temporary
+directory. The default location for TokuDB's temporary files is the
+MySQL data directory.
 
 :variable:`tokudb_load_save_space` determines whether the data is compressed or
 not. The error message ``ERROR 1030 (HY000): Got error 1 from storage engine``

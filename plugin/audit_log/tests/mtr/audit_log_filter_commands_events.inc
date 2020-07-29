@@ -20,9 +20,6 @@ CALL p1();
 SET GLOBAL keycache1.key_buffer_size=128*1024;
 CACHE INDEX t1 IN keycache1;
 ALTER DATABASE db1 DEFAULT CHARACTER SET utf8;
---error 1049
-ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME;
-
 
 USE test;
 DROP TABLE db1.t1;

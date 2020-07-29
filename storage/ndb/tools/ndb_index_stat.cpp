@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,7 +18,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <ndb_global.h>
 #include <ndb_opts.h>
@@ -31,22 +31,22 @@
 
 // stats options
 static const char* _dbname = 0;
-static my_bool _delete = false;
-static my_bool _update = false;
-static my_bool _dump = false;
+static bool _delete = false;
+static bool _update = false;
+static bool _dump = false;
 static int _query = 0;
 static int _stats_any = 0;
 // sys options
-static my_bool _sys_drop = false;
-static my_bool _sys_create = false;
-static my_bool _sys_create_if_not_exist = false;
-static my_bool _sys_create_if_not_valid = false;
-static my_bool _sys_check = false;
-static my_bool _sys_skip_tables = false;
-static my_bool _sys_skip_events = false;
+static bool _sys_drop = false;
+static bool _sys_create = false;
+static bool _sys_create_if_not_exist = false;
+static bool _sys_create_if_not_valid = false;
+static bool _sys_check = false;
+static bool _sys_skip_tables = false;
+static bool _sys_skip_events = false;
 static int _sys_any = 0;
 // other
-static my_bool _verbose = false;
+static bool _verbose = false;
 static int _loops = 1;
 
 static Ndb_cluster_connection* g_ncc = 0;
@@ -94,7 +94,7 @@ doconnect()
   do
   {
     g_ncc = new Ndb_cluster_connection(opt_ndb_connectstring);
-    CHK2(g_ncc->connect(6, 5) == 0, getNdbError(g_ncc));
+    CHK2(g_ncc->connect(opt_connect_retries - 1, opt_connect_retry_delay) == 0, getNdbError(g_ncc));
     CHK2(g_ncc->wait_until_ready(30, 10) == 0, getNdbError(g_ncc));
 
     if (!_sys_any)
@@ -650,10 +650,9 @@ short_usage_sub(void)
 }
 
 static void
-usage()
+usage_extra()
 {
   printf("%s: ordered index stats tool and test\n", my_progname);
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
 static int
@@ -709,15 +708,15 @@ checkopts(int argc, char** argv)
 int
 main(int argc, char** argv)
 {
-  my_progname = "ndb_index_stat";
+  NDB_INIT(argv[0]);
   int ret;
-
-  ndb_init();
-  ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  ret = handle_options(&argc, &argv, my_long_options, ndb_std_get_one_option);
+  Ndb_opts opts(argc, argv, my_long_options);
+  opts.set_usage_funcs(short_usage_sub, usage_extra);
+  ret = opts.handle_options();
   if (ret != 0 || checkopts(argc, argv) != 0)
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
-
+  {
+    exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+  }
   setOutputLevel(_verbose ? 2 : 0);
 
   unsigned seed = (unsigned)time(0);
@@ -726,6 +725,8 @@ main(int argc, char** argv)
 
   ret = doall();
   if (ret == -1)
-    return NDBT_ProgramExit(NDBT_FAILED);
-  return NDBT_ProgramExit(NDBT_OK);
+  {
+    exit(NDBT_ProgramExit(NDBT_FAILED));
+  }
+  exit(NDBT_ProgramExit(NDBT_OK));
 }

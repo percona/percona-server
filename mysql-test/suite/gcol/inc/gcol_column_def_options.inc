@@ -18,6 +18,8 @@
 --echo # Section 1. Wrong column definition options
 --echo #            - DEFAULT <value>
 --echo #            - AUTO_INCREMENT
+--echo #            - SERIAL DEFAULT VALUE
+--echo #            - ON UPDATE NOW ...
 
 --echo # NOT NULL
 create table t1 (a int, b int generated always as (a+1) virtual not null);
@@ -55,19 +57,35 @@ alter table t1 add column (h int generated always as (a+1) virtual, i int as(5) 
 drop table t1;
 
 --echo # DEFAULT
---error 1064
+--error ER_WRONG_USAGE
 create table t1 (a int, b int generated always as (a+1) virtual default 0);
 create table t1 (a int);
---error 1064
+--error ER_WRONG_USAGE
 alter table t1 add column b int generated always as (a+1) virtual default 0;
 drop table t1;
 
 --echo # AUTO_INCREMENT
---error 1064
+--error ER_WRONG_USAGE
 create table t1 (a int, b int generated always as (a+1) virtual AUTO_INCREMENT);
 create table t1 (a int);
---error 1064
+--error ER_WRONG_USAGE
 alter table t1 add column b int generated always as (a+1) virtual AUTO_INCREMENT;
+drop table t1;
+
+--echo # SERIAL DEFAULT VALUE
+--error ER_WRONG_USAGE
+create table t1 (a int, b int generated always as (a+1) virtual SERIAL DEFAULT VALUE);
+create table t1 (a int);
+--error ER_WRONG_USAGE
+alter table t1 add column b int generated always as (a+1) virtual SERIAL DEFAULT VALUE;
+drop table t1;
+
+--echo # ON UPDATE
+--error ER_WRONG_USAGE
+create table t1 (a int, b int generated always as (a+1) virtual ON UPDATE NOW());
+create table t1 (a int);
+--error ER_WRONG_USAGE
+alter table t1 add column b int generated always as (a+1) virtual ON UPDATE NOW();
 drop table t1;
 
 --echo # [PRIMARY] KEY
@@ -99,11 +117,11 @@ alter table t1 add column b int generated always as (a+1) virtual key;
 alter table t1 add column b int generated always as (a+1) stored key;
 if ($support_virtual_index)
 {
---error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+--error ER_MULTIPLE_PRI_KEY
 alter table t1 add column c int generated always as (a+2) virtual primary key;
 }
 show create table t1;
---error 1068
+--error ER_MULTIPLE_PRI_KEY
 alter table t1 add column c int generated always as (a+2) stored primary key;
 drop table t1;
 
@@ -155,13 +173,13 @@ drop table t1;
 drop table t2;
 --echo FK options
 create table t1(a int,  b int as (a % 2), c int as (a) stored);
-create table t2 (a int);
+create table t2 (a int primary key);
 --error ER_KEY_COLUMN_DOES_NOT_EXITS
 alter table t1 add constraint foreign key fk(d) references t2(a);
 if ($support_virtual_index)
 {
---error ER_CANNOT_ADD_FOREIGN
-alter table t1 add constraint foreign key fk(b) references t2(a);
+--error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
+alter table t1 add constraint fk foreign key (b) references t2(a);
 }
 --error ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN
 alter table t1 add constraint foreign key fk(c) references t2(a) on delete set null;
@@ -240,7 +258,7 @@ CREATE TABLE t1(a bigint AS (a between 1 and 1));
 --echo #  IN FIND_FIELD_IN_TABLE
 --echo #
 CREATE TABLE t1(a int);
---error 1064
+--error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
 ALTER TABLE t1 ADD COLUMN z int GENERATED ALWAYS AS
 ( 1 NOT IN (SELECT 1 FROM t1 WHERE c0006) ) virtual;
 DROP TABLE t1;
@@ -327,28 +345,35 @@ DROP TABLE t1;
 --echo #  IN FIND_FIELD_IN_TABLE
 --echo # 
 CREATE TABLE t1(a int);
---error 1064
+--error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
 ALTER TABLE t1 ADD COLUMN z int GENERATED ALWAYS AS
 ( 1 NOT IN (SELECT 1 FROM t1 WHERE c0006) ) virtual;
---error 1064
+--error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
 CREATE TABLE t2(a int, b int as (1 NOT IN (SELECT 1 FROM t1 WHERE not_exist_col)));
---error 1064
+--error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
 CREATE TABLE t2(a int, b int as (1 NOT IN (SELECT 1 FROM dual)));
 DROP TABLE t1;
 
 if(! $testing_ndb) {
---echo # Bug#21142905: PARTITIONED GENERATED COLS -
---echo #  !TABLE || (!TABLE->WRITE_SET || BITMAP_IS_SET
---echo # 
-CREATE TABLE t1 (
-a int,
-b int generated always as (a) virtual,
-c int generated always as (b+a) virtual,
-d int generated always as (b+a) virtual
-) PARTITION BY LINEAR HASH (b);
-INSERT INTO t1(a) VALUES(0);
-DELETE FROM t1 WHERE c=1;
-DROP TABLE t1;
+  --echo # Bug#21142905: PARTITIONED GENERATED COLS -
+  --echo #  !TABLE || (!TABLE->WRITE_SET || BITMAP_IS_SET
+  --echo # 
+  if ($support_native_partitioning)
+  {
+    CREATE TABLE t1 (
+    a int,
+    b int generated always as (a) virtual,
+    c int generated always as (b+a) virtual,
+    d int generated always as (b+a) virtual
+    ) PARTITION BY LINEAR HASH (b);
+    INSERT INTO t1(a) VALUES(0);
+    DELETE FROM t1 WHERE c=1;
+    DROP TABLE t1;
+  }
+  if (!$support_native_partitioning)
+  {
+   --echo "Skipped since this engine does not support native partitioning.
+  }
 }
 
 --echo # Bug #20709487: COLLATE OPTION NOT ACCEPTED IN GENERATED COLUMN
@@ -394,23 +419,30 @@ SELECT c, c_ci REGEXP 'A', c_cs REGEXP 'A' FROM t1;
 DROP TABLE t1;
 
 if(! $testing_ndb) {
---echo # Bug #21469535: VALGRIND ERROR (CONDITIONAL JUMP) WHEN INSERT
---echo #                ROWS INTO A PARTITIONED TABLE
---echo #
-CREATE TABLE t1 (
-    id INT NOT NULL,
-    store_id INT NOT NULL,
-    x INT GENERATED ALWAYS AS (id + store_id)
-)
-PARTITION BY RANGE (store_id) (
-    PARTITION p0 VALUES LESS THAN (6),
-    PARTITION p1 VALUES LESS THAN (11),
-    PARTITION p2 VALUES LESS THAN (16),
-    PARTITION p3 VALUES LESS THAN (21)
-);
+  --echo # Bug #21469535: VALGRIND ERROR (CONDITIONAL JUMP) WHEN INSERT
+  --echo #                ROWS INTO A PARTITIONED TABLE
+  --echo #
+  if ($support_native_partitioning)
+  {
+    CREATE TABLE t1 (
+        id INT NOT NULL,
+        store_id INT NOT NULL,
+        x INT GENERATED ALWAYS AS (id + store_id)
+    )
+    PARTITION BY RANGE (store_id) (
+        PARTITION p0 VALUES LESS THAN (6),
+        PARTITION p1 VALUES LESS THAN (11),
+        PARTITION p2 VALUES LESS THAN (16),
+        PARTITION p3 VALUES LESS THAN (21)
+    );
 
-INSERT INTO t1 VALUES(1, 2, default);
-DROP TABLE t1;
+    INSERT INTO t1 VALUES(1, 2, default);
+    DROP TABLE t1;
+  }
+  if (!$support_native_partitioning)
+  {
+    --echo "Skipped since this engine does not support native partitioning.
+  }
 }
 
 --echo # Bug#21465626:ASSERT/CRASH ON DROPPING/ADDING VIRTUAL COLUMN
@@ -460,6 +492,7 @@ CREATE TABLE t1 (
 SHOW FULL COLUMNS FROM t1;
 
 INSERT INTO t1 (a) VALUES (NULL), (1);
+--sorted_result
 SELECT * FROM t1;
 
 DROP TABLE t1;
@@ -588,7 +621,6 @@ DROP TABLE t1;
 --enable_warnings
 }
 
-
 --echo #
 --echo # Bug#22680839: DEFAULT IS NOT DETERMINISTIC AND SHOULD NOT BE
 --echo #               ALLOWED IN GENERATED COLUMNS
@@ -615,7 +647,7 @@ CREATE TABLE t1(a INT PRIMARY KEY DEFAULT 5,
                 b INT AS (1 + DEFAULT(a)) STORED,
                 c INT AS (1 + DEFAULT(a)) VIRTUAL);
 INSERT INTO t1 VALUES ();
---error ER_ALTER_OPERATION_NOT_SUPPORTED
+--error ER_ALTER_OPERATION_NOT_SUPPORTED, ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7, ALGORITHM = INPLACE;
 --disable_warnings
 # Check how many rows are accessed: >0 = COPY
@@ -630,13 +662,9 @@ DROP TABLE t1;
 --echo #
 CREATE TABLE t1(a INT PRIMARY KEY DEFAULT 5);
 INSERT INTO t1 VALUES();
---error ER_ALTER_OPERATION_NOT_SUPPORTED
-ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7,
-               ADD COLUMN b INT AS (1 + DEFAULT(a)) STORED,
-               ALGORITHM = INPLACE;
 --error ER_ALTER_OPERATION_NOT_SUPPORTED, ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7,
-               ADD COLUMN c INT AS (1 + DEFAULT(a)) VIRTUAL,
+               ADD COLUMN b INT AS (1 + DEFAULT(a)) STORED,
                ALGORITHM = INPLACE;
 # Check how many rows are accessed: >0 = COPY
 --enable_info
@@ -646,3 +674,86 @@ ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7,
 --disable_info
 DROP TABLE t1;
 --enable_warnings
+
+
+if(! $testing_ndb) {
+--echo #
+--echo # Bug#28836543 "DUPLICATE HANDLING OF GENERATION EXPRESSION CHANGE IN
+--echo #               FILL_ALTER_INPLACE_INFO".
+--echo #
+--echo # For ALTER TABLE statements which do not modify generated column type,
+--echo # expression and storage type INPLACE algorithm should be supported.
+--echo # ALTER TABLE statements which modify generated column expression or
+--echo # type should require COPY algorithm. Change of storage type of
+--echo # generated column is not supported.
+CREATE TABLE t1 (a INT, g INT GENERATED ALWAYS AS (a + 1) VIRTUAL);
+ALTER TABLE t1 MODIFY g INT GENERATED ALWAYS AS (a + 1) VIRTUAL COMMENT 'Test', ALGORITHM=INPLACE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 MODIFY g INT GENERATED ALWAYS AS (a + 2) VIRTUAL COMMENT 'Test', ALGORITHM=INPLACE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 MODIFY g BIGINT GENERATED ALWAYS AS (a + 1) VIRTUAL COMMENT 'Test', ALGORITHM=INPLACE;
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+ALTER TABLE t1 MODIFY g INT GENERATED ALWAYS AS (a + 1) STORED COMMENT 'Test', ALGORITHM=INPLACE;
+DROP TABLE t1;
+CREATE TABLE t2 (a INT, g INT GENERATED ALWAYS AS (a + 1) STORED);
+ALTER TABLE t2 MODIFY g INT GENERATED ALWAYS AS (a + 1) STORED COMMENT 'Test', ALGORITHM=INPLACE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t2 MODIFY g INT GENERATED ALWAYS AS (a + 2) STORED COMMENT 'Test', ALGORITHM=INPLACE;
+--echo # InnoDB has special error message for change of column type
+--error ER_ALTER_OPERATION_NOT_SUPPORTED,ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t2 MODIFY g BIGINT GENERATED ALWAYS AS (a + 1) STORED COMMENT 'Test', ALGORITHM=INPLACE;
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+ALTER TABLE t2 MODIFY g INT GENERATED ALWAYS AS (a + 1) VIRTUAL COMMENT 'Test', ALGORITHM=INPLACE;
+DROP TABLE t2;
+}
+
+
+if(! $testing_ndb) {
+--echo #
+--echo # Bug #28848265 "CHANGING DEFAULT BY MAKING COLUMN NULLABLE DOESN'T
+--echo #                UPDATE GENERATED COLUMN".
+--echo #
+
+--echo # Test for original issue.
+CREATE TABLE t1(a INT NOT NULL DEFAULT 4, gc INT AS (a + DEFAULT(a)) STORED);
+INSERT INTO t1 (a) VALUES (1);
+ALTER TABLE t1 MODIFY COLUMN a INT NULL;
+INSERT INTO t1 (a) VALUES (2);
+--echo # Generated stored column value must reflect new default (i.e. NULL).
+SELECT *, a + DEFAULT(a) FROM t1;
+
+--echo # Check that change of default on which generated column depends
+--echo # can't be done in-place.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 MODIFY COLUMN a INT NULL DEFAULT 0, ALGORITHM=INPLACE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 0, ALGORITHM=INPLACE;
+
+--echo # However, changing default of some other column can be done
+--echo # in-place.
+ALTER TABLE t1 ADD b INT;
+ALTER TABLE t1 MODIFY COLUMN b INT DEFAULT 0, ALGORITHM=INPLACE;
+ALTER TABLE t1 ALTER COLUMN b SET DEFAULT 1, ALGORITHM=INPLACE;
+DROP TABLE t1;
+
+if ($support_virtual_index)
+{
+--echo # Same tests for virtual indexed column.
+CREATE TABLE t1(a INT NOT NULL DEFAULT 4, gc INT AS (a + DEFAULT(a)) VIRTUAL, KEY k(gc));
+INSERT INTO t1 (a) VALUES (1);
+ALTER TABLE t1 MODIFY COLUMN a INT NULL;
+INSERT INTO t1 (a) VALUES (2);
+--echo # Select only virtual column value so its index is used.
+SELECT gc, a + DEFAULT(a) FROM t1;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 MODIFY COLUMN a INT NULL DEFAULT 0, ALGORITHM=INPLACE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 0, ALGORITHM=INPLACE;
+
+ALTER TABLE t1 ADD b INT;
+ALTER TABLE t1 MODIFY COLUMN b INT DEFAULT 0, ALGORITHM=INPLACE;
+ALTER TABLE t1 ALTER COLUMN b SET DEFAULT 1, ALGORITHM=INPLACE;
+DROP TABLE t1;
+}
+}

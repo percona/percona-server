@@ -1,7 +1,7 @@
 #
 # Setup test.
 #
-CREATE TABLE t1 (a int, k int, b VARCHAR(10));
+CREATE TABLE t1 (a int, k int, b VARCHAR(10)) CHARSET utf8mb4;
 INSERT INTO t1 VALUES
 (1, 1, "alfa"),
 (1, 2, null),
@@ -143,7 +143,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "10.60"
+      "query_cost": "9.05"
     },
     "grouping_operation": {
       "using_filesort": true,
@@ -157,10 +157,10 @@ EXPLAIN
         "rows_produced_per_join": 8,
         "filtered": "100.00",
         "cost_info": {
-          "read_cost": "1.00",
-          "eval_cost": "1.60",
-          "prefix_cost": "2.60",
-          "data_read_per_join": "192"
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "448"
         },
         "used_columns": [
           "a",
@@ -180,7 +180,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "10.60"
+      "query_cost": "9.05"
     },
     "grouping_operation": {
       "using_filesort": true,
@@ -194,10 +194,10 @@ EXPLAIN
         "rows_produced_per_join": 8,
         "filtered": "100.00",
         "cost_info": {
-          "read_cost": "1.00",
-          "eval_cost": "1.60",
-          "prefix_cost": "2.60",
-          "data_read_per_join": "192"
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "448"
         },
         "used_columns": [
           "a",
@@ -217,7 +217,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "10.60"
+      "query_cost": "9.05"
     },
     "grouping_operation": {
       "using_filesort": true,
@@ -231,10 +231,10 @@ EXPLAIN
         "rows_produced_per_join": 8,
         "filtered": "100.00",
         "cost_info": {
-          "read_cost": "1.00",
-          "eval_cost": "1.60",
-          "prefix_cost": "2.60",
-          "data_read_per_join": "192"
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "448"
         },
         "used_columns": [
           "a",
@@ -254,7 +254,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "10.60"
+      "query_cost": "9.05"
     },
     "grouping_operation": {
       "using_filesort": true,
@@ -270,10 +270,10 @@ EXPLAIN
           "rows_produced_per_join": 8,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "1.00",
-            "eval_cost": "1.60",
-            "prefix_cost": "2.60",
-            "data_read_per_join": "192"
+            "read_cost": "0.25",
+            "eval_cost": "0.80",
+            "prefix_cost": "1.05",
+            "data_read_per_join": "448"
           },
           "used_columns": [
             "a",
@@ -292,7 +292,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.60"
+      "query_cost": "1.05"
     },
     "table": {
       "table_name": "t1",
@@ -301,10 +301,10 @@ EXPLAIN
       "rows_produced_per_join": 8,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "1.00",
-        "eval_cost": "1.60",
-        "prefix_cost": "2.60",
-        "data_read_per_join": "192"
+        "read_cost": "0.25",
+        "eval_cost": "0.80",
+        "prefix_cost": "1.05",
+        "data_read_per_join": "448"
       },
       "used_columns": [
         "b"
@@ -320,7 +320,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.60"
+      "query_cost": "1.05"
     },
     "table": {
       "table_name": "t1",
@@ -329,10 +329,10 @@ EXPLAIN
       "rows_produced_per_join": 8,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "1.00",
-        "eval_cost": "1.60",
-        "prefix_cost": "2.60",
-        "data_read_per_join": "192"
+        "read_cost": "0.25",
+        "eval_cost": "0.80",
+        "prefix_cost": "1.05",
+        "data_read_per_join": "448"
       },
       "used_columns": [
         "b"
@@ -348,7 +348,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.60"
+      "query_cost": "1.05"
     },
     "table": {
       "table_name": "t1",
@@ -357,10 +357,10 @@ EXPLAIN
       "rows_produced_per_join": 8,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "1.00",
-        "eval_cost": "1.60",
-        "prefix_cost": "2.60",
-        "data_read_per_join": "192"
+        "read_cost": "0.25",
+        "eval_cost": "0.80",
+        "prefix_cost": "1.05",
+        "data_read_per_join": "448"
       },
       "used_columns": [
         "b"
@@ -376,7 +376,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.60"
+      "query_cost": "1.05"
     },
     "buffer_result": {
       "using_temporary_table": true,
@@ -387,10 +387,10 @@ EXPLAIN
         "rows_produced_per_join": 8,
         "filtered": "100.00",
         "cost_info": {
-          "read_cost": "1.00",
-          "eval_cost": "1.60",
-          "prefix_cost": "2.60",
-          "data_read_per_join": "192"
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "448"
         },
         "used_columns": [
           "b"
@@ -509,7 +509,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "10.60"
+      "query_cost": "9.05"
     },
     "grouping_operation": {
       "using_filesort": true,
@@ -523,10 +523,10 @@ EXPLAIN
         "rows_produced_per_join": 8,
         "filtered": "100.00",
         "cost_info": {
-          "read_cost": "1.00",
-          "eval_cost": "1.60",
-          "prefix_cost": "2.60",
-          "data_read_per_join": "192"
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "448"
         },
         "used_columns": [
           "a",
@@ -545,7 +545,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.60"
+      "query_cost": "1.05"
     },
     "table": {
       "table_name": "t1",
@@ -554,10 +554,10 @@ EXPLAIN
       "rows_produced_per_join": 8,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "1.00",
-        "eval_cost": "1.60",
-        "prefix_cost": "2.60",
-        "data_read_per_join": "192"
+        "read_cost": "0.25",
+        "eval_cost": "0.80",
+        "prefix_cost": "1.05",
+        "data_read_per_join": "448"
       },
       "used_columns": [
         "k",
@@ -626,7 +626,7 @@ EXPLAIN
         "query_block": {
           "select_id": 2,
           "cost_info": {
-            "query_cost": "1.20"
+            "query_cost": "0.35"
           },
           "table": {
             "table_name": "t",
@@ -635,12 +635,12 @@ EXPLAIN
             "rows_produced_per_join": 1,
             "filtered": "100.00",
             "cost_info": {
-              "read_cost": "1.00",
-              "eval_cost": "0.20",
-              "prefix_cost": "1.20",
+              "read_cost": "0.25",
+              "eval_cost": "0.10",
+              "prefix_cost": "0.35",
               "data_read_per_join": "8"
             },
-            "attached_condition": "json_arrayagg(<in_optimizer>(1,<exists>(/* select#3 */ select 1 from `test`.`t` where 1)))"
+            "attached_condition": "(0 <> json_arrayagg(<in_optimizer>(1,<exists>(/* select#3 */ select 1 from `test`.`t` where true))))"
           },
           "optimized_away_subqueries": [
             {
@@ -649,7 +649,7 @@ EXPLAIN
               "query_block": {
                 "select_id": 3,
                 "cost_info": {
-                  "query_cost": "1.20"
+                  "query_cost": "0.35"
                 },
                 "table": {
                   "table_name": "t",
@@ -658,9 +658,9 @@ EXPLAIN
                   "rows_produced_per_join": 1,
                   "filtered": "100.00",
                   "cost_info": {
-                    "read_cost": "1.00",
-                    "eval_cost": "0.20",
-                    "prefix_cost": "1.20",
+                    "read_cost": "0.25",
+                    "eval_cost": "0.10",
+                    "prefix_cost": "0.35",
                     "data_read_per_join": "8"
                   }
                 }
@@ -673,7 +673,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select (/* select#2 */ select 1 from `test`.`t` where json_arrayagg(<in_optimizer>(1,<exists>(/* select#3 */ select 1 from `test`.`t` where 1)))) AS `(SELECT 1 FROM t WHERE JSON_ARRAYAGG(1 IN (SELECT 1 FROM t)))`
+Note	1003	/* select#1 */ select (/* select#2 */ select 1 from `test`.`t` where (0 <> json_arrayagg(<in_optimizer>(1,<exists>(/* select#3 */ select 1 from `test`.`t` where true))))) AS `(SELECT 1 FROM t WHERE JSON_ARRAYAGG(1 IN (SELECT 1 FROM t)))`
 SELECT (SELECT 1 FROM t WHERE JSON_ARRAYAGG(1 IN (SELECT 1 FROM t)));
 (SELECT 1 FROM t WHERE JSON_ARRAYAGG(1 IN (SELECT 1 FROM t)))
 NULL
@@ -688,7 +688,7 @@ ERROR 21000: Operand should contain 1 column(s)
 #
 CREATE TABLE t2(gid int, a int);
 SELECT JSON_ARRAYAGG(ST_PointFromText('POINT(10 10)')) FROM t2;
-ERROR HY000: Incorrect arguments to json_arrayagg(
+ERROR HY000: Incorrect arguments to json_arrayagg
 #
 # Coverage test for fix_fields: check_sum_func.
 #
@@ -721,26 +721,26 @@ SELECT JSON_ARRAYAGG(x) FROM t;
 JSON_ARRAYAGG(x)
 NULL
 Warnings:
-Warning	1301	Result of json_arrayagg(() was larger than max_allowed_packet (1024) - truncated
+Warning	1301	Result of json_arrayagg() was larger than max_allowed_packet (1024) - truncated
 SELECT JSON_OBJECTAGG(id, x) FROM t;
 JSON_OBJECTAGG(id, x)
 NULL
 Warnings:
-Warning	1301	Result of json_objectagg(() was larger than max_allowed_packet (1024) - truncated
+Warning	1301	Result of json_objectagg() was larger than max_allowed_packet (1024) - truncated
 SELECT id % 2 AS i, JSON_ARRAYAGG(x) FROM t GROUP BY i;
 i	JSON_ARRAYAGG(x)
 0	NULL
 1	NULL
 Warnings:
-Warning	1301	Result of json_arrayagg(() was larger than max_allowed_packet (1024) - truncated
-Warning	1301	Result of json_arrayagg(() was larger than max_allowed_packet (1024) - truncated
+Warning	1301	Result of json_arrayagg() was larger than max_allowed_packet (1024) - truncated
+Warning	1301	Result of json_arrayagg() was larger than max_allowed_packet (1024) - truncated
 SELECT id % 2 AS i, JSON_OBJECTAGG(id, x) FROM t GROUP BY i;
 i	JSON_OBJECTAGG(id, x)
 0	NULL
 1	NULL
 Warnings:
-Warning	1301	Result of json_objectagg(() was larger than max_allowed_packet (1024) - truncated
-Warning	1301	Result of json_objectagg(() was larger than max_allowed_packet (1024) - truncated
+Warning	1301	Result of json_objectagg() was larger than max_allowed_packet (1024) - truncated
+Warning	1301	Result of json_objectagg() was larger than max_allowed_packet (1024) - truncated
 SET GLOBAL max_allowed_packet = default;
 SET GLOBAL net_buffer_length = default;
 DROP TABLE t;
@@ -790,8 +790,6 @@ FROM BB as t2
 GROUP BY field2;
 field2
 [1]
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 DROP TABLE BB;
 #
 # Bug #24365264
@@ -986,8 +984,8 @@ INSERT INTO t1 VALUES
 (2, 2, "2.3");
 SELECT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a;
 a	JSON_OBJECTAGG(k, b)
-1	{"1": "1.1"}
-2	{"2": "2.1"}
+1	{"1": "1.3"}
+2	{"2": "2.3"}
 SELECT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a;
 a	JSON_ARRAYAGG(b)
 1	["1.1", "1.2", "1.3"]
@@ -1114,41 +1112,41 @@ CREATE TABLE t2(gid int, a int);
 INSERT INTO t2(gid, a) VALUES (1, 1), (1, 2), (2, 4), (2, 8);
 SELECT gid, 1.0 * JSON_ARRAYAGG(a) FROM t2 GROUP BY gid;
 gid	1.0 * JSON_ARRAYAGG(a)
-1	0.0
-2	0.0
+1	0
+2	0
 Warnings:
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column json_arrayagg( at row 3
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column json_arrayagg( at row 5
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column json_arrayagg at row 1
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column json_arrayagg at row 2
 SELECT gid, 0x30 << JSON_ARRAYAGG(a) FROM t2 GROUP BY gid;
 gid	0x30 << JSON_ARRAYAGG(a)
 1	48
 2	48
 Warnings:
-Warning	3156	Invalid JSON value for CAST to INTEGER from column json_arrayagg( at row 3
-Warning	3156	Invalid JSON value for CAST to INTEGER from column json_arrayagg( at row 5
+Warning	3156	Invalid JSON value for CAST to INTEGER from column json_arrayagg at row 1
+Warning	3156	Invalid JSON value for CAST to INTEGER from column json_arrayagg at row 2
 SELECT gid, DATE_ADD(JSON_ARRAYAGG(a), INTERVAL 31 DAY)
 FROM t2 GROUP BY gid;
 gid	DATE_ADD(JSON_ARRAYAGG(a), INTERVAL 31 DAY)
 1	NULL
 2	NULL
 Warnings:
-Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_arrayagg( at row 3
-Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_arrayagg( at row 5
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_arrayagg at row 1
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_arrayagg at row 2
 SELECT gid, ADDTIME(JSON_ARRAYAGG(a), '02:00:00.999998')
 FROM t2 GROUP BY gid;
 gid	ADDTIME(JSON_ARRAYAGG(a), '02:00:00.999998')
 1	NULL
 2	NULL
 Warnings:
-Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_arrayagg( at row 3
-Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_arrayagg( at row 5
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_arrayagg at row 1
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_arrayagg at row 2
 SELECT gid, SEC_TO_TIME(JSON_ARRAYAGG(a)) FROM t2 GROUP BY gid;
 gid	SEC_TO_TIME(JSON_ARRAYAGG(a))
-1	00:00:00
-2	00:00:00
+1	00:00:00.000000
+2	00:00:00.000000
 Warnings:
-Warning	3156	Invalid JSON value for CAST to DECIMAL from column json_arrayagg( at row 3
-Warning	3156	Invalid JSON value for CAST to DECIMAL from column json_arrayagg( at row 5
+Warning	3156	Invalid JSON value for CAST to DECIMAL from column json_arrayagg at row 1
+Warning	3156	Invalid JSON value for CAST to DECIMAL from column json_arrayagg at row 2
 TRUNCATE TABLE t2;
 SELECT 1.0 * JSON_ARRAYAGG(a) FROM t2;
 1.0 * JSON_ARRAYAGG(a)

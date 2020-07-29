@@ -13,7 +13,7 @@ include/sync_slave_sql_with_master.inc
 [on master]
 [connection master]
 ==== Test ====
----- binlog_format=row ----
+---- binlog_format='row' ----
 * Modify tables of more than one engine, one of which is self-logging
 CREATE TRIGGER trig_1 AFTER INSERT ON t_self_logging FOR EACH ROW BEGIN INSERT INTO t VALUES (1); END;
 INSERT INTO t_self_logging VALUES (1);

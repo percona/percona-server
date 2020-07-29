@@ -3,9 +3,9 @@ CREATE TABLE t_wl6455 ( i INT, g GEOMETRY NOT NULL) ENGINE=InnoDB;
 SHOW CREATE TABLE t_wl6455;
 Table	Create Table
 t_wl6455	CREATE TABLE `t_wl6455` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   `g` geometry NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t_wl6455 VALUES(1, POINT(1,1));
 INSERT INTO t_wl6455 VALUES(2, POINT(2,2));
 SET @mp = 'MULTIPOINT(0 0, 20 20, 60 60)';
@@ -32,9 +32,10 @@ POLYGON((0 0,0 3,3 0,0 0),(1 1,1 2,2 1,1 1))
 MULTIPOLYGON(((0 0,0 3,3 3,3 0,0 0),(1 1,1 2,2 2,2 1,1 1)))
 GEOMETRYCOLLECTION(POINT(1 1),LINESTRING(2 2,3 3))
 CREATE INDEX i_p ON t_wl6455 (g(10));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
 EXPLAIN SELECT ST_AsText(g) FROM t_wl6455 WHERE g = POINT(2,2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t_wl6455	NULL	ref	i_p	i_p	12	const	#	100.00	Using where
+1	SIMPLE	t_wl6455	NULL	ALL	NULL	NULL	NULL	NULL	#	11.11	Using where
 Warnings:
 Note	1003	/* select#1 */ select st_astext(`test`.`t_wl6455`.`g`) AS `ST_AsText(g)` from `test`.`t_wl6455` where (`test`.`t_wl6455`.`g` = <cache>(point(2,2)))
 SELECT ST_AsText(g) FROM t_wl6455 WHERE g = POINT(2,2);
@@ -71,8 +72,8 @@ GEOMETRYCOLLECTION(POINT(1 1),LINESTRING(2 2,3 3))
 POINT(10 10)
 POINT(11 11)
 SELECT sc.name, sc.pos, sc.mtype
-FROM information_schema.innodb_sys_columns sc
-INNER JOIN information_schema.innodb_sys_tables st
+FROM information_schema.innodb_columns sc
+INNER JOIN information_schema.innodb_tables st
 ON sc.TABLE_ID=st.TABLE_ID
 WHERE st.NAME='test/t_wl6455' AND sc.NAME='g';
 name	pos	mtype

@@ -19,8 +19,11 @@
 #                                                                              #
 ################################################################################
 
---source include/not_embedded.inc
 --source include/force_myisam_default.inc
+
+# Skip the test if MyISAM is not available
+--source include/have_myisam.inc
+
 ################################################################
 # sql_low_priority_updates was renamed to low_priority_updates #
 ################################################################
@@ -169,7 +172,7 @@ delimiter |;
 
 send
 LOCK TABLE t1 READ;
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a ASC;
 UNLOCK TABLES;|
 
 delimiter ;|

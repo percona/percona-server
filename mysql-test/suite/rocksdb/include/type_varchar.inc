@@ -6,17 +6,23 @@
 # $extra_col_opts_ddl_err is set by a calling test
 # $extra_col_opts_dml_err is set by a calling test
 
+--error ER_TOO_BIG_FIELDLENGTH
+eval CREATE TABLE t1 (
+  v VARCHAR(65000) $extra_col_opts,
+  PRIMARY KEY (v)
+) ENGINE=rocksdb;
+
 if ($extra_col_opts_ddl_err == 0)
 {
   eval CREATE TABLE t1 (
     v0 VARCHAR(0) $extra_col_opts,
     v1 VARCHAR(1) $extra_col_opts,
     v64 VARCHAR(64) $extra_col_opts,
-    v65000 VARCHAR(65000) $extra_col_opts,
+    v16300 VARCHAR(16300) $extra_col_opts,
     PRIMARY KEY (v64)
   ) ENGINE=rocksdb;
   eval CREATE TABLE t2 (
-    v VARCHAR(65532) $extra_col_opts,
+    v VARCHAR(255) $extra_col_opts,
     PRIMARY KEY (v(255))
   ) ENGINE=rocksdb;
 }
@@ -28,12 +34,12 @@ if ($extra_col_opts_ddl_err == 1)
     v0 VARCHAR(0) $extra_col_opts,
     v1 VARCHAR(1) $extra_col_opts,
     v64 VARCHAR(64) $extra_col_opts,
-    v65000 VARCHAR(65000) $extra_col_opts,
+    v16300 VARCHAR(16300) $extra_col_opts,
     PRIMARY KEY (v64)
   ) ENGINE=rocksdb;
   --error ER_PRIMARY_CANT_HAVE_NULL
   eval CREATE TABLE t2 (
-    v VARCHAR(65532) $extra_col_opts,
+    v VARCHAR(255) $extra_col_opts,
     PRIMARY KEY (v(255))
   ) ENGINE=rocksdb;
 
@@ -43,13 +49,13 @@ if ($extra_col_opts_ddl_err == 1)
     v0 VARCHAR(0) $extra_col_opts,
     v1 VARCHAR(1) $extra_col_opts,
     v64 VARCHAR(64) $extra_col_opts,
-    v65000 VARCHAR(65000) $extra_col_opts,
+    v16300 VARCHAR(16300) $extra_col_opts,
     fake_key INT NOT NULL AUTO_INCREMENT,
     PRIMARY KEY (fake_key)
   ) ENGINE=rocksdb;
 
   eval CREATE TABLE t2 (
-    v VARCHAR(65524) $extra_col_opts,
+    v VARCHAR(255) $extra_col_opts,
     fake_key INT NOT NULL AUTO_INCREMENT,
     PRIMARY KEY (fake_key)
   ) ENGINE=rocksdb;
@@ -59,8 +65,8 @@ SHOW COLUMNS IN t2;
 
 # Valid values
 
-INSERT INTO t1 (v0,v1,v64,v65000) VALUES ('','','','');
-INSERT INTO t1 (v0,v1,v64,v65000) VALUES ('','y','Once there, double check that an article doesn\'t already exist','Here is a list of recommended books on MariaDB and MySQL. We\'ve provided links to Amazon.com here for convenience, but they can be found at many other bookstores, both online and off.
+INSERT INTO t1 (v0,v1,v64,v16300) VALUES ('','','','');
+INSERT INTO t1 (v0,v1,v64,v16300) VALUES ('','y','Once there, double check that an article doesn\'t already exist','Here is a list of recommended books on MariaDB and MySQL. We\'ve provided links to Amazon.com here for convenience, but they can be found at many other bookstores, both online and off.
 
   If you want to have your favorite MySQL / MariaDB book listed here, please leave a comment.
   For developers who want to code on MariaDB or MySQL
@@ -98,46 +104,34 @@ INSERT INTO t1 (v0,v1,v64,v65000) VALUES ('','y','Once there, double check that 
             o This is the official guide to cover the passing of the two MySQL Certification examinations. It is valid till version 5.0 of the server, so while it misses all the features available in MySQL 5.1 and greater (including MariaDB 5.1 and greater), it provides a good basic understanding of MySQL for the end-user. ');
 
 --sorted_result
-SELECT v0,v1,v64,v65000 FROM t1;
+SELECT v0,v1,v64,v16300 FROM t1;
 
 # Invalid values
 
 # 5.7 uses strict mode by default, so this will now return an error
 --error ER_DATA_TOO_LONG
-INSERT INTO t1 (v0,v1,v64,v65000) VALUES ('y', 'yy', REPEAT('c',65), REPEAT('abcdefghi ',6501));
+INSERT INTO t1 (v0,v1,v64,v16300) VALUES ('y', 'yy', REPEAT('c',65), REPEAT('abcdefghi ',6501));
 
 # now test with the 5.6 behavior just to be sure
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-INSERT INTO t1 (v0,v1,v64,v65000) VALUES ('y', 'yy', REPEAT('c',65), REPEAT('abcdefghi ',6501));
+INSERT INTO t1 (v0,v1,v64,v16300) VALUES ('y', 'yy', REPEAT('c',65), REPEAT('abcdefghi ',6501));
 set session sql_mode=@orig_sql_mode;
 
 set @orig_tx_iso=@@session.transaction_isolation;
 set session transaction_isolation='READ-COMMITTED';
 # 5.7 uses strict mode by default, so this will now return an error
 --error ER_DATA_TOO_LONG
-INSERT INTO t1 (v0,v1,v64,v65000) SELECT v65000, v65000, CONCAT('a',v65000), CONCAT(v65000,v1) FROM t1;
+INSERT INTO t1 (v0,v1,v64,v16300) SELECT v16300, v16300, CONCAT('a',v16300), CONCAT(v16300,v1) FROM t1;
 
 # now test with the 5.6 behavior just to be sure
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-INSERT INTO t1 (v0,v1,v64,v65000) SELECT v65000, v65000, CONCAT('a',v65000), CONCAT(v65000,v1) FROM t1;
+INSERT INTO t1 (v0,v1,v64,v16300) SELECT v16300, v16300, CONCAT('a',v16300), CONCAT(v16300,v1) FROM t1;
 set session sql_mode=@orig_sql_mode;
 set session transaction_isolation=@orig_tx_iso;
 
 --sorted_result
-SELECT v0, v1, v64, LENGTH(v65000) FROM t1;
-
-# 5.7 uses strict mode by default, so this will now return an error
---error ER_TOO_BIG_FIELDLENGTH
-eval ALTER TABLE t1 ADD COLUMN v65536 VARCHAR(65536) $extra_col_opts;
-
-# now test with the 5.6 behavior just to be sure
-set @orig_sql_mode=@@session.sql_mode;
-set session sql_mode="";
-eval ALTER TABLE t1 ADD COLUMN v65536 VARCHAR(65536) $extra_col_opts;
-set session sql_mode=@orig_sql_mode;
-
-SHOW COLUMNS IN t1;
+SELECT v0, v1, v64, LENGTH(v16300) FROM t1;
 
 DROP TABLE t1, t2;

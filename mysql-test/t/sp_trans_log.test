@@ -1,9 +1,8 @@
-# binlog disabled in embedded server
--- source include/not_embedded.inc
 
 # part of sp_trans test that appeared to be sensitive to binlog format
---source include/have_innodb.inc
 --source include/have_binlog_format_mixed_or_row.inc
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 
 #
 # Bug#13270 INSERT,UPDATE,etc that calls func with side-effect does not binlog

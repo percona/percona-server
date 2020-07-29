@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,12 +22,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
-
 #include <ndb_global.h>
 #include "NdbApi.hpp"
 #include <NdbSchemaCon.hpp>
-#include <NdbMain.h>
 #include <md5_hash.hpp>
 
 #include <NdbThread.h>
@@ -42,6 +39,7 @@
 #include <NdbTest.hpp>
 #include <NDBT_Stats.hpp>
 #include <NdbLockCpuUtil.h>
+#include <ndb_limits.h>
 
 #define MAX_PARTS 4 
 #define MAX_SEEK 16 
@@ -53,7 +51,7 @@
 #define MAX_EXECUTOR_THREADS 384
 #define MAX_DEFINER_THREADS 32
 #define MAX_REAL_THREADS 416
-#define NDB_MAX_NODES 48
+#define NDB_MAX_NODES (MAX_NDB_NODES - 1)
 #define NDB_MAX_RECEIVE_CPUS 128
 /*
   NDB_MAXTHREADS used to be just MAXTHREADS, which collides with a
@@ -92,10 +90,50 @@ struct ThreadNdb
   char * record;
 };
 
+typedef struct KeyOperation KEY_OPERATION;
+struct KeyOperation
+{
+  Uint32 first_key;
+  Uint32 second_key;
+  Uint32 table_id;
+  Uint32 definer_thread_id;
+  Uint32 executor_thread_id;
+  RunType operation_type;
+  KEY_OPERATION *next_key_op;
+};
+
+typedef struct key_list_header KEY_LIST_HEADER;
+struct key_list_header
+{
+  KEY_OPERATION *first_in_list;
+  KEY_OPERATION *last_in_list;
+  Uint32 num_in_list;
+};
+
+
+typedef struct thread_data_struct THREAD_DATA;
+struct thread_data_struct
+{
+  KEY_LIST_HEADER list_header;
+  Uint32 thread_id;
+  bool ready;
+  bool stop;
+  bool start;
+  Uint32 rand_seed;
+
+  char *record;
+  NdbMutex *transport_mutex;
+  struct NdbCondition *transport_cond;
+  struct NdbCondition *main_cond;
+  struct NdbCondition *start_cond;
+  char not_used[52];
+};
+THREAD_DATA thread_data_array[MAX_DEFINER_THREADS + MAX_EXECUTOR_THREADS];
+
 extern "C" { static void* threadLoop(void*); }
 static void setAttrNames(void);
 static void setTableNames(void);
-static int readArguments(int argc, const char** argv);
+static int readArguments(int argc, char** argv);
 static void dropTables(Ndb* pMyNdb);
 static int createTables(Ndb*);
 static void defineOperation(NdbConnection* aTransObject, StartType aType, 
@@ -105,7 +143,8 @@ static void defineNdbRecordOperation(char*,
                                      NdbConnection* aTransObject,
                                      StartType aType,
                                      Uint32 base,
-                                     Uint32 aIndex);
+                                     Uint32 aIndex,
+                                     THREAD_DATA *my_thread_data);
 static void execute(StartType aType);
 static bool executeThread(ThreadNdb*, StartType aType, Ndb* aNdbObject, unsigned int);
 static bool executeTransLoop(ThreadNdb* pThread, StartType aType, Ndb* aNdbObject,
@@ -237,7 +276,7 @@ tellThreads(StartType what)
 
 static Ndb_cluster_connection *g_cluster_connection[64];
 
-NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
+int main(int argc, char** argv)
 {
   ndb_init();
   ThreadNdb*            pThreadData;
@@ -440,7 +479,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
         }
       }
     }
-    Uint32 mean_rounds;
+    Uint64 mean_rounds;
     if (total_rounds)
     {
       mean_rounds = total_transactions / total_rounds;
@@ -636,7 +675,8 @@ executeTrans(ThreadNdb* pThread,
                                    tConArray[num_ops],
                                    aType,
                                    threadBaseLoc2,
-                                   (tBase2+k));
+                                   (tBase2+k),
+                                   NULL);
         else
           defineOperation(tConArray[num_ops],
                           aType,
@@ -809,7 +849,7 @@ executeCallback(int result, NdbConnection* transObject, void* aObject)
       /* What can we do here? */
       ndbout_c("execute: %s", transObject->getNdbError().message);
     }//if(retCode == 3)
-    //    ndbout << "Error occured in poll:" << endl;
+    //    ndbout << "Error occurred in poll:" << endl;
     //    ndbout << NdbObject->getNdbError() << endl;
     failed++ ;
   }//if
@@ -921,22 +961,34 @@ defineNdbRecordOperation(char *record,
                          NdbConnection* pTrans,
                          StartType aType,
                          Uint32 threadBase,
-                         Uint32 aIndex)
+                         Uint32 aIndex,
+                         THREAD_DATA *my_thread_data)
 {
   Uint32 offset;
+  Uint32 rand_val = 0;
   NdbRecord *ndb_record = g_record[table_id];
   NdbDictionary::getOffset(ndb_record, 0, offset);
   * (Uint32*)(record + offset) = threadBase;
-  * (Uint32*)(record + offset + 4) = aIndex;
-  
+  NdbDictionary::getOffset(ndb_record, 1, offset);
+  * (Uint32*)(record + offset) = aIndex;
+ 
   //-------------------------------------------------------
   // Set-up the attribute values for this operation.
   //-------------------------------------------------------
   if (aType != stRead && aType != stDelete)
   {
+    if (my_thread_data != NULL && aType != stInsert)
+    {
+#ifdef _WIN32
+      rand_val = rand();
+#else
+      my_thread_data->rand_seed++;
+      rand_val = (Uint32)rand_r(&my_thread_data->rand_seed);
+#endif
+    }
     for (unsigned k = 1; k < tNoOfAttributes; k++) {
-      NdbDictionary::getOffset(ndb_record, k, offset);
-      * (Uint32*)(record + offset) = aIndex;    
+      NdbDictionary::getOffset(ndb_record, k + 1, offset);
+      * (Uint32*)(record + offset) = aIndex + rand_val;
     }//for
   }
   
@@ -1280,45 +1332,6 @@ enum RunState
 
 RunState tRunState = WARMUP;
 
-typedef struct KeyOperation KEY_OPERATION;
-struct KeyOperation
-{
-  Uint32 first_key;
-  Uint32 second_key;
-  Uint32 table_id;
-  Uint32 definer_thread_id;
-  Uint32 executor_thread_id;
-  RunType operation_type;
-  KEY_OPERATION *next_key_op;
-};
-
-typedef struct key_list_header KEY_LIST_HEADER;
-struct key_list_header
-{
-  KEY_OPERATION *first_in_list;
-  KEY_OPERATION *last_in_list;
-  Uint32 num_in_list;
-};
-
-
-typedef struct thread_data_struct THREAD_DATA;
-struct thread_data_struct
-{
-  KEY_LIST_HEADER list_header;
-  Uint32 thread_id;
-  bool ready;
-  bool stop;
-  bool start;
-
-  char *record;
-  NdbMutex *transport_mutex;
-  struct NdbCondition *transport_cond;
-  struct NdbCondition *main_cond;
-  struct NdbCondition *start_cond;
-  char not_used[52];
-};
-THREAD_DATA thread_data_array[MAX_DEFINER_THREADS + MAX_EXECUTOR_THREADS];
-
 static Uint64
 get_total_transactions()
 {
@@ -1476,6 +1489,10 @@ init_thread_data(THREAD_DATA *my_thread_data, Uint32 thread_id)
   my_thread_data->stop = false;
   my_thread_data->ready = false;
   my_thread_data->start = false;
+  my_thread_data->rand_seed = 1;
+#ifdef _WIN32
+  srand(my_thread_data->rand_seed);
+#endif
   my_thread_data->transport_mutex = NdbMutex_Create();
   my_thread_data->transport_cond = NdbCondition_Create();
   my_thread_data->main_cond = NdbCondition_Create();
@@ -1765,13 +1782,13 @@ recheck:
   }
   NdbMutex_Unlock(my_thread_data->transport_mutex);
   if (first && wait &&
-      thread_list_header->num_in_list < ((tNoOfParallelTrans + 1) / 2))
+      list_header->num_in_list < ((tNoOfParallelTrans + 1) / 2))
   {
     /**
-     * We will wait for at least 2 milliseconds extra if we haven't yet
+     * We will wait for at least 1 milliseconds extra if we haven't yet
      * received at least half of the number of records we desire to execute.
      */
-    NdbSleep_MicroSleep(2000);
+    NdbSleep_MicroSleep(1000);
     first = false;
     goto recheck;
   }
@@ -2043,7 +2060,8 @@ definer_thread(void *data)
  *               -1 Failure, stop test
  */
 static int
-execute_operations(char *record,
+execute_operations(THREAD_DATA *my_thread_data,
+                   char *record,
                    Ndb* my_ndb,
                    KEY_OPERATION *key_op)
 {
@@ -2070,7 +2088,8 @@ execute_operations(char *record,
                              ndb_conn_array[num_ops],
                              (StartType)key_op->operation_type,
                              key_op->first_key,
-                             key_op->second_key);
+                             key_op->second_key,
+                             my_thread_data);
 
     ndb_conn_array[num_ops]->executeAsynchPrepare(Commit,
                                         &executeCallback,
@@ -2159,7 +2178,8 @@ executor_thread(void *data)
     if (!error_flag)
     {
       /* Ignore to execute after errors to simplify error handling */
-      ret_code = execute_operations(my_thread_data->record,
+      ret_code = execute_operations(my_thread_data,
+                                    my_thread_data->record,
                                     my_ndb,
                                     list_header.first_in_list);
     }
@@ -2236,7 +2256,7 @@ read_cpus(const char *str, Uint32 *num_cpus, Uint16 *cpu_array)
   bool number_found = false;
   Uint16 start = 0;
   Uint32 current_number = 0;
-  Uint32 len = strlen(str);
+  Uint32 len = (Uint32)strlen(str);
 
   for (i = 0; i < len + 1; i++)
   {
@@ -2301,7 +2321,7 @@ too_large_number_error:
 
 static
 int 
-readArguments(int argc, const char** argv){
+readArguments(int argc, char** argv){
   
   int i = 1;
   while (argc > 1){

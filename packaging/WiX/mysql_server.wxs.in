@@ -22,7 +22,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 -->
 
   <Product 
@@ -41,7 +41,7 @@
        Languages='1033'
        Compressed='yes'
        SummaryCodepage='1252'
-       Platform='@Platform@'
+       Platform='x64'
        InstallScope="perMachine"/>
   
     <Media Id='1' Cabinet='product.cab' EmbedCab='yes' />
@@ -74,32 +74,63 @@
       <RemoveExistingProducts After="InstallInitialize"/>
     </InstallExecuteSequence>
 
-    <?if "@LINK_STATIC_RUNTIME_LIBRARIES@"="OFF" ?>
-      <?if "@Platform@"="x64"?>
-        <Property Id="VS12REDISTX64">
-          <RegistrySearch Id="FindRedistVS12"
-              Win64="no"
-              Root="HKLM"
-              Key="SOFTWARE\Microsoft\VisualStudio\12.0\VC\Runtimes\x64"
-              Name="Version"
-              Type="raw" />
-        </Property>
-        <Condition Message="This application requires Visual Studio 2013 x64 Redistributable. Please install the Redistributable then run this installer again.">
-          Installed OR VS12REDISTX64
-        </Condition>
-      <?elseif "@Platform@"="x86" ?>
-        <Property Id="VS12REDISTX86">
-          <RegistrySearch Id="FindRedistVS12"
-              Win64="no"
-              Root="HKLM"
-              Key="SOFTWARE\Microsoft\VisualStudio\12.0\VC\Runtimes\x86"
-              Name="Version"
-              Type="raw" />
-        </Property>
-        <Condition Message="This application requires Visual Studio 2013 x86 Redistributable. Please install the Redistributable then run this installer again.">
-          Installed OR VS12REDISTX86
-        </Condition>
-      <?endif?>
+
+    <?if "@LINK_STATIC_RUNTIME_LIBRARIES@"="OFF" AND "@BUNDLE_RUNTIME_LIBRARIES@"="OFF" ?>
+      <Property Id="VS14REDISTX64_64_MAJOR">
+        <RegistrySearch Id="FindRedistVS14_64_MAJOR"
+            Root="HKLM"
+            Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+            Name="Major"
+            Win64="yes"
+            Type="raw" />
+      </Property>
+      <Property Id="VS14REDISTX64_64_MINOR">
+        <RegistrySearch Id="FindRedistVS14_64_MINOR"
+            Root="HKLM"
+            Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+            Name="Minor"
+            Win64="yes"
+            Type="raw" />
+      </Property>
+      <Property Id="VS14REDISTX64_32_MAJOR">
+        <RegistrySearch Id="FindRedistVS14_32_MAJOR"
+            Root="HKLM"
+            Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+            Name="Major"
+            Win64="no"
+            Type="raw" />
+      </Property>
+      <Property Id="VS14REDISTX64_32_MINOR">
+        <RegistrySearch Id="FindRedistVS14_32_MINOR"
+            Root="HKLM"
+            Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+            Name="Minor"
+            Win64="no"
+            Type="raw" />
+      </Property>
+
+      <!-- For numbers (DWORD type in Windows Registry) WiX RegistrySearch uses a special prefix: '#'.
+       We have to get rid of it before using properties in the condition check,
+       We want to compare numbers, rather than strings. -->
+      <CustomAction Id="DwordToNumber" Script="vbscript">
+        <![CDATA[
+          Session.Property("VS14REDISTX64_64_MAJOR") = Replace(Session.Property("VS14REDISTX64_64_MAJOR"),"#","")
+          Session.Property("VS14REDISTX64_64_MINOR") = Replace(Session.Property("VS14REDISTX64_64_MINOR"),"#","")
+          Session.Property("VS14REDISTX64_32_MAJOR") = Replace(Session.Property("VS14REDISTX64_32_MAJOR"),"#","")
+          Session.Property("VS14REDISTX64_32_MINOR") = Replace(Session.Property("VS14REDISTX64_32_MINOR"),"#","")
+        ]]>
+      </CustomAction>
+
+      <InstallExecuteSequence>
+        <Custom Action="DwordToNumber" Before="LaunchConditions"/>
+      </InstallExecuteSequence>
+      <InstallUISequence>
+        <Custom Action="DwordToNumber" Before="LaunchConditions"/>
+      </InstallUISequence>
+
+      <Condition Message="This application requires Visual Studio 2019 x64 Redistributable. Please install the Redistributable then run this installer again.">
+        Installed OR (VS14REDISTX64_64_MAJOR = 14 AND VS14REDISTX64_64_MINOR >= 20) OR (VS14REDISTX64_32_MAJOR = 14 AND VS14REDISTX64_32_MINOR >= 20)
+      </Condition>
     <?endif?> 
  
     <!-- Save/restore install location -->
@@ -119,7 +150,7 @@
     <Property Id="GETINSTALLDIR">
       <RegistrySearch Id="FindInstallLocation"
           Root="HKLM"
-          @Win64@
+          Win64="yes"
           Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[OLDERVERSIONBEINGUPGRADED]"
           Name="InstallLocation"
           Type="raw" />
@@ -131,7 +162,7 @@
     <Property Id="OLDERVERSION"> 
       <RegistrySearch Id="FindOlderVersion"
         Root="HKLM"
-        @Win64@
+        Win64="yes"
         Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[OLDERVERSIONBEINGUPGRADED]"
         Name="DisplayVersion"
         Type="raw" />
@@ -147,14 +178,13 @@
     <InstallUISequence>
     <Custom Action="SetInstallDir2" After="AppSearch">INSTALLDIR2</Custom> 
     </InstallUISequence>
-    
+   
     <CustomAction Id="QtRemoveService" BinaryKey="WixCA" DllEntry="WixQuietExec"
             Execute="deferred" Return="ignore" Impersonate="no"/>
     <InstallExecuteSequence>
       <Custom Action="QtRemoveService" After="InstallInitialize">(NOT UPGRADINGPRODUCTCODE) AND (REMOVE="ALL") AND (NOT MYSQL_INSTALLER="YES")</Custom>
     </InstallExecuteSequence>
     <SetProperty Before="QtRemoveService" Sequence="execute" Id="QtRemoveService" Value="&quot;cmd.exe&quot; /S /V:ON /C &quot;echo off&amp;set &quot;d=[INSTALLDIR]&quot;&amp;FOR /f &quot;skip=1&quot; %s in (&apos;wmic service where ^&apos;pathname like &quot;%!d:\=\\!%&quot;^&apos; get name ^| findstr /r &quot;^.$&quot;&apos;) do ((for /L %k IN (1,1,20) do wmic service where &apos;name=&quot;%s&quot; and started=&quot;true&quot;&apos; call stopservice | FIND /v &quot;No Instance&quot;>NUL&amp;&amp;timeout /t 5 /nobreak>NUL)&amp;sc delete %s>NUL)&quot;"/>
-
 
     <!-- UI -->
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR"></Property>
@@ -183,9 +213,9 @@
 
     <!-- Installation root-->
     <Directory Id='TARGETDIR' Name='SourceDir'>
-      <Directory Id='@PlatformProgramFilesFolder@'>
+      <Directory Id='ProgramFiles64Folder'>
         <Directory Id='directory.MySQL' Name='MySQL'>
-          <Directory Id='INSTALLDIR' Name='@PRODUCT_NAME@ @MAJOR_VERSION@.@MINOR_VERSION@'>		   
+          <Directory Id='INSTALLDIR' Name='@PRODUCT_NAME@ @MAJOR_VERSION@.@MINOR_VERSION@'>
           </Directory>
         </Directory>
       </Directory>
@@ -206,5 +236,4 @@
     <!--CPACK_WIX_INCLUDES -->
     @CPACK_WIX_INCLUDES@
   </Product>
-
 </Wix>

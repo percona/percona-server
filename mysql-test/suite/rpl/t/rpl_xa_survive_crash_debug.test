@@ -10,11 +10,12 @@
 # There's some format specifics through show_binlog_events,
 # but MIXED is chosen rather to optimize.
 --source include/have_binlog_format_mixed.inc
+--source include/linux.inc
+
 #
 # Crash-safe testing is difficult on other than Linux.
 # TODO: Open it back at XA-commit/rollback crash-safe bug/FR fixing.
 #
---source include/linux.inc
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc
@@ -41,7 +42,8 @@ XA PREPARE 'xid_partly_rolled_back';
 # roll back.
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 SET @@session.debug="+d,crash_after_xa_rollback";
---error 2013 # CR_SERVER_LOST
+# CR_SERVER_LOST
+--error 2013
 XA ROLLBACK 'xid_partly_rolled_back';
 
 #

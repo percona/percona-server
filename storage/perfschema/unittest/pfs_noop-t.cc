@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -17,25 +17,26 @@
   GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
-#include <my_thread.h>
-#include <pfs_server.h>
-#include <pfs_instr_class.h>
-#include <pfs_instr.h>
-#include <pfs_global.h>
-#include <tap.h>
+#include "storage/perfschema/unittest/pfs_unit_test_conf.h"
 
-#include <string.h>
 #include <memory.h>
+#include <string.h>
 
-#include "stub_print_error.h"
-#include "stub_pfs_defaults.h"
+#include "my_thread.h"
+#include "mysql/psi/psi_transaction.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_server.h"
+#include "storage/perfschema/unittest/stub_pfs_defaults.h"
+#include "storage/perfschema/unittest/stub_pfs_plugin_table.h"
+#include "storage/perfschema/unittest/stub_print_error.h"
+#include "unittest/mytap/tap.h"
 
-void test_noop()
-{
+static void test_noop() {
   PSI_mutex *mutex;
   PSI_rwlock *rwlock;
   PSI_cond *cond;
@@ -63,180 +64,198 @@ void test_noop()
 
   diag("test_noop");
 
-  PSI_server->register_mutex(NULL, NULL, 0);
-  PSI_server->register_rwlock(NULL, NULL, 0);
-  PSI_server->register_cond(NULL, NULL, 0);
-  PSI_server->register_thread(NULL, NULL, 0);
-  PSI_server->register_file(NULL, NULL, 0);
-  PSI_server->register_stage(NULL, NULL, 0);
-  PSI_server->register_statement(NULL, NULL, 0);
-  PSI_server->register_socket(NULL, NULL, 0);
+  psi_mutex_service->register_mutex(nullptr, nullptr, 0);
+  psi_rwlock_service->register_rwlock(nullptr, nullptr, 0);
+  psi_cond_service->register_cond(nullptr, nullptr, 0);
+  psi_thread_service->register_thread(nullptr, nullptr, 0);
+  psi_file_service->register_file(nullptr, nullptr, 0);
+  psi_stage_service->register_stage(nullptr, nullptr, 0);
+  psi_statement_service->register_statement(nullptr, nullptr, 0);
+  psi_socket_service->register_socket(nullptr, nullptr, 0);
 
   ok(true, "register");
-  mutex= PSI_server->init_mutex(1, NULL);
-  ok(mutex == NULL, "no mutex");
-  PSI_server->destroy_mutex(NULL);
-  rwlock= PSI_server->init_rwlock(1, NULL);
-  ok(rwlock == NULL, "no rwlock");
-  PSI_server->destroy_rwlock(NULL);
-  cond= PSI_server->init_cond(1, NULL);
-  ok(cond == NULL, "no cond");
-  PSI_server->destroy_cond(NULL);
-  socket= PSI_server->init_socket(1, NULL, NULL, 0);
-  ok(socket == NULL, "no socket");
-  PSI_server->destroy_socket(NULL);
-  table_share= PSI_server->get_table_share(false, NULL);
-  ok(table_share == NULL, "no table_share");
-  PSI_server->release_table_share(NULL);
-  PSI_server->drop_table_share(false, NULL, 0, NULL, 0);
-  table= PSI_server->open_table(NULL, NULL);
-  ok(table == NULL, "no table");
-  PSI_server->unbind_table(NULL);
-  table= PSI_server->rebind_table(NULL, NULL, NULL);
-  ok(table == NULL, "no table");
-  PSI_server->close_table(NULL, NULL);
-  PSI_server->create_file(1, NULL, 2);
+  mutex = psi_mutex_service->init_mutex(1, nullptr);
+  ok(mutex == nullptr, "no mutex");
+  psi_mutex_service->destroy_mutex(nullptr);
+  rwlock = psi_rwlock_service->init_rwlock(1, nullptr);
+  ok(rwlock == nullptr, "no rwlock");
+  psi_rwlock_service->destroy_rwlock(nullptr);
+  cond = psi_cond_service->init_cond(1, nullptr);
+  ok(cond == nullptr, "no cond");
+  psi_cond_service->destroy_cond(nullptr);
+  socket = psi_socket_service->init_socket(1, nullptr, nullptr, 0);
+  ok(socket == nullptr, "no socket");
+  psi_socket_service->destroy_socket(nullptr);
+  table_share = psi_table_service->get_table_share(false, nullptr);
+  ok(table_share == nullptr, "no table_share");
+  psi_table_service->release_table_share(nullptr);
+  psi_table_service->drop_table_share(false, nullptr, 0, nullptr, 0);
+  table = psi_table_service->open_table(nullptr, nullptr);
+  ok(table == nullptr, "no table");
+  psi_table_service->unbind_table(nullptr);
+  table = psi_table_service->rebind_table(nullptr, nullptr, nullptr);
+  ok(table == nullptr, "no table");
+  psi_table_service->close_table(nullptr, nullptr);
+  psi_file_service->create_file(1, nullptr, 2);
   /* TODO: spawn thread */
-  thread= PSI_server->new_thread(1, NULL, 2);
-  ok(thread == NULL, "no thread");
-  PSI_server->set_thread_id(NULL, 1);
-  thread= PSI_server->get_thread();
-  ok(thread == NULL, "no thread");
-  PSI_server->set_thread_user(NULL, 0);
-  PSI_server->set_thread_account(NULL, 0, NULL, 0);
-  PSI_server->set_thread_db(NULL, 0);
-  PSI_server->set_thread_command(1);
-  PSI_server->set_thread_start_time(1);
-  PSI_server->set_thread_state(NULL);
-  PSI_server->set_thread_info(NULL, 0);
-  PSI_server->set_thread(NULL);
-  PSI_server->delete_current_thread();
-  PSI_server->delete_thread(NULL);
-  file_locker= PSI_server->get_thread_file_name_locker(NULL, 1, PSI_FILE_OPEN, NULL, NULL);
-  ok(file_locker == NULL, "no file_locker");
-  file_locker= PSI_server->get_thread_file_stream_locker(NULL, NULL, PSI_FILE_OPEN);
-  ok(file_locker == NULL, "no file_locker");
-  file_locker= PSI_server->get_thread_file_descriptor_locker(NULL, 0, PSI_FILE_OPEN);
-  ok(file_locker == NULL, "no file_locker");
-  PSI_server->unlock_mutex(NULL);
-  PSI_server->unlock_rwlock(NULL);
-  PSI_server->signal_cond(NULL);
-  PSI_server->broadcast_cond(NULL);
-  idle_locker= PSI_server->start_idle_wait(NULL, NULL, 0);
-  ok(idle_locker == NULL, "no idle_locker");
-  PSI_server->end_idle_wait(NULL);
-  mutex_locker= PSI_server->start_mutex_wait(NULL, NULL, PSI_MUTEX_LOCK, NULL, 0);
-  ok(mutex_locker == NULL, "no mutex_locker");
-  PSI_server->end_mutex_wait(NULL, 0);
-  rwlock_locker= PSI_server->start_rwlock_rdwait(NULL, NULL, PSI_RWLOCK_READLOCK, NULL, 0);
-  ok(rwlock_locker == NULL, "no rwlock_locker");
-  PSI_server->end_rwlock_rdwait(NULL, 0);
-  rwlock_locker= PSI_server->start_rwlock_wrwait(NULL, NULL, PSI_RWLOCK_WRITELOCK, NULL, 0);
-  ok(rwlock_locker == NULL, "no rwlock_locker");
-  PSI_server->end_rwlock_wrwait(NULL, 0);
-  cond_locker= PSI_server->start_cond_wait(NULL, NULL, NULL, PSI_COND_WAIT, NULL, 0);
-  ok(cond_locker == NULL, "no cond_locker");
-  PSI_server->end_cond_wait(NULL, 0);
-  table_locker= PSI_server->start_table_io_wait(NULL, NULL, PSI_TABLE_FETCH_ROW, 0, NULL, 0);
-  ok(table_locker == NULL, "no table_locker");
-  PSI_server->end_table_io_wait(NULL, 0);
-  table_locker= PSI_server->start_table_lock_wait(NULL, NULL, PSI_TABLE_LOCK, 0, NULL, 0);
-  ok(table_locker == NULL, "no table_locker");
-  PSI_server->end_table_lock_wait(NULL);
-  PSI_server->start_file_open_wait(NULL, NULL, 0);
-  file= PSI_server->end_file_open_wait(NULL, NULL);
-  ok(file == NULL, "no file");
-  PSI_server->end_file_open_wait_and_bind_to_descriptor(NULL, 0);
-  PSI_server->start_file_wait(NULL, 0, NULL, 0);
-  PSI_server->end_file_wait(NULL, 0);
-  PSI_server->start_file_close_wait(NULL, NULL, 0);
-  PSI_server->end_file_close_wait(NULL, 0);
-  PSI_server->end_file_rename_wait(NULL, NULL, NULL, 0);
-  PSI_server->start_stage(1, NULL, 0);
+  thread = psi_thread_service->new_thread(1, nullptr, 2);
+  ok(thread == nullptr, "no thread");
+  psi_thread_service->set_thread_id(nullptr, 1);
+  thread = psi_thread_service->get_thread();
+  ok(thread == nullptr, "no thread");
+  psi_thread_service->set_thread_user(nullptr, 0);
+  psi_thread_service->set_thread_account(nullptr, 0, nullptr, 0);
+  psi_thread_service->set_thread_db(nullptr, 0);
+  psi_thread_service->set_thread_command(1);
+  psi_thread_service->set_thread_start_time(1);
+  psi_thread_service->set_thread_info(nullptr, 0);
+  psi_thread_service->set_thread(nullptr);
+  psi_thread_service->aggregate_thread_status(nullptr);
+  psi_thread_service->delete_current_thread();
+  psi_thread_service->delete_thread(nullptr);
+  file_locker = psi_file_service->get_thread_file_name_locker(
+      nullptr, 1, PSI_FILE_OPEN, nullptr, nullptr);
+  ok(file_locker == nullptr, "no file_locker");
+  file_locker = psi_file_service->get_thread_file_stream_locker(
+      nullptr, nullptr, PSI_FILE_OPEN);
+  ok(file_locker == nullptr, "no file_locker");
+  file_locker = psi_file_service->get_thread_file_descriptor_locker(
+      nullptr, 0, PSI_FILE_OPEN);
+  ok(file_locker == nullptr, "no file_locker");
+  psi_mutex_service->unlock_mutex(nullptr);
+  psi_rwlock_service->unlock_rwlock(nullptr, PSI_RWLOCK_UNLOCK);
+  psi_cond_service->signal_cond(nullptr);
+  psi_cond_service->broadcast_cond(nullptr);
+  idle_locker = psi_idle_service->start_idle_wait(nullptr, nullptr, 0);
+  ok(idle_locker == nullptr, "no idle_locker");
+  psi_idle_service->end_idle_wait(nullptr);
+  mutex_locker = psi_mutex_service->start_mutex_wait(
+      nullptr, nullptr, PSI_MUTEX_LOCK, nullptr, 0);
+  ok(mutex_locker == nullptr, "no mutex_locker");
+  psi_mutex_service->end_mutex_wait(nullptr, 0);
+  rwlock_locker = psi_rwlock_service->start_rwlock_rdwait(
+      nullptr, nullptr, PSI_RWLOCK_READLOCK, nullptr, 0);
+  ok(rwlock_locker == nullptr, "no rwlock_locker");
+  psi_rwlock_service->end_rwlock_rdwait(nullptr, 0);
+  rwlock_locker = psi_rwlock_service->start_rwlock_wrwait(
+      nullptr, nullptr, PSI_RWLOCK_WRITELOCK, nullptr, 0);
+  ok(rwlock_locker == nullptr, "no rwlock_locker");
+  psi_rwlock_service->end_rwlock_wrwait(nullptr, 0);
+  cond_locker = psi_cond_service->start_cond_wait(nullptr, nullptr, nullptr,
+                                                  PSI_COND_WAIT, nullptr, 0);
+  ok(cond_locker == nullptr, "no cond_locker");
+  psi_cond_service->end_cond_wait(nullptr, 0);
+  table_locker = psi_table_service->start_table_io_wait(
+      nullptr, nullptr, PSI_TABLE_FETCH_ROW, 0, nullptr, 0);
+  ok(table_locker == nullptr, "no table_locker");
+  psi_table_service->end_table_io_wait(nullptr, 0);
+  table_locker = psi_table_service->start_table_lock_wait(
+      nullptr, nullptr, PSI_TABLE_LOCK, 0, nullptr, 0);
+  ok(table_locker == nullptr, "no table_locker");
+  psi_table_service->end_table_lock_wait(nullptr);
+  psi_file_service->start_file_open_wait(nullptr, nullptr, 0);
+  file = psi_file_service->end_file_open_wait(nullptr, nullptr);
+  ok(file == nullptr, "no file");
+  psi_file_service->end_file_open_wait_and_bind_to_descriptor(nullptr, 0);
+  psi_file_service->start_file_wait(nullptr, 0, nullptr, 0);
+  psi_file_service->end_file_wait(nullptr, 0);
+  psi_file_service->start_file_close_wait(nullptr, nullptr, 0);
+  psi_file_service->end_file_close_wait(nullptr, 0);
+  psi_file_service->start_file_rename_wait(NULL, 0, nullptr, nullptr, nullptr,
+                                           0);
+  psi_file_service->end_file_rename_wait(nullptr, nullptr, nullptr, 0);
+  psi_stage_service->start_stage(1, nullptr, 0);
 
   PSI_stage_progress *progress;
-  progress= PSI_server->get_current_stage_progress();
-  ok(progress == NULL, "no progress");
+  progress = psi_stage_service->get_current_stage_progress();
+  ok(progress == nullptr, "no progress");
 
-  PSI_server->end_stage();
-  statement_locker= PSI_server->get_thread_statement_locker(NULL, 1, NULL, NULL);
-  ok(statement_locker == NULL, "no statement_locker");
-  statement_locker= PSI_server->refine_statement(NULL, 1);
-  ok(statement_locker == NULL, "no statement_locker");
-  PSI_server->start_statement(NULL, NULL, 0, NULL, 0);
-  PSI_server->set_statement_text(NULL, NULL, 0);
-  PSI_server->set_statement_lock_time(NULL, 0);
-  PSI_server->set_statement_rows_sent(NULL, 0);
-  PSI_server->set_statement_rows_examined(NULL, 0);
-  PSI_server->inc_statement_created_tmp_disk_tables(NULL, 0);
-  PSI_server->inc_statement_created_tmp_tables(NULL, 0);
-  PSI_server->inc_statement_select_full_join(NULL, 0);
-  PSI_server->inc_statement_select_full_range_join(NULL, 0);
-  PSI_server->inc_statement_select_range(NULL, 0);
-  PSI_server->inc_statement_select_range_check(NULL, 0);
-  PSI_server->inc_statement_select_scan(NULL, 0);
-  PSI_server->inc_statement_sort_merge_passes(NULL, 0);
-  PSI_server->inc_statement_sort_range(NULL, 0);
-  PSI_server->inc_statement_sort_rows(NULL, 0);
-  PSI_server->inc_statement_sort_scan(NULL, 0);
-  PSI_server->set_statement_no_index_used(NULL);
-  PSI_server->set_statement_no_good_index_used(NULL);
-  PSI_server->end_statement(NULL, NULL);
-  socket_locker= PSI_server->start_socket_wait(NULL, NULL, PSI_SOCKET_SEND, 1, NULL, 0);
-  ok(socket_locker == NULL, "no socket_locker");
-  PSI_server->end_socket_wait(NULL, 0);
-  PSI_server->set_socket_state(NULL, PSI_SOCKET_STATE_IDLE);
-  PSI_server->set_socket_info(NULL, NULL, NULL, 0);
-  PSI_server->set_socket_thread_owner(NULL);
-  digest_locker= PSI_server->digest_start(NULL);
-  ok(digest_locker == NULL, "no digest_locker");
-  PSI_server->digest_end(NULL, NULL);
-  sp_locker= PSI_server->start_sp(NULL, NULL);
-  ok(sp_locker == NULL, "no sp_locker");
-  PSI_server->end_sp(NULL);
-  PSI_server->drop_sp(0, NULL, 0, NULL, 0);
-  sp_share= PSI_server->get_sp_share(0, NULL, 0, NULL, 0);
-  ok(sp_share == NULL, "no sp_share");
-  PSI_server->release_sp_share(NULL);
-  PSI_server->register_memory(NULL, NULL, 0);
-  memory_key= PSI_server->memory_alloc(0, 0, & owner);
+  psi_stage_service->end_stage();
+  statement_locker = psi_statement_service->get_thread_statement_locker(
+      nullptr, 1, nullptr, nullptr);
+  ok(statement_locker == nullptr, "no statement_locker");
+  statement_locker = psi_statement_service->refine_statement(nullptr, 1);
+  ok(statement_locker == nullptr, "no statement_locker");
+  psi_statement_service->start_statement(nullptr, nullptr, 0, nullptr, 0);
+  psi_statement_service->set_statement_text(nullptr, nullptr, 0);
+  psi_statement_service->set_statement_lock_time(nullptr, 0);
+  psi_statement_service->set_statement_rows_sent(nullptr, 0);
+  psi_statement_service->set_statement_rows_examined(nullptr, 0);
+  psi_statement_service->inc_statement_created_tmp_disk_tables(nullptr, 0);
+  psi_statement_service->inc_statement_created_tmp_tables(nullptr, 0);
+  psi_statement_service->inc_statement_select_full_join(nullptr, 0);
+  psi_statement_service->inc_statement_select_full_range_join(nullptr, 0);
+  psi_statement_service->inc_statement_select_range(nullptr, 0);
+  psi_statement_service->inc_statement_select_range_check(nullptr, 0);
+  psi_statement_service->inc_statement_select_scan(nullptr, 0);
+  psi_statement_service->inc_statement_sort_merge_passes(nullptr, 0);
+  psi_statement_service->inc_statement_sort_range(nullptr, 0);
+  psi_statement_service->inc_statement_sort_rows(nullptr, 0);
+  psi_statement_service->inc_statement_sort_scan(nullptr, 0);
+  psi_statement_service->set_statement_no_index_used(nullptr);
+  psi_statement_service->set_statement_no_good_index_used(nullptr);
+  psi_statement_service->end_statement(nullptr, nullptr);
+  socket_locker = psi_socket_service->start_socket_wait(
+      nullptr, nullptr, PSI_SOCKET_SEND, 1, nullptr, 0);
+  ok(socket_locker == nullptr, "no socket_locker");
+  psi_socket_service->end_socket_wait(nullptr, 0);
+  psi_socket_service->set_socket_state(nullptr, PSI_SOCKET_STATE_IDLE);
+  psi_socket_service->set_socket_info(nullptr, nullptr, nullptr, 0);
+  psi_socket_service->set_socket_thread_owner(nullptr);
+  digest_locker = psi_statement_service->digest_start(nullptr);
+  ok(digest_locker == nullptr, "no digest_locker");
+  psi_statement_service->digest_end(nullptr, nullptr);
+  sp_locker = psi_statement_service->start_sp(nullptr, nullptr);
+  ok(sp_locker == nullptr, "no sp_locker");
+  psi_statement_service->end_sp(nullptr);
+  psi_statement_service->drop_sp(0, nullptr, 0, nullptr, 0);
+  sp_share = psi_statement_service->get_sp_share(0, nullptr, 0, nullptr, 0);
+  ok(sp_share == nullptr, "no sp_share");
+  psi_statement_service->release_sp_share(nullptr);
+  psi_memory_service->register_memory(nullptr, nullptr, 0);
+  memory_key = psi_memory_service->memory_alloc(0, 0, &owner);
   ok(memory_key == PSI_NOT_INSTRUMENTED, "no memory_key");
-  memory_key= PSI_server->memory_realloc(0, 0, 0, & owner);
+  memory_key = psi_memory_service->memory_realloc(0, 0, 0, &owner);
   ok(memory_key == PSI_NOT_INSTRUMENTED, "no memory_key");
-  PSI_server->memory_free(0, 0, NULL);
-  PSI_server->unlock_table(NULL);
-  metadata_lock= PSI_server->create_metadata_lock(NULL, NULL, 1, 2, 3, NULL, 0);
-  ok(metadata_lock == NULL, "no metadata_lock");
-  PSI_server->set_metadata_lock_status(NULL, 0);
-  PSI_server->destroy_metadata_lock(NULL);
-  metadata_locker= PSI_server->start_metadata_wait(NULL, NULL, NULL, 0);
-  ok(metadata_locker == NULL, "no metadata_locker");
-  PSI_server->end_metadata_wait(NULL, 0);
-  
-  transaction_locker= PSI_server->get_thread_transaction_locker(NULL, NULL, NULL, 1, false, 1);
-  ok(transaction_locker == NULL, "no transaction_locker");
-  PSI_server->start_transaction(NULL, NULL, 0);
-  PSI_server->end_transaction(NULL, true);
+  psi_memory_service->memory_free(0, 0, nullptr);
+  psi_table_service->unlock_table(nullptr);
+  metadata_lock = psi_mdl_service->create_metadata_lock(nullptr, nullptr, 1, 2,
+                                                        3, nullptr, 0);
+  ok(metadata_lock == nullptr, "no metadata_lock");
+  psi_mdl_service->set_metadata_lock_status(nullptr, 0);
+  psi_mdl_service->destroy_metadata_lock(nullptr);
+  metadata_locker =
+      psi_mdl_service->start_metadata_wait(nullptr, nullptr, nullptr, 0);
+  ok(metadata_locker == nullptr, "no metadata_locker");
+  psi_mdl_service->end_metadata_wait(nullptr, 0);
 
-  PSI_server->set_transaction_gtid(NULL, NULL, NULL);
-  PSI_server->set_transaction_trxid(NULL, NULL);
-  PSI_server->set_transaction_xa_state(NULL, 1);
-  PSI_server->set_transaction_xid(NULL, NULL, 1);
-  PSI_server->inc_transaction_release_savepoint(NULL, 1);
-  PSI_server->inc_transaction_rollback_to_savepoint(NULL, 1);
-  PSI_server->inc_transaction_savepoints(NULL, 1);
+  transaction_locker = psi_transaction_service->get_thread_transaction_locker(
+      nullptr, nullptr, nullptr, 1, false, true);
+  ok(transaction_locker == nullptr, "no transaction_locker");
+  psi_transaction_service->start_transaction(nullptr, nullptr, 0);
+  psi_transaction_service->end_transaction(nullptr, true);
 
-  PSI_server->set_thread_THD(NULL, NULL);
+  psi_transaction_service->set_transaction_gtid(nullptr, nullptr, nullptr);
+  psi_transaction_service->set_transaction_trxid(nullptr, nullptr);
+  psi_transaction_service->set_transaction_xa_state(nullptr, 1);
+  psi_transaction_service->set_transaction_xid(nullptr, nullptr, 1);
+  psi_transaction_service->inc_transaction_release_savepoint(nullptr, 1);
+  psi_transaction_service->inc_transaction_rollback_to_savepoint(nullptr, 1);
+  psi_transaction_service->inc_transaction_savepoints(nullptr, 1);
+
+  psi_thread_service->set_thread_THD(nullptr, nullptr);
+
+  psi_error_service->log_error(0, PSI_ERROR_OPERATION_RAISED);
+  ok(true, "no error");
 
   ok(true, "all noop api called");
 }
 
-int main(int, char **)
-{
-  plan(34);
+int main(int, char **) {
+  plan(35);
 
   MY_INIT("pfs_noop-t");
   test_noop();
+  my_end(0);
   return (exit_status());
 }
-

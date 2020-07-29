@@ -4,8 +4,6 @@
 # Character set conversion operations on NULL parameters to prepared
 # statements could cause a server exit.
 #
---source include/have_utf32.inc
-
 SET @x = '1.1';
 SET collation_connection = utf32_bin;
 PREPARE stmt FROM 'SELECT ? = ?';

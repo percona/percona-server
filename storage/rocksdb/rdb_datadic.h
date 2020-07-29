@@ -983,6 +983,12 @@ class Rdb_field_packing {
   /* Length of mem-comparable image of the field, in bytes */
   int m_max_image_len;
 
+  /*
+    Length of mem-comparable image of the field, before taking varchar chunk
+    encoding into account. For non-varchar case the value isn't used.
+   */
+  int m_max_image_len_before_encoding;
+
   /* Length of image in the unpack data */
   int m_unpack_data_len;
   int m_unpack_data_offset;
@@ -1164,7 +1170,9 @@ class Rdb_tbl_def {
       : m_key_descr_arr(nullptr),
         m_hidden_pk_val(0),
         m_auto_incr_val(0),
-        m_tbl_stats() {
+        m_tbl_stats(),
+        m_update_time(0),
+        m_create_time(CREATE_TIME_UNKNOWN) {
     set_name(name);
   }
 
@@ -1172,7 +1180,9 @@ class Rdb_tbl_def {
       : m_key_descr_arr(nullptr),
         m_hidden_pk_val(0),
         m_auto_incr_val(0),
-        m_tbl_stats() {
+        m_tbl_stats(),
+        m_update_time(0),
+        m_create_time(CREATE_TIME_UNKNOWN) {
     set_name(std::string(name, len));
   }
 
@@ -1180,7 +1190,9 @@ class Rdb_tbl_def {
       : m_key_descr_arr(nullptr),
         m_hidden_pk_val(0),
         m_auto_incr_val(0),
-        m_tbl_stats() {
+        m_tbl_stats(),
+        m_update_time(0),
+        m_create_time(CREATE_TIME_UNKNOWN) {
     set_name(std::string(slice.data() + pos, slice.size() - pos));
   }
 
@@ -1213,6 +1225,14 @@ class Rdb_tbl_def {
   const std::string &base_tablename() const { return m_tablename; }
   const std::string &base_partition() const { return m_partition; }
   GL_INDEX_ID get_autoincr_gl_index_id();
+
+  time_t get_create_time();
+  std::atomic<time_t> m_update_time;  // in-memory only value
+ private:
+  const time_t CREATE_TIME_UNKNOWN = 1;
+  // CREATE_TIME_UNKNOWN means "didn't try to read, yet"
+  // 0 means "no data available"
+  std::atomic<time_t> m_create_time;
 };
 
 /*
@@ -1281,7 +1301,7 @@ class Rdb_ddl_manager {
   Rdb_ddl_manager &operator=(const Rdb_ddl_manager &) = delete;
   Rdb_ddl_manager() {}
 
-    /* Load the data dictionary from on-disk storage */
+  /* Load the data dictionary from on-disk storage */
 #if defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) && ROCKSDB_INCLUDE_VALIDATE_TABLES
   bool init(Rdb_dict_manager *const dict_arg, Rdb_cf_manager *const cf_manager,
             const uint32_t validate_tables);
@@ -1336,7 +1356,7 @@ class Rdb_ddl_manager {
 
   /* Helper functions to be passed to my_core::HASH object */
   static const uchar *get_hash_key(Rdb_tbl_def *const rec, size_t *const length,
-                                   my_bool not_used MY_ATTRIBUTE((unused)));
+                                   bool not_used MY_ATTRIBUTE((unused)));
   static void free_hash_elem(void *const data);
 
 #if defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) && ROCKSDB_INCLUDE_VALIDATE_TABLES
@@ -1449,7 +1469,7 @@ class Rdb_dict_manager {
 
   bool init(rocksdb::TransactionDB *const rdb_dict,
             Rdb_cf_manager *const cf_manager,
-            const my_bool enable_remove_orphaned_cf_flags);
+            const bool enable_remove_orphaned_cf_flags);
 
   inline void cleanup() { mysql_mutex_destroy(&m_mutex); }
 
@@ -1499,7 +1519,7 @@ class Rdb_dict_manager {
 
   int remove_orphaned_dropped_cfs(
       Rdb_cf_manager *const cf_manager,
-      const my_bool &enable_remove_orphaned_dropped_cfs) const;
+      const bool &enable_remove_orphaned_dropped_cfs) const;
 
   void delete_dropped_cf_and_flags(rocksdb::WriteBatch *const batch,
                                    const uint &cf_id) const;

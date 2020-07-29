@@ -1,3 +1,0 @@
-SELECT @@global.innodb_show_verbose_locks;
-@@global.innodb_show_verbose_locks
-0

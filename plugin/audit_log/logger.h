@@ -11,14 +11,11 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+   USA */
 
 #ifndef MYSQL_SERVICE_LOGGER_INCLUDED
 #define MYSQL_SERVICE_LOGGER_INCLUDED
-
-#ifndef MYSQL_ABI_CHECK
-#include <stdarg.h>
-#endif
 
 /**
   @file
@@ -47,40 +44,30 @@
   The access is secured with the mutex, so the log is threadsafe.
 */
 
+#include <stdarg.h>
 #include <sys/types.h>
-#include <my_sys.h> // PSI_memory_key
-#include <my_dir.h>
+#include "my_compiler.h"
+#include "my_dir.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+struct LOGGER_HANDLE;
 
-typedef struct logger_handle_st LOGGER_HANDLE;
 typedef size_t (*logger_prolog_func_t)(MY_STAT *, char *buf, size_t buflen);
 typedef size_t (*logger_epilog_func_t)(char *buf, size_t buflen);
-typedef enum {
-  LOG_RECORD_COMPLETE,
-  LOG_RECORD_INCOMPLETE
-} log_record_state_t;
 
-void logger_init_mutexes();
-LOGGER_HANDLE *logger_open(const char *path,
-                           unsigned long long size_limit,
-                           unsigned int rotations,
-                           int thread_safe,
-                           logger_prolog_func_t header);
-int logger_close(LOGGER_HANDLE *log, logger_epilog_func_t footer);
+enum class log_record_state_t { COMPLETE, INCOMPLETE };
+
+void logger_init_mutexes() noexcept;
+LOGGER_HANDLE *logger_open(const char *path, unsigned long long size_limit,
+                           unsigned int rotations, bool thread_safe,
+                           logger_prolog_func_t header) noexcept;
+int logger_close(LOGGER_HANDLE *log, logger_epilog_func_t footer) noexcept;
 int logger_write(LOGGER_HANDLE *log, const char *buffer, size_t size,
-                 log_record_state_t state);
-int logger_sync(LOGGER_HANDLE *log);
+                 log_record_state_t state) noexcept;
+int logger_sync(LOGGER_HANDLE *log) noexcept;
 int logger_reopen(LOGGER_HANDLE *log, logger_prolog_func_t header,
-                  logger_epilog_func_t footer);
-void logger_set_size_limit(LOGGER_HANDLE *log, unsigned long long size_limit);
-void logger_set_rotations(LOGGER_HANDLE *log, unsigned int rotations);
-
-#ifdef __cplusplus
-}
-#endif
+                  logger_epilog_func_t footer) noexcept;
+void logger_set_size_limit(LOGGER_HANDLE *log,
+                           unsigned long long size_limit) noexcept;
+void logger_set_rotations(LOGGER_HANDLE *log, unsigned int rotations) noexcept;
 
 #endif /*MYSQL_SERVICE_LOGGER_INCLUDED*/
-

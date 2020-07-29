@@ -1,5 +1,5 @@
-call mtr.add_suppression("\\[ERROR\\] InnoDB: user stopword table not_defined does not exist.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: user stopword table test/user_stopword_session does not exist.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* user stopword table not_defined does not exist.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* user stopword table test/user_stopword_session does not exist.");
 select * from information_schema.innodb_ft_default_stopword;
 value
 a
@@ -145,12 +145,12 @@ FULLTEXT `idx` (title,body)
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
   `title` varchar(200) DEFAULT NULL,
   `body` text,
   PRIMARY KEY (`id`),
   FULLTEXT KEY `idx` (`title`,`body`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO articles (title,body) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),
@@ -241,11 +241,11 @@ ALTER TABLE articles DROP INDEX idx;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
   `title` varchar(200) DEFAULT NULL,
   `body` text,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE articles ADD FULLTEXT INDEX idx (title,body);
 ANALYZE TABLE articles;
 Table	Op	Msg_type	Msg_text
@@ -435,12 +435,12 @@ FULLTEXT `idx` (title,body)
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
   `title` varchar(200) DEFAULT NULL,
   `body` text,
   PRIMARY KEY (`id`),
   FULLTEXT KEY `idx` (`title`,`body`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO articles (title,body) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),
@@ -546,12 +546,12 @@ FULLTEXT `idx` (title,body)
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
   `title` varchar(200) DEFAULT NULL,
   `body` text,
   PRIMARY KEY (`id`),
   FULLTEXT KEY `idx` (`title`,`body`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO articles (title,body) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),

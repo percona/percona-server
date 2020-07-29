@@ -6,10 +6,8 @@ CREATE TABLE `t1` (
 PRIMARY KEY (`num`)
 ) PARTITION BY HASH (num) PARTITIONS 8;
 Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 values (null,null);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 SELECT null,val FROM t1;
 INSERT INTO t1 SELECT null,val FROM t1;
 INSERT INTO t1 SELECT null,val FROM t1;

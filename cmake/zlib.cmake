@@ -18,14 +18,14 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA 
 
 MACRO (MYSQL_USE_BUNDLED_ZLIB)
   SET(BUILD_BUNDLED_ZLIB 1)
   SET(ZLIB_LIBRARY zlib CACHE INTERNAL "Bundled zlib library")
   SET(ZLIB_FOUND  TRUE)
   SET(WITH_ZLIB "bundled" CACHE STRING "Use bundled zlib")
-  ADD_SUBDIRECTORY(zlib)
+  ADD_SUBDIRECTORY(extra/zlib)
 ENDMACRO()
 
 # MYSQL_CHECK_ZLIB_WITH_COMPRESS
@@ -75,5 +75,4 @@ MACRO (MYSQL_CHECK_ZLIB_WITH_COMPRESS)
       MYSQL_USE_BUNDLED_ZLIB()
     ENDIF()
   ENDIF()
-  SET(HAVE_COMPRESS 1)
 ENDMACRO()

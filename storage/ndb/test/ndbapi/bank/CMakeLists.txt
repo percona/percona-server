@@ -1,5 +1,4 @@
-# Copyright (C) 2008 MySQL AB
-# Use is subject to license terms
+# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -19,34 +18,23 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitest.cmake)
 
-ADD_CONVENIENCE_LIBRARY(ndbbank
-            Bank.cpp BankLoad.cpp)
-
-ADD_EXECUTABLE(testBank testBank.cpp)
-ADD_EXECUTABLE(bankSumAccounts bankSumAccounts.cpp)
-ADD_EXECUTABLE(bankValidateAllGLs bankValidateAllGLs.cpp)
-ADD_EXECUTABLE(bankMakeGL bankMakeGL.cpp)
-ADD_EXECUTABLE(bankTransactionMaker bankTransactionMaker.cpp)
-ADD_EXECUTABLE(bankCreator bankCreator.cpp)
-ADD_EXECUTABLE(bankTimer bankTimer.cpp)
+ADD_LIBRARY(ndbbank STATIC Bank.cpp BankLoad.cpp)
 
 SET(BINS
-    testBank
-    bankSumAccounts
-    bankValidateAllGLs
-    bankMakeGL
-    bankTransactionMaker
-    bankCreator
-    bankTimer)
+  testBank
+  bankSumAccounts
+  bankValidateAllGLs
+  bankMakeGL
+  bankTransactionMaker
+  bankCreator
+  bankTimer
+  )
 
 FOREACH(B ${BINS})
-  TARGET_LINK_LIBRARIES(${B} ndbbank)
-  TARGET_LINK_LIBRARIES(${B} ndbNDBT)
-  TARGET_LINK_LIBRARIES(${B} ndbclient_so)
+  NDB_ADD_EXECUTABLE(${B} ${B}.cpp)
+  TARGET_LINK_LIBRARIES(${B} ndbbank ndbNDBT ndbclient_so)
 ENDFOREACH()
-
-INSTALL(TARGETS ${BINS} DESTINATION bin)

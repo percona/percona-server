@@ -1,4 +1,5 @@
-/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,8 +19,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
-
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDB_HASHMAP2_HPP
 #define NDB_HASHMAP2_HPP
@@ -63,17 +64,17 @@ public:
   static Uint32 hashValue(const KV* obj)
   {
     return obj->hashValue();
-  };
+  }
 
   static bool equal(const KV* objA, const KV* objB)
   {
     return objA->equal(objB);
-  };
+  }
 
   static void setNext(KV* from, KV* to)
   {
     return from->setNext(to);
-  };
+  }
 
   static KV* getNext(const KV* from)
   {
@@ -92,20 +93,20 @@ public:
  */
 struct StandardAllocator
 {
-  static void* alloc(void* ignore, size_t bytes)
+  static void* alloc(void*, size_t bytes)
   {
     return ::malloc(bytes);
-  };
+  }
 
-  static void* mem_calloc(void* ignore, size_t nelem, size_t bytes)
+  static void* mem_calloc(void*, size_t nelem, size_t bytes)
   {
     return ::calloc(nelem, bytes);
   }
 
-  static void mem_free(void* ignore, void* mem)
+  static void mem_free(void*, void* mem)
   {
     ::free(mem);
-  };
+  }
 };
 
 /**
@@ -185,7 +186,7 @@ public:
       allocatorContext(_allocatorContext),
       table(NULL)
   {
-  };
+  }
 
   ~HashMap2()
   {
@@ -235,7 +236,7 @@ public:
       table[i] = NULL;
 
     return true;
-  };
+  }
 
   /**
    * add
@@ -371,7 +372,7 @@ public:
     }
 
     return chainElement;
-  };
+  }
 
   /**
    * reset

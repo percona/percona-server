@@ -1,5 +1,3 @@
---source include/have_innodb.inc
-
 --echo #
 --echo # Basic test for innodb_parallel_dblwr_encrypt
 --echo #

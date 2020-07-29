@@ -7,10 +7,12 @@
 # [--let $binlog_file= [<FILENAME> | LAST]]
 # [--let $binlog_start= <POSITION> ]
 # [--let $binlog_limit= 1, 3 ]
+# [--let $keep_transaction_payload_events = 0]
 # [--let $keep_gtid_events= 1]
 # [--let $keep_view_change_events= 1]
 # [--let $mask_binlog_commit_events= 1]
 # [--let $mask_anonymous_gtid_events= 1]
+# [--let $mask_user_password_events= 1]
 # --source include/show_binlog_events.inc
 #
 # Parameters:
@@ -41,6 +43,11 @@
 #     independent of Group Replication being enabled. If this flag is set,
 #     events are kept.
 #
+#   $keep_transaction_payload_events
+#     By default, transaction payload events are not filtered out. If this
+#     flag is set to 1 Transaction_payload_events are kept in the output.
+#     If set to 0, Transaction_payload_events are omitted.
+#
 #   $mask_binlog_commit_events
 #     If specified, any Xid_log_event is masked as a
 #     Query_log_event(COMMIT), to make the output uniform for
@@ -61,8 +68,22 @@
 #     Mask ANONYMOUS_GTID_LOG_EVENT as GTID_LOG_EVENTS to make a non-GTID
 #     enabled event stream similar to a GTID enabled one, as the server now
 #     generates [ANONYMOUS_]GTID always.
-
-
+#
+#   $keep_ddl_xid
+#     When specified leaves the XID field printed out. The flag is not supposed
+#     to be specified in "old" tests that do not expect DDL Query_log_event:s
+#     with XID info.
+#
+#   $mask_user_password_events
+#     To mask random password generated with create/alter user which used
+#     caching_sha2 authentication plugin. Note this is the default
+#     authentication plugin since 8.0.4
+#
+#   $mask_grant_as_events
+#      Do not print the AS <...> WITH <...> clause in the GRANT statement
+#      to avoid the test failure on the builds where partial_revokes is
+#      ON by default.
+#
 --let $include_filename= show_binlog_events.inc
 --source include/begin_include_file.inc
 

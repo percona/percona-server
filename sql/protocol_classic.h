@@ -1,7 +1,7 @@
 #ifndef PROTOCOL_CLASSIC_INCLUDED
 #define PROTOCOL_CLASSIC_INCLUDED
 
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,23 +22,44 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-#include "sql_error.h"
-#include "my_decimal.h"                         /* my_decimal */
-#include "field.h"                              /* Send_field */
-#include "protocol.h"                           /* Protocol */
 
-typedef struct st_mysql_field MYSQL_FIELD;
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "field_types.h"  // enum_field_types
+#include "m_ctype.h"
+#include "my_command.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "mysql_com.h"
+#include "mysql_time.h"
+#include "sql/protocol.h"  // Protocol
+#include "violite.h"
+
 class Item_param;
+class Send_field;
+class String;
+class i_string;
+class my_decimal;
+template <class T>
+class I_List;
+template <class T>
+class List;
+union COM_DATA;
+class THD;
 
-class Protocol_classic : public Protocol
-{
-private:
+class Protocol_classic : public Protocol {
+ private:
   ulong m_client_capabilities;
-  virtual bool parse_packet(union COM_DATA *data, enum_server_command cmd);
-protected:
-  MYSQL_THD m_thd;
+  bool parse_packet(union COM_DATA *data, enum_server_command cmd);
+  bool net_store_data_with_conversion(const uchar *from, size_t length,
+                                      const CHARSET_INFO *fromcs,
+                                      const CHARSET_INFO *tocs);
+
+ protected:
+  THD *m_thd;
   String *packet;
-  String *convert;
+  String convert;
   uint field_pos;
   bool send_metadata;
 #ifndef DBUG_OFF
@@ -47,48 +68,38 @@ protected:
 #endif
   uint field_count;
   uint sending_flags;
-  ulong packet_length;
-  uchar *raw_packet;
-  CHARSET_INFO *result_cs;
-#ifndef EMBEDDED_LIBRARY
-  bool net_store_data(const uchar *from, size_t length);
-#else
-  char **next_field;
-  MYSQL_FIELD *next_mysql_field;
-  MEM_ROOT *alloc;
-  MYSQL_FIELD  *client_field;
-  MEM_ROOT     *field_alloc;
-  virtual bool net_store_data(const uchar *from, size_t length);
-#endif
-  virtual bool net_store_data(const uchar *from, size_t length,
-                              const CHARSET_INFO *fromcs,
-                              const CHARSET_INFO *tocs);
-  bool store_string_aux(const char *from, size_t length,
-                        const CHARSET_INFO *fromcs, const CHARSET_INFO *tocs);
+  ulong input_packet_length;
+  uchar *input_raw_packet;
+  const CHARSET_INFO *result_cs;
 
-  virtual bool send_ok(uint server_status, uint statement_warn_count,
-                       ulonglong affected_rows, ulonglong last_insert_id,
-                       const char *message);
+  bool send_ok(uint server_status, uint statement_warn_count,
+               ulonglong affected_rows, ulonglong last_insert_id,
+               const char *message) override;
 
-  virtual bool send_eof(uint server_status, uint statement_warn_count);
+  bool send_eof(uint server_status, uint statement_warn_count) override;
 
-  virtual bool send_error(uint sql_errno, const char *err_msg,
-                          const char *sql_state);
-public:
+  bool send_error(uint sql_errno, const char *err_msg,
+                  const char *sql_state) override;
+  bool store_ps_status(ulong stmt_id, uint column_count, uint param_count,
+                       ulong cond_count) override;
+
+ public:
   bool bad_packet;
-  Protocol_classic(): send_metadata(false), bad_packet(true) {}
-  Protocol_classic(THD *thd):
-        send_metadata(false),
-        packet_length(0),
-        raw_packet(NULL),
-        bad_packet(true)
-  {
+  Protocol_classic()
+      : send_metadata(false), input_packet_length(0), bad_packet(true) {}
+  Protocol_classic(THD *thd)
+      : send_metadata(false),
+        input_packet_length(0),
+        input_raw_packet(nullptr),
+        bad_packet(true) {
     init(thd);
   }
-  virtual ~Protocol_classic() {}
-  void init(THD* thd_arg);
-  virtual int read_packet();
-  virtual int get_command(COM_DATA *com_data, enum_server_command *cmd);
+  void init(THD *thd_arg);
+  bool store_field(const Field *field) final override;
+  bool store_string(const char *from, size_t length,
+                    const CHARSET_INFO *cs) final;
+  int read_packet() override;
+  int get_command(COM_DATA *com_data, enum_server_command *cmd) override;
   /**
     Parses the passed parameters and creates a command
 
@@ -97,34 +108,27 @@ public:
     @param pkt       packet to be parsed
     @param length    size of the packet
 
-    @return
-      @retval false   ok
-      @retval true    error
+    @retval false   ok
+    @retval true    error
   */
-  virtual bool create_command(COM_DATA *com_data,
-                              enum_server_command cmd,
-                              uchar *pkt, size_t length);
-  String *storage_packet() { return packet; }
-  virtual bool flush();
-  virtual void end_partial_result_set();
+  bool create_command(COM_DATA *com_data, enum_server_command cmd, uchar *pkt,
+                      size_t length);
+  bool flush() override;
+  void end_partial_result_set() override;
 
-  virtual bool send_out_parameters(List<Item_param> *sp_params)=0;
-  virtual void start_row()=0;
-  virtual bool end_row();
-  virtual uint get_rw_status();
-  virtual bool get_compression();
+  bool end_row() override;
+  uint get_rw_status() override;
+  bool get_compression() override;
 
-  virtual bool start_result_metadata(uint num_cols, uint flags,
-                                     const CHARSET_INFO *resultcs);
-  virtual bool end_result_metadata();
-  virtual bool send_field_metadata(Send_field *field,
-                                   const CHARSET_INFO *item_charset);
-#ifdef EMBEDDED_LIBRARY
-  int begin_dataset();
-  virtual void send_string_metadata(String* item_str);
-#endif
-  virtual void abort_row() {}
-  virtual enum enum_protocol_type type()= 0;
+  char *get_compression_algorithm() override;
+  uint get_compression_level() override;
+
+  bool start_result_metadata(uint num_cols, uint flags,
+                             const CHARSET_INFO *resultcs) override;
+  bool end_result_metadata() override;
+  bool send_field_metadata(Send_field *field,
+                           const CHARSET_INFO *item_charset) override;
+  void abort_row() override {}
 
   /**
     Returns the type of the connection
@@ -132,60 +136,47 @@ public:
     @return
       enum enum_vio_type
   */
-  virtual enum enum_vio_type connection_type()
-  {
-    Vio *v=get_vio();
-    return v? vio_type(v): NO_VIO_TYPE;
+  enum enum_vio_type connection_type() const override {
+    const Vio *v = get_vio();
+    return v ? vio_type(v) : NO_VIO_TYPE;
   }
 
-  virtual my_socket get_socket();
+  my_socket get_socket();
   // NET interaction functions
   /* Initialize NET */
   bool init_net(Vio *vio);
   void claim_memory_ownership();
   /* Deinitialize NET */
   void end_net();
-  /* Flush NET buffer */
-  bool flush_net();
   /* Write data to NET buffer */
   bool write(const uchar *ptr, size_t len);
   /* Return last error from NET */
   uchar get_error();
-  /* Return last errno from NET */
-  uint get_last_errno();
-  /* Set NET errno to handled by caller */
-  void set_last_errno(uint err);
-  /* Return last error string */
-  char *get_last_error();
   /* Set max allowed packet size */
   void set_max_packet_size(ulong max_packet_size);
   /* Deinitialize VIO */
-  virtual int shutdown(bool server_shutdown= false);
+  int shutdown(bool server_shutdown = false) override;
   /* Wipe NET with zeros */
   void wipe_net();
   /* Check whether VIO is healhty */
-  virtual bool connection_alive();
+  bool connection_alive() const override;
   /* Returns the client capabilities */
-  virtual ulong get_client_capabilities() { return m_client_capabilities; }
+  ulong get_client_capabilities() override { return m_client_capabilities; }
   /* Sets the client capabilities */
-  void set_client_capabilities(ulong client_capabilities)
-  {
-    this->m_client_capabilities= client_capabilities;
+  void set_client_capabilities(ulong client_capabilities) {
+    this->m_client_capabilities = client_capabilities;
   }
   /* Adds  client capability */
-  void add_client_capability(ulong client_capability)
-  {
-    m_client_capabilities|= client_capability;
+  void add_client_capability(ulong client_capability) {
+    m_client_capabilities |= client_capability;
   }
   /* Removes a client capability*/
-  void remove_client_capability(unsigned long capability)
-  {
-    m_client_capabilities&= ~capability;
+  void remove_client_capability(unsigned long capability) {
+    m_client_capabilities &= ~capability;
   }
   /* Returns true if the client has the capability and false otherwise*/
-  virtual bool has_client_capability(unsigned long client_capability)
-  {
-    return (bool) (m_client_capabilities & client_capability);
+  bool has_client_capability(unsigned long client_capability) override {
+    return (bool)(m_client_capabilities & client_capability);
   }
   // TODO: temporary functions. Will be removed.
   // DON'T USE IN ANY NEW FEATURES.
@@ -193,105 +184,89 @@ public:
   NET *get_net();
   /* return VIO */
   Vio *get_vio();
+  const Vio *get_vio() const;
   /* Set VIO */
   void set_vio(Vio *vio);
   /* Set packet number */
-  void set_pkt_nr(uint pkt_nr);
+  void set_output_pkt_nr(uint pkt_nr);
   /* Return packet number */
-  uint get_pkt_nr();
+  uint get_output_pkt_nr();
   /* Return packet string */
-  String *get_packet();
+  String *get_output_packet();
   /* return packet length */
-  uint get_packet_length() { return packet_length; }
+  uint get_packet_length() { return input_packet_length; }
   /* Return raw packet buffer */
-  uchar *get_raw_packet() { return raw_packet; }
+  uchar *get_raw_packet() { return input_raw_packet; }
   /* Set read timeout */
   virtual void set_read_timeout(ulong read_timeout);
   /* Set write timeout */
   virtual void set_write_timeout(ulong write_timeout);
-};
 
+  /**
+   * Sets the character set expected by the client. This function is for unit
+   * tests. It should usually be set by calling start_result_metadata().
+   */
+  void set_result_character_set(const CHARSET_INFO *charset) {
+    result_cs = charset;
+  }
+};
 
 /** Class used for the old (MySQL 4.0 protocol). */
 
-class Protocol_text : public Protocol_classic
-{
-public:
+class Protocol_text : public Protocol_classic {
+ public:
   Protocol_text() {}
   Protocol_text(THD *thd_arg) : Protocol_classic(thd_arg) {}
-  virtual bool store_null();
-  virtual bool store_tiny(longlong from);
-  virtual bool store_short(longlong from);
-  virtual bool store_long(longlong from);
-  virtual bool store_longlong(longlong from, bool unsigned_flag);
-  virtual bool store_decimal(const my_decimal *, uint, uint);
-  virtual bool store(const char *from, size_t length, const CHARSET_INFO *cs)
-  { return store(from, length, cs, result_cs); }
-  virtual bool store(float nr, uint32 decimals, String *buffer);
-  virtual bool store(double from, uint32 decimals, String *buffer);
-  virtual bool store(MYSQL_TIME *time, uint precision);
-  virtual bool store_date(MYSQL_TIME *time);
-  virtual bool store_time(MYSQL_TIME *time, uint precision);
-  virtual bool store(Proto_field *field);
-  virtual void start_row();
+  bool store_null() override;
+  bool store_tiny(longlong from, uint32 zerofill) override;
+  bool store_short(longlong from, uint32 zerofill) override;
+  bool store_long(longlong from, uint32 zerofill) override;
+  bool store_longlong(longlong from, bool unsigned_flag,
+                      uint32 zerofill) override;
+  bool store_decimal(const my_decimal *, uint, uint) final;
+  bool store_float(float nr, uint32 decimals, uint32 zerofill) override;
+  bool store_double(double from, uint32 decimals, uint32 zerofill) override;
+  bool store_datetime(const MYSQL_TIME &time, uint precision) override;
+  bool store_date(const MYSQL_TIME &time) override;
+  bool store_time(const MYSQL_TIME &time, uint precision) override;
+  void start_row() override;
+  bool send_parameters(List<Item_param> *parameters, bool) override;
 
-  virtual bool send_out_parameters(List<Item_param> *sp_params);
-#ifdef EMBEDDED_LIBRARY
-  virtual void abort_row();
-#endif
-  virtual enum enum_protocol_type type() { return PROTOCOL_TEXT; };
-protected:
-  virtual bool store(const char *from, size_t length,
-                     const CHARSET_INFO *fromcs,
-                     const CHARSET_INFO *tocs);
+  enum enum_protocol_type type() const override { return PROTOCOL_TEXT; }
 };
 
-
-class Protocol_binary : public Protocol_text
-{
-private:
+class Protocol_binary final : public Protocol_text {
+ private:
   uint bit_fields;
-public:
+
+ public:
   Protocol_binary() {}
-  Protocol_binary(THD *thd_arg) :Protocol_text(thd_arg) {}
-  virtual void start_row();
-#ifdef EMBEDDED_LIBRARY
-  virtual bool end_row();
-  bool net_store_data(const uchar *from, size_t length);
-  bool net_store_data(const uchar *from, size_t length,
-                      const CHARSET_INFO *fromcs,
-                      const CHARSET_INFO *tocs);
-#endif
-  virtual bool store_null();
-  virtual bool store_tiny(longlong from);
-  virtual bool store_short(longlong from);
-  virtual bool store_long(longlong from);
-  virtual bool store_longlong(longlong from, bool unsigned_flag);
-  virtual bool store_decimal(const my_decimal *, uint, uint);
-  virtual bool store(MYSQL_TIME *time, uint precision);
-  virtual bool store_date(MYSQL_TIME *time);
-  virtual bool store_time(MYSQL_TIME *time, uint precision);
-  virtual bool store(float nr, uint32 decimals, String *buffer);
-  virtual bool store(double from, uint32 decimals, String *buffer);
-  virtual bool store(Proto_field *field);
-  virtual bool store(const char *from, size_t length, const CHARSET_INFO *cs)
-  { return store(from, length, cs, result_cs); }
+  Protocol_binary(THD *thd_arg) : Protocol_text(thd_arg) {}
+  void start_row() override;
+  bool store_null() override;
+  bool store_tiny(longlong from, uint32 zerofill) override;
+  bool store_short(longlong from, uint32 zerofill) override;
+  bool store_long(longlong from, uint32 zerofill) override;
+  bool store_longlong(longlong from, bool unsigned_flag,
+                      uint32 zerofill) override;
+  // Decimals are sent as text, also over the binary protocol.
+  using Protocol_text::store_decimal;
+  bool store_datetime(const MYSQL_TIME &time, uint precision) override;
+  bool store_date(const MYSQL_TIME &time) override;
+  bool store_time(const MYSQL_TIME &time, uint precision) override;
+  bool store_float(float nr, uint32 decimals, uint32 zerofill) override;
+  bool store_double(double from, uint32 decimals, uint32 zerofill) override;
 
-  virtual bool send_out_parameters(List<Item_param> *sp_params);
-  virtual bool start_result_metadata(uint num_cols, uint flags,
-                                     const CHARSET_INFO *resultcs);
+  bool start_result_metadata(uint num_cols, uint flags,
+                             const CHARSET_INFO *resultcs) override;
+  bool send_parameters(List<Item_param> *parameters,
+                       bool is_sql_prepare) override;
 
-  virtual enum enum_protocol_type type() { return PROTOCOL_BINARY; };
-protected:
-  virtual bool store(const char *from, size_t length,
-                     const CHARSET_INFO *fromcs,
-                     const CHARSET_INFO *tocs);
+  enum enum_protocol_type type() const override { return PROTOCOL_BINARY; }
 };
 
 bool net_send_error(THD *thd, uint sql_errno, const char *err);
-bool net_send_error(NET* net, uint sql_errno, const char* err);
-uchar *net_store_data(uchar *to,const uchar *from, size_t length);
-uchar *net_store_data(uchar *to,int32 from);
-uchar *net_store_data(uchar *to,longlong from);
+bool net_send_error(NET *net, uint sql_errno, const char *err);
+uchar *net_store_data(uchar *to, const uchar *from, size_t length);
 bool store(Protocol *prot, I_List<i_string> *str_list);
 #endif /* PROTOCOL_CLASSIC_INCLUDED */

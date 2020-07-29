@@ -1,4 +1,0 @@
---source include/have_innodb.inc
-
---replace_column 2 # 6 # 8 #
-select * from INFORMATION_SCHEMA.XTRADB_RSEG;

@@ -1,6 +1,5 @@
 # This is the basic function tests for innodb FTS
 
--- source include/have_innodb.inc
 
 # Create FTS table
 CREATE TABLE articles (
@@ -249,7 +248,12 @@ insert into t1(f1, f2) values(3, "This is the third record");
 select FTS_DOC_ID from t1;
 drop table t1;
 
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Doc ID 20030101000000 is too big. Its difference with largest used Doc ID 0 cannot exceed or equal to 65535");
+create table t1( a text character set utf8mb4 collate utf8mb4_czech_ci not null, fulltext key(a))engine=innodb;
+insert into t1 values('');
+select match(a)against(0xf3) from t1;
+drop table t1;
+
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Doc ID 20030101000000 is too big. Its difference with largest used Doc ID 0 cannot exceed or equal to 65535");
 CREATE TABLE t1 (FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 		 title VARCHAR(200), FULLTEXT(title)) ENGINE=InnoDB;
 --error 182

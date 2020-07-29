@@ -6,11 +6,11 @@ create table foo (a int, b int, primary key (a), key (b))engine=TokuDB;
 show create table foo;
 Table	Create Table
 foo	CREATE TABLE `foo` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into foo values (100,100);
 begin;
 insert into foo values (1,100);
@@ -37,7 +37,7 @@ select * from foo where a=1;
 a	b
 # should fail with a dup entry
 insert into foo values (1,1000);
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 'foo.PRIMARY'
 commit;
 set session transaction isolation level serializable;
 DROP TABLE foo;

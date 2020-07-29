@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,17 +22,20 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "standard_writer.h"
+#include "client/dump/standard_writer.h"
+
+#include <functional>
 
 using namespace Mysql::Tools::Dump;
 
-void Standard_writer::append(const std::string& data_to_append)
-{
+void Standard_writer::append(const std::string &data_to_append) {
   fwrite(data_to_append.c_str(), 1, data_to_append.size(), stdout);
 }
 
 Standard_writer::Standard_writer(
-  Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
-    message_handler, Simple_id_generator* object_id_generator)
-  : Abstract_chain_element(message_handler, object_id_generator)
-{}
+    std::function<bool(const Mysql::Tools::Base::Message_data &)>
+        *message_handler,
+    Simple_id_generator *object_id_generator)
+    : Abstract_chain_element(message_handler, object_id_generator) {}
+
+bool Standard_writer::init() { return false; }

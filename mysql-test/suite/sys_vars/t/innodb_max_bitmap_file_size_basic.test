@@ -1,5 +1,4 @@
 # Tests for innodb_max_bitmap_file_size variable
---source include/have_innodb.inc
 
 SET @start_value = @@global.innodb_max_bitmap_file_size;
 SELECT @start_value;
@@ -47,11 +46,11 @@ SELECT @@session.innodb_max_bitmap_file_size;
 
 # Verify INFORMATION_SCHEMA access
 SELECT @@global.innodb_max_bitmap_file_size = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_max_bitmap_file_size';
 
 SELECT @@global.innodb_max_bitmap_file_size = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='innodb_max_bitmap_file_size';
 
 # Check default scope

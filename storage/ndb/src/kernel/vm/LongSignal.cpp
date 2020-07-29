@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,7 +18,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "LongSignal.hpp"
 #include "LongSignalImpl.hpp"
@@ -30,7 +30,7 @@ extern EventLogger * g_eventLogger;
 
 // Static function.
 void 
-SectionSegmentPool::handleOutOfSegments(ArrayPool<SectionSegment>& pool)
+SectionSegmentPool::handleOutOfSegments(SectionSegment_basepool& pool)
 {
   g_eventLogger
     ->warning("The long message buffer is out of free elements. This may "
@@ -40,7 +40,7 @@ SectionSegmentPool::handleOutOfSegments(ArrayPool<SectionSegment>& pool)
               "the state of this buffer via the ndbinfo.memoryusage table.", 
               static_cast<unsigned long>
               (pool.getSize() * sizeof(SectionSegment)));
-};
+}
 
 /**
  * verifySection
@@ -208,8 +208,7 @@ dupSection(SPC_ARG Uint32& copyFirstIVal, Uint32 srcFirstIVal)
 }
 
 bool ErrorImportActive = false;
-extern int ErrorSignalReceive;
-extern int ErrorMaxSegmentsToSeize;
+extern Uint32 ErrorMaxSegmentsToSeize;
 
 /**
  * appendToSection
@@ -241,14 +240,19 @@ appendToSection(SPC_ARG Uint32& firstSegmentIVal, const Uint32* src, Uint32 len)
   Uint32 remain= SectionSegment::DataLength;
   Uint32 segmentLen= 0;
 
+#ifdef NDB_DEBUG_RES_OWNERSHIP
+  const Uint32 owner = getResOwner();
+#else
+  const Uint32 owner = 0;
+#endif
+
   if (firstSegmentIVal == RNIL)
   {
 #ifdef ERROR_INSERT
     /* Simulate running out of segments */
     if (ErrorImportActive)
     {
-      if ((ErrorSignalReceive == 1) && 
-          (ErrorMaxSegmentsToSeize == 0))
+      if (ErrorMaxSegmentsToSeize == 0)
       {
         ndbout_c("append exhausted on first segment");
         return false;
@@ -262,7 +266,7 @@ appendToSection(SPC_ARG Uint32& firstSegmentIVal, const Uint32* src, Uint32 len)
       return false;
 
     firstPtr.p->m_sz= 0;
-    firstPtr.p->m_ownerRef= 0;
+    firstPtr.p->m_ownerRef= owner;
     firstSegmentIVal= firstPtr.i;
 
     currPtr= firstPtr;
@@ -306,8 +310,7 @@ appendToSection(SPC_ARG Uint32& firstSegmentIVal, const Uint32* src, Uint32 len)
     /* Simulate running out of segments */
     if (ErrorImportActive)
     {
-      if ((ErrorSignalReceive == 1) && 
-          (0 == remainSegs--))
+      if (0 == remainSegs--)
       {
         ndbout_c("Append exhausted on segment %d", ErrorMaxSegmentsToSeize);
         firstPtr.p->m_lastSegment= prevPtr.i;
@@ -328,7 +331,7 @@ appendToSection(SPC_ARG Uint32& firstSegmentIVal, const Uint32* src, Uint32 len)
     }
     prevPtr.p->m_nextSegment = currPtr.i;
     currPtr.p->m_sz= 0;
-    currPtr.p->m_ownerRef= 0;
+    currPtr.p->m_ownerRef= owner;
 
     segmentLen= 0;
     remain= SectionSegment::DataLength;
@@ -348,13 +351,18 @@ import(SPC_ARG Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
   /* Simulate running out of segments */
   if (ErrorImportActive)
   {
-    if ((ErrorSignalReceive == 1) &&
-        (ErrorMaxSegmentsToSeize == 0))
+    if (ErrorMaxSegmentsToSeize == 0)
     {
       ndbout_c("Import exhausted on first segment");
       return false;
     }
   }
+#endif
+
+#ifdef NDB_DEBUG_RES_OWNERSHIP
+  const Uint32 owner = getResOwner();
+#else
+  const Uint32 owner = 0;
 #endif
 
   first.p = 0;
@@ -366,7 +374,7 @@ import(SPC_ARG Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
   }
 
   first.p->m_sz = len;
-  first.p->m_ownerRef = 0;
+  first.p->m_ownerRef = owner;
 
   Ptr<SectionSegment> currPtr = first;
 
@@ -384,8 +392,7 @@ import(SPC_ARG Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
     /* Simulate running out of segments */
     if (ErrorImportActive)
     {
-      if ((ErrorSignalReceive == 1) &&
-          (0 == remainSegs--))
+      if (0 == remainSegs--)
       {
         ndbout_c("Import exhausted on segment %d", 
                  ErrorMaxSegmentsToSeize);
@@ -399,6 +406,7 @@ import(SPC_ARG Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
 
     if(g_sectionSegmentPool.seize(SPC_SEIZE_ARG currPtr)){
       prevPtr.p->m_nextSegment = currPtr.i;
+      currPtr.p->m_ownerRef = owner;
       ;
     } else {
       /* Leave segment chain in ok condition for release */
@@ -494,6 +502,20 @@ writeToSection(Uint32 firstSegmentIVal, Uint32 offset,
     }
   }
 }
+
+#ifdef NDB_DEBUG_RES_OWNERSHIP
+
+void setResOwner(Uint32 id)
+{
+  NDB_THREAD_TLS_RES_OWNER = id;
+}
+
+Uint32 getResOwner()
+{
+  return NDB_THREAD_TLS_RES_OWNER;
+}
+
+#endif
 
 /** 
  * #undef is needed since this file is included by LongSignal_nonmt.cpp

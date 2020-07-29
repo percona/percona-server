@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,13 +25,17 @@
 #ifndef ABSTRACT_QUERY_PLAN_H_INCLUDED
 #define ABSTRACT_QUERY_PLAN_H_INCLUDED
 
-#include "my_global.h"      // uint
-#include "item_cmpfunc.h"   // Item_equal_iterator
+#include <sys/types.h>
 
-struct TABLE;
-class JOIN;
+#include "my_dbug.h"
+#include "sql/item_cmpfunc.h" // Item_equal_iterator
+
 class Item;
 class Item_field;
+class JOIN;
+class KEY_PART_INFO;
+class QEP_TAB;
+struct TABLE;
 
 /**
   Abstract query plan (AQP) is an interface for examining certain aspects of 
@@ -67,7 +71,7 @@ namespace AQP
     sequence of n table access operations that will execute as a nested loop 
     join.
   */
-  class Join_plan : public Sql_alloc
+  class Join_plan
   {
     friend class Equal_set_iterator;
     friend class Table_access;
@@ -77,7 +81,7 @@ namespace AQP
 
     ~Join_plan();
 
-    const Table_access* get_table_access(uint access_no) const;
+    Table_access* get_table_access(uint access_no) const;
 
     uint get_access_count() const;
 
@@ -89,7 +93,7 @@ namespace AQP
     const QEP_TAB* const m_qep_tabs;
 
     /** Number of table access operations. */
-    const uint m_access_count;
+    uint m_access_count;
     Table_access* m_table_accesses;
 
     const QEP_TAB* get_qep_tab(uint qep_tab_no) const;
@@ -107,7 +111,7 @@ namespace AQP
     SELECT * FROM T1, T2, T3 WHERE T1.b = T2.a AND T2.a = T3.a
     then there would be such a set of {T1.b, T2.a, T3.a}.
   */
-  class Equal_set_iterator : public Sql_alloc
+  class Equal_set_iterator
   {
   public:
     explicit Equal_set_iterator(Item_equal& item_equal)
@@ -161,21 +165,13 @@ namespace AQP
     AT_OTHER
   };
 
-  /** The type of join operation require */
-  enum enum_join_type
-  {
-    JT_OUTER_JOIN,
-    JT_INNER_JOIN,
-    JT_SEMI_JOIN
-  };
-
   /**
     This class represents an access operation on a table, such as a table
     scan, or a scan or lookup via an index. A Table_access object is always
     owned by a Join_plan object, such that the life time of the Table_access 
     object ends when the life time of the owning Join_plan object ends.
    */
-  class Table_access : public Sql_alloc
+  class Table_access
   {
     friend class Join_plan;
     friend inline bool equal(const Table_access*, const Table_access*);
@@ -186,8 +182,6 @@ namespace AQP
     enum_access_type get_access_type() const;
 
     const char* get_other_access_reason() const;
-
-    enum_join_type get_join_type(const Table_access* parent) const;
 
     uint get_no_of_key_fields() const;
 
@@ -201,23 +195,36 @@ namespace AQP
 
     TABLE* get_table() const;
 
-    double get_fanout() const;
-
     Item_equal* get_item_equal(const Item_field* field_item) const;
 
     void dbug_print() const;
 
     bool uses_join_cache() const;
-
-    const Table_access* get_firstmatch_last_skipped() const;
-
+    
     bool filesort_before_join() const;
 
+    Item* get_condition() const;
+    void set_condition(Item* cond);
+
+    uint get_first_inner() const;
+    uint get_last_inner() const;
+    int get_first_upper() const;
+
+    int get_first_sj_inner() const;
+    int get_last_sj_inner() const;
+
+    // Is member of a firstMatch sj_nest?
+    bool is_sj_firstmatch() const;
+    // Get the upper-table we skip out to upon a firstMatch
+    int get_firstmatch_return() const;
+
     /**
-       Change the query plan for this part of the join to use
-       the pushed functions
+      Getter and setters for an opaque object for each table.
+      Used by the handler's to persist 'pushability-flags' to avoid
+      overhead by recalculating it for each ::engine_push()
     */
-    void set_pushed_table_access_method() const;
+    uint get_table_properties() const;
+    void set_table_properties(uint);
 
   private:
 
@@ -238,6 +245,9 @@ namespace AQP
     /** The index to use for this operation (if applicable )*/
     mutable int m_index_no;
 
+    /** May store an opaque property / flag */
+    uint m_properties;
+
     explicit Table_access();
 
     const QEP_TAB* get_qep_tab() const;
@@ -255,7 +265,7 @@ namespace AQP
     @param access_no The index of the table access operation to fetch.
     @return The access_no'th table access operation.
   */
-  inline const Table_access* Join_plan::get_table_access(uint access_no) const
+  inline Table_access* Join_plan::get_table_access(uint access_no) const
   {
     DBUG_ASSERT(access_no < m_access_count);
     return m_table_accesses + access_no;
@@ -317,7 +327,17 @@ namespace AQP
     return m_tab_no;
   }
 
-}; 
+  inline uint Table_access::get_table_properties() const
+  {
+    return m_properties;
+  }
+
+  inline void Table_access::set_table_properties(uint val)
+  {
+    m_properties = val;
+  }
+
+}
 // namespace AQP
 
 #endif

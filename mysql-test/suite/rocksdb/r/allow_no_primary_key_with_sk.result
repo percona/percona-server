@@ -2,13 +2,13 @@ CREATE TABLE t1 (a INT, b CHAR(8), KEY(a)) ENGINE=rocksdb;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` char(8) DEFAULT NULL,
   KEY `a` (`a`)
-) ENGINE=ROCKSDB DEFAULT CHARSET=latin1
+) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES	MUL	NULL	
+a	int	YES	MUL	NULL	
 b	char(8)	YES		NULL	
 INSERT INTO t1 (a,b) VALUES (76,'bar');
 INSERT INTO t1 (a,b) VALUES (35,'foo');
@@ -87,13 +87,13 @@ ALTER TABLE t1 ADD INDEX (b);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` char(8) DEFAULT NULL,
   KEY `b` (`b`)
-) ENGINE=ROCKSDB DEFAULT CHARSET=latin1
+) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 b	char(8)	YES	MUL	NULL	
 INSERT INTO t1 (a,b) VALUES (76,'bar');
 INSERT INTO t1 (a,b) VALUES (35,'foo');
@@ -170,12 +170,12 @@ ALTER TABLE t1 DROP INDEX b;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` char(8) DEFAULT NULL
-) ENGINE=ROCKSDB DEFAULT CHARSET=latin1
+) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 b	char(8)	YES		NULL	
 INSERT INTO t1 (a,b) VALUES (76,'bar');
 INSERT INTO t1 (a,b) VALUES (35,'foo');
@@ -254,12 +254,12 @@ ALTER TABLE t1 DROP COLUMN pk;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` char(8) DEFAULT NULL
-) ENGINE=ROCKSDB DEFAULT CHARSET=latin1
+) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 b	char(8)	YES		NULL	
 INSERT INTO t1 (a,b) VALUES (76,'bar');
 INSERT INTO t1 (a,b) VALUES (35,'foo');
@@ -343,14 +343,14 @@ CREATE TABLE t1 (a INT, b CHAR(8), KEY(a), KEY(b)) ENGINE=rocksdb;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` char(8) DEFAULT NULL,
   KEY `a` (`a`),
   KEY `b` (`b`)
-) ENGINE=ROCKSDB DEFAULT CHARSET=latin1
+) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES	MUL	NULL	
+a	int	YES	MUL	NULL	
 b	char(8)	YES	MUL	NULL	
 INSERT INTO t1 (a,b) VALUES (76,'bar');
 INSERT INTO t1 (a,b) VALUES (35,'foo');
@@ -428,13 +428,13 @@ CREATE TABLE t1 (a INT, b CHAR(8), KEY(a, b)) ENGINE=rocksdb;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` char(8) DEFAULT NULL,
   KEY `a` (`a`,`b`)
-) ENGINE=ROCKSDB DEFAULT CHARSET=latin1
+) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES	MUL	NULL	
+a	int	YES	MUL	NULL	
 b	char(8)	YES		NULL	
 INSERT INTO t1 (a,b) VALUES (76,'bar');
 INSERT INTO t1 (a,b) VALUES (35,'foo');
@@ -512,14 +512,14 @@ CREATE TABLE t1 (a INT, b CHAR(8), KEY(a), KEY(b)) ENGINE=rocksdb;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` char(8) DEFAULT NULL,
   KEY `a` (`a`),
   KEY `b` (`b`)
-) ENGINE=ROCKSDB DEFAULT CHARSET=latin1
+) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES	MUL	NULL	
+a	int	YES	MUL	NULL	
 b	char(8)	YES	MUL	NULL	
 INSERT INTO t1 (a,b) VALUES (76,'bar');
 INSERT INTO t1 (a,b) VALUES (35,'foo');
@@ -627,20 +627,20 @@ CREATE TABLE t1 (a INT, b INT, c INT, d INT, KEY kab(a, b), KEY kbc(b, c), KEY k
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `d` int DEFAULT NULL,
   KEY `kab` (`a`,`b`),
   KEY `kbc` (`b`,`c`),
   KEY `kabc` (`a`,`b`,`c`)
-) ENGINE=ROCKSDB DEFAULT CHARSET=latin1
+) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES	MUL	NULL	
-b	int(11)	YES	MUL	NULL	
-c	int(11)	YES		NULL	
-d	int(11)	YES		NULL	
+a	int	YES	MUL	NULL	
+b	int	YES	MUL	NULL	
+c	int	YES		NULL	
+d	int	YES		NULL	
 INSERT INTO t1 (a,b,c,d) VALUES (1,2,3,4);
 INSERT INTO t1 (a,b,c,d) VALUES (5,6,7,8);
 INSERT INTO t1 (a,b,c,d) VALUES (10,11,12,13);
@@ -686,20 +686,20 @@ a	b	c	d
 1	99	3	4
 TRUNCATE TABLE t1;
 DROP TABLE t1;
-CREATE TABLE t1 (a INT, b CHAR(8), KEY ka(a) comment 'rev:cf1', KEY kb(b)
-comment 'rev:cf1', KEY kab(a,b) comment 'rev:cf2') ENGINE=rocksdb;
+CREATE TABLE t1 (a INT, b CHAR(8), KEY ka(a) comment 'cfname=rev:cf1', KEY kb(b)
+comment 'cfname=rev:cf1', KEY kab(a,b) comment 'cfname=rev:cf2') ENGINE=rocksdb;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` char(8) DEFAULT NULL,
-  KEY `ka` (`a`) COMMENT 'rev:cf1',
-  KEY `kb` (`b`) COMMENT 'rev:cf1',
-  KEY `kab` (`a`,`b`) COMMENT 'rev:cf2'
-) ENGINE=ROCKSDB DEFAULT CHARSET=latin1
+  KEY `ka` (`a`) COMMENT 'cfname=rev:cf1',
+  KEY `kb` (`b`) COMMENT 'cfname=rev:cf1',
+  KEY `kab` (`a`,`b`) COMMENT 'cfname=rev:cf2'
+) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES	MUL	NULL	
+a	int	YES	MUL	NULL	
 b	char(8)	YES	MUL	NULL	
 INSERT INTO t1 (a,b) VALUES (76,'bar');
 INSERT INTO t1 (a,b) VALUES (35,'foo');
@@ -792,14 +792,14 @@ insert into t1 values();
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL AUTO_INCREMENT,
+  `i` int NOT NULL AUTO_INCREMENT,
   KEY `i` (`i`)
-) ENGINE=ROCKSDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+) ENGINE=ROCKSDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # restart
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL AUTO_INCREMENT,
+  `i` int NOT NULL AUTO_INCREMENT,
   KEY `i` (`i`)
-) ENGINE=ROCKSDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+) ENGINE=ROCKSDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;

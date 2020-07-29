@@ -1,6 +1,4 @@
 --source include/have_log_bin.inc
---source include/have_innodb.inc
---source include/not_embedded.inc
 --source include/have_debug_sync.inc
 --source include/count_sessions.inc
 
@@ -66,11 +64,11 @@ SET DEBUG_SYNC = 'now WAIT_FOR mysqldump.finished';
 # We expect this gtid to be present for all but --lock-for-backup and --lock-all-tables test cases
 --let $grep_output = boolean
 --let $grep_file = $output_file
---let $grep_pattern = SET @@GLOBAL.GTID_PURGED='$gtid_executed_start';
+--let $grep_pattern = SET @@GLOBAL.GTID_PURGED=/\*!80000 '\+'\*/ '$gtid_executed_start';
 --source include/grep_pattern.inc
 
 # We expect this gtid not to be present
---let $grep_pattern = SET @@GLOBAL.GTID_PURGED='$gtid_executed_finish';
+--let $grep_pattern = SET @@GLOBAL.GTID_PURGED=/\*!80000 '\+'\*/ '$gtid_executed_finish';
 --let $include_filename = grep_pattern.inc
 --source include/grep_pattern.inc
 

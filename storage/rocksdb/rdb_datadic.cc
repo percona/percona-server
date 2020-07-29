@@ -32,13 +32,19 @@
 #include <vector>
 
 /* MySQL header files */
-#include "field.h"
-#include "key.h"
 #include "m_ctype.h"
 #include "my_bit.h"
 #include "my_bitmap.h"
 #include "my_stacktrace.h"
-#include "sql_table.h"
+#include "myisampack.h"
+#include "mysql/thread_pool_priv.h"
+#include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
+#include "sql/dd/upgrade_57/upgrade.h"       // dd::upgrade_57::in_progress
+#include "sql/field.h"
+#include "sql/key.h"
+#include "sql/mysqld.h"
+#include "sql/sql_table.h"
+#include "sql/table.h"
 
 /* MyRocks header files */
 #include "./ha_rocksdb.h"
@@ -47,7 +53,9 @@
 #include "./rdb_psi.h"
 #include "./rdb_utils.h"
 
-#include "partitioning/partition_base.h"
+extern CHARSET_INFO my_charset_utf16_bin;
+extern CHARSET_INFO my_charset_utf16le_bin;
+extern CHARSET_INFO my_charset_utf32_bin;
 
 namespace myrocks {
 
@@ -115,7 +123,7 @@ int Rdb_convert_to_record_key_decoder::decode(
   uint field_offset = field->ptr - table->record[0];
   *offset = field_offset;
   uint null_offset = field->null_offset();
-  bool maybe_null = field->real_maybe_null();
+  bool maybe_null = field->is_nullable();
 
   field->move_field(buf + field_offset,
                     maybe_null ? buf + null_offset : nullptr, field->null_bit);
@@ -512,7 +520,7 @@ void Rdb_key_def::setup(const TABLE *const tbl,
           }
         }
 
-        if (field && field->real_maybe_null()) max_len += 1;  // NULL-byte
+        if (field && field->is_nullable()) max_len += 1;  // NULL-byte
 
         m_pack_info[dst_i].setup(this, field, keyno_to_set, keypart_to_set,
                                  key_part ? key_part->length : 0);
@@ -549,7 +557,7 @@ void Rdb_key_def::setup(const TABLE *const tbl,
                           m_ttl_column.c_str()) == 0) {
           DBUG_ASSERT(field->real_type() == MYSQL_TYPE_LONGLONG);
           DBUG_ASSERT(field->key_type() == HA_KEYTYPE_ULONGLONG);
-          DBUG_ASSERT(!field->real_maybe_null());
+          DBUG_ASSERT(!field->is_nullable());
           m_ttl_pk_key_part_offset = dst_i;
         }
 
@@ -678,8 +686,7 @@ uint Rdb_key_def::extract_ttl_col(const TABLE *const table_arg,
       if (my_strcasecmp(system_charset_info, field->field_name,
                         ttl_col_str.c_str()) == 0 &&
           field->real_type() == MYSQL_TYPE_LONGLONG &&
-          field->key_type() == HA_KEYTYPE_ULONGLONG &&
-          !field->real_maybe_null()) {
+          field->key_type() == HA_KEYTYPE_ULONGLONG && !field->is_nullable()) {
         *ttl_column = ttl_col_str;
         *ttl_field_index = i;
         found = true;
@@ -1105,12 +1112,12 @@ size_t Rdb_key_def::get_unpack_header_size(char tag) {
  */
 void Rdb_key_def::get_lookup_bitmap(const TABLE *table, MY_BITMAP *map) const {
   DBUG_ASSERT(map->bitmap == nullptr);
-  bitmap_init(map, nullptr, MAX_REF_PARTS, false);
+  bitmap_init(map, nullptr, MAX_REF_PARTS);
   uint curr_bitmap_pos = 0;
 
   // Indicates which columns in the read set might be covered.
   MY_BITMAP maybe_covered_bitmap;
-  bitmap_init(&maybe_covered_bitmap, nullptr, table->read_set->n_bits, false);
+  bitmap_init(&maybe_covered_bitmap, nullptr, table->read_set->n_bits);
 
   for (uint i = 0; i < m_key_parts; i++) {
     if (table_has_hidden_pk(table) && i + 1 == m_key_parts) {
@@ -1190,7 +1197,7 @@ bool Rdb_key_def::covers_lookup(const rocksdb::Slice *const unpack_info,
 
   MY_BITMAP covered_bitmap;
   my_bitmap_map covered_bits;
-  bitmap_init(&covered_bitmap, &covered_bits, MAX_REF_PARTS, false);
+  bitmap_init(&covered_bitmap, &covered_bits, MAX_REF_PARTS);
   covered_bits = rdb_netbuf_to_uint16((const uchar *)unpack_header +
                                       sizeof(RDB_UNPACK_COVERED_DATA_TAG) +
                                       RDB_UNPACK_COVERED_DATA_LEN_SIZE);
@@ -1211,7 +1218,7 @@ uchar *Rdb_key_def::pack_field(Field *const field, Rdb_field_packing *pack_info,
                                uchar *const pack_buffer,
                                Rdb_string_writer *const unpack_info,
                                uint *const n_null_fields) const {
-  if (field->real_maybe_null()) {
+  if (field->is_nullable()) {
     DBUG_ASSERT(is_storage_available(tuple - packed_tuple, 1));
     if (field->is_real_null()) {
       /* NULL value. store '\0' so that it sorts before non-NULL values */
@@ -1359,7 +1366,7 @@ uint Rdb_key_def::pack_record(const TABLE *const tbl, uchar *const pack_buffer,
   MY_BITMAP covered_bitmap;
   my_bitmap_map covered_bits;
   uint curr_bitmap_pos = 0;
-  bitmap_init(&covered_bitmap, &covered_bits, MAX_REF_PARTS, false);
+  bitmap_init(&covered_bitmap, &covered_bits, MAX_REF_PARTS);
 
   for (uint i = 0; i < n_key_parts; i++) {
     // Fill hidden pk id into the last key part for secondary keys for tables
@@ -1374,7 +1381,7 @@ uint Rdb_key_def::pack_record(const TABLE *const tbl, uchar *const pack_buffer,
 
     uint field_offset = field->ptr - tbl->record[0];
     uint null_offset = field->null_offset(tbl->record[0]);
-    bool maybe_null = field->real_maybe_null();
+    bool maybe_null = field->is_nullable();
 
     field->move_field(
         const_cast<uchar *>(record) + field_offset,
@@ -1481,17 +1488,17 @@ uint Rdb_key_def::pack_hidden_pk(const longlong hidden_pk_id,
   return tuple - packed_tuple;
 }
 
-  /**
-    Function of type rdb_index_field_pack_t
+/**
+  Function of type rdb_index_field_pack_t
 
-    The following code (Rdb_key_def::pack_* and dependent functions) is pulled
-    directly from ./sql/field.cc from all of the various
-    Field_*::make_sort_key() functions.  These results of these functions within
-    the server code was never intended to be persisted and as such the encoding
-    and comparison can change over time without any notice.  To protect us from
-    such an event as well as to ensure binary upgrade compatibility, we have
-    copied that code here so that it is entirely within our control.
-  */
+  The following code (Rdb_key_def::pack_* and dependent functions) is pulled
+  directly from ./sql/field.cc from all of the various
+  Field_*::make_sort_key() functions.  These results of these functions within
+  the server code was never intended to be persisted and as such the encoding
+  and comparison can change over time without any notice.  To protect us from
+  such an event as well as to ensure binary upgrade compatibility, we have
+  copied that code here so that it is entirely within our control.
+*/
 
 #if !defined(DBL_EXP_DIG)
 #define DBL_EXP_DIG (sizeof(double) * 8 - DBL_MANT_DIG)
@@ -1760,7 +1767,7 @@ void Rdb_key_def::pack_double(
     float8get(&nr, ptr);
   } else
 #endif
-    doubleget(&nr, ptr);
+    nr = doubleget(ptr);
   if (length < 8) {
     uchar buff[8];
     change_double_for_sort(nr, buff);
@@ -2005,9 +2012,9 @@ void Rdb_key_def::pack_blob(
     }
     memcpy(&blob, ptr + field_blob->pack_length_no_ptr(), sizeof(char *));
 
-    blob_length = field_charset->coll->strnxfrm(
-        field_charset, to, length, length, blob, blob_length,
-        MY_STRXFRM_PAD_WITH_SPACE | MY_STRXFRM_PAD_TO_MAXLEN);
+    blob_length =
+        field_charset->coll->strnxfrm(field_charset, to, length, length, blob,
+                                      blob_length, MY_STRXFRM_PAD_TO_MAXLEN);
     DBUG_ASSERT(blob_length == length);
   }
 
@@ -2192,7 +2199,7 @@ int Rdb_key_def::unpack_record(TABLE *const table, uchar *const buf,
   const bool has_covered_bitmap =
       has_unpack_info && (unpack_header[0] == RDB_UNPACK_COVERED_DATA_TAG);
   if (has_covered_bitmap) {
-    bitmap_init(&covered_bitmap, &covered_bits, MAX_REF_PARTS, false);
+    bitmap_init(&covered_bitmap, &covered_bits, MAX_REF_PARTS);
     covered_bits = rdb_netbuf_to_uint16((const uchar *)unpack_header +
                                         sizeof(RDB_UNPACK_COVERED_DATA_TAG) +
                                         RDB_UNPACK_COVERED_DATA_LEN_SIZE);
@@ -2257,13 +2264,13 @@ bool Rdb_key_def::table_has_hidden_pk(const TABLE *const table) {
 void Rdb_key_def::report_checksum_mismatch(const bool is_key,
                                            const char *const data,
                                            const size_t data_size) const {
-  // NO_LINT_DEBUG
-  sql_print_error("Checksum mismatch in %s of key-value pair for index 0x%x",
+  LogPluginErrMsg(ERROR_LEVEL, 0,
+                  "Checksum mismatch in %s of key-value pair for index 0x%x",
                   is_key ? "key" : "value", get_index_number());
 
   const std::string buf = rdb_hexdump(data, data_size, RDB_MAX_HEXDUMP_LEN);
-  // NO_LINT_DEBUG
-  sql_print_error("Data with incorrect checksum (%" PRIu64 " bytes): %s",
+  LogPluginErrMsg(ERROR_LEVEL, 0,
+                  "Data with incorrect checksum (%" PRIu64 " bytes): %s",
                   (uint64_t)data_size, buf.c_str());
 
   my_error(ER_INTERNAL_ERROR, MYF(0), "Record checksum mismatch");
@@ -2299,11 +2306,11 @@ int Rdb_key_def::skip_max_length(const Rdb_field_packing *const fpi,
   return HA_EXIT_SUCCESS;
 }
 
-  /*
-    (RDB_ESCAPE_LENGTH-1) must be an even number so that pieces of lines are not
-    split in the middle of an UTF-8 character. See the implementation of
-    unpack_binary_or_utf8_varchar.
-  */
+/*
+  (RDB_ESCAPE_LENGTH-1) must be an even number so that pieces of lines are not
+  split in the middle of an UTF-8 character. See the implementation of
+  unpack_binary_or_utf8_varchar.
+*/
 
 #define RDB_ESCAPE_LENGTH 9
 #define RDB_LEGACY_ESCAPE_LENGTH RDB_ESCAPE_LENGTH
@@ -2780,9 +2787,29 @@ void Rdb_key_def::pack_with_varchar_encoding(
   const size_t value_length = (field_var->length_bytes == 1)
                                   ? (uint)*field->ptr
                                   : uint2korr(field->ptr);
-  size_t xfrm_len = charset->coll->strnxfrm(
-      charset, buf, fpi->m_max_image_len, field_var->char_length(),
-      field_var->ptr + field_var->length_bytes, value_length, 0);
+  const char *src =
+      reinterpret_cast<const char *>(field_var->ptr + field_var->length_bytes);
+
+  // We only store the trimmed contents but encode the missing char with
+  // removed_chars later to save space
+  const size_t trimmed_len =
+      charset->cset->lengthsp(charset, src, value_length);
+
+  // Max memcmp byte length with char_length(), in case we need to truncate
+  const size_t max_xfrm_len = charset->cset->charpos(
+      charset, src, src + trimmed_len, field_var->char_length());
+
+  // Trimmed length in code points - this is needed to avoid the padding
+  // behavior in strnxfrm for padding collations otherwise strnxfrm would
+  // pad to max length which defeats the trimming earlier
+  const size_t trimmed_codepoints =
+      charset->cset->numchars(charset, src, src + trimmed_len);
+
+  const size_t xfrm_len = charset->coll->strnxfrm(
+      charset, buf, fpi->m_max_image_len_before_encoding,
+      std::min<size_t>(trimmed_codepoints, field_var->char_length()),
+      reinterpret_cast<const uchar *>(src),
+      std::min<size_t>(trimmed_len, max_xfrm_len), 0);
 
   /* Got a mem-comparable image in 'buf'. Now, produce varlength encoding */
   if (fpi->m_use_legacy_varbinary_format) {
@@ -2888,16 +2915,34 @@ void Rdb_key_def::pack_with_varchar_space_pad(
   const CHARSET_INFO *const charset = field->charset();
   const auto field_var = static_cast<Field_varstring *>(field);
 
+  const char *src =
+      reinterpret_cast<const char *>(field_var->ptr + field_var->length_bytes);
+
   const size_t value_length = (field_var->length_bytes == 1)
                                   ? (uint)*field->ptr
                                   : uint2korr(field->ptr);
 
-  const size_t trimmed_len = charset->cset->lengthsp(
-      charset, (const char *)field_var->ptr + field_var->length_bytes,
-      value_length);
+  // We only store the trimmed contents but encode the missing char with
+  // removed_chars later to save space
+  const size_t trimmed_len =
+      charset->cset->lengthsp(charset, src, value_length);
+
+  // Max memcmp byte length with char_length(), in case we need to truncate
+  // for prefix keys
+  const size_t max_xfrm_len = charset->cset->charpos(
+      charset, src, src + trimmed_len, field_var->char_length());
+
+  // Trimmed length in code points - this is needed to avoid the padding
+  // behavior in strnxfrm for padding collations otherwise strnxfrm would
+  // pad to max length which defeats the trimming earlier
+  const size_t trimmed_codepoints =
+      charset->cset->numchars(charset, src, src + trimmed_len);
+
   const size_t xfrm_len = charset->coll->strnxfrm(
-      charset, buf, fpi->m_max_image_len, field_var->char_length(),
-      field_var->ptr + field_var->length_bytes, trimmed_len, 0);
+      charset, buf, fpi->m_max_image_len_before_encoding,
+      std::min<size_t>(trimmed_codepoints, field_var->char_length()),
+      reinterpret_cast<const uchar *>(src),
+      std::min<size_t>(trimmed_len, max_xfrm_len), 0);
 
   /* Got a mem-comparable image in 'buf'. Now, produce varlength encoding */
   uchar *const buf_end = buf + xfrm_len;
@@ -3784,7 +3829,7 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
   m_keynr = keynr_arg;
   m_key_part = key_part_arg;
 
-  m_maybe_null = field ? field->real_maybe_null() : false;
+  m_maybe_null = field ? field->is_nullable() : false;
   m_unpack_func = nullptr;
   m_make_unpack_info_func = nullptr;
   m_unpack_data_len = 0;
@@ -3801,6 +3846,8 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
   /* Calculate image length. By default, is is pack_length() */
   m_max_image_len =
       field ? field->pack_length() : ROCKSDB_SIZEOF_HIDDEN_PK_COLUMN;
+  m_max_image_len_before_encoding = 0;
+
   m_skip_func = Rdb_key_def::skip_max_length;
   m_pack_func = Rdb_key_def::pack_with_make_sort_key;
 
@@ -3928,6 +3975,10 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
     */
     const CHARSET_INFO *cs = field->charset();
     m_max_image_len = cs->coll->strnxfrmlen(cs, field->field_length);
+
+    /* Remember the original length before encoding - we'll use it in
+      packing / padding calculations later */
+    m_max_image_len_before_encoding = m_max_image_len;
   }
   const bool is_varchar = (type == MYSQL_TYPE_VARCHAR);
   const CHARSET_INFO *cs = field->charset();
@@ -4011,7 +4062,10 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
         // either.
         // Currently we handle these collations as NO_PAD, even if they have
         // PAD_SPACE attribute.
-        if (cs->levels_for_order == 1) {
+        // 8.0 removes levels_for_order but leaves levels_for_compare which
+        // seems to be identical in value and extremely similar in
+        // purpose/indication for our needs here.
+        if (cs->levels_for_compare == 1) {
           m_pack_func = Rdb_key_def::pack_with_varchar_space_pad;
           m_skip_func = Rdb_key_def::skip_variable_space_pad;
           m_segment_size = get_segment_size_from_collation(cs);
@@ -4021,15 +4075,13 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
           rdb_get_mem_comparable_space(cs, &space_xfrm, &space_xfrm_len,
                                        &space_mb_len);
         } else {
-          //  NO_LINT_DEBUG
-          sql_print_warning(
-              "RocksDB: you're trying to create an index "
-              "with a multi-level collation %s",
+          LogPluginErrMsg(
+              WARNING_LEVEL, 0,
+              "Trying to create an index with a multi-level collation %s",
               cs->name);
-          //  NO_LINT_DEBUG
-          sql_print_warning(
-              "MyRocks will handle this collation internally "
-              " as if it had a NO_PAD attribute.");
+          LogPluginErrMsg(WARNING_LEVEL, 0,
+                          "Will handle this collation internally as if it had "
+                          "a NO_PAD attribute.");
           m_pack_func = Rdb_key_def::pack_with_varchar_encoding;
           m_skip_func = Rdb_key_def::skip_variable_length;
         }
@@ -4197,6 +4249,26 @@ bool Rdb_tbl_def::put_dict(Rdb_dict_manager *const dict,
   return false;
 }
 
+time_t Rdb_tbl_def::get_create_time() {
+  time_t create_time = m_create_time;
+
+  if (create_time == CREATE_TIME_UNKNOWN) {
+    // Read it from the .frm file. It's not a problem if several threads do this
+    // concurrently
+    char path[FN_REFLEN];
+    snprintf(path, sizeof(path), "%s/%s/%s%s", mysql_data_home,
+             m_dbname.c_str(), m_tablename.c_str(), reg_ext);
+    unpack_filename(path, path);
+    MY_STAT f_stat;
+    if (my_stat(path, &f_stat, MYF(0)))
+      create_time = f_stat.st_ctime;
+    else
+      create_time = 0;  // will be shown as SQL NULL
+    m_create_time = create_time;
+  }
+  return create_time;
+}
+
 // Length that each index flag takes inside the record.
 // Each index in the array maps to the enum INDEX_FLAG
 static const std::array<uint, 1> index_flag_lengths = {
@@ -4259,7 +4331,7 @@ void Rdb_tbl_def::check_if_is_mysql_system_table() {
 
 void Rdb_tbl_def::check_and_set_read_free_rpl_table() {
   m_is_read_free_rpl_table =
-      rdb_read_free_regex_handler.match(base_tablename());
+      rdb_read_free_regex_handler.matches(base_tablename());
 }
 
 void Rdb_tbl_def::set_name(const std::string &name) {
@@ -4328,25 +4400,18 @@ int Rdb_ddl_manager::find_in_uncommitted_keydef(const uint32_t &cf_id) {
 namespace  // anonymous namespace = not visible outside this source file
 {
 struct Rdb_validate_tbls : public Rdb_tables_scanner {
-  using tbl_info_t = std::pair<std::string, bool>;
-  using tbl_list_t = std::map<std::string, std::set<tbl_info_t>>;
+  using tbl_list_t = std::map<std::string, std::set<std::string>>;
 
   tbl_list_t m_list;
 
   int add_table(Rdb_tbl_def *tdef) override;
 
-  bool compare_to_actual_tables(const std::string &datadir, bool *has_errors);
-
-  bool scan_for_frms(const std::string &datadir, const std::string &dbname,
-                     bool *has_errors);
-
-  bool check_frm_file(const std::string &fullpath, const std::string &dbname,
-                      const std::string &tablename, bool *has_errors);
+  bool compare_to_mysql_dd_tables(bool *has_errors);
 };
 }  // anonymous namespace
 
 /*
-  Get a list of tables that we expect to have .frm files for.  This will use the
+  Get a list of tables that we expect to have DD tables for.  This will use the
   information just read from the RocksDB data dictionary.
 */
 int Rdb_validate_tbls::add_table(Rdb_tbl_def *tdef) {
@@ -4354,165 +4419,92 @@ int Rdb_validate_tbls::add_table(Rdb_tbl_def *tdef) {
 
   /* Add the database/table into the list that are not temp table */
   if (tdef->base_tablename().find(tmp_file_prefix) == std::string::npos) {
-    bool is_partition = tdef->base_partition().size() != 0;
-    m_list[tdef->base_dbname()].insert(
-        tbl_info_t(tdef->base_tablename(), is_partition));
+    m_list[tdef->base_dbname()].insert(tdef->base_tablename());
   }
 
   return HA_EXIT_SUCCESS;
 }
 
 /*
-  Access the .frm file for this dbname/tablename and see if it is a RocksDB
-  table (or partition table).
+  Get the list of RocksDB tables from the MySQL data dictionary
+  and compare them to the list of tables from the RocksDB database dictionary
 */
-bool Rdb_validate_tbls::check_frm_file(const std::string &fullpath,
-                                       const std::string &dbname,
-                                       const std::string &tablename,
-                                       bool *has_errors) {
-  /* Check this .frm file to see what engine it uses */
-  String fullfilename(fullpath.c_str(), &my_charset_bin);
-  fullfilename.append(FN_DIRSEP);
-  fullfilename.append(tablename.c_str());
-  fullfilename.append(".frm");
+bool Rdb_validate_tbls::compare_to_mysql_dd_tables(bool *has_errors) {
+  THD *const thd = my_core::thd_get_current_thd();
+  bool result = true;
 
-  /*
-    This function will return the legacy_db_type of the table.  Currently
-    it does not reference the first parameter (THD* thd), but if it ever
-    did in the future we would need to make a version that does it without
-    the connection handle as we don't have one here.
-  */
-  enum legacy_db_type eng_type;
-  frm_type_enum type = dd_frm_type(nullptr, fullfilename.c_ptr(), &eng_type);
-  if (type == FRMTYPE_ERROR) {
-    // NO_LINT_DEBUG
-    sql_print_warning("RocksDB: Failed to open/read .from file: %s",
-                      fullfilename.ptr());
-    return false;
-  }
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  std::string partition_info_str;
-  if (!native_part::get_part_str_for_path(fullfilename.c_ptr(),
-                                          partition_info_str)) {
-    sql_print_warning("RocksDB: can't read partition info string from %s",
-                      fullfilename.ptr());
-    return false;
-  }
+  std::vector<const dd::Schema *> schema_vector;
+  if (thd->dd_client()->fetch_global_components(&schema_vector)) return false;
 
-  if (!partition_info_str.empty()) eng_type = DB_TYPE_PARTITION_DB;
+  for (const dd::Schema *schema : schema_vector) {
+    std::vector<dd::String_type> tables;
+    if (thd->dd_client()->fetch_schema_table_names_by_engine(schema, "rocksdb",
+                                                             &tables))
+      return false;
 
-  if (type == FRMTYPE_TABLE) {
-    /* For a RocksDB table do we have a reference in the data dictionary? */
-    if (eng_type == DB_TYPE_ROCKSDB) {
+    if (tables.size() == 0) continue;
+
+    const std::string dbname = schema->name().c_str();
+    for (const dd::String_type &table_name : tables) {
+      const std::string tablename = table_name.c_str();
       /*
         Attempt to remove the table entry from the list of tables.  If this
-        fails then we know we had a .frm file that wasn't registered in RocksDB.
+        fails then we know we had a DD table that wasn't registered in RocksDB.
       */
-      tbl_info_t element(tablename, false);
-      if (m_list.count(dbname) == 0 || m_list[dbname].erase(element) == 0) {
-        sql_print_warning(
-            "RocksDB: Schema mismatch - "
-            "A .frm file exists for table %s.%s, "
-            "but that table is not registered in RocksDB",
-            dbname.c_str(), tablename.c_str());
+      if (m_list.count(dbname) == 0 || m_list[dbname].erase(tablename) == 0) {
+        LogPluginErrMsg(WARNING_LEVEL, 0,
+                        "RocksDB: Schema mismatch - "
+                        "A DD table exists for table %s.%s, "
+                        "but that table is not registered in RocksDB",
+                        dbname.c_str(), tablename.c_str());
         *has_errors = true;
       }
-    } else if (eng_type == DB_TYPE_PARTITION_DB) {
-      /*
-        For partition tables, see if it is in the m_list as a partition,
-        but don't generate an error if it isn't there - we don't know that the
-        .frm is for RocksDB.
-      */
-      if (m_list.count(dbname) > 0) {
-        m_list[dbname].erase(tbl_info_t(tablename, true));
-      }
+    }
+
+    /* Remove any databases which have no more tables listed */
+    if (m_list.count(dbname) == 1 && m_list[dbname].size() == 0) {
+      m_list.erase(dbname);
     }
   }
-
-  return true;
-}
-
-/* Scan the database subdirectory for .frm files */
-bool Rdb_validate_tbls::scan_for_frms(const std::string &datadir,
-                                      const std::string &dbname,
-                                      bool *has_errors) {
-  bool result = true;
-  std::string fullpath = datadir + dbname;
-  struct st_my_dir *dir_info = my_dir(fullpath.c_str(), MYF(MY_DONT_SORT));
-
-  /* Access the directory */
-  if (dir_info == nullptr) {
-    // NO_LINT_DEBUG
-    sql_print_warning("RocksDB: Could not open database directory: %s",
-                      fullpath.c_str());
-    return false;
-  }
-
-  /* Scan through the files in the directory */
-  struct fileinfo *file_info = dir_info->dir_entry;
-  for (uint ii = 0; ii < dir_info->number_off_files; ii++, file_info++) {
-    /* Find .frm files that are not temp files (those that contain '#sql') */
-    const char *ext = strrchr(file_info->name, '.');
-    if (ext != nullptr && strstr(file_info->name, tmp_file_prefix) == nullptr &&
-        strcmp(ext, ".frm") == 0) {
-      std::string tablename =
-          std::string(file_info->name, ext - file_info->name);
-
-      /* Check to see if the .frm file is from RocksDB */
-      if (!check_frm_file(fullpath, dbname, tablename, has_errors)) {
-        result = false;
-        break;
-      }
-    }
-  }
-
-  /* Remove any databases who have no more tables listed */
-  if (m_list.count(dbname) == 1 && m_list[dbname].size() == 0) {
-    m_list.erase(dbname);
-  }
-
-  /* Release the directory entry */
-  my_dirend(dir_info);
 
   return result;
 }
 
 /*
-  Scan the datadir for all databases (subdirectories) and get a list of .frm
-  files they contain
+  Validate that all the tables in the RocksDB database dictionary match the
+  MySQL data dictionary
 */
-bool Rdb_validate_tbls::compare_to_actual_tables(const std::string &datadir,
-                                                 bool *has_errors) {
-  bool result = true;
-  struct st_my_dir *dir_info;
-  struct fileinfo *file_info;
+bool Rdb_ddl_manager::validate_schemas(void) {
+  bool has_errors = false;
+  Rdb_validate_tbls table_list;
 
-  dir_info = my_dir(datadir.c_str(), MYF(MY_DONT_SORT | MY_WANT_STAT));
-  if (dir_info == nullptr) {
-    // NO_LINT_DEBUG
-    sql_print_warning("RocksDB: could not open datadir: %s", datadir.c_str());
+  /* Get the list of tables from the RocksDB database dictionary */
+  if (scan_for_tables(&table_list) != 0) {
     return false;
   }
 
-  file_info = dir_info->dir_entry;
-  for (uint ii = 0; ii < dir_info->number_off_files; ii++, file_info++) {
-    /* Ignore files/dirs starting with '.' */
-    if (file_info->name[0] == '.') continue;
+  /* Compare that to the list of RocksDB tables in the MySQL data dictionary */
+  if (!table_list.compare_to_mysql_dd_tables(&has_errors)) {
+    return false;
+  }
 
-    /* Ignore all non-directory files */
-    if (!MY_S_ISDIR(file_info->mystat->st_mode)) continue;
-
-    /* Scan all the .frm files in the directory */
-    if (!scan_for_frms(datadir, file_info->name, has_errors)) {
-      result = false;
-      break;
+  /*
+    Any tables left in the tables list are ones that are registered in RocksDB
+    but don't have a corresponding DD table.
+  */
+  for (const auto &db : table_list.m_list) {
+    for (const auto &table : db.second) {
+      LogPluginErrMsg(WARNING_LEVEL, 0,
+                      "Schema mismatch - Table %s.%s is registered in RocksDB "
+                      "but does not have a corresponding DD table",
+                      db.first.c_str(), table.c_str());
+      has_errors = true;
     }
   }
 
-  /* Release the directory info */
-  my_dirend(dir_info);
-
-  return result;
+  return !has_errors;
 }
 
 /*
@@ -4551,24 +4543,20 @@ bool Rdb_ddl_manager::validate_auto_incr() {
     ptr += Rdb_key_def::INDEX_NUMBER_SIZE;
     rdb_netbuf_read_gl_index(&ptr, &gl_index_id);
     if (!m_dict->get_index_info(gl_index_id, nullptr)) {
-      // NO_LINT_DEBUG
-      sql_print_warning(
-          "RocksDB: AUTOINC mismatch - "
-          "Index number (%u, %u) found in AUTOINC "
-          "but does not exist as a DDL entry",
-          gl_index_id.cf_id, gl_index_id.index_id);
+      LogPluginErrMsg(WARNING_LEVEL, 0,
+                      "AUTOINC mismatch - Index number (%u, %u) found in "
+                      "AUTOINC but does not exist as a DDL entry",
+                      gl_index_id.cf_id, gl_index_id.index_id);
       return false;
     }
 
     ptr = reinterpret_cast<const uchar *>(val.data());
     const int version = rdb_netbuf_read_uint16(&ptr);
     if (version > Rdb_key_def::AUTO_INCREMENT_VERSION) {
-      // NO_LINT_DEBUG
-      sql_print_warning(
-          "RocksDB: AUTOINC mismatch - "
-          "Index number (%u, %u) found in AUTOINC "
-          "is on unsupported version %d",
-          gl_index_id.cf_id, gl_index_id.index_id, version);
+      LogPluginErrMsg(WARNING_LEVEL, 0,
+                      "AUTOINC mismatch - Index number (%u, %u) found in "
+                      "AUTOINC is on unsupported version %d",
+                      gl_index_id.cf_id, gl_index_id.index_id, version);
       return false;
     }
   }
@@ -4578,43 +4566,6 @@ bool Rdb_ddl_manager::validate_auto_incr() {
   }
 
   return true;
-}
-
-/*
-  Validate that all the tables in the RocksDB database dictionary match the .frm
-  files in the datadir
-*/
-bool Rdb_ddl_manager::validate_schemas(void) {
-  bool has_errors = false;
-  const std::string datadir = std::string(mysql_real_data_home);
-  Rdb_validate_tbls table_list;
-
-  /* Get the list of tables from the database dictionary */
-  if (scan_for_tables(&table_list) != 0) {
-    return false;
-  }
-
-  /* Compare that to the list of actual .frm files */
-  if (!table_list.compare_to_actual_tables(datadir, &has_errors)) {
-    return false;
-  }
-
-  /*
-    Any tables left in the tables list are ones that are registered in RocksDB
-    but don't have .frm files.
-  */
-  for (const auto &db : table_list.m_list) {
-    for (const auto &table : db.second) {
-      sql_print_warning(
-          "RocksDB: Schema mismatch - "
-          "Table %s.%s is registered in RocksDB "
-          "but does not have a .frm file",
-          db.first.c_str(), table.first.c_str());
-      has_errors = true;
-    }
-  }
-
-  return !has_errors;
 }
 #endif  // defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) &&
         // ROCKSDB_INCLUDE_VALIDATE_TABLES
@@ -4657,8 +4608,9 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
     }
 
     if (key.size() <= Rdb_key_def::INDEX_NUMBER_SIZE) {
-      sql_print_error("RocksDB: Table_store: key has length %d (corruption?)",
-                      (int)key.size());
+      LogPluginErrMsg(ERROR_LEVEL, 0,
+                      "Table_store: key has length %d (corruption?)",
+                      static_cast<int>(key.size()));
       return true;
     }
 
@@ -4668,7 +4620,8 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
     // Now, read the DDLs.
     const int real_val_size = val.size() - Rdb_key_def::VERSION_SIZE;
     if (real_val_size % Rdb_key_def::PACKED_SIZE * 2 > 0) {
-      sql_print_error("RocksDB: Table_store: invalid keylist for table %s",
+      LogPluginErrMsg(ERROR_LEVEL, 0,
+                      "Table_store: invalid keylist for table %s",
                       tdef->full_tablename().c_str());
       return true;
     }
@@ -4678,9 +4631,9 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
     ptr = reinterpret_cast<const uchar *>(val.data());
     const int version = rdb_netbuf_read_uint16(&ptr);
     if (version != Rdb_key_def::DDL_ENTRY_INDEX_VERSION) {
-      sql_print_error(
-          "RocksDB: DDL ENTRY Version was not expected."
-          "Expected: %d, Actual: %d",
+      LogPluginErrMsg(
+          ERROR_LEVEL, 0,
+          "DDL ENTRY Version was not expected. Expected: %d, Actual: %d",
           Rdb_key_def::DDL_ENTRY_INDEX_VERSION, version);
       return true;
     }
@@ -4691,35 +4644,35 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
       uint flags = 0;
       struct Rdb_index_info index_info;
       if (!m_dict->get_index_info(gl_index_id, &index_info)) {
-        sql_print_error(
-            "RocksDB: Could not get index information "
-            "for Index Number (%u,%u), table %s",
-            gl_index_id.cf_id, gl_index_id.index_id,
-            tdef->full_tablename().c_str());
+        LogPluginErrMsg(ERROR_LEVEL, 0,
+                        "Could not get index information for Index Number "
+                        "(%u,%u), table %s",
+                        gl_index_id.cf_id, gl_index_id.index_id,
+                        tdef->full_tablename().c_str());
         return true;
       }
       if (max_index_id_in_dict < gl_index_id.index_id) {
-        sql_print_error(
-            "RocksDB: Found max index id %u from data dictionary "
-            "but also found larger index id %u from dictionary. "
-            "This should never happen and possibly a bug.",
-            max_index_id_in_dict, gl_index_id.index_id);
+        LogPluginErrMsg(ERROR_LEVEL, 0,
+                        "Found max index id %u from data dictionary but also "
+                        "found larger index id %u from dictionary. This should "
+                        "never happen and possibly a bug.",
+                        max_index_id_in_dict, gl_index_id.index_id);
         return true;
       }
       if (!m_dict->get_cf_flags(gl_index_id.cf_id, &flags)) {
-        sql_print_error(
-            "RocksDB: Could not get Column Family Flags "
-            "for CF Number %d, table %s",
+        LogPluginErrMsg(
+            ERROR_LEVEL, 0,
+            "Could not get Column Family Flags for CF Number %d, table %s",
             gl_index_id.cf_id, tdef->full_tablename().c_str());
         return true;
       }
 
       if ((flags & Rdb_key_def::AUTO_CF_FLAG) != 0) {
         // The per-index cf option is deprecated.  Make sure we don't have the
-        // flag set in any existing database.   NO_LINT_DEBUG
-        sql_print_error(
-            "RocksDB: The defunct AUTO_CF_FLAG is enabled for CF "
-            "number %d, table %s",
+        // flag set in any existing database.
+        LogPluginErrMsg(
+            ERROR_LEVEL, 0,
+            "The defunct AUTO_CF_FLAG is enabled for CF number %d, table %s",
             gl_index_id.cf_id, tdef->full_tablename().c_str());
       }
 
@@ -4762,20 +4715,19 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
     If validate_tables is greater than 0 run the validation.  Only fail the
     initialzation if the setting is 1.  If the setting is 2 we continue.
   */
-  if (validate_tables > 0) {
+  if (validate_tables > 0 && !dd::upgrade_57::in_progress()) {
     std::string msg;
     if (!validate_schemas()) {
       msg =
           "RocksDB: Problems validating data dictionary "
-          "against .frm files, exiting";
+          "against DD tables, exiting";
     } else if (!validate_auto_incr()) {
       msg =
           "RocksDB: Problems validating auto increment values in "
           "data dictionary, exiting";
     }
     if (validate_tables == 1 && !msg.empty()) {
-      // NO_LINT_DEBUG
-      sql_print_error("%s", msg.c_str());
+      LogPluginErrMsg(ERROR_LEVEL, 0, "%s", msg.c_str());
       return true;
     }
   }
@@ -4795,9 +4747,8 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
     return true;
   }
   delete it;
-  // NO_LINT_DEBUG
-  sql_print_information("RocksDB: Table_store: loaded DDL data for %d tables",
-                        i);
+  LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                  "Table_store: loaded DDL data for %d tables", i);
   return false;
 }
 
@@ -5171,7 +5122,7 @@ int Rdb_ddl_manager::scan_for_tables(Rdb_tables_scanner *const tables_scanner) {
 
 bool Rdb_dict_manager::init(rocksdb::TransactionDB *const rdb_dict,
                             Rdb_cf_manager *const cf_manager,
-                            const my_bool enable_remove_orphaned_dropped_cfs) {
+                            const bool enable_remove_orphaned_dropped_cfs) {
   DBUG_ASSERT(rdb_dict != nullptr);
   DBUG_ASSERT(cf_manager != nullptr);
 
@@ -5437,13 +5388,13 @@ bool Rdb_dict_manager::get_index_info(
   }
 
   if (error) {
-    // NO_LINT_DEBUG
-    sql_print_error(
-        "RocksDB: Found invalid key version number (%u, %u, %u, %llu) "
-        "from data dictionary. This should never happen "
-        "and it may be a bug.",
-        index_info->m_index_dict_version, index_info->m_index_type,
-        index_info->m_kv_version, index_info->m_ttl_duration);
+    LogPluginErrMsg(ERROR_LEVEL, 0,
+                    "Found invalid key version number (%u, %u, %u, %llu) from "
+                    "data dictionary. This should never happen and it may be a "
+                    "bug.",
+                    index_info->m_index_dict_version, index_info->m_index_type,
+                    index_info->m_kv_version,
+                    (ulonglong)(index_info->m_ttl_duration));
     abort();
   }
 
@@ -5627,7 +5578,7 @@ int Rdb_dict_manager::add_missing_cf_flags(
  */
 int Rdb_dict_manager::remove_orphaned_dropped_cfs(
     Rdb_cf_manager *const cf_manager,
-    const my_bool &enable_remove_orphaned_dropped_cfs) const {
+    const bool &enable_remove_orphaned_dropped_cfs) const {
   const std::unique_ptr<rocksdb::WriteBatch> wb = begin();
   rocksdb::WriteBatch *const batch = wb.get();
 
@@ -5635,11 +5586,10 @@ int Rdb_dict_manager::remove_orphaned_dropped_cfs(
   get_all_dropped_cfs(&dropped_cf_ids);
   for (const auto cf_id : dropped_cf_ids) {
     if (!cf_manager->get_cf(cf_id)) {
-      // NO_LINT_DEBUG
-      sql_print_warning(
-          "RocksDB: Column family with id %u doesn't exist in "
-          "cf manager, but it is listed to be dropped",
-          cf_id);
+      LogPluginErrMsg(WARNING_LEVEL, 0,
+                      "Column family with id %u doesn't exist in "
+                      "cf manager, but it is listed to be dropped",
+                      cf_id);
 
       if (enable_remove_orphaned_dropped_cfs) {
         delete_dropped_cf_and_flags(batch, cf_id);
@@ -5760,9 +5710,8 @@ void Rdb_dict_manager::add_create_index(
     const std::unordered_set<GL_INDEX_ID> &gl_index_ids,
     rocksdb::WriteBatch *const batch) const {
   for (const auto &gl_index_id : gl_index_ids) {
-    // NO_LINT_DEBUG
-    sql_print_information("RocksDB: Begin index creation (%u,%u)",
-                          gl_index_id.cf_id, gl_index_id.index_id);
+    LogPluginErrMsg(INFORMATION_LEVEL, 0, "Begin index creation (%u,%u)",
+                    gl_index_id.cf_id, gl_index_id.index_id);
     start_create_index(batch, gl_index_id);
   }
 }
@@ -5821,11 +5770,11 @@ void Rdb_dict_manager::resume_drop_indexes() const {
   for (const auto &gl_index_id : gl_index_ids) {
     log_start_drop_index(gl_index_id, "Resume");
     if (max_index_id_in_dict < gl_index_id.index_id) {
-      sql_print_error(
-          "RocksDB: Found max index id %u from data dictionary "
-          "but also found dropped index id (%u,%u) from drop_index "
-          "dictionary. This should never happen and is possibly a "
-          "bug.",
+      LogPluginErrMsg(
+          ERROR_LEVEL, 0,
+          "Found max index id %u from data dictionary but also found dropped "
+          "index id (%u,%u) from drop_index dictionary. This should never "
+          "happen and is possibly a bug.",
           max_index_id_in_dict, gl_index_id.cf_id, gl_index_id.index_id);
       abort();
     }
@@ -5845,9 +5794,9 @@ void Rdb_dict_manager::rollback_ongoing_index_creation(
   rocksdb::WriteBatch *const batch = wb.get();
 
   for (const auto &gl_index_id : gl_index_ids) {
-    // NO_LINT_DEBUG
-    sql_print_information("RocksDB: Removing incomplete create index (%u,%u)",
-                          gl_index_id.cf_id, gl_index_id.index_id);
+    LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                    "Removing incomplete create index (%u,%u)",
+                    gl_index_id.cf_id, gl_index_id.index_id);
 
     start_drop_index(batch, gl_index_id);
   }
@@ -5877,11 +5826,10 @@ void Rdb_dict_manager::log_start_drop_index(GL_INDEX_ID gl_index_id,
 
     if (!incomplete_create_indexes.count(gl_index_id)) {
       /* If it's not a partially created index, something is very wrong. */
-      sql_print_error(
-          "RocksDB: Failed to get column family info "
-          "from index id (%u,%u). MyRocks data dictionary may "
-          "get corrupted.",
-          gl_index_id.cf_id, gl_index_id.index_id);
+      LogPluginErrMsg(ERROR_LEVEL, 0,
+                      "Failed to get column family info from index id (%u,%u). "
+                      "MyRocks data dictionary may get corrupted.",
+                      gl_index_id.cf_id, gl_index_id.index_id);
       abort();
     }
   }
@@ -5910,11 +5858,11 @@ bool Rdb_dict_manager::update_max_index_id(rocksdb::WriteBatch *const batch,
   uint32_t old_index_id = -1;
   if (get_max_index_id(&old_index_id)) {
     if (old_index_id > index_id) {
-      sql_print_error(
-          "RocksDB: Found max index id %u from data dictionary "
-          "but trying to update to older value %u. This should "
-          "never happen and possibly a bug.",
-          old_index_id, index_id);
+      LogPluginErrMsg(ERROR_LEVEL, 0,
+                      "Found max index id %u from data dictionary but trying "
+                      "to update to older value %u. This should never happen "
+                      "and possibly a bug.",
+                      old_index_id, index_id);
       return true;
     }
   }

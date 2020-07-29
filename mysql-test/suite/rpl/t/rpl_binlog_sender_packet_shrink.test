@@ -8,11 +8,16 @@
 #
 # BUG#24643036 BINLOG_SENDER DOES NOT REDUCE SIZE OF SEND BUFFER AS EXPECTED
 #
-
+# Check-warnings times out on Sparc
+--source include/not_sparc_debug.inc
 # This test case is binary log format agnostic
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 --source include/stop_dump_threads.inc
+
+# this test requires some large events to be able to test
+# buffer size dynamic behavior
+--source include/not_binlog_transaction_compression_on.inc
 
 --let $default_packet_size=`SELECT @@GLOBAL.net_buffer_length`
 

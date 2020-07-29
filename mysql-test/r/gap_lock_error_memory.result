@@ -5,15 +5,7 @@ CREATE TABLE gap2 like gap1;
 CREATE TABLE gap3 (id INT, value INT,
 PRIMARY KEY (id),
 UNIQUE KEY ui(value)) ENGINE=memory;
-CREATE TABLE gap4 (id INT, value INT,
-PRIMARY KEY (id)) ENGINE=memory
-PARTITION BY HASH(id) PARTITIONS 2;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.gap4', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into gap3 values (1,1), (2,2),(3,3),(4,4),(5,5);
-insert into gap4 values (1,1), (2,2),(3,3),(4,4),(5,5);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.gap4', is deprecated and will be removed in a future release. Please use native partitioning instead.
 select sum(value) from gap1;
 sum(value)
 500500
@@ -21,4 +13,4 @@ update gap1 set gap1.value= (select count(*) from gap2);
 select sum(value) from gap1;
 sum(value)
 1000000
-drop table gap1, gap2, gap3, gap4;
+drop table gap1, gap2, gap3;

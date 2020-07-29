@@ -123,6 +123,7 @@ create table t2 (i int not null);
 insert into t2 values (0),(1),    (3),(4);
 create table t3 (i int not null);
 insert into t3 values (0),(1),(2),    (4);
+--sorted_result
 select * from
  t1 LEFT JOIN
  ( t2 LEFT JOIN
@@ -142,13 +143,13 @@ drop table t1,t2,t3;
 --echo
 # Comes from having.test
 
-CREATE TABLE t1 (f1 INT, f2 VARCHAR(1));
+CREATE TABLE t1 (f1 INT, f2 VARCHAR(1)) CHARSET utf8mb4;
 INSERT INTO t1 VALUES (16,'f');
 INSERT INTO t1 VALUES (16,'f');
-CREATE TABLE t2 (f1 INT, f2 VARCHAR(1));
+CREATE TABLE t2 (f1 INT, f2 VARCHAR(1)) CHARSET utf8mb4;
 INSERT INTO t2 VALUES (13,'f');
 INSERT INTO t2 VALUES (20,'f');
-CREATE TABLE t3 (f1 INT, f2 VARCHAR(1));
+CREATE TABLE t3 (f1 INT, f2 VARCHAR(1)) CHARSET utf8mb4;
 INSERT INTO t3 VALUES (7,'f');
 --source include/turn_off_only_full_group_by.inc
 
@@ -161,7 +162,7 @@ SELECT t1.f2 FROM t1
 STRAIGHT_JOIN (t2 JOIN t3 ON t3.f2  = t2.f2  ) ON t3 .f2  = t2 .f2
 HAVING ('v', 'i') NOT IN (SELECT f2, MIN(f2) FROM t1)
 ORDER BY f2;
---replace_regex /("sort_buffer_size":) [0-9]+/\1 "NNN"/
+--replace_regex /("peak_memory_used":) [0-9]+/\1 "NNN"/ /("key_size":) [0-9]+/\1 "XXX"/ /("row_size":) [0-9]+/\1 "XXX"/ /("max_rows_per_buffer":) [0-9]+/\1 "XXX"/
 select TRACE from information_schema.OPTIMIZER_TRACE;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
@@ -175,7 +176,7 @@ DROP TABLES t1,t2,t3;
 create table t1 (a int, b int);
 insert into t1 values (1,1), (2,null), (3, 4);
 select max(x) from (select sum(a) as x from t1 group by b) as teeone;
---replace_regex /("sort_buffer_size":) [0-9]+/\1 "NNN"/
+--replace_regex /("peak_memory_used":) [0-9]+/\1 "NNN"/
 select TRACE from information_schema.OPTIMIZER_TRACE;
 drop table t1;
 
@@ -370,13 +371,13 @@ DROP TABLE t2;
 --echo
 
 CREATE TABLE t1 (
-  col_varchar_10_latin1_key varchar(10) DEFAULT NULL,
+  col_varchar_10_latin1_key varchar(10) CHARACTER SET latin1 DEFAULT NULL,
   col_int_key INT,
   KEY col_int_key (col_int_key)
 );
 
 CREATE TABLE t2 (
-  col_varchar_10_latin1_key varchar(10) DEFAULT NULL,
+  col_varchar_10_latin1_key varchar(10) CHARACTER SET latin1 DEFAULT NULL,
   col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 DEFAULT NULL,
   col_int_key INT,
   KEY col_varchar_10_utf8_key (col_varchar_10_utf8_key),
@@ -388,7 +389,7 @@ INSERT INTO t2 VALUES ('qykbaqfyhz','l',NULL);
 CREATE TABLE t3 (
   col_int_key INT,
   col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 DEFAULT NULL,
-  col_varchar_10_latin1_key varchar(10) DEFAULT NULL,
+  col_varchar_10_latin1_key varchar(10) CHARACTER SET latin1 DEFAULT NULL,
   KEY col_varchar_10_utf8_key (col_varchar_10_utf8_key),
   KEY col_varchar_10_latin1_key (col_varchar_10_latin1_key)
 );
@@ -654,7 +655,7 @@ SELECT SUM(alias2.col_varchar_nokey) , alias2.pk AS field2 FROM t1 AS alias1
 STRAIGHT_JOIN t2 AS alias2 ON alias2.pk = alias1.col_int_key WHERE alias1.pk
 GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk ;
 eval $query;
---replace_regex /("sort_buffer_size":) [0-9]+/\1 "NNN"/
+--replace_regex /("peak_memory_used":) [0-9]+/\1 "NNN"/ /("key_size":) [0-9]+/\1 "XXX"/ /("row_size":) [0-9]+/\1 "XXX"/
 SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
 DROP TABLE t1,t2;
@@ -678,6 +679,7 @@ insert into t1 values(1),(2),(3);
 create database mysqltest2;
 create table mysqltest2.t2(a int);
 insert into mysqltest2.t2 values(1),(2);
+--sorted_result
 select * from t1,mysqltest2.t2;
 SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 drop table t1;

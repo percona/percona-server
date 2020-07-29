@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlpump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/23/2020
+.\"      Date: 03/06/2020
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 5.7
+.\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLPUMP\FR" "1" "03/23/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLPUMP\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -177,6 +177,23 @@ Progress indicator (the values are estimates)
 For dump file reloading, faster secondary index creation for
 InnoDB
 tables by adding indexes after rows are inserted
+.RE
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+\fBmysqlpump\fR
+uses MySQL features introduced in MySQL 5\&.7, and thus assumes use with MySQL 5\&.7 or higher\&.
+.sp .5v
 .RE
 .PP
 \fBmysqlpump\fR
@@ -348,12 +365,12 @@ supports the following options, which can be specified on the command line or in
 [mysqlpump]
 and
 [client]
-groups of an option file\&. (Prior to MySQL 5\&.7\&.30,
+groups of an option file\&. (Prior to MySQL 8\&.0\&.20,
 \fBmysqlpump\fR
 read the
 [mysql_dump]
 group rather than
-[mysqlpump]\&. As of 5\&.7\&.30,
+[mysqlpump]\&. As of 8\&.0\&.20,
 [mysql_dump]
 is still accepted but is deprecated\&.) For information about option files used by MySQL programs, see
 Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
@@ -439,7 +456,7 @@ LOCK TABLES
 and
 UNLOCK TABLES
 statements\&. This results in faster inserts when the dump file is reloaded\&. See
-Section\ \&8.2.4.1, \(lqOptimizing INSERT Statements\(rq\&.
+Section\ \&8.2.5.1, \(lqOptimizing INSERT Statements\(rq\&.
 .sp
 This option does not work with parallelism because
 INSERT
@@ -471,6 +488,33 @@ mysqlpump Restrictions)\&. This is the default behavior if no other is specified
 and
 \fB\-\-databases\fR
 are mutually exclusive\&.
+.sp
+Prior to MySQL 8\&.0, the
+\fB\-\-routines\fR
+and
+\fB\-\-events\fR
+options for
+\fBmysqldump\fR
+and
+\fBmysqlpump\fR
+were not required to include stored routines and events when using the
+\fB\-\-all\-databases\fR
+option: The dump included the
+mysql
+system database, and therefore also the
+mysql\&.proc
+and
+mysql\&.event
+tables containing stored routine and event definitions\&. As of MySQL 8\&.0, the
+mysql\&.event
+and
+mysql\&.proc
+tables are not used\&. Definitions for the corresponding objects are stored in data dictionary tables, but those tables are not dumped\&. To include stored routines and events in a dump made using
+\fB\-\-all\-databases\fR, use the
+\fB\-\-routines\fR
+and
+\fB\-\-events\fR
+options explicitly\&.
 .RE
 .sp
 .RS 4
@@ -508,6 +552,20 @@ Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-column\-statistics\fR
+Add
+ANALYZE TABLE
+statements to the output to generate histogram statistics for dumped tables when the dump file is reloaded\&. This option is disabled by default because histogram generation for large tables can take a long time\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-complete\-insert\fR
 .sp
 Write complete
@@ -527,7 +585,10 @@ statements that include column names\&.
 \fB\-C\fR
 .sp
 Compress all information sent between the client and the server if possible\&. See
-Section\ \&4.2.5, \(lqConnection Compression Control\(rq\&.
+Section\ \&4.2.6, \(lqConnection Compression Control\(rq\&.
+.sp
+As of MySQL 8\&.0\&.18, this option is deprecated\&. It will be removed in a future MySQL version\&. See
+the section called \(lqLegacy Connection Compression Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -551,7 +612,7 @@ To uncompress compressed output, you must have an appropriate utility\&. If the 
 \fBlz4\fR
 and
 \fBopenssl zlib\fR
-are not available, as of MySQL 5\&.7\&.10, MySQL distributions include
+are not available, MySQL distributions include
 \fBlz4_decompress\fR
 and
 \fBzlib_decompress\fR
@@ -564,39 +625,26 @@ and
 options\&. For more information, see
 \fBlz4_decompress\fR(1), and
 \fBzlib_decompress\fR(1)\&.
-.sp
-Alternatives include the
-\fBlz4\fR
-and
-\fBopenssl\fR
-commands, if they are installed on your system\&. For example,
-\fBlz4\fR
-can uncompress
-LZ4
-output:
-.sp
-.if n \{\
-.RS 4
-.\}
-.nf
-shell> \fBlz4 \-d \fR\fB\fIinput_file output_file\fR\fR
-.fi
-.if n \{\
 .RE
-.\}
 .sp
-ZLIB
-output can be uncompresed like this:
-.sp
-.if n \{\
 .RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
 .\}
-.nf
-shell> \fBopenssl zlib \-d < \fR\fB\fIinput_file\fR\fR\fB > \fR\fB\fIoutput_file\fR\fR
-.fi
-.if n \{\
-.RE
+.el \{\
+.sp -1
+.IP \(bu 2.3
 .\}
+\fB\-\-compression\-algorithms=\fR\fB\fIvalue\fR\fR
+The permitted compression algorithms for connections to the server\&. The available algorithms are the same as for the
+protocol_compression_algorithms
+system variable\&. The default value is
+uncompressed\&.
+.sp
+For more information, see
+Section\ \&4.2.6, \(lqConnection Compression Control\(rq\&.
+.sp
+This option was added in MySQL 8\&.0\&.18\&.
 .RE
 .sp
 .RS 4
@@ -693,7 +741,7 @@ built using this option\&.
 \fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
 .sp
 A hint about which client\-side authentication plugin to use\&. See
-Section\ \&6.2.13, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -741,37 +789,6 @@ options,
 runs as a single\-threaded process and creates no queues\&.
 .sp
 With parallelism enabled, it is possible for output from different databases to be interleaved\&.
-.if n \{\
-.sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
-Before MySQL 5\&.7\&.11, use of the
-\fB\-\-single\-transaction\fR
-option is mutually exclusive with parallelism\&. To use
-\fB\-\-single\-transaction\fR, disable parallelism by setting
-\fB\-\-default\-parallelism\fR
-to 0 and not using any instances of
-\fB\-\-parallel\-schemas\fR:
-.sp
-.if n \{\
-.RS 4
-.\}
-.nf
-shell> \fBmysqlpump \-\-single\-transaction \-\-default\-parallelism=0\fR
-.fi
-.if n \{\
-.RE
-.\}
-.sp .5v
-.RE
 .RE
 .sp
 .RS 4
@@ -882,14 +899,7 @@ The output generated by using
 \fB\-\-events\fR
 contains
 CREATE EVENT
-statements to create the events\&. However, these statements do not include attributes such as the event creation and modification timestamps, so when the events are reloaded, they are created with timestamps equal to the reload time\&.
-.sp
-If you require events to be created with their original timestamp attributes, do not use
-\fB\-\-events\fR\&. Instead, dump and reload the contents of the
-mysql\&.event
-table directly, using a MySQL account that has appropriate privileges for the
-mysql
-database\&.
+statements to create the events\&.
 .sp
 This option is enabled by default; use
 \fB\-\-skip\-events\fR
@@ -1031,11 +1041,7 @@ is given and specifies a valid public key file, it takes precedence over
 For information about the
 caching_sha2_password
 plugin, see
-Section\ \&6.4.1.4, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
-.sp
-The
-\fB\-\-get\-server\-public\-key\fR
-option was added in MySQL 5\&.7\&.23\&.
+Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1389,7 +1395,7 @@ The directory in which to look for plugins\&. Specify this option if the
 option is used to specify an authentication plugin but
 \fBmysqlpump\fR
 does not find it\&. See
-Section\ \&6.2.13, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1482,11 +1488,9 @@ carriage return/newline sequences\&.
 .\}
 \fB\-\-routines\fR
 .sp
-Include stored routines (procedures and functions) for the dumped databases in the output\&. This option requires the
+Include stored routines (procedures and functions) for the dumped databases in the output\&. This option requires the global
 SELECT
-privilege for the
-mysql\&.proc
-table\&.
+privilege\&.
 .sp
 The output generated by using
 \fB\-\-routines\fR
@@ -1494,34 +1498,11 @@ contains
 CREATE PROCEDURE
 and
 CREATE FUNCTION
-statements to create the routines\&. However, these statements do not include attributes such as the routine creation and modification timestamps, so when the routines are reloaded, they are created with timestamps equal to the reload time\&.
-.sp
-If you require routines to be created with their original timestamp attributes, do not use
-\fB\-\-routines\fR\&. Instead, dump and reload the contents of the
-mysql\&.proc
-table directly, using a MySQL account that has appropriate privileges for the
-mysql
-database\&.
+statements to create the routines\&.
 .sp
 This option is enabled by default; use
 \fB\-\-skip\-routines\fR
 to disable it\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-secure\-auth\fR
-.sp
-Do not send passwords to the server in old (pre\-4\&.1) format\&. This prevents connections except for servers that use the newer password format\&.
-.sp
-This option is deprecated and will be removed in a future MySQL release\&. It is always enabled and attempting to disable it (\fB\-\-skip\-secure\-auth\fR,
-\fB\-\-secure\-auth=0\fR) produces an error\&.
 .RE
 .sp
 .RS 4
@@ -1553,12 +1534,8 @@ sha256_password
 and
 caching_sha2_password
 plugins, see
-Section\ \&6.4.1.5, \(lqSHA-256 Pluggable Authentication\(rq, and
-Section\ \&6.4.1.4, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
-.sp
-The
-\fB\-\-server\-public\-key\-path\fR
-option was added in MySQL 5\&.7\&.23\&.
+Section\ \&6.4.1.3, \(lqSHA-256 Pluggable Authentication\(rq, and
+Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1673,8 +1650,6 @@ AUTO
 evaluates to
 ON)\&.
 .RE
-.sp
-This option was added in MySQL 5\&.7\&.18\&.
 .RE
 .sp
 .RS 4
@@ -1721,37 +1696,6 @@ to retrieve the table contents to obtain incorrect contents or fail\&.
 and
 \fB\-\-single\-transaction\fR
 are mutually exclusive\&.
-.if n \{\
-.sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
-Before MySQL 5\&.7\&.11, use of the
-\fB\-\-single\-transaction\fR
-option is mutually exclusive with parallelism\&. To use
-\fB\-\-single\-transaction\fR, disable parallelism by setting
-\fB\-\-default\-parallelism\fR
-to 0 and not using any instances of
-\fB\-\-parallel\-schemas\fR:
-.sp
-.if n \{\
-.RS 4
-.\}
-.nf
-shell> \fBmysqlpump \-\-single\-transaction \-\-default\-parallelism=0\fR
-.fi
-.if n \{\
-.RE
-.\}
-.sp .5v
-.RE
 .RE
 .sp
 .RS 4
@@ -1775,7 +1719,7 @@ DEFINER
 and
 SQL SECURITY
 values\&. See
-Section\ \&23.6, \(lqStored Object Access Control\(rq\&.
+Section\ \&24.6, \(lqStored Object Access Control\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1837,12 +1781,107 @@ the section called \(lqCommand Options for Encrypted Connections\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-ssl\-fips\-mode={OFF|ON|STRICT}\fR
+Controls whether to enable FIPS mode on the client side\&. The
+\fB\-\-ssl\-fips\-mode\fR
+option differs from other
+\fB\-\-ssl\-\fR\fB\fIxxx\fR\fR
+options in that it is not used to establish encrypted connections, but rather to affect which cryptographic operations are permitted\&. See
+Section\ \&6.5, \(lqFIPS Support\(rq\&.
+.sp
+These
+\fB\-\-ssl\-fips\-mode\fR
+values are permitted:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+OFF: Disable FIPS mode\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+ON: Enable FIPS mode\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+STRICT: Enable
+\(lqstrict\(rq
+FIPS mode\&.
+.RE
+.sp
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+If the OpenSSL FIPS Object Module is not available, the only permitted value for
+\fB\-\-ssl\-fips\-mode\fR
+is
+OFF\&. In this case, setting
+\fB\-\-ssl\-fips\-mode\fR
+to
+ON
+or
+STRICT
+causes the client to produce a warning at startup and to operate in non\-FIPS mode\&.
+.sp .5v
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-tls\-ciphersuites=\fR\fB\fIciphersuite_list\fR\fR
+.sp
+The permissible ciphersuites for encrypted connections that use TLSv1\&.3\&. The value is a list of one or more colon\-separated ciphersuite names\&. The ciphersuites that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
+Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
+.sp
+This option was added in MySQL 8\&.0\&.16\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
 .sp
 The permissible TLS protocols for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
 Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
-.sp
-This option was added in MySQL 5\&.7\&.10\&.
 .RE
 .sp
 .RS 4
@@ -1969,6 +2008,29 @@ Periodically display a progress indicator that provides information about the co
 This option is enabled by default; use
 \fB\-\-skip\-watch\-progress\fR
 to disable it\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-zstd\-compression\-level=\fR\fB\fIlevel\fR\fR
+The compression level to use for connections to the server that use the
+zstd
+compression algorithm\&. The permitted levels are from 1 to 22, with larger values indicating increasing levels of compression\&. The default
+zstd
+compression level is 3\&. The compression level setting has no effect on connections that do not use
+zstd
+compression\&.
+.sp
+For more information, see
+Section\ \&4.2.6, \(lqConnection Compression Control\(rq\&.
+.sp
+This option was added in MySQL 8\&.0\&.18\&.
 .RE
 mysqlpump Object Selection
 .PP
@@ -2356,43 +2418,10 @@ and no
 options,
 \fBmysqlpump\fR
 runs as a single\-threaded process and creates no queues\&.
-.if n \{\
-.sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
-.PP
-Before MySQL 5\&.7\&.11, use of the
-\fB\-\-single\-transaction\fR
-option is mutually exclusive with parallelism\&. To use
-\fB\-\-single\-transaction\fR, disable parallelism by setting
-\fB\-\-default\-parallelism\fR
-to 0 and not using any instances of
-\fB\-\-parallel\-schemas\fR:
-.sp
-.if n \{\
-.RS 4
-.\}
-.nf
-shell> \fBmysqlpump \-\-single\-transaction \-\-default\-parallelism=0\fR
-.fi
-.if n \{\
-.RE
-.\}
-.sp .5v
-.RE
 mysqlpump Restrictions
 .PP
 \fBmysqlpump\fR
 does not dump the
-INFORMATION_SCHEMA,
 performance_schema,
 ndbinfo, or
 sys
@@ -2401,6 +2430,11 @@ schema by default\&. To dump any of these, name them explicitly on the command l
 or
 \fB\-\-include\-databases\fR
 option\&.
+.PP
+\fBmysqlpump\fR
+does not dump the
+INFORMATION_SCHEMA
+schema\&.
 .PP
 \fBmysqlpump\fR
 does not dump

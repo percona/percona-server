@@ -10,24 +10,20 @@ SELECT @@GLOBAL.innodb_scrub_log;
 0
 0 Expected
 SELECT IF(@@GLOBAL.innodb_scrub_log, 'ON', 'OFF') = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_scrub_log';
 IF(@@GLOBAL.innodb_scrub_log, 'ON', 'OFF') = VARIABLE_VALUE
 1
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.global_variables instead
 1 Expected
 SELECT @@GLOBAL.innodb_scrub_log;
 @@GLOBAL.innodb_scrub_log
 0
 0 Expected
 SELECT VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='innodb_scrub_log';
 VARIABLE_VALUE
 OFF
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.global_variables instead
 0 Expected
 SELECT @@innodb_scrub_log = @@GLOBAL.innodb_scrub_log;
 @@innodb_scrub_log = @@GLOBAL.innodb_scrub_log

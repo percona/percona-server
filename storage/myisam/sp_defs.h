@@ -1,5 +1,5 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
-   
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -18,17 +18,20 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef _SP_DEFS_H
 #define _SP_DEFS_H
 
+/**
+  @file storage/myisam/sp_defs.h
+*/
+
 #define SPDIMS 2
 #define SPTYPE HA_KEYTYPE_DOUBLE
-#define SPLEN  8
+#define SPLEN 8
 
-enum wkbType
-{
+enum wkbType {
   wkbPoint = 1,
   wkbLineString = 2,
   wkbPolygon = 3,
@@ -38,13 +41,12 @@ enum wkbType
   wkbGeometryCollection = 7
 };
 
-enum wkbByteOrder
-{
-  wkbXDR = 0,    /* Big Endian    */
-  wkbNDR = 1     /* Little Endian */
-};                                    
+enum wkbByteOrder {
+  wkbXDR = 0, /* Big Endian    */
+  wkbNDR = 1  /* Little Endian */
+};
 
-uint sp_make_key(MI_INFO *info, uint keynr, uchar *key,
-                 const uchar *record, my_off_t filepos);
+uint sp_make_key(MI_INFO *info, uint keynr, uchar *key, const uchar *record,
+                 my_off_t filepos);
 
 #endif /* _SP_DEFS_H */

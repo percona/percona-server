@@ -1,7 +1,8 @@
-source include/have_tokudb.inc;
+--source include/not_log_bin.inc
+--source include/have_tokudb.inc
 
 set tokudb_enable_fast_upsert=1;
-source ../include/setup_fast_update_upsert.inc;
+--source ../include/setup_fast_update_upsert.inc
 
 let $default_sql_mode = `select @@session.sql_mode`;
 

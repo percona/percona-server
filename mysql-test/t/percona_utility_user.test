@@ -1,8 +1,8 @@
 --source include/have_plugin_auth.inc
---source include/not_embedded.inc
 --source include/count_sessions.inc
 
 call mtr.add_suppression("Did not write failed .* ");
+call mtr.add_suppression("Wrong password");
 
 SELECT user FROM mysql.user WHERE user LIKE 'frank';
 
@@ -21,10 +21,10 @@ disconnect frank;
 connection default;
 
 --error ER_PASSWORD_NO_MATCH
-SET PASSWORD FOR 'frank'@'localhost' = PASSWORD('');
+SET PASSWORD FOR 'frank'@'localhost' = '';
 
 --error ER_PASSWORD_NO_MATCH
-SET PASSWORD FOR 'frank'@'%' = PASSWORD('');
+SET PASSWORD FOR 'frank'@'%' = '';
 
 --error ER_NONEXISTING_GRANT
 GRANT ALL ON mysql.* TO 'frank'@'localhost';
@@ -82,7 +82,7 @@ GRANT ALL ON mysql.* TO 'frankjr'@'localhost';
 
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'frankjr'@'localhost';
 
-SET PASSWORD FOR 'frankjr'@'localhost' = PASSWORD('');
+SET PASSWORD FOR 'frankjr'@'localhost' = '';
 
 DROP USER 'frankjr'@'localhost';
 
@@ -110,7 +110,7 @@ ALTER TABLE mysqltest.t1 DROP COLUMN b;
 # Allowed because --utility-user-privileges has DROP
 DROP DATABASE mysqltest;
 
-SET PASSWORD FOR 'mysqltest_1'@'localhost' = PASSWORD('newpass');
+SET PASSWORD FOR 'mysqltest_1'@'localhost' = 'newpass';
 
 SET @testtemp= @@global.innodb_fast_shutdown;
 SET @@global.innodb_fast_shutdown= 2;
@@ -135,19 +135,18 @@ CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'frank';
 SELECT plugin,authentication_string FROM mysql.user WHERE User='plug';
 
 --disable_query_log
---error ER_ACCESS_DENIED_ERROR : this should fail : no grant
-connect(plug_con,localhost,plug,frank);
+--error ER_ACCESS_DENIED_ERROR
+connect(plug_con,localhost,plug,fg rank);
 --enable_query_log
 
 GRANT PROXY ON frank TO plug;
+REVOKE PROXY ON frank FROM plug;
 
 --replace_column 1 xx 7 xx
 SELECT * FROM mysql.proxies_priv;
 
-REVOKE PROXY ON frank FROM plug;
-
 --disable_query_log
---error ER_ACCESS_DENIED_ERROR : this should fail : no grant
+--error ER_ACCESS_DENIED_ERROR
 connect(plug_con,localhost,plug,frank);
 --enable_query_log
 
@@ -245,9 +244,78 @@ connection default;
 
 --error ER_KILL_DENIED_ERROR
 --eval KILL $conn_id
-
-disconnect frank;
-
 REVOKE PROXY ON 'frank'@'%' FROM 'root'@'localhost';
 
+
+# PS-7127: Utility user cannot update password of the user having SYSTEM_USER privilege.
+--connection default
+CREATE USER u1 IDENTIFIED BY 'password';
+GRANT ALL ON *.* TO u1 WITH GRANT OPTION;
+
+--connection frank
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER USER 'u1'@'%' IDENTIFIED BY 'newpass';
+--disconnect frank
+
+--connection default
+# Restart the server with utility user having SYSTEM_USER privilege
+--let $restart_parameters = restart:--utility-user-dynamic-privileges=SYSTEM_USER
+--source include/restart_mysqld.inc
+
+connect (frank,localhost,frank,password,mysql);
+--connection frank
+ALTER USER 'u1'@'%' IDENTIFIED BY 'newpass';
+--disconnect frank
+
+--connection default
+# Try again, but this time check if lowercase works as well
+--let $restart_parameters = restart:--utility-user-dynamic-privileges=sYstem_USEr
+--source include/restart_mysqld.inc
+
+connect (frank,localhost,frank,password,mysql);
+--connection frank
+ALTER USER 'u1'@'%' IDENTIFIED BY 'newpass2';
+
+DROP USER u1;
+--disconnect frank
+
+# Test --utility-user-dynamic-privileges value parsing
+
+--connection default
+--source include/shutdown_mysqld.inc
+
+# OK - multiple privileges
+--let $utility_user_dynamic_privileges = SYSTEM_USER,PRIVILEGE_1,PRIVILEGE2,PRIVILEGE4
+--let $expected_log_message = Utility user 'frank'@'%' in use with dynamic privileges 'SYSTEM_USER,PRIVILEGE_1,PRIVILEGE2,PRIVILEGE4'.
+--source t/percona_utility_user_validate_dynamic_privileges.inc
+
+# OK - lowercase
+--let $utility_user_dynamic_privileges = system_user,privilege_2
+--let $expected_log_message = Utility user 'frank'@'%' in use with dynamic privileges 'SYSTEM_USER,PRIVILEGE_2'.
+--source t/percona_utility_user_validate_dynamic_privileges.inc
+
+# OK - multiple comma
+--let $utility_user_dynamic_privileges = SYSTEM_USER,,,,,PRIVILEGE_3
+--let $expected_log_message = Utility user 'frank'@'%' in use with dynamic privileges 'SYSTEM_USER,PRIVILEGE_3'.
+--source t/percona_utility_user_validate_dynamic_privileges.inc
+
+# Malformed - comma at the end
+--let $utility_user_dynamic_privileges = SYSTEM_USER,PRIVILEGE_1,
+--let $expected_log_message = Wrong format of --utility-user-dynamic-privileges parameter value: SYSTEM_USER,PRIVILEGE_1,
+--source t/percona_utility_user_validate_dynamic_privileges.inc
+
+# Malformed - comma at the beginning
+--let $utility_user_dynamic_privileges = ,SYSTEM_USER,PRIVILEGE_1
+--let $expected_log_message = Wrong format of --utility-user-dynamic-privileges parameter value: ,SYSTEM_USER,PRIVILEGE_1
+--source t/percona_utility_user_validate_dynamic_privileges.inc
+
+# Malformed - wrong separator
+--let $utility_user_dynamic_privileges = SYSTEM_USER;PRIVILEGE_1
+--let $expected_log_message = Wrong format of --utility-user-dynamic-privileges parameter value: SYSTEM_USER;PRIVILEGE_1
+--source t/percona_utility_user_validate_dynamic_privileges.inc
+
+--source include/start_mysqld.inc
+
+# cleanup
+--connection default
 --source include/wait_until_count_sessions.inc

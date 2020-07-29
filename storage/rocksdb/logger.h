@@ -17,7 +17,6 @@
 
 #include <sstream>
 #include <string>
-#include "log.h"
 
 namespace myrocks {
 
@@ -50,9 +49,9 @@ class Rdb_logger : public rocksdb::Logger {
     }
 
     // log to MySQL
-    std::string f("LibRocksDB:");
-    f.append(format);
-    error_log_print(mysql_log_level, f.c_str(), ap);
+    char buffer[1024];
+    vsnprintf(buffer, sizeof(buffer), format, ap);
+    LogPluginErrMsg(mysql_log_level, 0, "%s", buffer);
   }
 
   void Logv(const char *format, va_list ap) override {

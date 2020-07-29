@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,23 +25,23 @@
 #ifndef PRIVILEGE_INCLUDED
 #define PRIVILEGE_INCLUDED
 
-#include "abstract_plain_sql_object_dump_task.h"
-#include "my_global.h"
 #include <string>
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+#include "client/dump/abstract_plain_sql_object_dump_task.h"
+#include "my_inttypes.h"
 
-class Privilege : public Abstract_plain_sql_object_dump_task
-{
-public:
-  Privilege(uint64 id, const std::string& name,
-    const std::string& sql_formatted_definition);
+namespace Mysql {
+namespace Tools {
+namespace Dump {
+
+class Privilege : public Abstract_plain_sql_object_dump_task {
+ public:
+  Privilege(uint64 id, const std::string &name,
+            const std::string &sql_formatted_definition);
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

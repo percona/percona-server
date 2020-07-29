@@ -2,9 +2,11 @@
 # Simple test for the erroneos statements using the
 # partition storage engine
 #
--- source include/have_partition.inc
 # This test needs MyISAM for some sub tests
 --source include/have_myisam.inc
+
+# Different number of warnings with/without ps-protocol
+--source include/no_ps_protocol.inc
 
 --disable_warnings
 drop table if exists t1, t2;
@@ -817,7 +819,12 @@ DROP TABLE t1;
 #
 # Bug 29368:
 # Incorrect error, 1467, for syntax error when creating partition
---error ER_PARTITION_REQUIRES_VALUES_ERROR
+
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd';
+CREATE TABLESPACE ts3 ADD DATAFILE 'ts3.ibd';
+
+--error ER_PARSE_ERROR
 CREATE TABLE t1 (
   a int
 )
@@ -1271,7 +1278,7 @@ partitions 2
 #
 # Partition by range, no values less than definition
 #
---error ER_PARTITION_REQUIRES_VALUES_ERROR
+--error ER_PARSE_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -1311,7 +1318,21 @@ partitions 2
  partition x2 values less than (5));
 
 #
-# Partition by range, missing parenthesis
+# Partition by list, missing parenthesis
+#
+--error ER_PARSE_ERROR
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by list (a)
+partitions 2
+(partition x1 values less than 4,
+ partition x2 values less than (5));
+
+#
+# Partition by list, error: unexpected LESS THAN
 #
 --error ER_PARTITION_WRONG_VALUES_ERROR
 CREATE TABLE t1 (
@@ -1321,7 +1342,7 @@ c int not null,
 primary key(a,b))
 partition by list (a)
 partitions 2
-(partition x1 values less than 4,
+(partition x1 values less than (4),
  partition x2 values less than (5));
 
 #
@@ -1500,7 +1521,7 @@ partitions 2
 #
 # Partition by list, no values in definition
 #
---error ER_PARTITION_REQUIRES_VALUES_ERROR
+--error ER_PARSE_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -1528,7 +1549,7 @@ partitions 2
 #
 # Partition by list, no values in definition
 #
---error ER_PARTITION_REQUIRES_VALUES_ERROR
+--error ER_PARSE_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -1581,6 +1602,10 @@ partitions 2
 (partition x1 values in 4,
  partition x2 values in (5));
 
+DROP TABLESPACE ts1;
+DROP TABLESPACE ts2;
+DROP TABLESPACE ts3;
+
 #
 # Bug #13439: Crash when LESS THAN (non-literal)
 #
@@ -1603,7 +1628,7 @@ create table t1 (a bigint unsigned)
 partition by range (a)
 (partition p0 values less than (-1));
 #
-# Bug 18198 Partitions: Verify that erroneus partition functions doesn't work
+# Bug 18198 Partitions: Verify that erroneus partition functions does not work
 #
 -- error ER_PARTITION_FUNCTION_IS_NOT_ALLOWED
 create table t1 (v varchar(12))
@@ -2017,6 +2042,7 @@ SUBPARTITION BY HASH (a) SUBPARTITIONS 2
  (SUBPARTITION p2spFirst COMMENT "SubPartition comment in p2spFirst",
   SUBPARTITION p2spSecond COMMENT "SubPartition comment in p2spSecond"));
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT PARTITION_NAME, SUBPARTITION_NAME, PARTITION_COMMENT FROM INFORMATION_SCHEMA.PARTITIONS
 WHERE TABLE_NAME = 't1' AND TABLE_SCHEMA = 'test';
 DROP TABLE t1;
@@ -2031,6 +2057,7 @@ SUBPARTITION BY HASH (a) SUBPARTITIONS 2
  (SUBPARTITION p2spFirst,
   SUBPARTITION p2spSecond COMMENT "SubPartition comment in p2spSecond"));
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT PARTITION_NAME, SUBPARTITION_NAME, PARTITION_COMMENT FROM INFORMATION_SCHEMA.PARTITIONS
 WHERE TABLE_NAME = 't1' AND TABLE_SCHEMA = 'test';
 DROP TABLE t1;
@@ -2049,7 +2076,7 @@ SUBPARTITION BY HASH (a) SUBPARTITIONS 2
 
 SHOW CREATE TABLE t1;
 SELECT PARTITION_NAME, SUBPARTITION_NAME, PARTITION_COMMENT FROM INFORMATION_SCHEMA.PARTITIONS
-WHERE TABLE_NAME = 't1' AND TABLE_SCHEMA = 'test';
+WHERE TABLE_NAME = 't1' AND TABLE_SCHEMA = 'test' ORDER BY PARTITION_NAME, SUBPARTITION_NAME DESC;
 
 DROP TABLE t1;
 SET sql_mode = default;

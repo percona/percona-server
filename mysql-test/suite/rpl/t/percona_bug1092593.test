@@ -10,7 +10,6 @@
 # written before the restart and thus is outdated
 ###########################################################################
 
---source include/have_innodb.inc
 --source include/not_valgrind.inc
 --source include/not_crashrep.inc
 --source include/master-slave.inc

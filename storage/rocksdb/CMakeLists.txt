@@ -1,5 +1,4 @@
 # TODO: Copyrights
-SET(CMAKE_CXX_STANDARD 11)
 
 # by default MyRocks is not built
 IF (NOT DEFINED WITH_ROCKSDB)
@@ -28,31 +27,44 @@ IF (NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
   RETURN ()
 ENDIF ()
 
-# check compiler version, 4.8.0 is minimal accepted
-IF ((CMAKE_CXX_COMPILER_ID STREQUAL GNU) AND
-    (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.8.0"))
-  MESSAGE (${MYROCKS_STATUS_MODE} "GCC >= 4.8.0 required. ${CMAKE_CXX_COMPILER_VERSION} found. Not building MyRocks")
-  RETURN ()
-ENDIF ()
+
+# Suppress warnings for all compilers
+append_cflags_if_supported(-Wno-unused-parameter)
+# "cmake/maintainer.cmake" sets "-Wcast-qual -Wundef" which cause warnings with RocksDB
+remove_compile_flags(-Wcast-qual -Wundef)
+
+
+# Suppress warnings for all clang versions
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  remove_compile_flags(-Wdeprecated -Winconsistent-missing-destructor-override -Wextra-semi -Wnon-virtual-dtor)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-shadow-field FILES ha_rocksdb.cc rocksdb/memtable/hash_skiplist_rep.cc)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-conditional-uninitialized FILES ha_rocksdb.cc rdb_datadic.cc rocksdb/db/db_impl/db_impl.cc rocksdb/db/write_thread.cc rocksdb/env/env_posix.cc rocksdb/env/fs_posix.cc)
+ENDIF()
 
 
 # Suppress warnings for clang-10 or newer
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-range-loop-construct FILES rocksdb/db/db_impl/db_impl_compaction_flush.cc rocksdb/options/options_parser.cc)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-deprecated-copy FILES rocksdb/db/db_impl/db_impl.cc)
 ENDIF()
+
+# Suppress warnings for gcc-9 or newer
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-deprecated-copy FILES rocksdb/db/db_impl/db_impl.cc)
+ENDIF()
+
+# Suppress warnings for gcc
+IF(CMAKE_COMPILER_IS_GNUCXX)
+  # "cmake/maintainer.cmake" sets "-Wmissing-format-attribute" which cause warnings with RocksDB
+  remove_compile_flags(-Wmissing-format-attribute)
+ENDIF()
+
 
 # Suppress warnings for gcc ASan build
 IF(CMAKE_COMPILER_IS_GNUCXX AND WITH_ASAN)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-error=maybe-uninitialized FILES rocksdb/util/bloom.cc)
 ENDIF()
 
-
-# check that compiler supports cxx11 and set options
-INCLUDE (check_stdcxx11)
-IF (!HAVE_STDCXX11)
-  MESSAGE (${MYROCKS_STATUS_MODE} "${CMAKE_CXX_COMPILER} doesn't support -std=c++11, you need one that does. Not building MyRocks")
-  RETURN ()
-ENDIF ()
 
 IF (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/Makefile")
   MESSAGE(SEND_ERROR "Missing Makefile in rocksdb directory. Try \"git submodule update\".")
@@ -114,36 +126,7 @@ STRING(REGEX MATCHALL "[^\n]+" ROCKSDB_LIB_SOURCES ${SCRIPT_OUTPUT})
 # add bundled compression code
 SET(ROCKSDB_LIB_SOURCES
   ${ROCKSDB_LIB_SOURCES}
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib/lz4.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib/lz4hc.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib/lz4frame.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/entropy_common.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/error_private.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/fse_decompress.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/pool.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/threading.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/xxhash.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/zstd_common.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_compress_literals.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_compress_sequences.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_double_fast.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_fast.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_lazy.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_ldm.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_opt.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/hist.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/fse_compress.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/huf_compress.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_compress.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstdmt_compress.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/decompress/huf_decompress.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/decompress/zstd_decompress.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/decompress/zstd_decompress_block.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/decompress/zstd_ddict.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/dictBuilder/cover.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/dictBuilder/fastcover.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/dictBuilder/divsufsort.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/dictBuilder/zdict.c
+  ${CMAKE_SOURCE_DIR}/extra/lz4/xxhash.c
 )
 
 INCLUDE_DIRECTORIES(
@@ -151,11 +134,12 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/include
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/include/rocksdb
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/third-party/gtest-1.8.1/fused-src
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/dictBuilder
 )
+
+IF(BUILD_BUNDLED_ZSTD)
+  INCLUDE_DIRECTORIES(BEFORE SYSTEM
+    ${CMAKE_SOURCE_DIR}/extra/zstd/lib/dictBuilder)
+ENDIF()
 
 ADD_DEFINITIONS(-DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX -DZLIB -DLZ4
   -DZSTD -DROCKSDB_SUPPORT_THREAD_LOCAL)
@@ -164,6 +148,10 @@ IF(WITH_FB_TSAN)
   SET(PIC_EXT "_pic")
 ELSE()
   SET(PIC_EXT "")
+ENDIF()
+
+IF(DEFINED WITH_UBSAN)
+  add_definitions(-DROCKSDB_UBSAN_RUN)
 ENDIF()
 
 SET(ROCKSDB_SOURCES
@@ -188,15 +176,11 @@ SET(ROCKSDB_SOURCES
   ${ROCKSDB_LIB_SOURCES}
 )
 
-SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} "-lrt" "-ldl")
+SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} ${ZSTD_LIBRARY} ${LZ4_LIBRARY} "-lrt" "-ldl")
 
 MYSQL_ADD_PLUGIN(rocksdb ${ROCKSDB_SOURCES} STORAGE_ENGINE DEFAULT MODULE_ONLY
   LINK_LIBRARIES ${rocksdb_static_libs}
 )
-
-IF(WITH_EMBEDDED_SERVER)
-  ADD_SUBDIRECTORY(unittest)
-ENDIF()
 
 # TODO: read this file list from src.mk:TOOL_SOURCES
 SET(ROCKSDB_TOOL_SOURCES

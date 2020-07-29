@@ -24,8 +24,6 @@ INSERT INTO t1 VALUES ('abc', 'a', 'abc', REPEAT('a',21), REPEAT('x',256),'b');
 ERROR 22001: Data too long for column 'b' at row 1
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 VALUES ('abc', 'a', 'abc', REPEAT('a',21), REPEAT('x',256),'b');
 Warnings:
 Warning	1265	Data truncated for column 'b' at row 1
@@ -34,21 +32,15 @@ Warning	1265	Data truncated for column 'b1' at row 1
 Warning	1265	Data truncated for column 'b20' at row 1
 Warning	1265	Data truncated for column 'b255' at row 1
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set @orig_tx_iso=@@session.transaction_isolation;
 set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t1 SELECT b255, b255, b255, b255, CONCAT('a',b255,b255), 'c' FROM t1;
-ERROR 22001: Data too long for column 'b' at row 4
+ERROR 22001: Data too long for column 'b' at row 1
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 SELECT b255, b255, b255, b255, CONCAT('a',b255,b255), 'c' FROM t1;
-ERROR 23000: Duplicate entry 'c' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'c' for key 't1.PRIMARY'
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set session transaction_isolation=@orig_tx_iso;
 SELECT HEX(b), HEX(b0), HEX(b1), HEX(b20), HEX(b255), HEX(pk) FROM t1 ORDER BY pk;
 HEX(b)	HEX(b0)	HEX(b1)	HEX(b20)	HEX(b255)	HEX(pk)

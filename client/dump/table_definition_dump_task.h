@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,25 +25,24 @@
 #ifndef TABLE_DEFINITION_DUMP_TASK_INCLUDED
 #define TABLE_DEFINITION_DUMP_TASK_INCLUDED
 
-#include "abstract_table_dump_task.h"
+#include "client/dump/abstract_table_dump_task.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 /**
   Represents single DB table DDL creation task.
  */
-class Table_definition_dump_task : public Abstract_table_dump_task
-{
-public:
-  Table_definition_dump_task(Table* related_table);
+class Table_definition_dump_task : public Abstract_table_dump_task {
+ public:
+  Table_definition_dump_task(Table *related_table);
 
   ~Table_definition_dump_task();
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

@@ -3,7 +3,6 @@
 --echo # AFTER DUPLICATE IS ALREADY FOUND
 --echo #
 
---source include/have_innodb.inc
 --source include/count_sessions.inc
 
 #Test 1
@@ -16,13 +15,17 @@ SELECT * FROM t1;
 
 --echo # Transaction trx1
 START TRANSACTION;
+--disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (2, 2, 3) ON DUPLICATE KEY UPDATE c=VALUES(c);
+--enable_ps_protocol
 COMMIT;
 
 --echo # Transaction trx2
 START TRANSACTION;
+--disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (2, 1, 2) ON DUPLICATE KEY UPDATE c=VALUES(c);
 INSERT INTO t1 VALUES (2, 3, 4) ON DUPLICATE KEY UPDATE c=VALUES(c);
+--enable_ps_protocol
 COMMIT;
 
 --echo # Result:
@@ -42,13 +45,17 @@ SELECT * FROM t1;
 
 --echo # Transaction trx2
 START TRANSACTION;
+--disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (2, 1, 2) ON DUPLICATE KEY UPDATE c=VALUES(c);
 INSERT INTO t1 VALUES (2, 3, 4) ON DUPLICATE KEY UPDATE c=VALUES(c);
+--enable_ps_protocol
 COMMIT;
 
 --echo # Transaction trx1
 START TRANSACTION;
+--disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (2, 2, 3) ON DUPLICATE KEY UPDATE c=VALUES(c);
+--enable_ps_protocol
 COMMIT;
 
 --echo # Result:
@@ -65,21 +72,35 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INT UNIQUE KEY, b INT UNIQUE KEY, c INT) ENGINE = InnoDB;
 SHOW CREATE TABLE t1;
 
+# Following two lines are added because of Bug#28523025
+# We don't really care about tt's content, nor about the exact body
+# of the TRIGGER. What we care is that the mere fact of processing the
+# TRIGGER before each inserted row, can impact the state of flags set
+# for the transaction and table t1.
+CREATE TABLE tt (i INT) ENGINE = InnoDB;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+  FOR EACH ROW
+    INSERT INTO tt SELECT a as i FROM t1 WHERE a=0;
+
 --echo # Scenario 3: Interleaved transactions (trx1 conflicts on index b)
-INSERT INTO t1 VALUES (1, 1, 1);
+INSERT INTO t1 VALUES (0,0,0), (1, 1, 1);
 SELECT * FROM t1;
 
 --echo # Connection default:
 
 --echo # Transaction trx1:
 START TRANSACTION;
+--disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (2, 1, 2) ON DUPLICATE KEY UPDATE c=VALUES(c);
+--enable_ps_protocol
 SELECT * FROM t1;
 
 --echo # Connection other:
 --connect (other,localhost,root,,test,,)
 --send
+--disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (2, 2, 3) ON DUPLICATE KEY UPDATE c=VALUES(c);
+--enable_ps_protocol
 
 --echo # Connection default:
 --connection default
@@ -92,7 +113,9 @@ let $wait_condition=
 
 --source include/wait_condition.inc
 
+--disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (2, 3, 4) ON DUPLICATE KEY UPDATE c=VALUES(c);
+--enable_ps_protocol
 SELECT * FROM t1;
 COMMIT;
 
@@ -108,6 +131,7 @@ SELECT * FROM t1;
 
 --echo # Cleanup
 DROP TABLE t1;
+DROP TABLE tt;
 
 #Test 4
 CREATE TABLE t1 (a INT UNIQUE KEY, b INT UNIQUE KEY, c INT) ENGINE = InnoDB;
@@ -119,13 +143,17 @@ SELECT * FROM t1;
 
 --echo # Transaction trx1
 START TRANSACTION;
+--disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (2, 2, 3) ON DUPLICATE KEY UPDATE c=VALUES(c);
+--enable_ps_protocol
 COMMIT;
 
 --echo # Transaction trx2
 START TRANSACTION;
+--disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (1, 2, 2) ON DUPLICATE KEY UPDATE c=VALUES(c);
 INSERT INTO t1 VALUES (3, 2, 4) ON DUPLICATE KEY UPDATE c=VALUES(c);
+--enable_ps_protocol
 COMMIT;
 
 --echo # Result:
@@ -144,13 +172,17 @@ SELECT * FROM t1;
 
 --echo # Transaction trx2
 START TRANSACTION;
+--disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (1, 2, 2) ON DUPLICATE KEY UPDATE c=VALUES(c);
 INSERT INTO t1 VALUES (3, 2, 4) ON DUPLICATE KEY UPDATE c=VALUES(c);
+--enable_ps_protocol
 COMMIT;
 
 --echo # Transaction trx1
 START TRANSACTION;
+--disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (2, 2, 3) ON DUPLICATE KEY UPDATE c=VALUES(c);
+--enable_ps_protocol
 COMMIT;
 
 --echo # Result:
@@ -158,6 +190,7 @@ SELECT * FROM t1;
 
 --echo # Cleanup
 DROP TABLE t1;
+
 #Test 6
 CREATE TABLE t1 (a INT UNIQUE KEY, b INT UNIQUE KEY, c INT) ENGINE = InnoDB;
 SHOW CREATE TABLE t1;
@@ -170,7 +203,9 @@ SELECT * FROM t1;
 
 --echo # Transaction trx1:
 START TRANSACTION;
+--disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (1, 2, 2) ON DUPLICATE KEY UPDATE c=VALUES(c);
+--enable_ps_protocol
 SELECT * FROM t1;
 
 --echo # Connection other:
@@ -183,7 +218,9 @@ COMMIT;
 
 --echo # Connection default:
 --connection default
+--disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (3, 2, 4) ON DUPLICATE KEY UPDATE c=VALUES(c);
+--enable_ps_protocol
 COMMIT;
 
 --echo # Result:
@@ -204,7 +241,9 @@ SELECT * FROM t1;
 --echo # Connection other:
 connection other;
 START TRANSACTION;
+--disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES(2, 10, 200) ON DUPLICATE KEY UPDATE f3 = 120;
+--enable_ps_protocol
 
 --echo # Connection default
 connection default;
@@ -224,10 +263,9 @@ connection default;
 --echo # Verify Results:
 SELECT * FROM t1;
 
-disconnect other;
-
 DROP TABLE t1;
 
+disconnect other;
 
 #Test 8
 #Test added to cover the undo update path

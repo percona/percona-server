@@ -13,7 +13,7 @@ create table t2(
        id bigint not null primary key auto_increment,
        a varchar(255) not null,
        b bigint,
-       index t2_1(b) comment 'cf_t3'
+       index t2_1(b) comment 'cfname=cf_t3'
 ) engine=rocksdb;
 
 # a table wint index in a reverse CF
@@ -21,12 +21,12 @@ create table t3(
        id bigint not null primary key auto_increment,
        a varchar(255) not null,
        b bigint,
-       index t3_1(b) comment 'rev:cf_t4'
+       index t3_1(b) comment 'cfname=rev:cf_t4'
 ) engine=rocksdb;
 
 --disable_query_log
 let $i=0;
-while ($i<100000)
+while ($i<10000)
 {
   inc $i;
   eval insert t1(a,b) values(concat('a',$i,'b',$i,'c',$i), $i);
@@ -54,7 +54,7 @@ SELECT table_name, data_length>0, index_length>0 FROM information_schema.tables 
 --source include/restart_mysqld.inc
 
 # give the server a chance to load in statistics
---exec sleep 5
+--sleep 5
 
 SELECT table_name, table_rows FROM information_schema.tables WHERE table_schema = DATABASE();
 SELECT table_name, data_length>0, index_length>0 FROM information_schema.tables WHERE table_schema = DATABASE();

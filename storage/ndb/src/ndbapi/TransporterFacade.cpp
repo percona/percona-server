@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,8 +36,12 @@
 #include <NdbEnv.h>
 #include <NdbSleep.h>
 #include <NdbLockCpuUtil.h>
+#include "my_thread.h"
+#include <NdbGetRUsage.h>
 
 #include <kernel/GlobalSignalNumbers.h>
+#include "kernel/signaldata/DumpStateOrd.hpp"
+#include "kernel/signaldata/TestOrd.hpp"
 #include <mgmapi_config_parameters.h>
 #include <mgmapi_configuration.hpp>
 #include <NdbConfig.h>
@@ -48,6 +52,9 @@
 #include <signaldata/SumaImpl.hpp>
 #include <signaldata/AllocNodeId.hpp>
 #include <signaldata/CloseComReqConf.hpp>
+#include <EventLogger.hpp>
+
+extern EventLogger *g_eventLogger;
 
 //#define REPORT_TRANSPORTER
 //#define API_TRACE
@@ -61,6 +68,12 @@ static int indexToNumber(int index)
 {
   return index + MIN_API_BLOCK_NO;
 }
+
+#if 0
+#define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
+#else
+#define DEBUG_FPRINTF(a)
+#endif
 
 #if defined DEBUG_TRANSPORTER
 #define TRP_DEBUG(t) ndbout << __FILE__ << ":" << __LINE__ << ":" << t << endl;
@@ -86,6 +99,13 @@ TransporterFacade::reportError(NodeId nodeId,
   if(errorCode & TE_DO_DISCONNECT) {
     ndbout_c("reportError (%d, %d) %s", (int)nodeId, (int)errorCode,
 	     info ? info : "");
+    if (nodeId == ownId())
+    {
+      ndbout_c("Fatal error on Loopback transporter, aborting.");
+      abort();
+    }
+    DEBUG_FPRINTF((stderr, "(%u)FAC:reportError(%u, %d, %s)\n",
+                   ownId(), nodeId, (int)errorCode, info));
     doDisconnect(nodeId);
   }
 }
@@ -129,6 +149,7 @@ TransporterFacade::reportConnect(NodeId nodeId)
 #ifdef REPORT_TRANSPORTER
   ndbout_c("REPORT_TRANSP: API reportConnect (nodeId=%d)", (int)nodeId);
 #endif
+  DEBUG_FPRINTF((stderr, "(%u)FAC:reportConnect(%u)\n", ownId(), nodeId));
   reportConnected(nodeId);
 }
 
@@ -137,6 +158,8 @@ TransporterFacade::reportConnect(NodeId nodeId)
  */
 void
 TransporterFacade::reportDisconnect(NodeId nodeId, Uint32 error){
+  DEBUG_FPRINTF((stderr, "(%u)FAC:reportDisconnect(%u, %u)\n",
+                         ownId(), nodeId, error));
 #ifdef REPORT_TRANSPORTER
   ndbout_c("REPORT_TRANSP: API reportDisconnect (nodeId=%d)", (int)nodeId);
 #endif
@@ -250,16 +273,16 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
        * and to support a special memory structure when executing the
        * signals. Neither of those are interesting when receiving data
        * in the NDBAPI. The NDBAPI will thus read signal data directly as
-       * it was written by the sender (SCI sender is other node, Shared
-       * memory sender is other process and TCP/IP sender is the OS that
-       * writes the TCP/IP message into a message buffer).
+       * it was written by the sender (Shared memory sender is other
+       * process and TCP/IP sender is the OS that writes the TCP/IP
+       * message into a message buffer).
        */
       NdbApiSignal tmpSignal(*header);
       NdbApiSignal * tSignal = &tmpSignal;
       tSignal->setDataPtr(theData);
       if (!client_locked)
       {
-        m_poll_owner->m_poll.lock_client(clnt);
+        lock_client(clnt);
       }
       assert(clnt->check_if_locked());
       clnt->trp_deliver_signal(tSignal, ptr);
@@ -311,7 +334,7 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
               tSignal->setDataPtr(tDataPtr);
               if (!client_locked)
               {
-                m_poll_owner->m_poll.lock_client(clnt);
+                lock_client(clnt);
               }
               assert(clnt->check_if_locked());
               clnt->trp_deliver_signal(tSignal, 0);
@@ -338,7 +361,7 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
       tSignal->setDataPtr(theData);
       if (!client_locked)
       {
-        m_poll_owner->m_poll.lock_client(clnt);
+        lock_client(clnt);
       }
       assert(clnt->check_if_locked());
       clnt->trp_deliver_signal(tSignal, ptr);
@@ -351,7 +374,16 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
   else
   {
     // Ignore all other block numbers.
-    if(header->theVerId_signalNumber != GSN_API_REGREQ)
+    if (header->theVerId_signalNumber == GSN_DUMP_STATE_ORD)
+    {
+      trp_client * clnt = get_poll_owner(false);
+      require(clnt != 0);
+      NdbApiSignal sig(*header);
+      sig.setDataPtr(theData);
+      assert(clnt->check_if_locked());
+      theClusterMgr->execDUMP_STATE_ORD(&sig, ptr);
+    }
+    else if(header->theVerId_signalNumber != GSN_API_REGREQ)
     {
       TRP_DEBUG( "TransporterFacade received signal to unknown block no." );
       ndbout << "BLOCK NO: "  << tRecBlockNo << " sig " 
@@ -368,9 +400,8 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
    * maximum of six signals can be carried in
    * one packed signal to the NDB API.
    */
-  const Uint32 MAX_MESSAGES_IN_LOCKED_CLIENTS =
-    m_poll_owner->m_poll.m_lock_array_size - 6;
-   return m_poll_owner->m_poll.m_locked_cnt >= MAX_MESSAGES_IN_LOCKED_CLIENTS;
+  const Uint32 MAX_MESSAGES_IN_LOCKED_CLIENTS = MAX_LOCKED_CLIENTS - 6;
+  return m_locked_cnt >= MAX_MESSAGES_IN_LOCKED_CLIENTS;
 }
 
 #include <signaldata/TcKeyConf.hpp>
@@ -461,62 +492,105 @@ int
 TransporterFacade::start_instance(NodeId nodeId,
                                   const ndb_mgm_configuration* conf)
 {
+  DBUG_ENTER("TransporterFacade::start_instance");
+
   assert(theOwnId == 0);
   theOwnId = nodeId;
+  DEBUG_FPRINTF((stderr, "(%u)FAC:start_instance\n", ownId()));
 
 #if defined SIGPIPE && !defined _WIN32
   (void)signal(SIGPIPE, SIG_IGN);
 #endif
 
-  theTransporterRegistry = new TransporterRegistry(this, this, false);
+  theTransporterRegistry = new TransporterRegistry(this, this);
   if (theTransporterRegistry == NULL)
-    return -1;
+  {
+    DBUG_RETURN(-1);
+  }
 
   if (!theTransporterRegistry->init(nodeId))
-    return -1;
+  {
+    DBUG_RETURN(-1);
+  }
 
   if (theClusterMgr == NULL)
+  {
     theClusterMgr = new ClusterMgr(*this);
+  }
 
   if (theClusterMgr == NULL)
-    return -1;
+  {
+    DBUG_RETURN(-1);
+  }
 
   if (!configure(nodeId, conf))
-    return -1;
+  {
+    DBUG_RETURN(-1);
+  }
 
   if (!theTransporterRegistry->start_service(m_socket_server))
-    return -1;
+  {
+    DBUG_RETURN(-1);
+  }
 
   theReceiveThread = NdbThread_Create(runReceiveResponse_C,
                                       (void**)this,
                                       0, // Use default stack size
                                       "ndb_receive",
                                       NDB_THREAD_PRIO_LOW);
-
+  if (theReceiveThread == NULL)
+  {
+    ndbout_c("TransporterFacade::start_instance: Failed to create thread for receive.");
+    assert(theReceiveThread != NULL);
+    DBUG_RETURN(-1);
+  }
   theSendThread = NdbThread_Create(runSendRequest_C,
                                    (void**)this,
                                    0, // Use default stack size
                                    "ndb_send",
                                    NDB_THREAD_PRIO_LOW);
+  if (theSendThread == NULL)
+  {
+    ndbout_c("TransporterFacade::start_instance: Failed to create thread for send.");
+    assert(theSendThread != NULL);
+    DBUG_RETURN(-1);
+  }
+
+  theWakeupThread = NdbThread_Create(runWakeupThread_C,
+                                     (void**)this,
+                                     0, // Use default stack size
+                                     "ndb_wakeup_thread",
+                                     NDB_THREAD_PRIO_LOW);
 
   theClusterMgr->startThread();
 
-  return 0;
+  DBUG_RETURN(0);
 }
 
 void
 TransporterFacade::stop_instance(){
   DBUG_ENTER("TransporterFacade::stop_instance");
 
-  // Stop the send and receive threads
+  DEBUG_FPRINTF((stderr, "(%u)FAC:stop_instance\n", ownId()));
+  // Stop the send, wakeup and receive thread
   void *status;
+  NdbMutex_Lock(m_wakeup_thread_mutex);
+  theStopWakeup = 1;
+  NdbMutex_Unlock(m_wakeup_thread_mutex);
+  if (theWakeupThread)
+  {
+    NdbThread_WaitFor(theWakeupThread, &status);
+    NdbThread_Destroy(&theWakeupThread);
+  }
   theStopReceive = 1;
-  if (theReceiveThread) {
+  if (theReceiveThread)
+  {
     NdbThread_WaitFor(theReceiveThread, &status);
     NdbThread_Destroy(&theReceiveThread);
   }
   theStopSend = 1;
-  if (theSendThread) {
+  if (theSendThread)
+  {
     NdbThread_WaitFor(theSendThread, &status);
     NdbThread_Destroy(&theSendThread);
   }
@@ -538,7 +612,7 @@ void TransporterFacade::setSendThreadInterval(Uint32 ms)
   }
 }
 
-Uint32 TransporterFacade::getSendThreadInterval(void)
+Uint32 TransporterFacade::getSendThreadInterval(void) const
 {
   return sendThreadWaitMillisec;
 }
@@ -575,10 +649,355 @@ link_buffer(TFBuffer* dst, const TFBuffer * src)
 
 static const Uint32 SEND_THREAD_NO = 0;
 
+extern "C"
+void*
+runWakeupThread_C(void *me)
+{
+  ((TransporterFacade*)me)->threadMainWakeup();
+  return 0;
+}
+
+void TransporterFacade::init_cpu_usage(NDB_TICKS currTime)
+{
+  struct ndb_rusage curr_rusage;
+  Ndb_GetRUsage(&curr_rusage, false);
+  Uint64 cpu_time = curr_rusage.ru_utime + curr_rusage.ru_stime;
+  m_last_recv_thread_cpu_usage_in_micros = cpu_time;
+  m_recv_thread_cpu_usage_in_percent = 0;
+  m_last_cpu_usage_check = currTime;
+  calc_recv_thread_wakeup();
+}
+
+void TransporterFacade::check_cpu_usage(NDB_TICKS currTime)
+{
+  struct ndb_rusage curr_rusage;
+  Uint64 expired_time_in_micros =
+      NdbTick_Elapsed(m_last_cpu_usage_check,currTime).microSec();
+  if (expired_time_in_micros < Uint64(1000000))
+    return;
+
+  m_last_cpu_usage_check = currTime;
+  int res = Ndb_GetRUsage(&curr_rusage, false);
+  Uint64 cpu_time = curr_rusage.ru_utime + curr_rusage.ru_stime;
+  /**
+   * Initialise when Ndb_GetRUsage isn't working,
+   * when called the first time,
+   * when executed time has gone backwards
+   */
+  if (res != 0 ||
+      m_last_recv_thread_cpu_usage_in_micros > cpu_time)
+  {
+    m_last_recv_thread_cpu_usage_in_micros = cpu_time;
+    m_recv_thread_cpu_usage_in_percent = 0;
+    return;
+  }
+  /**
+   * Calculate amount of time used in executing in receive thread since last
+   * time we called this routine. It is called once per second.
+   * Measure CPU usage in percentage since last call to this method.
+   * This will be used to calculate the boundary when we send wakeup calls
+   * to the wakeup thread.
+   *
+   * We will report 92% when we are in the range 91.5% to 92.5%.
+   * The measurement isn't exact since the get tick calls are not synchronized
+   * exactly with the getRUsage calls, but it should be exact enough.
+   */
+  Uint64 executed_cpu_time = cpu_time - m_last_recv_thread_cpu_usage_in_micros;
+  executed_cpu_time += (expired_time_in_micros / Uint64(200));
+  Uint64 percentage = (Uint64(100) * executed_cpu_time) / expired_time_in_micros;
+  m_last_recv_thread_cpu_usage_in_micros = cpu_time;
+  m_recv_thread_cpu_usage_in_percent = percentage;
+
+  Uint64 spin_cpu_time = (Uint64)theTransporterRegistry->get_total_spintime();
+  theTransporterRegistry->reset_total_spintime();
+  spin_cpu_time += Uint32(expired_time_in_micros / Uint64(200));
+  Uint64 spin_percentage = (Uint64(100) * spin_cpu_time) / expired_time_in_micros;
+#ifdef DEBUG_SHM_TRP
+  fprintf(stderr, "recv_thread_cpu_usage: %u percent, spintime: %u percent\n",
+          m_recv_thread_cpu_usage_in_percent,
+          Uint32(spin_percentage));
+#endif
+  m_recv_thread_cpu_usage_in_percent -= (spin_percentage / Uint64(2));
+  calc_recv_thread_wakeup();
+}
+
+void TransporterFacade::calc_recv_thread_wakeup()
+{
+  /**
+   * This function is an adaptive function that sets the number of threads
+   * to wakeup from the receive thread based on the CPU usage of the receive
+   * thread.
+   *
+   * The problem with the receive thread is that it is most efficient at
+   * executing queries when it also wakes up the waiting threads.
+   * The problem with this approach is that when we get close to the
+   * limit of what one thread can handle the wakeup of threads consumes
+   * CPU resources needed to execute signals and receive messages on the
+   * socket.
+   *
+   * So this method decides once per second how many threads to wakeup in
+   * the receive thread. The rest will be woken up by the wakeup thread
+   * that is specifically only waking up threads when assigned to do so.
+   *
+   * Now CPU usage can go up and down quickly, thus as with every adaptive
+   * algorithm there must be a degree of inertia in changing this value.
+   *
+   * The aim of this algorithm is to either to keep m_recv_thread_wakeup
+   * at fairly high values or go towards 0. 48 and up to max of 128 more
+   * or less means that almost all wakeup work is done by the receive thread.
+   *
+   * When we have reached below 48 and we are in the 88-89% range we will
+   * consider the algorithm stable. If it drops back to 87% and lower we will
+   * start increasing m_recv_thread_wakeup again.
+   *
+   * When we are at 48 and higher values we will consider the range 90-94%
+   * to be a stable area. But if we go above 94% we will start decreasing
+   * the amount of wakeups handled by the receive thread. We decrease faster
+   * the higher the CPU usage is here, similarly we increase the wakeups
+   * faster when the receive CPU usage is lowering.
+   *
+   * When we get close to 0 we will set it to 0 if we were to decrease its
+   * value.
+   *
+   * The algorithm will in a stable algorithm stabilise around 88-94%
+   * CPU usage.
+   *
+   * Sometimes the adaptive algorithm will 
+   * The general idea is to do most all wakeups from receive thread when
+   * we are below 90% in load. At close to 100% load we will do no wakeups
+   * instead.
+   *
+   * We also set some minimum numbers and maximum numbers to ensure that
+   * we can adapt to quick changes in the environment as well.
+   */
+  NdbMutex_Lock(m_wakeup_thread_mutex);
+  Uint32 factor = 4;
+  Uint32 min_number = 32;
+  Uint32 max_number = MAX_NUM_WAKEUPS;
+  if (m_recv_thread_cpu_usage_in_percent < 80)
+  {
+    factor = 2;
+    min_number = 4;
+  }
+  else if (m_recv_thread_cpu_usage_in_percent <= 83)
+  {
+    factor = 4;
+    min_number = 4;
+  }
+  else if (m_recv_thread_cpu_usage_in_percent <= 85)
+  {
+    factor = 5;
+    min_number = 4;
+  }
+  else if (m_recv_thread_cpu_usage_in_percent <= 87)
+  {
+    factor = 6;
+    min_number = 2;
+  }
+  else if (m_recv_thread_cpu_usage_in_percent <= 89)
+  {
+    if (m_recv_thread_wakeup < 48)
+    {
+      factor = 8;
+      min_number = 0;
+    }
+    else
+    {
+      factor = 7;
+      min_number = 1;
+    }
+  }
+  else if (m_recv_thread_cpu_usage_in_percent <= 94)
+  {
+    if (m_recv_thread_wakeup < 48)
+    {
+      factor = 9;
+    }
+    else
+    {
+      factor = 8;
+    }
+    min_number = 0;
+  }
+  else if (m_recv_thread_cpu_usage_in_percent <= 95)
+  {
+    factor = 12;
+    min_number = 0;
+  }
+  else if (m_recv_thread_cpu_usage_in_percent <= 96)
+  {
+    factor = 16;
+    min_number = 0;
+  }
+  else if (m_recv_thread_cpu_usage_in_percent <= 97)
+  {
+    factor = 20;
+    min_number = 0;
+  }
+  else if (m_recv_thread_cpu_usage_in_percent <= 98)
+  {
+    factor = 24;
+    min_number = 0;
+  }
+  else
+  {
+    factor = 28;
+    min_number = 0;
+  }
+  Uint32 before = m_recv_thread_wakeup;
+  m_recv_thread_wakeup = (m_recv_thread_wakeup * 8) / factor;
+
+  if (factor != 8 &&
+      m_recv_thread_wakeup == before &&
+      m_recv_thread_wakeup != 0)
+  {
+    if (factor < 8)
+      m_recv_thread_wakeup++;
+    else
+      m_recv_thread_wakeup--;
+  }
+  if (factor > 8 && m_recv_thread_wakeup < 8)
+  {
+   m_recv_thread_wakeup = 0;
+  }
+
+  if (m_recv_thread_wakeup > max_number)
+    m_recv_thread_wakeup = max_number;
+  else if (m_recv_thread_wakeup < min_number)
+    m_recv_thread_wakeup = min_number;
+
+//#define DEBUG_THIS_FUNCTION 1
+#ifdef DEBUG_THIS_FUNCTION
+  fprintf(stderr, "m_recv_thread_wakeup = %u, cpu_usage = %u, factor = %u\n",
+          m_recv_thread_wakeup,
+          m_recv_thread_cpu_usage_in_percent,
+          factor);
+#endif
+  NdbMutex_Unlock(m_wakeup_thread_mutex);
+}
+
+void TransporterFacade::threadMainWakeup()
+{
+  while (theWakeupThread == NULL)
+  {
+    /* Wait until theWakeupThread have been set */
+    NdbSleep_MilliSleep(10);
+  }
+  NdbThread_SetThreadPrio(theWakeupThread, 9);
+  NdbMutex_Lock(m_wakeup_thread_mutex);
+  while (!theStopWakeup)
+  {
+    NdbCondition_WaitTimeout(m_wakeup_thread_cond,
+                             m_wakeup_thread_mutex,
+                             100);
+    wakeup_and_unlock_calls();
+  }
+  wakeup_and_unlock_calls();
+  NdbMutex_Unlock(m_wakeup_thread_mutex);
+}
+
+bool
+TransporterFacade::transfer_responsibility(trp_client * const *arr,
+                                           Uint32 cnt_woken,
+                                           Uint32 cnt)
+{
+  trp_client *tmp;
+  /**
+   * This is a deliberate data race, we will avoid grabbing
+   * the mutex if the value is smaller than the wakeup count.
+   * If this has changed a few microseconds ago doesn't really
+   * make any huge difference, so we accept reading it
+   * unprotected here.
+   */
+  if (cnt_woken <= m_recv_thread_wakeup)
+  {
+    return false;
+  }
+  NdbMutex_Lock(m_wakeup_thread_mutex);
+  if (theStopWakeup)
+  {
+    NdbMutex_Unlock(m_wakeup_thread_mutex);
+    return false;
+  }
+  Uint32 inx = m_wakeup_clients_cnt;
+  bool wake_wakeup_thread = false;
+  for (Uint32 i = 0; i < cnt_woken; i++)
+  {
+    tmp = arr[i];
+    if (inx + i < m_recv_thread_wakeup ||
+        inx >= MAX_NO_THREADS)
+    {
+      NdbCondition_Signal(tmp->m_poll.m_condition);
+    }
+    else
+    {
+      wake_wakeup_thread = true;
+      m_wakeup_clients[inx++] = tmp;
+    }
+    NdbMutex_Unlock(tmp->m_mutex);
+  }
+  m_wakeup_clients_cnt = inx;
+  for (Uint32 i = cnt_woken; i < cnt; i++)
+  {
+    tmp = arr[i];
+    NdbMutex_Unlock(tmp->m_mutex);
+  }
+  if (wake_wakeup_thread)
+    NdbCondition_Signal(m_wakeup_thread_cond);
+  NdbMutex_Unlock(m_wakeup_thread_mutex);
+  return true;
+}
+
+void TransporterFacade::wakeup_and_unlock_calls()
+{
+  trp_client *tmp;
+  Uint32 count_wakeup = 0;
+  while (m_wakeup_clients_cnt > 0)
+  {
+    Uint32 inx = m_wakeup_clients_cnt - 1;
+    tmp = m_wakeup_clients[inx];
+    m_wakeup_clients[inx] = 0;
+    count_wakeup++;
+    m_wakeup_clients_cnt = inx;
+    if (count_wakeup == 4 && inx > 0)
+    {
+      count_wakeup = 0;
+      NdbMutex_Unlock(m_wakeup_thread_mutex);
+    }
+    int ret_val = NdbMutex_Trylock(tmp->m_mutex);
+    if (ret_val == 0 || ret_val == EBUSY)
+      NdbCondition_Signal(tmp->m_poll.m_condition);
+    if (ret_val == 0)
+      NdbMutex_Unlock(tmp->m_mutex);
+    if (count_wakeup == 0)
+    {
+      NdbMutex_Lock(m_wakeup_thread_mutex);
+    }
+  }
+}
+
+void TransporterFacade::remove_trp_client_from_wakeup_list(trp_client *clnt)
+{
+  trp_client *tmp;
+  Uint32 inx = 0;
+  NdbMutex_Lock(m_wakeup_thread_mutex);
+  for (Uint32 i = 0; i < m_wakeup_clients_cnt; i++)
+  {
+    tmp = m_wakeup_clients[i];
+    if (tmp != clnt)
+      m_wakeup_clients[inx++] = tmp;
+  }
+  m_wakeup_clients_cnt = inx;
+  NdbMutex_Unlock(m_wakeup_thread_mutex);
+}
+
+/**
+ * Signal the send thread to wake up.
+ * require the m_send_thread_mutex to be held by callee.
+ */
 void
 TransporterFacade::wakeup_send_thread(void)
 {
-  Guard g(m_send_thread_mutex);
   if (m_send_thread_nodes.get(SEND_THREAD_NO) == false)
   {
     NdbCondition_Signal(m_send_thread_cond);
@@ -586,6 +1005,116 @@ TransporterFacade::wakeup_send_thread(void)
   m_send_thread_nodes.set(SEND_THREAD_NO);
 }
 
+/**
+ * Adaptive send algorithm:
+ *
+ * The adaptive send algorithm takes advantage of that
+ * sending a larger message has less total cost than sending
+ * the same payload in multiple smaller messages. Thus it
+ * tries to collect flushed send buffers from multiple
+ * clients, before actually sending them all together
+ *
+ * We use two different mechanisms for sending buffered
+ * messages:
+ *
+ * 1) If a 'sufficient' amount of data is available in the
+ *    send buffers, we try to send immediately.
+ *    ('Sufficient' == 4096 byes)
+ *
+ * 2) If a 'sufficient' number of the active clients has
+ *    flushed their buffers since last send, we try to send.
+ *    ('Sufficient' == 1/8 of active clients)
+ *
+ * 3) Else the send is deferred, waiting for possibly more
+ *    data to arrive. To ensure that the data is eventually
+ *    sent, we envoke the send thread which will send at
+ *    latest after a 200us grace period.
+ *
+ * The above values has been determined by performance test
+ * experiments. They are by intention set conservative. Such
+ * that for few client threads the adaptive send is similar
+ * in performance to the 'forceSend'. For larger number of
+ * client threads, adaptive send always perform better, both
+ * wrt. throughput and latency.
+ *
+ * Requiring a higher 'sufficient' value in 1) and 2) above
+ * would have improved the 'high load' performance even more,
+ * but at the cost of some performance regression with few clients.
+ *
+ * Note:
+ *    Even if 'forceSend' is used, the send is done
+ *    by calling try_send_buffer(), which need to grab the
+ *    try_send_lock() before it can do_send_buffer(). If
+ *    if fails to get the send_lock, it will leave the
+ *    sending to the send thread. So even if 'forceSend'
+ *    is used, it gives no guarantee of the send did complete
+ *    before return - Just that it will complete as soon as
+ *    possible, which is more or less the same as 'adaptive' does.
+ */
+void
+TransporterFacade::do_send_adaptive(const NodeBitmask& nodes)
+{
+  assert(m_active_nodes.contains(nodes));
+
+  for (Uint32 node = nodes.find_first();
+       node != NodeBitmask::NotFound;
+       node = nodes.find_next(node+1))
+  {
+    struct TFSendBuffer *b = &m_send_buffers[node];
+    Guard g(&b->m_mutex);
+
+    if (b->m_flushed_cnt > 0 && b->m_current_send_buffer_size > 0)
+    {
+      /**
+       * Note: We read 'm_poll_waiters' without the poll mutex, which
+       *   should be OK - messages will me sent anyway, somehow,
+       *   even if we see a value being slightly off.
+       */
+      if (b->m_current_send_buffer_size > 4*1024 ||    // 1)
+          b->m_flushed_cnt >= m_poll_waiters/8)        // 2)
+      {
+        try_send_buffer(node, b);
+      }
+      else                                             // 3)
+      {
+        Guard g(m_send_thread_mutex);
+        if (m_has_data_nodes.isclear()) //Awake Send thread from 'idle sleep'
+        {
+          wakeup_send_thread();
+        }
+        m_has_data_nodes.set(node);
+      }
+    }
+  }
+}
+
+/**
+ * The send thread mainly serve two purposes:
+ *
+ * 1) If a regular try_send_buffer(node) failed to grab the 
+ *    try_lock_send(), the 'node' will be added to 'm_has_data_nodes',
+ *    and the send taken over by the send thread.
+ *
+ * 2) Handle deferred sends from the adaptive send algorithm,
+ *    which were not sent withing the 200us grace period.
+ *
+ * 3) In addition, we infrequently send to all connected nodes
+ *    just in case...., see further comments below.
+ *
+ * If the send thread has been activated for either 1) or 2),
+ * it only take a 'micro-nap' (200us) between each round of send.
+ * This 'micro-nap' allows more data to be flushed to the buffers
+ * and piggy backed on the next send.
+ * (See also 'Adaptive send algorithm' comment above.)
+ *
+ * If the send thread is not activated due to either 1) or 2),
+ * it is in an 'idle sleep' state where it only wakes up every
+ * 'sendThreadWaitMillisec'.
+ *
+ * From both of these sleep states the send thread can be signaled
+ * to wake up immediately if required. This is used if a state of
+ * high send buffer usage is detected.
+ */
 void TransporterFacade::threadMainSend(void)
 {
   while (theSendThread == NULL)
@@ -600,53 +1129,76 @@ void TransporterFacade::threadMainSend(void)
   }
 
   m_socket_server.startServer();
+  raise_thread_prio();
 
+  NDB_TICKS lastActivityCheck = NdbTick_getCurrentTicks();
   while(!theStopSend)
   {
     NdbMutex_Lock(m_send_thread_mutex);
+    /**
+     * Note: It is intentional that we set 'send_nodes' before we
+     * wait: If more 'm_has_data_nodes' are added while we wait, we
+     * do not want these to take effect until after the 200us
+     * grace period. The exception is if we are woken up from the
+     * micro-nap (!= ETIMEDOUT), which only happens if we have to
+     * take immediate send action.
+     */
+    NodeBitmask send_nodes(m_has_data_nodes);
+
     if (m_send_thread_nodes.get(SEND_THREAD_NO) == false)
     {
-      NdbCondition_WaitTimeout(m_send_thread_cond,
-                               m_send_thread_mutex,
-                               sendThreadWaitMillisec);
+      if (!m_has_data_nodes.isclear())
+      {
+        /**
+         * Take a 200us micro-nap to allow more buffered data
+         * to arrive such that larger messages can be sent.
+         * Possibly also woken up earlier if buffers fills up
+         * too much.
+         */
+        struct timespec wait_end;  //Calculate 200us wait
+        NdbCondition_ComputeAbsTime_ns(&wait_end, 200*1000);
+        int ret = NdbCondition_WaitTimeoutAbs(m_send_thread_cond,
+                                              m_send_thread_mutex,
+                                              &wait_end);
+
+        /* If we were woken by a signal: take the new send_node set */
+        if (ret != ETIMEDOUT)
+          send_nodes.assign(m_has_data_nodes);
+      }
+      else
+      {
+        NdbCondition_WaitTimeout(m_send_thread_cond,
+                                 m_send_thread_mutex,
+                                 sendThreadWaitMillisec);
+      }
     }
     m_send_thread_nodes.clear(SEND_THREAD_NO);
     NdbMutex_Unlock(m_send_thread_mutex);
-    bool all_empty;
-    do
+
+    /**
+     * try_send to all nodes requesting assist of the send thread.
+     * 'm_has_data_nodes' is maintained by try_send to reflect nodes
+     * still in need of more send after this try_send
+     */
+    try_send_all(send_nodes);
+
+    /**
+     * Safeguard against messages being stuck: (probably an old bug...)
+     *
+     *  There seems to be cases where messages somehow are put into 
+     *  the send buffers without ever being registered in the set of
+     *  nodes having messages to be sent. Thus we try to send to all
+     *  'active' nodes every 'sendThreadWaitMillisec'.
+     */
+    const NDB_TICKS now = NdbTick_getCurrentTicks();
+    const Uint32 elapsed_ms = NdbTick_Elapsed(lastActivityCheck,now).milliSec();
+    if (elapsed_ms >= sendThreadWaitMillisec)
     {
-      all_empty = true;
-      for (Uint32 node = 1; node<MAX_NODES; node++)
-      {
-        struct TFSendBuffer * b = m_send_buffers + node;
-        if (!b->m_node_active)
-          continue;
-        NdbMutex_Lock(&b->m_mutex);
-        if (!b->try_lock_send())
-        {
-          /**
-           * Did not get lock, held by other sender.
-           * Sender does stuff when unlock_send()
-           */
-        }
-        else
-        {
-          if (b->m_buffer.m_bytes_in_buffer > 0 ||
-              b->m_out_buffer.m_bytes_in_buffer > 0)
-          {
-            do_send_buffer(node,b);
+      lastActivityCheck = now;
 
-            if (b->m_current_send_buffer_size > 0)
-            {
-              all_empty = false;
-            }
-          }
-          b->unlock_send();
-        }
-        NdbMutex_Unlock(&b->m_mutex);
-      }
-    } while (!theStopSend && all_empty == false);
-
+      Guard g(m_send_thread_mutex);
+      m_has_data_nodes.bitOR(m_active_nodes);
+    }
   }
   theTransporterRegistry->stopSending();
 
@@ -664,10 +1216,20 @@ runReceiveResponse_C(void * me)
   return 0;
 }
 
+class ReceiveThreadClient : public trp_client
+{
+  public :
+  explicit ReceiveThreadClient(TransporterFacade *facade);
+  ~ReceiveThreadClient();
+  void trp_deliver_signal(const NdbApiSignal *,
+                          const LinearSectionPtr ptr[3]);
+};
+
 ReceiveThreadClient::ReceiveThreadClient(TransporterFacade * facade)
 {
   DBUG_ENTER("ReceiveThreadClient::ReceiveThreadClient");
-  Uint32 ret = this->open(facade, -1, true);
+  m_is_receiver_thread = true;
+  Uint32 ret = this->open(facade, -1);
   if (unlikely(ret == 0))
   {
     ndbout_c("Failed to register receive thread, ret = %d", ret);
@@ -720,7 +1282,11 @@ TransporterFacade::unset_recv_thread_cpu(Uint32 recv_thread_id)
   {
     return -1;
   }
-  unlock_recv_thread_cpu();
+  int ret;
+  if ((ret = unlock_recv_thread_cpu()))
+  {
+    return ret;
+  }
   recv_thread_cpu_id = NO_RECV_THREAD_CPU_ID;
   return 0;
 }
@@ -742,7 +1308,11 @@ TransporterFacade::set_recv_thread_cpu(Uint16 *cpuid_array,
   if (theTransporterRegistry)
   {
     /* Receiver thread already started, lock cpu now */
-    lock_recv_thread_cpu();
+    int ret;
+    if ((ret = lock_recv_thread_cpu()))
+    {
+      return ret;
+    }
   }
   return 0;
 }
@@ -758,27 +1328,92 @@ TransporterFacade::set_recv_thread_activation_threshold(Uint32 threshold)
   return 0;
 }
 
-void
+int
 TransporterFacade::unlock_recv_thread_cpu()
 {
   if (theReceiveThread)
-    Ndb_UnlockCPU(theReceiveThread);
+  {
+    int ret_code = Ndb_UnlockCPU(theReceiveThread);
+    if (ret_code)
+    {
+      fprintf(stderr, "Failed to unlock thread %d, ret_code: %d",
+              NdbThread_GetTid(theReceiveThread),
+              ret_code);
+      return ret_code;
+    }
+  }
+  return 0;
 }
 
-void
+int
 TransporterFacade::lock_recv_thread_cpu()
 {
   Uint32 cpu_id = recv_thread_cpu_id;
   if (cpu_id != NO_RECV_THREAD_CPU_ID && theReceiveThread)
   {
-    Ndb_LockCPU(theReceiveThread, cpu_id);
+    int ret_code = Ndb_LockCPU(theReceiveThread, cpu_id);
+    if (ret_code)
+    {
+      fprintf(stderr, "Failed to lock thread %d to CPU %u, ret_code: %d",
+              NdbThread_GetTid(theReceiveThread),
+              cpu_id,
+              ret_code);
+      return ret_code;
+    }
   }
+  return 0;
 }
 
 int
 TransporterFacade::get_recv_thread_activation_threshold() const
 {
   return min_active_clients_recv_thread;
+}
+
+/**
+ * At very high loads the normal OS scheduler handling isn't sufficient to
+ * maintain high throughput through the NDB API. If the poll ownership isn't
+ * getting sufficient attention from the OS scheduler then the performance of
+ * the NDB API will suffer.
+ *
+ * What will happen at high load is the following. The OS scheduler tries to
+ * maintain fairness between the various user threads AND the thread handling
+ * the poll ownership (either a user thread or a receive thread).
+ * This means that when the poll owner has executed its share of time it will
+ * be descheduled to handle user threads. These threads will work on the
+ * received data and will possibly also start new transactions. After all of
+ * those user activities have completed, then the OS will reschedule the
+ * poll owner again. At this time it will continue receiving and again start
+ * up new threads. The problem is that in a machine with many CPUs available
+ * this means that the CPUs won't have anything to do for a short time while
+ * waiting for the rescheduled poll owner to receive data from the data nodes
+ * to resume the transaction processing in the user part of the API process.
+ *
+ * Simply put the receiver handling of the NDB API is of such importance that
+ * it must execute at a higher thread priority than normal user threads. We
+ * handle this by raising thread priority of the receiver thread. If the
+ * API goes into a mode where the receiver thread becomes active and we were
+ * successful in raising the thread prio, then we will also retain the poll
+ * ownership until the receiver thread is stopped or until the activity slows
+ * down such that the receiver thread no longer needs to be active.
+ *
+ * On Linux raising thread prio means that we decrease the nice level of the
+ * thread. This means that it will get a higher quota compared to the other
+ * threads in the machine. In order to set this the binary needs CAP_NICE
+ * capability or the user must have the permission to set niceness which can
+ * be set using RLIMIT_NICE and ulimit -e.
+ *
+ * On Solaris it means setting a high fixed thread priority that will ensure
+ * that it stays active unless the OS or some other higher prio threads becomes
+ * executable.
+ *
+ * On Windows it sets the thread priority to THREAD_PRIORITY_HIGHEST.
+ */
+bool
+TransporterFacade::raise_thread_prio()
+{
+  int ret_code = NdbThread_SetThreadPrio(theReceiveThread, 9);
+  return (ret_code == 0) ? true : false;
 }
 
 static const int DEFAULT_MIN_ACTIVE_CLIENTS_RECV_THREAD = 8;
@@ -802,9 +1437,10 @@ static const int DEFAULT_MIN_ACTIVE_CLIENTS_RECV_THREAD = 8;
 */
 void TransporterFacade::threadMainReceive(void)
 {
-  bool poll_owner = false;
+  bool stay_active = false;
   NDB_TICKS lastCheck = NdbTick_getCurrentTicks();
   NDB_TICKS receive_activation_time;
+  init_cpu_usage(lastCheck);
 
   while (theReceiveThread == NULL)
   {
@@ -812,14 +1448,11 @@ void TransporterFacade::threadMainReceive(void)
     NdbSleep_MilliSleep(10);
   }
   theTransporterRegistry->startReceiving();
-#ifdef NDB_SHM_TRANSPORTER
-  NdbThread_set_shm_sigmask(TRUE);
-#endif
-  ReceiveThreadClient *recv_client = new ReceiveThreadClient(this);
+  recv_client = new ReceiveThreadClient(this);
   lock_recv_thread_cpu();
+  const bool raised_thread_prio = raise_thread_prio();
   while(!theStopReceive)
   {
-    bool stay_poll_owner = true;
     const NDB_TICKS currTime = NdbTick_getCurrentTicks();
 
     /**
@@ -832,22 +1465,26 @@ void TransporterFacade::threadMainReceive(void)
      * NOTE: We set this flag without mutex, which could result in
      * a 'check' to be missed now and then. 
      */
-    if (NdbTick_Elapsed(lastCheck,currTime).milliSec() >= 100)
+    Uint64 expired_time_in_micros =
+      NdbTick_Elapsed(lastCheck,currTime).microSec();
+    if (expired_time_in_micros >= Uint64(100000))
     {
       m_check_connections = true;
       lastCheck = currTime;
+      check_cpu_usage(currTime);
     }
    
-    if (!poll_owner)
+    if (!stay_active)
     {
       /*
-         We only take the step to become poll owner in receive thread if
-         we are sufficiently active, at least e.g. 16 threads active.
+         We only activate as receiver thread if
+         we are sufficiently active, at least e.g. 8 threads active.
          We check this condition without mutex, there is no issue with
          what we select here, both paths will work.
       */
       if (m_num_active_clients > min_active_clients_recv_thread)
       {
+        stay_active = true;            //Activate as receiver thread
         m_num_active_clients = 0;
         receive_activation_time = currTime;
       }
@@ -855,7 +1492,7 @@ void TransporterFacade::threadMainReceive(void)
       {
         if (m_check_connections)
         {
-          recv_client->start_poll();
+          recv_client->prepare_poll();
           do_poll(recv_client,0);
           recv_client->complete_poll();
         }
@@ -866,7 +1503,7 @@ void TransporterFacade::threadMainReceive(void)
     else
     {
       /**
-       * We are holding the poll rights and acting as a receiver thread.
+       * We are acting as a receiver thread.
        * Check every 1000ms if activity is below the 50% threshold for
        * keeping the receiver thread still active.
        */
@@ -878,27 +1515,49 @@ void TransporterFacade::threadMainReceive(void)
         if (m_num_active_clients < (min_active_clients_recv_thread / 2))
         {
           /* Go back to not have an active receive thread */
-          stay_poll_owner = false;
+          stay_active = false;
         }
         m_num_active_clients = 0; /* Reset active clients for next timeslot */
         unlock_poll_mutex();
       }
     }
 
-    recv_client->start_poll();
-    poll_owner = do_poll(recv_client, 10, poll_owner, stay_poll_owner);
+    /**
+     * If receiver thread is not requested to 'stay_poll_owner',
+     * it might be raced by client threads grabbing the poll-right
+     * in front of it. This most likely happens if the receive
+     * thread is suspended during execution, and is desired behaviour.
+     *
+     * However, it could also happen due to another client thread
+     * concurrently executing in the window where the receiver
+     * thread does not hold the poll-right - That is not something
+     * we want to happen.
+     *
+     * If we managed to raise thread prio we will stay as poll owner
+     * as this means that we have a better chance of handling the
+     * offered load than any other thread has.
+     */
+    const bool stay_poll_owner = stay_active &&
+                                 ((min_active_clients_recv_thread == 0) ||
+                                  raised_thread_prio);
+
+    /* Don't poll for 10ms if receive thread is deactivating */
+    const Uint32 max_wait = (stay_active) ? 10 : 0;
+
+    recv_client->prepare_poll();
+    do_poll(recv_client, max_wait, stay_poll_owner);
     recv_client->complete_poll();
   }
 
-  if (poll_owner)
+  if (recv_client->m_poll.m_poll_owner == true)
   {
     /*
       Ensure to release poll ownership before proceeding to delete the
       transporter client and thus close it. That code expects not to be
       called when being the poll owner.
     */
-    recv_client->start_poll();
-    do_poll(recv_client, 0, true, false);
+    recv_client->prepare_poll();
+    do_poll(recv_client, 0, false);
     recv_client->complete_poll();
   }
   delete recv_client;
@@ -906,7 +1565,8 @@ void TransporterFacade::threadMainReceive(void)
 }
 
 /*
-  This method is called by worker thread that owns the poll "rights".
+  This method is called by client thread or send thread that owns
+  the poll "rights".
   It waits for events and if something arrives it takes care of it
   and returns to caller. It will quickly come back here if not all
   data was received for the worker thread.
@@ -918,33 +1578,32 @@ void TransporterFacade::threadMainReceive(void)
   In order to not block awaiting 'update_connections' requests,
   we never wait longer than 10ms inside ::pollReceive().
   Longer timeouts are done in multiple 10ms periods
+
+  NOTE: This 10ms max-wait is only a requirement for the thread
+  having the poll right. Threads calling do_poll() could specify
+  longer max-waits as they will either:
+   - Get the poll right and end up here in ::external_poll,
+     where the poll wait is done in multiple 10ms chunks.
+   - Not get the poll right and put to sleep in the poll queue
+     waiting to be woken up by the poller.
 */
 void
 TransporterFacade::external_poll(Uint32 wait_time)
 {
   do
   {
-#ifdef NDB_SHM_TRANSPORTER
-    /*
-      If shared memory transporters are used we need to set our sigmask
-      such that we wake up also on interrupts on the shared memory
-      interrupt signal.
-    */
-    NdbThread_set_shm_sigmask(FALSE);
-#endif
-
     /* Long waits are done in short 10ms chunks */
     const Uint32 wait = (wait_time > 10) ? 10 : wait_time;
     const int res = theTransporterRegistry->pollReceive(wait);
-
-#ifdef NDB_SHM_TRANSPORTER
-    NdbThread_set_shm_sigmask(TRUE);
-#endif
 
     if (m_check_connections)
     {
       m_check_connections = false;
       theTransporterRegistry->update_connections();
+
+      // ::reportDisconnect() may have WOKEN the poll owner
+      if (m_poll_owner->m_poll.m_waiting == trp_client::PollQueue::PQ_WOKEN)
+        break;
     }
 
     if (res > 0)
@@ -954,16 +1613,19 @@ TransporterFacade::external_poll(Uint32 wait_time)
     }
 
     wait_time -= wait;
-  }
-  while (wait_time > 0);
+  } while (wait_time > 0);
 }
 
 TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   min_active_clients_recv_thread(DEFAULT_MIN_ACTIVE_CLIENTS_RECV_THREAD),
   recv_thread_cpu_id(NO_RECV_THREAD_CPU_ID),
+  m_poll_owner_tid(),
   m_poll_owner(NULL),
   m_poll_queue_head(NULL),
   m_poll_queue_tail(NULL),
+  m_poll_waiters(0),
+  m_locked_cnt(0),
+  m_locked_clients(),
   m_num_active_clients(0),
   m_check_connections(true),
   theTransporterRegistry(0),
@@ -973,12 +1635,29 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   dozer(NULL),
   theStopReceive(0),
   theStopSend(0),
+  theStopWakeup(0),
   sendThreadWaitMillisec(10),
   theSendThread(NULL),
   theReceiveThread(NULL),
+  theWakeupThread(NULL),
+  m_last_recv_thread_cpu_usage_in_micros(0),
+  m_recv_thread_cpu_usage_in_percent(0),
+  m_recv_thread_wakeup(MAX_NO_THREADS),
+  m_wakeup_clients_cnt(0),
+  m_wakeup_thread_mutex(NULL),
+  m_wakeup_thread_cond(NULL),
+  recv_client(NULL),
+  m_enabled_nodes_mask(),
   m_fragmented_signal_id(0),
+  m_open_close_mutex(NULL),
+  thePollMutex(NULL),
   m_globalDictCache(cache),
-  m_send_buffer("sendbufferpool")
+  m_send_buffer("sendbufferpool"),
+  m_active_nodes(),
+  m_send_thread_mutex(NULL),
+  m_send_thread_cond(NULL),
+  m_send_thread_nodes(),
+  m_has_data_nodes()
 {
   DBUG_ENTER("TransporterFacade::TransporterFacade");
   thePollMutex = NdbMutex_CreateWithName("PollMutex");
@@ -986,13 +1665,16 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   m_open_close_mutex = NdbMutex_Create();
   for (Uint32 i = 0; i < NDB_ARRAY_SIZE(m_send_buffers); i++)
   {
-    BaseString n;
-    n.assfmt("sendbuffer:%u", i);
-    NdbMutex_InitWithName(&m_send_buffers[i].m_mutex, n.c_str());
+    char name_buf[32];
+    BaseString::snprintf(name_buf, sizeof(name_buf), "sendbuffer:%u", i);
+    NdbMutex_InitWithName(&m_send_buffers[i].m_mutex, name_buf);
   }
 
   m_send_thread_cond = NdbCondition_Create();
   m_send_thread_mutex = NdbMutex_CreateWithName("SendThreadMutex");
+
+  m_wakeup_thread_cond = NdbCondition_Create();
+  m_wakeup_thread_mutex = NdbMutex_CreateWithName("WakeupThreadMutex");
 
   for (int i = 0; i < NO_API_FIXED_BLOCKS; i++)
     m_fixed2dynamic[i]= RNIL;
@@ -1063,6 +1745,7 @@ TransporterFacade::set_up_node_active_in_send_buffers(Uint32 nodeId,
   /* Need to also communicate with myself, not found in config */
   b = m_send_buffers + nodeId;
   b->m_node_active = true;
+  m_active_nodes.set(nodeId);
 
   for (iter.first(); iter.valid(); iter.next())
   {
@@ -1072,6 +1755,7 @@ TransporterFacade::set_up_node_active_in_send_buffers(Uint32 nodeId,
     remoteNodeId = (nodeId == nodeId1 ? nodeId2 : nodeId1);
     b = m_send_buffers + remoteNodeId;
     b->m_node_active = true;
+    m_active_nodes.set(remoteNodeId);
   }
   DBUG_VOID_RETURN;
 }
@@ -1109,6 +1793,7 @@ TransporterFacade::configure(NodeId nodeId,
     Uint32 total_send_buffer = 0;
     Uint64 total_send_buffer64;
     size_t total_send_buffer_size_t;
+    size_t reserved_send_buffer_size_t;
     iter.get(CFG_TOTAL_SEND_BUFFER_MEMORY, &total_send_buffer);
 
     total_send_buffer64 = total_send_buffer;
@@ -1121,6 +1806,19 @@ TransporterFacade::configure(NodeId nodeId,
     iter.get(CFG_EXTRA_SEND_BUFFER_MEMORY, &extra_send_buffer);
 
     total_send_buffer64 += extra_send_buffer;
+
+    /**
+     * Reserved area for send-to-self
+     * We will grab 16 pages, (@32kB/page : 512kB)
+     * Gives space for at least 16 signals @ 1/page.
+     * If signals are better packed then less pages
+     * are needed.
+     */
+    const Uint32 pagesize = m_send_buffer.get_page_size();
+    const Uint64 reserved_send_buffer = 16 * pagesize;
+    
+    total_send_buffer64 += reserved_send_buffer;
+    
 #if SIZEOF_CHARP == 4
     /* init method can only handle 32-bit sizes on 32-bit platforms */
     if (total_send_buffer64 > 0xFFFFFFFF)
@@ -1129,7 +1827,9 @@ TransporterFacade::configure(NodeId nodeId,
     }
 #endif
     total_send_buffer_size_t = (size_t)total_send_buffer64;
-    if (!m_send_buffer.init(total_send_buffer_size_t))
+    reserved_send_buffer_size_t = (size_t)reserved_send_buffer;
+    if (!m_send_buffer.init(total_send_buffer_size_t,
+                            reserved_send_buffer_size_t))
     {
       ndbout << "Unable to allocate "
              << total_send_buffer_size_t
@@ -1187,6 +1887,15 @@ TransporterFacade::for_each(trp_client* sender,
                             const NdbApiSignal* aSignal, 
                             const LinearSectionPtr ptr[3])
 {
+  /**
+   * ::for_each() is required to be called by the thread being
+   * the poll owner while it trp_deliver_signal() to
+   * a client. That client may then use ::for_each() to further
+   * distribute a signal to 'each' of the clients known by this
+   * TransporterFacade.
+   */
+  assert(is_poll_owner_thread());
+
   /*
     Allow up to 16 threads to receive signals here before we start
     waking them up.
@@ -1197,8 +1906,12 @@ TransporterFacade::for_each(trp_client* sender,
   for (Uint32 i = 0; i < sz ; i ++) 
   {
     trp_client * clnt = m_threads.m_clients[i].m_clnt;
-    if (clnt != 0 && clnt != sender)
+    if (clnt != 0 && clnt != sender && !clnt->is_receiver_thread())
     {
+      /**
+       * We skip sending signal to receive thread. The receive thread
+       * have no interest in signals sent as for_each.
+       */
       bool res = clnt->is_locked_for_poll();
       assert(clnt->check_if_locked() == res);
       if (res)
@@ -1261,17 +1974,35 @@ TransporterFacade::connected()
   for (Uint32 i = 0; i < sz ; i ++)
   {
     trp_client * clnt = m_threads.m_clients[i].m_clnt;
-    if (clnt != 0)
+    if (clnt != 0 && !clnt->is_receiver_thread())
     {
+      /**
+       * The receiver thread have no interest in the
+       * ALLOC_NODEID_CONF signal, so will skip sending
+       * it to receive thread client.
+       */
+      NdbMutex_Lock(clnt->m_mutex);
       clnt->trp_deliver_signal(&signal, 0);
+      NdbMutex_Unlock(clnt->m_mutex);
     }
   }
   DBUG_VOID_RETURN;
 }
 
+/**
+ * perform_close_clnt()
+ *
+ * Invoked from close_clnt via sending a CLOSE_COMREQ signal.
+ * Reason is that the poll-right is needed to guard agains
+ * that clients are taken out of the m_threads[] array while
+ * being looked up by trp_deliver_signal, or iterated by e.g.
+ * for_each(), or enable_ / disable_send_buffer().
+ */
 void
 TransporterFacade::perform_close_clnt(trp_client* clnt)
 {
+  assert(is_poll_owner_thread());
+  Guard g(m_open_close_mutex);
   m_threads.close(clnt->m_blockNo);
   dbg("perform_close_clnt: poll_owner: %p", m_poll_owner);
   dbg("perform_close_clnt: clnt: %p", clnt);
@@ -1291,7 +2022,7 @@ TransporterFacade::close_clnt(trp_client* clnt)
 
   if (clnt)
   {
-    Guard g(m_open_close_mutex);
+    NdbMutex_Lock(m_open_close_mutex);
     signal.theReceiversBlockNumber = clnt->m_blockNo;
     signal.theData[0] = clnt->m_blockNo;
     dbg("close(%p)", clnt);
@@ -1320,29 +2051,55 @@ TransporterFacade::close_clnt(trp_client* clnt)
         send signal to poll waiter to close.
       */
       m_threads.close(clnt->m_blockNo);
+      NdbMutex_Unlock(m_open_close_mutex);
       return 0;
     }
     bool not_finished;
     do
     {
-      clnt->start_poll();
+      /**
+       * Obey lock order of trp_client::m_mutex vs. open_close_mutex:
+       * deliver_signal(CLOSE_COMREQ) will lock the client, then
+       * perform_close_clnt() which takes the m_open_close_mutex.
+       * That would deadlock if we didn't release open_close_mutex now.
+       */
+      NdbMutex_Unlock(m_open_close_mutex);
+
+      clnt->prepare_poll();
       if (first)
       {
         clnt->raw_sendSignal(&signal, theOwnId);
         clnt->do_forceSend(1);
         first = false;
       }
-      clnt->do_poll(10);
+
+      // perform_close_clnt() will 'wakeup()', so wait how long it takes
+      clnt->do_poll(3000);
+
+      NdbMutex_Lock(m_open_close_mutex);
       not_finished = (m_threads.get(clnt->m_blockNo) == clnt);
       clnt->complete_poll();
     } while (not_finished);
+    NdbMutex_Unlock(m_open_close_mutex);
   }
+  remove_trp_client_from_wakeup_list(clnt);
   return 0;
 }
 
+/**
+ * expand_clnt()
+ *
+ * Invoked from open_clnt() with the EXPAND_CLNT signal iff
+ * the m_threads[] array has to be expanded (and relocated).
+ * The poll-right is needed to guard against relocation of
+ * m_threads[] array while being accessed by trp_deliver_signal,
+ * or iterated by e.g. for_each(), or enable_ / disable_send_buffer().
+ */
 void
 TransporterFacade::expand_clnt()  //Handle EXPAND_CLNT signal
 {
+  assert(is_poll_owner_thread());
+  Guard g(m_open_close_mutex);
   m_threads.expand(64);
 }
 
@@ -1350,16 +2107,35 @@ Uint32
 TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
 {
   DBUG_ENTER("TransporterFacade::open");
-
-  bool first = true;
-  Guard g(m_open_close_mutex);
   dbg("open(%p)", clnt);
 
-  while (m_threads.freeCnt() == 0)
+  /**
+   * Need 'm_open_close_mutex' as m_threads[] will be updated.
+   */
+  NdbMutex_Lock(m_open_close_mutex);
+  
+  while (unlikely(m_threads.freeCnt() == 0))
   {
-    /* Ask ClusterMgr to do m_thread.expand() (Need poll rights)*/
-    clnt->start_poll();
-    if (first)
+    // First ::open_clnt seeing 'freeCnt() == 0' will expand
+    const bool do_expand = !m_threads.m_expanding;
+    m_threads.m_expanding = true;
+
+    /**
+     * Obey lock order of trp_client::m_mutex vs. open_close_mutex:
+     * deliver_signal(EXPAND_CLNT) will lock the client, then call
+     * expand_clnt() which takes the m_open_close_mutex.
+     * That would deadlock if we didn't release open_close_mutex now.
+     */
+    NdbMutex_Unlock(m_open_close_mutex);
+
+    /**
+     * Ask ClusterMgr to do m_thread.expand() (Need poll rights)
+     * There is no wakeup() of the client(s) wating for expand,
+     * do_poll waits in short 10ms naps before checking if expand
+     * completed. Only the client requesting the expand do_poll,
+     * the other simply sleeps.
+     */
+    if (do_expand)
     {
       NdbApiSignal signal(numberToRef(0, theOwnId));
       signal.theVerId_signalNumber = GSN_EXPAND_CLNT;
@@ -1368,23 +2144,64 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
       signal.theReceiversBlockNumber = theClusterMgr->m_blockNo;
       signal.theData[0] = 0;  //Unused
 
-      clnt->raw_sendSignal(&signal, theOwnId);
-      clnt->do_forceSend(1);
-      first = false;
-    }
-    clnt->do_poll(10);
-    clnt->complete_poll();
-  }
+      clnt->prepare_poll();
+      // This client should be allowed to sent to 'ownId'
+      assert(theOwnId > 0);
+      assert(clnt->isSendEnabled(theOwnId));
 
+      const int res = clnt->raw_sendSignal(&signal, theOwnId);
+      if (res != 0)
+      {
+        // 'open' failed if expand request could not be sent.
+        clnt->complete_poll();
+        DBUG_RETURN(0);
+      }
+      clnt->do_forceSend(1);
+      clnt->do_poll(10);
+      clnt->complete_poll();
+    }
+    else
+    {
+      NdbSleep_MilliSleep(10);
+    }
+    NdbMutex_Lock(m_open_close_mutex);
+  }
   const int r= m_threads.open(clnt);
+  NdbMutex_Unlock(m_open_close_mutex);
   if (r < 0)
   {
     DBUG_RETURN(0);
   }
 
+  /**
+   * A successful m_threads.open() above also included this client in
+   * the list of clients receiving enable_send()/disable_send() callbacks
+   * as we (dis)connects to other nodes. First we have to set the initial
+   * known set of enabled nodes:
+   *
+   * As the lock order requires client lock to be taken before
+   * open_close_mutex, we have to release it above, before relocking
+   * below in correct order. This create a possible race inbetween
+   * here, where a Transporter (dis)connect may enable/disable
+   * a send buffer for the client now being in m_client[], without
+   * its enabled_nodes_mask yet being set. This should not really
+   * matter, as we 'set' the updated enabled mask to the latest
+   * value below anyway, overwritting what any races did inbetween here.
+   * The same race could also result in enable/disable notifications
+   * arriving after set_enabled_send(), appearing as duplicates which
+   * should be ignored.
+   *
+   * (Also see disable_/enable_send_buffer comments)
+   */
+  clnt->lock();
+  NdbMutex_Lock(m_open_close_mutex);
+  clnt->set_enabled_send(m_enabled_nodes_mask);
+  NdbMutex_Unlock(m_open_close_mutex);
+  clnt->unlock();
+
   if (unlikely(blockNo != -1))
   {
-    // Using fixed block number, add fixed->dymamic mapping
+    // Using fixed block number, add fixed->dynamic mapping
     Uint32 fixed_index = blockNo - MIN_API_FIXED_BLOCK_NO;
     
     assert(blockNo >= MIN_API_FIXED_BLOCK_NO &&
@@ -1412,12 +2229,51 @@ TransporterFacade::~TransporterFacade()
   NdbMutex_Destroy(m_open_close_mutex);
   NdbMutex_Destroy(m_send_thread_mutex);
   NdbCondition_Destroy(m_send_thread_cond);
+  NdbMutex_Destroy(m_wakeup_thread_mutex);
+  NdbCondition_Destroy(m_wakeup_thread_cond);
 #ifdef API_TRACE
   signalLogger.setOutputStream(0);
 #endif
   DBUG_VOID_RETURN;
 }
 
+
+/**
+ * ::is_poll_owner_thread() is used in assert's to verify and
+ * enforce correct usage of raw_sendSignal vs. safe_sendSignal():
+ *
+ * - (raw_)sendSignal() is the 'normal' way to send signals from
+ *   a client. The sent signals are aggregated in client-local
+ *   send buffers which are flushed to the global Transporter
+ *   buffers before the client enter poll-wait (do_poll()).
+ *   -- prepare_poll() asserts 'has_unflushed_sends() == false'
+ *      to catch any violations of this.
+ *
+ * - safe_sendSignal():
+ *   If signals are sent by a client while receiving (processing
+ *   trp_deliver_signal()), we can't buffer the signals in this 
+ *   clients send buffers: There are no guarantee when this client
+ *   will wake up and eventually flush its local send buffers.
+ *   Instead such signals should be sent with safe_sendSignal().
+ *   Such signals will be buffered in the *poll_owners* send buffers,
+ *   and later (rather soon) be flushed when the poll owner 
+ *   finish_poll().
+ *   -- This require TransporterFacade::m_poll_owner to be accessed.
+ *      Thus, safe_sendSignal() should only be called by the 
+ *      'poll_owner_thread' (Asserted in safe_sendSignal()).
+ *   -- The 'poll_owner_thread' must not use (raw_)sendSignal()
+ *      to send from any other clients than itself:
+ *      There are no guarantee when such sends would have been
+ *      flushed, and the signal eventually sent.
+ *      (Asserted in ::sendSignal()++)
+ */
+bool
+TransporterFacade::is_poll_owner_thread() const
+{
+  Guard g(thePollMutex);
+  return m_poll_owner != NULL &&
+         my_thread_equal(my_thread_self(),m_poll_owner_tid);
+}
 
 /******************************************************************************
  * SEND SIGNAL METHODS
@@ -1426,6 +2282,8 @@ int
 TransporterFacade::sendSignal(trp_client* clnt,
                               const NdbApiSignal * aSignal, NodeId aNode)
 {
+  assert(clnt == m_poll_owner || is_poll_owner_thread() == false);
+
   const Uint32* tDataPtr = aSignal->getConstDataPtrSend();
   Uint32 Tlen = aSignal->theLength;
   Uint32 TBno = aSignal->theReceiversBlockNumber;
@@ -1442,19 +2300,19 @@ TransporterFacade::sendSignal(trp_client* clnt,
   }
 #endif
   if ((Tlen != 0) && (Tlen <= 25) && (TBno != 0)) {
+    TrpId trp_id = 0;
     SendStatus ss = theTransporterRegistry->prepareSend(clnt,
                                                         aSignal,
                                                         1, // JBB
                                                         tDataPtr,
                                                         aNode,
+                                                        trp_id,
                                                         (LinearSectionPtr*)0);
     //if (ss != SEND_OK) ndbout << ss << endl;
     if (ss == SEND_OK)
     {
       assert(theClusterMgr->getNodeInfo(aNode).is_confirmed() ||
              aSignal->readSignalNumber() == GSN_API_REGREQ ||
-             (aSignal->readSignalNumber() == GSN_CONNECT_REP &&
-              aNode == ownId()) ||
              (aSignal->readSignalNumber() == GSN_CLOSE_COMREQ &&
               aNode == ownId()));
     }
@@ -1699,6 +2557,8 @@ TransporterFacade::sendFragmentedSignal(trp_client* clnt,
                                         const GenericSectionPtr ptr[3],
                                         Uint32 secs)
 {
+  assert(clnt == m_poll_owner || is_poll_owner_thread() == false);
+
   NdbApiSignal copySignal(* inputSignal);
   NdbApiSignal* aSignal = &copySignal;
 
@@ -1834,12 +2694,18 @@ TransporterFacade::sendFragmentedSignal(trp_client* clnt,
 	   tmp_signal_data,
 	   aNode, 
 	   &tmp_ptr[start_i]);
-	assert(ss != SEND_MESSAGE_TOO_BIG);
-	if (ss != SEND_OK) return -1;
-        if (ss == SEND_OK)
+        if (likely(ss == SEND_OK))
         {
           assert(theClusterMgr->getNodeInfo(aNode).is_confirmed() ||
                  tmp_signal.readSignalNumber() == GSN_API_REGREQ);
+        }
+        else
+        {
+          if (unlikely(ss == SEND_MESSAGE_TOO_BIG))
+          {
+            handle_message_too_big(aNode, aSignal, &tmp_ptr[start_i], __LINE__);
+          }
+          return -1;
         }
       }
       assert(remaining_sec_sz >= send_sz);
@@ -1890,13 +2756,20 @@ TransporterFacade::sendFragmentedSignal(trp_client* clnt,
        aSignal->getConstDataPtrSend(),
        aNode,
        &tmp_ptr[start_i]);
-    assert(ss != SEND_MESSAGE_TOO_BIG);
-    if (ss == SEND_OK)
+    if (likely(ss == SEND_OK))
     {
       assert(theClusterMgr->getNodeInfo(aNode).is_confirmed() ||
              aSignal->readSignalNumber() == GSN_API_REGREQ);
+      ret = 0;
     }
-    ret = (ss == SEND_OK ? 0 : -1);
+    else
+    {
+      if (unlikely(ss == SEND_MESSAGE_TOO_BIG))
+      {
+        handle_message_too_big(aNode, aSignal, &tmp_ptr[start_i], __LINE__);
+      }
+      ret = -1;
+    }
   }
   aSignal->m_noOfSections = 0;
   aSignal->m_fragmentInfo = 0;
@@ -1911,6 +2784,8 @@ TransporterFacade::sendFragmentedSignal(trp_client* clnt,
                                         const LinearSectionPtr ptr[3],
                                         Uint32 secs)
 {
+  assert(clnt == m_poll_owner || is_poll_owner_thread() == false);
+
   /* Use the GenericSection variant of sendFragmentedSignal */
   GenericSectionPtr tmpPtr[3];
   LinearSectionPtr linCopy[3];
@@ -1936,11 +2811,69 @@ TransporterFacade::sendFragmentedSignal(trp_client* clnt,
 }
   
 
+template<typename SectionPtr>
+void
+TransporterFacade::handle_message_too_big(NodeId aNode,
+                                          const NdbApiSignal* aSignal,
+                                          const SectionPtr ptr[3],
+                                          Uint32 /* line */) const
+{
+  /* If message is too big when sending CmvmiDummySignal log a convinient
+   * message about it to.
+   * Note that CmvmiDummySignal is not intended for production usage but for
+   * use by test cases.
+   * In production this function do nothing and the message too big failure
+   * handling is left to caller.
+   */
+  if (aSignal->theVerId_signalNumber == GSN_DUMP_STATE_ORD &&
+      aSignal->theData[0] == DumpStateOrd::CmvmiDummySignal)
+  {
+    const Uint32 rep_node_id = aSignal->theData[1];
+    const Uint32 num_secs = aSignal->m_noOfSections;
+    char msg[24 * sizeof(Uint32)];
+    snprintf(msg,
+             sizeof(msg),
+             "Failed sending CmvmiDummySignal"
+             " (size %u+%u+%u+%u+%u) from %u to %u.",
+             aSignal->getLength(),
+             num_secs,
+             (num_secs > 0) ? ptr[0].sz : 0,
+             (num_secs > 1) ? ptr[1].sz : 0,
+             (num_secs > 2) ? ptr[2].sz : 0,
+             ownId(),
+             aNode);
+    const Uint32 len = strlen(msg) + 1;
+    NdbApiSignal bSignal(numberToRef(API_CLUSTERMGR, ownId()));
+    bSignal.theTrace                = TestOrd::TraceAPI;
+    bSignal.theReceiversBlockNumber = CMVMI;
+    bSignal.theVerId_signalNumber   = GSN_EVENT_REP;
+    bSignal.theLength               = ((len + 3) / 4) + 1;
+    Uint32* data = bSignal.theData;
+    data[0] = NDB_LE_InfoEvent;
+    memcpy(&data[1], msg, len);
+    LinearSectionPtr ptr[3];
+    TrpId trp_id = 0;
+    theTransporterRegistry->prepareSend(m_poll_owner,
+                                        &bSignal,
+                                        1, // JBB
+                                        bSignal.getConstDataPtrSend(),
+                                        rep_node_id,
+                                        trp_id,
+                                        ptr);
+  }
+  else
+  {
+    assert(false); // SEND_MESSAGE_TOO_BIG
+  }
+}
+
 int
 TransporterFacade::sendSignal(trp_client* clnt,
                               const NdbApiSignal* aSignal, NodeId aNode,
                               const LinearSectionPtr ptr[3], Uint32 secs)
 {
+  assert(clnt == m_poll_owner || is_poll_owner_thread() == false);
+
   Uint32 save = aSignal->m_noOfSections;
   const_cast<NdbApiSignal*>(aSignal)->m_noOfSections = secs;
 #ifdef API_TRACE
@@ -1954,21 +2887,27 @@ TransporterFacade::sendSignal(trp_client* clnt,
     signalLogger.flushSignalLog();
   }
 #endif
+  TrpId trp_id = 0;
   SendStatus ss = theTransporterRegistry->prepareSend
     (clnt,
      aSignal,
      1, // JBB
      aSignal->getConstDataPtrSend(),
      aNode,
+     trp_id,
      ptr);
-  assert(ss != SEND_MESSAGE_TOO_BIG);
   const_cast<NdbApiSignal*>(aSignal)->m_noOfSections = save;
-  if (ss == SEND_OK)
+  if (likely(ss == SEND_OK))
   {
     assert(theClusterMgr->getNodeInfo(aNode).is_confirmed() ||
            aSignal->readSignalNumber() == GSN_API_REGREQ);
+    return 0;
   }
-  return (ss == SEND_OK ? 0 : -1);
+  if (unlikely(ss == SEND_MESSAGE_TOO_BIG))
+  {
+    handle_message_too_big(aNode, aSignal, ptr, __LINE__);
+  }
+  return -1;
 }
 
 int
@@ -1976,6 +2915,8 @@ TransporterFacade::sendSignal(trp_client* clnt,
                               const NdbApiSignal* aSignal, NodeId aNode,
                               const GenericSectionPtr ptr[3], Uint32 secs)
 {
+  assert(clnt == m_poll_owner || is_poll_owner_thread() == false);
+
   Uint32 save = aSignal->m_noOfSections;
   const_cast<NdbApiSignal*>(aSignal)->m_noOfSections = secs;
 #ifdef API_TRACE
@@ -1998,14 +2939,23 @@ TransporterFacade::sendSignal(trp_client* clnt,
      aSignal->getConstDataPtrSend(),
      aNode,
      ptr);
-  assert(ss != SEND_MESSAGE_TOO_BIG);
-  const_cast<NdbApiSignal*>(aSignal)->m_noOfSections = save;
+  int ret;
   if (ss == SEND_OK)
   {
     assert(theClusterMgr->getNodeInfo(aNode).is_confirmed() ||
            aSignal->readSignalNumber() == GSN_API_REGREQ);
+    ret = 0;
   }
-  return (ss == SEND_OK ? 0 : -1);
+  else
+  {
+    if (unlikely(ss == SEND_MESSAGE_TOO_BIG))
+    {
+      handle_message_too_big(aNode, aSignal, ptr, __LINE__);
+    }
+    ret = -1;
+  }
+  const_cast<NdbApiSignal*>(aSignal)->m_noOfSections = save;
+  return ret;
 }
 
 /******************************************************************************
@@ -2024,45 +2974,19 @@ TransporterFacade::doDisconnect(int aNodeId)
 }
 
 /**
- * As ClusterMgr maintains shared global data, updating
- * its connection state needs locking. Depending on
- * whether ClusterMgr already is the poll owner, we
- * should conditionally take that lock now.
+ * ClusterMgr maintains the shared global data.
+ * Notify it about the changed connection state.
  */
 void
 TransporterFacade::reportConnected(int aNodeId)
 {
-  assert(m_poll_owner != NULL);
-  if (m_poll_owner != theClusterMgr)
-  {
-    theClusterMgr->lock();
-    theClusterMgr->reportConnected(aNodeId);
-    theClusterMgr->flush_send_buffers();
-    theClusterMgr->unlock();
-  }
-  else
-  {
-    theClusterMgr->reportConnected(aNodeId);
-  }
-  return;
+  theClusterMgr->reportConnected(aNodeId);
 }
 
 void
 TransporterFacade::reportDisconnected(int aNodeId)
 {
-  assert(m_poll_owner != NULL);
-  if (m_poll_owner != theClusterMgr)
-  {
-    theClusterMgr->lock();
-    theClusterMgr->reportDisconnected(aNodeId);
-    theClusterMgr->flush_send_buffers();
-    theClusterMgr->unlock();
-  }
-  else
-  {
-    theClusterMgr->reportDisconnected(aNodeId);
-  }
-  return;
+  theClusterMgr->reportDisconnected(aNodeId);
 }
 
 NodeId
@@ -2103,7 +3027,8 @@ TransporterFacade::get_an_alive_node()
 
 TransporterFacade::ThreadData::ThreadData(Uint32 size)
   : m_use_cnt(0), 
-    m_firstFree(END_OF_LIST)
+    m_firstFree(END_OF_LIST),
+    m_expanding(false)
 {
   expand(size);
 }
@@ -2128,6 +3053,7 @@ TransporterFacade::ThreadData::expand(Uint32 size){
 
   m_clients.back().m_next =  m_firstFree;
   m_firstFree = m_clients.size() - size;
+  m_expanding = false;
 }
 
 
@@ -2169,7 +3095,14 @@ int
 TransporterFacade::ThreadData::close(int number){
   const Uint32 nextFree = m_firstFree;
   const int index= numberToIndex(number);
-  assert(m_clients[index].m_clnt != NULL);
+
+  /**
+   * Guard against race between close from multiple threads.
+   * Couldn't detect this for sure until we now have the poll right.
+   */
+  if (m_clients[index].m_clnt == NULL)
+    return 0;
+
   assert(m_use_cnt);
   m_use_cnt--;
   m_firstFree = index;
@@ -2183,26 +3116,109 @@ TransporterFacade::get_active_ndb_objects() const
   return m_threads.m_use_cnt;
 }
 
-void
-TransporterFacade::start_poll(trp_client* clnt)
+Uint32
+TransporterFacade::mapRefToIdx(Uint32 reference) const
 {
-  assert(clnt->m_poll.m_locked == true);
-  assert(clnt->m_poll.m_poll_owner == false);
-  assert(clnt->m_poll.m_poll_queue == false);
-  assert(clnt->m_poll.m_waiting == trp_client::PollQueue::PQ_IDLE);
-  dbg2("%p->start_poll on %p", clnt, this);
+  assert(reference >= MIN_API_BLOCK_NO);
+  return reference - MIN_API_BLOCK_NO;
 }
 
+/**
+ * Propose a client to become new poll owner if
+ * no one is currently assigned.
+ *
+ * Prefer the receiver thread if it is waiting in the
+ * poll_queue, else pick the 'last' in the poll_queue.
+ *
+ * The suggested poll owner will race with any other clients
+ * not yet 'WAITING' to become poll owner. (If any such arrives.)
+ */
+void
+TransporterFacade::propose_poll_owner()
+{
+  int retries = 0;
+
+  do
+  {
+    lock_poll_mutex();
+
+    if (m_poll_owner != NULL || m_poll_queue_tail == NULL)
+    {
+      /**
+       * New poll owner already appointed or none waiting
+       * ...no need to do anything
+       */
+      unlock_poll_mutex();
+      break;
+    }
+
+    /**
+     * Prefer receiver thread as new poll owner *candidate*,
+     * else pick the last client in the poll queue,
+     */
+    trp_client* const new_owner = 
+        (recv_client && recv_client->m_poll.m_poll_queue)
+           ? recv_client 
+           : m_poll_queue_tail;
+
+    /**
+     * Note: we can only try lock here, to prevent potential deadlock
+     *   given that we acquire mutex in different order when starting to poll.
+     *   Only lock if not already locked (can happen when signals received
+     *   and trp_client isn't ready).
+     */ 
+    if (NdbMutex_Trylock(new_owner->m_mutex) == 0)
+    {
+      assert(new_owner->m_poll.m_poll_queue == true);
+      assert(new_owner->m_poll.m_waiting == trp_client::PollQueue::PQ_WAITING);
+      unlock_poll_mutex();
+
+      /**
+       * Signal the proposed poll owner
+       */
+      NdbCondition_Signal(new_owner->m_poll.m_condition);
+      NdbMutex_Unlock(new_owner->m_mutex);
+      break;
+    }
+    unlock_poll_mutex();
+
+    /**
+     * Failed to lock new owner. Retry, but start to
+     * back off the CPU if many retries are needed.
+     */
+    retries++;
+    if (retries > 100)
+      NdbSleep_MicroSleep(10);
+    else if (retries > 10)
+      my_thread_yield();
+
+  } while(true);
+}
+
+/**
+ * Try to acquire the poll-right to 'clnt' within the specified 'wait_time'.
+ *
+ * By design, we allow existing clnt's 'WAITING' in poll_queue, and new
+ * not_yet_waiting clients, to race for becoming the poll-owner. 
+ * Getting a new poll owner ASAP is critical for API throughput and
+ * latency, so its better to give the poll right to the first thread
+ * being able to take it, rather than trying to implement some 'fairness' in 
+ * whose turn it is to be the poll owner. The later would have implied
+ * waiting for that thread to eventually be scheduled by the OS.
+ *
+ * Assumed to be called with 'clnt' locked and 'poll_mutex' not held.
+ */
 bool
 TransporterFacade::try_become_poll_owner(trp_client* clnt, Uint32 wait_time)
 {
   assert(clnt->m_poll.m_locked == true);
+  assert(clnt->m_poll.m_poll_owner == false);
+
   lock_poll_mutex();
+  assert(m_poll_owner != clnt);
+
   if (m_poll_owner != NULL)
   {
-    assert(m_poll_owner != clnt);
-    assert(clnt->m_poll.m_poll_owner == false);
-
     /*
       Dont wait for the poll right to become available if
       no wait_time is allowed. Return without poll right,
@@ -2218,110 +3234,144 @@ TransporterFacade::try_become_poll_owner(trp_client* clnt, Uint32 wait_time)
       return false;
     }
 
-    /*
-      We didn't get hold of the poll "right". We will sleep on a
-      conditional mutex until the thread owning the poll "right"
-      will wake us up after all data is received. If no data arrives
-      we will wake up eventually due to the timeout.
-      After receiving all data we take the object out of the cond wait
-      queue if it hasn't happened already. It is usually already out of the
-      queue but at time-out it could be that the object is still there.
-    */
+    /* All poll "right" waiters are in the poll_queue */
     add_to_poll_queue(clnt);
-    unlock_poll_mutex();
-    dbg("cond_wait(%p)", clnt);
-    NdbCondition_WaitTimeout(clnt->m_poll.m_condition,
-                             clnt->m_mutex,
-                             wait_time);
 
-    switch(clnt->m_poll.m_waiting) {
-    case trp_client::PollQueue::PQ_WOKEN:
-      dbg("%p - PQ_WOKEN", clnt);
-      // we have already been taken out of poll queue
-      assert(clnt->m_poll.m_poll_queue == false);
+    /**
+     * We will sleep on a conditional mutex while the poll right 
+     * can't be acquired. While sleeping the thread owning the poll "right"
+     * could wake us up if it has delivered all data to us. That will
+     * terminate our wait. (PQ_WOKEN state)
+     *
+     * We could also be woken up by the current poll owner which will
+     * set 'm_poll_owner = NULL' and signal *one of* the waiting clients
+     * when it retire as poll owner. The poll owner right could then be 
+     * acquired if we find it free, *or* another client could have raced us
+     * and already grabbed it.
+     *
+     * We could also terminate the poll-right wait due to the max
+     * wait_time being exceeded.
+     */
+    struct timespec wait_end; 
+    NdbCondition_ComputeAbsTime(&wait_end, wait_time);
 
-      /**
-       * clear m_poll_owner
-       *   it can be that we were proposed as poll owner
-       *   and later woken by another thread that became poll owner
-       */
-      clnt->m_poll.m_poll_owner = false;
-      clnt->m_poll.m_waiting = trp_client::PollQueue::PQ_IDLE;
-      return false;
-    case trp_client::PollQueue::PQ_IDLE:
-      dbg("%p - PQ_IDLE", clnt);
-      assert(false); // should not happen!!
-      // ...treat as timeout...fall-through
-    case trp_client::PollQueue::PQ_WAITING:
-      dbg("%p - PQ_WAITING", clnt);
-      break;
-    }
-
-    lock_poll_mutex();
-    if (clnt->m_poll.m_poll_owner == false)
+    while (true) //(m_poll_owner != NULL)
     {
-      /**
-       * We got timeout...hopefully rare...
-       */
-      assert(clnt->m_poll.m_poll_queue == true);
-      remove_from_poll_queue(clnt);
-      unlock_poll_mutex();
-      clnt->m_poll.m_waiting = trp_client::PollQueue::PQ_IDLE;
-      dbg("%p - PQ_WAITING poll_owner == false => return", clnt);
-      return false;
+      unlock_poll_mutex();  //Release while waiting
+      dbg("cond_wait(%p)", clnt);
+      const int ret = NdbCondition_WaitTimeoutAbs(
+                               clnt->m_poll.m_condition,
+                               clnt->m_mutex,
+                               &wait_end);
+
+      switch(clnt->m_poll.m_waiting) {
+      case trp_client::PollQueue::PQ_WOKEN:
+        dbg("%p - PQ_WOKEN", clnt);
+        // We have already been taken out of poll queue
+        assert(clnt->m_poll.m_poll_queue == false);
+        assert(clnt->m_poll.m_poll_owner == false);
+        clnt->m_poll.m_waiting = trp_client::PollQueue::PQ_IDLE;
+        return false;
+      case trp_client::PollQueue::PQ_WAITING:
+        dbg("%p - PQ_WAITING", clnt);
+        break;
+      case trp_client::PollQueue::PQ_IDLE:
+        dbg("%p - PQ_IDLE", clnt);
+        // fall-through
+      default:
+        require(false); // should not happen!!
+        break;
+      }
+
+      lock_poll_mutex();
+      if (m_poll_owner == NULL)
+      {
+        assert(clnt->m_poll.m_poll_owner == false);
+        break;
+      }
+      if (ret == ETIMEDOUT)
+      {
+        /**
+         * We got timeout...hopefully rare...
+         */
+        assert(m_poll_owner != clnt);
+        assert(clnt->m_poll.m_poll_owner == false);
+        remove_from_poll_queue(clnt);
+        unlock_poll_mutex();
+
+        clnt->m_poll.m_waiting = trp_client::PollQueue::PQ_IDLE;
+        dbg("%p - PQ_WAITING poll_owner == false => return", clnt);
+        return false;
+      }
     }
-    else if (m_poll_owner != 0)
-    {
-      /**
-       * We were proposed as new poll owner...but someone else beat us too it
-       *   break out...and retry the whole thing...
-       */
-      clnt->m_poll.m_poll_owner = false;
-      assert(clnt->m_poll.m_poll_queue == false);
-      unlock_poll_mutex();
-      clnt->m_poll.m_waiting = trp_client::PollQueue::PQ_IDLE;
-      dbg("%p - PQ_WAITING m_poll_owner != 0 => return", clnt);
-      return false;
-    }
+    remove_from_poll_queue(clnt);
 
     /**
      * We were proposed as new poll owner, and was first to wakeup
      */
     dbg("%p - PQ_WAITING => new poll_owner", clnt);
   }
+
+  /* We found the poll-right available, grab it */
+  assert(m_poll_owner == NULL);
   m_poll_owner = clnt;
+  m_poll_owner_tid = my_thread_self();
   unlock_poll_mutex();
+
+  assert(clnt->m_poll.m_poll_owner == false);
+  clnt->m_poll.m_poll_owner = true;
   return true;
 }
 
+/**
+ * When a m_poll_owner has been assigned, any actual receiver polling
+ * (::external_poll()) has to be enclosed in a pair of 
+ * start_poll() - finish_poll() calls.
+ */
 void
-TransporterFacade::finish_poll(trp_client* clnt,
-                               Uint32 cnt,
-                               Uint32& cnt_woken,
-                               trp_client** arr)
+TransporterFacade::start_poll()
 {
+  assert(m_poll_owner != NULL);
+  assert(m_poll_owner->m_poll.m_waiting == trp_client::PollQueue::PQ_WAITING);
+  assert(m_poll_owner->m_poll.m_locked);
+
+  assert(m_locked_cnt == 0);
+  m_locked_cnt = 1;
+  m_locked_clients[0] = m_poll_owner;
+  assert(m_poll_owner->is_locked_for_poll() == false);
+  m_poll_owner->set_locked_for_poll(true);
+  dbg("%p becomes poll owner", m_poll_owner);
+}
+
+int
+TransporterFacade::finish_poll(trp_client* arr[])
+{
+  assert(m_poll_owner != NULL);
+  assert(m_locked_cnt > 0);
+  assert(m_locked_cnt <= MAX_LOCKED_CLIENTS);
+  assert(m_locked_clients[0] == m_poll_owner);
+
+  const Uint32 lock_cnt = m_locked_cnt;
+  int cnt_woken = 0;
+
 #ifndef NDEBUG
   {
-    Uint32 lock_cnt = clnt->m_poll.m_locked_cnt;
-    assert(lock_cnt >= 1);
-    assert(lock_cnt <= clnt->m_poll.m_lock_array_size);
-    assert(clnt->m_poll.m_locked_clients[0] == clnt);
     // no duplicates
     if (DBG_POLL) printf("after external_poll: cnt: %u ", lock_cnt);
     for (Uint32 i = 0; i < lock_cnt; i++)
     {
-      trp_client * tmp = clnt->m_poll.m_locked_clients[i];
+      trp_client * tmp = m_locked_clients[i];
       if (DBG_POLL) printf("%p(%u) ", tmp, tmp->m_poll.m_waiting);
       for (Uint32 j = i + 1; j < lock_cnt; j++)
       {
-        assert(tmp != clnt->m_poll.m_locked_clients[j]);
+        assert(tmp != m_locked_clients[j]);
       }
     }
     if (DBG_POLL) printf("\n");
 
     for (Uint32 i = 1; i < lock_cnt; i++)
     {
-      trp_client * tmp = clnt->m_poll.m_locked_clients[i];
+      trp_client * tmp = m_locked_clients[i];
       if (tmp->m_poll.m_locked == true)
       {
         assert(tmp->m_poll.m_waiting != trp_client::PollQueue::PQ_IDLE);
@@ -2337,110 +3387,58 @@ TransporterFacade::finish_poll(trp_client* clnt,
 #endif
 
   /**
-   * we're finished polling
+   * we're finished polling:
+   *  - Any signals sent by receivers has been 'safe-sent' by the poll_owner.
+   *    Thus we have to flush the poll_owner (== clnt) send buffer to 'global'
+   *    TransporterFacade queues.
+   *    (At latest sent by send thread after 'sendThreadWaitMillisec')
+   *  - Assert: There should *not* be any 'unflushed_send' for the other clients
+   *  - Unlock the clients.
    */
-  clnt->m_poll.m_waiting = trp_client::PollQueue::PQ_IDLE;
+  trp_client *clnt = m_poll_owner;
+
   assert(clnt->is_locked_for_poll() == true);
+  clnt->flush_send_buffers();
   clnt->set_locked_for_poll(false);
   dbg("%p->set_locked_for_poll false", clnt);
 
   /**
    * count woken clients
-   *   and put them to the left in array
+   *   skip m_poll_owner in m_locked_clients[0]
+   *   and put the woken clients to the left in array,
+   *   non woken are filled in from right in array
    */
-  for (Uint32 i = 0; i < cnt; i++)
+  int cnt_not_woken = 0;
+  for (Uint32 i = 1; i < lock_cnt; i++)
   {
-    trp_client * tmp = arr[i];
+    trp_client * tmp = m_locked_clients[i];
     bool woken = (tmp->m_poll.m_waiting == trp_client::PollQueue::PQ_WOKEN);
     assert(tmp->is_locked_for_poll() == true);
+    assert(tmp->has_unflushed_sends() == false);
     tmp->set_locked_for_poll(false);
     dbg("%p->set_locked_for_poll false", tmp);
     if (woken)
     {
-      arr[i] = arr[cnt_woken];
-      arr[cnt_woken] = tmp;
-      cnt_woken++;
+      arr[cnt_woken++] = tmp;
+    }
+    else
+    {
+      arr[lock_cnt-2-cnt_not_woken++] = tmp;
     }
   }
+  assert(cnt_woken+cnt_not_woken == (int)(lock_cnt-1));
 
   if (DBG_POLL)
   {
-    Uint32 lock_cnt = clnt->m_poll.m_locked_cnt;
-    printf("after sort: cnt: %u ", lock_cnt);
-    for (Uint32 i = 0; i < lock_cnt; i++)
+    printf("after sort: cnt: %u ", lock_cnt-1);
+    for (Uint32 i = 0; i < lock_cnt-1; i++)
     {
-      trp_client * tmp = clnt->m_poll.m_locked_clients[i];
+      trp_client * tmp = arr[i];
       printf("%p(%u) ", tmp, tmp->m_poll.m_waiting);
     }
     printf("\n");
   }
-}
-
-void
-TransporterFacade::try_lock_last_client(trp_client* clnt,
-                                        bool& new_owner_locked,
-                                        trp_client** new_owner_ptr,
-                                        Uint32 first_check)
-{
-  /**
-   * take last client in poll queue and try lock it
-   */
-  bool already_locked = false;
-  trp_client* new_owner = remove_last_from_poll_queue();
-  *new_owner_ptr = new_owner;
-  assert(new_owner != clnt);
-  if (new_owner != 0)
-  {
-    dbg("0 new_owner: %p", new_owner);
-    /**
-     * Note: we can only try lock here, to prevent potential deadlock
-     *   given that we acquire mutex in different order when starting to poll
-     *   Only lock if not already locked (can happen when signals received
-     *   and trp_client isn't ready).
-     */
-    already_locked = clnt->m_poll.check_if_locked(new_owner, first_check);
-    if ((!already_locked) &&
-        (NdbMutex_Trylock(new_owner->m_mutex) != 0))
-    {
-      /**
-       * If we fail to try lock...we put him back into poll-queue
-       */
-      new_owner_locked = false;
-      add_to_poll_queue(new_owner);
-      dbg("try-lock failed %p", new_owner);
-    }
-  }
-
-  /**
-   * clear poll owner variable and unlock
-   */
-  m_poll_owner = 0;
-  unlock_poll_mutex();
-
-  if (new_owner && new_owner_locked)
-  {
-    /**
-     * Propose a poll owner
-     *   Wakeup a client, that will race to become poll-owner
-     *   I.e we don't assign m_poll_owner but let the wakeing up thread
-     *   do this itself, if it is first
-     */
-    dbg("wake new_owner(%p)", new_owner);
-#ifndef NDEBUG
-    for (Uint32 i = 0; i < first_check; i++)
-    {
-      assert(clnt->m_poll.m_locked_clients[i] != new_owner);
-    }
-#endif
-    assert(new_owner->m_poll.m_waiting == trp_client::PollQueue::PQ_WAITING);
-    new_owner->m_poll.m_poll_owner = true;
-    NdbCondition_Signal(new_owner->m_poll.m_condition);
-    if (!already_locked)
-    {
-      /* Don't release lock if already locked */
-      NdbMutex_Unlock(new_owner->m_mutex);
-    }
-  }
+  return cnt_woken;
 }
 
 /**
@@ -2451,153 +3449,143 @@ TransporterFacade::try_lock_last_client(trp_client* clnt,
  * this in regular intervals)
  * 
  * Both of these operations require the poll right to
- * have been aquired. If we are not already 'is_poll_owner',
+ * have been acquired. If we are not already 'poll_owner',
  * we will try to set it within the timeout 'wait_time'.
  *
- * Poll ownership might be release on return if not
+ * If we get the poll rights withing the specified wait_time,
+ * we will repeatedly poll the receiver until either
+ * 'clnt' is woken up, or the max 'wait_time' expires.
+ *
+ * Poll ownership is released on return if not
  * 'stay_poll_owner' is requested.
  *
- * Return 'true' if poll right is still owned upon return.
+ * 'clnt->m_poll.m_poll_owner' will maintain whether
+ * poll right is being owned or not,
  */
-bool
+void
 TransporterFacade::do_poll(trp_client* clnt,
                            Uint32 wait_time,
-                           bool is_poll_owner,
                            bool stay_poll_owner)
 {
   dbg("do_poll(%p)", clnt);
+  const NDB_TICKS start = NdbTick_getCurrentTicks();
   clnt->m_poll.m_waiting = trp_client::PollQueue::PQ_WAITING;
   assert(clnt->m_poll.m_locked == true);
-  assert(clnt->m_poll.m_poll_owner == false);
-  assert(clnt->m_poll.m_poll_queue == false);
-  if (!is_poll_owner)
-  {
-    if (!try_become_poll_owner(clnt, wait_time))
-      return false;
-  }
 
-  /**
-   * We have the poll "right" and we poll until data is received. After
-   * receiving data we will check if all data is received,
-   * if not we poll again.
-   */
-  clnt->m_poll.m_poll_owner = true;
-  clnt->m_poll.start_poll(clnt);
-  dbg("%p->external_poll", clnt);
-  external_poll(wait_time);
-
-  Uint32 cnt_woken = 0;
-  Uint32 cnt = clnt->m_poll.m_locked_cnt - 1; // skip self
-  trp_client ** arr = clnt->m_poll.m_locked_clients + 1; // skip self
-  clnt->m_poll.m_poll_owner = false;
-  finish_poll(clnt, cnt, cnt_woken, arr);
-
-  lock_poll_mutex();
-
-  if ((cnt + 1) > m_num_active_clients)
-  {
-    m_num_active_clients = cnt + 1;
-  }
-  /**
-   * now remove all woken from poll queue
-   * note: poll mutex held
-   */
-  remove_from_poll_queue(arr, cnt_woken);
-
-  bool new_owner_locked = true;
-  trp_client * new_owner = NULL;
-  if (stay_poll_owner)
-  {
-    unlock_poll_mutex();
-  }
-  else
-  {
-    try_lock_last_client(clnt,
-                         new_owner_locked,
-                         &new_owner,
-                         cnt_woken + 1);
-  }
-
-  /**
-   * Now wake all the woken clients
-   */
-  unlock_and_signal(arr, cnt_woken);
-
-  /**
-   * And unlock the rest that we delivered messages to
-   */
-  for (Uint32 i = cnt_woken; i < cnt; i++)
-  {
-    dbg("unlock (%p)", arr[i]);
-    NdbMutex_Unlock(arr[i]->m_mutex);
-  }
-
-  if (stay_poll_owner)
-  {
-    clnt->m_poll.m_locked_cnt = 0;
-    dbg("%p->do_poll return", clnt);
-    return true;
-  }
-  /**
-   * If we failed to propose new poll owner above, then we retry it here
-   */
-  if (new_owner_locked == false)
-  {
-    dbg("new_owner_locked == %s", "false");
-    trp_client * new_owner;
-    while (true)
+  Uint32 elapsed_ms = 0;  //'wait_time' used so far
+  do  
+  {  
+    if (clnt->m_poll.m_poll_owner == false)
     {
-      new_owner = 0;
-      lock_poll_mutex();
-      if (m_poll_owner != 0)
-      {
-        /**
-         * new poll owner already appointed...no need to do anything
-         */
-        break;
-      }
-
-      new_owner = remove_last_from_poll_queue();
-      if (new_owner == 0)
-      {
-        /**
-         * poll queue empty...no need to do anything
-         */
-        break;
-      }
-
-      if (NdbMutex_Trylock(new_owner->m_mutex) == 0)
-      {
-        /**
-         * We locked a client that we will propose as poll owner
-         */
-        break;
-      }
-
+      assert(wait_time >= elapsed_ms);
+      const Uint32 rem_wait_time = wait_time - elapsed_ms;
       /**
-       * Failed to lock new owner, put him back on queue, and retry
+       * If we fail to become poll owner, we either was PQ_WOKEN
+       * up as we received what we were PQ_WAITING for, or other
+       * clients held the poll right until 'wait_time' expired.
+       *
+       * In either case the clients which held the poll right
+       * will be responsible for signaling the new client
+       * preferred to be next poll owner. (see further below)
+       * So we can just return here.
        */
-      add_to_poll_queue(new_owner);
-      unlock_poll_mutex();
+      if (!try_become_poll_owner(clnt, rem_wait_time))
+        return;
+    }
+    assert(clnt->m_poll.m_poll_owner == true);
+
+    /**
+     * We have the poll "right" and we poll until data is received. After
+     * receiving data we will check if all data is received,
+     * if not we poll again.
+     */
+    start_poll();
+    dbg("%p->external_poll", clnt);
+    external_poll(wait_time);
+
+    /**
+     * As m_locked_clients[] are protected by owning the poll right,
+     * which we are soon about to release, its contents is now copied
+     * out to locked[] by finish_poll().
+     * NOTE: 'clnt' being the first 'locked' is not copied out
+     */
+    const Uint32 locked_cnt = m_locked_cnt;
+    trp_client *locked[MAX_LOCKED_CLIENTS-1]; //locked_cnt-1
+    const int cnt_woken = finish_poll(locked);
+    m_locked_cnt = 0;
+
+    lock_poll_mutex();
+
+    if (locked_cnt > m_num_active_clients)
+    {
+      m_num_active_clients = locked_cnt;
     }
 
+    /**
+     * Now remove all woken from poll queue
+     * note: poll mutex held
+     */
+    remove_from_poll_queue(locked, cnt_woken);
+
+    /**
+     * Release poll right temporarily in case we get
+     * suspended when unlocking other trp_client::m_mutex'es below.
+     * If still available, the poll right will be re-acquired in our
+     * next round in this poll-loop
+     *
+     * We can't (reasonably) control whether we are yielded by 
+     * the OS scheduler, so we can just prepare for being
+     * suspended here.
+     */
+    if (!stay_poll_owner)
+    {
+      clnt->m_poll.m_poll_owner = false;
+      m_poll_owner = NULL;
+      /**
+       * Note, there is no platform independent 'NULL' defined for
+       * thread id, so can't clear it as one might have expected here.
+       * Instead we define that 'owner_tid' is only valid iff
+       * 'm_poll_owner != NULL'
+       */
+      //m_poll_owner_tid = 0;
+    }
     unlock_poll_mutex();
 
-    if (new_owner)
+    if (!transfer_responsibility(locked, cnt_woken, locked_cnt-1))
     {
       /**
-       * Propose a poll owner
+       * Now wake all the woken clients
        */
-      assert(new_owner->m_poll.m_waiting == trp_client::PollQueue::PQ_WAITING);
-      new_owner->m_poll.m_poll_owner = true;
-      NdbCondition_Signal(new_owner->m_poll.m_condition);
-      NdbMutex_Unlock(new_owner->m_mutex);
-    }
-  }
+      unlock_and_signal(locked, cnt_woken);
 
-  clnt->m_poll.m_locked_cnt = 0;
+      /**
+       * And unlock the rest that we delivered messages to
+       */
+      for (Uint32 i = cnt_woken; i < locked_cnt-1; i++)
+      {
+        dbg("unlock (%p)", locked[i]);
+        NdbMutex_Unlock(locked[i]->m_mutex);
+      }
+    }
+
+    // Terminate polling if we are PQ_WOKEN
+    assert(clnt->m_poll.m_waiting != trp_client::PollQueue::PQ_IDLE);
+    if (clnt->m_poll.m_waiting == trp_client::PollQueue::PQ_WOKEN)
+      break;
+
+    // Check for poll-timeout
+    const NDB_TICKS now = NdbTick_getCurrentTicks();
+    elapsed_ms = NdbTick_Elapsed(start,now).milliSec();
+
+  } while (elapsed_ms < wait_time);
+
+  clnt->m_poll.m_waiting = trp_client::PollQueue::PQ_IDLE;
+
+  // Might have to find a new poll owner
+  propose_poll_owner();
+
   dbg("%p->do_poll return", clnt);
-  return false;
+  return;
 }
 
 void
@@ -2617,8 +3605,9 @@ TransporterFacade::wakeup(trp_client* clnt)
   }
 }
 
+//static
 void
-TransporterFacade::unlock_and_signal(trp_client * const * arr, Uint32 cnt)
+TransporterFacade::unlock_and_signal(trp_client * const arr[], Uint32 cnt)
 {
   for (Uint32 i = 0; i < cnt; i++)
   {
@@ -2627,34 +3616,9 @@ TransporterFacade::unlock_and_signal(trp_client * const * arr, Uint32 cnt)
   }
 }
 
-void
-TransporterFacade::complete_poll(trp_client* clnt)
-{
-  dbg2("%p->complete_poll on %p", clnt, this);
-  assert(clnt->m_poll.m_poll_owner == false);
-  assert(clnt->m_poll.m_poll_queue == false);
-  assert(clnt->m_poll.m_waiting == trp_client::PollQueue::PQ_IDLE);
-  clnt->flush_send_buffers();
-}
-
-void
-trp_client::PollQueue::start_poll(trp_client* self)
-{
-  assert(m_waiting == PQ_WAITING);
-  assert(m_locked);
-  assert(m_poll_owner);
-  assert(m_locked_cnt == 0);
-  assert(&self->m_poll == this);
-  m_locked_cnt = 1;
-  m_locked_clients[0] = self;
-  assert(self->is_locked_for_poll() == false);
-  self->set_locked_for_poll(true);
-  dbg("%p becomes poll owner", self);
-}
-
 bool
-trp_client::PollQueue::check_if_locked(const trp_client* clnt,
-                                       const Uint32 start) const
+TransporterFacade::check_if_locked(const trp_client* clnt,
+                                   const Uint32 start) const
 {
   for (Uint32 i = start; i<m_locked_cnt; i++)
   {
@@ -2665,25 +3629,25 @@ trp_client::PollQueue::check_if_locked(const trp_client* clnt,
 }
 
 void
-trp_client::PollQueue::lock_client(trp_client* clnt)
+TransporterFacade::lock_client(trp_client* clnt)
 {
-  assert(m_locked_cnt <= m_lock_array_size);
-  assert(check_if_locked((const trp_client*)this, (const Uint32)0) == false);
+  assert(m_locked_cnt <= MAX_LOCKED_CLIENTS);
+  assert(check_if_locked(clnt, 0) == false);
+
+  NdbMutex_Lock(clnt->m_mutex);
   assert(!clnt->is_locked_for_poll());
 
   Uint32 locked_cnt = m_locked_cnt;
   clnt->set_locked_for_poll(true);
   dbg("lock_client(%p)", clnt);
 
-  assert(m_locked_cnt < m_lock_array_size);
+  assert(m_locked_cnt < MAX_LOCKED_CLIENTS);
   m_locked_clients[locked_cnt] = clnt;
   m_locked_cnt = locked_cnt + 1;
-  NdbMutex_Lock(clnt->m_mutex);
-  return;
 }
 
 void
-TransporterFacade::add_to_poll_queue(trp_client* clnt)
+TransporterFacade::add_to_poll_queue(trp_client* clnt)  //Need thePollMutex
 {
   assert(clnt != 0);
   assert(clnt->m_poll.m_prev == 0);
@@ -2697,19 +3661,19 @@ TransporterFacade::add_to_poll_queue(trp_client* clnt)
   {
     assert(m_poll_queue_tail == 0);
     m_poll_queue_head = clnt;
-    m_poll_queue_tail = clnt;
   }
   else
   {
     assert(m_poll_queue_tail->m_poll.m_next == 0);
     m_poll_queue_tail->m_poll.m_next = clnt;
     clnt->m_poll.m_prev = m_poll_queue_tail;
-    m_poll_queue_tail = clnt;
   }
+  m_poll_queue_tail = clnt;
+  m_poll_waiters++;
 }
 
 void
-TransporterFacade::remove_from_poll_queue(trp_client* const * arr, Uint32 cnt)
+TransporterFacade::remove_from_poll_queue(trp_client* const arr[], Uint32 cnt)
 {
   for (Uint32 i = 0; i< cnt; i++)
   {
@@ -2721,14 +3685,15 @@ TransporterFacade::remove_from_poll_queue(trp_client* const * arr, Uint32 cnt)
 }
 
 void
-TransporterFacade::remove_from_poll_queue(trp_client* clnt)
+TransporterFacade::remove_from_poll_queue(trp_client* clnt)  //Need thePollMutex
 {
   assert(clnt != 0);
   assert(clnt->m_poll.m_locked == true);
   assert(clnt->m_poll.m_poll_owner == false);
   assert(clnt->m_poll.m_poll_queue == true);
+  assert(m_poll_waiters > 0);
+  m_poll_waiters--;
 
-  clnt->m_poll.m_poll_queue = false;
   if (clnt->m_poll.m_prev != 0)
   {
     clnt->m_poll.m_prev->m_poll.m_next = clnt->m_poll.m_next;
@@ -2756,18 +3721,9 @@ TransporterFacade::remove_from_poll_queue(trp_client* clnt)
 
   clnt->m_poll.m_prev = 0;
   clnt->m_poll.m_next = 0;
+  clnt->m_poll.m_poll_queue = false;
 }
 
-trp_client*
-TransporterFacade::remove_last_from_poll_queue()
-{
-  trp_client * clnt = m_poll_queue_tail;
-  if (clnt == 0)
-    return 0;
-
-  remove_from_poll_queue(clnt);
-  return clnt;
-}
 
 template class Vector<TransporterFacade::ThreadData::Client>;
 
@@ -2787,49 +3743,139 @@ SignalSectionIterator::getNextWords(Uint32& sz)
   return NULL;
 }
 
+/**
+ * ::flush_send_buffer()
+ *
+ * Append a set of send buffer pages (TFPage) to the
+ * TransporterFacade 'global' list of send buffers to
+ * the specified node.
+ *
+ * The send buffers to be appended has been produced
+ * thread-locally by the client thread. The send buffers,
+ * both in the TransporterFacade, and trp_client is enabled/disabled
+ * synchronously when a Transporter connect or disconnect.
+ * Furthermore, the client is not allowed to allocate 
+ * from a disabled send buffer. This guards us from ever
+ * flushing any data into a disabled send buffer. (Asserted below)
+ */
 void
 TransporterFacade::flush_send_buffer(Uint32 node, const TFBuffer * sb)
 {
+  if (unlikely(sb->m_head == NULL)) //Cleared by ::disable_send_buffer()
+    return;
+
   assert(node < NDB_ARRAY_SIZE(m_send_buffers));
+  assert(m_active_nodes.get(node));
   struct TFSendBuffer * b = m_send_buffers + node;
   Guard g(&b->m_mutex);
-  b->m_current_send_buffer_size += b->m_buffer.m_bytes_in_buffer;
+  assert(b->m_node_enabled);
+  b->m_current_send_buffer_size += sb->m_bytes_in_buffer;
+  b->m_flushed_cnt++;
   link_buffer(&b->m_buffer, sb);
 }
 
+/**
+ * Try to send the prepared send buffers to 'node'.
+ * Could fail to send if 'try_lock_send' not granted.
+ * The thread holding the lock will then take over the
+ * send for us.
+ * If there are more data than could be sent in a single
+ * try, the send-thread will be requested to be started.
+ *
+ * Requires the 'b->m_mutex' to be held by callee
+ */
 void
-TransporterFacade::flush_and_send_buffer(Uint32 node, const TFBuffer * sb)
+TransporterFacade::try_send_buffer(Uint32 node, struct TFSendBuffer *b)
 {
-  assert(node < NDB_ARRAY_SIZE(m_send_buffers));
-  struct TFSendBuffer * b = m_send_buffers + node;
-  bool wake = false;
-  NdbMutex_Lock(&b->m_mutex);
-  b->m_current_send_buffer_size += b->m_buffer.m_bytes_in_buffer;
-  link_buffer(&b->m_buffer, sb);
-
   if (!b->try_lock_send())
   {
     /**
      * Did not get lock, held by other sender.
-     * Sender will check if here is data, and wake send-thread
+     * Holder of send lock will check if here is data, and wake send-thread
      * if needed
      */
   }
   else
   {
+    assert(b->m_current_send_buffer_size == 
+           b->m_buffer.m_bytes_in_buffer+b->m_out_buffer.m_bytes_in_buffer);
+
     do_send_buffer(node,b);
-
-    if (b->m_current_send_buffer_size > 0)
-    {
-      wake = true;
-    }
+    const Uint32 out_buffer_bytes  = b->m_out_buffer.m_bytes_in_buffer;
+    const Uint32 send_buffer_bytes = b->m_current_send_buffer_size;
     b->unlock_send();
-  }
-  NdbMutex_Unlock(&b->m_mutex);
 
-  if (wake)
+    /**
+     * NOTE: There are two different variants of 'more_data' being
+     *   available for sending immediately after a do_send_buffer():
+     *
+     *  1) 'send_buffer_bytes > 0 && out_buffer_bytes == 0'
+     *     More data was flushed to the 'm_buffer' by other threads
+     *     while this thread waited for OS to send 'out_buffer_bytes'.
+     *     (Also see 'try_lock_send' comment above)
+     *
+     *  2) 'out_buffer_bytes > 0'
+     *     do_send_buffer() didn't send all m_out_buffer'ed data
+     *     being available when it was called. This was likely due
+     *     to too much send data, or the adaptive send being too lazy
+     *     (Also implies 'send_buffer_bytes > 0')
+     *
+     * In both cases we append the node to the 'm_has_data_nodes' set
+     * which is to be handled by the send thread.
+     *
+     * We need to wakeup the send thread if it was in either
+     * 'deep sleep', or in case of 2), where the send is lagging
+     * behind and immediate retry of the send is required.
+     *
+     * We do *not* want it to wake up immediately if taking a
+     * 'micro-nap. That would have prevented it from collecting
+     * a larger message to be sent after the 'nap'
+     */
+    Guard g(m_send_thread_mutex);
+    if (send_buffer_bytes > 0)
+    {
+      if (m_has_data_nodes.isclear() ||  //In 'deep sleep'
+          out_buffer_bytes > 0)          //Lagging behind, immediate retry
+      {
+        wakeup_send_thread();
+      }
+      m_has_data_nodes.set(node);
+    }
+    else
+    {
+      m_has_data_nodes.clear(node);
+    }
+  }
+}
+
+/**
+ * Try to send the prepared send buffers to all nodes
+ * having pending data. Called regularly from the
+ * send thread when woken up by the regular timer,
+ * or needed to off load a client thread having
+ * 'more_data' to send.
+ *
+ * Also see ::try_send_buffer() for comments.
+ */
+void
+TransporterFacade::try_send_all(const NodeBitmask& nodes)
+{
+  for (Uint32 node = nodes.find_first();
+       node != NodeBitmask::NotFound;
+       node = nodes.find_next(node+1))
   {
-    wakeup_send_thread();
+    struct TFSendBuffer *b = &m_send_buffers[node];
+    NdbMutex_Lock(&b->m_mutex);
+    if (likely(b->m_current_send_buffer_size > 0))
+    {
+      try_send_buffer(node, b);
+    }
+    else
+    {
+      Guard g(m_send_thread_mutex);
+      m_has_data_nodes.clear(node);
+    }
+    NdbMutex_Unlock(&b->m_mutex);
   }
 }
 
@@ -2841,40 +3887,43 @@ TransporterFacade::flush_and_send_buffer(Uint32 node, const TFBuffer * sb)
  * Any pending data in 'm_buffer' is appended to 
  * 'm_out_buffer' before sending.
  *
- * Will take care of any defered buffer reset
+ * Will take care of any deferred buffer reset
  * before return.
  */
 void
 TransporterFacade::do_send_buffer(Uint32 node, struct TFSendBuffer *b)
 {
   assert(!b->try_lock_send()); //Sending already locked
+  assert(b->m_node_enabled);
 
   /**
    * Copy all data from m_buffer to m_out_buffer
    */
   TFBuffer copy = b->m_buffer;
   b->m_buffer.clear();
-  NdbMutex_Unlock(&b->m_mutex);
+  b->m_flushed_cnt = 0;
 
+  /**
+   * Note that we still hold the 'b->m_sending' right
+   * even if we now unlock 'm_mutex'.
+   */
+  NdbMutex_Unlock(&b->m_mutex);
   if (copy.m_bytes_in_buffer > 0)
   {
     link_buffer(&b->m_out_buffer, &copy);
   }
-  theTransporterRegistry->performSend(node);
+  theTransporterRegistry->performSendNode(node);
 
   NdbMutex_Lock(&b->m_mutex);
   /**
-   * There might be a pending reset prev. skipped
-   * as it would have interfered with ongoing send.
+   * Sending to node could possible have been disabled
+   * wo/ 'out_buffer' being cleared as we held the send_lock.
+   * Thus, discard any out_buffer'ed send data now.
    */
-  if (unlikely(b->m_reset))
+  if (unlikely(!b->m_node_enabled && b->m_out_buffer.m_head != NULL))
   {
-    if (b->m_out_buffer.m_head != NULL)
-    {
-      m_send_buffer.release_list(b->m_out_buffer.m_head);
-      b->m_out_buffer.clear();
-    }
-    b->m_reset = false;
+    m_send_buffer.release_list(b->m_out_buffer.m_head);
+    b->m_out_buffer.clear();
   }
 
   /* Update pending bytes to be sent. */
@@ -2890,9 +3939,12 @@ TransporterFacade::do_send_buffer(Uint32 node, struct TFSendBuffer *b)
  * to back of from the 'm_out_buffer' for this node.
  */
 Uint32
-TransporterFacade::get_bytes_to_send_iovec(NodeId node, struct iovec *dst,
+TransporterFacade::get_bytes_to_send_iovec(NodeId node,
+                                           TrpId trp_id,
+                                           struct iovec *dst,
                                            Uint32 max)
 {
+  (void)trp_id;
   if (max == 0)
   {
     return 0;
@@ -2915,8 +3967,11 @@ TransporterFacade::get_bytes_to_send_iovec(NodeId node, struct iovec *dst,
 }
 
 Uint32
-TransporterFacade::bytes_sent(NodeId node, Uint32 bytes)
+TransporterFacade::bytes_sent(NodeId node,
+                              TrpId trp_id,
+                              Uint32 bytes)
 {
+  (void)trp_id;
   TFBuffer *b = &m_send_buffers[node].m_out_buffer;
   TFBufferGuard g0(* b);
   Uint32 used_bytes = b->m_bytes_in_buffer;
@@ -2963,56 +4018,182 @@ TransporterFacade::bytes_sent(NodeId node, Uint32 bytes)
   return used_bytes;
 }
 
-bool
-TransporterFacade::has_data_to_send(NodeId node)
+/**
+ * ::enable_send_buffer(), ::disable_send_buffer()
+ *
+ * Enable / disable send to the specified 'node'.
+ * Any pending data in the TransporterFacade and trp_client's
+ * send buffers are discarded when 'disabled'.
+ *
+ * Require the 'poll-right' to be held, and takes the required locks
+ * to update the global and local send buffer structures as needed.
+ *
+ * Handle both the 'global' send buffers in the TransporterFacade,
+ * and the clients thread-local send buffers. Note, that enable/disable is
+ * *not* an atomic operation across the global TF-buffers and thread-local
+ * client buffers: The consistency requirement is such that the global TF buffer
+ * should be enabled if any of the thread-local client buffers are enabled.
+ * Thus, the 'global' (TF) buffers has to be enabled prior to enabling
+ * any thread-local client buffers. While disabling, all thread-local buffers
+ * must be disabled before disabling the 'global' TF buffers.
+ *
+ * The above 'protocol' also ensure that trp_client::isSendEnabled()
+ * correctly reflect the current status of the local trp_client
+ * buffers and its related 'global' TF buffers.
+ *
+ * The poll-right guarantee that a enable/disable sequence is fully
+ * executed across both the global and local send buffers.
+ * It also protects against races between enable, disable (and close)
+ * of clients, which otherwise could result in an enabling being overtaken
+ * by a disable of the same node, or a client being closed while being
+ * notified about enable/disable.
+ *
+ * A 'global' TransporterFacade::m_enabled_nodes_mask holding the
+ * current set of enabled nodes is also maintained. 'Open' of new
+ * clients will  use this to init their current set of enabled nodes.
+ * (Must be set prior to client enable/disable callback to handle a
+ * a race in ::open_clnt()) 
+ *
+ * Also see comments for these methods in TransporterCallback.hpp,
+ * and how ::open_clnt() synchronize its set of enabled nodes. */
+void
+TransporterFacade::enable_send_buffer(NodeId node, TrpId trp_id)
 {
+  (void)trp_id;
+  assert(is_poll_owner_thread());
+
+  //Always set the 'outcome' first
+  NdbMutex_Lock(m_open_close_mutex);
+  assert(!m_enabled_nodes_mask.get(node));
+  m_enabled_nodes_mask.set(node);
+  NdbMutex_Unlock(m_open_close_mutex);
+
+  //Enable global buffers
+  {
+    struct TFSendBuffer *b = &m_send_buffers[node];
+    Guard g(&b->m_mutex);
+
+    //There should be no pending buffered send data
+    assert(b->m_buffer.m_bytes_in_buffer == 0);
+    assert(b->m_out_buffer.m_bytes_in_buffer == 0);
+
+    assert(b->m_node_enabled == false);
+    b->m_node_enabled = true;
+  }
+
+  //Enable thread-local buffers
+  const Uint32 sz = m_threads.m_clients.size();
+  for (Uint32 i = 0; i < sz ; i ++)
+  {
+    trp_client *const clnt = m_threads.m_clients[i].m_clnt;
+    if (clnt != NULL)
+    {
+      if (clnt->is_locked_for_poll())
+      {
+        clnt->enable_send(node);
+      }
+      else
+      {
+        Guard g(clnt->m_mutex);
+        clnt->enable_send(node);
+      }
+    }
+  }
+}
+
+void
+TransporterFacade::disable_send_buffer(NodeId node, TrpId trp_id)
+{
+  (void)trp_id;
+  assert(is_poll_owner_thread());
+
+  //Always set the 'outcome' first.
+  NdbMutex_Lock(m_open_close_mutex);
+  m_enabled_nodes_mask.clear(node);
+  NdbMutex_Unlock(m_open_close_mutex);
+
   /**
-   * Not used...
+   * Disable thread local buffers:
+   * disable and discard all clients send buffer to 'node'.
+   * Avoids these later being flushed to the TransporterFacade send buffer,
+   * creating a non-empty transporter send buffer when expecting
+   * to be empty after 'disable'.
    */
-  abort();
-  return false;
+  const Uint32 sz = m_threads.m_clients.size();
+  for (Uint32 i = 0; i < sz ; i ++)
+  {
+    trp_client * clnt = m_threads.m_clients[i].m_clnt;
+    if (clnt != NULL)
+    {
+      if (clnt->is_locked_for_poll())
+      {
+        clnt->disable_send(node);
+      }
+      else
+      {
+        Guard g(clnt->m_mutex);
+        clnt->disable_send(node);
+      }
+    }
+  }
+  
+  //Disable global buffers when all thread-locals are disabled.
+  {
+    struct TFSendBuffer *b = &m_send_buffers[node];
+    Guard g(&b->m_mutex);
+    b->m_node_enabled = false;
+    discard_send_buffer(b);
+    m_has_data_nodes.set(node);
+  }
 }
 
 /**
- * Precondition: No locks held, do the protection myself.
+ * Precondition: Called with 'm_mutex' lock held.
  *
- * Reset all buffered data to specified node. If there
- * are active senders (m_sending==true') to this node,
- * the reset of m_out_buffer is made 'pending'. It will
- * then be reset by the sender when it completes.
+ * Release all data in our two levels of send buffers.
+ * We do not wait for the 'sending lock' to become
+ * available. Instead the sender holding it will check 
+ * for 'disabled' send buffers and clear any remaining
+ * data in the m_out_buffer.
  */
 void
-TransporterFacade::reset_send_buffer(NodeId node, bool should_be_empty)
+TransporterFacade::discard_send_buffer(struct TFSendBuffer *b)
 {
-  Guard g(&m_send_buffers[node].m_mutex);
+  /**
+   * Clear the TransporterFacade two levels of send buffers.
+   */
   {
-    TFBuffer *b = &m_send_buffers[node].m_buffer;
-    if (b->m_head != 0)
+    TFBuffer *buffer = &b->m_buffer;
+    if (buffer->m_head != NULL)
     {
-      assert(!should_be_empty);
-      m_send_buffer.release_list(b->m_head);
-      b->clear();
+      m_send_buffer.release_list(buffer->m_head);
+      buffer->clear();
     }
   }
 
-  if (likely(m_send_buffers[node].try_lock_send()))
+  if (b->try_lock_send())
   {
-    TFBuffer *b = &m_send_buffers[node].m_out_buffer;
-    if (b->m_head != 0)
+    TFBuffer *out_buffer = &b->m_out_buffer;
+    if (out_buffer->m_head != NULL)
     {
-      assert(!should_be_empty);
-      m_send_buffer.release_list(b->m_head);
-      b->clear();
+      m_send_buffer.release_list(out_buffer->m_head);
+      out_buffer->clear();
     }
-    m_send_buffers[node].m_reset = false;
-    m_send_buffers[node].unlock_send();
+    b->unlock_send();
   }
   else
   {
-    // Await for current do_send_buffer() to complete
-    // before 'm_out_buffers' can be released.
-    m_send_buffers[node].m_reset = true;
+    /**
+     * Current do_send_buffer() hold the send lock.
+     * It will detect the disabled node when completed,
+     * and clear any remaining out_buffer. Thus,
+     * no further action is required now.
+     */
+    assert(!b->m_node_enabled);  //-> do_send_buffer() will clear
   }
+  
+  b->m_current_send_buffer_size = 0;
+  b->m_flushed_cnt = 0;
 }
 
 #ifdef UNIT_TEST
@@ -3376,3 +4557,65 @@ TransporterFacade::reportWakeup()
     dozer->trp_wakeup();
   };
 }
+
+#ifdef ERROR_INSERT
+
+/* Test methods to consume sendbuffer */
+static TFPage* consumed_sendbuff = 0;
+
+void 
+TransporterFacade::consume_sendbuffer(Uint32 bytes_remain)
+{
+  if (consumed_sendbuff)
+  {
+    ndbout_c("SendBuff already consumed, release first");
+    return;
+  }
+
+  Uint64 tot_size = m_send_buffer.get_total_send_buffer_size();
+  Uint64 used = m_send_buffer.get_total_used_send_buffer_size();
+  Uint32 page_count = 0;
+
+  while (tot_size - used > bytes_remain)
+  {
+    TFPage* p = m_send_buffer.try_alloc(1);
+    
+    if (p)
+    {
+      p->init();
+      p->m_next = consumed_sendbuff;
+      consumed_sendbuff = p;
+      page_count++;
+    }
+    else
+    {
+      break;
+    }
+    used = m_send_buffer.get_total_used_send_buffer_size();
+  }
+    
+  ndbout_c("Consumed %u pages, remaining bytes : %llu",
+           page_count,
+           m_send_buffer.get_total_send_buffer_size() - 
+           m_send_buffer.get_total_used_send_buffer_size());
+}
+
+void
+TransporterFacade::release_consumed_sendbuffer()
+{
+  if (!consumed_sendbuff)
+  {
+    ndbout_c("No sendbuffer consumed");
+    return;
+  }
+  
+  m_send_buffer.release_list(consumed_sendbuff);
+  
+  consumed_sendbuff = NULL;
+
+  ndbout_c("Remaining bytes : %llu",
+           m_send_buffer.get_total_send_buffer_size() - 
+           m_send_buffer.get_total_used_send_buffer_size());
+}
+
+#endif

@@ -1,5 +1,5 @@
 # Copyright (C) 2003, 2005, 2006 MySQL AB
-#  All rights reserved. Use is subject to license terms.
+#  Use is subject to license terms.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,

@@ -46,7 +46,7 @@ return 1;
 end|
 set autocommit= 0|
 set @a:= bug13825_2()|
-ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2' for key 't1.PRIMARY'
 select * from t1|
 i
 set @a:= f_2()|
@@ -55,7 +55,7 @@ i
 2
 4
 set @a:= f_3()|
-ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '20' for key 't1.PRIMARY'
 select * from t1|
 i
 2

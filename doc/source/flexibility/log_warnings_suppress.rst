@@ -15,11 +15,7 @@ This feature is intended to provide a general mechanism (using ``log_warnings_si
 Version Specific Information
 ============================
 
-  * :rn:`5.7.10-1`:
-    Variable :variable:`log_warnings_suppress` ported from |Percona Server| 5.6.
-
-  * :rn:`5.7.11-4`:
-    Feature has been removed from |Percona Server| 5.7 because |MySQL| 5.7.11 has implemented a new system variable, `log_statements_unsafe_for_binlog <https://dev.mysql.com/doc/refman/5.7/en/replication-options-binary-log.html#sysvar_log_statements_unsafe_for_binlog>`_, which implements the same effect.
+  * :rn:`8.0.12-1`: The feature was ported from |Percona Server| 5.7
 
 System Variables
 ================
@@ -44,8 +40,8 @@ Related Reading
 
   * `MySQL bug 42851 <http://bugs.mysql.com/bug.php?id=42851>`_
 
-  * `MySQL InnoDB replication <http://dev.mysql.com/doc/refman/5.7/en/innodb-and-mysql-replication.html>`_
+  * `MySQL InnoDB replication <http://dev.mysql.com/doc/refman/8.0/en/innodb-and-mysql-replication.html>`_
 
-  * `InnoDB Startup Options and System Variables <http://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html>`_
+  * `InnoDB Startup Options and System Variables <http://dev.mysql.com/doc/refman/8.0/en/innodb-parameters.html>`_
 
-  * `InnoDB Error Handling <http://dev.mysql.com/doc/refman/5.7/en/innodb-error-handling.html>`_
+  * `InnoDB Error Handling <http://dev.mysql.com/doc/refman/8.0/en/innodb-error-handling.html>`_

@@ -2,7 +2,6 @@
 # Basic test for InnoDB adaptive hash index partitions.
 # TODO: add another testcase that uses DEBUG_SYNC to check the partition locking
 #
---source include/have_innodb.inc
 
 # Check setup
 SELECT @@GLOBAL.innodb_adaptive_hash_index;
@@ -61,7 +60,4 @@ SET GLOBAL innodb_monitor_disable=module_adaptive_hash;
 
 DROP TABLE t1, t2, t3;
 
---disable_warnings
-SET GLOBAL innodb_monitor_enable=default;
-SET GLOBAL innodb_monitor_disable=default;
---enable_warnings
+--source include/innodb_monitor_restore.inc

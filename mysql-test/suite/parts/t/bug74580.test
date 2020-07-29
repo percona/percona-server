@@ -1,5 +1,4 @@
 # Test for bug 74580 (fatal signal 11 in convert_charset_partition_constant :sql/sql_partition.cc:202)
---source include/have_partition.inc
 
 SET @@collation_server=99;
 

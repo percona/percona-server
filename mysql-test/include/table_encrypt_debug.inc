@@ -1,7 +1,7 @@
 
 #------------------------------------------------------------------------------
 ## InnoDB transparent tablespace data encryption
-## This test case will test basic recovery from know DBUG_SUICIDE point .
+## This test case will test basic recovery from known DBUG_SUICIDE point .
 ##  - ib_crash_during_rotation_for_encryption (assert during key rotation)
 ##  - ib_crash_during_create_for_encryption (assert during create)
 ##  - ib_crash_during_decrypt_page (assert during page decryption)
@@ -10,8 +10,6 @@
 # --source include/no_valgrind_without_big.inc
 # Disable in valgrind because of timeout, cf. Bug#22760145
 --source include/not_valgrind.inc
---source include/have_innodb.inc
---source include/not_embedded.inc
 
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
@@ -19,15 +17,18 @@
 --source include/have_debug.inc
 
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("ibd can't be decrypted");
+call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
 call mtr.add_suppression("does not exist in the InnoDB internal data dictionary though MySQL is trying to drop it");
 call mtr.add_suppression("Cannot open table tde_db/.* from the internal data dictionary of InnoDB");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace for table `tde_db`.`t1` is set as discarded");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: The table .* doesn't have a corresponding tablespace, it was discarded.");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table .* because the \.ibd file is missing");
-call mtr.add_suppression("InnoDB: Trying to access missing tablespace [0-9]+");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot save statistics for table .* because the \.ibd file is missing");
+call mtr.add_suppression("\\[Warning\\] .* Tablespace for table `tde_db`.`t1` is set as discarded");
+call mtr.add_suppression("\\[Warning\\] .* Database page corruption or a failed file read of page");
+call mtr.add_suppression("\\[Warning\\] .* Cannot calculate statistics for table .* because the \.ibd file is missing");
+call mtr.add_suppression("\\[Warning\\] .* Cannot calculate statistics for table .* because file .*\.ibd cannot be decrypted");
+call mtr.add_suppression("\\[Warning\\] .* Trying to access missing tablespace [0-9]+");
+call mtr.add_suppression("\\[Warning\\] .* Cannot save statistics for table .* because the \.ibd file is missing");
+call mtr.add_suppression("\\[ERROR\\] .* The table .* doesn't have a corresponding tablespace, it was discarded.");
+call mtr.add_suppression("\\[ERROR\\] .* Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] .* Encryption algorithm support missing:");
 --enable_query_log
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
@@ -76,7 +77,7 @@ SHOW CREATE TABLE tde_db.t2;
 INSERT INTO tde_db.t2 VALUES(0, "aaaaa");
 INSERT INTO tde_db.t2 VALUES(1, "bbbbb");
 
---error 2013
+--error CR_SERVER_LOST
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 --enable_reconnect
 --source include/wait_until_connected_again.inc
@@ -96,7 +97,7 @@ DROP TABLE tde_db.t2;
 --exec echo "$KEYRING_RESTART_PARAM" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 SET SESSION debug="+d,ib_crash_during_create_for_encryption";
 # Execute the statement that causes the crash
---error 2013
+--error CR_SERVER_LOST
 CREATE TABLE tde_db.t2(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 --enable_reconnect
 --source include/wait_until_connected_again.inc
@@ -124,7 +125,7 @@ ALTER TABLE tde_db.t1 DISCARD TABLESPACE;
 --copy_file $MYSQLD_DATADIR/t1.ibd_back $MYSQLD_DATADIR/tde_db/t1.ibd
 SET SESSION debug="+d,ib_crash_during_decrypt_page";
 # Execute the statement that causes the crash
---error 2013
+--error CR_SERVER_LOST
 eval ALTER TABLE tde_db.t1 IMPORT TABLESPACE;
 --enable_reconnect
 --source include/wait_until_connected_again.inc
@@ -135,13 +136,46 @@ INSERT INTO tde_db.t1 VALUES(11, "lllll");
 --error ER_TABLESPACE_DISCARDED
 SELECT * FROM tde_db.t1 ORDER BY c1 ;
 DROP TABLE tde_db.t1;
-#DROP DATABASE tde_db;
 
 --exec echo "restart: " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
-# Cleanup
-#DROP DATABASE tde_db;
-eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;
 
+--remove_files_wildcard $MYSQLD_DATADIR/tde_db/ t1.*
+DROP DATABASE tde_db;
+
+--echo #
+--echo # Bug #27307740 [ERROR] [MY-011066] INNODB: CORRUPT LOG RECORD FOUND
+--echo # DURING CRASH RECOVERY
+--echo #
+
+CREATE DATABASE tde_db;
+
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "$KEYRING_RESTART_PARAM" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+CREATE TABLE tde_db.test_tbl(c1 int) ENCRYPTION="Y" ENGINE=InnoDB;
+
+# keyring_file specific
+if ($keyring_file_test)
+{
+  # Crash the server while executing ALTER INSTANCE ROTATE
+  SET SESSION debug="+d,keyring_file_backup_fail";
+  --error CR_SERVER_LOST
+  ALTER INSTANCE ROTATE INNODB MASTER KEY;
+  --enable_reconnect
+  --source include/wait_until_connected_again.inc
+  --disable_reconnect
+  SET SESSION debug="-d,keyring_file_backup_fail";
+}
+#--echo # Restart the server
+#--source include/start_mysqld.inc
+
+SELECT COUNT(*) FROM tde_db.test_tbl;
+
+DROP TABLE tde_db.test_tbl;
+
+# Cleanup
+DROP DATABASE tde_db;
+eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;

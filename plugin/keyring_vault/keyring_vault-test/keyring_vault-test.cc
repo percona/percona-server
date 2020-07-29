@@ -1,11 +1,11 @@
+#include <sql_plugin_ref.h>
+#include <time.h>
+#include <iostream>
+#include <memory>
+#include <set>
 #include "../vault_keyring.cc"
 #include "generate_credential_file.h"
 #include "vault_keys_container_ex.h"
-#include <iostream>
-#include <my_global.h>
-#include <set>
-#include <sql_plugin_ref.h>
-#include <time.h>
 
 static bool random_keys = false;
 static bool verbose;
@@ -21,7 +21,8 @@ static mysql_mutex_t LOCK_verbose;
 static mysql_mutex_t LOCK_keys_in_keyring;
 struct Key_in_keyring {
   Key_in_keyring(const char *key_id, const char *user_id)
-      : key_id(key_id), user_id(user_id),
+      : key_id(key_id),
+        user_id(user_id),
         key_signature(this->key_id + this->user_id) {}
 
   Key_in_keyring() {}
@@ -44,9 +45,9 @@ static void *generate(void *arg) {
   for (uint i = 0;
        my_atomic_load32(&number_of_keys_generated) < number_of_keys_to_generate;
        i = (i + 1) % number_of_keys_to_generate) {
-    char key_id[12];   // Key#1000000\0
-    char key_type[16]; // KeyType#1000000\0
-    char user[13];     // User#1000000\0
+    char key_id[12];    // Key#1000000\0
+    char key_type[16];  // KeyType#1000000\0
+    char user[13];      // User#1000000\0
     size_t key_len = rand() % 100;
 
     int key_nr = random_keys ? rand() % number_of_keys_to_generate : i;
@@ -86,12 +87,12 @@ static void *store(void *arg) {
   for (uint i = 0;
        my_atomic_load32(&number_of_keys_added) < number_of_keys_to_store;
        i = (i + 1) % number_of_keys_to_store) {
-    char key_id[12];   // Key#1000000\0
-    char key_type[16]; // KeyType#1000000\0
-    char user[13];     // User#1000000\0
+    char key_id[12];    // Key#1000000\0
+    char key_type[16];  // KeyType#1000000\0
+    char user[13];      // User#1000000\0
     uchar key_stack[] = "KEeeeeeeeEEEEEeeeeEEEEEEEEEEEEY!";
     uchar *key;
-    size_t key_len; // = rand() % 100;
+    size_t key_len;  // = rand() % 100;
     if (generate_random_keys_data) {
       key_len = rand() % max_generated_key_length;
       key = static_cast<uchar *>(
@@ -120,8 +121,7 @@ static void *store(void *arg) {
       keys_in_keyring.insert(key_in_keyring);
       mysql_mutex_unlock(&LOCK_keys_in_keyring);
     }
-    if (generate_random_keys_data)
-      my_free(key);
+    if (generate_random_keys_data) my_free(key);
 
     if (verbose) {
       mysql_mutex_lock(&LOCK_verbose);
@@ -142,9 +142,9 @@ static void *fetch(void *arg) {
   for (uint i = 0;
        my_atomic_load32(&number_of_keys_fetched) < number_of_keys_to_fetch;
        i = (i + 1) % number_of_keys_to_fetch) {
-    char key_id[12]; // Key#1000000\0
+    char key_id[12];  // Key#1000000\0
     char *key_type = NULL;
-    char user[13]; // User#1000000\0
+    char user[13];  // User#1000000\0
     char key[] = "KEeeeeeeeEEEEEeeeeEEEEEEEEEEEEY!";
 
     int key_nr = random_keys ? rand() % number_of_keys_to_fetch : i;
@@ -173,14 +173,12 @@ static void *fetch(void *arg) {
     if (verbose) {
       mysql_mutex_lock(&LOCK_verbose);
       std::cout << "Key fetched " << key_id << ' ';
-      if (key_type != NULL)
-        std::cout << key_type << ' ';
+      if (key_type != NULL) std::cout << key_type << ' ';
       std::cout << user << ' ';
       std::cout << (result ? "successful" : "failed") << std::endl;
       mysql_mutex_unlock(&LOCK_verbose);
     }
-    if (key_type != NULL)
-      my_free(key_type);
+    if (key_type != NULL) my_free(key_type);
   }
   my_thread_end();
   return NULL;
@@ -193,8 +191,8 @@ static void *remove(void *arg) {
   for (uint i = 0;
        my_atomic_load32(&number_of_keys_removed) < number_of_keys_to_remove;
        i = (i + 1) % number_of_keys_to_remove) {
-    char key_id[12]; // Key#1000000\0
-    char user[13];   // User#1000000\0
+    char key_id[12];  // Key#1000000\0
+    char user[13];    // User#1000000\0
 
     int key_nr = random_keys ? rand() % number_of_keys_to_remove : i;
     sprintf(key_id, "Key#%d", key_nr);
@@ -221,11 +219,9 @@ static bool keyring_vault_init_for_test() {
 #ifdef HAVE_PSI_INTERFACE
   keyring_init_psi_keys();
 #endif
-  if (init_keyring_locks())
-    return true;
+  if (init_keyring_locks()) return true;
 
-  if (init_curl())
-    return true;
+  if (init_curl()) return true;
 
   st_plugin_int plugin_info;
   plugin_info.name.str = const_cast<char *>("keyring_vault");
@@ -236,10 +232,8 @@ static bool keyring_vault_init_for_test() {
   // in keyring
   // Its behaviour is exactly the same as Vault_keys_container
   keys.reset(new keyring::Vault_keys_container_ex(logger.get()));
-  boost::movelib::unique_ptr<IVault_curl> vault_curl(
-      new Vault_curl(logger.get(), curl));
-  boost::movelib::unique_ptr<IVault_parser> vault_parser(
-      new Vault_parser(logger.get()));
+  std::unique_ptr<IVault_curl> vault_curl(new Vault_curl(logger.get(), curl));
+  std::unique_ptr<IVault_parser> vault_parser(new Vault_parser(logger.get()));
   IKeyring_io *keyring_io =
       new Vault_io(logger.get(), vault_curl.release(), vault_parser.release());
   is_keys_container_initialized =
@@ -260,7 +254,7 @@ int main(int argc, char **argv) {
 
   std::string credential_file_url = "./keyring_vault.conf";
   if (generate_credential_file(credential_file_url)) {
-    std::cerr << "Could not generate default keyring configuration file" 
+    std::cerr << "Could not generate default keyring configuration file"
               << std::endl;
     return 1;
   }
@@ -355,8 +349,7 @@ int main(int argc, char **argv) {
                             static_cast<void *>(&number_of_keys_to_generate)))
       return 6;
 
-  for (i = 0; i < threads_number; i++)
-    my_thread_join(&otid[i], &tret);
+  for (i = 0; i < threads_number; i++) my_thread_join(&otid[i], &tret);
 
   // To be sure that all keys added in this test are removed - we try to remove
   // all keys for which

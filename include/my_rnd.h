@@ -24,22 +24,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
+/**
+  @file include/my_rnd.h
   A wrapper to use OpenSSL PRNGs.
 */
 
-#include <my_global.h>
-#include <mysql_com.h>
+#include <stddef.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-double my_rnd_ssl(struct rand_struct *rand_st);
+double my_rnd_ssl(bool *failed);
 int my_rand_buffer(unsigned char *buffer, size_t buffer_size);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* MY_RANDOM_INCLUDED */

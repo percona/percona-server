@@ -3,7 +3,6 @@
 ########################################################################
 
 -- source include/have_log_bin.inc
--- source include/have_innodb.inc
 
 CREATE TABLE t1 (data LONGBLOB) ENGINE=InnoDB;
 

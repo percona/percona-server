@@ -1,7 +1,8 @@
-source include/have_tokudb.inc;
+--source include/not_log_bin.inc
+--source include/have_tokudb.inc
 
 set tokudb_enable_fast_update=1;
-source ../include/setup_fast_update_upsert.inc;
+--source ../include/setup_fast_update_upsert.inc
 
 # must have primary key
 create table t (ida int not null,

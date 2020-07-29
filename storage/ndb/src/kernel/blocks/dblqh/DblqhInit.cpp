@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,13 +32,66 @@
 #define JAM_FILE_ID 452
 
 
-#define DEBUG(x) { ndbout << "LQH::" << x << endl; }
+#define LQH_DEBUG(x) { ndbout << "LQH::" << x << endl; }
+
+Uint64 Dblqh::getTransactionMemoryNeed(
+    const Uint32 ldm_instance_count,
+    const ndb_mgm_configuration_iterator * mgm_cfg,
+    const bool use_reserved)
+{
+  Uint32 lqh_scan_recs = 0;
+  Uint32 lqh_op_recs = 0;
+  if (use_reserved)
+  {
+    require(!ndb_mgm_get_int_parameter(mgm_cfg,
+                                       CFG_LDM_RESERVED_OPERATIONS,
+                                       &lqh_op_recs));
+    require(!ndb_mgm_get_int_parameter(mgm_cfg,
+                                       CFG_LQH_RESERVED_SCAN_RECORDS,
+                                       &lqh_scan_recs));
+  }
+  else
+  {
+    require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_LQH_SCAN, &lqh_scan_recs));
+    require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_LQH_TC_CONNECT, &lqh_op_recs));
+  }
+  Uint64 scan_byte_count = 0;
+  scan_byte_count += ScanRecord_pool::getMemoryNeed(lqh_scan_recs);
+  scan_byte_count *= ldm_instance_count;
+
+  Uint64 op_byte_count = 0;
+  op_byte_count += TcConnectionrec_pool::getMemoryNeed(lqh_op_recs);
+  op_byte_count *= ldm_instance_count;
+
+  Uint32 lqh_commit_ack_markers = 4096;
+  Uint64 commit_ack_marker_byte_count = 0;
+  commit_ack_marker_byte_count +=
+    CommitAckMarker_pool::getMemoryNeed(lqh_commit_ack_markers);
+  return (op_byte_count + scan_byte_count + commit_ack_marker_byte_count);
+}
 
 void Dblqh::initData() 
 {
 #ifdef ERROR_INSERT
   c_master_node_id = RNIL;
 #endif
+
+  c_num_fragments_created_since_restart = 0;
+  c_fragments_in_lcp = 0;
+
+  m_update_size = 0;
+  m_insert_size = 0;
+  m_delete_size = 0;
+
+  c_gcp_stop_timer = 0;
+  c_is_io_lag_reported = false;
+  c_wait_lcp_surfacing = false;
+  c_executing_redo_log = 0;
+  c_start_phase_9_waiting = false;
+  c_outstanding_write_local_sysfile = false;
+  c_send_gcp_saveref_needed = false;
+  m_first_distributed_lcp_started = false;
+  m_in_send_next_scan = 0;
 
   caddfragrecFileSize = ZADDFRAGREC_FILE_SIZE;
   cgcprecFileSize = ZGCPREC_FILE_SIZE;
@@ -51,9 +104,7 @@ void Dblqh::initData()
   clogPartFileSize = lpinfo.partCount;
 
   cpageRefFileSize = ZPAGE_REF_FILE_SIZE;
-  cscanrecFileSize = 0;
   ctabrecFileSize = 0;
-  ctcConnectrecFileSize = 0;
   ctcNodeFailrecFileSize = MAX_NDB_NODES;
   cTransactionDeadlockDetectionTimeout = 100;
 
@@ -67,15 +118,15 @@ void Dblqh::initData()
   logPageRecord = 0;
   pageRefRecord = 0;
   tablerec = 0;
-  tcConnectionrec = 0;
   tcNodeFailRecord = 0;
   
   // Records with constant sizes
 
-  cLqhTimeOutCount = 0;
+  cLqhTimeOutCount = 1;
   cLqhTimeOutCheckCount = 0;
   cpackedListIndex = 0;
   m_backup_ptr = RNIL;
+
   clogFileSize = 16;
   cmaxLogFilesInPageZero = 40;
   cmaxValidLogFilesInPageZero = cmaxLogFilesInPageZero - 1;
@@ -84,14 +135,18 @@ void Dblqh::initData()
   cmaxLogFilesInPageZero_DUMP = 0;
 #endif
 
-   totalLogFiles = 0;
-   logFileInitDone = 0;
-   totallogMBytes = 0;
-   logMBytesInitDone = 0;
-   m_startup_report_frequency = 0;
+#if defined ERROR_INSERT
+  delayOpenFilePtrI = 0;
+#endif
+
+  totalLogFiles = 0;
+  logFileInitDone = 0;
+  totallogMBytes = 0;
+  logMBytesInitDone = 0;
+  m_startup_report_frequency = 0;
 
   c_active_add_frag_ptr_i = RNIL;
-  for (Uint32 i = 0; i < 1024; i++) {
+  for (Uint32 i = 0; i < 4096; i++) {
     ctransidHash[i] = RNIL;
   }//for
 
@@ -119,8 +174,8 @@ void Dblqh::initData()
   c_fragmentsStarted = 0;
   c_fragmentsStartedWithCopy = 0;
 
-  c_fragCopyTable = 0;
-  c_fragCopyFrag = 0;
+  c_fragCopyTable = RNIL;
+  c_fragCopyFrag = RNIL;
   c_fragCopyRowsIns = 0;
   c_fragCopyRowsDel = 0;
   c_fragBytesCopied = 0;
@@ -131,10 +186,68 @@ void Dblqh::initData()
   c_totalCopyRowsDel = 0;
   c_totalBytesCopied = 0;
 
+  c_is_first_gcp_save_started = false;
+  c_max_gci_in_lcp = 0;
+
+  c_current_local_lcp_instance = 0;
+  c_local_lcp_started = false;
+  c_full_local_lcp_started = false;
+  c_current_local_lcp_table_id = 0;
+  c_copy_frag_live_node_halted = false;
+  c_copy_frag_live_node_performing_halt = false;
+  c_tc_connect_rec_copy_frag = RNIL;
+  memset(&c_halt_copy_fragreq_save,
+         0xFF,
+         sizeof(c_halt_copy_fragreq_save));
+
+  c_copy_frag_halted = false;
+  c_copy_frag_halt_process_locked = false;
+  c_undo_log_overloaded = false;
+  c_copy_fragment_in_progress = false;
+  c_copy_frag_halt_state = COPY_FRAG_HALT_STATE_IDLE;
+  memset(&c_prepare_copy_fragreq_save,
+         0xFF,
+         sizeof(c_prepare_copy_fragreq_save));
+
+  m_node_restart_first_local_lcp_started = false;
+  m_node_restart_lcp_second_phase_started = false;
+  m_first_activate_fragment_ptr_i = RNIL;
+  m_second_activate_fragment_ptr_i = RNIL;
+  m_curr_lcp_id = 0;
+  m_curr_local_lcp_id = 0;
+  m_next_local_lcp_id = 0;
+  c_max_gci_in_lcp = 0;
+  c_local_lcp_sent_wait_complete_conf = false;
+  c_local_lcp_sent_wait_all_complete_lcp_req = false;
+  c_localLcpId = 0;
+  c_keep_gci_for_lcp = 0;
+  c_max_keep_gci_in_lcp = 0;
+  c_first_set_min_keep_gci = false;
+  m_restart_local_latest_lcp_id = 0;
 }//Dblqh::initData()
 
-void Dblqh::initRecords() 
+void Dblqh::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg) 
 {
+#if defined(USE_INIT_GLOBAL_VARIABLES)
+  {
+    void* tmp[] = { 
+      &addfragptr,
+      &fragptr,
+      &prim_tab_fragptr,
+      &gcpPtr,
+      &lcpPtr,
+      &logPartPtr,
+      &logFilePtr,
+      &lfoPtr,
+      &logPagePtr,
+      &pageRefPtr,
+      &scanptr,
+      &tabptr,
+      &m_tc_connect_ptr,
+    }; 
+    init_global_ptrs(tmp, sizeof(tmp)/sizeof(tmp[0]));
+  }
+#endif
   // Records with dynamic sizes
   addFragRecord = (AddFragRecord*)allocRecord("AddFragRecord",
 					      sizeof(AddFragRecord), 
@@ -231,19 +344,58 @@ void Dblqh::initRecords()
 					      sizeof(PageRefRecord),
 					      cpageRefFileSize);
 
-  c_scanRecordPool.setSize(cscanrecFileSize);
-  c_scanTakeOverHash.setSize(64);
+  c_scanTakeOverHash.setSize(128);
 
   tablerec = (Tablerec*)allocRecord("Tablerec",
 				    sizeof(Tablerec), 
 				    ctabrecFileSize);
 
-  tcConnectionrec = (TcConnectionrec*)allocRecord("TcConnectionrec",
-						  sizeof(TcConnectionrec),
-						  ctcConnectrecFileSize);
-  
-  m_commitAckMarkerPool.setSize(ctcConnectrecFileSize);
-  m_commitAckMarkerHash.setSize(1024);
+  Pool_context pc;
+  pc.m_block = this;
+
+  Uint32 reserveTcConnRecs = 0;
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg,
+              CFG_LDM_RESERVED_OPERATIONS, &reserveTcConnRecs));
+
+  ctcConnectReserved = reserveTcConnRecs;
+  ctcNumFree = reserveTcConnRecs;
+
+  tcConnect_pool.init(
+    TcConnectionrec::TYPE_ID,
+    pc,
+    reserveTcConnRecs,
+    ((1 << 28) - 1));
+  while (tcConnect_pool.startup())
+  {
+    refresh_watch_dog();
+  }
+
+  Uint32 reserveScanRecs = 0;
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg,
+                            CFG_LQH_RESERVED_SCAN_RECORDS,
+                            &reserveScanRecs));
+  c_scanRecordPool.init(
+    ScanRecord::TYPE_ID,
+    pc,
+    reserveScanRecs,
+    UINT32_MAX);
+  while (c_scanRecordPool.startup())
+  {
+    refresh_watch_dog();
+  }
+
+  Uint32 reserveCommitAckMarkers = 1024;
+
+  m_commitAckMarkerPool.init(
+    CommitAckMarker::TYPE_ID,
+    pc,
+    reserveCommitAckMarkers,
+    UINT32_MAX);
+  while (m_commitAckMarkerPool.startup())
+  {
+    refresh_watch_dog();
+  }
+  m_commitAckMarkerHash.setSize(4096);
   
   tcNodeFailRecord = (TcNodeFailRecord*)allocRecord("TcNodeFailRecord",
 						    sizeof(TcNodeFailRecord),
@@ -302,15 +454,17 @@ Dblqh::getParam(const char* name, Uint32* count)
 Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   SimulatedBlock(DBLQH, ctx, instanceNumber),
   m_reserved_scans(c_scanRecordPool),
+  c_scanTakeOverHash(c_scanRecordPool),
   c_lcp_waiting_fragments(c_fragment_pool),
   c_lcp_restoring_fragments(c_fragment_pool),
   c_lcp_complete_fragments(c_fragment_pool),
   c_queued_lcp_frag_ord(c_fragment_pool),
-  m_commitAckMarkerHash(m_commitAckMarkerPool),
-  c_scanTakeOverHash(c_scanRecordPool)
+  m_commitAckMarkerHash(m_commitAckMarkerPool)
 {
   BLOCK_CONSTRUCTOR(Dblqh);
 
+  addRecSignal(GSN_LOCAL_LATEST_LCP_ID_REP,
+               &Dblqh::execLOCAL_LATEST_LCP_ID_REP);
   addRecSignal(GSN_PACKED_SIGNAL, &Dblqh::execPACKED_SIGNAL);
   addRecSignal(GSN_DEBUG_SIG, &Dblqh::execDEBUG_SIG);
   addRecSignal(GSN_ATTRINFO, &Dblqh::execATTRINFO);
@@ -363,6 +517,7 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_ACCFRAGREF, &Dblqh::execACCFRAGREF);
   addRecSignal(GSN_TUPFRAGCONF, &Dblqh::execTUPFRAGCONF);
   addRecSignal(GSN_TUPFRAGREF, &Dblqh::execTUPFRAGREF);
+  addRecSignal(GSN_WAIT_LCP_IDLE_CONF, &Dblqh::execWAIT_LCP_IDLE_CONF);
   addRecSignal(GSN_TAB_COMMITREQ, &Dblqh::execTAB_COMMITREQ);
   addRecSignal(GSN_ACCSEIZECONF, &Dblqh::execACCSEIZECONF);
   addRecSignal(GSN_ACCSEIZEREF, &Dblqh::execACCSEIZEREF);
@@ -386,6 +541,7 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_SCAN_NEXTREQ, &Dblqh::execSCAN_NEXTREQ);
   addRecSignal(GSN_NEXT_SCANCONF, &Dblqh::execNEXT_SCANCONF);
   addRecSignal(GSN_NEXT_SCANREF, &Dblqh::execNEXT_SCANREF);
+  addRecSignal(GSN_ACC_CHECK_SCAN, &Dblqh::execACC_CHECK_SCAN);
   addRecSignal(GSN_COPY_FRAGREQ, &Dblqh::execCOPY_FRAGREQ);
   addRecSignal(GSN_COPY_FRAGREF, &Dblqh::execCOPY_FRAGREF);
   addRecSignal(GSN_COPY_FRAGCONF, &Dblqh::execCOPY_FRAGCONF);
@@ -396,8 +552,13 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_LCP_PREPARE_REF, &Dblqh::execLCP_PREPARE_REF);
   addRecSignal(GSN_LCP_PREPARE_CONF, &Dblqh::execLCP_PREPARE_CONF);
   addRecSignal(GSN_END_LCPCONF, &Dblqh::execEND_LCPCONF);
+  addRecSignal(GSN_WAIT_COMPLETE_LCP_REQ, &Dblqh::execWAIT_COMPLETE_LCP_REQ);
+  addRecSignal(GSN_WAIT_ALL_COMPLETE_LCP_CONF,
+               &Dblqh::execWAIT_ALL_COMPLETE_LCP_CONF);
+  addRecSignal(GSN_INFORM_BACKUP_DROP_TAB_CONF,
+               &Dblqh::execINFORM_BACKUP_DROP_TAB_CONF);
+  addRecSignal(GSN_LCP_ALL_COMPLETE_CONF, &Dblqh::execLCP_ALL_COMPLETE_CONF);
 
-  addRecSignal(GSN_EMPTY_LCP_REQ, &Dblqh::execEMPTY_LCP_REQ);
   addRecSignal(GSN_LCP_FRAG_ORD, &Dblqh::execLCP_FRAG_ORD);
   
   addRecSignal(GSN_START_FRAGREQ, &Dblqh::execSTART_FRAGREQ);
@@ -464,28 +625,45 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_LCP_STATUS_CONF, &Dblqh::execLCP_STATUS_CONF);
   addRecSignal(GSN_LCP_STATUS_REF, &Dblqh::execLCP_STATUS_REF);
 
+  addRecSignal(GSN_INFO_GCP_STOP_TIMER, &Dblqh::execINFO_GCP_STOP_TIMER);
+
+  addRecSignal(GSN_READ_LOCAL_SYSFILE_CONF,
+               &Dblqh::execREAD_LOCAL_SYSFILE_CONF);
+  addRecSignal(GSN_WRITE_LOCAL_SYSFILE_CONF,
+               &Dblqh::execWRITE_LOCAL_SYSFILE_CONF);
+  addRecSignal(GSN_UNDO_LOG_LEVEL_REP,
+               &Dblqh::execUNDO_LOG_LEVEL_REP);
+  addRecSignal(GSN_CUT_REDO_LOG_TAIL_REQ,
+               &Dblqh::execCUT_REDO_LOG_TAIL_REQ);
+  addRecSignal(GSN_COPY_FRAG_NOT_IN_PROGRESS_REP,
+               &Dblqh::execCOPY_FRAG_NOT_IN_PROGRESS_REP);
+  addRecSignal(GSN_SET_LOCAL_LCP_ID_CONF,
+               &Dblqh::execSET_LOCAL_LCP_ID_CONF);
+  addRecSignal(GSN_START_NODE_LCP_REQ,
+               &Dblqh::execSTART_NODE_LCP_REQ);
+  addRecSignal(GSN_START_LOCAL_LCP_ORD,
+               &Dblqh::execSTART_LOCAL_LCP_ORD);
+  addRecSignal(GSN_START_FULL_LOCAL_LCP_ORD,
+               &Dblqh::execSTART_FULL_LOCAL_LCP_ORD);
+  addRecSignal(GSN_HALT_COPY_FRAG_REQ,
+               &Dblqh::execHALT_COPY_FRAG_REQ);
+  addRecSignal(GSN_HALT_COPY_FRAG_CONF,
+               &Dblqh::execHALT_COPY_FRAG_CONF);
+  addRecSignal(GSN_RESUME_COPY_FRAG_REQ,
+               &Dblqh::execRESUME_COPY_FRAG_REQ);
+  addRecSignal(GSN_RESUME_COPY_FRAG_CONF,
+               &Dblqh::execRESUME_COPY_FRAG_CONF);
+
   initData();
 
-#ifdef VM_TRACE
-  {
-    void* tmp[] = { 
-      &addfragptr,
-      &fragptr,
-      &gcpPtr,
-      &lcpPtr,
-      &logPartPtr,
-      &logFilePtr,
-      &lfoPtr,
-      &logPagePtr,
-      &pageRefPtr,
-      &scanptr,
-      &tabptr,
-      &tcConnectptr,
-    }; 
-    init_globals_list(tmp, sizeof(tmp)/sizeof(tmp[0]));
-  }
-#endif
-  
+  c_transient_pools[DBLQH_OPERATION_RECORD_TRANSIENT_POOL_INDEX] =
+    &tcConnect_pool;
+  c_transient_pools[DBLQH_SCAN_RECORD_TRANSIENT_POOL_INDEX] =
+    &c_scanRecordPool;
+  c_transient_pools[DBLQH_COMMIT_ACK_MARKER_TRANSIENT_POOL_INDEX] =
+    &m_commitAckMarkerPool;
+  NDB_STATIC_ASSERT(c_transient_pool_count == 3);
+  c_transient_pools_shrinking.clear();
 }//Dblqh::Dblqh()
 
 Dblqh::~Dblqh() 
@@ -543,11 +721,6 @@ Dblqh::~Dblqh()
 		"Tablerec",
 		sizeof(Tablerec), 
 		ctabrecFileSize);
-  
-  deallocRecord((void**)&tcConnectionrec,
-		"TcConnectionrec",
-		sizeof(TcConnectionrec),
-		ctcConnectrecFileSize);
   
   deallocRecord((void**)&tcNodeFailRecord,
 		"TcNodeFailRecord",

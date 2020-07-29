@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2004-2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +39,7 @@ public:
     m_nodegroup_map_len= ng_map_len;
     m_print = false;
     m_print_log = false;
+    m_print_sql_log = false;
     m_print_data = false;
     m_print_meta = false;
     m_logCount = 0;
@@ -52,11 +52,12 @@ public:
 #endif
   virtual void tuple(const TupleS &, Uint32 fragId);
   virtual void logEntry(const LogEntry &);
-  virtual void endOfTuples() {};
+  virtual void endOfTuples() {}
   virtual void endOfLogEntrys();
-  virtual bool update_apply_status(const RestoreMetaData &metaData);
+  virtual bool update_apply_status(const RestoreMetaData &metaData, bool snapshotstart);
   bool m_print;
   bool m_print_log;
+  bool m_print_sql_log;
   bool m_print_data;
   bool m_print_meta;
   Uint32 m_logCount;

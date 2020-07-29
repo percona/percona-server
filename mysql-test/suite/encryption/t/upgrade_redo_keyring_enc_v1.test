@@ -1,0 +1,99 @@
+# This test contains keyring file created on 64bit which is not
+# portable
+--source include/have_64bit.inc
+--source include/no_valgrind_without_big.inc
+--source include/have_util_unzip.inc
+--source include/have_debug.inc
+
+--disable_query_log
+call mtr.add_suppression("Resizing redo log from");
+call mtr.add_suppression("Upgrading redo log");
+call mtr.add_suppression("Starting to delete and rewrite log files");
+call mtr.add_suppression("New log files created");
+call mtr.add_suppression("Unknown system variable 'show_compatibility_56'");
+call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+call mtr.add_suppression("Creating routine without parsing routine body");
+call mtr.add_suppression("Resolving dependency for the view");
+call mtr.add_suppression("references invalid");
+call mtr.add_suppression("doesn't exist");
+call mtr.add_suppression("information_schema");
+call mtr.add_suppression("Storage engine '.*' does not support system tables. \\[mysql.*\\]");
+call mtr.add_suppression("Table 'mysql.component' doesn't exist");
+call mtr.add_suppression("is expected to be transactional");
+call mtr.add_suppression("table is missing or has an incorrect definition");
+call mtr.add_suppression("ACL DDLs will not work unless mysql_upgrade is executed");
+call mtr.add_suppression("Native table .* has the wrong structure");
+call mtr.add_suppression("Column count of mysql.* is wrong");
+call mtr.add_suppression("Cannot open table mysql/version from the internal data dictionary of InnoDB though the .frm file for the table exists");
+call mtr.add_suppression("Column count of performance_schema.events_statements_summary_by_digest is wrong");
+call mtr.add_suppression("The privilege system failed to initialize correctly");
+call mtr.add_suppression("Missing system table mysql.global_grants");
+# InnoDB reports "Lock wait timeout" warnings when it tries to drop persistent
+# statistics while persistent statistics table is altered during upgrade.
+# This issue doesn't seem to cause any further trouble (as there is no persistent
+# stats for persistent stats table anyway), so we ignore these warnings here.
+call mtr.add_suppression("Unable to delete statistics for table mysql.");
+# new fields were added to these tables
+call mtr.add_suppression("Column count of performance_schema.replication_group_members is wrong. Expected 7, found 5");
+call mtr.add_suppression("Column count of performance_schema.replication_group_member_stats is wrong. Expected 13, found 9");
+call mtr.add_suppression("Column count of performance_schema.threads is wrong. Expected 18, found 17");
+call mtr.add_suppression("ACL table mysql.[a-zA-Z_]* missing. Some operations may fail.");
+call mtr.add_suppression("Info table is not ready to be used. Table 'mysql.slave_master_info' cannot be opened");
+call mtr.add_suppression("Error in checking mysql.slave_master_info repository info type of TABLE");
+call mtr.add_suppression("Error creating master info: Error checking repositories.");
+call mtr.add_suppression("Slave: Failed to initialize the master info structure for channel");
+call mtr.add_suppression("Failed to create or recover replication info repositories.");
+call mtr.add_suppression("db.opt file not found for test database. Using default Character set");
+call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode");
+call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode");
+
+# PS-5729 (Add server's UUID to percona system keys) introduces new version of redo log encryption header.
+# The structure of this header is the same as was before introducing PS-5729, apart from version field being changed to RKB.
+# After reading the new version we know that the redo log file was encrypted with encryption key that has UUID
+# in its name. Since we do not want to support encryption keys without UUID any more, we fail the upgrade if redo is
+# encrypted with key without UUID (i.e. redo log encryption header is of old version - lRK). The user should perform slow
+# shutdown and remove the encrypted redo log files before the upgrade (i.e remove redo log files encrypted with
+# old version).
+
+--echo # Stop DB server which was created by MTR default
+--source include/shutdown_mysqld.inc
+
+--echo # First we check if upgrade fails with appropriate message when server discovers that redo encryption is of old version.
+
+--enable_query_log
+
+let $DATA_DIR_NAME=data_redo_log_keyring_v1_encrypted;
+let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/$DATA_DIR_NAME/data;
+--source unzip_datadir.inc
+let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/upgrade_failure.log;
+
+--error 1
+--exec $MYSQLD_CMD --log-error=$MYSQLD_LOG --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 --keyring_file_data=$MYSQL_TMP_DIR/$DATA_DIR_NAME/mysecret_keyring2 $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD
+
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$MYSQLD_LOG
+--let SEARCH_PATTERN=Upgrade cannot continue as redo is encrypted with old, experimental version of KEYRING encryption. Please perform slow shutdown and remove old redo log files before upgrading.
+--source include/search_pattern_in_file.inc
+
+--echo # Now we remove the redo log files encrypted with old version. Server should be able
+--echo # to restart.
+
+--remove_file $MYSQLD_DATADIR1/ib_logfile0
+--remove_file $MYSQLD_DATADIR1/ib_logfile1
+
+--let $restart_parameters = "restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 --keyring_file_data=$MYSQL_TMP_DIR/$DATA_DIR_NAME/mysecret_keyring2 $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD"
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD KEYRING_PLUGIN_EARLY_LOAD
+--source include/start_mysqld.inc
+
+SELECT * FROM t1 LIMIT 10;
+
+--source include/shutdown_mysqld.inc
+
+# cleanup
+--remove_file $MYSQL_TMP_DIR/$DATA_DIR_NAME.zip
+--force-rmdir $MYSQL_TMP_DIR/$DATA_DIR_NAME
+--remove_file $MYSQLD_LOG
+
+--echo # Restart the server with default options.
+--let $restart_parameters=
+--source include/start_mysqld.inc

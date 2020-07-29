@@ -17,6 +17,7 @@
 # [--let $rpl_debug= 1]
 # [--let $keep_temp_files= 1]
 # [--let $dont_print_pattern= 1]
+# [--let $include_trx_payload_events=0]
 # --source include/assert_binlog_events.inc
 #
 # Parameters:
@@ -67,7 +68,7 @@
 #
 #       !Q(STATEMENT) -> Query/(use .*; )?STATEMENT
 #       !Begin -> !Q(BEGIN)
-#       !Commit -> !Q(COMMIT)
+#       !Commit -> (!Q(COMMIT) | Xid)
 #       !Insert -> (!Q(INSERT.*) | Table_map # Write_rows)
 #       !Update -> (!Q(UPDATE.*) | Table_map # Update_rows)
 #       !Delete -> (!Q(DELETE.*) | Table_map # Delete_rows)
@@ -77,6 +78,7 @@
 #       !DDL -> !Q(neither BEGIN or COMMIT)
 #       !Gtid_transaction -> Gtid # (DML_transaction | DDL)
 #       !Empty_gtid_transaction -> Gtid # Begin # Commit
+#       !Gtid_or_anon -> (Gtid | Anonymous_Gtid)
 #
 #     Whitespace around / and # is ignored.
 #
@@ -198,6 +200,7 @@ while ($_abe_verdict != 'ok')
   --let _ABE_DEBUG= $rpl_debug
   --let _ABE_EVENT_SEPARATOR= $event_separator
   --let _ABE_INCLUDE_HEADER_EVENTS= $include_header_events
+  --let _ABE_INCLUDE_TRX_PAYLOAD_EVENTS= $include_trx_payload_events
 
   ############################################################################
   perl;
@@ -207,6 +210,7 @@ while ($_abe_verdict != 'ok')
   my $debug = $ENV{'_ABE_DEBUG'};
   my $include_header_events = $ENV{'_ABE_INCLUDE_HEADER_EVENTS'};
   my $event_separator= $ENV{'_ABE_EVENT_SEPARATOR'};
+  my $include_trx_payload_events = $ENV{'_ABE_INCLUDE_TRX_PAYLOAD_EVENTS'};
   if ($event_separator == '')
   {
     $event_separator = '#';
@@ -222,6 +226,7 @@ while ($_abe_verdict != 'ok')
 
   # Expand syntactic sugar definitions.
   $event_sequence =~ s{!Gtid_transaction}{Gtid\n(!DDL|!DML_transaction)}g;
+  $event_sequence =~ s{!Gtid_or_anon}{(Gtid|Anonymous_Gtid)}g;
   $event_sequence =~ s{!Empty_gtid_transaction}{Gtid\n!Begin\n!Commit}g;
   $event_sequence =~ s{!DML_transaction}{!Begin\n!Multi_DML\n!Commit}g;
   $event_sequence =~ s{!DDL}{Query/(?!BEGIN|COMMIT).*}g;
@@ -261,8 +266,18 @@ while ($_abe_verdict != 'ok')
       # Six tab-separated fields; pick number 3 and number 6.
       s{^[^\t]+\t[^\t]+\t([^\t]+)\t[^\t]+\t[^\t]+\t([^\t]*)$}{$1/$2}
         or die "Unexpected line format in output line $line_number: $_";
-      if ($include_header_events or
-          ($1 ne 'Format_desc' && $1 ne 'Rotate' && $1 ne 'Previous_gtids'))
+      if (
+        # include header events
+        ($include_header_events and
+         ($1 eq 'Format_desc' || $1 eq 'Rotate' || $1 eq 'Previous_gtids')) or
+
+        # include trx payload events
+        ($include_trx_payload_events and ($1 eq 'Transaction_payload')) or
+
+        # include all other events
+        ($1 ne 'Format_desc' && $1 ne 'Rotate' &&
+         $1 ne 'Previous_gtids' && $1 ne 'Transaction_payload')
+      )
       {
         chomp;
         $result .= $_;
@@ -312,6 +327,7 @@ while ($_abe_verdict != 'ok')
       --echo statement=$statement
       --echo invert=$invert
       --echo include_header_events=$include_header_events
+      --echo include_trx_payload_events=$include_trx_payload_events
       --echo event_separator=$_ABE_EVENT_SEPARATOR
       --die Binlog contents did not match expected pattern.
     }

@@ -1,5 +1,4 @@
 # PS-3867: audit_log_include_accunts was incorrect when set on the command line
---source include/not_embedded.inc
 
 # setup some user accounts
 

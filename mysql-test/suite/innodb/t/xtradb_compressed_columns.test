@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 --echo # only blob/text/varchar/varbinary/json are supported
 --error ER_UNSUPPORTED_COMPRESSED_COLUMN_TYPE
@@ -9,11 +8,11 @@ CREATE TABLE t3 (a BLOB COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
 SHOW CREATE TABLE t3;
 CREATE TABLE t4 (a TEXT COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
 SHOW CREATE TABLE t4;
-CREATE TABLE t5 (a TEXT BINARY COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+CREATE TABLE t5 (a TEXT COLLATE utf8mb4_bin COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
 SHOW CREATE TABLE t5;
 CREATE TABLE t6(a TEXT CHARACTER SET gbk COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
 SHOW CREATE TABLE t6;
-CREATE TABLE t7(a TEXT BINARY CHARACTER SET gbk COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+CREATE TABLE t7(a TEXT CHARACTER SET gbk COLLATE gbk_bin COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
 SHOW CREATE TABLE t7;
 CREATE TABLE t8 (a VARBINARY(1000) COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
 SHOW CREATE TABLE t8;
@@ -203,15 +202,9 @@ SET GLOBAL innodb_compressed_columns_zip_level = @saved_innodb_compressed_column
 --echo #
 call mtr.add_suppression("InnoDB: Column .* in table .* has unexpected COMPRESSED attribute");
 
+--error ER_NOT_ALLOWED_COMMAND
 ALTER TABLE mysql.innodb_index_stats
   MODIFY stat_description VARCHAR(1024) COLLATE utf8_bin NOT NULL COLUMN_FORMAT COMPRESSED;
-CREATE TABLE t1(i INT);
---disable_result_log
-SELECT * FROM mysql.innodb_index_stats;
---enable_result_log
-DROP TABLE t1;
-ALTER TABLE mysql.innodb_index_stats
-  MODIFY stat_description VARCHAR(1024) COLLATE utf8_bin NOT NULL;
 
 --echo #
 --echo # Bug PS-5025 Assertion after altering a compressed column

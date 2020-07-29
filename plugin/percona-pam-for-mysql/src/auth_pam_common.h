@@ -25,30 +25,25 @@
  For the general description, see the top comment in auth_pam_common.c.
 */
 
-/* Define these macros ourselves, so we don't have to include my_global.h and
-can compile against unconfigured MySQL source tree.  */
-#define STDCALL
-
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
-#if HAVE_SECURITY_PAM_MISC_H
+#ifdef HAVE_SECURITY_PAM_MISC_H
 #include <security/pam_misc.h>
-#elif HAVE_SECURITY_OPENPAM_H
+#elif defined(HAVE_SECURITY_OPENPAM_H)
 #include <security/openpam.h>
 #endif
 
-#include <my_global.h>
-#include <mysql/plugin.h>
-#include <mysql/plugin_auth.h>
-#include <mysql/client_plugin.h>
+#include "mysql/client_plugin.h"
+#include "mysql/plugin.h"
+#include "mysql/plugin_auth.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 struct pam_conv_data {
-    MYSQL_PLUGIN_VIO *vio;
-    MYSQL_SERVER_AUTH_INFO *info;
+  MYSQL_PLUGIN_VIO *vio;
+  MYSQL_SERVER_AUTH_INFO *info;
 };
 
 extern MYSQL_PLUGIN auth_pam_plugin_info;
@@ -63,27 +58,22 @@ void auth_pam_common_init(const char *psi_category);
 int auth_pam_client_talk_init(void **talk_data);
 
 int auth_pam_talk_perform(const struct pam_message *msg,
-                          struct pam_response *resp,
-                          struct pam_conv_data *data,
+                          struct pam_response *resp, struct pam_conv_data *data,
                           void *talk_data);
 
 void auth_pam_client_talk_finalize(void *talk_data);
 
-int authenticate_user_with_pam_server (MYSQL_PLUGIN_VIO *vio,
-                                       MYSQL_SERVER_AUTH_INFO *info);
+int authenticate_user_with_pam_server(MYSQL_PLUGIN_VIO *vio,
+                                      MYSQL_SERVER_AUTH_INFO *info);
 
-int auth_pam_generate_auth_string_hash(char *outbuf,
-                                       unsigned int *buflen,
+int auth_pam_generate_auth_string_hash(char *outbuf, unsigned int *buflen,
                                        const char *inbuf,
                                        unsigned int inbuflen);
 
-int auth_pam_validate_auth_string_hash(char* const buf,
-                                       unsigned int len);
+int auth_pam_validate_auth_string_hash(char *const buf, unsigned int len);
 
-int auth_pam_set_salt(const char* password,
-                      unsigned int password_len,
-                      unsigned char* salt,
-                      unsigned char* salt_len);
+int auth_pam_set_salt(const char *password, unsigned int password_len,
+                      unsigned char *salt, unsigned char *salt_len);
 
 #ifdef __cplusplus
 }

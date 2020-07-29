@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,6 @@
 
 extern "C" void* runClusterMgr_C(void * me);
 
-
 /**
   @class ClusterMgr
   This class runs a heartbeat protocol between nodes, to detect if remote
@@ -65,7 +64,8 @@ public:
   
   void reportConnected(NodeId nodeId);
   void reportDisconnected(NodeId nodeId);
-  
+  void setProcessInfoUri(const char * scheme, const char * host,
+                         int port, const char * path);
   void doStop();
   void startThread();
 
@@ -136,6 +136,8 @@ public:
     Uint32 hbFrequency; // Heartbeat frequence 
     Uint32 hbCounter;   // # milliseconds passed since last hb sent
     Uint32 hbMissed;    // # missed heartbeats
+
+    bool processInfoSent;  // ProcessInfo Report has been sent to node
   };
   
   const trp_node & getNodeInfo(NodeId) const;
@@ -148,6 +150,7 @@ public:
    */
   int m_auto_reconnect;
   Uint32        m_connect_count;
+
 private:
   Uint32        m_max_api_reg_req_interval;
   Uint32        noOfAliveNodes;
@@ -158,6 +161,7 @@ private:
   NdbThread*    theClusterMgrThread;
 
   NdbCondition* waitForHBCond;
+  class ProcessInfo * m_process_info;
 
   enum Cluster_state m_cluster_state;
   /**
@@ -190,8 +194,7 @@ private:
   void execAPI_REGREQ    (const Uint32 * theData);
   void execAPI_REGCONF   (const NdbApiSignal*, const LinearSectionPtr ptr[]);
   void execAPI_REGREF    (const Uint32 * theData);
-  void execCONNECT_REP   (const NdbApiSignal*, const LinearSectionPtr ptr[]);
-  void execDISCONNECT_REP(const NdbApiSignal*, const LinearSectionPtr ptr[]);
+  void execDUMP_STATE_ORD(const NdbApiSignal*, const LinearSectionPtr ptr[]);
   void execNODE_FAILREP  (const NdbApiSignal*, const LinearSectionPtr ptr[]);
   void execNF_COMPLETEREP(const NdbApiSignal*, const LinearSectionPtr ptr[]);
 
@@ -220,6 +223,7 @@ private:
 
   void print_nodes(const char* where, NdbOut& out = ndbout);
   void recalcMinDbVersion();
+  void sendProcessInfoReport(NodeId nodeId);
 
 public:
   /**

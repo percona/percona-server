@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -17,40 +17,47 @@
   GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef TABLE_SESSION_ACCOUNT_CONNECT_ATTRS_H
 #define TABLE_SESSION_ACCOUNT_CONNECT_ATTRS_H
 
-#include "table_session_connect.h"
 /**
-  \addtogroup Performance_schema_tables
+  @file storage/perfschema/table_session_account_connect_attrs.h
+  TABLE SESSION_ACCOUNT_CONNECT_ATTRS.
+*/
+
+#include "storage/perfschema/table_session_connect.h"
+#include "thr_lock.h"
+
+/**
+  @addtogroup performance_schema_tables
   @{
 */
 
 /** Table PERFORMANCE_SCHEMA.SESSION_ACCOUNT_CONNECT_ATTRS. */
-class table_session_account_connect_attrs : public table_session_connect
-{
-public:
+class table_session_account_connect_attrs : public table_session_connect {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   /** Table builder */
-  static PFS_engine_table* create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
 
-protected:
+ protected:
   table_session_account_connect_attrs();
 
-public:
-  ~table_session_account_connect_attrs()
-  {}
+ public:
+  ~table_session_account_connect_attrs() {}
 
-protected:
+ protected:
   virtual bool thread_fits(PFS_thread *thread);
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
+  /** Table definition. */
+  static Plugin_table m_table_def;
 };
 
 /** @} */

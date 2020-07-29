@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,38 +23,40 @@
 #ifndef MYSQL_I_KEYS_CONTAINER_H
 #define MYSQL_I_KEYS_CONTAINER_H
 
-#include "i_keyring_key.h"
-#include "i_keyring_io.h"
-#include <vector>
+#include "plugin/keyring/common/i_keyring_io.h"
+#include "plugin/keyring/common/i_keyring_key.h"
 
 namespace keyring {
 
-struct Key_metadata
-{
+struct Key_metadata {
   std::string *id;
   std::string *user;
 
   Key_metadata() {}
-  Key_metadata(std::string *id, std::string *user)
-  {
-    this->id= id;
-    this->user= user;
+  Key_metadata(std::string *id, std::string *user) {
+    this->id = id;
+    this->user = user;
   }
 };
 
-class IKeys_container : public Keyring_alloc
-{
-public:
-  virtual my_bool init(IKeyring_io* keyring_io, std::string keyring_storage_url)= 0;
-  virtual my_bool store_key(IKey *key)= 0;
-  virtual IKey* fetch_key(IKey *key)= 0;
-  virtual my_bool remove_key(IKey *key)= 0;
-  virtual std::string get_keyring_storage_url()= 0;
-  virtual std::vector<Key_metadata> get_keys_metadata()= 0;
+class IKeys_container : public Keyring_alloc {
+ public:
+  IKeys_container() {}
 
-  virtual ~IKeys_container() {};
+  virtual bool init(IKeyring_io *keyring_io,
+                    std::string keyring_storage_url) = 0;
+  virtual bool store_key(IKey *key) = 0;
+  virtual IKey *fetch_key(IKey *key) = 0;
+  /** Internal function, returns the key from the internal hash, no locks */
+  virtual IKey *get_key_from_hash(IKey *key) = 0;
+  virtual bool remove_key(IKey *key) = 0;
+  virtual std::string get_keyring_storage_url() = 0;
+  virtual void set_keyring_io(IKeyring_io *keyring_io) = 0;
+  virtual std::vector<Key_metadata> get_keys_metadata() = 0;
+
+  virtual ~IKeys_container() {}
 };
 
-}//namespace keyring
+}  // namespace keyring
 
-#endif //MYSQL_I_KEYS_CONTAINER_H
+#endif  // MYSQL_I_KEYS_CONTAINER_H

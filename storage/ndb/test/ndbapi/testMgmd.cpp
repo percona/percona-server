@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -1428,7 +1428,8 @@ TESTCASE("Bug12352191",
 {
   INITIALIZER(runTestBug12352191);
 }
-TESTCASE("Bug61607", "")
+TESTCASE("Bug61607",
+         "ndb_mgmd incorrectly reports failure when there are no ndbds to stop")
 {
   INITIALIZER(runBug61607);
 }
@@ -1437,7 +1438,7 @@ TESTCASE("StopDuringStart", "")
   INITIALIZER(runStopDuringStart);
 }
 
-NDBT_TESTSUITE_END(testMgmd);
+NDBT_TESTSUITE_END(testMgmd)
 
 int main(int argc, const char** argv)
 {

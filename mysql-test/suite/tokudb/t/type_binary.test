@@ -77,7 +77,7 @@ select hex(cast(0x10 as binary(2)));
 # 
 create table t1 (b binary(2), vb varbinary(2));
 insert into t1 values(0x4120, 0x4120);
---error 1406
+--error ER_DATA_TOO_LONG
 insert into t1 values(0x412020, 0x412020);
 drop table t1;
 create table t1 (c char(2), vc varchar(2));
@@ -99,7 +99,7 @@ set @@sql_mode= @old_sql_mode;
 # Bug#14171: Wrong default value for a BINARY field
 #
 create table t1(f1 int, f2 binary(2) not null, f3 char(2) not null);
---error 1364
+--error ER_NO_DEFAULT_FOR_FIELD
 insert into t1 set f1=1;
 select hex(f2), hex(f3) from t1;
 drop table t1;

@@ -13,16 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
    USA */
-
 #pragma once
 
-#include "partitioning/partition_base.h"
+#include "sql/partitioning/partition_base.h"
 
 /* This class must contain engine-specific functions for partitioning */
 class ha_rockspart : public native_part::Partition_base {
  public:
   ha_rockspart(handlerton *hton, TABLE_SHARE *table_arg)
-      : native_part::Partition_base(hton, table_arg){};
+      : Partition_base(hton, table_arg){};
 
   ha_rockspart(handlerton *hton, TABLE_SHARE *table_arg,
                partition_info *part_info,
@@ -35,16 +34,19 @@ class ha_rockspart : public native_part::Partition_base {
 
   ~ha_rockspart() override {}
 
-  int open(const char *name, int mode, uint test_if_locked) override;
-  int create(const char *name, TABLE *form,
-             HA_CREATE_INFO *create_info) override;
-  enum row_type get_partition_row_type(uint part_id) override;
+  int open(const char *name, int mode, uint test_if_locked,
+           const dd::Table *table_def) override;
+  int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
+             dd::Table *table_def) override;
+  enum row_type get_partition_row_type(const dd::Table *, uint) override {
+    return ROW_TYPE_NOT_USED;
+  }
 
  private:
-  handler *get_file_handler(TABLE_SHARE *share, MEM_ROOT *alloc) override;
+  handler *get_file_handler(TABLE_SHARE *share, MEM_ROOT *alloc) const override;
   handler *clone(const char *name, MEM_ROOT *mem_root) override;
   ulong index_flags(uint inx, uint part, bool all_parts) const override;
-  const char **bas_ext() const override;
+  bool rpl_lookup_rows() override;
 
   void set_pk_can_be_decoded_for_each_partition();
   mutable bool m_pk_can_be_decoded = false;

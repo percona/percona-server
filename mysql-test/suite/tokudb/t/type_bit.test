@@ -21,10 +21,10 @@ select 0 + b'1000000000000001';
 drop table if exists t1,t2;
 --enable_warnings
 
---error 1439
+--error ER_TOO_BIG_DISPLAYWIDTH
 create table t1 (a bit(65));
 
---error 3013
+--error ER_INVALID_FIELD_SIZE
 create table t1 (a bit(0));
 
 create table t1 (a bit(64));
@@ -41,7 +41,7 @@ create table t1 (a bit);
 insert into t1 values (b'0');
 insert into t1 values (b'1');
 insert into t1 values (b'000');
---error 1406
+--error ER_DATA_TOO_LONG
 insert into t1 values (b'100');
 insert into t1 values (b'001');
 select hex(a) from t1;
@@ -53,7 +53,7 @@ create table t1 (a bit(2));
 insert into t1 values (b'00');
 insert into t1 values (b'01');
 insert into t1 values (b'10');
---error 1406
+--error ER_DATA_TOO_LONG
 insert into t1 values (b'100');
 select a+0 from t1;
 alter table t1 add key (a);
@@ -99,6 +99,7 @@ select hex(max(b)) from t1;
 select a+0, b+0, c+0 from t1 where a = 4 and b = 0 limit 2;
 select a+0, b+0, c+0 from t1 where a = 4 and b = 1;
 select a+0, b+0, c+0 from t1 where a = 4 and b = 1 and c=100;
+--sorted_result
 select a+0, b+0, c+0 from t1 order by b desc;
 select a+0, b+0, c+0 from t1 order by c;
 drop table t1;
@@ -180,7 +181,7 @@ drop table t1;
 #
 
 create table t1 (a bit(8)) engine=heap;
---error 1406
+--error ER_DATA_TOO_LONG
 insert into t1 values ('1111100000');
 select a+0 from t1;
 drop table t1;
@@ -234,9 +235,9 @@ create table t1 (a1 int(11), b1 bit(2));
 create table t2 (a2 int(11), b2 bit(2));
 insert into t1 values (1, 1), (2, 0), (3, 1), (4, 2);
 insert into t2 values (2, 1), (3, 0), (4, 1), (5, 2);
-select a1, a2, b1+0, b2+0 from t1 join t2 on a1 = a2;
+select a1, a2, b1+0, b2+0 from t1 join t2 on a1 = a2 order by a1, a2, b1+0, b2+0;
 select a1, a2, b1+0, b2+0 from t1 join t2 on a1 = a2 order by a1;
-select a1, a2, b1+0, b2+0 from t1 join t2 on b1 = b2;
+select a1, a2, b1+0, b2+0 from t1 join t2 on b1 = b2 order by a1, a2, b1+0, b2+0;
 select sum(a1), b1+0, b2+0 from t1 join t2 on b1 = b2 group by b1 order by 1;
 select 1 from t1 join t2 on b1 = b2 group by b1 order by 1;
 select b1+0,sum(b1), sum(b2) from t1 join t2 on b1 = b2 group by b1 order by 1;
@@ -338,7 +339,7 @@ DROP TABLE t2;
 
 CREATE TABLE t1(a BIT(13), KEY(a));
 --disable_warnings
---error 1406
+--error ER_DATA_TOO_LONG
 INSERT INTO t1(a) VALUES
 (65535),(65525),(65535),(65535),(65535),(65535),(65535),(65535),(65535),(65535);
 --enable_warnings

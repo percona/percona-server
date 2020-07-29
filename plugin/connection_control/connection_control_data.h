@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,53 +23,49 @@
 #ifndef CONNECTION_CONTROL_DATA_H
 #define CONNECTION_CONTROL_DATA_H
 
-#include <my_global.h>
+#include <atomic>
+
+#include "my_inttypes.h"
 
 /**
   Enum for system variables : Must be in sync with
   members of Connection_control_variables.
 */
-typedef enum opt_connection_control
-{
-  OPT_FAILED_CONNECTIONS_THRESHOLD= 0,
+typedef enum opt_connection_control {
+  OPT_FAILED_CONNECTIONS_THRESHOLD = 0,
   OPT_MIN_CONNECTION_DELAY,
   OPT_MAX_CONNECTION_DELAY,
   OPT_LAST /* Must be last */
-}opt_connection_control;
+} opt_connection_control;
 
 /**
   Enum for status variables : Must be in sync with
   memebers of Connection_control_statistics.
 */
-typedef enum stats_connection_control
-{
-  STAT_CONNECTION_DELAY_TRIGGERED= 0,
+typedef enum stats_connection_control {
+  STAT_CONNECTION_DELAY_TRIGGERED = 0,
   STAT_LAST /* Must be last */
-}stats_connection_control;
+} stats_connection_control;
 
-namespace connection_control
-{
-  /** Structure to maintain system variables */
-  class Connection_control_variables
-  {
-  public:
-    /* Various global variables */
-    int64 failed_connections_threshold;
-    int64 min_connection_delay;
-    int64 max_connection_delay;
-  };
+namespace connection_control {
+/** Structure to maintain system variables */
+class Connection_control_variables {
+ public:
+  /* Various global variables */
+  long long failed_connections_threshold;
+  long long min_connection_delay;
+  long long max_connection_delay;
+};
 
-  /** Structure to maintain statistics */
-  class Connection_control_statistics
-  {
-  public:
-    Connection_control_statistics()
-    {}
-    /* Various statistics to be collected */
-    volatile int64 stats_array[STAT_LAST];
-  };
-}
+/** Structure to maintain statistics */
+class Connection_control_statistics {
+ public:
+  Connection_control_statistics() {}
+  /* Various statistics to be collected */
+  std::atomic<int64> stats_array[STAT_LAST];
+};
+}  // namespace connection_control
 
 extern connection_control::Connection_control_statistics g_statistics;
 extern connection_control::Connection_control_variables g_variables;
-#endif // !CONNECTION_CONTROL_DATA_H
+#endif  // !CONNECTION_CONTROL_DATA_H

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #define RESTORE_H
 
 #include <ndb_global.h>
+#include "my_byteorder.h"
 #include <NdbOut.hpp>
 #include "../src/kernel/blocks/backup/BackupFormat.hpp"
 #include <NdbApi.hpp>
@@ -36,10 +37,12 @@
 
 #include <ndb_version.h>
 #include <version.h>
+#include <NdbMutex.h>
 
 #define NDB_RESTORE_STAGING_SUFFIX "$ST"
 #ifdef ERROR_INSERT
 #define NDB_RESTORE_ERROR_INSERT_SMALL_BUFFER 1
+#define NDB_RESTORE_ERROR_INSERT_SKIP_ROWS 2
 #endif
 
 enum TableChangesMask
@@ -59,13 +62,6 @@ enum TableChangesMask
    */
   TCM_ATTRIBUTE_DEMOTION = 0x4
 };
-
-inline
-bool
-isDrop6(Uint32 version)
-{
-  return (getMajor(version) == 5 && getMinor(version) == 2);
-}
 
 typedef NdbDictionary::Table NDBTAB;
 typedef NdbDictionary::Column NDBCOL;
@@ -131,6 +127,7 @@ class AttributeS {
 public:
   AttributeDesc * Desc;
   AttributeData Data;
+  void printAttributeValue() const;
 };
 
 class TupleS {
@@ -145,12 +142,12 @@ public:
   TupleS() {
     m_currentTable= 0;
     allAttrData= 0;
-  };
+  }
   ~TupleS()
   {
     if (allAttrData)
       delete [] allAttrData;
-  };
+  }
   TupleS(const TupleS& tuple); // disable copy constructor
   TupleS & operator=(const TupleS& tuple);
   int getNoOfAttributes() const;
@@ -165,6 +162,7 @@ struct FragmentInfo
   Uint64 noOfRecords;
   Uint32 filePosLow;
   Uint32 filePosHigh;
+  bool   sliceSkip;
 };
 
 class TableS {
@@ -194,6 +192,7 @@ class TableS {
   TableS *m_main_table;
   Uint32 m_main_column_id;
   Uint32 m_local_id;
+  bool m_has_blobs;
 
   Uint64 m_noOfRecords;
   Vector<FragmentInfo *> m_fragmentInfo;
@@ -240,52 +239,15 @@ public:
   
   int getNoOfAttributes() const { 
     return allAttributesDesc.size();
-  };
+  }
   
   bool have_auto_inc() const {
     return m_auto_val_attrib != 0;
-  };
+  }
 
   bool have_auto_inc(Uint32 id) const {
     return (m_auto_val_attrib ? m_auto_val_attrib->attrId == id : false);
-  };
-
-  Uint64 get_max_auto_val() const {
-    return m_max_auto_val;
-  };
-
-  void update_max_auto_val(const char *data, int size) {
-    union {
-      Uint8  u8;
-      Uint16 u16;
-      Uint32 u32;
-    } val;
-    Uint64 v;
-    switch(size){
-    case 64:
-      memcpy(&v,data,8);
-      break;
-    case 32:
-      memcpy(&val.u32,data,4);
-      v= val.u32;
-      break;
-    case 24:
-      v= uint3korr((unsigned char*)data);
-      break;
-    case 16:
-      memcpy(&val.u16,data,2);
-      v= val.u16;
-      break;
-    case 8:
-      memcpy(&val.u8,data,1);
-      v= val.u8;
-      break;
-    default:
-      return;
-    };
-    if(v > m_max_auto_val)
-      m_max_auto_val= v;
-  };
+  }
 
   bool get_auto_data(const TupleS & tuple, Uint32 * syskey, Uint64 * nextid) const;
 
@@ -318,10 +280,53 @@ public:
     return m_isSYSTAB_0;
   } 
 
+  /**
+   * isBlobRelated
+   * Returns true if a table contains blobs, or is
+   * a Blob parts table
+   */
+  bool isBlobRelated() const
+  {
+    return (m_has_blobs || m_main_table != NULL);
+  }
+
   inline
   bool isBroken() const {
     return m_broken || (m_main_table && m_main_table->isBroken());
   }
+
+  void setSliceSkipFlag(int fragmentId, bool value)
+  {
+    for (Uint32 i=0; i<m_fragmentInfo.size(); i++)
+    {
+      if (m_fragmentInfo[i]->fragmentNo == (Uint32) fragmentId)
+      {
+        m_fragmentInfo[i]->sliceSkip = value;
+        return;
+      }
+    }
+    ndbout_c("setSkipFlag() Error looking up info for fragment %u on table %s",
+             fragmentId,
+             m_dictTable->getName());
+    abort();
+  }
+
+  bool getSliceSkipFlag(int fragmentId) const
+  {
+    for (Uint32 i=0; i<m_fragmentInfo.size(); i++)
+    {
+      if (m_fragmentInfo[i]->fragmentNo == (Uint32)fragmentId)
+      {
+        return m_fragmentInfo[i]->sliceSkip;
+      }
+    }
+    ndbout_c("getSkipFlag() Error looking up info for fragment %u on table %s",
+             fragmentId,
+             m_dictTable->getName());
+    abort();
+    return false;
+  }
+
 
   bool m_staging;
   BaseString m_stagingName;
@@ -355,9 +360,15 @@ protected:
   UtilBuffer m_twiddle_buffer;
 
   bool  m_is_undolog;
+  void (* free_data_callback)(void*);
+  void *m_ctx; // context for callback function
 
-  void (* free_data_callback)();
   virtual void reset_buffers() {}
+
+  // In case of multiple backup parts, each backup part is
+  // identified by a unique part ID, which is m_part_id.
+  Uint32 m_part_id;
+  Uint32 m_part_count;
 
   bool openFile();
   void setCtlFile(Uint32 nodeId, Uint32 backupId, const char * path);
@@ -371,12 +382,13 @@ protected:
 
   void setName(const char * path, const char * name);
 
-  BackupFile(void (* free_data_callback)() = 0);
+  BackupFile(void (* free_data_callback)(void*) = 0, void *ctx = 0);
   virtual ~BackupFile();
 
 public:
   bool readHeader();
   bool validateFooter();
+  bool validateBackupFile();
 
   const char * getPath() const { return m_path;}
   const char * getFilename() const { return m_fileName;}
@@ -386,11 +398,21 @@ public:
                AttributeData * attr_data);
 
   Uint64 get_file_size() const { return m_file_size; }
-  Uint64 get_file_pos() const { return m_file_pos; }
+  /**
+   * get_file_size() and get_file_pos() are used to calculate restore
+   * progress percentage and works fine in normal mode.
+   *
+   * But, when compressed backup is enabled, m_file_pos gives the current file
+   * position in uncompressed state and m_file_size gives the backup file size
+   * in compressed state. So, Instead of m_file_pos, ndbzio_stream's m_file.in
+   * parameter is used to get current position in compressed state.This
+   * parameter also works when compressed backup is disabled.
+   */
+  Uint64 get_file_pos() const { return m_file.in; }
 #ifdef ERROR_INSERT
   void error_insert(unsigned int code); 
 #endif
-
+  static const Uint32 BUFFER_SIZE = 128*1024;
 private:
   void
   twiddle_atribute(const AttributeDesc * const attr_desc,
@@ -422,7 +444,8 @@ class RestoreMetaData : public BackupFile {
   Vector<DictObject> m_objects;
   
 public:
-  RestoreMetaData(const char * path, Uint32 nodeId, Uint32 bNo);
+  RestoreMetaData(const char * path, Uint32 nodeId, Uint32 bNo,
+                  Uint32 partId, Uint32 partCount);
   virtual ~RestoreMetaData();
   
   int loadContent();
@@ -437,8 +460,9 @@ public:
   Uint32 getObjType(Uint32 i) const { return m_objects[i].m_objType; }
   void* getObjPtr(Uint32 i) const { return m_objects[i].m_objPtr; }
   
+  Uint32 getStartGCP() const;
   Uint32 getStopGCP() const;
-  Uint32 getNdbVersion() const { return m_fileHeader.NdbVersion; };
+  Uint32 getNdbVersion() const { return m_fileHeader.NdbVersion; }
 }; // RestoreMetaData
 
 
@@ -452,14 +476,15 @@ public:
 
   // Constructor
   RestoreDataIterator(const RestoreMetaData &,
-                      void (* free_data_callback)());
+                      void (* free_data_callback)(void*), void*);
   virtual ~RestoreDataIterator();
   
   // Read data file fragment header
   bool readFragmentHeader(int & res, Uint32 *fragmentId);
   bool validateFragmentFooter();
+  bool validateRestoreDataIterator();
 
-  const TupleS *getNextTuple(int & res);
+  const TupleS *getNextTuple(int & res, const bool skipFragment);
   TableS *getCurrentTable();
 
 private:
@@ -525,9 +550,17 @@ public:
   }
   Uint32 size() const { return m_values.size(); }
   const AttributeS * operator[](int i) const { return m_values[i];}
+  void printSqlLog() const;
 };
 
 class RestoreLogIterator : public BackupFile {
+  /* The BackupFile buffer need to be big enough for biggest log entry data,
+   * not including log entry header.
+   * No harm in require space for a few extra words to header too.
+   */
+  static_assert(BackupFile::BUFFER_SIZE >=
+                  BackupFormat::LogFile::LogEntry::MAX_SIZE,
+                "");
 private:
   const RestoreMetaData & m_metaData;
 
@@ -536,9 +569,29 @@ private:
   LogEntry m_logEntry;
 public:
   RestoreLogIterator(const RestoreMetaData &);
-  virtual ~RestoreLogIterator() {};
+  virtual ~RestoreLogIterator() {}
 
+  bool isSnapshotstartBackup()
+  {
+    return m_is_undolog;
+  }
   const LogEntry * getNextLogEntry(int & res);
+};
+
+class RestoreLogger {
+public:
+  RestoreLogger();
+  ~RestoreLogger();
+  void log_info(const char* fmt, ...)
+         ATTRIBUTE_FORMAT(printf, 2, 3);
+  void log_debug(const char* fmt, ...)
+         ATTRIBUTE_FORMAT(printf, 2, 3);
+  void log_error(const char* fmt, ...)
+         ATTRIBUTE_FORMAT(printf, 2, 3);
+  void setThreadPrefix(const char* prefix);
+  const char* getThreadPrefix() const;
+private:
+  NdbMutex *m_mutex;
 };
 
 NdbOut& operator<<(NdbOut& ndbout, const TableS&);

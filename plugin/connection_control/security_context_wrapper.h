@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,27 +25,25 @@
 
 #include <mysql/plugin.h>
 
-namespace connection_control
-{
-  class Security_context_wrapper
-  {
-  public:
-    Security_context_wrapper(MYSQL_THD thd);
-    ~Security_context_wrapper()
-    {}
-    const char * get_proxy_user();
-    const char * get_priv_user();
-    const char * get_priv_host();
-    const char * get_user();
-    const char * get_host();
-    const char * get_ip();
-    bool security_context_exists();
-    bool is_super_user();
+namespace connection_control {
+class Security_context_wrapper {
+ public:
+  Security_context_wrapper(MYSQL_THD thd);
+  ~Security_context_wrapper() {}
+  const char *get_proxy_user();
+  const char *get_priv_user();
+  const char *get_priv_host();
+  const char *get_user();
+  const char *get_host();
+  const char *get_ip();
+  bool security_context_exists();
+  bool is_super_user();
+  bool is_connection_admin();
 
-  private:
-    bool get_property(const char *property, LEX_CSTRING *value);
-    MYSQL_SECURITY_CONTEXT m_sctx;
-    bool m_valid;
-  };
-}
-#endif // !HAVE_SECURITY_CONTEXT_WRAPPER_H
+ private:
+  bool get_property(const char *property, LEX_CSTRING *value);
+  MYSQL_SECURITY_CONTEXT m_sctx;
+  bool m_valid;
+};
+}  // namespace connection_control
+#endif  // !HAVE_SECURITY_CONTEXT_WRAPPER_H

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014,2015 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,14 +27,14 @@
 
 #include <iostream>
 #include <string>
-#include "my_global.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Base{
+#include "my_inttypes.h"
 
-enum Message_type
-{
+namespace Mysql {
+namespace Tools {
+namespace Base {
+
+enum Message_type {
   Message_type_info,
   Message_type_note,
   Message_type_warning,
@@ -45,43 +45,38 @@ enum Message_type
 /**
   Structure to represent message from server sent after executing query.
  */
-class Message_data
-{
-public:
+class Message_data {
+ public:
   Message_data(uint64 code, std::string message, Message_type message_type);
-  virtual ~Message_data()
-  { }
+  virtual ~Message_data() {}
   uint64 get_code() const;
   std::string get_message() const;
   Message_type get_message_type() const;
+  bool is_fatal() const;
   std::string get_message_type_string() const;
 
-  static const char* message_type_strings[];
+  static const char *message_type_strings[];
   static const int message_type_strings_count;
   /**
     Prints errors, warnings and notes to standard error.
   */
   virtual void print_error(std::string program_name) const;
 
-private:
+ private:
   uint64 m_code;
   std::string m_message;
   Message_type m_message_type;
 };
 
-
-class Warning_data: public Message_data
-{
-public:
-  Warning_data(uint64 code, std::string message, Message_type message_type):
-    Message_data(code, message, message_type)
-  { }
+class Warning_data : public Message_data {
+ public:
+  Warning_data(uint64 code, std::string message, Message_type message_type)
+      : Message_data(code, message, message_type) {}
   void print_error(std::string program_name) const;
 };
 
-
-}
-}
-}
+}  // namespace Base
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

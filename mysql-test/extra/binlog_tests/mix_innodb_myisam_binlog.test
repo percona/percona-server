@@ -6,7 +6,6 @@
 # Exec_Master_Log_Pos advances as expected.
 
 -- source include/have_log_bin.inc
--- source include/have_innodb.inc
 -- source include/have_myisam.inc
 
 
@@ -248,8 +247,13 @@ if (`SELECT @@GLOBAL.binlog_format = 'STATEMENT'`)
   # are present in binary log.
   --let $event_sequence= (Anonymous_)?Gtid # !Q(DROP.*TEMPORARY.*) # (Anonymous_)?Gtid # !Q(DROP.*TEMPORARY.*)
   --let $limit= 0,4
+  if (`SELECT @@session.binlog_transaction_compression = TRUE`)
+  {
+    --let $limit= 0,6
+  }
   --let $wait_for_binlog_events= 1
   --source include/assert_binlog_events.inc
+  --let $dont_print_pattern= 0
 }
 select get_lock("lock1",60);
 source include/show_binlog_events.inc;
@@ -357,7 +361,7 @@ if (`select @@binlog_format = 'ROW'`)
 
 if (`select @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
 {
-  --exec $MYSQL_BINLOG --start-position=$binlog_rollback_position $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
+  --exec $MYSQL_BINLOG --start-position=$binlog_rollback_position $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
 
   --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
   eval select
@@ -663,6 +667,9 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
 drop trigger trg_del_t2;
 drop table t1,t2,t3,t4,t5;
 drop function bug27417;
+if (`SELECT @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`) {
+  --remove_file $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
+}
 
 
 --echo end of tests

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,13 +20,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "rpl_info_values.h"
+#include "sql/rpl_info_values.h"
 
-#include "sql_string.h"       // String
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "sql_string.h"  // String
 
-
-Rpl_info_values::Rpl_info_values(int param_ninfo): value(0),
-    ninfo(param_ninfo) { }
+Rpl_info_values::Rpl_info_values(int param_ninfo)
+    : value(nullptr), ninfo(param_ninfo) {}
 
 /**
   Initializes a sequence of values to be read from or stored into a repository.
@@ -34,20 +35,22 @@ Rpl_info_values::Rpl_info_values(int param_ninfo): value(0),
   @c ninfo which is set while calling the constructor. Each value is created
   with the default size of @c FN_REFLEN.
 
-  @retval FALSE No error
-  @retval TRUE Failure
+  @retval false No error
+  @retval true Failure
 */
-bool Rpl_info_values::init()
-{
-  DBUG_ENTER("Rpl_info_values::init");
+bool Rpl_info_values::init() {
+  DBUG_TRACE;
 
-  if (!value && !(value= new String[ninfo]))
-      DBUG_RETURN(TRUE);
-
-  DBUG_RETURN(FALSE);
+  if (!value && !(value = new String[ninfo])) return true;
+  if (bitmap_init(&is_null, nullptr, ninfo)) {
+    delete[] value;
+    return true;
+  }
+  bitmap_clear_all(&is_null);
+  return false;
 }
 
-Rpl_info_values::~Rpl_info_values()
-{
-  delete [] value;
+Rpl_info_values::~Rpl_info_values() {
+  delete[] value;
+  bitmap_free(&is_null);
 }

@@ -55,7 +55,7 @@ select * from information_schema.tokudb_locks;
 select * from information_schema.tokudb_lock_waits;
 
 connection conn_b;
---error 1205 # lock timeout
+--error ER_LOCK_WAIT_TIMEOUT
 reap;
 commit;
 

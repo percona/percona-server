@@ -1,10 +1,15 @@
 # InnoDB transparent encryption on redo log and undo log
-# This test case will test basic encryption support with
-# concurrent execution
+# This test case will test basic encryption support with 
+# concuurent execution and
 
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb_max_16k.inc
---source include/not_embedded.inc
+
+--disable_query_log
+call mtr.add_suppression('Error in Log_event::read_log_event()');
+call mtr.add_suppression("Undo log can't be encrypted if the keyring plugin is not loaded.");
+call mtr.add_suppression("Check keyring plugin fail, please check the keyring plugin is loaded.");
+--enable_query_log
 
 # Create a table with encryption, should fail since keyring is not
 # loaded
@@ -18,12 +23,13 @@ let $MYSQLD_BASEDIR= `select @@basedir`;
 let SEARCH_FILE= $MYSQL_TMP_DIR/encrypt_log_output.err;
 
 # Test that the output appears.
-let $restart_parameters = restart: --no-console --log-error=$SEARCH_FILE;
+let $restart_parameters = restart: --no-console --log-error=$SEARCH_FILE ;
 --replace_result $SEARCH_FILE ERROR_LOG_FILE
 --source include/restart_mysqld.inc
 
 SELECT @@global.innodb_redo_log_encrypt ;
-SET GLOBAL innodb_redo_log_encrypt = MASTER_KEY;
+SET GLOBAL innodb_redo_log_encrypt = 1;
+SET GLOBAL innodb_undo_log_encrypt = 1;
 
 --let $wait_condition=SELECT @@global.innodb_redo_log_encrypt = 0
 --source include/wait_condition.inc
@@ -57,30 +63,41 @@ CREATE DATABASE test;
 EOF
 
 --echo # Prepare new datadir
-let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --innodb_undo_tablespaces=2 --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR_1 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap2.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR_1 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" $KEYRING_PLUGIN_EARLY_LOAD --keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap2.log 2>&1;
 
 --echo # Run the bootstrap command with keyring
 --exec $NEW_CMD
 
 --echo # Starting server with keyring plugin
---let $restart_parameters=restart: --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_undo_tablespaces=2 --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR_1 --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT
+--let $restart_parameters=restart: --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR_1 $KEYRING_PLUGIN_EARLY_LOAD --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT
 --replace_regex /\.dll/.so/
 --source include/start_mysqld_no_echo.inc
 
+
+
 SELECT @@global.innodb_redo_log_encrypt;
-SET GLOBAL innodb_redo_log_encrypt = MASTER_KEY;
+SET GLOBAL innodb_redo_log_encrypt = 1;
+SELECT @@global.innodb_undo_log_encrypt;
+SET GLOBAL innodb_undo_log_encrypt = 1;
+SELECT @@global.innodb_undo_log_encrypt;
 --replace_regex /\.dll/.so/
 --error ER_UDF_EXISTS
 eval INSTALL PLUGIN keyring_file SONAME '$KEYRING_PLUGIN';
 
 SET GLOBAL innodb_redo_log_encrypt = 0;
 SELECT @@global.innodb_redo_log_encrypt;
+SET GLOBAL innodb_undo_log_encrypt = 0;
+SELECT @@global.innodb_undo_log_encrypt;
 --replace_regex /\.dll/.so/
 --error ER_UDF_EXISTS
 eval INSTALL PLUGIN keyring_file SONAME '$KEYRING_PLUGIN';
 
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP DATABASE IF EXISTS tde_db;
 CREATE DATABASE tde_db;
 USE tde_db;
+--enable_warnings
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 
@@ -96,115 +113,123 @@ CREATE TABLE tde_db.t_non_encrypt(c2 INT NOT NULL PRIMARY KEY,
 
 DELIMITER |;
 CREATE PROCEDURE tde_db.populate_table_set_redo_encrypt(IN table_name VARCHAR(50))
-BEGIN
-	declare i int default 1;
-	declare has_error int default 0;
-	DECLARE CONTINUE HANDLER FOR 1062 SET has_error = 1;
-	while (i <= 2000) DO
+begin
+        declare i int default 1;
+        declare has_error int default 0;
+        DECLARE CONTINUE HANDLER FOR 1062 SET has_error = 1;
+        while (i <= 2000) DO
 
-		SET @sql_text = CONCAT('INSERT INTO ',table_name, '(c2,c3) VALUES (' , i,',' ,'CONCAT(REPEAT("a",6*512*512)))');
-		PREPARE stmt FROM @sql_text;
-		EXECUTE stmt;
-		set i = i + 1;
-		IF i%10 = 0 THEN SET GLOBAL innodb_redo_log_encrypt = MASTER_KEY;
-		END IF;
-		IF i%20 = 0 THEN SET GLOBAL innodb_redo_log_encrypt = 0;
-		END IF;
+                SET @sql_text = CONCAT('INSERT INTO ',table_name, '(c2,c3) VALUES (' , i,',' ,'CONCAT(REPEAT("a",6*512*512)))');
+                PREPARE stmt FROM @sql_text;
+                EXECUTE stmt;
+                set i = i + 1;
+                IF i%10 = 0 THEN SET GLOBAL innodb_redo_log_encrypt = 1;
+                END IF;
+                IF i%20 = 0 THEN SET GLOBAL innodb_redo_log_encrypt = 0;
+                END IF;
+                IF i%15 = 0 THEN SET GLOBAL innodb_undo_log_encrypt = 1;
+                END IF;
+                IF i%30 = 0 THEN SET GLOBAL innodb_undo_log_encrypt = 0;
+                END IF;
 
-	end while;
+        end while;
 end|
 CREATE PROCEDURE tde_db.update_table(IN table_name VARCHAR(50))
-BEGIN
-	declare i int default 1;
-	declare has_error int default 0;
-	DECLARE CONTINUE HANDLER FOR 1062 SET has_error = 1;
-	while (i <= 2000) DO
-		SET @sql_text = CONCAT('UPDATE ',table_name,  ' SET c2 = c2 * -1 ORDER BY RAND() LIMIT 2');
-		PREPARE stmt FROM @sql_text;
-		EXECUTE stmt;
-		set i = i + 1;
-	end while;
-END|
+begin
+        declare i int default 1;
+        declare has_error int default 0;
+        DECLARE CONTINUE HANDLER FOR 1062 SET has_error = 1;
+        while (i <= 2000) DO
+                SET @sql_text = CONCAT('UPDATE ',table_name,  ' SET c2 = c2 * -1 ORDER BY RAND() LIMIT 2');
+                PREPARE stmt FROM @sql_text;
+                EXECUTE stmt;
+                set i = i + 1;
+        end while;
+end|
 CREATE PROCEDURE tde_db.delete_table(IN table_name VARCHAR(50))
-BEGIN
-	declare i int default 1;
-	declare has_error int default 0;
-	DECLARE CONTINUE HANDLER FOR 1062 SET has_error = 1;
-	while (i <= 2000) DO
-		SET @sql_text = CONCAT('DELETE FROM  ',table_name,  '  ORDER BY RAND() LIMIT 2');
-		PREPARE stmt FROM @sql_text;
-		EXECUTE stmt;
-		set i = i + 1;
-	end while;
-END|
+begin
+        declare i int default 1;
+        declare has_error int default 0;
+        DECLARE CONTINUE HANDLER FOR 1062 SET has_error = 1;
+        while (i <= 2000) DO
+                SET @sql_text = CONCAT('DELETE FROM  ',table_name,  '  ORDER BY RAND() LIMIT 2');
+                PREPARE stmt FROM @sql_text;
+                EXECUTE stmt;
+                set i = i + 1;
+        end while;
+end|
 CREATE PROCEDURE tde_db.transaction_table(IN table_name VARCHAR(50))
-BEGIN
-	declare i int default 1;
-	declare iflag int default -1;
-	declare has_error int default 0;
-	DECLARE CONTINUE HANDLER FOR 1062 SET has_error = 1;
-	SET i = 3000;
-	START TRANSACTION;
-	while (i <= 9000) DO
-		SET @sql_text = CONCAT('INSERT INTO ',table_name, '(c2,c3) VALUES (' , i,',' ,'CONCAT(REPEAT("a",6*512*512)))');
-		PREPARE stmt FROM @sql_text;
-		EXECUTE stmt;
-		SET @sql_text = CONCAT('UPDATE ',table_name,  ' SET c2 = c2 * -1 ORDER BY RAND() LIMIT 2');
-		PREPARE stmt FROM @sql_text;
-		EXECUTE stmt;
-		set i = i + 1;
-		IF i%10 = 0 THEN SET GLOBAL innodb_redo_log_encrypt = MASTER_KEY;
-		END IF;
-		IF i%20 = 0 THEN SET GLOBAL innodb_redo_log_encrypt = 0;
-		END IF;
+begin
+        declare i int default 1;
+        declare iflag int default -1;
+        declare has_error int default 0;
+        DECLARE CONTINUE HANDLER FOR 1062 SET has_error = 1;
+        SET i = 3000;
+        START TRANSACTION;
+        while (i <= 9000) DO
+                SET @sql_text = CONCAT('INSERT INTO ',table_name, '(c2,c3) VALUES (' , i,',' ,'CONCAT(REPEAT("a",6*512*512)))');
+                PREPARE stmt FROM @sql_text;
+                EXECUTE stmt;
+                SET @sql_text = CONCAT('UPDATE ',table_name,  ' SET c2 = c2 * -1 ORDER BY RAND() LIMIT 2');
+                PREPARE stmt FROM @sql_text;
+                EXECUTE stmt;
+                set i = i + 1;
+                IF i%10 = 0 THEN SET GLOBAL innodb_redo_log_encrypt = 1;
+                END IF;
+                IF i%20 = 0 THEN SET GLOBAL innodb_redo_log_encrypt = 0;
+                END IF;
+                IF i%15 = 0 THEN SET GLOBAL innodb_undo_log_encrypt = 1;
+                END IF;
+                IF i%30 = 0 THEN SET GLOBAL innodb_undo_log_encrypt = 0;
+                END IF;
 
-		IF i%10 = 0 THEN
-		   SET @sql_text = CONCAT('DELETE FROM  ',table_name,  '  ORDER BY RAND() LIMIT 2');
-		   PREPARE stmt FROM @sql_text;
-		   EXECUTE stmt;
-		   START TRANSACTION;
-		   SET iflag = -1 * iflag;
-		END IF;
-		IF i%9 = 0 THEN
-		   IF iflag < 0 THEN
-		      COMMIT;
-		   ELSE
-		      ROLLBACK;
-		   END IF;
-		END IF;
-	end while;
-END|
+                IF i%10 = 0 THEN
+                   SET @sql_text = CONCAT('DELETE FROM  ',table_name,  '  ORDER BY RAND() LIMIT 2');
+                   PREPARE stmt FROM @sql_text;
+                   EXECUTE stmt;
+                   START TRANSACTION;
+                   SET iflag = -1 * iflag;
+                END IF;
+                IF i%9 = 0 THEN
+                   IF iflag < 0 THEN
+                      COMMIT;
+                   ELSE
+                      ROLLBACK;
+                   END IF;
+                END IF;
+        end while;
+end|
 CREATE PROCEDURE tde_db.create_table_rotate_key()
-BEGIN
-	declare i int default 1;
-	declare has_error int default 0;
-	DECLARE CONTINUE HANDLER FOR 1062 SET has_error = 1;
-	while (i <= 2000) DO
+begin
+        declare i int default 1;
+        declare has_error int default 0;
+        DECLARE CONTINUE HANDLER FOR 1062 SET has_error = 1;
+        while (i <= 2000) DO
 
-		IF i%10 = 0 THEN
-		SET @sql_text = CONCAT('CREATE TABLE ',CONCAT('tde_db.t_non_encrypt_',encrypt,'_',i),' (c1 INT) ' ,' ENGINE=InnoDB');
-		ELSE
-		SET @sql_text = CONCAT('CREATE TABLE ',CONCAT('tde_db.t_encrypt_',encrypt,'_',i),' (c1 INT) ENCRYPTION="Y"' ,' ENGINE=InnoDB');
-		END IF;
-		PREPARE stmt FROM @sql_text;
-		EXECUTE stmt;
-		DEALLOCATE PREPARE stmt;
-		ALTER INSTANCE ROTATE INNODB MASTER KEY;
-		set i = i + 1;
-	end while;
-END|
+                IF i%10 = 0 THEN
+                SET @sql_text = CONCAT('CREATE TABLE ',CONCAT('tde_db.t_non_encrypt_',encrypt,'_',i),' (c1 INT) ' ,' ENGINE=InnoDB');
+                ELSE
+                SET @sql_text = CONCAT('CREATE TABLE ',CONCAT('tde_db.t_encrypt_',encrypt,'_',i),' (c1 INT) ENCRYPTION="Y"' ,' ENGINE=InnoDB');
+                END IF;
+                PREPARE stmt FROM @sql_text;
+                EXECUTE stmt;
+                DEALLOCATE PREPARE stmt;
+                ALTER INSTANCE ROTATE INNODB MASTER KEY;
+                set i = i + 1;
+        end while;
+end|
 CREATE PROCEDURE tde_db.query_table(IN table_name VARCHAR(50))
-BEGIN
-	declare i int default 1;
-	declare has_error int default 0;
-	DECLARE CONTINUE HANDLER FOR 1062 SET has_error = 1;
-	while (i <= 2000) DO
-		SET @sql_text = CONCAT('SELECT * FROM ',table_name,  '  ORDER BY RAND() LIMIT 2');
-		PREPARE stmt FROM @sql_text;
-		EXECUTE stmt;
-		set i = i + 1;
-	end while;
-END|
+begin
+        declare i int default 1;
+        declare has_error int default 0;
+        DECLARE CONTINUE HANDLER FOR 1062 SET has_error = 1;
+        while (i <= 2000) DO
+                SET @sql_text = CONCAT('SELECT * FROM ',table_name,  '  ORDER BY RAND() LIMIT 2');
+                PREPARE stmt FROM @sql_text;
+                EXECUTE stmt;
+                set i = i + 1;
+        end while;
+end|
 DELIMITER ;|
 
 --echo # In connection con1 - Running insert with redo_log_encrypt variable
@@ -215,12 +240,21 @@ send call tde_db.populate_table_set_redo_encrypt('tde_db.t_encrypt');
 connect (con2,localhost,root,,);
 send call tde_db.populate_table_set_redo_encrypt('tde_db.t_non_encrypt');
 
+
 --connection default
+--sleep 3
 --echo # Starting server with keyring plugin
-let $restart_parameters = restart: --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT  --innodb_undo_tablespaces=2 --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR_1;
+let $restart_parameters = restart: --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE $KEYRING_PLUGIN_EARLY_LOAD --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR_1;
+--sleep 3
 --let $_server_id= `SELECT @@server_id`
---let $restart_hide_args=1
---source include/kill_and_restart_mysqld.inc
+--let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
+--exec echo "$restart_parameters" > $_expect_file_name
+--shutdown_server 0
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
 
 --disconnect con1
 --disconnect con2
@@ -271,11 +305,17 @@ connect (con11,localhost,root,,);
 send call tde_db.query_table('tde_db.t_non_encrypt');
 
 --connection default
+--sleep 20
 --echo # Starting server with keyring plugin
---let $restart_hide_args=1
-let $restart_parameters = restart: --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT  --innodb_undo_tablespaces=2 --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR_1;
---source include/kill_and_restart_mysqld.inc
-
+let $restart_parameters = restart: --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE $KEYRING_PLUGIN_EARLY_LOAD --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR_1;
+--let $_server_id= `SELECT @@server_id`
+--let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
+--exec echo "$restart_parameters" > $_expect_file_name
+--shutdown_server 0
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
 
 --disconnect con1
 --disconnect con2
@@ -328,3 +368,4 @@ DROP DATABASE tde_db;
 eval SET GLOBAL innodb_file_per_table=$old_innodb_file_per_table;
 eval SET GLOBAL innodb_redo_log_encrypt=$old_innodb_redo_log_encrypt;
 --enable_query_log
+

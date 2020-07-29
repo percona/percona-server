@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,28 +23,36 @@
 #ifndef MYSQL_HASH_TO_BUFFER_SERIALIZER_H
 #define MYSQL_HASH_TO_BUFFER_SERIALIZER_H
 
-#include "i_serializer.h"
-#include "i_keyring_key.h"
-#include "buffer.h"
+#include <memory>
+#include <string>
 
-namespace keyring
-{
-  class Hash_to_buffer_serializer : public ISerializer
-  {
-  public:
-    ISerialized_object* serialize(HASH *keys_hash, IKey *key,
-                                  const Key_operation operation);
+#include "map_helpers.h"
+#include "my_inttypes.h"
+#include "plugin/keyring/buffer.h"
+#include "plugin/keyring/common/i_keyring_key.h"
+#include "plugin/keyring/common/i_serializer.h"
 
-    void set_memory_needed_for_buffer(size_t memory_needed_for_buffer)
-    {
-      this->memory_needed_for_buffer= memory_needed_for_buffer;
-    }
-  protected:
-    size_t memory_needed_for_buffer;
+namespace keyring {
+class Hash_to_buffer_serializer : public ISerializer {
+ public:
+  ISerialized_object *serialize(
+      const collation_unordered_map<std::string, std::unique_ptr<IKey>>
+          &keys_hash,
+      IKey *key, const Key_operation operation);
 
-    my_bool store_keys_in_buffer(HASH *keys_hash, Buffer *buffer);
-    my_bool store_key_in_buffer(const IKey* key, Buffer *buffer);
-  };
-}
+  void set_memory_needed_for_buffer(size_t memory_needed_for_buffer) {
+    this->memory_needed_for_buffer = memory_needed_for_buffer;
+  }
 
-#endif //MYSQL_HASH_TO_BUFFER_SERIALIZER_H
+ protected:
+  size_t memory_needed_for_buffer;
+
+  bool store_keys_in_buffer(
+      const collation_unordered_map<std::string, std::unique_ptr<IKey>>
+          &keys_hash,
+      Buffer *buffer);
+  bool store_key_in_buffer(const IKey *key, Buffer *buffer);
+};
+}  // namespace keyring
+
+#endif  // MYSQL_HASH_TO_BUFFER_SERIALIZER_H

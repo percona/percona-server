@@ -1,4 +1,4 @@
-# restart:--log-error=LOG_FILE
+# restart:--log-error=LOG_FILE --log-error-verbosity=3
 create database rocksdb_checksums_test;
 use rocksdb_checksums_test;
 set @save_rocksdb_store_row_debug_checksums=@@global.rocksdb_store_row_debug_checksums;
@@ -15,6 +15,12 @@ insert into t1 values (1,1,1),(2,2,2),(3,3,3);
 check table t1;
 Table	Op	Msg_type	Msg_text
 rocksdb_checksums_test.t1	check	status	OK
+Pattern "CHECKTABLE t1: Checking table t1" found
+Pattern "CHECKTABLE t1:   Checking index a" found
+Pattern "CHECKTABLE t1:   \.\.\. 3 index entries checked \(0 had checksums\)" found
+Pattern "CHECKTABLE t1:   Checking index b" found
+Pattern "CHECKTABLE t1:   \.\.\. 3 index entries checked \(0 had checksums\)" found
+Pattern "CHECKTABLE t1:   0 table records had checksums" found
 drop table t1;
 set session rocksdb_store_row_debug_checksums=on;
 create table t2 (pk int primary key, a int, b int, key(a), key(b)) engine=rocksdb;
@@ -22,6 +28,12 @@ insert into t2 values (1,1,1),(2,2,2),(3,3,3);
 check table t2;
 Table	Op	Msg_type	Msg_text
 rocksdb_checksums_test.t2	check	status	OK
+Pattern "CHECKTABLE t2: Checking table t2" found
+Pattern "CHECKTABLE t2:   Checking index a" found
+Pattern "CHECKTABLE t2:   \.\.\. 3 index entries checked \(3 had checksums\)" found
+Pattern "CHECKTABLE t2:   Checking index b" found
+Pattern "CHECKTABLE t2:   \.\.\. 3 index entries checked \(3 had checksums\)" found
+Pattern "CHECKTABLE t2:   3 table records had checksums" found
 # Now, make a table that has both rows with checksums and without
 create table t3 (pk int primary key, a int, b int, key(a), key(b)) engine=rocksdb;
 insert into t3 values (1,1,1),(2,2,2),(3,3,3);
@@ -31,6 +43,12 @@ set session rocksdb_store_row_debug_checksums=on;
 check table t3;
 Table	Op	Msg_type	Msg_text
 rocksdb_checksums_test.t3	check	status	OK
+Pattern "CHECKTABLE t3: Checking table t3" found
+Pattern "CHECKTABLE t3:   Checking index a" found
+Pattern "CHECKTABLE t3:   \.\.\. 3 index entries checked \(3 had checksums\)" found
+Pattern "CHECKTABLE t3:   Checking index b" found
+Pattern "CHECKTABLE t3:   \.\.\. 3 index entries checked \(2 had checksums\)" found
+Pattern "CHECKTABLE t3:   2 table records had checksums" found
 set session rocksdb_store_row_debug_checksums=on;
 set session rocksdb_checksums_pct=5;
 create table t4 (pk int primary key, a int, b int, key(a), key(b)) engine=rocksdb;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,98 +32,133 @@
 
 #define DEBUG(x) { ndbout << "ACC::" << x << endl; }
 
+Uint64 Dbacc::getTransactionMemoryNeed(
+    const Uint32 ldm_instance_count,
+    const ndb_mgm_configuration_iterator * mgm_cfg,
+    const bool use_reserved)
+{
+  Uint32 acc_scan_recs = 0;
+  Uint32 acc_op_recs = 0;
+
+  if (use_reserved)
+  {
+    require(!ndb_mgm_get_int_parameter(mgm_cfg,
+                                       CFG_ACC_RESERVED_SCAN_RECORDS,
+                                       &acc_scan_recs));
+    require(!ndb_mgm_get_int_parameter(mgm_cfg,
+                                       CFG_LDM_RESERVED_OPERATIONS,
+                                       &acc_op_recs));
+  }
+  else
+  {
+    require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_ACC_SCAN, &acc_scan_recs));
+    require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_ACC_OP_RECS, &acc_op_recs));
+  }
+  Uint64 scan_byte_count = 0;
+  scan_byte_count += ScanRec_pool::getMemoryNeed(acc_scan_recs);
+  scan_byte_count *= ldm_instance_count;
+
+  Uint64 op_byte_count = 0;
+  op_byte_count += Operationrec_pool::getMemoryNeed(acc_op_recs);
+  op_byte_count *= ldm_instance_count;
+  return (scan_byte_count + op_byte_count);
+}
+
 void Dbacc::initData() 
 {
-  coprecsize = ZOPRECSIZE;
-  cpagesize = ZPAGESIZE;
   ctablesize = ZTABLESIZE;
   cfragmentsize = ZFRAGMENTSIZE;
-  cscanRecSize = ZSCAN_REC_SIZE;
 
   Pool_context pc;
   pc.m_block = this;
   directoryPool.init(RT_DBACC_DIRECTORY, pc);
 
   fragmentrec = 0;
-  operationrec = 0;
-  page8 = 0;
-  scanRec = 0;
   tabrec = 0;
 
-  m_free_pct = 0;
-  m_oom = false;
-  cnoOfAllocatedPagesMax = cnoOfAllocatedPages = cpagesize = cpageCount = m_maxAllocPages = 0;
+  void* ptr = m_ctx.m_mm.get_memroot();
+  c_page_pool.set((Page32*)ptr, (Uint32)~0);
+
+  c_allow_use_of_spare_pages = false;
+  cfreeopRec = RNIL;
+
+  cnoOfAllocatedPagesMax = cnoOfAllocatedPages = cpageCount = 0;
   // Records with constant sizes
 
   RSS_OP_COUNTER_INIT(cnoOfFreeFragrec);
 
 }//Dbacc::initData()
 
-void Dbacc::initRecords() 
+void Dbacc::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg) 
 {
+  jam();
+#if defined(USE_INIT_GLOBAL_VARIABLES)
   {
-    AllocChunk chunks[16];
-    const Uint32 pages = (cpagesize + 3) / 4;
-    const Uint32 chunkcnt = allocChunks(chunks, 16, RT_DBTUP_PAGE, pages,
-                                        CFG_DB_INDEX_MEM);
-
-    /**
-     * Set base ptr
-     */
-    Ptr<GlobalPage> pagePtr;
-    m_shared_page_pool.getPtr(pagePtr, chunks[0].ptrI);
-    page8 = (Page8*)pagePtr.p;
-
-    /**
-     * 1) Build free-list per chunk
-     * 2) Add chunks to cfreepages-list
-     */
-    cfreepages.init();
-    cpagesize = 0;
-    cpageCount = 0;
-    LocalPage8List freelist(*this, cfreepages);
-    for (Int32 i = chunkcnt - 1; i >= 0; i--)
-    {
-      Ptr<GlobalPage> pagePtr;
-      m_shared_page_pool.getPtr(pagePtr, chunks[i].ptrI);
-      const Uint32 cnt = 4 * chunks[i].cnt; // 4 8k per 32k
-      Page8* base = (Page8*)pagePtr.p;
-      ndbrequire(base >= page8);
-      const Uint32 ptrI = Uint32(base - page8);
-      if (ptrI + cnt > cpagesize)
-        cpagesize = ptrI + cnt;
-      for (Uint32 j = 0; j < cnt; j++)
-      {
-        refresh_watch_dog();
-        freelist.addFirst(Page8Ptr::get(&base[j], ptrI + j));
-      }
-
-      cpageCount += cnt;
-      ndbassert(freelist.count() + cnoOfAllocatedPages == cpageCount);
-    }
-    m_maxAllocPages = cpagesize;
+    void* tmp[] = { &fragrecptr,
+                    &operationRecPtr,
+                    &queOperPtr,
+                    &scanPtr,
+                    &tabptr
+    };
+    init_global_ptrs(tmp, sizeof(tmp)/sizeof(tmp[0]));
   }
-
-  operationrec = (Operationrec*)allocRecord("Operationrec",
-					    sizeof(Operationrec),
-					    coprecsize);
+#endif
+  cfreepages.init();
+  ndbassert(pages.getCount() - cfreepages.getCount() + cnoOfAllocatedPages ==
+            cpageCount);
 
   fragmentrec = (Fragmentrec*)allocRecord("Fragmentrec",
 					  sizeof(Fragmentrec), 
 					  cfragmentsize);
 
-  scanRec = (ScanRec*)allocRecord("ScanRec",
-				  sizeof(ScanRec), 
-				  cscanRecSize);
-
   tabrec = (Tabrec*)allocRecord("Tabrec",
 				sizeof(Tabrec),
 				ctablesize);
+
+  /**
+   * Records moved into poolification is created and the
+   * static part of the pool is allocated as well.
+   */
+
+  Pool_context pc;
+  pc.m_block = this;
+
+  Uint32 reserveScanRecs = 0;
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg,
+            CFG_ACC_RESERVED_SCAN_RECORDS, &reserveScanRecs));
+  scanRec_pool.init(
+    ScanRec::TYPE_ID,
+    pc,
+    reserveScanRecs,
+    UINT32_MAX);
+  while (scanRec_pool.startup())
+  {
+    refresh_watch_dog();
+  }
+
+  Uint32 reserveOpRecs = 0;
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg,
+            CFG_LDM_RESERVED_OPERATIONS, &reserveOpRecs));
+  reserveOpRecs += 200;
+  oprec_pool.init(
+    Operationrec::TYPE_ID,
+    pc,
+    reserveOpRecs,
+    UINT32_MAX);
+  while (oprec_pool.startup())
+  {
+    refresh_watch_dog();
+  }
+  ndbrequire(oprec_pool.seize(operationRecPtr));
+  operationRecPtr.p->userptr = RNIL;
+  operationRecPtr.p->userblockref = 0;
+  c_copy_frag_oprec = operationRecPtr.i;
 }//Dbacc::initRecords()
 
 Dbacc::Dbacc(Block_context& ctx, Uint32 instanceNumber):
   SimulatedBlock(DBACC, ctx, instanceNumber),
-  c_tup(0)
+  c_tup(0),
+  c_page8_pool(c_page_pool)
 {
   BLOCK_CONSTRUCTOR(Dbacc);
 
@@ -134,18 +169,13 @@ Dbacc::Dbacc(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_ACC_CHECK_SCAN, &Dbacc::execACC_CHECK_SCAN);
   addRecSignal(GSN_EXPANDCHECK2, &Dbacc::execEXPANDCHECK2);
   addRecSignal(GSN_SHRINKCHECK2, &Dbacc::execSHRINKCHECK2);
-  addRecSignal(GSN_READ_PSEUDO_REQ, &Dbacc::execREAD_PSEUDO_REQ);
 
   // Received signals
   addRecSignal(GSN_STTOR, &Dbacc::execSTTOR);
-  addRecSignal(GSN_ACCKEYREQ, &Dbacc::execACCKEYREQ);
   addRecSignal(GSN_ACCSEIZEREQ, &Dbacc::execACCSEIZEREQ);
   addRecSignal(GSN_ACCFRAGREQ, &Dbacc::execACCFRAGREQ);
   addRecSignal(GSN_NEXT_SCANREQ, &Dbacc::execNEXT_SCANREQ);
-  addRecSignal(GSN_ACC_ABORTREQ, &Dbacc::execACC_ABORTREQ);
   addRecSignal(GSN_ACC_SCANREQ, &Dbacc::execACC_SCANREQ);
-  addRecSignal(GSN_ACCMINUPDATE, &Dbacc::execACCMINUPDATE);
-  addRecSignal(GSN_ACC_COMMITREQ, &Dbacc::execACC_COMMITREQ);
   addRecSignal(GSN_ACC_TO_REQ, &Dbacc::execACC_TO_REQ);
   addRecSignal(GSN_ACC_LOCKREQ, &Dbacc::execACC_LOCKREQ);
   addRecSignal(GSN_NDB_STTOR, &Dbacc::execNDB_STTOR);
@@ -154,57 +184,15 @@ Dbacc::Dbacc(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_DROP_FRAG_REQ, &Dbacc::execDROP_FRAG_REQ);
 
   addRecSignal(GSN_DBINFO_SCANREQ, &Dbacc::execDBINFO_SCANREQ);
-  addRecSignal(GSN_NODE_STATE_REP, &Dbacc::execNODE_STATE_REP, true);
 
   initData();
 
-#ifdef VM_TRACE
-  {
-    void* tmp[] = { &fragrecptr,
-                    &operationRecPtr,
-                    &idrOperationRecPtr,
-                    &mlpqOperPtr,
-                    &queOperPtr,
-                    &readWriteOpPtr,
-                    &ancPageptr,
-                    &colPageptr,
-                    &ccoPageptr,
-                    &datapageptr,
-                    &delPageptr,
-                    &excPageptr,
-                    &expPageptr,
-                    &gdiPageptr,
-                    &gePageptr,
-                    &gflPageptr,
-                    &idrPageptr,
-                    &ilcPageptr,
-                    &inpPageptr,
-                    &iopPageptr,
-                    &lastPageptr,
-                    &lastPrevpageptr,
-                    &lcnPageptr,
-                    &lcnCopyPageptr,
-                    &lupPageptr,
-                    &ciPageidptr,
-                    &gsePageidptr,
-                    &isoPageptr,
-                    &nciPageidptr,
-                    &rsbPageidptr,
-                    &rscPageidptr,
-                    &slPageidptr,
-                    &sscPageidptr,
-                    &rlPageptr,
-                    &rlpPageptr,
-                    &ropPageptr,
-                    &rpPageptr,
-                    &slPageptr,
-                    &spPageptr,
-                    &scanPtr,
-                    &tabptr
-    };
-    init_globals_list(tmp, sizeof(tmp)/sizeof(tmp[0]));
-  }
-#endif
+  c_transient_pools[DBACC_SCAN_RECORD_TRANSIENT_POOL_INDEX] =
+    &scanRec_pool;
+  c_transient_pools[DBACC_OPERATION_RECORD_TRANSIENT_POOL_INDEX] =
+    &oprec_pool;
+  NDB_STATIC_ASSERT(c_transient_pool_count == 2);
+  c_transient_pools_shrinking.clear();
 }//Dbacc::Dbacc()
 
 Dbacc::~Dbacc() 
@@ -213,17 +201,8 @@ Dbacc::~Dbacc()
 		sizeof(Fragmentrec), 
 		cfragmentsize);
   
-  deallocRecord((void **)&operationrec, "Operationrec",
-		sizeof(Operationrec),
-		coprecsize);
-  
-  deallocRecord((void **)&scanRec, "ScanRec",
-		sizeof(ScanRec), 
-		cscanRecSize);
-  
   deallocRecord((void **)&tabrec, "Tabrec",
 		sizeof(Tabrec),
 		ctablesize);
-  }//Dbacc::~Dbacc()
-
+}//Dbacc::~Dbacc()
 BLOCK_FUNCTIONS(Dbacc)

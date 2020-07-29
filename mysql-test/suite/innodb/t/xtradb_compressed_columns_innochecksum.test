@@ -1,5 +1,3 @@
---source include/have_innodb.inc
-
 --let $saved_innodb_file_per_table= `SELECT @@innodb_file_per_table`
 SET GLOBAL innodb_file_per_table = ON;
 
@@ -23,9 +21,9 @@ while($number_of_records)
 --enable_query_log
 
 # Identifying datafile name for the table
-eval SELECT space INTO @tablespace_id FROM information_schema.innodb_sys_tablespaces
+eval SELECT space INTO @tablespace_id FROM information_schema.innodb_tablespaces
   WHERE name = CONCAT(DATABASE(), '/', '$table_name');
-SELECT path INTO @datafile_path FROM information_schema.innodb_sys_datafiles
+SELECT path INTO @datafile_path FROM information_schema.innodb_datafiles
   WHERE space = @tablespace_id;
 
 --let $datafile_absolute_path = `SELECT CONCAT(@@datadir, REPLACE(@datafile_path, './', ''))`

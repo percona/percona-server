@@ -6,9 +6,8 @@
 #
 
 --source include/have_myisam.inc
---source include/have_geometry.inc
 
-CREATE TABLE t0(a GEOMETRY NOT NULL, SPATIAL INDEX(a)) ENGINE=MyISAM;
+CREATE TABLE t0(a GEOMETRY NOT NULL SRID 0, SPATIAL INDEX(a)) ENGINE=MyISAM;
 
 HANDLER t0 OPEN;
 --error ER_CANT_CREATE_GEOMETRY_OBJECT

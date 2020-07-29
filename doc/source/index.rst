@@ -148,6 +148,7 @@ Diagnostics Improvements
    diagnostics/misc_info_schema_tables
    diagnostics/thread_based_profiling
    diagnostics/innodb_fragmentation_count
+   diagnostics/stacktrace
 
 TokuDB
 ================================================================================

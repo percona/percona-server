@@ -37,18 +37,18 @@ Following guides describe the installation process for using the official Percon
 Installing |Percona Server| from a Binary Tarball
 ===================================================
 
-In |Percona Server| 8.0.20-11 and later, the multiple binary tarballs have been replaced with the following:
+In |Percona Server| 5.7.31-34 and later, the multiple binary tarballs have been replaced with the following:
 
-.. tabularcolumns:: |p{5cm}|p{5cm}|
+.. tabularcolumns:: |p{5cm}|p{11cm}|
 
 .. list-table::
    :header-rows: 1
 
    * - Name
      - Description
-   * - Percona-Server-8.0.xx-xx-Linux.x86_64.glibc2.12.tar.gz 
+   * - Percona-Server-5.7.xx-xx-Linux.x86_64.glibc2.12.tar.gz 
      - Contains binaries, libraries, test files, and debug symbols
-   * - Percona-Server-8.0.xx-xx-Linux.x86_64.glibc2.12-minimal.tar.gz
+   * - Percona-Server-5.7.xx-xx-Linux.x86_64.glibc2.12-minimal.tar.gz
      - Contains binaries, and libraries but does not include test files, or debug symbols
 
 Both binary tarballs support all distributions.

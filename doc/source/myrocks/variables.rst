@@ -2711,7 +2711,7 @@ Allowed range is up to ``9223372036854775807``.
   :default: ``0``
 
 Specifies the timeout in seconds before deleting archived WAL files.
-Default is ``0`` (archived WAL files are never deleted).
+Default is ``0`` (WAL files are not archived).
 Allowed range is up to ``9223372036854775807``.
 
 .. variable:: rocksdb_whole_key_filtering

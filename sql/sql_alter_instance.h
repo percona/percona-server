@@ -44,8 +44,8 @@ class Rotate_innodb_key : public Alter_instance {
  public:
   explicit Rotate_innodb_key(THD *thd) : Alter_instance(thd) {}
 
-  virtual bool execute() = 0;
-  ~Rotate_innodb_key() {}
+  // virtual bool execute() = 0 override;
+  ~Rotate_innodb_key() override {}
 
  protected:
   bool check_security_context();
@@ -75,7 +75,7 @@ class Rotate_innodb_master_key final : public Rotate_innodb_key {
   explicit Rotate_innodb_master_key(THD *thd) : Rotate_innodb_key(thd) {}
 
   bool execute() override;
-  ~Rotate_innodb_master_key() {}
+  ~Rotate_innodb_master_key() override {}
 };
 
 class Rotate_innodb_system_key final : public Rotate_innodb_key {
@@ -85,7 +85,7 @@ class Rotate_innodb_system_key final : public Rotate_innodb_key {
         rotate_percona_system_key(PERCONA_INNODB_KEY_NAME, system_key_id_arg) {}
 
   bool execute() override;
-  ~Rotate_innodb_system_key() {}
+  ~Rotate_innodb_system_key() override {}
 
  private:
   Rotate_percona_system_key rotate_percona_system_key;
@@ -101,8 +101,8 @@ class Rotate_binlog_master_key : public Alter_instance {
     @retval False on success
     @retval True on error
   */
-  bool execute();
-  virtual ~Rotate_binlog_master_key() = default;
+  bool execute() override;
+  virtual ~Rotate_binlog_master_key() override = default;
 };
 
 class Rotate_redo_system_key final : public Alter_instance {
@@ -111,7 +111,7 @@ class Rotate_redo_system_key final : public Alter_instance {
       : Alter_instance(thd), rotate_percona_system_key(PERCONA_REDO_KEY_NAME) {}
 
   bool execute() override;
-  ~Rotate_redo_system_key() {}
+  ~Rotate_redo_system_key() override {}
 
  private:
   Rotate_percona_system_key rotate_percona_system_key;

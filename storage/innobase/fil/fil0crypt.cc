@@ -2306,6 +2306,7 @@ static bool fil_crypt_start_rotate_space(const key_state_t *key_state,
     bool validation_tag_re_encryption_failure{false};
     bool load_key_failure{false};
     uint org_max_key_version = crypt_data->max_key_version;
+    crypt_data->rotate_state.active_threads = 1;
 
     if (crypt_data->load_keys_to_local_cache() == false) {
       load_key_failure = true;
@@ -2322,6 +2323,19 @@ static bool fil_crypt_start_rotate_space(const key_state_t *key_state,
         if (crypt_data->min_key_version == 0) {
           mutex_exit(&crypt_data->mutex);
 
+          DBUG_EXECUTE_IF(
+              "hang_on_ts_hang_rotation",
+              if (strcmp(state->space->name, "ts_hang") == 0) {
+                // artifical key_id = 10 to let MTR test know that we are
+                // hanging
+                static EncryptionKeyId key_id = crypt_data->key_id;
+                crypt_data->key_id = 10;
+                while (
+                    DBUG_EVALUATE_IF("hang_on_ts_hang_rotation", true, false))
+                  os_thread_sleep(1000);
+                crypt_data->key_id = key_id;
+              });
+
           if (dd_set_online_encryption(state->thd, state->space->name,
                                        &state->space->stop_new_ops)) {
             // should not happen
@@ -2331,6 +2345,9 @@ static bool fil_crypt_start_rotate_space(const key_state_t *key_state,
                         << " Removing space from online keyring encryption.";
             state->space->exclude_from_rotation = true;
             crypt_data->rotate_state.destroy_flush_observer();
+            mutex_enter(&crypt_data->mutex);
+            crypt_data->rotate_state.active_threads = 0;
+            mutex_exit(&crypt_data->mutex);
             mutex_exit(&crypt_data->start_rotate_mutex);
             return false;
           }
@@ -2349,6 +2366,7 @@ static bool fil_crypt_start_rotate_space(const key_state_t *key_state,
                      "keyring is functional and try restarting the server";
       state->space->exclude_from_rotation = true;
       crypt_data->max_key_version = org_max_key_version;
+      crypt_data->rotate_state.active_threads = 0;
       mutex_exit(&crypt_data->mutex);
       crypt_data->rotate_state.destroy_flush_observer();
       mutex_exit(&crypt_data->start_rotate_mutex);
@@ -2381,28 +2399,16 @@ static bool fil_crypt_start_rotate_space(const key_state_t *key_state,
         if (strcmp(state->space->name, "test/t1") == 0) {
           number_of_t1_pages_to_rotate = 20;
         });
+  } else {
+    /* count active threads in space */
+    crypt_data->rotate_state.active_threads++;
   }
-
-  /* count active threads in space */
-  crypt_data->rotate_state.active_threads++;
 
   /* Initialize thread local state */
   state->min_key_version_found = crypt_data->rotate_state.min_key_version_found;
 
   mutex_exit(&crypt_data->mutex);
   mutex_exit(&crypt_data->start_rotate_mutex);
-
-  DBUG_EXECUTE_IF(
-      "hang_on_ts_hang_rotation",
-      if (strcmp(state->space->name, "ts_hang") == 0) {
-        // artifical key_id = 10 to let MTR test know that we are
-        // hanging
-        static EncryptionKeyId key_id = crypt_data->key_id;
-        crypt_data->key_id = 10;
-        while (DBUG_EVALUATE_IF("hang_on_ts_hang_rotation", true, false))
-          os_thread_sleep(1000);
-        crypt_data->key_id = key_id;
-      });
 
   return true;
 }

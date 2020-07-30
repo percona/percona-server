@@ -84,6 +84,7 @@ SET GLOBAL default_table_encryption=OFF;
 SET DEBUG_SYNC = 'now SIGNAL go_alter_encryption_to_y';
 ERROR HY000: Tablespace ts_hang cannot have its ENCRYPTION altered as it is being currently encrypted/decrypted by encryption threads. Please try again later.
 SET GLOBAL debug="-d,hang_on_ts_hang_rotation";
+SET GLOBAL innodb_encryption_threads=0;
 DROP TABLESPACE ts_hang;
 # Now check when TABLESPACE ENCRYPTION is ALTERED to 'N' while encryption threads start to process
 # tablespace first.
@@ -98,6 +99,7 @@ SET GLOBAL default_table_encryption=OFF;
 SET DEBUG_SYNC = 'now SIGNAL go_alter_encryption_to_n';
 ERROR HY000: Tablespace ts_hang cannot have its ENCRYPTION altered as it is being currently encrypted/decrypted by encryption threads. Please try again later.
 SET GLOBAL debug="-d,hang_on_ts_hang_rotation";
+SET GLOBAL innodb_encryption_threads=0;
 DROP TABLESPACE ts_hang;
 # Here we check that encryption threads are dissallowed from running on a tablespace for which
 # ALTER ENCRYPTION='Y' is in progress.

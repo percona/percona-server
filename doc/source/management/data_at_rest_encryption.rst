@@ -463,9 +463,9 @@ and `binlog_checksum
 <https://dev.mysql.com/doc/refman/5.7/en/replication-options-binary-log.html#sysvar_binlog_checksum>`_
 variables to be turned ``ON``.
 
-While replicating, master sends the stream of decrypted binary log events to a
-slave (SSL connections can be set up to encrypt them in transport). That said,
-masters and slaves use separate keyring storages and are free to use differing
+While replicating, source sends the stream of decrypted binary log events to a
+replica (SSL connections can be set up to encrypt them in transport). That said,
+sources and replicas use separate keyring storages and are free to use differing
 keyring plugins.
 
 Dumping of encrypted binary logs involves decryption, and can be done using

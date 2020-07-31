@@ -212,9 +212,9 @@ TokuDB Hot Backup also has an API. This API includes the ``start capturing`` and
 portion of a file is copied to the backup location, and this portion is changed,
 these changes are also applied to the backup location.
 
-Replication often uses backup replication to create slaves. You must know the
+Replication often uses backup replication to create replicas. You must know the
 last executed global transaction identifier (GTID) or binary log position both
-for the slave and master configuration.
+for the replica and source configuration.
 
 To lock tables, use ``FLUSH TABLE WITH READ LOCK`` or use the smart locks like
 ``LOCK TABLES FOR BACKUP`` or ``LOCK BINLOG FOR BACKUP``.
@@ -234,14 +234,14 @@ After a backup is taken, there are the following files in the backup directory:
 * tokubackup_slave_info
 * tokubackup_binlog_info
 
-These files contain information for slave and master. You can use this
-information to start a new slave from the master or slave.
+These files contain information for replica and source. You can use this
+information to start a new replica from the source or replica.
 
 The ``SHOW MASTER STATUS`` and ``SHOW SLAVE STATUS`` commands provide the
 information.
 
 In specific binlog formats, a binary log event can contain statements that
-produce temporary tables on the slave side, and the result of further statements
+produce temporary tables on the replica side, and the result of further statements
 may depend on the temporary table content. Typically, temporary tables are not
 selected for backup because they are created in a separate directory. A backup
 created with temporary tables created by binlog events can cause issues when
@@ -252,9 +252,9 @@ The following system variables :variable:`--tokudb-backup-safe-slave`, which
 enables or disables the safe-slave mode, and
 :variable:`--tokudb-backup-safe-slave-timeout`, which defines the maximum amount
 of time in seconds to wait until temporary tables disappear.  The
-``safe-slave`` mode, when used with ``LOCK BINLOG FOR BACKUP``, the slave SQL
-thread is stopped and checked to see if temporary tables produced by the slave
-exist or do not exist. If temporary tables exist, the slave SQL thread is
+``safe-slave`` mode, when used with ``LOCK BINLOG FOR BACKUP``, the replica SQL
+thread is stopped and checked to see if temporary tables produced by the replica
+exist or do not exist. If temporary tables exist, the replica SQL thread is
 restarted until there are no temporary tables or a defined timeout is reached.
 
 You should not use this option for group-replication.

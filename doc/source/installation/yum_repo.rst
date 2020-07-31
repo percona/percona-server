@@ -8,46 +8,7 @@ Ready-to-use packages are available from the |Percona Server| software repositor
 
 The easiest way to install the *Percona Yum* repository is to install an *RPM* that configures :program:`yum` and installs the `Percona GPG key <https://www.percona.com/downloads/RPM-GPG-KEY-percona>`_.
 
-Supported Releases:
-
- * *RHEL* 6 (Current Stable) [#f1]_
-
- * *RHEL* 7
-
- * *RHEL* 8
-
- * *Amazon Linux AMI* (works the same as *CentOS*  6)
-
- .. note:: 
-
-     We support red Hat Enterprise Linux (RHEL) and the derivatives: CentOS,
-     Oracle Enterprises Linux, and Amazon Linux for the selected version.
-
-The *CentOS* repositories should work well with *Red Hat Enterprise Linux* provided that :program:`yum` is installed on the server.
-
-.. important::
-
-   *CentOS* 6 offers an outdated version of the ``curl`` library required by the :ref:`keyring Vault plugin <keyring_vault_plugin>` of |Percona
-   Server|. The version of the ``curl`` library in *CentOS* 6, which depends on the ``nss`` library, is known to create memory corruption issues. This
-   bug is `registered in Red Hat Bugzilla <https://bugzilla.redhat.com/show_bug.cgi?id=1057388>`_. The current status is `CLOSED WONTFIX`.
-    
-   If you intend to use the keyring Vault plugin of |Percona Server|, make sure that you use the latest version of the ``curl`` library. We recommend
-   that you `build it from source <https://curl.haxx.se/docs/install.html>`_ configuring with ``ssl`` but without ``nss``:
-   
-   .. code-block:: bash
-   
-       $ ./configuration --with-ssl --without-nss --prefix=<INSTALATION DIRECTORY>
-       
-   As soon as you install ``curl``, make sure that |Percona Server| will use this version.
-   
-   .. seealso::
-       
-       `How to install curl and libcurl <https://curl.haxx.se/docs/install.html>`_
-
-Supported Platforms:
-
- * x86
- * x86_64 (also known as ``amd64``)
+Specific information on the supported platforms, products, and versions are described in `Percona Software and Platform Lifecycle <https://www.percona.com/services/policies/percona-software-platform-lifecycle#mysql>`_.
 
 What's in each RPM package?
 ===========================
@@ -71,18 +32,14 @@ The ``Percona-Server-test-57`` package includes the test suite for |Percona Serv
 Installing |Percona Server| from Percona ``yum`` repository
 ===========================================================
 
-1. Install the Percona repository 
-   
-A Percona Server installation or upgrade, by default, creates the mysqld.cnf file.
-This file is defined as the default configuration and located in the /etc/percona-server.conf.d 
-directory. The directory is created if that directory does not exist. 
+1. Install the Percona repository
+
+   You can install Percona yum repository by running the following command as a ``root`` user or with sudo:
 
 You can install Percona yum repository by running the following command as a
 ``root`` user or with sudo:
 
-   .. code-block:: bash
-
-        $ yum install https://repo.percona.com/yum/percona-release-latest.noarch.rpm
+      $ yum install https://repo.percona.com/yum/percona-release-latest.noarch.rpm
 
    .. admonition:: Output example
 
@@ -99,8 +56,8 @@ You can install Percona yum repository by running the following command as a
       $ yum install http://repo.percona.com/centos/7/RPMS/x86_64/Percona-Server-selinux-56-5.6.42-rel84.2.el7.noarch.rpm
 
 2. Testing the repository
-   
-   Make sure packages are now available from the repository, by executing the following command: 
+
+   Make sure packages are now available from the repository, by executing the following command:
 
    .. code-block:: bash
 
@@ -200,14 +157,39 @@ To install all the packages (for debugging, testing, etc.) you should run:
 
    When installing packages manually like this, you'll need to make sure to resolve all the dependencies and install missing packages yourself.
 
+The following table lists the default locations for files:
+
+.. list-table::
+    :widths: 30 30
+    :header-rows: 1
+
+    * - Files
+      - Location
+    * - mysqld server
+      - :file:`/usr/bin`
+    * - Configuration
+      - :file:`/etc/my.cnf`
+    * - Data directory
+      - :file:`/var/lib/mysql`
+    * - Logs
+      - :file:`/var/log/mysqld.log`
+
+You can use the following command to locate the Data directory:
+
+.. code-block:: bash
+
+    grep datadir /etc/my.cnf
+
+    datadir=/var/lib/mysql
+
+
 Running |Percona Server|
 ========================
 
-|Percona Server| stores the data files in :file:`/var/lib/mysql/` by default. You can find the configuration file that is used to manage |Percona Server| in :file:`/etc/my.cnf`. 
-
 1. Starting the service
 
-   |Percona Server| isn't started automatically on *RHEL* and *CentOS* after it gets installed. You should start it by running:
+   |Percona Server| does not start automatically on *RHEL* and *CentOS* after
+   the installation. You should start the server by running:
 
    .. code-block:: bash
 
@@ -252,7 +234,7 @@ To completely uninstall |Percona Server| you'll need to remove all the installed
 
      service mysql stop
 
-2. Remove the packages 
+2. Remove the packages
 
    .. code-block:: bash
 
@@ -265,10 +247,7 @@ To completely uninstall |Percona Server| you'll need to remove all the installed
      rm -rf /var/lib/mysql
      rm -f /etc/my.cnf
 
-.. warning:: 
+.. warning::
 
   This will remove all the packages and delete all the data files (databases, tables, logs, etc.), you might want to take a backup before doing this in case you need the data.
 
-.. rubric:: Footnotes
-
-.. [#f1] "Current Stable": We support only the current stable RHEL6/CentOS6 release because there is no official (i.e., RedHat provided) method to support or download the latest OpenSSL on RHEL/CentOS versions prior to 6.5. Similarly, and also as a result thereof, there is no official Percona way to support the latest Percona Server builds on RHEL/CentOS versions prior to 6.5. Additionally, many users will need to upgrade to OpenSSL 1.0.1g or later (due to the `Heartbleed vulnerability <http://www.percona.com/resources/ceo-customer-advisory-heartbleed>`_), and this OpenSSL version is not available for download from any official RHEL/CentOS repository for versions 6.4 or prior. For any officially unsupported system, src.rpm packages may be used to rebuild Percona Server for any environment. Please contact our `support service <http://www.percona.com/products/mysql-support>`_ if you require further information on this.

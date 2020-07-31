@@ -468,4 +468,6 @@
 /* For default value of --early_plugin_load */
 #cmakedefine DEFAULT_EARLY_PLUGIN_LOAD @DEFAULT_EARLY_PLUGIN_LOAD@
 
+/* coredumper library */
+#cmakedefine01 HAVE_LIBCOREDUMPER
 #endif

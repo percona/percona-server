@@ -7175,7 +7175,7 @@ rename_foreign:
 @param table_name Table name in MySQL
 @retval true Failure
 @retval false Success */
-static MY_ATTRIBUTE((warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 bool
 innobase_rename_columns_try(
 /*========================*/
@@ -7190,7 +7190,6 @@ innobase_rename_columns_try(
 	uint	i = 0;
 	ulint	num_v = 0;
 
-	DBUG_ASSERT(ctx);
 	DBUG_ASSERT(ha_alter_info->handler_flags
 		    & Alter_inplace_info::ALTER_COLUMN_NAME);
 
@@ -7544,7 +7543,7 @@ but do not touch the data dictionary cache.
 @retval true Failure
 @retval false Success
 */
-static MY_ATTRIBUTE((warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 bool
 innobase_update_foreign_try(
 /*========================*/
@@ -7556,7 +7555,6 @@ innobase_update_foreign_try(
 	ulint	i;
 
 	DBUG_ENTER("innobase_update_foreign_try");
-	DBUG_ASSERT(ctx);
 
 	foreign_id = dict_table_get_highest_foreign_id(ctx->new_table);
 

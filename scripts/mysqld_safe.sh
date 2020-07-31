@@ -309,7 +309,7 @@ parse_arguments() {
       --syslog-tag=*) syslog_tag="$val" ;;
       --timezone=*) TZ="$val"; export TZ; ;;
       --flush-caches=*) flush_caches="$val" ;;
-
+      --numa-interleave) append_arg_to_args "--innodb-numa-interleave=1" ;;
       --help) usage ;;
 
       *)
@@ -798,11 +798,6 @@ fi
 if test -n "$mysql_tcp_port"
 then
   append_arg_to_args "--port=$mysql_tcp_port"
-fi
-
-if test -n "$numa_interleave"
-then
-  append_arg_to_args "--innodb-numa-interleave=1"
 fi
 
 if test $niceness -eq 0

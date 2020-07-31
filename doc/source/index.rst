@@ -48,6 +48,7 @@ Installation
 
    installation
    upgrading_guide_56_57
+   installation/post-installation
 
 Scalability Improvements
 ========================
@@ -148,6 +149,8 @@ Diagnostics Improvements
    diagnostics/response_time_distribution
    diagnostics/innodb_fragmentation_count
    diagnostics/libcoredumper
+   diagnostics/stacktrace
+
 
 TokuDB
 ======

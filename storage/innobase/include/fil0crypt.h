@@ -519,9 +519,11 @@ byte *fil_parse_write_crypt_data_v2(space_id_t space_id, byte *ptr,
 @param[in]  ptr  Log entry start
 @param[in]  end_ptr  Log entry end
 @param[in]  len  Log entry length
+@param[in]  recv_needed_recovery  Missing keys will report an error
 @return position on log buffer */
 byte *fil_parse_write_crypt_data_v3(space_id_t space_id, byte *ptr,
-                                    const byte *end_ptr, ulint len)
+                                    const byte *end_ptr, ulint len,
+                                    bool recv_needed_recovery)
     MY_ATTRIBUTE((warn_unused_result));
 
 /**

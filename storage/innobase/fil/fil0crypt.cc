@@ -967,9 +967,11 @@ static fil_space_crypt_t *fil_space_set_crypt_data(
 @param[in]  ptr  Log entry start
 @param[in]  end_ptr  Log entry end
 @param[in]  len  Log entry length
+@param[in]  recv_needed_recovery  missing keys will report error
 @return position on log buffer */
 byte *fil_parse_write_crypt_data_v3(space_id_t space_id, byte *ptr,
-                                    const byte *end_ptr, ulint len) {
+                                    const byte *end_ptr, ulint len,
+                                    bool recv_needed_recovery) {
   ptr += 4;  // skip offset and len
 
 #ifdef UNIV_DEBUG
@@ -1057,29 +1059,37 @@ byte *fil_parse_write_crypt_data_v3(space_id_t space_id, byte *ptr,
     crypt_data->set_tablespace_key(tablespace_key);
   }
 
-  /* Check is used key found from encryption plugin */
-  if (crypt_data->should_encrypt() && !crypt_data->is_key_found()) {
-    ib::error() << "Key cannot be read for space id = " << space_id;
-    recv_sys->set_corrupt_log();
-  }
-
-  if (crypt_data->type != CRYPT_SCHEME_UNENCRYPTED) {
-    // We have encrypted tablespace - validate that encryption key is available
-    // and it is the correct one.
-    if (crypt_data->key_found == false) {
-      ib::warn(ER_REDO_TABLESPACE_ENCRYPTION_MISSING_KEY, space_id,
-               crypt_data->key_id);
+  if (recv_needed_recovery) {
+    /* Check is used key found from encryption plugin */
+    if (crypt_data->should_encrypt() && !crypt_data->is_key_found()) {
+      ib::error() << "Key cannot be read for space id = " << space_id;
       recv_sys->set_corrupt_log();
-    } else {
-      Validation_key_verions_result result{
-          crypt_data->validate_encryption_key_versions()};
-      if (result != Validation_key_verions_result::SUCCESS) {
-        uint error =
-            (result == Validation_key_verions_result::MISSING_KEY_VERSIONS)
-                ? ER_REDO_TABLESPACE_ENCRYPTION_MISSING_KEY_VERSIONS
-                : ER_REDO_TABLESPACE_ENCRYPTION_CORRUPTED_KEYS;
-        ib::warn(error, space_id, crypt_data->key_id);
+      fil_space_destroy_crypt_data(&crypt_data);
+      return nullptr;
+    }
+
+    if (crypt_data->type != CRYPT_SCHEME_UNENCRYPTED) {
+      // We have encrypted tablespace - validate that encryption key is
+      // available and it is the correct one.
+      if (crypt_data->key_found == false) {
+        ib::warn(ER_REDO_TABLESPACE_ENCRYPTION_MISSING_KEY, space_id,
+                 crypt_data->key_id);
         recv_sys->set_corrupt_log();
+        fil_space_destroy_crypt_data(&crypt_data);
+        return nullptr;
+      } else {
+        Validation_key_verions_result result{
+            crypt_data->validate_encryption_key_versions()};
+        if (result != Validation_key_verions_result::SUCCESS) {
+          uint error =
+              (result == Validation_key_verions_result::MISSING_KEY_VERSIONS)
+                  ? ER_REDO_TABLESPACE_ENCRYPTION_MISSING_KEY_VERSIONS
+                  : ER_REDO_TABLESPACE_ENCRYPTION_CORRUPTED_KEYS;
+          ib::warn(error, space_id, crypt_data->key_id);
+          recv_sys->set_corrupt_log();
+          fil_space_destroy_crypt_data(&crypt_data);
+          return nullptr;
+        }
       }
     }
   }

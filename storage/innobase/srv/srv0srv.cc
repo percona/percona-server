@@ -3248,8 +3248,6 @@ static bool srv_task_execute(void) {
     que_run_threads(thr);
 
     os_atomic_inc_ulint(&purge_sys->pq_mutex, &purge_sys->n_completed, 1);
-
-    srv_inc_activity_count();
   }
 
   return (thr != nullptr);
@@ -3562,7 +3560,9 @@ void srv_purge_coordinator_thread() {
 
     rseg_history_len = srv_do_purge(&n_total_purged);
 
-    srv_inc_activity_count();
+    if (n_total_purged != 0) {
+      srv_inc_activity_count();
+    }
 
   } while (!srv_purge_should_exit(n_total_purged));
 

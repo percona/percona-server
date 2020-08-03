@@ -263,3 +263,17 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`vc` AS `vc` from `test`.`t1` where (`test`.`t1`.`vc` = DATE'2021-02-08') order by `test`.`t1`.`vc` desc
 DROP TABLE t1;
+#
+# BUG: PS-7221 - crash on select Sys_var_tz::session_value_ptr
+#
+CREATE TABLE t1 (
+id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
+dt DATETIME NOT NULL
+);
+INSERT INTO t1 SET dt=NOW();
+INSERT INTO t1 (dt) SELECT NOW() FROM t1;
+SELECT id FROM t1 ORDER BY convert_tz(dt,'UTC',@@session.time_zone);
+id
+1
+2
+DROP TABLE t1;

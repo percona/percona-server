@@ -529,7 +529,7 @@ int main(int argc, char **argv) {
   }
   BOOST_SCOPE_EXIT_END
 
-  std::unique_ptr<keyring::ILogger> logger (new keyring::Mock_logger());
+  std::unique_ptr<keyring::ILogger> logger(new keyring::Mock_logger());
   // create unique secret mount point for this test suite
   keyring::Vault_mount vault_mount(curl, logger.get());
 

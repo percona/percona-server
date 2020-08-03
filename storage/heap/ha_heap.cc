@@ -634,7 +634,8 @@ static int heap_prepare_hp_create_info(TABLE *table_arg, bool single_instance,
 
       next_field_pos = seg->start;
       if (field->type() == MYSQL_TYPE_VARCHAR) {
-        Field *orig_field = *(table_arg->field + key_part->field->field_index());
+        Field *orig_field =
+            *(table_arg->field + key_part->field->field_index());
         next_field_pos += orig_field->pack_length();
       } else {
         next_field_pos += seg->length;

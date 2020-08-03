@@ -638,7 +638,8 @@ static void marshall_update(tokudb::buffer &b, Item *lhs_item, Item *rhs_item,
     case MYSQL_TYPE_BLOB: {
       update_operation = '=';
       field_type = lhs_field->binary() ? UPDATE_TYPE_BLOB : UPDATE_TYPE_TEXT;
-      offset = blob_field_index(table, &share->kc_info, lhs_field->field_index());
+      offset =
+          blob_field_index(table, &share->kc_info, lhs_field->field_index());
       v_str = *rhs_item->val_str(&v_str);
       v_length = v_str.length();
       if (v_length >= lhs_field->max_data_length()) {

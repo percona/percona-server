@@ -1213,7 +1213,7 @@ int main(int argc, char **argv) {
   }
   BOOST_SCOPE_EXIT_END
 
-  std::unique_ptr<keyring::ILogger> logger (new keyring::Mock_logger());
+  std::unique_ptr<keyring::ILogger> logger(new keyring::Mock_logger());
   keyring::Vault_mount vault_mount(curl, logger.get());
   std::string mount_point_path = "cicd/" + uuid + "_vault_keys_container";
 

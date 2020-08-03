@@ -255,7 +255,7 @@ void trx_purge_sys_create(ulint n_purge_threads, purge_pq_t *purge_queue) {
   /* Allocate 8K bytes for the initial heap. */
   purge_sys->heap = mem_heap_create(8 * 1024);
 }
- 
+
 /************************************************************************
 Frees the global purge system control structure. */
 void trx_purge_sys_close() {

@@ -2932,7 +2932,7 @@ static void fix_line(String *final_command) {
   int total_lines = 1;
   char *ptr = final_command->c_ptr();
   String fixed_buffer; /* Converted buffer */
- 
+
   /* Character if we are in a string or not */
   char str_char = '\0';
 

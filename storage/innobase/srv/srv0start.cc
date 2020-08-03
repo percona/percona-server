@@ -3599,9 +3599,9 @@ void srv_pre_dd_shutdown() {
       break;
     }
     ib::info(ER_XB_MSG_WAIT_FOR_KEYRING_ENCRYPT_THREAD)
-          << "Waiting for"
-             " keyring encryption threads"
-             " to exit";
+        << "Waiting for"
+           " keyring encryption threads"
+           " to exit";
     os_thread_sleep(1000000);  // 1s
   }
 
@@ -3630,7 +3630,6 @@ void srv_pre_dd_shutdown() {
     case PURGE_STATE_STOP:
       ut_ad(0);
   }
-
 
   unlock_keyrings(NULL);
 

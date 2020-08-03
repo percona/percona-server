@@ -3155,7 +3155,8 @@ static int os_file_fsync_posix(os_file_t file) {
       case EIO: {
         const auto fd_path = os_file_find_path_for_fd(file);
         if (!fd_path.empty())
-          ib::fatal(ER_IB_MSG_1358) << "fsync(\"" << fd_path << "\") returned EIO, aborting.";
+          ib::fatal(ER_IB_MSG_1358)
+              << "fsync(\"" << fd_path << "\") returned EIO, aborting.";
         else
           ib::fatal(ER_IB_MSG_1358) << "fsync() returned EIO, aborting.";
         break;

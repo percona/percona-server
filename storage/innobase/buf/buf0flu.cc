@@ -2536,8 +2536,9 @@ ulint get_pct_for_lsn(lsn_t age) /*!< in: current age of LSN. */
   }
 }
 
-    /// TODO MONITOR_SET(MONITOR_FLUSH_ADAPTIVE_AVG_TIME_EST, flush_tm / flush_pass);
-    
+/// TODO MONITOR_SET(MONITOR_FLUSH_ADAPTIVE_AVG_TIME_EST, flush_tm /
+/// flush_pass);
+
 /** Set page flush target based on LSN change and checkpoint age.
 @param[in]	sync_flush	true iff this is sync flush mode */
 ulint set_flush_target_by_lsn(bool sync_flush) {

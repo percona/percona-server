@@ -1395,7 +1395,7 @@ position where the part about transactions starts.
                               transactions
 */
 static void srv_printf_locks_and_transactions(FILE *file,
-                                             ulint *trx_start_pos) {
+                                              ulint *trx_start_pos) {
   ut_ad(locksys::owns_exclusive_global_latch());
 
   if (recv_recovery_on) return;
@@ -1472,7 +1472,7 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
 
     mutex_exit(&dict_foreign_err_mutex);
   }
-  
+
   ret = true;
   if (nowait) {
     locksys::Global_exclusive_try_latch guard{};
@@ -3197,7 +3197,7 @@ static void srv_master_main_loop(srv_slot_t *slot) {
 
   ulint old_activity_count = srv_get_activity_count();
   ulint old_ibuf_merge_activity_count = srv_get_ibuf_merge_activity_count();
-  
+
   while (srv_shutdown_state.load() <
          SRV_SHUTDOWN_PRE_DD_AND_SYSTEM_TRANSACTIONS) {
     srv_master_sleep();

@@ -133,9 +133,8 @@ int Rdb_convert_to_record_value_decoder::decode_blob(TABLE *table, Field *field,
   }
 
   memcpy(blob->field_ptr(), data_len_str, length_bytes);
-  uint32 data_len =
-      blob->get_length(reinterpret_cast<const uchar *>(data_len_str),
-                       length_bytes);
+  uint32 data_len = blob->get_length(
+      reinterpret_cast<const uchar *>(data_len_str), length_bytes);
   const char *blob_ptr;
   if (!(blob_ptr = reader->read(data_len))) {
     return HA_ERR_ROCKSDB_CORRUPT_DATA;
@@ -218,7 +217,8 @@ int Rdb_convert_to_record_value_decoder::decode_varchar(
   }
 
   if (decode) {
-    memcpy(field_var->field_ptr(), data_len_str, field_var->get_length_bytes() + data_len);
+    memcpy(field_var->field_ptr(), data_len_str,
+           field_var->get_length_bytes() + data_len);
   }
 
   return HA_EXIT_SUCCESS;
@@ -810,7 +810,8 @@ int Rdb_converter::encode_value_slice(
     } else {
       /* Copy the field data */
       const uint len = field->pack_length_in_rec();
-      m_storage_record.append(reinterpret_cast<char *>(field->field_ptr()), len);
+      m_storage_record.append(reinterpret_cast<char *>(field->field_ptr()),
+                              len);
     }
   }
 

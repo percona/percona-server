@@ -87,9 +87,9 @@ int Rdb_convert_to_record_key_decoder::decode_field(
       field->set_null();
       /* Also set the field to its default value */
       memcpy(field->field_ptr(), default_value, field->pack_length());
-      // KH: ? 
+      // KH: ?
       // field->set_default();
-      //field->set_image(default_value, field->pack_length(), nullptr);
+      // field->set_image(default_value, field->pack_length(), nullptr);
       return HA_EXIT_SUCCESS;
     } else if (*nullp == 1) {
       field->set_notnull();
@@ -98,7 +98,8 @@ int Rdb_convert_to_record_key_decoder::decode_field(
     }
   }
 
-  return (fpi->m_unpack_func)(fpi, field, field->field_ptr(), reader, unpack_reader);
+  return (fpi->m_unpack_func)(fpi, field, field->field_ptr(), reader,
+                              unpack_reader);
 }
 
 /*
@@ -532,7 +533,8 @@ void Rdb_key_def::setup(const TABLE *const tbl,
         if (pk_info) {
           m_pk_part_no[dst_i] = -1;
           for (uint j = 0; j < m_pk_key_parts; j++) {
-            if (field->field_index() == pk_info->key_part[j].field->field_index()) {
+            if (field->field_index() ==
+                pk_info->key_part[j].field->field_index()) {
               m_pk_part_no[dst_i] = j;
               break;
             }
@@ -2790,8 +2792,8 @@ void Rdb_key_def::pack_with_varchar_encoding(
   const size_t value_length = (field_var->get_length_bytes() == 1)
                                   ? (uint)*field->field_ptr()
                                   : uint2korr(field->field_ptr());
-  const char *src =
-      reinterpret_cast<const char *>(field_var->field_ptr() + field_var->get_length_bytes());
+  const char *src = reinterpret_cast<const char *>(
+      field_var->field_ptr() + field_var->get_length_bytes());
 
   // We only store the trimmed contents but encode the missing char with
   // removed_chars later to save space
@@ -2918,8 +2920,8 @@ void Rdb_key_def::pack_with_varchar_space_pad(
   const CHARSET_INFO *const charset = field->charset();
   const auto field_var = static_cast<Field_varstring *>(field);
 
-  const char *src =
-      reinterpret_cast<const char *>(field_var->field_ptr() + field_var->get_length_bytes());
+  const char *src = reinterpret_cast<const char *>(
+      field_var->field_ptr() + field_var->get_length_bytes());
 
   const size_t value_length = (field_var->get_length_bytes() == 1)
                                   ? (uint)*field->field_ptr()
@@ -3329,7 +3331,8 @@ void Rdb_key_def::make_unpack_unknown_varchar(
     const Rdb_collation_codec *const codec MY_ATTRIBUTE((__unused__)),
     const Field *const field, Rdb_pack_field_context *const pack_ctx) {
   const auto f = static_cast<const Field_varstring *>(field);
-  uint len = f->get_length_bytes() == 1 ? (uint)*f->field_ptr() : uint2korr(f->field_ptr());
+  uint len = f->get_length_bytes() == 1 ? (uint)*f->field_ptr()
+                                        : uint2korr(f->field_ptr());
   len += f->get_length_bytes();
   pack_ctx->writer->write(field->field_ptr(), len);
 }
@@ -3421,8 +3424,8 @@ void Rdb_key_def::make_unpack_simple_varchar(
     Rdb_pack_field_context *const pack_ctx) {
   const auto f = static_cast<const Field_varstring *>(field);
   const uchar *const src = f->field_ptr() + f->get_length_bytes();
-  const size_t src_len =
-      f->get_length_bytes() == 1 ? (uint)*f->field_ptr() : uint2korr(f->field_ptr());
+  const size_t src_len = f->get_length_bytes() == 1 ? (uint)*f->field_ptr()
+                                                    : uint2korr(f->field_ptr());
   Rdb_bit_writer bit_writer(pack_ctx->writer);
   // The std::min compares characters with bytes, but for simple collations,
   // mbmaxlen = 1.

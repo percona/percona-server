@@ -1217,15 +1217,15 @@ static uchar *pack_toku_key_field(
                                     0, num_bytes, field->charset());
       goto exit;
     case (toku_type_varbinary):
-      new_pos = pack_toku_varbinary(to_tokudb, from_mysql,
-                                    ((Field_varstring *)field)->get_length_bytes(),
-                                    key_part_length);
+      new_pos = pack_toku_varbinary(
+          to_tokudb, from_mysql, ((Field_varstring *)field)->get_length_bytes(),
+          key_part_length);
       goto exit;
     case (toku_type_varstring):
-      new_pos = pack_toku_varstring(to_tokudb, from_mysql,
-                                    get_length_bytes_from_max(key_part_length),
-                                    ((Field_varstring *)field)->get_length_bytes(),
-                                    key_part_length, field->charset());
+      new_pos = pack_toku_varstring(
+          to_tokudb, from_mysql, get_length_bytes_from_max(key_part_length),
+          ((Field_varstring *)field)->get_length_bytes(), key_part_length,
+          field->charset());
       goto exit;
     case (toku_type_blob):
       new_pos = pack_toku_blob(

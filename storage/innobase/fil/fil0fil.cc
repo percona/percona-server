@@ -5950,12 +5950,12 @@ bool fil_replace_tablespace(space_id_t old_space_id, space_id_t new_space_id,
   }
 
   ulint flags = fsp_flags_init(univ_page_size, false, false, false, false);
- 
+
   /* Create the new UNDO tablespace. */
-  err =
-      fil_create_tablespace(new_space_id, space_name.c_str(), file_name.c_str(),
-                            flags, size_in_pages, FIL_TYPE_TABLESPACE,
-                            FIL_ENCRYPTION_DEFAULT, KeyringEncryptionKeyIdInfo());
+  err = fil_create_tablespace(new_space_id, space_name.c_str(),
+                              file_name.c_str(), flags, size_in_pages,
+                              FIL_TYPE_TABLESPACE, FIL_ENCRYPTION_DEFAULT,
+                              KeyringEncryptionKeyIdInfo());
 
   return (err == DB_SUCCESS);
 }

@@ -254,15 +254,18 @@ get_sources(){
 
 get_system(){
     if [ -f /etc/redhat-release ]; then
+        GLIBC_VER_TMP="$(rpm glibc -qa --qf %{VERSION})"
         RHEL=$(rpm --eval %rhel)
         ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
         OS_NAME="el$RHEL"
         OS="rpm"
     else
+        GLIBC_VER_TMP="$(dpkg-query -W -f='${Version}' libc6 | awk -F'-' '{print $1}')"
         ARCH=$(uname -m)
         OS_NAME="$(lsb_release -sc)"
         OS="deb"
     fi
+    export GLIBC_VER=".glibc${GLIBC_VER_TMP}"
     return
 }
 
@@ -283,6 +286,9 @@ install_deps() {
         RHEL=$(rpm --eval %rhel)
         ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
         add_percona_yum_repo
+        yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
+        percona-release enable tools testing
+        yum -y install patchelf
         if [ ${RHEL} -lt 8 ]; then
             yum -y install https://repo.percona.com/yum/percona-release-latest.noarch.rpm || true
             percona-release enable origin release
@@ -316,6 +322,8 @@ install_deps() {
       	apt-get update
         apt-get -y install dirmngr || true
         apt-get -y install lsb-release wget
+        wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb && dpkg -i percona-release_latest.$(lsb_release -sc)_all.deb
+        percona-release enable tools testing
         export DEBIAN_FRONTEND="noninteractive"
         export DIST="$(lsb_release -sc)"
 	    until sudo apt-get update; do
@@ -333,7 +341,7 @@ install_deps() {
         apt-get -y install libmecab2 mecab mecab-ipadic
         apt-get -y install build-essential devscripts libnuma-dev
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot 
-        apt-get -y install libcurl4-openssl-dev
+        apt-get -y install libcurl4-openssl-dev patchelf
         if [ "x${DIST}" = "xcosmic" -o "x${DIST}" = "xbionic" -o "x${DIST}" = "xdisco" -o "x${DIST}" = "xbuster" -o "x${DIST}" = "xfocal" ]; then
             apt-get -y install libeatmydata1
         fi
@@ -714,15 +722,6 @@ build_tarball(){
     #
     export CFLAGS=$(rpm --eval %{optflags} | sed -e "s|march=i386|march=i686|g")
     export CXXFLAGS="${CFLAGS}"
-    if [ "${YASSL}" = 0 ]; then
-        if [ -f /etc/redhat-release ]; then
-            SSL_VER_TMP=$(yum list installed|grep -i openssl|head -n1|awk '{print $2}'|awk -F "-" '{print $1}'|sed 's/\.//g'|sed 's/[a-z]$//')
-            export SSL_VER=".ssl${SSL_VER_TMP}"
-        else
-            SSL_VER_TMP=$(dpkg -l|grep -i libssl|grep -v "libssl\-"|head -n1|awk '{print $2}'|awk -F ":" '{print $1}'|sed 's/libssl/ssl/g'|sed 's/\.//g')
-            export SSL_VER=".${SSL_VER_TMP}"
-        fi
-    fi
     
     build_mecab_lib
     build_mecab_dict

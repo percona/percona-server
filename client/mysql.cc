@@ -2819,12 +2819,8 @@ C_MODE_END
   if not.
 */
 
-#if defined(USE_NEW_XLINE_INTERFACE)
-static int fake_magic_space(int, int);
+#if defined(USE_NEW_XLINE_INTERFACE) || defined(USE_LIBEDIT_INTERFACE)
 char *no_completion(const char *, int)
-#elif defined(USE_LIBEDIT_INTERFACE)
-static int fake_magic_space(const char *, int);
-int no_completion(const char *, int)
 #else
 char *no_completion()
 #endif
@@ -2848,11 +2844,7 @@ static int not_in_history(const char *line)
 }
 
 
-#if defined(USE_NEW_XLINE_INTERFACE)
 static int fake_magic_space(int, int)
-#else
-static int fake_magic_space(const char *, int)
-#endif
 {
   rl_insert(1, ' ');
   return 0;

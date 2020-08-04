@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_install_db\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/23/2020
+.\"      Date: 06/02/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_INSTALL_DB\FR" "1" "03/23/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL_INSTALL_DB\FR" "1" "06/02/2020" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -508,7 +508,6 @@ Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
 .\}
 \fB\-\-help\fR,
 \fB\-?\fR
-.sp
 Display a help message and exit\&.
 .RE
 .sp
@@ -521,7 +520,6 @@ Display a help message and exit\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-admin\-auth\-plugin=\fR\fB\fIplugin_name\fR\fR
-.sp
 The authentication plugin to use for the administrative account\&. The default is
 mysql_native_password\&.
 .RE
@@ -535,7 +533,6 @@ mysql_native_password\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-admin\-host=\fR\fB\fIhost_name\fR\fR
-.sp
 The host part to use for the adminstrative account name\&. The default is
 localhost\&. This option is ignored if
 \fB\-\-login\-path\fR
@@ -551,7 +548,6 @@ is also specified\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-admin\-require\-ssl\fR
-.sp
 Whether to require SSL for the administrative account\&. The default is not to require it\&. With this option enabled, the statement that
 \fBmysql_install_db\fR
 uses to create the account includes a
@@ -568,7 +564,6 @@ clause\&. As a result, the administrative account must use secure connections wh
 .IP \(bu 2.3
 .\}
 \fB\-\-admin\-user=\fR\fB\fIuser_name\fR\fR
-.sp
 The user part to use for the adminstrative account name\&. The default is
 root\&. This option is ignored if
 \fB\-\-login\-path\fR
@@ -584,7 +579,6 @@ is also specified\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-basedir=\fR\fB\fIdir_name\fR\fR
-.sp
 The path to the MySQL installation directory\&.
 .RE
 .sp
@@ -597,7 +591,6 @@ The path to the MySQL installation directory\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-builddir=\fR\fB\fIdir_name\fR\fR
-.sp
 For use with
 \fB\-\-srcdir\fR
 and out\-of\-source builds\&. Set this to the location of the directory where the built files reside\&.
@@ -612,7 +605,6 @@ and out\-of\-source builds\&. Set this to the location of the directory where th
 .IP \(bu 2.3
 .\}
 \fB\-\-datadir=\fR\fB\fIdir_name\fR\fR
-.sp
 The path to the MySQL data directory\&. Only the last component of the path name is created if it does not exist; the parent directory must already exist or an error occurs\&.
 .if n \{\
 .sp
@@ -642,7 +634,6 @@ option is mandatory and the data directory must not already exist\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\fR
-.sp
 This option causes
 \fBmysql_install_db\fR
 to invoke
@@ -669,7 +660,6 @@ to
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
-.sp
 Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
@@ -692,7 +682,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
-.sp
 Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
@@ -716,7 +705,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .\}
 \fB\-\-extra\-sql\-file=\fR\fB\fIfile_name\fR\fR,
 \fB\-f \fR\fB\fIfile_name\fR\fR
-.sp
 This option names a file containing additional SQL statements to be executed after the standard bootstrapping statements\&. Accepted statement syntax in the file is like that of the
 \fBmysql\fR
 command\-line client, including support for multiple\-line C\-style comments and delimiter handling to enable definition of stored programs\&.
@@ -731,7 +719,6 @@ command\-line client, including support for multiple\-line C\-style comments and
 .IP \(bu 2.3
 .\}
 \fB\-\-insecure\fR
-.sp
 Do not generate a random password for the adminstrative account\&.
 .sp
 If
@@ -765,7 +752,6 @@ password again as part of ensuring secure deployment\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-lc\-messages=name\fR
-.sp
 The locale to use for error messages\&. The default is
 en_US\&. The argument is converted to a language name and combined with the value of
 \fB\-\-lc\-messages\-dir\fR
@@ -782,7 +768,6 @@ Section\ \&10.12, \(lqSetting the Error Message Language\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-lc\-messages\-dir=\fR\fB\fIdir_name\fR\fR
-.sp
 The directory where error messages are located\&. The value is used together with the value of
 \fB\-\-lc\-messages\fR
 to produce the location for the error message file\&. See
@@ -798,7 +783,6 @@ Section\ \&10.12, \(lqSetting the Error Message Language\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-login\-file=\fR\fB\fIfile_name\fR\fR
-.sp
 The file from which to read the login path if the
 \fB\-\-login\-path=\fR\fB\fIfile_name\fR\fR
 option is specified\&. The default file is
@@ -814,7 +798,6 @@ option is specified\&. The default file is
 .IP \(bu 2.3
 .\}
 \fB\-\-login\-path=\fR\fB\fIname\fR\fR
-.sp
 Read options from the named login path in the
 \&.mylogin\&.cnf
 login path file\&. The default login path is
@@ -851,7 +834,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-mysqld\-file=\fR\fB\fIfile_name\fR\fR
-.sp
 The path name of the
 \fBmysqld\fR
 binary to execute\&. The option value must be an absolute path name or an error occurs\&.
@@ -949,7 +931,6 @@ In
 .IP \(bu 2.3
 .\}
 \fB\-\-no\-defaults\fR
-.sp
 For behavior of this option, see the description of
 \fB\-\-defaults\fR\&.
 .sp
@@ -966,7 +947,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-random\-password\-file=\fR\fB\fIfile_name\fR\fR
-.sp
 The path name of the file in which to write the randomly generated password for the administrative account\&. The option value must be an absolute path name or an error occurs\&. The default is
 $HOME/\&.mysql_secret\&.
 .RE
@@ -980,7 +960,6 @@ $HOME/\&.mysql_secret\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-skip\-sys\-schema\fR
-.sp
 \fBmysql_install_db\fR
 installs the
 sys
@@ -998,7 +977,6 @@ option suppresses this behavior\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-srcdir=\fR\fB\fIdir_name\fR\fR
-.sp
 For internal use\&. This option specifies the directory under which
 \fBmysql_install_db\fR
 looks for support files such as the error message file and the file for populating the help tables\&.
@@ -1014,7 +992,6 @@ looks for support files such as the error message file and the file for populati
 .\}
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR,
 \fB\-u \fR\fB\fIuser_name\fR\fR
-.sp
 The system (login) user name to use for running
 \fBmysqld\fR\&. Files and directories created by
 \fBmysqld\fR
@@ -1035,7 +1012,6 @@ runs using your current login name and files and directories that it creates wil
 .\}
 \fB\-\-verbose\fR,
 \fB\-v\fR
-.sp
 Verbose mode\&. Print more information about what the program does\&. You can use this option to see the
 \fBmysqld\fR
 command that
@@ -1053,13 +1029,12 @@ invokes to start the server in bootstrap mode\&.
 .\}
 \fB\-\-version\fR,
 \fB\-V\fR
-.sp
 Display version information and exit\&.
 .RE
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

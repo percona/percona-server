@@ -1349,12 +1349,12 @@ on compression algorithms see :ref:`Compression Details <tokudb_compression>`.
   :default: ON
 
 The |TokuDB| replication code will run row events from the binary log with
-:ref:`tokudb_read_free_replication` when the slave is in read-only mode. This
-variable is used to disable the slave read only check in the |TokuDB|
+:ref:`tokudb_read_free_replication` when the replica is in read-only mode. This
+variable is used to disable the replica read only check in the |TokuDB|
 replication code.
 
-This allows Read-Free-Replication to run when the slave is NOT read-only. By
-default, :variable:`tokudb_rpl_check_readonly` is enabled (check that slave is
+This allows Read-Free-Replication to run when the replica is NOT read-only. By
+default, :variable:`tokudb_rpl_check_readonly` is enabled (check that replica is
 read-only). Do **NOT** change this value unless you completely understand the
 implications!
 
@@ -1367,7 +1367,7 @@ implications!
   :vartype: Boolean
   :default: ON
 
-When disabled, |TokuDB| replication slaves skip row lookups for ``delete row``
+When disabled, |TokuDB| replication replicas skip row lookups for ``delete row``
 log events and ``update row`` log events, which eliminates all associated read
 I/O for these operations.
 
@@ -1375,7 +1375,7 @@ I/O for these operations.
 
   |TokuDB| :ref:`tokudb_read_free_replication` will not propagate ``UPDATE``
   and ``DELETE`` events reliably if |TokuDB| table is missing the primary key
-  which will eventually lead to data inconsistency on the slave.
+  which will eventually lead to data inconsistency on the replica.
 
 .. note::
 
@@ -1405,7 +1405,7 @@ set to a non-zero value for testing.
   :vartype: Boolean
   :default: ON
 
-When disabled, |TokuDB| replication slaves skip uniqueness checks on inserts
+When disabled, |TokuDB| replication replicas skip uniqueness checks on inserts
 and updates, which eliminates all associated read I/O for these operations.
 
 .. note::

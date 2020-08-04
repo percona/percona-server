@@ -17,7 +17,7 @@ Features removed from |Percona Server| 5.7 that were available in |Percona Serve
 Some features that were present in |Percona Server| 5.6 have been removed in |Percona Server| 5.7. These are:
 
  * `Handlersocket <https://www.percona.com/doc/percona-server/5.6/performance/handlersocket.html>`_ - This feature might be included in a future release if HandlerSocket starts supporting 5.7.
- * `Support for Fake Changes <https://www.percona.com/doc/percona-server/5.6/management/innodb_fake_changes.html>`_ - Instead of slave prefetching using the fake changes, a 5.7 intra-schema parallel replication slave should be used.
+ * `Support for Fake Changes <https://www.percona.com/doc/percona-server/5.6/management/innodb_fake_changes.html>`_ - Instead of replica prefetching using the fake changes, a 5.7 intra-schema parallel replication replica should be used.
  * ``SHOW ENGINE INNODB STATUS`` no longer prints the count of active Read-Only transactions.
  * `InnoDB redo log archiving <https://www.percona.com/doc/percona-server/5.6/management/log_archiving.html>`_ has been removed due to lack of user uptake of the feature.
 
@@ -152,9 +152,9 @@ Following system variables available in |Percona Server| 5.6 are no longer prese
    * - :variable:`gtid_deployment_step`                     
      - Replaced by an upstream variable `gtid_mode <http://dev.mysql.com/doc/refman/5.7/en/replication-options-gtids.html#option_mysqld_gtid-mode>`_ made dynamic.
    * - :variable:`innodb_fake_changes`                     
-     - Instead of slave prefetching using the fake changes, a 5.7 intra-schema parallel replication slave should be used.
+     - Instead of replica prefetching using the fake changes, a 5.7 intra-schema parallel replication replica should be used.
    * - :variable:`innodb_locking_fake_changes`                     
-     - Instead of slave prefetching using the fake changes, a 5.7 intra-schema parallel replication slave should be used.
+     - Instead of replica prefetching using the fake changes, a 5.7 intra-schema parallel replication replica should be used.
    * - :variable:`innodb_log_archive`                     
      - InnoDB redo log archiving has been removed due to lack of user uptake of the feature.
    * - :variable:`innodb_log_arch_dir`                     

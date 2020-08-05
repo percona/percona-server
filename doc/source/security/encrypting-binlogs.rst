@@ -11,8 +11,8 @@ After you have enabled the ``binlog_encryption`` option and the keyring is
 available, you can encrypt new binary logs and relay logs on disk. Only the data
 content is encrypted.
 
-In replication, the master sends the stream of decrypted binary log events to a
-slave, in transport the data is encrypted by SSL connections. Master and slaves
+In replication, the source sends the stream of decrypted binary log events to a
+replica, in transport the data is encrypted by SSL connections. Source and replicas
 use separate keyring storages and are able to use different keyring plugins.
 
 When an encrypted binary log is dumped, and the operation involves decryption,

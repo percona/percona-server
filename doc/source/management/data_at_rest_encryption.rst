@@ -1,8 +1,5 @@
 
 
-==============================================================================
-Data at Rest Encryption
-==============================================================================
 
 This page has been moved or been replaced. The new page is located here:
 

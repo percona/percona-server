@@ -1618,7 +1618,7 @@ When enabled, this option allows index key prefixes longer than 767 bytes (up to
 3072 bytes). This option mirrors the `innodb_large_prefix
 <https://dev.mysql.com/doc/refman/8.0/en/innodb-parameters.html#sysvar_innodb_large_prefix>`_
 The values for :variable:`rocksdb_large_prefix` should be the same between
-master and slave.
+source and replica.
 
 .. note::
 
@@ -1712,7 +1712,7 @@ rely on the application to do the flushing.
    :default: ``OFF``
 
 When enabled, uses the WriteBatch API, which is faster. The session does not
-hold any lock on row access. This variable is not effective on slave.
+hold any lock on row access. This variable is not effective on replica.
 
 .. note::
 
@@ -2100,7 +2100,7 @@ Allowed range is up to ``9223372036854775807``.
   :default: ``OFF``
 
 Use read-free replication, which allows no row lookup during
-replication, on the slave. 
+replication, on the replica.
 
 The options are the following:
 
@@ -2118,7 +2118,7 @@ The options are the following:
   :default:
 
 Lists tables (as a regular expression)
-that should use read-free replication on the slave
+that should use read-free replication on the replica
 (that is, replication without row lookups).
 Empty by default.
 
@@ -2174,7 +2174,7 @@ instead of the transaction API.
 Disabled by default.
 
 There are two conditions which are necessary to
-use it: row replication format and slave
+use it: row replication format and replica
 operating in super read only mode.
 
 .. variable:: rocksdb_seconds_between_stat_computes
@@ -2600,9 +2600,9 @@ The following are the options:
 
  * ``0``: if the last WAL entry is corrupted, truncate the entry and either start the server normally or refuse to start.
 
- * ``1`` (default): if a WAL entry is corrupted, the server fails to   start and does not recover from the crash.
+ * ``1``: if a WAL entry is corrupted, the server fails to   start and does not recover from the crash.
 
- * ``2``: if a corrupted WAL entry is detected, truncate all entries after the detected corrupted entry. You can select this setting for replication slaves.
+ * ``2`` (default): if a corrupted WAL entry is detected, truncate all entries after the detected corrupted entry. You can select this setting for replication replicas.
 
  * ``3``: If a corrupted WAL entry is detected, skip only the corrupted entry and continue the apply WAL entries. This option can be dangerous.
 

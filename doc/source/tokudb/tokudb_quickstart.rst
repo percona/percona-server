@@ -62,7 +62,7 @@ separated or tab separated format. The |MySQL| |sql.load-data-infile|
 statement will invoke the bulk loader if the table is empty. Keep in mind that
 while this is the most convenient and, in most cases, the fastest way to
 initialize a |TokuDB| table, it may not be replication safe if applied to the
-master
+source.
 
 .. seealso::
 

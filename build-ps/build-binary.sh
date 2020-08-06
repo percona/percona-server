@@ -412,7 +412,7 @@ fi
     $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL.tar.gz" $PRODUCT_FULL
 
     cd "$INSTALLDIR/usr/local/minimal/"
-    find $PRODUCT_FULL -type f -name 'COPYING.AGPLv3' -delete
+    find $PRODUCT_FULL-minimal -type f -name 'COPYING.AGPLv3' -delete
     $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL-minimal.tar.gz" $PRODUCT_FULL-minimal
 )
 

@@ -42,7 +42,7 @@ You should also consider the following:
   Note that InnoDB also imposes a cost
   when the index is scanned in the opposite order.
 
-* MyRocks does not support operating as either a master or a slave
+* MyRocks does not support operating as either a source or a replica
   in any replication topology that is not exclusively row-based.
   Statement-based and mixed-format binary logging is not supported.
   For more information, see `Replication Formats
@@ -102,7 +102,7 @@ You should also consider the following:
   character set attribute.
 
 *  In version 8.0.13-3 and later, MyRocks does not support
-   `explict DEFAULT value expressions <https://dev.mysql.com/doc/refman/8.0/en/data-type-defaults.html>`__.
+   `explicit DEFAULT value expressions <https://dev.mysql.com/doc/refman/8.0/en/data-type-defaults.html>`__.
 
 * |Percona Server| 8.0.16 does not support encryption for the MyRocks
   storage engine. At this time, during an ``ALTER TABLE`` operation, MyRocks mistakenly detects all InnoDB tables as encrypted. Therefore, any attempt to ``ALTER`` an InnoDB table to MyRocks fails.

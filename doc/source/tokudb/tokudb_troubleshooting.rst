@@ -13,7 +13,7 @@ TokuDB Troubleshooting
 Known Issues
 ===============================================================================
 
-**Replication and binary logging**: |TokuDB| supports binary logging and replication, with one restriction. |TokuDB| does not implement a lock on the auto-increment function, so concurrent insert statements with one or more of the statements inserting multiple rows may result in a non-deterministic interleaving of the auto-increment values. When running replication with these concurrent inserts, the auto-increment values on the slave table may not match the auto-increment values on the master table. Note that this is only an issue with Statement Based Replication (SBR), and not Row Based Replication (RBR).
+**Replication and binary logging**: |TokuDB| supports binary logging and replication, with one restriction. |TokuDB| does not implement a lock on the auto-increment function, so concurrent insert statements with one or more of the statements inserting multiple rows may result in a non-deterministic interleaving of the auto-increment values. When running replication with these concurrent inserts, the auto-increment values on the replica table may not match the auto-increment values on the source table. Note that this is only an issue with Statement Based Replication (SBR), and not Row Based Replication (RBR).
 
 For more information about auto-increment and replication, see the |MySQL|
 Reference Manual: `AUTO_INCREMENT handling in InnoDB

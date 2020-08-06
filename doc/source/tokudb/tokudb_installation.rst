@@ -12,7 +12,7 @@ adapted version of |Percona Server|.
 
 The |TokuDB| storage engine is a scalable, ACID and MVCC compliant storage
 engine that provides indexing-based query improvements, offers online schema
-modifications, and reduces slave lag for both hard disk drives and flash
+modifications, and reduces replica lag for both hard disk drives and flash
 memory. This storage engine is specifically designed for high performance on
 write-intensive workloads which is achieved with Fractal Tree indexing. To learn
 more about Fractal Tree indexing, you can visit the following `Wikipedia page

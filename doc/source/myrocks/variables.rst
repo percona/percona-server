@@ -1326,7 +1326,6 @@ The default value is ``TRUE``.
 .. variable:: rocksdb_enable_insert_with_update_caching
 
    :version 8.0.20-11: Implemented
-
    :cli: ``--rocksdb-enable-insert-with-update-caching``
    :dyn: Yes
    :scope: Global
@@ -2591,7 +2590,11 @@ Specifies the path to the directory where MyRocks stores WAL files.
   :dyn: Yes
   :scope: Global
   :vartype: Numeric
-  :default: ``1``
+  :default: ``2``
+
+.. note:: 
+
+    In version 8.0.20-11 and later, the default is changed from ``1`` to ``2``. 
 
 Specifies the level of tolerance when recovering write-ahead logs (WAL) files
 after a system crash.

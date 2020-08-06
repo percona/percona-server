@@ -149,6 +149,7 @@ Diagnostics Improvements
    diagnostics/thread_based_profiling
    diagnostics/innodb_fragmentation_count
    diagnostics/stacktrace
+   diagnostics/libcoredumper
 
 TokuDB
 ================================================================================

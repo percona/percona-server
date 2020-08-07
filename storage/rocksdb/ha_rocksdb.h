@@ -84,6 +84,7 @@ class Rdb_field_encoder;
 class Regex_list_handler;
 
 extern char *rocksdb_read_free_rpl_tables;
+extern ulong rocksdb_max_row_locks;
 #if defined(HAVE_PSI_INTERFACE)
 extern PSI_rwlock_key key_rwlock_read_free_rpl_tables;
 #endif

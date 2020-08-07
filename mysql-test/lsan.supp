@@ -24,3 +24,7 @@
 leak:Perl_safesyscalloc
 leak:Perl_safesysmalloc
 leak:Perl_safesysrealloc
+leak:/bin/bash
+leak:/usr/bin/sed
+leak:/usr/bin/python2.7
+leak:/usr/bin/python3.8

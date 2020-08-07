@@ -284,16 +284,10 @@
 #cmakedefine HAVE_NCURSES_H 1
 #cmakedefine USE_LIBEDIT_INTERFACE 1
 #cmakedefine HAVE_HIST_ENTRY 1
-<<<<<<< HEAD
 #cmakedefine USE_NEW_XLINE_INTERFACE 1
+#cmakedefine XLINE_HAVE_COMPLETION_CHAR 1
+#cmakedefine XLINE_HAVE_COMPLETION_INT 1
 #cmakedefine HAVE_READLINE_HISTORY_H 1
-||||||| b17eb938b91
-#cmakedefine USE_NEW_EDITLINE_INTERFACE 1
-=======
-#cmakedefine USE_NEW_EDITLINE_INTERFACE 1
-#cmakedefine EDITLINE_HAVE_COMPLETION_CHAR 1
-#cmakedefine EDITLINE_HAVE_COMPLETION_INT 1
->>>>>>> e18e2390b3f84a97f9d6cf53aff7d51b736faa4e^
 
 /*
  * Libedit

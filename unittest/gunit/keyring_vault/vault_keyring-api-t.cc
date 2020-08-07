@@ -18,6 +18,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <sql_plugin_ref.h>
+#include <boost/move/unique_ptr.hpp>
 #include <boost/scope_exit.hpp>
 #include <fstream>
 #include "vault_keyring.cc"
@@ -34,7 +35,7 @@ namespace keyring__api_unittest
   using namespace keyring;
 
   static std::string uuid = generate_uuid();
-  static char *keyring_filename;
+  static boost::movelib::unique_ptr<char[]> keyring_filename;
 
   class Keyring_vault_api_test : public ::testing::Test
   {
@@ -56,7 +57,7 @@ namespace keyring__api_unittest
 
       plugin_info.name.str= plugin_name;
       plugin_info.name.length= strlen(plugin_name);
-      keyring_vault_config_file= keyring_filename;
+      keyring_vault_config_file= keyring_filename.get();
 
       keyring_init_with_mock_logger();
 
@@ -478,13 +479,13 @@ int main(int argc, char **argv)
     curl_global_cleanup();
   } BOOST_SCOPE_EXIT_END
 
-  ILogger *logger = new keyring::Mock_logger();
+  boost::movelib::unique_ptr<ILogger> logger(new keyring::Mock_logger());
   //create unique secret mount point for this test suite
-  keyring::Vault_mount vault_mount(curl, logger);
+  keyring::Vault_mount vault_mount(curl, logger.get());
 
-  keyring__api_unittest::keyring_filename= new char[strlen("./keyring_vault.conf")+1];
-  strcpy(keyring__api_unittest::keyring_filename, "./keyring_vault.conf");
-  std::string keyring_conf(keyring__api_unittest::keyring_filename);
+  keyring__api_unittest::keyring_filename.reset(new char[strlen("./keyring_vault.conf")+1]);
+  strcpy(keyring__api_unittest::keyring_filename.get(), "./keyring_vault.conf");
+  std::string keyring_conf(keyring__api_unittest::keyring_filename.get());
   std::string mount_point_path= "cicd/" + keyring__api_unittest::uuid;
   if (generate_credential_file(keyring_conf, CORRECT, mount_point_path))
   {
@@ -509,8 +510,6 @@ int main(int argc, char **argv)
   {
     std::cout << "Could not unmount secret backend" << std::endl;
   }
-  delete logger;
-  delete[] keyring__api_unittest::keyring_filename;
 
   my_testing::teardown_server_for_unit_tests();
   return ret;

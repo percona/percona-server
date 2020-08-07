@@ -2819,19 +2819,9 @@ C_MODE_END
   if not.
 */
 
-<<<<<<< HEAD
-#if defined(USE_NEW_XLINE_INTERFACE) || defined(USE_LIBEDIT_INTERFACE)
-||||||| b17eb938b91
-#if defined(USE_NEW_EDITLINE_INTERFACE)
-static int fake_magic_space(int, int);
+#if defined(XLINE_HAVE_COMPLETION_CHAR)
 char *no_completion(const char *, int)
-#elif defined(USE_LIBEDIT_INTERFACE)
-static int fake_magic_space(int, int);
-=======
-#if defined(EDITLINE_HAVE_COMPLETION_CHAR)
->>>>>>> e18e2390b3f84a97f9d6cf53aff7d51b736faa4e^
-char *no_completion(const char *, int)
-#elif defined(EDITLINE_HAVE_COMPLETION_INT)
+#elif defined(XLINE_HAVE_COMPLETION_INT)
 int no_completion(const char *, int)
 #else
 char *no_completion()
@@ -2856,21 +2846,11 @@ static int not_in_history(const char *line)
 }
 
 
-<<<<<<< HEAD
-static int fake_magic_space(int, int)
-||||||| b17eb938b91
-#if defined(USE_NEW_EDITLINE_INTERFACE)
-static int fake_magic_space(int, int)
-#else
-static int fake_magic_space(int, int)
-#endif
-=======
-#if defined(USE_NEW_EDITLINE_INTERFACE)
+#if defined(USE_NEW_XLINE_INTERFACE)
 static int fake_magic_space(int, int)
 #else
 static int fake_magic_space(const char *, int)
 #endif
->>>>>>> e18e2390b3f84a97f9d6cf53aff7d51b736faa4e^
 {
   rl_insert(1, ' ');
   return 0;
@@ -2883,18 +2863,12 @@ static void initialize_readline (char *name)
   rl_readline_name = name;
 
   /* Tell the completer that we want a crack first. */
-<<<<<<< HEAD
-#if defined(USE_NEW_XLINE_INTERFACE)
-||||||| b17eb938b91
-#if defined(USE_NEW_EDITLINE_INTERFACE)
-=======
-#if defined(EDITLINE_HAVE_COMPLETION_CHAR)
->>>>>>> e18e2390b3f84a97f9d6cf53aff7d51b736faa4e^
+#if defined(XLINE_HAVE_COMPLETION_CHAR)
   rl_attempted_completion_function= &new_mysql_completion;
   rl_completion_entry_function= &no_completion;
 
   rl_add_defun("magic-space", &fake_magic_space, -1);
-#elif defined(EDITLINE_HAVE_COMPLETION_INT)
+#elif defined(XLINE_HAVE_COMPLETION_INT)
   setlocale(LC_ALL,""); /* so as libedit use isprint */
   rl_attempted_completion_function= &new_mysql_completion;
   rl_completion_entry_function= &no_completion;

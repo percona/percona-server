@@ -8062,12 +8062,28 @@ build_template_field(
 		templ->rec_prefix_field_no = ULINT_UNDEFINED;
 		if (dict_index_is_clust(index)) {
 			templ->rec_field_no = templ->clust_rec_field_no;
+			templ->icp_rec_field_no = ULINT_UNDEFINED;
 		} else {
+
 			templ->rec_field_no
 				= dict_index_get_nth_col_or_prefix_pos(
+<<<<<<< HEAD
 					index, v_no, false, true, NULL);
+||||||| b17eb938b91
+					index, v_no, FALSE, true);
+=======
+					index, v_no, FALSE, true);
+			/* Virtual columns may have to be read from the
+			secondary index before evaluating a pushed down
+			end-range condition in row_search_end_range_check().*/
+			templ->icp_rec_field_no =
+				templ->rec_field_no != ULINT_UNDEFINED ?
+				templ->rec_field_no :
+				dict_index_get_nth_col_or_prefix_pos(
+					index, v_no, true ,true);
+
+>>>>>>> e18e2390b3f84a97f9d6cf53aff7d51b736faa4e^
 		}
-		templ->icp_rec_field_no = ULINT_UNDEFINED;
 	}
 
 	if (field->real_maybe_null()) {

@@ -29,11 +29,11 @@ include/assert.inc [Baseline sanity check: 0 rocksdb_covered_secondary_key_looku
 # Eligible for optimization.
 id	bigfield
 31	ddddddddddddddddddddddddddddddd
-include/assert.inc [Eligible for optimization.: 0 rocksdb_covered_secondary_key_lookups]
+include/assert.inc [Eligible for optimization.: 1 rocksdb_covered_secondary_key_lookups]
 # Eligible for optimization, access via fake_id only
 id	bigfield
 31	ddddddddddddddddddddddddddddddd
-include/assert.inc [Eligible for optimization, access via fake_id only: 0 rocksdb_covered_secondary_key_lookups]
+include/assert.inc [Eligible for optimization, access via fake_id only: 1 rocksdb_covered_secondary_key_lookups]
 # Not eligible for optimization, access via fake_id of big row.
 id	bigfield
 33	yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
@@ -41,7 +41,7 @@ include/assert.inc [Not eligible for optimization, access via fake_id of big row
 # Eligible for optimization.
 id	bigfield
 32	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-include/assert.inc [Eligible for optimization.: 0 rocksdb_covered_secondary_key_lookups]
+include/assert.inc [Eligible for optimization.: 1 rocksdb_covered_secondary_key_lookups]
 # Not eligible for optimization.
 id	bigfield
 33	yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
@@ -49,11 +49,11 @@ include/assert.inc [Not eligible for optimization.: 0 rocksdb_covered_secondary_
 # Eligible for optimization.
 id	bigfield
 8	bbbbbbbb
-include/assert.inc [Eligible for optimization.: 0 rocksdb_covered_secondary_key_lookups]
+include/assert.inc [Eligible for optimization.: 1 rocksdb_covered_secondary_key_lookups]
 # Eligible for optimization.
 id	bigfield
 24	cccccccccccccccccccccccc
-include/assert.inc [Eligible for optimization.: 0 rocksdb_covered_secondary_key_lookups]
+include/assert.inc [Eligible for optimization.: 1 rocksdb_covered_secondary_key_lookups]
 # Not eligible for optimization.
 id	bigfield
 128	zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz

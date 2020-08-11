@@ -25,7 +25,7 @@ INSERT INTO t1 VALUES (1, 1001, REPEAT('a', 1)),
 SELECT * FROM t1;
 
 --let $prefix_index_check_title= Eligible for optimization, access via fake_id only
---let $prefix_index_check_read_avoided_delta= 0
+--let $prefix_index_check_read_avoided_delta= 1
 --let $prefix_index_check_query= SELECT id, bigfield FROM t1 FORCE INDEX(fid) WHERE fake_id = 1031
 --source suite/rocksdb/include/prefix_index_only_query_check.inc
 

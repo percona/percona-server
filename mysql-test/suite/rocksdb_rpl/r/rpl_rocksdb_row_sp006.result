@@ -8,11 +8,7 @@ DROP TABLE IF EXISTS t2;
 DROP PROCEDURE IF EXISTS p1;
 DROP PROCEDURE IF EXISTS p2;
 CREATE TABLE IF NOT EXISTS t1(name CHAR(16), birth DATE,PRIMARY KEY(name))ENGINE=RocksDB;
-Warnings:
-Warning	122	Indexed column test.t1.name uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
 CREATE TABLE IF NOT EXISTS t2(name CHAR(16), age INT ,PRIMARY KEY(name))ENGINE=RocksDB;
-Warnings:
-Warning	122	Indexed column test.t2.name uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
 CREATE PROCEDURE p1()
 BEGIN
 DECLARE done INT DEFAULT 0;

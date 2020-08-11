@@ -1,4 +1,3 @@
-set session debug= "+d,myrocks_enable_unknown_collation_index_only_scans";
 create table t (id int not null auto_increment primary key,
 c varchar(8) CHARACTER SET utf8mb3 COLLATE utf8_general_ci,
 key sk (c)) engine=rocksdb;
@@ -16,7 +15,6 @@ c
 ß
 ☀
 drop table t;
-set session debug= "-d,myrocks_enable_unknown_collation_index_only_scans";
 create table t (id int not null auto_increment,
 c1 varchar(1) CHARACTER SET latin1 COLLATE latin1_swedish_ci,
 c2 char(1) CHARACTER SET latin1 COLLATE latin1_general_ci,
@@ -234,7 +232,7 @@ KEY fid (fake_id, bigfield(32))
 ) ENGINE=rocksdb CHARACTER SET "utf8" COLLATE "utf8_bin" ;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t1 VALUES (0, 1000, ''),
 (1, 1001, REPEAT('a', 1)),
 (8, 1008, REPEAT('b', 8)),
@@ -324,7 +322,6 @@ id	bigfield
 128	zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
 include/assert.inc [Not eligible for covering index optimization: 0 rocksdb_covered_secondary_key_lookups]
 DROP TABLE t1;
-set session debug= "+d,myrocks_enable_unknown_collation_index_only_scans";
 CREATE TABLE t1 (id INT,
 fake_id INT,
 bigfield varchar(256),
@@ -334,7 +331,7 @@ KEY fid (fake_id, bigfield(32))
 ) ENGINE=rocksdb CHARACTER SET "utf8" COLLATE "utf8_general_ci" ;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t1 VALUES (0, 1000, ''),
 (1, 1001, REPEAT('a', 1)),
 (8, 1008, REPEAT('b', 8)),
@@ -376,4 +373,3 @@ id	bigfield
 128	zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
 include/assert.inc [Not eligible for covering index optimization: 0 rocksdb_covered_secondary_key_lookups]
 DROP TABLE t1;
-set session debug= "-d,myrocks_enable_unknown_collation_index_only_scans";

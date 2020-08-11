@@ -376,7 +376,7 @@ bool log_parse_buffer::parse_next_record(mlog_id_t *type, space_id_t *space,
   of a live database should not be corrupt. */
   const auto len = recv_parse_log_rec(type, const_cast<byte *>(&*ccurrent()),
                                       const_cast<byte *>(&*cend()), space,
-                                      page_no, false, &body);
+                                      page_no, true, &body);
   if (len > 0) {
     if (advance(len)) {
       ut_ad(len >= 3 || !log_online_rec_has_page(*type));
@@ -639,8 +639,8 @@ static bool log_online_read_bitmap_page(
   IORequest io_request(IORequest::LOG | IORequest::READ |
                        IORequest::NO_ENCRYPTION);
   const bool success =
-      os_file_read(io_request, bitmap_file->name, bitmap_file->file, page, bitmap_file->offset,
-                   MODIFIED_PAGE_BLOCK_SIZE);
+      os_file_read(io_request, bitmap_file->name, bitmap_file->file, page,
+                   bitmap_file->offset, MODIFIED_PAGE_BLOCK_SIZE);
 
   if (UNIV_UNLIKELY(!success)) {
     /* The following call prints an error message */

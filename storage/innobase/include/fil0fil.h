@@ -2026,10 +2026,9 @@ byte *fil_tablespace_redo_rename(byte *ptr, const byte *end,
 @param[in]	ptr		redo log record
 @param[in]	end		end of the redo log buffer
 @param[in]	space_id	the tablespace ID
-@param[in]	apply		whether to apply the record
 @return log record end, nullptr if not a complete record */
 byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
-                                     space_id_t space_id, bool apply)
+                                     space_id_t space_id)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Read the tablespace id to path mapping from the file

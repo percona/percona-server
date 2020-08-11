@@ -57,10 +57,8 @@ ALTER TABLE t1 encryption='n';
 SHOW CREATE TABLE t1;
 
 --let $assert_text= t1 should be marked as unencrypted in INNODB_TABLESPACES_ENCRYPTION
---let $assert_cond= "[SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0]" = "test/t1"
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME = \\"test/t1\\"]" = 0
 --source include/assert.inc
---let $assert_text= t1 should be only table from test database in INNODB_TABLESPACES_ENCRYPTION
---let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME LIKE \\"test/%\\"]" = 1
 
 --echo # 5. Alter from unencrypted to KEYRING
 ALTER TABLE t1 ENCRYPTION='KEYRING';

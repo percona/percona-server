@@ -198,7 +198,6 @@ const char *Rdb_tbl_prop_coll::INDEXSTATS_KEY = "__indexstats__";
 rocksdb::Status Rdb_tbl_prop_coll::Finish(
     rocksdb::UserCollectedProperties *const properties) {
 
-
   if (!m_recorded) {
     m_total_puts = 0;
     m_total_deletes = 0;

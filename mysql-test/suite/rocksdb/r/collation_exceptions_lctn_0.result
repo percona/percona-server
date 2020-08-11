@@ -2,12 +2,10 @@ SET @old_rocksdb_strict_collation_exceptions = @@global.rocksdb_strict_collation
 CREATE TABLE abc (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8mb3;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	122	Indexed column test.abc.value uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
 DROP TABLE abc;
 CREATE TABLE ABC (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8mb3;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	122	Indexed column test.ABC.value uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
 DROP TABLE ABC;
 SET GLOBAL rocksdb_strict_collation_exceptions="abc";
 CREATE TABLE abc (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8mb3;
@@ -17,13 +15,11 @@ DROP TABLE abc;
 CREATE TABLE ABC (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8mb3;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	122	Indexed column test.ABC.value uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
 DROP TABLE ABC;
 SET GLOBAL rocksdb_strict_collation_exceptions="ABC";
 CREATE TABLE abc (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8mb3;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	122	Indexed column test.abc.value uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
 DROP TABLE abc;
 CREATE TABLE ABC (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8mb3;
 Warnings:
@@ -32,22 +28,18 @@ DROP TABLE ABC;
 CREATE TABLE bcd (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8mb3;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	122	Indexed column test.bcd.value uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
 DROP TABLE bcd;
 SET GLOBAL rocksdb_strict_collation_exceptions="^ABC";
 CREATE TABLE abcd (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8mb3;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	122	Indexed column test.abcd.value uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
 DROP TABLE abcd;
 CREATE TABLE ABCD (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8mb3;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	122	Indexed column test.ABCD.value uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
 DROP TABLE ABCD;
 CREATE TABLE ZABC (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8mb3;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	122	Indexed column test.ZABC.value uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
 DROP TABLE ZABC;
 SET GLOBAL rocksdb_strict_collation_exceptions=@old_rocksdb_strict_collation_exceptions;

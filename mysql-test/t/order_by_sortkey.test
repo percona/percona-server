@@ -78,3 +78,16 @@ SELECT * FROM t2 where f1 =
 SHOW SESSION STATUS LIKE 'Sort%';
 
 DROP TABLE t1, t2, tmp;
+
+--echo #
+--echo # BUG: PS-7221 - crash on select Sys_var_tz::session_value_ptr
+--echo #
+
+CREATE TABLE t1 (
+  id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
+  dt DATETIME NOT NULL
+);
+INSERT INTO t1 SET dt=NOW();
+INSERT INTO t1 (dt) SELECT NOW() FROM t1;
+SELECT id FROM t1 ORDER BY convert_tz(dt,'UTC',@@session.time_zone);
+DROP TABLE t1;

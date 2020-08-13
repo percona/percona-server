@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/23/2020
+.\"      Date: 06/02/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_CONFIG\FR" "1" "03/23/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL_CONFIG\FR" "1" "06/02/2020" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -90,7 +90,6 @@ supports the following options\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-cflags\fR
-.sp
 C Compiler flags to find include files and critical compiler flags and defines used when compiling the
 libmysqlclient
 library\&. The options returned are tied to the specific compiler that was used when the library was created and might clash with the settings for your own compiler\&. Use
@@ -107,7 +106,6 @@ for more portable options that contain only include paths\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-cxxflags\fR
-.sp
 Like
 \fB\-\-cflags\fR, but for C++ compiler flags\&.
 .RE
@@ -121,7 +119,6 @@ Like
 .IP \(bu 2.3
 .\}
 \fB\-\-include\fR
-.sp
 Compiler options to find MySQL include files\&.
 .RE
 .sp
@@ -136,7 +133,6 @@ Compiler options to find MySQL include files\&.
 \fB\-\-libmysqld\-libs\fR,
 \fB\-\-embedded\-libs\fR,
 \fB\-\-embedded\fR
-.sp
 Libraries and options required to link with
 libmysqld, the MySQL embedded server\&.
 .if n \{\
@@ -167,7 +163,6 @@ embedded server library is deprecated as of MySQL 5\&.7\&.19 and has been remove
 .IP \(bu 2.3
 .\}
 \fB\-\-libs\fR
-.sp
 Libraries and options required to link with the MySQL client library\&.
 .RE
 .sp
@@ -180,7 +175,6 @@ Libraries and options required to link with the MySQL client library\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-libs_r\fR
-.sp
 Libraries and options required to link with the thread\-safe MySQL client library\&. In MySQL 5\&.7, all client libraries are thread\-safe, so this option need not be used\&. The
 \fB\-\-libs\fR
 option can be used in all cases\&.
@@ -195,7 +189,6 @@ option can be used in all cases\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-plugindir\fR
-.sp
 The default plugin directory path name, defined when configuring MySQL\&.
 .RE
 .sp
@@ -208,7 +201,6 @@ The default plugin directory path name, defined when configuring MySQL\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-port\fR
-.sp
 The default TCP/IP port number, defined when configuring MySQL\&.
 .RE
 .sp
@@ -221,7 +213,6 @@ The default TCP/IP port number, defined when configuring MySQL\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-socket\fR
-.sp
 The default Unix socket file, defined when configuring MySQL\&.
 .RE
 .sp
@@ -234,7 +225,6 @@ The default Unix socket file, defined when configuring MySQL\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-variable=\fR\fB\fIvar_name\fR\fR
-.sp
 Display the value of the named configuration variable\&. Permitted
 \fIvar_name\fR
 values are
@@ -255,7 +245,6 @@ plugindir
 .IP \(bu 2.3
 .\}
 \fB\-\-version\fR
-.sp
 Version number for the MySQL distribution\&.
 .RE
 .PP
@@ -311,7 +300,7 @@ gcc \-o progname progname\&.o `mysql_config \-\-libs`
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

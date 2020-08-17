@@ -25,6 +25,8 @@
 
 #include "unittest/gunit/xplugin/xpl/mock/component_services.h"
 
+#include "mysql/plugin.h"
+
 namespace xpl::test {
 
 mock::Service_registry *mock::Service_registry::m_this = nullptr;
@@ -59,3 +61,8 @@ Service_admin_session::~Service_admin_session() { m_this = nullptr; }
 
 }  // namespace mock
 }  // namespace xpl::test
+
+extern "C" {
+bool register_ssl_reload_callback(ssl_reload_callback_t) { return true; }
+bool deregister_ssl_reload_callback(ssl_reload_callback_t) { return true; }
+}

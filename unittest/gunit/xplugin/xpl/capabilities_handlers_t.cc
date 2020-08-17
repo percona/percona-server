@@ -60,12 +60,13 @@ class CapabilityHanderTlsTestSuite : public Test {
         .WillRepeatedly(ReturnRef(mock_connection));
     EXPECT_CALL(mock_client, server()).WillRepeatedly(ReturnRef(mock_server));
     EXPECT_CALL(mock_server, ssl_context())
-        .WillRepeatedly(Return(&mock_ssl_context));
+        .WillRepeatedly(Return(mock_ssl_context));
   }
 
   StrictMock<mock::Vio> mock_connection;
   StrictMock<mock::Client> mock_client;
-  StrictMock<mock::Ssl_context> mock_ssl_context;
+  std::shared_ptr<mock::Ssl_context> mock_ssl_context =
+      std::make_shared<mock::Ssl_context>();
   StrictMock<mock::Server> mock_server;
 
   Capability_tls sut;
@@ -74,7 +75,7 @@ class CapabilityHanderTlsTestSuite : public Test {
 TEST_F(
     CapabilityHanderTlsTestSuite,
     isSupported_returnsCurrentConnectionOption_on_supported_connection_type) {
-  EXPECT_CALL(mock_ssl_context, has_ssl())
+  EXPECT_CALL(*mock_ssl_context, has_ssl())
       .WillOnce(Return(true))
       .WillOnce(Return(false));
   EXPECT_CALL(mock_connection, get_type())
@@ -87,7 +88,7 @@ TEST_F(
 
 TEST_F(CapabilityHanderTlsTestSuite,
        isSupported_returnsFailure_on_unsupported_connection_type) {
-  EXPECT_CALL(mock_ssl_context, has_ssl())
+  EXPECT_CALL(*mock_ssl_context, has_ssl())
       .WillOnce(Return(true))
       .WillOnce(Return(false));
   EXPECT_CALL(mock_connection, get_type())
@@ -144,7 +145,7 @@ TEST_P(SuccessSetCapabilityHanderTlsTestSuite,
        get_success_forValidParametersAndTlsSupportedOnTcpip) {
   auto s = GetParam();
 
-  EXPECT_CALL(mock_ssl_context, has_ssl()).WillOnce(Return(true));
+  EXPECT_CALL(*mock_ssl_context, has_ssl()).WillOnce(Return(true));
   EXPECT_CALL(mock_connection, get_type())
       .WillRepeatedly(Return(xpl::Connection_tcpip));
 
@@ -159,7 +160,7 @@ TEST_P(SuccessSetCapabilityHanderTlsTestSuite,
        get_failure_forValidParametersAndTlsSupportedOnNamedPipe) {
   Set_params s = GetParam();
 
-  EXPECT_CALL(mock_ssl_context, has_ssl()).WillOnce(Return(true));
+  EXPECT_CALL(*mock_ssl_context, has_ssl()).WillOnce(Return(true));
   EXPECT_CALL(mock_connection, get_type())
       .WillRepeatedly(Return(xpl::Connection_namedpipe));
 
@@ -170,7 +171,7 @@ TEST_P(SuccessSetCapabilityHanderTlsTestSuite,
        get_failure_forValidParametersAndTlsIsntSupported) {
   Set_params s = GetParam();
 
-  EXPECT_CALL(mock_ssl_context, has_ssl()).WillOnce(Return(false));
+  EXPECT_CALL(*mock_ssl_context, has_ssl()).WillOnce(Return(false));
   EXPECT_CALL(mock_connection, get_type())
       .WillRepeatedly(Return(xpl::Connection_tcpip));
 

@@ -209,13 +209,14 @@ std::string Connection::search_dn(const std::string &user_name,
   return str;
 }
 
-std::list<std::string> Connection::search_groups(
-    const std::string &user_name, const std::string &user_dn,
-    const std::string &group_search_attr,
-    const std::string &group_search_filter, const std::string &base_dn) {
+groups_t Connection::search_groups(const std::string &user_name,
+                                   const std::string &user_dn,
+                                   const std::string &group_search_attr,
+                                   const std::string &group_search_filter,
+                                   const std::string &base_dn) {
   std::lock_guard<std::mutex> lock(conn_mutex_);
 
-  std::list<std::string> list;
+  groups_t list;
   std::stringstream log_stream;
   std::string filter = std::regex_replace(group_search_filter,
                                           std::regex("\\{UA\\}"), user_name);
@@ -276,8 +277,8 @@ std::list<std::string> Connection::search_groups(
 
 std::string Connection::get_ldap_uri() {
   std::ostringstream str_stream;
-  str_stream << (use_ssl_ || use_tls_ ? "ldaps://" : "ldap://") << ldap_host_
-             << ":" << ldap_port_;
+  str_stream << (use_ssl_ ? "ldaps://" : "ldap://") << ldap_host_ << ":"
+             << ldap_port_;
   return str_stream.str();
 }
 

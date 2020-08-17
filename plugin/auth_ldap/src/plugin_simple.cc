@@ -52,9 +52,40 @@ void update_sysvar(THD *, SYS_VAR *var, void *var_ptr, const void *value) {
     connPool->reconfigure(init_pool_size, max_pool_size,
                           str_or_empty(server_host), server_port, ssl, tls,
                           str_or_empty(ca_path), str_or_empty(bind_root_dn),
-                          str_or_empty(bind_root_pwd));
+                          str_or_empty(bind_root_pwd_real));
     connPool->debug_info();
   }
+}
+
+static void pwd_real_set(const char *value) {
+  char *v = nullptr;
+
+  if (value) {
+    v = my_strdup(PSI_NOT_INSTRUMENTED, value, MYF(0));
+  }
+
+  if (bind_root_pwd_real) {
+    my_free(bind_root_pwd_real);
+    bind_root_pwd_real = nullptr;
+  }
+
+  if (v && strlen(v)) {
+    bind_root_pwd_real = v;
+    bind_root_pwd = my_strdup(PSI_NOT_INSTRUMENTED, "********", MYF(0));
+  } else {
+    bind_root_pwd = my_strdup(PSI_NOT_INSTRUMENTED, "", MYF(0));
+  }
+}
+
+void update_pwd_sysvar(THD *, SYS_VAR *, void * /* unused */,
+                       const void *value) {
+  pwd_real_set(*static_cast<const char *const *>(value));
+
+  connPool->reconfigure(init_pool_size, max_pool_size,
+                        str_or_empty(server_host), server_port, ssl, tls,
+                        str_or_empty(ca_path), str_or_empty(bind_root_dn),
+                        str_or_empty(bind_root_pwd_real));
+  connPool->debug_info();
 }
 
 static int auth_ldap_simple_init(MYSQL_PLUGIN plugin_info) {
@@ -95,6 +126,11 @@ static int auth_ldap_simple_deinit(MYSQL_PLUGIN plugin_info
       return 0;
     }
     active_connections--;
+  }
+
+  if (bind_root_pwd_real) {
+    my_free(bind_root_pwd_real);
+    bind_root_pwd_real = nullptr;
   }
 
   auth_ldap_common_deinit(connPool);

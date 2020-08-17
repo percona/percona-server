@@ -52,7 +52,7 @@ class Ldap_log_writer_error {
  public:
   Ldap_log_writer_error();
   ~Ldap_log_writer_error();
-  void write(const std::string &data);
+  void write(ldap_log_type::ldap_type level, const std::string &data);
 };
 
 class Ldap_logger {
@@ -76,25 +76,21 @@ void Ldap_logger::log(const std::string &msg) {
       if (LDAP_LOG_LEVEL_ALL > m_log_level) {
         return;
       }
-      log_stream << "[DBG] ";
       break;
     case ldap_log_type::LDAP_LOG_INFO:
       if (LDAP_LOG_LEVEL_ERROR_WARNING_INFO > m_log_level) {
         return;
       }
-      log_stream << "[Note] ";
       break;
     case ldap_log_type::LDAP_LOG_WARNING:
       if (LDAP_LOG_LEVEL_ERROR_WARNING > m_log_level) {
         return;
       }
-      log_stream << "[Warning] ";
       break;
     case ldap_log_type::LDAP_LOG_ERROR:
       if (LDAP_LOG_LEVEL_NONE >= m_log_level) {
         return;
       }
-      log_stream << "[Error] ";
       break;
   };
 
@@ -102,7 +98,7 @@ void Ldap_logger::log(const std::string &msg) {
   to debug. For MySQL client this will come from environment variable */
   if (m_log_writer) {
     log_stream << ": " << msg;
-    m_log_writer->write(log_stream.str());
+    m_log_writer->write(type, log_stream.str());
   }
 }
 }  // namespace auth_ldap

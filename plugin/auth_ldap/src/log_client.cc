@@ -21,6 +21,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/auth_ldap/include/log_client.h"
+#include "include/mysql/services.h"
+#include "plugin/auth_ldap/include/plugin_simple.h"
 
 namespace mysql {
 namespace plugin {
@@ -39,9 +41,23 @@ Ldap_logger::~Ldap_logger() {
 
 void Ldap_logger::set_log_level(ldap_log_level level) { m_log_level = level; }
 
-void Ldap_log_writer_error::write(const std::string &data) {
-  std::cerr << data << "\n";
-  std::cerr.flush();
+void Ldap_log_writer_error::write(ldap_log_type::ldap_type level,
+                                  const std::string &data) {
+  plugin_log_level plevel = MY_INFORMATION_LEVEL;
+  switch (level) {
+    case ldap_log_type::LDAP_LOG_DBG:
+    case ldap_log_type::LDAP_LOG_INFO:
+      plevel = MY_INFORMATION_LEVEL;
+      break;
+    case ldap_log_type::LDAP_LOG_WARNING:
+      plevel = MY_WARNING_LEVEL;
+      break;
+    case ldap_log_type::LDAP_LOG_ERROR:
+      plevel = MY_ERROR_LEVEL;
+      break;
+  };
+  my_plugin_log_message(&auth_ldap_simple_plugin_info, plevel, "%s",
+                        data.c_str());
 }
 
 /**

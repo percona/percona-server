@@ -114,9 +114,9 @@ void Ssl_context_builder::setup_ssl_context(
   }
 }
 
-std::unique_ptr<iface::Ssl_context> Ssl_context_builder::get_result_context()
+std::shared_ptr<iface::Ssl_context> Ssl_context_builder::get_result_context()
     const {
-  std::unique_ptr<iface::Ssl_context> result = std::make_unique<Ssl_context>();
+  std::shared_ptr<iface::Ssl_context> result = std::make_shared<Ssl_context>();
 
   setup_ssl_context(result.get());
 

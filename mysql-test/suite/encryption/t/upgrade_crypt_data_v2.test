@@ -170,8 +170,8 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/$DATA_DIR_NAME/data;
 
 --let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
 
-SET GLOBAL innodb_encryption_threads = 4;
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads = 4;
 
 --let $wait_timeout= 600
 --echo # tables_count - 2 tables should get encrypted, because temporary tablespace and t3 are not encrypted

@@ -52,6 +52,7 @@ INSERT INTO t2 values(1, 'secret', ST_GeomFromText('POINT(903994614 180726515)')
 
 --let $tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
 --echo #Wait for all tables to get encrypted (apart from temporary)
 --let $wait_timeout=600
 --let $wait_condition=SELECT COUNT(*) = $tables_count - 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0;
@@ -66,10 +67,13 @@ SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_
 
 DROP TABLE t1, t2;
 
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
 
 --let $wait_timeout=600
 --let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0;
 --source include/wait_condition.inc
 
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=OFF;

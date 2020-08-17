@@ -217,7 +217,9 @@ t3	CREATE TABLE `t3` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION_KEY_ID=4
 include/assert.inc [Table t3 should appear in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERSION (1) ENCRYPTED KEY_ID =4]
 # Now decrypt t3. It should it should still be possible to change the ENCRYPTION_KEY_ID.
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
 #Wait for all tables to get decrypted (apart from t2, t_rk_with_encryption_key_id, t_alter_to_rk)
 # Alter ENCRYPTION_KEY_ID of unencrypted table. The key_id 5 should be used during encryption with encryption
 # threads. However note that t3 was already encrypted with rotated threads.
@@ -229,7 +231,9 @@ t3	CREATE TABLE `t3` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION_KEY_ID=5
 include/assert.inc [Table t3 should appear in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERSION (0 => UNECRYPTED) AND ENCRYPTED KEY_ID=5]
 # After the re-encryption t3 should get encrypted with key 5
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
 #Wait for all tables to get encrypted (apart from t1 and temporary)
 include/assert.inc [Table t3 should appear in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERSION (1) ENCRYPTED KEY_ID =5]
 SHOW CREATE TABLE t3;
@@ -258,11 +262,13 @@ t4	CREATE TABLE `t4` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION_KEY_ID=6
 include/assert.inc [Table t4 should appear in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERSION (0 => UNENCRYPTED) AND ENCRYPTION_KEY_ID =6]
 # Encrypt all tables and check if t4 got encrypted with ENCRYPTION KEY 6
-SET GLOBAL innodb_encryption_threads=4;
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
 #Wait for all tables to get encrypted (apart from t1 and temporary)
 include/assert.inc [Table t4 should appear in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERSION (1 => ENCRYPTED) AND ENCRYPTION_KEY_ID =6]
 drop table t1,t2,t3,t4,t_rk_with_encryption_key_id,t_alter_to_rk,t_alter_encryption_key_id;
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
-SET GLOBAL default_table_encryption = OFF;
-SET GLOBAL innodb_encryption_threads = 0;
+SET GLOBAL innodb_encryption_threads=4;
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;

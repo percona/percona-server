@@ -71,17 +71,21 @@ SHOW CREATE TABLE t4_dup;
 
 --error ER_DATABASE_ENCRYPTION_N_KEYRING_MISMATCH
 CREATE DATABASE test_enc_n DEFAULT ENCRYPTION='N';
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=OFF;
 CREATE DATABASE test_enc_n DEFAULT ENCRYPTION='N';
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
 
 USE test_enc_n;
 CREATE TABLE t6 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255));
 USE test;
 
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=OFF;
 CREATE TABLESPACE ts_d_t_e_off;
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
 
 delimiter //;
 CREATE PROCEDURE innodb_insert_proc(repeat_count INT)
@@ -235,7 +239,9 @@ ALTER TABLE t1 ENCRYPTION='N';
 --error ER_DATABASE_ENCRYPTION_MK_KEYRING_MISMATCH
 ALTER DATABASE test DEFAULT ENCRYPTION='Y';
 
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=ON;
+SET GLOBAL innodb_encryption_threads=4;
 ALTER DATABASE test DEFAULT ENCRYPTION='Y';
 SHOW CREATE TABLE t4;
 SHOW CREATE TABLE t4_dup;

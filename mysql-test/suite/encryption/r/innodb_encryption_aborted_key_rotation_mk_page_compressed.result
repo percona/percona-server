@@ -34,7 +34,9 @@ SET GLOBAL debug="-d,set_number_of_t1_pages_to_rotate_to_100";
 # restart:--innodb-encryption-threads=4
 # All tables should get encrypted. tables_count - 1 because temporary tablespace is not encrypted
 # Make sure t1 is encrypted
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
 # All tables should get decrypted, apart from t1.
 SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;

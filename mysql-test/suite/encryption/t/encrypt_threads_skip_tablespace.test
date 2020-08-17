@@ -93,7 +93,9 @@ ALTER TABLESPACE ts_encrypted ENCRYPTION='N';
 --error ER_EXPLICIT_DECRYPTION_OF_ONLINE_ENCRYPTED_TABLESPACE
 ALTER TABLESPACE ts_hang ENCRYPTION='N';
 
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=1;
 
 # Make sure that EXLCUDED flags stay the same after decryption
 
@@ -132,7 +134,9 @@ ALTER TABLE t8 ENCRYPTION='N';
 --let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE name IN (\\'test/t1\\', \\'test/t2\\',\\'test/t3\\',\\'test/t4\\',\\'test/t8\\',\\'ts_encrypted\\',\\'ts_not_encrypted\\',\\'ts_hang\\') AND EXCLUDED=\\'Y\\']" = 8
 --source include/assert.inc
 
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=1;
 
 # Make sure all tablespaces with EXCLUDED set will not be encrypted and all tablespaces without EXCLUDED set
 # will be encrypted
@@ -195,6 +199,7 @@ DROP TABLESPACE ts_hang;
 
 # Decrypt everything
 
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SET GLOBAL innodb_encryption_threads=4;
 
@@ -203,5 +208,5 @@ SET GLOBAL innodb_encryption_threads=4;
 --let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
 --source include/wait_condition.inc
 
-SET GLOBAL default_table_encryption=OFF;
 SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;

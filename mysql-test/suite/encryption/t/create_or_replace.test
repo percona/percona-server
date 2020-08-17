@@ -9,9 +9,10 @@ CREATE TABLE t2 AS SELECT * FROM t1;
 --disable_warnings
 --disable_query_log
 
-let $i = 40;
+let $i = 10;
 while ($i)
 {
+SET GLOBAL innodb_encryption_threads = 0;
 SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
 SET GLOBAL innodb_encryption_threads = 1;
 DROP TABLE IF EXISTS t1;
@@ -19,7 +20,9 @@ CREATE TABLE t1 AS SELECT * FROM t2;
 DROP TABLE IF EXISTS t2;
 CREATE TABLE t2 AS SELECT * FROM t1;
 SET GLOBAL innodb_encryption_rotation_iops = 100;
+SET GLOBAL innodb_encryption_threads = 0;
 SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads = 1;
 DROP TABLE IF EXISTS t2;
 CREATE TABLE t2 AS SELECT * FROM t1;
 DROP TABLE IF EXISTS t1;
@@ -54,11 +57,13 @@ INSERT IGNORE INTO `table10_int_autoinc` ( `col_int` ) VALUES ( 6 ), ( 2 ), ( 3 
 --disable_warnings
 --disable_query_log
 
-let $i = 100;
+let $i = 10;
 while ($i)
 {
 connection con1;
-send SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads = 0;
+SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
+send SET GLOBAL innodb_encryption_threads = 4;
 connection default;
 DROP TABLE IF EXISTS create_or_replace_t;
 CREATE TABLE IF NOT EXISTS create_or_replace_t AS SELECT * FROM table1_int_autoinc;
@@ -70,7 +75,9 @@ DROP TABLE IF EXISTS create_or_replace_t;
 send CREATE TABLE IF NOT EXISTS create_or_replace_t AS SELECT * FROM table0_int_autoinc;
 connection con1;
 --reap;
-send SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads = 0;
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+send SET GLOBAL innodb_encryption_threads = 4;
 connection con2;
 --reap;
 connection default;
@@ -82,7 +89,9 @@ DROP TABLE IF EXISTS create_or_replace_t;
 send CREATE TABLE IF NOT EXISTS create_or_replace_t AS SELECT * FROM table10_int_autoinc;
 connection con1;
 --reap;
-send SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads = 0;
+SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
+send SET GLOBAL innodb_encryption_threads = 4;
 connection default;
 --reap;
 DROP TABLE IF EXISTS create_or_replace_t;
@@ -108,6 +117,7 @@ drop table if exists create_or_replace_t, table1_int_autoinc, table0_int_autoinc
 --enable_abort_on_error
 --enable_warnings
 
+SET GLOBAL innodb_encryption_threads = 0;
 SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SET GLOBAL innodb_encryption_threads = 4;
 

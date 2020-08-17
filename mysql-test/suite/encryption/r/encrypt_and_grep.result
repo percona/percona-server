@@ -7,10 +7,12 @@ show warnings;
 Level	Code	Message
 create table t3 (a varchar(255)) engine=innodb encryption='N';
 create table t4 (a varchar(255)) engine=innodb encryption='KEYRING' encryption_key_id=5;
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=OFF;
 CREATE TABLESPACE ts_encrypted ADD DATAFILE 'ts_encrypted.ibd' ENCRYPTION="Y" ENGINE="InnoDB";
 CREATE TABLE t5 (a varchar(255)) TABLESPACE ts_encrypted ENCRYPTION="Y" ENGINE="InnoDB";
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
 CREATE TABLESPACE ts_keyring_encrypted ADD DATAFILE 'ts_keyring_encrypted.ibd' ENCRYPTION='KEYRING' ENGINE="InnoDB";
 ERROR HY000: Invalid encryption option.
 create table t6 (a varchar(255)) engine=innodb;
@@ -55,7 +57,9 @@ include/assert.inc [All encrypted tables should have encrypted flag set, apart f
 # ts_encrypted expecting NOT FOUND
 # restart:--early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring KEYRING_PLUGIN_OPT --default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=1
 # Now turn off encryption and wait for threads to decrypt everything
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
 # Three tables should stay encrypted - the ones with explicit encryption
 include/assert.inc [Three tablespaces should stay encrypted - the ones with explicit encryption t1, t4 and t6]
 # t1 yes on expecting NOT FOUND
@@ -65,7 +69,9 @@ include/assert.inc [Three tablespaces should stay encrypted - the ones with expl
 # ibdata1 expecting NOT FOUND
 # restart:--early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring KEYRING_PLUGIN_OPT --default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4
 # Now turn on encryption and wait for threads to encrypt all spaces
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
 # Wait max 10 min for key encryption threads to encrypt all spaces, apart from temporary and t3
 include/assert.inc [Only two tablespaces should stay unencrypted i.e. t3 and temporary tablespace]
 # t1 yes on expecting NOT FOUND
@@ -86,7 +92,8 @@ include/assert.inc [All spaces apart from t1, t3, t4 and temporary tablespace sh
 # restart:--early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring KEYRING_PLUGIN_OPT --default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4
 drop table t1, t2, t3, t4, t5, t6;
 drop tablespace ts_encrypted;
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SET GLOBAL innodb_encryption_threads=4;
-SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;

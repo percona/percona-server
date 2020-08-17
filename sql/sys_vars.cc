@@ -7234,7 +7234,12 @@ bool Sys_var_enum_default_table_encryption::global_update(THD *, set_var *var) {
   plugin_ref plugin;
   if ((plugin = ha_resolve_by_name(nullptr, &innodb_engine, false))) {
     handlerton *hton = plugin_data<handlerton *>(plugin);
-    hton->fix_default_table_encryption(var->save_result.ulonglong_value);
+    if (!hton->fix_default_table_encryption(var->save_result.ulonglong_value,
+                                            false)) {
+      my_error(ER_DTE_ENCRYPTION_THREADS_ACTIVE, MYF(0));
+      return 1;
+    }
+
     plugin_unlock(nullptr, plugin);
   }
 

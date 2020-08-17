@@ -3720,9 +3720,16 @@ void fil_crypt_set_rotation_iops(uint val) {
 Adjust encrypt tables
 @param[in]	val		New setting for innodb-encrypt-tables */
 
-void fil_crypt_set_encrypt_tables(enum_default_table_encryption val) {
+bool fil_crypt_set_encrypt_tables(enum_default_table_encryption val,
+                                  bool is_server_starting) {
+  // It is always OK to set default_table_encryption on server
+  // startup
+  if (!is_server_starting && (srv_n_fil_crypt_threads_requested != 0)) {
+    return false;
+  }
   srv_default_table_encryption = val;
   os_event_set(fil_crypt_threads_event);
+  return true;
 }
 
 /*********************************************************************

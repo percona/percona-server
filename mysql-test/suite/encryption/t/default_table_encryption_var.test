@@ -32,21 +32,27 @@ insert t4 values (repeat('verysecret', 12));
 
 # Now all the tables are encrypted - need to check if other values of default_table_encryption than
 # ONLINE_FROM_KEYRING_TO_UNENCRYPTED do not start decrypting the tables
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption = OFF;
+SET GLOBAL innodb_encryption_threads=4;
 --sleep 10
 
 --let $assert_text= Make sure all tables stay encrypted, apart from temporary tablespace
 --let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1]" = $tables_count - 1
 --source include/assert.inc
 
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption = ON;
+SET GLOBAL innodb_encryption_threads=4;
 --sleep 10
 
 --let $assert_text= Make sure all tables stay encrypted, apart from temporary tablespace
 --let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1]" = $tables_count - 1
 --source include/assert.inc
 
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
 --sleep 10
 
 --let $assert_text= Make sure all tables stay encrypted, apart from temporary tablespace
@@ -56,7 +62,9 @@ SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
 # Now check key rotation works with different values of default_table_encryption and encryption
 # threads running
 
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption = OFF;
+SET GLOBAL innodb_encryption_threads=4;
 
 --echo # Rotation of percona_innodb-0 to version 2.
 ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
@@ -68,7 +76,9 @@ ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
 --let $wait_condition=SELECT COUNT(*) = $tables_count - 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 2
 --source include/wait_condition.inc
 
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption = ON;
+SET GLOBAL innodb_encryption_threads=4;
 
 --echo # Rotation of percona_innodb-0 to version 3.
 ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
@@ -78,7 +88,9 @@ ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
 --let $wait_condition=SELECT COUNT(*) = $tables_count - 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 3
 --source include/wait_condition.inc
 
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
 
 --echo # Rotation of percona_innodb-0 to version 4.
 ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
@@ -99,7 +111,9 @@ ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
 --let $wait_condition=SELECT COUNT(*) = $tables_count - 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 5
 --source include/wait_condition.inc
 
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
 
 --echo # Rotation of percona_innodb-0 to version 6.
 ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
@@ -114,24 +128,37 @@ ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
 
 # Now all the tables are decrypted - need to check if other values than
 # ONLINE_TO_KEYRING do not start encrypting the tables
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption = OFF;
+SET GLOBAL innodb_encryption_threads=4;
+
 --sleep 10
 
 --let $assert_text= Make sure all tables stay decrypted
 --let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0]" = 0
 --source include/assert.inc
 
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption = ON;
+SET GLOBAL innodb_encryption_threads=4;
 --sleep 10
 
 --let $assert_text= Make sure all tables stay decrypted
 --let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0]" = 0
 --source include/assert.inc
+
+--echo # PS-6987. Make sure that default_table_encryption cannot be altered while innodb_encryption_threads > 0.
+--error ER_DTE_ENCRYPTION_THREADS_ACTIVE
+SET GLOBAL default_table_encryption=OFF;
+--error ER_DTE_ENCRYPTION_THREADS_ACTIVE
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+--error ER_DTE_ENCRYPTION_THREADS_ACTIVE
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 
 # cleanup
 DROP TABLES t1,t2,t3,t4;
-SET GLOBAL default_table_encryption = OFF;
 SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption = OFF;
 
 UNINSTALL PLUGIN keyring_file;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR

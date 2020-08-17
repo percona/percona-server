@@ -162,8 +162,9 @@ void Client::activate_tls() {
   const auto real_connect_timeout =
       std::min<uint32_t>(connect_timeout, m_read_timeout);
 
-  if (m_server->ssl_context()->activate_tls(&connection(),
-                                            real_connect_timeout)) {
+  m_ssl = m_server->ssl_context();
+
+  if (m_ssl->activate_tls(&connection(), real_connect_timeout)) {
     session()->mark_as_tls_session();
   } else {
     log_debug("%s: Error during SSL handshake", client_id());

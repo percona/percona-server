@@ -1,0 +1,65 @@
+--echo #
+--echo # PS-9723: Crash in xpl::Ssl_context::~Ssl_context() with heavy load of ALTER INSTANCE RELOAD TLS queries
+--echo # (https://perconadev.atlassian.net/browse/PS-9723)
+--echo #
+
+--source include/have_mysqlx_plugin.inc
+--source include/big_test.inc
+
+--source include/count_sessions.inc
+
+DELIMITER //;
+
+CREATE PROCEDURE reload_tls_loop(IN iterations INT UNSIGNED)
+BEGIN
+  DECLARE idx INT UNSIGNED DEFAULT iterations;
+
+  WHILE idx > 0 DO
+    ALTER INSTANCE RELOAD TLS NO ROLLBACK ON ERROR;
+    SET idx = idx - 1;
+  END WHILE;
+END//
+
+DELIMITER ;//
+
+--let $number_of_connections = 32
+--let $number_of_iterations = 1024
+
+--echo # Establising $number_of_connections connections
+--let $i = 0
+while ($i < $number_of_connections)
+{
+  --connect(con$i,127.0.0.1,root,,,,,SSL)
+  --inc $i
+}
+
+--echo # Calling reload_tls_loop($number_of_iterations) from each connection
+--let $i = 0
+while ($i < $number_of_connections)
+{
+  --connection con$i
+  --send_eval CALL reload_tls_loop($number_of_iterations)
+  --inc $i
+}
+
+--echo # Waiting for reload_tls_loop($number_of_iterations) to finish in each connection
+--let $i = 0
+while ($i < $number_of_connections)
+{
+  --connection con$i
+  --reap
+  --inc $i
+}
+
+--echo # Closing the connections
+--let $i = 0
+while ($i < $number_of_connections)
+{
+  --disconnect con$i
+  --inc $i
+}
+--connection default
+
+--source include/wait_until_count_sessions.inc
+
+DROP PROCEDURE reload_tls_loop;

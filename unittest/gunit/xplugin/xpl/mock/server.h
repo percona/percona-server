@@ -56,7 +56,9 @@ class Server : public iface::Server {
   MOCK_METHOD(std::shared_ptr<ngs::Protocol_global_config>, get_config, (),
               (const, override));
   MOCK_METHOD(bool, is_running, (), (override));
-  MOCK_METHOD(iface::Ssl_context *, ssl_context, (), (const, override));
+  MOCK_METHOD(std::shared_ptr<iface::Ssl_context>, ssl_context, (),
+              (const, override));
+  MOCK_METHOD(void, reload_ssl_context, (), (override));
   MOCK_METHOD(void, on_client_closed, (const iface::Client &), (override));
   MOCK_METHOD(std::shared_ptr<iface::Session>, create_session,
               (iface::Client *, iface::Protocol_encoder *, const int),

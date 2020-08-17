@@ -38,7 +38,7 @@ class Ssl_context_builder {
  public:
   Ssl_context_builder() = default;
 
-  std::unique_ptr<iface::Ssl_context> get_result_context() const;
+  std::shared_ptr<iface::Ssl_context> get_result_context() const;
 
  private:
   struct Ssl_config_local {

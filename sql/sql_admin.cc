@@ -44,6 +44,7 @@
 #include "my_sys.h"
 #include "myisam.h"  // TT_USEFRM
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/strings/m_ctype.h"
@@ -2036,10 +2037,42 @@ class Alter_instance_reload_tls : public Alter_instance {
       }
     }
 
-    if (!res) my_ok(m_thd);
+    if (!res) {
+      String specified_channel(channel_name_.str, channel_name_.length,
+                               system_charset_info);
+      if (!my_strcasecmp(system_charset_info, mysql_main_channel.c_str(),
+                         specified_channel.ptr())) {
+        for (auto const &cb : callbacks_) {
+          if (!cb(nullptr)) {
+            push_warning_printf(m_thd, Sql_condition::SL_WARNING,
+                                ER_DA_SSL_LIBRARY_ERROR,
+                                ER_THD(m_thd, ER_DA_SSL_LIBRARY_ERROR),
+                                "One of the TLS reload callbacks failed");
+            LogErr(WARNING_LEVEL, ER_SSL_LIBRARY_ERROR,
+                   "One of the TLS reload callbacks failed");
+          }
+        };
+      }
+
+      my_ok(m_thd);
+    }
     return res;
   }
   ~Alter_instance_reload_tls() override = default;
+
+  static bool register_callback(ssl_reload_callback_t c) {
+    auto it = std::find(callbacks_.begin(), callbacks_.end(), c);
+    if (it != callbacks_.end()) return false;
+    callbacks_.push_back(c);
+    return true;
+  }
+
+  static bool deregister_callback(ssl_reload_callback_t c) {
+    auto it = std::find(callbacks_.begin(), callbacks_.end(), c);
+    if (it == callbacks_.end()) return false;
+    callbacks_.erase(it);
+    return true;
+  }
 
  protected:
   bool match_channel_name() {
@@ -2065,7 +2098,21 @@ class Alter_instance_reload_tls : public Alter_instance {
   LEX_CSTRING channel_name_;
   bool force_;
   Ssl_acceptor_context_type context_type_;
+  static std::vector<ssl_reload_callback_t> callbacks_;
 };
+
+std::vector<ssl_reload_callback_t> Alter_instance_reload_tls::callbacks_;
+
+extern "C" {
+
+bool register_ssl_reload_callback(ssl_reload_callback_t c) {
+  return Alter_instance_reload_tls::register_callback(c);
+}
+
+bool deregister_ssl_reload_callback(ssl_reload_callback_t c) {
+  return Alter_instance_reload_tls::deregister_callback(c);
+}
+}
 
 bool Sql_cmd_alter_instance::execute(THD *thd) {
   bool res = true;

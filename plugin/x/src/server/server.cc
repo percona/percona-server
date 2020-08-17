@@ -135,6 +135,10 @@ void Server::delayed_start_tasks() {
   });
 }
 
+void Server::reload_ssl_context() {
+  m_ssl_context = xpl::Ssl_context_builder().get_result_context();
+}
+
 void Server::start_tasks() {
   // We can't fetch the servers ssl config at plugin-load
   // this method allows to setup it at better time.

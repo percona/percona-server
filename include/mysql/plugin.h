@@ -953,6 +953,10 @@ void thd_kill(unsigned long id);
 */
 int thd_get_ft_query_extra_word_chars(void);
 
+typedef bool (*ssl_reload_callback_t)(void *);
+bool register_ssl_reload_callback(ssl_reload_callback_t);
+bool deregister_ssl_reload_callback(ssl_reload_callback_t);
+
 #ifdef __cplusplus
 }
 #endif

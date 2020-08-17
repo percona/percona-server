@@ -58,6 +58,7 @@ class Server {
   virtual void delayed_start_tasks() = 0;
   virtual void start_tasks() = 0;
   virtual void stop() = 0;
+  virtual void reload_ssl_context() = 0;
 
   virtual iface::Authentication_container &get_authentications() = 0;
 
@@ -67,7 +68,7 @@ class Server {
 
   virtual xpl::Mutex &get_client_exit_mutex() = 0;
 
-  virtual Ssl_context *ssl_context() const = 0;
+  virtual std::shared_ptr<Ssl_context> ssl_context() const = 0;
 
   virtual std::shared_ptr<Session> create_session(Client *client,
                                                   Protocol_encoder *proto,

@@ -83,8 +83,8 @@ class Server : public xpl::iface::Server {
          Server_properties *properties, const Server_task_vector &tasks,
          std::shared_ptr<xpl::iface::Timeout_callback> timeout_callback);
 
-  xpl::iface::Ssl_context *ssl_context() const override {
-    return m_ssl_context.get();
+  std::shared_ptr<xpl::iface::Ssl_context> ssl_context() const override {
+    return m_ssl_context;
   }
 
   bool reset() override;
@@ -94,6 +94,7 @@ class Server : public xpl::iface::Server {
   void start_failed() override;
   void stop() override;
   void gracefull_shutdown() override;
+  void reload_ssl_context() override;
 
   void graceful_close_all_clients();
 
@@ -152,7 +153,7 @@ class Server : public xpl::iface::Server {
   std::unique_ptr<xpl::iface::Document_id_generator> m_id_generator;
   std::atomic<bool> m_gracefull_shutdown{false};
 
-  std::unique_ptr<xpl::iface::Ssl_context> m_ssl_context;
+  std::shared_ptr<xpl::iface::Ssl_context> m_ssl_context;
   xpl::Sync_variable<State> m_state;
   xpl::Authentication_container m_auth_handlers;
   Client_list m_client_list;

@@ -127,6 +127,12 @@ void Module_mysqlx::unregister_udfs() {
   m_udf_register = nullptr;
 }
 
+static bool x_ssl_reload_cb(void *) {
+  auto server = Module_mysqlx::get_instance_server();
+  server->reload_ssl_context();
+  return true;
+}
+
 int Module_mysqlx::initialize(MYSQL_PLUGIN plugin_handle) {
   xpl::plugin_handle = plugin_handle;
 
@@ -199,12 +205,18 @@ int Module_mysqlx::initialize(MYSQL_PLUGIN plugin_handle) {
     return 1;
   }
 
+  if (!register_ssl_reload_callback(&x_ssl_reload_cb)) {
+    log_warning(ER_XPLUGIN_SSL_RELOAD_REGISTER_FAILED);
+  }
+
   return 0;
 }
 
 int Module_mysqlx::deinitialize(MYSQL_PLUGIN) {
   // this flag will trigger the on_verify_server_state() timer to trigger an
   // acceptor thread exit
+  deregister_ssl_reload_callback(&x_ssl_reload_cb);
+
   if (m_server) m_server->stop();
 
   xpl::Plugin_system_variables::cleanup();

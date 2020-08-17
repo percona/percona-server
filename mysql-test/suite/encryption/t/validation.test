@@ -92,8 +92,9 @@ set autocommit=1;
 SET GLOBAL debug="+d,rotate_only_first_x_pages_from_t1";
 
 --echo # Start rotation unnencrypted => encrypted (tables do not have crypt data stored in page 0)
-SET GLOBAL innodb_encryption_threads = 4;
+SET GLOBAL innodb_encryption_threads = 0;
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads = 4;
 
 --let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
 
@@ -323,8 +324,8 @@ set autocommit=1;
 --source include/restart_mysqld.inc
 
 SET GLOBAL debug="+d,rotate_only_first_x_pages_from_t1";
-SET GLOBAL innodb_encryption_threads = 4;
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads = 4;
 
 --let $wait_timeout= 600
 # All tables should get encrypted. tables_count - 2 because temporary tablespace is not encrypted and t1 max_key_version
@@ -340,7 +341,9 @@ SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 
 --echo # Now, we will decrypt first 20 pages
 SET GLOBAL debug="+d,set_number_of_t1_pages_to_rotate_to_20,rotate_only_first_x_pages_from_t1";
+SET GLOBAL innodb_encryption_threads = 0;
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads = 4;
 
 --let $wait_timeout= 600
 # All tables, apart from t1 should be decrypted. t1 will have only 20 pages decrypted and min_key_version will be still 1.

@@ -23,8 +23,8 @@
 # Unzip the zip file.
 # Start the 8.0.20 server on 8.0.19 datadir
 # restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=MYSQLD_DATADIR1 --keyring_file_data=MYSQL_TMP_DIR/data_8019_crypt_v2_decrypted/mysecret_keyring KEYRING_PLUGIN_OPT KEYRING_PLUGIN_EARLY_LOAD
-SET GLOBAL innodb_encryption_threads = 4;
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads = 4;
 # tables_count - 2 tables should get encrypted, because temporary tablespace and t3 are not encrypted
 SELECT COUNT(*) FROM t1;
 COUNT(*)

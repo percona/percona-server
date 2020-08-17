@@ -28,10 +28,12 @@ create table t3 (a varchar(255)) engine=innodb encryption='N';
 create table t4 (a varchar(255)) engine=innodb encryption='KEYRING' encryption_key_id=5;
 
 # Disable ONLINE_TO_KEYRING encryption for a moment to create MK encrypted tablespace and table
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=OFF;
 CREATE TABLESPACE ts_encrypted ADD DATAFILE 'ts_encrypted.ibd' ENCRYPTION="Y" ENGINE="InnoDB";
 CREATE TABLE t5 (a varchar(255)) TABLESPACE ts_encrypted ENCRYPTION="Y" ENGINE="InnoDB";
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
 
 --error ER_INVALID_ENCRYPTION_OPTION
 CREATE TABLESPACE ts_keyring_encrypted ADD DATAFILE 'ts_keyring_encrypted.ibd' ENCRYPTION='KEYRING' ENGINE="InnoDB";

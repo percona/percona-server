@@ -1,0 +1,49 @@
+#
+# PS-9723: Crash in xpl::Ssl_context::~Ssl_context() with heavy load of ALTER INSTANCE RELOAD TLS queries
+# (https://perconadev.atlassian.net/browse/PS-9723)
+#
+CREATE PROCEDURE reload_tls_loop(IN iterations INT UNSIGNED)
+BEGIN
+DECLARE idx INT UNSIGNED DEFAULT iterations;
+WHILE idx > 0 DO
+ALTER INSTANCE RELOAD TLS NO ROLLBACK ON ERROR;
+SET idx = idx - 1;
+END WHILE;
+END//
+# Establising 32 connections
+# Calling reload_tls_loop(1024) from each connection
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+CALL reload_tls_loop(1024);
+# Waiting for reload_tls_loop(1024) to finish in each connection
+# Closing the connections
+DROP PROCEDURE reload_tls_loop;

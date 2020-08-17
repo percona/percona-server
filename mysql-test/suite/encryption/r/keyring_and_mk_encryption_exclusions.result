@@ -1,3 +1,4 @@
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 # Online encryption to keyring is ON. It should not be possible to create
 # MK encrypted table or MK encrypted general tablespace.
@@ -33,7 +34,9 @@ ALTER TABLESPACE ts0 ENCRYPTION='Y';
 include/assert.inc [Make sure ENCRYPTION is set to Y in INFORMATION_SCHEMA.INNODB_TABLESPACES]
 include/assert.inc [Make sure ts0 is marked as unencrypted in INNODB_TABLESPACES_ENCRYPTION]
 DROP TABLESPACE ts0;
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=OFF;
+SET GLOBAL innodb_encryption_threads=2;
 # It should be now possible to turn on above encryptions
 CREATE TABLE t1 (a varchar(255)) ENGINE=INNODB ENCRYPTION='Y';
 CREATE TABLESPACE `ts1` ADD DATAFILE 'ts1.ibd' ENCRYPTION='Y' Engine=InnoDB;
@@ -51,10 +54,14 @@ DROP TABLESPACE ts1;
 SET GLOBAL innodb_undo_log_encrypt=OFF;
 # Now we check General tablespace MK and KEYRING encryption exclusions.
 # 1. Altering online encrypted tablespace to 'N'
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=2;
 CREATE TABLESPACE ts_hang ADD DATAFILE 'ts_hang.ibd';
 include/assert.inc [Check that ts_hang is encrypted]
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=OFF;
+SET GLOBAL innodb_encryption_threads=2;
 ALTER TABLESPACE ts_hang ENCRYPTION='N';
 ERROR HY000: Tablespace ts_hang is encrypted by encryption threads and cannot be explicitly decrypted. Please use default-table-encryption=ONLINE_FROM_KEYRING_TO_UNENECRYPTED to decypt the tablespace.
 # 2. Altering online encrypted tablespace to 'Y'
@@ -68,6 +75,7 @@ ERROR HY000: Tablespace ts_hang is encrypted by encryption threads and cannot be
 # In case when ALTER will be first and start ALTERing ENCRYPTION - the encryption threads
 # should be dissallowed from processing X till ALTER finishes off.
 # The same checks need to be done when ATLER TABLESPACE X ENCRYPTION='N'
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SET GLOBAL innodb_encryption_threads=2;
 # Wait max 10 min for key encryption threads to decrypt all spaces
@@ -80,12 +88,13 @@ SET DEBUG_SYNC = 'now WAIT_FOR before_tablespace_mk_encryption';
 SET GLOBAL debug="+d,hang_on_ts_hang_rotation";
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 SET GLOBAL innodb_encryption_threads=1;
-SET GLOBAL default_table_encryption=OFF;
 SET DEBUG_SYNC = 'now SIGNAL go_alter_encryption_to_y';
 ERROR HY000: Tablespace ts_hang cannot have its ENCRYPTION altered as it is being currently encrypted/decrypted by encryption threads. Please try again later.
 SET GLOBAL debug="-d,hang_on_ts_hang_rotation";
 SET GLOBAL innodb_encryption_threads=0;
 DROP TABLESPACE ts_hang;
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;
 # Now check when TABLESPACE ENCRYPTION is ALTERED to 'N' while encryption threads start to process
 # tablespace first.
 CREATE TABLESPACE ts_hang ADD DATAFILE 'ts_hang.ibd' ENCRYPTION='Y';
@@ -95,20 +104,21 @@ SET DEBUG_SYNC = 'now WAIT_FOR before_tablespace_mk_decryption';
 SET GLOBAL debug="+d,hang_on_ts_hang_rotation";
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 SET GLOBAL innodb_encryption_threads=1;
-SET GLOBAL default_table_encryption=OFF;
 SET DEBUG_SYNC = 'now SIGNAL go_alter_encryption_to_n';
 ERROR HY000: Tablespace ts_hang cannot have its ENCRYPTION altered as it is being currently encrypted/decrypted by encryption threads. Please try again later.
 SET GLOBAL debug="-d,hang_on_ts_hang_rotation";
 SET GLOBAL innodb_encryption_threads=0;
 DROP TABLESPACE ts_hang;
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;
 # Here we check that encryption threads are dissallowed from running on a tablespace for which
 # ALTER ENCRYPTION='Y' is in progress.
 # Wait for system tablespace to get encrypted. We will use its CURRENT_KEY_ID in
 # INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION for synchronization with this MTR
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 SET GLOBAL innodb_encryption_threads=1;
-SET GLOBAL default_table_encryption=OFF;
 SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;
 CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
 SET DEBUG_SYNC = 'alter_encryption_to_y_tablespace_excluded SIGNAL t1_excluded WAIT_FOR t1_was_considered_for_rotation';
 ALTER TABLESPACE ts1 ENCRYPTION='Y';
@@ -121,8 +131,8 @@ SET GLOBAL innodb_encryption_threads=1;
 # Now we check that encryption by encryption threads did not start for ts1
 include/assert.inc [Make sure encryption by encryption threads did not start for ts1]
 SET GLOBAL debug="-d,wait_for_ts1_to_be_considered_for_rotation";
-SET GLOBAL default_table_encryption=OFF;
 SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;
 # Now we allow ALTER TABLESPACE ts1 ENCRYPTION='Y' to finish.
 SET DEBUG_SYNC = 'now SIGNAL t1_was_considered_for_rotation';
 include/assert.inc [Make sure encryption ts1 was encrypted]
@@ -150,8 +160,8 @@ SET GLOBAL innodb_encryption_threads=1;
 # Now we check that encryption by encryption threads did not start for ts1
 include/assert.inc [Make sure encryption by encryption threads did not start for ts1]
 SET GLOBAL debug="-d,wait_for_ts1_to_be_considered_for_rotation";
-SET GLOBAL default_table_encryption=OFF;
 SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;
 # Now we allow ALTER TABLESPACE ts1 ENCRYPTION='N' to finish.
 SET DEBUG_SYNC = 'now SIGNAL ts1_was_considered_for_rotation';
 include/assert.inc [Make sure encryption ts1 was decrypted]
@@ -198,8 +208,9 @@ SET GLOBAL innodb_sys_tablespace_encrypt=RE_ENCRYPTING_TO_KEYRING;
 SET GLOBAL innodb_sys_tablespace_encrypt=ON;
 # Now lets try re-encrypt system tablespace with keyring encryption
 SET GLOBAL innodb_sys_tablespace_encrypt=RE_ENCRYPTING_TO_KEYRING;
-SET GLOBAL innodb_encryption_threads=4;
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
 # Wait max 10 min for key encryption threads to encrypt all spaces, apart from
 # temporary tablespace
 # Now that system tablespace is encrypted with keyring it should not be
@@ -233,7 +244,9 @@ SHOW WARNINGS;
 Level	Code	Message
 Warning	1210	 Undo log cannot be encrypted with Master Key encryption while there are undo tablespaces encrypted with KEYRING encryption. Please decrypt them first with encryption threads.
 Error	1231	Variable 'innodb_undo_log_encrypt' can't be set to the value of 'ON'
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
 # Wait max 10 min for key encryption threads to decrypt all spaces, apart from
 # temporary tablespace
 # System tablespace is now unencrypted
@@ -270,5 +283,5 @@ SET GLOBAL innodb_undo_log_encrypt=ON;
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SET GLOBAL innodb_encryption_threads=4;
 # Wait max 10 min for key encryption threads to decrypt all spaces
-SET GLOBAL default_table_encryption=OFF;
 SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;

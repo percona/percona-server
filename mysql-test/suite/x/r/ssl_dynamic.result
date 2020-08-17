@@ -1,0 +1,110 @@
+call mtr.add_suppression("CA certificate/certficates is invalid. Please check logs for more details.");
+call mtr.add_suppression("Failed to validate certificate .*");
+call mtr.add_suppression("Server certificate .* verification has failed. Check logs for more details");
+call mtr.add_suppression("Failed to set up TLS. Check logs for details");
+call mtr.add_suppression("Internal TLS error error.*");
+CREATE USER xuser_sha256@localhost
+IDENTIFIED WITH 'sha256_password' BY 'sha256';
+GRANT ALL ON *.* TO xuser_sha256@localhost;
+call mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+call mtr.add_suppression("mysqlx reported: 'Failed at SSL configuration");
+Ssl connection by sha256 plugin  -> success
+user	plugin
+xuser_sha256	sha256_password
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+################## Test reload
+ALTER INSTANCE RELOAD TLS;
+Ssl connection by sha256 plugin  -> success
+user	plugin
+xuser_sha256	sha256_password
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+################## Test wrong value
+# Save the defaults
+SET @orig_ssl_ca= @@global.ssl_ca;
+# Set CA to invalid value
+SET GLOBAL ssl_ca = 'gizmo';
+Ssl connection by sha256 plugin  -> success
+user	plugin
+xuser_sha256	sha256_password
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+# Must fail and not change the SSL params
+ALTER INSTANCE RELOAD TLS;
+ERROR HY000: Failed to set up SSL because of the following SSL library error: SSL_CTX_set_default_verify_paths failed
+# Must be 1
+SELECT COUNT(*) FROM performance_schema.session_status
+WHERE VARIABLE_NAME = 'Current_tls_ca' AND VARIABLE_VALUE = @orig_ssl_ca;
+COUNT(*)
+1
+Ssl connection by sha256 plugin  -> success
+user	plugin
+xuser_sha256	sha256_password
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+# Must pass with a warning and disable SSL
+ALTER INSTANCE RELOAD TLS NO ROLLBACK ON ERROR;
+Warnings:
+Warning	3888	Failed to set up SSL because of the following SSL library error: SSL_CTX_set_default_verify_paths failed
+Ssl connection by sha256 plugin  -> failure
+in main, line 0:ERROR: Capability prepare failed for 'tls' (code 5001)
+not ok
+# cleanup
+SET GLOBAL ssl_ca = @orig_ssl_ca;
+ALTER INSTANCE RELOAD TLS;
+################## Change certificate
+# Save the defaults
+SET @orig_ssl_ca= @@global.ssl_ca;
+SET @orig_ssl_cert= @@global.ssl_cert;
+SET @orig_ssl_key= @@global.ssl_key;
+SET @orig_mysqlx_ssl_ca= @@global.mysqlx_ssl_ca;
+SET @orig_mysqlx_ssl_cert= @@global.mysqlx_ssl_cert;
+SET @orig_mysqlx_ssl_key= @@global.mysqlx_ssl_key;
+# setting new values for ssl_cert, ssl_key and ssl_ca
+SET GLOBAL ssl_cert = "MYSQL_TEST_DIR/std_data/server-cert-sha512.pem";
+SET GLOBAL ssl_key = "MYSQL_TEST_DIR/std_data/server-key-sha512.pem";
+SET GLOBAL ssl_ca = "MYSQL_TEST_DIR/std_data/ca-sha512.pem";
+ALTER INSTANCE RELOAD TLS;
+Ssl connection by sha256 plugin  -> success
+user	plugin
+xuser_sha256	sha256_password
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+# cleanup
+SET GLOBAL ssl_cert = @orig_ssl_cert;
+SET GLOBAL ssl_key = @orig_ssl_key;
+SET GLOBAL ssl_ca = @orig_ssl_ca;
+ALTER INSTANCE RELOAD TLS;
+################## End of dynamic SSL tests
+DROP USER xuser_sha256@localhost;

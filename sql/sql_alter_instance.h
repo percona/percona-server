@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -115,6 +115,23 @@ class Rotate_redo_system_key final : public Alter_instance {
 
  private:
   Rotate_percona_system_key rotate_percona_system_key;
+};
+
+/** Alter Innodb redo log properties. */
+class Innodb_redo_log : public Alter_instance {
+ public:
+  /**
+    @param[in]  thd     server THD
+    @param[in]  enable  enable or disable redo logging
+  */
+  Innodb_redo_log(THD *thd, bool enable)
+      : Alter_instance(thd), m_enable(enable) {}
+
+  bool execute() override;
+
+ private:
+  /** Enable or disable redo logging. */
+  bool m_enable;
 };
 
 #endif /* SQL_ALTER_INSTANCE_INCLUDED */

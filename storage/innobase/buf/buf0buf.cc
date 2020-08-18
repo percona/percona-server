@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -1234,7 +1234,8 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
   buf_pool->stat.reset();
 
   if (pthread_setaffinity_np(thread_id, sizeof(cpuset), &cpuset) == -1) {
-    ib::error() << "sched_setaffinity() failed!";
+    ib::error(ER_IB_ERR_SCHED_SETAFFNINITY_FAILED)
+        << "sched_setaffinity() failed!";
   }
   /* Linux might be able to set different setting for each thread
   worth to try to set high priority for this thread. */
@@ -1339,7 +1340,7 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
   mutex_create(LATCH_ID_FLUSH_LIST, &buf_pool->flush_list_mutex);
 
   for (i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; i++) {
-    buf_pool->no_flush[i] = os_event_create(nullptr);
+    buf_pool->no_flush[i] = os_event_create();
   }
 
   buf_pool->watch = (buf_page_t *)ut_zalloc_nokey(sizeof(*buf_pool->watch) *
@@ -1662,9 +1663,7 @@ static bool buf_page_realloc(buf_pool_t *buf_pool, buf_block_t *block) {
     new_block->left_side = TRUE;
 
     new_block->lock_hash_val = block->lock_hash_val;
-    ut_ad(new_block->lock_hash_val ==
-          lock_rec_hash(new_block->page.id.space(),
-                        new_block->page.id.page_no()));
+    ut_ad(new_block->lock_hash_val == lock_rec_hash(new_block->page.id));
 
     rw_lock_x_unlock(hash_lock);
     mutex_exit(&block->mutex);
@@ -2147,7 +2146,7 @@ withdraw_retry:
     }
   }
 
-  if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
+  if (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP) {
     /* abort to resize for shutdown. */
     buf_pool_withdrawing = false;
     return;
@@ -2164,28 +2163,30 @@ withdraw_retry:
       message_interval *= 2;
     }
 
-    lock_mutex_enter();
-    trx_sys_mutex_enter();
-    bool found = false;
-    for (trx_t *trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
-         trx != nullptr; trx = UT_LIST_GET_NEXT(mysql_trx_list, trx)) {
-      if (trx->state != TRX_STATE_NOT_STARTED && trx->mysql_thd != nullptr &&
-          ut_difftime(withdraw_started, trx->start_time) > 0) {
-        if (!found) {
-          ib::warn(ER_IB_MSG_61) << "The following trx might hold"
-                                    " the blocks in buffer pool to"
-                                    " be withdrawn. Buffer pool"
-                                    " resizing can complete only"
-                                    " after all the transactions"
-                                    " below release the blocks.";
-          found = true;
-        }
+    {
+      /* lock_trx_print_wait_and_mvcc_state() requires exclusive global latch */
+      locksys::Global_exclusive_latch_guard guard{};
+      trx_sys_mutex_enter();
+      bool found = false;
+      for (trx_t *trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
+           trx != nullptr; trx = UT_LIST_GET_NEXT(mysql_trx_list, trx)) {
+        if (trx->state != TRX_STATE_NOT_STARTED && trx->mysql_thd != nullptr &&
+            ut_difftime(withdraw_started, trx->start_time) > 0) {
+          if (!found) {
+            ib::warn(ER_IB_MSG_61) << "The following trx might hold"
+                                      " the blocks in buffer pool to"
+                                      " be withdrawn. Buffer pool"
+                                      " resizing can complete only"
+                                      " after all the transactions"
+                                      " below release the blocks.";
+            found = true;
+          }
 
-        lock_trx_print_wait_and_mvcc_state(stderr, trx);
+          lock_trx_print_wait_and_mvcc_state(stderr, trx);
+        }
       }
+      trx_sys_mutex_exit();
     }
-    trx_sys_mutex_exit();
-    lock_mutex_exit();
 
     withdraw_started = ut_time();
   }
@@ -2221,7 +2222,7 @@ withdraw_retry:
   }
 #endif /* UNIV_DEBUG */
 
-  if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
+  if (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP) {
     return;
   }
 
@@ -2521,11 +2522,11 @@ withdraw_retry:
 /** This is the thread for resizing buffer pool. It waits for an event and
 when waked up either performs a resizing and sleeps again. */
 void buf_resize_thread() {
-  while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
+  while (srv_shutdown_state.load() < SRV_SHUTDOWN_CLEANUP) {
     os_event_wait(srv_buf_resize_event);
     os_event_reset(srv_buf_resize_event);
 
-    if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
+    if (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP) {
       break;
     }
 
@@ -2855,7 +2856,7 @@ static buf_page_t *buf_pool_watch_set(const page_id_t &page_id,
         ut_ad(bpage->buf_fix_count == 0);
 
         bpage->state = BUF_BLOCK_ZIP_PAGE;
-        bpage->id.copy_from(page_id);
+        bpage->id = page_id;
         bpage->buf_fix_count = 1;
         bpage->buf_pool_index = buf_pool_index(buf_pool);
 
@@ -3582,7 +3583,7 @@ buf_block_t *Buf_fetch<T>::lookup() {
     by buf_page_alloc_descriptor(), it may have been freed by buf_relocate(). */
 
     if (!buf_block_is_uncompressed(m_buf_pool, block) ||
-        !m_page_id.equals_to(block->page.id) ||
+        m_page_id != block->page.id ||
         buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE) {
       /* Our m_guess was bogus or things have changed since. */
       block = m_guess = nullptr;
@@ -3731,7 +3732,7 @@ dberr_t Buf_fetch<T>::zip_page_handler(buf_block_t *&fix_block) {
   /* Set after buf_relocate(). */
   block->page.buf_fix_count = 1;
 
-  block->lock_hash_val = lock_rec_hash(m_page_id.space(), m_page_id.page_no());
+  block->lock_hash_val = lock_rec_hash(m_page_id);
 
   UNIV_MEM_DESC(&block->page.zip.data, page_zip_get_size(&block->page.zip));
 
@@ -4223,7 +4224,8 @@ buf_block_t *buf_page_get_gen(const page_id_t &page_id,
     case Page_fetch::POSSIBLY_FREED:
       break;
     default:
-      ib::fatal() << "Unknown fetch mode: " << (int)mode;
+      ib::fatal(ER_IB_ERR_UNKNOWN_PAGE_FETCH_MODE)
+          << "Unknown fetch mode: " << (int)mode;
       ut_error;
   }
 
@@ -4464,14 +4466,6 @@ bool buf_page_get_known_nowait(ulint rw_latch, buf_block_t *block,
   return (true);
 }
 
-/** Given a tablespace id and page number tries to get that page. If the
-page is not in the buffer pool it is not loaded and NULL is returned.
-Suitable for using when holding the lock_sys_t::mutex.
-@param[in]	page_id	page id
-@param[in]	file	file name
-@param[in]	line	line where called
-@param[in]	mtr	mini-transaction
-@return pointer to a page or NULL */
 const buf_block_t *buf_page_try_get_func(const page_id_t &page_id,
                                          const char *file, ulint line,
                                          mtr_t *mtr) {
@@ -4501,7 +4495,19 @@ const buf_block_t *buf_page_try_get_func(const page_id_t &page_id,
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
   buf_page_mutex_enter(block);
   ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+<<<<<<< HEAD
   ut_a(page_id.equals_to(block->page.id));
+||||||| merged common ancestors
+  ut_a(page_id.equals_to(block->page.id));
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+
+  buf_block_buf_fix_inc(block, file, line);
+=======
+  ut_a(page_id == block->page.id);
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+
+  buf_block_buf_fix_inc(block, file, line);
+>>>>>>> mysql-8.0.21
   buf_page_mutex_exit(block);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
@@ -4595,7 +4601,7 @@ static void buf_page_init(buf_pool_t *buf_pool, const page_id_t &page_id,
 
   buf_block_init_low(block);
 
-  block->lock_hash_val = lock_rec_hash(page_id.space(), page_id.page_no());
+  block->lock_hash_val = lock_rec_hash(page_id);
 
   buf_page_init_low(&block->page);
 
@@ -4630,7 +4636,7 @@ static void buf_page_init(buf_pool_t *buf_pool, const page_id_t &page_id,
   ut_ad(!block->page.in_page_hash);
   ut_d(block->page.in_page_hash = TRUE);
 
-  block->page.id.copy_from(page_id);
+  block->page.id = page_id;
   block->page.size.copy_from(page_size);
 
   HASH_INSERT(buf_page_t, hash, buf_pool->page_hash, page_id.fold(),
@@ -4801,7 +4807,7 @@ buf_page_t *buf_page_init_for_read(dberr_t *err, ulint mode,
     buf_page_init_low(bpage);
 
     bpage->state = BUF_BLOCK_ZIP_PAGE;
-    bpage->id.copy_from(page_id);
+    bpage->id = page_id;
     bpage->flush_observer = nullptr;
 
     ut_d(bpage->in_page_hash = FALSE);
@@ -5216,8 +5222,8 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
       page may contain garbage in MySQL < 4.1.1,
       which only supported bpage->space == 0. */
 
-      ib::error(ER_IB_MSG_79) << "Space id and page no stored in "
-                                 "the page, read in are "
+      ib::error(ER_IB_MSG_79) << "Space id and page number stored in "
+                                 "the page read in are "
                               << page_id_t(read_space_id, read_page_no)
                               << ", should be " << bpage->id;
     }
@@ -6390,7 +6396,7 @@ buf_get_free_list_len(void)
 void meb_page_init(const page_id_t &page_id, const page_size_t &page_size,
                    buf_block_t *block) {
   block->page.state = BUF_BLOCK_FILE_PAGE;
-  block->page.id.copy_from(page_id);
+  block->page.id = page_id;
   block->page.size.copy_from(page_size);
 
   page_zip_des_init(&block->page.zip);

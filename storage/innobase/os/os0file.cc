@@ -1,7 +1,15 @@
 /***********************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, 2016, Percona Inc.
+||||||| merged common ancestors
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, Percona Inc.
+=======
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
+Copyright (c) 2009, Percona Inc.
+>>>>>>> mysql-8.0.21
 
 Portions of this file contain modifications contributed and copyrighted
 by Percona Inc.. Those modifications are
@@ -447,7 +455,7 @@ class AIO {
   /** Non const version */
   Slot *at(ulint i) MY_ATTRIBUTE((warn_unused_result)) {
     if (i >= m_slots.size()) {
-      ib::fatal() << "i: " << i << " slots: " << m_slots.size();
+      ib::fatal(ER_IB_MSG_1357) << "i: " << i << " slots: " << m_slots.size();
     }
 
     return (&m_slots[i]);
@@ -3152,12 +3160,22 @@ static int os_file_fsync_posix(os_file_t file) {
         os_thread_sleep(200000);
         break;
 
+<<<<<<< HEAD
       case EIO: {
         const auto fd_path = os_file_find_path_for_fd(file);
         if (!fd_path.empty())
           ib::fatal() << "fsync(\"" << fd_path << "\") returned EIO, aborting.";
         else
           ib::fatal() << "fsync() returned EIO, aborting.";
+||||||| merged common ancestors
+      case EIO:
+
+        ib::fatal() << "fsync() returned EIO, aborting.";
+=======
+      case EIO:
+
+        ib::fatal(ER_IB_MSG_1358) << "fsync() returned EIO, aborting.";
+>>>>>>> mysql-8.0.21
         break;
       }
 
@@ -3189,9 +3207,11 @@ static bool os_file_status_posix(const char *path, bool *exists,
 
   int ret = stat(path, &statinfo);
 
-  *exists = !ret;
+  if (exists != nullptr) {
+    *exists = !ret;
+  }
 
-  if (!ret) {
+  if (ret == 0) {
     /* file exists, everything OK */
 
   } else if (errno == ENOENT || errno == ENOTDIR) {
@@ -3212,8 +3232,8 @@ static bool os_file_status_posix(const char *path, bool *exists,
   } else {
     *type = OS_FILE_TYPE_FAILED;
 
-    /* file exists, but stat call failed */
-    os_file_handle_error_no_exit(path, "stat", false);
+    /* The stat() call failed with some other error. */
+    os_file_handle_error_no_exit(path, "file_status_posix_stat", false);
     return (false);
   }
 
@@ -3235,6 +3255,28 @@ static bool os_file_status_posix(const char *path, bool *exists,
   }
 
   return (true);
+}
+
+/** Check the existence and usefulness of a given path.
+@param[in]  path  path name
+@retval true if the path exists and can be used
+@retval false if the path does not exist or if the path is
+unuseable to get to a possibly existing file or directory. */
+static bool os_file_exists_posix(const char *path) {
+  struct stat statinfo;
+
+  int ret = stat(path, &statinfo);
+
+  if (ret == 0) {
+    return (true);
+  }
+
+  if (!(errno == ENOENT || errno == ENOTDIR || errno == ENAMETOOLONG ||
+        errno == EACCES)) {
+    os_file_handle_error_no_exit(path, "file_exists_posix_stat", false);
+  }
+
+  return (false);
 }
 
 /** NOTE! Use the corresponding macro os_file_flush(), not directly this
@@ -3709,16 +3751,14 @@ file is closed before calling this function.
 @return true if success */
 bool os_file_rename_func(const char *oldpath, const char *newpath) {
 #ifdef UNIV_DEBUG
+  /* New path must be valid but not exist. */
   os_file_type_t type;
   bool exists;
-
-  /* New path must not exist. */
   ut_ad(os_file_status(newpath, &exists, &type));
   ut_ad(!exists);
 
   /* Old path must exist. */
-  ut_ad(os_file_status(oldpath, &exists, &type));
-  ut_ad(exists);
+  ut_ad(os_file_exists(oldpath));
 #endif /* UNIV_DEBUG */
 
   int ret = rename(oldpath, newpath);
@@ -4123,16 +4163,20 @@ static dberr_t os_file_punch_hole_win32(os_file_t fh, os_offset_t off,
   return (!result ? DB_IO_NO_PUNCH_HOLE : DB_SUCCESS);
 }
 
-/** Check the existence and type of the given file.
-@param[in]	path		path name of file
-@param[out]	exists		true if the file exists
-@param[out]	type		Type of the file, if it exists
+/** Check the existence and type of a given path.
+@param[in]   path    pathname of the file
+@param[out]  exists  true if file exists
+@param[out]  type    type of the file (if it exists)
 @return true if call succeeded */
 static bool os_file_status_win32(const char *path, bool *exists,
                                  os_file_type_t *type) {
   struct _stat64 statinfo;
 
   int ret = _stat64(path, &statinfo);
+
+  if (exists != nullptr) {
+    *exists = !ret;
+  }
 
   if (ret == 0) {
     /* file exists, everything OK */
@@ -4155,8 +4199,8 @@ static bool os_file_status_win32(const char *path, bool *exists,
   } else {
     *type = OS_FILE_TYPE_FAILED;
 
-    /* file exists, but stat call failed */
-    os_file_handle_error_no_exit(path, "stat", false);
+    /* The _stat64() call failed with some other error */
+    os_file_handle_error_no_exit(path, "file_status_win_stat64", false);
     return (false);
   }
 
@@ -4175,6 +4219,28 @@ static bool os_file_status_win32(const char *path, bool *exists,
   }
 
   return (true);
+}
+
+/** Check the existence and usefulness of a given path.
+@param[in]  path  path name
+@retval true if the path exists and can be used
+@retval false if the path does not exist or if the path is
+unuseable to get to a possibly existing file or directory. */
+static bool os_file_exists_win32(const char *path) {
+  struct _stat64 statinfo;
+
+  int ret = _stat64(path, &statinfo);
+
+  if (ret == 0) {
+    return (true);
+  }
+
+  if (!(errno == ENOENT || errno == EINVAL || errno == EACCES)) {
+    /* The _stat64() call failed with an unknown error */
+    os_file_handle_error_no_exit(path, "file_exists_win_stat64", false);
+  }
+
+  return (false);
 }
 
 /** NOTE! Use the corresponding macro os_file_flush(), not directly this
@@ -4847,16 +4913,14 @@ file is closed before calling this function.
 @return true if success */
 bool os_file_rename_func(const char *oldpath, const char *newpath) {
 #ifdef UNIV_DEBUG
+  /* New path must be valid but not exist. */
   os_file_type_t type;
   bool exists;
-
-  /* New path must not exist. */
   ut_ad(os_file_status(newpath, &exists, &type));
   ut_ad(!exists);
 
   /* Old path must exist. */
-  ut_ad(os_file_status(oldpath, &exists, &type));
-  ut_ad(exists);
+  ut_ad(os_file_exists(oldpath));
 #endif /* UNIV_DEBUG */
 
   if (MoveFile((LPCTSTR)oldpath, (LPCTSTR)newpath)) {
@@ -5802,8 +5866,8 @@ bool os_file_set_size_fast(const char *name, pfs_os_file_t pfs_file,
 
   /* Print the failure message only once for all the redo log files. */
   if (print_message) {
-    ib::info() << "fallocate() failed with errno " << errno
-               << " - falling back to writing NULLs.";
+    ib::info(ER_IB_MSG_1359) << "fallocate() failed with errno " << errno
+                             << " - falling back to writing NULLs.";
     print_message = false;
   }
 #endif /* !NO_FALLOCATE && UNIV_LINUX && HAVE_FALLOC_FL_ZERO_RANGE */
@@ -6196,16 +6260,19 @@ dberr_t os_file_write_func(IORequest &type, const char *name, os_file_t file,
   return (os_file_write_page(type, name, file, ptr, offset, n));
 }
 
-/** Check the existence and type of the given file.
-@param[in]	path		path name of file
-@param[out]	exists		true if the file exists
-@param[out]	type		Type of the file, if it exists
-@return true if call succeeded */
 bool os_file_status(const char *path, bool *exists, os_file_type_t *type) {
 #ifdef _WIN32
   return (os_file_status_win32(path, exists, type));
 #else
   return (os_file_status_posix(path, exists, type));
+#endif /* _WIN32 */
+}
+
+bool os_file_exists(const char *path) {
+#ifdef _WIN32
+  return (os_file_exists_win32(path));
+#else
+  return (os_file_exists_posix(path));
 #endif /* _WIN32 */
 }
 
@@ -6428,8 +6495,8 @@ AIO::AIO(latch_id_t id, ulint n, ulint segments)
 
   mutex_create(id, &m_mutex);
 
-  m_not_full = os_event_create("aio_not_full");
-  m_is_empty = os_event_create("aio_is_empty");
+  m_not_full = os_event_create();
+  m_is_empty = os_event_create();
 
 #ifdef LINUX_NATIVE_AIO
   memset(&m_events[0], 0x0, sizeof(m_events[0]) * m_events.size());
@@ -6710,7 +6777,7 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
   }
 
   for (ulint i = 0; i < n_segments; ++i) {
-    os_aio_segment_wait_events[i] = os_event_create(nullptr);
+    os_aio_segment_wait_events[i] = os_event_create();
   }
 
   os_last_printout = ut_time_monotonic();

@@ -1,7 +1,13 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2014, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2016, Percona Inc. All Rights Reserved.
+||||||| merged common ancestors
+Copyright (c) 2014, 2019, Oracle and/or its affiliates. All Rights Reserved.
+=======
+Copyright (c) 2014, 2020, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> mysql-8.0.21
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -145,8 +151,8 @@ InnoDB:
 #include "os0proc.h"
 #include "os0thread.h"
 #include "univ.i"
-#include "ut0byte.h"    /* ut_align */
-#include "ut0counter.h" /* INNOBASE_CACHE_LINE_SIZE */
+#include "ut0byte.h" /* ut_align */
+#include "ut0cpu_cache.h"
 #include "ut0ut.h"
 
 #define OUT_OF_MEMORY_MSG                                             \
@@ -1240,7 +1246,7 @@ class aligned_memory {
 /** Manages an object that is aligned to specified number of bytes.
 @tparam	T_Type		type of the object that is going to be managed
 @tparam T_Align_to	number of bytes to align to */
-template <typename T_Type, size_t T_Align_to = INNOBASE_CACHE_LINE_SIZE>
+template <typename T_Type, size_t T_Align_to = ut::INNODB_CACHE_LINE_SIZE>
 class aligned_pointer : public aligned_memory<T_Type, T_Align_to> {
  public:
   ~aligned_pointer() {
@@ -1267,7 +1273,7 @@ class aligned_pointer : public aligned_memory<T_Type, T_Align_to> {
 number of bytes.
 @tparam	T_Type		type of the object that is going to be managed
 @tparam T_Align_to	number of bytes to align to */
-template <typename T_Type, size_t T_Align_to = INNOBASE_CACHE_LINE_SIZE>
+template <typename T_Type, size_t T_Align_to = ut::INNODB_CACHE_LINE_SIZE>
 class aligned_array_pointer : public aligned_memory<T_Type, T_Align_to> {
  public:
   /** Allocates aligned memory for new objects. Objects must be trivially

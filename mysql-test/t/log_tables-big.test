@@ -36,7 +36,15 @@ connection default;
 disconnect con1;
 disconnect con2;
 
+<<<<<<< HEAD
 --source include/wait_until_count_sessions.inc
 
 set @@global.log_output = @saved_log_output;
 truncate table mysql.slow_log;
+||||||| merged common ancestors
+set @@global.log_output=default;
+=======
+TRUNCATE mysql.slow_log;
+
+set @@global.log_output=default;
+>>>>>>> mysql-8.0.21

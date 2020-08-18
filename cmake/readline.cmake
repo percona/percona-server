@@ -1,5 +1,13 @@
+<<<<<<< HEAD
 # Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 #
+||||||| merged common ancestors
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+# 
+=======
+# Copyright (c) 2009, 2020, Oracle and/or its affiliates.
+# 
+>>>>>>> mysql-8.0.21
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -96,6 +104,8 @@ MACRO (MYSQL_USE_BUNDLED_EDITLINE)
   SET(WITH_EDITLINE "bundled" CACHE STRING "By default use bundled editline")
   SET(USE_LIBEDIT_INTERFACE 1)
   SET(HAVE_HIST_ENTRY 1)
+  SET(EDITLINE_HAVE_COMPLETION_CHAR 1 CACHE INTERNAL "")
+  SET(USE_NEW_EDITLINE_INTERFACE 1 CACHE INTERNAL "")
   SET(EDITLINE_INCLUDE_DIR
     ${CMAKE_SOURCE_DIR}/extra/libedit/libedit-20190324-3.1/src/editline)
   INCLUDE_DIRECTORIES(BEFORE SYSTEM ${EDITLINE_INCLUDE_DIR})

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -221,16 +221,6 @@ static bool vio_init(Vio *vio, enum enum_vio_type type, my_socket sd,
 
   mysql_socket_setfd(&vio->mysql_socket, sd);
 
-#ifdef HAVE_KQUEUE
-  DBUG_ASSERT(type == VIO_TYPE_TCPIP || type == VIO_TYPE_SOCKET ||
-              type == VIO_TYPE_SSL);
-  vio->kq_fd = kqueue();
-  if (vio->kq_fd == -1) {
-    DBUG_PRINT("vio_init", ("kqueue failed with errno: %d", errno));
-    return true;
-  }
-#endif
-
   vio->localhost = flags & VIO_LOCALHOST;
   vio->type = type;
 
@@ -238,7 +228,9 @@ static bool vio_init(Vio *vio, enum enum_vio_type type, my_socket sd,
   vio->network_namespace[0] = '\0';
 #endif
 
+  switch (type) {
 #ifdef _WIN32
+<<<<<<< HEAD
   if (type == VIO_TYPE_NAMEDPIPE) {
     vio->viodelete = vio_delete;
     vio->vioerrno = vio_errno;
@@ -279,7 +271,88 @@ static bool vio_init(Vio *vio, enum enum_vio_type type, my_socket sd,
     vio->is_blocking_flag = true;
     return false;
   }
+||||||| merged common ancestors
+  if (type == VIO_TYPE_NAMEDPIPE) {
+    vio->viodelete = vio_delete;
+    vio->vioerrno = vio_errno;
+    vio->read = vio_read_pipe;
+    vio->write = vio_write_pipe;
+    vio->fastsend = vio_fastsend;
+    vio->viokeepalive = vio_keepalive;
+    vio->should_retry = vio_should_retry;
+    vio->was_timeout = vio_was_timeout;
+    vio->vioshutdown = vio_shutdown_pipe;
+    vio->peer_addr = vio_peer_addr;
+    vio->io_wait = no_io_wait;
+    vio->is_connected = vio_is_connected_pipe;
+    vio->has_data = has_no_data;
+    vio->is_blocking = vio_is_blocking;
+    vio->set_blocking = vio_set_blocking;
+    vio->is_blocking_flag = true;
+    return false;
+  }
+  if (type == VIO_TYPE_SHARED_MEMORY) {
+    vio->viodelete = vio_delete_shared_memory;
+    vio->vioerrno = vio_errno;
+    vio->read = vio_read_shared_memory;
+    vio->write = vio_write_shared_memory;
+    vio->fastsend = vio_fastsend;
+    vio->viokeepalive = vio_keepalive;
+    vio->should_retry = vio_should_retry;
+    vio->was_timeout = vio_was_timeout;
+    vio->vioshutdown = vio_shutdown_shared_memory;
+    vio->peer_addr = vio_peer_addr;
+    vio->io_wait = no_io_wait;
+    vio->is_connected = vio_is_connected_shared_memory;
+    vio->has_data = has_no_data;
+    vio->is_blocking = vio_is_blocking;
+    vio->set_blocking = vio_set_blocking;
+    vio->is_blocking_flag = true;
+    return false;
+  }
+=======
+    case VIO_TYPE_NAMEDPIPE:
+      vio->viodelete = vio_delete;
+      vio->vioerrno = vio_errno;
+      vio->read = vio_read_pipe;
+      vio->write = vio_write_pipe;
+      vio->fastsend = vio_fastsend;
+      vio->viokeepalive = vio_keepalive;
+      vio->should_retry = vio_should_retry;
+      vio->was_timeout = vio_was_timeout;
+      vio->vioshutdown = vio_shutdown_pipe;
+      vio->peer_addr = vio_peer_addr;
+      vio->io_wait = no_io_wait;
+      vio->is_connected = vio_is_connected_pipe;
+      vio->has_data = has_no_data;
+      vio->is_blocking = vio_is_blocking;
+      vio->set_blocking = vio_set_blocking;
+      vio->set_blocking_flag = vio_set_blocking_flag;
+      vio->is_blocking_flag = true;
+      break;
+
+    case VIO_TYPE_SHARED_MEMORY:
+      vio->viodelete = vio_delete_shared_memory;
+      vio->vioerrno = vio_errno;
+      vio->read = vio_read_shared_memory;
+      vio->write = vio_write_shared_memory;
+      vio->fastsend = vio_fastsend;
+      vio->viokeepalive = vio_keepalive;
+      vio->should_retry = vio_should_retry;
+      vio->was_timeout = vio_was_timeout;
+      vio->vioshutdown = vio_shutdown_shared_memory;
+      vio->peer_addr = vio_peer_addr;
+      vio->io_wait = no_io_wait;
+      vio->is_connected = vio_is_connected_shared_memory;
+      vio->has_data = has_no_data;
+      vio->is_blocking = vio_is_blocking;
+      vio->set_blocking = vio_set_blocking;
+      vio->set_blocking_flag = vio_set_blocking_flag;
+      vio->is_blocking_flag = true;
+      break;
+>>>>>>> mysql-8.0.21
 #endif /* _WIN32 */
+<<<<<<< HEAD
   if (type == VIO_TYPE_SSL) {
     vio->viodelete = vio_ssl_delete;
     vio->vioerrno = vio_errno;
@@ -301,7 +374,84 @@ static bool vio_init(Vio *vio, enum enum_vio_type type, my_socket sd,
     vio->set_blocking_flag = vio_set_blocking_flag;
     vio->is_blocking_flag = true;
     return false;
+||||||| merged common ancestors
+  if (type == VIO_TYPE_SSL) {
+    vio->viodelete = vio_ssl_delete;
+    vio->vioerrno = vio_errno;
+    vio->read = vio_ssl_read;
+    vio->write = vio_ssl_write;
+    vio->fastsend = vio_fastsend;
+    vio->viokeepalive = vio_keepalive;
+    vio->should_retry = vio_should_retry;
+    vio->was_timeout = vio_was_timeout;
+    vio->vioshutdown = vio_ssl_shutdown;
+    vio->peer_addr = vio_peer_addr;
+    vio->io_wait = vio_io_wait;
+    vio->is_connected = vio_is_connected;
+    vio->has_data = vio_ssl_has_data;
+    vio->timeout = vio_socket_timeout;
+    vio->is_blocking = vio_is_blocking;
+    vio->set_blocking = vio_set_blocking;
+    vio->set_blocking_flag = vio_set_blocking_flag;
+    vio->is_blocking_flag = true;
+    return false;
+=======
+
+    case VIO_TYPE_SSL:
+      vio->viodelete = vio_ssl_delete;
+      vio->vioerrno = vio_errno;
+      vio->read = vio_ssl_read;
+      vio->write = vio_ssl_write;
+      vio->fastsend = vio_fastsend;
+      vio->viokeepalive = vio_keepalive;
+      vio->should_retry = vio_should_retry;
+      vio->was_timeout = vio_was_timeout;
+      vio->vioshutdown = vio_ssl_shutdown;
+      vio->peer_addr = vio_peer_addr;
+      vio->io_wait = vio_io_wait;
+      vio->is_connected = vio_is_connected;
+      vio->has_data = vio_ssl_has_data;
+      vio->timeout = vio_socket_timeout;
+      vio->is_blocking = vio_is_blocking;
+      vio->set_blocking = vio_set_blocking;
+      vio->set_blocking_flag = vio_set_blocking_flag;
+      vio->is_blocking_flag = true;
+      break;
+
+    default:
+      vio->viodelete = vio_delete;
+      vio->vioerrno = vio_errno;
+      vio->read = vio->read_buffer ? vio_read_buff : vio_read;
+      vio->write = vio_write;
+      vio->fastsend = vio_fastsend;
+      vio->viokeepalive = vio_keepalive;
+      vio->should_retry = vio_should_retry;
+      vio->was_timeout = vio_was_timeout;
+      vio->vioshutdown = vio_shutdown;
+      vio->peer_addr = vio_peer_addr;
+      vio->io_wait = vio_io_wait;
+      vio->is_connected = vio_is_connected;
+      vio->timeout = vio_socket_timeout;
+      vio->has_data = vio->read_buffer ? vio_buff_has_data : has_no_data;
+      vio->is_blocking = vio_is_blocking;
+      vio->set_blocking = vio_set_blocking;
+      vio->set_blocking_flag = vio_set_blocking_flag;
+      vio->is_blocking_flag = true;
+      break;
   }
+
+  DBUG_EXECUTE_IF("vio_init_returns_error", { return true; });
+
+#ifdef HAVE_KQUEUE
+  DBUG_ASSERT(type == VIO_TYPE_TCPIP || type == VIO_TYPE_SOCKET ||
+              type == VIO_TYPE_SSL);
+  vio->kq_fd = kqueue();
+  if (vio->kq_fd == -1) {
+    DBUG_PRINT("vio_init", ("kqueue failed with errno: %d", errno));
+    return true;
+>>>>>>> mysql-8.0.21
+  }
+<<<<<<< HEAD
   vio->viodelete = vio_delete;
   vio->vioerrno = vio_errno;
   vio->read = vio->read_buffer ? vio_read_buff : vio_read;
@@ -321,6 +471,28 @@ static bool vio_init(Vio *vio, enum enum_vio_type type, my_socket sd,
   vio->set_blocking = vio_set_blocking;
   vio->set_blocking_flag = vio_set_blocking_flag;
   vio->is_blocking_flag = true;
+||||||| merged common ancestors
+  vio->viodelete = vio_delete;
+  vio->vioerrno = vio_errno;
+  vio->read = vio->read_buffer ? vio_read_buff : vio_read;
+  vio->write = vio_write;
+  vio->fastsend = vio_fastsend;
+  vio->viokeepalive = vio_keepalive;
+  vio->should_retry = vio_should_retry;
+  vio->was_timeout = vio_was_timeout;
+  vio->vioshutdown = vio_shutdown;
+  vio->peer_addr = vio_peer_addr;
+  vio->io_wait = vio_io_wait;
+  vio->is_connected = vio_is_connected;
+  vio->timeout = vio_socket_timeout;
+  vio->has_data = vio->read_buffer ? vio_buff_has_data : has_no_data;
+  vio->is_blocking = vio_is_blocking;
+  vio->set_blocking = vio_set_blocking;
+  vio->set_blocking_flag = vio_set_blocking_flag;
+  vio->is_blocking_flag = true;
+=======
+#endif
+>>>>>>> mysql-8.0.21
 
   return false;
 }

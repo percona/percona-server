@@ -13,7 +13,7 @@ Table	Op	Msg_type	Msg_text
 test.tt	analyze	status	OK
 show indexes from tt;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
-tt	1	b	1	b	A	4	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+tt	1	b	1	b	A	8	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 flush tables;
 show indexes from tt;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression

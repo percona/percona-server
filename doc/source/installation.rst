@@ -37,23 +37,26 @@ Following guides describe the installation process for using the official Percon
 Installing |Percona Server| from a Binary Tarball
 ===================================================
 
-In |Percona Server| 5.7.31-34 and later, the multiple binary tarballs have been replaced with the following:
+In |Percona Server| 8.0.20-11 and later, the multiple binary tarballs have been replaced with the following:
 
-.. tabularcolumns:: |p{5cm}|p{11cm}|
+.. tabularcolumns:: |p{5cm}|p{5cm}|p{11cm}|
 
 .. list-table::
    :header-rows: 1
 
-   * - Name
+   * - Type
+     - Name
      - Description
-   * - Percona-Server-5.7.xx-xx-Linux.x86_64.glibc2.12.tar.gz 
+   * - Full
+     - Percona-Server-<version number>-Linux.x86_64.glibc2.12.tar.gz 
      - Contains binaries, libraries, test files, and debug symbols
-   * - Percona-Server-5.7.xx-xx-Linux.x86_64.glibc2.12-minimal.tar.gz
+   * - Minimal
+     - Percona-Server-<version number>-Linux.x86_64.glibc2.12-minimal.tar.gz
      - Contains binaries, and libraries but does not include test files, or debug symbols
 
-Both binary tarballs support all distributions.
+Select the |Percona Server| 8.0 version number and type of tarball for your installation. Both binary tarballs support all distributions.
 
-|Percona Server| offers multiple tarballs depending on the *OpenSSL* library available in the distribution:
+In |Percona Server| before 8.0.20-11, multiple tarballs are provided based on the  *OpenSSL* library available in the distribution:
 
  * ssl100 - for *Debian* prior to 9 and *Ubuntu* prior to 14.04 versions (``libssl.so.1.0.0 => /usr/lib/x86_64-linux-gnu/libssl.so.1.0.0``);
  * ssl102 - for *Debian* 9 and *Ubuntu* versions starting from 14.04 (``libssl.so.1.1 => /usr/lib/libssl.sl.1.1``)

@@ -2,13 +2,21 @@
 
 Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -787,12 +795,8 @@ retry:
 				<< ib::hex(space->flags) << ")!";
 		}
 
-		/* Validate the flags but do not compare the data directory
-		flag, in case this tablespace was relocated. */
-		unsigned relevant_space_flags
-			= space->flags & ~FSP_FLAGS_MASK_DATA_DIR;
-		unsigned relevant_flags
-			= flags & ~FSP_FLAGS_MASK_DATA_DIR;
+		unsigned relevant_space_flags = space->flags;
+		unsigned relevant_flags = flags;
 
                 // in case of Keyring encryption it can so happen that there will be a crash after all pages of tablespace is rotated
                 // and DD is updated, but page0 of the tablespace has not been yet update. We handle this here.
@@ -2437,6 +2441,10 @@ fil_name_write(
 	const fil_node_t*	file,
 	mtr_t*			mtr)
 {
+	/* Temporary tablespaces ibtmp1 or the file_per_table
+	compressed temporary tablespaces should never be redo logged */
+	ut_ad(FSP_FLAGS_GET_TEMPORARY(space->flags) == 0);
+
 	fil_name_write(space->id, first_page_no, file->name, mtr);
 }
 
@@ -7262,14 +7270,22 @@ fil_tablespace_iterate(
 
 		/* Check encryption is matched or not. */
 		if (err == DB_SUCCESS && FSP_FLAGS_GET_ENCRYPTION(space_flags)) {
-			ut_ad(iter.encryption_key != NULL);
-
 			if (!dict_table_is_encrypted(table)) {
 				ib::error() << "Table is not in an encrypted"
-					" tablespace, but the data file which"
-					" trying to import is an encrypted"
+					" tablespace, but the data file"
+                                        " intended for import is an encrypted"
 					" tablespace";
 				err = DB_IO_NO_ENCRYPT_TABLESPACE;
+			} else {
+				/* encryption_key must have been populated
+                                while reading CFP file. */
+				ut_ad(table->encryption_key != NULL &&
+				table->encryption_iv != NULL);
+
+				if (table->encryption_key == NULL ||
+					table->encryption_iv == NULL) {
+					err = DB_ERROR;
+				}
 			}
 		}
 
@@ -8092,7 +8108,11 @@ fil_encryption_rotate_low(const fil_space_t* space)
 		mtr_t mtr;
 		mtr_start(&mtr);
 
-		if (fsp_is_system_temporary(space->id)) {
+		/* Compressed temporary tables are file_per_table
+		tablespaces and cannot be determined by space_id check.
+		Check the temporary FSP flag for these tablespaces */
+		if (fsp_is_system_temporary(space->id)
+		    || FSP_FLAGS_GET_TEMPORARY(space->flags)) {
 			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 		}
 

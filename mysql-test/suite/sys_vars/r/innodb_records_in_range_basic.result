@@ -1,0 +1,67 @@
+SELECT @@GLOBAL.innodb_records_in_range;
+@@GLOBAL.innodb_records_in_range
+0
+0 Expected
+SET @@GLOBAL.innodb_records_in_range=100;
+1 Expected
+SELECT @@GLOBAL.innodb_records_in_range;
+@@GLOBAL.innodb_records_in_range
+100
+100 Expected
+SET @@GLOBAL.innodb_records_in_range=DEFAULT;
+1 Expected
+SELECT @@GLOBAL.innodb_records_in_range;
+@@GLOBAL.innodb_records_in_range
+0
+0 Expected
+SELECT @@GLOBAL.innodb_records_in_range = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_records_in_range';
+@@GLOBAL.innodb_records_in_range = VARIABLE_VALUE
+1
+1 Expected
+SELECT @@GLOBAL.innodb_records_in_range;
+@@GLOBAL.innodb_records_in_range
+0
+0 Expected
+SELECT VARIABLE_VALUE
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='innodb_records_in_range';
+VARIABLE_VALUE
+0
+0 Expected
+SELECT @@innodb_records_in_range = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='innodb_records_in_range';
+@@innodb_records_in_range = VARIABLE_VALUE
+1
+1 Expected
+SELECT VARIABLE_VALUE
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='innodb_records_in_range';
+VARIABLE_VALUE
+0
+0 Expected
+SELECT @@innodb_records_in_range = @@GLOBAL.innodb_records_in_range;
+@@innodb_records_in_range = @@GLOBAL.innodb_records_in_range
+1
+1 Expected
+SELECT @@innodb_records_in_range;
+@@innodb_records_in_range
+0
+0 Expected
+SELECT @@local.innodb_records_in_range;
+@@local.innodb_records_in_range
+0
+0 Expected
+SELECT @@SESSION.innodb_records_in_range;
+@@SESSION.innodb_records_in_range
+0
+0 Expected
+SELECT @@GLOBAL.innodb_records_in_range;
+@@GLOBAL.innodb_records_in_range
+0
+0 Expected
+SELECT innodb_records_in_range;
+ERROR 42S22: Unknown column 'innodb_records_in_range' in 'field list'
+Expected error 'Unknow column in field list'

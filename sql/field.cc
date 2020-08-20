@@ -2,13 +2,20 @@
    Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -9160,6 +9167,27 @@ bool Field_json::get_time(MYSQL_TIME *ltime)
   if (result)
     set_zero_time(ltime, MYSQL_TIMESTAMP_DATETIME); /* purecov: inspected */
   return result;
+}
+
+int Field_json::cmp_binary(const uchar *a_ptr, const uchar *b_ptr,
+                           uint32 /* max_length */)
+{
+  char *a;
+  char *b;
+  memcpy(&a, a_ptr + packlength, sizeof(a));
+  memcpy(&b, b_ptr + packlength, sizeof(b));
+  uint32 a_length= get_length(a_ptr);
+  uint32 b_length= get_length(b_ptr);
+  using namespace json_binary;
+  /*
+    The length is 0 if NULL has been inserted into a NOT NULL column
+    using INSERT IGNORE or similar. If so, interpret the value as the
+    JSON null literal.
+  */
+  Value        null_literal(Value::LITERAL_NULL);
+  Json_wrapper aw(a_length == 0 ? null_literal : parse_binary(a, a_length));
+  Json_wrapper bw(b_length == 0 ? null_literal : parse_binary(b, b_length));
+  return aw.compare(bw);
 }
 
 

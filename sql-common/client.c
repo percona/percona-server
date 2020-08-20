@@ -1,13 +1,25 @@
-/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   Without limiting anything contained in the foregoing, this file,
+   which is part of C Driver for MySQL (Connector/C), is also subject to the
+   Universal FOSS Exception, version 1.0, a copy of which can be found at
+   http://oss.oracle.com/licenses/universal-foss-exception.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -652,21 +664,60 @@ void free_state_change_info(MYSQL_EXTENSION *ext) {
 
   for (i = SESSION_TRACK_SYSTEM_VARIABLES; i <= SESSION_TRACK_END; i++) {
     if (list_length(info->info_list[i].head_node) != 0) {
-      /*
-        Since nodes were multi-alloced, we don't need to free the data
-        separately. But the str member in data needs to be freed.
-      */
-      LIST *tmp_list = info->info_list[i].head_node;
-      while (tmp_list) {
-        LEX_STRING *tmp = (LEX_STRING *)(tmp_list)->data;
-        if (tmp->str)
-          my_free(tmp->str);
-        tmp_list = tmp_list->next;
-      }
       list_free(info->info_list[i].head_node, (uint)0);
     }
   }
   memset(info, 0, sizeof(STATE_INFO));
+}
+
+/**
+  Helper function to check if the buffer has at least bytes remaining
+
+  If the buffer is too small it raises CR_MALFORMED_PACKET_ERROR.
+
+  @param mysql the handle that has the buffer
+  @param packet the current position in the buffer
+  @param packet_length the size of the packet
+  @param bytes the bytes that we want available
+  @retval TRUE the buffer has that many bytes
+  @retval FALSE the buffer has less bytes remaining
+*/
+static inline my_bool buffer_check_remaining(MYSQL *mysql, uchar *packet,
+                                   ulong packet_length, size_t bytes) {
+  size_t remaining_bytes = packet_length - (packet - mysql->net.read_pos);
+  if (remaining_bytes < bytes) {
+    set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+    return FALSE;
+  }
+  return TRUE;
+}
+
+/*
+  Helper function to safely read a variable size from a buffer.
+  If the buffer is too small it raises CR_MALFORMED_PACKET_ERROR
+  and sets is_error to TRUE.
+  Otherwise it sets is_error to FALSE and calls @ref inet_field_length_ll.
+
+  @sa @ref net_field_length_ll
+
+  @param mysql the handle to return an error in
+  @param [in,out] packet pointer to the buffer to read the length from
+  @param packet_length  remining bytes in packet
+  @param [out] is_error set to TRUE if the buffer contains no room for a
+  full length, FALSE otherwise.
+  @return the size read.
+*/
+static inline my_ulonglong net_field_length_ll_safe(MYSQL *mysql, uchar **packet,
+                                             ulong packet_length,
+                                             my_bool *is_error) {
+  size_t sizeof_len = net_field_length_size(*packet);
+  if (!buffer_check_remaining(mysql, *packet, packet_length, sizeof_len)) {
+    *is_error = TRUE;
+    return 0;
+  }
+
+  *is_error = FALSE;
+  return net_field_length_ll(packet);
 }
 
 /**
@@ -677,6 +728,7 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
   uchar *pos, *saved_pos;
   my_ulonglong affected_rows, insert_id;
   char *db;
+  char *data_str;
 
   struct charset_info_st *saved_cs;
   my_bool is_charset;
@@ -685,11 +737,16 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
   enum enum_session_state_type type;
   LIST *element = NULL;
   LEX_STRING *data = NULL;
+  my_bool is_error;
 
   pos = mysql->net.read_pos + 1;
 
-  affected_rows = net_field_length_ll(&pos); /* affected rows */
-  insert_id = net_field_length_ll(&pos);     /* insert id */
+  affected_rows = net_field_length_ll_safe(mysql, &pos, length,
+                                           &is_error); /* affected rows */
+  if (is_error) return;
+  insert_id = net_field_length_ll_safe(mysql, &pos, length,
+                                       &is_error);     /* insert id */
+  if (is_error) return;
 
   /*
    The following check ensures that we skip the assignment for the
@@ -709,11 +766,13 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
     DBUG_PRINT("info", ("affected_rows: %lu  insert_id: %lu",
                         (ulong)mysql->affected_rows, (ulong)mysql->insert_id));
   }
+  if (!buffer_check_remaining(mysql, pos, length, 2)) return;
   /* server status */
   mysql->server_status = uint2korr(pos);
   pos += 2;
 
   if (protocol_41(mysql)) {
+    if (!buffer_check_remaining(mysql, pos, length, 2)) return;
     mysql->warning_count = uint2korr(pos);
     pos += 2;
   } else
@@ -726,42 +785,49 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
 
     if (pos < mysql->net.read_pos + length) {
       /* get the info field */
-      size_t length_msg_member = (size_t)net_field_length(&pos);
+      size_t length_msg_member =
+          (size_t)net_field_length_ll_safe(mysql, &pos, length, &is_error);
+      if (is_error) return;
+      if (!buffer_check_remaining(mysql, pos, length, length_msg_member))
+         return;
       mysql->info = (length_msg_member ? (char *)pos : NULL);
       pos += (length_msg_member);
 
       /* read session state changes info */
       if (mysql->server_status & SERVER_SESSION_STATE_CHANGED) {
         saved_pos = pos;
-        total_len = (size_t)net_field_length(&pos);
+        total_len = (size_t)net_field_length_ll_safe(mysql, &pos, length,
+                                                     &is_error);
+        if (is_error) return;
         /* ensure that mysql->info is zero-terminated */
         if (mysql->info)
           *saved_pos = 0;
 
         while (total_len > 0) {
           saved_pos = pos;
-          type = (enum enum_session_state_type)net_field_length(&pos);
-
+          type = (enum enum_session_state_type)net_field_length_ll_safe(
+                  mysql, &pos, length, &is_error);
+          if (is_error) return;
           switch (type) {
           case SESSION_TRACK_SYSTEM_VARIABLES:
             /* Move past the total length of the changed entity. */
-            (void)net_field_length(&pos);
+            (void)net_field_length_ll_safe(mysql, &pos, length, &is_error);
+            if (is_error) return;
 
             /* Name of the system variable. */
-            len = (size_t)net_field_length(&pos);
+            len = (size_t)net_field_length_ll_safe(mysql, &pos, length,
+                                                   &is_error);
+            if (is_error) return;
+            if (!buffer_check_remaining(mysql, pos, length, len)) return;
 
             if (!my_multi_malloc(key_memory_MYSQL_state_change_info, MYF(0),
                                  &element, sizeof(LIST), &data,
-                                 sizeof(LEX_STRING), NullS)) {
+                                 sizeof(LEX_STRING), &data_str, len, NullS)) {
               set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
               return;
             }
 
-            if (!(data->str = (char *)my_malloc(PSI_NOT_INSTRUMENTED, len,
-                                                MYF(MY_WME)))) {
-              set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-              return;
-            }
+            data->str = data_str;
             memcpy(data->str, (char *)pos, len);
             data->length = len;
             pos += len;
@@ -778,20 +844,20 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
             else
               is_charset = 0;
 
+            /* Value of the system variable. */
+            len = (size_t)net_field_length_ll_safe(mysql, &pos, length,
+                                                   &is_error);
+            if (is_error) return;
+            if (!buffer_check_remaining(mysql, pos, length, len)) return;
+
             if (!my_multi_malloc(key_memory_MYSQL_state_change_info, MYF(0),
                                  &element, sizeof(LIST), &data,
-                                 sizeof(LEX_STRING), NullS)) {
+                                 sizeof(LEX_STRING), &data_str, len, NullS)) {
               set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
               return;
             }
 
-            /* Value of the system variable. */
-            len = (size_t)net_field_length(&pos);
-            if (!(data->str = (char *)my_malloc(PSI_NOT_INSTRUMENTED, len,
-                                                MYF(MY_WME)))) {
-              set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-              return;
-            }
+            data->str = data_str;
             memcpy(data->str, (char *)pos, len);
             data->length = len;
             pos += len;
@@ -801,9 +867,7 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
 
             if (is_charset == 1) {
               char charset_name[MY_CS_NAME_SIZE * 8]; // MY_CS_BUFFER_SIZE
-              size_t length = data->length > (sizeof(charset_name) - 1)
-                                  ? (sizeof(charset_name) - 1)
-                                  : data->length;
+              size_t length = MY_MIN(data->length, (sizeof(charset_name) - 1));
               saved_cs = mysql->charset;
 
               memcpy(charset_name, data->str, length);
@@ -824,22 +888,22 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
           case SESSION_TRACK_TRANSACTION_CHARACTERISTICS:
           case SESSION_TRACK_SCHEMA:
 
+            /* Move past the total length of the changed entity. */
+            (void)net_field_length_ll_safe(mysql, &pos, length, &is_error);
+            if (is_error) return;
+            len = (size_t)net_field_length_ll_safe(mysql, &pos, length,
+                                                   &is_error);
+            if (is_error) return;
+            if (!buffer_check_remaining(mysql, pos, length, len)) return;
+
             if (!my_multi_malloc(key_memory_MYSQL_state_change_info, MYF(0),
                                  &element, sizeof(LIST), &data,
-                                 sizeof(LEX_STRING), NullS)) {
+                                 sizeof(LEX_STRING), &data_str, len, NullS)) {
               set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
               return;
             }
 
-            /* Move past the total length of the changed entity. */
-            (void)net_field_length(&pos);
-
-            len = (size_t)net_field_length(&pos);
-            if (!(data->str = (char *)my_malloc(PSI_NOT_INSTRUMENTED, len,
-                                                MYF(MY_WME)))) {
-              set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-              return;
-            }
+            data->str = data_str;
             memcpy(data->str, (char *)pos, len);
             data->length = len;
             pos += len;
@@ -864,20 +928,14 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
 
             break;
           case SESSION_TRACK_GTIDS:
-            if (!my_multi_malloc(key_memory_MYSQL_state_change_info, MYF(0),
-                                 &element, sizeof(LIST), &data,
-                                 sizeof(LEX_STRING), NullS)) {
-              set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-              return;
-            }
-
             /* Move past the total length of the changed entity. */
-            (void)net_field_length(&pos);
+            (void)net_field_length_ll_safe(mysql, &pos, length, &is_error);
+            if (is_error) return;
 
             /* read (and ignore for now) the GTIDS encoding specification code
              */
-            (void)net_field_length(&pos);
-
+            (void)net_field_length_ll_safe(mysql, &pos, length, &is_error);
+            if (is_error) return;
             /*
                For now we ignore the encoding specification, since only one
                is supported. In the future the decoding of what comes next
@@ -885,13 +943,18 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
                */
 
             /* read the length of the encoded string. */
-            len = (size_t)net_field_length(&pos);
-            if (!(data->str = (char *)my_malloc(PSI_NOT_INSTRUMENTED, len,
-                                                MYF(MY_WME)))) {
+            len = (size_t)net_field_length_ll_safe(mysql, &pos, length,
+                                                   &is_error);
+            if (is_error) return;
+            if (!buffer_check_remaining(mysql, pos, length, len)) return;
+            if (!my_multi_malloc(key_memory_MYSQL_state_change_info, MYF(0),
+                                 &element, sizeof(LIST), &data,
+                                 sizeof(LEX_STRING), &data_str, len, NullS)) {
               set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
               return;
             }
 
+            data->str = data_str;
             memcpy(data->str, (char *)pos, len);
             data->length = len;
             pos += len;
@@ -900,22 +963,22 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
             ADD_INFO(info, element, SESSION_TRACK_GTIDS);
             break;
           case SESSION_TRACK_STATE_CHANGE:
+            /* Get the length of the boolean tracker */
+            len = (size_t)net_field_length_ll_safe(mysql, &pos, length,
+                                                   &is_error);
+            if (is_error) return;
+
+            /* length for boolean tracker is always 1 */
+            DBUG_ASSERT(len == 1);
+            if (!buffer_check_remaining(mysql, pos, length, len)) return;
             if (!my_multi_malloc(key_memory_MYSQL_state_change_info, MYF(0),
                                  &element, sizeof(LIST), &data,
-                                 sizeof(LEX_STRING), NullS)) {
+                                 sizeof(LEX_STRING), &data_str, len,  NullS)) {
               set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
               return;
             }
 
-            /* Get the length of the boolean tracker */
-            len = (size_t)net_field_length(&pos);
-            /* length for boolean tracker is always 1 */
-            DBUG_ASSERT(len == 1);
-            if (!(data->str = (char *)my_malloc(PSI_NOT_INSTRUMENTED, len,
-                                                MYF(MY_WME)))) {
-              set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-              return;
-            }
+            data->str = data_str;
             memcpy(data->str, (char *)pos, len);
             data->length = len;
             pos += len;
@@ -930,7 +993,9 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
               Unknown/unsupported type received, get the total length and move
               past it.
               */
-            len = (size_t)net_field_length(&pos);
+            len = (size_t)net_field_length_ll_safe(mysql, &pos, length,
+                                                   &is_error);
+            if (is_error) return;
             pos += len;
             break;
           }
@@ -2024,9 +2089,21 @@ int unpack_field(MYSQL *mysql, MEM_ROOT *alloc, my_bool default_value,
   }
 #ifndef DELETE_SUPPORT_OF_4_0_PROTOCOL
   else {
+    /*
+      If any of the row->data[] below is NULL, it can result in a
+      crash. Error out early as it indicates a malformed packet.
+      For data[0], data[1] and data[5], strmake_root will handle
+      NULL values.
+    */
+    if (!row->data[2] || !row->data[3] || !row->data[4]) {
+      set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+      DBUG_RETURN(1);
+    }
+
     cli_fetch_lengths(&lengths[0], row->data, default_value ? 6 : 5);
-    field->org_table = field->table = strdup_root(alloc, (char *)row->data[0]);
-    field->name = strdup_root(alloc, (char *)row->data[1]);
+    field->org_table = field->table = strmake_root(alloc, (char *)row->data[0], lengths[0]);
+    field->name = strmake_root(alloc, (char *)row->data[1], lengths[1]);
+
     field->length = (uint)uint3korr((uchar *)row->data[2]);
     field->type = (enum enum_field_types)(uchar)row->data[3][0];
 
@@ -2047,7 +2124,7 @@ int unpack_field(MYSQL *mysql, MEM_ROOT *alloc, my_bool default_value,
     if (IS_NUM(field->type))
       field->flags |= NUM_FLAG;
     if (default_value && row->data[5]) {
-      field->def = strdup_root(alloc, (char *)row->data[5]);
+      field->def = strmake_root(alloc, (char *)row->data[5], lengths[5]);
       field->def_length = lengths[5];
     } else
       field->def = 0;
@@ -2107,13 +2184,19 @@ MYSQL_FIELD *cli_read_metadata_ex(MYSQL *mysql, MEM_ROOT *alloc,
   MYSQL_FIELD *fields, *result;
   MYSQL_ROWS data;
   NET *net = &mysql->net;
+  size_t size;
 
   DBUG_ENTER("cli_read_metadata");
 
   len = (ulong *)alloc_root(alloc, sizeof(ulong) * field);
+  size = sizeof(MYSQL_FIELD) * field_count;
 
-  fields = result =
-      (MYSQL_FIELD *)alloc_root(alloc, (uint)sizeof(MYSQL_FIELD) * field_count);
+  if (field_count != (size / sizeof(MYSQL_FIELD))) {
+    set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+    DBUG_RETURN(0);
+  }
+
+  fields = result = (MYSQL_FIELD *)alloc_root(alloc, size);
   if (!result) {
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
     DBUG_RETURN(0);
@@ -2218,7 +2301,11 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields,
         cur->data[field] = 0;
       } else {
         cur->data[field] = to;
-        if (len > (ulong)(end_to - to)) {
+        DBUG_EXECUTE_IF("simulate_invalid_packet_data", {
+          to = end_to + 1;
+          len = ULONG_MAX - 1;
+        });
+        if (to > end_to || len > (ulong)(end_to - to)) {
           free_rows(result);
           set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
           DBUG_RETURN(0);
@@ -2509,7 +2596,7 @@ const char *STDCALL mysql_get_ssl_cipher(MYSQL *mysql MY_ATTRIBUTE((unused))) {
   #define HAVE_X509_CHECK_FUNCTIONS 1
 #endif
 
-#if !defined(HAVE_X509_CHECK_FUNCTIONS) && !defined(HAVE_YASSL)
+#if !defined(HAVE_X509_CHECK_FUNCTIONS)
 
 /*
   Compares the DNS entry from the Subject Alternative Names (SAN) list with
@@ -2691,7 +2778,7 @@ error:
   DBUG_RETURN(ret_validation);
 }
 
-#endif /* !defined(HAVE_X509_CHECK_FUNCTIONS) && !defined(HAVE_YASSL) */
+#endif /* !defined(HAVE_X509_CHECK_FUNCTIONS) */
 
 /*
   Check the server's (subject) Common Name against the
@@ -2721,11 +2808,9 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
   X509_NAME_ENTRY *cn_entry= NULL;
   X509_NAME *subject= NULL;
 #endif
-#ifndef HAVE_YASSL
   ASN1_OCTET_STRING *server_ip_address= NULL;
   const unsigned char *ipout= NULL;
   size_t iplen= 0;
-#endif
   int ret_validation= 1;
 
   DBUG_ENTER("ssl_verify_server_cert");
@@ -2756,7 +2841,6 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
       are what we expect.
     */
 
-#ifndef HAVE_YASSL
   /* Checking if the provided server_hostname is a V4/V6 IP address */
   server_ip_address= a2i_IPADDRESS(server_hostname);
   if(server_ip_address != NULL)
@@ -2768,7 +2852,6 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
     ipout= (const unsigned char *) ASN1_STRING_get0_data(server_ip_address);
 #endif
   }
-#endif
 
 #ifdef HAVE_X509_CHECK_FUNCTIONS
   if (iplen == 0)
@@ -2776,17 +2859,10 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
   else
     ret_validation= X509_check_ip(server_cert, ipout, iplen, 0) != 1;
 #else
-  /*
-    YaSSL will always return NULL for any call to 'X509_get_ext_d2i()'
-    and therefore the whole SAN block will be skipped and only 'CN'
-    will be checked.
-  */
-#ifndef HAVE_YASSL
   ret_validation= ssl_verify_server_cert_san(server_cert,
     iplen != 0 ? (const char*)ipout : server_hostname, iplen, errptr);
   if (*errptr != NULL)
     goto error;
-#endif
   if (ret_validation != 0)
   {
     subject= X509_get_subject_name(server_cert);
@@ -2843,10 +2919,8 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
   *errptr= ret_validation != 0 ? "SSL certificate validation failure" : "";
 
 error:
-#ifndef HAVE_YASSL
   if(server_ip_address != NULL)
     ASN1_OCTET_STRING_free(server_ip_address);
-#endif
 
   if (server_cert != NULL)
     X509_free(server_cert);
@@ -4690,8 +4764,20 @@ MYSQL *STDCALL CLI_MYSQL_REAL_CONNECT(MYSQL *mysql, const char *host,
     if (mysql->server_capabilities & CLIENT_PLUGIN_AUTH) {
       scramble_data_len = pkt_scramble_len;
       scramble_plugin = scramble_data + scramble_data_len;
-      if (scramble_data + scramble_data_len > pkt_end)
-        scramble_data_len = (int)(pkt_end - scramble_data);
+      /*
+       There is a possibility that we did not get a correct plugin name
+       for some reason. For example, the packet was malformed and some
+       of the fields had incorrect values. In such cases, we keep the
+       plugin name empty so that the default authentication plugin
+       gets used later on. Since we don't really know the plugin for which
+       the scramble_data was prepared, we can discard it and set it's length
+       to 0.
+      */
+      if (scramble_data + scramble_data_len > pkt_end) {
+        scramble_plugin = (char*)"";
+        scramble_data = 0;
+        scramble_data_len = 0;
+      }
     } else {
       scramble_data_len = (int)(pkt_end - scramble_data);
       scramble_plugin = native_password_plugin_name;

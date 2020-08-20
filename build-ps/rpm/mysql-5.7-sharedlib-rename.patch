@@ -13,7 +13,7 @@ diff -rup old/client/base/CMakeLists.txt new/client/base/CMakeLists.txt
 diff -rup old/client/CMakeLists.txt new/client/CMakeLists.txt
 --- old/client/CMakeLists.txt	2016-03-09 09:25:21.000000000 +0100
 +++ new/client/CMakeLists.txt	2016-03-09 11:41:15.159325622 +0100
-@@ -46,7 +46,7 @@
+@@ -49,7 +49,7 @@
  
  ADD_DEFINITIONS(${SSL_DEFINES})
  MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc ../sql-common/sql_string.cc)
@@ -22,7 +22,7 @@ diff -rup old/client/CMakeLists.txt new/client/CMakeLists.txt
  IF(UNIX)
    TARGET_LINK_LIBRARIES(mysql ${MY_READLINE_LIBRARY})
  ENDIF(UNIX)
-@@ -55,58 +55,58 @@
+@@ -58,58 +58,58 @@
    MYSQL_ADD_EXECUTABLE(mysql_upgrade
      upgrade/program.cc
    )
@@ -79,8 +79,8 @@ diff -rup old/client/CMakeLists.txt new/client/CMakeLists.txt
 +TARGET_LINK_LIBRARIES(mysqlslap mysqlclient)
  
  MYSQL_ADD_EXECUTABLE(mysql_config_editor mysql_config_editor.cc)
--TARGET_LINK_LIBRARIES(mysql_config_editor perconaserverclient)
-+TARGET_LINK_LIBRARIES(mysql_config_editor mysqlclient)
+-TARGET_LINK_LIBRARIES(mysql_config_editor ${FORCE_SSL_SOLARIS} perconaserverclient)
++TARGET_LINK_LIBRARIES(mysql_config_editor ${FORCE_SSL_SOLARIS} mysqlclient)
  
  MYSQL_ADD_EXECUTABLE(mysql_secure_installation mysql_secure_installation.cc)
 -TARGET_LINK_LIBRARIES(mysql_secure_installation perconaserverclient)
@@ -89,8 +89,8 @@ diff -rup old/client/CMakeLists.txt new/client/CMakeLists.txt
  IF(UNIX AND NOT WITHOUT_SERVER)
    MYSQL_ADD_EXECUTABLE(mysql_install_db
      mysql_install_db.cc auth_utils.cc path.cc logger.cc)
--  TARGET_LINK_LIBRARIES(mysql_install_db perconaserverclient)
-+  TARGET_LINK_LIBRARIES(mysql_install_db mysqlclient)
+-  TARGET_LINK_LIBRARIES(mysql_install_db ${FORCE_SSL_SOLARIS} perconaserverclient)
++  TARGET_LINK_LIBRARIES(mysql_install_db ${FORCE_SSL_SOLARIS} mysqlclient)
    ADD_COMPILE_FLAGS(
      auth_utils.cc mysql_install_db.cc
      COMPILE_FLAGS "-I${CMAKE_SOURCE_DIR}/sql/auth"
@@ -138,14 +138,16 @@ diff -rup old/include/mysql.h new/include/mysql.h
 diff -rup old/libmysql/CMakeLists.txt new/libmysql/CMakeLists.txt
 --- old/libmysql/CMakeLists.txt	2016-03-09 09:25:21.000000000 +0100
 +++ new/libmysql/CMakeLists.txt	2016-03-09 11:41:15.159325622 +0100
-@@ -234,12 +234,12 @@
+@@ -265,13 +265,13 @@
  MESSAGE(STATUS "Creating LDAP authentication SASL client library.")
  ADD_SUBDIRECTORY(authentication_ldap)
    
 -# Merge several convenience libraries into one big perconaserverclient
--MERGE_CONVENIENCE_LIBRARIES(perconaserverclient ${LIBS} COMPONENT Development)
+-MERGE_CONVENIENCE_LIBRARIES(perconaserverclient ${LIBS_TO_MERGE} COMPONENT Development)
+-TARGET_LINK_LIBRARIES(perconaserverclient ${LIBS_TO_LINK})
 +# Merge several convenience libraries into one big mysqlclient
-+MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS} COMPONENT Development)
++MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE} COMPONENT Development)
++TARGET_LINK_LIBRARIES(mysqlclient ${LIBS_TO_LINK})
  
  # Visual Studio users need debug  static library for debug projects
  IF(MSVC)
@@ -154,16 +156,16 @@ diff -rup old/libmysql/CMakeLists.txt new/libmysql/CMakeLists.txt
  
    INSTALL_DEBUG_TARGET(auth_win_client DESTINATION ${INSTALL_LIBDIR}/debug)
    INSTALL_DEBUG_TARGET(clientlib DESTINATION ${INSTALL_LIBDIR}/debug)
-@@ -280,7 +280,7 @@
+@@ -308,7 +308,7 @@
  ENDIF()
  
  IF(NOT DISABLE_SHARED)
 -  # Merge several convenience libraries into one big perconaserverclient
 +  # Merge several convenience libraries into one big mysqlclient
    # and link them together into shared library.
-   MERGE_LIBRARIES_SHARED(libmysql ${LIBS}
+   MERGE_LIBRARIES_SHARED(libmysql ${LIBS_TO_MERGE}
      EXPORTS ${CLIENT_API_FUNCTIONS} ${CLIENT_API_FUNCTIONS_UNDOCUMENTED}
-@@ -293,9 +293,9 @@
+@@ -322,9 +322,9 @@
        SET(OS_SHARED_LIB_VERSION
          "${SHARED_LIB_MAJOR_VERSION}.${SHARED_LIB_MINOR_VERSION}.${SHARED_LIB_PATCH_VERSION}")
      ENDIF()
@@ -175,31 +177,7 @@ diff -rup old/libmysql/CMakeLists.txt new/libmysql/CMakeLists.txt
        VERSION "${OS_SHARED_LIB_VERSION}" 
        SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
      CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
-@@ -324,8 +324,8 @@
-         PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
-     ENDIF() 
-     # clean direct output needs to be set several targets have the same name
--    #(perconaserverclient in this case)
--    SET_TARGET_PROPERTIES(perconaserverclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
-+    #(mysqlclient in this case)
-+    SET_TARGET_PROPERTIES(mysqlclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
-     SET_TARGET_PROPERTIES(libmysql PROPERTIES CLEAN_DIRECT_OUTPUT 1)
- 
-   ENDIF()
- 
-@@ -280,9 +280,9 @@
-       SET(OS_SHARED_LIB_VERSION
-         "${SHARED_LIB_MAJOR_VERSION}.${SHARED_LIB_MINOR_VERSION}.${SHARED_LIB_PATCH_VERSION}")
-     ENDIF()
--    # Name of shared library is perconaserverclient on Unix
-+    # Name of shared library is mysqlclient on Unix
-     SET_TARGET_PROPERTIES(libmysql PROPERTIES 
--      OUTPUT_NAME perconaserverclient
-+      OUTPUT_NAME mysqlclient
-       VERSION "${OS_SHARED_LIB_VERSION}" 
-       SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
-     CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
-@@ -311,8 +311,8 @@
+@@ -353,8 +353,8 @@
          PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
      ENDIF() 
      # clean direct output needs to be set several targets have the same name
@@ -488,15 +466,15 @@ diff -rup old/storage/ndb/ndbapi-examples/ndbapi_s_i_ndbrecord/Makefile new/stor
 diff -rup old/storage/ndb/test/run-test/CMakeLists.txt new/storage/ndb/test/run-test/CMakeLists.txt
 --- old/storage/ndb/test/run-test/CMakeLists.txt	2016-03-09 09:25:27.000000000 +0100
 +++ new/storage/ndb/test/run-test/CMakeLists.txt	2016-03-09 11:41:15.167325622 +0100
-@@ -32,7 +32,7 @@ IF(NOT WIN32)
-   ADD_DEFINITIONS(-DDEFAULT_PREFIX=\"${CMAKE_INSTALL_PREFIX}\")
- ENDIF()
+@@ -41,7 +41,7 @@
  ADD_EXECUTABLE(atrt main.cpp setup.cpp files.cpp db.cpp command.cpp)
--TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient_static perconaserverclient)
-+TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient_static mysqlclient)
- 
- FILE(GLOB testcase_files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*-tests.txt")
- ADD_TEST(NAME check_testcase_files
+ IF(WIN32)
+   # All clients will need auth_win_client
+-  TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient_static perconaserverclient)
++  TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient_static mysqlclien)
+ ELSE()
+   # Linking with mysqlclient may fail on macOS, so link individual libs instead.
+   TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient_static
 diff -rup old/testclients/CMakeLists.txt new/testclients/CMakeLists.txt
 --- old/testclients/CMakeLists.txt	2016-03-09 09:25:27.000000000 +0100
 +++ new/testclients/CMakeLists.txt	2016-03-09 11:41:15.167325622 +0100
@@ -518,22 +496,22 @@ diff -rup old/testclients/CMakeLists.txt new/testclients/CMakeLists.txt
 diff -rup old/rapid/plugin/x/CMakeLists.txt new/rapid/plugin/x/CMakeLists.txt
 --- old/rapid/plugin/x/CMakeLists.txt
 +++ new/rapid/plugin/x/CMakeLists.txt
-@@ -214,7 +214,7 @@
+@@ -220,7 +220,7 @@
        "NGS_DISABLE_LOGGING;USE_MYSQLX_FULL_PROTO")
    ENDIF()
  
--  TARGET_LINK_LIBRARIES(mysqlxtest mysys strings perconaserverclient)
-+  TARGET_LINK_LIBRARIES(mysqlxtest mysys strings mysqlclient)
+-  TARGET_LINK_LIBRARIES(mysqlxtest mysys strings ${FORCE_SSL_SOLARIS} perconaserverclient)
++  TARGET_LINK_LIBRARIES(mysqlxtest mysys strings ${FORCE_SSL_SOLARIS} mysqlclient)
    TARGET_LINK_LIBRARIES(mysqlxtest ${PROTOBUF_LIBRARY})
  
    IF(INSTALL_MYSQLTESTDIR)
 diff -rup old/rapid/unittest/gunit/xplugin/CMakeLists.txt new/rapid/unittest/gunit/xplugin/CMakeLists.txt
 --- old/rapid/unittest/gunit/xplugin/CMakeLists.txt
 +++ new/rapid/unittest/gunit/xplugin/CMakeLists.txt
-@@ -151,7 +151,7 @@
-   regex
+@@ -159,7 +159,7 @@
    gmock
    mysqlservices
+   ${FORCE_SSL_SOLARIS}
 -  perconaserverclient
 +  mysqlclient
    ${LIBEVENT_LIBRARIES}
@@ -549,4 +527,4 @@ diff -rup old/rapid/unittest/gunit/xplugin/CMakeLists.txt new/rapid/unittest/gun
 +      target_link_libraries(${tool} mysqlclient)
      endif ()
    endif ()
- 
+

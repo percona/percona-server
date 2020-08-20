@@ -4,7 +4,7 @@
 SELECT @@global.innodb_semaphore_wait_timeout_debug;
 @@global.innodb_semaphore_wait_timeout_debug
 600
-set global innodb_semaphore_wait_timeout_debug = 10;
+SET GLOBAL innodb_semaphore_wait_timeout_debug = 10;
 Warnings:
 Warning	1292	Truncated incorrect innodb_semaphore_wait_timeout_de value: '10'
 SELECT @@global.innodb_semaphore_wait_timeout_debug;

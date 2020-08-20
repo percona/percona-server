@@ -17,13 +17,21 @@ documentation. The contributions by Percona Inc. are incorporated with
 their permission, and subject to the conditions contained in the file
 COPYING.Percona.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -1469,6 +1477,12 @@ srv_shutdown_all_bg_threads()
 			if (srv_n_fil_crypt_threads_started) {
 				os_event_set(fil_crypt_threads_event);
 			}
+
+			/* Stop srv_redo_log_follow_thread thread */
+			if (srv_redo_log_thread_started) {
+				os_event_reset(srv_redo_log_tracked_event);
+				os_event_set(srv_checkpoint_completed_event);
+			}
 		}
 
 		if (srv_start_state_is_set(SRV_START_STATE_IO)) {
@@ -2544,6 +2558,8 @@ files_checked:
 		if (err == DB_SUCCESS) {
 			/* Initialize the change buffer. */
 			err = dict_boot();
+			DBUG_EXECUTE_IF("ib_dic_boot_error",
+					err = DB_ERROR;);
 		}
 
 		if (err != DB_SUCCESS) {

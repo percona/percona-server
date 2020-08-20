@@ -10,14 +10,21 @@ documentation. The contributions by Percona Inc. are incorporated with
 their permission, and subject to the conditions contained in the file
 COPYING.Percona.
 
-This program is free software; you can redistribute it and/or modify it
-under the terms of the GNU General Public License as published by the
-Free Software Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
-Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -677,6 +684,13 @@ private:
 	dberr_t init_linux_native_aio()
 		MY_ATTRIBUTE((warn_unused_result));
 #endif /* LINUX_NATIVE_AIO */
+
+	/** Submit buffered AIO requests on the array to the kernel.
+	(low level function).
+	@param[in] acquire_mutex specifies whether to lock array mutex
+	@param[in] array for which to submit IO */
+	static void os_aio_dispatch_read_array_submit_low_for_array(
+		bool acquire_mutex MY_ATTRIBUTE((unused)), const AIO* arr);
 
 private:
 	typedef std::vector<Slot> Slots;
@@ -2151,6 +2165,12 @@ os_file_get_parent_dir(
 		return(NULL);
 	}
 
+	if (last_slash - path < 0) {
+		/* Sanity check, it prevents gcc from trying to handle this case which
+		 * results in warnings for some optimized builds */
+		return (NULL);
+	}
+
 	/* Non-trivial directory component */
 
 	return(mem_strdupl(path, last_slash - path));
@@ -3030,11 +3050,25 @@ void
 AIO::os_aio_dispatch_read_array_submit_low(
 	bool acquire_mutex MY_ATTRIBUTE((unused)))
 {
+	os_aio_dispatch_read_array_submit_low_for_array(acquire_mutex, s_reads);
+	if (s_ibuf != NULL) {
+		os_aio_dispatch_read_array_submit_low_for_array(acquire_mutex, s_ibuf);
+	}
+}
+
+/** Submit buffered AIO requests on the array to the kernel.
+(low level function).
+@param[in] acquire_mutex specifies whether to lock array mutex
+@param[in] array for which to submit IO */
+void
+AIO::os_aio_dispatch_read_array_submit_low_for_array(
+	bool acquire_mutex MY_ATTRIBUTE((unused)), const AIO* arr)
+{
 	if (!srv_use_native_aio) {
 		return;
 	}
 #if defined(LINUX_NATIVE_AIO)
-	AIO* array = AIO::s_reads;
+	const AIO* array = arr;
 	ulint total_submitted = 0;
 	if (acquire_mutex)
 		array->acquire();
@@ -3123,7 +3157,7 @@ AIO::linux_dispatch(Slot* slot, bool should_buffer)
 	ulint	io_ctx_index = slot->pos / slots_per_segment;
 
 	if (should_buffer) {
-		ut_ad(this == s_reads);
+		ut_ad(this == s_reads || this == s_ibuf);
 
 		acquire();
 		/* There are m_slots.size() elements in m_pending,
@@ -3140,7 +3174,7 @@ AIO::linux_dispatch(Slot* slot, bool should_buffer)
 		m_pending[n] = iocb;
 		++count;
 		if (count == slots_per_segment) {
-			AIO::os_aio_dispatch_read_array_submit_low(false);
+			AIO::os_aio_dispatch_read_array_submit_low_for_array(false, this);
 		}
 		release();
 		return(true);

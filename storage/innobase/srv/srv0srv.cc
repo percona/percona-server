@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, 2016, Percona Inc.
 
@@ -17,13 +17,21 @@ documentation. The contributions by Percona Inc. are incorporated with
 their permission, and subject to the conditions contained in the file
 COPYING.Percona.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -87,7 +95,7 @@ Created 10/8/1995 Heikki Tuuri
 #endif /* UNIV_PFS_THREAD */
 
 /* The following is the maximum allowed duration of a lock wait. */
-ulint	srv_fatal_semaphore_wait_threshold = 600;
+ulong	srv_fatal_semaphore_wait_threshold = 600;
 
 lint	srv_kill_idle_transaction = 0;
 
@@ -2595,6 +2603,10 @@ srv_master_do_active_tasks(void)
 		return;
 	}
 
+	if (trx_sys->rseg_history_len > 0) {
+		srv_wake_purge_thread_if_not_active();
+	}
+
 	if (cur_time % SRV_MASTER_DICT_LRU_INTERVAL == 0) {
 		srv_main_thread_op_info = "enforcing dict cache limit";
 		ulint	n_evicted = srv_master_evict_from_table_cache(50);
@@ -2669,6 +2681,10 @@ srv_master_do_idle_tasks(void)
 
 	if (srv_shutdown_state > 0) {
 		return;
+	}
+
+	if (trx_sys->rseg_history_len > 0) {
+		srv_wake_purge_thread_if_not_active();
 	}
 
 	srv_main_thread_op_info = "enforcing dict cache limit";
@@ -2959,8 +2975,6 @@ srv_task_execute(void)
 
 		os_atomic_inc_ulint(
 			&purge_sys->pq_mutex, &purge_sys->n_completed, 1);
-
-		srv_inc_activity_count();
 	}
 
 	return(thr != NULL);
@@ -3308,7 +3322,9 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 		rseg_history_len = srv_do_purge(
 			srv_n_purge_threads, &n_total_purged);
 
-		srv_inc_activity_count();
+		if (n_total_purged != 0) {
+			srv_inc_activity_count();
+		}
 
 	} while (!srv_purge_should_exit(n_total_purged));
 

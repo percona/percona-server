@@ -1,14 +1,21 @@
 # Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-# 
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
+# GNU General Public License, version 2.0, for more details.
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -41,7 +48,10 @@ IF(UNIX)
 
   # Default GCC flags
   IF(CMAKE_COMPILER_IS_GNUCC)
-    SET(COMMON_C_FLAGS               "-g -fabi-version=2 -fno-omit-frame-pointer -fno-strict-aliasing")
+    SET(COMMON_C_FLAGS               "-g -fno-omit-frame-pointer -fno-strict-aliasing")
+    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)  # gcc-9 or older
+      SET(COMMON_C_FLAGS             "-fabi-version=2 ${COMMON_C_FLAGS}")
+    ENDIF()
     # Disable inline optimizations for valgrind testing to avoid false positives
     IF(WITH_VALGRIND)
       SET(COMMON_C_FLAGS             "-fno-inline ${COMMON_C_FLAGS}")
@@ -65,7 +75,10 @@ IF(UNIX)
     SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 -D_FORTIFY_SOURCE=2 ${COMMON_C_FLAGS}")
   ENDIF()
   IF(CMAKE_COMPILER_IS_GNUCXX)
-    SET(COMMON_CXX_FLAGS               "-g -fabi-version=2 -fno-omit-frame-pointer -fno-strict-aliasing")
+    SET(COMMON_CXX_FLAGS               "-g -fno-omit-frame-pointer -fno-strict-aliasing")
+    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)  # gcc-9 or older
+      SET(COMMON_CXX_FLAGS             "-fabi-version=2 ${COMMON_CXX_FLAGS}")
+    ENDIF()
     # GCC 6 has C++14 as default, set it explicitly to the old default.
     EXECUTE_PROCESS(COMMAND ${CMAKE_CXX_COMPILER} -dumpversion
                     OUTPUT_VARIABLE GXX_VERSION)
@@ -100,12 +113,6 @@ IF(UNIX)
   ENDIF()
   IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     SET(COMMON_CXX_FLAGS               "-g -fno-omit-frame-pointer -fno-strict-aliasing")
-    IF(CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL 6.0 OR
-        CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
-      IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
-        SET(COMMON_CXX_FLAGS           "${COMMON_CXX_FLAGS} -std=gnu++03")
-      ENDIF()
-    ENDIF()
     SET(CMAKE_CXX_FLAGS_DEBUG          "${COMMON_CXX_FLAGS}")
     SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -D_FORTIFY_SOURCE=2 ${COMMON_CXX_FLAGS}")
   ENDIF()

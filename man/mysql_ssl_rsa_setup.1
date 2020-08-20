@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_ssl_rsa_setup\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/08/2019
+.\"      Date: 06/02/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_SSL_RSA_SETUP\FR" "1" "06/08/2019" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL_SSL_RSA_SETUP\FR" "1" "06/02/2020" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -56,7 +56,7 @@ uses the
 command, so its use is contingent on having OpenSSL installed on your machine\&.
 .PP
 Another way to generate SSL and RSA files, for MySQL distributions compiled using OpenSSL, is to have the server generate them automatically\&. See
-Section\ \&6.3.2.1, \(lqCreating SSL and RSA Certificates and Keys using MySQL\(rq\&.
+Section\ \&6.3.3.1, \(lqCreating SSL and RSA Certificates and Keys using MySQL\(rq\&.
 .sp .5v
 .RE
 .if n \{\
@@ -230,19 +230,19 @@ creates no RSA files\&. Otherwise, it invokes
 to create them\&. These files enable secure password exchange using RSA over unencrypted connections for accounts authenticated by the
 sha256_password
 plugin; see
-Section\ \&6.4.1.4, \(lqSHA-256 Pluggable Authentication\(rq\&.
+Section\ \&6.4.1.5, \(lqSHA-256 Pluggable Authentication\(rq\&.
 .RE
 .PP
 For information about the characteristics of files created by
 \fBmysql_ssl_rsa_setup\fR, see
-Section\ \&6.3.2.1, \(lqCreating SSL and RSA Certificates and Keys using MySQL\(rq\&.
+Section\ \&6.3.3.1, \(lqCreating SSL and RSA Certificates and Keys using MySQL\(rq\&.
 .PP
 At startup, the MySQL server automatically uses the SSL files created by
 \fBmysql_ssl_rsa_setup\fR
 to enable SSL if no explicit SSL options are given other than
 \fB\-\-ssl\fR
 (possibly along with
-\fB\-\-ssl\-cipher\fR)\&. If you prefer to designate the files explicitly, invoke clients with the
+ssl_cipher)\&. If you prefer to designate the files explicitly, invoke clients with the
 \fB\-\-ssl\-ca\fR,
 \fB\-\-ssl\-cert\fR, and
 \fB\-\-ssl\-key\fR
@@ -374,7 +374,6 @@ Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
 .\}
 \fB\-\-help\fR,
 \fB?\fR
-.sp
 Display a help message and exit\&.
 .RE
 .sp
@@ -387,7 +386,6 @@ Display a help message and exit\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-datadir=\fR\fB\fIdir_name\fR\fR
-.sp
 The path to the directory that
 \fBmysql_ssl_rsa_setup\fR
 should check for default SSL and RSA files and in which it should create files if they are missing\&. The default is the compiled\-in data directory\&.
@@ -402,7 +400,6 @@ should check for default SSL and RSA files and in which it should create files i
 .IP \(bu 2.3
 .\}
 \fB\-\-suffix=\fR\fB\fIstr\fR\fR
-.sp
 The suffix for the Common Name attribute in X\&.509 certificates\&. The suffix value is limited to 17 characters\&. The default is based on the MySQL version number\&.
 .RE
 .sp
@@ -416,7 +413,6 @@ The suffix for the Common Name attribute in X\&.509 certificates\&. The suffix v
 .\}
 \fB\-\-uid=name\fR,
 \fB\-v\fR
-.sp
 The name of the user who should be the owner of any created files\&. The value is a user name, not a numeric user ID\&. In the absence of this option, files created by
 \fBmysql_ssl_rsa_setup\fR
 are owned by the user who executes it\&. This option is valid only if you execute the program as
@@ -436,7 +432,6 @@ system call\&.
 .\}
 \fB\-\-verbose\fR,
 \fB\-v\fR
-.sp
 Verbose mode\&. Produce more output about what the program does\&. For example, the program shows the
 \fBopenssl\fR
 commands it runs, and produces output to indicate whether it skips SSL or RSA file creation because some default file already exists\&.
@@ -452,13 +447,12 @@ commands it runs, and produces output to indicate whether it skips SSL or RSA fi
 .\}
 \fB\-\-version\fR,
 \fB\-V\fR
-.sp
 Display version information and exit\&.
 .RE
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

@@ -53,7 +53,7 @@ Use the following command to convert an existing table for the |TokuDB| storage 
 Bulk Loading Data
 -----------------
 
-The |TokuDB| bulk loader imports data much faster than regular |MySQL| with |InnoDB|. To make use of the loader you need flat files in either comma separated or tab separated format. The |MySQL| ``LOAD DATA INFILE ...`` statement will invoke the bulk loader if the table is empty. Keep in mind that while this is the most convenient and, in most cases, the fastest way to initialize a |TokuDB| table, it may not be replication safe if applied to the master
+The |TokuDB| bulk loader imports data much faster than regular |MySQL| with |InnoDB|. To make use of the loader you need flat files in either comma separated or tab separated format. The |MySQL| ``LOAD DATA INFILE ...`` statement will invoke the bulk loader if the table is empty. Keep in mind that while this is the most convenient and, in most cases, the fastest way to initialize a |TokuDB| table, it may not be replication safe if applied to the source
 
 For more information, see the |MySQL| 5.6 Reference Manual: `LOAD DATA INFILE <http://dev.mysql.com/doc/refman/5.6/en/load-data.html>`_.
 

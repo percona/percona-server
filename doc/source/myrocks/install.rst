@@ -19,21 +19,6 @@ that can be enabled as a plugin for Percona Server 5.7 and later versions.
 Installing Percona MyRocks
 ==========================
 
-Percona provides packages for most popular 64-bit Linux distributions:
-
-* Debian 8 ("jessie")
-* Debian 9 ("stretch")
-* Ubuntu 14.04 LTS (Trusty Tahr)
-* Ubuntu 16.04 LTS (Xenial Xerus)
-* Ubuntu 16.10 (Yakkety Yak)
-* Ubuntu 17.04 (Zesty Zapus)
-* Red Hat Enterprise Linux or CentOS 6 (Santiago)
-* Red Hat Enterprise Linux or CentOS 7 (Maipo)
-
-.. note:: Percona MyRocks should work on other DEB-based and RPM-based systems
-   (for example, Oracle Linux and Amazon Linux AMI),
-   but it is tested only on those listed above.
-
 It is recommended to install Percona software from official repositories:
 
 1. Configure Percona repositories as described in
@@ -75,11 +60,10 @@ to properly enable the RocksDB (MyRocks) storage engine:
    Installing RocksDB engine...
    INFO: Successfully installed RocksDB engine plugin.
 
-.. note:: When you use the ``ps-admin`` script to enable Percona MyRocks,
-   it performs the following:
-
-   * Disables Transparent huge pages
-   * Installs and enables the RocksDB plugin
+.. note:: 
+        
+    Running the ``ps-admin`` script to enable Percona MyRocks also
+    installs and enables the RocksDB plugin.
 
 If the script returns no errors,
 Percona MyRocks should be successfully enabled on the server.
@@ -106,6 +90,28 @@ of :file:`my.cnf` and restart Percona Server.
 Alternatively, you can add ``ENGINE=RocksDB``
 after the ``CREATE TABLE`` statement
 for every table that you create.
+
+.. rubric:: Installing MyRocks Plugins
+
+You can install MyRocks manually with a series of `INSTALL PLUGIN <https://dev.mysql.com/doc/refman/5.7/en/install-plugin.html>`_ statements. You must have the ``INSERT`` privilege for the ``mysql.plugin`` system table.
+
+The following statements install MyRocks:
+
+.. code-block:: mysql
+
+    INSTALL PLUGIN ROCKSDB SONAME 'ha_rocksdb.so';
+    INSTALL PLUGIN ROCKSDB_CFSTATS SONAME 'ha_rocksdb.so';
+    INSTALL PLUGIN ROCKSDB_DBSTATS SONAME 'ha_rocksdb.so';
+    INSTALL PLUGIN ROCKSDB_PERF_CONTEXT SONAME 'ha_rocksdb.so';
+    INSTALL PLUGIN ROCKSDB_PERF_CONTEXT_GLOBAL SONAME 'ha_rocksdb.so';
+    INSTALL PLUGIN ROCKSDB_CF_OPTIONS SONAME 'ha_rocksdb.so';
+    INSTALL PLUGIN ROCKSDB_GLOBAL_INFO SONAME 'ha_rocksdb.so';
+    INSTALL PLUGIN ROCKSDB_COMPACTION_STATS SONAME 'ha_rocksdb.so';
+    INSTALL PLUGIN ROCKSDB_DDL SONAME 'ha_rocksdb.so';
+    INSTALL PLUGIN ROCKSDB_INDEX_FILE_MAP SONAME 'ha_rocksdb.so';
+    INSTALL PLUGIN ROCKSDB_LOCKS SONAME 'ha_rocksdb.so';
+    INSTALL PLUGIN ROCKSDB_TRX SONAME 'ha_rocksdb.so';
+    INSTALL PLUGIN ROCKSDB_DEADLOCK SONAME 'ha_rocksdb.so';
 
 Removing Percona MyRocks
 ========================
@@ -147,4 +153,26 @@ Finally, remove all the :ref:`myrocks_server_variables`
 from the configuration file (:file:`my.cnf`)
 and restart Percona Server.
 
+.. rubric:: Uninstall MyRocks Plugins
+
+You can `uninstall the plugins <https://dev.mysql.com/doc/refman/5.7/en/uninstall-plugin.html>`_ for MyRocks. You must have the ``DELETE`` privilege for the ``mysql.plugin`` system table.
+
+The following statements remove the MyRocks plugins:
+
+.. code-block:: mysql
+
+    UNINSTALL PLUGIN ROCKSDB;
+    UNINSTALL PLUGIN ROCKSDB_CFSTATS;
+    UNINSTALL PLUGIN ROCKSDB_DBSTATS;
+    UNINSTALL PLUGIN ROCKSDB_PERF_CONTEXT;
+    UNINSTALL PLUGIN ROCKSDB_PERF_CONTEXT_GLOBAL;
+    UNINSTALL PLUGIN ROCKSDB_CF_OPTIONS;
+    UNINSTALL PLUGIN ROCKSDB_GLOBAL_INFO;
+    UNINSTALL PLUGIN ROCKSDB_COMPACTION_STATS;
+    UNINSTALL PLUGIN ROCKSDB_DDL;
+    UNINSTALL PLUGIN ROCKSDB_INDEX_FILE_MAP;
+    UNINSTALL PLUGIN ROCKSDB_LOCKS;
+    UNINSTALL PLUGIN ROCKSDB_TRX;
+    UNINSTALL PLUGIN ROCKSDB_DEADLOCK;
+    
 

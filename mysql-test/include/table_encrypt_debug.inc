@@ -26,6 +26,8 @@ call mtr.add_suppression("Cannot open table tde_db/.* from the internal data dic
 call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace for table `tde_db`.`t1` is set as discarded");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: The table .* doesn't have a corresponding tablespace, it was discarded.");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table .* because the \.ibd file is missing");
+call mtr.add_suppression("InnoDB: Trying to access missing tablespace [0-9]+");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot save statistics for table .* because the \.ibd file is missing");
 --enable_query_log
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;

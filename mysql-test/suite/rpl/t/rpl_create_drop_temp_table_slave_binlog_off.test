@@ -5,4 +5,6 @@
 --let $rpl_skip_reset_master_and_slave= 1
 --source include/master-slave.inc
 
+CALL mtr.add_suppression('You need to use --log-bin to make --binlog-format work.');
+
 --source ../include/rpl_create_drop_temp_table.inc

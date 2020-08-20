@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, 2016, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -18,13 +18,21 @@ documentation. The contributions by Percona Inc. are incorporated with
 their permission, and subject to the conditions contained in the file
 COPYING.Percona.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -507,6 +515,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(row_drop_list_mutex),
 	PSI_KEY(master_key_id_mutex),
 	PSI_KEY(scrub_stat_mutex),
+	PSI_KEY(analyze_index_mutex),
 };
 # endif /* UNIV_PFS_MUTEX */
 
@@ -636,6 +645,26 @@ uint get_global_default_encryption_key_id_value()
 	return THDVAR(NULL, default_encryption_key_id);
 }
 
+static MYSQL_THDVAR_UINT(records_in_range, PLUGIN_VAR_RQCMDARG,
+                         "Used to override the result of records_in_range(). "
+                         "Set to a positive number to override",
+                         NULL, NULL, 0,
+                         /* min */ 0, /* max */ INT_MAX, 0);
+
+static MYSQL_THDVAR_UINT(force_index_records_in_range, PLUGIN_VAR_RQCMDARG,
+                         "Used to override the result of records_in_range() "
+                         "when FORCE INDEX is used.",
+                         NULL, NULL, 0,
+                         /* min */ 0, /* max */ INT_MAX, 0);
+
+uint innodb_force_index_records_in_range(THD* thd) {
+	return THDVAR(thd, force_index_records_in_range);
+}
+
+uint innodb_records_in_range(THD* thd) {
+	return THDVAR(thd, records_in_range);
+}
+
 /** Set up InnoDB API callback function array */
 ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_cursor_open_table,
@@ -722,20 +751,22 @@ srv_mbr_debug(const byte* data)
 	ut_ad(a && b && c &&d);
 }
 #endif
-/*************************************************************//**
-Check whether valid argument given to innodb_ft_*_stopword_table.
+
+/**Check whether valid argument given to innobase_*_stopword_table.
 This function is registered as a callback with MySQL.
+@param[in]	thd		thread handle
+@param[in]	var		pointer to system variable
+@param[out]	save		immediate result for update function
+@param[in]	value		incoming string
 @return 0 for valid stopword table */
 static
 int
 innodb_stopword_table_validate(
 /*===========================*/
-	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
-						variable */
-	void*				save,	/*!< out: immediate result
-						for update function */
-	struct st_mysql_value*		value);	/*!< in: incoming string */
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				save,
+	struct st_mysql_value*		value);
 
 /************************************************************//**
 Synchronously read and parse the redo log up to the last
@@ -4164,6 +4195,7 @@ innobase_init(
 	innobase_hton->fill_is_table = innobase_fill_i_s_table;
 	innobase_hton->flags =
 		HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS |
+		HTON_SUPPORTS_TABLE_ENCRYPTION |
 		HTON_SUPPORTS_ONLINE_BACKUPS |
 		HTON_SUPPORTS_COMPRESSED_COLUMNS;
 
@@ -7050,11 +7082,7 @@ ha_innobase::open(
 
 	innobase_copy_frm_flags_from_table_share(ib_table, table->s);
 
-	if (ib_table->is_readable()) {
-		dict_stats_init(ib_table);
-	} else {
-		ib_table->stat_initialized = 1;
-	}
+	dict_stats_init(ib_table);
 
 	MONITOR_INC(MONITOR_TABLE_OPEN);
 
@@ -8034,12 +8062,20 @@ build_template_field(
 		templ->rec_prefix_field_no = ULINT_UNDEFINED;
 		if (dict_index_is_clust(index)) {
 			templ->rec_field_no = templ->clust_rec_field_no;
+			templ->icp_rec_field_no = ULINT_UNDEFINED;
 		} else {
 			templ->rec_field_no
 				= dict_index_get_nth_col_or_prefix_pos(
 					index, v_no, false, true, NULL);
+			/* Virtual columns may have to be read from the
+			secondary index before evaluating a pushed down
+			end-range condition in row_search_end_range_check().*/
+			templ->icp_rec_field_no =
+				templ->rec_field_no != ULINT_UNDEFINED ?
+				templ->rec_field_no :
+				dict_index_get_nth_col_or_prefix_pos(
+					index, v_no, true, true, NULL);
 		}
-		templ->icp_rec_field_no = ULINT_UNDEFINED;
 	}
 
 	if (field->real_maybe_null()) {
@@ -8500,6 +8536,8 @@ ha_innobase::innobase_lock_autoinc(void)
 
 			/* Acquire the AUTOINC mutex. */
 			dict_table_autoinc_lock(ib_table);
+
+			DEBUG_SYNC_C("innobase_lock_autoinc");
 
 			/* We need to check that another transaction isn't
 			already holding the AUTOINC lock on the table. */
@@ -19454,20 +19492,20 @@ innodb_undo_logs_update(
 	*static_cast<ulong*>(var_ptr) = *static_cast<const ulong*>(save);
 }
 
-/*************************************************************//**
-Check whether valid argument given to innobase_*_stopword_table.
+/**Check whether valid argument given to innobase_*_stopword_table.
 This function is registered as a callback with MySQL.
+@param[in]	thd		thread handle
+@param[in]	var		pointer to system variable
+@param[out]	save		immediate result for update function
+@param[in]	value		incoming string
 @return 0 for valid stopword table */
 static
 int
 innodb_stopword_table_validate(
-/*===========================*/
-	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
-						variable */
-	void*				save,	/*!< out: immediate result
-						for update function */
-	struct st_mysql_value*		value)	/*!< in: incoming string */
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				save,
+	struct st_mysql_value*		value)
 {
 	const char*	stopword_table_name;
 	char		buff[STRING_BUFFER_USUAL_SIZE];
@@ -19479,6 +19517,15 @@ innodb_stopword_table_validate(
 	ut_a(value != NULL);
 
 	stopword_table_name = value->val_str(value, buff, &len);
+
+	if (stopword_table_name != NULL) {
+		if (stopword_table_name == buff) {
+			/* Allocate from thd's memroot */
+			stopword_table_name = thd_strmake(thd,
+							  stopword_table_name,
+							  len);
+		}
+	}
 
 	trx = check_trx_exists(thd);
 
@@ -19523,20 +19570,20 @@ innodb_buffer_pool_size_update(
 		<< " (new size: " << in_val << " bytes)";
 }
 
-/*************************************************************//**
-Check whether valid argument given to "innodb_fts_internal_tbl_name"
+/** Check whether valid argument given to "innodb_fts_internal_tbl_name"
 This function is registered as a callback with MySQL.
+@param[in]	thd		thread handle
+@param[in]	var		pointer to system variable
+@param[out]	save		immediate result for update function
+@param[in]	value		incoming string
 @return 0 for valid stopword table */
 static
 int
 innodb_internal_table_validate(
-/*===========================*/
-	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
-						variable */
-	void*				save,	/*!< out: immediate result
-						for update function */
-	struct st_mysql_value*		value)	/*!< in: incoming string */
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				save,
+	struct st_mysql_value*		value)
 {
 	const char*	table_name;
 	char		buff[STRING_BUFFER_USUAL_SIZE];
@@ -19552,6 +19599,9 @@ innodb_internal_table_validate(
 	if (!table_name) {
 		*static_cast<const char**>(save) = NULL;
 		return(0);
+	} else if (table_name == buff) {
+		/* Allocate memory from thd's mem_root */
+		table_name = thd_strmake(thd, table_name, len);
 	}
 
 	user_table = dict_table_open_on_name(
@@ -19573,50 +19623,6 @@ innodb_internal_table_validate(
 	}
 
 	return(ret);
-}
-
-/****************************************************************//**
-Update global variable "fts_internal_tbl_name" with the "saved"
-stopword table name value. This function is registered as a callback
-with MySQL. */
-static
-void
-innodb_internal_table_update(
-/*=========================*/
-	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
-						system variable */
-	void*				var_ptr,/*!< out: where the
-						formal string goes */
-	const void*			save)	/*!< in: immediate result
-						from check function */
-{
-	const char*	table_name;
-	char*		old;
-
-	ut_a(save != NULL);
-	ut_a(var_ptr != NULL);
-
-	table_name = *static_cast<const char*const*>(save);
-	old = *(char**) var_ptr;
-
-	if (table_name) {
-		*(char**) var_ptr =  my_strdup(PSI_INSTRUMENT_ME,
-					       table_name,  MYF(0));
-	} else {
-		*(char**) var_ptr = NULL;
-	}
-
-	if (old) {
-		my_free(old);
-	}
-
-	fts_internal_tbl_name2 = *(char**) var_ptr;
-	if (fts_internal_tbl_name2 == NULL) {
-		fts_internal_tbl_name = const_cast<char*>("default");
-	} else {
-		fts_internal_tbl_name = fts_internal_tbl_name2;
-	}
 }
 
 /****************************************************************//**
@@ -20319,23 +20325,22 @@ exit:
 	return;
 }
 
-#ifdef _WIN32
-/*************************************************************//**
-Validate if passed-in "value" is a valid value for
+/** Validate if passed-in "value" is a valid value for
 innodb_buffer_pool_filename. On Windows, file names with colon (:)
-are not allowed.
-
+are not allowed. Don't allow NULL as filename
+@param[in]	thd		thread handle
+@param[in]	var		pointer to system variable
+@param[out]	save		immediate result for update function
+@param[in]	value		incoming string
 @return 0 for valid name */
 static
 int
 innodb_srv_buf_dump_filename_validate(
 /*==================================*/
-	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
-						variable */
-	void*				save,	/*!< out: immediate result
-						for update function */
-	struct st_mysql_value*		value)	/*!< in: incoming string */
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				save,
+	struct st_mysql_value*		value)
 {
 	char		buff[OS_FILE_MAX_PATH];
 	int		len = sizeof(buff);
@@ -20345,25 +20350,35 @@ innodb_srv_buf_dump_filename_validate(
 
 	const char*	buf_name = value->val_str(value, buff, &len);
 
-	if (buf_name != NULL) {
-		if (is_filename_allowed(buf_name, len, FALSE)){
-			*static_cast<const char**>(save) = buf_name;
-			return(0);
-		} else {
-			push_warning_printf(thd,
-				Sql_condition::SL_WARNING,
-				ER_WRONG_ARGUMENTS,
-				"InnoDB: innodb_buffer_pool_filename"
-				" cannot have colon (:) in the file name.");
-
-		}
+	if (buf_name == NULL)  {
+		return(1);
 	}
 
-	return(1);
-}
+	if (buf_name == buff) {
+		ut_ad(len <= OS_FILE_MAX_PATH);
+		/* Allocate from thd's memroot */
+		buf_name = thd_strmake(thd, buf_name, len);
+	}
+
+#ifdef _WIN32
+	if (is_filename_allowed(buf_name, len, FALSE)){
+		*static_cast<const char**>(save) = buf_name;
+		return(0);
+	} else {
+		push_warning_printf(thd,
+			Sql_condition::SL_WARNING,
+			ER_WRONG_ARGUMENTS,
+			"InnoDB: innodb_buffer_pool_filename"
+			" cannot have colon (:) in the file name.");
+		return(1);
+
+	}
 #else /* _WIN32 */
-# define innodb_srv_buf_dump_filename_validate NULL
+		*static_cast<const char**>(save) = buf_name;
+		return(0);
 #endif /* _WIN32 */
+}
+
 
 #ifdef UNIV_DEBUG
 static char* srv_buffer_pool_evict;
@@ -22162,11 +22177,11 @@ static MYSQL_SYSVAR_BOOL(disable_sort_file_cache, srv_disable_sort_file_cache,
   "Whether to disable OS system file cache for sort I/O",
   NULL, NULL, FALSE);
 
-static MYSQL_SYSVAR_STR(ft_aux_table, fts_internal_tbl_name2,
-  PLUGIN_VAR_NOCMDARG,
+static MYSQL_SYSVAR_STR(ft_aux_table, fts_internal_tbl_name,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_MEMALLOC ,
   "FTS internal auxiliary table to be checked",
   innodb_internal_table_validate,
-  innodb_internal_table_update, NULL);
+  NULL, NULL);
 
 static MYSQL_SYSVAR_ULONG(ft_cache_size, fts_max_cache_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -23020,6 +23035,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(background_scrub_data_compressed),
   MYSQL_SYSVAR(background_scrub_data_interval),
   MYSQL_SYSVAR(background_scrub_data_check_interval),
+  MYSQL_SYSVAR(records_in_range),
+  MYSQL_SYSVAR(force_index_records_in_range),
   NULL
 };
 

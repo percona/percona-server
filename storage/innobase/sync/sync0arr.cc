@@ -9,13 +9,21 @@ briefly in the InnoDB documentation. The contributions by Google are
 incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -304,8 +312,8 @@ sync_cell_get_event(
 
 		return(cell->latch.mutex->event());
 
-	} else if (type == SYNC_BUF_BLOCK) {
-
+	} else if (type == SYNC_BUF_BLOCK ||
+		   type == SYNC_DICT_AUTOINC_MUTEX) {
 		return(cell->latch.bpmutex->event());
 
 	} else if (type == RW_LOCK_X_WAIT) {
@@ -366,7 +374,8 @@ sync_array_reserve_cell(
 
 	if (cell->request_type == SYNC_MUTEX) {
 		cell->latch.mutex = reinterpret_cast<WaitMutex*>(object);
-	} else if (cell->request_type == SYNC_BUF_BLOCK) {
+	} else if (cell->request_type == SYNC_BUF_BLOCK ||
+		   cell->request_type == SYNC_DICT_AUTOINC_MUTEX) {
 		cell->latch.bpmutex = reinterpret_cast<BlockWaitMutex*>(object);
 	} else {
 		cell->latch.lock = reinterpret_cast<rw_lock_t*>(object);
@@ -526,7 +535,8 @@ sync_array_cell_print(
 			(ulong) policy.get_enter_line()
 #endif /* UNIV_DEBUG */
 		       );
-	} else if (type == SYNC_BUF_BLOCK) {
+	} else if (type == SYNC_BUF_BLOCK ||
+		   type == SYNC_DICT_AUTOINC_MUTEX) {
 		BlockWaitMutex*	mutex = cell->latch.bpmutex;
 
 		const BlockWaitMutex::MutexPolicy&	policy =
@@ -769,7 +779,8 @@ sync_array_detect_deadlock(
 		return(false);
 		}
 
-	case SYNC_BUF_BLOCK: {
+	case SYNC_BUF_BLOCK:
+	case SYNC_DICT_AUTOINC_MUTEX: {
 
 		BlockWaitMutex*	mutex = cell->latch.bpmutex;
 

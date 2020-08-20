@@ -1,13 +1,20 @@
 /* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -91,6 +98,21 @@ static std::vector<std::string> acl_utility_user_schema_access;
 static void acl_free_utility_user();
 
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
+
+/**
+  Check if the given host name is equal to "localhost".
+
+  @return a flag telling if the given host name is equal to "localhost".
+  @retval TRUE the given host name is equal to "localhost".
+  @retval FALSE the given host name is not equal to "localhost".
+}
+*/
+static bool is_localhost_string(const char *hostname)
+{
+  if (!hostname) return false;
+
+  return !strcmp(hostname, "localhost");
+}
 
 /**
   Add an internal schema to the registry.
@@ -273,7 +295,7 @@ ACL_PROXY_USER::check_validity(bool check_no_resolve)
   if (check_no_resolve && 
       (hostname_requires_resolving(host.get_host()) ||
        hostname_requires_resolving(proxied_host.get_host())) &&
-      strcmp(host.get_host(), "localhost") != 0) {
+       !is_localhost_string(host.get_host())) {
     sql_print_warning("'proxies_priv' entry '%s@%s %s@%s' "
                       "ignored in --skip-name-resolve mode.",
                       proxied_user ? proxied_user : "",
@@ -1362,11 +1384,7 @@ validate_user_plugin_records()
       {
           sql_print_warning("The plugin '%s' is used to authenticate "
                             "user '%s'@'%.*s', "
-#if !defined(HAVE_YASSL)
                             "but neither SSL nor RSA keys are "
-#else
-                            "but no SSL is "
-#endif
                             "configured. "
                             "Nobody can currently login using this account.",
                             sha256_password_plugin_name.str,
@@ -1773,7 +1791,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     user.user= get_field(&global_acl_memory,
                          table->field[table_schema->user_idx()]);
   if (check_no_resolve && hostname_requires_resolving(user.host.get_host()) &&
-      strcmp(user.host.get_host(), "localhost") != 0) {
+      !is_localhost_string(user.host.get_host())) {
       sql_print_warning("'user' entry '%s@%s' "
                         "ignored in --skip-name-resolve mode.",
                         user.user ? user.user : "",
@@ -2151,7 +2169,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     }
     db.user=get_field(&global_acl_memory, table->field[MYSQL_DB_FIELD_USER]);
     if (check_no_resolve && hostname_requires_resolving(db.host.get_host()) &&
-        strcmp(db.host.get_host(), "localhost") != 0) {
+        !is_localhost_string(db.host.get_host())) {
       sql_print_warning("'db' entry '%s %s@%s' "
                         "ignored in --skip-name-resolve mode.",
                         db.db,
@@ -2697,7 +2715,7 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
       if (check_no_resolve)
       {
         if (hostname_requires_resolving(mem_check->host.get_host()) &&
-            strcmp(mem_check->host.get_host(), "localhost") != 0) {
+            !is_localhost_string(mem_check->host.get_host())) {
           sql_print_warning("'tables_priv' entry '%s %s@%s' "
                             "ignored in --skip-name-resolve mode.",
                             mem_check->tname,

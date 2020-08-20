@@ -112,7 +112,7 @@ static int vio_server_conv (int num_msg, const struct pam_message **msg,
       return PAM_CONV_ERR;
     }
 
-    error= auth_pam_talk_perform(msg[i], resp[i], data, talk_data);
+    error= auth_pam_talk_perform(msg[i], &(*resp)[i], data, talk_data);
     if (error != PAM_SUCCESS)
     {
       auth_pam_client_talk_finalize(talk_data);

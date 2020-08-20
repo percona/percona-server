@@ -100,17 +100,6 @@ add_percona_yum_repo(){
     return
 }
 
-add_percona_apt_repo(){
-  if [ ! -f /etc/apt/sources.list.d/percona-dev.list ]; then
-    curl -o /etc/apt/sources.list.d/percona-dev.list https://jenkins.percona.com/apt-repo/percona-dev.list.template
-    sed -i "s:@@DIST@@:$OS_NAME:g" /etc/apt/sources.list.d/percona-dev.list
-  fi
- 
-  wget -q -O - http://jenkins.percona.com/apt-repo/8507EFA5.pub | sudo apt-key add -
-  wget -q -O - http://jenkins.percona.com/apt-repo/CD2EFD2A.pub | sudo apt-key add -
-  return
-}
-
 get_sources(){
     cd "${WORKDIR}"
     if [ "${SOURCE}" = 0 ]
@@ -265,15 +254,18 @@ get_sources(){
 
 get_system(){
     if [ -f /etc/redhat-release ]; then
+        GLIBC_VER_TMP="$(rpm glibc -qa --qf %{VERSION})"
         RHEL=$(rpm --eval %rhel)
         ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
         OS_NAME="el$RHEL"
         OS="rpm"
     else
+        GLIBC_VER_TMP="$(dpkg-query -W -f='${Version}' libc6 | awk -F'-' '{print $1}')"
         ARCH=$(uname -m)
         OS_NAME="$(lsb_release -sc)"
         OS="deb"
     fi
+    export GLIBC_VER=".glibc${GLIBC_VER_TMP}"
     return
 }
 
@@ -294,6 +286,9 @@ install_deps() {
         RHEL=$(rpm --eval %rhel)
         ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
         add_percona_yum_repo
+        yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
+        percona-release enable tools testing
+        yum -y install patchelf
         if [ ${RHEL} -lt 8 ]; then
             yum -y install https://repo.percona.com/yum/percona-release-latest.noarch.rpm || true
             percona-release enable origin release
@@ -324,10 +319,11 @@ install_deps() {
         fi
     else
         apt-get -y install dirmngr || true
-        add_percona_apt_repo
       	apt-get update
         apt-get -y install dirmngr || true
         apt-get -y install lsb-release wget
+        wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb && dpkg -i percona-release_latest.$(lsb_release -sc)_all.deb
+        percona-release enable tools testing
         export DEBIAN_FRONTEND="noninteractive"
         export DIST="$(lsb_release -sc)"
 	    until sudo apt-get update; do
@@ -335,11 +331,6 @@ install_deps() {
             echo "waiting"
         done
         apt-get -y purge eatmydata || true
-        echo "deb http://jenkins.percona.com/apt-repo/ ${DIST} main" > percona-dev.list
-        mv -f percona-dev.list /etc/apt/sources.list.d/
-        wget -q -O - http://jenkins.percona.com/apt-repo/8507EFA5.pub | sudo apt-key add -
-        wget -q -O - http://jenkins.percona.com/apt-repo/CD2EFD2A.pub | sudo apt-key add -
-        apt-get update
         apt-get -y install psmisc pkg-config
         apt-get -y install libsasl2-dev libsasl2-modules:amd64 libsasl2-modules-ldap || apt-get -y install libsasl2-modules libsasl2-modules-ldap libsasl2-dev
         apt-get -y install dh-systemd || true
@@ -350,8 +341,8 @@ install_deps() {
         apt-get -y install libmecab2 mecab mecab-ipadic
         apt-get -y install build-essential devscripts libnuma-dev
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot 
-        apt-get -y install libcurl4-openssl-dev
-        if [ "x${DIST}" = "xcosmic" -o "x${DIST}" = "xbionic" -o "x${DIST}" = "xdisco" -o "x${DIST}" = "xbuster"  ]; then
+        apt-get -y install libcurl4-openssl-dev patchelf
+        if [ "x${DIST}" = "xcosmic" -o "x${DIST}" = "xbionic" -o "x${DIST}" = "xdisco" -o "x${DIST}" = "xbuster" -o "x${DIST}" = "xfocal" ]; then
             apt-get -y install libeatmydata1
         fi
     fi
@@ -652,7 +643,7 @@ build_deb(){
 
     cd ${DIRNAME}
     #
-    if [ ${DEBIAN_VERSION} = xenial -o ${DEBIAN_VERSION} = artful -o ${DEBIAN_VERSION} = bionic -o ${DEBIAN_VERSION} = trusty -o ${DEBIAN_VERSION} = cosmic -o ${DEBIAN_VERSION} = disco -o ${DEBIAN_VERSION} = buster ]; then
+    if [ ${DEBIAN_VERSION} = xenial -o ${DEBIAN_VERSION} = artful -o ${DEBIAN_VERSION} = bionic -o ${DEBIAN_VERSION} = trusty -o ${DEBIAN_VERSION} = cosmic -o ${DEBIAN_VERSION} = focal -o ${DEBIAN_VERSION} = buster ]; then
         rm -rf debian
         cp -r build-ps/ubuntu debian
     fi
@@ -664,7 +655,7 @@ build_deb(){
         mv debian/rules.notokudb debian/rules
         mv debian/control.notokudb debian/control
     else
-        if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != cosmic -a ${DEBIAN_VERSION} != disco -a ${DEBIAN_VERSION} != buster ]; then
+        if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != cosmic -a ${DEBIAN_VERSION} != focal -a ${DEBIAN_VERSION} != buster ]; then
             gcc47=$(which gcc-4.7 2>/dev/null || true)
             if [ -x "${gcc47}" ]; then
                 export CC=gcc-4.7
@@ -684,15 +675,14 @@ build_deb(){
     fi
 
     if [ ${DEBIAN_VERSION} = "stretch" ]; then
-        sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules 
+        sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
     fi
 
-    if [ ${DEBIAN_VERSION} = "artful" -o ${DEBIAN_VERSION} = "bionic" -o ${DEBIAN_VERSION} = "cosmic" -o ${DEBIAN_VERSION} = "disco" -o ${DEBIAN_VERSION} = "buster" ]; then
-        sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules 
-        sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
+    if [ ${DEBIAN_VERSION} = "artful" -o ${DEBIAN_VERSION} = "bionic" -o ${DEBIAN_VERSION} = "cosmic" -o ${DEBIAN_VERSION} = "focal" -o ${DEBIAN_VERSION} = "buster" ]; then
+        sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error -Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -W#warnings -Wno-error=deprecated-copy -Wno-deprecated-copy -Wno-error=redundant-move -Wno-error=sign-compare  /' debian/rules
+        sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error -Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -W#warnings -Wno-error=deprecated-copy -Wno-deprecated-copy -Wno-error=redundant-move -Wno-error=sign-compare -Wno-error /' debian/rules
     fi
-
     dpkg-buildpackage -rfakeroot -uc -us -b
 
     cd ${WORKDIR}
@@ -732,15 +722,6 @@ build_tarball(){
     #
     export CFLAGS=$(rpm --eval %{optflags} | sed -e "s|march=i386|march=i686|g")
     export CXXFLAGS="${CFLAGS}"
-    if [ "${YASSL}" = 0 ]; then
-        if [ -f /etc/redhat-release ]; then
-            SSL_VER_TMP=$(yum list installed|grep -i openssl|head -n1|awk '{print $2}'|awk -F "-" '{print $1}'|sed 's/\.//g'|sed 's/[a-z]$//')
-            export SSL_VER=".ssl${SSL_VER_TMP}"
-        else
-            SSL_VER_TMP=$(dpkg -l|grep -i libssl|grep -v "libssl\-"|head -n1|awk '{print $2}'|awk -F ":" '{print $1}'|sed 's/libssl/ssl/g'|sed 's/\.//g')
-            export SSL_VER=".${SSL_VER_TMP}"
-        fi
-    fi
     
     build_mecab_lib
     build_mecab_dict

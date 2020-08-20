@@ -2,13 +2,20 @@
    Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -1663,6 +1670,12 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
           an error is returned
         */
 	DBUG_ASSERT(table->insert_values != NULL);
+        /*
+          The insert has failed, store the insert_id generated for
+          this row to be re-used for the next insert.
+        */
+        if (insert_id_for_cur_row > 0) prev_insert_id = insert_id_for_cur_row;
+
         store_record(table,insert_values);
         /*
           Special check for BLOB/GEOMETRY field in statements with
@@ -2183,6 +2196,8 @@ int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   if (duplicate_handling == DUP_UPDATE)
     table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
 
+  /* Decide the logging format prior to preparing table/record metadata */
+  res= res || thd->decide_logging_format(table_list);
   if (!res)
   {
      prepare_triggers_for_insert_stmt(table);

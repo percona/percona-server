@@ -35,37 +35,29 @@ IF ((CMAKE_CXX_COMPILER_ID STREQUAL GNU) AND
   RETURN ()
 ENDIF ()
 
-# Suppress warnings for gcc-9
-IF(CMAKE_COMPILER_IS_GNUCXX AND
-   (CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL 9.0 OR CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 9.0))
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-copy -Wno-redundant-move -Wno-pessimizing-move -Wno-sign-compare")
+
+# Suppress warnings for clang-10 or newer
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-range-loop-construct FILES rocksdb/db/db_impl/db_impl_compaction_flush.cc rocksdb/options/options_parser.cc)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-deprecated-copy FILES rocksdb/db/db_impl/db_impl.cc)
 ENDIF()
 
-# Suppress warnings for clang-8
-IF((CMAKE_CXX_COMPILER_ID MATCHES "Clang") AND
-   (CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL 8.0 OR CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 8.0))
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-defaulted-function-deleted")
+# Suppress warnings for gcc-9 or newer
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-deprecated-copy FILES rocksdb/db/db_impl/db_impl.cc)
 ENDIF()
 
-# Relax unused variable warnings for release modes
-MY_CHECK_CXX_COMPILER_FLAG("-Wunused-variable" HAVE_UNUSED_VARIABLE)
-IF(HAVE_UNUSED_VARIABLE)
-  SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wno-unused-variable")
-  SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Wno-unused-variable")
+# Suppress warnings for gcc-4.8.x
+IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-missing-field-initializers FILES rocksdb/db/db_impl/db_impl_compaction_flush.cc rocksdb/utilities/blob_db/blob_db_impl.cc)
 ENDIF()
 
-# Relax fallthrough warnings we have no control over, as it's in zstd
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  MY_CHECK_CXX_COMPILER_FLAG("-Wimplicit-fallthrough=0" HAVE_IMPLICIT_FALLTHROUGH)
-  IF(HAVE_IMPLICIT_FALLTHROUGH)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wimplicit-fallthrough=0")
-    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wimplicit-fallthrough=0")
-  ENDIF()
+
+# Suppress warnings for gcc ASan build
+IF(CMAKE_COMPILER_IS_GNUCXX AND WITH_ASAN)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-error=maybe-uninitialized FILES rocksdb/util/bloom.cc)
 ENDIF()
 
-# Relax unused variable warnings
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-variable")
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-variable")
 
 # check that compiler supports cxx11 and set options
 INCLUDE (check_stdcxx11)
@@ -95,7 +87,7 @@ int main() {
   const auto a = _mm_set_epi64x(0, 0);
   const auto b = _mm_set_epi64x(0, 0);
   const auto c = _mm_clmulepi64_si128(a, b, 0x00);
-  auto d = _mm_cvtsi128_si64(c);
+  auto d __attribute__((unused)) = _mm_cvtsi128_si64(c);
 }
 " HAVE_SSE42)
 IF (HAVE_SSE42)
@@ -134,9 +126,6 @@ STRING(REGEX MATCHALL "[^\n]+" ROCKSDB_LIB_SOURCES ${SCRIPT_OUTPUT})
 # add bundled compression code
 SET(ROCKSDB_LIB_SOURCES
   ${ROCKSDB_LIB_SOURCES}
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib/lz4.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib/lz4hc.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib/lz4frame.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/entropy_common.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/error_private.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/fse_decompress.c
@@ -144,12 +133,24 @@ SET(ROCKSDB_LIB_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/threading.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/xxhash.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/zstd_common.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_compress_literals.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_compress_sequences.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_double_fast.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_fast.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_lazy.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_ldm.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_opt.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/hist.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/fse_compress.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/huf_compress.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_compress.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstdmt_compress.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/decompress/huf_decompress.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/decompress/zstd_decompress.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/decompress/zstd_decompress_block.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/decompress/zstd_ddict.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/dictBuilder/cover.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/dictBuilder/fastcover.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/dictBuilder/divsufsort.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/dictBuilder/zdict.c
 )
@@ -158,11 +159,11 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/include
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/include/rocksdb
-  ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/third-party/gtest-1.7.0/fused-src
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib
+  ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/third-party/gtest-1.8.1/fused-src
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/dictBuilder
+  ${LZ4_INCLUDE_DIR}
 )
 
 ADD_DEFINITIONS(-DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX -DZLIB -DLZ4
@@ -181,6 +182,7 @@ SET(ROCKSDB_SOURCES
   rdb_datadic.cc rdb_datadic.h
   rdb_cf_options.cc rdb_cf_options.h
   rdb_cf_manager.cc rdb_cf_manager.h
+  rdb_converter.cc rdb_converter.h
   properties_collector.cc properties_collector.h
   event_listener.cc event_listener.h
   rdb_i_s.cc rdb_i_s.h
@@ -195,7 +197,7 @@ SET(ROCKSDB_SOURCES
   ${ROCKSDB_LIB_SOURCES}
 )
 
-SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} "-lrt")
+SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} ${LZ4_LIBRARY} "-lrt" "-ldl")
 
 MYSQL_ADD_PLUGIN(rocksdb ${ROCKSDB_SOURCES} STORAGE_ENGINE DEFAULT MODULE_ONLY
   LINK_LIBRARIES ${rocksdb_static_libs}

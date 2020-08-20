@@ -35,7 +35,7 @@ The *mixed* binary logging format supported by |Percona Server| means that
 server runs in statement-based logging by default, but switches to row-based
 logging when replication would be unpredictable - in the case of a
 nondeterministic SQL statement that may cause data divergence if reproduced on
-a slave server. The switch is done upon any condition from the long list, and
+a replica server. The switch is done upon any condition from the long list, and
 one of these conditions is the use of temporary tables.
 
 Temporary tables are **never** logged using row-based format, but any
@@ -63,7 +63,7 @@ Summary of the fix:
 
 MySQL logs DROP statements for all temporary tables irrelative of the logging
 mode under which these tables were created. This produces binlog writes and
-errand GTIDs on slaves with row and mixed logging. |Percona Server| fixes this
+errand GTIDs on replicas with row and mixed logging. |Percona Server| fixes this
 by tracking the binlog format at temporary table create time and using it to
 decide whether a DROP should be logged or not.
 
@@ -140,16 +140,16 @@ higher number of channels transmitting such duplicate (already executed)
 transactions the situation became proportionally worse. Bug fixed :psbug:`1786`
 (upstream :mysqlbug:`85141`).
 
-Performance improvement on master and connection status updates
+Performance improvement on source and connection status updates
 ===============================================================
 
 Summary of the fix:
 *******************
 
-Slave nodes configured to update master status and connection information
+Replica nodes configured to update source status and connection information
 only on log file rotation did not experience the expected reduction in load.
 |MySQL| was additionaly updating this information in case of multi-source
-replication when slave had to skip the already executed GTID event.
+replication when replica had to skip the already executed GTID event.
 
 Version Specific Information
 ****************************
@@ -161,13 +161,13 @@ Details
 *******
 
 The configuration with ``master_info_repository=TABLE`` and
-``sync_master_info=0`` makes slave to update master status and connection
+``sync_master_info=0`` makes replica to update source status and connection
 information in this table on log file rotation and not after each
 sync_master_info event, but it didn't work on multi-source replication setups.
-Heartbeats sent to the slave to skip GTID events which it had already executed
+Heartbeats sent to the replica to skip GTID events which it had already executed
 previously, were evaluated as relay log rotation events and reacted with
 ``mysql.slave_master_info`` table sync. This inaccuracy could produce huge (up
-to 5 times on some setups) increase in write load on the slave, before this
+to 5 times on some setups) increase in write load on the replica, before this
 problem was fixed in |Percona Server|. Bug fixed :psbug:`1812` (upstream
 :mysqlbug:`85158`).
 

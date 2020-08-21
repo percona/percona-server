@@ -77,6 +77,10 @@ class Partition_base : public handler,
     fast_alter_part_table() / ALTER TABLE ... ADD/DROP/REORGANIZE... PARTITION.
   */
   handler **m_new_file;
+
+  /** Array of new paritions name used for error case */
+  char **m_new_partitions_name;
+
   /** Maximum of new partitions in m_new_file. */
   uint m_num_new_partitions;
   /** True if the new partitions should be created but not opened and locked. */
@@ -172,7 +176,7 @@ class Partition_base : public handler,
                                   uint table_changes) override;
   int prepare_for_new_partitions(MEM_ROOT *mem_root, uint num_partitions);
   int write_row_in_new_part(uint part_id) override;
-  void close_new_partitions();
+  void close_new_partitions(bool delete_new_partitions = false);
   /*
     delete_table and rename_table uses very similar logic which
     is packed into this routine.

@@ -89,13 +89,9 @@ Database: information_schema
 | COLUMN_PRIVILEGES                     |
 | COLUMN_STATISTICS                     |
 | COLUMNS                               |
-<<<<<<< HEAD
+| COLUMNS_EXTENSIONS                    |
 | COMPRESSION_DICTIONARY                |
 | COMPRESSION_DICTIONARY_TABLES         |
-||||||| merged common ancestors
-=======
-| COLUMNS_EXTENSIONS                    |
->>>>>>> mysql-8.0.21
 | ENABLED_ROLES                         |
 | ENGINES                               |
 | EVENTS                                |
@@ -163,13 +159,9 @@ Database: information_schema
 | TABLES                                |
 | TABLES_EXTENSIONS                     |
 | TABLESPACES                           |
-<<<<<<< HEAD
+| TABLESPACES_EXTENSIONS                |
 | TEMPORARY_TABLES                      |
 | THREAD_STATISTICS                     |
-||||||| merged common ancestors
-=======
-| TABLESPACES_EXTENSIONS                |
->>>>>>> mysql-8.0.21
 | TRIGGERS                              |
 | USER_ATTRIBUTES                       |
 | USER_PRIVILEGES                       |
@@ -192,13 +184,9 @@ Database: INFORMATION_SCHEMA
 | COLUMN_PRIVILEGES                     |
 | COLUMN_STATISTICS                     |
 | COLUMNS                               |
-<<<<<<< HEAD
+| COLUMNS_EXTENSIONS                    |
 | COMPRESSION_DICTIONARY                |
 | COMPRESSION_DICTIONARY_TABLES         |
-||||||| merged common ancestors
-=======
-| COLUMNS_EXTENSIONS                    |
->>>>>>> mysql-8.0.21
 | ENABLED_ROLES                         |
 | ENGINES                               |
 | EVENTS                                |
@@ -266,13 +254,9 @@ Database: INFORMATION_SCHEMA
 | TABLES                                |
 | TABLES_EXTENSIONS                     |
 | TABLESPACES                           |
-<<<<<<< HEAD
+| TABLESPACES_EXTENSIONS                |
 | TEMPORARY_TABLES                      |
 | THREAD_STATISTICS                     |
-||||||| merged common ancestors
-=======
-| TABLESPACES_EXTENSIONS                |
->>>>>>> mysql-8.0.21
 | TRIGGERS                              |
 | USER_ATTRIBUTES                       |
 | USER_PRIVILEGES                       |

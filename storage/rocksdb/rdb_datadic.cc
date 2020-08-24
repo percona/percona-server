@@ -87,9 +87,6 @@ int Rdb_convert_to_record_key_decoder::decode_field(
       field->set_null();
       /* Also set the field to its default value */
       memcpy(field->field_ptr(), default_value, field->pack_length());
-      // KH: ?
-      // field->set_default();
-      // field->set_image(default_value, field->pack_length(), nullptr);
       return HA_EXIT_SUCCESS;
     } else if (*nullp == 1) {
       field->set_notnull();

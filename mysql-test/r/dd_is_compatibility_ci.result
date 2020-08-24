@@ -223,40 +223,16 @@ WHERE TABLE_NAME LIKE 'no_such_table';
 TABLE_NAME
 # 4. Names collate differently. On trunk, the queries below returns
 #    the same result set.
-<<<<<<< HEAD
-SELECT count(*) = IF(@@lower_case_table_names = 0, 5, 9)
-||||||| merged common ancestors
-SELECT count(*) = IF(@@lower_case_table_names = 0, 4, 9)
-=======
-SELECT count(*) = IF(@@lower_case_table_names = 0, 7, 12)
->>>>>>> mysql-8.0.21
+SELECT count(*) = IF(@@lower_case_table_names = 0, 8, 13)
 FROM information_schema.tables
 WHERE table_name LIKE 'TAB%';
-<<<<<<< HEAD
-count(*) = IF(@@lower_case_table_names = 0, 5, 9)
-0
-SELECT count(*) = IF(@@lower_case_table_names = 0, 5, 9)
-||||||| merged common ancestors
-count(*) = IF(@@lower_case_table_names = 0, 4, 9)
+count(*) = IF(@@lower_case_table_names = 0, 8, 13)
 1
-SELECT count(*) = IF(@@lower_case_table_names = 0, 5, 9)
-=======
-count(*) = IF(@@lower_case_table_names = 0, 7, 12)
-1
-SELECT count(*) = IF(@@lower_case_table_names = 0, 5, 12)
->>>>>>> mysql-8.0.21
+SELECT count(*) = IF(@@lower_case_table_names = 0, 5, 13)
 FROM information_schema.tables
 WHERE table_name LIKE 'tab%';
-<<<<<<< HEAD
-count(*) = IF(@@lower_case_table_names = 0, 5, 9)
-0
-||||||| merged common ancestors
-count(*) = IF(@@lower_case_table_names = 0, 5, 9)
+count(*) = IF(@@lower_case_table_names = 0, 5, 13)
 1
-=======
-count(*) = IF(@@lower_case_table_names = 0, 5, 12)
-1
->>>>>>> mysql-8.0.21
 # This is because the collation of the column is different. On trunk,
 # it is utf8_general_ci. With the global DD, it is the collation of the
 # underlying column, which depends on l_c_t_n. For l_c_t_n == 0, this

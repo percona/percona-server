@@ -193,6 +193,7 @@ Requires:       grep
 Requires:       procps
 Requires:       shadow-utils
 Requires:       net-tools
+Requires:       openssl
 Requires(pre):  Percona-Server-shared%{product_suffix}
 Requires:       Percona-Server-client%{product_suffix}
 Provides:       MySQL-server%{?_isa} = %{version}-%{release}
@@ -1471,8 +1472,7 @@ fi
 
 * Mon Nov 16 2009 Joerg Bruehe <joerg.bruehe@sun.com>
 
-- Fix some problems with the directives around "tcmalloc" (experimental),
-  remove erroneous traces of the InnoDB plugin (that is 5.1 only).
+- remove erroneous traces of the InnoDB plugin (that is 5.1 only).
 
 * Tue Oct 06 2009 Magnus Blaudd <mvensson@mysql.com>
 

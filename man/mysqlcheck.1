@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlcheck\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/23/2020
+.\"      Date: 06/02/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLCHECK\FR" "1" "03/23/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLCHECK\FR" "1" "06/02/2020" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -195,7 +195,6 @@ Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
 .\}
 \fB\-\-help\fR,
 \fB\-?\fR
-.sp
 Display a help message and exit\&.
 .RE
 .sp
@@ -209,7 +208,6 @@ Display a help message and exit\&.
 .\}
 \fB\-\-all\-databases\fR,
 \fB\-A\fR
-.sp
 Check all tables in all databases\&. This is the same as using the
 \fB\-\-databases\fR
 option and naming all the databases on the command line, except that the
@@ -231,7 +229,6 @@ option\&.
 .\}
 \fB\-\-all\-in\-1\fR,
 \fB\-1\fR
-.sp
 Instead of issuing a statement for each table, execute a single statement for each database that names all the tables from that database to be processed\&.
 .RE
 .sp
@@ -245,7 +242,6 @@ Instead of issuing a statement for each table, execute a single statement for ea
 .\}
 \fB\-\-analyze\fR,
 \fB\-a\fR
-.sp
 Analyze the tables\&.
 .RE
 .sp
@@ -258,7 +254,6 @@ Analyze the tables\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-auto\-repair\fR
-.sp
 If a checked table is corrupted, automatically fix it\&. Any necessary repairs are done after all tables have been checked\&.
 .RE
 .sp
@@ -271,7 +266,6 @@ If a checked table is corrupted, automatically fix it\&. Any necessary repairs a
 .IP \(bu 2.3
 .\}
 \fB\-\-bind\-address=\fR\fB\fIip_address\fR\fR
-.sp
 On a computer having multiple network interfaces, use this option to select which interface to use for connecting to the MySQL server\&.
 .RE
 .sp
@@ -284,7 +278,6 @@ On a computer having multiple network interfaces, use this option to select whic
 .IP \(bu 2.3
 .\}
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
-.sp
 The directory where character sets are installed\&. See
 Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .RE
@@ -299,7 +292,6 @@ Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .\}
 \fB\-\-check\fR,
 \fB\-c\fR
-.sp
 Check the tables for errors\&. This is the default operation\&.
 .RE
 .sp
@@ -313,7 +305,6 @@ Check the tables for errors\&. This is the default operation\&.
 .\}
 \fB\-\-check\-only\-changed\fR,
 \fB\-C\fR
-.sp
 Check only tables that have changed since the last check or that have not been closed properly\&.
 .RE
 .sp
@@ -327,7 +318,6 @@ Check only tables that have changed since the last check or that have not been c
 .\}
 \fB\-\-check\-upgrade\fR,
 \fB\-g\fR
-.sp
 Invoke
 CHECK TABLE
 with the
@@ -348,7 +338,6 @@ options\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-compress\fR
-.sp
 Compress all information sent between the client and the server if possible\&. See
 Section\ \&4.2.5, \(lqConnection Compression Control\(rq\&.
 .RE
@@ -363,7 +352,6 @@ Section\ \&4.2.5, \(lqConnection Compression Control\(rq\&.
 .\}
 \fB\-\-databases\fR,
 \fB\-B\fR
-.sp
 Process all tables in the named databases\&. Normally,
 \fBmysqlcheck\fR
 treats the first name argument on the command line as a database name and any following names as table names\&. With this option, it treats all name arguments as database names\&.
@@ -379,7 +367,6 @@ treats the first name argument on the command line as a database name and any fo
 .\}
 \fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
 \fB\-# [\fR\fB\fIdebug_options\fR\fR\fB]\fR
-.sp
 Write a debugging log\&. A typical
 \fIdebug_options\fR
 string is
@@ -401,7 +388,6 @@ built using this option\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-debug\-check\fR
-.sp
 Print some debugging information when the program exits\&.
 .sp
 This option is available only if MySQL was built using
@@ -419,7 +405,6 @@ built using this option\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-debug\-info\fR
-.sp
 Print debugging information and memory and CPU usage statistics when the program exits\&.
 .sp
 This option is available only if MySQL was built using
@@ -437,7 +422,6 @@ built using this option\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-default\-character\-set=\fR\fB\fIcharset_name\fR\fR
-.sp
 Use
 \fIcharset_name\fR
 as the default character set\&. See
@@ -453,7 +437,6 @@ Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
-.sp
 Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
@@ -471,7 +454,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
-.sp
 Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
@@ -493,7 +475,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-group\-suffix=\fR\fB\fIstr\fR\fR
-.sp
 Read not only the usual option groups, but also groups with the usual names and a suffix of
 \fIstr\fR\&. For example,
 \fBmysqlcheck\fR
@@ -525,7 +506,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .\}
 \fB\-\-extended\fR,
 \fB\-e\fR
-.sp
 If you are using this option to check tables, it ensures that they are 100% consistent but takes a long time\&.
 .sp
 If you are using this option to repair tables, it runs an extended repair that may not only take a long time to execute, but may produce a lot of garbage rows also!
@@ -540,7 +520,6 @@ If you are using this option to repair tables, it runs an extended repair that m
 .IP \(bu 2.3
 .\}
 \fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
-.sp
 A hint about which client\-side authentication plugin to use\&. See
 Section\ \&6.2.13, \(lqPluggable Authentication\(rq\&.
 .RE
@@ -554,7 +533,6 @@ Section\ \&6.2.13, \(lqPluggable Authentication\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-enable\-cleartext\-plugin\fR
-.sp
 Enable the
 mysql_clear_password
 cleartext authentication plugin\&. (See
@@ -573,7 +551,6 @@ This option was added in MySQL 5\&.7\&.10\&.
 .\}
 \fB\-\-fast\fR,
 \fB\-F\fR
-.sp
 Check only tables that have not been closed properly\&.
 .RE
 .sp
@@ -586,7 +563,6 @@ Check only tables that have not been closed properly\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-fix\-db\-names\fR
-.sp
 Convert database names to 5\&.1 format\&. Only database names that contain special characters are affected\&.
 .sp
 This option is deprecated in MySQL 5\&.7\&.6 and will be removed in a future version of MySQL\&. If it is necessary to convert MySQL 5\&.0 database or table names, a workaround is to upgrade a MySQL 5\&.0 installation to MySQL 5\&.1 before upgrading to a more recent release\&.
@@ -601,7 +577,6 @@ This option is deprecated in MySQL 5\&.7\&.6 and will be removed in a future ver
 .IP \(bu 2.3
 .\}
 \fB\-\-fix\-table\-names\fR
-.sp
 Convert table names to 5\&.1 format\&. Only table names that contain special characters are affected\&. This option also applies to views\&.
 .sp
 This option is deprecated in MySQL 5\&.7\&.6 and will be removed in a future version of MySQL\&. If it is necessary to convert MySQL 5\&.0 database or table names, a workaround is to upgrade a MySQL 5\&.0 installation to MySQL 5\&.1 before upgrading to a more recent release\&.
@@ -617,7 +592,6 @@ This option is deprecated in MySQL 5\&.7\&.6 and will be removed in a future ver
 .\}
 \fB\-\-force\fR,
 \fB\-f\fR
-.sp
 Continue even if an SQL error occurs\&.
 .RE
 .sp
@@ -630,7 +604,6 @@ Continue even if an SQL error occurs\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-get\-server\-public\-key\fR
-.sp
 Request from the server the public key required for RSA key pair\-based password exchange\&. This option applies to clients that authenticate with the
 caching_sha2_password
 authentication plugin\&. For that plugin, the server does not send the public key unless requested\&. This option is ignored for accounts that do not authenticate with that plugin\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
@@ -660,7 +633,6 @@ option was added in MySQL 5\&.7\&.23\&.
 .\}
 \fB\-\-host=\fR\fB\fIhost_name\fR\fR,
 \fB\-h \fR\fB\fIhost_name\fR\fR
-.sp
 Connect to the MySQL server on the given host\&.
 .RE
 .sp
@@ -673,7 +645,6 @@ Connect to the MySQL server on the given host\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-login\-path=\fR\fB\fIname\fR\fR
-.sp
 Read options from the named login path in the
 \&.mylogin\&.cnf
 login path file\&. A
@@ -697,7 +668,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .\}
 \fB\-\-medium\-check\fR,
 \fB\-m\fR
-.sp
 Do a check that is faster than an
 \fB\-\-extended\fR
 operation\&. This finds only 99\&.99% of all errors, which should be good enough in most cases\&.
@@ -712,7 +682,6 @@ operation\&. This finds only 99\&.99% of all errors, which should be good enough
 .IP \(bu 2.3
 .\}
 \fB\-\-no\-defaults\fR
-.sp
 Do not read any option files\&. If program startup fails due to reading unknown options from an option file,
 \fB\-\-no\-defaults\fR
 can be used to prevent them from being read\&.
@@ -741,7 +710,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .\}
 \fB\-\-optimize\fR,
 \fB\-o\fR
-.sp
 Optimize the tables\&.
 .RE
 .sp
@@ -755,7 +723,6 @@ Optimize the tables\&.
 .\}
 \fB\-\-password[=\fR\fB\fIpassword\fR\fR\fB]\fR,
 \fB\-p[\fR\fB\fIpassword\fR\fR\fB]\fR
-.sp
 The password of the MySQL account used for connecting to the server\&. The password value is optional\&. If not given,
 \fBmysqlcheck\fR
 prompts for one\&. If given, there must be
@@ -786,7 +753,6 @@ option\&.
 .\}
 \fB\-\-pipe\fR,
 \fB\-W\fR
-.sp
 On Windows, connect to the server using a named pipe\&. This option applies only if the server was started with the
 named_pipe
 system variable enabled to support named\-pipe connections\&. In addition, the user making the connection must be a member of the Windows group specified by the
@@ -803,7 +769,6 @@ system variable\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-plugin\-dir=\fR\fB\fIdir_name\fR\fR
-.sp
 The directory in which to look for plugins\&. Specify this option if the
 \fB\-\-default\-auth\fR
 option is used to specify an authentication plugin but
@@ -822,7 +787,6 @@ Section\ \&6.2.13, \(lqPluggable Authentication\(rq\&.
 .\}
 \fB\-\-port=\fR\fB\fIport_num\fR\fR,
 \fB\-P \fR\fB\fIport_num\fR\fR
-.sp
 For TCP/IP connections, the port number to use\&.
 .RE
 .sp
@@ -835,7 +799,6 @@ For TCP/IP connections, the port number to use\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-print\-defaults\fR
-.sp
 Print the program name and all options that it gets from option files\&.
 .sp
 For additional information about this and other option\-file options, see
@@ -851,7 +814,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
-.sp
 The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally result in use of a protocol other than the one you want\&. For details on the permissible values, see
 Section\ \&4.2.4, \(lqConnecting to the MySQL Server Using Command Options\(rq\&.
 .RE
@@ -866,7 +828,6 @@ Section\ \&4.2.4, \(lqConnecting to the MySQL Server Using Command Options\(rq\&
 .\}
 \fB\-\-quick\fR,
 \fB\-q\fR
-.sp
 If you are using this option to check tables, it prevents the check from scanning the rows to check for incorrect links\&. This is the fastest check method\&.
 .sp
 If you are using this option to repair tables, it tries to repair only the index tree\&. This is the fastest repair method\&.
@@ -882,7 +843,6 @@ If you are using this option to repair tables, it tries to repair only the index
 .\}
 \fB\-\-repair\fR,
 \fB\-r\fR
-.sp
 Perform a repair that can fix almost anything except unique keys that are not unique\&.
 .RE
 .sp
@@ -895,7 +855,6 @@ Perform a repair that can fix almost anything except unique keys that are not un
 .IP \(bu 2.3
 .\}
 \fB\-\-secure\-auth\fR
-.sp
 Do not send passwords to the server in old (pre\-4\&.1) format\&. This prevents connections except for servers that use the newer password format\&.
 .sp
 As of MySQL 5\&.7\&.5, this option is deprecated and will be removed in a future MySQL release\&. It is always enabled and attempting to disable it (\fB\-\-skip\-secure\-auth\fR,
@@ -927,8 +886,7 @@ Section\ \&6.4.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mys
 .IP \(bu 2.3
 .\}
 \fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
-.sp
-The path name to a file containing a client\-side copy of the public key required by the server for RSA key pair\-based password exchange\&. The file must be in PEM format\&. This option applies to clients that authenticate with the
+The path name to a file in PEM format containing a client\-side copy of the public key required by the server for RSA key pair\-based password exchange\&. This option applies to clients that authenticate with the
 sha256_password
 or
 caching_sha2_password
@@ -964,7 +922,6 @@ option was added in MySQL 5\&.7\&.23\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-shared\-memory\-base\-name=\fR\fB\fIname\fR\fR
-.sp
 On Windows, the shared\-memory name to use for connections made using shared memory to a local server\&. The default value is
 MYSQL\&. The shared\-memory name is case\-sensitive\&.
 .sp
@@ -983,7 +940,6 @@ system variable enabled to support shared\-memory connections\&.
 .\}
 \fB\-\-silent\fR,
 \fB\-s\fR
-.sp
 Silent mode\&. Print only error messages\&.
 .RE
 .sp
@@ -996,7 +952,6 @@ Silent mode\&. Print only error messages\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-skip\-database=\fR\fB\fIdb_name\fR\fR
-.sp
 Do not include the named database (case\-sensitive) in the operations performed by
 \fBmysqlcheck\fR\&.
 .RE
@@ -1011,7 +966,6 @@ Do not include the named database (case\-sensitive) in the operations performed 
 .\}
 \fB\-\-socket=\fR\fB\fIpath\fR\fR,
 \fB\-S \fR\fB\fIpath\fR\fR
-.sp
 For connections to
 localhost, the Unix socket file to use, or, on Windows, the name of the named pipe to use\&.
 .sp
@@ -1031,7 +985,6 @@ system variable\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-ssl*\fR
-.sp
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
@@ -1047,7 +1000,6 @@ the section called \(lqCommand Options for Encrypted Connections\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-tables\fR
-.sp
 Override the
 \fB\-\-databases\fR
 or
@@ -1064,7 +1016,6 @@ option\&. All name arguments following the option are regarded as table names\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
-.sp
 The permissible TLS protocols for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
 Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .sp
@@ -1080,7 +1031,6 @@ This option was added in MySQL 5\&.7\&.10\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-use\-frm\fR
-.sp
 For repair operations on
 MyISAM
 tables, get the table structure from the
@@ -1100,7 +1050,6 @@ header is corrupted\&.
 .\}
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR,
 \fB\-u \fR\fB\fIuser_name\fR\fR
-.sp
 The user name of the MySQL account to use for connecting to the server\&.
 .RE
 .sp
@@ -1114,7 +1063,6 @@ The user name of the MySQL account to use for connecting to the server\&.
 .\}
 \fB\-\-verbose\fR,
 \fB\-v\fR
-.sp
 Verbose mode\&. Print information about the various stages of program operation\&.
 .RE
 .sp
@@ -1128,7 +1076,6 @@ Verbose mode\&. Print information about the various stages of program operation\
 .\}
 \fB\-\-version\fR,
 \fB\-V\fR
-.sp
 Display version information and exit\&.
 .RE
 .sp
@@ -1141,7 +1088,6 @@ Display version information and exit\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-write\-binlog\fR
-.sp
 This option is enabled by default, so that
 ANALYZE TABLE,
 OPTIMIZE TABLE, and
@@ -1159,7 +1105,7 @@ when these statements should not be sent to replication slaves or run when using
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

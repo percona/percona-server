@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqladmin\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/23/2020
+.\"      Date: 06/02/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLADMIN\FR" "1" "03/23/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLADMIN\FR" "1" "06/02/2020" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -125,7 +125,7 @@ Display the server status variables and their values\&.
 flush\-hosts
 .sp
 Flush all information in the host cache\&. See
-Section\ \&8.12.5.2, \(lqDNS Lookup Optimization and the Host Cache\(rq\&.
+Section\ \&5.1.11.2, \(lqDNS Lookups and the Host Cache\(rq\&.
 .RE
 .sp
 .RS 4
@@ -616,7 +616,6 @@ Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
 .\}
 \fB\-\-help\fR,
 \fB\-?\fR
-.sp
 Display a help message and exit\&.
 .RE
 .sp
@@ -629,7 +628,6 @@ Display a help message and exit\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-bind\-address=\fR\fB\fIip_address\fR\fR
-.sp
 On a computer having multiple network interfaces, use this option to select which interface to use for connecting to the MySQL server\&.
 .RE
 .sp
@@ -642,7 +640,6 @@ On a computer having multiple network interfaces, use this option to select whic
 .IP \(bu 2.3
 .\}
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
-.sp
 The directory where character sets are installed\&. See
 Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .RE
@@ -657,7 +654,6 @@ Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .\}
 \fB\-\-compress\fR,
 \fB\-C\fR
-.sp
 Compress all information sent between the client and the server if possible\&. See
 Section\ \&4.2.5, \(lqConnection Compression Control\(rq\&.
 .RE
@@ -670,9 +666,20 @@ Section\ \&4.2.5, \(lqConnection Compression Control\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-connect\-timeout=\fR\fB\fIvalue\fR\fR
+The maximum number of seconds before connection timeout\&. The default value is 43200 (12 hours)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-count=\fR\fB\fIN\fR\fR,
 \fB\-c \fR\fB\fIN\fR\fR
-.sp
 The number of iterations to make for repeated command execution if the
 \fB\-\-sleep\fR
 option is given\&.
@@ -688,7 +695,6 @@ option is given\&.
 .\}
 \fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
 \fB\-# [\fR\fB\fIdebug_options\fR\fR\fB]\fR
-.sp
 Write a debugging log\&. A typical
 \fIdebug_options\fR
 string is
@@ -710,7 +716,6 @@ built using this option\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-debug\-check\fR
-.sp
 Print some debugging information when the program exits\&.
 .sp
 This option is available only if MySQL was built using
@@ -728,7 +733,6 @@ built using this option\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-debug\-info\fR
-.sp
 Print debugging information and memory and CPU usage statistics when the program exits\&.
 .sp
 This option is available only if MySQL was built using
@@ -746,7 +750,6 @@ built using this option\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
-.sp
 A hint about which client\-side authentication plugin to use\&. See
 Section\ \&6.2.13, \(lqPluggable Authentication\(rq\&.
 .RE
@@ -760,7 +763,6 @@ Section\ \&6.2.13, \(lqPluggable Authentication\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-default\-character\-set=\fR\fB\fIcharset_name\fR\fR
-.sp
 Use
 \fIcharset_name\fR
 as the default character set\&. See
@@ -776,7 +778,6 @@ Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
-.sp
 Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
@@ -794,7 +795,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
-.sp
 Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
@@ -816,7 +816,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-group\-suffix=\fR\fB\fIstr\fR\fR
-.sp
 Read not only the usual option groups, but also groups with the usual names and a suffix of
 \fIstr\fR\&. For example,
 \fBmysqladmin\fR
@@ -847,7 +846,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-enable\-cleartext\-plugin\fR
-.sp
 Enable the
 mysql_clear_password
 cleartext authentication plugin\&. (See
@@ -864,7 +862,6 @@ Section\ \&6.4.1.6, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
 .\}
 \fB\-\-force\fR,
 \fB\-f\fR
-.sp
 Do not ask for confirmation for the
 drop \fIdb_name\fR
 command\&. With multiple commands, continue even if an error occurs\&.
@@ -879,7 +876,6 @@ command\&. With multiple commands, continue even if an error occurs\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-get\-server\-public\-key\fR
-.sp
 Request from the server the public key required for RSA key pair\-based password exchange\&. This option applies to clients that authenticate with the
 caching_sha2_password
 authentication plugin\&. For that plugin, the server does not send the public key unless requested\&. This option is ignored for accounts that do not authenticate with that plugin\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
@@ -909,7 +905,6 @@ option was added in MySQL 5\&.7\&.23\&.
 .\}
 \fB\-\-host=\fR\fB\fIhost_name\fR\fR,
 \fB\-h \fR\fB\fIhost_name\fR\fR
-.sp
 Connect to the MySQL server on the given host\&.
 .RE
 .sp
@@ -922,7 +917,6 @@ Connect to the MySQL server on the given host\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-login\-path=\fR\fB\fIname\fR\fR
-.sp
 Read options from the named login path in the
 \&.mylogin\&.cnf
 login path file\&. A
@@ -946,7 +940,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .\}
 \fB\-\-no\-beep\fR,
 \fB\-b\fR
-.sp
 Suppress the warning beep that is emitted by default for errors such as a failure to connect to the server\&.
 .RE
 .sp
@@ -959,7 +952,6 @@ Suppress the warning beep that is emitted by default for errors such as a failur
 .IP \(bu 2.3
 .\}
 \fB\-\-no\-defaults\fR
-.sp
 Do not read any option files\&. If program startup fails due to reading unknown options from an option file,
 \fB\-\-no\-defaults\fR
 can be used to prevent them from being read\&.
@@ -988,7 +980,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .\}
 \fB\-\-password[=\fR\fB\fIpassword\fR\fR\fB]\fR,
 \fB\-p[\fR\fB\fIpassword\fR\fR\fB]\fR
-.sp
 The password of the MySQL account used for connecting to the server\&. The password value is optional\&. If not given,
 \fBmysqladmin\fR
 prompts for one\&. If given, there must be
@@ -1019,7 +1010,6 @@ option\&.
 .\}
 \fB\-\-pipe\fR,
 \fB\-W\fR
-.sp
 On Windows, connect to the server using a named pipe\&. This option applies only if the server was started with the
 named_pipe
 system variable enabled to support named\-pipe connections\&. In addition, the user making the connection must be a member of the Windows group specified by the
@@ -1036,7 +1026,6 @@ system variable\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-plugin\-dir=\fR\fB\fIdir_name\fR\fR
-.sp
 The directory in which to look for plugins\&. Specify this option if the
 \fB\-\-default\-auth\fR
 option is used to specify an authentication plugin but
@@ -1055,7 +1044,6 @@ Section\ \&6.2.13, \(lqPluggable Authentication\(rq\&.
 .\}
 \fB\-\-port=\fR\fB\fIport_num\fR\fR,
 \fB\-P \fR\fB\fIport_num\fR\fR
-.sp
 For TCP/IP connections, the port number to use\&.
 .RE
 .sp
@@ -1068,7 +1056,6 @@ For TCP/IP connections, the port number to use\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-print\-defaults\fR
-.sp
 Print the program name and all options that it gets from option files\&.
 .sp
 For additional information about this and other option\-file options, see
@@ -1084,7 +1071,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
-.sp
 The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally result in use of a protocol other than the one you want\&. For details on the permissible values, see
 Section\ \&4.2.4, \(lqConnecting to the MySQL Server Using Command Options\(rq\&.
 .RE
@@ -1099,7 +1085,6 @@ Section\ \&4.2.4, \(lqConnecting to the MySQL Server Using Command Options\(rq\&
 .\}
 \fB\-\-relative\fR,
 \fB\-r\fR
-.sp
 Show the difference between the current and previous values when used with the
 \fB\-\-sleep\fR
 option\&. This option works only with the
@@ -1116,7 +1101,6 @@ command\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-show\-warnings\fR
-.sp
 Show warnings resulting from execution of statements sent to the server\&.
 .RE
 .sp
@@ -1129,7 +1113,6 @@ Show warnings resulting from execution of statements sent to the server\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-secure\-auth\fR
-.sp
 Do not send passwords to the server in old (pre\-4\&.1) format\&. This prevents connections except for servers that use the newer password format\&.
 .sp
 As of MySQL 5\&.7\&.5, this option is deprecated and will be removed in a future MySQL release\&. It is always enabled and attempting to disable it (\fB\-\-skip\-secure\-auth\fR,
@@ -1161,8 +1144,7 @@ Section\ \&6.4.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mys
 .IP \(bu 2.3
 .\}
 \fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
-.sp
-The path name to a file containing a client\-side copy of the public key required by the server for RSA key pair\-based password exchange\&. The file must be in PEM format\&. This option applies to clients that authenticate with the
+The path name to a file in PEM format containing a client\-side copy of the public key required by the server for RSA key pair\-based password exchange\&. This option applies to clients that authenticate with the
 sha256_password
 or
 caching_sha2_password
@@ -1198,7 +1180,6 @@ option was added in MySQL 5\&.7\&.23\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-shared\-memory\-base\-name=\fR\fB\fIname\fR\fR
-.sp
 On Windows, the shared\-memory name to use for connections made using shared memory to a local server\&. The default value is
 MYSQL\&. The shared\-memory name is case\-sensitive\&.
 .sp
@@ -1215,9 +1196,20 @@ system variable enabled to support shared\-memory connections\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-shutdown\-timeout=\fR\fB\fIvalue\fR\fR
+The maximum number of seconds to wait for server shutdown\&. The default value is 3600 (1 hour)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-silent\fR,
 \fB\-s\fR
-.sp
 Exit silently if a connection to the server cannot be established\&.
 .RE
 .sp
@@ -1231,7 +1223,6 @@ Exit silently if a connection to the server cannot be established\&.
 .\}
 \fB\-\-sleep=\fR\fB\fIdelay\fR\fR,
 \fB\-i \fR\fB\fIdelay\fR\fR
-.sp
 Execute commands repeatedly, sleeping for
 \fIdelay\fR
 seconds in between\&. The
@@ -1253,7 +1244,6 @@ executes commands indefinitely until interrupted\&.
 .\}
 \fB\-\-socket=\fR\fB\fIpath\fR\fR,
 \fB\-S \fR\fB\fIpath\fR\fR
-.sp
 For connections to
 localhost, the Unix socket file to use, or, on Windows, the name of the named pipe to use\&.
 .sp
@@ -1273,7 +1263,6 @@ system variable\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-ssl*\fR
-.sp
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
@@ -1289,7 +1278,6 @@ the section called \(lqCommand Options for Encrypted Connections\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
-.sp
 The permissible TLS protocols for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
 Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .sp
@@ -1306,7 +1294,6 @@ This option was added in MySQL 5\&.7\&.10\&.
 .\}
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR,
 \fB\-u \fR\fB\fIuser_name\fR\fR
-.sp
 The user name of the MySQL account to use for connecting to the server\&.
 .RE
 .sp
@@ -1320,7 +1307,6 @@ The user name of the MySQL account to use for connecting to the server\&.
 .\}
 \fB\-\-verbose\fR,
 \fB\-v\fR
-.sp
 Verbose mode\&. Print more information about what the program does\&.
 .RE
 .sp
@@ -1334,7 +1320,6 @@ Verbose mode\&. Print more information about what the program does\&.
 .\}
 \fB\-\-version\fR,
 \fB\-V\fR
-.sp
 Display version information and exit\&.
 .RE
 .sp
@@ -1348,7 +1333,6 @@ Display version information and exit\&.
 .\}
 \fB\-\-vertical\fR,
 \fB\-E\fR
-.sp
 Print output vertically\&. This is similar to
 \fB\-\-relative\fR, but prints output vertically\&.
 .RE
@@ -1363,44 +1347,14 @@ Print output vertically\&. This is similar to
 .\}
 \fB\-\-wait[=\fR\fB\fIcount\fR\fR\fB]\fR,
 \fB\-w[\fR\fB\fIcount\fR\fR\fB]\fR
-.sp
 If the connection cannot be established, wait and retry instead of aborting\&. If a
 \fIcount\fR
 value is given, it indicates the number of times to retry\&. The default is one time\&.
 .RE
-.PP
-You can also set the following variables by using
-\fB\-\-\fR\fB\fIvar_name\fR\fR\fB=\fR\fB\fIvalue\fR\fR\&.
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-connect_timeout
-.sp
-The maximum number of seconds before connection timeout\&. The default value is 43200 (12 hours)\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-shutdown_timeout
-.sp
-The maximum number of seconds to wait for server shutdown\&. The default value is 3600 (1 hour)\&.
-.RE
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

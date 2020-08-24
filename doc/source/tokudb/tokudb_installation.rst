@@ -6,7 +6,7 @@
 
 |Percona Server| is compatible with the separately available |TokuDB| storage engine package. The |TokuDB| engine must be separately downloaded and then enabled as a plug-in component. This package can be installed alongside with standard |Percona Server| 5.7 releases and does not require any specially adapted version of |Percona Server|.
 
-The |TokuDB| storage engine is a scalable, ACID and MVCC compliant storage engine that provides indexing-based query improvements, offers online schema modifications, and reduces slave lag for both hard disk drives and flash memory. This storage engine is specifically designed for high performance on write-intensive workloads which is achieved with Fractal Tree indexing. To learn more about Fractal Tree indexing, you can visit the following `Wikipedia page <http://en.wikipedia.org/wiki/Fractal_tree_index>`_.
+The |TokuDB| storage engine is a scalable, ACID and MVCC compliant storage engine that provides indexing-based query improvements, offers online schema modifications, and reduces replica lag for both hard disk drives and flash memory. This storage engine is specifically designed for high performance on write-intensive workloads which is achieved with Fractal Tree indexing. To learn more about Fractal Tree indexing, you can visit the following `Wikipedia page <http://en.wikipedia.org/wiki/Fractal_tree_index>`_.
 
 .. warning:: 
 

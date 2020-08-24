@@ -48,6 +48,7 @@ Installation
 
    installation
    upgrading_guide_56_57
+   installation/post-installation
 
 Scalability Improvements
 ========================
@@ -129,6 +130,16 @@ Management Improvements
    management/ssl-improvement
    management/utility_user
 
+Security Improvements
+=======================
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   security/data-at-rest-encryption
+   security/ssl-improvement
+   security/pam_plugin
 
 Diagnostics Improvements
 ========================
@@ -147,6 +158,9 @@ Diagnostics Improvements
    diagnostics/scalability_metrics_plugin
    diagnostics/response_time_distribution
    diagnostics/innodb_fragmentation_count
+   diagnostics/libcoredumper
+   diagnostics/stacktrace
+
 
 TokuDB
 ======
@@ -206,5 +220,3 @@ Reference
 
 * :ref:`genindex`
 * :ref:`modindex`
-
-

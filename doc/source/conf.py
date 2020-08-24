@@ -89,6 +89,15 @@ primary_domain = 'psdom'
 pygments_style = 'sphinx'
 
 rst_prolog = '''
+
+.. role:: mysql(code)
+   :language: mysql
+
+.. role:: dir(file)
+
+.. role:: bash(code)
+   :language: bash
+   
 .. |check|  replace:: ``|[[---CHECK---]]|``
 
 .. |xtrabackup|  replace:: :program:`xtrabackup`

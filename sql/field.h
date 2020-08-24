@@ -4196,6 +4196,7 @@ public:
   Field_json *clone() const;
   uint is_equal(Create_field *new_field);
   Item_result cast_to_int_type () const { return INT_RESULT; }
+  int  cmp_binary(const uchar *a, const uchar *b, uint32 max_length= ~0L);
   void make_sort_key(uchar *to, size_t length);
 
   /**

@@ -48,7 +48,10 @@ IF(UNIX)
 
   # Default GCC flags
   IF(CMAKE_COMPILER_IS_GNUCC)
-    SET(COMMON_C_FLAGS               "-g -fabi-version=2 -fno-omit-frame-pointer -fno-strict-aliasing")
+    SET(COMMON_C_FLAGS               "-g -fno-omit-frame-pointer -fno-strict-aliasing")
+    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)  # gcc-9 or older
+      SET(COMMON_C_FLAGS             "-fabi-version=2 ${COMMON_C_FLAGS}")
+    ENDIF()
     # Disable inline optimizations for valgrind testing to avoid false positives
     IF(WITH_VALGRIND)
       SET(COMMON_C_FLAGS             "-fno-inline ${COMMON_C_FLAGS}")
@@ -72,7 +75,10 @@ IF(UNIX)
     SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 -D_FORTIFY_SOURCE=2 ${COMMON_C_FLAGS}")
   ENDIF()
   IF(CMAKE_COMPILER_IS_GNUCXX)
-    SET(COMMON_CXX_FLAGS               "-g -fabi-version=2 -fno-omit-frame-pointer -fno-strict-aliasing")
+    SET(COMMON_CXX_FLAGS               "-g -fno-omit-frame-pointer -fno-strict-aliasing")
+    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)  # gcc-9 or older
+      SET(COMMON_CXX_FLAGS             "-fabi-version=2 ${COMMON_CXX_FLAGS}")
+    ENDIF()
     # GCC 6 has C++14 as default, set it explicitly to the old default.
     EXECUTE_PROCESS(COMMAND ${CMAKE_CXX_COMPILER} -dumpversion
                     OUTPUT_VARIABLE GXX_VERSION)

@@ -39,7 +39,19 @@ ENDIF ()
 # Suppress warnings for clang-10 or newer
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-range-loop-construct FILES rocksdb/db/db_impl/db_impl_compaction_flush.cc rocksdb/options/options_parser.cc)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-deprecated-copy FILES rocksdb/db/db_impl/db_impl.cc)
 ENDIF()
+
+# Suppress warnings for gcc-9 or newer
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-deprecated-copy FILES rocksdb/db/db_impl/db_impl.cc)
+ENDIF()
+
+# Suppress warnings for gcc-4.8.x
+IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-missing-field-initializers FILES rocksdb/db/db_impl/db_impl_compaction_flush.cc rocksdb/utilities/blob_db/blob_db_impl.cc)
+ENDIF()
+
 
 # Suppress warnings for gcc ASan build
 IF(CMAKE_COMPILER_IS_GNUCXX AND WITH_ASAN)
@@ -114,9 +126,6 @@ STRING(REGEX MATCHALL "[^\n]+" ROCKSDB_LIB_SOURCES ${SCRIPT_OUTPUT})
 # add bundled compression code
 SET(ROCKSDB_LIB_SOURCES
   ${ROCKSDB_LIB_SOURCES}
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib/lz4.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib/lz4hc.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib/lz4frame.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/entropy_common.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/error_private.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/fse_decompress.c
@@ -151,10 +160,10 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/include
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/include/rocksdb
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/third-party/gtest-1.8.1/fused-src
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/dictBuilder
+  ${LZ4_INCLUDE_DIR}
 )
 
 ADD_DEFINITIONS(-DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX -DZLIB -DLZ4
@@ -188,7 +197,7 @@ SET(ROCKSDB_SOURCES
   ${ROCKSDB_LIB_SOURCES}
 )
 
-SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} "-lrt" "-ldl")
+SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} ${LZ4_LIBRARY} "-lrt" "-ldl")
 
 MYSQL_ADD_PLUGIN(rocksdb ${ROCKSDB_SOURCES} STORAGE_ENGINE DEFAULT MODULE_ONLY
   LINK_LIBRARIES ${rocksdb_static_libs}

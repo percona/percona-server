@@ -1568,7 +1568,8 @@ specified.
 @return log record end, nullptr if not a complete record */
 static byte *recv_parse_or_apply_log_rec_body(
     mlog_id_t type, byte *ptr, byte *end_ptr, space_id_t space_id,
-    page_no_t page_no, buf_block_t *block, mtr_t *mtr, ulint parsed_bytes) {
+    page_no_t page_no, buf_block_t *block, mtr_t *mtr, ulint parsed_bytes,
+    const bool online_log = false) {
   bool applying_redo = (block != nullptr);
 
   switch (type) {
@@ -1595,7 +1596,7 @@ static byte *recv_parse_or_apply_log_rec_body(
 
       return (fil_tablespace_redo_extend(
           ptr, end_ptr, page_id_t(space_id, page_no), parsed_bytes,
-          recv_sys->bytes_to_ignore_before_checkpoint != 0));
+          recv_sys->bytes_to_ignore_before_checkpoint != 0 || online_log));
 #else  /* !UNIV_HOTBACKUP */
       // Mysqlbackup does not execute file operations. It cares for all
       // files to be at their final places when it applies the redo log.
@@ -1623,7 +1624,7 @@ static byte *recv_parse_or_apply_log_rec_body(
 
       return (fil_tablespace_redo_extend(
           ptr, end_ptr, page_id_t(space_id, page_no), parsed_bytes,
-          !recv_sys->apply_file_operations));
+          !recv_sys->apply_file_operations || online_log));
 #endif /* !UNIV_HOTBACKUP */
 
     case MLOG_INDEX_LOAD:
@@ -2726,7 +2727,7 @@ ulint recv_parse_log_rec(mlog_id_t *type, byte *ptr, byte *end_ptr,
 
   new_ptr = recv_parse_or_apply_log_rec_body(*type, new_ptr, end_ptr, *space_id,
                                              *page_no, nullptr, nullptr,
-                                             new_ptr - ptr);
+                                             new_ptr - ptr, online_log);
 
   if (new_ptr == nullptr) {
     return (0);

@@ -81,7 +81,7 @@ class log_buffer {
   lsn_t start_lsn{0};
   lsn_t current_lsn{0};
   const_iterator current_ptr{buffer.cbegin()};
-  lsn_t limit_lsn{0};
+  lsn_t checkpoint_lsn{0};
 
   log_buffer() noexcept {}
 
@@ -89,7 +89,6 @@ class log_buffer {
   MY_NODISCARD bool invariants() const noexcept {
     ut_ad(mutex_own(&log_bmp_sys_mutex));
     ut_ad(start_lsn <= current_lsn);
-    ut_ad(current_lsn <= limit_lsn);
     ut_ad(static_cast<decltype(start_lsn)>(current_ptr - buffer.cbegin()) <=
           current_size);
     return true;
@@ -100,12 +99,6 @@ class log_buffer {
   MY_NODISCARD const_iterator ccurrent() const noexcept {
     ut_ad(mutex_own(&log_bmp_sys_mutex));
     return current_ptr;
-  }
-
-  void set_limit(lsn_t limit) {
-    ut_ad(mutex_own(&log_bmp_sys_mutex));
-    ut_ad(limit >= limit_lsn);
-    limit_lsn = limit;
   }
 
   MY_NODISCARD lsn_t get_current_lsn() const noexcept {
@@ -133,7 +126,7 @@ class log_read_buffer final : public log_buffer<FOLLOW_SCAN_SIZE> {
 
   MY_NODISCARD bool is_data_available() const noexcept {
     ut_ad(mutex_own(&log_bmp_sys_mutex));
-    const auto result = ccurrent() < cend() && get_current_lsn() < limit_lsn;
+    const auto result = ccurrent() < cend();
     if (result) {
       ut_ad(invariants());
     }
@@ -161,6 +154,12 @@ class log_read_buffer final : public log_buffer<FOLLOW_SCAN_SIZE> {
     current_ptr += OS_FILE_LOG_BLOCK_SIZE;
   }
 
+  void set_checkpoint_lsn(lsn_t checkpoint_lsn_) {
+    ut_ad(mutex_own(&log_bmp_sys_mutex));
+    ut_ad(checkpoint_lsn_ >= checkpoint_lsn);
+    checkpoint_lsn = checkpoint_lsn_;
+  }
+
 #ifdef UNIV_DEBUG
  private:
   MY_NODISCARD bool invariants() const noexcept {
@@ -178,7 +177,6 @@ class log_read_buffer final : public log_buffer<FOLLOW_SCAN_SIZE> {
 
 void log_read_buffer::read(lsn_t read_start, lsn_t read_end) noexcept {
   ut_ad(mutex_own(&log_bmp_sys_mutex));
-  ut_ad(read_start < limit_lsn);
   ut_ad(get_current_lsn() >= read_start || get_current_lsn() == 0);
   current_size = read_end - read_start;
   ut_ad(current_size <= capacity);
@@ -224,6 +222,9 @@ class log_parse_buffer final : public log_buffer<RECV_PARSING_BUF_SIZE> {
   parse_result parse_status{parse_result::OK};
   iterator end_ptr{buffer.begin()};
   lsn_t end_lsn{0};
+  lsn_t parse_start_lsn{0};
+  lsn_t parse_stop_lsn{0};
+  bool is_checkpoint_block_reached{false};
 
 #ifdef UNIV_DEBUG
   MY_NODISCARD size_type size() const noexcept {
@@ -235,7 +236,10 @@ class log_parse_buffer final : public log_buffer<RECV_PARSING_BUF_SIZE> {
     ut_ad(current_ptr <= end_ptr);
     ut_ad(buffer.begin() + current_size == end_ptr);
     ut_ad(current_lsn <= end_lsn);
-    if (current_lsn == limit_lsn) ut_ad(parse_status == parse_result::OK);
+    ut_ad(parse_stop_lsn == 0 || current_lsn <= parse_stop_lsn);
+    if (current_lsn == parse_stop_lsn) {
+      ut_ad(parse_status == parse_result::PAST_END);
+    }
     return true;
   }
 #endif
@@ -259,11 +263,12 @@ class log_parse_buffer final : public log_buffer<RECV_PARSING_BUF_SIZE> {
 
   MY_NODISCARD bool can_parse_current_data() const noexcept {
     return parse_status == parse_result::OK && ccurrent() != cend() &&
-           current_lsn < limit_lsn;
+           current_lsn < end_lsn &&
+           (parse_stop_lsn == 0 || current_lsn < parse_stop_lsn);
   }
 
   MY_NODISCARD bool parsed_past_checkpoint() const noexcept {
-    return parse_status == parse_result::PAST_END;
+    return parse_stop_lsn != 0 && current_lsn >= parse_stop_lsn;
   }
 
   void reset_parse_status() { parse_status = parse_result::OK; }
@@ -272,6 +277,83 @@ class log_parse_buffer final : public log_buffer<RECV_PARSING_BUF_SIZE> {
            log_buffer::size_type skip_len) noexcept;
 
   MY_NODISCARD lsn_t get_end_lsn() const noexcept { return end_lsn; }
+
+  void set_checkpoint_lsn(lsn_t checkpoint_lsn_) noexcept {
+    ut_ad(mutex_own(&log_bmp_sys_mutex));
+    ut_ad(checkpoint_lsn_ >= checkpoint_lsn);
+    checkpoint_lsn = checkpoint_lsn_;
+    parse_start_lsn = 0;
+    parse_stop_lsn = 0;
+    is_checkpoint_block_reached = false;
+  }
+
+  lsn_t get_parse_start_lsn() const noexcept { return parse_start_lsn; }
+
+  lsn_t set_parse_start_lsn(lsn_t lsn) noexcept {
+    return parse_start_lsn = lsn;
+  }
+
+  lsn_t get_parse_stop_lsn() const noexcept { return parse_stop_lsn; }
+
+  void stop_parsing_at(lsn_t lsn) noexcept {
+    ut_ad(lsn >= checkpoint_lsn && lsn >= current_lsn);
+    parse_stop_lsn = lsn;
+    if (is_checkpoint_block_reached && parse_stop_lsn >= checkpoint_lsn) {
+      move_unprocessed_to_front(parse_result::PAST_END);
+    }
+  }
+
+  bool checkpoint_reached() const noexcept {
+    return is_checkpoint_block_reached;
+  }
+
+  void reset() noexcept {
+    parse_status = parse_result::OK;
+    current_ptr = buffer.cbegin();
+    end_ptr = buffer.begin();
+    current_size = 0;
+
+    start_lsn = 0;
+    current_lsn = 0;
+    checkpoint_lsn = 0;
+    end_lsn = 0;
+    parse_start_lsn = 0;
+    parse_stop_lsn = 0;
+    is_checkpoint_block_reached = false;
+  }
+
+  void check_update_parse_stop_lsn(log_read_buffer &from,
+                                   log_buffer::size_type data_len) noexcept {
+    auto read_buf_current_lsn = from.get_current_lsn();
+
+    if (!is_checkpoint_block_reached &&
+        checkpoint_lsn <= read_buf_current_lsn + OS_FILE_LOG_BLOCK_SIZE) {
+      // The checkpoint_lsn points to this block. Starting from this block we
+      // are looking for a beginning of the next log record group which starts
+      // after checkpoint_lsn. Parsing should stop at that point.
+      is_checkpoint_block_reached = true;
+    }
+
+    if (is_checkpoint_block_reached && parse_stop_lsn == 0) {
+      if (data_len < OS_FILE_LOG_BLOCK_SIZE) {
+        // Block is filled in partially. Parsing should stop at the end of the
+        // data block.
+        parse_stop_lsn = read_buf_current_lsn + data_len;
+      } else {
+        auto rec_group_offset = log_block_get_first_rec_group(from.ccurrent());
+        if (rec_group_offset > 0 &&
+            read_buf_current_lsn + rec_group_offset >= checkpoint_lsn) {
+          // We found a point where to stop log parsing from log block header.
+          // It is possible that log block being pointed by checkpoint_lsn
+          // doesn't have first_rec_group or this offset points before
+          // checkpoint_lsn. In this case we need to determine parse_stop_lsn
+          // while actually parsing data. This will be a beginning of the first
+          // log record group which starts after checkpoint_lsn.
+          parse_stop_lsn = read_buf_current_lsn + rec_group_offset;
+        }
+      }
+    }
+  }
 
 #ifdef UNIV_DEBUG
   MY_NODISCARD bool buffer_used_up() const noexcept {
@@ -288,8 +370,7 @@ class log_parse_buffer final : public log_buffer<RECV_PARSING_BUF_SIZE> {
       case parse_result::INCOMPLETE:
       case parse_result::PAST_END:
         ut_ad(start_lsn == current_lsn);
-        ut_ad(current_lsn < end_lsn);
-        ut_ad(unparsed_size() > 0);
+        ut_ad(current_lsn <= end_lsn);
         break;
     }
     return true;
@@ -304,12 +385,19 @@ bool log_parse_buffer::advance(ulint delta) noexcept {
   ut_ad(!parsed_past_checkpoint());
   ut_ad(parse_status == parse_result::OK);
   ut_ad(unparsed_size() >= delta);
+
   const auto new_current_lsn = recv_calc_lsn_on_data_add(current_lsn, delta);
+
   ut_ad(new_current_lsn % OS_FILE_LOG_BLOCK_SIZE >= LOG_BLOCK_HDR_SIZE);
   ut_ad(new_current_lsn % OS_FILE_LOG_BLOCK_SIZE < LOG_BLOCK_SIZE_NO_TRL);
   ut_ad(new_current_lsn - current_lsn >= delta);
   ut_ad(new_current_lsn <= end_lsn);
-  if (new_current_lsn > limit_lsn) return false;
+
+  if (new_current_lsn > end_lsn ||
+      (parse_stop_lsn != 0 && new_current_lsn > parse_stop_lsn)) {
+    return false;
+  }
+
   current_lsn = new_current_lsn;
   current_ptr += delta;
   return true;
@@ -320,7 +408,6 @@ void log_parse_buffer::add(log_read_buffer &from,
                            log_buffer::size_type skip_len) noexcept {
   ut_ad(mutex_own(&log_bmp_sys_mutex));
   ut_ad(from.is_current_block_valid());
-  ut_ad(!parsed_past_checkpoint());
   // Do not skip into middle of the header
   ut_ad(!skip_len || skip_len >= LOG_BLOCK_HDR_SIZE);
   // Do not call this if the whole block must be skipped
@@ -362,6 +449,8 @@ void log_parse_buffer::add(log_read_buffer &from,
   }
   ut_ad(invariants());
   ut_ad(current_lsn + actual_data_len <= from.get_current_lsn() + data_len);
+  ut_ad(recv_calc_lsn_on_data_add(current_lsn, end_ptr - current_ptr) ==
+        end_lsn);
   from.advance();
   reset_parse_status();
 }
@@ -380,8 +469,8 @@ bool log_parse_buffer::parse_next_record(mlog_id_t *type, space_id_t *space,
   if (len > 0) {
     if (advance(len)) {
       ut_ad(len >= 3 || !log_online_rec_has_page(*type));
-      if (!can_parse_current_data())
-        move_unprocessed_to_front(parse_result::OK);
+      move_unprocessed_to_front(
+          can_parse_current_data() ? parse_result::OK : parse_result::PAST_END);
       return true;
     }
     move_unprocessed_to_front(parse_result::PAST_END);
@@ -428,9 +517,11 @@ struct log_bitmap_struct {
   lsn_t start_lsn{0};            /*!< the LSN of the next unparsed
                                        record and the start of the next LSN
                                        interval to be parsed.  */
-  lsn_t end_lsn{0};              /*!< the end of the LSN interval to be
-                                         parsed, equal to the next checkpoint
-                                         LSN at the time of parse */
+  lsn_t checkpoint_lsn{0};       /*!< The checkpoint LSN to parse log up to.
+                                      It may point into a middle of a log record
+                                      in which case log should be parsed after
+                                      the checkpoint till the beginning of the
+                                      next log record group. */
   ib_rbt_t *modified_pages;      /*!< the current modified page set,
                                   organized as the RB-tree with the keys
                                   of (space, 4KB-block-start-page-id)
@@ -448,21 +539,33 @@ struct log_bitmap_struct {
     return parse_buf_end_lsn ? parse_buf_end_lsn : start_lsn;
   }
 
-  void follow_up_to(lsn_t end_lsn_) noexcept {
+  void set_checkpoint_lsn(lsn_t checkpoint_lsn_) noexcept {
     ut_ad(mutex_own(&log_bmp_sys_mutex));
-    ut_ad(end_lsn_ >= end_lsn);
-    end_lsn = end_lsn_;
-    read_buf.set_limit(end_lsn);
-    parse_buf.set_limit(end_lsn);
+    ut_ad(checkpoint_lsn_ >= checkpoint_lsn);
+    checkpoint_lsn = checkpoint_lsn_;
+    read_buf.set_checkpoint_lsn(checkpoint_lsn_);
+    parse_buf.set_checkpoint_lsn(checkpoint_lsn_);
+  }
+
+  lsn_t get_last_parsed_lsn() const noexcept {
+    ut_ad(mutex_own(&log_bmp_sys_mutex));
+    ut_ad(parse_buf.get_parse_start_lsn() == 0);
+    ut_ad(parse_buf.get_end_lsn() == 0);
+    return start_lsn;
   }
 
   void start_at(lsn_t start_lsn_) noexcept {
     ut_ad(start_lsn == 0);
-    ut_ad(end_lsn == 0);
+    ut_ad(checkpoint_lsn == 0);
     ut_ad(start_lsn_ >= MIN_TRACKED_LSN);
     start_lsn = start_lsn_;
     log_sys->tracked_lsn.store(start_lsn_);
-    end_lsn = start_lsn;
+    checkpoint_lsn = start_lsn_;
+  }
+
+  void stop_at(lsn_t lsn) noexcept {
+    start_lsn = lsn;  // Store last tracked LSN
+    parse_buf.reset();
   }
 };
 
@@ -725,16 +828,8 @@ static bool log_online_can_track_missing(
     lsn_t tracking_start_lsn) /*!<in:	current LSN */
     noexcept {
   /* last_tracked_lsn might be < MIN_TRACKED_LSN in the case of empty bitmap
-file, handle this too. */
+     file, handle this too. */
   last_tracked_lsn = std::max(last_tracked_lsn, MIN_TRACKED_LSN);
-
-  if ((last_tracked_lsn > tracking_start_lsn) &&
-      (last_tracked_lsn % OS_FILE_LOG_BLOCK_SIZE > LOG_BLOCK_HDR_SIZE)) {
-    ib::fatal() << "Last tracked LSN " << last_tracked_lsn
-                << " is ahead of tracking start LSN " << tracking_start_lsn
-                << ".  This can be caused "
-                   "by mismatched bitmap files.";
-  }
 
   return (last_tracked_lsn == tracking_start_lsn) ||
          (log_get_lsn(*log_sys) - last_tracked_lsn <=
@@ -743,7 +838,7 @@ file, handle this too. */
 
 /** Diagnose a gap in tracked LSN range on server startup due to crash or
 very fast shutdown and try to close it by tracking the data
-immediatelly, if possible. */
+immediately if possible. */
 static void log_online_track_missing_on_startup(
     lsn_t last_tracked_lsn,   /*!<in: last tracked LSN read from the
                                         bitmap file */
@@ -765,10 +860,12 @@ static void log_online_track_missing_on_startup(
     if (!log_online_follow_redo_log_one_pass()) {
       exit(1);
     }
-    ut_ad(log_bmp_sys->end_lsn == tracking_start_lsn);
+
+    // Parsing may stop after actual checkpoint LSN, even in the next log block.
+    ut_ad(log_bmp_sys->has_parse_data_to() >= tracking_start_lsn);
 
     ib::info() << "Continuing tracking changed pages from LSN "
-               << log_bmp_sys->end_lsn;
+               << log_bmp_sys->has_parse_data_to();
   } else {
     ib::warn() << "The age of last tracked LSN exceeds log "
                   "capacity, tracking-based incremental backups will "
@@ -777,7 +874,7 @@ static void log_online_track_missing_on_startup(
     log_bmp_sys->start_at(tracking_start_lsn);
 
     ib::info() << "Starting tracking changed pages from LSN "
-               << log_bmp_sys->end_lsn;
+               << log_bmp_sys->has_parse_data_to();
   }
 }
 
@@ -955,6 +1052,7 @@ void log_online_read_init(void) {
       OS_FILE_READ_WRITE, srv_read_only_mode, &success);
 
   const auto tracking_start_lsn = log_sys->last_checkpoint_lsn.load();
+  lsn_t last_tracked_lsn{0};
   if (!success) {
     /* New file, tracking from scratch */
     if (!log_online_start_bitmap_file()) {
@@ -962,7 +1060,6 @@ void log_online_read_init(void) {
     }
   } else {
     /* Read the last tracked LSN from the last file */
-    lsn_t last_tracked_lsn;
     lsn_t file_start_lsn;
 
     log_bmp_sys->out.size = os_file_get_size(log_bmp_sys->out.file);
@@ -1001,18 +1098,16 @@ void log_online_read_init(void) {
     }
 
     if (last_tracked_lsn > tracking_start_lsn) {
-      ib::warn() << "Last tracked LSN is " << last_tracked_lsn
-                 << ", but the last "
-                    "checkpoint LSN is "
-                 << tracking_start_lsn
+      ib::info() << "Last tracked LSN is " << last_tracked_lsn
+                 << ", but the last checkpoint LSN is " << tracking_start_lsn
                  << ". The tracking-based incremental "
-                    "backups will work only from the latter LSN!";
+                    "backups will work from the latter LSN.";
     }
   }
 
   ib::info() << "Starting tracking changed pages from LSN "
              << tracking_start_lsn;
-  log_bmp_sys->start_at(tracking_start_lsn);
+  log_bmp_sys->start_at(std::max(last_tracked_lsn, tracking_start_lsn));
 }
 
 /** Shut down the dynamic part of the log tracking subsystem */
@@ -1051,8 +1146,8 @@ void log_online_read_shutdown(void) noexcept {
 void log_online_shutdown(void) noexcept { mutex_free(&log_bmp_sys_mutex); }
 
 /** Parse the log data in the parse buffer for the (space, page) pairs and add
-them to the modified page set as necessary.  Removes the fully-parsed records
-from the buffer.  If an incomplete record is found, moves it to the end of the
+them to the modified page set as necessary. Removes the fully-parsed records
+from the buffer. If an incomplete record is found, moves it to the end of the
 buffer. */
 static void log_online_parse_redo_log(void) {
   ut_ad(mutex_own(&log_bmp_sys_mutex));
@@ -1061,17 +1156,50 @@ static void log_online_parse_redo_log(void) {
     mlog_id_t type;
     space_id_t space;
     page_no_t page_no;
+    bool is_single_rec =
+        (*(static_cast<const uchar *>(log_bmp_sys->parse_buf.ccurrent())) &
+         MLOG_SINGLE_REC_FLAG) != 0;
 
     const auto rec_parsed =
         log_bmp_sys->parse_buf.parse_next_record(&type, &space, &page_no);
+
     ut_ad(log_bmp_sys->parse_buf.get_current_lsn() <=
           log_bmp_sys->read_buf.get_current_lsn() + LOG_BLOCK_BOUNDARY_LSN_PAD);
-    if (rec_parsed && log_online_rec_has_page(type)) {
-      log_online_set_page_bit(space, page_no);
-      if (type == MLOG_INDEX_LOAD) {
-        const auto space_size = fil_space_get_size(space);
-        for (page_no_t i = 0; i < space_size; i++) {
-          log_online_set_page_bit(space, i);
+
+    if (rec_parsed) {
+      const auto last_parsed_lsn = log_bmp_sys->parse_buf.get_current_lsn();
+
+      if (log_bmp_sys->parse_buf.get_parse_start_lsn() == 0) {
+        // The first log record which should be checked is not yet known. Find
+        // it while parsing log records.
+        if (last_parsed_lsn >= log_bmp_sys->start_lsn &&
+            (is_single_rec || type == MLOG_DUMMY_RECORD ||
+             type == MLOG_MULTI_REC_END)) {
+          log_bmp_sys->parse_buf.set_parse_start_lsn(last_parsed_lsn);
+        }
+        continue;
+      }
+
+      if (log_bmp_sys->parse_buf.checkpoint_reached() &&
+          log_bmp_sys->parse_buf.get_parse_stop_lsn() == 0 &&
+          last_parsed_lsn >= log_bmp_sys->checkpoint_lsn &&
+          (is_single_rec || type == MLOG_DUMMY_RECORD ||
+           type == MLOG_MULTI_REC_END)) {
+        // The parse_stop_lsn couldn't be determined at the point where block
+        // containing checkpoint_lsn was found. Now found the beginning of the
+        // first log record group after checkpoint_lsn. Stop parsing log at
+        // this point.
+        log_bmp_sys->parse_buf.stop_parsing_at(last_parsed_lsn);
+      }
+
+      if (log_online_rec_has_page(type) &&
+          last_parsed_lsn >= log_bmp_sys->parse_buf.get_parse_start_lsn()) {
+        log_online_set_page_bit(space, page_no);
+        if (type == MLOG_INDEX_LOAD) {
+          const auto space_size = fil_space_get_size(space);
+          for (page_no_t i = 0; i < space_size; i++) {
+            log_online_set_page_bit(space, i);
+          }
         }
       }
     }
@@ -1080,7 +1208,7 @@ static void log_online_parse_redo_log(void) {
 }
 
 /** Parse the log block: first copies the read log data to the parse buffer
-while skipping log block header, trailer and already parsed data.  Then it
+while skipping log block header, trailer and already parsed data. Then it
 actually parses the log to add to the modified page bitmap.
 @param[in,out] from log read buffer to take data from
 @param[in] skip_already_parsed_len how many bytes of log data should be skipped
@@ -1103,6 +1231,21 @@ static void log_online_parse_redo_log_block(
     log_bmp_sys->read_buf.advance();
     return;
   }
+
+  if (log_bmp_sys->parse_buf.get_parse_stop_lsn() == 0) {
+    log_bmp_sys->parse_buf.check_update_parse_stop_lsn(log_bmp_sys->read_buf,
+                                                       block_data_len);
+  }
+
+  // It is possible that checkpoint_lsn (and as a result parse_stop_lsn) points
+  // to the end of the header of a block. So there is no actual data in that
+  // block but still it should be checked with check_update_parse_stop_lsn()
+  // method to find a point where to stop log parsing before comparing data
+  // lenght against LOG_BLOCK_HDR_SIZE. Now make sure there is still work to do.
+  if (log_bmp_sys->parse_buf.parsed_past_checkpoint()) {
+    return;
+  }
+
   if (block_data_len == LOG_BLOCK_HDR_SIZE) {
     log_bmp_sys->read_buf.advance();
     return;
@@ -1132,23 +1275,70 @@ static bool log_online_follow_log_seg(
 
   if (!log_bmp_sys->read_buf.is_data_available()) return true;
 
-  if (log_bmp_sys->has_parse_data_to() >
-      log_bmp_sys->read_buf.get_current_lsn()) {
-    // Seeking to the new read data to start parsing from, next block must be
-    // fully or partially new data to parse
+  ut_ad(log_bmp_sys->read_buf.get_current_lsn() + OS_FILE_LOG_BLOCK_SIZE >
+        log_bmp_sys->start_lsn);
+
+  ulint skip_len{0};
+
+  // If we get here it means all blocks before one containing
+  // log_bmp_sys->start_lsn are already skipped. Now check if we know where
+  // to start parsing the log.
+  if (log_bmp_sys->parse_buf.get_parse_start_lsn() == 0) {
+    // This is the beginning of the iteration for a new checkpoint. At this
+    // point log_bmp_sys->start_lsn contains the previous checkpoint LSN.
+    // As it may point into a middle of a log record we need to find first
+    // record group which starts at or after checkpoint LSN and ignore
+    // everything before this point.
+    auto first_rec_group_offset{0};
+
+    // Looking for the first complete record to start parsing at.
+    while (log_bmp_sys->read_buf.is_data_available() &&
+           (first_rec_group_offset = log_block_get_first_rec_group(
+                log_bmp_sys->read_buf.ccurrent())) == 0) {
+      log_bmp_sys->read_buf.advance();
+    }
+
+    if (!log_bmp_sys->read_buf.is_data_available()) {
+      // Go to the next log segment.
+      return true;
+    }
+
+    ut_ad(first_rec_group_offset > 0);
+
+    const auto parse_start_lsn =
+        log_bmp_sys->read_buf.get_current_lsn() + first_rec_group_offset;
+
+    if (parse_start_lsn >= log_bmp_sys->start_lsn) {
+      log_bmp_sys->parse_buf.set_parse_start_lsn(parse_start_lsn);
+    }
+
+    // Even if parse_start_lsn points before log_bmp_sys->start_lsn we still
+    // need to skip incomplete record at the beginning of a block.
+    skip_len = static_cast<ulint>(first_rec_group_offset);
+    // In case first record group in this block starts before
+    // log_bmp_sys->start_lsn, parse start LSN will be found later while parsing
+    // log records.
+  } else if (log_bmp_sys->has_parse_data_to() >
+             log_bmp_sys->read_buf.get_current_lsn()) {
+    // This is just another segment processing. Skip data which is already in
+    // parse buffer from previous iteration.
     ut_ad(log_bmp_sys->read_buf.get_current_lsn() <
           log_bmp_sys->has_parse_data_to());
     ut_ad(log_bmp_sys->read_buf.get_current_lsn() + OS_FILE_LOG_BLOCK_SIZE >
           log_bmp_sys->has_parse_data_to());
 
-    /* How many bytes of log data should we skip in the current log block. */
-    const auto skip_already_in_parse_buf_len =
-        static_cast<ulint>(log_bmp_sys->has_parse_data_to() -
-                           log_bmp_sys->read_buf.get_current_lsn());
-    log_online_parse_redo_log_block(log_bmp_sys->read_buf,
-                                    skip_already_in_parse_buf_len);
+    skip_len = static_cast<ulint>(log_bmp_sys->has_parse_data_to() -
+                                  log_bmp_sys->read_buf.get_current_lsn());
   }
 
+  if (skip_len > 0) {
+    if (!log_bmp_sys->read_buf.is_current_block_valid()) {
+      return false;
+    }
+    log_online_parse_redo_log_block(log_bmp_sys->read_buf, skip_len);
+  }
+
+  // Process all the remaining blocks.
   while (log_bmp_sys->read_buf.is_data_available() &&
          !log_bmp_sys->parse_buf.parsed_past_checkpoint()) {
     if (!log_bmp_sys->read_buf.is_current_block_valid()) return false;
@@ -1184,7 +1374,7 @@ static bool log_online_follow_log(
          block_end_lsn + LOG_BLOCK_BOUNDARY_LSN_PAD);
 
     block_start_lsn = block_end_lsn;
-  } while (block_end_lsn < log_bmp_sys->end_lsn);
+  } while (!log_bmp_sys->parse_buf.parsed_past_checkpoint());
 
   return true;
 }
@@ -1335,24 +1525,29 @@ bool log_online_follow_redo_log_one_pass(void) {
 
   ut_ad(!log_bmp_sys->out.file.is_closed());
 
-  /* Grab the LSN of the last checkpoint, we will parse up to it */
-  /* Parse up to the LSN of the last checkpoint */
-  log_bmp_sys->follow_up_to(log_get_checkpoint_lsn(*log_sys));
+  // Grab the LSN of the last checkpoint. It is possible that checkpoint LSN
+  // points to the middle of a log record. We'd need to find next record group
+  // beginning (which is possibly located in one of the following log blocks)
+  // and parse data up to that point.
+  log_bmp_sys->set_checkpoint_lsn(log_get_checkpoint_lsn(*log_sys));
 
-  if (log_bmp_sys->end_lsn == log_bmp_sys->start_lsn) {
+  ut_ad(log_bmp_sys->parse_buf.get_parse_start_lsn() == 0);
+
+  if (log_bmp_sys->checkpoint_lsn <= log_bmp_sys->has_parse_data_to()) {
     mutex_exit(&log_bmp_sys_mutex);
     return true;
   }
 
   log_online_parse_complete_recs_past_previous_checkpoint();
 
-  bool result = log_online_follow_log(
-      ut_uint64_align_down(log_bmp_sys->start_lsn, OS_FILE_LOG_BLOCK_SIZE));
+  bool result = log_online_follow_log(ut_uint64_align_down(
+      log_bmp_sys->has_parse_data_to(), OS_FILE_LOG_BLOCK_SIZE));
 
   if (result) {
     result = log_online_write_bitmap();
-    log_bmp_sys->start_lsn = log_bmp_sys->end_lsn;
-    log_sys->tracked_lsn.store(log_bmp_sys->parse_buf.get_current_lsn());
+    const auto last_tracked_lsn = log_bmp_sys->parse_buf.get_current_lsn();
+    log_sys->tracked_lsn.store(last_tracked_lsn);
+    log_bmp_sys->stop_at(last_tracked_lsn);
   }
 
   mutex_exit(&log_bmp_sys_mutex);
@@ -1833,8 +2028,7 @@ bool log_online_purge_changed_page_bitmaps(
   }
 
   if (srv_thread_is_active(srv_threads.m_changed_page_tracker) &&
-      lsn > log_bmp_sys->end_lsn) {
-    ut_ad(log_bmp_sys->end_lsn > 0);
+      log_bmp_sys->checkpoint_lsn != 0 && lsn > log_bmp_sys->checkpoint_lsn) {
     /* If we have to delete the current output file, close it
     first. */
     os_file_close(log_bmp_sys->out.file);
@@ -1897,14 +2091,14 @@ bool log_online_purge_changed_page_bitmaps(
   }
 
   if (log_bmp_sys_inited) {
-    if (lsn > log_bmp_sys->end_lsn) {
+    if (log_bmp_sys->checkpoint_lsn != 0 && lsn > log_bmp_sys->checkpoint_lsn) {
       lsn_t new_file_lsn;
       if (lsn == LSN_MAX) {
         /* RESET restarts the sequence */
         log_bmp_sys->out_seq_num = 0;
         new_file_lsn = 0;
       } else {
-        new_file_lsn = log_bmp_sys->end_lsn;
+        new_file_lsn = log_bmp_sys->get_last_parsed_lsn();
       }
       if (!log_online_rotate_bitmap_file(new_file_lsn)) {
         /* If file create failed, stop log tracking */

@@ -735,7 +735,9 @@ static int check_connection(THD *thd) {
     bool peer_rc;
     char ip[NI_MAXHOST];
     LEX_CSTRING main_sctx_ip;
-
+    if(thd->is_admin_connection()) {
+      vio_force_skip_proxy(net->vio);
+    }
     peer_rc = vio_peer_addr(net->vio, ip, &thd->peer_port, NI_MAXHOST);
 
     /*

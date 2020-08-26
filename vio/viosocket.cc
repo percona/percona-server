@@ -728,9 +728,7 @@ void vio_proxy_protocol_add(const struct st_vio_network &net) noexcept {
 
 void vio_proxy_cleanup() noexcept { my_free(vio_pp_networks); }
 
-void vio_force_skip_proxy(Vio *vio) {
-  vio->force_skip_proxy = true;
-}
+void vio_force_skip_proxy(Vio *vio) { vio->force_skip_proxy = true; }
 
 /* Check whether a connection from this source address must provide the proxy
    protocol header */

@@ -367,7 +367,7 @@ struct Vio {
   int retry_count = {1};    /* Retry count */
   bool inactive = {false};  /* Connection has been shutdown */
   bool force_skip_proxy = {false};
-  
+
   struct sockaddr_storage local;  /* Local internet address */
   struct sockaddr_storage remote; /* Remote internet address */
   size_t addrLen = {0};           /* Length of remote address */

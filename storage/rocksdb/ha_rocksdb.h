@@ -277,8 +277,6 @@ class ha_rocksdb : public my_core::handler {
   /* We only iterate but don't need to decode anything */
   bool m_iteration_only;
 
-  bool m_skip_scan_it_next_call;
-
   bool m_rnd_scan_started;
 
   /*
@@ -354,15 +352,15 @@ class ha_rocksdb : public my_core::handler {
   int fill_virtual_columns();
 
   int get_row_by_rowid(uchar *const buf, const char *const rowid,
-                       const uint rowid_size, const bool skip_ttl_check = true,
-                       const bool skip_lookup = false)
+                       const uint rowid_size, const bool skip_lookup = false,
+                       const bool skip_ttl_check = true)
       MY_ATTRIBUTE((__warn_unused_result__));
   int get_row_by_rowid(uchar *const buf, const uchar *const rowid,
-                       const uint rowid_size, const bool skip_ttl_check = true,
-                       const bool skip_lookup = false)
+                       const uint rowid_size, const bool skip_lookup = false,
+                       const bool skip_ttl_check = true)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__)) {
     return get_row_by_rowid(buf, reinterpret_cast<const char *>(rowid),
-                            rowid_size, skip_ttl_check, skip_lookup);
+                            rowid_size, skip_lookup, skip_ttl_check);
   }
 
   void load_auto_incr_value();
@@ -740,6 +738,10 @@ class ha_rocksdb : public my_core::handler {
                                    rocksdb::Iterator *const iter,
                                    bool seek_backward);
 
+  int index_read_intern(uchar *const buf, const uchar *const key,
+                        key_part_map keypart_map,
+                        enum ha_rkey_function find_flag)
+      MY_ATTRIBUTE((__warn_unused_result__));
   int index_read_intern(uchar *buf, bool first)
       MY_ATTRIBUTE((__warn_unused_result__));
 
@@ -798,8 +800,7 @@ class ha_rocksdb : public my_core::handler {
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
   int position_to_correct_key(const Rdb_key_def &kd,
                               const enum ha_rkey_function &find_flag,
-                              const bool full_key_match, const uchar *const key,
-                              const key_part_map &keypart_map,
+                              const bool full_key_match,
                               const rocksdb::Slice &key_slice,
                               bool *const move_forward,
                               const int64_t ttl_filter_ts)

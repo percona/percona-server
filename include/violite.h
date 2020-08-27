@@ -192,6 +192,7 @@ struct st_vio_network {
 
 void vio_proxy_protocol_add(const st_vio_network &net) noexcept;
 void vio_proxy_cleanup() noexcept;
+void vio_force_skip_proxy(MYSQL_VIO vio);
 /* setsockopt TCP_NODELAY at IPPROTO_TCP level, when possible */
 int vio_fastsend(MYSQL_VIO vio);
 /* setsockopt SO_KEEPALIVE at SOL_SOCKET level, when possible */
@@ -365,6 +366,7 @@ struct Vio {
   int write_timeout = {-1}; /* Timeout value (ms) for write ops. */
   int retry_count = {1};    /* Retry count */
   bool inactive = {false};  /* Connection has been shutdown */
+  bool force_skip_proxy = {false};
 
   struct sockaddr_storage local;  /* Local internet address */
   struct sockaddr_storage remote; /* Remote internet address */

@@ -737,6 +737,10 @@ static int check_connection(THD *thd) {
     char ip[NI_MAXHOST];
     LEX_CSTRING main_sctx_ip;
 
+    if (thd->is_admin_connection()) {
+      vio_force_skip_proxy(net->vio);
+    }
+
     /* Set the remote (peer) port for this THD. */
     peer_rc = vio_peer_addr(net->vio, ip, &thd->peer_port, NI_MAXHOST);
     mysql_thread_set_peer_port(thd->peer_port);

@@ -1,0 +1,5 @@
+# restart: --skip-name-resolve --admin-address=::ffff:127.0.0.1 --admin_port=ADMIN_PORT --admin-ssl=OFF --proxy_protocol_networks=*
+# An unproxied client connection should be accepted when connection to an extra_port if proxying enabled on the server
+SHOW GLOBAL STATUS LIKE 'Threads_connected';
+Variable_name	Value
+Threads_connected	2

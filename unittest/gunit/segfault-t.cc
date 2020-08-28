@@ -55,8 +55,8 @@ TEST_F(FatalSignalDeathTest, Abort) {
 }
 
 TEST_F(FatalSignalDeathTest, Segfault) {
-  int *pint = nullptr;
 #if defined(_WIN32)
+  int *pint = NULL;
   /*
    After upgrading from gtest 1.5 to 1.6 this segfault is no longer
    caught by handle_fatal_signal(). We get an empty error message from the
@@ -64,9 +64,12 @@ TEST_F(FatalSignalDeathTest, Segfault) {
   */
   EXPECT_DEATH_IF_SUPPORTED(*pint = 42, "");
 #elif defined(HAVE_ASAN)
-  /* AddressSanitizer */
-  EXPECT_DEATH_IF_SUPPORTED(*pint = 42, ".*ASAN:(DEADLYSIGNAL|SIGSEGV).*");
-#else
+/* gcc 4.8.1 with '-fsanitize=address -O1' */
+/* Newer versions of ASAN give other error message, disable it */
+  int *pint = nullptr;
+  EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".*(AddressSanitizer|ASAN):(DEADLYSIGNAL|SIGSEGV).*");
+#elif defined(HANDLE_FATAL_SIGNALS)
+  int *pint = nullptr;
   /*
    On most platforms we get SIGSEGV == 11, but SIGBUS == 10 is also possible.
    And on Mac OsX we can get SIGILL == 4 (but only in optmized mode).

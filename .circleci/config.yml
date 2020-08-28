@@ -10,12 +10,12 @@ jobs:
           command: |
             set -o xtrace
             curl -sSL "http://apt.llvm.org/llvm-snapshot.gpg.key" | sudo -E apt-key add -
-            echo "deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-8 main" | sudo tee -a /etc/apt/sources.list > /dev/null
+            echo "deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-10 main" | sudo tee -a /etc/apt/sources.list > /dev/null
             sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1
-            sudo -E apt-get -yq --no-install-suggests --no-install-recommends install clang-format-8
+            sudo -E apt-get -yq --no-install-suggests --no-install-recommends install clang-format-10
             wget https://llvm.org/svn/llvm-project/cfe/trunk/tools/clang-format/clang-format-diff.py
             chmod a+x clang-format-diff.py
-            git diff -U0 --no-color HEAD^1 *.c *.cc *.cpp *.h *.hpp *.i *.ic *.ih | ./clang-format-diff.py -binary=clang-format-8 -style=file -p1 >_GIT_DIFF
+            git diff -U0 --no-color HEAD^1 *.c *.cc *.cpp *.h *.hpp *.i *.ic *.ih | ./clang-format-diff.py -binary=clang-format-10 -style=file -p1 >_GIT_DIFF
             if [ ! -s _GIT_DIFF ]; then
                echo The last git commit is clang-formatted;
             else

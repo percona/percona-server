@@ -1,5 +1,7 @@
 # Test Enable and Disable redo logging
 
+--source include/count_sessions.inc
+
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is disabled. All data could be lost in case of a server crash");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is enabled. Data is now safe and can be recovered in case of a server crash.");
@@ -145,3 +147,18 @@ SELECT * FROM performance_schema.global_status WHERE variable_name like 'Innodb_
 ALTER INSTANCE ENABLE INNODB REDO_LOG;
 
 SELECT * FROM performance_schema.global_status WHERE variable_name like 'Innodb_redo_log_enabled';
+
+# Check that it won't work with LTFB
+LOCK TABLES FOR BACKUP;
+--error ER_CANT_EXECUTE_WITH_BACKUP_LOCK
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
+
+--connect (con1,'localhost','root',,)
+SET @@session.lock_wait_timeout=1;
+--error ER_LOCK_WAIT_TIMEOUT
+
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
+--connection default
+--disconnect con1
+
+--source include/wait_until_count_sessions.inc

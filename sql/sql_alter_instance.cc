@@ -186,6 +186,13 @@ bool Innodb_redo_log::execute() {
     return true;
   }
 
+  // Acquire Percona's LOCK TABLES FOR BACKUP lock
+  if (m_thd->backup_tables_lock.abort_if_acquired() ||
+      m_thd->backup_tables_lock.acquire_protection(
+          m_thd, MDL_TRANSACTION, m_thd->variables.lock_wait_timeout)) {
+    return true;
+  }
+
   if (hton->redo_log_set_state(m_thd, m_enable)) {
     /* SE should have raised error */
     assert(m_thd->get_stmt_da()->is_error());

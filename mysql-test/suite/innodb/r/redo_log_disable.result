@@ -951,3 +951,9 @@ ALTER INSTANCE ENABLE INNODB REDO_LOG;
 SELECT * FROM performance_schema.global_status WHERE variable_name like 'Innodb_redo_log_enabled';
 VARIABLE_NAME	VARIABLE_VALUE
 Innodb_redo_log_enabled	ON
+LOCK TABLES FOR BACKUP;
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
+SET @@session.lock_wait_timeout=1;
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction

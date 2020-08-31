@@ -547,7 +547,7 @@ static ulonglong retrieve_auto_increment(uint16 type, uint32 offset,
 }
 
 static inline ulong field_offset(const Field &field, const TABLE &table) {
-  return static_cast<ulong>(field.ptr - table.record[0]);
+  return static_cast<ulong>(field.field_ptr() - table.record[0]);
 }
 
 static inline HA_TOKU_ISO_LEVEL tx_to_toku_iso(ulong tx_isolation) {
@@ -1057,7 +1057,7 @@ bool ha_tokudb::has_auto_increment_flag(uint *index) {
   uint ai_index = 0;
   for (uint i = 0; i < table_share->fields; i++, ai_index++) {
     Field *field = table->field[i];
-    if (field->flags & AUTO_INCREMENT_FLAG) {
+    if (field->is_flag_set(AUTO_INCREMENT_FLAG)) {
       ai_found = true;
       *index = ai_index;
       break;
@@ -6031,7 +6031,7 @@ void ha_tokudb::trace_create_table_info(TABLE *form) {
     for (i = 0; i < form->s->fields; i++) {
       Field *field = form->s->field[i];
       TOKUDB_HANDLER_TRACE("field:%d:%s:type=%d:flags=%x", i, field->field_name,
-                           field->type(), field->flags);
+                           field->type(), field->all_flags());
     }
     for (i = 0; i < form->s->keys; i++) {
       KEY *key = &form->s->key_info[i];
@@ -6043,7 +6043,7 @@ void ha_tokudb::trace_create_table_info(TABLE *form) {
         Field *field = key_part->field;
         TOKUDB_HANDLER_TRACE("key:%d:%d:length=%d:%s:type=%d:flags=%x", i, p,
                              key_part->length, field->field_name, field->type(),
-                             field->flags);
+                             field->all_flags());
       }
     }
   }

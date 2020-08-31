@@ -1258,7 +1258,13 @@ bool Log_event::need_checksum() {
         */
         get_type_code() == binary_log::PREVIOUS_GTIDS_LOG_EVENT ||
         /* FD is always checksummed */
-        get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT) &&
+        get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT ||
+        /*
+           View_change_log_event is queued into relay log by the
+           local member, which may have a different checksum algorithm
+           than the one of the event source.
+        */
+        get_type_code() == binary_log::VIEW_CHANGE_EVENT) &&
        common_footer->checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF));
 
   DBUG_ASSERT(common_footer->checksum_alg !=
@@ -3709,6 +3715,11 @@ Query_log_event::Query_log_event()
   Returns true when the lex context determines an atomic DDL.
   The result is optimistic as there can be more properties to check out.
 
+  CREATE TABLE ... START TRANSACTION is not treated as atomic here, because
+  the table is not really committed at the end of CREATE TABLE processing.
+  It gets committed by a explicit call to COMMIT after INSERTing rows into
+  the table.
+
   @param lex  pointer to LEX object of being executed statement
 */
 inline bool is_sql_command_atomic_ddl(const LEX *lex) {
@@ -3717,7 +3728,8 @@ inline bool is_sql_command_atomic_ddl(const LEX *lex) {
           lex->sql_command != SQLCOM_REPAIR &&
           lex->sql_command != SQLCOM_ANALYZE) ||
          (lex->sql_command == SQLCOM_CREATE_TABLE &&
-          !(lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)) ||
+          !(lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+          !lex->create_info->m_transactional_ddl) ||
          (lex->sql_command == SQLCOM_DROP_TABLE && !lex->drop_temporary);
 }
 
@@ -4014,8 +4026,9 @@ Query_log_event::Query_log_event(THD *thd_arg, const char *query_arg,
             lex->drop_temporary && thd->in_multi_stmt_transaction_mode();
         break;
       case SQLCOM_CREATE_TABLE:
-        cmd_must_go_to_trx_cache = lex->select_lex->item_list.elements &&
-                                   thd->is_current_stmt_binlog_format_row();
+        cmd_must_go_to_trx_cache =
+            lex->select_lex->get_fields_list()->elements &&
+            thd->is_current_stmt_binlog_format_row();
         cmd_can_generate_row_events =
             ((lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
              thd->in_multi_stmt_transaction_mode()) ||
@@ -4094,6 +4107,20 @@ Query_log_event::Query_log_event(THD *thd_arg, const char *query_arg,
 #endif
     event_logging_type = Log_event::EVENT_NORMAL_LOGGING;
     event_cache_type = Log_event::EVENT_TRANSACTIONAL_CACHE;
+  } else if (thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
+             thd->lex->create_info->m_transactional_ddl) {
+    /*
+      When executing CREATE-TABLE-SELECT using engine that support atomic
+      DDL's, we cache the CREATE-TABLE event using normal logging. This
+      enables using single transaction for execution of both CREATE-TABLE
+      and INSERT's when applying the binlog events at slave.
+    */
+    event_logging_type = Log_event::EVENT_NORMAL_LOGGING;
+    event_cache_type = Log_event::EVENT_TRANSACTIONAL_CACHE;
+
+    DBUG_ASSERT(ddl_xid == binary_log::INVALID_XID);
+
+    if (thd->rli_slave) thd->rli_slave->ddl_not_atomic = true;
   } else {
     /*
       Note SQLCOM_XA_COMMIT, SQLCOM_XA_ROLLBACK fall into this block.
@@ -7656,8 +7683,6 @@ static const uchar *set_extra_data(uchar *arr) {
    function above.
 
    Will assert(false) if not.
-
-   @param extra_row_ndb_info
 */
 static void check_extra_row_ndb_info(uchar *extra_row_ndb_info) {
   assert(extra_row_ndb_info);
@@ -8113,9 +8138,9 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length) {
 static bool is_any_column_signaled_for_table(TABLE *table, MY_BITMAP *cols) {
   DBUG_TRACE;
 
-  for (Field **ptr = table->field; *ptr && ((*ptr)->field_index < cols->n_bits);
-       ptr++) {
-    if (bitmap_is_set(cols, (*ptr)->field_index)) return true;
+  for (Field **ptr = table->field;
+       *ptr && ((*ptr)->field_index() < cols->n_bits); ptr++) {
+    if (bitmap_is_set(cols, (*ptr)->field_index())) return true;
   }
 
   return false;
@@ -8488,7 +8513,7 @@ bool Rows_log_event::is_auto_inc_in_extra_columns() {
   DBUG_ASSERT(m_table);
   return (m_table->next_number_field &&
           this->m_fields.translate_position(
-              m_table->next_number_field->field_index) >= m_width);
+              m_table->next_number_field->field_index()) >= m_width);
 }
 
 /*
@@ -8568,9 +8593,9 @@ static bool record_compare(TABLE *table, MY_BITMAP *cols) {
    */
   else {
     for (Field **ptr = table->field;
-         *ptr && ((*ptr)->field_index < cols->n_bits) && !result; ptr++) {
+         *ptr && ((*ptr)->field_index() < cols->n_bits) && !result; ptr++) {
       Field *field = *ptr;
-      if (bitmap_is_set(cols, field->field_index) &&
+      if (bitmap_is_set(cols, field->field_index()) &&
           !field->is_virtual_gcol()) {
         /* compare null bit */
         if (field->is_null() != field->is_null_in_record(table->record[1]))
@@ -11064,7 +11089,7 @@ bool Table_map_log_event::init_signedness_field() {
   for (auto field : this->m_fields) {
     if (is_numeric_field(field)) {
       Field_num *field_num = dynamic_cast<Field_num *>(field);
-      if (field_num->unsigned_flag) flag |= mask;
+      if (field_num->is_unsigned()) flag |= mask;
 
       mask >>= 1;
 
@@ -11772,6 +11797,10 @@ int Write_rows_log_event::do_before_row_operations(
   */
   thd->lex->sql_command = SQLCOM_INSERT;
 
+  DBUG_EXECUTE_IF(
+      "crash_on_transactional_ddl_insert",
+      if (thd->m_transactional_ddl.inited()) { DBUG_SUICIDE(); });
+
   /**
      todo: to introduce a property for the event (handler?) which forces
      applying the event in the replace (idempotent) fashion.
@@ -11864,9 +11893,9 @@ int Write_rows_log_event::do_after_row_operations(
    */
   if (is_auto_inc_in_extra_columns()) {
     bitmap_clear_bit(m_table->write_set,
-                     m_table->next_number_field->field_index);
+                     m_table->next_number_field->field_index());
     bitmap_clear_bit(m_table->read_set,
-                     m_table->next_number_field->field_index);
+                     m_table->next_number_field->field_index());
 
     if (get_flags(STMT_END_F)) m_table->file->ha_release_auto_increment();
   }
@@ -13660,7 +13689,20 @@ int View_change_log_event::do_apply_event(Relay_log_info const *rli) {
     return 0;
   }
 
+  /*
+    The view change is going to be written directly into the binary log and
+    its "data_written" field may change depending on local binlog-checksum
+    settings.
+
+    As MTS keep track of the size of the events on its queue relying on events
+    header data_written field, we must ensure that it should not change on the
+    event instance in memory (by backing it up before writing into binary log
+    and restoring it after it was written).
+  */
+  size_t original_ev_data_written = common_header->data_written;
   int error = mysql_bin_log.write_event(this);
+  if (original_ev_data_written)
+    common_header->data_written = original_ev_data_written;
   if (error)
     rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
                 ER_THD(thd, ER_SLAVE_FATAL_ERROR),

@@ -116,3 +116,6 @@ DROP DATABASE db_2;
 DROP DATABASE db_3;
 DROP DATABASE db_4;
 DROP DATABASE db_5;
+
+--error 0,1
+--remove_file $MYSQL_TMP_DIR/mysecret_keyring.backup

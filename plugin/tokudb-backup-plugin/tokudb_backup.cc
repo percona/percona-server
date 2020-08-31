@@ -99,7 +99,7 @@ struct tokudb_backup_master_state {
   std::string file_name;
   my_off_t position;
   std::string executed_gtid_set;
-  enum_gtid_mode gtid_mode;
+  Gtid_mode::value_type gtid_mode;
 };
 
 #ifdef TOKUDB_BACKUP_PLUGIN_VERSION
@@ -562,7 +562,7 @@ void tokudb_backup_get_master_state(tokudb_backup_master_state *master_state) {
       (li.log_file_name + dirname_length(li.log_file_name));
   master_state->position = li.pos;
   master_state->executed_gtid_set = tokudb_backup_get_executed_gtids_set();
-  master_state->gtid_mode = get_gtid_mode(GTID_MODE_LOCK_NONE);
+  master_state->gtid_mode = global_gtid_mode.get();
 
   return;
 }
@@ -1055,7 +1055,7 @@ int tokudb_backup_save_master_state(
   std::stringstream out;
   out << "filename: " << master_state.file_name << ", "
       << "position: " << master_state.position << ", "
-      << "gtid_mode: " << get_gtid_mode_string(master_state.gtid_mode) << ", "
+      << "gtid_mode: " << Gtid_mode::to_string(master_state.gtid_mode) << ", "
       << "GTID of last change: " << master_state.executed_gtid_set << std::endl;
 
   const std::string &out_str = out.str();

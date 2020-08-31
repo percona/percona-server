@@ -258,7 +258,7 @@ Init space crypt */
 void fil_space_crypt_init() {
   mutex_create(LATCH_ID_FIL_CRYPT_MUTEX, &fil_crypt_key_mutex);
 
-  fil_crypt_throttle_sleep_event = os_event_create(0);
+  fil_crypt_throttle_sleep_event = os_event_create();
 
   mutex_create(LATCH_ID_FIL_CRYPT_STAT_MUTEX, &crypt_stat_mutex);
   memset(&crypt_stat, 0, sizeof(crypt_stat));
@@ -1798,11 +1798,15 @@ struct rotate_thread_t {
         return thread_no >= srv_n_fil_crypt_threads_requested;
       case SRV_SHUTDOWN_EXIT_THREADS:
       /* srv_init_abort() must have been invoked */
-      case SRV_SHUTDOWN_CLEANUP:
+      case SRV_SHUTDOWN_PRE_DD_AND_SYSTEM_TRANSACTIONS:
         return true;
+      case SRV_SHUTDOWN_PURGE:
+      case SRV_SHUTDOWN_CLEANUP:
+      case SRV_SHUTDOWN_DD:
       case SRV_SHUTDOWN_FLUSH_PHASE:
       case SRV_SHUTDOWN_LAST_PHASE:
       case SRV_SHUTDOWN_MASTER_STOP:
+      case SRV_SHUTDOWN_RECOVERY_ROLLBACK:
         break;
     }
     ut_ad(0);
@@ -3737,8 +3741,8 @@ Init threads for key rotation */
 
 void fil_crypt_threads_init() {
   if (!fil_crypt_threads_inited) {
-    fil_crypt_event = os_event_create(0);
-    fil_crypt_threads_event = os_event_create(0);
+    fil_crypt_event = os_event_create();
+    fil_crypt_threads_event = os_event_create();
     mutex_create(LATCH_ID_FIL_CRYPT_THREADS_MUTEX, &fil_crypt_threads_mutex);
     mutex_create(LATCH_ID_FIL_CRYPT_THREADS_SET_CNT_MUTEX,
                  &fil_crypt_threads_set_cnt_mutex);

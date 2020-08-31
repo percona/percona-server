@@ -380,7 +380,9 @@ enum alter_instance_action_enum {
   ALTER_INSTANCE_RELOAD_TLS,
   ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR,
   ROTATE_BINLOG_MASTER_KEY,
-  LAST_MASTER_KEY /* Add new master key type before this */
+  LAST_MASTER_KEY, /* Add new master key type before this */
+  ALTER_INSTANCE_ENABLE_INNODB_REDO,
+  ALTER_INSTANCE_DISABLE_INNODB_REDO
 };
 
 /**
@@ -392,19 +394,23 @@ class Alter_instance;
 class Sql_cmd_alter_instance : public Sql_cmd {
   friend class PT_alter_instance;
   const enum alter_instance_action_enum alter_instance_action;
+  LEX_CSTRING channel_name_;
   uint system_key_id;
   Alter_instance *alter_instance;
 
  public:
   explicit Sql_cmd_alter_instance(
-      enum alter_instance_action_enum alter_instance_action_arg)
+      enum alter_instance_action_enum alter_instance_action_arg,
+      const LEX_CSTRING &channel_name)
       : alter_instance_action(alter_instance_action_arg),
+        channel_name_(channel_name),
         alter_instance(nullptr) {}
 
   explicit Sql_cmd_alter_instance(
       enum alter_instance_action_enum alter_instance_action_arg,
-      uint system_key_id_arg)
+      const LEX_CSTRING &channel_name, uint system_key_id_arg)
       : alter_instance_action(alter_instance_action_arg),
+        channel_name_(channel_name),
         system_key_id(system_key_id_arg),
         alter_instance(NULL) {}
 
@@ -509,4 +515,5 @@ class Sql_cmd_show : public Sql_cmd {
  private:
   enum_sql_command m_sql_command;
 };
+
 #endif

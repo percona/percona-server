@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,8 @@
 
 #include <gtest/gtest.h>
 #include <limits.h>
+
+#include "my_config.h"
 
 #include "m_string.h"
 #include "my_inttypes.h"
@@ -53,18 +55,21 @@ TEST_F(FatalSignalDeathTest, Abort) {
 }
 
 TEST_F(FatalSignalDeathTest, Segfault) {
-  int *pint = nullptr;
 #if defined(_WIN32)
+  int *pint = NULL;
   /*
    After upgrading from gtest 1.5 to 1.6 this segfault is no longer
    caught by handle_fatal_signal(). We get an empty error message from the
    gtest library instead.
   */
   EXPECT_DEATH_IF_SUPPORTED(*pint = 42, "");
-#elif defined(__SANITIZE_ADDRESS__)
-  /* AddressSanitizer */
-  EXPECT_DEATH_IF_SUPPORTED(*pint = 42, ".*ASAN:(DEADLYSIGNAL|SIGSEGV).*");
-#else
+#elif defined(HAVE_ASAN)
+/* gcc 4.8.1 with '-fsanitize=address -O1' */
+/* Newer versions of ASAN give other error message, disable it */
+  int *pint = nullptr;
+  EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".*(AddressSanitizer|ASAN):(DEADLYSIGNAL|SIGSEGV).*");
+#elif defined(HANDLE_FATAL_SIGNALS)
+  int *pint = nullptr;
   /*
    On most platforms we get SIGSEGV == 11, but SIGBUS == 10 is also possible.
    And on Mac OsX we can get SIGILL == 4 (but only in optmized mode).

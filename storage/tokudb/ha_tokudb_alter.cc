@@ -1571,7 +1571,9 @@ int ha_tokudb::alter_table_expand_columns(TABLE *altered_table,
 }
 
 // Return true if the field is an unsigned int
-static bool is_unsigned(Field *f) { return (f->flags & UNSIGNED_FLAG) != 0; }
+static bool is_unsigned(Field *f) {
+  return (f->is_flag_set(UNSIGNED_FLAG)) != 0;
+}
 
 // Return the starting offset in the value for a particular index (selected by
 // idx) of a particular field (selected by expand_field_num)

@@ -1,7 +1,7 @@
 #ifndef SQL_CREATE_FIELD_INCLUDED
 #define SQL_CREATE_FIELD_INCLUDED
 
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -188,6 +188,9 @@ class Create_field {
   */
   uint64_t zip_dict_id;
 
+  LEX_CSTRING m_engine_attribute = EMPTY_CSTR;
+  LEX_CSTRING m_secondary_engine_attribute = EMPTY_CSTR;
+
   Create_field()
       : after(nullptr),
         is_explicit_collation(false),
@@ -225,13 +228,13 @@ class Create_field {
 
   bool init(THD *thd, const char *field_name, enum_field_types type,
             const char *length, const char *decimals, uint type_modifier,
-            Item *default_value, Item *on_update_value, LEX_CSTRING *comment,
-            const char *change, List<String> *interval_list,
-            const CHARSET_INFO *cs, bool has_explicit_collation,
-            uint uint_geom_type, const LEX_CSTRING *zip_dict_name,
-            Value_generator *gcol_info, Value_generator *default_val_expr,
-            Nullable<gis::srid_t> srid, dd::Column::enum_hidden_type hidden,
-            bool is_array = false);
+            Item *default_value, Item *on_update_value,
+            const LEX_CSTRING *comment, const char *change,
+            List<String> *interval_list, const CHARSET_INFO *cs,
+            bool has_explicit_collation, uint uint_geom_type,
+            const LEX_CSTRING *zip_dict_name, Value_generator *gcol_info,
+            Value_generator *default_val_expr, Nullable<gis::srid_t> srid,
+            dd::Column::enum_hidden_type hidden, bool is_array = false);
 
   ha_storage_media field_storage_type() const {
     return (ha_storage_media)((flags >> FIELD_FLAGS_STORAGE_MEDIA) & 3);

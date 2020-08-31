@@ -24,7 +24,6 @@ call mtr.add_suppression("If you are installing InnoDB, remember that you must c
 call mtr.add_suppression("Could not find a valid tablespace file");
 call mtr.add_suppression("Ignoring tablespace");
 call mtr.add_suppression("Failed to find tablespace for table");
-call mtr.add_suppression("Cannot open table tde_db/t_encrypt.* from the internal data dictionary of InnoDB though the .frm file for the table exists");
 call mtr.add_suppression("\\[Warning\\] .* Please refer to .* for how to resolve the issue");
 call mtr.add_suppression("\\[ERROR\\] .* Encryption can't find master key, please check the keyring plugin is loaded");
 call mtr.add_suppression("\\[ERROR\\] .* Encryption information in datafile: .* can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded");

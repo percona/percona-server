@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -528,8 +528,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_sec_if_poss_leaf
 
           page = btr_cur_get_page(btr_cur);
 
-          if (!lock_test_prdt_page_lock(trx, page_get_space_id(page),
-                                        page_get_page_no(page)) &&
+          if (!lock_test_prdt_page_lock(trx, page_get_page_id(page)) &&
               page_get_n_recs(page) < 2 &&
               page_get_page_no(page) != dict_index_get_page(index)) {
             /* this is the last record on page,
@@ -874,7 +873,7 @@ try_again:
   /* Cannot call dd_table_open_on_id() before server is fully up */
   if (!srv_upgrade_old_undo_found && !dict_table_is_system(table_id)) {
     while (!mysqld_server_started) {
-      if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
+      if (srv_shutdown_state.load() >= SRV_SHUTDOWN_PURGE) {
         return (false);
       }
       os_thread_sleep(1000000);
@@ -977,7 +976,7 @@ try_again:
           dd_table_close(node->parent, thd & node->parent_mdl, false);
         }
       }
-      if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
+      if (srv_shutdown_state.load() >= SRV_SHUTDOWN_PURGE) {
         return (false);
       }
       os_thread_sleep(1000000);
@@ -1066,8 +1065,12 @@ try_again:
 
 /** Purges the parsed record.
 @param[in,out]	node		row purge node
-@param[in]	undo_rec	undo record to purge
-@param[in,out]	thr		query thread
+@param[in]	undo_rec	undo record to purge */
+#ifdef UNIV_DEBUG
+/**
+@param[in,out]	thr		query thread */
+#endif /* UNIV_DEBUG */
+/**
 @param[in]	updated_extern	whether external columns were updated
 @param[in,out]	thd		current thread
 @return true if purged, false if skipped */
@@ -1157,7 +1160,7 @@ static void row_purge(purge_node_t *node,       /*!< in: row purge node */
 
   DBUG_EXECUTE_IF(
       "do_not_meta_lock_in_background",
-      while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
+      while (srv_shutdown_state.load() < SRV_SHUTDOWN_PURGE) {
         os_thread_sleep(500000);
       } return;);
 
@@ -1166,7 +1169,7 @@ static void row_purge(purge_node_t *node,       /*!< in: row purge node */
 
     purged = row_purge_record(node, undo_rec, thr, updated_extern, thd);
 
-    if (purged || srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
+    if (purged || srv_shutdown_state.load() >= SRV_SHUTDOWN_PURGE) {
       return;
     }
 

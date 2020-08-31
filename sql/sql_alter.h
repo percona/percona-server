@@ -26,6 +26,7 @@
 #include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
+#include <functional>  // std::function
 
 #include "lex_string.h"
 #include "my_dbug.h"
@@ -45,6 +46,7 @@
 #include "sql/sql_list.h"              // List
 #include "sql/thr_malloc.h"
 
+class Alter_info;
 class Create_field;
 class FOREIGN_KEY;
 class Value_generator;
@@ -182,6 +184,8 @@ class Alter_constraint_enforcement {
     DBUG_ASSERT(par_name != nullptr);
   }
 };
+
+using CreateFieldApplier = std::function<bool(Create_field *, Alter_info *)>;
 
 /**
   Data describing the table being created by CREATE TABLE or
@@ -321,6 +325,12 @@ class Alter_info {
 
     /// Set for ALTER CONSTRAINT symbol NOT ENFORCED.
     SUSPEND_ANY_CONSTRAINT = 1ULL << 38,
+
+    /// Set if ANY engine attribute is used (also in CREATE) Note that
+    /// this is NOT to be set for SECONDARY_ENGINE_ATTRIBUTE as this flag
+    /// controls if execution should check if SE supports engine
+    /// attributes.
+    ANY_ENGINE_ATTRIBUTE = 1ULL << 39
   };
 
   enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
@@ -407,6 +417,8 @@ class Alter_info {
   // Count of keys, which creation is delayed to benefit from fast index
   // creation
   uint delayed_key_count;
+  std::vector<CreateFieldApplier> cf_appliers;
+
   // Type of ALTER TABLE operation.
   ulonglong flags;
   // Enable or disable keys.

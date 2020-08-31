@@ -312,7 +312,7 @@ static bool check_decr_floor_expression(Field *lhs_field, Item *item) {
   if (arguments[1]->type() != Item::INT_ITEM || arguments[1]->val_int() != 0)
     return false;
   if (!check_x_minus_1(lhs_field->field_name, arguments[2])) return false;
-  if (!(lhs_field->flags & UNSIGNED_FLAG)) return false;
+  if (!(lhs_field->is_flag_set(UNSIGNED_FLAG))) return false;
   return true;
 }
 
@@ -396,7 +396,7 @@ static bool check_pk_field_equal_constant(Item *item, TABLE *table,
   Item **arguments = func->arguments();
   Field *field = find_field_by_name(table, arguments[0]);
   if (field == NULL) return false;
-  if (!bitmap_test_and_clear(pk_fields, field->field_index)) return false;
+  if (!bitmap_test_and_clear(pk_fields, field->field_index())) return false;
   switch (field->type()) {
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
@@ -432,7 +432,7 @@ static bool check_point_update(Item *conds, TABLE *table) {
     return false;
   KEY *key = &table->s->key_info[table->s->primary_key];
   for (uint i = 0; i < key->user_defined_key_parts; i++)
-    bitmap_set_bit(&pk_fields, key->key_part[i].field->field_index);
+    bitmap_set_bit(&pk_fields, key->key_part[i].field->field_index());
 
   switch (conds->type()) {
     case Item::FUNC_ITEM:
@@ -546,7 +546,7 @@ static void marshall_update(tokudb::buffer &b, Item *lhs_item, Item *rhs_item,
   uint32_t field_type;
   uint32_t field_null_num = 0;
   if (lhs_field->is_nullable()) {
-    uint32_t field_num = lhs_field->field_index;
+    uint32_t field_num = lhs_field->field_index();
     field_null_num =
         ((field_num / 8) * 8 + get_null_bit_position(lhs_field->null_bit)) + 1;
   }
@@ -564,10 +564,10 @@ static void marshall_update(tokudb::buffer &b, Item *lhs_item, Item *rhs_item,
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_LONGLONG: {
       Field_num *lhs_num = static_cast<Field_num *>(lhs_field);
-      field_type = lhs_num->unsigned_flag ? UPDATE_TYPE_UINT : UPDATE_TYPE_INT;
+      field_type = lhs_num->is_unsigned() ? UPDATE_TYPE_UINT : UPDATE_TYPE_INT;
       offset =
           fixed_field_offset(table->s->null_bytes, &share->kc_info,
-                             table->s->primary_key, lhs_field->field_index);
+                             table->s->primary_key, lhs_field->field_index());
       switch (rhs_item->type()) {
         case Item::INT_ITEM: {
           update_operation = '=';
@@ -605,7 +605,7 @@ static void marshall_update(tokudb::buffer &b, Item *lhs_item, Item *rhs_item,
       field_type = lhs_field->binary() ? UPDATE_TYPE_BINARY : UPDATE_TYPE_CHAR;
       offset =
           fixed_field_offset(table->s->null_bytes, &share->kc_info,
-                             table->s->primary_key, lhs_field->field_index);
+                             table->s->primary_key, lhs_field->field_index());
       v_str = *rhs_item->val_str(&v_str);
       v_length = v_str.length();
       if (v_length >= lhs_field->pack_length()) {
@@ -625,7 +625,7 @@ static void marshall_update(tokudb::buffer &b, Item *lhs_item, Item *rhs_item,
       field_type =
           lhs_field->binary() ? UPDATE_TYPE_VARBINARY : UPDATE_TYPE_VARCHAR;
       offset = var_field_index(table, &share->kc_info, table->s->primary_key,
-                               lhs_field->field_index);
+                               lhs_field->field_index());
       v_str = *rhs_item->val_str(&v_str);
       v_length = v_str.length();
       if (v_length >= lhs_field->row_pack_length()) {
@@ -638,7 +638,8 @@ static void marshall_update(tokudb::buffer &b, Item *lhs_item, Item *rhs_item,
     case MYSQL_TYPE_BLOB: {
       update_operation = '=';
       field_type = lhs_field->binary() ? UPDATE_TYPE_BLOB : UPDATE_TYPE_TEXT;
-      offset = blob_field_index(table, &share->kc_info, lhs_field->field_index);
+      offset =
+          blob_field_index(table, &share->kc_info, lhs_field->field_index());
       v_str = *rhs_item->val_str(&v_str);
       v_length = v_str.length();
       if (v_length >= lhs_field->max_data_length()) {

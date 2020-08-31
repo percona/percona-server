@@ -1213,8 +1213,8 @@ int main(int argc, char **argv) {
   }
   BOOST_SCOPE_EXIT_END
 
-  keyring::ILogger *logger = new keyring::Mock_logger();
-  keyring::Vault_mount vault_mount(curl, logger);
+  std::unique_ptr<keyring::ILogger> logger(new keyring::Mock_logger());
+  keyring::Vault_mount vault_mount(curl, logger.get());
   std::string mount_point_path = "cicd/" + uuid + "_vault_keys_container";
 
   if (generate_credential_file(
@@ -1240,7 +1240,6 @@ int main(int argc, char **argv) {
   if (vault_mount.unmount_secret_backend()) {
     std::cout << "Could not unmount secret backend" << std::endl;
   }
-  delete logger;
 
   my_testing::teardown_server_for_unit_tests();
   return ret;

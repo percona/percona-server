@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -179,8 +179,8 @@ then writes the page to the datafile.
 @param[in]	bpage		            Buffer block to write
 @param[in]	sync		            True if sync IO requested
 @return DB_SUCCESS or error code */
-dberr_t write(buf_flush_t flush_type, buf_page_t *bpage,
-              bool sync) noexcept MY_ATTRIBUTE((warn_unused_result));
+dberr_t write(buf_flush_t flush_type, buf_page_t *bpage, bool sync) noexcept
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Updates the double write buffer when a write request is completed.
 @param[in] bpage               Block that has just been writtent to disk.
@@ -255,9 +255,8 @@ void recover(Pages *pages, fil_space_t *space) noexcept;
 @param[in]	page_id		Page number to lookup
 @return	page frame
 @retval NULL if no page was found */
-const byte *find(
-    const Pages *pages,
-    const page_id_t &page_id) noexcept MY_ATTRIBUTE((warn_unused_result));
+const byte *find(const Pages *pages, const page_id_t &page_id) noexcept
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Check if some pages from the double write buffer could not be
 restored because of the missing tablespace IDs.

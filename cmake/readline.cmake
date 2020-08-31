@@ -1,5 +1,7 @@
-# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 #
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+# 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -96,6 +98,7 @@ MACRO (MYSQL_USE_BUNDLED_EDITLINE)
   SET(WITH_EDITLINE "bundled" CACHE STRING "By default use bundled editline")
   SET(USE_LIBEDIT_INTERFACE 1)
   SET(HAVE_HIST_ENTRY 1)
+  SET(XLINE_HAVE_COMPLETION_CHAR 1 CACHE INTERNAL "")
   SET(EDITLINE_INCLUDE_DIR
     ${CMAKE_SOURCE_DIR}/extra/libedit/libedit-20190324-3.1/src/editline)
   INCLUDE_DIRECTORIES(BEFORE SYSTEM ${EDITLINE_INCLUDE_DIR})
@@ -157,7 +160,7 @@ MACRO (FIND_SYSTEM_EDITLINE)
       completion_matches(0,0);
       return res;
     }"
-    EDITLINE_HAVE_COMPLETION_INT)
+    XLINE_HAVE_COMPLETION_INT)
 
     CHECK_CXX_SOURCE_COMPILES("
     #include <stdio.h>
@@ -170,13 +173,13 @@ MACRO (FIND_SYSTEM_EDITLINE)
       completion_matches(0,0);
       return res != NULL;
     }"
-    EDITLINE_HAVE_COMPLETION_CHAR)
+    XLINE_HAVE_COMPLETION_CHAR)
 
-    IF(EDITLINE_HAVE_COMPLETION_INT OR EDITLINE_HAVE_COMPLETION_CHAR)
+    IF(XLINE_HAVE_COMPLETION_INT OR XLINE_HAVE_COMPLETION_CHAR)
       SET(HAVE_HIST_ENTRY ${EDITLINE_HAVE_HIST_ENTRY})
       SET(USE_LIBEDIT_INTERFACE 1)
       SET(EDITLINE_FOUND 1)
-      IF(EDITLINE_HAVE_COMPLETION_CHAR)
+      IF(XLINE_HAVE_COMPLETION_CHAR)
         SET(USE_NEW_XLINE_INTERFACE 1)
       ENDIF()
     ENDIF()
@@ -243,17 +246,15 @@ MACRO (FIND_SYSTEM_READLINE)
       SET(HAVE_HIST_ENTRY ${READLINE_HAVE_HIST_ENTRY})
       SET(USE_LIBEDIT_INTERFACE ${READLINE_USE_LIBEDIT_INTERFACE})
       SET(USE_NEW_XLINE_INTERFACE ${READLINE_USE_NEW_READLINE_INTERFACE})
+      SET(XLINE_HAVE_COMPLETION_CHAR ${READLINE_USE_NEW_READLINE_INTERFACE})
+      SET(XLINE_HAVE_COMPLETION_INT ${READLINE_USE_LIBEDIT_INTERFACE})
       SET(READLINE_FOUND 1)
     ENDIF()
   ENDIF()
 ENDMACRO()
 
 IF (NOT WITH_EDITLINE AND NOT WITH_READLINE AND NOT WIN32)
-  IF (CMAKE_SYSTEM_NAME MATCHES "Darwin")
-    SET(WITH_EDITLINE "bundled" CACHE STRING "By default use bundled editline")
-  ELSE()
-    SET(WITH_READLINE "system" CACHE STRING "By default use system readline")
-  ENDIF()
+  SET(WITH_READLINE "system" CACHE STRING "By default use system readline")
 ELSEIF (WITH_EDITLINE AND WITH_READLINE)
   MESSAGE(FATAL_ERROR "Cannot configure WITH_READLINE and WITH_EDITLINE! Use only one setting.")
 ENDIF()

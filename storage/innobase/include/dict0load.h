@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -215,5 +215,11 @@ const char *dict_process_sys_zip_dict(mem_heap_t *heap,
                                       const rec_t *rec, ulint *id,
                                       const char **name, ulint *name_len,
                                       const char **data, ulint *data_len);
+
+/** This bool denotes if we found a Table or Partition with discarded Tablespace
+during load of SYS_TABLES (in dict_check_sys_tables).
+
+We use it to stop upgrade from 5.7 to 8.0 if there are discarded Tablespaces. */
+extern bool has_discarded_tablespaces;
 
 #endif

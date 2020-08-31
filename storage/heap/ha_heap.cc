@@ -145,9 +145,6 @@ end:
 
   const int ret = file ? 0 : 1;
 
-  DBUG_PRINT("heap_api", ("this=%p %s; return=%d", this,
-                          table_definition(name, table).c_str(), ret));
-
   return (ret);
 }
 
@@ -224,9 +221,6 @@ int ha_heap::write_row(uchar *buf) {
     file->s->key_stat_version++;
   }
 
-  DBUG_PRINT("heap_api", ("this=%p row=(%s); return=%d", this,
-                          row_to_string(buf, table).c_str(), res));
-
   return res;
 }
 
@@ -266,17 +260,6 @@ int ha_heap::index_read_map(uchar *buf, const uchar *key,
   DBUG_ASSERT(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_key_count);
   int error = heap_rkey(file, buf, active_index, key, keypart_map, find_flag);
-
-#ifndef DBUG_OFF
-  const uint key_len = calculate_key_len(table, active_index, keypart_map);
-#endif /* DBUG_OFF */
-  DBUG_PRINT(
-      "heap_api",
-      ("this=%p cells=(%s) cells_len=%u find_flag=%s out=(%s); return=%d", this,
-       indexed_cells_to_string(key, key_len, table->key_info[active_index])
-           .c_str(),
-       key_len, ha_rkey_function_to_str(find_flag),
-       (error == 0 ? row_to_string(buf, table).c_str() : ""), error));
 
   return error;
 }
@@ -332,9 +315,6 @@ int ha_heap::rnd_next(uchar *buf) {
   ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
   int error = heap_scan(file, buf);
 
-  DBUG_PRINT("heap_api",
-             ("this=%p out=(%s); return=%d", this,
-              (error == 0 ? row_to_string(buf, table).c_str() : ""), error));
   return error;
 }
 
@@ -591,8 +571,8 @@ static int heap_prepare_hp_create_info(TABLE *table_arg, bool single_instance,
 
     if (field->type() == MYSQL_TYPE_VARCHAR) {
       column->length_bytes = static_cast<uint8>(
-          ((static_cast<Field_varstring *>(field))->length_bytes));
-    } else if (field->flags & BLOB_FLAG) {
+          ((static_cast<Field_varstring *>(field))->get_length_bytes()));
+    } else if (field->is_flag_set(BLOB_FLAG)) {
       blobs++;
       column->length_bytes = static_cast<uint8>(
           (static_cast<Field_blob *>(field))->pack_length_no_ptr());
@@ -654,12 +634,13 @@ static int heap_prepare_hp_create_info(TABLE *table_arg, bool single_instance,
 
       next_field_pos = seg->start;
       if (field->type() == MYSQL_TYPE_VARCHAR) {
-        Field *orig_field = *(table_arg->field + key_part->field->field_index);
+        Field *orig_field =
+            *(table_arg->field + key_part->field->field_index());
         next_field_pos += orig_field->pack_length();
       } else {
         next_field_pos += seg->length;
       }
-      if (field->flags & (ENUM_FLAG | SET_FLAG))
+      if (field->is_flag_set(ENUM_FLAG) || field->is_flag_set(SET_FLAG))
         seg->charset = &my_charset_bin;
       else
         seg->charset = field->charset_for_protocol();
@@ -670,7 +651,7 @@ static int heap_prepare_hp_create_info(TABLE *table_arg, bool single_instance,
         seg->null_bit = 0;
         seg->null_pos = 0;
       }
-      if (field->flags & AUTO_INCREMENT_FLAG &&
+      if (field->is_flag_set(AUTO_INCREMENT_FLAG) &&
           table_arg->found_next_number_field &&
           key == share->next_number_index) {
         /*
@@ -731,11 +712,11 @@ static int heap_prepare_hp_create_info(TABLE *table_arg, bool single_instance,
         fixed_data_size = next_field_pos;
       }
 
-      if (field->field_index >= fixed_key_fieldnr) {
+      if (field->field_index() >= fixed_key_fieldnr) {
         /*
           Do not use seg->fieldnr as it's not reliable in case of temp tables
         */
-        fixed_key_fieldnr = field->field_index + 1;
+        fixed_key_fieldnr = field->field_index() + 1;
       }
     }
   }
@@ -789,8 +770,6 @@ int ha_heap::create(const char *name, TABLE *table_arg,
     DBUG_ASSERT(file == nullptr);
   }
 
-  DBUG_PRINT("heap_api", ("this=%p %s; return=%d", this,
-                          table_definition(name, table_arg).c_str(), error));
   return (error);
 }
 

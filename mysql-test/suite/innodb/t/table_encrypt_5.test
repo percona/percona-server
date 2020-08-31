@@ -16,3 +16,5 @@ call mtr.add_suppression("\\[ERROR\\] .* Plugin keyring_file reported: 'File .*k
 --remove_file $MYSQL_TMP_DIR/mydummy_keyring
 --remove_file $MYSQL_TMP_DIR/mysecret_keyring
 --remove_file $MYSQL_TMP_DIR/mysecret_keyring2
+--remove_files_wildcard $MYSQL_TMP_DIR *.backup
+

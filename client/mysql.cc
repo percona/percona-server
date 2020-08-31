@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -202,6 +202,7 @@ static STATUS status;
 static ulong select_limit, max_join_size, opt_connect_timeout = 0;
 static char mysql_charsets_dir[FN_REFLEN + 1];
 static char *opt_plugin_dir = nullptr, *opt_default_auth = nullptr;
+static char *opt_load_data_local_dir = nullptr;
 #ifdef HAVE_SETNS
 static char *opt_network_namespace = nullptr;
 #endif
@@ -258,7 +259,7 @@ static bool opt_build_completion_hash = false;
   A flag that indicates if --execute buffer has already been converted,
   to avoid double conversion on reconnect.
 */
-static bool execute_buffer_conversion_done = 0;
+static bool execute_buffer_conversion_done{false};
 
 /*
   my_win_is_console(...) is quite slow.
@@ -1913,6 +1914,10 @@ static struct my_option my_long_options[] = {
      "inclusive. Default is 3.",
      &opt_zstd_compress_level, &opt_zstd_compress_level, nullptr, GET_UINT,
      REQUIRED_ARG, 3, 1, 22, nullptr, 0, nullptr},
+    {"load_data_local_dir", OPT_LOAD_DATA_LOCAL_DIR,
+     "Directory path safe for LOAD DATA LOCAL INFILE to read from.",
+     &opt_load_data_local_dir, &opt_load_data_local_dir, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
 
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
@@ -2653,8 +2658,10 @@ static char **new_mysql_completion(const char *text, int start, int end);
   if not.
 */
 
-#if defined(USE_NEW_XLINE_INTERFACE) || defined(USE_LIBEDIT_INTERFACE)
+#if defined(XLINE_HAVE_COMPLETION_CHAR)
 char *no_completion(const char *, int)
+#elif defined(XLINE_HAVE_COMPLETION_INT)
+int no_completion(const char *, int)
 #else
 char *no_completion()
 #endif
@@ -2674,23 +2681,27 @@ static int not_in_history(const char *line) {
   return 1;
 }
 
+#if defined(USE_NEW_XLINE_INTERFACE)
 static int fake_magic_space(int, int)
+#else
+ static int fake_magic_space(const char *, int)
+#endif
 {
   rl_insert(1, ' ');
   return 0;
 }
-
+#endif
 static void initialize_readline(char *name) {
   /* Allow conditional parsing of the ~/.inputrc file. */
   rl_readline_name = name;
 
   /* Tell the completer that we want a crack first. */
-#if defined(USE_NEW_XLINE_INTERFACE)
+#if defined(XLINE_HAVE_COMPLETION_CHAR)
   rl_attempted_completion_function = &new_mysql_completion;
   rl_completion_entry_function = &no_completion;
 
   rl_add_defun("magic-space", &fake_magic_space, -1);
-#elif defined(USE_LIBEDIT_INTERFACE)
+#elif defined(XLINE_HAVE_COMPLETION_INT)
   setlocale(LC_ALL, ""); /* so as libedit use isprint */
   rl_attempted_completion_function = &new_mysql_completion;
   rl_completion_entry_function = &no_completion;
@@ -2916,7 +2927,6 @@ char *rindex(const char *s, int c) {
 }
 }
 #endif /* ! HAVE_INDEX */
-#endif /* HAVE_READLINE */
 
 static void fix_line(String *final_command) {
   int total_lines = 1;
@@ -3030,6 +3040,7 @@ static void get_current_db() {
 static int mysql_real_query_for_lazy(const char *buf, size_t length) {
   for (uint retry = 0;; retry++) {
     int error;
+
     if (!mysql_real_query(&mysql, buf, (ulong)length)) return 0;
     error = put_error(&mysql);
     if (mysql_errno(&mysql) != CR_SERVER_GONE_ERROR || retry > 1 ||
@@ -4536,7 +4547,7 @@ static int sql_real_connect(char *host, char *database, char *user,
 
 #ifdef _WIN32
   /* Convert --execute buffer from UTF8MB4 to connection character set */
-  if (!execute_buffer_conversion_done++ && status.line_buff &&
+  if (!execute_buffer_conversion_done && status.line_buff &&
       !status.line_buff->file && /* Convert only -e buffer, not real file */
       status.line_buff->buffer < status.line_buff->end && /* Non-empty */
       !my_charset_same(&my_charset_utf8mb4_bin, mysql.charset)) {
@@ -4561,6 +4572,7 @@ static int sql_real_connect(char *host, char *database, char *user,
               batch_readline_command(NULL, (char *)tmp.c_ptr_safe())))
       return 1;
   }
+  execute_buffer_conversion_done = true;
 #endif /* _WIN32 */
 
   charset_info = mysql.charset;
@@ -4623,6 +4635,11 @@ static bool init_connection_options(MYSQL *mysql) {
 
   if (opt_plugin_dir && *opt_plugin_dir)
     mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+
+  if (opt_load_data_local_dir &&
+      mysql_options(mysql, MYSQL_OPT_LOAD_DATA_LOCAL_DIR,
+                    opt_load_data_local_dir))
+    return true;
 
   if (opt_default_auth && *opt_default_auth)
     mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);

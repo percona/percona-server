@@ -88,7 +88,7 @@ SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
 
 --echo
 --echo # Listing .xdb files after the flush.
---echo # The output must show 6 .xdb files: ib_modified_log_1_0.xdb to ib_modified_log_6_nnn.xdb.
+--echo # The output must show 6 .xdb files: ib_modified_log_1_0.xdb to ib_modified_log_7_nnn.xdb.
 --replace_regex /_[[:digit:]]+\.xdb$/_<nnn>.xdb/
 --list_files $CUSTOM_INNODB_DATA_HOME_DIR *.xdb
 
@@ -101,7 +101,7 @@ eval PURGE CHANGED_PAGE_BITMAPS BEFORE $previous_lsn;
 
 --echo
 --echo # Listing .xdb files after the purge (tracking enabled).
---echo # The output must show only one .xdb file - ib_modified_log_6_nnn.xdb.
+--echo # The output must show only one .xdb file - ib_modified_log_7_nnn.xdb.
 --replace_regex /_[[:digit:]]+\.xdb$/_<nnn>.xdb/
 --list_files $CUSTOM_INNODB_DATA_HOME_DIR *.xdb
 
@@ -117,13 +117,13 @@ eval PURGE CHANGED_PAGE_BITMAPS BEFORE $previous_lsn;
 
 --echo
 --echo # Listing .xdb files after the restart with tracking disabled.
---echo # The output must show the same and a new .xdb file: ib_modified_log_6_nnn.xdb and ib_modified_log_7_nnn.xdb.
+--echo # The output must show the same and a new .xdb file: ib_modified_log_7_nnn.xdb and ib_modified_log_8_nnn.xdb.
 --replace_regex /_[[:digit:]]+\.xdb$/_<nnn>.xdb/
 --list_files $CUSTOM_INNODB_DATA_HOME_DIR *.xdb
 
 --echo
 --echo # Purging changed page bitmaps (tracking disabled).
---echo # The next-to-last one .xdb file (ib_modified_log_6_nnn.xdb) must be deleted.
+--echo # The next-to-last one .xdb file (ib_modified_log_7_nnn.xdb) must be deleted.
 --let $previous_lsn = query_get_value(SHOW STATUS LIKE 'innodb_lsn_current', Value, 1)
 --replace_regex /[[:digit:]]+/PREVIOUS_LSN/
 eval PURGE CHANGED_PAGE_BITMAPS BEFORE $previous_lsn;
@@ -145,3 +145,4 @@ DROP TABLE t1;
 --echo # Cleaning up
 --force-rmdir $CUSTOM_INNODB_DATA_HOME_DIR
 --force-rmdir $MYSQLD_DATADIR1
+

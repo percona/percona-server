@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,6 +51,7 @@ struct Tablespace_options {
   LEX_CSTRING engine_name = {nullptr, 0};
   LEX_STRING encryption = {nullptr, 0};
   KeyringEncryptionKeyIdInfo encryption_key_id;
+  LEX_CSTRING engine_attribute = NULL_CSTR;
 };
 
 /**

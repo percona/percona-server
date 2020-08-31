@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
    Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -662,7 +662,8 @@ void filesort_free_buffers(TABLE *table, bool full) {
 
 Filesort::Filesort(THD *thd, TABLE *table_arg, bool keep_buffers_arg,
                    ORDER *order, ha_rows limit_arg, bool force_stable_sort,
-                   bool remove_duplicates, bool sort_positions)
+                   bool remove_duplicates, bool sort_positions,
+                   bool unwrap_rollup)
     : m_thd(thd),
       table(table_arg),
       keep_buffers(keep_buffers_arg),
@@ -673,9 +674,9 @@ Filesort::Filesort(THD *thd, TABLE *table_arg, bool keep_buffers_arg,
           force_stable_sort),  // keep relative order of equiv. elts
       m_remove_duplicates(remove_duplicates),
       m_force_sort_positions(sort_positions),
-      m_sort_order_length(make_sortorder(order)) {}
+      m_sort_order_length(make_sortorder(order, unwrap_rollup)) {}
 
-uint Filesort::make_sortorder(ORDER *order) {
+uint Filesort::make_sortorder(ORDER *order, bool unwrap_rollup) {
   uint count;
   st_sort_field *sort, *pos;
   ORDER *ord;
@@ -697,8 +698,18 @@ uint Filesort::make_sortorder(ORDER *order) {
     Item *const item = ord->item[0], *const real_item = item->real_item();
     if (real_item->type() == Item::COPY_STR_ITEM) {  // Blob patch
       pos->item = static_cast<Item_copy *>(real_item)->get_item();
-    } else
+    } else {
       pos->item = real_item;
+    }
+
+    // If filesort runs before GROUP BY (potentially to sort rows
+    // in preparation for grouping), we cannot have any rollup NULLs
+    // (and they don't have any rollup state to query), so we need to
+    // remove the wrappers.
+    if (unwrap_rollup) {
+      pos->item = unwrap_rollup_group(pos->item);
+    }
+
     pos->reverse = (ord->direction == ORDER_DESC);
   }
   return count;
@@ -1472,8 +1483,7 @@ uint Sort_param::make_sortkey(Bounds_checked_array<uchar> dst,
         if (addonf->null_bit && field->is_null()) {
           nulls[addonf->null_offset] |= addonf->null_bit;
         } else {
-          to = field->pack(to, field->ptr, to_end - to,
-                           field->table->s->db_low_byte_first);
+          to = field->pack(to, field->field_ptr(), to_end - to);
           if (to >= to_end) return UINT_MAX;
         }
       }
@@ -1487,8 +1497,8 @@ uint Sort_param::make_sortkey(Bounds_checked_array<uchar> dst,
         if (addonf->null_bit && field->is_null()) {
           nulls[addonf->null_offset] |= addonf->null_bit;
         } else {
-          uchar *ptr MY_ATTRIBUTE((unused)) = field->pack(
-              to, field->ptr, to_end - to, field->table->s->db_low_byte_first);
+          uchar *ptr MY_ATTRIBUTE((unused)) =
+              field->pack(to, field->field_ptr(), to_end - to);
           DBUG_ASSERT(ptr <= to + addonf->max_length);
         }
         to += addonf->max_length;
@@ -1799,7 +1809,7 @@ struct Merge_chunk_greater {
 /**
   Merge buffers to one buffer.
 
-  @param thd
+  @param thd            thread context
   @param param          Sort parameter
   @param from_file      File with source data (Merge_chunks point to this file)
   @param to_file        File to write the sorted result data.
@@ -1851,7 +1861,8 @@ static int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
   Priority_queue<Merge_chunk *,
                  std::vector<Merge_chunk *, Malloc_allocator<Merge_chunk *>>,
                  Merge_chunk_greater>
-  queue(mcl, Malloc_allocator<Merge_chunk *>(key_memory_Filesort_info_merge));
+      queue(mcl,
+            Malloc_allocator<Merge_chunk *>(key_memory_Filesort_info_merge));
 
   if (queue.reserve(chunk_array.size())) return 1;
 
@@ -2145,7 +2156,7 @@ Addon_fields *Filesort::get_addon_fields(
 
   for (Field **pfield = table->field; *pfield != nullptr; ++pfield) {
     Field *field = *pfield;
-    if (!bitmap_is_set(table->read_set, field->field_index)) continue;
+    if (!bitmap_is_set(table->read_set, field->field_index())) continue;
 
     // Having large blobs in addon fields could be very inefficient,
     // but small blobs are OK (where “small” is a bit fuzzy, and relative
@@ -2178,7 +2189,7 @@ Addon_fields *Filesort::get_addon_fields(
     const enum_field_types field_type = field->type();
     if (field->is_nullable() || field_type == MYSQL_TYPE_STRING ||
         field_type == MYSQL_TYPE_VARCHAR ||
-        field_type == MYSQL_TYPE_VAR_STRING || (field->flags & BLOB_FLAG)) {
+        field_type == MYSQL_TYPE_VAR_STRING || field->is_flag_set(BLOB_FLAG)) {
       AddWithSaturate(field_length, &packable_length);
     }
     if (field->is_nullable()) null_fields++;
@@ -2215,7 +2226,7 @@ Addon_fields *Filesort::get_addon_fields(
   Addon_fields_array::iterator addonf = m_sort_param.addon_fields->begin();
   for (Field **pfield = table->field; *pfield != nullptr; ++pfield) {
     Field *field = *pfield;
-    if (!bitmap_is_set(table->read_set, field->field_index)) continue;
+    if (!bitmap_is_set(table->read_set, field->field_index())) continue;
     DBUG_ASSERT(addonf != m_sort_param.addon_fields->end());
 
     addonf->field = field;

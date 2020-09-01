@@ -1,0 +1,16 @@
+--source include/not_embedded.inc
+--let $assert_text= 'Assert we are binding on all networks'
+--let $assert_cond= "[SELECT @@GLOBAL.proxy_protocol_networks]" = "*"
+--source include/assert.inc
+
+--source include/count_sessions.inc
+
+
+--echo # An unproxied client connection should be accepted when connection to an extra_port if proxying enabled on the server
+connect (conn1,"127.0.0.1",root,,,$MASTER_EXTRA_PORT,);
+--connection conn1
+SHOW GLOBAL STATUS LIKE 'Threads_connected';
+
+--disconnect conn1
+--connection default
+--source include/wait_until_count_sessions.inc

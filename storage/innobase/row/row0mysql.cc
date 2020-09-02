@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -2720,6 +2720,7 @@ row_update_inplace_for_intrinsic(const upd_node_t* node)
 		index, offsets, node->update);
 
 	if (size_changes) {
+		mtr_commit(&mtr);
 		return(DB_FAIL);
 	}
 
@@ -2914,8 +2915,7 @@ row_update_for_mysql_using_cursor(
 			if (!dict_index_is_auto_gen_clust(index)) {
 				err = row_ins_clust_index_entry(
 					index, entry, thr,
-					node->upd_ext
-					? node->upd_ext->n_ext : 0,
+					entry->get_n_ext(),
 					true);
 			}
 		} else {
@@ -2941,7 +2941,7 @@ row_update_for_mysql_using_cursor(
 
 			err = row_ins_clust_index_entry(
 				index, entry, thr,
-				node->upd_ext ? node->upd_ext->n_ext : 0,
+				entry->get_n_ext(),
 				false);
 			/* Commit the open mtr as we are processing UPDATE. */
 			if (index->last_ins_cur) {

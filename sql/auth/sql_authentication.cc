@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -666,11 +666,18 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
   DBUG_ENTER("send_plugin_request_packet");
   mpvio->status= MPVIO_EXT::FAILURE; // the status is no longer RESTART
 
-  const char *client_auth_plugin=
-    ((st_mysql_auth *) (plugin_decl(mpvio->plugin)->info))->client_auth_plugin;
+  std::string client_auth_plugin(
+      ((st_mysql_auth *)(plugin_decl(mpvio->plugin)->info))
+          ->client_auth_plugin);
 
-  DBUG_ASSERT(client_auth_plugin);
+  DBUG_ASSERT(client_auth_plugin.c_str());
 
+  DBUG_EXECUTE_IF("invalidate_client_auth_plugin", {
+    client_auth_plugin.clear();
+    client_auth_plugin = std::string("..") + std::string(FN_DIRSEP) +
+                         std::string("..") + std::string(FN_DIRSEP) +
+                         std::string("mysql_native_password");
+  });
   /*
     If we're dealing with an older client we can't just send a change plugin
     packet to re-initiate the authentication handshake, because the client 
@@ -690,11 +697,11 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
   }
 
   DBUG_PRINT("info", ("requesting client to use the %s plugin", 
-                      client_auth_plugin));
+                      client_auth_plugin.c_str()));
   DBUG_RETURN(net_write_command(mpvio->protocol->get_net(),
                                 switch_plugin_request_buf[0],
-                                (uchar*) client_auth_plugin,
-                                strlen(client_auth_plugin) + 1,
+                                (uchar*) client_auth_plugin.c_str(),
+                                client_auth_plugin.size() + 1,
                                 (uchar*) data, data_len));
 }
 
@@ -1889,7 +1896,7 @@ static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf)
     protocol->read_packet();
     pkt_len= protocol->get_packet_length();
   }
-
+  DBUG_EXECUTE_IF("simulate_packet_error", pkt_len = packet_error;);
   if (pkt_len == packet_error)
     goto err;
 
@@ -2199,7 +2206,7 @@ acl_authenticate(THD *thd, enum_server_command command,
   /* acl_authenticate() takes the data from net->read_pos */
   thd->get_protocol_classic()->get_net()->read_pos=
     thd->get_protocol_classic()->get_raw_packet();
-  DBUG_PRINT("info", ("com_change_user_pkt_len=%u",
+  DBUG_PRINT("info", ("com_change_user_pkt_len=%lu",
     mpvio.protocol->get_packet_length()));
 
   if (command == COM_CHANGE_USER)

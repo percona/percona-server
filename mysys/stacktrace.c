@@ -31,6 +31,9 @@
 #include "my_thread.h"
 #include "m_string.h"
 #include <signal.h>
+#if HAVE_LIBCOREDUMPER
+#include <coredumper/coredumper.h>
+#endif
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -53,6 +56,18 @@ extern char *__bss_start;
 #else
 #define PTR_SANE(p) (p)
 #endif /* __linux */
+
+//my_print_buildID
+#ifdef __linux__
+#include "my_sys.h"
+#include <sys/stat.h>
+#include <elf.h>
+#if defined(__x86_64__)
+#define ElfW(type) Elf64_##type
+#else
+#define ElfW(type) Elf32_##type
+#endif
+#endif  //defined(OS_LINUX)
 
 void my_init_stacktrace()
 {
@@ -230,7 +245,67 @@ static void my_demangle_symbols(char **addrs, int n)
 }
 
 #endif /* HAVE_ABI_CXA_DEMANGLE */
-
+#ifdef __linux__
+void my_print_buildID()
+{
+  int         readlink_bytes;
+  char        proc_path[FN_REFLEN];
+  char        mysqld_path[PATH_MAX + 1]= {0};
+  FILE *      mysqld;
+  struct stat statbuf;
+  ElfW(Ehdr) *ehdr= 0;
+  ElfW(Phdr) *phdr= 0;
+  ElfW(Nhdr) *nhdr= 0;
+  unsigned char *build_id;
+  char           buff[3];
+  uint           i;
+  snprintf(proc_path, sizeof(proc_path), "/proc/%d/exe", getpid());
+  readlink_bytes= readlink(proc_path, mysqld_path, sizeof(mysqld_path));
+  if (readlink_bytes < 1)
+  {
+    my_safe_printf_stderr("Error reading process path\n");
+    return;
+  }
+  if (!(mysqld= fopen(mysqld_path, "r")))
+  {
+    my_safe_printf_stderr("Error opening mysql binary\n");
+    return;
+  }
+  if (fstat(fileno(mysqld), &statbuf) < 0)
+  {
+    my_safe_printf_stderr("Error running fstat on mysql binary\n");
+    fclose(mysqld);
+    return;
+  }
+  ehdr= (ElfW(Ehdr) *)my_mmap(0, statbuf.st_size, PROT_READ | PROT_WRITE,
+                              MAP_PRIVATE, fileno(mysqld), 0);
+  phdr= (ElfW(Phdr) *)(ehdr->e_phoff + (size_t)ehdr);
+  while (phdr->p_type != PT_NOTE)
+  {
+    ++phdr;
+  }
+  nhdr= (ElfW(Nhdr) *)(phdr->p_offset + (size_t)ehdr);
+  while (nhdr->n_type != NT_GNU_BUILD_ID)
+  {
+    nhdr= (ElfW(Nhdr) *)((size_t)nhdr + sizeof(ElfW(Nhdr)) + nhdr->n_namesz +
+                         nhdr->n_descsz);
+  }
+  build_id= (unsigned char *)my_malloc(PSI_NOT_INSTRUMENTED, nhdr->n_descsz,
+                                       MYF(0));
+  memcpy(build_id,
+         (void *)((size_t)nhdr + sizeof(ElfW(Nhdr)) + nhdr->n_namesz),
+         nhdr->n_descsz);
+  my_safe_printf_stderr("Build ID: ");
+  for (i= 0; i < nhdr->n_descsz; ++i)
+  {
+    snprintf(buff, sizeof(buff), "%02hhx", build_id[i]);
+    my_safe_printf_stderr("%s", buff);
+  }
+  my_free(build_id);
+  fclose(mysqld);
+  my_safe_printf_stderr("\n");
+}
+#endif  //defined(OS_LINUX)
 void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack)
 {
   void *addrs[128];
@@ -254,6 +329,31 @@ void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack)
 #endif /* HAVE_PRINTSTACK || HAVE_BACKTRACE */
 #endif /* HAVE_STACKTRACE */
 
+#if HAVE_LIBCOREDUMPER
+/* Produce a lib coredumper for the thread */
+void my_write_libcoredumper(int sig, char *path, time_t curr_time)
+{
+  int        ret= 0;
+  char       suffix[FN_REFLEN];
+  char       core[FN_REFLEN];
+  struct tm *timeinfo= gmtime(&curr_time);
+  my_safe_printf_stderr("PATH: %s\n\n", path);
+  if (path == NULL)
+    strcpy(core, "core");
+  else
+    strcpy(core, path);
+  sprintf(suffix, ".%d%02d%02d%02d%02d%02d", (1900 + timeinfo->tm_year),
+          timeinfo->tm_mon, timeinfo->tm_mday, timeinfo->tm_hour,
+          timeinfo->tm_min, timeinfo->tm_sec);
+  strcat(core, suffix);
+  ret= WriteCoreDump(core);
+  if (ret != 0)
+  {
+    my_safe_printf_stderr("Error writting coredump: %d Signal: %d\n", ret,
+                          sig);
+  }
+}
+#endif
 /* Produce a core for the thread */
 void my_write_core(int sig)
 {

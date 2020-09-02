@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,14 @@
 # Pass path to mecab lib
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
 %{?with_mecab: %global mecab 1}
+
+# Pass path to LDAP lib
+%{?with_ldap: %global ldap_option -DWITH_LDAP=%{with_ldap}}
+%{?with_ldap: %global ldap 1}
+
+# Pass path to SASL lib
+%{?with_sasl: %global sasl_option -DWITH_SASL=%{with_sasl}}
+%{?with_sasl: %global sasl 1}
 
 # Pass path to the AWS SDK install
 %{?with_aws_sdk: %global aws_sdk_option -DWITH_AWS_SDK=%{with_aws_sdk}}
@@ -133,6 +141,9 @@ BuildRequires:  systemd-rpm-macros
 %endif
 BuildRequires:  cyrus-sasl-devel
 BuildRequires:  openldap2-devel
+%if 0%{?commercial}
+BuildRequires:  openldap2-client
+%endif
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 %if 0%{?rhel} > 6
@@ -577,6 +588,8 @@ mkdir debug
            -DWITH_NUMA=ON \
            %{?ssl_option} \
            %{?mecab_option} \
+           %{?ldap_option} \
+           %{?sasl_option} \
            %{?aws_sdk_option} \
            %{?curl_lib_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
@@ -614,6 +627,8 @@ mkdir release
            -DWITH_NUMA=ON \
            %{?ssl_option} \
            %{?mecab_option} \
+           %{?ldap_option} \
+           %{?sasl_option} \
            %{?aws_sdk_option} \
            %{?curl_lib_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
@@ -1595,8 +1610,7 @@ fi
 
 * Mon Nov 16 2009 Joerg Bruehe <joerg.bruehe@sun.com>
 
-- Fix some problems with the directives around "tcmalloc" (experimental),
-  remove erroneous traces of the InnoDB plugin (that is 5.1 only).
+- remove erroneous traces of the InnoDB plugin (that is 5.1 only).
 
 * Tue Oct 06 2009 Magnus Blaudd <mvensson@mysql.com>
 

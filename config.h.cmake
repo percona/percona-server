@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,6 @@
 #cmakedefine HAVE_SYS_PARAM_H 1
 #cmakedefine HAVE_FNMATCH_H 1
 #cmakedefine HAVE_SYS_UN_H 1
-#cmakedefine HAVE_VIS_H 1
 #cmakedefine HAVE_SASL_SASL_H 1
 
 /* Libevent */
@@ -223,6 +222,7 @@
  * Platform specific CMake files
  */
 #define MACHINE_TYPE "@MYSQL_MACHINE_TYPE@"
+#cmakedefine TARGET_OS_LINUX 1
 #cmakedefine HAVE_LINUX_LARGE_PAGES 1
 #cmakedefine HAVE_SOLARIS_LARGE_PAGES 1
 #cmakedefine HAVE_SOLARIS_ATOMIC 1
@@ -285,12 +285,20 @@
 #cmakedefine USE_LIBEDIT_INTERFACE 1
 #cmakedefine HAVE_HIST_ENTRY 1
 #cmakedefine USE_NEW_XLINE_INTERFACE 1
+#cmakedefine XLINE_HAVE_COMPLETION_CHAR 1
+#cmakedefine XLINE_HAVE_COMPLETION_INT 1
 #cmakedefine HAVE_READLINE_HISTORY_H 1
 
 /*
  * Libedit
  */
-#cmakedefine HAVE_DECL_TGOTO 1
+#cmakedefine HAVE_GETLINE 1
+#cmakedefine HAVE___SECURE_GETENV 1
+#cmakedefine HAVE_SECURE_GETENV 1
+#cmakedefine HAVE_VIS
+#cmakedefine HAVE_UNVIS
+#cmakedefine HAVE_GETPW_R_DRAFT
+#cmakedefine HAVE_GETPW_R_POSIX
 
 /*
  * DTrace
@@ -462,4 +470,6 @@
 /* For default value of --early_plugin_load */
 #cmakedefine DEFAULT_EARLY_PLUGIN_LOAD @DEFAULT_EARLY_PLUGIN_LOAD@
 
+/* coredumper library */
+#cmakedefine01 HAVE_LIBCOREDUMPER
 #endif

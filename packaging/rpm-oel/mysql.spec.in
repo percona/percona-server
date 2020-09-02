@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,14 @@
 # Pass path to mecab lib
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
 %{?with_mecab: %global mecab 1}
+
+# Pass path to LDAP lib
+%{?with_ldap: %global ldap_option -DWITH_LDAP=%{with_ldap}}
+%{?with_ldap: %global ldap 1}
+
+# Pass path to SASL lib
+%{?with_sasl: %global sasl_option -DWITH_SASL=%{with_sasl}}
+%{?with_sasl: %global sasl 1}
 
 # Pass path to the AWS SDK install
 %{?with_aws_sdk: %global aws_sdk_option -DWITH_AWS_SDK=%{with_aws_sdk}}
@@ -177,6 +185,12 @@ BuildRequires:  pkgconfig(systemd)
 %endif
 BuildRequires:  cyrus-sasl-devel
 BuildRequires:  openldap-devel
+%if 0%{?commercial}
+BuildRequires:  openldap-clients
+%if 0%{?rhel} > 6
+BuildRequires:  cyrus-sasl-scram
+%endif
+%endif
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 %if 0%{?rhel} > 6
@@ -733,6 +747,7 @@ fi
     -DWITH_EMBEDDED_SERVER=1 \
     -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
     -DWITH_SSL=system \
+    -DWITH_ZLIB=system \
     -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
     -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
@@ -774,6 +789,8 @@ mkdir debug
 %endif
            %{?ssl_option} \
            %{?mecab_option} \
+           %{?ldap_option} \
+           %{?sasl_option} \
            %{?aws_sdk_option} \
            %{?curl_lib_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
@@ -809,6 +826,8 @@ mkdir release
 %endif
            %{?ssl_option} \
            %{?mecab_option} \
+           %{?ldap_option} \
+           %{?sasl_option} \
            %{?aws_sdk_option} \
            %{?curl_lib_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
@@ -1817,8 +1836,7 @@ fi
 
 * Mon Nov 16 2009 Joerg Bruehe <joerg.bruehe@sun.com>
 
-- Fix some problems with the directives around "tcmalloc" (experimental),
-  remove erroneous traces of the InnoDB plugin (that is 5.1 only).
+- remove erroneous traces of the InnoDB plugin (that is 5.1 only).
 
 * Tue Oct 06 2009 Magnus Blaudd <mvensson@mysql.com>
 

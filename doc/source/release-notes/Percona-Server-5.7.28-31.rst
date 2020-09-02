@@ -27,7 +27,6 @@ Bugs Fixed
 
 
 Other bugs fixed:
-:psbug:`5427`,
 :psbug:`5859`,
 :psbug:`5910`,
 :psbug:`5966`,
@@ -37,7 +36,6 @@ Other bugs fixed:
 :psbug:`5584`,
 :psbug:`5642`,
 :psbug:`5659`,
-:psbug:`5687`,
 :psbug:`5754`,
 :psbug:`5761`,
 :psbug:`5797`,

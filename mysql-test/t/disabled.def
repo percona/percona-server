@@ -18,3 +18,4 @@ ssl-big                  : Bug #18977126 MAIN.SSL-BIG FAILS WITH TIMEOUT Times o
 explain_for_connection_rqg_json  : Bug#20697533 2015-03-20 erlend Fails several times each day on all platforms
 explain_for_connection_rqg_trad : Bug#20697533 2015-03-20 erlend Fails several times each day on all platforms
 events_time_zone         : percona disabled because the test is fundamentally unstable https://bugs.launchpad.net/percona-server/+bug/1616320
+daemonize_opt : Bug#31335773 2020-05-12 Deepa Shutdown_report fails

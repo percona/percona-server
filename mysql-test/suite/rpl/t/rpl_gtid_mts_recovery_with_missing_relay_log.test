@@ -25,11 +25,11 @@
 
 # This test case is binlog format agnostic
 --source include/have_binlog_format_row.inc
---source include/have_slave_parallel_type_database.inc
---source include/only_mts_slave_parallel_workers.inc
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc
+--source include/only_mts_slave_parallel_type_database.inc
+--source include/only_mts_slave_parallel_workers.inc
 --let $MYSQLD_DATADIR= `SELECT @@datadir`
 CALL mtr.add_suppression("Error looking for file after*");
 CALL mtr.add_suppression("Recovery from master pos*");

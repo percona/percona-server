@@ -24,7 +24,7 @@ If an "unsafe" statement is executed in the same connection that is holding a ``
 ``LOCK BINLOG FOR BACKUP``
 ---------------------------
 
-``LOCK BINLOG FOR BACKUP`` uses another new MDL lock type to block all operations that might change either binary log position or ``Exec_Master_Log_Pos`` or ``Exec_Gtid_Set`` (i.e. master binary log coordinates corresponding to the current SQL thread state on a replication slave) as reported by ``SHOW MASTER``/``SLAVE STATUS``. More specifically, a commit will only be blocked if the binary log is enabled (both globally, and for connection with sql_log_bin), or if commit is performed by a slave thread and would advance ``Exec_Master_Log_Pos`` or ``Executed_Gtid_Set``. Connections that are currently blocked on the global binlog lock can be identified by the ``Waiting for binlog lock`` status in ``PROCESSLIST``.
+``LOCK BINLOG FOR BACKUP`` uses another new MDL lock type to block all operations that might change either binary log position or ``Exec_Master_Log_Pos`` or ``Exec_Gtid_Set`` (i.e. source binary log coordinates corresponding to the current SQL thread state on a replication replica) as reported by ``SHOW MASTER``/``SLAVE STATUS``. More specifically, a commit will only be blocked if the binary log is enabled (both globally, and for connection with sql_log_bin), or if commit is performed by a replica thread and would advance ``Exec_Master_Log_Pos`` or ``Executed_Gtid_Set``. Connections that are currently blocked on the global binlog lock can be identified by the ``Waiting for binlog lock`` status in ``PROCESSLIST``.
 
 .. _backup-safe_binlog_information:
 

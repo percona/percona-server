@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -65,10 +65,10 @@ MACRO (FIND_CURSES)
  IF(NOT CURSES_FOUND)
    SET(ERRORMSG "Curses library not found. Please install appropriate package,
     remove CMakeCache.txt and rerun cmake.")
-   IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
-    SET(ERRORMSG ${ERRORMSG} 
-    "On Debian/Ubuntu, package name is libncurses5-dev, on Redhat and derivates " 
-    "it is ncurses-devel.")
+   IF(LINUX)
+     SET(ERRORMSG ${ERRORMSG} 
+       "On Debian/Ubuntu, package name is libncurses5-dev, on Redhat and derivates " 
+       "it is ncurses-devel.")
    ENDIF()
    MESSAGE(FATAL_ERROR ${ERRORMSG})
  ENDIF()
@@ -78,24 +78,8 @@ MACRO (FIND_CURSES)
  ELSEIF(CURSES_HAVE_NCURSES_H)
    SET(HAVE_NCURSES_H 1 CACHE INTERNAL "")
  ENDIF()
- IF(CMAKE_SYSTEM_NAME MATCHES "HP")
-   # CMake uses full path to library /lib/libcurses.sl 
-   # On Itanium, it results into architecture mismatch+
-   # the library is for  PA-RISC
-   SET(CURSES_LIBRARY "curses" CACHE INTERNAL "" FORCE)
-   SET(CURSES_CURSES_LIBRARY "curses" CACHE INTERNAL "" FORCE)
- ENDIF()
- IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
-   # CMake generates /lib/64/libcurses.so -R/lib/64
-   # The result is we cannot find
-   # /opt/studio12u2/lib/stlport4/v9/libstlport.so.1
-   # at runtime
-   SET(CURSES_LIBRARY "curses" CACHE INTERNAL "" FORCE)
-   SET(CURSES_CURSES_LIBRARY "curses" CACHE INTERNAL "" FORCE)
-   MESSAGE(STATUS "CURSES_LIBRARY ${CURSES_LIBRARY}")
- ENDIF()
 
- IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+ IF(LINUX)
    # -Wl,--as-needed breaks linking with -lcurses, e.g on Fedora 
    # Lower-level libcurses calls are exposed by libtinfo
    CHECK_LIBRARY_EXISTS(${CURSES_LIBRARY} tputs "" HAVE_TPUTS_IN_CURSES)
@@ -109,12 +93,16 @@ MACRO (FIND_CURSES)
 ENDMACRO()
 
 MACRO (MYSQL_USE_BUNDLED_EDITLINE)
+  SET(WITH_EDITLINE "bundled" CACHE STRING "By default use bundled editline")
   SET(USE_LIBEDIT_INTERFACE 1)
   SET(HAVE_HIST_ENTRY 1)
-  SET(EDITLINE_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/cmd-line-utils/libedit/editline)
+  SET(XLINE_HAVE_COMPLETION_CHAR 1 CACHE INTERNAL "")
+  SET(USE_NEW_XLINE_INTERFACE 1 CACHE INTERNAL "")
+  SET(EDITLINE_INCLUDE_DIR
+    ${CMAKE_SOURCE_DIR}/cmd-line-utils/libedit/libedit-20190324-3.1/src/editline)
   SET(EDITLINE_LIBRARY edit)
   FIND_CURSES()
-  ADD_SUBDIRECTORY(${CMAKE_SOURCE_DIR}/cmd-line-utils/libedit)
+  ADD_SUBDIRECTORY(${CMAKE_SOURCE_DIR}/cmd-line-utils/libedit/libedit-20190324-3.1/src)
 ENDMACRO()
 
 MACRO (FIND_SYSTEM_EDITLINE)
@@ -144,8 +132,10 @@ MACRO (FIND_SYSTEM_EDITLINE)
 
   INCLUDE(CheckCXXSourceCompiles)
   IF(EDITLINE_LIBRARY AND EDITLINE_INCLUDE_DIR)
+    CMAKE_PUSH_CHECK_STATE()
+
     SET(CMAKE_REQUIRED_INCLUDES ${EDITLINE_INCLUDE_DIR})
-    SET(CMAKE_REQUIRED_LIBRARIES ${EDITLINE_LIBRARY})
+    LIST(APPEND CMAKE_REQUIRED_LIBRARIES ${EDITLINE_LIBRARY})
     CHECK_CXX_SOURCE_COMPILES("
     #include <stdio.h>
     #include <readline.h>
@@ -167,7 +157,7 @@ MACRO (FIND_SYSTEM_EDITLINE)
       completion_matches(0,0);
       return res;
     }"
-    EDITLINE_HAVE_COMPLETION_INT)
+    XLINE_HAVE_COMPLETION_INT)
 
     CHECK_CXX_SOURCE_COMPILES("
     #include <stdio.h>
@@ -180,16 +170,17 @@ MACRO (FIND_SYSTEM_EDITLINE)
       completion_matches(0,0);
       return res != NULL;
     }"
-    EDITLINE_HAVE_COMPLETION_CHAR)
+    XLINE_HAVE_COMPLETION_CHAR)
 
-    IF(EDITLINE_HAVE_COMPLETION_INT OR EDITLINE_HAVE_COMPLETION_CHAR)
+    IF(XLINE_HAVE_COMPLETION_INT OR XLINE_HAVE_COMPLETION_CHAR)
       SET(HAVE_HIST_ENTRY ${EDITLINE_HAVE_HIST_ENTRY})
       SET(USE_LIBEDIT_INTERFACE 1)
       SET(EDITLINE_FOUND 1)
-      IF(EDITLINE_HAVE_COMPLETION_CHAR)
+      IF(XLINE_HAVE_COMPLETION_CHAR)
         SET(USE_NEW_XLINE_INTERFACE 1)
       ENDIF()
     ENDIF()
+    CMAKE_POP_CHECK_STATE()
   ENDIF()
 ENDMACRO()
 
@@ -252,6 +243,8 @@ MACRO (FIND_SYSTEM_READLINE)
       SET(HAVE_HIST_ENTRY ${READLINE_HAVE_HIST_ENTRY})
       SET(USE_LIBEDIT_INTERFACE ${READLINE_USE_LIBEDIT_INTERFACE})
       SET(USE_NEW_XLINE_INTERFACE ${READLINE_USE_NEW_READLINE_INTERFACE})
+      SET(XLINE_HAVE_COMPLETION_CHAR ${READLINE_USE_NEW_READLINE_INTERFACE})
+      SET(XLINE_HAVE_COMPLETION_INT ${READLINE_USE_LIBEDIT_INTERFACE})
       SET(READLINE_FOUND 1)
     ENDIF()
   ENDIF()

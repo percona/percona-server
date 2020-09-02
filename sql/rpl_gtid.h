@@ -2986,6 +2986,9 @@ public:
   int warn_or_err_on_modify_gtid_table(THD *thd, TABLE_LIST *table);
 #endif
 
+  /* Allows to extract snapshot GTID_EXECUTED */
+  void get_snapshot_gtid_executed(std::string &snapshot_gtid_executed);
+
 private:
   /**
     Remove the GTID owned by thread from owned GTIDs.

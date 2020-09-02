@@ -4,9 +4,9 @@
  Response Time Distribution
 ============================
 
-The slow query log provides exact information about queries that take a long time to execute. However, sometimes there are a large number of queries that each take a very short amount of time to execute. This feature provides a tool for analyzing that information by counting and displaying the number of queries according to the length of time they took to execute. The user can define time intervals that divide the range 0 to positive infinity into smaller intervals and then collect the number of commands whose execution times fall into each of those intervals.
+The slow query log provides exact information about queries that take a long time to execute. Sometimes there are a large number of queries that each take a short amount of time to execute. This feature provides a tool for analyzing that information by counting and displaying the number of queries according to the length of time they took to execute. The query execution time begins afterthe initial locks are acquired. The user can define time intervals that divide the range from 0 to positive infinity into smaller intervals and then collect the number of commands whose execution times fall into each of those intervals.
 
-Note that in a replication environment, the server will not take into account *any* queries executed by the slave SQL threads (whether they are slow or not) for the time distribution. 
+Note that in a replication environment, the server will not take into account *any* queries executed by the replica SQL threads (whether they are slow or not) for the time distribution. 
 
 Each interval is described as: ::
 

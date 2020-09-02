@@ -104,6 +104,14 @@ INSERT INTO t2 SELECT * FROM t1;
 }
 DROP TABLE t1,t2;
 
+--echo #
+--echo # PS-7062 : Crash recovery fails with compressed temporary tables
+--echo #
+CREATE TEMPORARY TABLE t3(a INT) ROW_FORMAT=COMPRESSED ENCRYPTION='Y';
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+
+DROP TABLE t3;
+
 --source include/wait_until_count_sessions.inc
 SET GLOBAL innodb_temp_tablespace_encrypt=default;
 --remove_file $MYSQL_TMP_DIR/ts_encrypt_keyring

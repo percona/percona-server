@@ -166,6 +166,8 @@ override_dh_strip:
 override_dh_installinit:
 	@echo "RULES.$@"
 	dh_systemd_enable --name=mysql
+	dh_systemd_enable --no-enable --name=mysql@
 	dh_installinit --name=mysql -- defaults 19 21
+	dh_installinit --name=mysql@
 	dh_systemd_start --restart-after-upgrade
 	touch $@

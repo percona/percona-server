@@ -1324,6 +1324,7 @@ struct export_var_t {
 #endif                                /* UNIV_DEBUG */
   // Percona-added status variables
   ulint innodb_checkpoint_age;
+  ulint innodb_checkpoint_max_age;
   ulint innodb_ibuf_free_list;
   ulint innodb_ibuf_segment_size;
   lsn_t innodb_lsn_current;

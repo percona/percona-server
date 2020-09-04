@@ -1746,6 +1746,8 @@ void srv_export_innodb_status(void) {
   }
   export_vars.innodb_checkpoint_age =
       (log_get_lsn(*log_sys) - log_sys->last_checkpoint_lsn);
+
+  export_vars.innodb_checkpoint_max_age = log_get_free_check_capacity(*log_sys);
   ibuf_export_ibuf_status(&export_vars.innodb_ibuf_free_list,
                           &export_vars.innodb_ibuf_segment_size);
   export_vars.innodb_lsn_current = log_get_lsn(*log_sys);

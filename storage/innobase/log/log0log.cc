@@ -867,6 +867,7 @@ void log_print(const log_t &log, FILE *file) {
   lsn_t max_assigned_lsn;
   lsn_t current_lsn;
   lsn_t oldest_lsn;
+  lsn_t max_checkpoint_age;
 
   last_checkpoint_lsn = log.last_checkpoint_lsn.load();
   dirty_pages_added_up_to_lsn = log_buffer_dirty_pages_added_up_to_lsn(log);
@@ -878,6 +879,7 @@ void log_print(const log_t &log, FILE *file) {
 
   log_limits_mutex_enter(log);
   oldest_lsn = log.available_for_checkpoint_lsn;
+  max_checkpoint_age = log_get_free_check_capacity(log);
   log_limits_mutex_exit(log);
 
   fprintf(file,
@@ -901,14 +903,24 @@ void log_print(const log_t &log, FILE *file) {
           last_checkpoint_lsn);
 
   fprintf(file,
-          "Checkpoint age target " LSN_PF
+          "Checkpoint age target        " LSN_PF
           "\n"
-          "Modified age no less than " LSN_PF
+          "Modified age no less than    " LSN_PF
           "\n"
-          "Checkpoint age        " LSN_PF "\n",
+          "Checkpoint age               " LSN_PF
+          "\n"
+          "Max checkpoint age           " LSN_PF "\n",
           log_sys->max_checkpoint_age_async,
           current_lsn - buf_pool_get_oldest_modification_lwm(),
-          current_lsn - log_sys->last_checkpoint_lsn);
+          current_lsn - log_sys->last_checkpoint_lsn, max_checkpoint_age);
+
+  fprintf(file,
+          "Number of logs               " UINT32PF
+          "\n"
+          "Log size                     " LSN_PF
+          "\n"
+          "Log total size               " LSN_PF "\n",
+          log.n_files, log.file_size, log.files_real_capacity);
 
   time_t current_time = time(nullptr);
 
@@ -928,8 +940,10 @@ void log_print(const log_t &log, FILE *file) {
     checkpoint age */
     fprintf(file,
             "Log tracking enabled\n"
-            "Log tracked up to   " LSN_PF "\n",
-            log_sys->tracked_lsn.load());
+            "Log tracked up to            " LSN_PF
+            "\n"
+            "Max tracked LSN age          " LSN_PF "\n",
+            log_sys->tracked_lsn.load(), max_checkpoint_age);
   }
 
   log.n_log_ios_old = log.n_log_ios;

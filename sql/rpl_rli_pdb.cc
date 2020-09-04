@@ -500,16 +500,17 @@ bool Slave_worker::read_info(Rpl_info_handler *from) {
   if (from->prepare_info_for_read()) return true;
 
   if (!!from->get_info(&temp_internal_id, 0) ||
-      !!from->get_info(group_relay_log_name, sizeof(group_relay_log_name), "") ||
+      !!from->get_info(group_relay_log_name, sizeof(group_relay_log_name),
+                       "") ||
       !!from->get_info(&temp_group_relay_log_pos, 0UL) ||
       !!from->get_info(temp_group_master_log_name,
-                     sizeof(temp_group_master_log_name), "") ||
+                       sizeof(temp_group_master_log_name), "") ||
       !!from->get_info(&temp_group_master_log_pos, 0UL) ||
       !!from->get_info(checkpoint_relay_log_name,
-                     sizeof(checkpoint_relay_log_name), "") ||
+                       sizeof(checkpoint_relay_log_name), "") ||
       !!from->get_info(&temp_checkpoint_relay_log_pos, 0UL) ||
       !!from->get_info(checkpoint_master_log_name,
-                     sizeof(checkpoint_master_log_name), "") ||
+                       sizeof(checkpoint_master_log_name), "") ||
       !!from->get_info(&temp_checkpoint_master_log_pos, 0UL) ||
       !!from->get_info(&temp_checkpoint_seqno, 0UL) ||
       !!from->get_info(&nbytes, 0UL) ||
@@ -1855,6 +1856,8 @@ std::tuple<bool, bool, uint> Slave_worker::check_and_report_end_of_retries(
         has_temporary_error(thd, da->is_error() ? da->mysql_errno() : 0,
                             &silent)) {
       error = ER_LOCK_DEADLOCK;
+      DBUG_EXECUTE_IF("simulate_exhausted_trans_retries",
+                      { trans_retries = slave_trans_retries; };);
     }
 #ifndef DBUG_OFF
     else {
@@ -1875,7 +1878,8 @@ std::tuple<bool, bool, uint> Slave_worker::check_and_report_end_of_retries(
 
   if (trans_retries >= slave_trans_retries) {
     thd->fatal_error();
-    c_rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
+    c_rli->report(ERROR_LEVEL,
+                  thd->is_error() ? thd->get_stmt_da()->mysql_errno() : error,
                   "worker thread retried transaction %lu time(s) "
                   "in vain, giving up. Consider raising the value of "
                   "the slave_transaction_retries variable.",

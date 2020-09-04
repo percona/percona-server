@@ -1254,6 +1254,8 @@ static SHOW_VAR innodb_status_variables[] = {
      SHOW_SCOPE_GLOBAL},
     {"checkpoint_age", (char *)&export_vars.innodb_checkpoint_age, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
+    {"checkpoint_max_age", (char *)&export_vars.innodb_checkpoint_max_age,
+     SHOW_LONG, SHOW_SCOPE_GLOBAL},
     {"data_fsyncs", (char *)&export_vars.innodb_data_fsyncs, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
     {"data_pending_fsyncs", (char *)&export_vars.innodb_data_pending_fsyncs,

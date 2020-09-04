@@ -63,55 +63,25 @@ and general tablespaces and is not applied to the MySQL system tablespace.
 
 The variable has the following possible values:
 
-.. rubric:: ON
+.. tabularcolumns:: |p{5cm}|p{11cm}|
 
-New tables are encrypted. To create unencrypted tables add ``ENCRYPTION="N"`` to
-the ``CREATE TABLE`` or ``ALTER TABLE`` statement.
+.. list-table::
+   :header-rows: 1
 
-.. rubric:: OFF
-
-By default, new tables are unencrypted. To create encrypted tables add
-``ENCRYPTION="Y"`` to the ``CREATE TABLE`` or ``ALTER TABLE`` statement. 
-
-.. rubric:: FORCE
-
-New tables are created with the Master key. Using the `ENCRYPTION=NO` to `CREATE
-TABLE` or `ALTER TABLE` generates an error and the table is not created or
-altered.
-
-To encrypt an unencrypted table with an `ALTER TABLE` statement the
-`ENCRYPTION=YES` must be explicitly used.
-
-.. rubric:: KEYRING_ON
-
-:Availablilty: This value is **Experimental** quality.
-        
-New tables are created with the keyring as the default encryption. You may
-specify a numeric key identifier and use a specific `percona-innodb-` key from
-the keyring instead of the default key:
-
-    .. code-block:: MySQL
-
-         mysql> CREATE TABLE ... ENCRYPTION=`KEYRING` ENCRYPTION_KEY=ID=NEW_ID
-
-`NEW_ID` is an unsigned 32-bit integer that refers to the numerical part of the
-`percona-innodb-` key. When you assign a numerical identifier in the
-`ENCRYPTION_KEY_ID` clause, the server uses the latest version of the
-corresponding key. For example, `ENCRYPTION_KEY_ID=2` refers to the latest
-version of the `percona_innodb-2` key from the keyring.
-
-.. rubric:: FORCE_KEYRING
-
-:Availablilty: This value is **Experimental** quality.
-
-New tables are created encrypted and the keyring encryption is enforced.
-
-.. rubric:: ONLINE_TO_KEYRING
-
-:Availablilty: This value is **Experimental** quality.
-
-It is only possible to apply the keyring encryption when creating or altering
-tables.
+   * - Value 
+     - Description
+   * - ON
+     - New tables are encrypted. Add ``ENCRYPTION="N"`` to the ``CREATE TABLE`` or ``ALTER TABLE`` statement to create unencrypted tables.
+   * - OFF
+     - By default, new tables are unencrypted. Add ``ENCRYPTION="Y"`` to the ``CREATE TABLE`` or ``ALTER TABLE`` statement to create encrypted tables. 
+   * - ONLINE_TO_KEYRING
+     - :Availability: This value is **Experimental** quality.
+       
+       Converts a tablespace encrypted by a Master Key to use Advanced Encryption Key Rotation. You can only apply the keyring encryption when creating tables or altering tables.
+   * - ONLINE_FROM_KEYRING_TO_UNENCRYPTED
+     - :Availability: This value is **Experimental** quality
+       
+       Converts a tablespace encrypted by Advanced Encryption Key Rotation to unencrypted.
 
 .. note::
 

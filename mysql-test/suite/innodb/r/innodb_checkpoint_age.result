@@ -1,0 +1,2 @@
+include/assert.inc [Innodb_checkpoint_age not zero]
+include/assert.inc [Innodb_checkpoint_max_age not zero]

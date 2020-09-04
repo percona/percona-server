@@ -29,6 +29,8 @@ The ``Percona-Server-shared-compat`` package includes shared libraries for softw
 
 The ``Percona-Server-test-56`` package includes the test suite for |Percona Server|.
 
+.. _percona_repo:
+
 Installing |Percona Server| from Percona ``yum`` repository
 ===========================================================
 
@@ -47,10 +49,28 @@ Installing |Percona Server| from Percona ``yum`` repository
       .. code-block:: guess
 
 
-	 Retrieving https://repo.percona.com/yum/percona-release-latest.noarch.rpm
-	 Preparing...                ########################################### [100%]
-         1:percona-release        ########################################### [100%]
+      	  Loaded plugins: fastestmirror, langpacks
+          Examining /var/tmp/yum-root-6bcbFR/percona-release-latest.noarch.rpm: percona-release-1.0-15.noarch
+          Marking /var/tmp/yum-root-6bcbFR/percona-release-latest.noarch.rpm to be installed
+          Resolving Dependencies
+          --> Running transaction check
+          ---> Package percona-release.noarch 0:1.0-15 will be installed
+          --> Finished Dependency Resolution
 
+          Dependencies Resolved
+
+          ================================================================================
+           Package            Arch      Version   Repository                         Size
+          ================================================================================
+          Installing:
+           percona-release    noarch    1.0-15    /percona-release-latest.noarch     21 k
+
+          Transaction Summary
+          ================================================================================
+          Install  1 Package
+
+          Total size: 21 k
+          Installed size: 21 k
 
    To install |Percona Server| with SELinux policies, you also need the :program:`Percona-Server-selinux-*.noarch.rpm` package:
 
@@ -144,6 +164,218 @@ This will install only packages required to run the |Percona Server|. To install
 
    When installing packages manually like this, you'll need to make sure to resolve all the dependencies and install missing packages yourself.
 
+Install an Older Version of |Percona Server|
+============================================
+
+A DBA may require the same MySQL version for all installed database instances.
+The required version may not be the most recent one. The following methods may
+be used to install an required version:
+
+* Download the specific version packages and install the packages manually
+* Create a custom local repository mirror and upgrade from that mirror with yum
+* Connect to a cloud instance with the required database and software
+* Point the default package-management utility to a specific version
+
+Add the `Percona repository <percona_repo>`_ . To verify, run the following
+``yum`` command:
+
+.. code-block:: bash
+
+    $ yum -q list available --showduplicates Percona-Server-server-56.x86_64
+
+.. admonition:: Output example
+
+    The query result has been edited for clarity:
+
+      .. code-block:: guess
+
+            Available Packages
+            Percona-Server-server-56.x86_64   5.6.20-rel68.0.el7      percona-release-x86_64
+            Percona-Server-server-56.x86_64   5.6.21-rel69.0.el7      percona-release-x86_64
+            Percona-Server-server-56.x86_64   5.6.21-rel70.0.el7      percona-release-x86_64
+            Percona-Server-server-56.x86_64   5.6.21-rel70.1.el7      percona-release-x86_64
+            Percona-Server-server-56.x86_64   5.6.22-rel71.0.el7      percona-release-x86_64
+            Percona-Server-server-56.x86_64   5.6.22-rel72.0.el7      percona-release-x86_64
+            ...
+            Percona-Server-server-56.x86_64   5.6.37-rel82.2.el7      percona-release-x86_64
+            ...
+
+Use yum to install an older version. You must rearrange the package
+name to list the package, version, and CPU family. Remove the ".x86_64"
+suffix from the package name.
+
+For example, with Percona-Server 5.6.37, the name for the server in the package
+repository is:
+
+.. list-table::
+    :widths: 25 25
+    :header-rows: 1
+
+    * - Repository Name
+      - CPU Family
+    * - Percona-Server-server-56.x86_64
+      - 5.6.37-rel82.2.el7
+
+For installation, convert the package name to the following:
+
+.. code-block:: bash
+
+    Percona-Server-server-56-5.6.37-rel82.2.el7
+
+The following code installs the 5.6.37 version:
+
+.. code-block:: bash
+
+    $ yum -q install Percona-Server-server-56-5.6.37-rel82.2.el7
+    Percona-Server-client-56-5.6.37-rel82.el7 Percona-Server-shared-56-5.6.37-rel82.2.el7
+
+.. admonition:: Output example
+
+    The results are the following:
+
+    .. code-block:: bash
+
+        ============================================================================================================================================
+         Package                                Arch                 Version                             Repository                            Size
+        ============================================================================================================================================
+        Installing:
+         Percona-Server-client-56               x86_64               5.6.37-rel82.2.el7                  percona-release-x86_64               5.6 M
+         Percona-Server-server-56               x86_64               5.6.37-rel82.2.el7                  percona-release-x86_64                18 M
+         Percona-Server-shared-56               x86_64               5.6.37-rel82.2.el7                  percona-release-x86_64               618 k
+             replacing  mariadb-libs.x86_64 1:5.5.64-1.el7
+
+        Transaction Summary
+        ============================================================================================================================================
+        Install  3 Packages
+
+        Is this ok [y/d/N]:
+
+After you have installed the version, if you must revert to an
+earlier version, you can use :program:`Yum` to also do that:
+
+.. code:: bash
+
+    $ yum -q downgrade Percona-Server-server-56.x86_64
+    Percona-Server-client-56.x86_64 Percona-Server-sharing-56.x86_64
+
+    ============================================================================================================================================
+    Package                                Arch                 Version                             Repository                            size
+    ============================================================================================================================================
+    Downgrading:
+     Percona-Server-client-56               x86_64               5.6.36-rel82.1.el7                  percona-release-x86_64               5.7 M
+     Percona-Server-server-56               x86_64               5.6.36-rel82.1.el7                  percona-release-x86_64                18 M
+
+    Transaction Summary
+    ============================================================================================================================================
+    Downgrade  2 Packages
+
+    Is this ok [y/d/N]:
+
+You can also downgrade to specific older version. In this example, you are
+downgrading to the 5.6.30 version. Run the following command:
+
+.. code-block:: bash
+
+    $ yum -q downgrade Percona-Server-server-56-5.6.30-rel76.3.el7
+    Percona-Server-client-56-5.6.30-rel76.3.el7 Percona-Server-sharing-56-5.6.30-rel76.3.el7
+
+    ============================================================================================================================================
+     Package                                Arch                 Version                             Repository                            Size
+    ============================================================================================================================================
+    Downgrading:
+     Percona-Server-client-56               x86_64               5.6.30-rel76.3.el7                  percona-release-x86_64               5.6 M
+     Percona-Server-server-56               x86_64               5.6.30-rel76.3.el7                  percona-release-x86_64                18 M
+
+    Transaction Summary
+    ============================================================================================================================================
+    Downgrade  2 Packages
+
+    Is this ok [y/d/N]:
+
+You can also use the ``Yum shell`` to install versions. The advantage of this
+method is a version is removed and a different version is installed in a
+single YUM transaction instead of manually downloading
+and installing each package. The transaction also does not break any
+package dependencies when you uninstall one version and install another.
+
+.. code-block:: bash
+
+      $ yum shell
+      Loaded plugins: fastestmirror, langpacks
+      > remove Percona-Server-shared-56 Percona-Server-client-56 Percona-Server-server-56
+      > install Percona-Server-server-56-5.6.30-rel76.3.el7 Percona-Server-client-56-5.6.30-rel76.3.el7 Percona-Server-shared-56-5.6.30-rel76.3.el7
+      Loading mirror speeds from cached hostfile
+       * base: mirrors.raystedman.org
+       * epel: fedora-epel.mirror.lstn.net
+       * extras: mirrors.raystedman.org
+       * updates: mirrors.raystedman.org
+      > run
+      --> Running transaction check
+      ---> Package Percona-Server-client-56.x86_64 0:5.6.30-rel76.3.el7 will be installed
+      ---> Package Percona-Server-client-56.x86_64 0:5.6.37-rel82.2.el7 will be erased
+      ---> Package Percona-Server-server-56.x86_64 0:5.6.30-rel76.3.el7 will be installed
+      ---> Package Percona-Server-server-56.x86_64 0:5.6.37-rel82.2.el7 will be erased
+      ---> Package Percona-Server-shared-56.x86_64 0:5.6.30-rel76.3.el7 will be installed
+      ---> Package Percona-Server-shared-56.x86_64 0:5.6.37-rel82.2.el7 will be erased
+      --> Finished Dependency Resolution
+
+      ============================================================================================================================================
+       Package                                Arch                 Version                            Repository                             Size
+      ============================================================================================================================================
+      Installing:
+       Percona-Server-client-56               x86_64               5.6.30-rel76.3.el7                 percona-release-x86_64                5.6 M
+       Percona-Server-server-56               x86_64               5.6.30-rel76.3.el7                 percona-release-x86_64                 18 M
+       Percona-Server-shared-56               x86_64               5.6.30-rel76.3.el7                 percona-release-x86_64                619 k
+      Removing:
+       Percona-Server-client-56               x86_64               5.6.37-rel82.2.el7                 @percona-release-x86_64                33 M
+       Percona-Server-server-56               x86_64               5.6.37-rel82.2.el7                 @percona-release-x86_64                88 M
+       Percona-Server-shared-56               x86_64               5.6.37-rel82.2.el7                 @percona-release-x86_64               3.4 M
+
+      Transaction Summary
+      ============================================================================================================================================
+      Install  3 Packages
+      Remove   3 Packages
+
+      Total download size: 24 M
+      Is this ok [y/d/N]:
+
+When you run package update, you can prevent an inadvertant set of updates to the
+latest version. You must have ``yum-plugin-versionlock`` installed and you can
+lock the packages to a specific version.
+
+.. code-block:: bash
+
+    $ yum versionlock Percona-Server-server-56 Percona-Server-client-56 Percona-Server-shared-56
+    Loaded plugins: fastestmirror, langpacks, versionlock
+    Adding versionlock on: 0:Percona-Server-server-56-5.6.30-rel76.3.el7
+    Adding versionlock on: 0:Percona-Server-client-56-5.6.30-rel76.3.el7
+    Adding versionlock on: 0:Percona-Server-shared-56-5.6.30-rel76.3.el7
+    versionlock added: 3
+    $ yum update
+    Loaded plugins: fastestmirror, langpacks, versionlock
+    Loading mirror speeds from cached hostfile
+     * base: mirrors.raystedman.org
+     * epel: pubmirror1.math.uh.edu
+     * extras: mirrors.raystedman.org
+     * updates: mirrors.raystedman.org
+    Excluding 3 updates due to versionlock (use "yum versionlock status" to show them)
+    No packages marked for update
+    $ yum -q versionlock list
+    0:Percona-Server-server-56-5.6.30-rel76.3.el7.*
+    0:Percona-Server-client-56-5.6.30-rel76.3.el7.*
+    0:Percona-Server-shared-56-5.6.30-rel76.3.el7.*
+
+To update the packages to a different version, run the following
+command to unlock the versions before you run update:
+
+.. code-block:: bash
+
+    $ yum versionlock clear
+
+.. note::
+
+    The command can clear all version locks or a specific version lock.
+=======
 The following table lists the default locations for files:
 
 .. list-table::
@@ -169,9 +401,10 @@ You can use the following command to locate the Data directory:
 
     datadir=/var/lib/mysql
 
-
 Running |Percona Server|
 ========================
+
+|Percona Server| stores the data files in :file:`/var/lib/mysql/` by default. You can find the configuration file that is used to manage |Percona Server| in :file:`/etc/my.cnf`.
 
 1. Starting the service
 

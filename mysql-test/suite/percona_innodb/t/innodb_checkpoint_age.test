@@ -1,0 +1,12 @@
+#
+# The purpose of this test is to make sure Innodb_checkpoint_age and Innodb_checkpoint_max_age
+# status variables are updated after server startup and have non-zero values.
+#
+
+--let $assert_text = Innodb_checkpoint_age not zero
+--let $assert_cond = VARIABLE_VALUE > 0 FROM performance_schema.global_status WHERE VARIABLE_NAME = "Innodb_checkpoint_age"
+--source include/assert.inc
+
+--let $assert_text = Innodb_checkpoint_max_age not zero
+--let $assert_cond = VARIABLE_VALUE > 0 FROM performance_schema.global_status WHERE VARIABLE_NAME = "Innodb_checkpoint_max_age"
+--source include/assert.inc

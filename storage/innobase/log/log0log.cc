@@ -1141,6 +1141,7 @@ void log_print(const log_t &log, FILE *file) {
   lsn_t max_assigned_lsn;
   lsn_t current_lsn;
   lsn_t oldest_lsn;
+  lsn_t max_checkpoint_age;
   uint64_t file_min_id;
   uint64_t file_max_id;
 
@@ -1158,6 +1159,7 @@ void log_print(const log_t &log, FILE *file) {
 
   log_limits_mutex_enter(log);
   oldest_lsn = log.available_for_checkpoint_lsn;
+  max_checkpoint_age = log_free_check_capacity(log);
   log_limits_mutex_exit(log);
 
   log_files_mutex_exit(log);
@@ -1187,11 +1189,13 @@ void log_print(const log_t &log, FILE *file) {
           last_checkpoint_lsn, file_min_id, file_max_id);
 
   fprintf(file,
-          "Modified age no less than " LSN_PF
+          "Modified age no less than    " LSN_PF
           "\n"
-          "Checkpoint age        " LSN_PF "\n",
+          "Checkpoint age               " LSN_PF
+          "\n"
+          "Max checkpoint age           " LSN_PF "\n",
           current_lsn - buf_pool_get_oldest_modification_lwm(),
-          current_lsn - log_sys->last_checkpoint_lsn);
+          current_lsn - log_sys->last_checkpoint_lsn, max_checkpoint_age);
 
   time_t current_time = time(nullptr);
 

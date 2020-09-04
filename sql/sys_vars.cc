@@ -278,6 +278,10 @@ static bool check_session_admin(sys_var *self MY_ATTRIBUTE((unused)), THD *thd,
   DBUG_ASSERT(self->scope() !=
               sys_var::GLOBAL);  // don't abuse check_session_admin()
   Security_context *sctx = thd->security_context();
+
+  /* Skip ACL checks for SET commands */
+  DBUG_EXECUTE_IF("skip_session_admin_check", return false;);
+
   if ((setv->type == OPT_SESSION || setv->type == OPT_DEFAULT) &&
       !sctx->has_global_grant(STRING_WITH_LEN("SESSION_VARIABLES_ADMIN"))
            .first &&

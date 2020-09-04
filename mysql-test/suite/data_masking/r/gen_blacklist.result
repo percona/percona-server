@@ -1,0 +1,24 @@
+#
+# Plugin Data Masking: gen_blacklist
+#
+CREATE FUNCTION gen_blacklist RETURNS STRING SONAME 'data_masking.so';
+CREATE FUNCTION gen_dictionary_drop RETURNS STRING SONAME 'data_masking.so';
+CREATE FUNCTION gen_dictionary_load RETURNS STRING SONAME 'data_masking.so';
+SELECT gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities');
+gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities')
+Dictionary load success
+SELECT gen_dictionary_load('../../std_data/data_masking/us_cities.txt', 'us_cities');
+gen_dictionary_load('../../std_data/data_masking/us_cities.txt', 'us_cities')
+Dictionary load success
+SELECT gen_blacklist('Moscow', 'DE_Cities', 'US_Cities');
+gen_blacklist('Moscow', 'DE_Cities', 'US_Cities')
+Moscow
+SELECT gen_dictionary_drop('de_cities');
+gen_dictionary_drop('de_cities')
+Dictionary removed
+SELECT gen_dictionary_drop('us_cities');
+gen_dictionary_drop('us_cities')
+Dictionary removed
+DROP FUNCTION gen_dictionary_load;
+DROP FUNCTION gen_dictionary_drop;
+DROP FUNCTION gen_blacklist;

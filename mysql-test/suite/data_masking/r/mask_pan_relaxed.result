@@ -1,0 +1,23 @@
+#
+# Plugin Data Masking: mask_pan_relaxed
+#
+CREATE FUNCTION mask_pan_relaxed RETURNS STRING SONAME 'data_masking.so';
+SELECT mask_pan_relaxed("1234567890122461");
+mask_pan_relaxed("1234567890122461")
+123456XXXXXX2461
+SELECT mask_pan_relaxed("123456789012246");
+mask_pan_relaxed("123456789012246")
+123456XXXXX2246
+SELECT mask_pan_relaxed(NULL);
+mask_pan_relaxed(NULL)
+NULL
+SELECT mask_pan_relaxed("");
+mask_pan_relaxed("")
+
+SELECT mask_pan_relaxed("123496798465498779");
+mask_pan_relaxed("123496798465498779")
+123496798465498779
+SELECT mask_pan_relaxed("this is not a pan");
+mask_pan_relaxed("this is not a pan")
+this is not a pan
+DROP FUNCTION mask_pan_relaxed;

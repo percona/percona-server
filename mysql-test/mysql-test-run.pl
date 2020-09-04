@@ -204,7 +204,8 @@ my $DEFAULT_SUITES= "main,sys_vars,binlog,binlog_encryption,rpl_encryption,encry
   ."tokudb.add_index,tokudb.alter_table,tokudb,tokudb.bugs,tokudb.parts,"
   ."tokudb.rpl,tokudb.perfschema,"
   ."rocksdb,rocksdb_rpl,rocksdb_sys_vars,"
-  ."keyring_vault,audit_null,percona-pam-for-mysql";
+  ."keyring_vault,audit_null,percona-pam-for-mysql,data_masking";
+
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose

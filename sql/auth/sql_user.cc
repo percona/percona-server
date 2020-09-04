@@ -226,6 +226,8 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
   if (!acl_cache_lock.lock()) return true;
 
+  DEBUG_SYNC(thd, "acl_s_lock");
+
   if (!(acl_user =
             find_acl_user(user_name->host.str, user_name->user.str, true))) {
     String wrong_users;

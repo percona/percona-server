@@ -1845,6 +1845,8 @@ std::tuple<bool, bool, uint> Slave_worker::check_and_report_end_of_retries(
         has_temporary_error(thd, da->is_error() ? da->mysql_errno() : 0,
                             &silent)) {
       error = ER_LOCK_DEADLOCK;
+      DBUG_EXECUTE_IF("simulate_exhausted_trans_retries",
+                      { trans_retries = slave_trans_retries; };);
     }
   }
 
@@ -1854,7 +1856,8 @@ std::tuple<bool, bool, uint> Slave_worker::check_and_report_end_of_retries(
 
   if (trans_retries >= slave_trans_retries) {
     thd->fatal_error();
-    c_rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
+    c_rli->report(ERROR_LEVEL,
+                  thd->is_error() ? thd->get_stmt_da()->mysql_errno() : error,
                   "worker thread retried transaction %lu time(s) "
                   "in vain, giving up. Consider raising the value of "
                   "the replica_transaction_retries variable.",

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3014,7 +3014,7 @@ static const char *optimizer_switch_names[]=
   "materialization", "semijoin", "loosescan", "firstmatch", "duplicateweedout",
   "subquery_materialization_cost_based",
   "use_index_extensions", "condition_fanout_filter", "derived_merge",
-  "default", NullS
+  "favor_range_scan", "default", NullS
 };
 static Sys_var_flagset Sys_optimizer_switch(
        "optimizer_switch",
@@ -3025,8 +3025,8 @@ static Sys_var_flagset Sys_optimizer_switch(
        ", materialization, semijoin, loosescan, firstmatch, duplicateweedout,"
        " subquery_materialization_cost_based"
        ", block_nested_loop, batched_key_access, use_index_extensions,"
-       " condition_fanout_filter, derived_merge} and val is one of "
-       "{on, off, default}",
+       " condition_fanout_filter, derived_merge, favor_range_scan}"
+       " and val is one of {on, off, default}",
        SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
        optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL));
@@ -3828,12 +3828,18 @@ static bool check_binlog_transaction_dependency_tracking(sys_var *self, THD *thd
 static bool update_binlog_transaction_dependency_tracking(sys_var* var, THD* thd, enum_var_type v)
 {
   /*
+    m_opt_tracking_mode is read and written in an atomic way based
+    on the value of m_opt_tracking_mode_value that is associated
+    with the sys_var variable.
+  */
+    set_mysqld_opt_tracking_mode();
+  /*
     the writeset_history_start needs to be set to 0 whenever there is a
     change in the transaction dependency source so that WS and COMMIT
     transition smoothly.
   */
-  mysql_bin_log.m_dependency_tracker.tracking_mode_changed();
-  return false;
+    mysql_bin_log.m_dependency_tracker.tracking_mode_changed();
+    return false;
 }
 
 static PolyLock_mutex
@@ -3846,7 +3852,7 @@ static Sys_var_enum Binlog_transaction_dependency_tracking(
        "assess which transactions can be executed in parallel by the "
        "slave's multi-threaded applier. "
        "Possible values are COMMIT_ORDER, WRITESET and WRITESET_SESSION.",
-       GLOBAL_VAR(mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode),
+       GLOBAL_VAR(mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode_value),
        CMD_LINE(REQUIRED_ARG), opt_binlog_transaction_dependency_tracking_names,
        DEFAULT(DEPENDENCY_TRACKING_COMMIT_ORDER),
        &PLock_slave_trans_dep_tracker,

@@ -1,0 +1,5 @@
+include/assert.inc ['Assert we are binding on all networks']
+# An unproxied client connection should be accepted when connection to an extra_port if proxying enabled on the server
+SHOW GLOBAL STATUS LIKE 'Threads_connected';
+Variable_name	Value
+Threads_connected	1

@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,14 @@
 
 # By default, a build will include the system SSL library.
 %{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
+
+# Pass path to LDAP lib
+%{?with_ldap: %global ldap_option -DWITH_LDAP=%{with_ldap}}
+%{?with_ldap: %global ldap 1}
+
+# Pass path to SASL lib
+%{?with_sasl: %global sasl_option -DWITH_SASL=%{with_sasl}}
+%{?with_sasl: %global sasl 1}
 
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 1}
@@ -470,6 +478,8 @@ fi
            -DWITH_EMBEDDED_SERVER=1 \
            -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
            %{?ssl_option} \
+           %{?ldap_option} \
+           %{?sasl_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
@@ -504,6 +514,8 @@ mkdir debug
            -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
            -DWITH_NUMA=ON \
            %{?ssl_option} \
+           %{?ldap_option} \
+           %{?sasl_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
@@ -1294,8 +1306,7 @@ rm -r $(readlink var) var
 
 * Mon Nov 16 2009 Joerg Bruehe <joerg.bruehe@sun.com>
 
-- Fix some problems with the directives around "tcmalloc" (experimental),
-  remove erroneous traces of the InnoDB plugin (that is 5.1 only).
+- remove erroneous traces of the InnoDB plugin (that is 5.1 only).
 
 * Tue Oct 06 2009 Magnus Blaudd <mvensson@mysql.com>
 

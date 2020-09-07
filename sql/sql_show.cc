@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2354,16 +2354,24 @@ public:
     /* INFO */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_query);
     {
-      const char *query_str;
-      size_t query_length;
-      if ((query_length = inspect_thd->rewritten_query.length()) > 0) {
-        query_str = inspect_thd->rewritten_query.c_ptr();
-      } else {
+      const char *query_str= NULL;
+      size_t query_length= 0;
+
+      /* If a rewritten query exists, use that. */
+      if (inspect_thd->rewritten_query().length() > 0) {
+        query_length = inspect_thd->rewritten_query().length();
+        query_str = inspect_thd->rewritten_query().ptr();
+      }
+      /*
+        Otherwise, use the original query.
+      */
+      else {
         query_length = inspect_thd->query().length;
         query_str = inspect_thd->query().str;
       }
 
 #ifndef EMBEDDED_LIBRARY
+      /* In the stand-alone server, add "PLUGIN" as needed. */
       String buf;
       if (inspect_thd->is_a_srv_session())
       {
@@ -2377,6 +2385,7 @@ public:
       }
       /* No else. We need fall-through */
 #endif
+      /* If we managed to create query info, set a copy on thd_info. */
       if (query_str)
       {
         const size_t width= min<size_t>(m_max_query_length, query_length);
@@ -2591,18 +2600,24 @@ public:
     /* INFO */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_query);
     {
-      const char *query_str;
-      size_t query_length;
+      const char *query_str= NULL;
+      size_t query_length= 0;
 
-      if (inspect_thd->rewritten_query.length()) {
-        query_str = inspect_thd->rewritten_query.c_ptr_safe();
-        query_length = inspect_thd->rewritten_query.length();
-      } else {
-        query_str = inspect_thd->query().str;
+      /* If a rewritten query exists, use that. */
+      if (inspect_thd->rewritten_query().length() > 0) {
+        query_length = inspect_thd->rewritten_query().length();
+        query_str = inspect_thd->rewritten_query().ptr();
+      }
+      /*
+        Otherwise, use the original query.
+      */
+      else {
         query_length = inspect_thd->query().length;
+        query_str = inspect_thd->query().str;
       }
 
 #ifndef EMBEDDED_LIBRARY
+      /* In the stand-alone server, add "PLUGIN" as needed. */
       String buf;
       if (inspect_thd->is_a_srv_session())
       {
@@ -2616,6 +2631,7 @@ public:
       }
       /* No else. We need fall-through */
 #endif
+      /* If we managed to create query info, set a copy on thd_info. */
       if (query_str)
       {
         const size_t width= min<size_t>(PROCESS_LIST_INFO_WIDTH, query_length);
@@ -3029,7 +3045,7 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
       break;
 
     case SHOW_SIGNED_INT:
-      end= int10_to_str((long) *(uint32*) value, buff, -10);
+      end= int10_to_str((long) *(int32*) value, buff, -10);
       value_charset= system_charset_info;
       break;
 
@@ -3163,6 +3179,19 @@ static bool show_status_array(THD *thd, const char *wild,
       {
         const char *pos;
         size_t length;
+
+        DBUG_EXECUTE_IF("catch_show_gtid_mode", {
+          String gtid_mode;
+          static const char *gm= "gtid\\_mode";
+          unsigned int errors;
+          gtid_mode.copy(gm, strlen(gm), &my_charset_latin1, system_charset_info,
+                         &errors);
+
+          if (!my_strcasecmp(system_charset_info, wild,
+                             gtid_mode.c_ptr_safe())) {
+            DEBUG_SYNC_C("before_show_gtid_executed");
+          }
+        });
 
         mysql_mutex_lock(&LOCK_global_system_variables);
         pos= get_one_variable(thd, var, value_type, show_type, status_var,
@@ -9018,6 +9047,9 @@ int hton_fill_schema_table(THD *thd, TABLE_LIST *tables, Item *cond)
   struct run_hton_fill_schema_table_args args;
   args.tables= tables;
   args.cond= cond;
+
+  if (check_global_access(thd, PROCESS_ACL))
+    DBUG_RETURN(1);
 
   plugin_foreach(thd, run_hton_fill_schema_table,
                  MYSQL_STORAGE_ENGINE_PLUGIN, &args);

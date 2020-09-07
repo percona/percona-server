@@ -344,14 +344,21 @@ inline
 void thd_get_audit_query(THD *thd, MYSQL_LEX_CSTRING *query,
                          const struct charset_info_st **charset)
 {
-  if (!thd->rewritten_query.length())
+  /*
+    If we haven't tried to rewrite the query to obfuscate passwords
+    etc. yet, do so now.
+  */
+  if (thd->rewritten_query().length() == 0)
     mysql_rewrite_query(thd);
 
-  if (thd->rewritten_query.length())
-  {
-    query->str= thd->rewritten_query.ptr();
-    query->length= thd->rewritten_query.length();
-    *charset= thd->rewritten_query.charset();
+  /*
+    If there was something to rewrite, use the rewritten query;
+    otherwise, just use the original as submitted by the client.
+  */
+  if (thd->rewritten_query().length() > 0) {
+    query->str= thd->rewritten_query().ptr();
+    query->length= thd->rewritten_query().length();
+    *charset= thd->rewritten_query().charset();
   }
   else
   {
@@ -641,6 +648,10 @@ int mysql_audit_table_access_notify(THD *thd, TABLE_LIST *table)
   mysql_event_table_access_subclass_t subclass;
   const char *subclass_name;
   int ret;
+
+  if ((thd->system_thread &
+       (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) != 0)
+    return 0;
 
   /* Do not generate events for non query table access. */
   if (!thd->lex->query_tables)

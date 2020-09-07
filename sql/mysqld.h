@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -422,7 +422,7 @@ extern bool THR_THD_initialized;
 
 static inline THD * my_thread_get_THR_THD()
 {
-  DBUG_ASSERT(THR_THD_initialized);
+  if (!THR_THD_initialized) return NULL;
   return (THD*)my_get_thread_local(THR_THD);
 }
 
@@ -431,6 +431,11 @@ static inline int my_thread_set_THR_THD(THD *thd)
   DBUG_ASSERT(THR_THD_initialized);
   return my_set_thread_local(THR_THD, thd);
 }
+
+/**
+  Set m_opt_tracking_mode with a user given value associated with sysvar.
+*/
+void set_mysqld_opt_tracking_mode();
 
 #ifdef HAVE_PSI_INTERFACE
 
@@ -962,6 +967,7 @@ enum options_mysqld
   OPT_SSL_KEY,
   OPT_UPDATE_LOG,
   OPT_WANT_CORE,
+  OPT_COREDUMPER,
   OPT_LOG_ERROR,
   OPT_MAX_LONG_DATA_SIZE,
   OPT_EARLY_PLUGIN_LOAD,
@@ -1081,4 +1087,8 @@ static inline THD *_current_thd(void)
 bool update_named_pipe_full_access_group(const char *new_group_name);
 #endif
 
+/* coredumper */
+extern bool  opt_libcoredumper;
+extern char *opt_libcoredumper_path;
+bool         validate_libcoredumper_path(char *opt_libcoredumper_path);
 #endif /* MYSQLD_INCLUDED */

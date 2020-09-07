@@ -4,7 +4,7 @@
  TokuDB Introduction
 =====================
 
-|TokuDB| is a highly scalable, zero-maintenance downtime MySQL storage engine that delivers indexing-based query acceleration, improved replication performance, unparalleled compression, and live schema modification. The |TokuDB| storage engine is a scalable, ACID and MVCC compliant storage engine that provides indexing-based query improvements, offers online schema modifications, and reduces slave lag for both hard disk drives and flash memory. This storage engine is specifically designed for high performance on write-intensive workloads which is achieved with Fractal Tree indexing.
+|TokuDB| is a highly scalable, zero-maintenance downtime MySQL storage engine that delivers indexing-based query acceleration, improved replication performance, unparalleled compression, and live schema modification. The |TokuDB| storage engine is a scalable, ACID and MVCC compliant storage engine that provides indexing-based query improvements, offers online schema modifications, and reduces replica lag for both hard disk drives and flash memory. This storage engine is specifically designed for high performance on write-intensive workloads which is achieved with Fractal Tree indexing.
 
 |Percona Server| is compatible with the separately available |TokuDB| storage engine package. The |TokuDB| engine must be separately downloaded and then enabled as a plug-in component. This package can be installed alongside with standard |Percona Server| 5.7 releases and does not require any specially adapted version of |Percona Server|.
 
@@ -18,7 +18,7 @@ Additional features unique to |TokuDB| include:
 
 * Fast Inserts
 
-* Eliminates Slave Lag with :ref:`Read Free Replication <tokudb_read_free_replication>`
+* Eliminates Replica Lag with :ref:`Read Free Replication <tokudb_read_free_replication>`
 
 * Hot Schema Changes
 
@@ -49,7 +49,7 @@ Getting the Most from TokuDB
 
 **Fast Insertions and Deletions**: TokuDB's Fractal Tree technology enables fast indexed insertions and deletions. Fractal Trees match B-trees in their indexing sweet spot (sequential data) and are up to two orders of magnitude faster for random data with high cardinality.
 
-**Eliminates Slave Lag**: |TokuDB| replication slaves can be configured to process the replication stream with virtually no read IO. Uniqueness checking is performed on the |TokuDB| master and can be skipped on all |TokuDB| slaves. Also, row based replication ensures that all before and after row images are captured in the binary logs, so the |TokuDB| slaves can harness the power of Fractal Tree indexes and bypass traditional read-modify-write behavior. This "Read Free Replication" ensures that replication slaves do not fall behind the master and can be used for read scaling, backups, and disaster recovery, without sharding, expensive hardware, or limits on what can be replicated.
+**Eliminates Replica Lag**: |TokuDB| replication replicas can be configured to process the replication stream with virtually no read IO. Uniqueness checking is performed on the |TokuDB| source and can be skipped on all |TokuDB| replicas. Also, row based replication ensures that all before and after row images are captured in the binary logs, so the |TokuDB| replicas can harness the power of Fractal Tree indexes and bypass traditional read-modify-write behavior. This "Read Free Replication" ensures that replication replicas do not fall behind the source and can be used for read scaling, backups, and disaster recovery, without sharding, expensive hardware, or limits on what can be replicated.
 
 **Hot Index Creation**: |TokuDB| allows the addition of indexes to an existing table while inserts and queries are being performed on that table. This means that |MySQL| can be run continuously with no blocking of queries or insertions while indexes are added and eliminates the down-time that index changes would otherwise require.
 

@@ -4,7 +4,7 @@
  Per-session server-id
 =========================
 
-Variable :variable:`server_id` is a global variable. In multi-master replication setups or for external replication, :variable:`server_id` can be useful as a session variable. In that case a session replaying a binary log from another server would set it to that server's id. That way binary log has the ultimate source server id attached to it no matter how many hosts it passes, and it would provide loop detection for multi-master replication. 
+Variable :variable:`server_id` is a global variable. In multi-source replication setups or for external replication, :variable:`server_id` can be useful as a session variable. In that case a session replaying a binary log from another server would set it to that server's id. That way binary log has the ultimate source server id attached to it no matter how many hosts it passes, and it would provide loop detection for multi-source replication.
 
 This was implemented by introducing the new :variable:`pseudo_server_id` variable. This variable, when set to non-zero value, will cause all binary log events in that session to have that :variable:`server_id` value. A new variable was introduced instead of converting :variable:`server_id` to have both global and session scope in order to preserve compatibility. 
 

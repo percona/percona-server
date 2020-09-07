@@ -4338,6 +4338,11 @@ row_merge_create_index(
 		this index, to ensure read consistency. */
 		ut_ad(index->trx_id == trx->id);
 	} else {
+		/* In case we were unable to assign an undo record for this index
+		we won't free index memory object */
+		if (err == DB_TOO_MANY_CONCURRENT_TRXS) {
+			dict_mem_index_free(index);
+		}
 		index = NULL;
 	}
 

@@ -2441,6 +2441,10 @@ fil_name_write(
 	const fil_node_t*	file,
 	mtr_t*			mtr)
 {
+	/* Temporary tablespaces ibtmp1 or the file_per_table
+	compressed temporary tablespaces should never be redo logged */
+	ut_ad(FSP_FLAGS_GET_TEMPORARY(space->flags) == 0);
+
 	fil_name_write(space->id, first_page_no, file->name, mtr);
 }
 
@@ -8104,7 +8108,11 @@ fil_encryption_rotate_low(const fil_space_t* space)
 		mtr_t mtr;
 		mtr_start(&mtr);
 
-		if (fsp_is_system_temporary(space->id)) {
+		/* Compressed temporary tables are file_per_table
+		tablespaces and cannot be determined by space_id check.
+		Check the temporary FSP flag for these tablespaces */
+		if (fsp_is_system_temporary(space->id)
+		    || FSP_FLAGS_GET_TEMPORARY(space->flags)) {
 			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 		}
 

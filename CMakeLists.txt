@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -94,6 +94,8 @@ IF(NOT DEFINED MANUFACTURER)
   MARK_AS_ADVANCED(MANUFACTURER)
 ENDIF()
 
+#Caching for BUILD TESTING
+SET(BUILD_TESTING OFF CACHE BOOL "")
 
 # MAX_INDEXES - Set the maximum number of indexes per table, default 64U
 IF (NOT MAX_INDEXES)
@@ -267,14 +269,18 @@ IF(WITH_DEFAULT_FEATURE_SET)
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/build_configurations/feature_set.cmake)
 ENDIF()
 
+INCLUDE(CMakePushCheckState)
+
 # Add macros
 INCLUDE(character_sets)
+INCLUDE(compile_flags)
 INCLUDE(cpu_info)
 INCLUDE(zlib)
 INCLUDE(lz4)
 INCLUDE(libevent)
 INCLUDE(ssl)
 INCLUDE(sasl)
+INCLUDE(ldap)
 INCLUDE(rpc)
 INCLUDE(readline)
 INCLUDE(protobuf)
@@ -286,6 +292,7 @@ INCLUDE(install_macros)
 INCLUDE(install_layout)
 INCLUDE(mysql_add_executable)
 INCLUDE(curl)
+INCLUDE(coredumper)
 INCLUDE(prepend_append_cflags_if_supported)
 
 # Handle options
@@ -316,6 +323,9 @@ ENDIF()
 IF(NOT WITHOUT_SERVER)
   OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
 ENDIF()
+OPTION(WITH_AUTHENTICATION_LDAP
+  "Report error if the LDAP authentication plugin cannot be built." OFF)
+
 OPTION(FORCE_UNSUPPORTED_COMPILER "Disable compiler version checks" OFF)
 MARK_AS_ADVANCED(WITHOUT_SERVER DISABLE_SHARED FORCE_UNSUPPORTED_COMPILER)
 
@@ -417,6 +427,15 @@ IF (ENABLE_GPROF AND NOT WIN32 AND NOT APPLE)
     "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} -pg")
 ENDIF()
 
+# Linker/binutils bug in Fedora 28, Ubuntu 16.04, Debian 8 and Debian 9,
+# undefined reference to symbol '__bss_start'
+IF(LINUX_FEDORA_28 OR LINUX_UBUNTU_16_04 OR LINUX_DEBIAN_8 OR LINUX_DEBIAN_9)
+  IF(NOT CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=lld" AND
+     NOT CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=gold")
+    STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -Wl,--copy-dt-needed-entries")
+  ENDIF()
+ENDIF()
+
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   OPTION(REPRODUCIBLE_BUILD "Take extra pains to make build result independent of build location and time" OFF)
 ENDIF()
@@ -452,6 +471,8 @@ OPTION(ENABLED_LOCAL_INFILE
 MARK_AS_ADVANCED(ENABLED_LOCAL_INFILE)
 
 OPTION(OPTIMIZER_TRACE "Support tracing of Optimizer" ON)
+
+OPTION (WITH_COREDUMPER "Enable support for coredumper library" ON)
 
 #
 # Options related to client-side protocol tracing
@@ -563,6 +584,7 @@ INCLUDE(configure.cmake)
 
 # Common defines and includes
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
+ADD_DEFINITIONS(-DLZ4_DISABLE_DEPRECATE_WARNINGS) # C++14 deprecation warnings in LZ4.
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}/include
   ${CMAKE_SOURCE_DIR}/extra/rapidjson/include
@@ -586,12 +608,16 @@ MYSQL_CHECK_LIBEVENT()
 MYSQL_CHECK_LZ4()
 # Add SASL library
 MYSQL_CHECK_SASL()
+# Add LDAP library
+MYSQL_CHECK_LDAP()
 # Add protoc and libprotobuf
 IF(NOT WITHOUT_SERVER)
   MYSQL_CHECK_PROTOBUF()
 ENDIF()
 # Try and set CURL_LIBRARY
 MYSQL_CHECK_CURL()
+# Add coredumper
+MYSQL_CHECK_COREDUMPER()
 
 # Check for SYS_thread_selfid system call
 CHECK_C_SOURCE_COMPILES("

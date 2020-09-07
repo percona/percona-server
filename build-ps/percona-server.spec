@@ -193,6 +193,7 @@ Requires:       grep
 Requires:       procps
 Requires:       shadow-utils
 Requires:       net-tools
+Requires:       openssl
 Requires(pre):  Percona-Server-shared%{product_suffix}
 Requires:       Percona-Server-client%{product_suffix}
 Provides:       MySQL-server%{?_isa} = %{version}-%{release}
@@ -244,6 +245,12 @@ For a description of Percona Server see http://www.percona.com/software/percona-
 %package -n Percona-Server-test%{product_suffix}
 Summary:        Test suite for the Percona Server
 Group:          Applications/Databases
+Requires:       Percona-Server-server%{product_suffix} = %{version}-%{release}
+%if 0%{?rhel} == 8
+Requires:       perl(Getopt::Long)
+Requires:       perl(Memoize)
+Requires:       perl(Time::HiRes)
+%endif
 Provides:       mysql-test = %{version}-%{release}
 Provides:       mysql-test%{?_isa} = %{version}-%{release}
 Conflicts:      Percona-SQL-test-50 Percona-Server-test-51 Percona-Server-test-55 Percona-Server-test-56
@@ -380,7 +387,7 @@ mkdir debug
 (
   cd debug
   # Attempt to remove any optimisation flags from the debug build
-  optflags=$(echo "%{optflags}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /')
+  optflags=$(echo "%{optflags}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ -Wno-missing-field-initializers -Wno-error /')
   cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
@@ -515,6 +522,8 @@ rm -rf %{buildroot}%{_datadir}/percona-server/mysql.server
 rm -rf %{buildroot}%{_datadir}/percona-server/mysqld_multi.server
 rm -f %{buildroot}%{_datadir}/percona-server/win_install_firewall.sql
 rm -rf %{buildroot}%{_bindir}/mysql_embedded
+rm -rf %{buildroot}/usr/cmake/coredumper-relwithdebinfo.cmake
+rm -rf %{buildroot}/usr/cmake/coredumper.cmake
 
 %if 0%{?tokudb}
   rm -f %{buildroot}%{_prefix}/README.md
@@ -543,6 +552,18 @@ rm -rf %{buildroot}%{_bindir}/mysql_embedded
     --clean-vardir
   rm -r $(readlink var) var
 %endif
+
+%pretrans -n Percona-Server-server%{product_suffix}
+if [ -d %{_datadir}/mysql ] && [ ! -L %{_datadir}/mysql ]; then
+  MYCNF_PACKAGE=$(rpm -qf /usr/share/mysql --queryformat "%{NAME}")
+fi
+
+if [ "$MYCNF_PACKAGE" == "mariadb-libs" -o "$MYCNF_PACKAGE" == "mysql-libs" ]; then
+  MODIFIED=$(rpm -Va "$MYCNF_PACKAGE" | grep '/usr/share/mysql' | awk '{print $1}' | grep -c 5)
+  if [ "$MODIFIED" == 1 ]; then
+    cp -r %{_datadir}/mysql %{_datadir}/mysql.old
+  fi
+fi
 
 %pre -n Percona-Server-server%{product_suffix}
 /usr/sbin/groupadd -g 27 -o -r mysql >/dev/null 2>&1 || :
@@ -645,6 +666,9 @@ echo "See http://www.percona.com/doc/percona-server/5.7/management/udf_percona_t
 %endif
 if [ "$1" = 0 ]; then
   timestamp=$(date '+%Y%m%d-%H%M')
+  if [ -L %{_datadir}/mysql ]; then
+      rm %{_datadir}/mysql
+  fi
   if [ ! -L /etc/my.cnf ]; then
     cp -p /etc/my.cnf /etc/my.cnf_backup-${timestamp}
   else
@@ -664,6 +688,18 @@ fi
     /sbin/service mysql condrestart >/dev/null 2>&1 || :
   fi
 %endif
+
+%posttrans -n Percona-Server-server%{product_suffix}
+if [ -d %{_datadir}/mysql ] && [ ! -L %{_datadir}/mysql ]; then
+  MYCNF_PACKAGE=$(rpm -qf /usr/share/mysql --queryformat "%{NAME}")
+  if [ "$MYCNF_PACKAGE" == "file %{_datadir}/mysql is not owned by any package" ]; then
+    mv %{_datadir}/mysql %{_datadir}/mysql.old
+  fi
+fi
+
+if [ ! -d %{_datadir}/mysql ] && [ ! -L %{_datadir}/mysql ]; then
+    ln -s %{_datadir}/percona-server %{_datadir}/mysql
+fi
 
 %post -n Percona-Server-shared%{product_suffix} -p /sbin/ldconfig
 
@@ -910,6 +946,9 @@ fi
 %attr(755, root, root) %{_datadir}/percona-server/spanish/
 %attr(755, root, root) %{_datadir}/percona-server/swedish/
 %attr(755, root, root) %{_datadir}/percona-server/ukrainian/
+#coredumper
+%attr(755, root, root) %{_includedir}/coredumper/coredumper.h
+%attr(755, root, root) /usr/lib/libcoredumper.a
 
 %files -n Percona-Server-client%{product_suffix}
 %defattr(-, root, root, -)
@@ -1438,8 +1477,7 @@ fi
 
 * Mon Nov 16 2009 Joerg Bruehe <joerg.bruehe@sun.com>
 
-- Fix some problems with the directives around "tcmalloc" (experimental),
-  remove erroneous traces of the InnoDB plugin (that is 5.1 only).
+- remove erroneous traces of the InnoDB plugin (that is 5.1 only).
 
 * Tue Oct 06 2009 Magnus Blaudd <mvensson@mysql.com>
 

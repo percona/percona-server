@@ -80,6 +80,7 @@ SELECT @@innodb_track_changed_pages;
 12th restart
 # restart:--innodb-data-home-dir=tmpdatadir --datadir=MYSQLD_DATADIR1
 ib_modified_log_1
+ib_modified_log_2
 include/assert.inc [INFORMATION_SCHEMA.INNODB_CHANGED_PAGES is not empty]
 13th restart
 # restart:--innodb-track-changed-pages=TRUE

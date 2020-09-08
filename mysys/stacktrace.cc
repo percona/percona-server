@@ -291,6 +291,7 @@ void my_print_buildID() {
   unsigned char *build_id;
   char buff[3];
   uint i;
+  uint bytes_read;
   snprintf(proc_path, sizeof(proc_path), "/proc/%d/exe", getpid());
   readlink_bytes = readlink(proc_path, mysqld_path, sizeof(mysqld_path));
   if (readlink_bytes < 1) {
@@ -313,9 +314,16 @@ void my_print_buildID() {
     ++phdr;
   }
   nhdr = (ElfW(Nhdr) *)(phdr->p_offset + (size_t)ehdr);
+  bytes_read = sizeof(ElfW(Nhdr));
   while (nhdr->n_type != NT_GNU_BUILD_ID) {
     nhdr = (ElfW(Nhdr) *)((size_t)nhdr + sizeof(ElfW(Nhdr)) + nhdr->n_namesz +
                           nhdr->n_descsz);
+    bytes_read += nhdr->n_namesz + nhdr->n_descsz;
+    if (bytes_read > phdr->p_filesz) {
+      my_safe_printf_stderr("Build ID: Not Available \n");
+      fclose(mysqld);
+      return;
+    }
   }
   build_id =
       (unsigned char *)my_malloc(PSI_NOT_INSTRUMENTED, nhdr->n_descsz, MYF(0));

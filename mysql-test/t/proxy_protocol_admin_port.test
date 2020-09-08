@@ -5,7 +5,7 @@
 
 --let $PORT_OFFSET = 100
 --expr $ADMIN_PORT = $MASTER_MYPORT + $PORT_OFFSET
---let $restart_parameters=restart: --skip-name-resolve --admin-address=::ffff:127.0.0.1 --admin_port=$ADMIN_PORT --proxy_protocol_networks=*
+--let $restart_parameters=restart: --skip-name-resolve --admin-address=::ffff:127.0.0.1 --admin_port=$ADMIN_PORT --admin-ssl=OFF --proxy_protocol_networks=*
 --replace_result $ADMIN_PORT ADMIN_PORT
 --source include/restart_mysqld.inc
 

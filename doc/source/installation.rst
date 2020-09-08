@@ -184,8 +184,12 @@ packages for all Debian and Ubuntu releases.
   the |Percona Server| with PAM plugin, additional option
   :option:`-DWITH_PAM=ON` should be used.
 
-.. toctree::
-   :hidden:
+Running |Percona Server| in a Docker Container
+==============================================
 
-   installation/docker
+Docker images of Percona Server for MySQL are hosted publicly on Docker Hub at https://hub.docker.com/r/percona/percona-server/.
 
+.. seealso::
+
+    :ref:`docker`
+ 

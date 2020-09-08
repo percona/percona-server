@@ -709,6 +709,9 @@ build_tarball(){
     if [ -f /etc/redhat-release ]; then
       export OS_RELEASE="centos$(lsb_release -sr | awk -F'.' '{print $1}')"
       RHEL=$(rpm --eval %rhel)
+      if [ ${RHEL} = 6 ]; then
+        source /opt/percona-devtoolset/enable
+      fi
     fi
     #
 

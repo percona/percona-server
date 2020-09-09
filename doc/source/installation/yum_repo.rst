@@ -51,20 +51,15 @@ Each of the |Percona Server| RPM packages have a particular purpose.
 Installing |Percona Server| from Percona ``yum`` repository
 ===========================================================
 
-Please add sudo to percona-release setup and yum install commands
-
-
-|tip.run-all.root|
+You can install Percona yum repository by running the following commands as a ``root`` user or with sudo.
 
 1. Install the Percona repository
-
-   You can install Percona yum repository by running the following command as a ``root`` user or with sudo:
 
    .. code-block:: bash
 
       $ sudo yum install https://repo.percona.com/yum/percona-release-latest.noarch.rpm
 
-   You should see some output such as the following:
+   You should see an output that the files are being downloaded, like the following:
 
    .. code-block:: bash
 
@@ -80,9 +75,7 @@ Please add sudo to percona-release setup and yum install commands
 
 #. Install the packages
 
-   You can now install |Percona Server| by running:
-
-   .. code-block:: bash
+      .. code-block:: bash
 
       $ sudo yum install percona-server-server
 
@@ -218,7 +211,7 @@ Server| in :file:`/etc/my.cnf`.
    *RHEL* 7 and *CentOS* 7 come with `systemd
    <http://freedesktop.org/wiki/Software/systemd/>`_ as the default
    system and service manager so you can invoke all the above commands
-   with ``sytemctl`` instead of ``service``. Currently both are
+   with ``sytemctl`` instead of ``service``. Currently, both are
    supported.
 
 Uninstalling |Percona Server|
@@ -226,23 +219,30 @@ Uninstalling |Percona Server|
 
 To completely uninstall |Percona Server| you'll need to remove all the installed packages and data files.
 
-1.  Stop the |Percona Server| service: |service.mysql.stop|
+1.  Stop the |Percona Server| service:
+
+    .. code-block:: bash
+
+        $ sudo service mysql stop
+        
 #. Remove the packages:
 
    .. code-block:: bash
 
       $ sudo yum remove percona-server*
 
-#. Remove the data and configuration files
+#. Remove the data and configuration files:
+
+.. warning::
+
+    This step removes all the packages and deletes all the data files (databases,
+    tables, logs, etc.). Take a backup before doing this in case you need the data.
+
 
    .. code-block:: bash
 
       rm -rf /var/lib/mysql
       rm -f /etc/my.cnf
 
-.. warning::
 
-   This will remove all the packages and delete all the data files (databases,
-   tables, logs, etc.), you might want to take a backup before doing this in
-   case you need the data.
 

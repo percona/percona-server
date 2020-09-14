@@ -1,0 +1,4 @@
+--echo #
+--echo # Plugin Data Masking: gen_rnd_us_phone
+--echo #
+SELECT gen_rnd_us_phone() LIKE '1-555-%';

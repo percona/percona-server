@@ -144,10 +144,58 @@ std::string random_us_phone() {
   return std::string("1")
       .append("-")
       .append("555")
+      .append("-")
       .append(random_number(3))
       .append("-")
       .append(random_number(4));
 }
 
+const char *Charset_service::arg_type("charset");
+const char *Charset_service::service_name("mysql_udf_metadata");
+SERVICE_TYPE(mysql_udf_metadata) *Charset_service::udf_metadata_service =
+    nullptr;
+
+bool Charset_service::init(SERVICE_TYPE(registry) * reg_srv) {
+  my_h_service h_udf_metadata_service;
+  if (!reg_srv || reg_srv->acquire(service_name, &h_udf_metadata_service))
+    return true;
+  udf_metadata_service = reinterpret_cast<SERVICE_TYPE(mysql_udf_metadata) *>(
+      h_udf_metadata_service);
+  return false;
+}
+
+bool Charset_service::deinit(SERVICE_TYPE(registry) * reg_srv) {
+  if (!reg_srv) return true;
+  using udf_metadata_t = SERVICE_TYPE_NO_CONST(mysql_udf_metadata);
+  if (udf_metadata_service)
+    reg_srv->release(reinterpret_cast<my_h_service>(
+        const_cast<udf_metadata_t *>(udf_metadata_service)));
+  return false;
+}
+
+/* Set the return value character set as latin1 */
+bool Charset_service::set_return_value_charset(
+    UDF_INIT *initid, const std::string &charset_name) {
+  char *charset = const_cast<char *>(charset_name.c_str());
+  if (udf_metadata_service->result_set(initid, Charset_service::arg_type,
+                                       static_cast<void *>(charset))) {
+    return true;
+  }
+  return false;
+}
+
+bool Charset_service::set_args_charset(UDF_ARGS *args,
+                                       const std::string &charset_name) {
+  char *charset = const_cast<char *>(charset_name.c_str());
+  for (uint index = 0; index < args->arg_count; ++index) {
+    if (args->arg_type[index] == STRING_RESULT &&
+        udf_metadata_service->argument_set(args, Charset_service::arg_type,
+                                           index,
+                                           static_cast<void *>(charset))) {
+      return true;
+    }
+  }
+  return false;
+}
 }  // namespace plugins
 }  // namespace mysql

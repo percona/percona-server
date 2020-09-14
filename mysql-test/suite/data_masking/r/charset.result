@@ -1,0 +1,31 @@
+#
+# Plugin Data Masking: charset test for all UDFs
+#
+# check charset of mask_ssn()
+include/assert.inc [charset should be latin1]
+# check charset of mask_inner()
+include/assert.inc [charset should be latin1]
+# check charset of mask_outer()
+include/assert.inc [charset should be latin1]
+# check charset of mask_pan()
+include/assert.inc [charset should be latin1]
+# check charset of mask_pan_relaxed()
+include/assert.inc [charset should be latin1]
+# check charset of gen_rnd_email()
+include/assert.inc [charset should be latin1]
+# check charset of gen_rnd_pan()
+include/assert.inc [charset should be latin1]
+# check charset of gen_rnd_ssn()
+include/assert.inc [charset should be latin1]
+# check charset of gen_dictionary_load()
+include/assert.inc [charset should be latin1]
+# check charset of gen_dictionary_drop()
+include/assert.inc [charset should be latin1]
+SELECT gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities');
+gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities')
+Dictionary load success
+# check charset of gen_dictionary()
+include/assert.inc [charset should be latin1]
+SELECT gen_dictionary_drop('de_cities');
+gen_dictionary_drop('de_cities')
+Dictionary removed

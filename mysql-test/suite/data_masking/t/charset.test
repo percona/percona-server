@@ -1,0 +1,74 @@
+--echo #
+--echo # Plugin Data Masking: charset test for all UDFs
+--echo #
+
+--echo # check charset of mask_ssn()
+--let $result = `SELECT CHARSET(mask_ssn('123-45-6789')) = 'latin1'`
+--let $assert_cond= "$result" = 1
+--let $assert_text = charset should be latin1
+--source include/assert.inc
+
+--echo # check charset of mask_inner()
+--let $result = `SELECT CHARSET(mask_inner('abcdef', 1, 2)) = 'latin1'`
+--let $assert_cond= "$result" = 1
+--let $assert_text = charset should be latin1
+--source include/assert.inc
+
+
+--echo # check charset of mask_outer()
+--let $result = `SELECT CHARSET(mask_outer('abcdef', 1, 2)) = 'latin1'`
+--let $assert_cond= "$result" = 1
+--let $assert_text = charset should be latin1
+--source include/assert.inc
+
+--echo # check charset of mask_pan()
+--let $result = `SELECT CHARSET(mask_pan('4621101280677953')) = 'latin1'`
+--let $assert_cond= "$result" = 1
+--let $assert_text = charset should be latin1
+--source include/assert.inc
+
+--echo # check charset of mask_pan_relaxed()
+--let $result = `SELECT CHARSET(mask_pan_relaxed('4621101280677953')) = 'latin1'`
+--let $assert_cond= "$result" = 1
+--let $assert_text = charset should be latin1
+--source include/assert.inc
+
+--echo # check charset of gen_rnd_email()
+--let $result = `SELECT CHARSET(gen_rnd_email()) = 'latin1'`
+--let $assert_cond= "$result" = 1
+--let $assert_text = charset should be latin1
+--source include/assert.inc
+
+--echo # check charset of gen_rnd_pan()
+--let $result = `SELECT CHARSET(gen_rnd_pan()) = 'latin1'`
+--let $assert_cond= "$result" = 1
+--let $assert_text = charset should be latin1
+--source include/assert.inc
+
+--echo # check charset of gen_rnd_ssn()
+--let $result = `SELECT CHARSET(gen_rnd_ssn()) = 'latin1'`
+--let $assert_cond= "$result" = 1
+--let $assert_text = charset should be latin1
+--source include/assert.inc
+
+--echo # check charset of gen_dictionary_load()
+--let $result = `SELECT CHARSET(gen_dictionary_load('de_cities.txt', 'de_cities')) = 'latin1'`
+--let $assert_cond= "$result" = 1
+--let $assert_text = charset should be latin1
+--source include/assert.inc
+
+--echo # check charset of gen_dictionary_drop()
+--let $result = `SELECT CHARSET(gen_dictionary_drop('de_cities')) = 'latin1'`
+--let $assert_cond= "$result" = 1
+--let $assert_text = charset should be latin1
+--source include/assert.inc
+
+SELECT gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities');
+
+--echo # check charset of gen_dictionary()
+--let $result = `SELECT CHARSET(gen_dictionary('de_cities')) = 'latin1'`
+--let $assert_cond= "$result" = 1
+--let $assert_text = charset should be latin1
+--source include/assert.inc
+
+SELECT gen_dictionary_drop('de_cities');

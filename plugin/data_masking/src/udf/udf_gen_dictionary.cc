@@ -34,6 +34,13 @@ static bool gen_dictionary_init(UDF_INIT *initid, UDF_ARGS *args,
     DBUG_RETURN(true);
   }
 
+  if (mysql::plugins::Charset_service::set_return_value_charset(initid) ||
+      mysql::plugins::Charset_service::set_args_charset(args)) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE,
+                  "Unable to set character set service for UDF");
+    DBUG_RETURN(true);
+  }
+
   initid->maybe_null = 1;
   initid->const_item =
       0;  // Non-Deterministic: same arguments will produce different values

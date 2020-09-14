@@ -37,7 +37,7 @@
 
 namespace myrocks {
 
-class Rdb_thread {
+class Rdb_thread : public Ensure_initialized {
  private:
   // Disable Copying
   Rdb_thread(const Rdb_thread &);
@@ -73,7 +73,10 @@ class Rdb_thread {
 
   void signal(const bool stop_thread = false);
 
-  int join() { return my_thread_join(&m_handle, nullptr); }
+  int join() {
+    if (!m_run_once) return EINVAL;
+    return my_thread_join(&m_handle, nullptr);
+  }
 
   void uninit();
 

@@ -5050,6 +5050,8 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
   delete it;
   LogPluginErrMsg(INFORMATION_LEVEL, 0,
                   "Table_store: loaded DDL data for %d tables", i);
+
+  initialized = true;
   return false;
 }
 
@@ -5392,6 +5394,8 @@ bool Rdb_ddl_manager::rename(const std::string &from, const std::string &to,
 }
 
 void Rdb_ddl_manager::cleanup() {
+  if (!initialized) return;
+
   for (const auto &kv : m_ddl_map) {
     delete kv.second;
   }
@@ -5470,6 +5474,7 @@ bool Rdb_dict_manager::init(rocksdb::TransactionDB *const rdb_dict,
     return HA_EXIT_FAILURE;
   }
 
+  initialized = true;
   return HA_EXIT_SUCCESS;
 }
 

@@ -1,0 +1,6 @@
+#
+# Plugin Data Masking: gen_rnd_us_phone
+#
+SELECT gen_rnd_us_phone() LIKE '1-555-%';
+gen_rnd_us_phone() LIKE '1-555-%'
+1

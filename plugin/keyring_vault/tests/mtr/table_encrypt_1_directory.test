@@ -8,6 +8,9 @@
 --source generate_default_directory_conf_files.inc
 --source is_vault_server_up.inc
 
+# Waiting time when (re)starting the server
+--let $explicit_default_wait_counter=15000
+
 # Create mount point
 --let MOUNT_POINT_SERVICE_OP=CREATE
 --let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_1

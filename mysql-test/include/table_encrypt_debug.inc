@@ -13,7 +13,7 @@
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
-# # innodb-force-recovery-crash needs debug
+# innodb-force-recovery-crash needs debug
 --source include/have_debug.inc
 
 --disable_query_log
@@ -220,7 +220,7 @@ DROP DATABASE tde_db;
 CREATE DATABASE tde_db;
 
 # Write file to make mysql-test-run.pl start up the server again
---exec echo "$KEYRING_RESTART_PARAM" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "$keyring_restart_param" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 CREATE TABLE tde_db.test_tbl(c1 int) ENCRYPTION="Y" ENGINE=InnoDB;
 
@@ -239,6 +239,7 @@ if ($keyring_file_test)
 
 SELECT COUNT(*) FROM tde_db.test_tbl;
 
+DROP TABLE tde_db.test_tbl;
 
 # Cleanup
 DROP DATABASE tde_db;
@@ -250,4 +251,15 @@ eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;
 --remove_file $MYSQLD_DATADIR/t1.ibd_back
 
 # Tests above might leave this in bad state
+if ($keyring_file_data)
+{
+  --remove_file $keyring_file_data
+}
+--let $restart_parameters=$keyring_restart_param
+--let $do_not_echo_parameters=1
+--source include/start_mysqld.inc
+
+# Verify normal operation
+CREATE TABLE test.t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+DROP TABLE test.t1;
 

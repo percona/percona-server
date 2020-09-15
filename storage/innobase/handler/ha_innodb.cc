@@ -290,6 +290,7 @@ extern uint srv_background_scrub_data_check_interval;
 
 static Innodb_data_lock_inspector innodb_data_lock_inspector;
 
+static const uint MAX_ENCRYPTION_THREADS = 255;
 extern uint srv_fil_crypt_rotate_key_age;
 extern uint srv_n_fil_crypt_iops;
 
@@ -24267,8 +24268,8 @@ static MYSQL_SYSVAR_UINT(
     encryption_threads, srv_n_fil_crypt_threads_requested, PLUGIN_VAR_RQCMDARG,
     "Number of threads performing background key rotation and "
     "scrubbing",
-    innodb_encryption_threads_validate, innodb_encryption_threads_update,
-    srv_n_fil_crypt_threads_requested, 0, UINT_MAX32, 0);
+    innodb_encryption_threads_validate, innodb_encryption_threads_update, 0, 0,
+    MAX_ENCRYPTION_THREADS, 0);
 
 static MYSQL_SYSVAR_UINT(encryption_rotate_key_age,
                          srv_fil_crypt_rotate_key_age, PLUGIN_VAR_RQCMDARG,

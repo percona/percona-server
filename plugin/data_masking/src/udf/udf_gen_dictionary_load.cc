@@ -21,6 +21,7 @@
 #include "utils_string.h"
 */
 
+#include "include/my_io.h"
 #include "plugin/data_masking/include/plugin.h"
 #include "plugin/data_masking/include/udf/udf_gen_dictionary_load.h"
 #include "plugin/data_masking/include/udf/udf_utils.h"
@@ -28,6 +29,10 @@
 
 #include <fstream>
 #include <iostream>
+
+/* Server functions */
+extern bool is_secure_file_path(const char *path);
+extern size_t dirname_part(char *to, const char *name, size_t *to_res_length);
 
 static bool gen_dictionary_load_init(UDF_INIT *initid, UDF_ARGS *args,
                                      char *message) {
@@ -94,6 +99,22 @@ static std::string _gen_dictionary_load(const char *dictionary_path,
   std::string res = "Dictionary load error: unknown";
   std::string s_dictname(dictionary_name);
   mysql::plugins::tolower(s_dictname);
+
+  /* Extract directory part of the filename */
+  char directory[FN_REFLEN] = {0};
+  size_t dir_len = 0;
+  dirname_part(directory, dictionary_path, &dir_len);
+
+  if (dir_len == 0) {
+    DBUG_RETURN("ERROR: File path is not valid");
+  }
+
+  /* Check if dictionary file is present in --secure_file_priv directory */
+  if (!is_secure_file_path(directory)) {
+    DBUG_RETURN(
+        "ERROR: File is not in directory set by --secure_file_priv. Please "
+        "copy the file to secure_file_priv directory and try again");
+  }
 
   std::ifstream file(dictionary_path);
   // Check if the file exist in disk

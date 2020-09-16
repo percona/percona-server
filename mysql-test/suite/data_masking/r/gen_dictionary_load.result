@@ -3,10 +3,30 @@
 #
 SELECT gen_dictionary_load('de_cities.txt', 'de_cities');
 gen_dictionary_load('de_cities.txt', 'de_cities')
-Dictionary load error: dictionary file not readable
+ERROR: File path is not valid
 SELECT gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities');
 gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities')
 Dictionary load success
 SELECT gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities');
 gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities')
 Dictionary load error: a dictionary with that name already exists
+SELECT gen_dictionary_drop('de_cities');
+gen_dictionary_drop('de_cities')
+Dictionary removed
+#
+# PS-7308: gen_dictionary_load() doesn't check secure-file-priv
+#
+# restart: --secure_file_priv=MYSQL_TMP_DIR
+SELECT gen_dictionary_load('de_cities.txt', 'de_cities');
+gen_dictionary_load('de_cities.txt', 'de_cities')
+ERROR: File path is not valid
+SELECT gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities');
+gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities')
+ERROR: File is not in directory set by --secure_file_priv. Please copy the file to secure_file_priv directory and try again
+SELECT gen_dictionary_load('MYSQL_TMP_DIR/de_cities.txt', 'de_cities');
+gen_dictionary_load('MYSQL_TMP_DIR/de_cities.txt', 'de_cities')
+Dictionary load success
+SELECT gen_dictionary_drop('de_cities');
+gen_dictionary_drop('de_cities')
+Dictionary removed
+# restart

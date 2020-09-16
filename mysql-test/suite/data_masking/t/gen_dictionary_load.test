@@ -4,3 +4,22 @@
 SELECT gen_dictionary_load('de_cities.txt', 'de_cities');
 SELECT gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities');
 SELECT gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities');
+SELECT gen_dictionary_drop('de_cities');
+
+--echo #
+--echo # PS-7308: gen_dictionary_load() doesn't check secure-file-priv
+--echo #
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $restart_parameters = "restart: --secure_file_priv=$MYSQL_TMP_DIR"
+--source include/restart_mysqld.inc
+SELECT gen_dictionary_load('de_cities.txt', 'de_cities');
+SELECT gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities');
+--copy_file $MYSQLTEST_VARDIR/std_data/data_masking/de_cities.txt $MYSQL_TMP_DIR/de_cities.txt
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--eval SELECT gen_dictionary_load('$MYSQL_TMP_DIR/de_cities.txt', 'de_cities')
+SELECT gen_dictionary_drop('de_cities');
+
+--let $restart_parameters =
+--source include/restart_mysqld.inc
+--remove_file $MYSQL_TMP_DIR/de_cities.txt

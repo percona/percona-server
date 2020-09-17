@@ -1,3 +1,49 @@
---skip Not implemented
+--disable_warnings
+SET GLOBAL innodb_file_per_table = ON;
+INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
+--enable_warnings
 
+SET GLOBAL innodb_encryption_threads = 10;
 SELECT @@global.innodb_encryption_threads;
+
+SET GLOBAL innodb_encryption_threads = 1000;
+SELECT @@global.innodb_encryption_threads;
+
+SET GLOBAL innodb_encryption_threads = -1000;
+SELECT @@global.innodb_encryption_threads;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL innodb_encryption_threads = 10.5;
+SELECT @@global.innodb_encryption_threads;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL innodb_encryption_threads = ON;
+SELECT @@global.innodb_encryption_threads;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL innodb_encryption_threads = 'a';
+SELECT @@global.innodb_encryption_threads;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL innodb_encryption_threads = "abc";
+SELECT @@global.innodb_encryption_threads;
+
+--disable_warnings
+SET SESSION sql_mode = 'STRICT_ALL_TABLES';
+--enable_warnings
+SET GLOBAL innodb_encryption_threads = 10;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_encryption_threads = 1000;
+SELECT @@global.innodb_encryption_threads;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_encryption_threads = -1000;
+SELECT @@global.innodb_encryption_threads;
+
+# cleanup
+SET GLOBAL innodb_encryption_threads = 0;
+
+UNINSTALL PLUGIN keyring_file;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--remove_file $MYSQL_TMP_DIR/mydummy_key

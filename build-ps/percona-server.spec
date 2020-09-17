@@ -1118,7 +1118,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_simple.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_component_deinit.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/binlog_utils_udf.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_binlog_utils_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_wrappers.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_reference_cache.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_system_variable_set.so
@@ -1174,7 +1174,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_services_host_application_signal.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_component_deinit.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/binlog_utils_udf.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_binlog_utils_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_udf_wrappers.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_reference_cache.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_system_variable_set.so

@@ -441,6 +441,7 @@ static void rocksdb_drop_index_wakeup_thread(
 static bool rocksdb_pause_background_work = false;
 static mysql_mutex_t rdb_sysvars_mutex;
 static mysql_mutex_t rdb_block_cache_resize_mutex;
+static mysql_mutex_t rdb_bottom_pri_background_compactions_resize_mutex;
 
 static void rocksdb_set_pause_background_work(
     my_core::THD *const thd MY_ATTRIBUTE((__unused__)),
@@ -528,6 +529,10 @@ static int rocksdb_validate_set_block_cache_size(THD *thd,
                                                  struct SYS_VAR *const var,
                                                  void *var_ptr,
                                                  struct st_mysql_value *value);
+static int rocksdb_validate_max_bottom_pri_background_compactions(
+    THD *thd MY_ATTRIBUTE((__unused__)),
+    struct st_mysql_sys_var *const var MY_ATTRIBUTE((__unused__)),
+    void *var_ptr, struct st_mysql_value *value);
 //////////////////////////////////////////////////////////////////////////////
 // Options definitions
 //////////////////////////////////////////////////////////////////////////////
@@ -554,6 +559,7 @@ static const constexpr int RDB_MAX_CHECKSUMS_PCT = 100;
 static const constexpr uint32_t
     RDB_DEFAULT_FORCE_COMPUTE_MEMTABLE_STATS_CACHETIME = 60 * 1000 * 1000;
 static const constexpr ulong RDB_DEADLOCK_DETECT_DEPTH = 50;
+static const constexpr uint ROCKSDB_MAX_BOTTOM_PRI_BACKGROUND_COMPACTIONS = 64;
 
 static long long rocksdb_block_cache_size = RDB_DEFAULT_BLOCK_CACHE_SIZE;
 static long long rocksdb_sim_cache_size = 0;
@@ -1063,6 +1069,22 @@ static void rocksdb_update_read_free_rpl_tables(
   *static_cast<const char **>(var_ptr) = *static_cast<char *const *>(save);
 }
 
+static void rocksdb_set_max_bottom_pri_background_compactions_internal(
+    uint val) {
+  // Set lower priority for compactions
+  if (val > 0) {
+    // This creates background threads in rocksdb with BOTTOM priority pool.
+    // Compactions for bottommost level use threads in the BOTTOM pool, and
+    // the threads in the BOTTOM pool run with lower OS priority (19 in Linux).
+    rdb->GetEnv()->SetBackgroundThreads(val, rocksdb::Env::Priority::BOTTOM);
+    rdb->GetEnv()->LowerThreadPoolCPUPriority(rocksdb::Env::Priority::BOTTOM);
+    sql_print_information(
+        "Set %d compaction thread(s) with "
+        "lower scheduling priority.",
+        val);
+  }
+}
+
 static MYSQL_SYSVAR_STR(
     read_free_rpl_tables, rocksdb_read_free_rpl_tables,
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
@@ -1381,16 +1403,25 @@ static MYSQL_SYSVAR_INT(max_background_compactions,
                         rocksdb_db_options->max_background_compactions,
                         /* min */ -1, /* max */ 64, 0);
 
-static MYSQL_SYSVAR_UINT(max_bottom_pri_background_compactions,
-                         rocksdb_max_bottom_pri_background_compactions,
-                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-                         "Creating specified number of threads, setting lower "
-                         "CPU priority, and letting compactions use them. "
-                         "Maximum compaction concurrency is capped by "
-                         "rocksdb_max_background_compactions or "
-                         "rocksdb_max_background_jobs.",
-                         nullptr, nullptr, 0,
-                         /* min */ 0, /* max */ 64, 0);
+static MYSQL_SYSVAR_UINT(
+    max_bottom_pri_background_compactions,
+    rocksdb_max_bottom_pri_background_compactions, PLUGIN_VAR_RQCMDARG,
+    "Creating specified number of threads, setting lower "
+    "CPU priority, and letting Lmax compactions use them. "
+    "Maximum total compaction concurrency continues to be capped to "
+    "rocksdb_max_background_compactions or "
+    "rocksdb_max_background_jobs. In addition to that, Lmax "
+    "compaction concurrency is capped to "
+    "rocksdb_max_bottom_pri_background_compactions. Default value is 0, "
+    "which means all compactions are under concurrency of "
+    "rocksdb_max_background_compactions|jobs. If you set very low "
+    "rocksdb_max_bottom_pri_background_compactions (e.g. 1 or 2), compactions "
+    "may not be able to keep up. Since Lmax normally has "
+    "90 percent of data, it is recommended to set closer number to "
+    "rocksdb_max_background_compactions|jobs. This option is helpful to "
+    "give more CPU resources to other threads (e.g. query processing).",
+    rocksdb_validate_max_bottom_pri_background_compactions, nullptr, 0,
+    /* min */ 0, /* max */ ROCKSDB_MAX_BOTTOM_PRI_BACKGROUND_COMPACTIONS, 0);
 
 static MYSQL_SYSVAR_UINT(max_subcompactions,
                          rocksdb_db_options->max_subcompactions,
@@ -4978,6 +5009,9 @@ static int rocksdb_init_func(void *const p) {
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(rdb_block_cache_resize_mutex_key,
                    &rdb_block_cache_resize_mutex, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(rdb_bottom_pri_background_compactions_resize_mutex_key,
+                   &rdb_bottom_pri_background_compactions_resize_mutex,
+                   MY_MUTEX_INIT_FAST);
   Rdb_transaction::init_mutex();
 
   rocksdb_hton->state = SHOW_OPTION_YES;
@@ -5444,20 +5478,8 @@ static int rocksdb_init_func(void *const p) {
   // Skip cleaning up rdb_open_tables as we've succeeded
   rdb_open_tables_cleanup.skip();
 
-  // Set lower priority for compactions
-  if (rocksdb_max_bottom_pri_background_compactions > 0) {
-    // This creates background threads in rocksdb with BOTTOM priority pool.
-    // Compactions for bottommost level use threads in the BOTTOM pool, and
-    // the threads in the BOTTOM pool run with lower OS priority (19 in Linux).
-    rdb->GetEnv()->SetBackgroundThreads(
-        rocksdb_max_bottom_pri_background_compactions,
-        rocksdb::Env::Priority::BOTTOM);
-    rdb->GetEnv()->LowerThreadPoolCPUPriority(rocksdb::Env::Priority::BOTTOM);
-    LogPluginErrMsg(INFORMATION_LEVEL, 0,
-                    "Set %d compaction thread(s) with "
-                    "lower scheduling priority.",
-                    rocksdb_max_bottom_pri_background_compactions);
-  }
+  rocksdb_set_max_bottom_pri_background_compactions_internal(
+      rocksdb_max_bottom_pri_background_compactions);
 
   DBUG_RETURN(HA_EXIT_SUCCESS);
 }
@@ -5541,6 +5563,7 @@ static int rocksdb_done_func(void *const p) {
   rdb_open_tables.free();
   mysql_mutex_destroy(&rdb_sysvars_mutex);
   mysql_mutex_destroy(&rdb_block_cache_resize_mutex);
+  mysql_mutex_destroy(&rdb_bottom_pri_background_compactions_resize_mutex);
 
   delete rdb_collation_exceptions;
   mysql_mutex_destroy(&rdb_collation_data_mutex);
@@ -14599,6 +14622,47 @@ static void rocksdb_set_max_background_compactions(THD *thd,
   }
 
   RDB_MUTEX_UNLOCK_CHECK(rdb_sysvars_mutex);
+}
+
+/**
+   rocksdb_set_max_bottom_pri_background_compactions_internal() changes
+   the number of rocksdb background threads.
+   Creating new threads may take up to a few seconds, so instead of
+   calling the function at sys_var::update path where global mutex is held,
+   doing at sys_var::check path so that other queries are not blocked.
+   Same optimization is done for rocksdb_block_cache_size too.
+*/
+static int rocksdb_validate_max_bottom_pri_background_compactions(
+    THD *thd MY_ATTRIBUTE((__unused__)),
+    struct st_mysql_sys_var *const var MY_ATTRIBUTE((__unused__)),
+    void *var_ptr, struct st_mysql_value *value) {
+  DBUG_ASSERT(value != nullptr);
+
+  long long new_value;
+
+  /* value is NULL */
+  if (value->val_int(value, &new_value)) {
+    return HA_EXIT_FAILURE;
+  }
+  if (new_value < 0 ||
+      new_value > ROCKSDB_MAX_BOTTOM_PRI_BACKGROUND_COMPACTIONS) {
+    return HA_EXIT_FAILURE;
+  }
+  RDB_MUTEX_LOCK_CHECK(rdb_bottom_pri_background_compactions_resize_mutex);
+  if (rocksdb_max_bottom_pri_background_compactions != new_value) {
+    if (new_value == 0) {
+      my_error(ER_ERROR_WHEN_EXECUTING_COMMAND, MYF(0), "SET",
+               "max_bottom_pri_background_compactions can't be changed to 0 "
+               "online.");
+      RDB_MUTEX_UNLOCK_CHECK(
+          rdb_bottom_pri_background_compactions_resize_mutex);
+      return HA_EXIT_FAILURE;
+    }
+    rocksdb_set_max_bottom_pri_background_compactions_internal(new_value);
+  }
+  *static_cast<int64_t *>(var_ptr) = static_cast<int64_t>(new_value);
+  RDB_MUTEX_UNLOCK_CHECK(rdb_bottom_pri_background_compactions_resize_mutex);
+  return HA_EXIT_SUCCESS;
 }
 
 static void rocksdb_set_bytes_per_sync(

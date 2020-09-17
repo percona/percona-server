@@ -29,7 +29,9 @@
 */
 
 #include "mysql/mysql_lex_string.h"
+#ifndef MYSQL_COMPONENT
 #include "plugin.h"
+#endif
 
 #ifndef MYSQL_ABI_CHECK
 #include "m_string.h"

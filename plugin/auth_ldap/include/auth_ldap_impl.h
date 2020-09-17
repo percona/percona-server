@@ -1,4 +1,4 @@
-#ifndef _AUTH_LDAP_IMPL_MPALDAP_H
+#ifndef AUTH_LDAP_IMPL_MPALDAP_H
 /* Copyright (c) 2019 Francisco Miguel Biete Banon. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -13,7 +13,7 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
-#define _AUTH_LDAP_IMPL_MPALDAP_H
+#define AUTH_LDAP_IMPL_MPALDAP_H
 
 #include "plugin/auth_ldap/include/pool.h"
 
@@ -24,8 +24,11 @@
 namespace mysql {
 namespace plugin {
 namespace auth_ldap {
+
+using groups_t = std::vector<std::string>;
+
 struct t_group_mapping {
-  std::vector<std::string> ldap_groups;
+  groups_t ldap_groups;
   std::string mysql_user;
 };
 
@@ -47,12 +50,11 @@ class AuthLDAPImpl {
   std::string calc_ldap_uid();
 
   void calc_mappings(const std::string &group_str);
-  std::string calc_mysql_user(const std::list<std::string> &groups);
+  std::string calc_mysql_user(const groups_t &groups);
 
-  bool matched_map(const t_group_mapping &map,
-                   const std::list<std::string> &groups);
+  bool matched_map(const t_group_mapping &map, const groups_t &groups);
 
-  std::list<std::string> search_ldap_groups(const std::string &user_dn);
+  groups_t search_ldap_groups(const std::string &user_dn);
 
   std::string search_ldap_uid();
 
@@ -72,4 +74,4 @@ class AuthLDAPImpl {
 }  // namespace plugin
 }  // namespace mysql
 
-#endif  // _AUTH_LDAP_IMPL_MPALDAP_H
+#endif  // AUTH_LDAP_IMPL_MPALDAP_H

@@ -1,0 +1,140 @@
+--source include/have_udf.inc
+#
+# Create functions from binlog_utils_udf
+#
+
+--echo
+--echo *** creating a table that will be used to generate binlog events
+CREATE TABLE t1(
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY(id)
+) ENGINE=InnoDB;
+
+--echo
+--echo *** creating a temporary table that will store recorded binlog names and GTIDs
+CREATE TEMPORARY TABLE captured_gtid(
+  stage BIGINT UNSIGNED NOT NULL,
+  substage BIGINT UNSIGNED NOT NULL,
+  binlog_name VARCHAR(64) NOT NULL,
+  gtid_value VARCHAR(64) NOT NULL,
+  PRIMARY KEY(stage, substage)
+) ENGINE=InnoDB;
+
+--echo
+--echo *** generating several binlogs
+--disable_query_log
+--disable_result_log
+--let $number_of_stages = 16
+--let $number_of_substages = 16
+
+--let $stage = 1
+while($stage <= $number_of_stages)
+{
+  --let $binlog_file_name = query_get_value(SHOW MASTER STATUS, File, 1)
+
+  --let $substage = 1
+  while($substage <= $number_of_substages)
+  {
+    SET @saved_gtid_executed = @@global.gtid_executed;
+    START TRANSACTION;
+    --let $i = 1
+    while ($i <= $substage)
+    {
+      INSERT INTO t1 VALUES(DEFAULT);
+      --inc $i
+    }
+    COMMIT;
+    eval INSERT INTO captured_gtid VALUES($stage, $substage, '$binlog_file_name', GTID_SUBTRACT(@@global.gtid_executed, @saved_gtid_executed));
+    --inc $substage
+  }
+
+  FLUSH BINARY LOGS;
+
+  --inc $stage
+}
+--enable_result_log
+--enable_query_log
+
+--echo
+--echo *** checking if UDF works without loading the plugin
+--replace_result $BINLOG_UTILS_UDF_LIB BINLOG_UTILS_UDF_LIB
+eval CREATE FUNCTION get_last_gtid_from_binlog RETURNS STRING SONAME "$BINLOG_UTILS_UDF_LIB";
+--replace_result $binlog_file_name <binlog_file_name>
+--error ER_CANT_INITIALIZE_UDF
+eval SELECT get_last_gtid_from_binlog('$binlog_file_name');
+DROP FUNCTION get_last_gtid_from_binlog;
+
+--echo
+--echo *** checking 'get_last_gtid_from_binlog()' function
+--replace_result $BINLOG_UTILS_UDF_LIB BINLOG_UTILS_UDF_LIB
+eval INSTALL PLUGIN binlog_utils_udf SONAME '$BINLOG_UTILS_UDF_LIB';
+--replace_result $BINLOG_UTILS_UDF_LIB BINLOG_UTILS_UDF_LIB
+eval CREATE FUNCTION get_last_gtid_from_binlog RETURNS STRING SONAME "$BINLOG_UTILS_UDF_LIB";
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT get_last_gtid_from_binlog();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT get_last_gtid_from_binlog('blah', 'blah');
+
+# EE_FILENOTFOUND 29
+--error 29
+SELECT get_last_gtid_from_binlog('non_existing.000001');
+
+--let $stage = 1
+while($stage <= $number_of_stages)
+{
+  --let $current_binlog_name = `SELECT binlog_name FROM captured_gtid WHERE stage = $stage AND substage = $number_of_substages`
+  --let $current_gtid_value = `SELECT gtid_value FROM captured_gtid WHERE stage = $stage AND substage = $number_of_substages`
+
+  --let $assert_text = 'GTID extracted via get_last_gtid_from_binlog() for stage $stage should match the recorded value'
+  --let $assert_cond = get_last_gtid_from_binlog("$current_binlog_name") = "$current_gtid_value"
+  --source include/assert.inc
+
+  --inc $stage
+}
+
+DROP FUNCTION get_last_gtid_from_binlog;
+
+--echo
+--echo *** checking 'get_binlog_by_gtid()' function
+--replace_result $BINLOG_UTILS_UDF_LIB BINLOG_UTILS_UDF_LIB
+eval CREATE FUNCTION get_binlog_by_gtid RETURNS STRING SONAME "$BINLOG_UTILS_UDF_LIB";
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT get_binlog_by_gtid();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT get_binlog_by_gtid('blah', 'blah');
+
+SET @path_separator = '/';
+if(`SELECT CONVERT(@@version_compile_os USING latin1) IN ("Win32", "Win64", "Windows") = 1`)
+{
+  SET @path_separator = '\\';
+}
+
+--let $stage = 1
+while($stage <= $number_of_stages)
+{
+  --let $current_binlog_name = `SELECT binlog_name FROM captured_gtid WHERE stage = $stage AND substage = $number_of_substages`
+  --let $substage = 1
+  while($substage <= $number_of_substages)
+  {
+    --let $current_gtid_value = `SELECT gtid_value FROM captured_gtid WHERE stage = $stage AND substage = $substage`
+
+    --let $assert_text = 'binlog name extracted via get_binlog_by_gtid() for stage $stage, substage $substage should match the recorded value'
+    --let $assert_cond = REPLACE(get_binlog_by_gtid("$current_gtid_value"), @path_separator, "/") = "./$current_binlog_name"
+    --source include/assert.inc
+
+    --inc $substage
+  }
+  --inc $stage
+}
+
+DROP FUNCTION get_binlog_by_gtid;
+
+--replace_result $BINLOG_UTILS_UDF_LIB BINLOG_UTILS_UDF_LIB
+UNINSTALL PLUGIN binlog_utils_udf;
+
+DROP TABLE captured_gtid;
+DROP TABLE t1;

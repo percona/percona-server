@@ -28,7 +28,7 @@ std::string random_string(unsigned long length, bool letter_start);
 
 std::string random_number(const unsigned int length);
 
-unsigned int random_number(const unsigned int min, const unsigned int max);
+long random_number(const long min, const long max);
 
 std::string random_credit_card();
 

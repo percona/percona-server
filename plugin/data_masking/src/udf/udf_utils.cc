@@ -70,10 +70,10 @@ std::string random_number(const unsigned int length) {
   return str;
 }
 
-unsigned int random_number(const unsigned int min, const unsigned int max) {
+long random_number(const long min, const long max) {
   std::random_device r;
   std::default_random_engine el(r());
-  std::uniform_int_distribution<unsigned int> dist(min, max);
+  std::uniform_int_distribution<long> dist(min, max);
 
   return dist(el);
 }

@@ -457,7 +457,7 @@ static void rocksdb_drop_index_wakeup_thread(
 static bool rocksdb_pause_background_work = false;
 static Rds_mysql_mutex rdb_sysvars_mutex;
 static Rds_mysql_mutex rdb_block_cache_resize_mutex;
-static mysql_mutex_t rdb_bottom_pri_background_compactions_resize_mutex;
+static Rds_mysql_mutex rdb_bottom_pri_background_compactions_resize_mutex;
 
 static void rocksdb_set_pause_background_work(
     my_core::THD *const thd MY_ATTRIBUTE((__unused__)),
@@ -5101,10 +5101,9 @@ static int rocksdb_init_internal(void *const p) {
   rdb_sysvars_mutex.init(rdb_sysvars_psi_mutex_key, MY_MUTEX_INIT_FAST);
   rdb_block_cache_resize_mutex.init(rdb_block_cache_resize_mutex_key,
                                     MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(rdb_bottom_pri_background_compactions_resize_mutex_key,
-                   &rdb_bottom_pri_background_compactions_resize_mutex,
-                   MY_MUTEX_INIT_FAST);
-
+  rdb_bottom_pri_background_compactions_resize_mutex.init(
+      rdb_bottom_pri_background_compactions_resize_mutex_key,
+      MY_MUTEX_INIT_FAST);
   Rdb_transaction::init_mutex();
 
   DBUG_EXECUTE_IF("rocksdb_init_failure_mutexes_initialized", {
@@ -5709,7 +5708,7 @@ static int rocksdb_shutdown(bool minimalShutdown) {
 
   rdb_sysvars_mutex.destroy();
   rdb_block_cache_resize_mutex.destroy();
-  mysql_mutex_destroy(&rdb_bottom_pri_background_compactions_resize_mutex);
+  rdb_bottom_pri_background_compactions_resize_mutex.destroy();
 
   if (!minimalShutdown) {
     delete rdb_collation_exceptions;

@@ -23524,7 +23524,22 @@ static int innodb_encryption_threads_validate(
     return 1;
   }
 
-  if (srv_n_fil_crypt_threads_requested == 0 && intbuf > 0) {
+  bool is_val_fixed = false;
+  long long requested_threads = intbuf;
+  if (intbuf < 0) {
+    requested_threads = 0;
+    is_val_fixed = true;
+  } else if (intbuf > MAX_ENCRYPTION_THREADS) {
+    requested_threads = MAX_ENCRYPTION_THREADS;
+    is_val_fixed = true;
+  }
+
+  if (throw_bounds_warning(thd, "innodb_encryption_threads", is_val_fixed,
+                           intbuf)) {
+    return 1;
+  }
+
+  if (srv_n_fil_crypt_threads_requested == 0 && requested_threads > 0) {
     // We are starting encryption threads, we must lock
     // the keyring plugins
     uint number_of_keyrings_locked = lock_keyrings(NULL);
@@ -23545,14 +23560,13 @@ static int innodb_encryption_threads_validate(
       unlock_keyrings(NULL);
       return 1;
     }
-  } else if (intbuf == 0 &&
-             srv_n_fil_crypt_threads_requested > 0) {
+  } else if (requested_threads == 0 && srv_n_fil_crypt_threads_requested > 0) {
     // We are disabling encryption
     // threads, unlock the keyrings
     unlock_keyrings(NULL);
   }
 
-  *reinterpret_cast<ulong *>(save) = static_cast<ulong>(intbuf);
+  *reinterpret_cast<ulong *>(save) = static_cast<ulong>(requested_threads);
 
   return 0;
 }

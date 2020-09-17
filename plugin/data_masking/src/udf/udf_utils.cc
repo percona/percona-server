@@ -16,6 +16,7 @@
 #include "plugin/data_masking/include/udf/udf_utils.h"
 
 #include <algorithm>
+#include <cassert>
 
 namespace mysql {
 namespace plugins {
@@ -85,7 +86,7 @@ std::string random_credit_card() {
     case 3:
       // American Express: 1st N 3, 2nd N [4,7], len 15
       str.assign("3")
-          .append(std::to_string(random_number(4, 7)))
+          .append(std::to_string((random_number(0, 9) % 2) == 0 ? 4 : 7))
           .append(random_number(12));
       break;
     case 4:
@@ -115,8 +116,14 @@ std::string random_credit_card() {
       check_sum += n;
     }
   }
-  str.append(std::to_string(10 - (check_sum % 10)));
 
+  if (check_sum % 10 == 0) {
+    str.append(std::to_string(0));
+  } else {
+    str.append(std::to_string(10 - (check_sum % 10)));
+  }
+
+  assert(str.size() == 16 || str.size() == 15);
   return str;
 }
 

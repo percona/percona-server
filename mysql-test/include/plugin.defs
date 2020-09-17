@@ -205,5 +205,6 @@ authentication_ldap_sasl          plugin_output_directory  no  AUTH_LDAP_SASL   
 keyring_vault      plugin_output_directory  no  KEYRING_VAULT_PLUGIN keyring_vault
 test_udf_wrappers  plugin_output_directory  no  TEST_UDF_WRAPPERS_LIB
 procfs             plugin_output_directory  no  PROCFS_PLUGIN procfs
+component_binlog_utils_udf          plugin_output_directory  no  BINLOG_UTILS_UDF_LIB
 component_masking_functions         plugin_output_directory  no  MASKING_FUNCTIONS_COMPONENT
 component_percona_udf               plugin_output_directory  no  PERCONA_UDF_COMPONENT

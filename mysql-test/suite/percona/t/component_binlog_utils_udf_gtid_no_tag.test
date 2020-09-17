@@ -1,0 +1,4 @@
+--source include/have_udf.inc
+--source include/have_grep.inc
+
+--source ../include/binlog_utils_udf.inc

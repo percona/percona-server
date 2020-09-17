@@ -1,0 +1,5 @@
+--source include/have_udf.inc
+--source include/have_grep.inc
+
+SET gtid_next="automatic:test_tag";
+--source ../include/binlog_utils_udf.inc

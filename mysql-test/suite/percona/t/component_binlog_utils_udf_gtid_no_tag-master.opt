@@ -1,0 +1,4 @@
+$UDF_EXAMPLE_LIB_OPT
+--gtid-mode=ON
+--enforce-gtid-consistency
+--local-infile=true

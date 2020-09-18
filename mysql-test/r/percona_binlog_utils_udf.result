@@ -1,3 +1,4 @@
+SET @path_separator = '/';
 
 *** creating a table that will be used to generate binlog events
 CREATE TABLE t1(
@@ -13,6 +14,7 @@ binlog_name VARCHAR(64) NOT NULL,
 gtid_value VARCHAR(64) NOT NULL,
 PRIMARY KEY(stage, substage)
 ) ENGINE=InnoDB;
+FLUSH BINARY LOGS;
 
 *** generating several binlogs
 
@@ -55,7 +57,6 @@ SELECT get_binlog_by_gtid();
 ERROR HY000: Can't initialize function 'get_binlog_by_gtid'; GET_BINLOG_BY_GTID() requires exactly one argument
 SELECT get_binlog_by_gtid('blah', 'blah');
 ERROR HY000: Can't initialize function 'get_binlog_by_gtid'; GET_BINLOG_BY_GTID() requires exactly one argument
-SET @path_separator = '/';
 include/assert.inc ['binlog name extracted via get_binlog_by_gtid() for stage 1, substage 1 should match the recorded value']
 include/assert.inc ['binlog name extracted via get_binlog_by_gtid() for stage 1, substage 2 should match the recorded value']
 include/assert.inc ['binlog name extracted via get_binlog_by_gtid() for stage 1, substage 3 should match the recorded value']
@@ -313,6 +314,30 @@ include/assert.inc ['binlog name extracted via get_binlog_by_gtid() for stage 16
 include/assert.inc ['binlog name extracted via get_binlog_by_gtid() for stage 16, substage 15 should match the recorded value']
 include/assert.inc ['binlog name extracted via get_binlog_by_gtid() for stage 16, substage 16 should match the recorded value']
 DROP FUNCTION get_binlog_by_gtid;
+
+*** checking 'get_gtid_set_by_binlog()' function
+CREATE FUNCTION get_gtid_set_by_binlog RETURNS STRING SONAME "BINLOG_UTILS_UDF_LIB";
+SELECT get_gtid_set_by_binlog();
+ERROR HY000: Can't initialize function 'get_gtid_set_by_binlog'; get_gtid_set_by_binlog() requires exactly one argument
+SELECT get_gtid_set_by_binlog('blah', 'blah');
+ERROR HY000: Can't initialize function 'get_gtid_set_by_binlog'; get_gtid_set_by_binlog() requires exactly one argument
+include/assert.inc ['GTID set extracted via get_gtid_set_by_binlog() for stage 1 should match the recorded value']
+include/assert.inc ['GTID set extracted via get_gtid_set_by_binlog() for stage 2 should match the recorded value']
+include/assert.inc ['GTID set extracted via get_gtid_set_by_binlog() for stage 3 should match the recorded value']
+include/assert.inc ['GTID set extracted via get_gtid_set_by_binlog() for stage 4 should match the recorded value']
+include/assert.inc ['GTID set extracted via get_gtid_set_by_binlog() for stage 5 should match the recorded value']
+include/assert.inc ['GTID set extracted via get_gtid_set_by_binlog() for stage 6 should match the recorded value']
+include/assert.inc ['GTID set extracted via get_gtid_set_by_binlog() for stage 7 should match the recorded value']
+include/assert.inc ['GTID set extracted via get_gtid_set_by_binlog() for stage 8 should match the recorded value']
+include/assert.inc ['GTID set extracted via get_gtid_set_by_binlog() for stage 9 should match the recorded value']
+include/assert.inc ['GTID set extracted via get_gtid_set_by_binlog() for stage 10 should match the recorded value']
+include/assert.inc ['GTID set extracted via get_gtid_set_by_binlog() for stage 11 should match the recorded value']
+include/assert.inc ['GTID set extracted via get_gtid_set_by_binlog() for stage 12 should match the recorded value']
+include/assert.inc ['GTID set extracted via get_gtid_set_by_binlog() for stage 13 should match the recorded value']
+include/assert.inc ['GTID set extracted via get_gtid_set_by_binlog() for stage 14 should match the recorded value']
+include/assert.inc ['GTID set extracted via get_gtid_set_by_binlog() for stage 15 should match the recorded value']
+include/assert.inc ['GTID set extracted via get_gtid_set_by_binlog() for stage 16 should match the recorded value']
+DROP FUNCTION get_gtid_set_by_binlog;
 UNINSTALL PLUGIN binlog_utils_udf;
 DROP TABLE captured_gtid;
 DROP TABLE t1;

@@ -43,8 +43,8 @@ usr/share/man/man8/mysqld.8
 # SQL files
 usr/share/mysql/*.sql
 #private shared libs
-usr/lib/mysql/private/libprotobuf-lite.so.3.6.1
-usr/lib/mysql/private/libprotobuf.so.3.6.1
+usr/lib/mysql/private/libprotobuf-lite.so.*
+usr/lib/mysql/private/libprotobuf.so.*
 # plugins
 usr/lib/mysql/plugin/adt_null.so
 usr/lib/mysql/plugin/auth_socket.so

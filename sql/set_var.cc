@@ -410,7 +410,7 @@ uchar *sys_var::global_var_ptr() {
 
 bool sys_var::check(THD *thd, set_var *var) {
   if ((var->value && do_check(thd, var)) ||
-      (on_check && on_check(this, thd, var))) {
+      (var->type != OPT_PERSIST_ONLY && on_check && on_check(this, thd, var))) {
     if (!thd->is_error()) {
       char buff[STRING_BUFFER_USUAL_SIZE];
       String str(buff, sizeof(buff), system_charset_info), *res;
@@ -1744,7 +1744,7 @@ int set_var::check(THD *thd) {
       my_error(ER_WRONG_TYPE_FOR_VAR, MYF(0), var->name.str);
       return -1;
     }
-    return (type != OPT_PERSIST_ONLY && var->check(thd, this)) ? -1 : 0;
+    return var->check(thd, this) ? -1 : 0;
   };
 
   int ret =

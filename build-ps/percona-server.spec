@@ -902,8 +902,8 @@ fi
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %dir %{_libdir}/mysql/private
-%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.3.6.1
-%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.3.6.1
+%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.*
+%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.*
 
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so

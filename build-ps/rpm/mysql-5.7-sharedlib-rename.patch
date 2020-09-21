@@ -447,7 +447,7 @@
      )
 --- router/src/metadata_cache/tests/CMakeLists.txt      2019-12-04 10:04:41.972129557 +0200
 +++ router/src/metadata_cache/tests/CMakeLists.txt      2019-12-04 10:08:31.859600010 +0200
-@@ -51,7 +51,7 @@
+@@ -55,7 +55,7 @@
    ADD_LIBRARY(metadata_cache_tests SHARED ${METADATA_CACHE_TESTS_HELPER})
    TARGET_LINK_LIBRARIES(metadata_cache_tests
      router_lib
@@ -456,7 +456,7 @@
      mysqlxclient_lite
      mysqlxmessages_lite
      ${PROTOBUF_LITE_LIBRARY}
-@@ -61,7 +61,7 @@
+@@ -65,7 +65,7 @@
    TARGET_LINK_LIBRARIES(metadata_cache_tests
      router_lib
      metadata_cache
@@ -464,7 +464,7 @@
 +    mysqlclient
      mysqlxclient_lite
      mysqlxmessages_lite
-     ${PROTOBUF_LIBRARY}-lite
+     ${PROTOBUF_LITE_LIBRARY}
 --- router/src/router/src/CMakeLists.txt        2019-12-04 10:04:41.980129555 +0200
 +++ router/src/router/src/CMakeLists.txt        2019-12-04 10:10:55.818892238 +0200
 @@ -71,7 +71,7 @@

@@ -164,6 +164,48 @@ while($stage <= $number_of_stages)
 
 DROP FUNCTION get_gtid_set_by_binlog;
 
+--echo
+--echo *** checking 'get_binlog_by_gtid_set()' function
+--replace_result $BINLOG_UTILS_UDF_LIB BINLOG_UTILS_UDF_LIB
+eval CREATE FUNCTION get_binlog_by_gtid_set RETURNS STRING SONAME "$BINLOG_UTILS_UDF_LIB";
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT get_binlog_by_gtid_set();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT get_binlog_by_gtid_set('blah', 'blah');
+
+SET SESSION group_concat_max_len = 65536;
+
+--let $number_of_iterations = `SELECT $number_of_stages * 3`
+--let $outer_index = 0
+while($outer_index < $number_of_iterations)
+{
+  --let $outer_stage = `SELECT ($outer_index DIV 3) + 1`
+  --let $outer_substage = `SELECT ELT(($outer_index MOD 3) + 1, 1, $number_of_substages DIV 2, $number_of_substages)`
+  --let $lower_bound = `SELECT ($outer_stage - 1) * $number_of_substages + $outer_substage - 1`
+  --let $current_binlog_name = `SELECT CONCAT('.', @path_separator, binlog_name) FROM captured_gtid WHERE stage = $outer_stage AND substage = $number_of_substages`
+
+  --let $inner_index = $outer_index
+  while($inner_index < $number_of_iterations)
+  {
+    --let $inner_stage = `SELECT ($inner_index DIV 3) + 1`
+    --let $inner_substage = `SELECT ELT(($inner_index MOD 3) + 1, 1, $number_of_substages DIV 2, $number_of_substages)`
+    --let $upper_bound = `SELECT ($inner_stage - 1) * $number_of_substages + $inner_substage - 1`
+
+    --let $current_gtid_set = `SELECT GTID_SUBTRACT(GROUP_CONCAT(gtid_value SEPARATOR ','), '') AS result FROM captured_gtid WHERE ((stage - 1) * $number_of_substages + substage - 1) BETWEEN $lower_bound AND $upper_bound`
+    --let $assert_text = 'binlog name extracted via get_binlog_by_gtid_set() for ($outer_stage, $outer_substage)..($inner_stage, $inner_substage) should match the recorded value'
+    --let $assert_cond = get_binlog_by_gtid_set("$current_gtid_set") = "$current_binlog_name"
+    --source include/assert.inc
+
+    --inc $inner_index
+  }
+
+  --inc $outer_index
+}
+
+DROP FUNCTION get_binlog_by_gtid_set;
+
 --replace_result $BINLOG_UTILS_UDF_LIB BINLOG_UTILS_UDF_LIB
 UNINSTALL PLUGIN binlog_utils_udf;
 

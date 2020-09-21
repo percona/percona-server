@@ -130,9 +130,9 @@ ft_max_word_len	84
 ft_min_word_len	4
 ft_query_expansion_limit	20
 innodb_adaptive_hash_index_parts	8
-innodb_api_disable_rowlock	0
-innodb_api_enable_binlog	0
-innodb_api_enable_mdl	0
+innodb_api_disable_rowlock	OFF
+innodb_api_enable_binlog	OFF
+innodb_api_enable_mdl	OFF
 innodb_autoinc_lock_mode	1
 innodb_buffer_pool_chunk_size	134217728
 innodb_buffer_pool_instances	1
@@ -151,7 +151,7 @@ innodb_redo_log_capacity	100663296
 innodb_rollback_on_timeout	OFF
 innodb_sort_buffer_size	1048576
 innodb_sync_array_size	1
-innodb_use_native_aio	1
+innodb_use_native_aio	ON
 innodb_write_io_threads	4
 log_replica_updates	ON
 log_slave_updates	ON

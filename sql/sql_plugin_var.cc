@@ -53,6 +53,47 @@
 #include "template_utils.h"
 #include "typelib.h"
 
+namespace {
+/**
+  Apply system default check to a variable value. This will
+  not take into account custom check method provided for a
+  variable during its definition.
+
+  @param[in]     thd   Thread context.
+  @param[in]     var   Plugin variable.
+  @param[in,out] dest  Destination memory pointer.
+  @param[in]     value New value.
+
+  @return Completion status
+  @retval 0 Success
+  @retval 1 Failure
+*/
+int do_def_check(THD *thd, SYS_VAR *var, void *dest,
+                 struct st_mysql_value *value) {
+  switch (var->flags & PLUGIN_VAR_TYPEMASK) {
+    case PLUGIN_VAR_BOOL:
+      return check_func_bool(thd, var, dest, value);
+    case PLUGIN_VAR_INT:
+      return check_func_int(thd, var, dest, value);
+    case PLUGIN_VAR_LONG:
+      return check_func_long(thd, var, dest, value);
+    case PLUGIN_VAR_LONGLONG:
+      return check_func_longlong(thd, var, dest, value);
+    case PLUGIN_VAR_STR:
+      return check_func_str(thd, var, dest, value);
+    case PLUGIN_VAR_ENUM:
+      return check_func_enum(thd, var, dest, value);
+    case PLUGIN_VAR_SET:
+      return check_func_set(thd, var, dest, value);
+    case PLUGIN_VAR_DOUBLE:
+      return check_func_double(thd, var, dest, value);
+    default:
+      assert(0);
+      return 1;
+  }
+}
+}  // namespace
+
 /**
   Set value for global variable with PLUGIN_VAR_MEMALLOC flag.
 
@@ -372,6 +413,9 @@ bool sys_var_pluginvar::do_check(THD *thd, set_var *var) {
   value.is_unsigned = item_is_unsigned;
   value.item = var->value;
 
+  if (var->type == OPT_PERSIST_ONLY) {
+    return do_def_check(thd, plugin_var, &var->save_result, &value);
+  }
   return plugin_var->check(thd, plugin_var, &var->save_result, &value);
 }
 
@@ -575,6 +619,74 @@ void sys_var_pluginvar::saved_value_to_string(THD *, set_var *var,
         return;
       default:
         assert(0);
+    }
+  }
+}
+
+/**
+  Set a PERSIST_ONLY value for a variable. The resulting value should be
+  set to a string representation of the actual value.
+
+  @param[in]     thd   Thread context.
+  @param[in]     var   Plugin variable.
+  @param[in,out] dest  Destination string pointer.
+*/
+void sys_var_pluginvar::persist_only_to_string(THD *thd, set_var *var,
+                                               String *dest) {
+  if (var->value) {
+    const auto *val = static_cast<const void *>(&var->save_result);
+    switch (plugin_var->flags & PLUGIN_VAR_TYPEMASK) {
+      case PLUGIN_VAR_BOOL: {
+        if (*static_cast<const bool *>(val)) {
+          dest->set("ON", 2, system_charset_info);
+        } else {
+          dest->set("OFF", 3, system_charset_info);
+        }
+        return;
+      }
+      case PLUGIN_VAR_INT:
+        dest->set_int(*static_cast<const int *>(val), false,
+                      system_charset_info);
+        return;
+      case PLUGIN_VAR_LONG:
+        dest->set_int(*static_cast<const long *>(val), false,
+                      system_charset_info);
+        return;
+      case PLUGIN_VAR_LONGLONG:
+        dest->set(*static_cast<const ulonglong *>(val), system_charset_info);
+        return;
+      case PLUGIN_VAR_STR: {
+        const char *str =
+            *(static_cast<const char **>(const_cast<void *>(val)));
+        if (str != nullptr) {
+          dest->copy(str, strlen(str), system_charset_info);
+        }
+        return;
+      }
+      case PLUGIN_VAR_SET: {
+        const auto *str =
+            set_to_string(thd, nullptr, *static_cast<const ulonglong *>(val),
+                          plugin_var_typelib()->type_names);
+        if (str != nullptr) {
+          dest->copy(str, strlen(str), system_charset_info);
+        }
+        return;
+      }
+      case PLUGIN_VAR_ENUM: {
+        const auto *str =
+            plugin_var_typelib()->type_names[*static_cast<const long *>(val)];
+        if (str != nullptr) {
+          dest->copy(str, strlen(str), system_charset_info);
+        }
+        return;
+      }
+      case PLUGIN_VAR_DOUBLE:
+        dest->set_real(*static_cast<const double *>(val), 6,
+                       system_charset_info);
+        return;
+      default:
+        assert(0);
+        return;
     }
   }
 }

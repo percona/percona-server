@@ -283,6 +283,16 @@ class sys_var_pluginvar : public sys_var {
   bool do_check(THD *thd, set_var *var) override;
   void session_save_default(THD *, set_var *) override {}
   void saved_value_to_string(THD *thd, set_var *var, char *def_val) override;
+
+  /**
+    Set a PERSIST_ONLY value for a variable. The resulting value should be
+    set to a string representation of the actual value.
+
+    @param[in]     thd   Thread context.
+    @param[in]     var   Plugin variable.
+    @param[in,out] dest  Destination string pointer.
+  */
+  void persist_only_to_string(THD *thd, set_var *var, String *dest) override;
   void global_save_default(THD *, set_var *) override {}
   bool session_update(THD *thd, set_var *var) override;
   bool global_update(THD *thd, set_var *var) override;
@@ -300,6 +310,18 @@ class sys_var_pluginvar : public sys_var {
   }
 
   void set_is_plugin(bool val) override { is_plugin = val; }
+
+  /**
+    Check variable type.
+
+    @param[in]     type_mask   Type mask.
+    @return Completion status
+    @retval true Variable type matches with provided type mask
+    @retval false Variable type doesnt match with provided type mask
+  */
+  bool check_type(uint type_mask) const {
+    return ((plugin_var->flags & PLUGIN_VAR_TYPEMASK) == type_mask);
+  }
 
   /**
     Create item from plugin variable session value.

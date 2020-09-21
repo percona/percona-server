@@ -323,6 +323,10 @@ class Sys_var_integer : public sys_var {
       longlong10_to_str((longlong)var->save_result.ulonglong_value,
                         def_val, 10);
   }
+  void persist_only_to_string(THD *, set_var *var, String *dest) override {
+    dest->set_int(static_cast<longlong>(var->save_result.ulonglong_value),
+                  !SIGNED, system_charset_info);
+  }
 
  private:
   T *max_var_ptr() {
@@ -418,6 +422,10 @@ class Sys_var_alias : public sys_var {
   bool is_non_persistent() override { return m_base_var.is_non_persistent(); }
   void saved_value_to_string(THD *thd, set_var *var, char *def_val) override {
     return m_base_var.saved_value_to_string(thd, var, def_val);
+  }
+  void persist_only_to_string(THD *thd, set_var *var,
+                              String *dest) override {
+    return m_base_var.persist_only_to_string(thd, var, dest);
   }
   bool check_update_type(Item_result type) override {
     return m_base_var.check_update_type(type);
@@ -675,6 +683,13 @@ class Sys_var_enum : public Sys_var_typelib {
   const uchar *global_value_ptr(THD *, std::string_view) override {
     return pointer_cast<const uchar *>(typelib.type_names[global_var(ulong)]);
   }
+  void persist_only_to_string(THD *, set_var *var, String *dest) override {
+    const auto *str =
+        typelib.type_names[(longlong)var->save_result.ulonglong_value];
+    if (str != nullptr) {
+      dest->copy(str, strlen(str), system_charset_info);
+    }
+  }
 };
 
 /**
@@ -719,6 +734,13 @@ class Sys_var_bool : public Sys_var_typelib {
   }
   void saved_value_to_string(THD *, set_var *var, char *def_val) override {
     longlong10_to_str((longlong)var->save_result.ulonglong_value, def_val, 10);
+  }
+  void persist_only_to_string(THD *, set_var *var, String *dest) override {
+    if (static_cast<longlong>(var->save_result.ulonglong_value)) {
+      dest->copy("ON", 2, system_charset_info);
+    } else {
+      dest->copy("OFF", 3, system_charset_info);
+    }
   }
 };
 
@@ -836,6 +858,16 @@ class Sys_var_multi_enum : public sys_var {
       if (my_strcasecmp(system_charset_info, aliases[i].alias, text) == 0)
         return aliases[i].number;
     return -1;
+  }
+
+  /**
+    Return the string alias for a given value, or nullptr if the
+    alias isn't found.
+  */
+  const char *find_alias(const uint number) const {
+    for (uint i = 0; aliases[i].alias != nullptr; ++i)
+      if (aliases[i].number == number) return aliases[i].alias;
+    return nullptr;
   }
 
   /**
@@ -978,6 +1010,13 @@ class Sys_var_multi_enum : public sys_var {
     return pointer_cast<const uchar *>(aliases[global_var(ulong)].alias);
   }
 
+  void persist_only_to_string(THD *, set_var *var, String *dest) override {
+    const auto *str = find_alias((longlong)var->save_result.ulonglong_value);
+    if (str != nullptr) {
+      dest->copy(str, strlen(str), system_charset_info);
+    }
+  }
+
  private:
   /// The number of allowed numeric values.
   const uint value_count;
@@ -1096,6 +1135,12 @@ class Sys_var_charptr : public sys_var {
   bool check_update_type(Item_result type) override {
     return type != STRING_RESULT;
   }
+  void persist_only_to_string(THD *, set_var *var, String *dest) override {
+    if (var->save_result.string_value.str != nullptr) {
+      dest->copy(var->save_result.string_value.str,
+                 var->save_result.string_value.length, system_charset_info);
+    }
+  }
 };
 
 class Sys_var_version : public Sys_var_charptr {
@@ -1172,6 +1217,9 @@ class Sys_var_proxy_user : public sys_var {
     assert(false);
   }
   bool check_update_type(Item_result) override { return true; }
+  void persist_only_to_string(THD *, set_var *, String *) override {
+    assert(false);
+  }
 
  protected:
   const uchar *session_value_ptr(THD *, THD *target_thd,
@@ -1356,6 +1404,12 @@ class Sys_var_dbug : public sys_var {
   bool check_update_type(Item_result type) override {
     return type != STRING_RESULT;
   }
+  void persist_only_to_string(THD *, set_var *var, String *dest) override {
+    if (var->save_result.string_value.str != nullptr) {
+      dest->copy(var->save_result.string_value.str,
+                 var->save_result.string_value.length, system_charset_info);
+    }
+  }
 };
 #endif
 
@@ -1508,6 +1562,9 @@ class Sys_var_double : public sys_var {
   }
   void saved_value_to_string(THD *, set_var *var, char *def_val) override {
     my_fcvt(var->save_result.double_value, 6, def_val, nullptr);
+  }
+  void persist_only_to_string(THD *, set_var *var, String *dest) override {
+    dest->set_real(var->save_result.double_value, 6, system_charset_info);
   }
 };
 
@@ -1677,6 +1734,13 @@ class Sys_var_flagset : public Sys_var_typelib {
     return (uchar *)flagset_to_string(thd, nullptr, global_var(ulonglong),
                                       typelib.type_names);
   }
+  void persist_only_to_string(THD *thd, set_var *var, String *dest) override {
+    const char *str = flagset_to_string(
+        thd, nullptr, var->save_result.ulonglong_value, typelib.type_names);
+    if (str != nullptr) {
+      dest->copy(str, strlen(str), system_charset_info);
+    }
+  }
 };
 
 /**
@@ -1773,6 +1837,13 @@ class Sys_var_set : public Sys_var_typelib {
   const uchar *global_value_ptr(THD *thd, std::string_view) override {
     return (uchar *)set_to_string(thd, nullptr, global_var(ulonglong),
                                   typelib.type_names);
+  }
+  void persist_only_to_string(THD *thd, set_var *var, String *dest) override {
+    const auto *str = set_to_string(
+        thd, nullptr, var->save_result.ulonglong_value, typelib.type_names);
+    if (str != nullptr) {
+      dest->copy(str, strlen(str), system_charset_info);
+    }
   }
 };
 
@@ -1893,6 +1964,11 @@ class Sys_var_plugin : public sys_var {
                                            plugin_name(plugin)->length)
                             : nullptr);
   }
+  void persist_only_to_string(THD *, set_var *var, String *dest) override {
+    dest->copy(plugin_name(var->save_result.plugin)->str,
+               plugin_name(var->save_result.plugin)->length,
+               system_charset_info);
+  }
 };
 
 #if defined(ENABLED_DEBUG_SYNC)
@@ -1951,6 +2027,9 @@ class Sys_var_debug_sync : public sys_var {
   }
   bool check_update_type(Item_result type) override {
     return type != STRING_RESULT;
+  }
+  void persist_only_to_string(THD *, set_var *, String *) override {
+    assert(false);
   }
 };
 #endif /* defined(ENABLED_DEBUG_SYNC) */
@@ -2033,6 +2112,10 @@ class Sys_var_bit : public Sys_var_typelib {
     thd->sys_var_tmp.bool_value = static_cast<bool>(
         reverse_semantics ^ ((global_var(ulonglong) & bitmask) != 0));
     return (uchar *)&thd->sys_var_tmp.bool_value;
+  }
+  void persist_only_to_string(THD *, set_var *var, String *dest) override {
+    dest->set_int(static_cast<longlong>(var->save_result.ulonglong_value), true,
+                  system_charset_info);
   }
 };
 
@@ -2207,6 +2290,7 @@ class Sys_var_have : public sys_var {
         show_comp_option_name[global_var(enum SHOW_COMP_OPTION)]);
   }
   bool check_update_type(Item_result) override { return false; }
+  void persist_only_to_string(THD *, set_var *, String *) override {}
 };
 
 /**
@@ -2322,6 +2406,15 @@ class Sys_var_struct : public sys_var {
     const Struct_type *ptr = global_var(const Struct_type *);
     return ptr ? Name_getter(ptr).get_name() : nullptr;
   }
+  void persist_only_to_string(THD *, set_var *var, String *dest) override {
+    const Struct_type *ptr =
+        static_cast<const Struct_type *>(var->save_result.ptr);
+    if (ptr != nullptr) {
+      const char *res_str =
+          pointer_cast<const char *>(Name_getter(ptr).get_name());
+      dest->copy(res_str, strlen(res_str), system_charset_info);
+    }
+  }
 };
 
 /**
@@ -2402,6 +2495,10 @@ class Sys_var_tz : public sys_var {
   }
   bool check_update_type(Item_result type) override {
     return type != STRING_RESULT;
+  }
+  void persist_only_to_string(THD *, set_var *var, String *dest) override {
+    const String *str = var->save_result.time_zone->get_name();
+    dest->copy(str->ptr(), str->length(), system_charset_info);
   }
 };
 
@@ -2517,6 +2614,9 @@ class Sys_var_gtid_next : public sys_var {
   const uchar *global_value_ptr(THD *, std::string_view) override {
     assert(false);
     return nullptr;
+  }
+  void persist_only_to_string(THD *, set_var *, String *) override {
+    assert(false);
   }
 };
 
@@ -2650,6 +2750,9 @@ class Sys_var_charptr_func : public sys_var {
   const uchar *global_value_ptr(THD *, std::string_view) override {
     assert(false);
     return nullptr;
+  }
+  void persist_only_to_string(THD *, set_var *, String *) override {
+    assert(false);
   }
 };
 
@@ -2787,6 +2890,13 @@ class Sys_var_gtid_purged : public sys_var {
   const uchar *session_value_ptr(THD *, THD *, std::string_view) override {
     assert(false);
     return nullptr;
+  }
+
+  void persist_only_to_string(THD *, set_var *var, String *dest) override {
+    if (var->save_result.string_value.str != nullptr) {
+      dest->copy(var->save_result.string_value.str,
+                 var->save_result.string_value.length, system_charset_info);
+    }
   }
 };
 

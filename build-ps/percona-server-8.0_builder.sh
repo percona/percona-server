@@ -432,7 +432,7 @@ build_srpm(){
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/*.spec' --strip=2
     #
     cd ${WORKDIR}/rpmbuild/SOURCES
-    wget https://dl.bintray.com/boostorg/release/1.70.0/source/${BOOST_PACKAGE_NAME}.tar.gz
+    wget https://dl.bintray.com/boostorg/release/1.72.0/source/${BOOST_PACKAGE_NAME}.tar.gz
     #wget http://downloads.sourceforge.net/boost/${BOOST_PACKAGE_NAME}.tar.gz
     #wget http://jenkins.percona.com/downloads/boost/${BOOST_PACKAGE_NAME}.tar.gz
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/*.patch' --strip=3
@@ -790,7 +790,7 @@ MYSQL_VERSION_MINOR=0
 MYSQL_VERSION_PATCH=12
 MYSQL_VERSION_EXTRA=-1
 PRODUCT_FULL=Percona-Server-8.0.12.1
-BOOST_PACKAGE_NAME=boost_1_70_0
+BOOST_PACKAGE_NAME=boost_1_72_0
 PERCONAFT_BRANCH=Percona-Server-5.7.22-22
 TOKUBACKUP_BRANCH=Percona-Server-5.7.22-22
 parse_arguments PICK-ARGS-FROM-ARGV "$@"

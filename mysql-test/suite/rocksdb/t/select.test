@@ -185,6 +185,26 @@ SELECT a,b FROM t1 UNION SELECT a,b FROM t2 UNION DISTINCT SELECT a,b FROM t1;
 --sorted_result
 SELECT a,b FROM t1 UNION SELECT a,b FROM t2 UNION ALL SELECT a,b FROM t1;
 
+# PS-7325 - SELECT missing data from MyRocks table when GROUP BY is used
+CREATE TABLE `t3` (
+`col1` bigint unsigned NOT NULL AUTO_INCREMENT,
+`col2` varbinary(16) NOT NULL,
+`col3` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+`col4` bigint NOT NULL,
+`col5` mediumblob NOT NULL,
+PRIMARY KEY (`col1`),
+UNIQUE KEY `uc_key` (`col2`,`col3`,`col4`)
+) ENGINE=ROCKSDB;
+insert into t3 (col2,col3,col4,col5) values('aa', 'aa', 100, 'aa');
+insert into t3 (col2,col3,col4,col5) values('aa', 'bb', 100, 'bb');
+insert into t3 (col2,col3,col4,col5) values('aa', 'cc', 100, 'cc');
+insert into t3 (col2,col3,col4,col5) values('aa', 'dd', 100, 'dd');
+insert into t3 (col2,col3,col4,col5) values('aa', 'cc', 99, 'cc');
+SELECT col2, col3, max(col4) AS col4 FROM t3 WHERE col2 IN (x'6161') AND col3 IN ('aa','bb','cc','dd') GROUP BY col2, col3;
+ALTER TABLE t3 ENGINE=ROCKSDB;
+SELECT col2, col3, max(col4) AS col4 FROM t3 WHERE col2 IN (x'6161') AND col3 IN ('aa','bb','cc','dd') GROUP BY col2, col3;
+ALTER TABLE t3 ENGINE=ROCKSDB;
+SELECT col2, col3, max(col4) AS col4 FROM t3 WHERE col2 IN (x'6161') AND col3 IN ('aa','bb','cc','dd') GROUP BY col2, col3;
 
 # Cleanup
-DROP TABLE t1, t2;
+DROP TABLE t1, t2, t3;

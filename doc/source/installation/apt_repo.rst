@@ -65,7 +65,12 @@ Installing |Percona Server| from Percona ``apt`` repository
 
 .. note::
 
-  |Percona Server| 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the |TokuDB| storage in the :ref:`tokudb_installation` guide.
+  |Percona Server| 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>` and :ref:`MyRocks storage engine<myrocks_intro>`. These storage engines are installed as plugin.
+  
+  For information on how to install and configure |TokuDB|, refer to the :ref:`tokudb_installation` guide.
+  
+  For information on how to install and configure |MyRocks|, refer to the :ref:`myrocks_install` guide.
+
   
 The |Percona Server| distribution contains several useful User Defined Functions (UDF) from Percona Toolkit. After the installation completes, run the following commands to create these functions:
 

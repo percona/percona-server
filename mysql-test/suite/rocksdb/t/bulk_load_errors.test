@@ -1,7 +1,10 @@
 --source include/have_rocksdb.inc
+--source include/count_sessions.inc
 
-call mtr.add_suppression("Error 213");
-call mtr.add_suppression("Error 214 finalizing last SST file while setting bulk loading variable");
+--let LOG1=$MYSQLTEST_VARDIR/tmp/rocksdb.bulk_load_errors.1.err
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--let restart_parameters="restart: --log-error=$LOG1"
+--source include/restart_mysqld.inc
 
 ### Bulk load ###
 CREATE TABLE t1(pk INT, PRIMARY KEY(pk)) ENGINE=ROCKSDB;
@@ -31,6 +34,56 @@ SHOW VARIABLES LIKE 'rocksdb_bulk_load';
 
 SELECT * FROM t1;
 
+--let SEARCH_FILE=$LOG1
+--let SEARCH_PATTERN=RocksDB: Error 504 finalizing last SST file while setting bulk loading variable
+--source include/search_pattern_in_file.inc
+
+--let LOG2=$MYSQLTEST_VARDIR/tmp/rocksdb.bulk_load_errors.2.err
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--let restart_parameters="restart: --log-error=$LOG2"
+--source include/restart_mysqld.inc
+--remove_file $LOG1
+
+
+# Make sure we get an error in log when we disconnect and do not assert the server
+--connect (con1,localhost,root,,)
+SET rocksdb_bulk_load=1;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+INSERT INTO t1 VALUES(20);
+INSERT INTO t1 VALUES(21);
+let $ID = `SELECT connection_id()`;
+--connection default
+--disconnect con1
+
+SELECT * FROM t1;
+
+#if (`SELECT $RPC_PROTOCOL > 0`) {
+  # for --rpc_protocol mode wait for the background detached session to
+  # go away
+#  let $wait_condition =
+#      SELECT COUNT(*) = 0
+#      FROM information_schema.srv_sessions
+#      WHERE id = $ID;
+#  --source include/wait_condition.inc
+#}
+
+#if (`SELECT $RPC_PROTOCOL = 0`) {
+  # for non --rpc_protocol mode simply wait until the number of sessions
+  # returns to earlier levels
+  --source include/wait_until_count_sessions.inc
+#}
+
+--let SEARCH_FILE=$LOG2
+--let SEARCH_PATTERN=RocksDB: Error 504 finalizing last SST file while disconnecting
+--source include/search_pattern_in_file.inc
+
+--let LOG3=$MYSQLTEST_VARDIR/tmp/rocksdb.bulk_load_errors.3.err
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--let restart_parameters="restart: --log-error=$LOG3"
+--source include/restart_mysqld.inc
+--remove_file $LOG2
+
 TRUNCATE TABLE t1;
 
 ### Bulk load with unsorted PKs ###
@@ -58,6 +111,36 @@ SELECT * FROM t1;
 SET rocksdb_bulk_load_allow_unsorted=DEFAULT;
 DROP TABLE t1;
 
+# This would trigger a debug assertion that is just an error in release builds
+CREATE TABLE t1(c1 INT KEY) ENGINE=ROCKSDB;
+SET rocksdb_bulk_load=1;
+--error ER_KEYS_OUT_OF_ORDER,ER_NO_DEFAULT_FOR_FIELD
+INSERT INTO t1 VALUES (),(),();
+SET rocksdb_bulk_load=0;
+DROP TABLE t1;
+
+# Crash when table open cache closes handler with bulk load operation not finalized
+SET @orig_table_open_cache=@@global.table_open_cache;
+CREATE TABLE t1(a INT AUTO_INCREMENT, b INT, PRIMARY KEY (a)) ENGINE=ROCKSDB DEFAULT CHARSET=latin1;
+SET rocksdb_bulk_load=1;
+INSERT INTO t1 VALUES(13, 0);
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+INSERT INTO t1 VALUES(2, 'test 2');
+INSERT INTO t1 VALUES(@id, @arg04);
+SET @@global.table_open_cache=FALSE;
+INSERT INTO t1 VALUES(51479+0.333333333,1);
+DROP TABLE t1;
+SET @@global.table_open_cache=@orig_table_open_cache;
+
+--let SEARCH_FILE=$LOG3
+--let SEARCH_PATTERN=RocksDB: Error 504 finalizing bulk load while closing handler
+--source include/search_pattern_in_file.inc
+
+--let restart_parameters=
+--source include/restart_mysqld.inc
+
+--remove_file $LOG3
+
 # Switch between tables, but also introduce duplicate key errors
 CREATE TABLE t1 (pk INT, PRIMARY KEY (pk)) ENGINE=ROCKSDB;
 CREATE TABLE t2 (pk INT, PRIMARY KEY (pk)) ENGINE=ROCKSDB;
@@ -70,3 +153,5 @@ INSERT INTO t2 VALUES (3);
 SET rocksdb_bulk_load=0;
 DROP TABLE t1;
 DROP TABLE t2;
+
+--source include/wait_until_count_sessions.inc

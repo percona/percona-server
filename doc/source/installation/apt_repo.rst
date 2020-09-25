@@ -76,12 +76,23 @@ Installing |Percona Server| from Percona ``apt`` repository
 
 .. note::
 
-   |ps-last| comes with the :ref:`TokuDB storage engine
-   <tokudb_intro>` and :ref:`MyRocks <myrocks_intro>` storage engines. These
-   storage engines are installed as plugins. You can find more information on how
-   to install and enable the |TokuDB| storage in the :ref:`tokudb_installation`
-   guide. More information about how to install |MyRocks| can be found in the
-   section :ref:`myrocks_install`.
+   |ps-last|  comes with the :ref:`TokuDB storage engine <tokudb_intro>` and :ref:`MyRocks storage engine<myrocks_intro>`. 
+   These storage engines are installed as plugin.
+  
+   For information on how to install and configure |TokuDB|, refer to the :ref:`tokudb_installation` guide.
+  
+   For information on how to install and configure |MyRocks|, refer to the :ref:`myrocks_install` guide.
+
+  
+The |Percona Server| distribution contains several useful User Defined Functions (UDF) from Percona Toolkit. After the installation completes, run the following commands to create these functions:
+
+.. code-block:: bash
+
+    mysql -e "CREATE FUNCTION fnvla_64 RETURNS INTEGER SONAME 'libfnvla_udf.so'"
+    mysql -e "CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME 'libfnv_udf.so'"
+    mysql -e "CREATE FUNCTION murmur_hash RETURNS INTEGER SONAME 'libmurmur_udf.so'"
+    
+For more details on the UDFs, see `Percona Toolkit UDFS <https://www.percona.com/doc/percona-server/8.0/management/udf_percona_toolkit.html>`_.
 
 Percona ``apt`` Testing repository
 --------------------------------------------------------------------------------

@@ -52,16 +52,39 @@ bool Connection::connect(const std::string &bind_dn,
       ldap_unbind_ext_s(ldap_, nullptr, nullptr);
     }
 
-    int err = ldap_initialize(&(ldap_), get_ldap_uri().c_str());
-    if (err != LDAP_SUCCESS) {
-      log_error("ldap_initialize", err);
+    int version = LDAP_VERSION3;
+    int err = ldap_set_option(nullptr, LDAP_OPT_PROTOCOL_VERSION, &version);
+    if (err != LDAP_OPT_SUCCESS) {
+      log_error("ldap_set_option(LDAP_OPT_PROTOCOL_VERSION)", err);
       return false;
     }
 
-    int version = LDAP_VERSION3;
-    err = ldap_set_option(ldap_, LDAP_OPT_PROTOCOL_VERSION, &version);
+    if (ca_path_.size() == 0) {
+      int reqCert = LDAP_OPT_X_TLS_NEVER;
+      err = ldap_set_option(nullptr, LDAP_OPT_X_TLS_REQUIRE_CERT, &reqCert);
+      if (err != LDAP_OPT_SUCCESS) {
+        log_error("ldap_set_option(LDAP_OPT_X_TLS_REQUIRE_CERT)", err);
+        return false;
+      }
+    } else {
+      char *cca_path = const_cast<char *>(ca_path_.c_str());
+      err = ldap_set_option(nullptr, LDAP_OPT_X_TLS_CACERTFILE,
+                            static_cast<void *>(cca_path));
+      if (err != LDAP_OPT_SUCCESS) {
+        log_error("ldap_set_option(LDAP_OPT_X_TLS_CACERTFILE)", err);
+        return false;
+      }
+    }
+
+    err = ldap_set_option(nullptr, LDAP_OPT_X_TLS_NEWCTX, LDAP_OPT_ON);
     if (err != LDAP_OPT_SUCCESS) {
-      log_error("ldap_set_option(LDAP_OPT_PROTOCOL_VERSION)", err);
+      log_error("ldap_set_option(LDAP_OPT_X_TLS_NEWCTX)", err);
+      return false;
+    }
+
+    err = ldap_initialize(&(ldap_), get_ldap_uri().c_str());
+    if (err != LDAP_SUCCESS) {
+      log_error("ldap_initialize", err);
       return false;
     }
 
@@ -75,29 +98,6 @@ bool Connection::connect(const std::string &bind_dn,
     err = ldap_set_option(ldap_, LDAP_OPT_RESTART, LDAP_OPT_ON);
     if (err != LDAP_OPT_SUCCESS) {
       log_warning("ldap_set_option(LDAP_OPT_RESTART, LDAP_OPT_ON)", err);
-    }
-
-    err = ldap_set_option(ldap_, LDAP_OPT_X_TLS_NEWCTX, LDAP_OPT_ON);
-    if (err != LDAP_OPT_SUCCESS) {
-      log_error("ldap_set_option(LDAP_OPT_X_TLS_NEWCTX)", err);
-      return false;
-    }
-
-    if (ca_path_.size() == 0) {
-      int reqCert = LDAP_OPT_X_TLS_NEVER;
-      err = ldap_set_option(ldap_, LDAP_OPT_X_TLS_REQUIRE_CERT, &reqCert);
-      if (err != LDAP_OPT_SUCCESS) {
-        log_error("ldap_set_option(LDAP_OPT_X_TLS_REQUIRE_CERT)", err);
-        return false;
-      }
-    } else {
-      char *cca_path = const_cast<char *>(ca_path_.c_str());
-      err = ldap_set_option(ldap_, LDAP_OPT_X_TLS_CACERTFILE,
-                            static_cast<void *>(cca_path));
-      if (err != LDAP_OPT_SUCCESS) {
-        log_error("ldap_set_option(LDAP_OPT_X_TLS_CACERTFILE)", err);
-        return false;
-      }
     }
 
     if (use_tls_) {

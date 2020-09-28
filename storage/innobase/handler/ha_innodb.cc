@@ -57,6 +57,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_table.h>
 #include <sql_tablespace.h>
 #include <sql_thd_internal_api.h>
+#include <sys_vars_shared.h>
 #include <my_check_opt.h>
 #include <my_bitmap.h>
 #include <mysql/service_thd_alloc.h>
@@ -21320,8 +21321,24 @@ innodb_encryption_threads_validate(
 		DBUG_RETURN(1);
 	}
 
-	if (srv_n_fil_crypt_threads == 0 && intbuf > 0) { // We are starting encryption threads, we must lock
-							  // the keyring plugins
+	bool is_val_fixed = false;
+	long long requested_threads = intbuf;
+	if (intbuf < 0) {
+		requested_threads = 0;
+		is_val_fixed = true;
+	}
+	else if (intbuf > MAX_ENCRYPTION_THREADS) {
+		requested_threads = MAX_ENCRYPTION_THREADS;
+		is_val_fixed = true;
+	}
+
+	if (throw_bounds_warning(thd, "innodb_encryption_threads", is_val_fixed, intbuf)) {
+		DBUG_RETURN(1);
+	}
+
+	if (srv_n_fil_crypt_threads == 0 && requested_threads > 0) {
+		// We are starting encryption threads, we must lock
+		// the keyring plugins
 		uint number_of_keyrings_locked= lock_keyrings(NULL);
 
 		if (number_of_keyrings_locked == 0) {
@@ -21335,11 +21352,12 @@ innodb_encryption_threads_validate(
 			unlock_keyrings(NULL);
 			DBUG_RETURN(1);
 		}
-	} else if (intbuf == 0 && srv_n_fil_crypt_threads > 0) {// We are disabling encryption threads, unlock the keyrings
+	} else if (requested_threads == 0 && srv_n_fil_crypt_threads > 0) {
+		// We are disabling encryption threads, unlock the keyrings
 		unlock_keyrings(NULL);  
 	}
 
-	*reinterpret_cast<ulong*>(save) = static_cast<ulong>(intbuf);
+	*reinterpret_cast<ulong*>(save) = static_cast<ulong>(requested_threads);
 
 	DBUG_RETURN(0);
 }

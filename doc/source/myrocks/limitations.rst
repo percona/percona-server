@@ -124,3 +124,5 @@ You should also consider the following:
 
     MyRocks Data Loading
     https://www.percona.com/doc/percona-server/8.0/myrocks/data_loading.html
+    
+* MySQL has `spatial data types <https://dev.mysql.com/doc/refman/8.0/en/spatial-type-overview.html>`__ . These data types are not supported by MyRocks.

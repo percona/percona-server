@@ -10622,11 +10622,30 @@ bool Fil_system::open_for_recovery(space_id_t space_id) {
 
     if (recv_sys->crypt_datas != nullptr &&
         recv_sys->crypt_datas->count(space_id) > 0) {
+      fil_space_crypt_t *crypt_data = (*recv_sys->crypt_datas)[space_id];
+
+      /* If tablespace is already encrypted and the crypt_data from redo
+      discovered is unencrypted, we shouldn't set crypt_data to tablespace */
+      if (FSP_FLAGS_GET_ENCRYPTION(space->flags) &&
+          crypt_data->type == CRYPT_SCHEME_UNENCRYPTED) {
+        UT_DELETE(crypt_data);
+        recv_sys->crypt_datas->erase(space_id);
+        return (true);
+      }
+
       if (space->crypt_data != nullptr) {
         fil_space_destroy_crypt_data(&space->crypt_data);
       }
-      space->crypt_data = (*recv_sys->crypt_datas)[space_id];
+
+      space->crypt_data = crypt_data;
       recv_sys->crypt_datas->erase(space_id);
+
+      /* If tablespace is unencrypted and crypt data is unencrypted (explicit
+      ENCRYPTION='N'), we should just set crypt_data to tablespace and nothing
+      else */
+      if (crypt_data->type == CRYPT_SCHEME_UNENCRYPTED) {
+        return (true);
+      }
 
       dberr_t err = fil_set_encryption(space->id, Encryption::KEYRING, nullptr,
                                        space->crypt_data->iv);

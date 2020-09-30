@@ -1,0 +1,994 @@
+pipeline {
+  agent {
+    label 'docker'
+  }
+  stages {
+    stage('Build percona-server source') {
+      agent {
+        label 'min-xenial-x64'
+      }
+      steps {
+        sh '''
+          if [ -d aws ]; then
+            rm -rf aws
+          fi
+          set -o xtrace
+          sudo rm -rf test* source_tarball tarball srpm source_deb rpms debs
+          rm -rf test || true
+          mkdir test
+          wget https://raw.githubusercontent.com/percona/percona-server/${BRANCH}/build-ps/percona-server-8.0_builder.sh -O percona-server_builder.sh
+          sed -i \'s:sudo::g\' percona-server_builder.sh
+          export build_dir=$(pwd -P)
+            set -o xtrace
+            cd ${build_dir}
+            sudo apt-get -y update;
+            sudo apt-get -y install curl git
+            sudo bash -x ./percona-server_builder.sh --builddir=${build_dir}/test --install_deps=1;
+            curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
+            unzip awscliv2.zip
+            sudo ./aws/install || true
+            bash -x ./percona-server_builder.sh --builddir=${build_dir}/test --repo=${GIT_REPO} --branch=${BRANCH} --rpm_release=${RPM_RELEASE} --deb_release=${DEB_RELEASE} --get_sources=1
+        '''
+        sh '''
+          cat /etc/hosts > hosts
+          echo "10.30.6.9 repo.ci.percona.com" >> hosts
+          sudo mv hosts /etc
+          REPO_UPLOAD_PATH=$(grep "UPLOAD" test/percona-server-8.0.properties | cut -d = -f 2 | sed "s:BUILDS/::;s:$:${BUILD_NUMBER}:")
+          AWS_STASH_PATH=$(echo ${REPO_UPLOAD_PATH} | sed  "s:UPLOAD/experimental/::")
+          echo ${REPO_UPLOAD_PATH} > uploadPath
+          echo ${AWS_STASH_PATH} > awsUploadPath
+          cat test/percona-server-8.0.properties
+          cat uploadPath
+        '''
+        script {
+          AWS_STASH_PATH = sh(returnStdout: true, script: "cat awsUploadPath").trim()
+        }
+        stash includes: 'uploadPath', name: 'uploadPath'
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+          sh """
+            S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+            aws s3 ls \$S3_PATH/source_tarball || :
+            aws s3 cp --quiet --recursive source_tarball/ \$S3_PATH/source_tarball/ || :
+          """
+        }
+        archiveArtifacts 'source_tarball/*.tar.*,test/*.properties'
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+          sh """
+            S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+            aws s3 cp --quiet --recursive \$S3_PATH/source_tarball/ source_tarball/ || :
+          """
+        }
+        unstash 'uploadPath'
+        withCredentials([sshUserPrivateKey(credentialsId: 'repo.ci.percona.com', keyFileVariable: 'KEY_PATH', usernameVariable: 'USER')]) {
+          sh """
+            export path_to_build=`cat uploadPath`
+            cat /etc/hosts > hosts
+            echo '10.30.6.9 repo.ci.percona.com' >> hosts
+            sudo cp ./hosts /etc
+
+            ssh -o StrictHostKeyChecking=no -i ${KEY_PATH} ${USER}@repo.ci.percona.com \
+              mkdir -p \${path_to_build}/source/tarball
+
+            scp -o StrictHostKeyChecking=no -i ${KEY_PATH} \
+              `find . -name 'percona-server*.tar.*'` \
+              ${USER}@repo.ci.percona.com:\${path_to_build}/source/tarball/
+          """
+        }
+        stash(includes: 'source_tarball/*', name: 'source_tarball')
+      }
+    }
+
+    stage('Build generic source packages') {
+      parallel {
+        stage('Build PS generic source rpm') {
+          agent {
+            label 'min-centos-7-x64'
+          }
+          steps {
+            sh """
+              sudo yum -y install wget curl unzip
+              curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
+              if [ -d aws ]; then
+                rm -rf aws
+              fi
+              unzip awscliv2.zip
+              sudo ./aws/install || true
+            """
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 cp --quiet --recursive \$S3_PATH/source_tarball/ source_tarball || :
+              """
+            }
+            sh """
+              set -o xtrace
+              wget https://raw.githubusercontent.com/percona/percona-server/${BRANCH}/build-ps/percona-server-8.0_builder.sh -O percona-server_builder.sh
+              sed -i 's:sudo::g' percona-server_builder.sh
+              rm -rf test || true
+              mkdir test
+              export build_dir=\$(pwd -P)
+                set -o xtrace
+                cd \${build_dir}
+                sudo bash -x ./percona-server_builder.sh --builddir=\${build_dir}/test --install_deps=1; \
+                curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
+                bash -x ./percona-server_builder.sh --builddir=\${build_dir}/test --repo=${GIT_REPO} --branch=${BRANCH} --rpm_release=${RPM_RELEASE} --deb_release=${DEB_RELEASE} --build_src_rpm=1
+            """
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 ls \$S3_PATH/srpm || :
+                aws s3 cp --quiet --recursive srpm/ \$S3_PATH/srpm/ || :
+              """
+            }
+            archiveArtifacts 'srpm/*.src.*'
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 cp --quiet --recursive \$S3_PATH/srpm/ srpm/ || :
+              """
+            }
+            unstash 'uploadPath'
+            withCredentials([sshUserPrivateKey(credentialsId: 'repo.ci.percona.com', keyFileVariable: 'KEY_PATH', usernameVariable: 'USER')]) {
+              sh """
+                export path_to_build=`cat uploadPath`
+                cat /etc/hosts > hosts
+                echo '10.30.6.9 repo.ci.percona.com' >> hosts
+                sudo cp ./hosts /etc
+                ssh -o StrictHostKeyChecking=no -i ${KEY_PATH} ${USER}@repo.ci.percona.com \
+                  mkdir -p \${path_to_build}/source/redhat \
+                    \${path_to_build}/binary/redhat/6/x86_64 \
+                    \${path_to_build}/binary/redhat/7/x86_64 \
+                    \${path_to_build}/binary/redhat/8/x86_64
+
+                if [ `find . -name '*.src.rpm' | wc -l` -gt 0 ]; then
+                  scp -o StrictHostKeyChecking=no -i ${KEY_PATH} \
+                    `find . -name '*.src.rpm'` \
+                    ${USER}@repo.ci.percona.com:\${path_to_build}/source/redhat/
+                fi
+
+                if [ `find . -name '*.el6.noarch.rpm' -o -name '*.el6.x86_64.rpm' | wc -l` -gt 0 ]; then
+                  scp -o StrictHostKeyChecking=no -i ${KEY_PATH} \
+                    `find . -name '*.el6.noarch.rpm' -o -name '*.el6.x86_64.rpm'` \
+                    ${USER}@repo.ci.percona.com:\${path_to_build}/binary/redhat/6/x86_64/
+                fi
+
+                if [ `find . -name '*.el7.noarch.rpm' -o -name '*.el7.x86_64.rpm' | wc -l` -gt 0 ]; then
+                  scp -o StrictHostKeyChecking=no -i ${KEY_PATH} \
+                    `find . -name '*.el7.noarch.rpm' -o -name '*.el7.x86_64.rpm'` \
+                    ${USER}@repo.ci.percona.com:\${path_to_build}/binary/redhat/7/x86_64/
+                fi
+                if [ `find . -name '*.el8.noarch.rpm' -o -name '*.el8.x86_64.rpm' | wc -l` -gt 0 ]; then
+                  scp -o StrictHostKeyChecking=no -i ${KEY_PATH} \
+                    `find . -name '*.el8.noarch.rpm' -o -name '*.el8.x86_64.rpm'` \
+                    ${USER}@repo.ci.percona.com:\${path_to_build}/binary/redhat/8/x86_64/
+                fi
+              """
+            }
+
+          }
+        }
+
+        stage('Build source deb') {
+          agent {
+            label 'min-xenial-x64'
+          }
+          steps {
+            sh """
+              sudo apt-get update && sudo apt-get -y install curl git unzip
+
+              curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
+              if [ -d aws ]; then
+                rm -rf aws
+              fi
+              unzip awscliv2.zip
+              sudo ./aws/install || true
+            """
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 cp --quiet --recursive \$S3_PATH/source_tarball/ source_tarball || :
+              """
+            }
+            sh """
+              set -o xtrace
+              rm -rf test || true
+              mkdir test
+              wget https://raw.githubusercontent.com/percona/percona-server/${BRANCH}/build-ps/percona-server-8.0_builder.sh -O percona-server_builder.sh
+              sed -i 's:sudo::g' percona-server_builder.sh
+              export build_dir=\$(pwd -P)
+                set -o xtrace
+                cd \${build_dir}
+                sudo bash -x ./percona-server_builder.sh --builddir=\${build_dir}/test --install_deps=1; \
+                curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
+                bash -x ./percona-server_builder.sh --builddir=\${build_dir}/test --repo=${GIT_REPO} --branch=${BRANCH} --rpm_release=${RPM_RELEASE} --deb_release=${DEB_RELEASE} --build_source_deb=1
+            """
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 ls \$S3_PATH/source_deb || :
+                aws s3 cp --quiet --recursive source_deb/ \$S3_PATH/source_deb/ || :
+              """
+            }
+            archiveArtifacts 'source_deb/*'
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 cp --quiet --recursive \$S3_PATH/source_deb/ source_deb/ || :
+              """
+            }
+            unstash 'uploadPath'
+            withCredentials([sshUserPrivateKey(credentialsId: 'repo.ci.percona.com', keyFileVariable: 'KEY_PATH', usernameVariable: 'USER')]) {
+              sh """
+                export path_to_build=`cat uploadPath`
+                cat /etc/hosts > hosts
+                echo '10.30.6.9 repo.ci.percona.com' >> hosts
+                sudo cp ./hosts /etc
+                dsc=`find . -name '*.dsc'`
+                if [ -f "\${dsc}" ]; then
+                  ssh -o StrictHostKeyChecking=no -i ${KEY_PATH} ${USER}@repo.ci.percona.com \
+                    mkdir -p \${path_to_build}/source/debian
+                  scp -o StrictHostKeyChecking=no -i ${KEY_PATH} \
+                    `dirname \${dsc}`/* \
+                    ${USER}@repo.ci.percona.com:\${path_to_build}/source/debian/
+                fi
+
+                for deb in \$(find . -name '*.deb'); do
+                  dist=`echo \${deb} | sed -re 's/.*\\.([^.]+)_amd64.deb/\\1/'`
+                  path_to_dist=\${path_to_build}/binary/debian/\${dist}/x86_64
+                  ssh -o StrictHostKeyChecking=no -i ${KEY_PATH} ${USER}@repo.ci.percona.com \
+                    mkdir -p \${path_to_dist}
+                  scp -o StrictHostKeyChecking=no -i ${KEY_PATH} \
+                    \${deb} \
+                    ${USER}@repo.ci.percona.com:\${path_to_dist}/
+                done
+              """
+            }
+
+          }
+        }
+
+      }
+    }
+    stage('Build packages') {
+      parallel {
+       stage('Centos7') {
+          agent {
+            label 'min-centos-7-x64'
+          }
+          steps {
+            sh """
+              sudo yum -y install wget curl unzip
+              if [ -d aws ]; then
+                rm -rf aws
+              fi
+              curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
+              unzip awscliv2.zip
+              sudo ./aws/install || true
+            """
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 cp --quiet --recursive \$S3_PATH/srpm/ srpm || :
+              """
+            }
+            sh """
+              set -o xtrace
+              rm -rf test || true
+              mkdir test
+
+              wget https://raw.githubusercontent.com/percona/percona-server/${BRANCH}/build-ps/percona-server-8.0_builder.sh -O percona-server_builder.sh
+              sed -i 's:sudo::g' percona-server_builder.sh
+              export build_dir=\$(pwd -P)
+              set -o xtrace
+              cd \${build_dir}
+              sudo bash -x ./percona-server_builder.sh --builddir=\${build_dir}/test --install_deps=1; \
+              sudo mv /usr/bin/cmake /usr/bin/cmake2; \
+              sudo ln -s /usr/bin/cmake3 /usr/bin/cmake
+              curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
+              bash -x ./percona-server_builder.sh --builddir=\${build_dir}/test --repo=${GIT_REPO} --branch=${BRANCH} --rpm_release=${RPM_RELEASE} --deb_release=${DEB_RELEASE} --build_rpm=1
+            """
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 ls \$S3_PATH/rpm || :
+                aws s3 cp --quiet --recursive rpm/ \$S3_PATH/rpm/ || :
+              """
+            }
+            archiveArtifacts 'rpm/*.rpm'
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 cp --quiet --recursive \$S3_PATH/rpm/ rpm/ || :
+              """
+            }
+            unstash 'uploadPath'
+            withCredentials([sshUserPrivateKey(credentialsId: 'repo.ci.percona.com', keyFileVariable: 'KEY_PATH', usernameVariable: 'USER')]) {
+              sh """
+                export path_to_build=`cat uploadPath`
+                cat /etc/hosts > hosts
+                echo '10.30.6.9 repo.ci.percona.com' >> hosts
+                sudo cp ./hosts /etc
+                ssh -o StrictHostKeyChecking=no -i ${KEY_PATH} ${USER}@repo.ci.percona.com \
+                  mkdir -p \${path_to_build}/source/redhat \
+                    \${path_to_build}/binary/redhat/6/x86_64 \
+                    \${path_to_build}/binary/redhat/7/x86_64 \
+                    \${path_to_build}/binary/redhat/8/x86_64
+
+                if [ `find . -name '*.src.rpm' | wc -l` -gt 0 ]; then
+                  scp -o StrictHostKeyChecking=no -i ${KEY_PATH} \
+                    `find . -name '*.src.rpm'` \
+                    ${USER}@repo.ci.percona.com:\${path_to_build}/source/redhat/
+                fi
+
+                if [ `find . -name '*.el6.noarch.rpm' -o -name '*.el6.x86_64.rpm' | wc -l` -gt 0 ]; then
+                  scp -o StrictHostKeyChecking=no -i ${KEY_PATH} \
+                    `find . -name '*.el6.noarch.rpm' -o -name '*.el6.x86_64.rpm'` \
+                    ${USER}@repo.ci.percona.com:\${path_to_build}/binary/redhat/6/x86_64/
+                fi
+
+                if [ `find . -name '*.el7.noarch.rpm' -o -name '*.el7.x86_64.rpm' | wc -l` -gt 0 ]; then
+                  scp -o StrictHostKeyChecking=no -i ${KEY_PATH} \
+                    `find . -name '*.el7.noarch.rpm' -o -name '*.el7.x86_64.rpm'` \
+                    ${USER}@repo.ci.percona.com:\${path_to_build}/binary/redhat/7/x86_64/
+                fi
+                if [ `find . -name '*.el8.noarch.rpm' -o -name '*.el8.x86_64.rpm' | wc -l` -gt 0 ]; then
+                  scp -o StrictHostKeyChecking=no -i ${KEY_PATH} \
+                    `find . -name '*.el8.noarch.rpm' -o -name '*.el8.x86_64.rpm'` \
+                    ${USER}@repo.ci.percona.com:\${path_to_build}/binary/redhat/8/x86_64/
+                fi
+              """
+            }
+          }
+        }
+
+        stage('Centos 8') {
+          agent {
+            label 'min-centos-8-x64'
+          }
+          steps {
+            sh """
+              sudo yum -y install wget curl unzip
+              curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
+              if [ -d aws ]; then
+                rm -rf aws
+              fi
+              unzip awscliv2.zip
+              sudo ./aws/install || true
+            """
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 cp --quiet --recursive \$S3_PATH/srpm/ srpm || :
+              """
+            }
+            sh """
+              set -o xtrace
+              rm -rf test || true
+              mkdir test
+              wget https://raw.githubusercontent.com/percona/percona-server/${BRANCH}/build-ps/percona-server-8.0_builder.sh -O percona-server_builder.sh
+              sed -i 's:sudo::g' percona-server_builder.sh
+              export build_dir=\$(pwd -P)
+                set -o xtrace
+                cd \${build_dir}
+                sudo bash -x ./percona-server_builder.sh --builddir=\${build_dir}/test --install_deps=1; \
+                curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
+                bash -x ./percona-server_builder.sh --builddir=\${build_dir}/test --repo=${GIT_REPO} --branch=${BRANCH} --rpm_release=${RPM_RELEASE} --deb_release=${DEB_RELEASE} --build_rpm=1
+            """
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 ls \$S3_PATH/rpm || :
+                aws s3 cp --quiet --recursive rpm/ \$S3_PATH/rpm/ || :
+              """
+            }
+            archiveArtifacts 'rpm/*.rpm'
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 cp --quiet --recursive \$S3_PATH/rpm/ rpm/ || :
+              """
+            }
+            unstash 'uploadPath'
+            withCredentials([sshUserPrivateKey(credentialsId: 'repo.ci.percona.com', keyFileVariable: 'KEY_PATH', usernameVariable: 'USER')]) {
+              sh """
+                export path_to_build=`cat uploadPath`
+                cat /etc/hosts > hosts
+                echo '10.30.6.9 repo.ci.percona.com' >> hosts
+                sudo cp ./hosts /etc
+                ssh -o StrictHostKeyChecking=no -i ${KEY_PATH} ${USER}@repo.ci.percona.com \
+                  mkdir -p \${path_to_build}/source/redhat \
+                    \${path_to_build}/binary/redhat/6/x86_64 \
+                    \${path_to_build}/binary/redhat/7/x86_64 \
+                    \${path_to_build}/binary/redhat/8/x86_64
+
+                if [ `find . -name '*.src.rpm' | wc -l` -gt 0 ]; then
+                  scp -o StrictHostKeyChecking=no -i ${KEY_PATH} \
+                    `find . -name '*.src.rpm'` \
+                    ${USER}@repo.ci.percona.com:\${path_to_build}/source/redhat/
+                fi
+
+                if [ `find . -name '*.el6.noarch.rpm' -o -name '*.el6.x86_64.rpm' | wc -l` -gt 0 ]; then
+                  scp -o StrictHostKeyChecking=no -i ${KEY_PATH} \
+                    `find . -name '*.el6.noarch.rpm' -o -name '*.el6.x86_64.rpm'` \
+                    ${USER}@repo.ci.percona.com:\${path_to_build}/binary/redhat/6/x86_64/
+                fi
+
+                if [ `find . -name '*.el7.noarch.rpm' -o -name '*.el7.x86_64.rpm' | wc -l` -gt 0 ]; then
+                  scp -o StrictHostKeyChecking=no -i ${KEY_PATH} \
+                    `find . -name '*.el7.noarch.rpm' -o -name '*.el7.x86_64.rpm'` \
+                    ${USER}@repo.ci.percona.com:\${path_to_build}/binary/redhat/7/x86_64/
+                fi
+                if [ `find . -name '*.el8.noarch.rpm' -o -name '*.el8.x86_64.rpm' | wc -l` -gt 0 ]; then
+                  scp -o StrictHostKeyChecking=no -i ${KEY_PATH} \
+                    `find . -name '*.el8.noarch.rpm' -o -name '*.el8.x86_64.rpm'` \
+                    ${USER}@repo.ci.percona.com:\${path_to_build}/binary/redhat/8/x86_64/
+                fi
+              """
+            }
+          }
+        }
+
+        stage('Ubuntu 16.04') {
+          agent {
+            label 'min-xenial-x64'
+          }
+          steps {
+            sh """
+              sudo apt-get update && sudo apt-get -y install curl git unzip
+              if [ -d aws ]; then
+                rm -rf aws
+              fi
+              curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
+              unzip awscliv2.zip
+              sudo ./aws/install || true
+            """
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 cp --quiet --recursive \$S3_PATH/source_deb/ source_deb/ || :
+              """
+            }
+            sh """
+              set -o xtrace
+              rm -rf test || true
+              mkdir test
+              wget https://raw.githubusercontent.com/percona/percona-server/${BRANCH}/build-ps/percona-server-8.0_builder.sh -O percona-server_builder.sh
+              sed -i 's:sudo::g' percona-server_builder.sh
+              export build_dir=\$(pwd -P)
+                set -o xtrace
+                cd \${build_dir}
+                sudo bash -x ./percona-server_builder.sh --builddir=\${build_dir}/test --install_deps=1; \
+                bash -x ./percona-server_builder.sh --builddir=\${build_dir}/test --repo=${GIT_REPO} --branch=${BRANCH} --rpm_release=${RPM_RELEASE} --deb_release=${DEB_RELEASE} --build_deb=1
+            """
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 ls \$S3_PATH/deb || :
+                aws s3 cp --quiet --recursive deb/ \$S3_PATH/deb/ || :
+              """
+            }
+            archiveArtifacts 'deb/*'
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 cp --quiet --recursive \$S3_PATH/deb/ deb/ || :
+              """
+            }
+            unstash 'uploadPath'
+            withCredentials([sshUserPrivateKey(credentialsId: 'repo.ci.percona.com', keyFileVariable: 'KEY_PATH', usernameVariable: 'USER')]) {
+              sh """
+                export path_to_build=`cat uploadPath`
+                cat /etc/hosts > hosts
+                echo '10.30.6.9 repo.ci.percona.com' >> hosts
+                sudo cp ./hosts /etc
+                dsc=`find . -name '*.dsc'`
+                if [ -f "\${dsc}" ]; then
+                  ssh -o StrictHostKeyChecking=no -i ${KEY_PATH} ${USER}@repo.ci.percona.com \
+                    mkdir -p \${path_to_build}/source/debian
+                  scp -o StrictHostKeyChecking=no -i ${KEY_PATH} \
+                    `dirname \${dsc}`/* \
+                    ${USER}@repo.ci.percona.com:\${path_to_build}/source/debian/
+                fi
+
+                for deb in \$(find . -name '*.deb'); do
+                  dist=`echo \${deb} | sed -re 's/.*\\.([^.]+)_amd64.deb/\\1/'`
+                  path_to_dist=\${path_to_build}/binary/debian/\${dist}/x86_64
+                  ssh -o StrictHostKeyChecking=no -i ${KEY_PATH} ${USER}@repo.ci.percona.com \
+                    mkdir -p \${path_to_dist}
+                  scp -o StrictHostKeyChecking=no -i ${KEY_PATH} \
+                    \${deb} \
+                    ${USER}@repo.ci.percona.com:\${path_to_dist}/
+                done
+              """
+            }
+          }
+        }
+
+        stage('Ubuntu 18.04') {
+          agent {
+            label 'min-bionic-x64'
+          }
+          steps {
+            sh """
+              sudo apt update && sudo apt -y install curl git unzip
+              if [ -d aws ]; then
+                rm -rf aws
+              fi
+              curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
+              unzip awscliv2.zip
+              sudo ./aws/install || true
+            """
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 cp --quiet --recursive \$S3_PATH/source_deb/ source_deb/ || :
+              """
+            }
+            sh """
+              set -o xtrace
+              rm -rf test || true
+              mkdir test
+              wget https://raw.githubusercontent.com/percona/percona-server/${BRANCH}/build-ps/percona-server-8.0_builder.sh -O percona-server_builder.sh
+              sed -i 's:sudo::g' percona-server_builder.sh
+              export build_dir=\$(pwd -P)
+                set -o xtrace
+                cd \${build_dir}
+                sudo bash -x ./percona-server_builder.sh --builddir=\${build_dir}/test --install_deps=1; \
+                bash -x ./percona-server_builder.sh --builddir=\${build_dir}/test --repo=${GIT_REPO} --branch=${BRANCH} --rpm_release=${RPM_RELEASE} --deb_release=${DEB_RELEASE} --build_deb=1
+            """
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 ls \$S3_PATH/deb || :
+                aws s3 cp --quiet --recursive deb/ \$S3_PATH/deb/ || :
+              """
+            }
+            archiveArtifacts 'deb/*'
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 cp --quiet --recursive \$S3_PATH/deb/ deb/ || :
+              """
+            }
+            unstash 'uploadPath'
+            withCredentials([sshUserPrivateKey(credentialsId: 'repo.ci.percona.com', keyFileVariable: 'KEY_PATH', usernameVariable: 'USER')]) {
+              sh """
+                export path_to_build=`cat uploadPath`
+                cat /etc/hosts > hosts
+                echo '10.30.6.9 repo.ci.percona.com' >> hosts
+                sudo cp ./hosts /etc
+                dsc=`find . -name '*.dsc'`
+                if [ -f "\${dsc}" ]; then
+                  ssh -o StrictHostKeyChecking=no -i ${KEY_PATH} ${USER}@repo.ci.percona.com \
+                    mkdir -p \${path_to_build}/source/debian
+                  scp -o StrictHostKeyChecking=no -i ${KEY_PATH} \
+                    `dirname \${dsc}`/* \
+                    ${USER}@repo.ci.percona.com:\${path_to_build}/source/debian/
+                fi
+
+                for deb in \$(find . -name '*.deb'); do
+                  dist=`echo \${deb} | sed -re 's/.*\\.([^.]+)_amd64.deb/\\1/'`
+                  path_to_dist=\${path_to_build}/binary/debian/\${dist}/x86_64
+                  ssh -o StrictHostKeyChecking=no -i ${KEY_PATH} ${USER}@repo.ci.percona.com \
+                    mkdir -p \${path_to_dist}
+                  scp -o StrictHostKeyChecking=no -i ${KEY_PATH} \
+                    \${deb} \
+                    ${USER}@repo.ci.percona.com:\${path_to_dist}/
+                done
+              """
+            }
+          }
+        }
+
+        stage('Ubuntu 20.04') {
+          agent {
+            label 'min-focal-x64'
+          }
+          steps {
+            sh """
+              if [ -d aws ]; then
+                rm -rf aws
+              fi
+              sudo apt update && sudo apt -y install curl git unzip
+              curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
+              unzip awscliv2.zip
+              sudo ./aws/install || true
+            """
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 cp --quiet --recursive \$S3_PATH/source_deb/ source_deb/ || :
+              """
+            }
+            sh """
+              set -o xtrace
+              rm -rf test || true
+              mkdir test
+              wget https://raw.githubusercontent.com/percona/percona-server/${BRANCH}/build-ps/percona-server-8.0_builder.sh -O percona-server_builder.sh
+              sed -i 's:sudo::g' percona-server_builder.sh
+              export build_dir=\$(pwd -P)
+                set -o xtrace
+                cd \${build_dir}
+                sudo bash -x ./percona-server_builder.sh --builddir=\${build_dir}/test --install_deps=1; \
+                bash -x ./percona-server_builder.sh --builddir=\${build_dir}/test --repo=${GIT_REPO} --branch=${BRANCH} --rpm_release=${RPM_RELEASE} --deb_release=${DEB_RELEASE} --build_deb=1
+            """
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 ls \$S3_PATH/deb || :
+                aws s3 cp --quiet --recursive deb/ \$S3_PATH/deb/ || :
+              """
+            }
+            archiveArtifacts 'deb/*'
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 cp --quiet --recursive \$S3_PATH/deb/ deb/ || :
+              """
+            }
+            unstash 'uploadPath'
+            withCredentials([sshUserPrivateKey(credentialsId: 'repo.ci.percona.com', keyFileVariable: 'KEY_PATH', usernameVariable: 'USER')]) {
+              sh """
+                export path_to_build=`cat uploadPath`
+                cat /etc/hosts > hosts
+                echo '10.30.6.9 repo.ci.percona.com' >> hosts
+                sudo cp ./hosts /etc
+                dsc=`find . -name '*.dsc'`
+                if [ -f "\${dsc}" ]; then
+                  ssh -o StrictHostKeyChecking=no -i ${KEY_PATH} ${USER}@repo.ci.percona.com \
+                    mkdir -p \${path_to_build}/source/debian
+                  scp -o StrictHostKeyChecking=no -i ${KEY_PATH} \
+                    `dirname \${dsc}`/* \
+                    ${USER}@repo.ci.percona.com:\${path_to_build}/source/debian/
+                fi
+
+                for deb in \$(find . -name '*.deb'); do
+                  dist=`echo \${deb} | sed -re 's/.*\\.([^.]+)_amd64.deb/\\1/'`
+                  path_to_dist=\${path_to_build}/binary/debian/\${dist}/x86_64
+                  ssh -o StrictHostKeyChecking=no -i ${KEY_PATH} ${USER}@repo.ci.percona.com \
+                    mkdir -p \${path_to_dist}
+                  scp -o StrictHostKeyChecking=no -i ${KEY_PATH} \
+                    \${deb} \
+                    ${USER}@repo.ci.percona.com:\${path_to_dist}/
+                done
+              """
+            }
+          }
+        }
+
+        stage('Debian 9') {
+          agent {
+            label 'min-stretch-x64'
+          }
+          steps {
+            sh """
+              sudo apt update && sudo apt -y install curl git unzip
+              if [ -d aws ]; then
+                rm -rf aws
+              fi
+              curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
+              unzip awscliv2.zip
+              sudo ./aws/install || true
+            """
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 cp --quiet --recursive \$S3_PATH/source_deb/ source_deb/ || :
+              """
+            }
+            sh """
+              set -o xtrace
+              rm -rf test || true
+              mkdir test
+              wget https://raw.githubusercontent.com/percona/percona-server/${BRANCH}/build-ps/percona-server-8.0_builder.sh -O percona-server_builder.sh
+              sed -i 's:sudo::g' percona-server_builder.sh
+              export build_dir=\$(pwd -P)
+                set -o xtrace
+                cd \${build_dir}
+                sudo bash -x ./percona-server_builder.sh --builddir=\${build_dir}/test --install_deps=1; \
+                bash -x ./percona-server_builder.sh --builddir=\${build_dir}/test --repo=${GIT_REPO} --branch=${BRANCH} --rpm_release=${RPM_RELEASE} --deb_release=${DEB_RELEASE} --build_deb=1
+            """
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 ls \$S3_PATH/deb || :
+                aws s3 cp --quiet --recursive deb/ \$S3_PATH/deb/ || :
+              """
+            }
+            archiveArtifacts 'deb/*'
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 cp --quiet --recursive \$S3_PATH/deb/ deb/ || :
+              """
+            }
+            unstash 'uploadPath'
+            withCredentials([sshUserPrivateKey(credentialsId: 'repo.ci.percona.com', keyFileVariable: 'KEY_PATH', usernameVariable: 'USER')]) {
+              sh """
+                export path_to_build=`cat uploadPath`
+                cat /etc/hosts > hosts
+                echo '10.30.6.9 repo.ci.percona.com' >> hosts
+                sudo cp ./hosts /etc
+                dsc=`find . -name '*.dsc'`
+                if [ -f "\${dsc}" ]; then
+                  ssh -o StrictHostKeyChecking=no -i ${KEY_PATH} ${USER}@repo.ci.percona.com \
+                    mkdir -p \${path_to_build}/source/debian
+                  scp -o StrictHostKeyChecking=no -i ${KEY_PATH} \
+                    `dirname \${dsc}`/* \
+                    ${USER}@repo.ci.percona.com:\${path_to_build}/source/debian/
+                fi
+
+                for deb in \$(find . -name '*.deb'); do
+                  dist=`echo \${deb} | sed -re 's/.*\\.([^.]+)_amd64.deb/\\1/'`
+                  path_to_dist=\${path_to_build}/binary/debian/\${dist}/x86_64
+                  ssh -o StrictHostKeyChecking=no -i ${KEY_PATH} ${USER}@repo.ci.percona.com \
+                    mkdir -p \${path_to_dist}
+                  scp -o StrictHostKeyChecking=no -i ${KEY_PATH} \
+                    \${deb} \
+                    ${USER}@repo.ci.percona.com:\${path_to_dist}/
+                done
+              """
+            }
+          }
+        }
+
+        stage('Debian 10') {
+          agent {
+            label 'min-buster-x64'
+          }
+          steps {
+            sh """
+              sudo apt update && sudo apt -y install curl git unzip
+              if [ -d aws ]; then
+                rm -rf aws
+              fi
+              curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
+              unzip awscliv2.zip
+              sudo ./aws/install || true
+            """
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 cp --quiet --recursive \$S3_PATH/source_deb/ source_deb/ || :
+              """
+            }
+            sh """
+              set -o xtrace
+              rm -rf test || true
+              mkdir test
+              wget https://raw.githubusercontent.com/percona/percona-server/${BRANCH}/build-ps/percona-server-8.0_builder.sh -O percona-server_builder.sh
+              sed -i 's:sudo::g' percona-server_builder.sh
+              export build_dir=\$(pwd -P)
+                set -o xtrace
+                cd \${build_dir}
+                sudo bash -x ./percona-server_builder.sh --builddir=\${build_dir}/test --install_deps=1; \
+                bash -x ./percona-server_builder.sh --builddir=\${build_dir}/test --repo=${GIT_REPO} --branch=${BRANCH} --rpm_release=${RPM_RELEASE} --deb_release=${DEB_RELEASE} --build_deb=1
+            """
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 ls \$S3_PATH/deb || :
+                aws s3 cp --quiet --recursive deb/ \$S3_PATH/deb/ || :
+              """
+            }
+            archiveArtifacts 'deb/*'
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 cp --quiet --recursive \$S3_PATH/deb/ deb/ || :
+              """
+            }
+            unstash 'uploadPath'
+            withCredentials([sshUserPrivateKey(credentialsId: 'repo.ci.percona.com', keyFileVariable: 'KEY_PATH', usernameVariable: 'USER')]) {
+              sh """
+                export path_to_build=`cat uploadPath`
+                cat /etc/hosts > hosts
+                echo '10.30.6.9 repo.ci.percona.com' >> hosts
+                sudo cp ./hosts /etc
+                dsc=`find . -name '*.dsc'`
+                if [ -f "\${dsc}" ]; then
+                  ssh -o StrictHostKeyChecking=no -i ${KEY_PATH} ${USER}@repo.ci.percona.com \
+                    mkdir -p \${path_to_build}/source/debian
+                  scp -o StrictHostKeyChecking=no -i ${KEY_PATH} \
+                    `dirname \${dsc}`/* \
+                    ${USER}@repo.ci.percona.com:\${path_to_build}/source/debian/
+                fi
+
+                for deb in \$(find . -name '*.deb'); do
+                  dist=`echo \${deb} | sed -re 's/.*\\.([^.]+)_amd64.deb/\\1/'`
+                  path_to_dist=\${path_to_build}/binary/debian/\${dist}/x86_64
+                  ssh -o StrictHostKeyChecking=no -i ${KEY_PATH} ${USER}@repo.ci.percona.com \
+                    mkdir -p \${path_to_dist}
+                  scp -o StrictHostKeyChecking=no -i ${KEY_PATH} \
+                    \${deb} \
+                    ${USER}@repo.ci.percona.com:\${path_to_dist}/
+                done
+              """
+            }
+          }
+        }
+        stage('Tarball') {
+          agent {
+            label 'min-centos-7-x64'
+          }
+          steps {
+            sh """
+              sudo yum -y install curl git unzip wget
+              if [ -d aws ]; then
+                rm -rf aws
+              fi
+              curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
+              unzip awscliv2.zip
+              sudo ./aws/install || true
+            """
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 cp --quiet --recursive \$S3_PATH/source_tarball/ source_tarball/ || :
+              """
+            }
+            sh """
+              rm -rf test || true
+              mkdir test
+              wget https://raw.githubusercontent.com/percona/percona-server/${BRANCH}/build-ps/percona-server-8.0_builder.sh -O percona-server_builder.sh
+              sed -i 's:sudo::g' percona-server_builder.sh
+              export build_dir=\$(pwd -P)
+                cd \${build_dir}
+                sudo bash -x ./percona-server_builder.sh --builddir=\${build_dir}/test --install_deps=1; \
+                sudo mv /usr/bin/cmake /usr/bin/cmake2; \
+                sudo ln -s /usr/bin/cmake3 /usr/bin/cmake
+                bash -x ./percona-server_builder.sh --builddir=\${build_dir}/test --repo=${GIT_REPO} --branch=${BRANCH} --rpm_release=${RPM_RELEASE} --deb_release=${DEB_RELEASE} --build_tarball=1
+            """
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 ls \$S3_PATH/tarball || :
+                aws s3 cp --quiet --recursive tarball/ \$S3_PATH/tarball/ || :
+              """
+            }
+            archiveArtifacts 'tarball/Percona-Server*.tar.gz'
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_STASH', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                S3_PATH=s3://percona-jenkins-artifactory/${AWS_STASH_PATH}
+                aws s3 cp --quiet --recursive \$S3_PATH/tarball/ tarball/ || :
+              """
+            }
+            unstash 'uploadPath'
+            withCredentials([sshUserPrivateKey(credentialsId: 'repo.ci.percona.com', keyFileVariable: 'KEY_PATH', usernameVariable: 'USER')]) {
+              sh """
+                export path_to_build=`cat uploadPath`
+                cat /etc/hosts > hosts
+                echo '10.30.6.9 repo.ci.percona.com' >> hosts
+                sudo cp ./hosts /etc
+
+                ssh -o StrictHostKeyChecking=no -i ${KEY_PATH} ${USER}@repo.ci.percona.com \
+                  mkdir -p \${path_to_build}/binary/tarball
+
+                scp -o StrictHostKeyChecking=no -i ${KEY_PATH} \
+                  `find . -name '*.tar.*'` \
+                  ${USER}@repo.ci.percona.com:\${path_to_build}/binary/tarball/
+              """
+            }
+          }
+        }
+
+      }
+    }
+    stage('Sign packages') {
+      steps {
+        unstash 'uploadPath'
+        withCredentials([string(credentialsId: 'SIGN_PASSWORD', variable: 'SIGN_PASSWORD')]) {
+          withCredentials([sshUserPrivateKey(credentialsId: 'repo.ci.percona.com', keyFileVariable: 'KEY_PATH', passphraseVariable: '', usernameVariable: 'USER')]) {
+            sh """
+              cat /etc/hosts > hosts
+              echo '10.30.6.9 repo.ci.percona.com' >> hosts
+              sudo cp ./hosts /etc
+              export path_to_build=`cat uploadPath`
+              ssh -o StrictHostKeyChecking=no -i ${KEY_PATH} ${USER}@repo.ci.percona.com " \
+              ls \${path_to_build}/binary/redhat/*/*/*.rpm \
+                  | xargs -n 1 signpackage --verbose --password ${SIGN_PASSWORD} --rpm
+              "
+            """
+            sh """
+              export path_to_build=`cat uploadPath`
+              cat /etc/hosts > hosts
+              echo '10.30.6.9 repo.ci.percona.com' >> hosts
+              sudo cp ./hosts /etc
+              ssh -o StrictHostKeyChecking=no -i ${KEY_PATH} ${USER}@repo.ci.percona.com " \
+                ls \${path_to_build}/binary/debian/*/*/*.deb \
+                | xargs -n 1 signpackage --verbose --password ${SIGN_PASSWORD} --deb
+              "
+            """
+          }
+        }
+      }
+    }
+    stage('Push to repository') {
+      steps {
+          unstash 'uploadPath'
+          script {
+            UP_PATH = sh(returnStdout: true, script: "cat uploadPath").trim()
+          }
+          withCredentials([string(credentialsId: 'SIGN_PASSWORD', variable: 'SIGN_PASSWORD')]) {
+            withCredentials([sshUserPrivateKey(credentialsId: 'repo.ci.percona.com', keyFileVariable: 'KEY_PATH', passphraseVariable: '', usernameVariable: 'USER')]) {
+              sh """
+                cat /etc/hosts > hosts; \
+                echo '10.30.6.9 repo.ci.percona.com' >> hosts; \
+                sudo cp ./hosts /etc; \
+                export path_to_build=`cat uploadPath`
+                ssh -o StrictHostKeyChecking=no -i ${KEY_PATH} ${USER}@repo.ci.percona.com ' \
+                    set -o errexit; \
+                    set -o xtrace; \
+                    export path_to_build=`echo ${UP_PATH}`; \
+                    pushd /srv
+                      pushd \${path_to_build}/binary 
+                        for rhel in `ls -1 redhat`; do
+                          export dest_path=/srv/repo-copy/ps-80/yum/experimental/\${rhel}
+                          # RPMS
+                          mkdir -p \${dest_path}/RPMS
+                          for arch in `ls -1 redhat/\${rhel}`; do
+                            repo_path=\${dest_path}/RPMS/\${arch}
+                            mkdir -p \${repo_path}
+                            if [ `ls redhat/\${rhel}/\${arch}/*.rpm | wc -l` -gt 0 ]; then
+                                rsync -aHv redhat/\${rhel}/\${arch}/*.rpm \${rsync_exclude} \${repo_path}/
+                            fi
+                            createrepo --update \${repo_path}
+                          done
+                          # SRPMS
+                          mkdir -p \${dest_path}/SRPMS
+                          if [ `find ../source/redhat -name \'*.src.rpm\' \${find_exclude}  | wc -l` -gt 0 ]; then
+                              cp -v `find ../source/redhat -name \'*.src.rpm\' \${find_exclude}` \${dest_path}/SRPMS/
+                          fi
+                          createrepo --update \${dest_path}/SRPMS
+                        done
+                        export PATH=\"/usr/local/reprepro5/bin:${PATH}\"
+                        for dist in stretch buster xenial bionic focal; do
+                            for deb in `find debian/\${dist} -name \'*.deb\'`; do
+                                repopush --gpg-pass ${SIGN_PASSWORD} --package \${deb} --verbose --component experimental --codename \${dist} --repo-path /srv/repo-copy/ps-80/apt
+                            done
+                        done
+                      popd
+                    popd
+                    rsync -avt --bwlimit=50000 --delete --progress --exclude=rsync-* --exclude=*.bak \
+                      /srv/repo-copy/ps-80/yum/experimental/ \
+                      10.10.9.209:/www/repo.percona.com/htdocs/ps-80/yum/experimental
+                    rsync -avt --bwlimit=50000 --delete --progress --exclude=rsync-* --exclude=*.bak \
+                      /srv/repo-copy/ps-80/apt/ \
+                      10.10.9.209:/www/repo.percona.com/htdocs/ps-80/apt/
+
+                    # Clean CDN cache for repo.percona.com
+                    /bin/bash -xe /usr/local/bin/clear_cdn_cache.sh
+              '
+            """
+          }
+        }
+      }
+    }
+
+  }
+  options {
+    skipDefaultCheckout()
+    disableConcurrentBuilds()
+  }
+  parameters {
+    string(defaultValue: 'https://github.com/percona/percona-server.git', description: 'github repository for build', name: 'GIT_REPO')
+    string(defaultValue: 'release-8.0.21-12', description: 'Tag/Branch for percona-server repository', name: 'BRANCH')
+    string(defaultValue: '0', description: 'PerconaFT repository', name: 'PERCONAFT_REPO')
+    string(defaultValue: 'Percona-Server-8.0.21-12', description: 'Tag/Branch for PerconaFT repository', name: 'PERCONAFT_BRANCH')
+    string(defaultValue: '0', description: 'TokuBackup repository', name: 'TOKUBACKUP_REPO')
+    string(defaultValue: 'Percona-Server-8.0.21-12', description: 'Tag/Branch for TokuBackup repository', name: 'TOKUBACKUP_BRANCH')
+    string(defaultValue: '1', description: 'RPM version', name: 'RPM_RELEASE')
+    string(defaultValue: '1', description: 'DEB version', name: 'DEB_RELEASE')
+    choice(choices: '''NO
+    YES''', description: 'Is this build for release?', name: 'RELEASE_BUILD')
+    choice(choices: '''laboratory
+    testing
+    experimental
+    release''', description: 'Repo component to push packages to', name: 'COMPONENT')
+  }
+  post {
+    always {
+        deleteDir()
+    }
+  }
+}

@@ -3,6 +3,7 @@
 --echo #
 
 --source include/have_innodb_default_undo_tablespaces.inc
+--source include/count_sessions.inc
 
 # Do a slow shutdown and restart to clear out the undo logs
 SET GLOBAL innodb_fast_shutdown = 0;
@@ -343,6 +344,8 @@ ALTER UNDO TABLESPACE undo_006 SET INACTIVE;
 let $inactive_undo_space = undo_006;
 source include/wait_until_undo_space_is_empty.inc;
 DROP UNDO TABLESPACE undo_006;
+
+--source include/wait_until_count_sessions.inc
 
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\] .* Log writer is waiting for checkpointer to to catch up lag");

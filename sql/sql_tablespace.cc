@@ -250,6 +250,13 @@ bool lock_tablespace_names(THD *thd, Names... names) {
     return true;
   }
 
+  // Acquire Percona's LOCK TABLES FOR BACKUP lock
+  if (thd->backup_tables_lock.abort_if_acquired() ||
+      thd->backup_tables_lock.acquire_protection(
+          thd, MDL_TRANSACTION, thd->variables.lock_wait_timeout)) {
+    return true;
+  }
+
   if (lock_rec(thd, &mdl_requests, names...)) {
     return true;
   }

@@ -7,18 +7,14 @@
 SELECT PLUGIN_NAME, PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME LIKE 'authentication_ldap_simple%';
 --replace_result $MTR_LDAP_HOST <MTR_LDAP_HOST> $MTR_LDAP_PORT <MTR_LDAP_PORT>
 SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
-SET GLOBAL authentication_ldap_simple_bind_base_dn = 'CN=Users,dc=loctest,dc=hu';
---replace_result $MTR_LDAP_HOST <MTR_LDAP_HOST>
---eval SET GLOBAL authentication_ldap_simple_server_host = '$MTR_LDAP_HOST'
---replace_result $MTR_LDAP_PORT <MTR_LDAP_PORT>
---eval SET GLOBAL authentication_ldap_simple_server_port = $MTR_LDAP_PORT
+SET GLOBAL authentication_ldap_simple_bind_base_dn = 'cn=Users,dc=perconatest,dc=com';
 
 # For debugging:
-# SET GLOBAL authentication_ldap_simple_log_status = 4;
+# SET GLOBAL authentication_ldap_simple_log_status = 6;
 
 --replace_result $MTR_LDAP_HOST <MTR_LDAP_HOST> $MTR_LDAP_PORT <MTR_LDAP_PORT>
 SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
-CREATE USER zoidberg IDENTIFIED WITH authentication_ldap_simple BY 'cn=zoidberg,cn=Users,dc=loctest,dc=hu';
+CREATE USER zoidberg IDENTIFIED WITH authentication_ldap_simple BY 'cn=zoidberg,cn=Users,dc=perconatest,dc=com';
 CREATE USER nonexistent IDENTIFIED WITH authentication_ldap_simple BY 'uid=nonexistent';
 
 --connect (con1,localhost,zoidberg,Bergzoid11,,,,CLEARTEXT)
@@ -29,41 +25,22 @@ SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
 --disconnect con1
 --connection default
 
-SET GLOBAL authentication_ldap_simple_server_host = 'badhost';
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
---connect (con1,localhost,zoidberg,Bergzoid11,,,,CLEARTEXT)
---enable_query_log
-
-
---disable_query_log
---let BAD_MTR_LDAP_PORT=`SELECT $MTR_LDAP_PORT+1`
---enable_query_log
-
---replace_result $MTR_LDAP_HOST <MTR_LDAP_HOST>
---eval SET GLOBAL authentication_ldap_simple_server_host = '$MTR_LDAP_HOST'
---replace_result $BAD_MTR_LDAP_PORT <BAD_MTR_LDAP_PORT>
---eval SET GLOBAL authentication_ldap_simple_server_port = $BAD_MTR_LDAP_PORT
---disable_query_log
+--connect (con1,localhost,nonexistent,Bergzoid11,,,,CLEARTEXT)
 --error ER_ACCESS_DENIED_ERROR
---connect (con1,localhost,zoidberg,Bergzoid11,,,,CLEARTEXT)
+--connect (con1,localhost,zoidberg,ergzoid11,,,,CLEARTEXT)
+--error ER_ACCESS_DENIED_ERROR
+--connect (con1,localhost,zoidberg,,,,,CLEARTEXT)
+--error ER_ACCESS_DENIED_ERROR
+--connect (con1,localhost,zoidberg,'    ',,,,CLEARTEXT)
 --enable_query_log
-
---replace_result $MTR_LDAP_PORT <MTR_LDAP_PORT>
---eval SET GLOBAL authentication_ldap_simple_server_port = $MTR_LDAP_PORT
---connect (con1,localhost,zoidberg,Bergzoid11,,,,CLEARTEXT)
---replace_result $MTR_LDAP_HOST <MTR_LDAP_HOST> $MTR_LDAP_PORT <MTR_LDAP_PORT>
-SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
---disconnect con1
---connection default
 
 DROP USER zoidberg;
 DROP USER nonexistent;
 
 # Test search mode
 SET GLOBAL authentication_ldap_simple_user_search_attr = 'samAccountName';
-SET GLOBAL authentication_ldap_simple_bind_root_dn = 'cn=zoidberg,cn=Users,dc=loctest,dc=hu';
-SET GLOBAL authentication_ldap_simple_bind_root_pwd = 'Bergzoid11';
 CREATE USER zoidberg IDENTIFIED WITH authentication_ldap_simple;
 --connect (con1,localhost,zoidberg,Bergzoid11,,,,CLEARTEXT)
 --replace_result $MTR_LDAP_HOST <MTR_LDAP_HOST> $MTR_LDAP_PORT <MTR_LDAP_PORT>
@@ -74,11 +51,7 @@ SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
 DROP USER zoidberg;
 
 SET GLOBAL authentication_ldap_simple_bind_base_dn = '';
-SET GLOBAL authentication_ldap_simple_bind_root_dn = '';
-SET GLOBAL authentication_ldap_simple_bind_root_pwd = '';
 SET GLOBAL authentication_ldap_simple_user_search_attr = 'uid';
-SET GLOBAL authentication_ldap_simple_server_host = '';
-SET GLOBAL authentication_ldap_simple_server_port = 389;
 SET GLOBAL authentication_ldap_simple_log_status = 1;
 
 --source include/wait_until_count_sessions.inc

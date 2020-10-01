@@ -1918,7 +1918,7 @@ using fix_default_table_encryption_t = bool (*)(ulong, bool);
  encryption is compliant with current encryption used in
  innodb.
 */
-using check_mk_keyring_exclusions_t = bool (*)(THD *);
+using check_mk_keyring_exclusions_t = bool (*)(THD *, longlong);
 
 using compression_dict_data_vec_t =
     std::vector<std::pair<std::string, std::string>>;

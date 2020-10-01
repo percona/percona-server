@@ -4430,24 +4430,46 @@ bool innobase_fix_default_table_encryption(ulong encryption_option, bool is_serv
   return false;
 }
 
-bool innobase_check_mk_keyring_exclusions(THD *thd) {
-  if (srv_undo_log_encrypt == true) {
-    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
-                        "Online encryption to KEYRING cannot be turned ON"
-                        " as Undo log Master Key encryption is turned ON."
-                        " Please disable the Undo log Master key encryption"
-                        " (innodb_undo_log_encrypt) and try again.");
-    return true;
+bool innobase_check_mk_keyring_exclusions(THD *thd, longlong dte_val) {
+  if (dte_val == DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING ||
+      dte_val == DEFAULT_TABLE_ENC_ONLINE_FROM_KEYRING_TO_UNENCRYPTED) {
+    if (lock_keyrings(nullptr) == 0) {
+      my_printf_error(ER_WRONG_ARGUMENTS,
+                      "The default_table_encryption option cannot be changed, "
+                      "keyring plugin is not available",
+                      MYF(0));
+      return true;
+    }
+    if (!Encryption::is_keyring_alive()) {
+      my_printf_error(ER_WRONG_ARGUMENTS,
+                      "The default_table_encryption option cannot be changed, "
+                      "keyring plugin is installed but it seems it was not "
+                      "properly initialized.",
+                      MYF(0));
+      unlock_keyrings(nullptr);
+      return true;
+    }
   }
-  if (srv_sys_tablespace_encrypt == SYS_TABLESPACE_ENCRYPT_ON) {
-    push_warning_printf(
-        thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
-        "Online encryption to KEYRING cannot be turned ON"
-        " as system tablespace is encrypted with Master Key"
-        " encryption. In case you want system tablespace to"
-        " get re-encrypted with KEYRING encryption set"
-        " --innodb-sys_tablespace_encrypt to RE_ENCRYPTING_TO_KEYRING");
-    return true;
+
+  if (dte_val == DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING) {
+    if (srv_undo_log_encrypt == true) {
+      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+                          "Online encryption to KEYRING cannot be turned ON"
+                          " as Undo log Master Key encryption is turned ON."
+                          " Please disable the Undo log Master key encryption"
+                          " (innodb_undo_log_encrypt) and try again.");
+      return true;
+    }
+    if (srv_sys_tablespace_encrypt == SYS_TABLESPACE_ENCRYPT_ON) {
+      push_warning_printf(
+          thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+          "Online encryption to KEYRING cannot be turned ON"
+          " as system tablespace is encrypted with Master Key"
+          " encryption. In case you want system tablespace to"
+          " get re-encrypted with KEYRING encryption set"
+          " --innodb-sys_tablespace_encrypt to RE_ENCRYPTING_TO_KEYRING");
+      return true;
+    }
   }
 
   return false;

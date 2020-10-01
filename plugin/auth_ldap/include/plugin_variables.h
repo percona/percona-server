@@ -62,18 +62,21 @@ static MYSQL_SYSVAR_STR(bind_base_dn, bind_base_dn,
                         &update_sysvar<char *> /* update */,
                         nullptr /* default */);
 static MYSQL_SYSVAR_STR(bind_root_dn, bind_root_dn,
-                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC |
+                            PLUGIN_VAR_READONLY,
                         "The root distinguished name (DN)", nullptr /* check */,
                         &update_sysvar<char *> /* update */,
                         nullptr /* default */);
 static MYSQL_SYSVAR_STR(bind_root_pwd, bind_root_pwd,
-                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC |
+                            PLUGIN_VAR_READONLY,
                         "The password for the "
                         "root distinguished name",
                         nullptr /* check */, &update_pwd_sysvar /* update */,
                         nullptr /* default */);
 static MYSQL_SYSVAR_STR(ca_path, ca_path,
-                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC |
+                            PLUGIN_VAR_READONLY,
                         "The absolute path of "
                         "the certificate authority file",
                         nullptr /* check */,
@@ -112,24 +115,26 @@ static MYSQL_SYSVAR_INT(log_status, log_status, PLUGIN_VAR_RQCMDARG,
                         1 /* default */, 1 /*minimum */, 5 /* maximum */,
                         0 /* blocksize */);
 static MYSQL_SYSVAR_STR(server_host, server_host,
-                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC |
+                            PLUGIN_VAR_READONLY,
                         "The LDAP server host", nullptr /* check */,
                         &update_sysvar<char *> /* update */,
                         nullptr /* default */);
-static MYSQL_SYSVAR_UINT(server_port, server_port, PLUGIN_VAR_RQCMDARG,
+static MYSQL_SYSVAR_UINT(server_port, server_port,
+                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
                          "The LDAP server TCP/IP port number",
                          nullptr /* check */,
                          &update_sysvar<unsigned int> /* update */,
                          389 /* default */, 1 /*minimum */, 32376 /* maximum */,
                          0 /* blocksize */);
 static MYSQL_SYSVAR_BOOL(
-    ssl, ssl, PLUGIN_VAR_RQCMDARG,
+    ssl, ssl, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
     "Whether connections "
     "by the plugin to the LDAP server are using the SSL protocol (ldaps://)",
     nullptr /* check */, &update_sysvar<bool> /* update */,
     false /* default */);
 static MYSQL_SYSVAR_BOOL(
-    tls, tls, PLUGIN_VAR_RQCMDARG,
+    tls, tls, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
     "Whether connections "
     "by the plugin to the LDAP server are secured with STARTTLS (ldap://)",
     nullptr /* check */, &update_sysvar<bool> /* update */,

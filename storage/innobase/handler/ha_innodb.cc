@@ -957,21 +957,30 @@ static int default_encryption_key_id_validate(
     DBUG_RETURN(1);
   }
 
-  if (intbuf < 0 || intbuf >= UINT_MAX) {
-    push_warning_printf(thd, Sql_condition::SL_WARNING, HA_ERR_UNSUPPORTED,
-                        "InnoDB: value out of scope");
+  bool is_val_fixed = false;
+  auto key_id = intbuf;
+  if (intbuf < 0) {
+    key_id = 0;
+    is_val_fixed = true;
+  } else if (intbuf >= UINT_MAX32) {
+    key_id = UINT_MAX32 - 1;
+    is_val_fixed = true;
+  }
+
+  if (throw_bounds_warning(thd, "innodb_encryption_key_id", is_val_fixed,
+                           intbuf)) {
     DBUG_RETURN(1);
   }
 
   if (!Encryption::tablespace_key_exists_or_create_new_one_if_does_not_exist(
-          static_cast<uint>(intbuf), server_uuid)) {
+          static_cast<uint>(key_id), server_uuid)) {
     push_warning_printf(thd, Sql_condition::SL_WARNING, HA_ERR_UNSUPPORTED,
                         "InnoDB: cannot enable encryption, "
                         "keyring plugin is not available");
     DBUG_RETURN(1);
   }
 
-  *reinterpret_cast<ulong *>(save) = static_cast<ulong>(intbuf);
+  *reinterpret_cast<ulong *>(save) = static_cast<ulong>(key_id);
 
   DBUG_RETURN(0);
 }
@@ -991,7 +1000,7 @@ static MYSQL_THDVAR_UINT(default_encryption_key_id, PLUGIN_VAR_RQCMDARG,
                          "Default encryption key id used for table encryption.",
                          default_encryption_key_id_validate,
                          default_encryption_key_id_update,
-                         FIL_DEFAULT_ENCRYPTION_KEY, 0, UINT_MAX32, 0);
+                         FIL_DEFAULT_ENCRYPTION_KEY, 0, UINT_MAX32 - 1, 0);
 
 uint get_global_default_encryption_key_id_value() {
   return THDVAR(NULL, default_encryption_key_id);

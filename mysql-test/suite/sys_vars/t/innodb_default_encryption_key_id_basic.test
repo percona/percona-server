@@ -1,3 +1,118 @@
---skip Not implemented
-
 SELECT @@global.innodb_default_encryption_key_id;
+
+--let $error_log=$MYSQL_TMP_DIR/my_restart.err
+
+--replace_result $KEYRING_PLUGIN KEYRING_PLUGIN $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/keyring/keyring --default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4 --innodb-default-encryption-key-id=4294967295 --log-error=$error_log
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/restart_mysqld.inc
+
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$error_log
+--let SEARCH_PATTERN=\[Server\] option 'innodb-default-encryption-key-id': unsigned value 4294967295 adjusted to 4294967294\.
+--source include/search_pattern_in_file.inc
+
+--let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/keyring/keyring --default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4 --innodb-default-encryption-key-id=-1 --log-error=$error_log
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/restart_mysqld.inc
+
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$error_log
+--let SEARCH_PATTERN=\[Server\] option 'innodb-default-encryption-key-id': value -1 adjusted to 0\.
+--source include/search_pattern_in_file.inc
+
+SET innodb_default_encryption_key_id=4294967295;
+SELECT @@session.innodb_default_encryption_key_id;
+SELECT @@global.innodb_default_encryption_key_id;
+
+SET global innodb_default_encryption_key_id=4294967295;
+SELECT @@session.innodb_default_encryption_key_id;
+SELECT @@global.innodb_default_encryption_key_id;
+
+SET persist innodb_default_encryption_key_id=4294967295;
+SELECT @@session.innodb_default_encryption_key_id;
+SELECT @@global.innodb_default_encryption_key_id;
+
+SET persist_only innodb_default_encryption_key_id=4294967295;
+SELECT @@session.innodb_default_encryption_key_id;
+SELECT @@global.innodb_default_encryption_key_id;
+
+SET innodb_default_encryption_key_id=-1;
+SELECT @@session.innodb_default_encryption_key_id;
+SELECT @@global.innodb_default_encryption_key_id;
+
+SET global innodb_default_encryption_key_id=-1;
+SELECT @@session.innodb_default_encryption_key_id;
+SELECT @@global.innodb_default_encryption_key_id;
+
+SET persist innodb_default_encryption_key_id=-1;
+SELECT @@session.innodb_default_encryption_key_id;
+SELECT @@global.innodb_default_encryption_key_id;
+
+SET persist_only innodb_default_encryption_key_id=-1;
+SELECT @@session.innodb_default_encryption_key_id;
+SELECT @@global.innodb_default_encryption_key_id;
+
+SET innodb_default_encryption_key_id=0;
+SELECT @@session.innodb_default_encryption_key_id;
+SELECT @@global.innodb_default_encryption_key_id;
+
+SET global innodb_default_encryption_key_id=0;
+SELECT @@session.innodb_default_encryption_key_id;
+SELECT @@global.innodb_default_encryption_key_id;
+
+SET innodb_default_encryption_key_id=1;
+SET global innodb_default_encryption_key_id=1;
+SELECT @@session.innodb_default_encryption_key_id;
+SELECT @@global.innodb_default_encryption_key_id;
+
+SET persist innodb_default_encryption_key_id=0;
+SELECT @@session.innodb_default_encryption_key_id;
+SELECT @@global.innodb_default_encryption_key_id;
+
+SET innodb_default_encryption_key_id=1;
+SET global innodb_default_encryption_key_id=1;
+SELECT @@session.innodb_default_encryption_key_id;
+SELECT @@global.innodb_default_encryption_key_id;
+
+SET persist_only innodb_default_encryption_key_id=0;
+SELECT @@session.innodb_default_encryption_key_id;
+SELECT @@global.innodb_default_encryption_key_id;
+
+--error ER_ENCRYPTION_KEY_ID_VALUE_OUT_OF_RANGE
+CREATE TABLE t_exceeded_id (a varchar(255)) ENCRYPTION_KEY_ID=4294967295;
+
+--error ER_PARSE_ERROR
+CREATE TABLE t_below_0 (a varchar(255)) ENCRYPTION_KEY_ID=-1;
+
+CREATE TABLE t_MAX (a varchar(255)) ENCRYPTION_KEY_ID=4294967294;
+CREATE TABLE t_MIN (a varchar(255)) ENCRYPTION_KEY_ID=0;
+
+--error ER_ENCRYPTION_KEY_ID_VALUE_OUT_OF_RANGE
+ALTER TABLE t_MAX ENCRYPTION_KEY_ID=4294967295;
+--error ER_PARSE_ERROR
+ALTER TABLE t_MIN ENCRYPTION_KEY_ID=-1;
+
+--error ER_ENCRYPTION_KEY_ID_VALUE_OUT_OF_RANGE
+CREATE TABLESPACE ts_exceeded_id ENCRYPTION_KEY_ID=4294967295;
+
+--error ER_PARSE_ERROR
+CREATE TABLESPACE ts_below_0 ENCRYPTION_KEY_ID=-1;
+
+CREATE TABLESPACE ts_MAX ENCRYPTION_KEY_ID=4294967294;
+CREATE TABLESPACE ts_MIN ENCRYPTION_KEY_ID=0;
+
+--error ER_ENCRYPTION_KEY_ID_VALUE_OUT_OF_RANGE
+ALTER TABLESPACE ts_MAX ENCRYPTION_KEY_ID=4294967295;
+--error ER_PARSE_ERROR
+ALTER TABLESPACE ts_MIN ENCRYPTION_KEY_ID=-1;
+
+DROP TABLE t_MAX,t_MIN;
+DROP TABLESPACE ts_MAX;
+DROP TABLESPACE ts_MIN;
+
+--remove_file $error_log
+--remove_file $MYSQL_TMP_DIR/keyring/keyring
+
+# restart with default options
+--source include/force_restart.inc

@@ -97,11 +97,13 @@ static int auth_ldap_simple_init(MYSQL_PLUGIN plugin_info) {
   auth_ldap_common_init();
   log_srv_dbg("auth_ldap_simple_init()");
 
+  pwd_real_set(bind_root_pwd);
+
   log_srv_dbg("Creating LDAP connection pool");
   connPool = new mysql::plugin::auth_ldap::Pool(
       init_pool_size, max_pool_size, str_or_empty(server_host), server_port,
       ssl, tls, str_or_empty(ca_path), str_or_empty(bind_root_dn),
-      str_or_empty(bind_root_pwd));
+      str_or_empty(bind_root_pwd_real));
   connPool->debug_info();
 
   auth_ldap_simple_plugin_info = plugin_info;

@@ -53,6 +53,41 @@ SELECT @@innodb_file_per_table;
 1
 ALTER TABLESPACE innodb_system ENCRYPTION='Y';
 ERROR 42000: InnoDB: `innodb_system` is a reserved tablespace name.
+LOCK TABLES FOR BACKUP;
+CREATE TABLESPACE tbs01 ADD DATAFILE 'tbs01.ibd' ENCRYPTION='y';
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
+SET @@session.lock_wait_timeout=1;
+CREATE TABLESPACE tbs01 ADD DATAFILE 'tbs01.ibd' ENCRYPTION='y';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UNLOCK TABLES;
+CREATE TABLESPACE tbs01 ADD DATAFILE 'tbs01.ibd' ENCRYPTION='y';
+CREATE TABLE t1(i int) TABLESPACE=tbs01 ENCRYPTION='y';
+LOCK TABLES FOR BACKUP;
+ALTER TABLESPACE tbs01 ENCRYPTION='n';
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
+INSERT into t1 values(100);
+SET @@session.lock_wait_timeout=1;
+ALTER TABLESPACE tbs01 ENCRYPTION='n';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UNLOCK TABLES;
+ALTER TABLESPACE tbs01 ENCRYPTION='n';
+LOCK TABLES FOR BACKUP;
+ALTER TABLESPACE tbs01 rename to tbs01_renamed;
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
+SET @@session.lock_wait_timeout=1;
+ALTER TABLESPACE tbs01 rename to tbs01_renamed;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UNLOCK TABLES;
+ALTER TABLESPACE tbs01 rename to tbs01_renamed;
+DROP TABLE t1;
+LOCK TABLES FOR BACKUP;
+DROP TABLESPACE tbs01_renamed;
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
+SET @@session.lock_wait_timeout=1;
+DROP TABLESPACE tbs01_renamed;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UNLOCK TABLES;
+DROP TABLESPACE tbs01_renamed;
 ---------------------------
 TEMPORARY TABLESPACE
 ---------------------------

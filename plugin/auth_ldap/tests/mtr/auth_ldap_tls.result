@@ -13,23 +13,18 @@ authentication_ldap_simple_group_search_filter	(|(&(objectClass=posixGroup)(memb
 authentication_ldap_simple_init_pool_size	10
 authentication_ldap_simple_log_status	1
 authentication_ldap_simple_max_pool_size	1000
-authentication_ldap_simple_server_host	
+authentication_ldap_simple_server_host	<MTR_LDAP_HOST>
 authentication_ldap_simple_server_port	<MTR_LDAP_PORT>
 authentication_ldap_simple_ssl	OFF
-authentication_ldap_simple_tls	OFF
+authentication_ldap_simple_tls	ON
 authentication_ldap_simple_user_search_attr	uid
 SET GLOBAL authentication_ldap_simple_bind_base_dn = 'ou=people,dc=planetexpress,dc=com';
-SET GLOBAL authentication_ldap_simple_server_host = '<MTR_LDAP_HOST>';
-SET GLOBAL authentication_ldap_simple_server_port = <MTR_LDAP_PORT>;
-SET GLOBAL authentication_ldap_simple_bind_root_pwd = "foo";
-SET GLOBAL authentication_ldap_simple_bind_root_pwd = "bar";
-SET GLOBAL authentication_ldap_simple_tls = ON;
 SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
 Variable_name	Value
 authentication_ldap_simple_auth_method_name	SIMPLE
 authentication_ldap_simple_bind_base_dn	ou=people,dc=planetexpress,dc=com
 authentication_ldap_simple_bind_root_dn	
-authentication_ldap_simple_bind_root_pwd	********
+authentication_ldap_simple_bind_root_pwd	
 authentication_ldap_simple_ca_path	
 authentication_ldap_simple_group_search_attr	cn
 authentication_ldap_simple_group_search_filter	(|(&(objectClass=posixGroup)(memberUid={UA}))(&(objectClass=group)(member={UD})))
@@ -48,7 +43,7 @@ Variable_name	Value
 authentication_ldap_simple_auth_method_name	SIMPLE
 authentication_ldap_simple_bind_base_dn	ou=people,dc=planetexpress,dc=com
 authentication_ldap_simple_bind_root_dn	
-authentication_ldap_simple_bind_root_pwd	********
+authentication_ldap_simple_bind_root_pwd	
 authentication_ldap_simple_ca_path	
 authentication_ldap_simple_group_search_attr	cn
 authentication_ldap_simple_group_search_filter	(|(&(objectClass=posixGroup)(memberUid={UA}))(&(objectClass=group)(member={UD})))
@@ -60,36 +55,8 @@ authentication_ldap_simple_server_port	<MTR_LDAP_PORT>
 authentication_ldap_simple_ssl	OFF
 authentication_ldap_simple_tls	ON
 authentication_ldap_simple_user_search_attr	uid
-SET GLOBAL authentication_ldap_simple_server_host = 'badhost';
-connect(localhost,zoidberg,zoidberg,test,13000,/home/dutow/workspace/topics/ldap-fixup/80-local/mysql-test/var/tmp/mysqld.1.sock);
-ERROR 28000: Access denied for user 'zoidberg'@'localhost' (using password: YES)
-SET GLOBAL authentication_ldap_simple_server_host = '<MTR_LDAP_HOST>';
-SET GLOBAL authentication_ldap_simple_server_port = <BAD_MTR_LDAP_PORT>;
-connect(localhost,zoidberg,zoidberg,test,13000,/home/dutow/workspace/topics/ldap-fixup/80-local/mysql-test/var/tmp/mysqld.1.sock);
-ERROR 28000: Access denied for user 'zoidberg'@'localhost' (using password: YES)
-SET GLOBAL authentication_ldap_simple_server_port = <MTR_LDAP_PORT>;
-SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
-Variable_name	Value
-authentication_ldap_simple_auth_method_name	SIMPLE
-authentication_ldap_simple_bind_base_dn	ou=people,dc=planetexpress,dc=com
-authentication_ldap_simple_bind_root_dn	
-authentication_ldap_simple_bind_root_pwd	********
-authentication_ldap_simple_ca_path	
-authentication_ldap_simple_group_search_attr	cn
-authentication_ldap_simple_group_search_filter	(|(&(objectClass=posixGroup)(memberUid={UA}))(&(objectClass=group)(member={UD})))
-authentication_ldap_simple_init_pool_size	10
-authentication_ldap_simple_log_status	1
-authentication_ldap_simple_max_pool_size	1000
-authentication_ldap_simple_server_host	<MTR_LDAP_HOST>
-authentication_ldap_simple_server_port	<MTR_LDAP_PORT>
-authentication_ldap_simple_ssl	OFF
-authentication_ldap_simple_tls	ON
-authentication_ldap_simple_user_search_attr	uid
+ERROR 28000: Access denied for user 'nonexistent'@'localhost' (using password: YES)
 DROP USER zoidberg;
 DROP USER nonexistent;
 SET GLOBAL authentication_ldap_simple_bind_base_dn = '';
-SET GLOBAL authentication_ldap_simple_server_port = 389;
-SET GLOBAL authentication_ldap_simple_server_host = '';
 SET GLOBAL authentication_ldap_simple_log_status = 1;
-SET GLOBAL authentication_ldap_simple_tls = 0;
-SET GLOBAL authentication_ldap_simple_bind_root_pwd = "";

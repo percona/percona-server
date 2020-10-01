@@ -35,6 +35,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <new>
 #include <unordered_map>
 
+#include <current_thd.h>
+#include <sql_class.h>
 #include "clone0api.h"
 #include "clone0clone.h"
 #include "dict0dd.h"
@@ -1562,6 +1564,19 @@ static bool trx_purge_truncate_marked_undo() {
     return (false);
   }
   ut_ad(mdl_ticket != nullptr);
+
+  // Acquire Percona's LOCK TABLES FOR BACKUP lock
+  if (current_thd->backup_tables_lock.is_acquired()) {
+    dd_release_mdl(mdl_ticket);
+    ib::info(ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_LTFB, space_name.c_str());
+    return (false);
+  }
+  if (current_thd->backup_tables_lock.acquire_protection(current_thd,
+                                                         MDL_TRANSACTION, 0)) {
+    dd_release_mdl(mdl_ticket);
+    ib::info(ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_LTFB, space_name.c_str());
+    return (false);
+  }
 
   /* Re-check for clone after acquiring MDL. The Backup MDL from clone is
   released by clone during shutdown while provisioning. We should not allow

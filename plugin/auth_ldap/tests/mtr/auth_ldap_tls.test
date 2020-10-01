@@ -2,7 +2,6 @@
 # This testcase requires the following ldap structure:
 # https://github.com/rroemhild/docker-test-openldap
 # The easiest way to run it is to use the provided docker image
-# The test also requires the LDAPTLS_REQCERT environment variable set to never
 
 --source include/count_sessions.inc
 
@@ -10,16 +9,9 @@ SELECT PLUGIN_NAME, PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_N
 --replace_result $MTR_LDAP_HOST <MTR_LDAP_HOST> $MTR_LDAP_PORT <MTR_LDAP_PORT>
 SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
 SET GLOBAL authentication_ldap_simple_bind_base_dn = 'ou=people,dc=planetexpress,dc=com';
---replace_result $MTR_LDAP_HOST <MTR_LDAP_HOST>
---eval SET GLOBAL authentication_ldap_simple_server_host = '$MTR_LDAP_HOST'
---replace_result $MTR_LDAP_PORT <MTR_LDAP_PORT>
---eval SET GLOBAL authentication_ldap_simple_server_port = $MTR_LDAP_PORT
-SET GLOBAL authentication_ldap_simple_bind_root_pwd = "foo";
-SET GLOBAL authentication_ldap_simple_bind_root_pwd = "bar";
-SET GLOBAL authentication_ldap_simple_tls = ON;
 
 # For debugging:
-#SET GLOBAL authentication_ldap_simple_log_status = 4;
+# SET GLOBAL authentication_ldap_simple_log_status = 6;
 
 --replace_result $MTR_LDAP_HOST <MTR_LDAP_HOST> $MTR_LDAP_PORT <MTR_LDAP_PORT>
 SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
@@ -34,36 +26,14 @@ SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
 --disconnect con1
 --connection default
 
-SET GLOBAL authentication_ldap_simple_server_host = 'badhost';
---error ER_ACCESS_DENIED_ERROR
---connect (con1,localhost,zoidberg,zoidberg,,,,CLEARTEXT)
-
 --disable_query_log
---let BAD_MTR_LDAP_PORT=`SELECT $MTR_LDAP_PORT+1`
---enable_query_log
-
---replace_result $MTR_LDAP_HOST <MTR_LDAP_HOST>
---eval SET GLOBAL authentication_ldap_simple_server_host = '$MTR_LDAP_HOST'
---replace_result $BAD_MTR_LDAP_PORT <BAD_MTR_LDAP_PORT>
---eval SET GLOBAL authentication_ldap_simple_server_port = $BAD_MTR_LDAP_PORT
 --error ER_ACCESS_DENIED_ERROR
---connect (con1,localhost,zoidberg,zoidberg,,,,CLEARTEXT)
-
---replace_result $MTR_LDAP_PORT <MTR_LDAP_PORT>
---eval SET GLOBAL authentication_ldap_simple_server_port = $MTR_LDAP_PORT
---connect (con1,localhost,zoidberg,zoidberg,,,,CLEARTEXT)
---replace_result $MTR_LDAP_HOST <MTR_LDAP_HOST> $MTR_LDAP_PORT <MTR_LDAP_PORT>
-SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
---disconnect con1
---connection default
+--connect (con1,localhost,nonexistent,zoidberg,,,,CLEARTEXT)
+--enable_query_log
 
 DROP USER zoidberg;
 DROP USER nonexistent;
 SET GLOBAL authentication_ldap_simple_bind_base_dn = '';
-SET GLOBAL authentication_ldap_simple_server_port = 389;
-SET GLOBAL authentication_ldap_simple_server_host = '';
 SET GLOBAL authentication_ldap_simple_log_status = 1;
-SET GLOBAL authentication_ldap_simple_tls = 0;
-SET GLOBAL authentication_ldap_simple_bind_root_pwd = "";
 
 --source include/wait_until_count_sessions.inc

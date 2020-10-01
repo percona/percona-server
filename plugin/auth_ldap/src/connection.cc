@@ -46,6 +46,10 @@ bool Connection::connect(const std::string &bind_dn,
                          const std::string &bind_pwd) {
   std::lock_guard<std::mutex> lock(conn_mutex_);
 
+  if(bind_pwd.empty()) {
+    return false;
+  }
+
   if (!(ldap_host_.empty() || bind_dn.empty())) {
     log_srv_dbg("Connecting to ldap server as " + bind_dn);
 

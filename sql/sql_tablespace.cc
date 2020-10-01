@@ -1378,6 +1378,13 @@ bool Sql_cmd_create_undo_tablespace::execute(THD *thd) {
     return true;
   }
 
+  // Acquire Percona's LOCK TABLES FOR BACKUP lock
+  if (thd->backup_tables_lock.abort_if_acquired() ||
+      thd->backup_tables_lock.acquire_protection(
+          thd, MDL_TRANSACTION, thd->variables.lock_wait_timeout)) {
+    return true;
+  }
+
   handlerton *hton = nullptr;
   if (get_stmt_hton(thd, m_options->engine_name, m_undo_tablespace_name.str,
                     "CREATE UNDO TABLESPACE", &hton)) {
@@ -1525,6 +1532,13 @@ bool Sql_cmd_alter_undo_tablespace::execute(THD *thd) {
     return true;
   }
 
+  // Acquire Percona's LOCK TABLES FOR BACKUP lock
+  if (thd->backup_tables_lock.abort_if_acquired() ||
+      thd->backup_tables_lock.acquire_protection(
+          thd, MDL_TRANSACTION, thd->variables.lock_wait_timeout)) {
+    return true;
+  }
+
   handlerton *hton = nullptr;
   if (get_stmt_hton(thd, m_options->engine_name, m_undo_tablespace_name.str,
                     "ALTER UNDO TABLESPACE", &hton)) {
@@ -1613,6 +1627,13 @@ bool Sql_cmd_drop_undo_tablespace::execute(THD *thd) {
   Rollback_guard rollback_on_return{thd};
 
   if (check_global_access(thd, CREATE_TABLESPACE_ACL)) {
+    return true;
+  }
+
+  // Acquire Percona's LOCK TABLES FOR BACKUP lock
+  if (thd->backup_tables_lock.abort_if_acquired() ||
+      thd->backup_tables_lock.acquire_protection(
+          thd, MDL_TRANSACTION, thd->variables.lock_wait_timeout)) {
     return true;
   }
 

@@ -114,6 +114,79 @@ SELECT @@innodb_file_per_table;
 --error ER_WRONG_TABLESPACE_NAME
 ALTER TABLESPACE innodb_system ENCRYPTION='Y';
 
+# Check that it won't work with LTFB
+LOCK TABLES FOR BACKUP;
+
+--error ER_CANT_EXECUTE_WITH_BACKUP_LOCK
+CREATE TABLESPACE tbs01 ADD DATAFILE 'tbs01.ibd' ENCRYPTION='y';
+
+--connect (con1,'localhost','root',,)
+SET @@session.lock_wait_timeout=1;
+
+--error ER_LOCK_WAIT_TIMEOUT
+CREATE TABLESPACE tbs01 ADD DATAFILE 'tbs01.ibd' ENCRYPTION='y';
+
+--connection default
+--disconnect con1
+
+UNLOCK TABLES;
+
+CREATE TABLESPACE tbs01 ADD DATAFILE 'tbs01.ibd' ENCRYPTION='y';
+CREATE TABLE t1(i int) TABLESPACE=tbs01 ENCRYPTION='y';
+
+LOCK TABLES FOR BACKUP;
+
+--error ER_CANT_EXECUTE_WITH_BACKUP_LOCK
+ALTER TABLESPACE tbs01 ENCRYPTION='n';
+
+--connect (con1,'localhost','root',,)
+INSERT into t1 values(100);
+SET @@session.lock_wait_timeout=1;
+
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLESPACE tbs01 ENCRYPTION='n';
+
+--connection default
+--disconnect con1
+
+UNLOCK TABLES;
+ALTER TABLESPACE tbs01 ENCRYPTION='n';
+
+LOCK TABLES FOR BACKUP;
+
+--error ER_CANT_EXECUTE_WITH_BACKUP_LOCK
+ALTER TABLESPACE tbs01 rename to tbs01_renamed;
+
+--connect (con1,'localhost','root',,)
+SET @@session.lock_wait_timeout=1;
+
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLESPACE tbs01 rename to tbs01_renamed;
+
+--connection default
+--disconnect con1
+
+UNLOCK TABLES;
+ALTER TABLESPACE tbs01 rename to tbs01_renamed;
+DROP TABLE t1;
+
+LOCK TABLES FOR BACKUP;
+
+--error ER_CANT_EXECUTE_WITH_BACKUP_LOCK
+DROP TABLESPACE tbs01_renamed;
+
+--connect (con1,'localhost','root',,)
+SET @@session.lock_wait_timeout=1;
+
+--error ER_LOCK_WAIT_TIMEOUT
+DROP TABLESPACE tbs01_renamed;
+
+--connection default
+--disconnect con1
+
+UNLOCK TABLES;
+DROP TABLESPACE tbs01_renamed;
+
 --echo ---------------------------
 --echo TEMPORARY TABLESPACE
 --echo ---------------------------

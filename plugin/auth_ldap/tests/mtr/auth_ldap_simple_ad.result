@@ -56,6 +56,9 @@ authentication_ldap_simple_ssl	OFF
 authentication_ldap_simple_tls	OFF
 authentication_ldap_simple_user_search_attr	uid
 ERROR 28000: Access denied for user 'nonexistent'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'zoidberg'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'zoidberg'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'zoidberg'@'localhost' (using password: YES)
 DROP USER zoidberg;
 DROP USER nonexistent;
 SET GLOBAL authentication_ldap_simple_user_search_attr = 'samAccountName';

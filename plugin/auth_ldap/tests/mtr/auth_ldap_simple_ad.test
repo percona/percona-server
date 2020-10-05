@@ -10,7 +10,7 @@ SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
 SET GLOBAL authentication_ldap_simple_bind_base_dn = 'cn=Users,dc=perconatest,dc=com';
 
 # For debugging:
-#SET GLOBAL authentication_ldap_simple_log_status = 6;
+# SET GLOBAL authentication_ldap_simple_log_status = 6;
 
 --replace_result $MTR_LDAP_HOST <MTR_LDAP_HOST> $MTR_LDAP_PORT <MTR_LDAP_PORT>
 SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
@@ -28,6 +28,12 @@ SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
 --connect (con1,localhost,nonexistent,Bergzoid11,,,,CLEARTEXT)
+--error ER_ACCESS_DENIED_ERROR
+--connect (con1,localhost,zoidberg,ergzoid11,,,,CLEARTEXT)
+--error ER_ACCESS_DENIED_ERROR
+--connect (con1,localhost,zoidberg,,,,,CLEARTEXT)
+--error ER_ACCESS_DENIED_ERROR
+--connect (con1,localhost,zoidberg,'    ',,,,CLEARTEXT)
 --enable_query_log
 
 DROP USER zoidberg;

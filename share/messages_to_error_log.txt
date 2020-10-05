@@ -11155,6 +11155,9 @@ ER_REDO_TABLESPACE_ENCRYPTION_MISSING_KEY_VERSIONS
 ER_REDO_TABLESPACE_ENCRYPTION_CORRUPTED_KEYS
   eng "Tablespace id %u is encrypted. Although server managed to find all needed versions of key_id=%u in keyring to decrypt it, the provided versions are either incorrect or corrupted. Can't continue reading table. Please provide the correct keyring."
 
+ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_LTFB
+  eng "Delaying truncate of undo tablespace %s due to lock tables for backup."
+
 #
 # End of Percona Server 8.0 server error log messages
 #

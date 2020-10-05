@@ -277,6 +277,24 @@ undo_004	NULL	./undo_004.ibu
 Warnings:
 Warning	1812	Tablespace is missing for table undo_004.
 DROP UNDO TABLESPACE undo_004;
+LOCK TABLES FOR BACKUP;
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo3.ibu';
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
+SET @@session.lock_wait_timeout=1;
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo3.ibu';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UNLOCK TABLES;
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo3.ibu';
+LOCK TABLES FOR BACKUP;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
+UNLOCK TABLES;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+LOCK TABLES FOR BACKUP;
+DROP UNDO TABLESPACE undo_003;
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
+UNLOCK TABLES;
+DROP UNDO TABLESPACE undo_003;
 #
 # Cleanup
 #

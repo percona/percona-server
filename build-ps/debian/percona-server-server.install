@@ -43,8 +43,8 @@ usr/share/man/man8/mysqld.8
 # SQL files
 usr/share/mysql/*.sql
 #private shared libs
-usr/lib/mysql/private/libprotobuf-lite.so.3.6.1
-usr/lib/mysql/private/libprotobuf.so.3.6.1
+usr/lib/mysql/private/libprotobuf-lite.so.*
+usr/lib/mysql/private/libprotobuf.so.*
 # plugins
 usr/lib/mysql/plugin/adt_null.so
 usr/lib/mysql/plugin/auth_socket.so
@@ -94,6 +94,7 @@ usr/lib/mysql/plugin/debug/connection_control.so
 usr/lib/mysql/plugin/debug/group_replication.so
 usr/lib/mysql/plugin/debug/authentication_ldap_sasl_client.so
 usr/lib/mysql/plugin/debug/component_test_udf_services.so
+usr/lib/mysql/plugin/debug/component_test_component_deinit.so
 
 # Percona plugins
 usr/lib/mysql/plugin/audit_log.so
@@ -118,6 +119,10 @@ usr/lib/mysql/plugin/authentication_ldap_sasl_client.so
 usr/lib/mysql/plugin/debug/keyring_vault.so
 usr/lib/mysql/plugin/keyring_vault.so
 usr/lib/mysql/plugin/authentication_ldap_simple.so
+usr/lib/mysql/plugin/component_test_component_deinit.so
+#coredumper
+usr/include/coredumper/coredumper.h
+usr/lib/libcoredumper.a
 # support files
 usr/share/mysql/dictionary.txt
 usr/share/mysql/mysql-log-rotate

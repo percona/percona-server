@@ -1553,11 +1553,13 @@ static bool trx_purge_truncate_marked_undo() {
 
   // Acquire Percona's LOCK TABLES FOR BACKUP lock
   if (current_thd->backup_tables_lock.is_acquired()) {
+    dd_release_mdl(mdl_ticket);
     ib::info(ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_LTFB, space_name.c_str());
     return (false);
   }
   if (current_thd->backup_tables_lock.acquire_protection(current_thd,
                                                          MDL_TRANSACTION, 0)) {
+    dd_release_mdl(mdl_ticket);
     ib::info(ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_LTFB, space_name.c_str());
     return (false);
   }

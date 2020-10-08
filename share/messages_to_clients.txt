@@ -9480,6 +9480,9 @@ ER_SYSTEM_KEY_ROTATION_CANT_GENERATE_NEW_VERSION
 ER_DTE_ENCRYPTION_THREADS_ACTIVE
   eng "In order to change default_table_encryption, disable encryption threads. Please set number of innodb_encryption_threads to 0."
 
+ER_ENCRYPTION_KEY_ID_VALUE_OUT_OF_RANGE
+  eng "The requested value %lu for the encryption_key_id exceeds the maximum allowed %lu"
+
 #
 # End of Percona Server 8.0 client messages
 #

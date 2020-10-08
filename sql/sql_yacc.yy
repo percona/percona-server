@@ -5642,6 +5642,13 @@ ts_option_encryption:
 ts_option_encryption_key_id:
           ENCRYPTION_KEY_ID_SYM opt_equal real_ulong_num
           {
+            if ($3 >= UINT_MAX32)
+            {
+              my_error(ER_ENCRYPTION_KEY_ID_VALUE_OUT_OF_RANGE, MYF(0), $3,
+                       UINT_MAX32 - 1);
+              MYSQL_YYABORT;
+            }
+
             $$= NEW_PTN PT_alter_tablespace_option_encryption_key_id($3);
           }
         ;
@@ -6215,6 +6222,13 @@ create_table_option:
 	        }
         | ENCRYPTION_KEY_ID_SYM opt_equal real_ulong_num
           {
+            if ($3 >= UINT_MAX32)
+            {
+              my_error(ER_ENCRYPTION_KEY_ID_VALUE_OUT_OF_RANGE, MYF(0), $3,
+                       UINT_MAX32 - 1);
+              MYSQL_YYABORT;
+            }
+
             $$= NEW_PTN PT_create_encryption_key_id_option($3);
           }
         | AUTO_INC opt_equal ulonglong_num

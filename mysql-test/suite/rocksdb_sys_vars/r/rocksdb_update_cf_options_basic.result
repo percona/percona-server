@@ -110,7 +110,7 @@ SELECT * FROM INFORMATION_SCHEMA.ROCKSDB_CF_OPTIONS WHERE CF_NAME='cf1' AND OPTI
 CF_NAME	OPTION_TYPE	VALUE
 cf1	TARGET_FILE_SIZE_BASE	2097152
 SET @@global.rocksdb_update_cf_options = 'default={foo=bar};';;
-ERROR 42000: Invalid cf config for 'default' in override options: Unable to parse the specified CF option foo (options: default={foo=bar};)
+ERROR 42000: Invalid cf config for 'default' in override options: Could not find option: : foo (options: default={foo=bar};)
 SELECT @@global.rocksdb_update_cf_options;
 @@global.rocksdb_update_cf_options
 cf3={target_file_size_base=24m};

@@ -4712,7 +4712,10 @@ static rocksdb::Status check_rocksdb_options_compatibility(
   // If we're starting from scratch and there are no options saved yet then this
   // is a valid case. Therefore we can't compare the current set of options to
   // anything.
-  if (status.IsNotFound()) {
+  // WORKAROUND: Use error msg to check whether we are starting from scratch
+  // vs option not found - both return Status::NotFound unfortunately
+  if (status.IsNotFound() &&
+      status.ToString().find("No options files found") != std::string::npos) {
     return rocksdb::Status::OK();
   }
 

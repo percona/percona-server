@@ -4,8 +4,6 @@
 Using Simple LDAP Authentication
 ======================================================
 
-This feature is **Experimental** quality.
-
 This feature was implemented in |Percona Server| version :rn:`8.0.19-10`.
 
 LDAP (Lightweight Directory Access Protocol) provides an alternative method to
@@ -154,11 +152,7 @@ The installation adds the following variables:
       - yes
       - string
 
-.. warning::
 
-    The password for the root distinguished name can be read by anyone able to
-    access the server.
-    
 For simple LDAP authentication, you must specify the authentication_ldap_simple
 plugin in the ``CREATE USER`` statement or the ``ALTER USER`` statement.
 

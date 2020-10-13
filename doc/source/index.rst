@@ -112,6 +112,7 @@ Security Improvements
 
   security/pam_plugin
   security/simple-ldap
+  security/simple-ldap-variables
   security/data-at-rest-encryption
   security/vault
   security/using-keyring-plugin

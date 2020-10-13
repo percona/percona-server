@@ -96,14 +96,11 @@ Management Improvements
    management/udf_percona_toolkit
    management/kill_idle_trx
    management/changed_page_tracking
-   management/pam_plugin
    management/innodb_expanded_fast_index_creation
    management/backup_locks
    management/audit_log_plugin
    management/start_transaction_with_consistent_snapshot
    management/extended_show_grants
-   management/data_at_rest_encryption
-   management/ssl-improvement
    management/utility_user
 
 Security Improvements

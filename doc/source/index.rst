@@ -130,6 +130,14 @@ Management Improvements
    management/ssl-improvement
    management/utility_user
 
+Security Improvements
+======================
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+  security/data-masking
 
 Diagnostics Improvements
 ========================

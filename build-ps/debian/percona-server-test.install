@@ -1,6 +1,7 @@
 # binaries
 usr/bin/mysql_client_test
 usr/bin/mysqltest
+usr/bin/mysqltest_safe_process
 usr/bin/mysqlxtest
 # plugins
 usr/lib/mysql/plugin/auth_test_plugin.so

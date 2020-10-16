@@ -6538,3 +6538,7 @@ static Sys_var_mybool Sys_keyring_operations(
        NOT_IN_BINLOG,
        ON_CHECK(check_keyring_access),
        ON_UPDATE(0));
+
+#ifndef DBUG_OFF
+Debug_shutdown_actions Debug_shutdown_actions::instance;
+#endif

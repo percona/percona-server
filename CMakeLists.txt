@@ -165,6 +165,13 @@ IF(CMAKE_GENERATOR MATCHES "Visual Studio" OR CMAKE_GENERATOR STREQUAL "Xcode")
   SET(BUILD_IS_SINGLE_CONFIG FALSE)
 ENDIF()
 
+INCLUDE(CTest)
+# Explicitly disabling BUILD_TESTING set by just included CTest, since other
+# code is not ready to handle BUILD_TESTING set. If you try to remove the
+# directive and CMake configuration and reconfiguration finishes successfully,
+# remove the hack.
+SET(BUILD_TESTING OFF)
+
 # Maintainer mode is default on only for debug builds using GCC/G++
 IF(CMAKE_BUILD_TYPE MATCHES "Debug" OR WITH_DEBUG)
   IF(CMAKE_COMPILER_IS_GNUCC AND CMAKE_COMPILER_IS_GNUCXX)

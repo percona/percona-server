@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlhotcopy\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/02/2020
+.\"      Date: 09/22/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLHOTCOPY\FR" "1" "06/02/2020" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLHOTCOPY\FR" "1" "09/22/2020" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -370,7 +370,7 @@ Be silent except for errors\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-record_log_pos=\fR\fB\fIdb_name\fR\fR\fB\&.\fR\fB\fItbl_name\fR\fR
-Record master and slave status in the specified database
+Record source and replica status in the specified database
 \fIdb_name\fR
 and table
 \fItbl_name\fR\&.
@@ -409,7 +409,7 @@ Reset the binary log after locking all the tables\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-resetslave\fR
-Reset the master info repository file or table after locking all the tables\&.
+Reset the source info repository file or table after locking all the tables\&.
 .RE
 .sp
 .RS 4

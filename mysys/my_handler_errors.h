@@ -106,15 +106,9 @@ static const char *handler_error_messages[]=
   "FTS query exceeds result cache memory limit",
   "Temporary file write failure",
   "Operation not allowed when innodb_forced_recovery > 0",
-<<<<<<< HEAD
   "Too many words in a FTS phrase or proximity search",
-  "Destination schema does not exist"
-||||||| 6e5fe9c7f0b
-  "Too many words in a FTS phrase or proximity search"
-=======
-  "Too many words in a FTS phrase or proximity search",
+  "Destination schema does not exist",
   "Too many nested sub-expressions in a full-text search"
->>>>>>> 5bb656522efba3fcf913340b283af68ac4eb91db^
 };
 
 extern void my_handler_error_register(void);

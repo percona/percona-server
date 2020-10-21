@@ -306,7 +306,7 @@ script:
   - $CC -v
   - $CXX -v
   - ccache --version
-  - ccache --print-config;
+  - ccache -p
     ccache --zero-stats;
 
   - echo --- Set cmake parameters;

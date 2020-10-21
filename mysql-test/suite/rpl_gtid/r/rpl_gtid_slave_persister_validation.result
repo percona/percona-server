@@ -14,10 +14,12 @@ INSERT INTO t1 VALUES (2);
 include/assert.inc [COMMITTED_GTIDS SERVER_UUID:1-3]
 include/assert.inc [The mysql gtid table should have 3 rows.]
 include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
 #
 # 3. Assert that table is not compressed on replica server.
 include/assert.inc [COMMITTED_GTIDS SERVER_UUID:1-3]
+[connection master]
+INSERT INTO t1 VALUES (3);
+include/sync_slave_sql_with_master.inc
 include/assert.inc [The mysql gtid table is not compressed.]
 #
 # 4. Enable debug point to print the compression info for validation purpose.
@@ -32,7 +34,6 @@ include/assert_grep.inc [GTID table compression is done by persister thread.]
 #
 # 7. Cleanup
 # Removing debug point 'print_gtid_compression_info' from @@GLOBAL.debug
-include/start_slave.inc
 [connection master]
 DROP TABLE t1;
 include/rpl_end.inc

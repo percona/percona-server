@@ -36,10 +36,6 @@ namespace ibt {
 /** The initial size of temporary tablespace pool */
 const uint32_t INIT_SIZE = 10;
 
-/** The number of tablespaces added to the pool every time the pool is expanded
- */
-const uint32_t POOL_EXPAND_SIZE = 10;
-
 /** Thread id for the replication thread */
 const uint32_t SLAVE_THREAD_ID = UINT32_MAX;
 
@@ -65,9 +61,11 @@ Tablespace_pool *tbsp_pool = nullptr;
 char *srv_temp_dir = nullptr;
 
 /** Sesssion Temporary tablespace */
-Tablespace::Tablespace()
-    : m_space_id(++m_last_used_space_id), m_inited(), m_thread_id() {
+Tablespace::Tablespace(space_id_t id)
+    : m_space_id(id), m_inited(), m_thread_id() {
   ut_ad(m_space_id <= dict_sys_t::s_max_temp_space_id);
+  ut_ad(m_space_id > dict_sys_t::s_min_temp_space_id);
+
   m_purpose = TBSP_NONE;
   mutex_create(LATCH_ID_TEMP_POOL_TBLSP, &m_mutex);
 }
@@ -81,7 +79,6 @@ Tablespace::~Tablespace() {
 
   close();
 
-  ut_ad(srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS);
   bool file_pre_exists = false;
   bool success = os_file_delete_if_exists(innodb_temp_file_key, path().c_str(),
                                           &file_pre_exists);
@@ -96,6 +93,7 @@ Tablespace::~Tablespace() {
 
 dberr_t Tablespace::create() {
   ut_ad(m_space_id > dict_sys_t::s_min_temp_space_id);
+  ut_ad(m_space_id <= dict_sys_t::s_max_temp_space_id);
 
   /* Create the filespace flags */
   uint32_t fsp_flags =
@@ -105,10 +103,16 @@ dberr_t Tablespace::create() {
                      true,           /* is shared */
                      true);          /* is temporary */
 
+#ifdef UNIV_DEBUG
+  fil_space_t *space = fil_space_get(m_space_id);
+  ut_ad(space == nullptr);
+#endif /* UNIV_DEBUG */
+
   dberr_t err = fil_ibt_create(m_space_id, file_name().c_str(), path().c_str(),
                                fsp_flags, FIL_IBT_FILE_INITIAL_SIZE);
 
   if (err != DB_SUCCESS) {
+    ut_ad(0);
     return (err);
   }
 
@@ -123,11 +127,7 @@ dberr_t Tablespace::create() {
       fsp_header_init(m_space_id, FIL_IBT_FILE_INITIAL_SIZE, &mtr, false);
   mtr_commit(&mtr);
 
-  if (!ret) {
-    return (DB_ERROR);
-  }
-  buf_LRU_flush_or_remove_pages(m_space_id, BUF_REMOVE_FLUSH_WRITE, nullptr);
-  return (DB_SUCCESS);
+  return (ret ? DB_SUCCESS : DB_ERROR);
 }
 
 bool Tablespace::close() const {
@@ -139,29 +139,14 @@ bool Tablespace::close() const {
   return (true);
 }
 
-bool Tablespace::truncate() {
+bool Tablespace::drop() {
   if (!m_inited) {
     return (false);
   }
 
-  acquire();
+  dberr_t err = fil_delete_tablespace(m_space_id, BUF_REMOVE_NONE);
 
-  bool success = fil_truncate_tablespace(m_space_id, FIL_IBT_FILE_INITIAL_SIZE);
-  if (!success) {
-    release();
-    return (success);
-  }
-
-  decrypt();
-
-  mtr_t mtr;
-  mtr_start(&mtr);
-  mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-  fsp_header_init(m_space_id, FIL_IBT_FILE_INITIAL_SIZE, &mtr, false);
-  mtr_commit(&mtr);
-
-  release();
-  return (true);
+  return (err == DB_SUCCESS);
 }
 
 bool Tablespace::encrypt() {
@@ -239,7 +224,8 @@ std::string Tablespace::path() const {
 /** Space_ids for Session temporary tablespace. The available range is
 from dict_sys_t::s_min_temp_space_id to dict_sys_t::s_max_temp_space_id.
 Total 400K space_ids are reserved for session temporary tablespaces. */
-space_id_t Tablespace::m_last_used_space_id = dict_sys_t::s_min_temp_space_id;
+space_id_t Tablespace_pool::m_last_used_space_id =
+    dict_sys_t::s_min_temp_space_id;
 
 Tablespace_pool::Tablespace_pool(size_t init_size)
     : m_pool_initialized(),
@@ -267,29 +253,51 @@ Tablespace *Tablespace_pool::get(my_thread_id id, enum tbsp_purpose purpose) {
 
   Tablespace *ts = nullptr;
   acquire();
-  if (m_free->size() == 0) {
-    /* Free pool is empty. Add more tablespaces by expanding it */
-    dberr_t err = expand(POOL_EXPAND_SIZE);
+
+  /* Check keyring status before creating tablespace */
+  if (Tablespace::is_encrypted(purpose) && !Tablespace::is_keyring_loaded()) {
+    my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+    release();
+    return (nullptr);
+  }
+
+  bool is_empty = m_free->size() == 0;
+  if (is_empty) {
+    /* Free pool is empty. Create one and return */
+    space_id_t space_id = get_next_space_id();
+    release();
+
+    dberr_t err = create_ts(space_id, ts);
+
     if (err != DB_SUCCESS) {
-      /* Failure to expand the pool means that there is no disk space
+      /* Failure to create tablespace  means that there is no disk space
       available to create .IBT files */
-      release();
       ib::error(ER_IB_UNABLE_TO_EXPAND_TEMPORARY_TABLESPACE_POOL)
           << "Unable to expand the temporary tablespace pool";
       return (nullptr);
     }
+    ut_ad(ts != nullptr);
+    acquire();
+
+  } else {
+    ts = m_free->back();
   }
 
-  ts = m_free->back();
   if (Tablespace::is_encrypted(purpose)) {
     if (!ts->encrypt()) {
+      ts->drop();
+      UT_DELETE(ts);
       release();
       ib::error() << "Unable to encrypt a session temp tablespace. Probably due"
                   << " to missing keyring plugin";
       return (nullptr);
     }
   }
-  m_free->pop_back();
+
+  if (!is_empty) {
+    m_free->pop_back();
+  }
+
   m_active->push_back(ts);
   ts->set_thread_id_and_purpose(id, purpose);
 
@@ -297,16 +305,8 @@ Tablespace *Tablespace_pool::get(my_thread_id id, enum tbsp_purpose purpose) {
   return (ts);
 }
 
-void Tablespace_pool::free_ts(Tablespace *ts) {
-  space_id_t space_id = ts->space_id();
-  fil_space_t *space = fil_space_get(space_id);
-  ut_ad(space != nullptr);
-
-  if (space->size != FIL_IBT_FILE_INITIAL_SIZE) {
-    ts->truncate();
-  }
-
-  acquire();
+void Tablespace_pool::remove_ts(Tablespace *ts) {
+  ut_ad(mutex_own(&m_mutex));
 
   Pool::iterator it = std::find(m_active->begin(), m_active->end(), ts);
   if (it != m_active->end()) {
@@ -314,9 +314,28 @@ void Tablespace_pool::free_ts(Tablespace *ts) {
   } else {
     ut_ad(0);
   }
+}
 
-  ts->reset_thread_id_and_purpose();
-  m_free->push_back(ts);
+void Tablespace_pool::free_ts(Tablespace *ts) {
+#ifdef UNIV_DEBUG
+  space_id_t space_id = ts->space_id();
+  fil_space_t *space = fil_space_get(space_id);
+  ut_ad(space != nullptr);
+
+  /* An active tablespace shouldn't be in free list */
+  acquire();
+  Pool::iterator it = std::find(m_free->begin(), m_free->end(), ts);
+  if (it != m_free->end()) {
+    ut_ad(0);
+  }
+  release();
+#endif /* UNIV_DEBUG */
+
+  acquire();
+
+  ts->drop();
+  remove_ts(ts);
+  UT_DELETE(ts);
 
   release();
 }
@@ -348,24 +367,67 @@ dberr_t Tablespace_pool::initialize(bool create_new_db) {
   return (DB_SUCCESS);
 }
 
+space_id_t Tablespace_pool::get_next_space_id() {
+  ut_ad(!m_pool_initialized || mutex_own(&m_mutex));
+
+  if (m_pool_initialized) {
+    /* By checking the last used space_id != min_temp_space_id, we ensure
+    skip clear on startup
+
+    The DELETE_FREQUENCY determines after how many tablespaces are deleted,
+    we want to remove in-memory entries */
+    if (m_last_used_space_id != dict_sys_t::s_min_temp_space_id &&
+        ((m_last_used_space_id - dict_sys_t::s_min_temp_space_id) %
+             DELETE_FREQUENCY ==
+         0)) {
+      fil_clear_deleted_ibts();
+    }
+  }
+
+  /* We have exhausted all available space_ids for session temp tablespaces.
+  It is safe to reuse the space_id from beginning because we have evicted the
+  dirty pages of session temp tablespaces before delete and also ensured there
+  is no AHI for temp tables. LRU pages either age out or if they are found, they
+  are safe to be overwritten. */
+  if (m_last_used_space_id >= dict_sys_t::s_max_temp_space_id) {
+    m_last_used_space_id = dict_sys_t::s_min_temp_space_id;
+  }
+
+  space_id_t space_id = ++m_last_used_space_id;
+  ut_ad(fsp_is_session_temporary(space_id));
+  return (space_id);
+}
+
+dberr_t Tablespace_pool::create_ts(space_id_t space_id, Tablespace *&ts) {
+  ut_ad(ts == nullptr);
+  ts = UT_NEW_NOKEY(Tablespace(space_id));
+
+  if (ts == nullptr) {
+    return (DB_OUT_OF_MEMORY);
+  }
+
+  dberr_t err = ts->create();
+
+  if (err != DB_SUCCESS) {
+    UT_DELETE(ts);
+    ts = nullptr;
+  }
+  return (err);
+}
+
 dberr_t Tablespace_pool::expand(size_t size) {
   ut_ad(!m_pool_initialized || mutex_own(&m_mutex));
   for (size_t i = 0; i < size; i++) {
-    Tablespace *ts = UT_NEW_NOKEY(Tablespace());
-
-    if (ts == nullptr) {
-      return (DB_OUT_OF_MEMORY);
-    }
-
-    dberr_t err = ts->create();
+    Tablespace *ts = nullptr;
+    dberr_t err = create_ts(get_next_space_id(), ts);
 
     if (err == DB_SUCCESS) {
       m_free->push_back(ts);
     } else {
-      UT_DELETE(ts);
       return (err);
     }
   }
+
   return (DB_SUCCESS);
 }
 
@@ -457,6 +519,8 @@ void free_tmp(Tablespace *ts) { tbsp_pool->free_ts(ts); }
 void delete_pool_manager() { UT_DELETE(tbsp_pool); }
 
 void close_files() {
+  fil_clear_deleted_ibts();
+
   auto close = [&](const ibt::Tablespace *ts) { ts->close(); };
 
   ibt::tbsp_pool->iterate_tbsp(close);

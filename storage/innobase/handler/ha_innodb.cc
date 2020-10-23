@@ -6593,6 +6593,13 @@ static void innobase_kill_connection(
   }
 }
 
+/** @return TRUE if table is temporary table (CREATE TEMORARY)
+@param[in]  create_info structure of additional attributes of a table, used by
+CREATE TABLE */
+static bool is_temp_table(const HA_CREATE_INFO *create_info) {
+  return (create_info->options & HA_LEX_CREATE_TMP_TABLE);
+}
+
 /** ** InnoDB database tables
  *****************************************************************************/
 
@@ -12311,13 +12318,15 @@ const dd::Index *get_my_dd_index<dd::Partition_index>(
 
 /** Creates an index in an InnoDB database. */
 inline int create_index(
-    trx_t *trx,                /*!< in: InnoDB transaction handle */
-    const TABLE *form,         /*!< in: information on table
-                               columns and indexes */
-    uint32_t flags,            /*!< in: InnoDB table flags */
-    const char *table_name,    /*!< in: table name */
-    uint key_num,              /*!< in: index number */
-    const dd::Table *dd_table) /*!< in: dd::Table for the table*/
+    trx_t *trx,                        /*!< in: InnoDB transaction handle */
+    const TABLE *form,                 /*!< in: information on table
+                                       columns and indexes */
+    uint32_t flags,                    /*!< in: InnoDB table flags */
+    const char *table_name,            /*!< in: table name */
+    uint key_num,                      /*!< in: index number */
+    const dd::Table *dd_table,         /*!< in: dd::Table for the table*/
+    const HA_CREATE_INFO *create_info) /*!< in: create info */
+
 {
   dict_index_t *index;
   int error;
@@ -12421,7 +12430,9 @@ inline int create_index(
     For now this is turned-on for intrinsic tables
     only but can be turned on for other tables if needed arises. */
     index->nulls_equal = (key->flags & HA_NULL_ARE_EQUAL) ? true : false;
+  }
 
+  if (handler != nullptr || is_temp_table(create_info)) {
     /* Disable use of AHI for intrinsic table indexes as AHI
     validates the predicated entry using index-id which has to be
     system-wide unique that is not the case with indexes of
@@ -12543,9 +12554,10 @@ inline int create_index(
 /** Creates an index to an InnoDB table when the user has defined no
  primary index. */
 inline int create_clustered_index_when_no_primary(
-    trx_t *trx,             /*!< in: InnoDB transaction handle */
-    uint32_t flags,         /*!< in: InnoDB table flags */
-    const char *table_name) /*!< in: table name */
+    trx_t *trx,                        /*!< in: InnoDB transaction handle */
+    uint32_t flags,                    /*!< in: InnoDB table flags */
+    const char *table_name,            /*!< in: table name */
+    const HA_CREATE_INFO *create_info) /*< in: create info */
 {
   dict_index_t *index;
   dberr_t error;
@@ -12559,9 +12571,9 @@ inline int create_clustered_index_when_no_primary(
 
   dict_table_t *handler = priv->lookup_table_handler(table_name);
 
-  if (handler != nullptr) {
-    /* Disable use of AHI for intrinsic table indexes as AHI
-    validates the predicated entry using index-id which has to be
+  if (handler != nullptr || is_temp_table(create_info)) {
+    /* Disable use of AHI for intrinsic table indexes and for temporary tables
+    as AHI validates the predicated entry using index-id which has to be
     system-wide unique that is not the case with indexes of
     intrinsic table for performance reason.
     Also given the lifetime of these tables and frequent delete
@@ -14296,8 +14308,8 @@ int create_table_info_t::create_table(const dd::Table *dd_table) {
     order the rows by their row id which is internally generated
     by InnoDB */
 
-    error =
-        create_clustered_index_when_no_primary(m_trx, m_flags, m_table_name);
+    error = create_clustered_index_when_no_primary(m_trx, m_flags, m_table_name,
+                                                   m_create_info);
     if (error) {
       return error;
     }
@@ -14307,7 +14319,7 @@ int create_table_info_t::create_table(const dd::Table *dd_table) {
     /* In InnoDB the clustered index must always be created
     first */
     if ((error = create_index(m_trx, m_form, m_flags, m_table_name,
-                              primary_key_no, dd_table))) {
+                              primary_key_no, dd_table, m_create_info))) {
       return error;
     }
   }
@@ -14362,7 +14374,7 @@ int create_table_info_t::create_table(const dd::Table *dd_table) {
   for (i = 0; i < m_form->s->keys; i++) {
     if (i != primary_key_no) {
       if ((error = create_index(m_trx, m_form, m_flags, m_table_name, i,
-                                dd_table))) {
+                                dd_table, m_create_info))) {
         return error;
       }
     }

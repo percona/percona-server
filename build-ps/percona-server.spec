@@ -985,9 +985,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/libpluginmecab.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libpluginmecab.so
 %endif
-#coredumper
-%attr(755, root, root) %{_includedir}/coredumper/coredumper.h
-%attr(755, root, root) /usr/lib/libcoredumper.a
 # Percona plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
 #%attr(644, root, root) %{_datadir}/mysql-*/audit_log_filter_linux_install.sql
@@ -1121,6 +1118,9 @@ fi
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %{_libdir}/mysql/lib%{shared_lib_pri_name}.so.21*
+#coredumper
+%attr(755, root, root) %{_includedir}/coredumper/coredumper.h
+%attr(755, root, root) /usr/lib/libcoredumper.a
 
 %if 0%{?compatlib}
 %files -n percona-server-shared-compat

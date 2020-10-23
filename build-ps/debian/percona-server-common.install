@@ -8,3 +8,6 @@ usr/share/mysql/charsets/README
 # config files
 debian/extra/conf.d  etc/mysql/
 debian/extra/my.cnf.fallback etc/mysql/
+#coredumper
+usr/include/coredumper/coredumper.h
+usr/lib/libcoredumper.a

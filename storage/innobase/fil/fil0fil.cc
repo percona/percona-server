@@ -824,7 +824,7 @@ class Fil_shard {
   void clear_ibts() {
     mutex_acquire();
 
-    for (const auto& it : m_ibt_deleted) {
+    for (const auto &it : m_ibt_deleted) {
       auto space = it.second;
       ut_ad(space->files.front().n_pending == 0);
 
@@ -1437,7 +1437,7 @@ class Fil_system {
   the pages of IBT will still remain in flush_list even after checkpoint moves
   its lwm */
   void clear_ibts() {
-    for (const auto& shard : m_shards) {
+    for (const auto &shard : m_shards) {
       shard->clear_ibts();
     }
   }
@@ -3231,7 +3231,6 @@ void Fil_shard::space_detach(fil_space_t *space) {
 There must not be any pending I/O's or flushes on the files.
 @param[in,out]	space		tablespace */
 void Fil_shard::space_free_low(fil_space_t *&space) {
-
   /* Wait for fil_space_t::release_for_io(); */
   while (space->n_pending_ios) {
     os_thread_sleep(100);
@@ -8206,7 +8205,7 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
     }
 
     /* Should never attempt to read from a IBT deleted tablespace. */
-    for (const auto& pair : m_ibt_deleted) {
+    for (const auto &pair : m_ibt_deleted) {
       ut_ad(pair.first != page_id.space());
     }
 #endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */

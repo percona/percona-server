@@ -254,6 +254,13 @@ Tablespace *Tablespace_pool::get(my_thread_id id, enum tbsp_purpose purpose) {
   Tablespace *ts = nullptr;
   acquire();
 
+  /* Check keyring status before creating tablespace */
+  if (Tablespace::is_encrypted(purpose) && !Tablespace::is_keyring_loaded()) {
+    my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+    release();
+    return (nullptr);
+  }
+
   bool is_empty = m_free->size() == 0;
   if (is_empty) {
     /* Free pool is empty. Create one and return */
@@ -278,6 +285,8 @@ Tablespace *Tablespace_pool::get(my_thread_id id, enum tbsp_purpose purpose) {
 
   if (Tablespace::is_encrypted(purpose)) {
     if (!ts->encrypt()) {
+      ts->drop();
+      UT_DELETE(ts);
       release();
       ib::error() << "Unable to encrypt a session temp tablespace. Probably due"
                   << " to missing keyring plugin";

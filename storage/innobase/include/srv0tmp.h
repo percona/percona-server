@@ -184,6 +184,18 @@ class Tablespace {
     return (false);
   }
 
+  /** @return true if keyring is loaded, else false */
+  static bool is_keyring_loaded() {
+    if (!Encryption::check_keyring()) {
+      ib::error() << "Can't set temporary tablespace"
+                  << " to be encrypted because"
+                  << " keyring plugin is not"
+                  << " available.";
+      return (false);
+    }
+    return (true);
+  }
+
   /** Re-encrypt encrypted session temporary tablespace with the
   new master key */
   void rotate_encryption_key();

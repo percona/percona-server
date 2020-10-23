@@ -117,6 +117,3 @@ usr/share/mysql/mysql-systemd-start
 usr/share/mysql/mysqld_multi.server
 # defaults file
 etc/default/mysql
-#coredumper
-usr/include/coredumper/coredumper.h
-usr/lib/libcoredumper.a

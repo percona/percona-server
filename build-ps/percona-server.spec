@@ -948,9 +948,6 @@ fi
 %attr(755, root, root) %{_datadir}/percona-server/spanish/
 %attr(755, root, root) %{_datadir}/percona-server/swedish/
 %attr(755, root, root) %{_datadir}/percona-server/ukrainian/
-#coredumper
-%attr(755, root, root) %{_includedir}/coredumper/coredumper.h
-%attr(755, root, root) /usr/lib/libcoredumper.a
 
 %files -n Percona-Server-client%{product_suffix}
 %defattr(-, root, root, -)
@@ -997,6 +994,9 @@ fi
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %{_libdir}/mysql/lib%{shared_lib_pri_name}.so.20*
+#coredumper
+%attr(755, root, root) %{_includedir}/coredumper/coredumper.h
+%attr(755, root, root) /usr/lib/libcoredumper.a
 
 %if 0%{?compatlib}
 %files -n Percona-Server-shared-compat%{product_suffix}

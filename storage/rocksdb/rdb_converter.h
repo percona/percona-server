@@ -56,20 +56,21 @@ class Rdb_convert_to_record_value_decoder {
   Rdb_convert_to_record_value_decoder &operator=(
       const Rdb_convert_to_record_value_decoder &decoder) = delete;
 
-  static int decode(uchar *const buf, uint *offset, TABLE *table,
-                    my_core::Field *field, Rdb_field_encoder *field_dec,
-                    Rdb_string_reader *reader, bool decode, bool is_null);
+  static int decode(uchar *const buf, TABLE *table,
+                    Rdb_field_encoder *field_dec, Rdb_string_reader *reader,
+                    bool decode, bool is_null);
 
  private:
-  static int decode_blob(TABLE *table, Field *field, Rdb_string_reader *reader,
-                         bool decode);
-  static int decode_fixed_length_field(Field *const field,
+  static int decode_blob(TABLE *table, uchar *const buf,
+                         Rdb_field_encoder *field_dec,
+                         Rdb_string_reader *reader, bool decode);
+  static int decode_fixed_length_field(uchar *const buf,
                                        Rdb_field_encoder *field_dec,
                                        Rdb_string_reader *const reader,
                                        bool decode);
 
-  static int decode_varchar(Field *const field, Rdb_string_reader *const reader,
-                            bool decode);
+  static int decode_varchar(uchar *const buf, Rdb_field_encoder *field_dec,
+                            Rdb_string_reader *const reader, bool decode);
 };
 
 /**
@@ -118,8 +119,6 @@ class Rdb_value_field_iterator {
   int get_field_index() const;
   // get current field type
   enum_field_types get_field_type() const;
-  // get current field
-  Field *get_field() const;
 };
 
 /**

@@ -28,58 +28,6 @@ IF (NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
 ENDIF ()
 
 
-# Suppress warnings for all compilers
-append_cflags_if_supported(-Wno-unused-parameter -Wno-suggest-override)
-# "cmake/maintainer.cmake" sets "-Wcast-qual -Wundef" which cause warnings with RocksDB
-remove_compile_flags(-Wcast-qual -Wundef)
-
-
-# Suppress warnings for all clang versions
-IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  remove_compile_flags(-Wdeprecated -Winconsistent-missing-destructor-override -Wextra-semi -Wnon-virtual-dtor)
-  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-shadow-field FILES ha_rocksdb.cc rocksdb/memtable/hash_skiplist_rep.cc)
-  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-conditional-uninitialized FILES ha_rocksdb.cc rdb_datadic.cc rocksdb/db/db_impl/db_impl.cc rocksdb/db/write_thread.cc rocksdb/env/env_posix.cc rocksdb/env/fs_posix.cc)
-ENDIF()
-
-
-# Suppress warnings for clang-10 or newer
-IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)
-  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-range-loop-construct FILES rocksdb/db/db_impl/db_impl_compaction_flush.cc rocksdb/options/options_parser.cc rocksdb/options/options_helper.cc)
-  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-deprecated-copy FILES rocksdb/db/db_impl/db_impl.cc)
-ENDIF()
-
-# Suppress warnings for gcc-9 or newer
-IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
-  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-deprecated-copy FILES rocksdb/db/db_impl/db_impl.cc)
-  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-maybe-uninitialized FILES rocksdb/table/block_based/block_based_table_builder.cc)
-ENDIF()
-
-# Suppress warnings for gcc
-IF(CMAKE_COMPILER_IS_GNUCXX)
-  # "cmake/maintainer.cmake" sets "-Wmissing-format-attribute" which cause warnings with RocksDB
-  remove_compile_flags(-Wmissing-format-attribute)
-ENDIF()
-
-
-# Suppress warnings for gcc ASan build
-IF(CMAKE_COMPILER_IS_GNUCXX AND WITH_ASAN)
-  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-error=maybe-uninitialized FILES rocksdb/util/bloom.cc)
-ENDIF()
-
-
-CHECK_FUNCTION_EXISTS(sched_getcpu  HAVE_SCHED_GETCPU)
-IF(HAVE_SCHED_GETCPU)
-  ADD_DEFINITIONS(-DHAVE_SCHED_GETCPU=1 -DROCKSDB_SCHED_GETCPU_PRESENT)
-ENDIF()
-
-# This is a strong requirement coming from RocksDB. No conditional checks here.
-ADD_DEFINITIONS(-DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX -DZLIB -DLZ4 -DZSTD)
-
-IF(ROCKSDB_CUSTOM_NAMESPACE)
-  ADD_DEFINITIONS(-DROCKSDB_NAMESPACE=${ROCKSDB_CUSTOM_NAMESPACE})
-  ADD_DEFINITIONS(-DROCKSDB_CUSTOM_NAMESPACE=${ROCKSDB_CUSTOM_NAMESPACE})
-ENDIF()
-
 IF(HAVE_EXTERNAL_ROCKSDB)
   MESSAGE(STATUS "MyRocks: Using external RocksDB")
   SET(ROCKSDB_ROOT ${ROCKSDB_SRC_PATH})
@@ -108,6 +56,110 @@ ELSE()
   )
 ENDIF()
 
+# This is a strong requirement coming from RocksDB. No conditional checks here.
+add_definitions(-DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX -DZLIB -DLZ4 -DZSTD)
+IF (WITH_UBSAN)
+  ADD_DEFINITIONS(-DROCKSDB_UBSAN_RUN)
+ENDIF()
+IF (WITH_VALGRIND)
+  ADD_DEFINITIONS(-DROCKSDB_VALGRIND_RUN)
+ENDIF()
+IF (WITH_JEMALLOC)
+  ADD_DEFINITIONS(-DROCKSDB_JEMALLOC)
+ENDIF()
+
+IF (ROCKSDB_CUSTOM_NAMESPACE)
+  ADD_DEFINITIONS(-DROCKSDB_NAMESPACE=${ROCKSDB_CUSTOM_NAMESPACE})
+  ADD_DEFINITIONS(-DROCKSDB_CUSTOM_NAMESPACE=${ROCKSDB_CUSTOM_NAMESPACE})
+ENDIF()
+
+include(compiler_features)
+
+IF (NOT HAVE_THREAD_LOCAL)
+  MESSAGE(FATAL_ERROR "No '__thread' support found. Not building MyRocks")
+ENDIF()
+
+IF (HAVE_SSE42 AND HAVE_PCLMUL)
+  add_compile_flags(${ROCKSDB_ROOT}/util/crc32c.cc COMPILE_FLAGS "-msse4.2 -mpclmul")
+  MESSAGE(STATUS "MyRocks: SSE42 support found")
+ELSE()
+  IF (ALLOW_NO_SSE42)
+    MESSAGE(WARNING "No SSE42 support found and ALLOW_NO_SSE42 specified, building MyRocks but without SSE42/FastCRC32 support")
+  ELSE()
+    MESSAGE(FATAL_ERROR "No SSE42 support found. Not building MyRocks")
+  ENDIF()
+ENDIF()
+
+IF (HAVE_AVX2 AND NOT ROCKSDB_DISABLE_AVX2)
+  add_compile_flags(${ROCKSDB_ROOT}/table/block_based/filter_policy.cc COMPILE_FLAGS "-mavx2")
+ENDIF()
+
+IF (HAVE_URING AND ROCKSDB_USE_IO_URING)
+  SET(rocksdb_static_libs ${rocksdb_static_libs} ${URING_LIBRARY})
+ENDIF()
+
+IF (HAVE_MEMKIND AND ROCKSDB_USE_MEMKIND)
+  SET(rocksdb_static_libs ${rocksdb_static_libs} ${MEMKIND_LIBRARY})
+ENDIF()
+
+IF (HAVE_ALIGNED_NEW AND NOT ROCKSDB_DISABLE_ALIGNED_NEW)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -faligned-new")
+ENDIF()
+
+IF (CMAKE_COMPILER_IS_GNUCXX)
+  add_compile_options(-fno-builtin-memcmp)
+ENDIF()
+
+IF (CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64" AND NOT ROCKSDB_DISABLE_MARCH_NATIVE)
+  add_compile_options(-march=native)
+ENDIF()
+
+IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  add_definitions(-DOS_LINUX)
+ENDIF()
+
+ROCKSDB_SET_DEFINTIONS()
+get_directory_property(COMPILE_DEFINITIONS COMPILE_DEFINITIONS)
+list(SORT COMPILE_DEFINITIONS)
+message(STATUS "MyRocks compile definitions: ${COMPILE_DEFINITIONS}")
+
+
+# Suppress warnings for all compilers
+append_cflags_if_supported(-Wno-unused-parameter -Wno-suggest-override)
+# "cmake/maintainer.cmake" sets "-Wcast-qual -Wundef" which cause warnings with RocksDB
+remove_compile_flags(-Wcast-qual -Wundef)
+
+# Suppress warnings for all clang versions
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  remove_compile_flags(-Wdeprecated -Winconsistent-missing-destructor-override -Wextra-semi -Wnon-virtual-dtor)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-shadow-field FILES ha_rocksdb.cc rocksdb/memtable/hash_skiplist_rep.cc)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-conditional-uninitialized FILES ha_rocksdb.cc rdb_datadic.cc rocksdb/db/db_impl/db_impl.cc rocksdb/db/write_thread.cc rocksdb/env/env_posix.cc rocksdb/env/fs_posix.cc)
+ENDIF()
+
+# Suppress warnings for clang-10 or newer
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-range-loop-construct FILES rocksdb/db/db_impl/db_impl_compaction_flush.cc rocksdb/options/options_parser.cc rocksdb/options/options_helper.cc)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-deprecated-copy FILES rocksdb/db/db_impl/db_impl.cc)
+ENDIF()
+
+# Suppress warnings for all gcc versions
+IF(CMAKE_COMPILER_IS_GNUCXX)
+  # "cmake/maintainer.cmake" sets "-Wmissing-format-attribute" which cause warnings with RocksDB
+  remove_compile_flags(-Wmissing-format-attribute)
+ENDIF()
+
+# Suppress warnings for gcc-9 or newer
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-deprecated-copy FILES rocksdb/db/db_impl/db_impl.cc)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-maybe-uninitialized FILES rocksdb/table/block_based/block_based_table_builder.cc)
+ENDIF()
+
+# Suppress warnings for gcc ASan build
+IF(CMAKE_COMPILER_IS_GNUCXX AND WITH_ASAN)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-error=maybe-uninitialized FILES rocksdb/util/bloom.cc)
+ENDIF()
+
+
 INCLUDE_DIRECTORIES(
   ${ROCKSDB_ROOT}
   ${ROCKSDB_ROOT}/include
@@ -120,67 +172,10 @@ IF(BUILD_BUNDLED_ZSTD)
     ${ZSTD_INCLUDE_DIR}/dictBuilder)
 ENDIF()
 
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mpclmul")
-SET(CMAKE_REQUIRED_FLAGS "${CMAKE_CXX_FLAGS} --std=c++11")
-INCLUDE(CheckCXXSourceCompiles)
-CHECK_CXX_SOURCE_COMPILES("
-#include <cstdint>
-#include <nmmintrin.h>
-#include <wmmintrin.h>
-int main() {
-  volatile uint32_t x __attribute__((unused)) = _mm_crc32_u32(0, 0);
-  const auto a = _mm_set_epi64x(0, 0);
-  const auto b = _mm_set_epi64x(0, 0);
-  const auto c = _mm_clmulepi64_si128(a, b, 0x00);
-  auto d __attribute__((unused)) = _mm_cvtsi128_si64(c);
-}
-" HAVE_SSE42)
-IF (HAVE_SSE42)
-  ADD_DEFINITIONS(-DHAVE_SSE42)
-  MESSAGE(STATUS "MyRocks: SSE42 support found")
-ELSE ()
-  IF (ALLOW_NO_SSE42)
-    MESSAGE(WARNING "No SSE42 support found and ALLOW_NO_SSE42 specified, building MyRocks but without SSE42/FastCRC32 support")
-  ELSE ()
-    MESSAGE(FATAL_ERROR "No SSE42 support found. Not building MyRocks")
-  ENDIF ()
-ENDIF ()
-
-IF(UNIX)
-  IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    ADD_DEFINITIONS(-DOS_LINUX)
-
-    CHECK_INCLUDE_FILES(linux/falloc.h HAVE_LINUX_FALLOC_H)
-    CHECK_FUNCTION_EXISTS(fallocate HAVE_FALLOCATE)
-
-    IF(HAVE_FALLOCATE AND HAVE_LINUX_FALLOC_H)
-      ADD_DEFINITIONS(-DROCKSDB_FALLOCATE_PRESENT)
-    ENDIF()
-  ENDIF()
-ENDIF()
-
-CHECK_CXX_SOURCE_COMPILES("
-#if defined(_MSC_VER) && !defined(__thread)
-#define __thread __declspec(thread)
-#endif
-int main() {
-  static __thread int tls __attribute__((unused));
-}
-" HAVE_THREAD_LOCAL)
-if(HAVE_THREAD_LOCAL)
-  ADD_DEFINITIONS(-DROCKSDB_SUPPORT_THREAD_LOCAL)
-else()
-  MESSAGE(FATAL_ERROR "No '__thread' support found. Not building MyRocks")
-endif()
-
 # add bundled compression code
 SET(ZSTD_SOURCES
   ${CMAKE_SOURCE_DIR}/extra/lz4/xxhash.c
 )
-
-IF(DEFINED WITH_UBSAN)
-  add_definitions(-DROCKSDB_UBSAN_RUN)
-ENDIF()
 
 SET(ROCKSDB_SOURCES
   ${ROCKSDB_SOURCES}
@@ -212,7 +207,7 @@ ELSE()
 ENDIF()
 
 IF(HAVE_EXTERNAL_ROCKSDB)
-  SET(rocksdb_static_libs "${ROCKSDB_LIB_PATH}/${ROCKSDB_LIB_NAME}")
+  SET(rocksdb_static_libs ${rocksdb_static_libs} "${ROCKSDB_LIB_PATH}/${ROCKSDB_LIB_NAME}")
 ENDIF()
 
 SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} ${ZSTD_LIBRARY} ${LZ4_LIBRARY} "-lrt" "-ldl")

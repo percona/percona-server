@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_setup.py\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/02/2020
+.\"      Date: 09/22/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_SETUP\&.PY\FR" "1" "06/02/2020" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_SETUP\&.PY\FR" "1" "09/22/2020" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -92,7 +92,7 @@ The following table includes all options that are supported by the NDB Cluster i
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.235.\ \&Command\-line options for the ndb_setup\&.py program
+.B Table\ \&18.37.\ \&Command\-line options for the ndb_setup\&.py program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -104,24 +104,24 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l.
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l.
 T{
 .PP
 \fB--browser-start-page=filename\fR,
 .PP
 \fB \fR\fB-s\fR\fB \fR
 T}:T{
-Page that the web browser opens when starting
+Page that web browser opens when starting
 T}:T{
 .PP
 (Supported in all MySQL 5.6 based releases)
@@ -132,8 +132,7 @@ T{
 .PP
 \fB \fR\fB-a\fR\fB \fR
 T}:T{
-File containing list of client certificates allowed to connect to the
-              server
+File containing list of client certificates allowed to connect to server
 T}:T{
 .PP
 (Supported in all MySQL 5.6 based releases)
@@ -144,8 +143,7 @@ T{
 .PP
 \fB \fR\fB-c\fR\fB \fR
 T}:T{
-File containing X509 certificate that identifies the server. (Default:
-              mcc/cfg.pem in the installation share directory)
+File containing X509 certificate identifying server
 T}:T{
 .PP
 (Supported in all MySQL 5.6 based releases)
@@ -156,7 +154,7 @@ T{
 .PP
 \fB \fR\fB-d\fR\fB \fR
 T}:T{
-Python logging module debug level. One of DEBUG, INFO, WARNING
+Python logging module debug level; one of DEBUG, INFO, WARNING
               (default), ERROR, or CRITICAL
 T}:T{
 .PP
@@ -190,7 +188,7 @@ T{
 .PP
 \fB \fR\fB-n\fR\fB \fR
 T}:T{
-Do not open the start page in a browser, merely start the tool
+Do not open start page in browser, merely start tool
 T}:T{
 .PP
 (Supported in all MySQL 5.6 based releases)
@@ -201,7 +199,7 @@ T{
 .PP
 \fB \fR\fB-p\fR\fB \fR
 T}:T{
-Specify the port used by the web server
+Specify port used by web server
 T}:T{
 .PP
 (Supported in all MySQL 5.6 based releases)
@@ -212,7 +210,7 @@ T{
 .PP
 \fB \fR\fB-o\fR\fB \fR
 T}:T{
-Log requests to this file. Use '-' to force logging to stderr instead
+Log requests to this file; use '-' to force logging to stderr instead
 T}:T{
 .PP
 (Supported in all MySQL 5.6 based releases)
@@ -223,7 +221,7 @@ T{
 .PP
 \fB \fR\fB-N\fR\fB \fR
 T}:T{
-The name of the server to connect with
+Name of server to connect to
 T}:T{
 .PP
 (Supported in all MySQL 5.6 based releases)
@@ -254,13 +252,6 @@ T}
 \fB\-s\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -297,13 +288,6 @@ index\&.html\&.
 \fB\-a\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -339,13 +323,6 @@ Specify a file containing a list of client certificates which are allowed to con
 \fB\-c\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -382,13 +359,6 @@ cfg\&.pem\&.
 \fB\-d\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -446,13 +416,6 @@ is the default\&.
 \fB\-h\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l.
 T{
 Command-Line Format
@@ -476,13 +439,6 @@ Print a help message\&.
 \fB\-d\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -518,13 +474,6 @@ Specify a file containing the private key if this is not included in the X\&. 50
 \fB\-n\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l.
 T{
 Command-Line Format
@@ -548,13 +497,6 @@ Start the installation and configuration tool, but do not open the Start page in
 \fB\-p\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -602,13 +544,6 @@ Set the port used by the web server\&. The default is 8081\&.
 \fB\-o\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -658,13 +593,6 @@ stderr, rather than to a file, use a
 \fB\-N\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -701,13 +629,6 @@ localhost\&.
 \fB\-S\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l.
 T{
 Command-Line Format

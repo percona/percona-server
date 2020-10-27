@@ -375,7 +375,7 @@ Also, all variables can exist in one or both of the following scopes:
    * - :variable:`rocksdb_max_row_locks`
      - Yes
      - Yes
-     - Global, Session
+     - Global
    * - :variable:`rocksdb_max_subcompactions`
      - Yes
      - No
@@ -569,6 +569,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Global
    * - :variable:`rocksdb_use_adaptive_mutex`
+     - Yes
+     - No
+     - Global
+   * - :variable:`rocksdb_use_default_sk_cf`
      - Yes
      - No
      - Global
@@ -1879,9 +1883,10 @@ Finally, ``-1`` means no limit, i.e. an infinite number of file handles.
 
   :version 5.7.19-17: Implemented
   :version 5.7.21-21: Default value has changed from ``1073741824`` to ``1048576``
+  :version 5.7.32-35: Scope changed to ``Global``
   :cli: ``--rocksdb-max-row-locks``
   :dyn: Yes
-  :scope: Global, Session
+  :scope: Global
   :vartype: Numeric
   :default: ``1048576``
 
@@ -2565,6 +2570,17 @@ Empty by default.
 Specifies whether to use adaptive mutex
 which spins in user space before resorting to the kernel.
 Disabled by default.
+
+.. variable:: rocksdb_use_default_sk_cf
+
+  :version 5.7.32-35: Implemented
+  :cli: ``--rocksdb-use-default-sk-cf``
+  :dyn: No
+  :scope: Global
+  :vartype: Boolean
+  :default: OFF
+  
+Use ``default_sk`` column family for secondary keys.
 
 .. variable:: rocksdb_use_direct_io_for_flush_and_compaction
 

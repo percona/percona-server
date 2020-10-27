@@ -4,8 +4,6 @@
 Data Masking
 ==================================================================
 
-This feature is **Experimental** quality.
-
 This feature was implemented in |Percona Server| version :rn:`8.0.17-8`.
 
 The Percona Data Masking plugin is a free and Open Source implementation of the
@@ -16,9 +14,9 @@ sensitive data with modified content.
 
 The following command installs the plugin:
 
-.. code-block:: bash
+.. code-block:: mysql
 
-    INSTALL PLUGIN data_masking SONAME 'data_masking.so';
+    $ INSTALL PLUGIN data_masking SONAME 'data_masking.so';
 
 The data masking functions are the following:
 

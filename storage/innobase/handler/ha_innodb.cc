@@ -65,6 +65,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mysql/components/services/system_variable_source.h"
 
 #ifndef UNIV_HOTBACKUP
+#include <binlog.h>
 #include <current_thd.h>
 #include <debug_sync.h>
 #include <derror.h>
@@ -840,21 +841,30 @@ static int default_encryption_key_id_validate(
     DBUG_RETURN(1);
   }
 
-  if (intbuf < 0 || intbuf >= UINT_MAX) {
-    push_warning_printf(thd, Sql_condition::SL_WARNING, HA_ERR_UNSUPPORTED,
-                        "InnoDB: value out of scope");
+  bool is_val_fixed = false;
+  auto key_id = intbuf;
+  if (intbuf < 0) {
+    key_id = 0;
+    is_val_fixed = true;
+  } else if (intbuf >= UINT_MAX32) {
+    key_id = UINT_MAX32 - 1;
+    is_val_fixed = true;
+  }
+
+  if (throw_bounds_warning(thd, "innodb_encryption_key_id", is_val_fixed,
+                           intbuf)) {
     DBUG_RETURN(1);
   }
 
   if (!Encryption::tablespace_key_exists_or_create_new_one_if_does_not_exist(
-          static_cast<uint>(intbuf), server_uuid)) {
+          static_cast<uint>(key_id), server_uuid)) {
     push_warning_printf(thd, Sql_condition::SL_WARNING, HA_ERR_UNSUPPORTED,
                         "InnoDB: cannot enable encryption, "
                         "keyring plugin is not available");
     DBUG_RETURN(1);
   }
 
-  *reinterpret_cast<ulong *>(save) = static_cast<ulong>(intbuf);
+  *reinterpret_cast<ulong *>(save) = static_cast<ulong>(key_id);
 
   DBUG_RETURN(0);
 }
@@ -874,7 +884,7 @@ static MYSQL_THDVAR_UINT(default_encryption_key_id, PLUGIN_VAR_RQCMDARG,
                          "Default encryption key id used for table encryption.",
                          default_encryption_key_id_validate,
                          default_encryption_key_id_update,
-                         FIL_DEFAULT_ENCRYPTION_KEY, 0, UINT_MAX32, 0);
+                         FIL_DEFAULT_ENCRYPTION_KEY, 0, UINT_MAX32 - 1, 0);
 
 uint get_global_default_encryption_key_id_value() {
   return THDVAR(NULL, default_encryption_key_id);
@@ -5913,10 +5923,16 @@ static bool innobase_flush_logs(handlerton *hton, bool binlog_group_flush) {
     return false;
   }
 
-  /* Signal and wait for all GTIDs to persist on disk. */
+  /* Wait for all GTIDs to persist on disk and create an explicit request for
+  the compression of mysql.gtid_executed table if both binary logging and
+  log_slave_updates are enabled. This is required to avoid the
+  clone_gtid_thread getting stuck while scanning the gtid_executed table when
+  there is a mixed (transactional and non-transactional) workload on the
+  server. */
   if (!binlog_group_flush) {
+    bool compress_gtid = mysql_bin_log.is_open() && opt_log_slave_updates;
     auto &gtid_persistor = clone_sys->get_gtid_persistor();
-    gtid_persistor.wait_flush(true, true, true, nullptr);
+    gtid_persistor.wait_flush(true, compress_gtid, true, nullptr);
   }
 
   /* Flush the redo log buffer to the redo log file.
@@ -6575,6 +6591,13 @@ static void innobase_kill_connection(
     /* Cancel a pending lock request if there are any */
     lock_trx_handle_wait(trx);
   }
+}
+
+/** @return TRUE if table is temporary table (CREATE TEMORARY)
+@param[in]  create_info structure of additional attributes of a table, used by
+CREATE TABLE */
+static bool is_temp_table(const HA_CREATE_INFO *create_info) {
+  return (create_info->options & HA_LEX_CREATE_TMP_TABLE);
 }
 
 /** ** InnoDB database tables
@@ -12295,13 +12318,15 @@ const dd::Index *get_my_dd_index<dd::Partition_index>(
 
 /** Creates an index in an InnoDB database. */
 inline int create_index(
-    trx_t *trx,                /*!< in: InnoDB transaction handle */
-    const TABLE *form,         /*!< in: information on table
-                               columns and indexes */
-    uint32_t flags,            /*!< in: InnoDB table flags */
-    const char *table_name,    /*!< in: table name */
-    uint key_num,              /*!< in: index number */
-    const dd::Table *dd_table) /*!< in: dd::Table for the table*/
+    trx_t *trx,                        /*!< in: InnoDB transaction handle */
+    const TABLE *form,                 /*!< in: information on table
+                                       columns and indexes */
+    uint32_t flags,                    /*!< in: InnoDB table flags */
+    const char *table_name,            /*!< in: table name */
+    uint key_num,                      /*!< in: index number */
+    const dd::Table *dd_table,         /*!< in: dd::Table for the table*/
+    const HA_CREATE_INFO *create_info) /*!< in: create info */
+
 {
   dict_index_t *index;
   int error;
@@ -12405,7 +12430,9 @@ inline int create_index(
     For now this is turned-on for intrinsic tables
     only but can be turned on for other tables if needed arises. */
     index->nulls_equal = (key->flags & HA_NULL_ARE_EQUAL) ? true : false;
+  }
 
+  if (handler != nullptr || is_temp_table(create_info)) {
     /* Disable use of AHI for intrinsic table indexes as AHI
     validates the predicated entry using index-id which has to be
     system-wide unique that is not the case with indexes of
@@ -12527,9 +12554,10 @@ inline int create_index(
 /** Creates an index to an InnoDB table when the user has defined no
  primary index. */
 inline int create_clustered_index_when_no_primary(
-    trx_t *trx,             /*!< in: InnoDB transaction handle */
-    uint32_t flags,         /*!< in: InnoDB table flags */
-    const char *table_name) /*!< in: table name */
+    trx_t *trx,                        /*!< in: InnoDB transaction handle */
+    uint32_t flags,                    /*!< in: InnoDB table flags */
+    const char *table_name,            /*!< in: table name */
+    const HA_CREATE_INFO *create_info) /*< in: create info */
 {
   dict_index_t *index;
   dberr_t error;
@@ -12543,9 +12571,9 @@ inline int create_clustered_index_when_no_primary(
 
   dict_table_t *handler = priv->lookup_table_handler(table_name);
 
-  if (handler != nullptr) {
-    /* Disable use of AHI for intrinsic table indexes as AHI
-    validates the predicated entry using index-id which has to be
+  if (handler != nullptr || is_temp_table(create_info)) {
+    /* Disable use of AHI for intrinsic table indexes and for temporary tables
+    as AHI validates the predicated entry using index-id which has to be
     system-wide unique that is not the case with indexes of
     intrinsic table for performance reason.
     Also given the lifetime of these tables and frequent delete
@@ -14280,8 +14308,8 @@ int create_table_info_t::create_table(const dd::Table *dd_table) {
     order the rows by their row id which is internally generated
     by InnoDB */
 
-    error =
-        create_clustered_index_when_no_primary(m_trx, m_flags, m_table_name);
+    error = create_clustered_index_when_no_primary(m_trx, m_flags, m_table_name,
+                                                   m_create_info);
     if (error) {
       return error;
     }
@@ -14291,7 +14319,7 @@ int create_table_info_t::create_table(const dd::Table *dd_table) {
     /* In InnoDB the clustered index must always be created
     first */
     if ((error = create_index(m_trx, m_form, m_flags, m_table_name,
-                              primary_key_no, dd_table))) {
+                              primary_key_no, dd_table, m_create_info))) {
       return error;
     }
   }
@@ -14346,7 +14374,7 @@ int create_table_info_t::create_table(const dd::Table *dd_table) {
   for (i = 0; i < m_form->s->keys; i++) {
     if (i != primary_key_no) {
       if ((error = create_index(m_trx, m_form, m_flags, m_table_name, i,
-                                dd_table))) {
+                                dd_table, m_create_info))) {
         return error;
       }
     }

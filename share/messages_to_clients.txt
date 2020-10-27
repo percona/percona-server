@@ -9448,7 +9448,7 @@ ER_EXCLUDE_ENCRYPTION_TABLE_ENCRYPTED
   eng "Tablespace %s is fully or partially encrypted by encryption threads and thus cannot be excluded from encryption threads. Please first finish off encryption/decryption and try again."
 
 ER_EXPLICIT_DECRYPTION_OF_ONLINE_ENCRYPTED_TABLESPACE
-  eng "Tablespace %s is encrypted by encryption threads and cannot be explicitly decrypted. Please use default-table-encryption=ONLINE_FROM_KEYRING_TO_UNENECRYPTED to decypt the tablespace."
+  eng "Tablespace %s is encrypted by encryption threads and cannot be explicitly decrypted. Please use default-table-encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED to decypt the tablespace."
 
 ER_ONLINE_KEYRING_TO_MK_RE_ENCRYPTION
   eng "Tablespace %s is encrypted by encryption threads and cannot be ALTERed to Master Key encryption. In order to encrypt this tablespace with Master Key encryption, first decrypt this tablespace with encryption threads."

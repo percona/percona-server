@@ -63,7 +63,7 @@ SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=OFF;
 SET GLOBAL innodb_encryption_threads=2;
 ALTER TABLESPACE ts_hang ENCRYPTION='N';
-ERROR HY000: Tablespace ts_hang is encrypted by encryption threads and cannot be explicitly decrypted. Please use default-table-encryption=ONLINE_FROM_KEYRING_TO_UNENECRYPTED to decypt the tablespace.
+ERROR HY000: Tablespace ts_hang is encrypted by encryption threads and cannot be explicitly decrypted. Please use default-table-encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED to decypt the tablespace.
 # 2. Altering online encrypted tablespace to 'Y'
 ALTER TABLESPACE ts_hang ENCRYPTION='Y';
 ERROR HY000: Tablespace ts_hang is encrypted by encryption threads and cannot be ALTERed to Master Key encryption. In order to encrypt this tablespace with Master Key encryption, first decrypt this tablespace with encryption threads.

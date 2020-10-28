@@ -3,6 +3,9 @@ jobs:
   build:
     docker:
       - image: circleci/buildpack-deps:bionic
+        auth:
+          username: $DOCKERHUB_USERNAME
+          password: $DOCKERHUB_PASSWORD
     steps:
       - checkout
       - run:

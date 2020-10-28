@@ -128,8 +128,16 @@ get_sources(){
     #
     cd ${WORKDIR}/percona-server
     ls
-    source VERSION
-    cat VERSION > ../percona-server-8.0.properties
+    if [ -f VERSION ]; then
+        source VERSION
+        cat VERSION > ../percona-server-8.0.properties
+    elif [ -f MYSQL_VERSION ]; then
+        source MYSQL_VERSION
+        cat MYSQL_VERSION > ../percona-server-8.0.properties
+    else
+        echo "VERSION file does not exist"
+	exit 1
+    fi
     echo "REVISION=${REVISION}" >> ../percona-server-8.0.properties
     BRANCH_NAME="${BRANCH}"
     echo "BRANCH_NAME=${BRANCH_NAME}" >> ../percona-server-8.0.properties

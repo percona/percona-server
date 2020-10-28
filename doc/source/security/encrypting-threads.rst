@@ -1,41 +1,44 @@
 .. _encrypting-threads:
 
 ================================================================================
-Working with Background Encryption Threads
+Working with Advanced Encryption Key Rotation
 ================================================================================
 
-:Availabiliity: This feature is **Experimental**.
+:Availability: This feature is tech preview.
 
-Encryption threads in the background allow you to perform some encryption and
+The Advanced Encryption Key Rotation feature lets you perform specific encryption and
 decryption tasks in real-time. 
 
-You would use encryption threads for the following purposes:
+The following table explains the benefits of Advanced Encryption Key Rotation:
 
-* Encryption threads can encrypt existing tablespaces. Encryption
-  threads allow encryption to be applied to all or some of the existing
-  tablespaces, you can exclude tablespaces from rotation, in a background process. You
-  can encrypt existing tablespaces with the Master key, but you must do this
-  operation by tablespace.
+.. list-table::
+    :widths: 25 25
+    :header-rows: 1
+    
+    * - Advanced Encryption Key Rotation
+      - Master Key Encryption
+    * - Encrypts any existing tablespaces in a single operation. Advanced
+        Encryption Key Rotation
+        allows encryption to be applied to all or selected existing
+        tablespaces. You can exclude tablespaces.
+      - Encrypts each existing tablespace as a separate operation.
+    * - Encrypts tables with a key from a keyring.
+      - Encrypts tables with a key that is then stored in the encryption header
+        of the
+        tablespace.
+    * - Re-encrypts each tablespace page by page when the key is rotated.
+      - Re-encrypts only the tablespace encryption header when the key is rotated.
+   
+If you enable Advanced Encryption Key Rotation with a Master key encrypted
+tablespace, the tablespace is re-encrypted with the keyring key in a background
+process. If the Advanced Encryption Key Rotation feature is enabled, you cannot
+convert a tablespace to use Master key encryption. You must disable the feature
+before you convert the tablespace.
 
-* Encryption threads encrypt tables with a key from a keyring. The Master key
-  encrypts tables by a key and is stored in the encryption header of the
-  tablespace.
+:Availability: This feature is tech preview quality.
 
-* Encryption threads allow key rotation. In an encryption thread rotation, the
-  operation re-encrypts each tablespace page by page. The Master key rotation
-  does not re-encrypt each page, only the tablespace encryption header.
-
-If you have tablespaces encrypted with the Master key and you enable
-encryption threads, the tablespaces are re-encrypted with the keyring key in a
-background process.
-
-.. note::
-
-    While encryption threads are enabled, you cannot convert the tablespaces to
-    Master key encryption. To convert the tablespaces, you must disable the
-    encryption threads.
-
-:Availability: This feature is **Experimental** quality.
+You must have the SYSTEM_VARIABLES_ADMIN privilege or the SUPER privilege to set
+these variables.
 
 .. variable:: innodb_encryption_threads
 
@@ -46,7 +49,8 @@ background process.
     :default: 0
 
 This variable works in combination with the
-:variable:`default_table_encryption` variable set to ``ONLINE_TO_KEYRING``. This variable
+:variable:`default_table_encryption` variable set to ``ONLINE_TO_KEYRING``.
+This variable
 configures the number of threads for background encryption. For the online
 encryption, the value must be greater than **zero**. 
 
@@ -69,12 +73,33 @@ following intervals:
 *  The value is **2**, the table is re-encrypted on every other key rotation.
 *  The value is **10**, the table is re-encrypted on every tenth key rotation.
 
-You should select the value which best fits your operational requirements. 
+You should select the value which best fits your operational requirements.
+
+.. variable:: innodb_encryption_rotation_iops
+
+    :cli: ``--innodb-encryption-rotation-iops``
+    :dyn: Yes
+    :scope: Global
+    :vartype: Numeric
+    :default: 100
+    
+Defines the number of input/output operations per second (iops) available for
+use by a key rotation processes.
+
+.. variable:: innodb_default_encryption_key_id
+
+    :cli: ``--innodb-default-encryption-key-id``
+    :dyn: Yes
+    :scope: session
+    :vartype: Numeric
+    :default: 0
+    
+Defines the default encryption ID used to encrypt tablespaces.
 
 Using Keyring Encryption
 -------------------------------------------
 
-:Availability: This feature is **Experimental** quality.
+:Availability: This feature is tech preview quality.
 
 Keyring management is enabled for each table, per file table, separately when
 you set encryption in the ``ENCRYPTION`` clause to ``KEYRING`` in the supported

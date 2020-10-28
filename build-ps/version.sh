@@ -3,7 +3,14 @@ DIR=$(dirname $(realpath $0))
 BRANCH=$(git branch --show-current)
 IFS='.' read -r MAJOR MINOR PATCH <<< $(echo $BRANCH | awk -F'-' '{print $2}')
 EXTRA=$(echo $BRANCH | awk -F'-' '{print $3}')
-source ${DIR}/../VERSION
+if [ -f ${DIR}/../VERSION ]; then
+    source ${DIR}/../VERSION
+elif [ -f {DIR}/../MYSQL_VERSION ]; then
+    source ${DIR}/../MYSQL_VERSION
+else
+    echo "Version file does not exist"
+    exit 1
+fi
 if [ ${MYSQL_VERSION_MAJOR} != ${MAJOR} ]; then
     sed -i "s:MYSQL_VERSION_MAJOR=${MYSQL_VERSION_MAJOR}:MYSQL_VERSION_MAJOR=${MAJOR}:" ${DIR}/../VERSION
 fi

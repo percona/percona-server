@@ -33,9 +33,9 @@ include/assert.inc [TABLE ts3 should have EXCLUDED set to Y in INNODB_TABLESPACE
 include/assert.inc [TABLE ts_not_encrypted should have EXCLUDED set to Y in INNODB_TABLESPACES_ENCRYPTION]
 include/assert.inc [All the other tablespaces should have EXCLUDED set to N]
 ALTER TABLESPACE ts_encrypted ENCRYPTION='N';
-ERROR HY000: Tablespace ts_encrypted is encrypted by encryption threads and cannot be explicitly decrypted. Please use default-table-encryption=ONLINE_FROM_KEYRING_TO_UNENECRYPTED to decypt the tablespace.
+ERROR HY000: Tablespace ts_encrypted is encrypted by encryption threads and cannot be explicitly decrypted. Please use default-table-encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED to decypt the tablespace.
 ALTER TABLESPACE ts_hang ENCRYPTION='N';
-ERROR HY000: Tablespace ts_hang is encrypted by encryption threads and cannot be explicitly decrypted. Please use default-table-encryption=ONLINE_FROM_KEYRING_TO_UNENECRYPTED to decypt the tablespace.
+ERROR HY000: Tablespace ts_hang is encrypted by encryption threads and cannot be explicitly decrypted. Please use default-table-encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED to decypt the tablespace.
 SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SET GLOBAL innodb_encryption_threads=1;

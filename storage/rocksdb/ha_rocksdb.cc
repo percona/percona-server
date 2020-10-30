@@ -112,6 +112,7 @@ const std::string DEFAULT_CF_NAME("default");
 const std::string DEFAULT_SYSTEM_CF_NAME("__system__");
 const std::string PER_INDEX_CF_NAME("$per_index_cf");
 const std::string DEFAULT_SK_CF_NAME("default_sk");
+const std::string TRUNCATE_TABLE_PREFIX("#truncate_tmp#");
 
 static std::vector<std::string> rdb_tables_to_recalc;
 
@@ -4766,6 +4767,38 @@ static rocksdb::Status check_rocksdb_options_compatibility(
 
 static uint rocksdb_partition_flags() { return (HA_CANNOT_PARTITION_FK); }
 
+/* Clean up tables leftover from truncation */
+void rocksdb_truncation_table_cleanup(void) {
+  /* Scan for tables that have the truncation prefix */
+  struct Rdb_truncate_tbls : public Rdb_tables_scanner {
+   public:
+    std::vector<Rdb_tbl_def *> m_tbl_list;
+    int add_table(Rdb_tbl_def *tdef) override {
+      DBUG_ASSERT(tdef != nullptr);
+      if (tdef->base_tablename().find(TRUNCATE_TABLE_PREFIX) !=
+          std::string::npos) {
+        m_tbl_list.push_back(tdef);
+      }
+      return HA_EXIT_SUCCESS;
+    }
+  } collector;
+  ddl_manager.scan_for_tables(&collector);
+
+  /*
+    For now, delete any table found. It's possible to rename them back,
+    but there's a risk the rename can potentially lead to other inconsistencies.
+    Removing the old table (which is being truncated anyway) seems to be the
+    safest solution.
+  */
+  ha_rocksdb table(rocksdb_hton, nullptr);
+  for (Rdb_tbl_def *tbl_def : collector.m_tbl_list) {
+    // NO_LINT_DEBUG
+    sql_print_warning("MyRocks: Removing truncated leftover table %s",
+                      tbl_def->full_tablename().c_str());
+    table.delete_table(tbl_def);
+  }
+}
+
 /*
   Storage Engine initialization function, invoked when plugin is loaded.
 */
@@ -5294,6 +5327,9 @@ static int rocksdb_init_func(void *const p) {
 
   // succeeded, set the init status flag
   rdb_get_hton_init_state()->set_initialized(true);
+
+  // Remove tables that may have been leftover during truncation
+  rocksdb_truncation_table_cleanup();
 
   // NO_LINT_DEBUG
   sql_print_information(
@@ -6592,6 +6628,13 @@ int ha_rocksdb::create_key_defs(
   DBUG_ASSERT(table_arg != nullptr);
   DBUG_ASSERT(table_arg->s != nullptr);
 
+  DBUG_EXECUTE_IF("rocksdb_truncate_failure", {
+    my_error(ER_INTERNAL_ERROR, MYF(0), "Simulated truncation failure.");
+    DBUG_RETURN(HA_EXIT_FAILURE);
+  });
+
+  DBUG_EXECUTE_IF("rocksdb_truncate_failure_crash", DBUG_SUICIDE(););
+
   /*
     These need to be one greater than MAX_INDEXES since the user can create
     MAX_INDEXES secondary keys and no primary key which would cause us
@@ -6703,10 +6746,17 @@ int ha_rocksdb::create_cfs(
     The first loop checks the index parameters and creates
     column families if necessary.
   */
+  THD *const thd = my_core::thd_get_current_thd();
   for (uint i = 0; i < tbl_def_arg->m_key_count; i++) {
     std::shared_ptr<rocksdb::ColumnFamilyHandle> cf_handle;
 
+    /*
+      Skip collation checks on truncation since we might be recreating the
+      table that had unsupported collations and we don't want to fail the
+      truncation.
+    */
     if (rocksdb_strict_collation_check &&
+        thd->lex->sql_command != SQLCOM_TRUNCATE &&
         !is_hidden_pk(i, table_arg, tbl_def_arg) &&
         tbl_def_arg->base_tablename().find(tmp_file_prefix) != 0) {
       for (uint part = 0; part < table_arg->key_info[i].actual_key_parts;
@@ -7129,6 +7179,10 @@ int ha_rocksdb::create_key_def(const TABLE *const table_arg, const uint i,
   DBUG_RETURN(HA_EXIT_SUCCESS);
 }
 
+bool rdb_is_tablename_normalized(const std::string &tablename) {
+  return tablename.size() < 2 || (tablename[0] != '.' && tablename[1] != '/');
+}
+
 int rdb_normalize_tablename(const std::string &tablename,
                             std::string *const strbuf) {
   DBUG_ASSERT(strbuf != nullptr);
@@ -7145,6 +7199,21 @@ int rdb_normalize_tablename(const std::string &tablename,
   }
 
   *strbuf = tablename.substr(2, pos - 2) + "." + tablename.substr(pos + 1);
+
+  return HA_EXIT_SUCCESS;
+}
+
+int rdb_make_canonical_tablename(const std::string &tablename,
+    std::string *const strbuf) {
+  assert(strbuf != nullptr);
+
+  size_t pos = tablename.find_first_of('.');
+  if (pos == std::string::npos) {
+    assert(0);
+    return HA_ERR_ROCKSDB_INVALID_TABLE;
+  }
+
+  *strbuf = "./" + tablename.substr(0, pos) + "/" + tablename.substr(pos + 1);
 
   return HA_EXIT_SUCCESS;
 }
@@ -7252,6 +7321,35 @@ int rdb_split_normalized_tablename(const std::string &fullname,
   }
 
   return HA_EXIT_SUCCESS;
+}
+
+/*
+  Generates the normalized tablename using as many of the given arguments as
+  possible. Any of the three arguments to <db>.<table>#P#<partition> can be
+  null/empty, but return string will only ever be of the form
+  <db>
+  <db>.<table>
+  <db>.<table>#P#<partition>
+  <table>
+  <table>#P#<partition>
+*/
+void rdb_gen_normalized_tablename(const std::string *db,
+                                  const std::string *table,
+                                  const std::string *partition,
+                                  std::string *fullname) {
+  if (!fullname) return;
+  fullname->clear();
+  if (db && db->length() > 0) *fullname += *db;
+
+  /* If table was not passed in, the partition will be ignored too */
+  if (!table || table->length() == 0) return;
+
+  if (fullname->length() > 0) *fullname += ".";
+  *fullname += *table;
+
+  if (partition && partition->length() > 0) {
+    *fullname += std::string(RDB_PARTITION_STR) + *partition;
+  }
 }
 
 /*
@@ -7433,13 +7531,11 @@ int ha_rocksdb::create(const char *const name, TABLE *const table_arg,
   }
 
   // Check whether Data Dictionary contain information
-  Rdb_tbl_def *tbl = ddl_manager.find(str);
-  if (tbl != nullptr) {
+  Rdb_tbl_def *old_tbl = ddl_manager.find(str);
+  if (old_tbl != nullptr) {
     if (thd->lex->sql_command == SQLCOM_TRUNCATE) {
-      err = delete_table(tbl);
-      if (err != HA_EXIT_SUCCESS) {
-        DBUG_RETURN(err);
-      }
+      DBUG_RETURN(truncate_table(old_tbl, table_arg,
+                                 create_info->auto_increment_value));
     } else {
       my_error(ER_METADATA_INCONSISTENCY, MYF(0), str.c_str(), name);
       DBUG_RETURN(HA_ERR_ROCKSDB_CORRUPT_DATA);
@@ -7447,6 +7543,107 @@ int ha_rocksdb::create(const char *const name, TABLE *const table_arg,
   }
 
   DBUG_RETURN(create_table(str, table_arg, create_info->auto_increment_value));
+}
+
+/*
+  Fast truncates a table by renaming the old table, creating a new one and
+  restoring or deleting the old table based on the results from creation.
+
+  @param tbl_def               IN      MyRocks's table structure
+  @param table_arg             IN      sql table
+  @param auto_increment_value  IN      specified table's auto increment value
+
+  @return
+    HA_EXIT_SUCCESS  OK
+    other            HA_ERR error code (can be SE-specific)
+*/
+int ha_rocksdb::truncate_table(Rdb_tbl_def *tbl_def_arg, const TABLE *table_arg,
+                               ulonglong auto_increment_value) {
+  DBUG_ENTER_FUNC();
+
+  /*
+    Fast table truncation involves deleting the table and then recreating
+    it. However, it is possible recreating the table fails. In this case, a
+    table inconsistency might result between SQL and MyRocks where MyRocks is
+    missing a table. Since table creation involves modifying keys with the
+    original table name, renaming the original table first, and then renaming
+    it back in case of creation failure can help restore the pre-truncation
+    state.
+
+    If the server were to crash during truncation, the system will end up with
+    an inconsistency. Future changes for atomic ddl will resolve this. For now,
+    if there are any truncation renamed tables found during startup, MyRocks
+    will automatically remove them.
+  */
+  std::string orig_tablename = tbl_def_arg->full_tablename();
+  std::string dbname, tblname, partition;
+
+  /*
+    Rename the table in the data dictionary. Since this thread should be
+    holding the MDL for this tablename, it is safe to perform these renames
+    should be locked via MDL, no other process thread be able to access this
+    table.
+  */
+  int err = rdb_split_normalized_tablename(orig_tablename, &dbname, &tblname,
+                                           &partition);
+  DBUG_ASSERT(err == 0);
+  if (err != HA_EXIT_SUCCESS) DBUG_RETURN(err);
+  tblname = std::string(TRUNCATE_TABLE_PREFIX) + tblname;
+
+  std::string tmp_tablename;
+  rdb_gen_normalized_tablename(&dbname, &tblname, &partition, &tmp_tablename);
+
+  err = rename_table(orig_tablename.c_str(), tmp_tablename.c_str());
+  if (err != HA_EXIT_SUCCESS) DBUG_RETURN(err);
+
+  /*
+    Attempt to create the table. If this succeeds, then drop the old table.
+    Otherwise, try to restore it.
+  */
+  err = create_table(orig_tablename, table_arg, auto_increment_value);
+  bool should_remove_old_table = true;
+
+  /* Restore the old table being truncated if creating the new table failed */
+  if (err != HA_EXIT_SUCCESS) {
+    int rename_err =
+        rename_table(tmp_tablename.c_str(), orig_tablename.c_str());
+
+    /*
+      If the rename also fails, we are out of options, but at least try to drop
+      the old table contents.
+    */
+    if (rename_err == HA_EXIT_SUCCESS) {
+      should_remove_old_table = false;
+    } else {
+      // NO_LINT_DEBUG
+      sql_print_error(
+          "MyRocks: Failure during truncation of table %s "
+          "being renamed from %s",
+          orig_tablename.c_str(), tmp_tablename.c_str());
+      err = rename_err;
+    }
+  }
+
+  /*
+    Since the table was successfully truncated or the name restore failed, no
+    error should be returned at this point from trying to delete the old
+    table. If the delete_table fails, log it instead.
+  */
+  Rdb_tbl_def *old_tbl_def = ddl_manager.find(tmp_tablename);
+  if (should_remove_old_table && old_tbl_def) {
+    m_tbl_def = old_tbl_def;
+    if (delete_table(old_tbl_def) != HA_EXIT_SUCCESS) {
+      // NO_LINT_DEBUG
+      sql_print_error(
+          "Failure when trying to drop table %s during "
+          "truncation of table %s",
+          tmp_tablename.c_str(), orig_tablename.c_str());
+    }
+  }
+
+  /* Update the local m_tbl_def reference */
+  m_tbl_def = ddl_manager.find(orig_tablename);
+  DBUG_RETURN(err);
 }
 
 /**
@@ -10327,6 +10524,8 @@ int ha_rocksdb::index_end() {
 }
 
 /**
+  Called by the partition manager for truncating tables.
+
   @return
     HA_EXIT_SUCCESS  OK
     other            HA_ERR error code (can be SE-specific)
@@ -10336,19 +10535,10 @@ int ha_rocksdb::truncate() {
 
   DBUG_ASSERT(m_tbl_def != nullptr);
 
-  // Save table name to use later
-  std::string table_name = m_tbl_def->full_tablename();
-
-  // Delete current table
-  int err = delete_table(m_tbl_def);
-  if (err != HA_EXIT_SUCCESS) {
-    DBUG_RETURN(err);
-  }
-
   // Reset auto_increment_value to 1 if auto-increment feature is enabled
   // By default, the starting valid value for auto_increment_value is 1
-  DBUG_RETURN(create_table(
-      table_name, table,
+  DBUG_RETURN(truncate_table(
+      m_tbl_def, table,
       table->found_next_number_field ? 1 : 0 /* auto_increment_value */));
 }
 
@@ -11401,10 +11591,15 @@ int ha_rocksdb::rename_non_partitioned_table(const char *const from,
   std::string to_str;
   std::string from_db;
   std::string to_db;
+  int rc;
 
-  int rc = rdb_normalize_tablename(from, &from_str);
-  if (rc != HA_EXIT_SUCCESS) {
-    DBUG_RETURN(rc);
+  if (rdb_is_tablename_normalized(from)) {
+    from_str = from;
+  } else {
+    rc = rdb_normalize_tablename(from, &from_str);
+    if (rc != HA_EXIT_SUCCESS) {
+      DBUG_RETURN(rc);
+    }
   }
 
   rc = rdb_split_normalized_tablename(from_str, &from_db);
@@ -11412,9 +11607,13 @@ int ha_rocksdb::rename_non_partitioned_table(const char *const from,
     DBUG_RETURN(rc);
   }
 
-  rc = rdb_normalize_tablename(to, &to_str);
-  if (rc != HA_EXIT_SUCCESS) {
-    DBUG_RETURN(rc);
+  if (rdb_is_tablename_normalized(to)) {
+    to_str = to;
+  } else {
+    rc = rdb_normalize_tablename(to, &to_str);
+    if (rc != HA_EXIT_SUCCESS) {
+      DBUG_RETURN(rc);
+    }
   }
 
   rc = rdb_split_normalized_tablename(to_str, &to_db);
@@ -11453,11 +11652,35 @@ int ha_rocksdb::rename_non_partitioned_table(const char *const from,
 int ha_rocksdb::rename_table(const char *const from, const char *const to) {
   DBUG_ASSERT(from);
   DBUG_ASSERT(to);
+
+  const char* from2 = from;
+  const char* to2 = to;
+  std::string from_canon, to_canon;
+  int rc;
+
+  if (rdb_is_tablename_normalized(from)) {
+    rc = rdb_make_canonical_tablename(from, &from_canon);
+    if (rc != HA_EXIT_SUCCESS) {
+      return rc;
+    }
+
+    from2 = from_canon.c_str();
+  }
+
+  if (rdb_is_tablename_normalized(to)) {
+    rc = rdb_make_canonical_tablename(to, &to_canon);
+    if (rc != HA_EXIT_SUCCESS) {
+      return rc;
+    }
+    to2 = to_canon.c_str();
+  }
+
   std::string partition_info_str;
-  if (!native_part::get_part_str_for_table(from, partition_info_str))
+  if (!native_part::get_part_str_for_table(from2, partition_info_str))
     return HA_ERR_TABLE_CORRUPT;
-  if (partition_info_str.empty()) return rename_non_partitioned_table(from, to);
-  return rename_partitioned_table(from, to, partition_info_str);
+
+  if (partition_info_str.empty()) return rename_non_partitioned_table(from2, to2);
+  return rename_partitioned_table(from2, to2, partition_info_str);
 }
 
 /**

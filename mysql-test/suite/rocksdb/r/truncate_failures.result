@@ -1,0 +1,80 @@
+set global rocksdb_strict_collation_exceptions = 't1,t2';
+CREATE TABLE t1 (
+pk INT,
+a VARCHAR(64),
+PRIMARY KEY (pk),
+KEY (a)
+) ENGINE=ROCKSDB DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
+INSERT INTO t1 VALUES (1, 'one');
+RENAME TABLE t1 TO t1_trunc;
+include/assert.inc [tbl should have 1 row]
+TRUNCATE TABLE t1_trunc;
+include/assert.inc [tbl should have no rows]
+CREATE TABLE t2 (
+pk INT,
+a VARCHAR(64),
+PRIMARY KEY (pk),
+KEY (a)
+) ENGINE=ROCKSDB DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci
+PARTITION BY RANGE (pk) (
+PARTITION p0 VALUES LESS THAN (3),
+PARTITION p1 VALUES LESS THAN (6),
+PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
+INSERT INTO t2 VALUES (1, 'one'), (4, 'four'), (7, 'seven');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
+RENAME TABLE t2 to t2_trunc;
+include/assert.inc [tbl should have 3 row]
+ALTER TABLE t2_trunc TRUNCATE PARTITION p0;
+include/assert.inc [tbl should have 2 rows]
+TRUNCATE TABLE t2_trunc;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2_trunc', is deprecated and will be removed in a future release. Please use native partitioning instead.
+include/assert.inc [tbl should have no rows]
+set global rocksdb_strict_collation_exceptions = default;
+DROP TABLE t1_trunc, t2_trunc;
+CREATE TABLE t1 (
+pk INT PRIMARY KEY
+) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1), (2);
+include/assert.inc [tbl should have 2 rows]
+SET DEBUG = "+d,rocksdb_truncate_failure";
+TRUNCATE TABLE t1;
+ERROR HY000: Internal error: Simulated truncation failure.
+SET DEBUG = "-d,rocksdb_truncate_failure";
+include/assert.inc [tbl should have 2 rows]
+CREATE TABLE t2 (
+a INT
+) ENGINE=ROCKSDB
+PARTITION BY RANGE (a) (
+PARTITION p0 VALUES LESS THAN (3),
+PARTITION p1 VALUES LESS THAN (6),
+PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
+INSERT INTO t2 VALUES (1), (4), (7);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SET DEBUG = "+d,rocksdb_truncate_failure";
+TRUNCATE TABLE t2;
+ERROR HY000: Internal error: Simulated truncation failure.
+ALTER TABLE t2 TRUNCATE PARTITION p1;
+ERROR HY000: Internal error: Simulated truncation failure.
+SET DEBUG = "-d,rocksdb_truncate_failure";
+include/assert.inc [tbl should have 3 rows]
+DROP TABLE t1, t2;
+CREATE TABLE t1_crash (
+pk INT PRIMARY KEY
+) ENGINE=ROCKSDB;
+INSERT INTO t1_crash VALUES (100), (1000);
+include/assert.inc [tbl should have 2 rows]
+SET DEBUG = "+d,rocksdb_truncate_failure_crash";
+TRUNCATE TABLE t1_crash;
+ERROR HY000: Lost connection to MySQL server during query
+ MyRocks: Removing truncated leftover table test.#truncate_tmp#t1_crash
+DROP TABLE t1_crash;
+ERROR 42S02: Unknown table 'test.t1_crash'

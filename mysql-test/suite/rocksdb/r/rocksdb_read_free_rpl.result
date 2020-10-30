@@ -133,7 +133,7 @@ include/sync_slave_sql_with_master.inc
 [connection slave]
 select case when variable_value-@up > 0 then 'false' else 'true' end as read_free from performance_schema.global_status where variable_name='rocksdb_num_get_for_update_calls';
 read_free
-true
+false
 [connection master]
 include/diff_tables.inc [master:t1, slave:t1]
 
@@ -163,7 +163,7 @@ include/sync_slave_sql_with_master.inc
 [connection slave]
 select case when variable_value-@up > 0 then 'false' else 'true' end as read_free from performance_schema.global_status where variable_name='rocksdb_num_get_for_update_calls';
 read_free
-true
+false
 [connection master]
 include/diff_tables.inc [master:t1, slave:t1]
 
@@ -207,6 +207,7 @@ update u2 set i2=100, value=100 where id=1;
 [on slave]
 call mtr.add_suppression("Slave SQL.*Could not execute Update_rows event on table test.u2.*Error_code.*");
 call mtr.add_suppression("Slave: Can't find record in 'u2'.*");
+call mtr.add_suppression("Slave SQL.*The slave coordinator and worker threads are stopped.*");
 include/wait_for_slave_sql_error.inc [errno=1032]
 [connection slave]
 select id from t2 force index(primary);
@@ -332,7 +333,7 @@ include/sync_slave_sql_with_master.inc
 [connection slave]
 select case when variable_value-@up > 0 then 'false' else 'true' end as read_free from performance_schema.global_status where variable_name='rocksdb_num_get_for_update_calls';
 read_free
-true
+false
 select * from t2;
 id	i1	i2
 1	1	1

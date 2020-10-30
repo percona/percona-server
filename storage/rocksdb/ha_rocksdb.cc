@@ -673,6 +673,7 @@ static bool rocksdb_rollback_on_timeout = false;
 static bool rocksdb_enable_insert_with_update_caching = true;
 /* Use unsigned long long instead of uint64_t because of MySQL compatibility */
 static unsigned long long rocksdb_max_compaction_history = 0;
+static bool rocksdb_skip_locks_if_skip_unique_check = false;
 
 std::atomic<uint64_t> rocksdb_row_lock_deadlocks(0);
 std::atomic<uint64_t> rocksdb_row_lock_wait_timeouts(0);
@@ -2159,6 +2160,12 @@ static MYSQL_SYSVAR_ULONGLONG(
     RDB_DEFAULT_MAX_COMPACTION_HISTORY, 0ULL /* min */, UINT64_MAX /* max */,
     0 /* blk */);
 
+static MYSQL_SYSVAR_BOOL(skip_locks_if_skip_unique_check,
+                         rocksdb_skip_locks_if_skip_unique_check,
+                         PLUGIN_VAR_RQCMDARG,
+                         "Skip row locking when unique checks are disabled.",
+                         nullptr, nullptr, false);
+
 static const int ROCKSDB_ASSUMED_KEY_VALUE_DISK_SIZE = 100;
 
 static struct SYS_VAR *rocksdb_system_variables[] = {
@@ -2339,6 +2346,7 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(enable_insert_with_update_caching),
     MYSQL_SYSVAR(trace_block_cache_access),
     MYSQL_SYSVAR(max_compaction_history),
+    MYSQL_SYSVAR(skip_locks_if_skip_unique_check),
     nullptr};
 
 static int rocksdb_compact_column_family(THD *const thd,
@@ -9662,22 +9670,25 @@ int ha_rocksdb::get_pk_for_update(struct update_row_info *const row_info) {
 /**
    Check the specified primary key value is unique and also lock the row
 
-  @param[in] key_id           key index
-  @param[in] row_info         hold all data for update row, such as old row
-                              data and new row data
-  @param[out] found           whether the primary key exists before.
-  @param[out] pk_changed      whether primary key is changed
+  @param[in] key_id             key index
+  @param[in] row_info           hold all data for update row, such as old row
+                                data and new row data
+  @param[out] found             whether the primary key exists before.
+  @param[out] skip_unique_check whether to skip key uniqueness check
   @return
     HA_EXIT_SUCCESS  OK
     other            HA_ERR error code (can be SE-specific)
 */
 int ha_rocksdb::check_and_lock_unique_pk(const uint key_id,
                                          const struct update_row_info &row_info,
-                                         bool *const found) {
+                                         bool *const found,
+                                         const bool skip_unique_check) {
   DBUG_ASSERT(found != nullptr);
 
   DBUG_ASSERT(row_info.old_pk_slice.size() == 0 ||
               row_info.new_pk_slice.compare(row_info.old_pk_slice) != 0);
+
+  const bool ignore_pk_unique_check = skip_unique_check;
 
   /*
     Perform a read to determine if a duplicate entry exists. For primary
@@ -9698,14 +9709,15 @@ int ha_rocksdb::check_and_lock_unique_pk(const uint key_id,
     2) T1 Get(empty) -> T1 Put(insert, not committed yet) -> T2 Get(empty)
        -> T2 Put(insert, blocked) -> T1 commit -> T2 commit(overwrite)
   */
-  const rocksdb::Status s = get_for_update(
-      row_info.tx, *m_pk_descr, row_info.new_pk_slice, &m_retrieved_record);
+  const rocksdb::Status s =
+      get_for_update(row_info.tx, *m_pk_descr, row_info.new_pk_slice,
+                     ignore_pk_unique_check ? nullptr : &m_retrieved_record);
   if (!s.ok() && !s.IsNotFound()) {
     return row_info.tx->set_status_error(table->in_use, s,
                                          *m_key_descr_arr[key_id], m_tbl_def);
   }
 
-  bool key_found = !s.IsNotFound();
+  bool key_found = ignore_pk_unique_check ? false : !s.IsNotFound();
 
   /*
     If the pk key has ttl, we may need to pretend the row wasn't
@@ -9748,9 +9760,10 @@ int ha_rocksdb::check_and_lock_unique_pk(const uint key_id,
     HA_EXIT_SUCCESS  OK
     other            HA_ERR error code (can be SE-specific)
 */
-int ha_rocksdb::check_and_lock_sk(const uint key_id,
-                                  const struct update_row_info &row_info,
-                                  bool *const found) {
+int ha_rocksdb::check_and_lock_sk(
+    const uint key_id, const struct update_row_info &row_info,
+    bool *const found,
+    const bool skip_unique_check MY_ATTRIBUTE((__unused__))) {
   DBUG_ASSERT(found != nullptr);
   *found = false;
 
@@ -9905,7 +9918,8 @@ int ha_rocksdb::check_and_lock_sk(const uint key_id,
     other            HA_ERR error code (can be SE-specific)
 */
 int ha_rocksdb::check_uniqueness_and_lock(
-    const struct update_row_info &row_info, bool pk_changed) {
+    const struct update_row_info &row_info, bool pk_changed,
+    bool skip_unique_check) {
   /*
     Go through each index and determine if the index has uniqueness
     requirements. If it does, then try to obtain a row lock on the new values.
@@ -9921,11 +9935,12 @@ int ha_rocksdb::check_uniqueness_and_lock(
         found = false;
         rc = HA_EXIT_SUCCESS;
       } else {
-        rc = check_and_lock_unique_pk(key_id, row_info, &found);
+        rc = check_and_lock_unique_pk(key_id, row_info, &found,
+                                      skip_unique_check);
         DEBUG_SYNC(ha_thd(), "rocksdb.after_unique_pk_check");
       }
     } else {
-      rc = check_and_lock_sk(key_id, row_info, &found);
+      rc = check_and_lock_sk(key_id, row_info, &found, skip_unique_check);
       DEBUG_SYNC(ha_thd(), "rocksdb.after_unique_sk_check");
     }
 
@@ -10346,12 +10361,15 @@ int ha_rocksdb::update_write_row(const uchar *const old_data,
     pk_changed = row_info.new_pk_slice.compare(row_info.old_pk_slice) != 0;
   }
 
-  if (!skip_unique_check) {
+  // Case: We skip both unique checks and rows locks only when bulk load is
+  // enabled or if rocksdb_skip_locks_if_skip_unique_check is ON
+  if (!THDVAR(table->in_use, bulk_load) &&
+      (!rocksdb_skip_locks_if_skip_unique_check || !skip_unique_check)) {
     /*
       Check to see if we are going to have failures because of unique
       keys.  Also lock the appropriate key values.
     */
-    rc = check_uniqueness_and_lock(row_info, pk_changed);
+    rc = check_uniqueness_and_lock(row_info, pk_changed, skip_unique_check);
     if (rc != HA_EXIT_SUCCESS) {
       DBUG_RETURN(rc);
     }

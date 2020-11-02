@@ -153,7 +153,7 @@ get_sources(){
     BRANCH_NAME="${BRANCH}"
     echo "BRANCH_NAME=${BRANCH_NAME}" >> ../percona-server-5.6.properties
     echo "PRODUCT=Percona-Server-${MYSQL_VERSION_MAJOR}.${MYSQL_VERSION_MINOR}" >> ../percona-server-5.6.properties
-    echo 'PRODUCT_FULL=${PRODUCT}.${MYSQL_VERSION_PATCH}${MYSQL_VERSION_EXTRA}' >> ../percona-server-5.6.properties
+    echo "PRODUCT_FULL=${PRODUCT}.${MYSQL_VERSION_PATCH}${MYSQL_VERSION_EXTRA}" >> ../percona-server-5.6.properties
     echo "BUILD_NUMBER=${BUILD_NUMBER}" >> ../percona-server-5.6.properties
     echo "BUILD_ID=${BUILD_ID}" >> ../percona-server-5.6.properties
     echo "PERCONAFT_REPO=${PERCONAFT_REPO}" >> ../percona-server-5.6.properties
@@ -642,11 +642,22 @@ build_tarball(){
     export CXXFLAGS="${CFLAGS}"
     if [ "${YASSL}" = 0 ]; then
         if [ -f /etc/redhat-release ]; then
-            SSL_VER_TMP=$(yum list installed|grep -i openssl|head -n1|awk '{print $2}'|awk -F "-" '{print $1}'|sed 's/\.//g'|sed 's/[a-z]$//')
-            export SSL_VER=".ssl${SSL_VER_TMP}"
+            SSL_VER_TMP=$(yum list installed|grep -i openssl|head -n1|awk '{print $2}'|awk -F "-" '{print $1}'|sed 's/\.//g'|sed 's/[a-z]$//' | awk -F':' '{print $2}')
+            if [ -z "${SSL_VER_TMP}" ]; then
+                SSL_VER_TMP=$(yum list installed|grep -i openssl|head -n1|awk '{print $2}'|awk -F "-" '{print $1}'|sed 's/\.//g'|sed 's/[a-z]$//')
+            fi
+            if [[ ${SSL_VER_TMP} == 102 ]]; then
+                export SSL_VER=".ssl${SSL_VER_TMP}.rpm"
+            else
+                export SSL_VER=".ssl${SSL_VER_TMP}"
+            fi
         else
             SSL_VER_TMP=$(dpkg -l|grep -i libssl|grep -v "libssl\-"|head -n1|awk '{print $2}'|awk -F ":" '{print $1}'|sed 's/libssl/ssl/g'|sed 's/\.//g')
-            export SSL_VER=".${SSL_VER_TMP}"
+            if [[ ${SSL_VER_TMP} == 'ssl102' ]]; then
+                export SSL_VER=".${SSL_VER_TMP}.deb"
+            else
+                export SSL_VER=".${SSL_VER_TMP}"
+            fi
         fi
     fi
     #

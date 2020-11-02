@@ -617,6 +617,14 @@ char *audit_log_general_record(char *buf, size_t buflen,
   query_length= my_charset_utf8mb4_general_ci.mbmaxlen *
                 event->general_query_length;
 
+  /* Note: query_length is the maximun size using utf8m4(4 bytes) that
+   * event->general_query_length may use. In the if branch, we convert it to
+   * utf8mb4. We store the recalculated (real size) length to query variable
+   * and use the remaing of the buffer for the output that will be printed to
+   * audit log. Parameter char *buf must be big enough to store
+   * the query (using utf8mb4) + the full output of audit event, which will
+   * contain the query again. At the else branch we estime this size.
+   */
   if (query_length < (size_t) (endbuf - endptr))
   {
     uint errors;
@@ -639,7 +647,7 @@ char *audit_log_general_record(char *buf, size_t buflen,
     query= escape_string(event->general_query, event->general_query_length,
                          endptr, endbuf - endptr, &endptr, &full_outlen);
     full_outlen*= my_charset_utf8mb4_general_ci.mbmaxlen;
-    full_outlen+= query_length * my_charset_utf8mb4_general_ci.mbmaxlen;
+    full_outlen+= query_length;
   }
 
   user= escape_string(event->general_user, event->general_user_length,
@@ -654,10 +662,8 @@ char *audit_log_general_record(char *buf, size_t buflen,
   db= escape_string(default_db, strlen(default_db),
                     endptr, endbuf - endptr, &endptr, &full_outlen);
 
-  buflen_estimated= full_outlen * 2 +
-                    strlen(format_string[audit_log_format]) +
-                    strlen(name) +
-                    event->general_sql_command.length +
+  buflen_estimated= full_outlen + strlen(format_string[audit_log_format]) +
+                    strlen(name) + event->general_sql_command.length +
                     20 + /* general_thread_id */
                     20 + /* status */
                     MAX_RECORD_ID_SIZE + MAX_TIMESTAMP_SIZE;

@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_desc\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/02/2020
+.\"      Date: 09/22/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_DESC\FR" "1" "06/02/2020" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_DESC\FR" "1" "09/22/2020" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -230,7 +230,7 @@ ALTER TABLESPACE ts_1
 .\}
 .PP
 (For more information on the statements just shown and the objects created by them, see
-Section\ \&18.5.12.1, \(lqNDB Cluster Disk Data Objects\(rq, as well as
+Section\ \&18.5.10.1, \(lqNDB Cluster Disk Data Objects\(rq, as well as
 Section\ \&13.1.14, \(lqCREATE LOGFILE GROUP Statement\(rq, and
 Section\ \&13.1.18, \(lqCREATE TABLESPACE Statement\(rq\&.)
 .PP
@@ -325,7 +325,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.223.\ \&Command\-line options for the ndb_desc program
+.B Table\ \&18.25.\ \&Command\-line options for the ndb_desc program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -337,13 +337,13 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l.
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l.
 T{
 .PP
 \fB--blob-info\fR,
@@ -437,7 +437,6 @@ T}
 .\}
 \fB\-\-blob\-info\fR,
 \fB\-b\fR
-.sp
 Include information about subordinate
 BLOB
 and
@@ -459,7 +458,6 @@ Use of this option also requires the use of the
 .\}
 \fB\-\-database=\fR\fB\fIdb_name\fR\fR,
 \fB\-d\fR
-.sp
 Specify the database in which the table should be found\&.
 .RE
 .sp
@@ -473,7 +471,6 @@ Specify the database in which the table should be found\&.
 .\}
 \fB\-\-extra\-node\-info\fR,
 \fB\-n\fR
-.sp
 Include information about the mappings between table partitions and the data nodes upon which they reside\&. This information can be useful for verifying distribution awareness mechanisms and supporting more efficient application access to the data stored in NDB Cluster\&.
 .sp
 Use of this option also requires the use of the
@@ -491,7 +488,6 @@ Use of this option also requires the use of the
 .\}
 \fB\-\-extra\-partition\-info\fR,
 \fB\-p\fR
-.sp
 Print additional information about the table\*(Aqs partitions\&.
 .RE
 .sp
@@ -505,7 +501,6 @@ Print additional information about the table\*(Aqs partitions\&.
 .\}
 \fB\-\-retries=\fR\fB\fI#\fR\fR,
 \fB\-r\fR
-.sp
 Try to connect this many times before giving up\&. One connect attempt is made per second\&.
 .RE
 .sp
@@ -519,7 +514,6 @@ Try to connect this many times before giving up\&. One connect attempt is made p
 .\}
 \fB\-\-table=\fR\fB\fItbl_name\fR\fR,
 \fB\-t\fR
-.sp
 Specify the table in which to look for an index\&.
 .RE
 .sp
@@ -533,7 +527,6 @@ Specify the table in which to look for an index\&.
 .\}
 \fB\-\-unqualified\fR,
 \fB\-u\fR
-.sp
 Use unqualified table names\&.
 .RE
 .SH "COPYRIGHT"

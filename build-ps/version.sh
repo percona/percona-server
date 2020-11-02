@@ -21,6 +21,6 @@ if [ ${INNODB_VER} != ${EXTRA} ]; then
     sed -i "s:define PERCONA_INNODB_VERSION ${INNODB_VER}:define PERCONA_INNODB_VERSION ${EXTRA}:" ${DIR}/../storage/innobase/include/univ.i
 fi
 FULL_VER=$(echo ${BRANCH} | awk -F'release-' '{print $2}')
-sed -i "s:'release-.*', d:'release-${FULL_VER}', d:" ${DIR}/../Jenkinsfile
-sed -i "s:'Percona-Server-.*', d:'Percona-Server-${FULL_VER}', d:g" ${DIR}/../Jenkinsfile
+sed -i "s:'release-.*', d:'release-${FULL_VER}', d:" ${DIR}/Jenkinsfile
+sed -i "s:'Percona-Server-.*', d:'Percona-Server-${FULL_VER}', d:g" ${DIR}/Jenkinsfile
 

@@ -127,8 +127,16 @@ get_sources(){
     REVISION=$(git rev-parse --short HEAD)
     git reset --hard
     #
-    source VERSION
-    cat VERSION > ../percona-server-5.7.properties
+    if [ -f VERSION ]; then
+        source VERSION
+        cat VERSION > ../percona-server-5.7.properties
+    elif [ -f MYSQL_VERSION ]; then
+        source MYSQL_VERSION
+        cat MYSQL_VERSION > ../percona-server-5.7.properties
+    else
+        echo "VERSION file does not exist"
+        exit 1
+    fi
     echo "REVISION=${REVISION}" >> ../percona-server-5.7.properties
     BRANCH_NAME="${BRANCH}"
     echo "BRANCH_NAME=${BRANCH_NAME}" >> ../percona-server-5.7.properties

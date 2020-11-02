@@ -5,23 +5,25 @@ IFS='.' read -r MAJOR MINOR PATCH <<< $(echo $BRANCH | awk -F'-' '{print $2}')
 EXTRA=$(echo $BRANCH | awk -F'-' '{print $3}')
 if [ -f ${DIR}/../VERSION ]; then
     source ${DIR}/../VERSION
+    VER_FILE=${DIR}/../VERSION
 elif [ -f {DIR}/../MYSQL_VERSION ]; then
     source ${DIR}/../MYSQL_VERSION
+    VER_FILE=${DIR}/../MYSQL_VERSION
 else
     echo "Version file does not exist"
     exit 1
 fi
 if [ ${MYSQL_VERSION_MAJOR} != ${MAJOR} ]; then
-    sed -i "s:MYSQL_VERSION_MAJOR=${MYSQL_VERSION_MAJOR}:MYSQL_VERSION_MAJOR=${MAJOR}:" ${DIR}/../VERSION
+    sed -i "s:MYSQL_VERSION_MAJOR=${MYSQL_VERSION_MAJOR}:MYSQL_VERSION_MAJOR=${MAJOR}:" ${VER_FILE}
 fi
 if [ ${MYSQL_VERSION_MINOR} != ${MINOR} ]; then
-    sed -i "s:MYSQL_VERSION_MINOR=${MYSQL_VERSION_MINOR}:MYSQL_VERSION_MINOR=${MINOR}:" ${DIR}/../VERSION
+    sed -i "s:MYSQL_VERSION_MINOR=${MYSQL_VERSION_MINOR}:MYSQL_VERSION_MINOR=${MINOR}:" ${VER_FILE}
 fi
 if [ ${MYSQL_VERSION_PATCH} != ${PATCH} ]; then
-    sed -i "s:MYSQL_VERSION_PATCH=${MYSQL_VERSION_PATCH}:MYSQL_VERSION_PATCH=${PATCH}:" ${DIR}/../VERSION
+    sed -i "s:MYSQL_VERSION_PATCH=${MYSQL_VERSION_PATCH}:MYSQL_VERSION_PATCH=${PATCH}:" ${VER_FILE}
 fi
 if [ "${MYSQL_VERSION_EXTRA}" != "-${EXTRA}" ]; then
-    sed -i "s:MYSQL_VERSION_EXTRA=${MYSQL_VERSION_EXTRA}:MYSQL_VERSION_EXTRA=-${EXTRA}:" ${DIR}/../VERSION
+    sed -i "s:MYSQL_VERSION_EXTRA=${MYSQL_VERSION_EXTRA}:MYSQL_VERSION_EXTRA=-${EXTRA}:" ${VER_FILE}
 fi
 INNODB_VER=$(grep "define PERCONA_INNODB_VERSION" ${DIR}/../storage/innobase/include/univ.i | awk '{print $3}')
 if [ ${INNODB_VER} != ${EXTRA} ]; then

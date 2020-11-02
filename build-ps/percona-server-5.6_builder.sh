@@ -152,7 +152,9 @@ get_sources(){
     echo "REVISION=${REVISION}" >> ../percona-server-5.6.properties
     BRANCH_NAME="${BRANCH}"
     echo "BRANCH_NAME=${BRANCH_NAME}" >> ../percona-server-5.6.properties
+    export PRODUCT=Percona-Server-${MYSQL_VERSION_MAJOR}.${MYSQL_VERSION_MINOR}
     echo "PRODUCT=Percona-Server-${MYSQL_VERSION_MAJOR}.${MYSQL_VERSION_MINOR}" >> ../percona-server-5.6.properties
+    export PRODUCT_FULL=${PRODUCT}.${MYSQL_VERSION_PATCH}${MYSQL_VERSION_EXTRA}
     echo "PRODUCT_FULL=${PRODUCT}.${MYSQL_VERSION_PATCH}${MYSQL_VERSION_EXTRA}" >> ../percona-server-5.6.properties
     echo "BUILD_NUMBER=${BUILD_NUMBER}" >> ../percona-server-5.6.properties
     echo "BUILD_ID=${BUILD_ID}" >> ../percona-server-5.6.properties
@@ -715,7 +717,7 @@ MYSQL_VERSION_MAJOR=5
 MYSQL_VERSION_MINOR=6
 MYSQL_VERSION_PATCH=40
 MYSQL_VERSION_EXTRA=-84.0
-RODUCT_FULL=Percona-Server-5.6.40-84.0
+PRODUCT_FULL=Percona-Server-5.6.40-84.0
 PERCONAFT_BRANCH=Percona-Server-5.6.40-84.0
 TOKUBACKUP_BRANCH=Percona-Server-5.6.40-84.0
 parse_arguments PICK-ARGS-FROM-ARGV "$@"

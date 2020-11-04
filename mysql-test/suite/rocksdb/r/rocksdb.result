@@ -1006,7 +1006,7 @@ rocksdb_skip_bloom_filter_on_read	OFF
 rocksdb_skip_fill_cache	OFF
 rocksdb_sst_mgr_rate_bytes_per_sec	0
 rocksdb_stats_dump_period_sec	600
-rocksdb_stats_level	0
+rocksdb_stats_level	1
 rocksdb_stats_recalc_rate	0
 rocksdb_store_row_debug_checksums	OFF
 rocksdb_strict_collation_check	OFF
@@ -1025,6 +1025,7 @@ rocksdb_two_write_queues	ON
 rocksdb_unsafe_for_binlog	OFF
 rocksdb_update_cf_options	
 rocksdb_use_adaptive_mutex	OFF
+rocksdb_use_default_sk_cf	OFF
 rocksdb_use_direct_io_for_flush_and_compaction	OFF
 rocksdb_use_direct_reads	OFF
 rocksdb_use_fsync	OFF
@@ -1422,9 +1423,10 @@ CREATE TABLE t1 (pk INT PRIMARY KEY, a int) ENGINE=RocksDB;
 set @a=-1;
 insert into t1 select (@a:=@a+1), 1234 from performance_schema.session_variables limit 100;
 set @tmp1= @@rocksdb_max_row_locks;
-set rocksdb_max_row_locks= 20;
+set GLOBAL rocksdb_max_row_locks= 20;
 update t1 set a=a+10;
 ERROR HY000: Got error 10 'Operation aborted: Failed to acquire lock due to rocksdb_max_row_locks limit' from ROCKSDB
+set @@global.rocksdb_max_row_locks = @tmp1;
 DROP TABLE t1;
 # 
 # Test AUTO_INCREMENT behavior problem,
@@ -1551,6 +1553,7 @@ rocksdb_table_index_stats_success	#
 rocksdb_table_index_stats_failure	#
 rocksdb_table_index_stats_req_queue_length	#
 rocksdb_covered_secondary_key_lookups	#
+rocksdb_additional_compaction_triggers	#
 rocksdb_block_cache_add	#
 rocksdb_block_cache_add_failures	#
 rocksdb_block_cache_bytes_read	#
@@ -1665,6 +1668,7 @@ rocksdb_table_index_stats_success
 rocksdb_table_index_stats_failure
 rocksdb_table_index_stats_req_queue_length
 rocksdb_covered_secondary_key_lookups
+rocksdb_additional_compaction_triggers
 rocksdb_block_cache_add
 rocksdb_block_cache_add_failures
 rocksdb_block_cache_bytes_read
@@ -1781,6 +1785,7 @@ rocksdb_table_index_stats_success
 rocksdb_table_index_stats_failure
 rocksdb_table_index_stats_req_queue_length
 rocksdb_covered_secondary_key_lookups
+rocksdb_additional_compaction_triggers
 rocksdb_block_cache_add
 rocksdb_block_cache_add_failures
 rocksdb_block_cache_bytes_read

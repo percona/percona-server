@@ -203,7 +203,7 @@ my $DEFAULT_SUITES= "main,sys_vars,binlog,binlog_encryption,rpl_encryption,encry
   ."query_response_time,audit_log,json,connection_control,"
   ."tokudb.add_index,tokudb.alter_table,tokudb,tokudb.bugs,tokudb.parts,"
   ."tokudb.rpl,tokudb.perfschema,"
-  ."rocksdb,rocksdb_rpl,rocksdb_sys_vars,"
+  ."rocksdb,rocksdb_rpl,rocksdb_sys_vars,rocksdb_stress,"
   ."keyring_vault,audit_null,percona-pam-for-mysql,data_masking";
 
 my $opt_suites;

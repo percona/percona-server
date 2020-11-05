@@ -20,7 +20,7 @@ call mtr.add_suppression("\\[ERROR\\] .* ibd can't be decrypted, please confirm 
 call mtr.add_suppression("\\[ERROR\\] .* Check keyring plugin fail, please check the keyring plugin is loaded.");
 --enable_query_log
 
---let $restart_parameters = $KEYRING_RESTART_PARAM
+--let $restart_parameters = $keyring_restart_param
 --let $restart_hide_args = 1
 --source include/restart_mysqld.inc
 
@@ -74,7 +74,7 @@ INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
 
 # Restart to confirm the encryption info can be retrieved properly.
---let $restart_parameters = $KEYRING_RESTART_PARAM
+--let $restart_parameters = $keyring_restart_param
 --let $restart_hide_args = 1
 --source include/kill_and_restart_mysqld.inc
 
@@ -125,7 +125,7 @@ UNLOCK TABLES;
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
---let $restart_parameters = $KEYRING_RESTART_PARAM
+--let $restart_parameters = $keyring_restart_param
 --let $restart_hide_args = 1
 --source include/restart_mysqld.inc
 
@@ -146,7 +146,7 @@ UNLOCK TABLES;
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
---let $restart_parameters = $KEYRING_RESTART_PARAM
+--let $restart_parameters = $keyring_restart_param
 --let $restart_hide_args = 1
 --source include/restart_mysqld.inc
 
@@ -178,7 +178,7 @@ UNLOCK TABLES;
 SELECT c1, ST_AsText(g) FROM t1 ORDER BY c1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
---let $restart_parameters = $KEYRING_RESTART_PARAM --innodb_strict_mode=OFF
+--let $restart_parameters = $keyring_restart_param --innodb_strict_mode=OFF
 --let $restart_hide_args = 1
 --source include/restart_mysqld.inc
 
@@ -224,6 +224,6 @@ eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;
 DROP TABLE t1;
 
 # Restart with default innodb_strict_mode
---let $restart_parameters = $KEYRING_RESTART_PARAM
+--let $restart_parameters = $keyring_restart_param
 --let $restart_hide_args = 1
 --source include/restart_mysqld.inc

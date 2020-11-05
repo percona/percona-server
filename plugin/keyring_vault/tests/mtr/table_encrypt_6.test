@@ -1,0 +1,30 @@
+--source include/have_keyring_vault_plugin.inc
+
+# Waiting time when (re)starting the server
+--let $explicit_default_wait_counter=15000
+--let $vault_conf_mount_point_uuid = `SELECT UUID()`
+
+--source parse_combination.inc
+
+--let $conf_file1 = $MYSQLTEST_VARDIR/keyring_vault1.conf
+--let $mount_point_service_op = CREATE
+--let $vault_conf_file = $conf_file1
+--let $vault_conf_mount_point_suffix = _1
+--source generate_conf_file.inc
+--source mount_point_service.inc
+
+--disable_query_log
+call mtr.add_suppression("for being a mount point unsuccessful - skipped.");
+call mtr.add_suppression("for being a mount point successful - identified kv-v2 secret engine.");
+--enable_query_log
+
+--let $keyring_restart_param = restart: $KEYRING_VAULT_PLUGIN_OPT $KEYRING_VAULT_PLUGIN_EARLY_LOAD --loose-keyring_vault_config=$conf_file1
+--source include/table_encrypt_6.inc
+
+# Delete mount points
+--let $mount_point_service_op = DELETE
+--let $vault_conf_mount_point_suffix = _1
+--source mount_point_service.inc
+
+# Removing .conf files
+--remove_file $conf_file1

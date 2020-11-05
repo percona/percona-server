@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -1338,9 +1338,15 @@ if table->memcached_sync_count == DICT_TABLE_IN_DDL means there's DDL running on
 the table, DML from memcached will be blocked. */
 #define DICT_TABLE_IN_DDL -1
 
+<<<<<<< HEAD
 typedef ib_bpmutex_t AutoIncMutex;
 typedef ib_mutex_t AnalyzeIndexMutex;
 
+||||||| e18e2390b3f
+=======
+typedef ib_mutex_t AnalyzeIndexMutex;
+
+>>>>>>> 2032b65c44e242a7e452a38bf7626dfacc315b9c^
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
 struct dict_table_t {
@@ -1630,10 +1636,10 @@ struct dict_table_t {
 	ib_uint64_t				stat_n_rows;
 
 	/** Approximate clustered index size in database pages. */
-	ulint					stat_clustered_index_size;
+	ib_uint64_t				stat_clustered_index_size;
 
 	/** Approximate size of other indexes in database pages. */
-	ulint					stat_sum_of_other_index_sizes;
+	ib_uint64_t				stat_sum_of_other_index_sizes;
 
 	/** How many rows are modified since last stats recalc. When a row is
 	inserted, updated, or deleted, we add 1 to this number; we calculate

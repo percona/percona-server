@@ -1,7 +1,15 @@
 /***********************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, 2017, Percona Inc.
+||||||| e18e2390b3f
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, Percona Inc.
+=======
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
+Copyright (c) 2009, Percona Inc.
+>>>>>>> 2032b65c44e242a7e452a38bf7626dfacc315b9c^
 
 Portions of this file contain modifications contributed and copyrighted
 by Percona Inc.. Those modifications are
@@ -273,11 +281,26 @@ struct Compression {
 #endif /* UNIV_DEBUG */
 	}
 
+	/** Version of compressed page */
+	static const uint8_t FIL_PAGE_VERSION_1 = 1;
+	static const uint8_t FIL_PAGE_VERSION_2 = 2;
+
 	/** Check the page header type field.
 	@param[in]	page		Page contents
 	@return true if it is a compressed page */
 	static bool is_compressed_page(const byte* page)
 		MY_ATTRIBUTE((warn_unused_result));
+
+	/** Check the page header type field.
+	@param[in]   page            Page contents
+	@return true if it is a compressed and encrypted page */
+	static bool is_compressed_encrypted_page(const byte *page)
+		MY_ATTRIBUTE((warn_unused_result));
+
+	/** Check if the version on page is valid.
+	@param[in]   version         version
+	@return true if version is valid */
+	static bool is_valid_page_version(uint8_t version);
 
         /** Check wether the compression algorithm is supported.
         @param[in]      algorithm       Compression algorithm to check

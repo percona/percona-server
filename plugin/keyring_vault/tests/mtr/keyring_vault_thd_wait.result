@@ -1,4 +1,4 @@
-# restart: --early-plugin-load=keyring_vault=keyring_vault.so --keyring_vault_config=MYSQLTEST_VARDIR/std_data/keyring_vault_confs/keyring_vault1.conf KEYRING_VAULT_PLUGIN_OPT
+# restart: KEYRING_VAULT_PLUGIN_OPT --early-plugin_load=keyring_vault=keyring_vault.so --keyring_vault_config=MYSQLTEST_VARDIR/keyring_vault.conf
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1,"aaaaa");
 UNINSTALL PLUGIN keyring_vault;

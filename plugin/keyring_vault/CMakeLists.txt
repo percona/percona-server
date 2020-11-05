@@ -20,9 +20,6 @@ ENDIF()
 INCLUDE(CheckFunctionExists)
 INCLUDE(curl)
 
-SET(CMAKE_EXTRA_INCLUDE_FILES string.h)
-SET(CMAKE_EXTRA_INCLUDE_FILES)
-
 MACRO (CHECK_IF_LIB_FOUND lib_name project_name status_mode)
   SET (lib_found_variable_name "${lib_name}_FOUND")
   IF (NOT DEFINED ${lib_found_variable_name} OR NOT ${${lib_found_variable_name}})
@@ -46,7 +43,7 @@ MYSQL_ADD_PLUGIN(keyring_vault
                  vault_io.cc
                  vault_key.cc
                  vault_base64.cc
-                 vault_parser.cc
+                 vault_parser_composer.cc
                  vault_keys_list.cc
                  vault_keys_container.cc
                  vault_curl.cc

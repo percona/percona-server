@@ -1,21 +1,43 @@
+/* Copyright (c) 2018, 2021 Percona LLC and/or its affiliates. All rights
+   reserved.
+
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; version 2 of
+   the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+
 #include "vault_mount.h"
+
 #include <iostream>
 #include <sstream>
 
+#include "vault_credentials.h"
+#include "vault_credentials_parser.h"
+
 namespace keyring {
 
-bool Vault_mount::init(std::string *keyring_storage_url,
-                       std::string *secret_mount_point) {
+bool Vault_mount::init(const std::string &keyring_storage_url,
+                       const std::string &secret_mount_point,
+                       const std::string &admin_token) {
   Vault_credentials_parser vault_credentials_parser(logger);
-  if (vault_credentials_parser.parse(*keyring_storage_url, &vault_credentials))
+  if (vault_credentials_parser.parse(keyring_storage_url, vault_credentials))
     return true;
 
-  this->token_header =
-      "X-Vault-Token:" + get_credential(vault_credentials, "token");
+  this->token_header = "X-Vault-Token:";
+  this->token_header.append(admin_token.c_str(), admin_token.size());
   this->vault_mount_point_url =
-      get_credential(vault_credentials, "vault_url") + "/v1/sys/mounts/";
-  this->vault_mount_point_url += secret_mount_point->c_str();
-  this->vault_ca = get_credential(vault_credentials, "vault_ca");
+      vault_credentials.get_vault_url() + "/v1/sys/mounts/";
+  this->vault_mount_point_url += secret_mount_point.c_str();
+  this->vault_ca = vault_credentials.get_vault_ca();
 
   return false;
 }

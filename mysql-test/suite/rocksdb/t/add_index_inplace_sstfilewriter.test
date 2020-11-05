@@ -1,8 +1,6 @@
 --source include/big_test.inc
 --source include/have_rocksdb.inc
 
-set rocksdb_max_row_locks=6000000;
-
 # Create a table with a primary key and one secondary key as well as one
 # more column
 CREATE TABLE t1(pk CHAR(5) PRIMARY KEY, a char(30), b char(30)) ENGINE=ROCKSDB COLLATE 'latin1_bin';
@@ -15,7 +13,7 @@ CREATE TABLE t1(pk CHAR(5) PRIMARY KEY, a char(30), b char(30)) ENGINE=ROCKSDB C
 perl;
 my $fn = $ENV{'ROCKSDB_INFILE'};
 open(my $fh, '>>', $fn) || die "perl open($fn): $!";
-my $max = 3000000;
+my $max = 1500000;
 my @chars = ("A".."Z", "a".."z", "0".."9");
 my @lowerchars = ("a".."z");
 my @powers_of_26 = (26 * 26 * 26 * 26, 26 * 26 * 26, 26 * 26, 26, 1);
@@ -63,7 +61,12 @@ ALTER TABLE t1 ADD INDEX kb(b), ALGORITHM=INPLACE;
 # disable duplicate index warning
 --disable_warnings
 # now do same index using copy algorithm
+# hitting max row locks (1M)
+--error ER_GET_ERRMSG
 ALTER TABLE t1 ADD INDEX kb_copy(b), ALGORITHM=COPY;
+set session rocksdb_bulk_load=1;
+ALTER TABLE t1 ADD INDEX kb_copy(b), ALGORITHM=COPY;
+set session rocksdb_bulk_load=0;
 --enable_warnings
 
 # checksum testing

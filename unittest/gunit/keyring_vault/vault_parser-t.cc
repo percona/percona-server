@@ -6,6 +6,7 @@
 #include "vault_base64.h"
 #include "my_rnd.h"
 #include "i_keys_container.h"
+#include "vault_credentials.h"
 
 boost::movelib::unique_ptr<keyring::IKeys_container> keys(NULL);
 
@@ -227,6 +228,90 @@ TEST_F(Vault_parser_test, ParseKeyDataMissingValueTag)
       *(reinterpret_cast<Mock_logger *>(logger)),
       log(MY_ERROR_LEVEL, StrEq("Could not parse value tag for a key.")));
   EXPECT_TRUE(vault_parser.parse_key_data(payload, &key));
+}
+
+TEST_F(Vault_parser_test, GetVaultVersion2)
+{
+  Secure_string payload(
+      "\"secret/\": { \"accessor\": \"kv_3f89594e\","
+      "\"config\": { \"default_lease_ttl\": 0, \"force_no_cache\": false,"
+      "\"max_lease_ttl\": 0}, \"description\": \"key/value secret storage\","
+      "\"local\": false, \"options\": { \"version\": \"2\" },"
+      "\"seal_wrap\": false, \"type\": \"kv\", \"uuid\": "
+      "\"2a825032-a2e7-8af8-e2cd-b93bd5deeb00\"},");
+
+  Vault_credentials::Map credentials;
+  credentials["secret_mount_point"]= "secret";
+  Vault_credentials vault_credentials(credentials);
+
+  Vault_parser vault_parser(logger);
+  int          vault_version= -1;
+  EXPECT_FALSE(vault_parser.get_vault_version(vault_credentials, payload,
+                                              vault_version));
+  EXPECT_TRUE(vault_version == 2);
+}
+
+TEST_F(Vault_parser_test, GetVaultVersion1)
+{
+  Secure_string payload(
+      "\"cicd/\": { \"accessor\": \"kv_3f89594e\","
+      "\"config\": { \"default_lease_ttl\": 0, \"force_no_cache\": false,"
+      "\"max_lease_ttl\": 0}, \"description\": \"key/value secret storage\","
+      "\"local\": false, \"options\": { \"version\": \"1\" },"
+      "\"seal_wrap\": false, \"type\": \"kv\", \"uuid\": "
+      "\"2a825032-a2e7-8af8-e2cd-b93bd5deeb00\"},");
+
+  Vault_credentials::Map credentials;
+  credentials["secret_mount_point"]= "cicd";
+  Vault_credentials vault_credentials(credentials);
+
+  Vault_parser vault_parser(logger);
+  int          vault_version= -1;
+  EXPECT_FALSE(vault_parser.get_vault_version(vault_credentials, payload,
+                                              vault_version));
+  EXPECT_TRUE(vault_version == 1);
+}
+
+TEST_F(Vault_parser_test, GetVaultOptionsNull)
+{
+  Secure_string payload(
+      "\"cicd/\": { \"accessor\": \"kv_3f89594e\","
+      "\"config\": { \"default_lease_ttl\": 0, \"force_no_cache\": false,"
+      "\"max_lease_ttl\": 0}, \"description\": \"key/value secret storage\","
+      "\"local\": false, \"options\": null,"
+      "\"seal_wrap\": false, \"type\": \"kv\", \"uuid\": "
+      "\"2a825032-a2e7-8af8-e2cd-b93bd5deeb00\"},");
+
+  Vault_credentials::Map credentials;
+  credentials["secret_mount_point"]= "cicd";
+  Vault_credentials vault_credentials(credentials);
+
+  Vault_parser vault_parser(logger);
+  int          vault_version= -1;
+  EXPECT_FALSE(vault_parser.get_vault_version(vault_credentials, payload,
+                                              vault_version));
+  EXPECT_TRUE(vault_version == 1);
+}
+
+TEST_F(Vault_parser_test, GetVaultOptionsEmpty)
+{
+  Secure_string payload(
+      "\"cicd/\": { \"accessor\": \"kv_3f89594e\","
+      "\"config\": { \"default_lease_ttl\": 0, \"force_no_cache\": false,"
+      "\"max_lease_ttl\": 0}, \"description\": \"key/value secret storage\","
+      "\"local\": false, \"options\": {},"
+      "\"seal_wrap\": false, \"type\": \"kv\", \"uuid\": "
+      "\"2a825032-a2e7-8af8-e2cd-b93bd5deeb00\"},");
+
+  Vault_credentials::Map credentials;
+  credentials["secret_mount_point"]= "cicd";
+  Vault_credentials vault_credentials(credentials);
+
+  Vault_parser vault_parser(logger);
+  int          vault_version= -1;
+  EXPECT_FALSE(vault_parser.get_vault_version(vault_credentials, payload,
+                                              vault_version));
+  EXPECT_TRUE(vault_version == 1);
 }
 
 TEST_F(Vault_parser_test, ParsePayloadThatsGarbage)

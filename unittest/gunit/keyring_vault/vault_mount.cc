@@ -13,11 +13,11 @@ bool Vault_mount::init(std::string *keyring_storage_url,
     return true;
 
   this->token_header=
-      "X-Vault-Token:" + get_credential(vault_credentials, "token");
+      "X-Vault-Token:" + vault_credentials.get_credential("token");
   this->vault_mount_point_url=
-      get_credential(vault_credentials, "vault_url") + "/v1/sys/mounts/";
+      vault_credentials.get_credential("vault_url") + "/v1/sys/mounts/";
   this->vault_mount_point_url+= secret_mount_point->c_str();
-  this->vault_ca= get_credential(vault_credentials, "vault_ca");
+  this->vault_ca= vault_credentials.get_credential("vault_ca");
 
   return false;
 }

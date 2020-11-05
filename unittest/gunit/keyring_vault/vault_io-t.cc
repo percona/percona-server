@@ -329,12 +329,14 @@ class Mock_vault_curl : public IVault_curl {
  public:
   MOCK_METHOD1(init, bool(const Vault_credentials &vault_credentials));
   MOCK_METHOD1(list_keys, bool(Secure_string *response));
+  MOCK_METHOD1(list_mount_points, bool(Secure_string *response));
   MOCK_METHOD2(write_key,
                bool(const Vault_key &key, Secure_string *response));
   MOCK_METHOD2(read_key, bool(const Vault_key &key, Secure_string *response));
   MOCK_METHOD2(delete_key,
                bool(const Vault_key &key, Secure_string *response));
   MOCK_METHOD1(set_timeout, void(uint timeout));
+  MOCK_METHOD0(set_vault_version_2, void());
 };
 
 TEST_F(Vault_io_test, ErrorFromVaultCurlOnVaultIOInit)
@@ -560,6 +562,10 @@ class Mock_vault_parser : public IVault_parser {
                                          KeyParameters *key_parameters));
   MOCK_METHOD2(parse_errors,
                bool(const Secure_string &payload, Secure_string *errors));
+  MOCK_METHOD3(get_vault_version,
+               bool(const Vault_credentials &vault_credentials,
+                    const Secure_string &    mount_points_payload,
+                    int &                    vault_version));
 };
 
 TEST_F(Vault_io_test, ErrorFromParseKeysOnGetSerializedObject)

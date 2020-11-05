@@ -1,4 +1,5 @@
-/* Copyright (c) 2018 Percona LLC and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021 Percona LLC and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -14,17 +15,24 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
+#include <fstream>
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <sql_plugin_ref.h>
-#include <boost/scope_exit.hpp>
-#include <fstream>
-#include "keyring_impl.cc"
+
+#include "sql_plugin_ref.h"
+
+#include <boost/move/unique_ptr.hpp>
+#include <boost/preprocessor/stringize.hpp>
+
+#include "generate_credential_file.h"
 #include "mock_logger.h"
-#include "test_utils.h"
-#include "uuid.h"
-#include "vault_keyring.cc"
+#include "vault_environment.h"
 #include "vault_mount.h"
+#include "vault_test_base.h"
+
+#include "keyring_impl.cc"
+#include "vault_keyring.cc"
 
 std::string uuid = generate_uuid();
 
@@ -32,67 +40,61 @@ namespace keyring__api_unittest {
 using ::testing::StrEq;
 using namespace keyring;
 
-std::string credential_file_url = "./keyring_vault_vault_keyring_api.conf";
-
-class Keyring_vault_api_test : public ::testing::Test {
+class Keyring_vault_api_test : public Vault_test_base {
  public:
-  Keyring_vault_api_test() {}
-  ~Keyring_vault_api_test() { delete[] plugin_name; }
-
-  static std::string correct_token;
+  ~Keyring_vault_api_test() override = default;
 
  protected:
-  virtual void SetUp() {
-    plugin_name = new char[strlen("FakeKeyring") + 1];
-    strcpy(plugin_name, "FakeKeyring");
+  void SetUp() override {
+    if (!check_env_configured()) {
+      GTEST_SKIP() << "The vault environment is not configured";
+    }
 
+    Vault_test_base::SetUp();
+
+    const std::string &conf_name =
+        get_vault_env()->get_default_conf_file_name();
+    keyring_vault_config_file_storage_.assign(
+        conf_name.c_str(), conf_name.c_str() + conf_name.size() + 1);
+
+    keyring_vault_config_file = keyring_vault_config_file_storage_.data();
+
+    st_plugin_int plugin_info;  // for Logger initialization
     plugin_info.name.str = plugin_name;
     plugin_info.name.length = strlen(plugin_name);
-
-    keyring_vault_config_file = new char[credential_file_url.length() + 1];
-    strcpy(keyring_vault_config_file, credential_file_url.c_str());
-
-    keyring_init_with_mock_logger();
+    ASSERT_FALSE(keyring_vault_init(&plugin_info));
+    // use MockLogger instead of Logger
+    logger.reset(new Mock_logger);
 
     key_memory_KEYRING = PSI_NOT_INSTRUMENTED;
     key_LOCK_keyring = PSI_NOT_INSTRUMENTED;
-    sample_key_data = "Robi";
   }
-  virtual void TearDown() {
-    keyring_deinit_with_mock_logger();
-    delete[] keyring_vault_config_file;
+  void TearDown() override {
+    keyring_vault_deinit(nullptr);
+
+    Vault_test_base::TearDown();
   }
 
  protected:
-  void keyring_init_with_mock_logger();
-  void keyring_deinit_with_mock_logger();
+  static char plugin_name[];
+  static std::string sample_key_data;
 
-  std::string sample_key_data;
-  char *plugin_name;
-  st_plugin_int plugin_info;  // for Logger initialization
+  typedef std::vector<char> char_container;
+  char_container keyring_vault_config_file_storage_;
 };
-
-std::string Keyring_vault_api_test::correct_token;
-
-void Keyring_vault_api_test::keyring_init_with_mock_logger() {
-  ASSERT_FALSE(keyring_vault_init(&plugin_info));
-  // use MockLogger instead of Logger
-  logger.reset(new Mock_logger());
-}
-
-void Keyring_vault_api_test::keyring_deinit_with_mock_logger() {
-  keyring_vault_deinit(nullptr);
-}
+/*static*/ char Keyring_vault_api_test::plugin_name[] = "FakeKeyring";
+/*static*/ std::string Keyring_vault_api_test::sample_key_data = "Robi";
 
 TEST_F(Keyring_vault_api_test, StoreFetchRemove) {
-  EXPECT_FALSE(mysql_key_store((uuid + "Robert_key").c_str(), "AES", "Robert",
-                               sample_key_data.c_str(),
-                               sample_key_data.length()));
+  EXPECT_FALSE(mysql_key_store(
+      (get_vault_env()->get_uuid() + "Robert_key").c_str(), "AES", "Robert",
+      sample_key_data.c_str(), sample_key_data.length()));
   char *key_type;
   size_t key_len;
   void *key;
-  EXPECT_FALSE(mysql_key_fetch((uuid + "Robert_key").c_str(), &key_type,
-                               "Robert", &key, &key_len));
+  EXPECT_FALSE(
+      mysql_key_fetch((get_vault_env()->get_uuid() + "Robert_key").c_str(),
+                      &key_type, "Robert", &key, &key_len));
   EXPECT_STREQ("AES", key_type);
   EXPECT_EQ(key_len, sample_key_data.length());
   ASSERT_TRUE(memcmp((char *)key, sample_key_data.c_str(), key_len) == 0);
@@ -100,24 +102,26 @@ TEST_F(Keyring_vault_api_test, StoreFetchRemove) {
   key_type = nullptr;
   my_free(key);
   key = nullptr;
-  EXPECT_FALSE(mysql_key_remove((uuid + "Robert_key").c_str(), "Robert"));
+  EXPECT_FALSE(mysql_key_remove(
+      (get_vault_env()->get_uuid() + "Robert_key").c_str(), "Robert"));
   // make sure the key was removed - fetch it
-  EXPECT_FALSE(mysql_key_fetch((uuid + "Robert_key").c_str(), &key_type,
-                               "Robert", &key, &key_len));
+  EXPECT_FALSE(
+      mysql_key_fetch((get_vault_env()->get_uuid() + "Robert_key").c_str(),
+                      &key_type, "Robert", &key, &key_len));
   ASSERT_TRUE(key == nullptr);
 }
 
 TEST_F(Keyring_vault_api_test, CheckIfInmemoryKeyIsNOTXORed) {
-  EXPECT_FALSE(mysql_key_store((uuid + "Robert_key").c_str(), "AES", "Robert",
-                               sample_key_data.c_str(),
-                               sample_key_data.length()));
+  EXPECT_FALSE(mysql_key_store(
+      (get_vault_env()->get_uuid() + "Robert_key").c_str(), "AES", "Robert",
+      sample_key_data.c_str(), sample_key_data.length()));
 
-  Vault_key key_id((uuid + "Robert_key").c_str(), nullptr, "Robert", nullptr,
-                   0);
+  Vault_key key_id((get_vault_env()->get_uuid() + "Robert_key").c_str(),
+                   nullptr, "Robert", nullptr, 0);
   IKey *fetched_key = keys->fetch_key(&key_id);
   ASSERT_TRUE(fetched_key != nullptr);
   std::string expected_key_signature =
-      get_key_signature(uuid, "Robert_key", "Robert");
+      get_vault_env()->get_key_signature("Robert_key", "Robert");
   EXPECT_STREQ(fetched_key->get_key_signature()->c_str(),
                expected_key_signature.c_str());
   EXPECT_EQ(fetched_key->get_key_signature()->length(),
@@ -131,26 +135,29 @@ TEST_F(Keyring_vault_api_test, CheckIfInmemoryKeyIsNOTXORed) {
   my_free(fetched_key->release_key_data());
 
   // clean up
-  EXPECT_FALSE(mysql_key_remove((uuid + "Robert_key").c_str(), "Robert"));
+  EXPECT_FALSE(mysql_key_remove(
+      (get_vault_env()->get_uuid() + "Robert_key").c_str(), "Robert"));
 }
 
 TEST_F(Keyring_vault_api_test, FetchNotExisting) {
   char *key_type = nullptr;
   void *key = nullptr;
   size_t key_len = 0;
-  EXPECT_FALSE(mysql_key_fetch((uuid + "Robert_key").c_str(), &key_type,
-                               "Robert", &key, &key_len));
+  EXPECT_FALSE(
+      mysql_key_fetch((get_vault_env()->get_uuid() + "Robert_key").c_str(),
+                      &key_type, "Robert", &key, &key_len));
   ASSERT_TRUE(key == nullptr);
 }
 
 TEST_F(Keyring_vault_api_test, RemoveNotExisting) {
-  EXPECT_TRUE(mysql_key_remove((uuid + "Robert_key").c_str(), "Robert"));
+  EXPECT_TRUE(mysql_key_remove(
+      (get_vault_env()->get_uuid() + "Robert_key").c_str(), "Robert"));
 }
 
 TEST_F(Keyring_vault_api_test, StoreFetchNotExisting) {
-  EXPECT_FALSE(mysql_key_store((uuid + "Robert_key").c_str(), "AES", "Robert",
-                               sample_key_data.c_str(),
-                               sample_key_data.length()));
+  EXPECT_FALSE(mysql_key_store(
+      (get_vault_env()->get_uuid() + "Robert_key").c_str(), "AES", "Robert",
+      sample_key_data.c_str(), sample_key_data.length()));
   char *key_type;
   size_t key_len;
   void *key;
@@ -158,25 +165,29 @@ TEST_F(Keyring_vault_api_test, StoreFetchNotExisting) {
       mysql_key_fetch("NotExisting", &key_type, "Robert", &key, &key_len));
   ASSERT_TRUE(key == nullptr);
 
-  EXPECT_FALSE(mysql_key_remove((uuid + "Robert_key").c_str(), "Robert"));
+  EXPECT_FALSE(mysql_key_remove(
+      (get_vault_env()->get_uuid() + "Robert_key").c_str(), "Robert"));
 }
 
 TEST_F(Keyring_vault_api_test, StoreStoreStoreFetchRemove) {
   std::string key_data1("Robi1");
   std::string key_data2("Robi2");
 
-  EXPECT_FALSE(mysql_key_store((uuid + "Robert_key").c_str(), "AES", "Robert",
-                               sample_key_data.c_str(),
-                               sample_key_data.length()));
-  EXPECT_FALSE(mysql_key_store((uuid + "Robert_key1").c_str(), "AES", "Robert",
-                               key_data1.c_str(), key_data1.length()));
-  EXPECT_FALSE(mysql_key_store((uuid + "Robert_key2").c_str(), "AES", "Robert",
-                               key_data2.c_str(), key_data2.length()));
+  EXPECT_FALSE(mysql_key_store(
+      (get_vault_env()->get_uuid() + "Robert_key").c_str(), "AES", "Robert",
+      sample_key_data.c_str(), sample_key_data.length()));
+  EXPECT_FALSE(
+      mysql_key_store((get_vault_env()->get_uuid() + "Robert_key1").c_str(),
+                      "AES", "Robert", key_data1.c_str(), key_data1.length()));
+  EXPECT_FALSE(
+      mysql_key_store((get_vault_env()->get_uuid() + "Robert_key2").c_str(),
+                      "AES", "Robert", key_data2.c_str(), key_data2.length()));
   char *key_type;
   size_t key_len;
   void *key;
-  EXPECT_FALSE(mysql_key_fetch((uuid + "Robert_key1").c_str(), &key_type,
-                               "Robert", &key, &key_len));
+  EXPECT_FALSE(
+      mysql_key_fetch((get_vault_env()->get_uuid() + "Robert_key1").c_str(),
+                      &key_type, "Robert", &key, &key_len));
   EXPECT_STREQ("AES", key_type);
   EXPECT_EQ(key_len, key_data1.length());
   ASSERT_TRUE(memcmp((char *)key, key_data1.c_str(), key_len) == 0);
@@ -184,65 +195,76 @@ TEST_F(Keyring_vault_api_test, StoreStoreStoreFetchRemove) {
   key_type = nullptr;
   my_free(key);
   key = nullptr;
-  EXPECT_FALSE(mysql_key_remove((uuid + "Robert_key2").c_str(), "Robert"));
+  EXPECT_FALSE(mysql_key_remove(
+      (get_vault_env()->get_uuid() + "Robert_key2").c_str(), "Robert"));
   // make sure the key was removed - fetch it
-  EXPECT_FALSE(mysql_key_fetch((uuid + "Robert_key2").c_str(), &key_type,
-                               "Robert", &key, &key_len));
+  EXPECT_FALSE(
+      mysql_key_fetch((get_vault_env()->get_uuid() + "Robert_key2").c_str(),
+                      &key_type, "Robert", &key, &key_len));
   ASSERT_TRUE(key == nullptr);
 
-  EXPECT_FALSE(mysql_key_remove((uuid + "Robert_key").c_str(), "Robert"));
-  EXPECT_FALSE(mysql_key_remove((uuid + "Robert_key1").c_str(), "Robert"));
+  EXPECT_FALSE(mysql_key_remove(
+      (get_vault_env()->get_uuid() + "Robert_key").c_str(), "Robert"));
+  EXPECT_FALSE(mysql_key_remove(
+      (get_vault_env()->get_uuid() + "Robert_key1").c_str(), "Robert"));
 }
 
 TEST_F(Keyring_vault_api_test, StoreValidTypes) {
-  EXPECT_FALSE(mysql_key_store((uuid + "Robert_key").c_str(), "AES", "Robert",
-                               sample_key_data.c_str(),
-                               sample_key_data.length()));
-  EXPECT_FALSE(mysql_key_store((uuid + "Robert_key3").c_str(), "RSA", "Robert",
-                               sample_key_data.c_str(),
-                               sample_key_data.length()));
-  EXPECT_FALSE(mysql_key_store((uuid + "Robert_key4").c_str(), "DSA", "Robert",
-                               sample_key_data.c_str(),
-                               sample_key_data.length()));
+  EXPECT_FALSE(mysql_key_store(
+      (get_vault_env()->get_uuid() + "Robert_key").c_str(), "AES", "Robert",
+      sample_key_data.c_str(), sample_key_data.length()));
+  EXPECT_FALSE(mysql_key_store(
+      (get_vault_env()->get_uuid() + "Robert_key3").c_str(), "RSA", "Robert",
+      sample_key_data.c_str(), sample_key_data.length()));
+  EXPECT_FALSE(mysql_key_store(
+      (get_vault_env()->get_uuid() + "Robert_key4").c_str(), "DSA", "Robert",
+      sample_key_data.c_str(), sample_key_data.length()));
   // clean up
-  EXPECT_FALSE(mysql_key_remove((uuid + "Robert_key").c_str(), "Robert"));
-  EXPECT_FALSE(mysql_key_remove((uuid + "Robert_key3").c_str(), "Robert"));
-  EXPECT_FALSE(mysql_key_remove((uuid + "Robert_key4").c_str(), "Robert"));
+  EXPECT_FALSE(mysql_key_remove(
+      (get_vault_env()->get_uuid() + "Robert_key").c_str(), "Robert"));
+  EXPECT_FALSE(mysql_key_remove(
+      (get_vault_env()->get_uuid() + "Robert_key3").c_str(), "Robert"));
+  EXPECT_FALSE(mysql_key_remove(
+      (get_vault_env()->get_uuid() + "Robert_key4").c_str(), "Robert"));
 }
 
 TEST_F(Keyring_vault_api_test, StoreInvalidType) {
   EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger.get())),
               log(MY_WARNING_LEVEL,
                   StrEq("Error while storing key: invalid key_type")));
-  EXPECT_TRUE(mysql_key_store((uuid + "Robert_key").c_str(), "YYY", "Robert",
-                              sample_key_data.c_str(),
-                              sample_key_data.length()));
+  EXPECT_TRUE(mysql_key_store(
+      (get_vault_env()->get_uuid() + "Robert_key").c_str(), "YYY", "Robert",
+      sample_key_data.c_str(), sample_key_data.length()));
   char *key_type;
   size_t key_len;
   void *key;
-  EXPECT_FALSE(mysql_key_fetch((uuid + "Robert_key").c_str(), &key_type,
-                               "Robert", &key, &key_len));
+  EXPECT_FALSE(
+      mysql_key_fetch((get_vault_env()->get_uuid() + "Robert_key").c_str(),
+                      &key_type, "Robert", &key, &key_len));
   ASSERT_TRUE(key == nullptr);
 }
 
 TEST_F(Keyring_vault_api_test, StoreTwiceTheSameDifferentTypes) {
-  EXPECT_FALSE(mysql_key_store((uuid + "Robert_key").c_str(), "AES", "Robert",
-                               sample_key_data.c_str(),
-                               sample_key_data.length()));
-  EXPECT_TRUE(mysql_key_store((uuid + "Robert_key").c_str(), "RSA", "Robert",
-                              sample_key_data.c_str(),
-                              sample_key_data.length()));
-  EXPECT_FALSE(mysql_key_remove((uuid + "Robert_key").c_str(), "Robert"));
+  EXPECT_FALSE(mysql_key_store(
+      (get_vault_env()->get_uuid() + "Robert_key").c_str(), "AES", "Robert",
+      sample_key_data.c_str(), sample_key_data.length()));
+  EXPECT_TRUE(mysql_key_store(
+      (get_vault_env()->get_uuid() + "Robert_key").c_str(), "RSA", "Robert",
+      sample_key_data.c_str(), sample_key_data.length()));
+  EXPECT_FALSE(mysql_key_remove(
+      (get_vault_env()->get_uuid() + "Robert_key").c_str(), "Robert"));
 }
 
 TEST_F(Keyring_vault_api_test, KeyGenerate) {
   EXPECT_FALSE(
-      mysql_key_generate((uuid + "Robert_key").c_str(), "AES", "Robert", 128));
+      mysql_key_generate((get_vault_env()->get_uuid() + "Robert_key").c_str(),
+                         "AES", "Robert", 128));
   char *key_type;
   size_t key_len;
   void *key;
-  EXPECT_FALSE(mysql_key_fetch((uuid + "Robert_key").c_str(), &key_type,
-                               "Robert", &key, &key_len));
+  EXPECT_FALSE(
+      mysql_key_fetch((get_vault_env()->get_uuid() + "Robert_key").c_str(),
+                      &key_type, "Robert", &key, &key_len));
   EXPECT_STREQ("AES", key_type);
   EXPECT_EQ(key_len, (size_t)128);
   // Try accessing the last byte of key
@@ -251,18 +273,20 @@ TEST_F(Keyring_vault_api_test, KeyGenerate) {
   (void)ch;
   my_free(key);
   my_free(key_type);
-  EXPECT_FALSE(mysql_key_remove((uuid + "Robert_key").c_str(), "Robert"));
+  EXPECT_FALSE(mysql_key_remove(
+      (get_vault_env()->get_uuid() + "Robert_key").c_str(), "Robert"));
 }
 
 TEST_F(Keyring_vault_api_test, NullUser) {
-  EXPECT_FALSE(mysql_key_store((uuid + "Robert_key").c_str(), "AES", nullptr,
-                               sample_key_data.c_str(),
-                               sample_key_data.length() + 1));
+  EXPECT_FALSE(mysql_key_store(
+      (get_vault_env()->get_uuid() + "Robert_key").c_str(), "AES", nullptr,
+      sample_key_data.c_str(), sample_key_data.length() + 1));
   char *key_type;
   size_t key_len;
   void *key;
-  EXPECT_FALSE(mysql_key_fetch((uuid + "Robert_key").c_str(), &key_type,
-                               nullptr, &key, &key_len));
+  EXPECT_FALSE(
+      mysql_key_fetch((get_vault_env()->get_uuid() + "Robert_key").c_str(),
+                      &key_type, nullptr, &key, &key_len));
   EXPECT_STREQ("AES", key_type);
   EXPECT_EQ(key_len, sample_key_data.length() + 1);
   ASSERT_TRUE(memcmp((char *)key, sample_key_data.c_str(), key_len) == 0);
@@ -270,14 +294,15 @@ TEST_F(Keyring_vault_api_test, NullUser) {
   key_type = nullptr;
   my_free(key);
   key = nullptr;
-  EXPECT_TRUE(mysql_key_store((uuid + "Robert_key").c_str(), "RSA", nullptr,
-                              sample_key_data.c_str(),
-                              sample_key_data.length() + 1));
-  EXPECT_FALSE(mysql_key_store((uuid + "Kamil_key").c_str(), "AES", nullptr,
-                               sample_key_data.c_str(),
-                               sample_key_data.length() + 1));
-  EXPECT_FALSE(mysql_key_fetch((uuid + "Kamil_key").c_str(), &key_type, nullptr,
-                               &key, &key_len));
+  EXPECT_TRUE(mysql_key_store(
+      (get_vault_env()->get_uuid() + "Robert_key").c_str(), "RSA", nullptr,
+      sample_key_data.c_str(), sample_key_data.length() + 1));
+  EXPECT_FALSE(mysql_key_store(
+      (get_vault_env()->get_uuid() + "Kamil_key").c_str(), "AES", nullptr,
+      sample_key_data.c_str(), sample_key_data.length() + 1));
+  EXPECT_FALSE(
+      mysql_key_fetch((get_vault_env()->get_uuid() + "Kamil_key").c_str(),
+                      &key_type, nullptr, &key, &key_len));
   EXPECT_STREQ("AES", key_type);
   EXPECT_EQ(key_len, sample_key_data.length() + 1);
   ASSERT_TRUE(memcmp((char *)key, sample_key_data.c_str(), key_len) == 0);
@@ -285,11 +310,12 @@ TEST_F(Keyring_vault_api_test, NullUser) {
   key_type = nullptr;
   my_free(key);
   key = nullptr;
-  EXPECT_FALSE(mysql_key_store((uuid + "Artur_key").c_str(), "AES", "Artur",
-                               sample_key_data.c_str(),
-                               sample_key_data.length() + 1));
-  EXPECT_FALSE(mysql_key_fetch((uuid + "Artur_key").c_str(), &key_type, "Artur",
-                               &key, &key_len));
+  EXPECT_FALSE(mysql_key_store(
+      (get_vault_env()->get_uuid() + "Artur_key").c_str(), "AES", "Artur",
+      sample_key_data.c_str(), sample_key_data.length() + 1));
+  EXPECT_FALSE(
+      mysql_key_fetch((get_vault_env()->get_uuid() + "Artur_key").c_str(),
+                      &key_type, "Artur", &key, &key_len));
   EXPECT_STREQ("AES", key_type);
   EXPECT_EQ(key_len, sample_key_data.length() + 1);
   ASSERT_TRUE(memcmp((char *)key, sample_key_data.c_str(), key_len) == 0);
@@ -297,12 +323,15 @@ TEST_F(Keyring_vault_api_test, NullUser) {
   key_type = nullptr;
   my_free(key);
   key = nullptr;
-  EXPECT_FALSE(mysql_key_remove((uuid + "Robert_key").c_str(), nullptr));
-  EXPECT_FALSE(mysql_key_fetch((uuid + "Robert_key").c_str(), &key_type,
-                               "Robert", &key, &key_len));
+  EXPECT_FALSE(mysql_key_remove(
+      (get_vault_env()->get_uuid() + "Robert_key").c_str(), nullptr));
+  EXPECT_FALSE(
+      mysql_key_fetch((get_vault_env()->get_uuid() + "Robert_key").c_str(),
+                      &key_type, "Robert", &key, &key_len));
   ASSERT_TRUE(key == nullptr);
-  EXPECT_FALSE(mysql_key_fetch((uuid + "Artur_key").c_str(), &key_type, "Artur",
-                               &key, &key_len));
+  EXPECT_FALSE(
+      mysql_key_fetch((get_vault_env()->get_uuid() + "Artur_key").c_str(),
+                      &key_type, "Artur", &key, &key_len));
   EXPECT_STREQ("AES", key_type);
   EXPECT_EQ(key_len, sample_key_data.length() + 1);
   ASSERT_TRUE(memcmp((char *)key, sample_key_data.c_str(), key_len) == 0);
@@ -311,8 +340,10 @@ TEST_F(Keyring_vault_api_test, NullUser) {
   my_free(key);
   key = nullptr;
 
-  EXPECT_FALSE(mysql_key_remove((uuid + "Kamil_key").c_str(), nullptr));
-  EXPECT_FALSE(mysql_key_remove((uuid + "Artur_key").c_str(), "Artur"));
+  EXPECT_FALSE(mysql_key_remove(
+      (get_vault_env()->get_uuid() + "Kamil_key").c_str(), nullptr));
+  EXPECT_FALSE(mysql_key_remove(
+      (get_vault_env()->get_uuid() + "Artur_key").c_str(), "Artur"));
 }
 
 TEST_F(Keyring_vault_api_test, NullKeyId) {

@@ -2,7 +2,6 @@ INCLUDE_DIRECTORIES(SYSTEM
   ${BOOST_PATCHES_DIR}
   ${BOOST_INCLUDE_DIR}
   ${CURL_INCLUDE_DIRS}
-  ${RAPIDJSON_INCLUDE_DIR}
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include)
 
@@ -21,16 +20,17 @@ MYSQL_ADD_EXECUTABLE(keyring_vault-test
                ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_container.cc
                ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_iterator.cc
                ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_impl.cc
-               ${CMAKE_SOURCE_DIR}/plugin/keyring/file_io.cc
                ../vault_io.cc
                ../vault_key.cc
                ../vault_base64.cc
-               ../vault_parser.cc
+               ../vault_parser_composer.cc
                ../vault_keys_list.cc
                ../vault_keys_container.cc
                ../vault_curl.cc
                ../vault_credentials_parser.cc
                ../vault_credentials.cc
+               ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring_vault/generate_credential_file.cc
+               ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring_vault/vault_mount.cc
                ADD_TEST keyring_vault-test)
 
 TARGET_LINK_LIBRARIES(keyring_vault-test strings mysys sql_main minchassis)

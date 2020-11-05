@@ -19,10 +19,11 @@
 #define MYSQL_VAULT_KEYS_CONTAINER_H
 
 #include <boost/core/noncopyable.hpp>
-#include "i_vault_io.h"
 #include "plugin/keyring/common/keys_container.h"
 
 namespace keyring {
+
+class IVault_io;
 
 class Vault_keys_container : public Keys_container, private boost::noncopyable {
  public:

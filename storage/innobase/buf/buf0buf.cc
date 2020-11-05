@@ -1994,18 +1994,8 @@ buf_page_realloc(
 {
 	buf_block_t*	new_block;
 
-<<<<<<< HEAD
-	ut_ad(buf_pool_withdrawing);
 	ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 	ut_ad(!btr_search_enabled);
-||||||| e18e2390b3f
-	ut_ad(buf_pool_withdrawing);
-	ut_ad(buf_pool_mutex_own(buf_pool));
-	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-=======
-	ut_ad(buf_pool_mutex_own(buf_pool));
-	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
->>>>>>> 2032b65c44e242a7e452a38bf7626dfacc315b9c^
 
 	new_block = buf_LRU_get_free_only(buf_pool);
 

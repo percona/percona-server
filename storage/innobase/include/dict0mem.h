@@ -1338,15 +1338,9 @@ if table->memcached_sync_count == DICT_TABLE_IN_DDL means there's DDL running on
 the table, DML from memcached will be blocked. */
 #define DICT_TABLE_IN_DDL -1
 
-<<<<<<< HEAD
 typedef ib_bpmutex_t AutoIncMutex;
 typedef ib_mutex_t AnalyzeIndexMutex;
 
-||||||| e18e2390b3f
-=======
-typedef ib_mutex_t AnalyzeIndexMutex;
-
->>>>>>> 2032b65c44e242a7e452a38bf7626dfacc315b9c^
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
 struct dict_table_t {

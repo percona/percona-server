@@ -1,13 +1,7 @@
 /*
-<<<<<<< HEAD
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
    Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
    Copyright (c) 2009, 2016, MariaDB
-||||||| e18e2390b3f
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
-=======
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
->>>>>>> 2032b65c44e242a7e452a38bf7626dfacc315b9c^
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,

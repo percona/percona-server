@@ -507,16 +507,10 @@ is the global server default. */
 #define HA_ERR_WRONG_FILE_NAME         199  /* Invalid Filename */
 #define HA_ERR_NOT_ALLOWED_COMMAND     200  /* Operation is not allowed */
 #define HA_ERR_COMPUTE_FAILED          201  /* Compute generated column value failed */
-<<<<<<< HEAD
 #define HA_ERR_DEST_SCHEMA_NOT_EXIST   202  /* Destination schema does not exist */
 #define HA_ERR_CANNOT_INITIALIZE_PARTITIONING 203 /* Partitioning can't be initialized */
-#define HA_ERR_LAST                    203  /* Copy of last error nr */
-||||||| e18e2390b3f
-#define HA_ERR_LAST                    201  /* Copy of last error nr */
-=======
-#define HA_ERR_FTS_TOO_MANY_NESTED_EXP 202  /* Too many sub-expression in search string */
-#define HA_ERR_LAST                    202  /* Copy of last error nr */
->>>>>>> 2032b65c44e242a7e452a38bf7626dfacc315b9c^
+#define HA_ERR_FTS_TOO_MANY_NESTED_EXP 204  /* Too many sub-expression in search string */
+#define HA_ERR_LAST                    204  /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)

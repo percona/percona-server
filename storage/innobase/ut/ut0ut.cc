@@ -830,20 +830,13 @@ ut_strerr(
 		       "of stored column");
 	case DB_COMPUTE_VALUE_FAILED:
 		return("Compute generated column failed");
-<<<<<<< HEAD
-        case DB_DECRYPTION_FAILED:
+	case DB_DECRYPTION_FAILED:
 		return("Table is encrypted but decrypt failed.");
 	case DB_PAGE_CORRUPTED:
 		return("Page read from tablespace is corrupted.");
-        
-||||||| e18e2390b3f
-
-=======
-
 	case DB_FTS_TOO_MANY_NESTED_EXP:
 		return("Too many nested sub-expressions in a full-text search");
 
->>>>>>> 2032b65c44e242a7e452a38bf7626dfacc315b9c^
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */
 	}

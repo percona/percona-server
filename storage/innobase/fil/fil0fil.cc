@@ -6936,14 +6936,10 @@ struct fil_iterator_t {
 	byte*		io_buffer;		/*!< Buffer to use for IO */
 	byte*		encryption_key;		/*!< Encryption key */
 	byte*		encryption_iv;		/*!< Encryption iv */
-<<<<<<< HEAD
 	uint		encryption_key_version;
 	uint		encryption_key_id;
 	fil_space_crypt_t *crypt_data;		/*!< Crypt data (if encrypted) */
-||||||| e18e2390b3f
-=======
 	size_t		block_size;		/*!< FS Block Size */
->>>>>>> 2032b65c44e242a7e452a38bf7626dfacc315b9c^
 };
 
 /********************************************************************//**
@@ -6983,6 +6979,7 @@ fil_iterate(
 	for (offset = iter.start; offset < iter.end; offset += n_bytes) {
 
 		IORequest	read_request(read_type);
+		read_request.block_size(iter.block_size);
 
 		byte*	io_buffer = iter.io_buffer;
 
@@ -7025,13 +7022,6 @@ fil_iterate(
 							 && iter.crypt_data->type != CRYPT_SCHEME_UNENCRYPTED;
 
 		dberr_t		err;
-<<<<<<< HEAD
-||||||| e18e2390b3f
-		IORequest	read_request(read_type);
-=======
-		IORequest	read_request(read_type);
-		read_request.block_size(iter.block_size);
->>>>>>> 2032b65c44e242a7e452a38bf7626dfacc315b9c^
 
 		/* For encrypted table, set encryption information. */
 		if ((iter.encryption_key != NULL || encrypted_with_keyring) && offset != 0) {

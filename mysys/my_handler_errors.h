@@ -116,16 +116,10 @@ static const char *handler_error_messages[]=
   "Tablespace is not empty",
   "Incorrect file name",
   "Operation is not allowed",
-<<<<<<< HEAD
   "Compute generate value failed",
   "Destination schema does not exist",
-  "Partitioning can't be initialized"
-||||||| e18e2390b3f
-  "Compute generate value failed"
-=======
-  "Compute generate value failed",
+  "Partitioning can't be initialized",
   "Too many nested sub-expressions in a full-text search"
->>>>>>> 2032b65c44e242a7e452a38bf7626dfacc315b9c^
 };
 
 extern void my_handler_error_register(void);

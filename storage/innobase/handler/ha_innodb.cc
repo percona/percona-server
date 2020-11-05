@@ -516,13 +516,8 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(zip_pad_mutex),
 	PSI_KEY(row_drop_list_mutex),
 	PSI_KEY(master_key_id_mutex),
-<<<<<<< HEAD
 	PSI_KEY(scrub_stat_mutex),
 	PSI_KEY(analyze_index_mutex),
-||||||| e18e2390b3f
-=======
-	PSI_KEY(analyze_index_mutex),
->>>>>>> 2032b65c44e242a7e452a38bf7626dfacc315b9c^
 };
 # endif /* UNIV_PFS_MUTEX */
 

@@ -24,6 +24,9 @@
     }
     close $RH;
   }
+  if ($min_protocol_tlsv1_2 == 0 && `openssl version -a` =~ /OPENSSL_TLS_SECURITY_LEVEL=2/) {
+    $min_protocol_tlsv1_2 = 1;
+  }
   open (my $WH, ">", "$ENV{MYSQL_TMP_DIR}/crypto_policy.inc") or die "Could not open $ENV{MYSQL_TMP_DIR}/crypto_policy.inc: $!";
   print $WH "let \$min_protocol_tlsv1_2 = $min_protocol_tlsv1_2;\n";
   close $WH;

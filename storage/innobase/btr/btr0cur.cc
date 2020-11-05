@@ -486,22 +486,10 @@ btr_cur_optimistic_latch_leaves(
 					    file, line, mtr)) {
 			if (btr_page_get_prev(buf_block_get_frame(block), mtr)
 			    == left_page_no) {
-<<<<<<< HEAD
-				/* adjust buf_fix_count */
-				buf_block_buf_fix_dec(block);
-
-||||||| e18e2390b3f
-				/* adjust buf_fix_count */
-				buf_page_mutex_enter(block);
-				buf_block_buf_fix_dec(block);
-				buf_page_mutex_exit(block);
-
-=======
 				/* We've entered this function with the block already buffer-fixed,
 				and buf_page_optimistic_get() buffer-fixes it again. The caller should
 				unfix the block once (to undo their buffer-fixing). */
 				ut_ad(2 <= block->page.buf_fix_count);
->>>>>>> 2032b65c44e242a7e452a38bf7626dfacc315b9c^
 				*latch_mode = mode;
 				return(true);
 			} else {
@@ -519,18 +507,6 @@ btr_cur_optimistic_latch_leaves(
 			btr_leaf_page_release(cursor->left_block,
 					      mode, mtr);
 		}
-<<<<<<< HEAD
-unpin_failed:
-		/* unpin the block */
-		buf_block_buf_fix_dec(block);
-||||||| e18e2390b3f
-unpin_failed:
-		/* unpin the block */
-		buf_page_mutex_enter(block);
-		buf_block_buf_fix_dec(block);
-		buf_page_mutex_exit(block);
-=======
->>>>>>> 2032b65c44e242a7e452a38bf7626dfacc315b9c^
 
 		return(false);
 
@@ -1149,20 +1125,12 @@ search_loop:
 retry_page_get:
 	ut_ad(n_blocks < BTR_MAX_LEVELS);
 	tree_savepoints[n_blocks] = mtr_set_savepoint(mtr);
-<<<<<<< HEAD
-	block = buf_page_get_gen(page_id, page_size, rw_latch, guess,
-				 buf_mode, file, line, mtr, false, &err);
-||||||| e18e2390b3f
-	block = buf_page_get_gen(page_id, page_size, rw_latch, guess,
-				 buf_mode, file, line, mtr);
-=======
 	block = buf_page_get_gen(
 		page_id, page_size, rw_latch,
 		(height == ULINT_UNDEFINED ? info->root_guess : NULL),
-		buf_mode, file, line, mtr
+		buf_mode, file, line, mtr, false, &err
 	);
 
->>>>>>> 2032b65c44e242a7e452a38bf7626dfacc315b9c^
 	tree_blocks[n_blocks] = block;
 
 	if (err != DB_SUCCESS) {

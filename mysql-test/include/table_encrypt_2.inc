@@ -3,7 +3,7 @@
 
 # Restart the server with keyring loaded
 --let $restart_parameters = $KEYRING2_RESTART_PARAM
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
@@ -35,8 +35,8 @@ INSERT INTO t1 select * from t1;
 SELECT * FROM t1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
---let $restart_parameters = $KEYRING2_RESTART_PARAM
---let $restart_hide_args = 1
+--let $restart_parameters = $keyring2_restart_param
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 SELECT * FROM t1 LIMIT 10;
@@ -61,15 +61,15 @@ INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
 
 # Restart to confirm the encryption info can be retrieved properly.
---let $restart_parameters = $KEYRING2_RESTART_PARAM
---let $restart_hide_args = 1
+--let $restart_parameters = $keyring2_restart_param
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 SELECT * FROM t1 LIMIT 10;
 DROP TABLE t1;
 
---let $restart_parameters = $KEYRING1_RESTART_PARAM --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log
---let $restart_hide_args = 1
+--let $restart_parameters = $keyring1_restart_param --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 # Check no effect of block_encryption_mode = 'aes-256-cbc' variable on table encryption
@@ -133,8 +133,8 @@ DROP TABLE not_encrypted2;
 
 # Cleanup
 
---let $restart_parameters = $KEYRING2_RESTART_PARAM
---let $restart_hide_args = 1
+--let $restart_parameters = $keyring2_restart_param
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 --remove_file $MYSQL_TMP_DIR/keyring_query_log

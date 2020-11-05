@@ -36,7 +36,7 @@ let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- send_shutdown
 -- source include/wait_until_disconnected.inc
---exec echo "$KEYRING_RESTART_PARAM" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "$keyring_restart_param" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -177,7 +177,7 @@ send call tde_db.populate_t_non_encrypt();
 
 --connection default
 --echo # kill and restart the server
---let $restart_parameters = $KEYRING_RESTART_PARAM
+--let $restart_parameters = $keyring_restart_param
 --sleep 3
 --let $_server_id= `SELECT @@server_id`
 --let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
@@ -235,7 +235,7 @@ send call tde_db.delete_t_encrypt();
 
 --connection default
 --echo # kill and restart the server
---let $restart_parameters = $KEYRING_RESTART_PARAM
+--let $restart_parameters = $keyring_restart_param
 --sleep 3
 
 --let $_server_id= `SELECT @@server_id`
@@ -291,8 +291,8 @@ send call tde_db.read_t_encrypt();
 
 --connection default
 --echo # kill and restart the server
---let $restart_parameters = $KEYRING_RESTART_PARAM
---let $restart_hide_args = 1
+--let $restart_parameters = $keyring_restart_param
+--let $do_not_echo_parameters = 1
 --sleep 1
 --source include/kill_and_restart_mysqld.inc
 

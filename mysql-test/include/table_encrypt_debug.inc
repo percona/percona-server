@@ -49,7 +49,7 @@ USE tde_db;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- send_shutdown
 -- source include/wait_until_disconnected.inc
---exec echo "$KEYRING_RESTART_PARAM" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "$keyring_restart_param" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -79,7 +79,7 @@ INSERT INTO tde_db.t1 VALUES(3, "ddddd");
 
 --echo # Execute the statement that causes the crash
 # Write file to make mysql-test-run.pl start up the server again
---exec echo "$KEYRING_RESTART_PARAM" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "$keyring_restart_param" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 --enable_reconnect
@@ -111,7 +111,7 @@ INSERT INTO tde_db.t2 VALUES(1, "bbbbb");
 
 --echo # Execute the statement that causes the crash
 # Write file to make mysql-test-run.pl start up the server again
---exec echo "$KEYRING_RESTART_PARAM" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "$keyring_restart_param" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 SET SESSION DEBUG="+d,ib_encryption_rotate_crash";
 --error 2013
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
@@ -151,7 +151,7 @@ SET debug='-d,skip_dd_table_access_check';
 --echo # Test crash point `ib_crash_during_create_for_encryption` during a CREATE TABLE
 --echo #
 # Write file to make mysql-test-run.pl start up the server again
---exec echo "$KEYRING_RESTART_PARAM" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "$keyring_restart_param" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 SET SESSION DEBUG="+d,ib_crash_during_create_for_encryption";
 
 --echo # Execute the statement that causes the crash
@@ -176,7 +176,7 @@ SELECT * FROM tde_db.t2;
 --echo # Test crash point `ib_crash_during_decrypt_page` during an IMPORT TABLESPACE
 --echo #
 # Write file to make mysql-test-run.pl start up the server again
---exec echo "$KEYRING_RESTART_PARAM" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "$keyring_restart_param" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 FLUSH TABLE tde_db.t1 FOR EXPORT;
 --copy_file $MYSQLD_DATADIR/tde_db/t1.cfg $MYSQLD_DATADIR/t1.cfg_back
@@ -244,6 +244,7 @@ DROP TABLE tde_db.test_tbl;
 # Cleanup
 DROP DATABASE tde_db;
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;
+
 # Clean up
 --source include/shutdown_mysqld.inc
 --remove_file $MYSQLD_DATADIR/t1.cfg_back

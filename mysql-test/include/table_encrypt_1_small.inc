@@ -16,8 +16,8 @@ call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is
 call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace .* because it could not be opened");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
 
---let $restart_parameters = $KEYRING_RESTART_PARAM
---let $restart_hide_args = 1
+--let $restart_parameters = $keyring_restart_param
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 --disable_warnings

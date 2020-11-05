@@ -5579,7 +5579,8 @@ static Sys_var_version Sys_version(
 static char *server_version_suffix_ptr;
 static Sys_var_charptr Sys_version_suffix("version_suffix", "version_suffix",
                                           GLOBAL_VAR(server_version_suffix_ptr),
-                                          NO_CMD_LINE, IN_SYSTEM_CHARSET,
+                                          CMD_LINE(REQUIRED_ARG),
+                                          IN_SYSTEM_CHARSET,
                                           DEFAULT(server_version_suffix));
 
 static char *server_version_comment_ptr;

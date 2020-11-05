@@ -16,9 +16,9 @@ ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="keyring_vault")
 
 INCLUDE_DIRECTORIES(SYSTEM
         ${GMOCK_INCLUDE_DIRS}
+        ${BOOST_PATCHES_DIR}
         ${BOOST_INCLUDE_DIR}
-        ${CURL_INCLUDE_DIRS}
-        ${BOOST_PATCHES_DIR})
+        ${CURL_INCLUDE_DIRS})
 
 INCLUDE_DIRECTORIES(
         ${CMAKE_SOURCE_DIR}/include
@@ -50,12 +50,14 @@ LIST(APPEND SRC_FILES
   ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_io.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_base64.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_curl.cc
-  ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_parser.cc
+  ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_parser_composer.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_credentials.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_credentials_parser.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_keys_container.cc
-  ${CMAKE_SOURCE_DIR}/plugin/keyring/file_io.cc
+  ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring_vault/generate_credential_file.cc
+  ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring_vault/vault_environment.cc
   ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring_vault/vault_mount.cc
+  ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring_vault/vault_test_base.cc
   ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring_vault/uuid.cc
 )
 
@@ -68,17 +70,59 @@ FOREACH(test ${TESTS})
 ENDFOREACH()
 
 MYSQL_ADD_EXECUTABLE(merge_keyring_vault_tests-t
-  ${ALL_KEYRING_VAULT_TESTS} ADD_TEST merge_keyring_vault_tests)
-TARGET_LINK_LIBRARIES(merge_keyring_vault_tests-t keyring_vault_test)
+  ${ALL_KEYRING_VAULT_TESTS}
+  ENABLE_EXPORTS
+  ADD_TEST merge_keyring_vault_tests)
 
 TARGET_LINK_LIBRARIES(merge_keyring_vault_tests-t
-  gunit_large strings mysys sql_main sql_gis sql_dd minchassis)
-TARGET_LINK_LIBRARIES(merge_keyring_vault_tests-t
-  sql_main binlog rpl master slave sql_gis sql_dd sql_main)
-TARGET_LINK_LIBRARIES(merge_keyring_vault_tests-t ${CURL_LIBRARY} ${SSL_LIBRARIES})
-TARGET_LINK_LIBRARIES(merge_keyring_vault_tests-t ${ICU_LIBRARIES})
+  keyring_vault_test
+  gunit_large
+  perfschema
+  sql_main
+  strings
+  mysys
+  sql_gis
+  sql_dd
+  minchassis
+  binlog
+  rpl
+  master
+  slave
+  ${CURL_LIBRARY}
+  ${SSL_LIBRARIES}
+  ${ICU_LIBRARIES})
 
-IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
-  TARGET_LINK_LIBRARIES(merge_keyring_vault_tests-t perfschema)
-ENDIF()
 ADD_DEPENDENCIES(merge_keyring_vault_tests-t GenError)
+
+set(LARGE_TESTS "vault_keyring-api" "vault_keys_container")
+
+FOREACH(test ${TESTS})
+  MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc
+    ENABLE_EXPORTS SKIP_INSTALL EXCLUDE_FROM_ALL)
+
+  TARGET_LINK_LIBRARIES(${test}-t keyring_vault_test)
+
+  IF(${test} IN_LIST LARGE_TESTS)
+    TARGET_LINK_LIBRARIES(${test}-t
+      gunit_large
+      strings
+      mysys
+      sql_main
+      sql_gis
+      sql_dd
+      binlog
+      rpl
+      master
+      slave
+      minchassis)
+  ELSE()
+    TARGET_LINK_LIBRARIES(${test}-t
+      gunit_small
+      server_unittest_library)
+  ENDIF()
+
+  TARGET_LINK_LIBRARIES(${test}-t
+    ${ICU_LIBRARIES}
+    ${CURL_LIBRARY}
+    ${SSL_LIBRARIES})
+ENDFOREACH()

@@ -27,6 +27,7 @@
 
 #include <mysql/components/services/log_builtins.h>
 #include <mysql/plugin.h>
+#include <mysql/service_my_plugin_log.h>
 #include <mysqld_error.h>
 
 namespace keyring {

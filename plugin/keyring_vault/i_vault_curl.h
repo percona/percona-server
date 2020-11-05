@@ -1,5 +1,5 @@
-
-/* Copyright (c) 2018 Percona LLC and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021 Percona LLC and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -21,10 +21,10 @@
 #include "plugin/keyring/common/i_keyring_key.h"
 #include "plugin/keyring/common/secure_string.h"
 #include "vault_credentials.h"
-#include "vault_key.h"
 
 namespace keyring {
 
+struct Vault_key;
 class IVault_curl : public Keyring_alloc {
  public:
   virtual bool init(const Vault_credentials &vault_credentials) = 0;
@@ -33,6 +33,8 @@ class IVault_curl : public Keyring_alloc {
   virtual bool write_key(const Vault_key &key, Secure_string *response) = 0;
   virtual bool read_key(const Vault_key &key, Secure_string *response) = 0;
   virtual bool delete_key(const Vault_key &key, Secure_string *response) = 0;
+  virtual Vault_version_type get_resolved_secret_mount_point_version()
+      const = 0;
 #ifndef EXTRA_CODE_FOR_UNIT_TESTING
   virtual void set_timeout(uint timeout) noexcept = 0;
 #else

@@ -6,7 +6,7 @@
 --source include/not_embedded.inc
 --source include/have_debug.inc
 
---let $restart_parameters="$KEYRING_RESTART_PARAM"
+--let $restart_parameters="$keyring_restart_param"
 --let $restart_hide_args= 1
 --source include/restart_mysqld.inc
 
@@ -93,7 +93,7 @@ if($source_db != $dest_db) {
 	eval DROP TABLE $dest_db.t1;
 }
 
---let $restart_parameters="$KEYRING_RESTART_PARAM"
+--let $restart_parameters="$keyring_restart_param"
 --let $restart_hide_args= 1
 --source include/restart_mysqld.inc
 

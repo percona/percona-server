@@ -34,6 +34,9 @@
 #include "rocksdb/slice.h"
 #include "rocksdb/status.h"
 
+/* MyRocks header files */
+#include "./rdb_global.h"
+
 #ifdef HAVE_JEMALLOC
 #include <jemalloc/jemalloc.h>
 #endif

@@ -1,0 +1,4 @@
+--source include/have_rocksdb.inc
+
+--let $engine=ROCKSDB
+--source include/percona_bug4977.inc

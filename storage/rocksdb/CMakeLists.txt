@@ -29,7 +29,7 @@ ENDIF ()
 
 
 # Suppress warnings for all compilers
-append_cflags_if_supported(-Wno-unused-parameter)
+append_cflags_if_supported(-Wno-unused-parameter -Wno-suggest-override)
 # "cmake/maintainer.cmake" sets "-Wcast-qual -Wundef" which cause warnings with RocksDB
 remove_compile_flags(-Wcast-qual -Wundef)
 
@@ -113,11 +113,12 @@ INCLUDE_DIRECTORIES(
   ${ROCKSDB_ROOT}/include
   ${ROCKSDB_ROOT}/include/rocksdb
   ${ROCKSDB_ROOT}/third-party/gtest-1.8.1/fused-src
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/dictBuilder
-  ${LZ4_INCLUDE_DIR}
 )
+
+IF(BUILD_BUNDLED_ZSTD)
+  INCLUDE_DIRECTORIES(BEFORE SYSTEM
+    ${ZSTD_INCLUDE_DIR}/dictBuilder)
+ENDIF()
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mpclmul")
 SET(CMAKE_REQUIRED_FLAGS "${CMAKE_CXX_FLAGS} --std=c++11")
@@ -176,6 +177,10 @@ endif()
 SET(ZSTD_SOURCES
   ${CMAKE_SOURCE_DIR}/extra/lz4/xxhash.c
 )
+
+IF(DEFINED WITH_UBSAN)
+  add_definitions(-DROCKSDB_UBSAN_RUN)
+ENDIF()
 
 SET(ROCKSDB_SOURCES
   ${ROCKSDB_SOURCES}

@@ -1,5 +1,4 @@
-call mtr.add_suppression("Error 213");
-call mtr.add_suppression("Error 214 finalizing last SST file while setting bulk loading variable");
+# restart: --log-error=MYSQLTEST_VARDIR/tmp/rocksdb.bulk_load_errors.1.err
 CREATE TABLE t1(pk INT, PRIMARY KEY(pk)) ENGINE=ROCKSDB;
 SET rocksdb_bulk_load=1;
 INSERT INTO t1 VALUES(10);
@@ -25,6 +24,17 @@ SELECT * FROM t1;
 pk
 10
 11
+# restart: --log-error=MYSQLTEST_VARDIR/tmp/rocksdb.bulk_load_errors.2.err
+SET rocksdb_bulk_load=1;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+INSERT INTO t1 VALUES(20);
+INSERT INTO t1 VALUES(21);
+SELECT * FROM t1;
+pk
+10
+11
+# restart: --log-error=MYSQLTEST_VARDIR/tmp/rocksdb.bulk_load_errors.3.err
 TRUNCATE TABLE t1;
 SET rocksdb_bulk_load_allow_unsorted=1;
 SET rocksdb_bulk_load=1;
@@ -52,6 +62,26 @@ pk
 202
 SET rocksdb_bulk_load_allow_unsorted=DEFAULT;
 DROP TABLE t1;
+CREATE TABLE t1(c1 INT KEY) ENGINE=ROCKSDB;
+SET rocksdb_bulk_load=1;
+INSERT INTO t1 VALUES (),(),();
+Got one of the listed errors
+SET rocksdb_bulk_load=0;
+DROP TABLE t1;
+SET @orig_table_open_cache=@@global.table_open_cache;
+CREATE TABLE t1(a INT AUTO_INCREMENT, b INT, PRIMARY KEY (a)) ENGINE=ROCKSDB DEFAULT CHARSET=latin1;
+SET rocksdb_bulk_load=1;
+INSERT INTO t1 VALUES(13, 0);
+INSERT INTO t1 VALUES(2, 'test 2');
+ERROR HY000: Incorrect integer value: 'test 2' for column 'b' at row 1
+INSERT INTO t1 VALUES(@id, @arg04);
+SET @@global.table_open_cache=FALSE;
+Warnings:
+Warning	1292	Truncated incorrect table_open_cache value: '0'
+INSERT INTO t1 VALUES(51479+0.333333333,1);
+DROP TABLE t1;
+SET @@global.table_open_cache=@orig_table_open_cache;
+# restart
 CREATE TABLE t1 (pk INT, PRIMARY KEY (pk)) ENGINE=ROCKSDB;
 CREATE TABLE t2 (pk INT, PRIMARY KEY (pk)) ENGINE=ROCKSDB;
 SET rocksdb_bulk_load=1;

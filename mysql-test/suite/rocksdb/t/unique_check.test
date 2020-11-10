@@ -170,7 +170,7 @@ connect (con1, localhost, root,,);
 connection default;
 
 CREATE TABLE t1 (
-  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  id bigint unsigned NOT NULL AUTO_INCREMENT,
   a varchar(36) NOT NULL ,
   b varchar(128) NOT NULL ,
   c varchar(10240) NOT NULL ,

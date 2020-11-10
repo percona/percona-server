@@ -83,7 +83,7 @@ drop table t1, t2, t3;
 #  Issue#1026: MyRocks may return "Can't find record" which is unexpected
 #
 CREATE TABLE t1 (
-id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+id bigint unsigned NOT NULL AUTO_INCREMENT,
 a varchar(36) NOT NULL ,
 b varchar(128) NOT NULL ,
 c varchar(10240) NOT NULL ,
@@ -97,6 +97,8 @@ insert into t1(a,b,c) values (10,'file_type','trx-a') on duplicate key update c=
 set debug_sync='now WAIT_FOR trx_a_sleep';
 begin;
 insert into t1(a,b,c) values (10,'file_type','trx-b') on duplicate key update c=values(c);
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 commit;
 set debug_sync='now SIGNAL trx_a_cont';
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction

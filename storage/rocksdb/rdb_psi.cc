@@ -81,7 +81,8 @@ my_core::PSI_mutex_info all_rocksdb_mutexes[] = {
     {&rdb_block_cache_resize_mutex_key, "resizing block cache",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&rdb_bottom_pri_background_compactions_resize_mutex_key,
-     "resizing bottom pri compaction threads", PSI_FLAG_GLOBAL},
+     "resizing bottom pri compaction threads", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
 };
 
 my_core::PSI_rwlock_key key_rwlock_collation_exception_list,

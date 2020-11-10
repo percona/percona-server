@@ -13,7 +13,7 @@ create table t1 (a int, b int,
 create table t2 (a int, b int, c int,
                 primary key (a), key(b,c)) engine=rocksdb;
 create table t3 (a int,b int,
-                primary key (a), key (b) comment 'z') engine=rocksdb;
+                primary key (a), key (b) comment 'cfname=z') engine=rocksdb;
 
 insert into t1 values (1, 1);
 insert into t2 values (2, 2, 2);
@@ -70,7 +70,7 @@ TABLE_NAME in ('t1', 't2', 't3', 't4', 't5') order by TABLE_NAME, INDEX_NAME, CF
 
 # okay to use default_sk cf directly 
 create table t6 (a int,b int,
-                primary key (a), key (b) comment 'default_sk') engine=rocksdb;
+                primary key (a), key (b) comment 'cfname=default_sk') engine=rocksdb;
 
 select TABLE_NAME, INDEX_NAME, CF from information_schema.rocksdb_ddl where
 TABLE_NAME in ('t1', 't2', 't3', 't4', 't5', 't6') order by

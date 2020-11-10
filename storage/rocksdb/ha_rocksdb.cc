@@ -145,7 +145,7 @@ static rocksdb::CompactRangeOptions getCompactRangeOptions(
 static char *rocksdb_default_cf_options = nullptr;
 static char *rocksdb_override_cf_options = nullptr;
 static char *rocksdb_update_cf_options = nullptr;
-static my_bool rocksdb_use_default_sk_cf = false;
+static bool rocksdb_use_default_sk_cf = false;
 
 ///////////////////////////////////////////////////////////
 // Globals
@@ -197,9 +197,10 @@ static void rocksdb_delete_column_family_stub(THD *const /* thd */,
                                               void *const /* var_ptr */,
                                               const void *const /* save */) {}
 
-static int rocksdb_delete_column_family(
-    THD *const /* thd */, struct st_mysql_sys_var *const /* var */,
-    void *const /* var_ptr */, struct st_mysql_value *const value) {
+static int rocksdb_delete_column_family(THD *const /* thd */,
+                                        struct SYS_VAR *const /* var */,
+                                        void *const /* var_ptr */,
+                                        struct st_mysql_value *const value) {
   DBUG_ASSERT(value != nullptr);
 
   char buff[STRING_BUFFER_USUAL_SIZE];
@@ -534,8 +535,8 @@ static int rocksdb_validate_set_block_cache_size(THD *thd,
                                                  struct st_mysql_value *value);
 static int rocksdb_validate_max_bottom_pri_background_compactions(
     THD *thd MY_ATTRIBUTE((__unused__)),
-    struct st_mysql_sys_var *const var MY_ATTRIBUTE((__unused__)),
-    void *var_ptr, struct st_mysql_value *value);
+    struct SYS_VAR *const var MY_ATTRIBUTE((__unused__)), void *var_ptr,
+    struct st_mysql_value *value);
 //////////////////////////////////////////////////////////////////////////////
 // Options definitions
 //////////////////////////////////////////////////////////////////////////////
@@ -1081,10 +1082,10 @@ static void rocksdb_set_max_bottom_pri_background_compactions_internal(
     // the threads in the BOTTOM pool run with lower OS priority (19 in Linux).
     rdb->GetEnv()->SetBackgroundThreads(val, rocksdb::Env::Priority::BOTTOM);
     rdb->GetEnv()->LowerThreadPoolCPUPriority(rocksdb::Env::Priority::BOTTOM);
-    sql_print_information(
-        "Set %d compaction thread(s) with "
-        "lower scheduling priority.",
-        val);
+    LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                    "Set %d compaction thread(s) with "
+                    "lower scheduling priority.",
+                    val);
   }
 }
 
@@ -14644,8 +14645,8 @@ static void rocksdb_set_max_background_compactions(THD *thd,
 */
 static int rocksdb_validate_max_bottom_pri_background_compactions(
     THD *thd MY_ATTRIBUTE((__unused__)),
-    struct st_mysql_sys_var *const var MY_ATTRIBUTE((__unused__)),
-    void *var_ptr, struct st_mysql_value *value) {
+    struct SYS_VAR *const var MY_ATTRIBUTE((__unused__)), void *var_ptr,
+    struct st_mysql_value *value) {
   DBUG_ASSERT(value != nullptr);
 
   long long new_value;

@@ -9,7 +9,7 @@
 
 `Percona Server for MySQL <https://www.percona.com/software/mysql-database/percona-server>`_ 8.0.21-12
 includes all the features and bug fixes available in
-`MySQL 8.0.21 Community Edition <https://dev.mysql.com/doc/relnotes/mysql/8.0/en/news-8.0.21-12.html>`_
+`MySQL 8.0.21 Community Edition <https://dev.mysql.com/doc/relnotes/mysql/8.0/en/news-8-0-21.html>`_
 in addition to enterprise-grade features developed by Percona.
 
 This release fixes the security vulnerability `CVE-2020-26542 <https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-26542>`_.

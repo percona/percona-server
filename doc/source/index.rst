@@ -6,7 +6,7 @@
 .. _dochome:
 
 ===================================
- Percona Server 5.7 - Documentation
+ |Percona Server| |version| - Documentation
 ===================================
 
 |Percona Server| is an enhanced drop-in replacement for |MySQL|. With |Percona Server|,

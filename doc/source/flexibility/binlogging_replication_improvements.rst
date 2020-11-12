@@ -12,7 +12,7 @@ Temporary tables and mixed logging format
 =========================================
 
 Summary of the fix:
---------------------------------------------------------------------------------
+--------------------
 
 As soon as some statement involving a temporary table was met when using the
 MIXED binlog format, |MySQL| was switching to the row-based logging of all
@@ -23,13 +23,13 @@ situation by switching between statement-based and row-based logging as
 necessary.
 
 Version Specific Information
---------------------------------------------------------------------------------
+-----------------------------
 
   * :rn:`5.7.10-1`
     Fix ported from |Percona Server| 5.6
 
 Details:
---------------------------------------------------------------------------------
+--------
 
 The *mixed* binary logging format supported by |Percona Server| means that
 server runs in statement-based logging by default, but switches to row-based
@@ -59,7 +59,7 @@ Temporary table drops and binloging on GTID-enabled server
 ==========================================================
 
 Summary of the fix:
---------------------------------------------------------------------------------
+--------------------
 
 MySQL logs DROP statements for all temporary tables irrelative of the logging
 mode under which these tables were created. This produces binlog writes and
@@ -68,13 +68,13 @@ by tracking the binlog format at temporary table create time and using it to
 decide whether a DROP should be logged or not.
 
 Version Specific Information
---------------------------------------------------------------------------------
+-----------------------------
 
   * :rn:`5.7.17-11`
     Fix ported from |Percona Server| 5.6
 
 Details:
---------------------------------------------------------------------------------
+----------
 
 Even with ``read_only`` mode enabled, the server permits some operations, including
 ones with temporary tables. With the previous fix, temporary table operations
@@ -98,7 +98,7 @@ Safety of statements with a ``LIMIT`` clause
 ============================================
 
 Summary of the fix:
---------------------------------------------------------------------------------
+--------------------
 
 |MySQL| considers all ``UPDATE/DELETE/INSERT ... SELECT`` statements with
 ``LIMIT`` clause to be unsafe, no matter wether they are really producing
@@ -109,7 +109,7 @@ condition. This fix has been ported from the upstream bug report
 :mysqlbug:`42415` (:psbug:`44`).
 
 Version Specific Information
---------------------------------------------------------------------------------
+-----------------------------
 
   * :rn:`5.7.10.1`
     Fix ported from |Percona Server| 5.6
@@ -118,7 +118,7 @@ Performance improvement on relay log position update
 ====================================================
 
 Summary of the fix:
-*******************
+-------------------
 
 |MySQL| always updated relay log position in multi-source replications setups
 regardless of whether the committed transaction has already been executed or
@@ -126,13 +126,13 @@ not. Percona Server omitts relay log position updates for the already logged
 GTIDs.
 
 Version Specific Information
-****************************
+-----------------------------
 
   * :rn:`5.7.18-14`
     Fix implemented in |Percona Server| 5.7
 
 Details
-*******
+--------
 
 Particularly, such unconditional relay log position updates caused additional
 fsync operations in case of ``relay-log-info-repository=TABLE``, and with the
@@ -144,7 +144,7 @@ Performance improvement on source and connection status updates
 ===============================================================
 
 Summary of the fix:
-*******************
+--------------------
 
 Replica nodes configured to update source status and connection information
 only on log file rotation did not experience the expected reduction in load.
@@ -152,13 +152,13 @@ only on log file rotation did not experience the expected reduction in load.
 replication when replica had to skip the already executed GTID event.
 
 Version Specific Information
-****************************
+-----------------------------
 
   * :rn:`5.7.20-19`
     Fix implemented in |Percona Server| 5.7
 
 Details
-*******
+--------
 
 The configuration with ``master_info_repository=TABLE`` and
 ``sync_master_info=0`` makes replica to update source status and connection

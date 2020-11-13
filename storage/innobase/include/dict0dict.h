@@ -1704,7 +1704,6 @@ void dict_table_change_id_sys_tables();
 std::string dict_table_get_datadir(const dict_table_t *table)
     MY_ATTRIBUTE((warn_unused_result));
 
-<<<<<<< HEAD
 /** Set is_corrupt flag by space_id */
 void dict_table_set_corrupt_by_space(space_id_t space_id,
                                      bool need_mutex) noexcept;
@@ -1759,8 +1758,7 @@ to check whether it is encrypted.
 bool dict_detect_encryption_of_mysql_ibd(dict_init_mode_t dict_init_mode,
                                          space_id_t mysql_plugin_space,
                                          bool &encrypt_mysql);
-||||||| merged common ancestors
-=======
+
 /** Set the compression type for the tablespace of a table
 @param[in]     table           The table that should be compressed
 @param[in]     algorithm       Text representation of the algorithm
@@ -1768,7 +1766,6 @@ bool dict_detect_encryption_of_mysql_ibd(dict_init_mode_t dict_init_mode,
 dberr_t dict_set_compression(dict_table_t *table, const char *algorithm)
     MY_ATTRIBUTE((warn_unused_result));
 
->>>>>>> upstream/mysql-8.0.22
 #include "dict0dict.ic"
 
 #endif

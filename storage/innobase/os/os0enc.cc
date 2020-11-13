@@ -36,12 +36,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "log0log.h"
 #include "mach0data.h"
 #include "os0file.h"
-<<<<<<< HEAD
-#include "system_key.h"
-||||||| merged common ancestors
-=======
 #include "page0page.h"
->>>>>>> upstream/mysql-8.0.22
+#include "system_key.h"
 #include "ut0crc32.h"
 
 #include <errno.h>
@@ -62,16 +58,12 @@ constexpr char Encryption::KEY_MAGIC_PS_V3[];
 constexpr char Encryption::MASTER_KEY_PREFIX[];
 constexpr char Encryption::DEFAULT_MASTER_KEY[];
 
-<<<<<<< HEAD
 constexpr char Encryption::ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC[];
 constexpr char Encryption::PERCONA_SYSTEM_KEY_PREFIX[];
 
-||||||| merged common ancestors
-=======
 /** Minimum length needed for encryption */
 constexpr size_t MIN_ENCRYPTION_LEN = 2 * MY_AES_BLOCK_SIZE + FIL_PAGE_DATA;
 
->>>>>>> upstream/mysql-8.0.22
 /** Current master key id */
 uint32_t Encryption::s_master_key_id = Encryption::DEFAULT_MASTER_KEY_ID;
 
@@ -626,23 +618,7 @@ bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
   /* Get master key from key ring. For bootstrap, we use a default
   master key which master_key_id is 0. */
   if (encrypt_key) {
-<<<<<<< HEAD
     if (is_boot || strlen(server_uuid) == 0) {
-||||||| merged common ancestors
-    if (is_boot
-#ifndef UNIV_HOTBACKUP
-        || (strlen(server_uuid) == 0)
-#endif
-    ) {
-      master_key_id = 0;
-
-=======
-    if (is_boot
-#ifndef UNIV_HOTBACKUP
-        || (strlen(server_uuid) == 0)
-#endif
-    ) {
->>>>>>> upstream/mysql-8.0.22
       master_key = static_cast<byte *>(ut_zalloc_nokey(KEY_LEN));
 
       ut_ad(KEY_LEN >= sizeof(DEFAULT_MASTER_KEY));
@@ -895,15 +871,7 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
       ut_print_buf_hex(msg, master_key, KEY_LEN);
       msg << "}";
 
-<<<<<<< HEAD
-      ib::info(ER_IB_MSG_838)
-          << "Key ID: " << m_key_id << " hex: {" << msg.str() << "}";
-||||||| merged common ancestors
-      ib::info(ER_IB_MSG_838)
-          << "Key ID: " << key_id << " hex: {" << msg.str() << "}";
-=======
       ib::info(ER_IB_MSG_838) << msg.str();
->>>>>>> upstream/mysql-8.0.22
     }
 #endif /* UNIV_ENCRYPT_DEBUG */
 
@@ -1094,55 +1062,10 @@ bool Encryption::encrypt_log_block(const IORequest &type, byte *src_ptr,
   }
 
 #ifdef UNIV_ENCRYPT_DEBUG
-<<<<<<< HEAD
-  fprintf(stderr, "Encrypted block %u.\n", log_block_get_hdr_no(dst_ptr));
-  std::ostringstream msg;
-  ut_print_buf_hex(msg, dst_ptr, OS_FILE_LOG_BLOCK_SIZE);
-  fprintf(stderr, "%s\n", msg.str().c_str());
-
-  byte *check_buf =
-      static_cast<byte *>(ut_malloc_nokey(OS_FILE_LOG_BLOCK_SIZE));
-  byte *buf2 = static_cast<byte *>(ut_malloc_nokey(OS_FILE_LOG_BLOCK_SIZE));
-
-  memcpy(check_buf, dst_ptr, OS_FILE_LOG_BLOCK_SIZE);
-  log_block_set_encrypt_bit(check_buf, true);
-  dberr_t err = decrypt_log(type, check_buf, OS_FILE_LOG_BLOCK_SIZE, buf2,
-                            OS_FILE_LOG_BLOCK_SIZE);
-  if (err != DB_SUCCESS ||
-      memcmp(src_ptr, check_buf, OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE) !=
-          0) {
-    msg.clear();
-    msg << "\n\n";
-    ut_print_buf_hex(msg, src_ptr, OS_FILE_LOG_BLOCK_SIZE);
-    msg << "\n\n";
-    ut_print_buf_hex(msg, check_buf, OS_FILE_LOG_BLOCK_SIZE);
-    msg << "\n\n";
-    std::string str = msg.str();
-    fprintf(stderr, "%s\n", str.c_str());
-    ut_ad(0);
-||||||| merged common ancestors
-  fprintf(stderr, "Encrypted block %lu.\n", log_block_get_hdr_no(dst_ptr));
-  ut_print_buf_hex(stderr, dst_ptr, OS_FILE_LOG_BLOCK_SIZE);
-  fprintf(stderr, "\n");
-
-  byte *check_buf =
-      static_cast<byte *>(ut_malloc_nokey(OS_FILE_LOG_BLOCK_SIZE));
-  byte *buf2 = static_cast<byte *>(ut_malloc_nokey(OS_FILE_LOG_BLOCK_SIZE));
-
-  memcpy(check_buf, dst_ptr, OS_FILE_LOG_BLOCK_SIZE);
-  dberr_t err = decrypt_log(type, check_buf, OS_FILE_LOG_BLOCK_SIZE, buf2,
-                            OS_FILE_LOG_BLOCK_SIZE);
-  log_block_set_encrypt_bit(check_buf, true);
-  if (err != DB_SUCCESS ||
-      memcmp(src_ptr, check_buf, OS_FILE_LOG_BLOCK_SIZE) != 0) {
-    ut_print_buf_hex(stderr, src_ptr, OS_FILE_LOG_BLOCK_SIZE);
-    ut_print_buf_hex(stderr, check_buf, OS_FILE_LOG_BLOCK_SIZE);
-    ut_ad(0);
-=======
   {
     std::ostringstream os{};
     os << "Encrypted block " << log_block_get_hdr_no(dst_ptr) << "."
-       << std::endl;
+        << std::endl;
     ut_print_buf_hex(os, dst_ptr, OS_FILE_LOG_BLOCK_SIZE);
     os << std::endl;
     ib::info() << os.str();
@@ -1154,20 +1077,19 @@ bool Encryption::encrypt_log_block(const IORequest &type, byte *src_ptr,
     memcpy(check_buf, dst_ptr, OS_FILE_LOG_BLOCK_SIZE);
     log_block_set_encrypt_bit(check_buf, true);
     dberr_t err = decrypt_log(type, check_buf, OS_FILE_LOG_BLOCK_SIZE, buf2,
-                              OS_FILE_LOG_BLOCK_SIZE);
+                                OS_FILE_LOG_BLOCK_SIZE);
     if (err != DB_SUCCESS ||
         memcmp(src_ptr, check_buf, OS_FILE_LOG_BLOCK_SIZE) != 0) {
-      std::ostringstream msg{};
-      ut_print_buf_hex(msg, src_ptr, OS_FILE_LOG_BLOCK_SIZE);
-      ib::error() << msg.str();
+        std::ostringstream msg{};
+        ut_print_buf_hex(msg, src_ptr, OS_FILE_LOG_BLOCK_SIZE);
+        ib::error() << msg.str();
 
-      msg.seekp(0);
-      ut_print_buf_hex(msg, check_buf, OS_FILE_LOG_BLOCK_SIZE);
-      ib::fatal() << msg.str();
+        msg.seekp(0);
+        ut_print_buf_hex(msg, check_buf, OS_FILE_LOG_BLOCK_SIZE);
+        ib::fatal() << msg.str();
     }
     ut_free(buf2);
     ut_free(check_buf);
->>>>>>> upstream/mysql-8.0.22
   }
 #endif /* UNIV_ENCRYPT_DEBUG */
 
@@ -1196,53 +1118,12 @@ byte *Encryption::encrypt_log(const IORequest &type, byte *src, ulint src_len,
     dst_ptr += OS_FILE_LOG_BLOCK_SIZE;
   }
 
-<<<<<<< HEAD
-||||||| merged common ancestors
-#ifdef UNIV_ENCRYPT_DEBUG
-  byte *check_buf = static_cast<byte *>(ut_malloc_nokey(src_len));
-  byte *buf2 = static_cast<byte *>(ut_malloc_nokey(src_len));
-
-  memcpy(check_buf, dst, src_len);
-
-  dberr_t err = decrypt_log(type, check_buf, src_len, buf2, src_len);
-  if (err != DB_SUCCESS || memcmp(src, check_buf, src_len) != 0) {
-    ut_print_buf_hex(stderr, src, src_len);
-    ut_print_buf_hex(stderr, check_buf, src_len);
-    ut_ad(0);
-  }
-  ut_free(buf2);
-  ut_free(check_buf);
-#endif /* UNIV_ENCRYPT_DEBUG */
-
-=======
-#ifdef UNIV_ENCRYPT_DEBUG
-  {
-    byte *check_buf = static_cast<byte *>(ut_malloc_nokey(src_len));
-    byte *buf2 = static_cast<byte *>(ut_malloc_nokey(src_len));
-
-    memcpy(check_buf, dst, src_len);
-
-    dberr_t err = decrypt_log(type, check_buf, src_len, buf2, src_len);
-    if (err != DB_SUCCESS || memcmp(src, check_buf, src_len) != 0) {
-      std::ostringstream msg{};
-      ut_print_buf_hex(msg, src, src_len);
-      ib::error() << msg.str();
-
-      msg.seekp(0);
-      ut_print_buf_hex(msg, check_buf, src_len);
-      ib::fatal() << msg.str();
-    }
-    ut_free(buf2);
-    ut_free(check_buf);
-  }
-#endif /* UNIV_ENCRYPT_DEBUG */
-
->>>>>>> upstream/mysql-8.0.22
   return (dst);
 }
 
 byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
                           byte *dst, ulint *dst_len) noexcept {
+
   ut_ad(m_type != NONE);
   ut_ad(!type.is_log());
 
@@ -1264,6 +1145,7 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
 #endif /* UNIV_ENCRYPT_DEBUG */
   // Destination header might need to acommodate key_version and checksum after
   // encryption
+  const uint16_t page_type = mach_read_from_2(src + FIL_PAGE_TYPE);
   const uint DST_HEADER_SIZE =
       (m_type == KEYRING && page_type == FIL_PAGE_COMPRESSED)
           ? FIL_PAGE_DATA + 8
@@ -1272,38 +1154,7 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
   /* Shouldn't encrypt an already encrypted page. */
   ut_ad(!is_encrypted_page(src));
 
-<<<<<<< HEAD
-  ut_ad(m_type != NONE);
-  ut_ad(m_type != KEYRING || m_key != nullptr);
-||||||| merged common ancestors
-  ut_ad(m_type != NONE);
-=======
-  const uint16_t page_type = mach_read_from_2(src + FIL_PAGE_TYPE);
->>>>>>> upstream/mysql-8.0.22
-
   /* This is data size which need to encrypt. */
-<<<<<<< HEAD
-  if (m_type == KEYRING && page_type == FIL_PAGE_COMPRESSED) {
-    data_len = src_len - DST_HEADER_SIZE;  // We need those 8 bytes for
-                                           // key_version and post-encryption
-                                           // checksum
-  } else if (m_type == KEYRING && !type.is_page_zip_compressed()) {
-    data_len = src_len - DST_HEADER_SIZE - 4;  // For keyring encryption we do
-                                               // not encrypt last four bytes
-                                               // which are equal to the LSN
-                                               // bytes in header
-    // So they are not encrypted anyways
-  } else {
-    data_len = src_len - DST_HEADER_SIZE;
-  }
-
-  main_len = (data_len / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;
-  remain_len = data_len - main_len;
-||||||| merged common ancestors
-  data_len = src_len - FIL_PAGE_DATA;
-  main_len = (data_len / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;
-  remain_len = data_len - main_len;
-=======
   auto src_enc_len = src_len;
 
   /* In FIL_PAGE_VERSION_2, we encrypt the actual compressed data length. */
@@ -1316,7 +1167,7 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
     }
     ut_a(src_enc_len <= src_len);
   }
->>>>>>> upstream/mysql-8.0.22
+
 
   /* Only encrypt the data + trailer, leave the header alone */
 
@@ -1331,22 +1182,21 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
       ut_ad(m_klen == KEY_LEN);
       ut_ad(m_iv != nullptr);
 
-<<<<<<< HEAD
-      elen = my_aes_encrypt(src + FIL_PAGE_DATA, static_cast<uint32>(main_len),
-                            dst + DST_HEADER_SIZE,
-                            reinterpret_cast<unsigned char *>(m_key),
-                            static_cast<uint32>(m_klen), my_aes_256_cbc,
-                            reinterpret_cast<unsigned char *>(m_iv), false);
-||||||| merged common ancestors
-      elen = my_aes_encrypt(src + FIL_PAGE_DATA, static_cast<uint32>(main_len),
-                            dst + FIL_PAGE_DATA,
-                            reinterpret_cast<unsigned char *>(m_key),
-                            static_cast<uint32>(m_klen), my_aes_256_cbc,
-                            reinterpret_cast<unsigned char *>(m_iv), false);
-=======
       /* Total length of the data to encrypt. */
-      const auto data_len = src_enc_len - FIL_PAGE_DATA;
-
+      ulint data_len;
+        if (m_type == KEYRING && page_type == FIL_PAGE_COMPRESSED) {
+            data_len = src_enc_len - DST_HEADER_SIZE;  // We need those 8 bytes for
+                                                // key_version and post-encryption
+                                                // checksum
+        } else if (m_type == KEYRING && !type.is_page_zip_compressed()) {
+            data_len = src_enc_len - DST_HEADER_SIZE - 4;  // For keyring encryption we do
+                                                    // not encrypt last four bytes
+                                                    // which are equal to the LSN
+                                                    // bytes in header
+            // So they are not encrypted anyways
+        } else {
+            data_len = src_enc_len - DST_HEADER_SIZE;
+        }
       /* Server encryption functions expect input data to be in multiples
       of MY_AES_BLOCK SIZE. Therefore we encrypt the overlapping data of
       the chunk_len and trailer_len twice. First we encrypt the bigger
@@ -1360,10 +1210,9 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
 
       auto elen =
           my_aes_encrypt(src + FIL_PAGE_DATA, static_cast<uint32>(chunk_len),
-                         dst + FIL_PAGE_DATA, reinterpret_cast<byte *>(m_key),
+                         dst + DST_HEADER_SIZE, reinterpret_cast<byte *>(m_key),
                          static_cast<uint32>(m_klen), my_aes_256_cbc,
                          reinterpret_cast<byte *>(m_iv), false);
->>>>>>> upstream/mysql-8.0.22
 
       if (elen == MY_AES_BAD_DATA) {
         const auto page_id = page_get_page_id(src);
@@ -1373,47 +1222,21 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
         return src;
       }
 
-<<<<<<< HEAD
-      len = static_cast<ulint>(elen);
-      ut_ad(len == main_len);
-
-      /* Copy remain bytes and page tailer. */
-      memcpy(dst + DST_HEADER_SIZE + len, src + FIL_PAGE_DATA + len,
-             src_len - FIL_PAGE_DATA - len);
-||||||| merged common ancestors
-      len = static_cast<ulint>(elen);
-      ut_ad(len == main_len);
-
-      /* Copy remain bytes and page tailer. */
-      memcpy(dst + FIL_PAGE_DATA + len, src + FIL_PAGE_DATA + len,
-             src_len - FIL_PAGE_DATA - len);
-=======
       const auto len = static_cast<size_t>(elen);
       ut_a(len == chunk_len);
->>>>>>> upstream/mysql-8.0.22
 
       /* Encrypt the trailing bytes. */
       if (remain_len != 0) {
         /* Copy remaining bytes and page tailer. */
-        memcpy(dst + FIL_PAGE_DATA + len, src + FIL_PAGE_DATA + len,
+        memcpy(dst + DST_HEADER_SIZE + len, src + FIL_PAGE_DATA + len,
                remain_len);
 
-<<<<<<< HEAD
-        elen = my_aes_encrypt(dst + DST_HEADER_SIZE + data_len - remain_len,
-                              static_cast<uint32>(remain_len), remain_buf,
-                              reinterpret_cast<unsigned char *>(m_key),
-||||||| merged common ancestors
-        elen = my_aes_encrypt(dst + FIL_PAGE_DATA + data_len - remain_len,
-                              static_cast<uint32>(remain_len), remain_buf,
-                              reinterpret_cast<unsigned char *>(m_key),
-=======
         constexpr size_t trailer_len = MY_AES_BLOCK_SIZE * 2;
         byte buf[trailer_len];
 
-        elen = my_aes_encrypt(dst + FIL_PAGE_DATA + data_len - trailer_len,
+        elen = my_aes_encrypt(dst + DST_HEADER_SIZE + data_len - trailer_len,
                               static_cast<uint32>(trailer_len), buf,
                               reinterpret_cast<byte *>(m_key),
->>>>>>> upstream/mysql-8.0.22
                               static_cast<uint32>(m_klen), my_aes_256_cbc,
                               reinterpret_cast<byte *>(m_iv), false);
 
@@ -1425,17 +1248,9 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
           return src;
         }
 
-<<<<<<< HEAD
-        memcpy(dst + DST_HEADER_SIZE + data_len - remain_len, remain_buf,
-               remain_len);
-||||||| merged common ancestors
-        memcpy(dst + FIL_PAGE_DATA + data_len - remain_len, remain_buf,
-               remain_len);
-=======
         ut_a(static_cast<size_t>(elen) == trailer_len);
 
-        memcpy(dst + FIL_PAGE_DATA + data_len - trailer_len, buf, trailer_len);
->>>>>>> upstream/mysql-8.0.22
+        memcpy(dst + DST_HEADER_SIZE + data_len - trailer_len, buf, trailer_len);
       }
 
       break;
@@ -1463,30 +1278,13 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
     mach_write_to_2(dst + FIL_PAGE_TYPE, FIL_PAGE_ENCRYPTED);
     mach_write_to_2(dst + FIL_PAGE_ORIGINAL_TYPE_V1, page_type);
   }
-
-<<<<<<< HEAD
   if (m_type == KEYRING) {
     /* assign key version to page and for master key to keyring rotation
      * assign post encryption checksum */
     m_checksum = 0;
-||||||| merged common ancestors
-#ifdef UNIV_ENCRYPT_DEBUG
-  byte *check_buf = static_cast<byte *>(ut_malloc_nokey(src_len));
-  byte *buf2 = static_cast<byte *>(ut_malloc_nokey(src_len));
-=======
-  /* Add padding 0 for unused portion */
-  if (src_len > src_enc_len) {
-    memset(dst + src_enc_len, 0, src_len - src_enc_len);
-  }
-
-#ifdef UNIV_ENCRYPT_DEBUG
-  auto *buf2 = static_cast<byte *>(ut_malloc_nokey(src_len));
-  auto *check_buf = static_cast<byte *>(ut_malloc_nokey(src_len));
->>>>>>> upstream/mysql-8.0.22
 
     ut_ad(*dst_len == src_len);
 
-<<<<<<< HEAD
     if (page_type == FIL_PAGE_COMPRESSED) {
       memset(
           dst + FIL_PAGE_DATA, 0,
@@ -1536,31 +1334,8 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
               type.is_compressed()));  // This works only for not zipped
                                        // compressed pages
 #endif
-||||||| merged common ancestors
-  dberr_t err = decrypt(type, check_buf, src_len, buf2, src_len);
-  if (err != DB_SUCCESS ||
-      memcmp(src + FIL_PAGE_DATA, check_buf + FIL_PAGE_DATA,
-             src_len - FIL_PAGE_DATA) != 0) {
-    ut_print_buf(stderr, src, src_len);
-    ut_print_buf(stderr, check_buf, src_len);
-    ut_ad(0);
-=======
-  auto err = decrypt(type, check_buf, src_len, buf2, src_len);
-  if (err != DB_SUCCESS ||
-      memcmp(src + FIL_PAGE_DATA, check_buf + FIL_PAGE_DATA,
-             src_len - FIL_PAGE_DATA) != 0) {
-    std::ostringstream msg{};
-    ut_print_buf(msg, src, src_len);
-    ib::error() << msg.str();
-
-    msg.seekp(0);
-
-    ut_print_buf(msg, check_buf, src_len);
-    ib::fatal() << msg.str();
->>>>>>> upstream/mysql-8.0.22
   }
 
-<<<<<<< HEAD
 #ifdef UNIV_ENCRYPT_DEBUG
 #ifndef UNIV_INNOCHECKSUM
   if (m_type == KEYRING) {
@@ -1620,25 +1395,14 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
   fprintf(stderr, "Encrypted page:%lu.%lu\n", space_id, page_no);
 
 #endif
-||||||| merged common ancestors
-  fprintf(stderr, "Encrypted page:%lu.%lu\n", space_id, page_no);
-=======
-  ib::info() << "Encrypted page: " << page_id;
->>>>>>> upstream/mysql-8.0.22
 #endif /* UNIV_ENCRYPT_DEBUG */
 
   *dst_len = src_len;
 
-<<<<<<< HEAD
 #if !defined(UNIV_INNOCHECKSUM)
   srv_stats.pages_encrypted.inc();
 #endif
-  return (dst);
-||||||| merged common ancestors
-  return (dst);
-=======
   return dst;
->>>>>>> upstream/mysql-8.0.22
 }
 
 dberr_t Encryption::decrypt_log_block(const IORequest &type, byte *src,
@@ -1732,16 +1496,6 @@ dberr_t Encryption::decrypt_log_block(const IORequest &type, byte *src,
   ptr -= LOG_BLOCK_HDR_SIZE;
 
 #ifdef UNIV_ENCRYPT_DEBUG
-<<<<<<< HEAD
-  fprintf(stderr, "Decrypted block %u.\n", log_block_get_hdr_no(ptr));
-  std::ostringstream msg;
-  ut_print_buf_hex(msg, ptr, OS_FILE_LOG_BLOCK_SIZE);
-  fprintf(stderr, "%s\n", msg.str().c_str());
-||||||| merged common ancestors
-  fprintf(stderr, "Decrypted block %lu.\n", log_block_get_hdr_no(ptr));
-  ut_print_buf_hex(stderr, ptr, OS_FILE_LOG_BLOCK_SIZE);
-  fprintf(stderr, "\n");
-=======
   {
     std::ostringstream msg{};
     msg << "Decrypted block " << log_block_get_hdr_no(ptr) << "." << std::endl;
@@ -1749,7 +1503,6 @@ dberr_t Encryption::decrypt_log_block(const IORequest &type, byte *src,
     msg << std::endl;
     ib::info() << msg.str();
   }
->>>>>>> upstream/mysql-8.0.22
 #endif
 
   /* Reset the encrypted flag. */
@@ -1791,22 +1544,7 @@ dberr_t Encryption::decrypt_log(const IORequest &type, byte *src, ulint src_len,
       ut_print_buf_hex(msg, ptr, OS_FILE_LOG_BLOCK_SIZE);
       msg << std::endl << "}";
 
-<<<<<<< HEAD
-      ib::info(ER_IB_MSG_847)
-          << "Decrypting block: " << log_block_get_hdr_no(ptr) << "\n"
-          << "data={"
-          << "\n"
-          << msg.str() << "\n"
-          << "}";
-||||||| merged common ancestors
-      ib::info(ER_IB_MSG_847)
-          << "Decrypting block: " << log_block_get_hdr_no(ptr) << std::endl
-          << "data={" << std::endl
-          << msg.str << std::endl
-          << "}";
-=======
       ib::info(ER_IB_MSG_847) << msg.str();
->>>>>>> upstream/mysql-8.0.22
     }
 #endif /* UNIV_ENCRYPT_DEBUG */
 
@@ -1872,20 +1610,9 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
   }
 
 #ifdef UNIV_ENCRYPT_DEBUG
-<<<<<<< HEAD
-  auto space_id = mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
-
-  auto page_no = mach_read_from_4(src + FIL_PAGE_OFFSET);
-||||||| merged common ancestors
-  {
-    auto space_id = mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
-
-    auto page_no = mach_read_from_4(src + FIL_PAGE_OFFSET);
-=======
   const page_id_t page_id(
       mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID),
       mach_read_from_4(src + FIL_PAGE_OFFSET));
->>>>>>> upstream/mysql-8.0.22
 
   {
     std::ostringstream msg;
@@ -2111,7 +1838,6 @@ byte *Encryption::get_initial_vector() const { return m_iv; }
 
 void Encryption::set_initial_vector(byte *iv) { m_iv = iv; }
 
-<<<<<<< HEAD
 byte *Encryption::get_tablespace_key() const { return m_tablespace_key; }
 
 void Encryption::set_tablespace_key(byte *tablespace_key) {
@@ -2148,7 +1874,7 @@ void Encryption::set_encryption_rotation(
   m_encryption_rotation = encryption_rotation;
 }
 
-ulint Encryption::get_master_key_id() { return s_master_key_id; }
+uint32_t Encryption::get_master_key_id() { return s_master_key_id; }
 
 bool Encryption::dblwr_encrypt_page(fil_space_t *space, page_t *in_page,
                                     file::Block_ptr &enc_block,
@@ -2286,8 +2012,3 @@ bool os_dblwr_encrypt_page(space_id_t space_id, page_t *in_page,
 
   return (success);
 }
-||||||| merged common ancestors
-ulint Encryption::get_master_key_id() { return s_master_key_id; }
-=======
-uint32_t Encryption::get_master_key_id() { return s_master_key_id; }
->>>>>>> upstream/mysql-8.0.22

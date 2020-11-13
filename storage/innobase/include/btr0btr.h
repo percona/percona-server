@@ -201,32 +201,7 @@ buf_block_t *btr_block_get_func(const page_id_t &page_id,
 @return the block descriptor */
 #define btr_block_get(page_id, page_size, mode, index, mtr) \
   btr_block_get_func(page_id, page_size, mode, __FILE__, __LINE__, index, mtr)
-<<<<<<< HEAD
-||||||| merged common ancestors
-#else /* UNIV_DEBUG */
-/** Gets a buffer page and declares its latching order level.
-@param page_id tablespace/page identifier
-@param page_size page size
-@param mode latch mode
-@param index index tree, may be NULL if not the insert buffer tree
-@param mtr mini-transaction handle
-@return the block descriptor */
-#define btr_block_get(page_id, page_size, mode, index, mtr) \
-  btr_block_get_func(page_id, page_size, mode, __FILE__, __LINE__, mtr)
-#endif /* UNIV_DEBUG */
-=======
-#else /* UNIV_DEBUG */
-/** Gets a buffer page and declares its latching order level.
-@param page_id Tablespace/page identifier
-@param page_size Page size
-@param mode Latch mode
-@param index Index tree, may be NULL if not the insert buffer tree
-@param mtr Mini-transaction handle
-@return the block descriptor */
-#define btr_block_get(page_id, page_size, mode, index, mtr) \
-  btr_block_get_func(page_id, page_size, mode, __FILE__, __LINE__, mtr)
-#endif /* UNIV_DEBUG */
->>>>>>> upstream/mysql-8.0.22
+
 /** Gets a buffer page and declares its latching order level.
 @param page_id Tablespace/page identifier
 @param page_size Page size

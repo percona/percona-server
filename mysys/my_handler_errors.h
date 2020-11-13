@@ -123,14 +123,8 @@ static const char *handler_error_messages[] = {
     "Invalid table name",
     "Path is too long for the OS",
     "Histogram sampling initialization failed",
-<<<<<<< HEAD
-    "Destination schema does not exist",
-};
-||||||| merged common ancestors
-};
-=======
-    "Too many nested sub-expressions in a full-text search"};
->>>>>>> upstream/mysql-8.0.22
+    "Too many nested sub-expressions in a full-text search",
+    "Destination schema does not exist"};
 
 extern void my_handler_error_register(void);
 extern void my_handler_error_unregister(void);

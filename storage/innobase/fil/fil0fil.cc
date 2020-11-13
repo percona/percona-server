@@ -1094,20 +1094,6 @@ class Fil_shard {
   dberr_t space_delete(space_id_t space_id, buf_remove_t buf_remove)
       MY_ATTRIBUTE((warn_unused_result));
 
-<<<<<<< HEAD
-  /** Create a space memory object and put it to the fil_system hash
-  table. The tablespace name is independent from the tablespace file-name.
-||||||| merged common ancestors
-  /** Truncate the tablespace to needed size.
-  @param[in]	space_id	Tablespace ID to truncate
-  @param[in]	size_in_pages	Truncate size.
-  @return true if truncate was successful. */
-  bool space_truncate(space_id_t space_id, page_no_t size_in_pages)
-      MY_ATTRIBUTE((warn_unused_result));
-
-  /** Create a space memory object and put it to the fil_system hash
-  table. The tablespace name is independent from the tablespace file-name.
-=======
   /** Truncate the tablespace to needed size.
   @param[in]	space_id	Tablespace ID to truncate
   @param[in]	size_in_pages	Truncate size.
@@ -1117,7 +1103,6 @@ class Fil_shard {
 
   /** Create a space memory object and put it to the fil_system hash table.
   The tablespace name is independent from the tablespace file-name.
->>>>>>> upstream/mysql-8.0.22
   Error messages are issued to the server log.
   @param[in]	name		Tablespace name
   @param[in]	space_id	Tablespace identifier
@@ -1292,17 +1277,6 @@ class Fil_shard {
   fil_space_t *get_reserved_space(space_id_t space_id)
       MY_ATTRIBUTE((warn_unused_result));
 
-<<<<<<< HEAD
-||||||| merged common ancestors
-  /** Prepare for truncating a single-table tablespace.
-  1) Check pending operations on a tablespace;
-  2) Remove all insert buffer entries for the tablespace;
-  @param[in]	space_id	Tablespace ID
-  @return DB_SUCCESS or error */
-  dberr_t space_prepare_for_truncate(space_id_t space_id)
-      MY_ATTRIBUTE((warn_unused_result));
-
-=======
   /** Prepare for truncating a single-table tablespace.
   1) Wait for pending operations on the tablespace to stop;
   2) Remove all insert buffer entries for the tablespace;
@@ -1311,7 +1285,6 @@ class Fil_shard {
   dberr_t space_prepare_for_truncate(space_id_t space_id)
       MY_ATTRIBUTE((warn_unused_result));
 
->>>>>>> upstream/mysql-8.0.22
   /** Note that a write IO has completed.
   @param[in,out]	file		File on which a write was
                                   completed */
@@ -5081,90 +5054,6 @@ dberr_t fil_delete_tablespace(space_id_t space_id, buf_remove_t buf_remove) {
   return (shard->space_delete(space_id, buf_remove));
 }
 
-<<<<<<< HEAD
-||||||| merged common ancestors
-/** Prepare for truncating a single-table tablespace.
-1) Check pending operations on a tablespace;
-2) Remove all insert buffer entries for the tablespace;
-@param[in]	space_id	Tablespace ID
-@return DB_SUCCESS or error */
-dberr_t Fil_shard::space_prepare_for_truncate(space_id_t space_id) {
-  char *path = nullptr;
-  fil_space_t *space = nullptr;
-
-  ut_ad(space_id != TRX_SYS_SPACE);
-  ut_ad(!fsp_is_system_tablespace(space_id));
-  ut_ad(!fsp_is_global_temporary(space_id));
-  ut_ad(fsp_is_undo_tablespace(space_id) || fsp_is_session_temporary(space_id));
-
-  dberr_t err = space_check_pending_operations(space_id, space, &path);
-
-  ut_free(path);
-
-  return (err);
-}
-
-/** Truncate the tablespace to needed size.
-@param[in]	space_id	Tablespace ID to truncate
-@param[in]	size_in_pages	Truncate size.
-@return true if truncate was successful. */
-bool Fil_shard::space_truncate(space_id_t space_id, page_no_t size_in_pages) {
-  /* Step-1: Prepare tablespace for truncate. This involves
-  stopping all the new operations + IO on that tablespace
-  and ensuring that related pages are flushed to disk. */
-  if (space_prepare_for_truncate(space_id) != DB_SUCCESS) {
-    return (false);
-  }
-
-#ifndef UNIV_HOTBACKUP
-  /* Step-2: Invalidate buffer pool pages belonging to the tablespace
-  to re-create. Remove all insert buffer entries for the tablespace */
-  buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_ALL_NO_WRITE, nullptr);
-#endif /* !UNIV_HOTBACKUP */
-
-  /* Step-3: Truncate the tablespace and accordingly update
-  the fil_space_t handler that is used to access this tablespace. */
-  mutex_acquire();
-
-  fil_space_t *space = get_space_by_id(space_id);
-
-  ut_a(space->files.size() == 1);
-
-  fil_node_t &file = space->files.front();
-
-  ut_ad(file.is_open);
-
-  space->size = file.size = size_in_pages;
-
-  bool success = os_file_truncate(file.name, file.handle, 0);
-
-  if (success) {
-    os_offset_t size = size_in_pages * UNIV_PAGE_SIZE;
-
-    success = os_file_set_size(file.name, file.handle, 0, size,
-                               srv_read_only_mode, true);
-
-    if (success) {
-      space->stop_new_ops = false;
-    }
-  }
-
-  mutex_release();
-
-  return (success);
-}
-
-/** Truncate the tablespace to needed size.
-@param[in]	space_id	Tablespace ID to truncate
-@param[in]	size_in_pages	Truncate size.
-@return true if truncate was successful. */
-bool fil_truncate_tablespace(space_id_t space_id, page_no_t size_in_pages) {
-  auto shard = fil_system->shard_by_id(space_id);
-
-  return (shard->space_truncate(space_id, size_in_pages));
-}
-
-=======
 dberr_t Fil_shard::space_prepare_for_truncate(space_id_t space_id) {
   char *path = nullptr;
   fil_space_t *space = nullptr;
@@ -5241,7 +5130,6 @@ bool fil_truncate_tablespace(space_id_t space_id, page_no_t size_in_pages) {
   return (shard->space_truncate(space_id, size_in_pages));
 }
 
->>>>>>> upstream/mysql-8.0.22
 #ifdef UNIV_DEBUG
 /** Increase redo skipped count for a tablespace.
 @param[in]	space_id	Tablespace ID */
@@ -9442,20 +9330,16 @@ struct Fil_page_iterator {
 
   /** Encruption iv */
   byte *m_encryption_iv;
-<<<<<<< HEAD
 
   uint m_encryption_key_version;
   uint m_encryption_key_id;
   fil_space_crypt_t *m_crypt_data; /*!< Crypt data (if encrypted) */
-||||||| merged common ancestors
-=======
 
   /** FS Block Size */
   size_t block_size;
 
   /** Compression algorithm to be used if the table needs to be compressed. */
   Compression::Type m_compression_type{Compression::NONE};
->>>>>>> upstream/mysql-8.0.22
 };
 
 /** TODO: This can be made parallel trivially by chunking up the file
@@ -9528,13 +9412,7 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
         iter.m_crypt_data != NULL &&
         iter.m_crypt_data->type != CRYPT_SCHEME_UNENCRYPTED;
     dberr_t err;
-<<<<<<< HEAD
-||||||| merged common ancestors
-    IORequest read_request(read_type);
-=======
-    IORequest read_request(read_type);
     read_request.block_size(iter.block_size);
->>>>>>> upstream/mysql-8.0.22
 
     /* For encrypted table, set encryption information. */
 
@@ -9845,21 +9723,9 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
     iter.m_page_size = callback.get_page_size().physical();
     iter.block_size = block_size;
 
-    /* Set encryption info. */
-<<<<<<< HEAD
-||||||| merged common ancestors
-    iter.m_encryption_key = table->encryption_key;
-    iter.m_encryption_iv = table->encryption_iv;
-
-    /* Check encryption is matched or not. */
-=======
-    iter.m_encryption_key = table->encryption_key;
-    iter.m_encryption_iv = table->encryption_iv;
-
     iter.m_compression_type = compression_type;
 
     /* Check encryption is matched or not. */
->>>>>>> upstream/mysql-8.0.22
     ulint space_flags = callback.get_space_flags();
     iter.m_crypt_data =
         fil_space_read_crypt_data(callback.get_page_size(), page);
@@ -10278,23 +10144,6 @@ dberr_t fil_reset_encryption(space_id_t space_id) {
 }
 
 #ifndef UNIV_HOTBACKUP
-<<<<<<< HEAD
-/** Rotate the tablespace keys by new master key.
-@param[in,out]	shard		Rotate the keys in this shard
-@return true if the re-encrypt succeeds */
-bool Fil_system::encryption_rotate_in_a_shard(Fil_shard *shard) {
-  for (auto &elem : shard->m_spaces) {
-    auto space = elem.second;
-||||||| merged common ancestors
-/** Rotate the tablespace keys by new master key.
-@param[in,out]	shard		Rotate the keys in this shard
-@return true if the re-encrypt succeeds */
-bool Fil_system::encryption_rotate_in_a_shard(Fil_shard *shard) {
-  byte encrypt_info[Encryption::INFO_SIZE];
-
-  for (auto &elem : shard->m_spaces) {
-    auto space = elem.second;
-=======
 bool Fil_shard::needs_encryption_rotate(fil_space_t *space) {
   /* We only rotate if encryption is already set. */
   if (space->encryption_type == Encryption::NONE) {
@@ -10306,49 +10155,23 @@ bool Fil_shard::needs_encryption_rotate(fil_space_t *space) {
   if (space->is_deleted()) {
     return false;
   }
->>>>>>> upstream/mysql-8.0.22
 
-<<<<<<< HEAD
     /* Skip if space is not master encrypted */
 
     if (space->encryption_type != Encryption::AES) {
-      continue;
+      return false;
     }
 
     /* Skip unencypted tablespaces. Encrypted redo log
     tablespaces is handled in function log_rotate_encryption.
     Skip session temporary tablespaces. They are handled separately
     by ibt::Tablespace_pool::rotate_encryption_keys() */
-||||||| merged common ancestors
-    /* Skip unencypted tablespaces. Encrypted redo log
-    tablespaces is handled in function log_rotate_encryption. */
-=======
   /* Skip unencypted tablespaces. Encrypted redo log
   tablespaces is handled in function log_rotate_encryption. */
   if (fsp_is_system_or_temp_tablespace(space->id) ||
       space->purpose == FIL_TYPE_LOG) {
     return false;
   }
->>>>>>> upstream/mysql-8.0.22
-
-<<<<<<< HEAD
-    if (fsp_is_system_tablespace(space->id) || space->purpose == FIL_TYPE_LOG ||
-        fsp_is_session_temporary(space->id)) {
-      continue;
-    }
-||||||| merged common ancestors
-    if (fsp_is_system_or_temp_tablespace(space->id) ||
-        space->purpose == FIL_TYPE_LOG) {
-      continue;
-    }
-=======
-  /* Skip the tablespace when it's in default key status,
-  since it's the first server startup after bootstrap,
-  and the server uuid is not ready yet. */
-  if (Encryption::get_master_key_id() == Encryption::DEFAULT_MASTER_KEY_ID) {
-    return false;
-  }
->>>>>>> upstream/mysql-8.0.22
 
   DBUG_EXECUTE_IF(
       "ib_encryption_rotate_skip",
@@ -10375,85 +10198,18 @@ size_t Fil_shard::encryption_rotate(size_t *rotate_count) {
       continue;
     }
 
-<<<<<<< HEAD
     /* Skip the temporary tablespace when it's in default key status,
     since it's the first server startup after bootstrap, and the
     server uuid is not ready yet. */
     if (fsp_is_system_temporary(space->id) &&
         Encryption::get_master_key_id() == Encryption::DEFAULT_MASTER_KEY_ID)
       continue;
-||||||| merged common ancestors
-    /* Rotate the encrypted tablespaces. */
-    if (space->encryption_type != Encryption::NONE) {
-      memset(encrypt_info, 0, Encryption::INFO_SIZE);
 
-      /* Take MDL on UNDO tablespace to make it mutually exclusive with
-      UNDO tablespace truncation. For other tablespaces MDL is not required
-      here. */
-      MDL_ticket *mdl_ticket = nullptr;
-      if (fsp_is_undo_tablespace(space->id)) {
-        THD *thd = current_thd;
-        while (
-            acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout)) {
-          os_thread_sleep(20);
-        }
-=======
     spaces2rotate.push_back(space);
   }
->>>>>>> upstream/mysql-8.0.22
 
-<<<<<<< HEAD
-    /* Take MDL on UNDO tablespace to make it mutually exclusive with
-    UNDO tablespace truncation. For other tablespaces MDL is not required
-    here. */
-    MDL_ticket *mdl_ticket = nullptr;
-    if (fsp_is_undo_tablespace(space->id)) {
-      THD *thd = current_thd;
-      while (
-          acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout)) {
-        os_thread_sleep(20);
-      }
-||||||| merged common ancestors
-        while (dd::acquire_exclusive_tablespace_mdl(thd, space->name, false,
-                                                    &mdl_ticket, false)) {
-          os_thread_sleep(20);
-        }
-        ut_ad(mdl_ticket != nullptr);
-      }
-=======
   mutex_release();
->>>>>>> upstream/mysql-8.0.22
 
-<<<<<<< HEAD
-      while (dd::acquire_exclusive_tablespace_mdl(thd, space->name, false,
-                                                  &mdl_ticket, false)) {
-        os_thread_sleep(20);
-      }
-      ut_ad(mdl_ticket != nullptr);
-    }
-
-    /* Rotate the encrypted tablespaces. */
-    bool success = encryption_rotate_low(space);
-
-    if (mdl_ticket != nullptr) {
-      dd_release_mdl(mdl_ticket);
-    }
-
-    if (!success) {
-      return (false);
-||||||| merged common ancestors
-      mtr_t mtr;
-      mtr_start(&mtr);
-      bool ret = fsp_header_rotate_encryption(space, encrypt_info, &mtr);
-      mtr_commit(&mtr);
-
-      if (mdl_ticket != nullptr) {
-        dd_release_mdl(mdl_ticket);
-      }
-      if (!ret) {
-        return (false);
-      }
-=======
   /* We can now be assured that each fil_space_t collected above will not be
   deleted below (outside the shard mutex protection) because:
   1. The caller, Rotate_innodb_master_key::execute(), holds an exclusive
@@ -10476,7 +10232,6 @@ size_t Fil_shard::encryption_rotate(size_t *rotate_count) {
       ++(*rotate_count);
     } else {
       ++fail_count;
->>>>>>> upstream/mysql-8.0.22
     }
   }
 
@@ -11581,7 +11336,6 @@ byte *fil_tablespace_redo_create(byte *ptr, const byte *end,
 
 #else  /* !UNIV_HOTBACKUP */
 
-<<<<<<< HEAD
   /* The first condition is true during normal server operation, the
   second one during server startup after
   recv_recovery_from_checkpoint_start has completed. */
@@ -11592,13 +11346,8 @@ byte *fil_tablespace_redo_create(byte *ptr, const byte *end,
     return (ptr);
   }
 
-  const auto result = fil_system->get_scanned_files(page_id.space());
-||||||| merged common ancestors
-  const auto result = fil_system->get_scanned_files(page_id.space());
-=======
   const auto result =
       fil_system->get_scanned_filename_by_space_id(page_id.space());
->>>>>>> upstream/mysql-8.0.22
 
   if (result.second == nullptr) {
     /* No file maps to this tablespace ID. It's possible that
@@ -11973,7 +11722,6 @@ byte *fil_tablespace_redo_delete(byte *ptr, const byte *end,
 
 #else  /* !UNIV_HOTBACKUP */
 
-<<<<<<< HEAD
   /* The first condition is true during normal server operation, the
   second one during server startup after
   recv_recovery_from_checkpoint_start has completed. */
@@ -11984,13 +11732,8 @@ byte *fil_tablespace_redo_delete(byte *ptr, const byte *end,
     return (ptr);
   }
 
-  const auto result = fil_system->get_scanned_files(page_id.space());
-||||||| merged common ancestors
-  const auto result = fil_system->get_scanned_files(page_id.space());
-=======
   const auto result =
       fil_system->get_scanned_filename_by_space_id(page_id.space());
->>>>>>> upstream/mysql-8.0.22
 
   recv_sys->deleted.insert(page_id.space());
   recv_sys->missing_ids.erase(page_id.space());

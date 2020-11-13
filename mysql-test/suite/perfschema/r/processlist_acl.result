@@ -105,33 +105,33 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 # Information Schema processlist table
 
 select * from information_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_all	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id
-<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
+<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	1	10
+<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id	<Time_ms>	0	0
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)	<Time_ms>	0	0
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	<Time_ms>	0	0
 
 # Legacy SHOW PROCESSLIST
 set @@global.performance_schema_show_processlist = off;
 
 SHOW FULL PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_all	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST
-<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2
+Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	0
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0
+<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	10
+<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST	<Time_ms>	0
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)	<Time_ms>	0
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	<Time_ms>	0
 
 # Performance Schema processlist table
 
@@ -151,17 +151,17 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 # Information Schema processlist table
 
 select * from information_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_all	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id
-<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
+<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	1	10
+<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id	<Time_ms>	0	0
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)	<Time_ms>	0	0
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	<Time_ms>	0	0
 
 
 ### Execute SHOW PROCESSLIST with no SELECT and no PROCESS privileges
@@ -191,11 +191,11 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 # Information Schema processlist table
 
 select * from information_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id	<Time_ms>	0	0
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	<Time_ms>	0	0
 
 # Confirm that only processes from user_none are visible
 
@@ -210,11 +210,11 @@ set @@global.performance_schema_show_processlist = off;
 # Connection con_none_1
 
 SHOW FULL PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2
+Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST	<Time_ms>	0
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	<Time_ms>	0
 
 # Performance Schema processlist table
 
@@ -228,11 +228,11 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 # Information Schema processlist table
 
 select * from information_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id	<Time_ms>	0	0
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	<Time_ms>	0	0
 
 
 ### Clean up ###

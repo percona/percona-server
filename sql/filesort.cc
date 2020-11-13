@@ -446,30 +446,8 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
 
   thd->inc_status_sort_scan();
 
-<<<<<<< HEAD
   thd->query_plan_flags |= QPLAN_FILESORT;
 
-  if (table->file->inited) {
-    if (table->s->tmp_table)
-      table->file->info(HA_STATUS_VARIABLE);  // Get record count
-    num_rows_estimate = table->file->estimate_rows_upper_bound();
-  } else {
-    // If number of rows is not known, use as much of sort buffer as possible.
-    num_rows_estimate = HA_POS_ERROR;
-  }
-
-||||||| merged common ancestors
-  if (table->file->inited) {
-    if (table->s->tmp_table)
-      table->file->info(HA_STATUS_VARIABLE);  // Get record count
-    num_rows_estimate = table->file->estimate_rows_upper_bound();
-  } else {
-    // If number of rows is not known, use as much of sort buffer as possible.
-    num_rows_estimate = HA_POS_ERROR;
-  }
-
-=======
->>>>>>> upstream/mysql-8.0.22
   Bounded_queue<uchar *, uchar *, Sort_param, Mem_compare_queue_key> pq(
       param->max_record_length(),
       (Malloc_allocator<uchar *>(key_memory_Filesort_info_record_pointers)));

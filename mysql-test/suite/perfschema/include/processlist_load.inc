@@ -13,27 +13,27 @@
 #   --source ../include/processlist_load.inc
 #
 #   Columns
-#   1 <Id> 2 <User> 3 <Host> 4 <db> 5 <Command> 6 <Time> 7 <State> 8 <Info>
+#   1 <Id> 2 <User> 3 <Host> 4 <db> 5 <Command> 6 <Time> 7 <State> 8 <Info> 9 <Time_ms>
 
 # Sort SHOW PROCESSLIST by User instead of Id because Id is not zero-padded
 # Unique usernames give best results
 --echo
 --partially_sorted_result 2
---replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State>
+--replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State> 9 <Time_ms>
 --replace_regex /Daemon/<Command>/ /Connect/<Command>/ /Sleep/<Command>/
 SHOW FULL PROCESSLIST;
 
 --echo
 --echo # Performance Schema processlist table
 --echo
---replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State>
+--replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State> 9 <Time_ms>
 --replace_regex /Daemon/<Command>/ /Connect/<Command>/ /Sleep/<Command>/
 select * from performance_schema.processlist order by user, id;
 
 --echo
 --echo # Information Schema processlist table
 --echo
---replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State>
+--replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State> 9 <Time_ms>
 --replace_regex /Daemon/<Command>/ /Connect/<Command>/ /Sleep/<Command>/
 select * from information_schema.processlist order by user, id;
 

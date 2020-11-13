@@ -193,19 +193,13 @@ ulong thd_lock_wait_timeout(THD *thd); /*!< in: thread handle, or NULL to query
 void thd_set_lock_wait_time(THD *thd,     /*!< in/out: thread handle */
                             ulint value); /*!< in: time waited for the lock */
 
-<<<<<<< HEAD
 /** Is FT ignore stopwords variable set.
 @param thd Thread object
 @return true if ft_ignore_stopwords is set, false otherwise. */
 MY_NODISCARD
 bool thd_has_ft_ignore_stopwords(THD *thd) noexcept;
 
-/** Get status of innodb_tmpdir.
-||||||| merged common ancestors
-/** Get status of innodb_tmpdir.
-=======
 /** Get the value of innodb_tmpdir.
->>>>>>> upstream/mysql-8.0.22
 @param[in]	thd	thread handle, or NULL to query
                         the global innodb_tmpdir.
 @retval NULL if innodb_tmpdir="" */

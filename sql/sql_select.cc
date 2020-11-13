@@ -187,31 +187,13 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
   if (thd->lex->set_var_list.elements && resolve_var_assignments(thd, lex))
     goto err;
 
-<<<<<<< HEAD
-  if (single_query) {
-    DBUG_ASSERT(unit->cleaned == SELECT_LEX_UNIT::UC_DIRTY);
-    if (unit->prepare_limit(thd, unit->global_parameters()))
-      goto err; /* purecov: inspected */
-
-    select->context.resolve_in_select_list = true;
-    select->set_query_result(result);
-    select->make_active_options(added_options, removed_options);
-||||||| merged common ancestors
-  if (single_query) {
-    if (unit->prepare_limit(thd, unit->global_parameters()))
-      goto err; /* purecov: inspected */
-
-    select->context.resolve_in_select_list = true;
-    select->set_query_result(result);
-    select->make_active_options(added_options, removed_options);
-=======
   if (!unit->is_prepared()) {
     Prepared_stmt_arena_holder ps_arena_holder(thd);
     if (single_query) {
+      DBUG_ASSERT(unit->cleaned == SELECT_LEX_UNIT::UC_DIRTY);
       select->context.resolve_in_select_list = true;
       select->set_query_result(result);
       select->make_active_options(added_options, removed_options);
->>>>>>> upstream/mysql-8.0.22
 
       if (select->prepare(thd, nullptr)) goto err;
 

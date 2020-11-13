@@ -41,46 +41,6 @@ struct Key : IKey {
   ~Key() override;
 
   bool load_from_buffer(uchar *buffer, size_t *buffer_position,
-<<<<<<< HEAD
-                        size_t input_buffer_size);
-  void store_in_buffer(uchar *buffer, size_t *buffer_position) const;
-  std::string *get_key_signature() const;
-  std::string *get_key_type_as_string();
-  Key_type get_key_type() const;
-  std::string *get_key_id();
-  std::string *get_user_id();
-  uchar *get_key_data();
-  size_t get_key_data_size();
-  size_t get_key_pod_size() const;
-  uchar *release_key_data();
-  void xor_data(uchar *data, size_t data_len);
-  void xor_data();
-  void set_key_data(uchar *key_data, size_t key_data_size);
-  void set_key_type(const std::string *key_type);
-  bool is_key_type_valid();
-  bool is_key_id_valid();
-  bool is_key_valid();
-  bool is_key_length_valid();
-||||||| merged common ancestors
-                        size_t input_buffer_size);
-  void store_in_buffer(uchar *buffer, size_t *buffer_position) const;
-  std::string *get_key_signature() const;
-  std::string *get_key_type_as_string();
-  Key_type get_key_type() const;
-  std::string *get_key_id();
-  std::string *get_user_id();
-  uchar *get_key_data();
-  size_t get_key_data_size();
-  size_t get_key_pod_size() const;
-  uchar *release_key_data();
-  void xor_data();
-  void set_key_data(uchar *key_data, size_t key_data_size);
-  void set_key_type(const std::string *key_type);
-  bool is_key_type_valid();
-  bool is_key_id_valid();
-  bool is_key_valid();
-  bool is_key_length_valid();
-=======
                         size_t input_buffer_size) override;
   void store_in_buffer(uchar *buffer, size_t *buffer_position) const override;
   std::string *get_key_signature() const override;
@@ -92,6 +52,7 @@ struct Key : IKey {
   size_t get_key_data_size() override;
   size_t get_key_pod_size() const override;
   uchar *release_key_data() override;
+  void xor_data(uchar *data, size_t data_len) override;
   void xor_data() override;
   void set_key_data(uchar *key_data, size_t key_data_size) override;
   void set_key_type(const std::string *key_type) override;
@@ -99,7 +60,6 @@ struct Key : IKey {
   bool is_key_id_valid() override;
   bool is_key_valid() override;
   bool is_key_length_valid() override;
->>>>>>> upstream/mysql-8.0.22
 
  protected:
   void set_key_type_enum(const std::string *key_type) override;

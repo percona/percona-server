@@ -468,14 +468,11 @@ that the proper size of the log buffer should be a power of two.
 @param[out]	log		redo log */
 static void log_calc_buf_size(log_t &log);
 
-<<<<<<< HEAD
 /** Event to wake up log_scrub_thread */
 os_event_t log_scrub_event;
 /** Whether log_scrub_thread is active */
 bool log_scrub_thread_active;
 
-||||||| merged common ancestors
-=======
 /** Pauses writer, flusher and notifiers and switches user threads
 to write log as former version.
 NOTE: These pause/resume functions should be protected by mutex while serving.
@@ -489,7 +486,6 @@ not to write log.
 @param[out]	log	redo log */
 static void log_resume_writer_threads(log_t &log);
 
->>>>>>> upstream/mysql-8.0.22
 /**************************************************/ /**
 
  @name	Initialization and finalization of log_sys
@@ -1324,7 +1320,6 @@ void log_position_collect_lsn_info(const log_t &log, lsn_t *current_lsn,
   ut_a(*current_lsn >= *checkpoint_lsn);
 }
 
-<<<<<<< HEAD
 static void log_pad_current_log_block(void) {
   byte b = MLOG_DUMMY_RECORD;
   ulint pad_length;
@@ -1371,10 +1366,6 @@ void log_scrub_thread() {
   }
   log_scrub_thread_active = false;
 }
-||||||| merged common ancestors
-/* @} */
-=======
 /** @} */
->>>>>>> upstream/mysql-8.0.22
 
 #endif /* !UNIV_HOTBACKUP */

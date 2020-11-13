@@ -50,28 +50,14 @@ class MVCC {
   Free all the views in the m_free list */
   ~MVCC();
 
-<<<<<<< HEAD
   /** Insert the view in the proper order into the view list.
   @param	view	view to add */
   void view_add(const ReadView *view);
 
-  /**
-  Allocate and create a view.
-  @param view		view owned by this class created for the
-                          caller. Must be freed by calling close()
-  @param trx		transaction creating the view */
-||||||| merged common ancestors
-  /**
-  Allocate and create a view.
-  @param view		view owned by this class created for the
-                          caller. Must be freed by calling close()
-  @param trx		transaction creating the view */
-=======
   /** Allocate and create a view.
   @param view	View owned by this class created for the caller. Must be
   freed by calling view_close()
   @param trx	Transaction instance of caller */
->>>>>>> upstream/mysql-8.0.22
   void view_open(ReadView *&view, trx_t *trx);
 
   /**

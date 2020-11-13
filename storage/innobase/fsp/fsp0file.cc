@@ -724,13 +724,7 @@ Datafile::ValidateOutput Datafile::validate_first_page(space_id_t space_id,
           static_cast<byte *>(ut_zalloc_nokey(Encryption::KEY_LEN));
     }
 #ifdef UNIV_ENCRYPT_DEBUG
-<<<<<<< HEAD
-    fprintf(stderr, "Got from file " SPACE_ID_PFS ":", m_space_id);
-||||||| merged common ancestors
-    fprintf(stderr, "Got from file %lu:", m_space_id);
-=======
     fprintf(stderr, "Got from file %u:", m_space_id);
->>>>>>> upstream/mysql-8.0.22
 #endif
 
     if (!fsp_header_get_encryption_key(m_flags, m_encryption_key,

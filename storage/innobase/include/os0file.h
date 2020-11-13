@@ -335,21 +335,15 @@ class IORequest {
     This can be used to force a read and write without any
     compression e.g., for redo log, merge sort temporary files
     and the truncate redo log. */
-<<<<<<< HEAD
-    NO_COMPRESSION = 512,
-
-    /** Force write of decrypted pages in encrypted tablespace. */
-    NO_ENCRYPTION = 1024
-||||||| merged common ancestors
-    NO_COMPRESSION = 512
-=======
     NO_COMPRESSION = 512,
 
     /** We optimise cases where punch hole is not done if the compressed length
     of the page is the same as the original size of the page. Ignore such
     optimisations if this flag is set. */
-    DISABLE_PUNCH_HOLE_OPTIMISATION = 1024
->>>>>>> upstream/mysql-8.0.22
+    DISABLE_PUNCH_HOLE_OPTIMISATION = 1024,
+
+    /** Force write of decrypted pages in encrypted tablespace. */
+    NO_ENCRYPTION = 2048
   };
 
   /** Default constructor */
@@ -1714,14 +1708,8 @@ Requests a synchronous read operation of page 0 of IBD file
 @param[in]	file		Open file handle
 @param[out]	buf		buffer where to read
 @param[in]	n		number of bytes to read
-<<<<<<< HEAD
 @param[in]	exit_on_err	if true then exit on error
-@return DB_SUCCESS if request was successful */
-||||||| merged common ancestors
-@return DB_SUCCESS if request was successful */
-=======
 @return DB_SUCCESS if request was successful, DB_IO_ERROR on failure */
->>>>>>> upstream/mysql-8.0.22
 dberr_t os_file_read_first_page_func(IORequest &type, const char *file_name,
                                      os_file_t file, void *buf, ulint n,
                                      bool exit_on_err)

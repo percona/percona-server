@@ -63,14 +63,14 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 # Information Schema processlist table
 
 select * from information_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id
-<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
+<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id	<Time_ms>	0	0
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
 
 # Connection user1
 # Get Host:Port, new
@@ -79,14 +79,14 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 set @@global.performance_schema_show_processlist = off;
 
 SHOW FULL PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user0	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST
-<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL
+Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	0
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0
+<Id>	user0	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST	<Time_ms>	0
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	1
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0
 
 # Performance Schema processlist table
 
@@ -103,14 +103,14 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 # Information Schema processlist table
 
 select * from information_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id
-<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
+<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id	<Time_ms>	0	0
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	1	1
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	0	0
 
 # Connection user1
 # Get Host:Port, legacy

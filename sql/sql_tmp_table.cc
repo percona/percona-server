@@ -2399,18 +2399,12 @@ void close_tmp_table(THD *thd, TABLE *entry) {
   const char *save_proc_info = thd->proc_info;
   THD_STAGE_INFO(thd, stage_removing_tmp_table);
 
-<<<<<<< HEAD
   if (entry->file) thd->tmp_tables_size += entry->file->stats.data_file_length;
 
-  filesort_free_buffers(entry, true);
-||||||| merged common ancestors
-  filesort_free_buffers(entry, true);
-=======
   // Free blobs, even if no storage handler is assigned
   for (Field **ptr = entry->field; *ptr; ptr++) (*ptr)->mem_free();
 
   if (!entry->has_storage_handler()) return;
->>>>>>> upstream/mysql-8.0.22
 
   DBUG_ASSERT(entry->has_storage_handler() && entry->s->ref_count() > 0 &&
               entry->s->tmp_handler_count <= entry->s->ref_count());

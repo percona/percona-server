@@ -629,7 +629,6 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
         // continue when IGNORE clause is used.
         continue;
       }
-
       int error = insert_table->file->ha_upsert(thd, update_field_list,
                                                 update_value_list);
       if (error == ENOTSUP)
@@ -743,15 +742,9 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
   DBUG_ASSERT(has_error == thd->get_stmt_da()->is_error());
   if (has_error) return true;
 
-<<<<<<< HEAD
   ha_rows row_count;
 
-  if (insert_many_values.elements == 1 &&
-||||||| merged common ancestors
-  if (insert_many_values.elements == 1 &&
-=======
   if (insert_many_values.size() == 1 &&
->>>>>>> upstream/mysql-8.0.22
       (!(thd->variables.option_bits & OPTION_WARNINGS) ||
        !thd->num_truncated_fields)) {
     row_count = info.stats.copied + info.stats.deleted +
@@ -2461,14 +2454,6 @@ bool Query_result_insert::send_eof(THD *thd) {
              ("trans_table=%d, table_type='%s'",
               table->file->has_transactions(), table->file->table_type()));
 
-<<<<<<< HEAD
-  error = (bulk_insert_started ? table->file->ha_end_bulk_insert() : 0);
-  bulk_insert_started = false;
-  if (!error && thd->is_error()) error = thd->get_stmt_da()->mysql_errno();
-||||||| merged common ancestors
-  error = (bulk_insert_started ? table->file->ha_end_bulk_insert() : 0);
-  if (!error && thd->is_error()) error = thd->get_stmt_da()->mysql_errno();
-=======
   int error = 0;
 
   if (bulk_insert_started) {
@@ -2476,7 +2461,6 @@ bool Query_result_insert::send_eof(THD *thd) {
     if (!error && thd->is_error()) error = thd->get_stmt_da()->mysql_errno();
     bulk_insert_started = false;
   }
->>>>>>> upstream/mysql-8.0.22
 
   changed = (info.stats.copied || info.stats.deleted || info.stats.updated);
 

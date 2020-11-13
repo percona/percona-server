@@ -8274,8 +8274,8 @@ int handler::ha_delete_row(const uchar *buf) {
   @brief Offload an update to the storage engine. See handler::fast_update()
   for details.
 */
-int handler::ha_fast_update(THD *thd, List<Item> &update_fields,
-                            List<Item> &update_values, Item *conds) {
+int handler::ha_fast_update(THD *thd, mem_root_deque<Item *> &update_fields,
+                            mem_root_deque<Item *> &update_values, Item *conds) {
   int error = fast_update(thd, update_fields, update_values, conds);
   if (error == 0) mark_trx_read_write();
   return error;
@@ -8285,8 +8285,8 @@ int handler::ha_fast_update(THD *thd, List<Item> &update_fields,
   @brief Offload an upsert to the storage engine. See handler::upsert()
   for details.
 */
-int handler::ha_upsert(THD *thd, List<Item> &update_fields,
-                       List<Item> &update_values) {
+int handler::ha_upsert(THD *thd, mem_root_deque<Item *> &update_fields,
+                       mem_root_deque<Item *> &update_values) {
   int error = upsert(thd, update_fields, update_values);
   if (error == 0) mark_trx_read_write();
   return error;

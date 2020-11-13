@@ -148,46 +148,6 @@ const byte *row_mysql_read_true_varchar(
     const byte *field, /*!< in: field in the MySQL format */
     ulint lenlen);     /*!< in: storage length of len: either 1
                        or 2 bytes */
-<<<<<<< HEAD
-/** Stores a reference to a BLOB in the MySQL format. */
-void row_mysql_store_blob_ref(
-    byte *dest,       /*!< in: where to store */
-    ulint col_len,    /*!< in: dest buffer size: determines into
-                      how many bytes the BLOB length is stored,
-                      the space for the length may vary from 1
-                      to 4 bytes */
-    const void *data, /*!< in: BLOB data; if the value to store
-                      is SQL NULL this should be NULL pointer */
-    ulint len,        /*!< in: BLOB length; if the value to store
-            is SQL NULL this should be 0; remember
-            also to set the NULL bit in the MySQL record
-            header! */
-    bool need_decompression,
-    /*!< in: if the data need to be compressed*/
-    const byte *dict_data,
-    /*!< in: optional compression dictionary
-    data */
-    ulint dict_data_len,
-    /*!< in: optional compression dictionary data
-    length */
-    row_prebuilt_t *prebuilt);
-/*<! in: use prebuilt->compress_heap only
-here */
-||||||| merged common ancestors
-/** Stores a reference to a BLOB in the MySQL format. */
-void row_mysql_store_blob_ref(
-    byte *dest,       /*!< in: where to store */
-    ulint col_len,    /*!< in: dest buffer size: determines into
-                      how many bytes the BLOB length is stored,
-                      the space for the length may vary from 1
-                      to 4 bytes */
-    const void *data, /*!< in: BLOB data; if the value to store
-                      is SQL NULL this should be NULL pointer */
-    ulint len);       /*!< in: BLOB length; if the value to store
-                      is SQL NULL this should be 0; remember
-                      also to set the NULL bit in the MySQL record
-                      header! */
-=======
 
 /** Stores a reference to a BLOB in the MySQL format.
 @param[in] dest Where to store
@@ -196,11 +156,16 @@ length is stored, the space for the length may vary from 1 to 4 bytes
 @param[in] data Blob data; if the value to store is sql null this should be null
 pointer
 @param[in] len Blob length; if the value to store is sql null this should be 0;
-remember also to set the null bit in the mysql record header! */
+remember also to set the null bit in the mysql record header!
+@param[in] need_decompression If the data need to be compressed
+@param[in] dict_data Optional compression dictionary
+@param[in] dict_data_len Optional compression dictionary data
+@param[in] prebuilt Use prebuilt->compress_heap only here */
 void row_mysql_store_blob_ref(byte *dest, ulint col_len, const void *data,
-                              ulint len);
+                              ulint len, bool need_decompression,
+                              const byte *dict_data, ulint dict_data_len,
+                              row_prebuilt_t *prebuilt);
 
->>>>>>> upstream/mysql-8.0.22
 /** Reads a reference to a BLOB in the MySQL format.
 @param[out] len                 BLOB length.
 @param[in] ref                  BLOB reference in the MySQL format.
@@ -228,20 +193,6 @@ void row_mysql_store_geometry(
                      is SQL NULL this should be 0; remember
                      also to set the NULL bit in the MySQL record
                      header! */
-<<<<<<< HEAD
-/** Pad a column with spaces. */
-void row_mysql_pad_col(ulint mbminlen, /*!< in: minimum size of a character,
-                                       in bytes */
-                       byte *pad,      /*!< out: padded buffer */
-                       ulint len);     /*!< in: number of bytes to pad */
-||||||| merged common ancestors
-/** Pad a column with spaces. */
-void row_mysql_pad_col(ulint mbminlen, /*!< in: minimum size of a character,
-                                       in bytes */
-                       byte *pad,      /*!< out: padded buffer */
-                       ulint len);     /*!< in: number of bytes to pad */
-
-=======
 
 /** Pad a column with spaces.
 @param[in] mbminlen Minimum size of a character, in bytes
@@ -249,7 +200,6 @@ void row_mysql_pad_col(ulint mbminlen, /*!< in: minimum size of a character,
 @param[in] len Number of bytes to pad */
 void row_mysql_pad_col(ulint mbminlen, byte *pad, ulint len);
 
->>>>>>> upstream/mysql-8.0.22
 /** Stores a non-SQL-NULL field given in the MySQL format in the InnoDB format.
  The counterpart of this function is row_sel_field_store_in_mysql_format() in
  row0sel.cc.
@@ -441,15 +391,9 @@ kept in non-LRU list while on failure the 'table' object will be freed.
 @param[in]	table		table definition(will be freed, or on
                                 DB_SUCCESS added to the data dictionary cache)
 @param[in]	compression	compression algorithm to use, can be nullptr
-<<<<<<< HEAD
-@param[in,out]	trx		transasction
+@param[in,out]	trx		transaction
 @param[in]	mode		keyring encryption mode
 @param[in]	keyring_encryption_key_id	keyring encryption info
-||||||| merged common ancestors
-@param[in,out]	trx		transasction
-=======
-@param[in,out]	trx		transaction
->>>>>>> upstream/mysql-8.0.22
 @return error code or DB_SUCCESS */
 dberr_t row_create_table_for_mysql(
     dict_table_t *table, const char *compression, trx_t *trx,
@@ -1086,15 +1030,8 @@ struct SysIndexCallback {
                                 or NULL.
 @param[in]	parent_update	update vector for the parent row
 @param[in]	foreign		foreign key information
-<<<<<<< HEAD
-@param[in]	prebuilt	compress_heap must be taken from here
-@return the field filled with computed value */
-||||||| merged common ancestors
-@return the field filled with computed value */
-=======
 @return the field filled with computed value, or NULL if just want
 to store the value in passed in "my_rec" */
->>>>>>> upstream/mysql-8.0.22
 dfield_t *innobase_get_computed_value(
     const dtuple_t *row, const dict_v_col_t *col, const dict_index_t *index,
     mem_heap_t **local_heap, mem_heap_t *heap, const dict_field_t *ifield,

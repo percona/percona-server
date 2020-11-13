@@ -130,9 +130,9 @@ class Thread_pool_connection_handler : public Connection_handler {
   virtual ~Thread_pool_connection_handler() { tp_end(); }
 
  protected:
-  virtual bool add_connection(Channel_info *channel_info);
+  bool add_connection(Channel_info *channel_info) override;
 
-  virtual uint get_max_threads() const { return threadpool_max_threads; }
+  uint get_max_threads() const override { return threadpool_max_threads; }
 };
 
 #endif  // CONNECTION_HANDLER_IMPL_INCLUDED

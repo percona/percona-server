@@ -78,6 +78,7 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // acl_authenticate
 #include "sql/auth/sql_security_ctx.h"
+#include "sql/sql_backup_lock.h"
 #include "sql/binlog.h"  // purge_master_logs
 #include "sql/clone_handler.h"
 #include "sql/comp_creator.h"
@@ -137,13 +138,9 @@
 #include "sql/sp.h"        // sp_create_routine
 #include "sql/sp_cache.h"  // sp_cache_enforce_limit
 #include "sql/sp_head.h"   // sp_head
-<<<<<<< HEAD
 #include "sql/sp_instr.h"
 #include "sql/sp_rcontext.h"
-||||||| merged common ancestors
-=======
 #include "sql/sql_admin.h"
->>>>>>> upstream/mysql-8.0.22
 #include "sql/sql_alter.h"
 #include "sql/sql_audit.h"   // MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER
 #include "sql/sql_base.h"    // find_temporary_table
@@ -3188,119 +3185,6 @@ int mysql_execute_command(THD *thd, bool first_level) {
   */
 
   switch (lex->sql_command) {
-<<<<<<< HEAD
-    case SQLCOM_SHOW_STATUS: {
-      System_status_var old_status_var = thd->status_var;
-      thd->initial_status_var = &old_status_var;
-
-      if (!(res = show_precheck(thd, lex, true)))
-        res = execute_show(thd, all_tables);
-
-      /* Don't log SHOW STATUS commands to slow query log */
-      thd->server_status &=
-          ~(SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED);
-      /*
-        restore status variables, as we don't want 'show status' to cause
-        changes
-      */
-      mysql_mutex_lock(&LOCK_status);
-      add_diff_to_status(&global_status_var, &thd->status_var, &old_status_var);
-      thd->status_var = old_status_var;
-      thd->initial_status_var = nullptr;
-      mysql_mutex_unlock(&LOCK_status);
-      break;
-    }
-    case SQLCOM_SHOW_EVENTS:
-    case SQLCOM_SHOW_STATUS_PROC:
-    case SQLCOM_SHOW_STATUS_FUNC:
-    case SQLCOM_SHOW_DATABASES:
-    case SQLCOM_SHOW_TRIGGERS:
-    case SQLCOM_SHOW_TABLE_STATUS:
-    case SQLCOM_SHOW_OPEN_TABLES:
-    case SQLCOM_SHOW_PLUGINS:
-    case SQLCOM_SHOW_VARIABLES:
-    case SQLCOM_SHOW_CHARSETS:
-    case SQLCOM_SHOW_COLLATIONS:
-    case SQLCOM_SHOW_STORAGE_ENGINES:
-    case SQLCOM_SHOW_PROFILE:
-    case SQLCOM_SHOW_USER_STATS:
-    case SQLCOM_SHOW_TABLE_STATS:
-    case SQLCOM_SHOW_INDEX_STATS:
-    case SQLCOM_SHOW_CLIENT_STATS:
-    case SQLCOM_SHOW_THREAD_STATS: {
-      DBUG_EXECUTE_IF("use_attachable_trx",
-                      thd->begin_attachable_ro_transaction(););
-
-      thd->clear_current_query_costs();
-
-      Enable_derived_merge_guard derived_merge_guard(
-          thd, is_show_cmd_using_system_view(thd));
-
-      res = show_precheck(thd, lex, true);
-
-      if (!res) res = execute_show(thd, all_tables);
-
-      thd->save_current_query_costs();
-
-      DBUG_EXECUTE_IF("use_attachable_trx", thd->end_attachable_transaction(););
-
-      break;
-    }
-||||||| merged common ancestors
-    case SQLCOM_SHOW_STATUS: {
-      System_status_var old_status_var = thd->status_var;
-      thd->initial_status_var = &old_status_var;
-
-      if (!(res = show_precheck(thd, lex, true)))
-        res = execute_show(thd, all_tables);
-
-      /* Don't log SHOW STATUS commands to slow query log */
-      thd->server_status &=
-          ~(SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED);
-      /*
-        restore status variables, as we don't want 'show status' to cause
-        changes
-      */
-      mysql_mutex_lock(&LOCK_status);
-      add_diff_to_status(&global_status_var, &thd->status_var, &old_status_var);
-      thd->status_var = old_status_var;
-      thd->initial_status_var = nullptr;
-      mysql_mutex_unlock(&LOCK_status);
-      break;
-    }
-    case SQLCOM_SHOW_EVENTS:
-    case SQLCOM_SHOW_STATUS_PROC:
-    case SQLCOM_SHOW_STATUS_FUNC:
-    case SQLCOM_SHOW_DATABASES:
-    case SQLCOM_SHOW_TRIGGERS:
-    case SQLCOM_SHOW_TABLE_STATUS:
-    case SQLCOM_SHOW_OPEN_TABLES:
-    case SQLCOM_SHOW_PLUGINS:
-    case SQLCOM_SHOW_VARIABLES:
-    case SQLCOM_SHOW_CHARSETS:
-    case SQLCOM_SHOW_COLLATIONS:
-    case SQLCOM_SHOW_STORAGE_ENGINES:
-    case SQLCOM_SHOW_PROFILE: {
-      DBUG_EXECUTE_IF("use_attachable_trx",
-                      thd->begin_attachable_ro_transaction(););
-
-      thd->clear_current_query_costs();
-
-      Enable_derived_merge_guard derived_merge_guard(
-          thd, is_show_cmd_using_system_view(thd));
-
-      res = show_precheck(thd, lex, true);
-
-      if (!res) res = execute_show(thd, all_tables);
-
-      thd->save_current_query_costs();
-
-      DBUG_EXECUTE_IF("use_attachable_trx", thd->end_attachable_transaction(););
-
-      break;
-    }
-=======
->>>>>>> upstream/mysql-8.0.22
     case SQLCOM_PREPARE: {
       mysql_sql_stmt_prepare(thd);
       break;

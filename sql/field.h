@@ -3913,16 +3913,8 @@ class Field_blob : public Field_longstr {
   bool has_charset() const override {
     return charset() == &my_charset_bin ? false : true;
   }
-<<<<<<< HEAD
-  uint32 max_display_length() const final override;
-  uint32 char_length() const noexcept override;
-||||||| merged common ancestors
-  uint32 max_display_length() const final override;
-  uint32 char_length() const override;
-=======
   uint32 max_display_length() const final;
-  uint32 char_length() const override;
->>>>>>> upstream/mysql-8.0.22
+  uint32 char_length() const noexcept override;
   bool copy_blob_value(MEM_ROOT *mem_root);
   uint is_equal(const Create_field *new_field) const override;
   bool is_text_key_type() const final { return binary() ? false : true; }

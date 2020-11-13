@@ -495,23 +495,13 @@ union YYSTYPE {
   Table_ident *table_ident;
   Mem_root_array_YY<Table_ident *> table_ident_list;
   delete_option_enum opt_delete_option;
-<<<<<<< HEAD
-  class PT_alter_instance *alter_instance_cmd;
+  PT_alter_instance *alter_instance_cmd;
   struct {
     enum alter_instance_action_enum alter_instance_action;
     uint key_id;
   } alter_instance_action;
-  class PT_create_index_stmt *create_index_stmt;
-  class PT_table_constraint_def *table_constraint_def;
-||||||| merged common ancestors
-  class PT_alter_instance *alter_instance_cmd;
-  class PT_create_index_stmt *create_index_stmt;
-  class PT_table_constraint_def *table_constraint_def;
-=======
-  PT_alter_instance *alter_instance_cmd;
   PT_create_index_stmt *create_index_stmt;
   PT_table_constraint_def *table_constraint_def;
->>>>>>> upstream/mysql-8.0.22
   List<PT_key_part_specification> *index_column_list;
   struct {
     LEX_STRING name;

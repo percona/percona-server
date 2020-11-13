@@ -4485,17 +4485,9 @@ or greater than fts_max_token_size.
 @param[in]	stopwords	stopwords rb tree
 @param[in]	is_ngram	is ngram parser
 @param[in]	cs		token charset
-<<<<<<< HEAD
 @param[in]	skip		true if the check should be skipped
-@retval	true	if it is not stopword and length in range
-@retval	false	if it is stopword or lenght not in range */
-||||||| merged common ancestors
-@retval	true	if it is not stopword and length in range
-@retval	false	if it is stopword or lenght not in range */
-=======
 @retval true	if it is not stopword and length in range
-@retval false	if it is stopword or length not in range */
->>>>>>> upstream/mysql-8.0.22
+@retval false	if it is stopword or lenght not in range */
 bool fts_check_token(const fts_string_t *token, const ib_rbt_t *stopwords,
                      bool is_ngram, const CHARSET_INFO *cs, bool skip) {
   ut_ad(cs != nullptr || stopwords == nullptr);

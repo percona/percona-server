@@ -846,7 +846,7 @@ bool Table_function_sequence::do_init_args() {
 
 void Table_function_sequence::do_cleanup() {
   m_source->cleanup();
-  m_vt_list.empty();
+  m_vt_list.clear();
   m_upper_bound_precalculated = false;
   m_precalculated_upper_bound = 0;
 }

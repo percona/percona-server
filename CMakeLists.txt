@@ -606,20 +606,12 @@ ENDIF()
 
 OPTION(ENABLED_PROFILING "Enable profiling" ON)
 OPTION(WITHOUT_SERVER OFF)
-<<<<<<< HEAD
 IF(UNIX)
   OPTION(WITH_VALGRIND "Valgrind instrumentation" OFF)
   IF (WITH_VALGRIND)
     ADD_DEFINITIONS(-DUSE_VALGRIND)
   ENDIF()
 ENDIF()
-||||||| merged common ancestors
-IF(UNIX)
-  OPTION(WITH_VALGRIND "Valgrind instrumentation" OFF)
-ENDIF()
-=======
-
->>>>>>> upstream/mysql-8.0.22
 IF(WIN32)
   OPTION(WITH_MSCRT_DEBUG "MS Visual Studio Debug CRT instrumentation" OFF)
 ENDIF()

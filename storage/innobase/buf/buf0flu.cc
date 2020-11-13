@@ -197,26 +197,6 @@ static page_cleaner_t *page_cleaner = nullptr;
 bool innodb_page_cleaner_disabled_debug;
 #endif /* UNIV_DEBUG */
 
-<<<<<<< HEAD
-/* @} */
-
-||||||| merged common ancestors
-/** If LRU list of a buf_pool is less than this size then LRU eviction
-should not happen. This is because when we do LRU flushing we also put
-the blocks on free list. If LRU list is very small then we can end up
-in thrashing. */
-#define BUF_LRU_MIN_LEN 256
-
-/* @} */
-
-=======
-/** If LRU list of a buf_pool is less than this size then LRU eviction
-should not happen. This is because when we do LRU flushing we also put
-the blocks on free list. If LRU list is very small then we can end up
-in thrashing. */
-#define BUF_LRU_MIN_LEN 256
-
->>>>>>> upstream/mysql-8.0.22
 /** Flush a batch of writes to the datafiles that have already been
 written to the dblwr buffer on disk. */
 static void buf_flush_sync_datafiles() {

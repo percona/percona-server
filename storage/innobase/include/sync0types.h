@@ -1076,13 +1076,7 @@ struct btrsea_sync_check : public sync_check_functor_t {
   /** Called for every latch owned by the calling thread.
   @param[in]	level		Level of the existing latch
   @return true if the predicate check fails */
-<<<<<<< HEAD
-  virtual bool operator()(const latch_level_t level) override {
-||||||| merged common ancestors
-  virtual bool operator()(const latch_level_t level) {
-=======
   bool operator()(const latch_level_t level) override {
->>>>>>> upstream/mysql-8.0.22
     /* If calling thread doesn't hold search latch then
     check if there are latch level exception provided.
 
@@ -1121,13 +1115,7 @@ struct btrsea_sync_check : public sync_check_functor_t {
   }
 
   /** @return result from the check */
-<<<<<<< HEAD
-  virtual bool result() const override { return (m_result); }
-||||||| merged common ancestors
-  virtual bool result() const { return (m_result); }
-=======
   bool result() const override { return (m_result); }
->>>>>>> upstream/mysql-8.0.22
 
  private:
   /** True if all OK */
@@ -1150,13 +1138,7 @@ struct dict_sync_check : public sync_check_functor_t {
 
   /** Check the latching constraints
   @param[in]	level		The level held by the thread */
-<<<<<<< HEAD
-  virtual bool operator()(const latch_level_t level) override {
-||||||| merged common ancestors
-  virtual bool operator()(const latch_level_t level) {
-=======
   bool operator()(const latch_level_t level) override {
->>>>>>> upstream/mysql-8.0.22
     if (!m_dict_mutex_allowed ||
         (level != SYNC_DICT && level != SYNC_UNDO_SPACES &&
          level != SYNC_FTS_CACHE && level != SYNC_DICT_OPERATION &&

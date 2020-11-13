@@ -355,16 +355,10 @@ static const ulong EVENT_DEF_CACHE_MIN = 256;
 #define OPTIMIZER_SWITCH_HASH_JOIN (1ULL << 21)
 #define OPTIMIZER_SWITCH_SUBQUERY_TO_DERIVED (1ULL << 22)
 #define OPTIMIZER_SWITCH_PREFER_ORDERING_INDEX (1ULL << 23)
-<<<<<<< HEAD
-#define OPTIMIZER_SWITCH_FAVOR_RANGE_SCAN (1ULL << 24)
-#define OPTIMIZER_SWITCH_LAST (1ULL << 25)
-||||||| merged common ancestors
-#define OPTIMIZER_SWITCH_LAST (1ULL << 24)
-=======
 #define OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER (1ULL << 24)
 #define OPTIMIZER_SWITCH_DERIVED_CONDITION_PUSHDOWN (1ULL << 25)
-#define OPTIMIZER_SWITCH_LAST (1ULL << 26)
->>>>>>> upstream/mysql-8.0.22
+#define OPTIMIZER_SWITCH_FAVOR_RANGE_SCAN (1ULL << 26)
+#define OPTIMIZER_SWITCH_LAST (1ULL << 27)
 
 // Including the switch in this set, makes its default 'on'
 #define OPTIMIZER_SWITCH_DEFAULT                                          \

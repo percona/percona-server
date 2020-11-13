@@ -195,22 +195,12 @@ fsp_header_t *fsp_get_space_header_block(space_id_t id,
 
   ut_ad(id != 0 || !page_size.is_compressed());
 
-<<<<<<< HEAD
-  block = buf_page_get(page_id_t(id, 0), page_size, RW_SX_LATCH, mtr);
+  blk = buf_page_get(page_id_t(id, 0), page_size, RW_SX_LATCH, mtr);
 
   SRV_CORRUPT_TABLE_CHECK(block, return (0););
 
-  header = FSP_HEADER_OFFSET + buf_block_get_frame(block);
-  buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
-||||||| merged common ancestors
-  block = buf_page_get(page_id_t(id, 0), page_size, RW_SX_LATCH, mtr);
-  header = FSP_HEADER_OFFSET + buf_block_get_frame(block);
-  buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
-=======
-  blk = buf_page_get(page_id_t(id, 0), page_size, RW_SX_LATCH, mtr);
   header = FSP_HEADER_OFFSET + buf_block_get_frame(blk);
   buf_block_dbg_add_level(blk, SYNC_FSP_PAGE);
->>>>>>> upstream/mysql-8.0.22
 
   ut_ad(id == mach_read_from_4(FSP_SPACE_ID + header));
 #ifdef UNIV_DEBUG

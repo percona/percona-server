@@ -498,14 +498,8 @@ void warn_about_deprecated_binary(THD *thd)
   1. We do not accept any reduce/reduce conflicts
   2. We should not introduce new shift/reduce conflicts any more.
 */
-<<<<<<< HEAD
 %expect 66
-||||||| merged common ancestors
-%expect 63
-=======
 
-%expect 63
->>>>>>> upstream/mysql-8.0.22
 
 /*
    MAINTAINER:
@@ -13394,50 +13388,32 @@ show_param:
           }
         | GRANTS
           {
-<<<<<<< HEAD
-            auto *tmp= NEW_PTN PT_show_grants(0, 0, false);
-||||||| merged common ancestors
-            auto *tmp= NEW_PTN PT_show_grants(0, 0);
-=======
-            auto *tmp= NEW_PTN PT_show_grants(@$, nullptr, nullptr);
->>>>>>> upstream/mysql-8.0.22
+            auto *tmp= NEW_PTN PT_show_grants(@$, nullptr, nullptr, false);
             MAKE_CMD(tmp);
           }
         | GRANTS FOR_SYM user
           {
-<<<<<<< HEAD
-            auto *tmp= NEW_PTN PT_show_grants($3, 0, false);
-||||||| merged common ancestors
-            auto *tmp= NEW_PTN PT_show_grants($3, 0);
-=======
-            auto *tmp= NEW_PTN PT_show_grants(@$, $3, nullptr);
->>>>>>> upstream/mysql-8.0.22
+            auto *tmp= NEW_PTN PT_show_grants(@$, $3, nullptr, false);
             MAKE_CMD(tmp);
           }
         | GRANTS FOR_SYM user USING user_list
           {
-<<<<<<< HEAD
-            auto *tmp= NEW_PTN PT_show_grants($3, $5, false);
+            auto *tmp= NEW_PTN PT_show_grants(@$, $3, $5, false);
             MAKE_CMD(tmp);
           }
         | EFFECTIVE_SYM GRANTS
           {
-            auto *tmp= NEW_PTN PT_show_grants(0, 0, true);
+            auto *tmp= NEW_PTN PT_show_grants(@$, 0, 0, true);
             MAKE_CMD(tmp);
           }
         | EFFECTIVE_SYM GRANTS FOR_SYM user
           {
-            auto *tmp= NEW_PTN PT_show_grants($4, 0, true);
+            auto *tmp= NEW_PTN PT_show_grants(@$, $4, 0, true);
             MAKE_CMD(tmp);
           }
         | EFFECTIVE_SYM GRANTS FOR_SYM user USING user_list
           {
-            auto *tmp= NEW_PTN PT_show_grants($4, $6, true);
-||||||| merged common ancestors
-            auto *tmp= NEW_PTN PT_show_grants($3, $5);
-=======
-            auto *tmp= NEW_PTN PT_show_grants(@$, $3, $5);
->>>>>>> upstream/mysql-8.0.22
+            auto *tmp= NEW_PTN PT_show_grants(@$, $4, $6, true);
             MAKE_CMD(tmp);
           }
         | CREATE DATABASE opt_if_not_exists ident
@@ -13933,7 +13909,7 @@ purge_options:
         | CHANGED_PAGE_BITMAPS_SYM BEFORE_SYM real_ulonglong_num
           {
             LEX *lex= Lex;
-            lex->purge_value_list.empty();
+            lex->purge_value_list.clear();
             lex->purge_value_list.push_front(new Item_uint($3));
             lex->type= PURGE_BITMAPS_TO_LSN;
           }

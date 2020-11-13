@@ -351,54 +351,6 @@ class Sql_cmd_alter_user_default_role : public Sql_cmd {
   }
 };
 
-<<<<<<< HEAD
-/**
-  Sql_cmd_show_grants SHOW GRANTS ... statement.
-*/
-class Sql_cmd_show_grants : public Sql_cmd {
-  friend class PT_show_grants;
-
-  const LEX_USER *for_user;
-  const List<LEX_USER> *using_users;
-  const bool effective_grants;
-
- public:
-  Sql_cmd_show_grants(const LEX_USER *for_user_arg,
-                      const List<LEX_USER> *using_users_arg,
-                      bool effective_grants_arg)
-      : for_user(for_user_arg),
-        using_users(using_users_arg),
-        effective_grants(effective_grants_arg) {}
-
-  virtual bool execute(THD *thd);
-  virtual enum_sql_command sql_command_code() const {
-    return SQLCOM_SHOW_GRANTS;
-  }
-};
-
-||||||| merged common ancestors
-/**
-  Sql_cmd_show_grants SHOW GRANTS ... statement.
-*/
-class Sql_cmd_show_grants : public Sql_cmd {
-  friend class PT_show_grants;
-
-  const LEX_USER *for_user;
-  const List<LEX_USER> *using_users;
-
- public:
-  Sql_cmd_show_grants(const LEX_USER *for_user_arg,
-                      const List<LEX_USER> *using_users_arg)
-      : for_user(for_user_arg), using_users(using_users_arg) {}
-
-  virtual bool execute(THD *thd);
-  virtual enum_sql_command sql_command_code() const {
-    return SQLCOM_SHOW_GRANTS;
-  }
-};
-
-=======
->>>>>>> upstream/mysql-8.0.22
 enum alter_instance_action_enum {
   ROTATE_INNODB_MASTER_KEY,
   ROTATE_INNODB_SYSTEM_KEY,
@@ -432,7 +384,6 @@ class Sql_cmd_alter_instance : public Sql_cmd {
         channel_name_(channel_name),
         alter_instance(nullptr) {}
 
-<<<<<<< HEAD
   explicit Sql_cmd_alter_instance(
       enum alter_instance_action_enum alter_instance_action_arg,
       const LEX_CSTRING &channel_name, uint system_key_id_arg)
@@ -441,15 +392,8 @@ class Sql_cmd_alter_instance : public Sql_cmd {
         system_key_id(system_key_id_arg),
         alter_instance(NULL) {}
 
-  virtual bool execute(THD *thd);
-  virtual enum_sql_command sql_command_code() const {
-||||||| merged common ancestors
-  virtual bool execute(THD *thd);
-  virtual enum_sql_command sql_command_code() const {
-=======
   bool execute(THD *thd) override;
   enum_sql_command sql_command_code() const override {
->>>>>>> upstream/mysql-8.0.22
     return SQLCOM_ALTER_INSTANCE;
   }
 };

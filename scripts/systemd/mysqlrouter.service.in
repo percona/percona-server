@@ -21,15 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 [Unit]
-<<<<<<< HEAD:packaging/rpm-common/mysqlrouter.service.in
 Description=Percona MySQL Router
-After=syslog.target
-||||||| merged common ancestors
-Description=MySQL Router
-After=syslog.target
-=======
-Description=MySQL Router
->>>>>>> upstream/mysql-8.0.22:scripts/systemd/mysqlrouter.service.in
 After=network.target
 After=syslog.target
 

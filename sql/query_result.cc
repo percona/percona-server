@@ -255,15 +255,9 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
 #else
     (void)chmod(path, S_IRUSR | S_IWUSR | S_IRGRP);
 #endif
-<<<<<<< HEAD
   }
-  if (init_io_cache(cache, file, 0L, WRITE_CACHE, 0L, true, MYF(MY_WME))) {
-||||||| merged common ancestors
-  if (init_io_cache(cache, file, 0L, WRITE_CACHE, 0L, true, MYF(MY_WME))) {
-=======
   if (init_io_cache(cache, file, thd->variables.select_into_buffer_size,
                     WRITE_CACHE, 0L, true, MYF(MY_WME))) {
->>>>>>> upstream/mysql-8.0.22
     mysql_file_close(file, MYF(0));
     /* Delete file on error, it was just created */
     if (new_file_created) mysql_file_delete(key_select_to_file, path, MYF(0));

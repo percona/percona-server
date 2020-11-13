@@ -3066,26 +3066,10 @@ class PT_alter_user_default_role final : public Parse_tree_root {
 
 /// Base class for Parse tree nodes of SHOW statements
 
-<<<<<<< HEAD
- public:
-  PT_show_grants(const LEX_USER *opt_for_user,
-                 const List<LEX_USER> *opt_using_users, bool effective_grants)
-      : sql_cmd(opt_for_user, opt_using_users, effective_grants) {
-    DBUG_ASSERT(opt_using_users == nullptr || opt_for_user != nullptr);
-  }
-||||||| merged common ancestors
- public:
-  PT_show_grants(const LEX_USER *opt_for_user,
-                 const List<LEX_USER> *opt_using_users)
-      : sql_cmd(opt_for_user, opt_using_users) {
-    DBUG_ASSERT(opt_using_users == nullptr || opt_for_user != nullptr);
-  }
-=======
 class PT_show_base : public Parse_tree_root {
  protected:
   PT_show_base(const POS &pos, enum_sql_command sql_command)
       : m_pos(pos), m_sql_command(sql_command) {}
->>>>>>> upstream/mysql-8.0.22
 
   /// Textual location of a token just parsed.
   POS m_pos;
@@ -3479,9 +3463,9 @@ class PT_show_function_code final : public PT_show_routine_code {
 class PT_show_grants final : public PT_show_base {
  public:
   PT_show_grants(const POS &pos, const LEX_USER *opt_for_user,
-                 const List<LEX_USER> *opt_using_users)
+                 const List<LEX_USER> *opt_using_users, bool effective_grants)
       : PT_show_base(pos, SQLCOM_SHOW_GRANTS),
-        sql_cmd(opt_for_user, opt_using_users) {
+        sql_cmd(opt_for_user, opt_using_users, effective_grants) {
     DBUG_ASSERT(opt_using_users == nullptr || opt_for_user != nullptr);
   }
 

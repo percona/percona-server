@@ -68,18 +68,12 @@ ELSE()
   ADD_LIBRARY(router_lib STATIC ${lib_source_files})
 ENDIF()
 TARGET_LINK_LIBRARIES(router_lib
-<<<<<<< HEAD
-  ${CMAKE_DL_LIBS} harness-library perconaserverclient ${SSL_LIBRARIES}
-||||||| merged common ancestors
-  ${CMAKE_DL_LIBS} harness-library mysqlclient ${SSL_LIBRARIES}
-=======
   ${CMAKE_DL_LIBS}
   harness-library
   harness_stdx
-  mysqlclient
+  perconaserverclient
   ${SSL_LIBRARIES}
   io_component
->>>>>>> upstream/mysql-8.0.22
   )
 TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC ../include)
 

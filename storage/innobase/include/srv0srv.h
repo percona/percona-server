@@ -379,7 +379,6 @@ extern bool srv_buffer_pool_load_at_startup;
 /* Whether to disable file system cache if it is defined */
 extern bool srv_disable_sort_file_cache;
 
-<<<<<<< HEAD
 /* This event is set on checkpoint completion to wake the redo log parser
 thread */
 extern os_event_t srv_checkpoint_completed_event;
@@ -388,15 +387,12 @@ extern os_event_t srv_checkpoint_completed_event;
 log tracking iteration */
 extern os_event_t srv_redo_log_tracked_event;
 
-||||||| merged common ancestors
-=======
 /** Enable or disable writing of NULLs while extending a tablespace.
 If this is FALSE, then the server will just allocate the space without
 actually initializing it with NULLs. If the variable is true, the
 server will allocate and initialize the space by writing NULLs in it. */
 extern bool tbsp_extend_and_initialize;
 
->>>>>>> upstream/mysql-8.0.22
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */
 #define SRV_AUTO_EXTEND_INCREMENT (srv_sys_space.get_autoextend_increment())
@@ -958,14 +954,8 @@ extern mysql_pfs_key_t srv_worker_thread_key;
 extern mysql_pfs_key_t trx_recovery_rollback_thread_key;
 extern mysql_pfs_key_t srv_ts_alter_encrypt_thread_key;
 extern mysql_pfs_key_t parallel_read_thread_key;
-<<<<<<< HEAD
-extern mysql_pfs_key_t parallel_read_ahead_thread_key;
 extern mysql_pfs_key_t srv_log_tracking_thread_key;
 extern mysql_pfs_key_t log_scrub_thread_key;
-||||||| merged common ancestors
-extern mysql_pfs_key_t parallel_read_ahead_thread_key;
-=======
->>>>>>> upstream/mysql-8.0.22
 #endif /* UNIV_PFS_THREAD */
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1210,17 +1200,9 @@ void srv_worker_thread();
 void undo_rotate_default_master_key();
 
 /** Set encryption for UNDO tablespace with given space id.
-<<<<<<< HEAD
-@param[in] thdthread    handle
-@param[in] space_id     undo tablespace id
-@param[in] mtr          mini-transaction
-||||||| merged common ancestors
-@param[in] space_id     undo tablespace id
-@param[in] mtr          mini-transaction
-=======
+@param[in] thd          Thread handle
 @param[in] space_id     Undo tablespace id
 @param[in] mtr          Mini-transaction
->>>>>>> upstream/mysql-8.0.22
 @param[in] is_boot	true if it is called during server start up.
 @return false for success, true otherwise */
 bool set_undo_tablespace_encryption(THD *thd, space_id_t space_id, mtr_t *mtr,

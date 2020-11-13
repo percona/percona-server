@@ -6039,17 +6039,9 @@ Requests a synchronous read operation of page 0 of IBD file
 @param[in]  file_name file name
 @param[in]	file		Open file handle
 @param[out]	buf		buffer where to read
-<<<<<<< HEAD
-@param[in]	n		number of bytes to read, starting from offset
+@param[in]	n		number of bytes to read
 @param[in]	exit_on_err	if true then exit on error
 @return DB_SUCCESS or error code */
-||||||| merged common ancestors
-@param[in]	n		number of bytes to read, starting from offset
-@return DB_SUCCESS or error code */
-=======
-@param[in]	n		number of bytes to read
-@return DB_SUCCESS if request was successful, DB_IO_ERROR on failure */
->>>>>>> upstream/mysql-8.0.22
 dberr_t os_file_read_first_page_func(IORequest &type, const char *file_name,
                                      os_file_t file, void *buf, ulint n,
                                      bool exit_on_err) {

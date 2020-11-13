@@ -22,6 +22,7 @@
 #include <vector>
 
 /* MySQL header files */
+#define MYSQL_SERVER 1
 #include "mysql/plugin.h"
 #include "sql_string.h" /* for now this must violate clang-format style as it */
                         /* is needed before sql_show.h */

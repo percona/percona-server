@@ -885,12 +885,9 @@ bool initialize_dictionary(THD *thd, bool is_dd_upgrade_57,
       verify_contents(thd) | update_versions(thd, is_dd_upgrade_57))
     return true;
 
-<<<<<<< HEAD
   // Create compression dictionary tables
   if (compression_dict::bootstrap(thd)) return true;
 
-||||||| merged common ancestors
-=======
   DBUG_EXECUTE_IF(
       "schema_read_only",
       if (dd::execute_query(thd, "CREATE SCHEMA schema_read_only") ||
@@ -899,7 +896,6 @@ bool initialize_dictionary(THD *thd, bool is_dd_upgrade_57,
           dd::execute_query(thd, "DROP SCHEMA schema_read_only"))
           DBUG_ASSERT(false););
 
->>>>>>> upstream/mysql-8.0.22
   bootstrap::DD_bootstrap_ctx::instance().set_stage(bootstrap::Stage::FINISHED);
 
   return false;

@@ -172,6 +172,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0upgrade.h"
 #include "os0thread-create.h"
 #include "os0thread.h"
+#include "sql/auth/auth_common.h"
 #include "sql/item.h"
 #include "sql/json_dom.h"
 #include "sql_base.h"
@@ -1022,7 +1023,6 @@ static int innodb_tmpdir_validate(THD *thd, SYS_VAR *var, void *save,
   return (0);
 }
 
-<<<<<<< HEAD
 /** Empty free list algorithm.
 Checks if buffer pool is big enough to enable backoff algorithm.
 InnoDB empty free list algorithm backoff requires free pages
@@ -1049,19 +1049,6 @@ static bool innodb_empty_free_list_algorithm_allowed(
           algorithm != SRV_EMPTY_FREE_LIST_BACKOFF);
 }
 
-/** Maps a MySQL trx isolation level code to the InnoDB isolation level code
- @return	InnoDB isolation level */
-static inline ulint innobase_map_isolation_level(
-    enum_tx_isolation iso); /*!< in: MySQL isolation level code */
-
-||||||| merged common ancestors
-/** Maps a MySQL trx isolation level code to the InnoDB isolation level code
- @return	InnoDB isolation level */
-static inline ulint innobase_map_isolation_level(
-    enum_tx_isolation iso); /*!< in: MySQL isolation level code */
-
-=======
->>>>>>> upstream/mysql-8.0.22
 /** Gets field offset for a field in a table.
 @param[in]	table	MySQL table object
 @param[in]	field	MySQL field object
@@ -4550,7 +4537,7 @@ bool innobase_fix_tablespaces_empty_uuid() {
   }
 
   byte *master_key = nullptr;
-  ulint master_key_id;
+  uint32_t master_key_id;
   Encryption::get_master_key(&master_key_id, &master_key);
 
   if (master_key == nullptr) {
@@ -6108,7 +6095,7 @@ static int innobase_start_trx_and_clone_read_view(handlerton *hton, THD *thd,
   /* Clone the read view from the donor transaction.  Do this only if
   transaction is using REPEATABLE READ isolation level. */
   trx->isolation_level =
-      innobase_map_isolation_level(thd_get_trx_isolation(thd));
+      innobase_trx_map_isolation_level(thd_get_trx_isolation(thd));
 
   if (trx->isolation_level != TRX_ISO_REPEATABLE_READ) {
     push_warning_printf(thd, Sql_condition::SL_WARNING, HA_ERR_UNSUPPORTED,
@@ -11775,7 +11762,7 @@ dberr_t create_table_info_t::enable_master_key_encryption(dict_table_t *table) {
 
   /* Set the encryption flag. */
   byte *master_key = nullptr;
-  ulint master_key_id;
+  uint32_t master_key_id;
 
   /* Check if keyring is ready. */
   Encryption::get_master_key(&master_key_id, &master_key);
@@ -12256,61 +12243,9 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
       algorithm = nullptr;
     }
 
-<<<<<<< HEAD
     KeyringEncryptionKeyIdInfo keyring_encryption_key_id(
         m_create_info->was_encryption_key_id_set,
         m_create_info->encryption_key_id);
-||||||| merged common ancestors
-    if (err == DB_SUCCESS) {
-      const char *encrypt = m_create_info->encrypt_type.str;
-      if (!Encryption::is_none(encrypt) &&
-          (m_flags2 & DICT_TF2_USE_FILE_PER_TABLE)) {
-        /* Set the encryption flag. */
-        byte *master_key = nullptr;
-        ulint master_key_id;
-
-        /* Check if keyring is ready. */
-        Encryption::get_master_key(&master_key_id, &master_key);
-
-        if (master_key == nullptr) {
-          my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
-          err = DB_UNSUPPORTED;
-          dict_mem_table_free(table);
-        } else {
-          my_free(master_key);
-          /* This flag will be used for setting
-          encryption flag for file-per-table
-          tablespace. */
-          DICT_TF2_FLAG_SET(table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE);
-        }
-      }
-    }
-=======
-    if (err == DB_SUCCESS) {
-      const char *encrypt = m_create_info->encrypt_type.str;
-      if (!Encryption::is_none(encrypt) &&
-          (m_flags2 & DICT_TF2_USE_FILE_PER_TABLE)) {
-        /* Set the encryption flag. */
-        byte *master_key = nullptr;
-        uint32_t master_key_id;
-
-        /* Check if keyring is ready. */
-        Encryption::get_master_key(&master_key_id, &master_key);
-
-        if (master_key == nullptr) {
-          my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
-          err = DB_UNSUPPORTED;
-          dict_mem_table_free(table);
-        } else {
-          my_free(master_key);
-          /* This flag will be used for setting
-          encryption flag for file-per-table
-          tablespace. */
-          DICT_TF2_FLAG_SET(table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE);
-        }
-      }
-    }
->>>>>>> upstream/mysql-8.0.22
 
     if (err == DB_SUCCESS) {
       err = row_create_table_for_mysql(table, algorithm, m_trx,

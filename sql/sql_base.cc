@@ -76,6 +76,8 @@
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/binlog.h"  // mysql_bin_log
 #include "sql/check_stack.h"
+#include "sql/dd/dd.h"            // dd::get_dictionary()
+#include "sql/dd/dictionary.h"
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/dd_schema.h"
 #include "sql/dd/dd_table.h"       // dd::table_exists
@@ -2800,13 +2802,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx) {
   uint flags = ot_ctx->get_flags();
   MDL_ticket *mdl_ticket = nullptr;
   int error = 0;
-<<<<<<< HEAD
-  TABLE_SHARE *share;
   bool backup_protection_acquired = false;
-||||||| merged common ancestors
-  TABLE_SHARE *share;
-=======
->>>>>>> upstream/mysql-8.0.22
 
   DBUG_TRACE;
 
@@ -5653,7 +5649,17 @@ static bool set_non_locking_read_for_IS_view(THD *thd, TABLE_LIST *tl) {
     always a DD table. If this is not true, then we might
     need to invoke dd::Dictionary::is_dd_tablename() to make sure.
    */
-  if (tbl->db_stat && tbl->file->ha_extra(HA_EXTRA_NO_READ_LOCKING)) {
+  
+  /* Addition to the above upstream comment:
+     Compression_dictionary table is dd::System_tables::Types::SYSTEM, so 
+     pushing HA_EXTRA_NO_READ_LOCKING down will cause the assert in ha_innodb.cc
+     line c.a. 19297 (no_read_locking == true, is_dd_table == false).
+     This is the logic in ha_innobase::external_lock introduced in 8.0.22.
+     Below causes HA_EXTRA_NO_READ_LOCKING not to be pushed for SYSTEM tables
+     and we have locking as before.
+  */
+  bool is_dd_table = dd::get_dictionary()->is_dd_table_name(tl->get_db_name(), tl->get_table_name());
+  if (is_dd_table && tbl->db_stat && tbl->file->ha_extra(HA_EXTRA_NO_READ_LOCKING)) {
     // Handler->ha_extra() for innodb does not fail ever as of now.
     // In case it is made to fail sometime later, we need to think
     // about the kind of error to be report to user.
@@ -10307,7 +10313,7 @@ class Node {
 class Or_node : public Node {
  public:
   Or_node() noexcept : Node() {}
-  virtual void add_successor(Node *node) {
+  void add_successor(Node *node) override {
     todo = 1;
     node->predecessors.push_back(this);
   }
@@ -10319,7 +10325,7 @@ class Or_node : public Node {
 class And_node : public Node {
  public:
   And_node() noexcept : Node() {}
-  virtual void add_successor(Node *node) {
+  void add_successor(Node *node) override {
     todo++;
     node->predecessors.push_back(this);
   }

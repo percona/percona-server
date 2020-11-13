@@ -103,16 +103,8 @@
 #include "sql_string.h"
 #include "thr_lock.h"
 
-<<<<<<< HEAD
-#include "sql/dd/impl/upgrade/server.h"
-
 #include "sql/dd/impl/bootstrap/bootstrap_ctx.h"  // DD_bootstrap_ctx
 
-||||||| merged common ancestors
-#include "sql/dd/impl/upgrade/server.h"
-
-=======
->>>>>>> upstream/mysql-8.0.22
 class Sroutine_hash_entry;
 
 bool Table_trigger_dispatcher::reorder_57_list(MEM_ROOT *mem_root,

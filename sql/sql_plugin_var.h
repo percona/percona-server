@@ -289,12 +289,11 @@ class sys_var_pluginvar : public sys_var {
   bool is_non_persistent() override {
     return (plugin_var->flags & PLUGIN_VAR_NOPERSIST);
   }
-<<<<<<< HEAD
-  bool is_hint_updateable() const {
+  bool is_hint_updateable() const override {
     return (plugin_var->flags & PLUGIN_VAR_HINTUPDATEABLE);
   }
 
-  void set_is_plugin(bool val) { is_plugin = val; }
+  void set_is_plugin(bool val) override { is_plugin = val; }
 
   /**
     Create item from plugin variable session value.
@@ -304,12 +303,7 @@ class sys_var_pluginvar : public sys_var {
     @return pointer to Item object or NULL if it's
             impossible to obtain the value.
   */
-  Item *copy_value(THD *thd);
-||||||| merged common ancestors
-  void set_is_plugin(bool val) { is_plugin = val; }
-=======
-  void set_is_plugin(bool val) override { is_plugin = val; }
->>>>>>> upstream/mysql-8.0.22
+  Item *copy_value(THD *thd) override;
 };
 
 /*

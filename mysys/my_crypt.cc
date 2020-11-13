@@ -138,10 +138,10 @@ typedef MyEncryptionCTX MyEncryptionCTX_ctr;
 class MyEncryptionCTX_nopad final : public MyEncryptionCTX {
  public:
   MyEncryptionCTX_nopad() : MyEncryptionCTX() {}
-  virtual ~MyEncryptionCTX_nopad() {}
+  ~MyEncryptionCTX_nopad() override {}
 
   int init(const my_aes_mode mode, int encrypt, const uchar *key, size_t klen,
-           const uchar *iv, size_t ivlen) noexcept {
+           const uchar *iv, size_t ivlen) noexcept override {
     this->key = key;
     this->klen = klen;
     this->buf_len = 0;
@@ -157,12 +157,12 @@ class MyEncryptionCTX_nopad final : public MyEncryptionCTX {
     return res;
   }
 
-  int update(const uchar *src, size_t slen, uchar *dst, size_t *dlen) noexcept {
+  int update(const uchar *src, size_t slen, uchar *dst, size_t *dlen) noexcept override {
     buf_len += slen;
     return MyEncryptionCTX::update(src, slen, dst, dlen);
   }
 
-  int finish(uchar *dst, size_t *dlen) {
+  int finish(uchar *dst, size_t *dlen) override {
     buf_len %= MY_AES_BLOCK_SIZE;
     if (buf_len) {
       uchar *buf = EVP_CIPHER_CTX_buf_noconst(ctx);
@@ -207,10 +207,10 @@ class MyEncryptionCTX_nopad final : public MyEncryptionCTX {
 class MyEncryptionCTX_gcm final : public MyEncryptionCTX {
  public:
   MyEncryptionCTX_gcm() : MyEncryptionCTX() {}
-  virtual ~MyEncryptionCTX_gcm() {}
+  ~MyEncryptionCTX_gcm() override {}
 
   int init(const my_aes_mode mode, int encrypt, const uchar *key, size_t klen,
-           const uchar *iv, size_t ivlen) noexcept {
+           const uchar *iv, size_t ivlen) noexcept override {
     int res = MyEncryptionCTX::init(mode, encrypt, key, klen, iv, ivlen);
     int real_ivlen = EVP_CIPHER_CTX_iv_length(ctx);
     aad = iv + real_ivlen;
@@ -218,7 +218,7 @@ class MyEncryptionCTX_gcm final : public MyEncryptionCTX {
     return res;
   }
 
-  int update(const uchar *src, size_t slen, uchar *dst, size_t *dlen) noexcept {
+  int update(const uchar *src, size_t slen, uchar *dst, size_t *dlen) noexcept override {
     /*
       note that this GCM class cannot do streaming decryption, because
       it needs the tag (which is located at the end of encrypted data)
@@ -240,7 +240,7 @@ class MyEncryptionCTX_gcm final : public MyEncryptionCTX {
     return MyEncryptionCTX::update(src, slen, dst, dlen);
   }
 
-  int finish(uchar *dst, size_t *dlen) noexcept {
+  int finish(uchar *dst, size_t *dlen) noexcept override {
     int fin;
     if (!EVP_CipherFinal_ex(ctx, dst, &fin)) return MY_AES_BAD_DATA;
     DBUG_ASSERT(fin == 0);

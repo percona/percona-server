@@ -257,7 +257,6 @@ class Datafile {
   @param[in]	name	Tablespace Name if known, nullptr if not */
   void set_name(const char *name);
 
-<<<<<<< HEAD
   struct ValidateOutput {
     ValidateOutput() : error(DB_ERROR), encryption_type(DO_NOT_KNOW) {}
 
@@ -274,18 +273,9 @@ class Datafile {
     EncryptionType encryption_type;
   };
 
-  /** Validates the datafile and checks that it conforms with
-  the expected space ID and flags.  The file should exist and be
-  successfully opened in order for this function to validate it.
-||||||| merged common ancestors
-  /** Validates the datafile and checks that it conforms with
-  the expected space ID and flags.  The file should exist and be
-  successfully opened in order for this function to validate it.
-=======
   /** Validates the datafile and checks that it conforms with the expected
   space ID and flags.  The file should exist and be successfully opened
   in order for this function to validate it.
->>>>>>> upstream/mysql-8.0.22
   @param[in]	space_id	The expected tablespace ID.
   @param[in]	flags		The expected tablespace flags.
   @param[in]	for_import	if it is for importing

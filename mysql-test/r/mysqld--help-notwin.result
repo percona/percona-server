@@ -807,16 +807,8 @@ The following options may be given as the first argument:
  block_nested_loop, batched_key_access,
  use_index_extensions, condition_fanout_filter,
  derived_merge, hash_join, subquery_to_derived,
-<<<<<<< HEAD
- prefer_ordering_index, favor_range_scan} and val is one
- of {on, off, default}
-||||||| merged common ancestors
- prefer_ordering_index} and val is one of {on, off,
- default}
-=======
- prefer_ordering_index, derived_condition_pushdown} and
- val is one of {on, off, default}
->>>>>>> upstream/mysql-8.0.22
+ prefer_ordering_index, derived_condition_pushdown,
+ favor_range_scan} and val is one of {on, off, default}
  --optimizer-trace=name 
  Controls tracing of the Optimizer:
  optimizer_trace=option=val[,option=val...], where option

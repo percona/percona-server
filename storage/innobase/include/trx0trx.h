@@ -848,8 +848,12 @@ class trx_stats final {
   trx_stats() {
     /* Always created in a zeroed memory block */
 #ifdef UNIV_DEBUG
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#pragma GCC diagnostic ignored "-Wuninitialized"
     ut_ad(lock_que_wait_ustarted == 0);
     ut_ad(take_stats == false);
+#pragma GCC diagnostic pop
 #endif
   }
 
@@ -913,7 +917,11 @@ class trx_stats final {
   Register, if needed, a start of lock wait */
   void start_lock_wait() noexcept {
     if (UNIV_LIKELY(!take_stats)) return;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#pragma GCC diagnostic ignored "-Wuninitialized"
     ut_ad(lock_que_wait_ustarted == 0);
+#pragma GCC diagnostic pop
     lock_que_wait_ustarted = ut_time_monotonic_us();
   }
 
@@ -1465,7 +1473,11 @@ inline void trx_stats::stop_lock_wait(const trx_t &trx) noexcept {
   const auto now = ut_time_monotonic_us();
   thd_report_innodb_stat(trx.mysql_thd, trx.id, MYSQL_TRX_STAT_LOCK_WAIT_USECS,
                          now - lock_que_wait_ustarted);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#pragma GCC diagnostic ignored "-Wuninitialized"
   ut_d(lock_que_wait_ustarted = 0);
+#pragma GCC diagnostic pop
 }
 
 inline void trx_stats::inc_page_get(trx_t *trx, ulint page_id_fold) noexcept {

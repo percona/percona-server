@@ -84,19 +84,11 @@ class Rotate_innodb_system_key final : public Rotate_innodb_key {
       : Rotate_innodb_key(thd),
         rotate_percona_system_key(PERCONA_INNODB_KEY_NAME, system_key_id_arg) {}
 
-<<<<<<< HEAD
   bool execute() override;
   ~Rotate_innodb_system_key() override {}
 
  private:
   Rotate_percona_system_key rotate_percona_system_key;
-||||||| merged common ancestors
-  bool execute();
-  ~Rotate_innodb_master_key() {}
-=======
-  bool execute() override;
-  ~Rotate_innodb_master_key() override {}
->>>>>>> upstream/mysql-8.0.22
 };
 
 class Rotate_binlog_master_key : public Alter_instance {
@@ -109,9 +101,8 @@ class Rotate_binlog_master_key : public Alter_instance {
     @retval False on success
     @retval True on error
   */
-<<<<<<< HEAD
   bool execute() override;
-  virtual ~Rotate_binlog_master_key() override = default;
+  ~Rotate_binlog_master_key() override = default;
 };
 
 class Rotate_redo_system_key final : public Alter_instance {
@@ -124,13 +115,6 @@ class Rotate_redo_system_key final : public Alter_instance {
 
  private:
   Rotate_percona_system_key rotate_percona_system_key;
-||||||| merged common ancestors
-  bool execute();
-  virtual ~Rotate_binlog_master_key() = default;
-=======
-  bool execute() override;
-  ~Rotate_binlog_master_key() override = default;
->>>>>>> upstream/mysql-8.0.22
 };
 
 /** Alter Innodb redo log properties. */

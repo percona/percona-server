@@ -1103,7 +1103,7 @@ Host	localhost
 db	test
 Command	Query
 Time MASKED
-State	starting
+State	init
 Info	SHOW PROCESSLIST
 Rows_sent	0
 Rows_examined	0
@@ -1146,7 +1146,7 @@ Host	localhost
 db	test
 Command	Query
 Time MASKED
-State	starting
+State	init
 Info	SHOW PROCESSLIST
 Rows_sent	0
 Rows_examined	0

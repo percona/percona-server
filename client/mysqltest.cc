@@ -1269,19 +1269,6 @@ void handle_error(struct st_command *command, std::uint32_t err_errno,
                   DYNAMIC_STRING *ds) {
   DBUG_TRACE;
 
-<<<<<<< HEAD
-  if (command->abort_on_error) {
-    if (err_errno == ER_NO_SUCH_THREAD) {
-      /* No such thread id, let's dump the available ones */
-      fprintf(stderr,
-              "mysqltest: query '%s returned ER_NO_SUCH_THREAD, "
-              "dumping processlist\n",
-              command->query);
-      show_query(&cur_con->mysql, "SHOW PROCESSLIST");
-    }
-||||||| merged common ancestors
-  if (command->abort_on_error)
-=======
   if (opt_hypergraph && err_errno == ER_HYPERGRAPH_NOT_SUPPORTED_YET) {
     const char errstr[] = "<ignored hypergraph optimizer error: ";
     dynstr_append_mem(ds, errstr, sizeof(errstr) - 1);
@@ -1291,8 +1278,15 @@ void handle_error(struct st_command *command, std::uint32_t err_errno,
     return;
   }
 
-  if (command->abort_on_error)
->>>>>>> upstream/mysql-8.0.22
+  if (command->abort_on_error) {
+    if (err_errno == ER_NO_SUCH_THREAD) {
+      /* No such thread id, let's dump the available ones */
+      fprintf(stderr,
+              "mysqltest: query '%s returned ER_NO_SUCH_THREAD, "
+              "dumping processlist\n",
+              command->query);
+      show_query(&cur_con->mysql, "SHOW PROCESSLIST");
+    }
     die("Query '%s' failed.\nERROR %d (%s): %s", command->query, err_errno,
         err_sqlstate, err_error);
   }

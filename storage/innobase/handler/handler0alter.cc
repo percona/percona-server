@@ -4656,7 +4656,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
         // re-encrypting from master key encryption
         /* Check if keyring is ready. */
         byte *master_key = NULL;
-        ulint master_key_id;
+        uint32_t master_key_id;
 
         Encryption::get_master_key(&master_key_id, &master_key);
 
@@ -5473,7 +5473,8 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
   is an implicit change to the previously selected default row format. We want
   to keep the table using the original default row_format. */
   if (old_dd_tab->table().row_format() != new_dd_tab->table().row_format() &&
-      !innobase_need_rebuild(ha_alter_info)) {
+      !innobase_need_rebuild(ha_alter_info, altered_table,
+      dict_table_is_file_per_table(m_prebuilt->table))) {
     adjust_row_format(this->table, altered_table, ha_alter_info, old_dd_tab,
                       new_dd_tab);
   }
@@ -5596,7 +5597,7 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
           ha_alter_info->create_info->encrypt_type.str)) {
     /* Set the encryption flag. */
     byte *master_key = nullptr;
-    ulint master_key_id;
+    uint32_t master_key_id;
 
     /* Check if keyring is ready. */
     Encryption::get_master_key(&master_key_id, &master_key);

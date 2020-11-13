@@ -461,15 +461,9 @@ class MYSQL_BIN_LOG : public TC_LOG {
   /* The previous gtid set in relay log. */
   Gtid_set *previous_gtid_set_relaylog;
 
-<<<<<<< HEAD
   bool snapshot_lock_acquired;
 
-  int open(const char *opt_name) { return open_binlog(opt_name); }
-||||||| merged common ancestors
-  int open(const char *opt_name) { return open_binlog(opt_name); }
-=======
   int open(const char *opt_name) override { return open_binlog(opt_name); }
->>>>>>> upstream/mysql-8.0.22
 
   /**
     Enter a stage of the ordered commit procedure.
@@ -659,15 +653,15 @@ class MYSQL_BIN_LOG : public TC_LOG {
   void harvest_bytes_written(Relay_log_info *rli, bool need_log_space_lock);
 
 #ifdef MYSQL_SERVER
-  void xlock(void);
-  void xunlock(void);
-  void slock(void) { mysql_rwlock_rdlock(&LOCK_consistent_snapshot); }
-  void sunlock(void) { mysql_rwlock_unlock(&LOCK_consistent_snapshot); }
+  void xlock(void) override;
+  void xunlock(void) override;
+  void slock(void) override { mysql_rwlock_rdlock(&LOCK_consistent_snapshot); }
+  void sunlock(void) override { mysql_rwlock_unlock(&LOCK_consistent_snapshot); }
 #else
-  void xlock(void) {}
-  void xunlock(void) {}
-  void slock(void) {}
-  void sunlock(void) {}
+  void xlock(void) override {}
+  void xunlock(void) override {}
+  void slock(void) override {}
+  void sunlock(void) override {}
 #endif /* MYSQL_SERVER */
 
   void set_max_size(ulong max_size_arg);

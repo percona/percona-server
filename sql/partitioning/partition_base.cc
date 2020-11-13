@@ -340,7 +340,7 @@ void Partition_base::init_handler_variables() {
     this allows blackhole to work properly
   */
   part_share = nullptr;
-  m_new_partitions_share_refs.empty();
+  m_new_partitions_share_refs.clear();
   m_part_ids_sorted_by_num_of_records = nullptr;
   m_new_file = nullptr;
   m_num_new_partitions = 0;

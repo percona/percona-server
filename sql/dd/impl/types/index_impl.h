@@ -127,9 +127,9 @@ class Index_impl : public Entity_object_impl, public Index {
   // is_disabled.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool is_disabled() const noexcept { return m_disabled; }
+  bool is_disabled() const noexcept override { return m_disabled; }
 
-  virtual void set_disabled(bool disable) noexcept { m_disabled = disable; }
+  void set_disabled(bool disable) noexcept override { m_disabled = disable; }
 
   /////////////////////////////////////////////////////////////////////////
   // comment.

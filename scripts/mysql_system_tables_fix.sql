@@ -1390,17 +1390,13 @@ PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
 ALTER TABLE mysql.slave_worker_info TABLESPACE = mysql;
-<<<<<<< HEAD
+ALTER TABLE mysql.replication_asynchronous_connection_failover TABLESPACE = mysql;
 
 SET @str="ALTER TABLE mysql.gtid_executed ENCRYPTION='Y'";
 SET @cmd = IF(STRCMP(@is_mysql_encrypted,'Y'), 'SET @dummy = 0', @str);
 PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
-||||||| merged common ancestors
-=======
-ALTER TABLE mysql.replication_asynchronous_connection_failover TABLESPACE = mysql;
->>>>>>> upstream/mysql-8.0.22
 ALTER TABLE mysql.gtid_executed TABLESPACE = mysql;
 
 SET @str="ALTER TABLE mysql.server_cost ENCRYPTION='Y'";

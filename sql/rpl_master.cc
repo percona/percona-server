@@ -1292,16 +1292,8 @@ bool show_binlogs(THD *thd) {
   field_list.push_back(new Item_empty_string("Log_name", 255));
   field_list.push_back(
       new Item_return_int("File_size", 20, MYSQL_TYPE_LONGLONG));
-<<<<<<< HEAD
   field_list.push_back(new Item_empty_string("Encrypted", 12));
-  if (thd->send_result_metadata(&field_list,
-||||||| merged common ancestors
-  field_list.push_back(new Item_empty_string("Encrypted", 3));
-  if (thd->send_result_metadata(&field_list,
-=======
-  field_list.push_back(new Item_empty_string("Encrypted", 3));
   if (thd->send_result_metadata(field_list,
->>>>>>> upstream/mysql-8.0.22
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 

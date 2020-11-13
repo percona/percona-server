@@ -123,21 +123,15 @@ class Object_table_impl : virtual public Object_table {
 
   void set_hidden(bool hidden) override { m_hidden = hidden; }
 
-<<<<<<< HEAD
-  virtual bool is_target_encrypted() const;
+  virtual bool is_target_encrypted() const override;
 
-  virtual void unset_target_encrypted() const;
+  virtual void unset_target_encrypted() const override;
 
-  virtual void set_target_encrypted() const;
+  virtual void set_target_encrypted() const override;
 
-  virtual void set_actual_encrypted() const;
+  virtual void set_actual_encrypted() const override;
 
-  virtual ~Object_table_impl() {}
-||||||| merged common ancestors
-  virtual ~Object_table_impl() {}
-=======
   ~Object_table_impl() override {}
->>>>>>> upstream/mysql-8.0.22
 };
 
 ///////////////////////////////////////////////////////////////////////////

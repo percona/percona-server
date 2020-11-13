@@ -51,6 +51,9 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 //   Support more complicated update expressions
 //   Replace field_offset
 
+#include "sql/current_thd.h"
+#include "sql/lex.h"
+
 // Debug function to dump an Item
 static void dump_item(Item *item) {
   fprintf(stderr, "%u", item->type());
@@ -99,7 +102,7 @@ static void dump_item(Item *item) {
     case Item::INSERT_VALUE_ITEM: {
       Item_insert_value *value_item = static_cast<Item_insert_value *>(item);
       fprintf(stderr, ":insert_value");
-      dump_item(value_item->arg);
+      dump_item(value_item->get_arg());
       break;
     }
     default:
@@ -186,19 +189,29 @@ static uint32_t blob_field_index(TABLE *table, KEY_AND_COL_INFO *kc_info,
 // (fields[i] = values[i]), and a list of where conditions (conds).
 // The function returns 0 if the update is handled in the storage engine.
 // Otherwise, an error is returned.
-int ha_tokudb::fast_update(THD *thd, List<Item> &update_fields,
-                           List<Item> &update_values, Item *conds) {
+int ha_tokudb::fast_update(THD *thd, mem_root_deque<Item *> &update_fields,
+                           mem_root_deque<Item *> &update_values, Item *conds) {
   TOKUDB_HANDLER_DBUG_ENTER("");
   int error = 0;
+
+  List<Item> update_fields_list;
+  List<Item> update_values_list;
 
   if (!tokudb::sysvars::enable_fast_update(thd)) {
     error = ENOTSUP;
     goto exit;
   }
 
+  for (auto i : update_fields) {
+    update_fields_list.push_back(i);
+  }
+  for (auto i : update_values) {
+    update_values_list.push_back(i);
+  }
+
   if (TOKUDB_UNLIKELY(TOKUDB_DEBUG_FLAGS(TOKUDB_DEBUG_UPSERT))) {
-    dump_item_list("fields", update_fields);
-    dump_item_list("values", update_values);
+    dump_item_list("fields", update_fields_list);
+    dump_item_list("values", update_values_list);
     if (conds) {
       fprintf(stderr, "conds\n");
       dump_item(conds);
@@ -206,18 +219,18 @@ int ha_tokudb::fast_update(THD *thd, List<Item> &update_fields,
     }
   }
 
-  if (update_fields.elements < 1 ||
-      update_fields.elements != update_values.elements) {
+  if (update_fields_list.elements < 1 ||
+      update_fields_list.elements != update_values_list.elements) {
     error = ENOTSUP;  // something is fishy with the parameters
     goto exit;
   }
 
-  if (!check_fast_update(thd, update_fields, update_values, conds)) {
+  if (!check_fast_update(thd, update_fields_list, update_values_list, conds)) {
     error = HA_ERR_UNSUPPORTED;
     goto exit;
   }
 
-  error = send_update_message(update_fields, update_values, conds, transaction);
+  error = send_update_message(update_fields_list, update_values_list, conds, transaction);
 
   if (error) {
     int mapped_error = map_to_handler_error(error);
@@ -253,8 +266,8 @@ static bool check_int_result(Item *item) {
 static bool check_insert_value(Item *item, const char *field_name) {
   if (item->type() != Item::INSERT_VALUE_ITEM) return false;
   Item_insert_value *value_item = static_cast<Item_insert_value *>(item);
-  if (value_item->arg->type() != Item::FIELD_ITEM) return false;
-  Item_field *arg = static_cast<Item_field *>(value_item->arg);
+  if (value_item->get_arg()->type() != Item::FIELD_ITEM) return false;
+  Item_field *arg = static_cast<Item_field *>(value_item->get_arg());
   if (strcmp(field_name, arg->field_name) != 0) return false;
   return true;
 }
@@ -530,7 +543,7 @@ static longlong item_val_int(Item *item) {
   Item::Type t = item->type();
   if (t == Item::INSERT_VALUE_ITEM) {
     Item_insert_value *value_item = static_cast<Item_insert_value *>(item);
-    return value_item->arg->val_int();
+    return value_item->get_arg()->val_int();
   } else
     return item->val_int();
 }
@@ -787,35 +800,45 @@ int ha_tokudb::send_update_message(List<Item> &update_fields,
 // (update_fields[i] = update_values[i]).
 // The function returns 0 if the upsert is handled in the storage engine.
 // Otherwise, an error code is returned.
-int ha_tokudb::upsert(THD *thd, List<Item> &update_fields,
-                      List<Item> &update_values) {
+int ha_tokudb::upsert(THD *thd, mem_root_deque<Item *> &update_fields,
+                      mem_root_deque<Item *> &update_values) {
   TOKUDB_HANDLER_DBUG_ENTER("");
   int error = 0;
+
+  List<Item> update_fields_list;
+  List<Item> update_values_list;
 
   if (!tokudb::sysvars::enable_fast_upsert(thd)) {
     error = ENOTSUP;
     goto exit;
   }
 
+  for (auto i : update_fields) {
+    update_fields_list.push_back(i);
+  }
+  for (auto i : update_values) {
+    update_values_list.push_back(i);
+  }
+
   if (TOKUDB_UNLIKELY(TOKUDB_DEBUG_FLAGS(TOKUDB_DEBUG_UPSERT))) {
     fprintf(stderr, "upsert\n");
-    dump_item_list("update_fields", update_fields);
-    dump_item_list("update_values", update_values);
+    dump_item_list("update_fields", update_fields_list);
+    dump_item_list("update_values", update_values_list);
   }
 
   // not an upsert or something is fishy with the parameters
-  if (update_fields.elements < 1 ||
-      update_fields.elements != update_values.elements) {
+  if (update_fields_list.elements < 1 ||
+      update_fields_list.elements != update_values_list.elements) {
     error = ENOTSUP;
     goto exit;
   }
 
-  if (!check_upsert(thd, update_fields, update_values)) {
+  if (!check_upsert(thd, update_fields_list, update_values_list)) {
     error = HA_ERR_UNSUPPORTED;
     goto exit;
   }
 
-  error = send_upsert_message(update_fields, update_values, transaction);
+  error = send_upsert_message(update_fields_list, update_values_list, transaction);
 
   if (error) {
     int mapped_error = map_to_handler_error(error);

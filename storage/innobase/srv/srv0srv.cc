@@ -1284,13 +1284,9 @@ void srv_free(void) {
     os_event_destroy(srv_monitor_event);
     os_event_destroy(srv_buf_dump_event);
     os_event_destroy(buf_flush_event);
-<<<<<<< HEAD
     os_event_destroy(srv_checkpoint_completed_event);
     os_event_destroy(srv_redo_log_tracked_event);
-||||||| merged common ancestors
-=======
     os_event_destroy(buf_flush_tick_event);
->>>>>>> upstream/mysql-8.0.22
   }
 
   os_event_destroy(srv_buf_resize_event);
@@ -2209,7 +2205,6 @@ ulint srv_get_activity_count(void) {
   return (srv_sys == nullptr ? 0 : srv_sys->activity_count);
 }
 
-<<<<<<< HEAD
 /** Get current server ibuf merge activity count.
 @return ibuf merge activity count */
 static ulint srv_get_ibuf_merge_activity_count() noexcept {
@@ -2227,6 +2222,8 @@ treated as keeping server idle.
 @return false if no change in activity counter. */
 bool srv_check_activity(ulint old_activity_count,
                         ulint old_ibuf_merge_activity_count) noexcept {
+  if (srv_sys == nullptr) return false;
+  
   const ulint new_activity_count = srv_sys->activity_count;
   if (old_ibuf_merge_activity_count == ULINT_UNDEFINED)
     return (new_activity_count != old_activity_count);
@@ -2245,22 +2242,6 @@ bool srv_check_activity(ulint old_activity_count,
   const auto activity_delta = new_activity_count - old_activity_count;
 
   return (activity_delta > ibuf_merge_activity_delta);
-||||||| merged common ancestors
-/** Check if there has been any activity.
- @return false if no change in activity counter. */
-ibool srv_check_activity(
-    ulint old_activity_count) /*!< in: old activity count */
-{
-  return (srv_sys->activity_count != old_activity_count);
-=======
-/** Check if there has been any activity.
- @return false if no change in activity counter. */
-ibool srv_check_activity(
-    ulint old_activity_count) /*!< in: old activity count */
-{
-  return (srv_sys == nullptr ? false
-                             : srv_sys->activity_count != old_activity_count);
->>>>>>> upstream/mysql-8.0.22
 }
 
 /** Make room in the table cache by evicting an unused table.

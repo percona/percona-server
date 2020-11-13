@@ -26,6 +26,7 @@ mysql/password_history	161
 mysql/plugin	161
 mysql/procs_priv	161
 mysql/proxies_priv	161
+mysql/replication_asynchronous_connection_failover	161
 mysql/role_edges	161
 mysql/servers	161
 mysql/server_cost	161

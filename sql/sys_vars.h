@@ -855,8 +855,7 @@ class Sys_var_version : public Sys_var_charptr {
 
   ~Sys_var_version() override {}
 
-<<<<<<< HEAD
-  virtual const uchar *global_value_ptr(THD *thd, LEX_STRING *base) {
+  const uchar *global_value_ptr(THD *thd, LEX_STRING *base) override {
     const char *const *version_ptr = reinterpret_cast<const char *const *>(
         Sys_var_charptr::global_value_ptr(thd, base));
     if (version_ptr == nullptr || *version_ptr == nullptr) return nullptr;
@@ -869,13 +868,6 @@ class Sys_var_version : public Sys_var_charptr {
         suffix_var->value_ptr(thd, OPT_GLOBAL, nullptr));
     if (suffix_ptr == nullptr || *suffix_ptr == nullptr)
       return reinterpret_cast<const uchar *>(version_ptr);
-||||||| merged common ancestors
-  virtual const uchar *global_value_ptr(THD *thd, LEX_STRING *base) {
-    const uchar *value = Sys_var_charptr::global_value_ptr(thd, base);
-=======
-  const uchar *global_value_ptr(THD *thd, LEX_STRING *base) override {
-    const uchar *value = Sys_var_charptr::global_value_ptr(thd, base);
->>>>>>> upstream/mysql-8.0.22
 
     size_t suffix_ptr_len = strlen(*suffix_ptr);
     size_t version_ptr_len = strlen(*version_ptr);
@@ -2168,7 +2160,7 @@ class Sys_var_enum_default_table_encryption : public Sys_var_enum {
       : Sys_var_enum(name_arg, comment, flag_args, off, size, getopt, values,
                      def_val, lock, binlog_status_arg, on_check_func, nullptr) {
   }
-  virtual bool global_update(THD *thd, set_var *var);
+  bool global_update(THD *thd, set_var *var) override;
 };
 
 /**

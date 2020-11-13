@@ -434,7 +434,7 @@ class Thd_timeout_checker : public Do_THD_Impl {
 
   virtual ~Thd_timeout_checker() {}
 
-  virtual void operator()(THD *thd) noexcept {
+  void operator()(THD *thd) noexcept override {
     if (thd_get_net_read_write(thd) != 1) return;
 
     connection_t *connection = (connection_t *)thd->event_scheduler.data;

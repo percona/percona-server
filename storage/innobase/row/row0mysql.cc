@@ -251,7 +251,6 @@ const byte *row_mysql_read_true_varchar(
   return (field + 1);
 }
 
-<<<<<<< HEAD
 /**
    Compressed BLOB header format:
    ---------------------------------------------------------------
@@ -612,47 +611,6 @@ const byte *row_decompress_column(const byte *data, ulint *len,
   return data;
 }
 
-/** Stores a reference to a BLOB in the MySQL format. */
-void row_mysql_store_blob_ref(
-    byte *dest,       /*!< in: where to store */
-    ulint col_len,    /*!< in: dest buffer size: determines into
-                      how many bytes the BLOB length is stored,
-                      the space for the length may vary from 1
-                      to 4 bytes */
-    const void *data, /*!< in: BLOB data; if the value to store
-                      is SQL NULL this should be NULL pointer */
-    ulint len,        /*!< in: BLOB length; if the value to store
-            is SQL NULL this should be 0; remember
-            also to set the NULL bit in the MySQL record
-            header! */
-    bool need_decompression,
-    /*!< in: if the data need to be compressed*/
-    const byte *dict_data,
-    /*!< in: optional compression dictionary
-    data */
-    ulint dict_data_len,
-    /*!< in: optional compression dictionary data
-    length */
-    row_prebuilt_t *prebuilt)
-/*<! in: use prebuilt->compress_heap only
-here */
-{
-||||||| merged common ancestors
-/** Stores a reference to a BLOB in the MySQL format. */
-void row_mysql_store_blob_ref(
-    byte *dest,       /*!< in: where to store */
-    ulint col_len,    /*!< in: dest buffer size: determines into
-                      how many bytes the BLOB length is stored,
-                      the space for the length may vary from 1
-                      to 4 bytes */
-    const void *data, /*!< in: BLOB data; if the value to store
-                      is SQL NULL this should be NULL pointer */
-    ulint len)        /*!< in: BLOB length; if the value to store
-                      is SQL NULL this should be 0; remember
-                      also to set the NULL bit in the MySQL record
-                      header! */
-{
-=======
 /** Stores a reference to a BLOB in the MySQL format.
 @param[in] dest Where to store
 @param[in,out] col_len Dest buffer size: determines into how many bytes the blob
@@ -660,10 +618,15 @@ length is stored, the space for the length may vary from 1 to 4 bytes
 @param[in] data Blob data; if the value to store is sql null this should be null
 pointer
 @param[in] len Blob length; if the value to store is sql null this should be 0;
-remember also to set the null bit in the mysql record header! */
+remember also to set the null bit in the mysql record header!
+@param[in] need_decompression If the data need to be compressed
+@param[in] dict_data Optional compression dictionary
+@param[in] dict_data_len Optional compression dictionary data
+@param[in] prebuilt Use prebuilt->compress_heap only here */
 void row_mysql_store_blob_ref(byte *dest, ulint col_len, const void *data,
-                              ulint len) {
->>>>>>> upstream/mysql-8.0.22
+                              ulint len, bool need_decompression,
+                              const byte *dict_data, ulint dict_data_len,
+                              row_prebuilt_t *prebuilt) {
   /* MySQL might assume the field is set to zero except the length and
   the pointer fields */
 

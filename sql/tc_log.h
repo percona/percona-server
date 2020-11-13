@@ -157,29 +157,15 @@ class TC_LOG_DUMMY : public TC_LOG  // use it to disable the logging
 {
  public:
   TC_LOG_DUMMY() {}
-<<<<<<< HEAD
-  int open(const char *) { return 0; }
-  void close() {}
-  enum_result commit(THD *thd, bool all);
-  int rollback(THD *thd, bool all);
-  int prepare(THD *thd, bool all);
-  void xlock(void) {}
-  void xunlock(void) {}
-  void slock(void) {}
-  void sunlock(void) {}
-||||||| merged common ancestors
-  int open(const char *) { return 0; }
-  void close() {}
-  enum_result commit(THD *thd, bool all);
-  int rollback(THD *thd, bool all);
-  int prepare(THD *thd, bool all);
-=======
   int open(const char *) override { return 0; }
   void close() override {}
   enum_result commit(THD *thd, bool all) override;
   int rollback(THD *thd, bool all) override;
   int prepare(THD *thd, bool all) override;
->>>>>>> upstream/mysql-8.0.22
+  void xlock(void) override {}
+  void xunlock(void) override {}
+  void slock(void) override {}
+  void sunlock(void) override {}
 };
 
 class TC_LOG_MMAP : public TC_LOG {
@@ -238,10 +224,10 @@ class TC_LOG_MMAP : public TC_LOG {
   int recover();
   uint size() const;
 
-  void xlock(void) { mysql_rwlock_wrlock(&LOCK_consistent_snapshot); }
-  void xunlock(void) { mysql_rwlock_unlock(&LOCK_consistent_snapshot); }
-  void slock(void) { mysql_rwlock_rdlock(&LOCK_consistent_snapshot); }
-  void sunlock(void) { mysql_rwlock_unlock(&LOCK_consistent_snapshot); }
+  void xlock(void) override { mysql_rwlock_wrlock(&LOCK_consistent_snapshot); }
+  void xunlock(void) override { mysql_rwlock_unlock(&LOCK_consistent_snapshot); }
+  void slock(void) override { mysql_rwlock_rdlock(&LOCK_consistent_snapshot); }
+  void sunlock(void) override { mysql_rwlock_unlock(&LOCK_consistent_snapshot); }
 
  private:
   ulong log_xid(my_xid xid);

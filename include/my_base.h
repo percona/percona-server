@@ -991,16 +991,12 @@ Information in the data-dictionary needs to be updated. */
 #define HA_ERR_TOO_LONG_PATH 207
 /** Histogram sampling initialization failed */
 #define HA_ERR_SAMPLING_INIT_FAILED 208
-<<<<<<< HEAD
-/** Destination schema does not exist */
-#define HA_ERR_DEST_SCHEMA_NOT_EXIST 209
-||||||| merged common ancestors
-=======
 /** Too many sub-expression in search string */
 #define HA_ERR_FTS_TOO_MANY_NESTED_EXP 209
->>>>>>> upstream/mysql-8.0.22
+/** Destination schema does not exist */
+#define HA_ERR_DEST_SCHEMA_NOT_EXIST 210
 /** Copy of last error number */
-#define HA_ERR_LAST 209
+#define HA_ERR_LAST 210
 
 /* Number of different errors */
 #define HA_ERR_ERRORS (HA_ERR_LAST - HA_ERR_FIRST + 1)

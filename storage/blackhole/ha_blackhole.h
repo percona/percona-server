@@ -70,27 +70,13 @@ class ha_blackhole : public handler {
                       HA_KEYREAD_ONLY);
   }
   /* The following defines can be increased if necessary */
-<<<<<<< HEAD
 #define BLACKHOLE_MAX_KEY MAX_KEY     /* Max allowed keys */
 #define BLACKHOLE_MAX_KEY_SEG 16      /* Max segments for key */
 #define BLACKHOLE_MAX_KEY_LENGTH 3500 /* Like in InnoDB */
-  uint max_supported_keys() const { return BLACKHOLE_MAX_KEY; }
-  uint max_supported_key_length() const { return BLACKHOLE_MAX_KEY_LENGTH; }
-||||||| merged common ancestors
-#define BLACKHOLE_MAX_KEY 64     /* Max allowed keys */
-#define BLACKHOLE_MAX_KEY_SEG 16 /* Max segments for key */
-#define BLACKHOLE_MAX_KEY_LENGTH 1000
-  uint max_supported_keys() const { return BLACKHOLE_MAX_KEY; }
-  uint max_supported_key_length() const { return BLACKHOLE_MAX_KEY_LENGTH; }
-=======
-#define BLACKHOLE_MAX_KEY 64     /* Max allowed keys */
-#define BLACKHOLE_MAX_KEY_SEG 16 /* Max segments for key */
-#define BLACKHOLE_MAX_KEY_LENGTH 1000
   uint max_supported_keys() const override { return BLACKHOLE_MAX_KEY; }
   uint max_supported_key_length() const override {
     return BLACKHOLE_MAX_KEY_LENGTH;
   }
->>>>>>> upstream/mysql-8.0.22
   uint max_supported_key_part_length(
       HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) const override {
     return BLACKHOLE_MAX_KEY_LENGTH;
@@ -118,14 +104,8 @@ class ha_blackhole : public handler {
   int create(const char *name, TABLE *table_arg, HA_CREATE_INFO *create_info,
              dd::Table *table_def) override;
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
-<<<<<<< HEAD
-                             enum thr_lock_type lock_type);
-  bool has_gap_locks() const noexcept { return true; }
-||||||| merged common ancestors
-                             enum thr_lock_type lock_type);
-=======
                              enum thr_lock_type lock_type) override;
->>>>>>> upstream/mysql-8.0.22
+  bool has_gap_locks() const noexcept override { return true; }
 
  private:
   int write_row(uchar *buf) override;

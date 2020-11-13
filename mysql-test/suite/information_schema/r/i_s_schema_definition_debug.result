@@ -103,16 +103,8 @@ CREATE TABLE test.I_S_view_names (name VARCHAR(64) PRIMARY KEY);
 ########################################################################
 # The number of I_S system views must be as expected.
 ########################################################################
-<<<<<<< HEAD
-include/assert.inc [There are 45 system views.]
-include/assert.inc [There are 45 I_S system views in total.]
-||||||| merged common ancestors
-include/assert.inc [There are 43 system views.]
-include/assert.inc [There are 43 I_S system views in total.]
-=======
-include/assert.inc [There are 44 system views.]
-include/assert.inc [There are 44 I_S system views in total.]
->>>>>>> upstream/mysql-8.0.22
+include/assert.inc [There are 46 system views.]
+include/assert.inc [There are 46 I_S system views in total.]
 ########################################################################
 # No unexpected I_S tables must be present.
 ########################################################################

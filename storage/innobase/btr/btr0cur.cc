@@ -388,19 +388,10 @@ bool btr_cur_optimistic_latch_leaves(buf_block_t *block,
                                   cursor->m_fetch_mode, file, line, mtr)) {
         if (btr_page_get_prev(buf_block_get_frame(block), mtr) ==
             left_page_no) {
-<<<<<<< HEAD
-          /* adjust buf_fix_count */
-          buf_block_buf_fix_dec(block);
-
-||||||| merged common ancestors
-          /* adjust buf_fix_count */
-          buf_block_buf_fix_dec(block);
-=======
           /* We've entered this function with the block already buffer-fixed,
           and buf_page_optimistic_get() buffer-fixes it again. The caller should
           unfix the block once (to undo their buffer-fixing). */
           ut_ad(2 <= block->page.buf_fix_count);
->>>>>>> upstream/mysql-8.0.22
           *latch_mode = mode;
           return true;
         } else {
@@ -4724,45 +4715,9 @@ ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
         index->table->is_intrinsic());
   ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
 
-<<<<<<< HEAD
-  if (!has_reserved_extents) {
-    /* First reserve enough free space for the file segments
-    of the index tree, so that the node pointer updates will
-    not fail because of lack of space */
-
-    ut_a(cursor->tree_height != ULINT_UNDEFINED);
-
-    ulint n_extents = cursor->tree_height / 32 + 1;
-
-    success = fsp_reserve_free_extents(&n_reserved, index->space, n_extents,
-                                       FSP_CLEANING, mtr);
-    if (!success) {
-      *err = DB_OUT_OF_FILE_SPACE;
-
-      return FALSE;
-    }
-  }
-||||||| merged common ancestors
-  if (!has_reserved_extents) {
-    /* First reserve enough free space for the file segments
-    of the index tree, so that the node pointer updates will
-    not fail because of lack of space */
-
-    ulint n_extents = cursor->tree_height / 32 + 1;
-
-    success = fsp_reserve_free_extents(&n_reserved, index->space, n_extents,
-                                       FSP_CLEANING, mtr);
-    if (!success) {
-      *err = DB_OUT_OF_FILE_SPACE;
-
-      return FALSE;
-    }
-  }
-=======
   std::unique_ptr<mem_heap_t, decltype(&mem_heap_free)> heap_ptr(
       mem_heap_create(1024), mem_heap_free);
   mem_heap_t *heap = heap_ptr.get();
->>>>>>> upstream/mysql-8.0.22
 
   rec = btr_cur_get_rec(cursor);
 #ifdef UNIV_ZIP_DEBUG

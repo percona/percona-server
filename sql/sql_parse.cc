@@ -4544,6 +4544,11 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_SHOW_STATUS_FUNC:
     case SQLCOM_SHOW_VARIABLES:
     case SQLCOM_SHOW_WARNS:
+    case SQLCOM_SHOW_USER_STATS:
+    case SQLCOM_SHOW_TABLE_STATS:
+    case SQLCOM_SHOW_INDEX_STATS:
+    case SQLCOM_SHOW_CLIENT_STATS:
+    case SQLCOM_SHOW_THREAD_STATS:
     case SQLCOM_CLONE:
     case SQLCOM_LOCK_INSTANCE:
     case SQLCOM_UNLOCK_INSTANCE:

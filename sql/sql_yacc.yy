@@ -13445,38 +13445,28 @@ show_param:
           }
         | CLIENT_STATS_SYM opt_wild_or_where
           {
-           LEX *lex= Lex;
-           Lex->sql_command= SQLCOM_SHOW_CLIENT_STATS;
-           if (prepare_schema_table(YYTHD, lex, 0, SCH_CLIENT_STATS))
-             MYSQL_YYABORT;
+           auto *p= NEW_PTN PT_show_client_stats(@$, $2.wild, $2.where);
+           MAKE_CMD(p);
           }
         | USER_STATS_SYM opt_wild_or_where
           {
-           LEX *lex= Lex;
-           lex->sql_command= SQLCOM_SHOW_USER_STATS;
-           if (prepare_schema_table(YYTHD, lex, 0, SCH_USER_STATS))
-             MYSQL_YYABORT;
+           auto *p= NEW_PTN PT_show_user_stats(@$, $2.wild, $2.where);
+           MAKE_CMD(p);
           }
         | THREAD_STATS_SYM opt_wild_or_where
           {
-           LEX *lex= Lex;
-           Lex->sql_command= SQLCOM_SHOW_THREAD_STATS;
-           if (prepare_schema_table(YYTHD, lex, 0, SCH_THREAD_STATS))
-             MYSQL_YYABORT;
+           auto *p= NEW_PTN PT_show_thread_stats(@$, $2.wild, $2.where);
+           MAKE_CMD(p);
           }
         | TABLE_STATS_SYM opt_wild_or_where
           {
-           LEX *lex= Lex;
-           lex->sql_command= SQLCOM_SHOW_TABLE_STATS;
-           if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_STATS))
-             MYSQL_YYABORT;
+           auto *p= NEW_PTN PT_show_table_stats(@$, $2.wild, $2.where);
+           MAKE_CMD(p);
           }
         | INDEX_STATS_SYM opt_wild_or_where
           {
-           LEX *lex= Lex;
-           lex->sql_command= SQLCOM_SHOW_INDEX_STATS;
-           if (prepare_schema_table(YYTHD, lex, 0, SCH_INDEX_STATS))
-             MYSQL_YYABORT;
+           auto *p= NEW_PTN PT_show_index_stats(@$, $2.wild, $2.where);
+           MAKE_CMD(p);
           }
         | CREATE PROCEDURE_SYM sp_name
           {

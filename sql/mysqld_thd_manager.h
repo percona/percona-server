@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,9 +80,17 @@ class Find_THD_Impl {
 */
 class Find_thd_with_id : public Find_THD_Impl {
  public:
+<<<<<<< HEAD
   Find_thd_with_id(my_thread_id value, bool daemon_allowed)
       : m_thread_id(value), m_daemon_allowed(daemon_allowed) {}
   virtual bool operator()(THD *thd);
+||||||| merged common ancestors
+  Find_thd_with_id(my_thread_id value) : m_thread_id(value) {}
+  virtual bool operator()(THD *thd);
+=======
+  Find_thd_with_id(my_thread_id value) : m_thread_id(value) {}
+  bool operator()(THD *thd) override;
+>>>>>>> upstream/mysql-8.0.22
 
   const my_thread_id m_thread_id;
 

@@ -63,7 +63,12 @@ SET(INNOBASE_SOURCES
   btr/btr0pcur.cc
   btr/btr0sea.cc
   btr/btr0bulk.cc
+<<<<<<< HEAD
   btr/btr0scrub.cc
+||||||| merged common ancestors
+=======
+  buf/buf0block_hint.cc
+>>>>>>> upstream/mysql-8.0.22
   buf/buf0buddy.cc
   buf/buf0buf.cc
   buf/buf0dblwr.cc

@@ -17,7 +17,7 @@ DROP TABLE IF EXISTS t1;
 CREATE TEMPORARY TABLE t1 AS SELECT @@global.init_slave AS my_column;
 DESCRIBE t1;
 Field	Type	Null	Key	Default	Extra
-my_column	varchar(74)	YES		NULL	NULL
+my_column	text	YES		NULL	NULL
 select length(my_column) from t1;
 length(my_column)
 85
@@ -27,10 +27,50 @@ SELECT @@global.init_slave = 'SET @@global.max_connections = @@global.max_connec
 1
 Expect 1
 include/assert.inc [@@global.max_connections = @start_max_connections]
+<<<<<<< HEAD
 include/restart_slave.inc
+||||||| merged common ancestors
+STOP SLAVE;
+RESET MASTER;
+RESET SLAVE;
+START SLAVE;
+include/wait_for_slave_to_start.inc
+=======
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+RESET MASTER;
+RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_to_start.inc
+>>>>>>> upstream/mysql-8.0.22
 include/assert.inc [@@global.max_connections = @start_max_connections + 1]
 SET @@global.init_slave = "SET @a=5";
+<<<<<<< HEAD
 include/restart_slave.inc
+||||||| merged common ancestors
+STOP SLAVE;
+RESET MASTER;
+RESET SLAVE;
+START SLAVE;
+include/wait_for_slave_to_start.inc
+=======
+STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+RESET MASTER;
+RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_to_start.inc
+>>>>>>> upstream/mysql-8.0.22
 SHOW VARIABLES LIKE 'init_slave';
 Variable_name	Value
 init_slave	SET @a=5

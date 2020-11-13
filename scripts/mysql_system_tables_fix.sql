@@ -804,6 +804,7 @@ ALTER TABLE slave_master_info ADD Ssl_crlpath TEXT CHARACTER SET utf8 COLLATE ut
 ALTER TABLE slave_master_info STATS_PERSISTENT=0;
 ALTER TABLE slave_worker_info STATS_PERSISTENT=0;
 ALTER TABLE slave_relay_log_info STATS_PERSISTENT=0;
+ALTER TABLE replication_asynchronous_connection_failover STATS_PERSISTENT=0;
 ALTER TABLE gtid_executed STATS_PERSISTENT=0;
 
 #
@@ -847,6 +848,8 @@ ALTER TABLE slave_master_info ADD Master_compression_algorithm CHAR(64) CHARACTE
 
 ALTER TABLE slave_master_info ADD Tls_ciphersuites TEXT CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL COMMENT 'Ciphersuites used for TLS 1.3 communication with the master server.';
 
+ALTER TABLE slave_master_info ADD Source_connection_auto_failover BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'Indicates whether the channel connection failover is enabled.';
+
 # If the order of column Public_key_path, Get_public_key is wrong, this will correct the order in
 # slave_master_info table.
 ALTER TABLE slave_master_info
@@ -865,6 +868,11 @@ ALTER TABLE slave_master_info
   MODIFY COLUMN Tls_ciphersuites TEXT CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL
   COMMENT 'Ciphersuites used for TLS 1.3 communication with the master server.'
   AFTER Master_zstd_compression_level;
+
+ALTER TABLE slave_master_info
+  MODIFY COLUMN Source_connection_auto_failover BOOLEAN NOT NULL DEFAULT FALSE
+  COMMENT 'Indicates whether the channel connection failover is enabled.'
+  AFTER Tls_ciphersuites;
 
 # Columns added to keep information about the replication applier thread
 # privilege context user
@@ -1382,12 +1390,17 @@ PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
 ALTER TABLE mysql.slave_worker_info TABLESPACE = mysql;
+<<<<<<< HEAD
 
 SET @str="ALTER TABLE mysql.gtid_executed ENCRYPTION='Y'";
 SET @cmd = IF(STRCMP(@is_mysql_encrypted,'Y'), 'SET @dummy = 0', @str);
 PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
+||||||| merged common ancestors
+=======
+ALTER TABLE mysql.replication_asynchronous_connection_failover TABLESPACE = mysql;
+>>>>>>> upstream/mysql-8.0.22
 ALTER TABLE mysql.gtid_executed TABLESPACE = mysql;
 
 SET @str="ALTER TABLE mysql.server_cost ENCRYPTION='Y'";
@@ -1468,6 +1481,7 @@ ALTER TABLE servers ROW_FORMAT=DYNAMIC;
 ALTER TABLE server_cost ROW_FORMAT=DYNAMIC;
 ALTER TABLE slave_master_info ROW_FORMAT=DYNAMIC;
 ALTER TABLE slave_worker_info ROW_FORMAT=DYNAMIC;
+ALTER TABLE replication_asynchronous_connection_failover ROW_FORMAT=DYNAMIC;
 ALTER TABLE slave_relay_log_info ROW_FORMAT=DYNAMIC;
 ALTER TABLE tables_priv ROW_FORMAT=DYNAMIC;
 ALTER TABLE time_zone ROW_FORMAT=DYNAMIC;
@@ -1476,5 +1490,9 @@ ALTER TABLE time_zone_leap_second ROW_FORMAT=DYNAMIC;
 ALTER TABLE time_zone_transition ROW_FORMAT=DYNAMIC;
 ALTER TABLE time_zone_transition_type ROW_FORMAT=DYNAMIC;
 ALTER TABLE user ROW_FORMAT=DYNAMIC;
+
+-- GRANT SYSTEM_USER ON *.* TO 'mysql.infoschema'@localhost
+INSERT IGNORE INTO global_grants (USER,HOST,PRIV,WITH_GRANT_OPTION)
+  VALUES ('mysql.infoschema','localhost','SYSTEM_USER','N');
 
 SET @@session.sql_mode = @old_sql_mode;

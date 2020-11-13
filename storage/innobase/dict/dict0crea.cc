@@ -104,7 +104,7 @@ dberr_t dict_build_table_def(
   return (err);
 }
 
-/** Build a tablespace to store various objects.
+/** Builds a tablespace to store various objects.
 @param[in,out]	trx		DD transaction
 @param[in,out]	tablespace	Tablespace object describing what to build.
 @param[in]      keyring_encryption_key_id info on keyring encryption key

@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -319,7 +319,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   binary_log::enum_binlog_checksum_alg relay_log_checksum_alg;
 
   MYSQL_BIN_LOG(uint *sync_period, bool relay_log = false);
-  ~MYSQL_BIN_LOG();
+  ~MYSQL_BIN_LOG() override;
 
   void set_psi_keys(
       PSI_mutex_key key_LOCK_index, PSI_mutex_key key_LOCK_commit,
@@ -461,9 +461,15 @@ class MYSQL_BIN_LOG : public TC_LOG {
   /* The previous gtid set in relay log. */
   Gtid_set *previous_gtid_set_relaylog;
 
+<<<<<<< HEAD
   bool snapshot_lock_acquired;
 
   int open(const char *opt_name) { return open_binlog(opt_name); }
+||||||| merged common ancestors
+  int open(const char *opt_name) { return open_binlog(opt_name); }
+=======
+  int open(const char *opt_name) override { return open_binlog(opt_name); }
+>>>>>>> upstream/mysql-8.0.22
 
   /**
     Enter a stage of the ordered commit procedure.
@@ -636,11 +642,11 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
  public:
   int open_binlog(const char *opt_name);
-  void close();
-  enum_result commit(THD *thd, bool all);
-  int rollback(THD *thd, bool all);
+  void close() override;
+  enum_result commit(THD *thd, bool all) override;
+  int rollback(THD *thd, bool all) override;
   bool truncate_relaylog_file(Master_info *mi, my_off_t valid_pos);
-  int prepare(THD *thd, bool all);
+  int prepare(THD *thd, bool all) override;
 #if defined(MYSQL_SERVER)
 
   void update_thd_next_event_pos(THD *thd);

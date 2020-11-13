@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -50,6 +50,7 @@ class MVCC {
   Free all the views in the m_free list */
   ~MVCC();
 
+<<<<<<< HEAD
   /** Insert the view in the proper order into the view list.
   @param	view	view to add */
   void view_add(const ReadView *view);
@@ -59,6 +60,18 @@ class MVCC {
   @param view		view owned by this class created for the
                           caller. Must be freed by calling close()
   @param trx		transaction creating the view */
+||||||| merged common ancestors
+  /**
+  Allocate and create a view.
+  @param view		view owned by this class created for the
+                          caller. Must be freed by calling close()
+  @param trx		transaction creating the view */
+=======
+  /** Allocate and create a view.
+  @param view	View owned by this class created for the caller. Must be
+  freed by calling view_close()
+  @param trx	Transaction instance of caller */
+>>>>>>> upstream/mysql-8.0.22
   void view_open(ReadView *&view, trx_t *trx);
 
   /**
@@ -76,7 +89,8 @@ class MVCC {
   /** Clones the oldest view and stores it in view. No need to
   call view_close(). The caller owns the view that is passed in.
   It will also move the closed views from the m_views list to the
-  m_free list. This function is called by Purge to create it view.
+  m_free list. This function is called by Purge to determine whether it should
+  purge the delete marked record or not.
   @param view		Preallocated view, owned by the caller */
   void clone_oldest_view(ReadView *view);
 

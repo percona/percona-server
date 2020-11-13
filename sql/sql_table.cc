@@ -15637,14 +15637,26 @@ static bool remove_secondary_keys(
     }
   }
 
+  /* Clone old Table and disable indexes we want to remove
+     (they are also disabled in altered_table_def) */
+  auto td = std::unique_ptr<dd::Table>(table_def->clone());
+  for (const auto index : *td->indexes()) {
+    const char *dd_index_name = index->name().c_str();
+    for (i = 0; i < alter_info->delayed_key_count; i++) {
+      if (strcmp(alter_info->delayed_key_info[i].name, dd_index_name) == 0) {
+        index->set_disabled(true);
+      }
+    }
+  }
+
   if (table->file->ha_prepare_inplace_alter_table(
-          table, &ha_alter_info, table_def, altered_table_def) ||
+          table, &ha_alter_info, table_def, td.get() ) ||
       table->file->ha_inplace_alter_table(table, &ha_alter_info, table_def,
-                                          altered_table_def) ||
+                                          td.get()) ||
       table->file->ha_commit_inplace_alter_table(
-          table, &ha_alter_info, true, table_def, altered_table_def)) {
+          table, &ha_alter_info, true, table_def, td.get())) {
     table->file->ha_commit_inplace_alter_table(table, &ha_alter_info, false,
-                                               table_def, altered_table_def);
+                                               table_def, td.get());
     return true;
   }
 
@@ -15657,7 +15669,7 @@ static bool remove_secondary_keys(
 
 static bool restore_secondary_keys(
     THD *thd, HA_CREATE_INFO *create_info, TABLE *table, Alter_info *alter_info,
-    const dd::Table *table_def, dd::Table *altered_table_def,
+    dd::Table *altered_table_def,
     std::vector<dd::Index *> *dd_disabled_sec_keys) {
   uint i;
   DBUG_ENTER("restore_secondary_keys");
@@ -15687,6 +15699,9 @@ static bool restore_secondary_keys(
   ha_alter_info.index_add_buffer =
       (uint *)thd->alloc(sizeof(uint) * alter_info->delayed_key_count);
 
+  /* Clone current version of table def */
+  auto td = std::unique_ptr<dd::Table>(altered_table_def->clone());
+
   for (const auto index : *dd_disabled_sec_keys) {
     index->set_disabled(false);
   }
@@ -15699,17 +15714,19 @@ static bool restore_secondary_keys(
       HA_ALTER_INPLACE_NOT_SUPPORTED)
     DBUG_RETURN(-1);
 
+  /* Use previously clonned altered_table_def (the one with disabled keys) 
+     and enable keys */
+
   if (table->file->ha_prepare_inplace_alter_table(
-          table, &ha_alter_info, table_def, altered_table_def) ||
-      table->file->ha_inplace_alter_table(table, &ha_alter_info, table_def,
-                                          altered_table_def) ||
+          table, &ha_alter_info, td.get(), altered_table_def ) ||
+      table->file->ha_inplace_alter_table(table, &ha_alter_info,
+                                          td.get(), altered_table_def ) ||
       table->file->ha_commit_inplace_alter_table(
-          table, &ha_alter_info, true, table_def, altered_table_def)) {
+          table, &ha_alter_info, true, td.get(), altered_table_def )) {
     table->file->ha_commit_inplace_alter_table(table, &ha_alter_info, false,
-                                               table_def, altered_table_def);
+                                               td.get(), altered_table_def );
     DBUG_RETURN(true);
   }
-
   DBUG_RETURN(false);
 }
 
@@ -17512,8 +17529,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     if (optimize_keys &&
         restore_secondary_keys(
             thd, create_info, new_table, alter_info,
-            is_tmp_table ? table->s->tmp_table_def : old_table_def, table_def,
-            &dd_disabled_sec_keys)) {
+            table_def, &dd_disabled_sec_keys)) {
       error2 = true;
     }
 

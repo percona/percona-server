@@ -1168,9 +1168,8 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
     ut_a(src_enc_len <= src_len);
   }
 
-
   /* Only encrypt the data + trailer, leave the header alone */
-
+  ulint data_len = 0;
   switch (m_type) {
     case NONE:
       ut_error;
@@ -1182,21 +1181,20 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
       ut_ad(m_klen == KEY_LEN);
       ut_ad(m_iv != nullptr);
 
-      /* Total length of the data to encrypt. */
-      ulint data_len;
-        if (m_type == KEYRING && page_type == FIL_PAGE_COMPRESSED) {
-            data_len = src_enc_len - DST_HEADER_SIZE;  // We need those 8 bytes for
-                                                // key_version and post-encryption
-                                                // checksum
-        } else if (m_type == KEYRING && !type.is_page_zip_compressed()) {
-            data_len = src_enc_len - DST_HEADER_SIZE - 4;  // For keyring encryption we do
-                                                    // not encrypt last four bytes
-                                                    // which are equal to the LSN
-                                                    // bytes in header
-            // So they are not encrypted anyways
-        } else {
-            data_len = src_enc_len - DST_HEADER_SIZE;
-        }
+    /* Total length of the data to encrypt. */
+    if (m_type == KEYRING && page_type == FIL_PAGE_COMPRESSED) {
+        data_len = src_enc_len - FIL_PAGE_DATA;  // We need those 8 bytes for
+                                            // key_version and post-encryption
+                                            // checksum
+    } else if (m_type == KEYRING && !type.is_page_zip_compressed()) {
+        data_len = src_enc_len - FIL_PAGE_DATA - 4;  // For keyring encryption we do
+                                                // not encrypt last four bytes
+                                                // which are equal to the LSN
+                                                // bytes in header
+        // So they are not encrypted anyways
+    } else {
+        data_len = src_enc_len - FIL_PAGE_DATA;
+    }
       /* Server encryption functions expect input data to be in multiples
       of MY_AES_BLOCK SIZE. Therefore we encrypt the overlapping data of
       the chunk_len and trailer_len twice. First we encrypt the bigger
@@ -1278,6 +1276,13 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
     mach_write_to_2(dst + FIL_PAGE_TYPE, FIL_PAGE_ENCRYPTED);
     mach_write_to_2(dst + FIL_PAGE_ORIGINAL_TYPE_V1, page_type);
   }
+
+  /* Add padding 0 for unused portion */
+  if (src_len > src_enc_len) {
+    memset(dst + DST_HEADER_SIZE + data_len, 0,
+           src_len - DST_HEADER_SIZE - data_len);
+  }
+
   if (m_type == KEYRING) {
     /* assign key version to page and for master key to keyring rotation
      * assign post encryption checksum */
@@ -1648,10 +1653,13 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
   ut_ad(m_key != nullptr);
 
   data_len = src_len - HEADER_SIZE;
-
-  if (page_type == FIL_PAGE_ENCRYPTED && m_type == KEYRING &&
-      !type.is_page_zip_compressed()) {
-    data_len -= 4;  // last 4 bytes are not encrypted
+  if (m_type == Encryption::KEYRING &&
+      page_type == FIL_PAGE_COMPRESSED_AND_ENCRYPTED) {
+    // There are 8 bytes after the header used for key_version and checksum
+    data_len += 8;
+  } else if (page_type == FIL_PAGE_ENCRYPTED && m_type == Encryption::KEYRING &&
+             !type.is_page_zip_compressed()) {
+  	data_len -= 4;  // Last 4 bytes are not encrypted
   }
 
   main_len = (data_len / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;

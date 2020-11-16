@@ -2,6 +2,8 @@
 
 --source include/not_ubuntu_precise.inc
 --source include/have_ssl.inc
+# Test requires TLSv1 and TLSv1.1
+--source include/not_min_protocol_tlsv12.inc
 --source ../include/have_performance_schema_threads.inc
 --source ../include/xplugin_preamble.inc
 

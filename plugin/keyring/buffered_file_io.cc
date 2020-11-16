@@ -108,12 +108,19 @@ my_bool Buffered_file_io::check_if_keyring_file_can_be_opened_or_created()
   File file= file_io.open(keyring_file_data_key, this->keyring_filename.c_str(),
                           file_exist && keyring_open_mode ? O_RDONLY :
                           O_RDWR | O_CREAT, MYF(MY_WME));
-  if (file < 0 ||
-      file_io.seek(file, 0, MY_SEEK_END, MYF(MY_WME)) == MY_FILEPOS_ERROR)
+  if (file < 0) return TRUE;
+  if (file_io.seek(file, 0, MY_SEEK_END, MYF(MY_WME)) == MY_FILEPOS_ERROR)
+  {
+    file_io.close(file, MYF(MY_WME));
     return TRUE;
+  }
   my_off_t file_size= file_io.tell(file, MYF(MY_WME));
-  if ((file_size == ((my_off_t) - 1)) || file_io.close(file, MYF(MY_WME)) < 0)
+  if (file_size == ((my_off_t) - 1))
+  {
+    file_io.close(file, MYF(MY_WME));
     return TRUE;
+  }
+  if (file_io.close(file, MYF(MY_WME)) < 0) return TRUE;
   if (file_size == 0 && file_io.remove(this->keyring_filename.c_str(), MYF(MY_WME))) //remove empty file
     return TRUE;
   return FALSE;
@@ -198,15 +205,22 @@ my_bool Buffered_file_io::recreate_keyring_from_backup_if_backup_exists()
                                   O_RDWR | O_CREAT, MYF(MY_WME));
 
   if (keyring_file < 0 ||
-      flush_buffer_to_storage(&buffer, keyring_file) ||
-      file_io.close(backup_file, MYF(MY_WME)) < 0 ||
-      file_io.close(keyring_file, MYF(MY_WME)) < 0)
-
+      flush_buffer_to_storage(&buffer, keyring_file))
   {
+    file_io.close(backup_file, MYF(MY_WME));
+    file_io.close(keyring_file, MYF(MY_WME));
     logger->log(MY_ERROR_LEVEL, "Error while restoring keyring from backup file"
                                 " cannot overwrite keyring with backup");
     return TRUE;
   }
+
+  if (file_io.close(backup_file, MYF(MY_WME)) < 0)
+  {
+    file_io.close(keyring_file, MYF(MY_WME));
+    return TRUE;
+  }
+  if (file_io.close(keyring_file, MYF(MY_WME)) < 0) return TRUE;
+
   return remove_backup(MYF(MY_WME));
 }
 
@@ -224,8 +238,14 @@ my_bool Buffered_file_io::init(std::string *keyring_filename)
                                    this->keyring_filename.c_str(), O_RDONLY,
                                    MYF(0));
 
-  return (keyring_file >= 0 && (read_keyring_stat(keyring_file) ||
-          file_io.close(keyring_file, MYF(MY_WME)) < 0));
+  my_bool status = FALSE;
+  if (keyring_file >= 0)
+  {
+    status = read_keyring_stat(keyring_file);
+    if (file_io.close(keyring_file, MYF(MY_WME)) < 0) return TRUE;
+  }
+
+  return status;
 }
 
 my_bool Buffered_file_io::flush_buffer_to_file(Buffer *buffer,
@@ -274,9 +294,11 @@ my_bool Buffered_file_io::flush_to_backup(ISerialized_object *serialized_object)
 
   Buffer *buffer= dynamic_cast<Buffer*>(serialized_object);
   DBUG_ASSERT(buffer != NULL);
-  return buffer == NULL ||
-         flush_buffer_to_file(buffer, backup_file) ||
-         file_io.close(backup_file, MYF(MY_WME)) < 0;
+  my_bool status = (buffer == NULL || flush_buffer_to_file(buffer, backup_file));
+
+  if (file_io.close(backup_file, MYF(MY_WME)) < 0) return TRUE;
+
+  return status;
 }
 
 my_bool Buffered_file_io::remove_backup(myf myFlags)

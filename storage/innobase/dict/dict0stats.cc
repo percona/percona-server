@@ -942,9 +942,9 @@ dict_stats_update_transient(
 		sum_of_index_sizes += index->stat_index_size;
 	}
 
-	index = dict_table_get_first_index(table);
-
 	dict_table_stats_lock(table, RW_X_LATCH);
+
+	index = dict_table_get_first_index(table);
 
 	table->stat_n_rows = index->stat_n_diff_key_vals[
 		dict_index_get_n_unique(index) - 1];
@@ -960,7 +960,8 @@ dict_stats_update_transient(
 
 	table->stat_initialized = TRUE;
 
-	dict_table_stats_unlock(index->table, RW_X_LATCH);
+	dict_table_stats_unlock(table, RW_X_LATCH);
+
 	dict_table_analyze_index_unlock(table);
 }
 
@@ -2253,11 +2254,11 @@ dict_stats_update_persistent(
 
 	ib_uint64_t stat_n_rows_tmp = index->stat_n_diff_key_vals[n_unique - 1];
 
-	ulint stat_clustered_index_size_tmp = index->stat_index_size;
+	ib_uint64_t stat_clustered_index_size_tmp = index->stat_index_size;
 
 	/* analyze other indexes from the table, if any */
 
-	ulint stat_sum_of_other_index_sizes_tmp = 0;
+	ib_uint64_t stat_sum_of_other_index_sizes_tmp = 0;
 
 	for (index = dict_table_get_next_index(index);
 	     index != NULL;

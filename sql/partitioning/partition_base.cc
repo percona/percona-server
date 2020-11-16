@@ -4012,6 +4012,10 @@ int Partition_base::extra(enum ha_extra_function operation)
       }
       break;
     }
+    case HA_EXTRA_RESET_STATE:
+    {
+      break;
+    }
     default:
     {
       /* Temporary crash to discover what is wrong */

@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_top\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/02/2020
+.\"      Date: 09/22/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_TOP\FR" "1" "06/02/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_TOP\FR" "1" "09/22/2020" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -134,7 +134,7 @@ The following table includes all options that are specific to the NDB Cluster pr
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.262.\ \&Command\-line options for the ndb_top program
+.B Table\ \&21.46.\ \&Command\-line options for the ndb_top program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -146,21 +146,21 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l.
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l.
 T{
 .PP
 \fB--color\fR,
@@ -244,7 +244,7 @@ T{
 .PP
 \fB \fR\fB-p\fR\fB \fR
 T}:T{
-Connect using this password
+Connect using this password (same as --password option)
 T}:T{
 .PP
 ADDED: NDB 7.6.3
@@ -363,13 +363,6 @@ Additional Options
 \fB\-c\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -413,13 +406,6 @@ to disable\&.
 \fB\-g\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -465,13 +451,6 @@ must be true; both options may be true\&.
 \fB\-?\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -513,13 +492,6 @@ Show program usage information\&.
 \fB\-h\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -561,13 +533,6 @@ Host name or IP address of MySQL Server to connect to\&.
 \fB\-m\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -611,13 +576,6 @@ must be true; both options may be true\&.
 \fB\-n\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -659,13 +617,6 @@ Watch the data node having this node ID\&.
 \fB\-o\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -709,13 +660,6 @@ must be true; both options may be true\&.
 \fB\-p\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -767,13 +711,6 @@ option\&. (Bug #26907833)
 \fB\-p\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -821,13 +758,6 @@ option used previously\&. (Bug #26907833)
 \fB\-P\fR)
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -876,13 +806,6 @@ option\&. (Bug #26907833)
 \fB\-s\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -924,13 +847,6 @@ Time to wait between display refreshes, in seconds\&.
 \fI\-S\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -974,13 +890,6 @@ Added in NDB 7\&.6\&.6\&. (Bug #86614, Bug #26236298)
 \fB\-r\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -1026,13 +935,6 @@ to disable\&.
 \fB\-t\fR)
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -1082,13 +984,6 @@ is removed\&. (Bug #26907833)
 \fB\-u\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l

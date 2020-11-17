@@ -6047,6 +6047,8 @@ static dberr_t fil_create_tablespace(
       punch_hole = false;
     }
 
+    ut_free(buf2);
+
     if (err != DB_SUCCESS) {
       ib::error(ER_IB_MSG_304, path);
 

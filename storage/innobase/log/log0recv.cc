@@ -2389,12 +2389,6 @@ void recv_recover_page_func(
     buf_block_t *block) {
   mutex_enter(&recv_sys->mutex);
 
-  if (block->page.encrypted) {
-    recv_sys->found_corrupt_log = true;
-    mutex_exit(&recv_sys->mutex);
-    return;
-  }
-
   if (recv_sys->apply_log_recs == false) {
     /* Log records should not be applied now */
 

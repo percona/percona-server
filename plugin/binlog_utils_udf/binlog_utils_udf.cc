@@ -139,6 +139,28 @@ ext::string_view extract_sys_var_value(ext::string_view component_name,
 
 using log_event_ptr = std::unique_ptr<Log_event>;
 
+log_event_ptr find_first_event(ext::string_view binlog_name) {
+  DBUG_TRACE;
+
+  std::string casted_binlog_name = static_cast<std::string>(binlog_name);
+
+  char search_file_name[FN_REFLEN + 1];
+  mysql_bin_log.make_log_name(search_file_name, casted_binlog_name.c_str());
+
+  Binlog_file_reader reader(false /* do not verify checksum */);
+  if (reader.open(search_file_name, 0))
+    throw std::runtime_error(reader.get_error_str());
+
+  binlog::tools::Iterator it(&reader);
+  log_event_ptr ev{it.begin()};
+
+  if (reader.has_fatal_error())
+    throw std::runtime_error(reader.get_error_str());
+  if (it.has_error()) throw std::runtime_error(it.get_error_message());
+
+  return ev;
+}
+
 log_event_ptr find_previous_gtids_event(ext::string_view binlog_name) {
   DBUG_TRACE;
 
@@ -534,6 +556,49 @@ mysqlpp::udf_result_t<STRING_RESULT> get_binlog_by_gtid_set_impl::calculate(
   return {*rit};
 }
 
+//
+// get_first_record_timestamp_by_binlog()
+// This MySQL function accepts a binlog file name and returns timestamp
+// of the first record (number of microseconds since 1-Jan-1970)
+//
+class get_first_record_timestamp_by_binlog_impl {
+ public:
+  get_first_record_timestamp_by_binlog_impl(mysqlpp::udf_context &ctx) {
+    DBUG_TRACE;
+
+    if (!binlog_utils_udf_initialized)
+      throw std::invalid_argument(
+          "This function requires binlog_utils_udf plugin which is not "
+          "installed.");
+
+    if (ctx.get_number_of_args() != 1)
+      throw std::invalid_argument(
+          "get_first_record_timestamp_by_binlog() requires exactly one "
+          "argument");
+    ctx.mark_result_const(false);
+    ctx.mark_result_nullable(true);
+    ctx.mark_arg_nullable(0, false);
+    ctx.set_arg_type(0, STRING_RESULT);
+  }
+  ~get_first_record_timestamp_by_binlog_impl() { DBUG_TRACE; }
+
+  mysqlpp::udf_result_t<INT_RESULT> calculate(const mysqlpp::udf_context &args);
+};
+
+mysqlpp::udf_result_t<INT_RESULT>
+get_first_record_timestamp_by_binlog_impl::calculate(
+    const mysqlpp::udf_context &ctx) {
+  DBUG_TRACE;
+
+  // trying to find the specified binlog name in the index
+  auto binlog_name_sv = ctx.get_arg<STRING_RESULT>(0);
+
+  auto ev = find_first_event(binlog_name_sv);
+  if (!ev) return {};
+  return ev->common_header->when.tv_sec * 1000000LL +
+         ev->common_header->when.tv_usec;
+}
+
 }  // end of anonymous namespace
 
 DECLARE_STRING_UDF(get_binlog_by_gtid_impl, get_binlog_by_gtid)
@@ -543,3 +608,6 @@ DECLARE_STRING_UDF(get_last_gtid_from_binlog_impl, get_last_gtid_from_binlog)
 DECLARE_STRING_UDF(get_gtid_set_by_binlog_impl, get_gtid_set_by_binlog)
 
 DECLARE_STRING_UDF(get_binlog_by_gtid_set_impl, get_binlog_by_gtid_set)
+
+DECLARE_INT_UDF(get_first_record_timestamp_by_binlog_impl,
+                get_first_record_timestamp_by_binlog)

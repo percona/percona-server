@@ -161,6 +161,40 @@ log_event_ptr find_first_event(ext::string_view binlog_name) {
   return ev;
 }
 
+log_event_ptr find_last_event(ext::string_view binlog_name) {
+  DBUG_TRACE;
+
+  std::string casted_binlog_name = static_cast<std::string>(binlog_name);
+
+  char search_file_name[FN_REFLEN + 1];
+  mysql_bin_log.make_log_name(search_file_name, casted_binlog_name.c_str());
+
+  Binlog_file_reader reader(false /* do not verify checksum */);
+  if (reader.open(search_file_name, 0))
+    throw std::runtime_error(reader.get_error_str());
+
+  // Here 'is_active()' is called after 'get_binlog_end_pos()' deliberately
+  // to properly handle the situation when rotation happens between these
+  // two calls
+  my_off_t end_pos = mysql_bin_log.get_binlog_end_pos();
+  if (!mysql_bin_log.is_active(search_file_name))
+    end_pos = std::numeric_limits<my_off_t>::max();
+
+  binlog::tools::Iterator it(&reader);
+  log_event_ptr ev{it.begin()};
+
+  while (true) {
+    if (reader.has_fatal_error())
+      throw std::runtime_error(reader.get_error_str());
+    if (it.has_error()) throw std::runtime_error(it.get_error_message());
+    if (ev->common_header->log_pos >= end_pos) break;
+    log_event_ptr next_ev{it.next()};
+    if (next_ev.get() == it.end()) break;
+    ev.swap(next_ev);
+  }
+  return ev;
+}
+
 log_event_ptr find_previous_gtids_event(ext::string_view binlog_name) {
   DBUG_TRACE;
 
@@ -193,6 +227,7 @@ log_event_ptr find_previous_gtids_event(ext::string_view binlog_name) {
   }
   return {};
 }
+
 bool extract_previous_gtids(ext::string_view binlog_name, bool is_first,
                             Gtid_set &extracted_gtids) {
   DBUG_TRACE;
@@ -235,7 +270,6 @@ log_event_ptr find_last_gtid_event(ext::string_view binlog_name) {
   if (!mysql_bin_log.is_active(search_file_name))
     end_pos = std::numeric_limits<my_off_t>::max();
 
-  log_event_ptr ev;
   log_event_ptr last_gtid_ev;
   binlog::tools::Iterator it(&reader);
 
@@ -283,8 +317,7 @@ class get_binlog_by_gtid_impl {
           "installed.");
 
     if (ctx.get_number_of_args() != 1)
-      throw std::invalid_argument(
-          "GET_BINLOG_BY_GTID() requires exactly one argument");
+      throw std::invalid_argument("Function requires exactly one argument");
     ctx.mark_result_const(false);
     ctx.mark_result_nullable(true);
     ctx.mark_arg_nullable(0, false);
@@ -359,8 +392,7 @@ class get_last_gtid_from_binlog_impl {
           "installed.");
 
     if (ctx.get_number_of_args() != 1)
-      throw std::invalid_argument(
-          "GET_LAST_GTID_FROM_BINLOG() requires exactly one argument");
+      throw std::invalid_argument("Function requires exactly one argument");
     ctx.mark_result_const(false);
     ctx.mark_result_nullable(true);
     ctx.mark_arg_nullable(0, false);
@@ -406,8 +438,7 @@ class get_gtid_set_by_binlog_impl {
           "installed.");
 
     if (ctx.get_number_of_args() != 1)
-      throw std::invalid_argument(
-          "get_gtid_set_by_binlog() requires exactly one argument");
+      throw std::invalid_argument("Function requires exactly one argument");
     ctx.mark_result_const(false);
     ctx.mark_result_nullable(true);
     ctx.mark_arg_nullable(0, false);
@@ -486,8 +517,7 @@ class get_binlog_by_gtid_set_impl {
           "installed.");
 
     if (ctx.get_number_of_args() != 1)
-      throw std::invalid_argument(
-          "GET_BINLOG_BY_GTID_SET() requires exactly one argument");
+      throw std::invalid_argument("Function requires exactly one argument");
     ctx.mark_result_const(false);
     ctx.mark_result_nullable(true);
     ctx.mark_arg_nullable(0, false);
@@ -572,9 +602,7 @@ class get_first_record_timestamp_by_binlog_impl {
           "installed.");
 
     if (ctx.get_number_of_args() != 1)
-      throw std::invalid_argument(
-          "get_first_record_timestamp_by_binlog() requires exactly one "
-          "argument");
+      throw std::invalid_argument("Function requires exactly one argument");
     ctx.mark_result_const(false);
     ctx.mark_result_nullable(true);
     ctx.mark_arg_nullable(0, false);
@@ -599,6 +627,47 @@ get_first_record_timestamp_by_binlog_impl::calculate(
          ev->common_header->when.tv_usec;
 }
 
+//
+// get_last_record_timestamp_by_binlog()
+// This MySQL function accepts a binlog file name and returns timestamp
+// of the last record (number of microseconds since 1-Jan-1970)
+//
+class get_last_record_timestamp_by_binlog_impl {
+ public:
+  get_last_record_timestamp_by_binlog_impl(mysqlpp::udf_context &ctx) {
+    DBUG_TRACE;
+
+    if (!binlog_utils_udf_initialized)
+      throw std::invalid_argument(
+          "This function requires binlog_utils_udf plugin which is not "
+          "installed.");
+
+    if (ctx.get_number_of_args() != 1)
+      throw std::invalid_argument("Function requires exactly one argument");
+    ctx.mark_result_const(false);
+    ctx.mark_result_nullable(true);
+    ctx.mark_arg_nullable(0, false);
+    ctx.set_arg_type(0, STRING_RESULT);
+  }
+  ~get_last_record_timestamp_by_binlog_impl() { DBUG_TRACE; }
+
+  mysqlpp::udf_result_t<INT_RESULT> calculate(const mysqlpp::udf_context &args);
+};
+
+mysqlpp::udf_result_t<INT_RESULT>
+get_last_record_timestamp_by_binlog_impl::calculate(
+    const mysqlpp::udf_context &ctx) {
+  DBUG_TRACE;
+
+  // trying to find the specified binlog name in the index
+  auto binlog_name_sv = ctx.get_arg<STRING_RESULT>(0);
+
+  auto ev = find_last_event(binlog_name_sv);
+  if (!ev) return {};
+  return ev->common_header->when.tv_sec * 1000000LL +
+         ev->common_header->when.tv_usec;
+}
+
 }  // end of anonymous namespace
 
 DECLARE_STRING_UDF(get_binlog_by_gtid_impl, get_binlog_by_gtid)
@@ -611,3 +680,6 @@ DECLARE_STRING_UDF(get_binlog_by_gtid_set_impl, get_binlog_by_gtid_set)
 
 DECLARE_INT_UDF(get_first_record_timestamp_by_binlog_impl,
                 get_first_record_timestamp_by_binlog)
+
+DECLARE_INT_UDF(get_last_record_timestamp_by_binlog_impl,
+                get_last_record_timestamp_by_binlog)

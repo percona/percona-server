@@ -4,11 +4,13 @@
 # Create functions from binlog_utils_udf
 #
 
+--disable_query_log
 SET @path_separator = '/';
 if(`SELECT CONVERT(@@version_compile_os USING latin1) IN ("Win32", "Win64", "Windows") = 1`)
 {
   SET @path_separator = '\\';
 }
+--enable_query_log
 
 --echo
 --echo *** creating a table that will be used to generate binlog events
@@ -56,7 +58,17 @@ while($stage <= $number_of_stages)
     }
     COMMIT;
     eval INSERT INTO captured_gtid VALUES($stage, $substage, '$binlog_file_name', GTID_SUBTRACT(@@global.gtid_executed, @saved_gtid_executed));
+    # sleep here is needed to ensure binlog records will have different timestamps
+    if ($substage == 1)
+    {
+      --sleep 1
+    }
     --inc $substage
+    # sleep here is needed to ensure binlog records will have different timestamps
+    if ($substage == $number_of_substages)
+    {
+      --sleep 1
+    }
   }
 
   FLUSH BINARY LOGS;
@@ -207,6 +219,11 @@ while($outer_index < $number_of_iterations)
 
 DROP FUNCTION get_binlog_by_gtid_set;
 
+# creating a temporary table which will be used for LOAD DATA LOCAL INFILE
+CREATE TEMPORARY TABLE loaded_ts(
+  val VARCHAR(255) NOT NULL
+) ENGINE=InnoDB;
+
 --echo
 --echo *** checking 'get_first_record_timestamp_by_binlog()' function
 --replace_result $BINLOG_UTILS_UDF_LIB BINLOG_UTILS_UDF_LIB
@@ -220,9 +237,6 @@ SELECT get_first_record_timestamp_by_binlog('blah', 'blah');
 
 --let $filtered_binlog_file = $MYSQLTEST_VARDIR/filtered_binlog_file
 
-CREATE TEMPORARY TABLE loaded_ts(
-  val VARCHAR(255) NOT NULL
-) ENGINE=InnoDB;
 --let $stage = 1
 while($stage <= $number_of_stages)
 {
@@ -247,9 +261,49 @@ while($stage <= $number_of_stages)
 
   --inc $stage
 }
-DROP TABLE loaded_ts;
-
 DROP FUNCTION get_first_record_timestamp_by_binlog;
+
+--echo
+--echo *** checking 'get_last_record_timestamp_by_binlog()' function
+--replace_result $BINLOG_UTILS_UDF_LIB BINLOG_UTILS_UDF_LIB
+eval CREATE FUNCTION get_last_record_timestamp_by_binlog RETURNS INTEGER SONAME "$BINLOG_UTILS_UDF_LIB";
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT get_last_record_timestamp_by_binlog();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT get_last_record_timestamp_by_binlog('blah', 'blah');
+
+--let $filtered_binlog_file = $MYSQLTEST_VARDIR/filtered_binlog_file
+
+--let $stage = 1
+while($stage <= $number_of_stages)
+{
+  --let $current_binlog_name_for_utility = `SELECT CONCAT(@@datadir, @path_separator, binlog_name) FROM captured_gtid WHERE stage = $stage AND substage = $number_of_substages`
+  --let $current_binlog_name = `SELECT CONCAT('.', @path_separator, binlog_name) FROM captured_gtid WHERE stage = $stage AND substage = $number_of_substages`
+
+  # Extracting lines with timestamps (e.g. "#201116 20:54:02") from the mysqlbinlog output
+  --exec $MYSQL_BINLOG $current_binlog_name_for_utility | grep -Eo '^#[[:digit:]]+[[:blank:]]+[[:digit:]]+:[[:digit:]]+:[[:digit:]]+' | tail -n 1 > $filtered_binlog_file
+
+  DELETE FROM loaded_ts;
+  --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+  eval LOAD DATA LOCAL INFILE '$filtered_binlog_file' INTO TABLE loaded_ts;
+  --remove_file $filtered_binlog_file
+
+  # Converting "#201116 20:54:02" extracted from mysqlbinlog output into
+  # "20-11-16 20:54:02" and then into Unix timestamps
+  --let $expected_ts = `SELECT FLOOR(UNIX_TIMESTAMP(INSERT(INSERT(SUBSTRING(val, 2), 5, 0, '-'), 3, 0, '-'))) FROM loaded_ts`
+
+  --let $assert_text = 'last record timestamp extracted via get_last_record_timestamp_by_binlog() for stage $stage should match the value extracted via mysqlbinlog'
+  --let $assert_cond = get_last_record_timestamp_by_binlog("$current_binlog_name") DIV 1000000 = $expected_ts
+  --source include/assert.inc
+
+  --inc $stage
+}
+DROP FUNCTION get_last_record_timestamp_by_binlog;
+
+# temporary table cleanup
+DROP TABLE loaded_ts;
 
 --replace_result $BINLOG_UTILS_UDF_LIB BINLOG_UTILS_UDF_LIB
 UNINSTALL PLUGIN binlog_utils_udf;

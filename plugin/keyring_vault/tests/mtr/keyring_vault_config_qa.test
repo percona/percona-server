@@ -47,6 +47,7 @@ call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'File '.*' 
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not read file with credentials.'");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Can't seek in file '/'");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'CURL returned this error code: 28 with error message : connect\\(\\) timed out!'");
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Error reading file '/' \\(Errcode: 21 - Is a directory\\)");
 call mtr.add_suppression("\\[Warning\\] Plugin keyring_vault reported: 'There is no vault_ca specified in keyring_vault's configuration file");
 if ($vault_conf_mount_point_version == AUTO)
 {

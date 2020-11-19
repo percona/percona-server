@@ -63,3 +63,30 @@ if (!$version_component_valid)
 {
   -- die invalid extracted version component
 }
+
+if (!$MTR_VAULT_VERSION)
+{
+  --die MTR_VAULT_VERSION is not defined
+}
+
+--let $vault_version_valid = 0
+if ($MTR_VAULT_VERSION == 1)
+{
+  --let $vault_version_valid = 1
+}
+if ($MTR_VAULT_VERSION == 2)
+{
+  --let $vault_version_valid = 1
+}
+if (!$vault_version_valid)
+{
+  -- die invalid MTR_VAULT_VERSION value
+}
+
+if ($MTR_VAULT_VERSION == 1)
+{
+  if ($vault_server_mount_point_version == 2)
+  {
+    --skip this combination cannot be run on V1 Vault server
+  }
+}

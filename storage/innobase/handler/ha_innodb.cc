@@ -22009,12 +22009,24 @@ static int innodb_sys_tablespace_encyption_validate(
 
   bool legit_value = false;
   uint use = 0;
-  for (; use < array_elements(sys_tablespace_encrypt_names); use++) {
+  // The last item of sys_tablespace_encrypt_names is nullptr
+  const size_t encrypt_names_cnt = array_elements(sys_tablespace_encrypt_names) - 1;
+
+  for (; use < encrypt_names_cnt; use++) {
     if (!innobase_strcasecmp(innodb_sys_tablespace_encryption_input,
                              sys_tablespace_encrypt_names[use])) {
       legit_value = true;
       break;
     }
+  }
+  // It is possible that enum value was provided as the integer, not literal
+  if (!legit_value) {
+      int error = 0;
+      use = (uint)my_strtoll10(innodb_sys_tablespace_encryption_input, nullptr,
+                               &error);
+      if (!error && use < encrypt_names_cnt) {
+        legit_value = true;
+      }
   }
 
   if (!legit_value) return 1;
@@ -23998,6 +24010,7 @@ static MYSQL_SYSVAR_BOOL(
     temp_tablespace_encrypt, srv_tmp_tablespace_encrypt, PLUGIN_VAR_OPCMDARG,
     "Enable or disable encryption of temporary tablespace.", nullptr,
     innodb_temp_tablespace_encryption_update, false);
+
 
 static MYSQL_SYSVAR_ENUM(
     sys_tablespace_encrypt, srv_sys_tablespace_encrypt,

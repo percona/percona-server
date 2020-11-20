@@ -21,8 +21,13 @@
 #include <string>
 #include <vector>
 
-/* MySQL header files */
+/*
+  This engine needs server classes which are only defined if
+  MYSQL_SERVER define is set.
+*/
 #define MYSQL_SERVER 1
+
+/* MySQL header files */
 #include "mysql/plugin.h"
 #include "sql_string.h" /* for now this must violate clang-format style as it */
                         /* is needed before sql_show.h */

@@ -223,14 +223,18 @@ CREATE DATABASE tde_db;
 
 CREATE TABLE tde_db.test_tbl(c1 int) ENCRYPTION="Y" ENGINE=InnoDB;
 
-# Crash the server while executing ALTER INSTANCE ROTATE
-SET SESSION DEBUG="+d,keyring_file_backup_fail";
---error 2013
-ALTER INSTANCE ROTATE INNODB MASTER KEY;
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-SET SESSION DEBUG="-d,keyring_file_backup_fail";
+# keyring_file specific
+if ($keyring_file_test)
+{
+  # Crash the server while executing ALTER INSTANCE ROTATE
+  SET SESSION DEBUG="+d,keyring_file_backup_fail";
+  --error 2013
+  ALTER INSTANCE ROTATE INNODB MASTER KEY;
+  --enable_reconnect
+  --source include/wait_until_connected_again.inc
+  --disable_reconnect
+  SET SESSION DEBUG="-d,keyring_file_backup_fail";
+}
 
 SELECT COUNT(*) FROM tde_db.test_tbl;
 

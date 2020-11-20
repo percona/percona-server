@@ -1183,15 +1183,13 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
 
     /* Total length of the data to encrypt. */
     if (m_type == KEYRING && page_type == FIL_PAGE_COMPRESSED) {
-        data_len = src_enc_len - FIL_PAGE_DATA;  // We need those 8 bytes for
-                                            // key_version and post-encryption
-                                            // checksum
+        /* We need those 8 bytes for key_version and post-encryption checksum */
+        data_len = src_enc_len - FIL_PAGE_DATA;
     } else if (m_type == KEYRING && !type.is_page_zip_compressed()) {
-        data_len = src_enc_len - FIL_PAGE_DATA - 4;  // For keyring encryption we do
-                                                // not encrypt last four bytes
-                                                // which are equal to the LSN
-                                                // bytes in header
-        // So they are not encrypted anyways
+        /* For keyring encryption we do not encrypt last four bytes which are
+           equal to the LSN bytes in header, so they are not encrypted
+           anyways */
+        data_len = src_enc_len - FIL_PAGE_DATA - 4;
     } else {
         data_len = src_enc_len - FIL_PAGE_DATA;
     }

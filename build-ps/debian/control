@@ -185,10 +185,10 @@ Description: Percona Server database client binaries
 
 Package: percona-server-server
 Architecture: any
-Pre-Depends: percona-server-common (= ${binary:Version}),
-             adduser,
+Pre-Depends: adduser,
              debconf (>= 0.2.17)
-Depends: percona-server-client (= ${binary:Version}),
+Depends: percona-server-common (= ${binary:Version}),
+         percona-server-client (= ${binary:Version}),
          ${shlibs:Depends}, ${misc:Depends},
          psmisc,
          openssl

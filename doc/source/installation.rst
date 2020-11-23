@@ -39,10 +39,19 @@ Installing |Percona Server| from a Binary Tarball
 
 In |Percona Server| :rn:`5.6.24-72.2` and newer, the single binary tarball was replaced with multiple tarballs depending on the *OpenSSL* library available in the distribution:
 
- * ssl100 - for all *Debian/Ubuntu* versions except *Debian Squeeze* (``libssl.so.1.0.0 => /usr/lib/x86_64-linux-gnu/libssl.so.1.0.0 (0x00007f2e389a5000)``);
- * ssl098 - only for *Debian Squeeze* (``libssl.so.0.9.8 => /usr/lib/libssl.so.0.9.8 (0x00007f9b30db6000)``);
- * ssl101 - for *CentOS* 6 and *CentOS* 7 (``libssl.so.10 => /usr/lib64/libssl.so.10 (0x00007facbe8c4000)``);
- * ssl098e - to be used only for *CentOS* 5 (``libssl.so.6 => /lib64/libssl.so.6 (0x00002aed5b64d000)``).
+.. tabularcolumns:: |p{0.10\linewidth}|p{0.90\linewidth}|
+
+.. list-table::
+   :header-rows: 1
+
+   * - OpenSSL version
+     - Linux Distributions
+   * - ssl101
+     - For *CentOS* 6 and *CentOS* 7 (``libssl.so.10 => /usr/lib64/libssl.so.10 ``);
+   * - ssl102
+     - For *Debian* 9 and *Ubuntu* versions starting from 14.04 (``libssl.so.1.1 => /usr/lib/libssl.so.1.1``);
+   * - ssl1:111
+     - For *CentOS* 8 and *RedHat* 8 (``libssl.so.1.1 => /usr/lib64/libssl.so.1.1.1b``);
 
 .. note::
 
@@ -63,12 +72,11 @@ In |Percona Server| :rn:`5.6.24-72.2` and newer, the single binary tarball was r
 Download the appropriate binary tarball from the ``Linux - Generic`` `section <https://www.percona.com/downloads/Percona-Server-5.6/LATEST/binary/tarball/>`_ on the download page.
 
 Fetch and extract the correct binary
-tarball. For example for *Debian Wheezy*: 
+tarball. For example for *Debian Stretch*:
 
 .. code-block:: bash
 
-  $ wget http://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-5.6.24-72.2/binary/tarball/Percona-Server-5.6.24-rel72.2-Linux.x86_64.ssl100.tar.gz
-
+  $ wget https://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-5.6.45-86.1/binary/tarball/Percona-Server-5.6.45-rel86.1-Linux.x86_64.ssl102.tar.gz
 
 .. _installing_from_source_tarball:
 
@@ -77,8 +85,8 @@ Installing |Percona Server| from a Source Tarball
 
 Fetch and extract the source tarball. For example: ::
 
-  $ wget http://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-5.6.23-72.1/binary/tarball/Percona-Server-5.6.23-rel72.1-Linux.x86_64.tar.gz 
-  $ tar xfz Percona-Server-5.6.23-rel72.1-Linux.x86_64.tar.gz
+  $ wget https://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-5.6.49-89.0/binary/tarball/Percona-Server-5.6.49-rel89.0-Linux.x86_64.ssl102.tar.gz
+  $ tar xfz Percona-Server-5.6.49-rel89.0-Linux.x86_64.ssl102.tar.gz
 
 Next, follow the instructions in :ref:`compile_from_source` below.
 

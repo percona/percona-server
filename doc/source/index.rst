@@ -132,12 +132,12 @@ Management Improvements
    management/ps-admin
 
 Security Improvements
-=======================
 
 .. toctree::
    :maxdepth: 1
    :glob:
 
+   security/data-masking
    security/data-at-rest-encryption
    security/ssl-improvement
    security/pam_plugin

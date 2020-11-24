@@ -2,12 +2,12 @@
 .\"     Title: \fBndbd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/02/2020
+.\"      Date: 09/22/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDBD\FR" "8" "06/02/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDBD\FR" "8" "09/22/2020" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -50,7 +50,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.238.\ \&Command\-line options for the ndbd program
+.B Table\ \&21.22.\ \&Command\-line options for the ndbd program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -62,21 +62,21 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l.
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l.
 T{
 .PP
 \fB \fR\fB--bind-address=name\fR\fB \fR
@@ -141,8 +141,8 @@ T{
 .PP
 \fB \fR\fB--initial\fR\fB \fR
 T}:T{
-Perform initial start of ndbd, including cleaning the file system.
-              Consult the documentation before using this option
+Perform initial start of ndbd, including file system cleanup; consult
+              documentation before using this option
 T}:T{
 .PP
 (Supported in all MySQL 5.7 based releases)
@@ -160,8 +160,8 @@ T{
 .PP
 \fB \fR\fB--install[=name]\fR\fB \fR
 T}:T{
-Used to install the data node process as a Windows service. Does not
-              apply on non-Windows platforms
+Used to install data node process as Windows service; does not apply on
+              other platforms
 T}:T{
 .PP
 (Supported in all MySQL 5.7 based releases)
@@ -170,7 +170,7 @@ T{
 .PP
 \fB \fR\fB--logbuffer-size=#\fR\fB \fR
 T}:T{
-Control size of log buffer. For use when debugging with many log
+Control size of log buffer; for use when debugging with many log
               messages being generated; default is sufficient for normal
               operations
 T}:T{
@@ -193,7 +193,7 @@ T{
 \fB \fR\fB-n\fR\fB \fR
 T}:T{
 Do not start ndbd immediately; ndbd waits for command to start from
-              ndb_mgmd
+              ndb_mgm
 T}:T{
 .PP
 (Supported in all MySQL 5.7 based releases)
@@ -203,7 +203,7 @@ T{
 \fB \fR\fB--nowait-nodes=list\fR\fB \fR
 T}:T{
 Do not wait for these data nodes to start (takes comma-separated list of
-              node IDs). Also requires --ndb-nodeid to be used
+              node IDs); requires --ndb-nodeid
 T}:T{
 .PP
 (Supported in all MySQL 5.7 based releases)
@@ -212,8 +212,8 @@ T{
 .PP
 \fB \fR\fB--remove[=name]\fR\fB \fR
 T}:T{
-Used to remove a data node process that was previously installed as a
-              Windows service. Does not apply on non-Windows platforms
+Used to remove data node process that was previously installed as
+              Windows service; does not apply on other platforms
 T}:T{
 .PP
 (Supported in all MySQL 5.7 based releases)
@@ -224,7 +224,7 @@ T{
 .PP
 \fB \fR\fB-v\fR\fB \fR
 T}:T{
-Causes the data log to write extra debugging information to the node log
+Write extra debugging information to node log
 T}:T{
 .PP
 (Supported in all MySQL 5.7 based releases)
@@ -263,13 +263,6 @@ wherever the latter occurs in this section\&.
 \fB\-\-bind\-address\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -305,13 +298,6 @@ to bind to a specific network interface (host name or IP address)\&. This option
 \fB\-\-connect\-delay=\fR\fB\fI#\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -370,13 +356,6 @@ instead\&.
 \fB\-\-connect\-retries=\fR\fB\fI#\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -425,13 +404,6 @@ option\&.
 \fB\-\-connect\-retry\-delay=\fR\fB\fI#\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -485,13 +457,6 @@ option, which is now deprecated and subject to removal in a future release of ND
 \fB\-d\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -538,13 +503,6 @@ on Windows platforms\&.
 \fB\-\-foreground\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -591,13 +549,6 @@ on Windows platforms\&.
 \fB\-\-initial\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -734,7 +685,7 @@ Backup files that have already been created by the affected node
 .IP \(bu 2.3
 .\}
 NDB Cluster Disk Data files (see
-Section\ \&21.5.13, \(lqNDB Cluster Disk Data Tables\(rq)\&.
+Section\ \&21.5.10, \(lqNDB Cluster Disk Data Tables\(rq)\&.
 .RE
 .sp
 This option also has no effect on recovery of data by a data node that is just starting (or restarting) from data nodes that are already running\&. This recovery of data occurs automatically, and requires no user intervention in an NDB Cluster that is running normally\&.
@@ -756,13 +707,6 @@ necessary to do so\&.
 \fB\-\-initial\-start\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -834,13 +778,6 @@ option for
 \fB\-\-install[=\fR\fB\fIname\fR\fR\fB]\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -907,13 +844,6 @@ option has no effect on non\-Windows platforms\&.
 \fB\-\-logbuffer\-size=\fR\fB\fI#\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -966,13 +896,6 @@ Sets the size of the data node log buffer\&. When debugging with high amounts of
 \fB\-\-nodaemon\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -1020,13 +943,6 @@ on Windows is to run in the foreground, making this option unnecessary on Window
 \fB\-n\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -1054,7 +970,7 @@ not to start automatically\&. When this option is used,
 connects to the management server, obtains configuration data from it, and initializes communication objects\&. However, it does not actually start the execution engine until specifically requested to do so by the management server\&. This can be accomplished by issuing the proper
 START
 command in the management client (see
-Section\ \&21.5.2, \(lqCommands in the NDB Cluster Management Client\(rq)\&.
+Section\ \&21.5.1, \(lqCommands in the NDB Cluster Management Client\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -1068,13 +984,6 @@ Section\ \&21.5.2, \(lqCommands in the NDB Cluster Management Client\(rq)\&.
 \fB\-\-nowait\-nodes=\fR\fB\fInode_id_1\fR\fR\fB[, \fR\fB\fInode_id_2\fR\fR\fB[, \&.\&.\&.]]\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -1122,13 +1031,6 @@ If you wanted to start up the same cluster as in the previous example without on
 \fB\-\-remove[=\fR\fB\fIname\fR\fR\fB]\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -1175,7 +1077,6 @@ option has no effect on non\-Windows platforms\&.
 .\}
 \fB\-\-verbose\fR,
 \fB\-v\fR
-.sp
 Causes extra debug output to be written to the node log\&.
 .sp
 In NDB 7\&.6\&.4 and later, you can also use

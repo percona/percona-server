@@ -717,6 +717,10 @@ void vio_proxy_cleanup()
   my_free(vio_pp_networks);
 }
 
+void vio_force_skip_proxy(Vio *vio) {
+  vio->force_skip_proxy = TRUE;
+}
+
 /* Check whether a connection from this source address must provide the proxy
 protocol header */
 static my_bool vio_client_must_be_proxied(const struct sockaddr *addr)
@@ -1018,7 +1022,7 @@ my_bool vio_peer_addr(Vio *vio, char *ip_buffer, uint16 *port,
 
        The proxy protocol source ip replace it the ip returned by
        mysql_socket_getpeername(). */
-    if (vio_client_must_be_proxied(addr))
+    if (!vio->force_skip_proxy && vio_client_must_be_proxied(addr))
       if (vio_process_proxy_header(mysql_socket_getfd(vio->mysql_socket), addr,
                                    &addr_length))
         DBUG_RETURN(TRUE);

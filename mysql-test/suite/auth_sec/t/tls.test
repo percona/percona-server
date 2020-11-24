@@ -3,6 +3,8 @@
 # This test should work in embedded server after we fix mysqltest
 -- source include/not_embedded.inc
 -- source include/have_ssl_communication.inc
+# Test requires TLSv1 and TLSv1.1
+--source include/not_min_protocol_tlsv12.inc
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 

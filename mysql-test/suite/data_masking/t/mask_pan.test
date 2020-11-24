@@ -1,0 +1,13 @@
+--echo #
+--echo # Plugin Data Masking: mask_pan
+--echo #
+CREATE FUNCTION mask_pan RETURNS STRING SONAME 'data_masking.so';
+
+SELECT mask_pan("1234567890122461");
+SELECT mask_pan("123456789012246");
+SELECT mask_pan(NULL);
+SELECT mask_pan("");
+SELECT mask_pan("123496798465498779");
+SELECT mask_pan("this is not a pan");
+
+DROP FUNCTION mask_pan;

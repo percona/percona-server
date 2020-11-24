@@ -65,7 +65,12 @@ Installing |Percona Server| from Percona ``apt`` repository
 
 .. note::
 
-  |Percona Server| 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the |TokuDB| storage in the :ref:`tokudb_installation` guide.
+  |Percona Server| 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>` and :ref:`MyRocks storage engine<myrocks_intro>`. These storage engines are installed as plugin.
+  
+  For information on how to install and configure |TokuDB|, refer to the :ref:`tokudb_installation` guide.
+  
+  For information on how to install and configure |MyRocks|, refer to the :ref:`myrocks_install` guide.
+
   
 The |Percona Server| distribution contains several useful User Defined Functions (UDF) from Percona Toolkit. After the installation completes, run the following commands to create these functions:
 
@@ -217,7 +222,18 @@ The following procedure runs the |Percona Server|:
 Uninstalling |Percona Server|
 =============================
 
-To uninstall |Percona Server| you'll need to remove all the installed packages. Removing packages with :command:`apt-get remove` will leave the configuration and data files. Removing the packages with :command:`apt-get purge` will remove all the packages with configuration files and data files (all the databases). Depending on your needs you can choose which command better suits you.
+To uninstall |Percona Server|, you must remove all of the installed packages. 
+
+You have the following options:
+
+* Removing packages with :command:`apt-get remove` leaves the configuration and data files. 
+* Removing the packages with :command:`apt-get purge` removes all the packages with configuration files and data files (all the databases). 
+
+Depending on your needs, you can choose which command better suits you. 
+
+.. seealso:: 
+
+    `apt-get <http://manpages.ubuntu.com/manpages/bionic/man8/apt-get.8.html>`_
 
 1. Stop the |Percona Server| service
 
@@ -227,17 +243,34 @@ To uninstall |Percona Server| you'll need to remove all the installed packages. 
 
 2. Remove the packages
 
-   a) Remove the packages. This will leave the data files (databases, tables, logs, configuration, etc.) behind. In case you don't need them you'll need to remove them manually.
+   a) Remove the packages. This option does not delete the configuration or data files. If you do not require these files, you must delete each file manually. 
 
    .. code-block:: bash
 
-     $ sudo apt-get remove percona-server*
+     $ sudo apt-get remove 'percona-server*'
 
-   b) Purge the packages. **NOTE**: This will remove all the packages and delete all the data files (databases, tables, logs, etc.)
+   b) Purge the packages. This option deletes packages, configuration, and data files. The option does not delete any configuration or data files stored in your home directory. You may need to delete some files manually.
 
    .. code-block:: bash
+
+     $ sudo apt-get purge 'percona-server*'
+     $ sudo apt-get autoremove -y
+     $ sudo apt-get autoclean
+     $ sudo rm -rf /etc/mysql
+
+.. note::
+
+    In a regular expression, the ``*`` (asterisk) matches zero or more of the preceding item. The single quotes prevent the shell from misinterpreting the asterisk as a shell command.    
+
+  If you do not plan to upgrade, run the following commands to remove the data directory location:
+
+  .. code-block:: bash
+
+      rm -rf /var/lib/mysql
+      rm -rf /var/log/mysql
 
      $ sudo apt-get purge percona-server*
 
 .. include:: ../.res/replace.txt
 .. include:: ../.res/replace.program.txt
+

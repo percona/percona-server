@@ -81,6 +81,7 @@ class Rdb_writebatch_impl;
 class Rdb_field_encoder;
 
 extern char *rocksdb_read_free_rpl_tables;
+extern ulong rocksdb_max_row_locks;
 #if defined(HAVE_PSI_INTERFACE)
 extern PSI_rwlock_key key_rwlock_read_free_rpl_tables;
 #endif
@@ -266,12 +267,18 @@ class ha_rocksdb : public my_core::handler {
    */
   bool m_insert_with_update;
 
-  /* TRUE if last time the insertion failed due to duplicated PK */
-  bool m_dup_pk_found;
+  /*
+    TRUE if last time the insertion failed due to duplicate key error.
+    (m_dupp_errkey holds the key# that we've had error for)
+  */
+  bool m_dup_key_found;
 
 #ifndef DBUG_OFF
-  /* Last retreived record for sanity checking */
-  String m_dup_pk_retrieved_record;
+  /*
+    Last retrieved record (for duplicate PK) or index tuple (for duplicate
+    unique SK). Used for sanity checking.
+  */
+  String m_dup_key_retrieved_record;
 #endif
 
   /**
@@ -321,10 +328,10 @@ class ha_rocksdb : public my_core::handler {
                            const bool use_all_keys, const uint eq_cond_len);
   void release_scan_iterator(void);
 
-  rocksdb::Status get_for_update(
-      Rdb_transaction *const tx,
-      rocksdb::ColumnFamilyHandle *const column_family,
-      const rocksdb::Slice &key, rocksdb::PinnableSlice *value) const;
+  rocksdb::Status get_for_update(Rdb_transaction *const tx,
+                                 const Rdb_key_def &kd,
+                                 const rocksdb::Slice &key,
+                                 rocksdb::PinnableSlice *value) const;
 
   int get_row_by_rowid(uchar *const buf, const char *const rowid,
                        const uint rowid_size, const bool skip_ttl_check = true,

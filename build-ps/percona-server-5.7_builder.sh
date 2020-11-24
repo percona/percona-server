@@ -127,8 +127,16 @@ get_sources(){
     REVISION=$(git rev-parse --short HEAD)
     git reset --hard
     #
-    source VERSION
-    cat VERSION > ../percona-server-5.7.properties
+    if [ -f VERSION ]; then
+        source VERSION
+        cat VERSION > ../percona-server-5.7.properties
+    elif [ -f MYSQL_VERSION ]; then
+        source MYSQL_VERSION
+        cat MYSQL_VERSION > ../percona-server-5.7.properties
+    else
+        echo "VERSION file does not exist"
+        exit 1
+    fi
     echo "REVISION=${REVISION}" >> ../percona-server-5.7.properties
     BRANCH_NAME="${BRANCH}"
     echo "BRANCH_NAME=${BRANCH_NAME}" >> ../percona-server-5.7.properties
@@ -218,6 +226,7 @@ get_sources(){
     rsync -av storage/rocksdb/rocksdb/ ${PSDIR}/storage/rocksdb/rocksdb --exclude .git
     rsync -av storage/rocksdb/third_party/lz4/ ${PSDIR}/storage/rocksdb/third_party/lz4 --exclude .git
     rsync -av storage/rocksdb/third_party/zstd/ ${PSDIR}/storage/rocksdb/third_party/zstd --exclude .git
+    rsync -av extra/coredumper/ ${PSDIR}/extra/coredumper --exclude .git
     #
     cd ${PSDIR}
     # set tokudb version - can be seen with show variables like '%version%'
@@ -708,6 +717,9 @@ build_tarball(){
     if [ -f /etc/redhat-release ]; then
       export OS_RELEASE="centos$(lsb_release -sr | awk -F'.' '{print $1}')"
       RHEL=$(rpm --eval %rhel)
+      if [ ${RHEL} = 6 ]; then
+        source /opt/percona-devtoolset/enable
+      fi
     fi
     #
 

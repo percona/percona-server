@@ -25,9 +25,8 @@ following to the |MySQL| configuration file :file:`my.cnf`: ::
  thread_handling=pool-of-threads
 
 Although the default values for the |thread-pool| should provide good
-performance, additional `tuning
-<https://kb.askmonty.org/en/threadpool-in-55/#optimizing-server-variables-on-unix>`_
-can be performed with the dynamic system variables described below.
+performance, additional tuning
+can be performed with the dynamic system variables described in :ref:`tuning`.
 
 .. important:: 
  
@@ -97,7 +96,9 @@ Version Specific Information
 ============================
 
  * :rn:`5.7.10-1`
-    ``Thread Pool`` feature ported from |Percona Server| 5.6. 
+    ``Thread Pool`` feature ported from |Percona Server| 5.6.
+    
+.. _tuning:
 
 System Variables
 ================

@@ -129,6 +129,7 @@ Management Improvements
    management/data_at_rest_encryption
    management/ssl-improvement
    management/utility_user
+   management/ps-admin
 
 Security Improvements
 =======================

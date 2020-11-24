@@ -1,0 +1,16 @@
+CALL mtr.add_suppression("An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'IGNORE_ERROR'.");
+RESET MASTER;
+CREATE TABLE t1(c1 varchar(8192));
+SET @save.binlog_cache_size = @@global.binlog_cache_size;
+SET @save.binlog_error_action = @@global.binlog_error_action;
+SET GLOBAL binlog_cache_size = 4096;
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+SET SESSION debug = "+d,simulate_tmpdir_partition_full";
+INSERT INTO t1 VALUES (repeat("a", 8192));
+Warnings:
+Error	3	Error writing file <file_name> (Errcode: 28 - No space left on device)
+Error	1026	Error writing file <file_name> (errno: 28 - No space left on device)
+SET SESSION debug = "-d,simulate_tmpdir_partition_full";
+DROP TABLE t1;
+SET @@global.binlog_cache_size = @save.binlog_cache_size;
+SET @@global.binlog_error_action = @save.binlog_error_action;

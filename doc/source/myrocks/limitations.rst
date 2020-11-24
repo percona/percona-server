@@ -51,7 +51,7 @@ You should also consider the following:
   Note that InnoDB also imposes a cost
   when the index is scanned in the opposite order.
 
-* MyRocks does not support operating as either a master or a slave
+* MyRocks does not support operating as either a source or a replica
   in any replication topology that is not exclusively row-based.
   Statement-based and mixed-format binary logging is not supported.
   For more information, see `Replication Formats

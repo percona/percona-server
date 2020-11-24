@@ -250,8 +250,14 @@ const constexpr uint MAX_INDEX_COL_LEN_SMALL = 767;
   MyRocks specific error codes. NB! Please make sure that you will update
   HA_ERR_ROCKSDB_LAST when adding new ones.  Also update the strings in
   rdb_error_messages to include any new error messages.
+
+  NOTE: Given that Oracle/Us keeps bumping up HA_ERR_LAST, we don't want to
+  start strictly from HA_ERR_LAST and instead we start from 500 and asserts
+  it is large
 */
-#define HA_ERR_ROCKSDB_FIRST (HA_ERR_LAST + 1)
+#define HA_ERR_ROCKSDB_FIRST (500)
+static_assert(HA_ERR_ROCKSDB_FIRST > HA_ERR_LAST,
+              "ROCKSDB err need to be larger than HA_ERR_LAST");
 #define HA_ERR_ROCKSDB_PK_REQUIRED (HA_ERR_ROCKSDB_FIRST + 0)
 #define HA_ERR_ROCKSDB_TABLE_DATA_DIRECTORY_NOT_SUPPORTED \
   (HA_ERR_ROCKSDB_FIRST + 1)
@@ -268,22 +274,22 @@ const constexpr uint MAX_INDEX_COL_LEN_SMALL = 767;
   Each error code below maps to a RocksDB status code found in:
   rocksdb/include/rocksdb/status.h
 */
-#define HA_ERR_ROCKSDB_STATUS_NOT_FOUND (HA_ERR_LAST + 10)
-#define HA_ERR_ROCKSDB_STATUS_CORRUPTION (HA_ERR_LAST + 11)
-#define HA_ERR_ROCKSDB_STATUS_NOT_SUPPORTED (HA_ERR_LAST + 12)
-#define HA_ERR_ROCKSDB_STATUS_INVALID_ARGUMENT (HA_ERR_LAST + 13)
-#define HA_ERR_ROCKSDB_STATUS_IO_ERROR (HA_ERR_LAST + 14)
-#define HA_ERR_ROCKSDB_STATUS_NO_SPACE (HA_ERR_LAST + 15)
-#define HA_ERR_ROCKSDB_STATUS_MERGE_IN_PROGRESS (HA_ERR_LAST + 16)
-#define HA_ERR_ROCKSDB_STATUS_INCOMPLETE (HA_ERR_LAST + 17)
-#define HA_ERR_ROCKSDB_STATUS_SHUTDOWN_IN_PROGRESS (HA_ERR_LAST + 18)
-#define HA_ERR_ROCKSDB_STATUS_TIMED_OUT (HA_ERR_LAST + 19)
-#define HA_ERR_ROCKSDB_STATUS_ABORTED (HA_ERR_LAST + 20)
-#define HA_ERR_ROCKSDB_STATUS_LOCK_LIMIT (HA_ERR_LAST + 21)
-#define HA_ERR_ROCKSDB_STATUS_BUSY (HA_ERR_LAST + 22)
-#define HA_ERR_ROCKSDB_STATUS_DEADLOCK (HA_ERR_LAST + 23)
-#define HA_ERR_ROCKSDB_STATUS_EXPIRED (HA_ERR_LAST + 24)
-#define HA_ERR_ROCKSDB_STATUS_TRY_AGAIN (HA_ERR_LAST + 25)
+#define HA_ERR_ROCKSDB_STATUS_NOT_FOUND (HA_ERR_ROCKSDB_FIRST + 10)
+#define HA_ERR_ROCKSDB_STATUS_CORRUPTION (HA_ERR_ROCKSDB_FIRST + 11)
+#define HA_ERR_ROCKSDB_STATUS_NOT_SUPPORTED (HA_ERR_ROCKSDB_FIRST + 12)
+#define HA_ERR_ROCKSDB_STATUS_INVALID_ARGUMENT (HA_ERR_ROCKSDB_FIRST + 13)
+#define HA_ERR_ROCKSDB_STATUS_IO_ERROR (HA_ERR_ROCKSDB_FIRST + 14)
+#define HA_ERR_ROCKSDB_STATUS_NO_SPACE (HA_ERR_ROCKSDB_FIRST + 15)
+#define HA_ERR_ROCKSDB_STATUS_MERGE_IN_PROGRESS (HA_ERR_ROCKSDB_FIRST + 16)
+#define HA_ERR_ROCKSDB_STATUS_INCOMPLETE (HA_ERR_ROCKSDB_FIRST + 17)
+#define HA_ERR_ROCKSDB_STATUS_SHUTDOWN_IN_PROGRESS (HA_ERR_ROCKSDB_FIRST + 18)
+#define HA_ERR_ROCKSDB_STATUS_TIMED_OUT (HA_ERR_ROCKSDB_FIRST + 19)
+#define HA_ERR_ROCKSDB_STATUS_ABORTED (HA_ERR_ROCKSDB_FIRST + 20)
+#define HA_ERR_ROCKSDB_STATUS_LOCK_LIMIT (HA_ERR_ROCKSDB_FIRST + 21)
+#define HA_ERR_ROCKSDB_STATUS_BUSY (HA_ERR_ROCKSDB_FIRST + 22)
+#define HA_ERR_ROCKSDB_STATUS_DEADLOCK (HA_ERR_ROCKSDB_FIRST + 23)
+#define HA_ERR_ROCKSDB_STATUS_EXPIRED (HA_ERR_ROCKSDB_FIRST + 24)
+#define HA_ERR_ROCKSDB_STATUS_TRY_AGAIN (HA_ERR_ROCKSDB_FIRST + 25)
 #define HA_ERR_ROCKSDB_LAST HA_ERR_ROCKSDB_STATUS_TRY_AGAIN
 
 const constexpr char rocksdb_hton_name[] = "ROCKSDB";
@@ -415,3 +421,11 @@ struct st_io_stall_stats {
         total_slowdown(0) {}
 };
 }  // namespace myrocks
+
+// We define ROCKSDB_NAMESPACE = my_rocksdb to avoid symbol conflicts
+// But keep code with rocksdb for clarity
+// Declare my_rocks namespace is needed to make namespace alias happy
+#ifdef ROCKSDB_CUSTOM_NAMESPACE
+namespace ROCKSDB_CUSTOM_NAMESPACE {};
+namespace rocksdb = ROCKSDB_CUSTOM_NAMESPACE;
+#endif

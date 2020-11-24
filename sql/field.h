@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2135,7 +2135,7 @@ public:
   virtual uchar *pack(uchar* to, const uchar *from,
                       uint max_length, bool low_byte_first)
   {
-    *to= *from;
+    if (max_length > 0) *to= *from;
     return to + 1;
   }
 
@@ -4196,6 +4196,7 @@ public:
   Field_json *clone() const;
   uint is_equal(Create_field *new_field);
   Item_result cast_to_int_type () const { return INT_RESULT; }
+  int  cmp_binary(const uchar *a, const uchar *b, uint32 max_length= ~0L);
   void make_sort_key(uchar *to, size_t length);
 
   /**

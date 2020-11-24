@@ -1171,9 +1171,10 @@ CREATE TABLE t1 (pk INT PRIMARY KEY, a int) ENGINE=RocksDB;
 set @a=-1;
 insert into t1 select (@a:=@a+1), 1234 from performance_schema.session_variables limit 100;
 set @tmp1= @@rocksdb_max_row_locks;
-set rocksdb_max_row_locks= 20;
+set GLOBAL rocksdb_max_row_locks= 20;
 --error ER_GET_ERRMSG
 update t1 set a=a+10;
+set @@global.rocksdb_max_row_locks = @tmp1;
 DROP TABLE t1;
 
 
@@ -1228,7 +1229,7 @@ drop table t1;
 create table t1 (i int primary key auto_increment) engine=RocksDB;
 
 insert into t1 values (null),(null);
---replace_column 7 #
+--replace_column 7 # 12 # 13 #
 show table status like 't1';
 drop table t1;
 
@@ -2000,13 +2001,13 @@ DROP TABLE t1;
 # value is 4 while MyRocks will show it as 3.
 CREATE TABLE t1(a INT AUTO_INCREMENT KEY) ENGINE=ROCKSDB;
 INSERT INTO t1 VALUES(0),(-1),(0);
---replace_column 6 # 7 # 8 # 9 # 10 #
+--replace_column 6 # 7 # 8 # 9 # 10 # 12 # 13 #
 SHOW TABLE STATUS LIKE 't1';
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(a INT AUTO_INCREMENT KEY) ENGINE=ROCKSDB;
 INSERT INTO t1 VALUES(0),(10),(0);
---replace_column 6 # 7 # 8 # 9 # 10 #
+--replace_column 6 # 7 # 8 # 9 # 10 # 12 # 13 #
 SHOW TABLE STATUS LIKE 't1';
 SELECT * FROM t1;
 DROP TABLE t1;

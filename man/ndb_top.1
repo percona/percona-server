@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_top\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/23/2020
+.\"      Date: 09/22/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_TOP\FR" "1" "03/23/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_TOP\FR" "1" "09/22/2020" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -134,7 +134,7 @@ The following table includes all options that are specific to the NDB Cluster pr
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.262.\ \&Command\-line options for the ndb_top program
+.B Table\ \&21.46.\ \&Command\-line options for the ndb_top program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -146,21 +146,21 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l.
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l.
 T{
 .PP
 \fB--color\fR,
@@ -244,7 +244,7 @@ T{
 .PP
 \fB \fR\fB-p\fR\fB \fR
 T}:T{
-Connect using this password
+Connect using this password (same as --password option)
 T}:T{
 .PP
 ADDED: NDB 7.6.3
@@ -363,34 +363,27 @@ Additional Options
 \fB\-c\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --color
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 5.7.19-ndb-7.6.3
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 TRUE
 T}
@@ -413,34 +406,27 @@ to disable\&.
 \fB\-g\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --graph
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 5.7.19-ndb-7.6.3
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 TRUE
 T}
@@ -465,34 +451,27 @@ must be true; both options may be true\&.
 \fB\-?\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --help
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 5.7.19-ndb-7.6.3
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 TRUE
 T}
@@ -513,34 +492,27 @@ Show program usage information\&.
 \fB\-h\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --host[=name]
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 5.7.19-ndb-7.6.3
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 localhost
 T}
@@ -561,34 +533,27 @@ Host name or IP address of MySQL Server to connect to\&.
 \fB\-m\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --measured-load
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 5.7.19-ndb-7.6.3
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -611,34 +576,27 @@ must be true; both options may be true\&.
 \fB\-n\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --node-id[=#]
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 5.7.19-ndb-7.6.3
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Integer
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 1
 T}
@@ -659,34 +617,27 @@ Watch the data node having this node ID\&.
 \fB\-o\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --os-load
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 5.7.19-ndb-7.6.3
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 TRUE
 T}
@@ -709,40 +660,33 @@ must be true; both options may be true\&.
 \fB\-p\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --passwd[=password]
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 5.7.19-ndb-7.6.3
 T}
 T{
-\fBRemoved\fR
+Removed
 T}:T{
 5.7.20-ndb-7.6.4
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 NULL
 T}
@@ -767,34 +711,27 @@ option\&. (Bug #26907833)
 \fB\-p\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --password[=password]
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 5.7.22-ndb-7.6.6
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 NULL
 T}
@@ -821,34 +758,27 @@ option used previously\&. (Bug #26907833)
 \fB\-P\fR)
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --port[=#]
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 5.7.19-ndb-7.6.3
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Integer
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 3306
 T}
@@ -876,34 +806,27 @@ option\&. (Bug #26907833)
 \fB\-s\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --sleep-time[=seconds]
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 5.7.19-ndb-7.6.3
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Integer
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 1
 T}
@@ -924,34 +847,27 @@ Time to wait between display refreshes, in seconds\&.
 \fI\-S\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --socket
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 5.7.22-ndb-7.6.6
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Path name
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 [none]
 T}
@@ -974,34 +890,27 @@ Added in NDB 7\&.6\&.6\&. (Bug #86614, Bug #26236298)
 \fB\-r\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --sort
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 5.7.19-ndb-7.6.3
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 TRUE
 T}
@@ -1026,34 +935,27 @@ to disable\&.
 \fB\-t\fR)
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --text
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 5.7.19-ndb-7.6.3
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -1082,34 +984,27 @@ is removed\&. (Bug #26907833)
 \fB\-u\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --user[=name]
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 5.7.19-ndb-7.6.3
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 root
 T}
@@ -1140,7 +1035,7 @@ Display from ndb_top, running in a
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

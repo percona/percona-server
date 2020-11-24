@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -857,7 +857,7 @@ int ha_partition::analyze(THD *thd, HA_CHECK_OPT *check_opt)
   {
     /* If this is ANALYZE TABLE that will not force table definition cache
        eviction, update statistics for the partition handler. */
-    this->info(HA_STATUS_CONST | HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
+    this->info(HA_STATUS_CONST | HA_STATUS_NO_LOCK);
   }
 
   DBUG_RETURN(result);
@@ -4659,6 +4659,10 @@ int ha_partition::extra(enum ha_extra_function operation)
       m_ref_usage= Partition_helper::REF_USED_FOR_SORT;
       m_queue->m_fun= key_and_ref_cmp;
     }
+    break;
+  }
+  case HA_EXTRA_RESET_STATE:
+  {
     break;
   }
   default:

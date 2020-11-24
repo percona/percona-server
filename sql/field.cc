@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -9169,6 +9169,27 @@ bool Field_json::get_time(MYSQL_TIME *ltime)
   return result;
 }
 
+int Field_json::cmp_binary(const uchar *a_ptr, const uchar *b_ptr,
+                           uint32 /* max_length */)
+{
+  char *a;
+  char *b;
+  memcpy(&a, a_ptr + packlength, sizeof(a));
+  memcpy(&b, b_ptr + packlength, sizeof(b));
+  uint32 a_length= get_length(a_ptr);
+  uint32 b_length= get_length(b_ptr);
+  using namespace json_binary;
+  /*
+    The length is 0 if NULL has been inserted into a NOT NULL column
+    using INSERT IGNORE or similar. If so, interpret the value as the
+    JSON null literal.
+  */
+  Value        null_literal(Value::LITERAL_NULL);
+  Json_wrapper aw(a_length == 0 ? null_literal : parse_binary(a, a_length));
+  Json_wrapper bw(b_length == 0 ? null_literal : parse_binary(b, b_length));
+  return aw.compare(bw);
+}
+
 
 void Field_json::make_sort_key(uchar *to, size_t length)
 {
@@ -9726,7 +9747,7 @@ uchar *Field_enum::pack(uchar *to, const uchar *from,
   switch (packlength)
   {
   case 1:
-    *to = *from;
+    if (max_length > 0) *to = *from;
     DBUG_RETURN(to + 1);
   case 2: DBUG_RETURN(pack_int16(to, from, low_byte_first));
   case 3: DBUG_RETURN(pack_int24(to, from, low_byte_first));

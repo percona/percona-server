@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2819,11 +2819,9 @@ C_MODE_END
   if not.
 */
 
-#if defined(USE_NEW_XLINE_INTERFACE)
-static int fake_magic_space(int, int);
+#if defined(XLINE_HAVE_COMPLETION_CHAR)
 char *no_completion(const char *, int)
-#elif defined(USE_LIBEDIT_INTERFACE)
-static int fake_magic_space(const char *, int);
+#elif defined(XLINE_HAVE_COMPLETION_INT)
 int no_completion(const char *, int)
 #else
 char *no_completion()
@@ -2865,12 +2863,12 @@ static void initialize_readline (char *name)
   rl_readline_name = name;
 
   /* Tell the completer that we want a crack first. */
-#if defined(USE_NEW_XLINE_INTERFACE)
+#if defined(XLINE_HAVE_COMPLETION_CHAR)
   rl_attempted_completion_function= &new_mysql_completion;
   rl_completion_entry_function= &no_completion;
 
   rl_add_defun("magic-space", &fake_magic_space, -1);
-#elif defined(USE_LIBEDIT_INTERFACE)
+#elif defined(XLINE_HAVE_COMPLETION_INT)
   setlocale(LC_ALL,""); /* so as libedit use isprint */
   rl_attempted_completion_function= &new_mysql_completion;
   rl_completion_entry_function= &no_completion;

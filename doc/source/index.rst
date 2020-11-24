@@ -6,7 +6,7 @@
 .. _dochome:
 
 ===================================
- Percona Server 5.7 - Documentation
+ |Percona Server| |version| - Documentation
 ===================================
 
 |Percona Server| is an enhanced drop-in replacement for |MySQL|. With |Percona Server|,
@@ -48,6 +48,7 @@ Installation
 
    installation
    upgrading_guide_56_57
+   installation/post-installation
 
 Scalability Improvements
 ========================
@@ -128,17 +129,18 @@ Management Improvements
    management/data_at_rest_encryption
    management/ssl-improvement
    management/utility_user
+   management/ps-admin
 
 Security Improvements
-=====================
 
 .. toctree::
    :maxdepth: 1
    :glob:
-   
+
    security/data-masking
-
-
+   security/data-at-rest-encryption
+   security/ssl-improvement
+   security/pam_plugin
 
 Diagnostics Improvements
 ========================
@@ -157,6 +159,9 @@ Diagnostics Improvements
    diagnostics/scalability_metrics_plugin
    diagnostics/response_time_distribution
    diagnostics/innodb_fragmentation_count
+   diagnostics/libcoredumper
+   diagnostics/stacktrace
+
 
 TokuDB
 ======
@@ -216,5 +221,3 @@ Reference
 
 * :ref:`genindex`
 * :ref:`modindex`
-
-

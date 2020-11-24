@@ -1283,7 +1283,25 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
 
       /* Fatal error happens, it notifies the following transaction to rollback */
       if (get_commit_order_manager())
+      {
+        /*
+          If we still have the deadlock flag set, it means that the current
+          thread was involved in a deadlock in its last retry (or all retries
+          have been exhausted). In such a case, we must release all transaction
+          locks by rolling back the transaction and clear the deadlock flag
+          before we wait for this worker's turn in report_rollback().
+        */
+        if (found_order_commit_deadlock())
+        {
+          /*
+            We call cleanup_context() because it is even capable of rolling
+            back XA transactions.
+          */
+          cleanup_context(info_thd, true);
+          reset_order_commit_deadlock();
+        }
         get_commit_order_manager()->report_rollback(this);
+      }
 
       // Killing Coordinator to indicate eventual consistency error
       mysql_mutex_lock(&c_rli->info_thd->LOCK_thd_data);
@@ -2027,12 +2045,13 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
         no error or the error is a temporary error.
       */
       Diagnostics_area *da= thd->get_stmt_da();
-      if (!thd->get_stmt_da()->is_error() ||
-          has_temporary_error(thd,
-                              da->is_error() ? da->mysql_errno() : error,
+      if (!da->is_error() ||
+          has_temporary_error(thd, da->is_error() ? da->mysql_errno() : error,
                               &silent))
       {
         error= ER_LOCK_DEADLOCK;
+        DBUG_EXECUTE_IF("simulate_exhausted_trans_retries",
+                        { trans_retries = slave_trans_retries; };);
       }
 #ifndef DBUG_OFF
       else
@@ -2056,10 +2075,12 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
     if (trans_retries >= slave_trans_retries)
     {
       thd->is_fatal_error= 1;
-      c_rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
-                    "worker thread retried transaction %lu time(s) "
-                    "in vain, giving up. Consider raising the value of "
-                    "the slave_transaction_retries variable.", trans_retries);
+      c_rli->report(
+          ERROR_LEVEL,
+          thd->is_error() ? thd->get_stmt_da()->mysql_errno() : error,
+          "worker thread retried transaction %lu time(s) "
+          "in vain, giving up. Consider raising the value of "
+          "the slave_transaction_retries variable.", trans_retries);
       DBUG_RETURN(true);
     }
 

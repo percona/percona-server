@@ -432,6 +432,11 @@ static inline int my_thread_set_THR_THD(THD *thd)
   return my_set_thread_local(THR_THD, thd);
 }
 
+/**
+  Set m_opt_tracking_mode with a user given value associated with sysvar.
+*/
+void set_mysqld_opt_tracking_mode();
+
 #ifdef HAVE_PSI_INTERFACE
 
 C_MODE_START
@@ -962,6 +967,7 @@ enum options_mysqld
   OPT_SSL_KEY,
   OPT_UPDATE_LOG,
   OPT_WANT_CORE,
+  OPT_COREDUMPER,
   OPT_LOG_ERROR,
   OPT_MAX_LONG_DATA_SIZE,
   OPT_EARLY_PLUGIN_LOAD,
@@ -1081,4 +1087,8 @@ static inline THD *_current_thd(void)
 bool update_named_pipe_full_access_group(const char *new_group_name);
 #endif
 
+/* coredumper */
+extern bool  opt_libcoredumper;
+extern char *opt_libcoredumper_path;
+bool         validate_libcoredumper_path(char *opt_libcoredumper_path);
 #endif /* MYSQLD_INCLUDED */

@@ -140,7 +140,7 @@ fi
 WORKDIR_ABS="$(cd "$WORKDIR"; pwd)"
 
 SOURCEDIR="$(cd $(dirname "$0"); cd ..; pwd)"
-test -e "$SOURCEDIR/VERSION" || exit 2
+test -e "$SOURCEDIR/MYSQL_VERSION" || exit 2
 
 # The number of processors is a good default for -j
 if test -e "/proc/cpuinfo"
@@ -151,7 +151,7 @@ else
 fi
 
 # Extract version from the VERSION file
-source "$SOURCEDIR/VERSION"
+source "$SOURCEDIR/MYSQL_VERSION"
 MYSQL_VERSION="$MYSQL_VERSION_MAJOR.$MYSQL_VERSION_MINOR.$MYSQL_VERSION_PATCH"
 PERCONA_SERVER_VERSION="$(echo $MYSQL_VERSION_EXTRA | sed 's/^-//')"
 PRODUCT="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
@@ -168,7 +168,7 @@ else
     REVISION=""
 fi
 PRODUCT_FULL="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
-PRODUCT_FULL="$PRODUCT_FULL${BUILD_COMMENT:-}-$TAG$(uname -s)${DIST_NAME:-}.$TARGET${SSL_VER:-}"
+PRODUCT_FULL="$PRODUCT_FULL${BUILD_COMMENT:-}-$TAG$(uname -s)${DIST_NAME:-}.$TARGET${GLIBC_VER:-}"
 COMMENT="Percona Server (GPL), Release ${MYSQL_VERSION_EXTRA#-}"
 COMMENT="$COMMENT, Revision $REVISION${BUILD_COMMENT:-}"
 
@@ -291,12 +291,133 @@ fi
     fi
 )
 
+# Patch needed libraries
+(
+    LIBLIST="libcrypto.so libssl.so libreadline.so libtinfo.so libsasl2.so libssl3.so libsmime3.so libnss3.so libnssutil3.so libplds4.so libplc4.so libnspr4.so"
+    DIRLIST="bin lib lib/private lib/mysql/plugin"
+
+    LIBPATH=""
+
+    function gather_libs {
+        local elf_path=$1
+        for lib in ${LIBLIST}; do
+            for elf in $(find ${elf_path} -maxdepth 1 -exec file {} \; | grep 'ELF ' | cut -d':' -f1); do
+                IFS=$'\n'
+                for libfromelf in $(ldd ${elf} | grep ${lib} | awk '{print $3}'); do
+                    lib_realpath="$(readlink -f ${libfromelf})"
+                    lib_realpath_basename="$(basename $(readlink -f ${libfromelf}))"
+                    lib_without_version_suffix=$(echo ${lib_realpath_basename} | awk -F"." 'BEGIN { OFS = "." }{ print $1, $2}')
+
+                    if [ ! -f "lib/private/${lib_realpath_basename}" ] && [ ! -L "lib/private/${lib_without_version_suffix}" ]; then
+                    
+                        echo "Copying lib ${lib_realpath_basename}"
+                        cp ${lib_realpath} lib/private
+
+                        echo "Symlinking lib from ${lib_realpath_basename} to ${lib_without_version_suffix}"
+                        cd lib/
+                        ln -s private/${lib_realpath_basename} ${lib_without_version_suffix}
+                        cd -
+                        if [ ${lib_realpath_basename} != ${lib_without_version_suffix} ]; then
+                            cd lib/private
+                            ln -s ${lib_realpath_basename} ${lib_without_version_suffix}
+                            cd -
+                        fi
+
+                        patchelf --set-soname ${lib_without_version_suffix} lib/private/${lib_realpath_basename}
+
+                        LIBPATH+=" $(echo ${libfromelf} | grep -v $(pwd))"
+                    fi
+                done
+                unset IFS
+            done
+        done
+    }
+
+    function set_runpath {
+        # Set proper runpath for bins but check before doing anything
+        local elf_path=$1
+        local r_path=$2
+        for elf in $(find ${elf_path} -maxdepth 1 -exec file {} \; | grep 'ELF ' | cut -d':' -f1); do
+            echo "Checking LD_RUNPATH for ${elf}"
+            if [ -z $(patchelf --print-rpath ${elf}) ]; then
+                echo "Changing RUNPATH for ${elf}"
+                patchelf --set-rpath ${r_path} ${elf}
+            fi
+        done
+    }
+
+    function replace_libs {
+        local elf_path=$1
+        for libpath_sorted in ${LIBPATH}; do
+            for elf in $(find ${elf_path} -maxdepth 1 -exec file {} \; | grep 'ELF ' | cut -d':' -f1); do
+                LDD=$(ldd ${elf} | grep ${libpath_sorted}|head -n1|awk '{print $1}')
+                lib_realpath_basename="$(basename $(readlink -f ${libpath_sorted}))"
+                lib_without_version_suffix="$(echo ${lib_realpath_basename} | awk -F"." 'BEGIN { OFS = "." }{ print $1, $2}')"
+                if [[ ! -z $LDD  ]]; then
+                    echo "Replacing lib ${lib_realpath_basename} to ${lib_without_version_suffix} for ${elf}"
+                    patchelf --replace-needed ${LDD} ${lib_without_version_suffix} ${elf}
+                fi
+            done
+        done
+    }
+
+    function check_libs {
+        local elf_path=$1
+        for elf in $(find ${elf_path} -maxdepth 1 -exec file {} \; | grep 'ELF ' | cut -d':' -f1); do
+            if ! ldd ${elf}; then
+                exit 1
+            fi
+        done
+    }
+
+    function link {
+        if [ ! -d lib/private ]; then
+            mkdir -p lib/private
+        fi
+        # Gather libs
+        for DIR in $DIRLIST; do
+            gather_libs ${DIR}
+        done
+        # Set proper runpath
+        set_runpath bin '$ORIGIN/../lib/private/'
+        set_runpath lib '$ORIGIN/private/'
+        set_runpath lib/mysql/plugin '$ORIGIN/../../private/'
+        set_runpath lib/private '$ORIGIN'
+        # Replace libs
+        for DIR in $DIRLIST; do
+            replace_libs ${DIR}
+        done
+        # Make final check in order to determine any error after linkage
+        for DIR in $DIRLIST; do
+            check_libs ${DIR}
+        done
+    }
+
+    mkdir $INSTALLDIR/usr/local/minimal
+    cp -r "$INSTALLDIR/usr/local/$PRODUCT_FULL" "$INSTALLDIR/usr/local/minimal/$PRODUCT_FULL-minimal"
+
+    # NORMAL TARBALL
+    cd "$INSTALLDIR/usr/local/$PRODUCT_FULL"
+    link
+
+    # MIN TARBALL
+    cd "$INSTALLDIR/usr/local/minimal/$PRODUCT_FULL-minimal"
+    rm -rf mysql-test 2> /dev/null
+    find . -type f -exec file '{}' \; | grep ': ELF ' | cut -d':' -f1 | xargs strip --strip-unneeded
+    link
+
+)
+
 # Package the archive
 (
     cd "$INSTALLDIR/usr/local/"
     #PS-4854 Percona Server for MySQL tarball without AGPLv3 dependency/license
     find $PRODUCT_FULL -type f -name 'COPYING.AGPLv3' -delete
     $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL.tar.gz" $PRODUCT_FULL
+
+    cd "$INSTALLDIR/usr/local/minimal/"
+    find $PRODUCT_FULL-minimal -type f -name 'COPYING.AGPLv3' -delete
+    $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL-minimal.tar.gz" $PRODUCT_FULL-minimal
 )
 
 # Clean up

@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_blob_tool\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/23/2020
+.\"      Date: 09/22/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_BLOB_TOOL\FR" "1" "03/23/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_BLOB_TOOL\FR" "1" "09/22/2020" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -93,7 +93,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.242.\ \&Command\-line options for the ndb_blob_tool program
+.B Table\ \&21.26.\ \&Command\-line options for the ndb_blob_tool program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -105,13 +105,13 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l.
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l.
 T{
 .PP
 \fB \fR\fB--add-missing\fR\fB \fR
@@ -194,34 +194,27 @@ T}
 \fB\-\-add\-missing\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --add-missing
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 5.7.29-ndb-7.6.14
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -241,34 +234,27 @@ For each inline part in NDB Cluster tables which has no corresponding BLOB part,
 \fB\-\-check\-missing\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --check-missing
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 5.7.29-ndb-7.6.14
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -288,28 +274,21 @@ Check for inline parts in NDB Cluster tables which have no corresponding BLOB pa
 \fB\-\-check\-orphans\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --check-orphans
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -330,28 +309,21 @@ Check for BLOB parts in NDB Cluster tables which have no corresponding inline pa
 \fB\-d\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --database=db_name
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 [none]
 T}
@@ -371,28 +343,21 @@ Specify the database to find the table in\&.
 \fB\-\-delete\-orphans\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --delete-orphans
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -412,28 +377,21 @@ Remove BLOB parts from NDB Cluster tables which have no corresponding inline par
 \fB\-\-dump\-file=\fR\fB\fIfile\fR\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --dump-file=file
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 File name
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 [none]
 T}
@@ -454,28 +412,21 @@ Writes a list of orphaned BLOB column parts to
 \fB\-\-verbose\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --verbose
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -580,7 +531,7 @@ Section\ \&11.7, \(lqData Type Storage Requirements\(rq, for more information\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

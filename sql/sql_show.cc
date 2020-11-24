@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3045,7 +3045,7 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
       break;
 
     case SHOW_SIGNED_INT:
-      end= int10_to_str((long) *(uint32*) value, buff, -10);
+      end= int10_to_str((long) *(int32*) value, buff, -10);
       value_charset= system_charset_info;
       break;
 
@@ -9047,6 +9047,9 @@ int hton_fill_schema_table(THD *thd, TABLE_LIST *tables, Item *cond)
   struct run_hton_fill_schema_table_args args;
   args.tables= tables;
   args.cond= cond;
+
+  if (check_global_access(thd, PROCESS_ACL))
+    DBUG_RETURN(1);
 
   plugin_foreach(thd, run_hton_fill_schema_table,
                  MYSQL_STORAGE_ENGINE_PLUGIN, &args);

@@ -57,6 +57,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_table.h>
 #include <sql_tablespace.h>
 #include <sql_thd_internal_api.h>
+#include <sys_vars_shared.h>
 #include <my_check_opt.h>
 #include <my_bitmap.h>
 #include <mysql/service_thd_alloc.h>
@@ -206,6 +207,7 @@ static my_bool	innodb_optimize_fulltext_only		= FALSE;
 
 static char*	innodb_version_str = (char*) INNODB_VERSION_STR;
 
+static const uint MAX_ENCRYPTION_THREADS = 255;
 extern uint srv_fil_crypt_rotate_key_age;
 extern uint srv_n_fil_crypt_iops;
 
@@ -2449,6 +2451,8 @@ convert_error_code_to_mysql(
 		return(HA_ERR_WRONG_FILE_NAME);
 	case DB_COMPUTE_VALUE_FAILED:
 		return(HA_ERR_COMPUTE_FAILED);
+	case DB_FTS_TOO_MANY_NESTED_EXP:
+		return(HA_ERR_FTS_TOO_MANY_NESTED_EXP);
 	}
 }
 
@@ -8062,12 +8066,20 @@ build_template_field(
 		templ->rec_prefix_field_no = ULINT_UNDEFINED;
 		if (dict_index_is_clust(index)) {
 			templ->rec_field_no = templ->clust_rec_field_no;
+			templ->icp_rec_field_no = ULINT_UNDEFINED;
 		} else {
 			templ->rec_field_no
 				= dict_index_get_nth_col_or_prefix_pos(
 					index, v_no, false, true, NULL);
+			/* Virtual columns may have to be read from the
+			secondary index before evaluating a pushed down
+			end-range condition in row_search_end_range_check().*/
+			templ->icp_rec_field_no =
+				templ->rec_field_no != ULINT_UNDEFINED ?
+				templ->rec_field_no :
+				dict_index_get_nth_col_or_prefix_pos(
+					index, v_no, true, true, NULL);
 		}
-		templ->icp_rec_field_no = ULINT_UNDEFINED;
 	}
 
 	if (field->real_maybe_null()) {
@@ -16954,7 +16966,12 @@ ha_innobase::extra(
 	enum ha_extra_function operation)
 			   /*!< in: HA_EXTRA_FLUSH or some other flag */
 {
-	check_trx_exists(ha_thd());
+	if (m_prebuilt->table) {
+#ifdef UNIV_DEBUG
+		if (m_prebuilt->table->n_ref_count > 0)
+#endif
+			update_thd();
+	}
 
 	/* Warning: since it is not sure that MySQL calls external_lock
 	before calling this function, the trx field in m_prebuilt can be
@@ -17039,15 +17056,14 @@ ha_innobase::end_stmt()
 
 	/* This transaction had called ha_innobase::start_stmt() */
 	trx_t*	trx = m_prebuilt->trx;
-	trx_mutex_enter(trx);
+	if (!dict_table_is_temporary(m_prebuilt->table) &&
+		trx != thd_to_trx(ha_thd())) {
+		ut_ad(false);
+		return(0);
+	}
 	if (trx->lock.start_stmt) {
 		trx->lock.start_stmt = false;
-		trx_mutex_exit(trx);
-
 		TrxInInnoDB::end_stmt(trx);
-	}
-	else {
-		trx_mutex_exit(trx);
 	}
 
 	return(0);
@@ -17174,16 +17190,10 @@ ha_innobase::start_stmt(
 		++trx->will_lock;
 	}
 
-	trx_mutex_enter(trx);
 	/* Only do it once per transaction. */
 	if (!trx->lock.start_stmt && lock_type != TL_UNLOCK) {
 		trx->lock.start_stmt = true;
-		trx_mutex_exit(trx);
-
 		TrxInInnoDB::begin_stmt(trx);
-	}
-	else {
-		trx_mutex_exit(trx);
 	}
 
 	DBUG_RETURN(0);
@@ -21311,8 +21321,24 @@ innodb_encryption_threads_validate(
 		DBUG_RETURN(1);
 	}
 
-	if (srv_n_fil_crypt_threads == 0 && intbuf > 0) { // We are starting encryption threads, we must lock
-							  // the keyring plugins
+	bool is_val_fixed = false;
+	long long requested_threads = intbuf;
+	if (intbuf < 0) {
+		requested_threads = 0;
+		is_val_fixed = true;
+	}
+	else if (intbuf > MAX_ENCRYPTION_THREADS) {
+		requested_threads = MAX_ENCRYPTION_THREADS;
+		is_val_fixed = true;
+	}
+
+	if (throw_bounds_warning(thd, "innodb_encryption_threads", is_val_fixed, intbuf)) {
+		DBUG_RETURN(1);
+	}
+
+	if (srv_n_fil_crypt_threads == 0 && requested_threads > 0) {
+		// We are starting encryption threads, we must lock
+		// the keyring plugins
 		uint number_of_keyrings_locked= lock_keyrings(NULL);
 
 		if (number_of_keyrings_locked == 0) {
@@ -21326,11 +21352,12 @@ innodb_encryption_threads_validate(
 			unlock_keyrings(NULL);
 			DBUG_RETURN(1);
 		}
-	} else if (intbuf == 0 && srv_n_fil_crypt_threads > 0) {// We are disabling encryption threads, unlock the keyrings
+	} else if (requested_threads == 0 && srv_n_fil_crypt_threads > 0) {
+		// We are disabling encryption threads, unlock the keyrings
 		unlock_keyrings(NULL);  
 	}
 
-	*reinterpret_cast<ulong*>(save) = static_cast<ulong>(intbuf);
+	*reinterpret_cast<ulong*>(save) = static_cast<ulong>(requested_threads);
 
 	DBUG_RETURN(0);
 }
@@ -22734,7 +22761,7 @@ static MYSQL_SYSVAR_UINT(encryption_threads, srv_n_fil_crypt_threads,
 			 "scrubbing",
 			 innodb_encryption_threads_validate,
 			 innodb_encryption_threads_update,
-			 srv_n_fil_crypt_threads, 0, UINT_MAX32, 0);
+			 0, 0, MAX_ENCRYPTION_THREADS, 0);
 
 static MYSQL_SYSVAR_UINT(encryption_rotate_key_age,
 			 srv_fil_crypt_rotate_key_age,

@@ -352,6 +352,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global
+   * - :variable:`rocksdb_max_bottom_pri_background_compactions`
+     - Yes
+     - No
+     - Global
    * - :variable:`rocksdb_max_latest_deadlocks`
      - Yes
      - Yes
@@ -1638,7 +1642,7 @@ When enabled, this option allows index key prefixes longer than 767 bytes
 (up to 3072 bytes). This option mirrors the `innodb_large_prefix
 <https://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html#sysvar_innodb_large_prefix>`_
 The values for :variable:`rocksdb_large_prefix` should be the same between
-master and slave.
+source and replica.
 
 .. variable:: rocksdb_keep_log_file_num
 
@@ -1733,7 +1737,7 @@ rely on the application to do the flushing.
    :default: ``OFF``
 
 When enabled, uses the WriteBatch API, which is faster. The session does not
-hold any lock on row access. This variable is not effective on slave.
+hold any lock on row access. This variable is not effective on replica.
 
 .. note::
 
@@ -1744,35 +1748,37 @@ hold any lock on row access. This variable is not effective on slave.
 
   :version 5.7.19-17: Implemented
   :version 5.7.20-18: Replaced by :variable:`rocksdb_max_background_jobs`
+  :version 5.7.31-34: Re-implemented
   :cli: ``--rocksdb-max-background-compactions``
   :dyn: Yes
   :scope: Global
   :vartype: Numeric
-  :default: ``1``
+  :default: ``-1``
 
-Specifies the maximum number of concurrent background compaction threads,
-submitted to the low-priority thread pool.
-Default value is ``1``. Allowed range is up to ``64``.
+Sets DBOptions:: max_background_compactions for RocksDB.
+Default value is ``-1``. Allowed range is up to ``64``.
 This variable has been replaced in |Percona Server| :rn:`5.7.20-18`
 by :variable:`rocksdb_max_background_jobs`, which automatically decides how
 many threads to allocate towards flush/compaction.
+This variable has been re-implemented in |Percona Server| 5.7.31-34.
 
 .. variable:: rocksdb_max_background_flushes
 
   :version 5.7.19-17: Implemented
   :version 5.7.20-18: Replaced by :variable:`rocksdb_max_background_jobs`
+  :version 5.7.31-34: Re-implemented
   :cli: ``--rocksdb-max-background-flushes``
   :dyn: No
   :scope: Global
   :vartype: Numeric
-  :default: ``1``
+  :default: ``-1``
 
-Specifies the maximum number of concurrent background memtable flush threads,
-submitted to the high-priority thread-pool.
-Default value is ``1``. Allowed range is up to ``64``.
+Sets DBOptions:: max_background_flushes for RocksDB.
+Default value is ``-1``. Allowed range is up to ``64``.
 This variable has been replaced in |Percona Server| :rn:`5.7.20-18`
 by :variable:`rocksdb_max_background_jobs`, which automatically decides how
 many threads to allocate towards flush/compaction.
+This variable has been re-implemented in |Percona Server| 5.7.31-34.
 
 .. variable:: rocksdb_max_background_jobs
 
@@ -1791,6 +1797,18 @@ the maximum number of background jobs. It automatically decides
 how many threads to allocate towards flush/compaction. It was implemented to
 reduce the number of (confusing) options users and can tweak and push the
 responsibility down to RocksDB level.
+
+.. variable:: rocksdb_max_bottom_pri_background_compactions
+
+  :version: 5.7.31-34: Implemented
+  :cli: ``--rocksdb_max_bottom_pri_background_compactions``
+  :dyn: No
+  :vartype: Unsigned Integer
+  :default: ``0``
+
+Creates a specified number of threads, sets a lower CPU priority, and letting compactions use them. The maximum compaction concurrency is capped by ``rocksdb_max_background_compactions`` or ``rocksdb_max_background_jobs``
+
+The minimum value is ``0`` and the maximum value is ``64``.
 
 .. variable:: rocksdb_max_latest_deadlocks
 
@@ -2125,7 +2143,7 @@ Allowed range is up to ``9223372036854775807``.
   :default: ``OFF``
 
 Use read-free replication, which allows no row lookup during
-replication, on the slave. 
+replication, on the replica.
 
 The options are the following:
 
@@ -2144,7 +2162,7 @@ The options are the following:
   :default:
 
 Lists tables (as a regular expression)
-that should use read-free replication on the slave
+that should use read-free replication on the replica
 (that is, replication without row lookups).
 Empty by default.
 
@@ -2205,7 +2223,7 @@ instead of the transaction API.
 Disabled by default.
 
 There are two conditions which are necessary to
-use it: row replication format and slave
+use it: row replication format and replica
 operating in super read only mode.
 
 .. variable:: rocksdb_seconds_between_stat_computes
@@ -2650,7 +2668,11 @@ Specifies the path to the directory where MyRocks stores WAL files.
   :dyn: Yes
   :scope: Global
   :vartype: Numeric
-  :default: ``1``
+  :default: ``2``
+
+.. note:: 
+
+    In version 5.7.31-34 and later, the default is changed from ``1`` to ``2``. 
 
 Specifies the level of tolerance when recovering write-ahead logs (WAL) files
 after a system crash.
@@ -2659,9 +2681,9 @@ The following are the options:
 
  * ``0``: if the last WAL entry is corrupted, truncate the entry and either start the server normally or refuse to start.
 
- * ``1`` (default): if a WAL entry is corrupted, the server fails to   start and does not recover from the crash.
+ * ``1``: if a WAL entry is corrupted, the server fails to   start and does not recover from the crash.
 
- * ``2``: if a corrupted WAL entry is detected, truncate all entries after the detected corrupted entry. You can select this setting for replication slaves.
+ * ``2`` (default): if a corrupted WAL entry is detected, truncate all entries after the detected corrupted entry. You can select this setting for replication replicas.
 
  * ``3``: If a corrupted WAL entry is detected, skip only the corrupted entry and continue the apply WAL entries. This option can be dangerous.
 
@@ -2689,7 +2711,7 @@ Allowed range is up to ``9223372036854775807``.
   :default: ``0``
 
 Specifies the timeout in seconds before deleting archived WAL files.
-Default is ``0`` (archived WAL files are never deleted).
+Default is ``0`` (WAL files are not archived).
 Allowed range is up to ``9223372036854775807``.
 
 .. variable:: rocksdb_whole_key_filtering

@@ -2984,7 +2984,7 @@ public:
     {
       if(!strncmp(m_log_name, linfo->log_file_name, m_log_name_len))
       {
-        sql_print_warning("file %s was not purged because it was being read"
+        sql_print_warning("file %s was not purged because it was being read "
                           "by thread number %u", m_log_name, thd->thread_id());
         m_count++;
       }
@@ -5534,7 +5534,10 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     At every rotate memorize the last transaction counter state to use it as
     offset at logging the transaction logical timestamps.
   */
+  mysql_mutex_lock(&LOCK_slave_trans_dep_tracker);
   m_dependency_tracker.rotate();
+  mysql_mutex_unlock(&LOCK_slave_trans_dep_tracker);
+
 #ifdef HAVE_REPLICATION
   close_purge_index_file();
 #endif
@@ -8572,14 +8575,13 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, THD *thd,
   DBUG_RETURN(error);
 }
 
-bool MYSQL_BIN_LOG::write_dml_directly(THD* thd, const char *stmt, size_t stmt_len)
+bool MYSQL_BIN_LOG::write_stmt_directly(THD* thd, const char *stmt, size_t stmt_len,
+                                       enum_sql_command sql_command)
 {
   bool ret= false;
   /* backup the original command */
   enum_sql_command save_sql_command= thd->lex->sql_command;
-
-  /* Fake it as a DELETE statement, so it can be binlogged correctly */
-  thd->lex->sql_command= SQLCOM_DELETE;
+  thd->lex->sql_command= sql_command;
 
   if (thd->binlog_query(THD::STMT_QUERY_TYPE, stmt, stmt_len,
                         FALSE, FALSE, FALSE, 0) ||
@@ -10129,8 +10131,17 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
       binlog_error_action=IGNORE_ERROR, clear the error
       and allow the commit to happen in storage engine.
     */
-    if (check_write_error(thd))
-      thd->clear_error();
+    if (check_write_error(thd)) { /* we have DA_ERROR */
+      thd->clear_error(); /* sets thd->get_stmt_da()->status() to DA_EMPTY */
+      /* For SQLCOM_COMMIT, ROLLBACK, ROLLBACK TO SAVEPOINT, there is already
+      my_ok() in mysql_execute_command. Doing double my_ok() is not allowed. So
+      we avoid that here */
+      if (thd_sql_command(thd) != SQLCOM_COMMIT &&
+          thd_sql_command(thd) != SQLCOM_ROLLBACK &&
+          thd_sql_command(thd) != SQLCOM_ROLLBACK_TO_SAVEPOINT) {
+        my_ok(thd); /* sets thd->get_stmt_da()->status() to DA_OK */
+      }
+    }
 
     if (need_lock_log)
       mysql_mutex_unlock(&LOCK_log);

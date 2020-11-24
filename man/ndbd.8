@@ -2,12 +2,12 @@
 .\"     Title: \fBndbd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/23/2020
+.\"      Date: 09/22/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDBD\FR" "8" "03/23/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDBD\FR" "8" "09/22/2020" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -50,7 +50,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.238.\ \&Command\-line options for the ndbd program
+.B Table\ \&21.22.\ \&Command\-line options for the ndbd program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -62,21 +62,21 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l.
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l.
 T{
 .PP
 \fB \fR\fB--bind-address=name\fR\fB \fR
@@ -141,8 +141,8 @@ T{
 .PP
 \fB \fR\fB--initial\fR\fB \fR
 T}:T{
-Perform initial start of ndbd, including cleaning the file system.
-              Consult the documentation before using this option
+Perform initial start of ndbd, including file system cleanup; consult
+              documentation before using this option
 T}:T{
 .PP
 (Supported in all MySQL 5.7 based releases)
@@ -160,8 +160,8 @@ T{
 .PP
 \fB \fR\fB--install[=name]\fR\fB \fR
 T}:T{
-Used to install the data node process as a Windows service. Does not
-              apply on non-Windows platforms
+Used to install data node process as Windows service; does not apply on
+              other platforms
 T}:T{
 .PP
 (Supported in all MySQL 5.7 based releases)
@@ -170,7 +170,7 @@ T{
 .PP
 \fB \fR\fB--logbuffer-size=#\fR\fB \fR
 T}:T{
-Control size of log buffer. For use when debugging with many log
+Control size of log buffer; for use when debugging with many log
               messages being generated; default is sufficient for normal
               operations
 T}:T{
@@ -193,7 +193,7 @@ T{
 \fB \fR\fB-n\fR\fB \fR
 T}:T{
 Do not start ndbd immediately; ndbd waits for command to start from
-              ndb_mgmd
+              ndb_mgm
 T}:T{
 .PP
 (Supported in all MySQL 5.7 based releases)
@@ -203,7 +203,7 @@ T{
 \fB \fR\fB--nowait-nodes=list\fR\fB \fR
 T}:T{
 Do not wait for these data nodes to start (takes comma-separated list of
-              node IDs). Also requires --ndb-nodeid to be used
+              node IDs); requires --ndb-nodeid
 T}:T{
 .PP
 (Supported in all MySQL 5.7 based releases)
@@ -212,8 +212,8 @@ T{
 .PP
 \fB \fR\fB--remove[=name]\fR\fB \fR
 T}:T{
-Used to remove a data node process that was previously installed as a
-              Windows service. Does not apply on non-Windows platforms
+Used to remove data node process that was previously installed as
+              Windows service; does not apply on other platforms
 T}:T{
 .PP
 (Supported in all MySQL 5.7 based releases)
@@ -224,7 +224,7 @@ T{
 .PP
 \fB \fR\fB-v\fR\fB \fR
 T}:T{
-Causes the data log to write extra debugging information to the node log
+Write extra debugging information to node log
 T}:T{
 .PP
 (Supported in all MySQL 5.7 based releases)
@@ -263,28 +263,21 @@ wherever the latter occurs in this section\&.
 \fB\-\-bind\-address\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --bind-address=name
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 T}
 .TE
@@ -305,46 +298,39 @@ to bind to a specific network interface (host name or IP address)\&. This option
 \fB\-\-connect\-delay=\fR\fB\fI#\fR\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --connect-delay=#
 T}
 T{
-\fBDeprecated\fR
+Deprecated
 T}:T{
 Yes
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Numeric
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 5
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 0
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 3600
 T}
@@ -370,40 +356,33 @@ instead\&.
 \fB\-\-connect\-retries=\fR\fB\fI#\fR\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --connect-retries=#
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Numeric
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 12
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 0
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 65535
 T}
@@ -425,40 +404,33 @@ option\&.
 \fB\-\-connect\-retry\-delay=\fR\fB\fI#\fR\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --connect-retry-delay=#
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Numeric
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 5
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 0
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 4294967295
 T}
@@ -485,28 +457,21 @@ option, which is now deprecated and subject to removal in a future release of ND
 \fB\-d\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --daemon
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 TRUE
 T}
@@ -538,28 +503,21 @@ on Windows platforms\&.
 \fB\-\-foreground\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --foreground
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -591,28 +549,21 @@ on Windows platforms\&.
 \fB\-\-initial\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --initial
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -734,7 +685,7 @@ Backup files that have already been created by the affected node
 .IP \(bu 2.3
 .\}
 NDB Cluster Disk Data files (see
-Section\ \&21.5.13, \(lqNDB Cluster Disk Data Tables\(rq)\&.
+Section\ \&21.5.10, \(lqNDB Cluster Disk Data Tables\(rq)\&.
 .RE
 .sp
 This option also has no effect on recovery of data by a data node that is just starting (or restarting) from data nodes that are already running\&. This recovery of data occurs automatically, and requires no user intervention in an NDB Cluster that is running normally\&.
@@ -756,28 +707,21 @@ necessary to do so\&.
 \fB\-\-initial\-start\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --initial-start
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -834,34 +778,27 @@ option for
 \fB\-\-install[=\fR\fB\fIname\fR\fR\fB]\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --install[=name]
 T}
 T{
-\fBPlatform Specific\fR
+Platform Specific
 T}:T{
 Windows
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 ndbd
 T}
@@ -907,46 +844,39 @@ option has no effect on non\-Windows platforms\&.
 \fB\-\-logbuffer\-size=\fR\fB\fI#\fR\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --logbuffer-size=#
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 5.7.22-ndb-7.6.6
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Integer
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 32768
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 2048
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 4294967295
 T}
@@ -966,28 +896,21 @@ Sets the size of the data node log buffer\&. When debugging with high amounts of
 \fB\-\-nodaemon\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --nodaemon
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -1020,28 +943,21 @@ on Windows is to run in the foreground, making this option unnecessary on Window
 \fB\-n\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --nostart
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -1054,7 +970,7 @@ not to start automatically\&. When this option is used,
 connects to the management server, obtains configuration data from it, and initializes communication objects\&. However, it does not actually start the execution engine until specifically requested to do so by the management server\&. This can be accomplished by issuing the proper
 START
 command in the management client (see
-Section\ \&21.5.2, \(lqCommands in the NDB Cluster Management Client\(rq)\&.
+Section\ \&21.5.1, \(lqCommands in the NDB Cluster Management Client\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -1068,28 +984,21 @@ Section\ \&21.5.2, \(lqCommands in the NDB Cluster Management Client\(rq)\&.
 \fB\-\-nowait\-nodes=\fR\fB\fInode_id_1\fR\fR\fB[, \fR\fB\fInode_id_2\fR\fR\fB[, \&.\&.\&.]]\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --nowait-nodes=list
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 T}
 .TE
@@ -1122,34 +1031,27 @@ If you wanted to start up the same cluster as in the previous example without on
 \fB\-\-remove[=\fR\fB\fIname\fR\fR\fB]\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --remove[=name]
 T}
 T{
-\fBPlatform Specific\fR
+Platform Specific
 T}:T{
 Windows
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 ndbd
 T}
@@ -1175,7 +1077,6 @@ option has no effect on non\-Windows platforms\&.
 .\}
 \fB\-\-verbose\fR,
 \fB\-v\fR
-.sp
 Causes extra debug output to be written to the node log\&.
 .sp
 In NDB 7\&.6\&.4 and later, you can also use
@@ -1379,7 +1280,7 @@ Section\ \&21.1.7, \(lqKnown Limitations of NDB Cluster\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

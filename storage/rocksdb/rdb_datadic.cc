@@ -2056,9 +2056,14 @@ int Rdb_key_def::compare_keys(const rocksdb::Slice *key1,
   Rdb_string_reader reader2(key2);
 
   // Skip the index number
-  if ((!reader1.read(INDEX_NUMBER_SIZE))) return HA_EXIT_FAILURE;
+  auto indexp1 = reader1.read(INDEX_NUMBER_SIZE);
+  if (!indexp1) return HA_EXIT_FAILURE;
 
-  if ((!reader2.read(INDEX_NUMBER_SIZE))) return HA_EXIT_FAILURE;
+  auto indexp2 = reader2.read(INDEX_NUMBER_SIZE);
+  if (!indexp2) return HA_EXIT_FAILURE;
+
+  // shouldn't compare with other index
+  DBUG_ASSERT(memcmp(indexp1, indexp2, INDEX_NUMBER_SIZE) == 0);
 
   for (uint i = 0; i < m_key_parts; i++) {
     const Rdb_field_packing *const fpi = &m_pack_info[i];
@@ -4195,6 +4200,26 @@ bool Rdb_tbl_def::put_dict(Rdb_dict_manager *const dict,
 
   dict->put_key(batch, key, svalue);
   return false;
+}
+
+time_t Rdb_tbl_def::get_create_time() {
+  time_t create_time = m_create_time;
+
+  if (create_time == CREATE_TIME_UNKNOWN) {
+    // Read it from the .frm file. It's not a problem if several threads do this
+    // concurrently
+    char path[FN_REFLEN];
+    snprintf(path, sizeof(path), "%s/%s/%s%s", mysql_data_home,
+             m_dbname.c_str(), m_tablename.c_str(), reg_ext);
+    unpack_filename(path,path);
+    MY_STAT f_stat;
+    if (my_stat(path, &f_stat, MYF(0)))
+      create_time = f_stat.st_ctime;
+    else
+      create_time = 0; // will be shown as SQL NULL
+    m_create_time = create_time;
+  }
+  return create_time;
 }
 
 // Length that each index flag takes inside the record.

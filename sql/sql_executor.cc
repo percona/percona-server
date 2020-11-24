@@ -1856,7 +1856,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   int error;
   DBUG_ENTER("join_read_const_table");
   TABLE *table=tab->table();
-  table->const_table=1;
+  table->const_table= true;
   table->reset_null_row();
   table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
 

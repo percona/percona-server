@@ -1,0 +1,31 @@
+#
+# Bug 93770: no tmpdir space can cause a DBUG_ASSERT(0) call in send_statement_status
+#
+# https://jira.percona.com/browse/PS-5263
+# https://bugs.mysql.com/bug.php?id=93770
+
+--source include/have_binlog_format_row.inc
+--source include/have_log_bin.inc
+--source include/have_debug.inc
+
+CALL mtr.add_suppression("An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'IGNORE_ERROR'.");
+
+RESET MASTER;
+CREATE TABLE t1(c1 varchar(8192));
+
+SET @save.binlog_cache_size = @@global.binlog_cache_size;
+SET @save.binlog_error_action = @@global.binlog_error_action;
+SET GLOBAL binlog_cache_size = 4096;
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+
+--connect(con1,localhost,root,,)
+SET SESSION debug = "+d,simulate_tmpdir_partition_full";
+--replace_regex /'.*'/<file_name>/
+INSERT INTO t1 VALUES (repeat("a", 8192));
+SET SESSION debug = "-d,simulate_tmpdir_partition_full";
+DROP TABLE t1;
+--disconnect con1
+
+--connection default
+SET @@global.binlog_cache_size = @save.binlog_cache_size;
+SET @@global.binlog_error_action = @save.binlog_error_action;

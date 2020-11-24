@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -1630,10 +1630,10 @@ struct dict_table_t {
 	ib_uint64_t				stat_n_rows;
 
 	/** Approximate clustered index size in database pages. */
-	ulint					stat_clustered_index_size;
+	ib_uint64_t				stat_clustered_index_size;
 
 	/** Approximate size of other indexes in database pages. */
-	ulint					stat_sum_of_other_index_sizes;
+	ib_uint64_t				stat_sum_of_other_index_sizes;
 
 	/** How many rows are modified since last stats recalc. When a row is
 	inserted, updated, or deleted, we add 1 to this number; we calculate

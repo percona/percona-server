@@ -47,6 +47,7 @@ keyring_encrypted_file.keyring_migration_bugs @darwin : Bug#31041633
 # main suite tests
 main.ds_mrr-big @solaris : BUG#14168107 Test leads to timeout on Solaris on slow sparc servers.
 main.percona_changed_pages_big : BUG#7435 percona https://jira.percona.com/browse/PS-7435
+main.bug100352 : BUG#100352 https://bugs.mysql.com/bug.php?id=100352
 
 # Disabled due to InnoDB issues
 main.internal_tmp_disk_storage_engine : BUG#26917416 Disabled it since it's failing on pb2.

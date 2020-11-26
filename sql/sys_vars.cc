@@ -7361,6 +7361,7 @@ static const char *default_table_encryption_type_names[] = {
     nullptr};
 
 bool Sys_var_enum_default_table_encryption::global_update(THD *, set_var *var) {
+  bool result = false;
   global_var(ulong) = var->save_result.ulonglong_value;
 
   static const LEX_CSTRING innodb_engine{STRING_WITH_LEN("innodb")};
@@ -7371,13 +7372,13 @@ bool Sys_var_enum_default_table_encryption::global_update(THD *, set_var *var) {
     if (!hton->fix_default_table_encryption(var->save_result.ulonglong_value,
                                             false)) {
       my_error(ER_DTE_ENCRYPTION_THREADS_ACTIVE, MYF(0));
-      return 1;
+      result = true;
     }
 
     plugin_unlock(nullptr, plugin);
   }
 
-  return 0;
+  return result;
 }
 
 static Sys_var_enum_default_table_encryption Sys_default_table_encryption(

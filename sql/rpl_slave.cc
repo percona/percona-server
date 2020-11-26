@@ -5954,6 +5954,20 @@ static void *handle_slave_worker(void *arg) {
               w->jobs.waited_overfill));
 
   w->running_status = Slave_worker::NOT_RUNNING;
+
+  mysql_mutex_lock(&w->info_thd_lock);
+  /* We will delete the THD descriptior in next step.
+  Before Slave_worker is deleted in slave_stop_workers() its value will be 
+  copied by copy_values_for_PFS including info_thd member.
+  The member is used in table_replication_applier_status_by_worker::make_row()
+  however only if Slave_worker::running status is Slave_worker::RUNNING, so we 
+  are safe here.
+  Without setting below member to nullptr, we would copy stale pointer anyway,
+  so it is safer to explicitly say that
+  */
+  w->info_thd = nullptr;
+  mysql_mutex_unlock(&w->info_thd_lock);
+
   mysql_cond_signal(&w->jobs_cond);  // famous last goodbye
 
   mysql_mutex_unlock(&w->jobs_lock);
@@ -6449,7 +6463,7 @@ static int slave_start_single_worker(Relay_log_info *rli, ulong i) {
     error = 1;
     goto err;
   }
-
+ 
   mysql_mutex_lock(&w->jobs_lock);
   if (w->running_status == Slave_worker::NOT_RUNNING)
     mysql_cond_wait(&w->jobs_cond, &w->jobs_lock);

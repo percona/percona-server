@@ -157,7 +157,8 @@ class MyEncryptionCTX_nopad final : public MyEncryptionCTX {
     return res;
   }
 
-  int update(const uchar *src, size_t slen, uchar *dst, size_t *dlen) noexcept override {
+  int update(const uchar *src, size_t slen, uchar *dst,
+             size_t *dlen) noexcept override {
     buf_len += slen;
     return MyEncryptionCTX::update(src, slen, dst, dlen);
   }
@@ -218,7 +219,8 @@ class MyEncryptionCTX_gcm final : public MyEncryptionCTX {
     return res;
   }
 
-  int update(const uchar *src, size_t slen, uchar *dst, size_t *dlen) noexcept override {
+  int update(const uchar *src, size_t slen, uchar *dst,
+             size_t *dlen) noexcept override {
     /*
       note that this GCM class cannot do streaming decryption, because
       it needs the tag (which is located at the end of encrypted data)

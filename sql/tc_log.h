@@ -225,9 +225,13 @@ class TC_LOG_MMAP : public TC_LOG {
   uint size() const;
 
   void xlock(void) override { mysql_rwlock_wrlock(&LOCK_consistent_snapshot); }
-  void xunlock(void) override { mysql_rwlock_unlock(&LOCK_consistent_snapshot); }
+  void xunlock(void) override {
+    mysql_rwlock_unlock(&LOCK_consistent_snapshot);
+  }
   void slock(void) override { mysql_rwlock_rdlock(&LOCK_consistent_snapshot); }
-  void sunlock(void) override { mysql_rwlock_unlock(&LOCK_consistent_snapshot); }
+  void sunlock(void) override {
+    mysql_rwlock_unlock(&LOCK_consistent_snapshot);
+  }
 
  private:
   ulong log_xid(my_xid xid);

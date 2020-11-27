@@ -8275,7 +8275,8 @@ int handler::ha_delete_row(const uchar *buf) {
   for details.
 */
 int handler::ha_fast_update(THD *thd, mem_root_deque<Item *> &update_fields,
-                            mem_root_deque<Item *> &update_values, Item *conds) {
+                            mem_root_deque<Item *> &update_values,
+                            Item *conds) {
   int error = fast_update(thd, update_fields, update_values, conds);
   if (error == 0) mark_trx_read_write();
   return error;

@@ -230,7 +230,8 @@ int ha_tokudb::fast_update(THD *thd, mem_root_deque<Item *> &update_fields,
     goto exit;
   }
 
-  error = send_update_message(update_fields_list, update_values_list, conds, transaction);
+  error = send_update_message(update_fields_list, update_values_list, conds,
+                              transaction);
 
   if (error) {
     int mapped_error = map_to_handler_error(error);
@@ -838,7 +839,8 @@ int ha_tokudb::upsert(THD *thd, mem_root_deque<Item *> &update_fields,
     goto exit;
   }
 
-  error = send_upsert_message(update_fields_list, update_values_list, transaction);
+  error =
+      send_upsert_message(update_fields_list, update_values_list, transaction);
 
   if (error) {
     int mapped_error = map_to_handler_error(error);

@@ -78,7 +78,6 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // acl_authenticate
 #include "sql/auth/sql_security_ctx.h"
-#include "sql/sql_backup_lock.h"
 #include "sql/binlog.h"  // purge_master_logs
 #include "sql/clone_handler.h"
 #include "sql/comp_creator.h"
@@ -142,7 +141,8 @@
 #include "sql/sp_rcontext.h"
 #include "sql/sql_admin.h"
 #include "sql/sql_alter.h"
-#include "sql/sql_audit.h"   // MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER
+#include "sql/sql_audit.h"  // MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER
+#include "sql/sql_backup_lock.h"
 #include "sql/sql_base.h"    // find_temporary_table
 #include "sql/sql_binlog.h"  // mysql_client_binlog_statement
 #include "sql/sql_check_constraint.h"

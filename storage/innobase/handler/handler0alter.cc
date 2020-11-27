@@ -5474,7 +5474,7 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
   to keep the table using the original default row_format. */
   if (old_dd_tab->table().row_format() != new_dd_tab->table().row_format() &&
       !innobase_need_rebuild(ha_alter_info, altered_table,
-      dict_table_is_file_per_table(m_prebuilt->table))) {
+                             dict_table_is_file_per_table(m_prebuilt->table))) {
     adjust_row_format(this->table, altered_table, ha_alter_info, old_dd_tab,
                       new_dd_tab);
   }

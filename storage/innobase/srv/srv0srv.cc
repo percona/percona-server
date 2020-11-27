@@ -2223,7 +2223,7 @@ treated as keeping server idle.
 bool srv_check_activity(ulint old_activity_count,
                         ulint old_ibuf_merge_activity_count) noexcept {
   if (srv_sys == nullptr) return false;
-  
+
   const ulint new_activity_count = srv_sys->activity_count;
   if (old_ibuf_merge_activity_count == ULINT_UNDEFINED)
     return (new_activity_count != old_activity_count);

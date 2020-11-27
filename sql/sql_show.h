@@ -447,7 +447,7 @@ class Sql_cmd_show_events : public Sql_cmd_show_schema_base {
 };
 
 /// Represents SHOW GRANTS statement.
- 
+
 class Sql_cmd_show_grants : public Sql_cmd_show_noplan {
  public:
   Sql_cmd_show_grants(const LEX_USER *for_user_arg,

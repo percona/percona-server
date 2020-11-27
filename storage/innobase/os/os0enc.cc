@@ -1065,7 +1065,7 @@ bool Encryption::encrypt_log_block(const IORequest &type, byte *src_ptr,
   {
     std::ostringstream os{};
     os << "Encrypted block " << log_block_get_hdr_no(dst_ptr) << "."
-        << std::endl;
+       << std::endl;
     ut_print_buf_hex(os, dst_ptr, OS_FILE_LOG_BLOCK_SIZE);
     os << std::endl;
     ib::info() << os.str();
@@ -1077,16 +1077,16 @@ bool Encryption::encrypt_log_block(const IORequest &type, byte *src_ptr,
     memcpy(check_buf, dst_ptr, OS_FILE_LOG_BLOCK_SIZE);
     log_block_set_encrypt_bit(check_buf, true);
     dberr_t err = decrypt_log(type, check_buf, OS_FILE_LOG_BLOCK_SIZE, buf2,
-                                OS_FILE_LOG_BLOCK_SIZE);
+                              OS_FILE_LOG_BLOCK_SIZE);
     if (err != DB_SUCCESS ||
         memcmp(src_ptr, check_buf, OS_FILE_LOG_BLOCK_SIZE) != 0) {
-        std::ostringstream msg{};
-        ut_print_buf_hex(msg, src_ptr, OS_FILE_LOG_BLOCK_SIZE);
-        ib::error() << msg.str();
+      std::ostringstream msg{};
+      ut_print_buf_hex(msg, src_ptr, OS_FILE_LOG_BLOCK_SIZE);
+      ib::error() << msg.str();
 
-        msg.seekp(0);
-        ut_print_buf_hex(msg, check_buf, OS_FILE_LOG_BLOCK_SIZE);
-        ib::fatal() << msg.str();
+      msg.seekp(0);
+      ut_print_buf_hex(msg, check_buf, OS_FILE_LOG_BLOCK_SIZE);
+      ib::fatal() << msg.str();
     }
     ut_free(buf2);
     ut_free(check_buf);
@@ -1123,7 +1123,6 @@ byte *Encryption::encrypt_log(const IORequest &type, byte *src, ulint src_len,
 
 byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
                           byte *dst, ulint *dst_len) noexcept {
-
   ut_ad(m_type != NONE);
   ut_ad(!type.is_log());
 
@@ -1181,18 +1180,18 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
       ut_ad(m_klen == KEY_LEN);
       ut_ad(m_iv != nullptr);
 
-    /* Total length of the data to encrypt. */
-    if (m_type == KEYRING && page_type == FIL_PAGE_COMPRESSED) {
+      /* Total length of the data to encrypt. */
+      if (m_type == KEYRING && page_type == FIL_PAGE_COMPRESSED) {
         /* We need those 8 bytes for key_version and post-encryption checksum */
         data_len = src_enc_len - FIL_PAGE_DATA;
-    } else if (m_type == KEYRING && !type.is_page_zip_compressed()) {
+      } else if (m_type == KEYRING && !type.is_page_zip_compressed()) {
         /* For keyring encryption we do not encrypt last four bytes which are
            equal to the LSN bytes in header, so they are not encrypted
            anyways */
         data_len = src_enc_len - FIL_PAGE_DATA - 4;
-    } else {
+      } else {
         data_len = src_enc_len - FIL_PAGE_DATA;
-    }
+      }
       /* Server encryption functions expect input data to be in multiples
       of MY_AES_BLOCK SIZE. Therefore we encrypt the overlapping data of
       the chunk_len and trailer_len twice. First we encrypt the bigger
@@ -1246,7 +1245,8 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
 
         ut_a(static_cast<size_t>(elen) == trailer_len);
 
-        memcpy(dst + DST_HEADER_SIZE + data_len - trailer_len, buf, trailer_len);
+        memcpy(dst + DST_HEADER_SIZE + data_len - trailer_len, buf,
+               trailer_len);
       }
 
       break;
@@ -1657,7 +1657,7 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
     data_len += 8;
   } else if (page_type == FIL_PAGE_ENCRYPTED && m_type == Encryption::KEYRING &&
              !type.is_page_zip_compressed()) {
-  	data_len -= 4;  // Last 4 bytes are not encrypted
+    data_len -= 4;  // Last 4 bytes are not encrypted
   }
 
   main_len = (data_len / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;

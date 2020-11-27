@@ -77,7 +77,9 @@ class Partition_index_impl : public Weak_object_impl, public Partition_index {
   // is_disabled.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool is_disabled() const noexcept override { return m_index->is_disabled(); }
+  virtual bool is_disabled() const noexcept override {
+    return m_index->is_disabled();
+  }
 
   virtual void set_disabled(bool disable) noexcept override {
     m_index->set_disabled(disable);

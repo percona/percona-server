@@ -9,7 +9,7 @@ namespace keyring {
 
 class Vault_key_serializer final : public ISerializer {
  public:
-  ISerialized_object *serialize (
+  ISerialized_object *serialize(
       const collation_unordered_map<std::string, std::unique_ptr<IKey>>
           &keys_hash MY_ATTRIBUTE((unused)),
       IKey *key, const Key_operation operation) override {

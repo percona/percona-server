@@ -849,6 +849,8 @@ class trx_stats final {
     /* Always created in a zeroed memory block */
 #ifdef UNIV_DEBUG
 #pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wunknown-warning-option"
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #pragma GCC diagnostic ignored "-Wuninitialized"
     ut_ad(lock_que_wait_ustarted == 0);
@@ -918,6 +920,8 @@ class trx_stats final {
   void start_lock_wait() noexcept {
     if (UNIV_LIKELY(!take_stats)) return;
 #pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wunknown-warning-option"
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #pragma GCC diagnostic ignored "-Wuninitialized"
     ut_ad(lock_que_wait_ustarted == 0);
@@ -1474,6 +1478,8 @@ inline void trx_stats::stop_lock_wait(const trx_t &trx) noexcept {
   thd_report_innodb_stat(trx.mysql_thd, trx.id, MYSQL_TRX_STAT_LOCK_WAIT_USECS,
                          now - lock_que_wait_ustarted);
 #pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wunknown-warning-option"
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #pragma GCC diagnostic ignored "-Wuninitialized"
   ut_d(lock_que_wait_ustarted = 0);

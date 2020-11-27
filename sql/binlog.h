@@ -656,7 +656,9 @@ class MYSQL_BIN_LOG : public TC_LOG {
   void xlock(void) override;
   void xunlock(void) override;
   void slock(void) override { mysql_rwlock_rdlock(&LOCK_consistent_snapshot); }
-  void sunlock(void) override { mysql_rwlock_unlock(&LOCK_consistent_snapshot); }
+  void sunlock(void) override {
+    mysql_rwlock_unlock(&LOCK_consistent_snapshot);
+  }
 #else
   void xlock(void) override {}
   void xunlock(void) override {}

@@ -188,7 +188,7 @@ class Sql_cmd_update final : public Sql_cmd_dml {
 
  public:
   /// The original list of fields to update, used for privilege checking
-   mem_root_deque<Item *> original_fields;
+  mem_root_deque<Item *> original_fields;
   /// The values used to update fields
   mem_root_deque<Item *> *update_value_list;
 };

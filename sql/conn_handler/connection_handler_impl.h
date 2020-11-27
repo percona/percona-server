@@ -127,7 +127,7 @@ class Thread_pool_connection_handler : public Connection_handler {
  public:
   Thread_pool_connection_handler() { tp_init(); }
 
-  virtual ~Thread_pool_connection_handler() { tp_end(); }
+  ~Thread_pool_connection_handler() override { tp_end(); }
 
  protected:
   bool add_connection(Channel_info *channel_info) override;

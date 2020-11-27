@@ -15649,12 +15649,12 @@ static bool remove_secondary_keys(
     }
   }
 
-  if (table->file->ha_prepare_inplace_alter_table(
-          table, &ha_alter_info, table_def, td.get() ) ||
+  if (table->file->ha_prepare_inplace_alter_table(table, &ha_alter_info,
+                                                  table_def, td.get()) ||
       table->file->ha_inplace_alter_table(table, &ha_alter_info, table_def,
                                           td.get()) ||
-      table->file->ha_commit_inplace_alter_table(
-          table, &ha_alter_info, true, table_def, td.get())) {
+      table->file->ha_commit_inplace_alter_table(table, &ha_alter_info, true,
+                                                 table_def, td.get())) {
     table->file->ha_commit_inplace_alter_table(table, &ha_alter_info, false,
                                                table_def, td.get());
     return true;
@@ -15714,17 +15714,17 @@ static bool restore_secondary_keys(
       HA_ALTER_INPLACE_NOT_SUPPORTED)
     DBUG_RETURN(-1);
 
-  /* Use previously clonned altered_table_def (the one with disabled keys) 
+  /* Use previously clonned altered_table_def (the one with disabled keys)
      and enable keys */
 
   if (table->file->ha_prepare_inplace_alter_table(
-          table, &ha_alter_info, td.get(), altered_table_def ) ||
-      table->file->ha_inplace_alter_table(table, &ha_alter_info,
-                                          td.get(), altered_table_def ) ||
-      table->file->ha_commit_inplace_alter_table(
-          table, &ha_alter_info, true, td.get(), altered_table_def )) {
+          table, &ha_alter_info, td.get(), altered_table_def) ||
+      table->file->ha_inplace_alter_table(table, &ha_alter_info, td.get(),
+                                          altered_table_def) ||
+      table->file->ha_commit_inplace_alter_table(table, &ha_alter_info, true,
+                                                 td.get(), altered_table_def)) {
     table->file->ha_commit_inplace_alter_table(table, &ha_alter_info, false,
-                                               td.get(), altered_table_def );
+                                               td.get(), altered_table_def);
     DBUG_RETURN(true);
   }
   DBUG_RETURN(false);
@@ -17527,9 +17527,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     }
 
     if (optimize_keys &&
-        restore_secondary_keys(
-            thd, create_info, new_table, alter_info,
-            table_def, &dd_disabled_sec_keys)) {
+        restore_secondary_keys(thd, create_info, new_table, alter_info,
+                               table_def, &dd_disabled_sec_keys)) {
       error2 = true;
     }
 

@@ -491,8 +491,8 @@ bool Relay_log_info::cannot_safely_rollback() const {
     mysql_mutex_lock(&worker->jobs_lock);
     mysql_mutex_lock(&worker->info_thd_lock);
     if (worker->info_thd != nullptr) {
-        const auto &trx = worker->info_thd->get_transaction();
-        ret = trx ? trx->cannot_safely_rollback(Transaction_ctx::SESSION) : false;
+      const auto &trx = worker->info_thd->get_transaction();
+      ret = trx ? trx->cannot_safely_rollback(Transaction_ctx::SESSION) : false;
     }
     mysql_mutex_unlock(&worker->info_thd_lock);
     mysql_mutex_unlock(&worker->jobs_lock);

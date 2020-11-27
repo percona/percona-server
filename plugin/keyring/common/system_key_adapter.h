@@ -90,15 +90,15 @@ class System_key_adapter : public IKey {
     keyring_key->set_key_type(key_type);
   }
   bool load_from_buffer(uchar *buffer MY_ATTRIBUTE((unused)),
-                                size_t *buffer_position MY_ATTRIBUTE((unused)),
-                                size_t input_buffer_size
-                                    MY_ATTRIBUTE((unused))) noexcept override {
+                        size_t *buffer_position MY_ATTRIBUTE((unused)),
+                        size_t input_buffer_size
+                            MY_ATTRIBUTE((unused))) noexcept override {
     DBUG_ASSERT(false);
     return false;
   }
   void store_in_buffer(uchar *buffer MY_ATTRIBUTE((unused)),
-                               size_t *buffer_position
-                                   MY_ATTRIBUTE((unused))) const noexcept override {
+                       size_t *buffer_position
+                           MY_ATTRIBUTE((unused))) const noexcept override {
     DBUG_ASSERT(false);
   }
   bool is_key_type_valid() override {

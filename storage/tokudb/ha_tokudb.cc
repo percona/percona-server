@@ -4998,7 +4998,7 @@ cleanup:
   TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
-void ha_tokudb::restore_cached_transaction_pointer(THD* thd) {
+void ha_tokudb::restore_cached_transaction_pointer(THD *thd) {
   // Cached transaction may be already commited (and destroyed) and new
   // transaction cached pointer.
   tokudb_trx_data *trx = (tokudb_trx_data *)thd_get_ha_data(thd, tokudb_hton);

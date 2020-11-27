@@ -185,7 +185,9 @@ dberr_t Parallel_reader::Ctx::split() {
 }
 
 Parallel_reader::Parallel_reader(size_t max_threads, bool sync)
-    : m_max_threads(max_threads), m_ctxs(), m_sync(sync),
+    : m_max_threads(max_threads),
+      m_ctxs(),
+      m_sync(sync),
       m_trx_for_slow_log(innobase_get_trx_for_slow_log()) {
   m_n_completed = 0;
 

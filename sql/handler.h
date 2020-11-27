@@ -6157,8 +6157,10 @@ class handler {
     @brief Offload an update to the storage engine. See handler::fast_update()
     for details.
   */
-  MY_NODISCARD int ha_fast_update(THD *thd, mem_root_deque<Item *> &update_fields,
-                                  mem_root_deque<Item *> &update_values, Item *conds);
+  MY_NODISCARD int ha_fast_update(THD *thd,
+                                  mem_root_deque<Item *> &update_fields,
+                                  mem_root_deque<Item *> &update_values,
+                                  Item *conds);
 
   /**
     @brief Offload an upsert to the storage engine. See handler::upsert()
@@ -6187,8 +6189,8 @@ class handler {
     @note HA_READ_BEFORE_WRITE_REMOVAL flag doesn not fit there because
     handler::ha_update_row(...) does not accept conditions.
   */
-  MY_NODISCARD virtual int fast_update(THD *, mem_root_deque<Item *> &, mem_root_deque<Item *> &,
-                                       Item *) {
+  MY_NODISCARD virtual int fast_update(THD *, mem_root_deque<Item *> &,
+                                       mem_root_deque<Item *> &, Item *) {
     return ENOTSUP;
   }
 
@@ -6208,7 +6210,8 @@ class handler {
 
     @return an error if the insert should be terminated.
   */
-  MY_NODISCARD virtual int upsert(THD *, mem_root_deque<Item *> &, mem_root_deque<Item *> &) {
+  MY_NODISCARD virtual int upsert(THD *, mem_root_deque<Item *> &,
+                                  mem_root_deque<Item *> &) {
     return ENOTSUP;
   }
 

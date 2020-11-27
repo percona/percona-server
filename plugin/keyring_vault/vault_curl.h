@@ -34,7 +34,7 @@ class Vault_curl final : public IVault_curl, private boost::noncopyable {
   Vault_curl(ILogger *logger, uint timeout) noexcept
       : logger(logger), list(nullptr), timeout(timeout) {}
 
-  ~Vault_curl() {
+  ~Vault_curl() override {
     if (list != nullptr) curl_slist_free_all(list);
   }
 

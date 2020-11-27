@@ -432,7 +432,7 @@ class Thd_timeout_checker : public Do_THD_Impl {
  public:
   Thd_timeout_checker(pool_timer_t *timer) noexcept : m_timer(timer) {}
 
-  virtual ~Thd_timeout_checker() {}
+  ~Thd_timeout_checker() override {}
 
   void operator()(THD *thd) noexcept override {
     if (thd_get_net_read_write(thd) != 1) return;

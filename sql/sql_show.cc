@@ -4205,7 +4205,7 @@ class Fill_global_temporary_tables final : public Do_THD_Impl {
         m_failed(false),
         m_tables(tables) {}
 
-  virtual ~Fill_global_temporary_tables() {}
+  ~Fill_global_temporary_tables() override {}
 
   void operator()(THD *thd) override {
     mysql_mutex_lock(&thd->LOCK_temporary_tables);

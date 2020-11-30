@@ -157,3 +157,4 @@ auth_pam           plugin_output_directory                 AUTH_PAM
 auth_pam_compat    plugin_output_directory                 AUTH_PAM_COMPAT
 authentication_ldap_simple          plugin_output_directory  AUTH_LDAP             authentication_ldap_simple
 keyring_vault      plugin_output_directory      KEYRING_VAULT_PLUGIN keyring_vault
+test_udf_wrappers  plugin_output_directory  TEST_UDF_WRAPPERS_LIB

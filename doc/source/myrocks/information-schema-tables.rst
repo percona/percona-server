@@ -115,6 +115,60 @@ ROCKSDB_CF_OPTIONS
    * - VALUE
      - varchar(193)
 
+.. _ps.myrocks.information-schema-table.rocksdb-active-compaction-stats
+
+ROCKSDB_ACTIVE_COMPACTION_STATS
+================================================================================
+
+.. rubric:: Columns
+
+.. list-table::
+   :header-rows: 1
+
+   * - Column Name
+     - Type
+   * - THREAD_ID
+     - bigint
+   * - CF_NAME
+     - varchar(513)
+   * - INPUT_FILES
+     - varchar(513)
+   * - OUTPUT_FILES
+     - varchar(513)
+   * - COMPACTION_REASON
+     - varchar(513)
+
+.. _ps.myrocks.information-schema-table.rocksdb-compaction-history
+
+ROCKSDB_COMPACTION_HISTORY
+================================================================================
+
+.. rubric:: Columns
+
+.. list-table:: 
+   :header-rows: 1
+
+   * - Column Name
+     - Type
+   * - THREAD_ID
+     - bigint
+   * - CF_NAME
+     - varchar(513)
+   * - INPUT_LEVEL
+     - integer
+   * - OUTPUT_LEVEL
+     - integer
+   * - INPUT_FILES
+     - varchar(513)
+   * - OUTPUT_FILES
+     - varchar(513)
+   * - COMPACTION_REASON
+     - varchar(513)
+   * - START_TIMESTAMP
+     - bigint
+   * - END_TIMESTAMP
+     - bigint
+
 .. _ps.myrocks.information-schema-table.rocksdb-compaction-stats:
 
 ROCKSDB_COMPACTION_STATS

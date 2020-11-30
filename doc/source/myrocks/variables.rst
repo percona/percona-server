@@ -363,6 +363,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_max_compaction_history`
+     - Yes
+     - Yes
+     - Global
    * - :variable:`rocksdb_max_latest_deadlocks`
      - Yes
      - Yes
@@ -1779,6 +1783,18 @@ Creates a specified number of threads, sets a lower CPU priority, and letting co
 
 The minimum value is ``0`` and the maximum value is ``64``.
 
+.. variable:: rocksdb_max_compaction_history
+
+  :cli: ``--rocksdb-max-compaction-history``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Unsigned integer
+  :default: ``64``
+
+The minimum value is ``0`` and the maximum value is ``UINT64_MAX``.
+
+Tracks the history for at most ``rockdb_mx_compaction_history`` completed compactions. The history is in the INFORMATION_SCHEMA.ROCKSDB_COMPACTION_HISTORY table.
+
 .. variable:: rocksdb_max_latest_deadlocks
 
   :cli: ``--rocksdb-max-latest-deadlocks``
@@ -2295,12 +2311,14 @@ Specifies whether to include checksums when writing index or table records.
 Disabled by default.
 
 .. variable:: rocksdb_strict_collation_check
-
+  
   :cli: ``--rocksdb-strict-collation-check``
   :dyn: Yes
   :scope: Global
   :vartype: Boolean
   :default: ``ON``
+
+This variable is considered **deprecated** in version 8.0.23-14.
 
 Specifies whether to check and verify
 that table indexes have proper collation settings.
@@ -2313,6 +2331,8 @@ Enabled by default.
   :scope: Global
   :vartype: String
   :default:
+
+This variable is considered **deprecated** in version 8.0.23-14.
 
 Lists tables (as a regular expression) that should be excluded
 from verifying case-sensitive collation

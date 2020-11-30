@@ -47,6 +47,22 @@ SET(HEADERS_MYSQL_DIR
   mysql/udf_registration_types.h
 )
 
+SET(HEADERS_MYSQLPP_DIR
+  mysqlpp/common_types.hpp
+  mysqlpp/udf_context.hpp
+  mysqlpp/udf_context_charset_extension.hpp
+  mysqlpp/udf_error_reporter.hpp
+  mysqlpp/udf_exception.hpp
+  mysqlpp/udf_registration.hpp
+  mysqlpp/udf_traits.hpp
+  mysqlpp/udf_wrappers.hpp
+)
+
+SET(HEADERS_EXT_DIR
+  ext/optional.hpp
+  ext/string_view.hpp
+)
+
 INSTALL(FILES ${HEADERS}
   DESTINATION ${INSTALL_INCLUDEDIR}
   COMPONENT Development
@@ -54,6 +70,16 @@ INSTALL(FILES ${HEADERS}
 
 INSTALL(FILES ${HEADERS_MYSQL_DIR}
   DESTINATION ${INSTALL_INCLUDEDIR}/mysql
+  COMPONENT Development
+  )
+
+INSTALL(FILES ${HEADERS_MYSQLPP_DIR}
+  DESTINATION ${INSTALL_INCLUDEDIR}/mysqlpp
+  COMPONENT Development
+  )
+
+INSTALL(FILES ${HEADERS_EXT_DIR}
+  DESTINATION ${INSTALL_INCLUDEDIR}/ext
   COMPONENT Development
   )
 

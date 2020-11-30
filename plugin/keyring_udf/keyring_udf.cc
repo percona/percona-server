@@ -535,7 +535,7 @@ PLUGIN_EXPORT
 bool keyring_key_length_fetch_init(UDF_INIT *initid, UDF_ARGS *args,
                                    char *message) {
   return keyring_udf_func_init(initid, args, message, VALIDATE_KEY_ID,
-                               std::optional<size_t>(), 0);
+                               std::nullopt, 0);
 }
 
 PLUGIN_EXPORT

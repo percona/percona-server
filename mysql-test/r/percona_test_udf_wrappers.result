@@ -1,0 +1,153 @@
+***
+*** creating test UDF functions
+***
+CREATE FUNCTION wrapped_udf_string RETURNS STRING SONAME 'TEST_UDF_WRAPPERS_LIB';
+CREATE FUNCTION wrapped_udf_real RETURNS REAL SONAME 'TEST_UDF_WRAPPERS_LIB';
+CREATE FUNCTION wrapped_udf_int RETURNS INTEGER SONAME 'TEST_UDF_WRAPPERS_LIB';
+***
+*** checking 'wrapped_udf_string()'
+***
+
+* regardless of the exception thrown from the 'wrapped_udf_string_impl' class constructor
+* it will always be translated into 'ER_CANT_INITIALIZE_UDF' client error code
+SELECT wrapped_udf_string() AS result;
+ERROR HY000: Can't initialize function 'wrapped_udf_string'; function requires one or two argument
+SELECT wrapped_udf_string('', '', '') AS result;
+ERROR HY000: Can't initialize function 'wrapped_udf_string'; test udf_exception with sentinel
+SELECT wrapped_udf_string('', '', '', '') AS result;
+ERROR HY000: Can't initialize function 'wrapped_udf_string'; test udf_exception without sentinel
+SELECT wrapped_udf_string('', '', '', '', '') AS result;
+ERROR HY000: Can't initialize function 'wrapped_udf_string'; unexpected exception
+
+* for NULL parameter NULL is expected to be returned
+* string parameters are expected to be wrapped into '{' and '}'
+* integer and real values are expected to be converted to strings and then wrapped into '{' and '}'
+include/assert.inc [Checking wrapped_udf_string(): NULL]
+include/assert.inc [Checking wrapped_udf_string(): ""]
+include/assert.inc [Checking wrapped_udf_string(): " "]
+include/assert.inc [Checking wrapped_udf_string(): "abc"]
+include/assert.inc [Checking wrapped_udf_string(): "42"]
+include/assert.inc [Checking wrapped_udf_string(): "0.5"]
+include/assert.inc [Checking wrapped_udf_string(): 42]
+include/assert.inc [Checking wrapped_udf_string(): 0.5]
+***
+*** checking 'wrapped_udf_real()'
+***
+
+* regardless of the exception thrown from the 'wrapped_udf_real_impl' class constructor
+* it will always be translated into 'ER_CANT_INITIALIZE_UDF' client error code
+SELECT wrapped_udf_real() AS result;
+ERROR HY000: Can't initialize function 'wrapped_udf_real'; function requires one or two argument
+SELECT wrapped_udf_real('', '', '') AS result;
+ERROR HY000: Can't initialize function 'wrapped_udf_real'; test udf_exception with sentinel
+SELECT wrapped_udf_real('', '', '', '') AS result;
+ERROR HY000: Can't initialize function 'wrapped_udf_real'; test udf_exception without sentinel
+SELECT wrapped_udf_real('', '', '', '', '') AS result;
+ERROR HY000: Can't initialize function 'wrapped_udf_real'; unexpected exception
+
+* for NULL parameter NULL is expected to be returned
+* real parameters are expected to be incremented by 0.25
+* integer parameters are expected to be converted to reals and incremented by 0.25
+* strings containing proper integer/real values are expected to be converted to reals and incremented by 0.25
+* strings containing invalid numeric values are expected to be converted to 0.0 and incremented by 0.25
+include/assert.inc [Checking wrapped_udf_real(): NULL]
+include/assert.inc [Checking wrapped_udf_real(): ""]
+include/assert.inc [Checking wrapped_udf_real(): " "]
+include/assert.inc [Checking wrapped_udf_real(): "abc"]
+include/assert.inc [Checking wrapped_udf_real(): "42"]
+include/assert.inc [Checking wrapped_udf_real(): "0.5"]
+include/assert.inc [Checking wrapped_udf_real(): 42]
+include/assert.inc [Checking wrapped_udf_real(): 0.5]
+***
+*** checking 'wrapped_udf_int()'
+***
+
+* regardless of the exception thrown from the 'wrapped_udf_int_impl' class constructor
+* it will always be translated into 'ER_CANT_INITIALIZE_UDF' client error code
+SELECT wrapped_udf_int() AS result;
+ERROR HY000: Can't initialize function 'wrapped_udf_int'; function requires one or two argument
+SELECT wrapped_udf_int('', '', '') AS result;
+ERROR HY000: Can't initialize function 'wrapped_udf_int'; test udf_exception with sentinel
+SELECT wrapped_udf_int('', '', '', '') AS result;
+ERROR HY000: Can't initialize function 'wrapped_udf_int'; test udf_exception without sentinel
+SELECT wrapped_udf_int('', '', '', '', '') AS result;
+ERROR HY000: Can't initialize function 'wrapped_udf_int'; unexpected exception
+
+* for NULL parameter NULL is expected to be returned
+* real parameters are expected to be converted to integers and incremented by 100
+* integer parameters are expected to be incremented by 100
+* strings containing proper integer/real values are expected to be converted to integers and incremented by 100
+* strings containing invalid numeric values are expected to be converted to 0 and incremented by 100
+include/assert.inc [Checking wrapped_udf_int(): NULL]
+include/assert.inc [Checking wrapped_udf_int(): ""]
+include/assert.inc [Checking wrapped_udf_int(): " "]
+include/assert.inc [Checking wrapped_udf_int(): "abc"]
+include/assert.inc [Checking wrapped_udf_int(): "42"]
+include/assert.inc [Checking wrapped_udf_int(): "1.75"]
+include/assert.inc [Checking wrapped_udf_int(): 42]
+include/assert.inc [Checking wrapped_udf_int(): 1.75]
+***
+*** checking error codes / messages generated by throwing exceptions
+***
+
+* calling with a NULL for the second argument (marked as not nullable) must set
+* error code to ER_UDF_ERROR
+* if the second argument is not NULL, it is just ignored
+SELECT wrapped_udf_string('42', NULL) AS result;
+ERROR HY000: wrapped_udf_string<string> UDF failed; argument 2 cannot be null
+SELECT wrapped_udf_string('42', '42') AS result;
+result
+{42}
+SELECT wrapped_udf_real(42.0, NULL) AS result;
+ERROR HY000: wrapped_udf_real<real> UDF failed; argument 2 cannot be null
+SELECT wrapped_udf_real(42.0, 42.0) AS result;
+result
+42.25
+SELECT wrapped_udf_int(42, NULL) AS result;
+ERROR HY000: wrapped_udf_int<int> UDF failed; argument 2 cannot be null
+SELECT wrapped_udf_int(42, 42) AS result;
+result
+142
+
+* calling with special value '100' calls "my_error(ER_DA_OOM, MYF(0));" and throws
+* 'mysqlpp::udf_exception' with sentinel
+* Wrappers are expected not to overwrite error code set previously ('ER_DA_OOM')
+SELECT wrapped_udf_string('100') AS result;
+ERROR HY000: Out of memory
+SELECT wrapped_udf_real(100.0) AS result;
+ERROR HY000: Out of memory
+SELECT wrapped_udf_int(100) AS result;
+ERROR HY000: Out of memory
+
+* calling with special value '101' throws 'mysqlpp::udf_exception' with custom MySQL client
+* error code ER_WRAPPED_UDF_EXCEPTION
+SELECT wrapped_udf_string('101') AS result;
+ERROR HY000: Wrapped UDF exception in function 'wrapped_udf_string<string>'; test udf_exception without sentinel
+SELECT wrapped_udf_real(101.0) AS result;
+ERROR HY000: Wrapped UDF exception in function 'wrapped_udf_real<real>'; test udf_exception without sentinel
+SELECT wrapped_udf_int(101) AS result;
+ERROR HY000: Wrapped UDF exception in function 'wrapped_udf_int<int>'; test udf_exception without sentinel
+
+* calling with special value '102' throws 'std::runtime_error' (an exception derived from 'std::exception')
+* and we expect 'ER_UDF_ERROR' with custom error message to be returned
+SELECT wrapped_udf_string('102') AS result;
+ERROR HY000: wrapped_udf_string<string> UDF failed; test runtime_error
+SELECT wrapped_udf_real(102.0) AS result;
+ERROR HY000: wrapped_udf_real<real> UDF failed; test runtime_error
+SELECT wrapped_udf_int(102) AS result;
+ERROR HY000: wrapped_udf_int<int> UDF failed; test runtime_error
+
+* calling with special value '103' throws a constant '42' (a instance of a type that is not derived from 'std::exception')
+* and we expect 'ER_UDF_ERROR' with generic error message to be returned
+SELECT wrapped_udf_string('103') AS result;
+ERROR HY000: wrapped_udf_string<string> UDF failed; unexpected exception
+SELECT wrapped_udf_real(103.0) AS result;
+ERROR HY000: wrapped_udf_real<real> UDF failed; unexpected exception
+SELECT wrapped_udf_int(103) AS result;
+ERROR HY000: wrapped_udf_int<int> UDF failed; unexpected exception
+***
+*** dropping test UDF functions
+***
+DROP FUNCTION wrapped_udf_int;
+DROP FUNCTION wrapped_udf_real;
+DROP FUNCTION wrapped_udf_string;

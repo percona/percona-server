@@ -9552,6 +9552,9 @@ ER_DTE_ENCRYPTION_THREADS_ACTIVE
 ER_ENCRYPTION_KEY_ID_VALUE_OUT_OF_RANGE
   eng "The requested value %lu for the encryption_key_id exceeds the maximum allowed %lu"
 
+ER_WRAPPED_UDF_EXCEPTION
+  eng "Wrapped UDF exception in function '%-.192s'; %-.80s"
+
 #
 # End of Percona Server 8.0 client messages
 #

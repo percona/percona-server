@@ -28,12 +28,14 @@ CREATE TABLESPACE ts1 ADD DATAFILE 'MYSQL_TMP_DIR/Known_Dir/ts1.ibd';
 # Show these tablespaces in information_schema.
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	Any	ibdata1
 mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/Known_Dir/test/t1.ibd
 ts1	General	DEFAULT	0	Any	MYSQL_TMP_DIR/Known_Dir/ts1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t1	TABLESPACE	InnoDB	NORMAL	test/t1	MYSQL_TMP_DIR/Known_Dir/test/t1.ibd
@@ -59,6 +61,7 @@ CREATE TABLESPACE ts3 ADD DATAFILE 'MYSQL_TMP_DIR/known_dir/ts3.ibd';
 # Show these tablespaces in information_schema.
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	Any	ibdata1
 mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/Known_Dir/test/t1.ibd
@@ -69,6 +72,7 @@ ts2	General	DEFAULT	0	Any	MYSQL_TMP_DIR/KNOWN_DIR/ts2.ibd
 ts3	General	DEFAULT	0	Any	MYSQL_TMP_DIR/known_dir/ts3.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t1	TABLESPACE	InnoDB	NORMAL	test/t1	MYSQL_TMP_DIR/Known_Dir/test/t1.ibd

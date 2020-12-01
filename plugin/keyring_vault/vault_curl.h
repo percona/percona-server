@@ -34,16 +34,16 @@ class Vault_curl final : public IVault_curl, private boost::noncopyable {
   Vault_curl(ILogger *logger, uint timeout) noexcept
       : logger(logger), list(nullptr), timeout(timeout) {}
 
-  ~Vault_curl() {
+  ~Vault_curl() override {
     if (list != nullptr) curl_slist_free_all(list);
   }
 
-  virtual bool init(const Vault_credentials &vault_credentials);
-  virtual bool list_keys(Secure_string *response);
-  virtual bool write_key(const Vault_key &key, Secure_string *response);
-  virtual bool read_key(const Vault_key &key, Secure_string *response);
-  virtual bool delete_key(const Vault_key &key, Secure_string *response);
-  virtual void set_timeout(uint timeout) noexcept { this->timeout = timeout; }
+  bool init(const Vault_credentials &vault_credentials) override;
+  bool list_keys(Secure_string *response) override;
+  bool write_key(const Vault_key &key, Secure_string *response) override;
+  bool read_key(const Vault_key &key, Secure_string *response) override;
+  bool delete_key(const Vault_key &key, Secure_string *response) override;
+  void set_timeout(uint timeout) noexcept override { this->timeout = timeout; }
 
  private:
   bool setup_curl_session(CURL *curl);

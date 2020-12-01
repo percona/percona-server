@@ -126,7 +126,7 @@ SET PERSIST sort_buffer_size=256000;
 SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
 SET PERSIST long_query_time= 2.999999;
 SET PERSIST sql_require_primary_key= true;
-SET PERSIST default_table_encryption= ONLINE_TO_KEYRING;
+SET PERSIST default_table_encryption= ON;
 SET PERSIST table_encryption_privilege_check= true;
 SET @@persist.max_execution_time=44000, @@persist.max_user_connections=30;
 

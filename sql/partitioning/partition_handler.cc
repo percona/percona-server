@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -274,18 +274,6 @@ err:
 
   return true;
 }
-
-/**
-  Insert a partition name in the partition_name_hash.
-
-  @param name        Name of partition
-  @param part_id     Partition id (number)
-  @param is_subpart  Set if the name belongs to a subpartition
-
-  @return Operation status
-    @retval true   Failure
-    @retval false  Success
-*/
 
 bool Partition_share::insert_partition_name_in_hash(const char *name,
                                                     uint part_id,
@@ -733,26 +721,7 @@ int Partition_helper::ph_delete_row(const uchar *buf, bool lookup_rows) {
   return error;
 }
 
-/**
-  Get a range of auto increment values.
-
-  Can only be used if the auto increment field is the first field in an index.
-
-  This method is called by update_auto_increment which in turn is called
-  by the individual handlers as part of write_row. We use the
-  part_share->next_auto_inc_val, or search all
-  partitions for the highest auto_increment_value if not initialized or
-  if auto_increment field is a secondary part of a key, we must search
-  every partition when holding a mutex to be sure of correctness.
-
-  @param[in]   increment           Increment value.
-  @param[in]   nb_desired_values   Number of desired values.
-  @param[out]  first_value         First auto inc value reserved
-                                      or MAX if failure.
-  @param[out]  nb_reserved_values  Number of values reserved.
-*/
-
-void Partition_helper ::get_auto_increment_first_field(
+void Partition_helper::get_auto_increment_first_field(
     ulonglong increment, ulonglong nb_desired_values, ulonglong *first_value,
     ulonglong *nb_reserved_values) {
   THD *thd = get_thd();
@@ -911,9 +880,9 @@ uint32 Partition_helper::ph_calculate_key_hash_value(Field **field_array) {
           /* Not affected, same in 5.1 and 5.5 */
           break;
         /*
-          ENUM/SET uses my_hash_sort_simple in 5.1 (i.e. my_charset_latin1)
-          and my_hash_sort_bin in 5.5!
-        */
+          ENUM/SET uses my_hash_sort_simple in 5.1
+          (i.e. my_charset_latin1) and my_hash_sort_bin in 5.5!
+         */
         case MYSQL_TYPE_ENUM:
         case MYSQL_TYPE_SET: {
           if (field->is_null()) {
@@ -943,6 +912,7 @@ uint32 Partition_helper::ph_calculate_key_hash_value(Field **field_array) {
 
         /* These types should not be allowed for partitioning! */
         case MYSQL_TYPE_NULL:
+        case MYSQL_TYPE_BOOL:
         case MYSQL_TYPE_DECIMAL:
         case MYSQL_TYPE_DATE:
         case MYSQL_TYPE_TINY_BLOB:
@@ -951,6 +921,7 @@ uint32 Partition_helper::ph_calculate_key_hash_value(Field **field_array) {
         case MYSQL_TYPE_BLOB:
         case MYSQL_TYPE_VAR_STRING:
         case MYSQL_TYPE_GEOMETRY:
+        case MYSQL_TYPE_INVALID:
           /* fall through. */
         default:
           DBUG_ASSERT(0);  // New type?
@@ -1898,36 +1869,6 @@ int Partition_helper::ph_index_read_map(uchar *buf, const uchar *key,
   m_start_key.flag = find_flag;
   return common_index_read(buf, true);
 }
-
-/**
-  Common routine for a number of index_read variants.
-
-  @param[out] buf             Buffer where the record should be returned.
-  @param[in]  have_start_key  true <=> the left endpoint is available, i.e.
-                              we're in index_read call or in read_range_first
-                              call and the range has left endpoint.
-                              false <=> there is no left endpoint (we're in
-                              read_range_first() call and the range has no left
-                              endpoint).
-
-  @return Operation status
-    @retval 0                    OK
-    @retval HA_ERR_END_OF_FILE   Whole index scanned, without finding the
-  record.
-    @retval HA_ERR_KEY_NOT_FOUND Record not found, but index cursor positioned.
-    @retval other                Error code.
-
-  @details
-    Start scanning the range (when invoked from read_range_first()) or doing
-    an index lookup (when invoked from index_read_XXX):
-     - If possible, perform partition selection
-     - Find the set of partitions we're going to use
-     - Depending on whether we need ordering:
-        NO:  Get the first record from first used partition (see
-             handle_unordered_scan_next_partition)
-        YES: Fill the priority queue and get the record that is the first in
-             the ordering
-*/
 
 int Partition_helper::common_index_read(uchar *buf, bool have_start_key) {
   int error;
@@ -2948,13 +2889,6 @@ int Partition_helper::handle_ordered_prev(uchar *buf) {
   return 0;
 }
 
-/**
-  Get statistics from a specific partition.
-
-  @param[out] stat_info  Area to report values into.
-  @param[out] check_sum  Check sum of partition.
-  @param[in]  part_id    Partition to report from.
-*/
 void Partition_helper::get_dynamic_partition_info_low(ha_statistics *stat_info,
                                                       ha_checksum *check_sum,
                                                       uint part_id) {

@@ -85,7 +85,7 @@ DROP TABLE t1;
 
 --connection slave
 --source include/stop_slave.inc
-RESET SLAVE;
+RESET REPLICA;
 
 # Stop the master server
 --let $rpl_server_number= 1
@@ -136,7 +136,7 @@ SET GLOBAL binlog_encryption=ON;
 
 --connection slave
 --source include/stop_slave.inc
-RESET SLAVE;
+RESET REPLICA;
 
 --connection master
 RESET MASTER;

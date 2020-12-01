@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -102,7 +102,7 @@ class Rotate_binlog_master_key : public Alter_instance {
     @retval True on error
   */
   bool execute() override;
-  virtual ~Rotate_binlog_master_key() override = default;
+  ~Rotate_binlog_master_key() override = default;
 };
 
 class Rotate_redo_system_key final : public Alter_instance {

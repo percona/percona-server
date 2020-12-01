@@ -6,6 +6,7 @@
 # 14G virtual memory
 --source include/big_test.inc
 --source include/not_valgrind.inc
+--source include/not_asan.inc
 
 --echo #
 --echo # PS-7143 : Server freezes and reaches max connections due to ACL Cache Lock waits

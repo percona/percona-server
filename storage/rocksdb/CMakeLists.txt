@@ -29,7 +29,7 @@ ENDIF ()
 
 
 # Suppress warnings for all compilers
-append_cflags_if_supported(-Wno-unused-parameter)
+append_cflags_if_supported(-Wno-unused-parameter -Wno-suggest-override)
 # "cmake/maintainer.cmake" sets "-Wcast-qual -Wundef" which cause warnings with RocksDB
 remove_compile_flags(-Wcast-qual -Wundef)
 

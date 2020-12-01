@@ -25,15 +25,15 @@ struct Vault_key : public Key, public ISerialized_object {
   using Key::get_key_data_size;
   size_t get_key_data_size() const;
   using Key::get_key_type;
-  Key_type get_key_type() const;
-  std::string *get_key_type_as_string();
+  Key_type get_key_type() const override;
+  std::string *get_key_type_as_string() override;
   const std::string *get_key_type_as_string() const;
 
-  virtual bool get_next_key(IKey **key_out);
-  virtual bool has_next_key();
-  virtual void create_key_signature() const;
-  virtual void xor_data(uchar *, size_t);
-  virtual void xor_data();
+  bool get_next_key(IKey **key_out) override;
+  bool has_next_key() override;
+  void create_key_signature() const override;
+  void xor_data(uchar *, size_t) override;
+  void xor_data() override;
 
  protected:
   bool was_key_retrieved;

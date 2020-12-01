@@ -37,6 +37,11 @@ MACRO(GET_CURL_VERSION)
 ENDMACRO()
 
 MACRO(MYSQL_CHECK_CURL)
+  IF(NOT WITH_CURL)
+    SET(WITH_CURL "system"
+      CACHE STRING "By default use system curl on this platform")
+  ENDIF()
+
   IF(WITH_CURL STREQUAL "system")
     #  FindCURL.cmake will set
     #  CURL_INCLUDE_DIRS   - where to find curl/curl.h, etc.

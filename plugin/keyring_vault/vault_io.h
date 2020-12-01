@@ -16,21 +16,21 @@ class Vault_io final : public IVault_io, private boost::noncopyable {
            IVault_parser *vault_parser) noexcept
       : logger(logger), vault_curl(vault_curl), vault_parser(vault_parser) {}
 
-  ~Vault_io();
+  ~Vault_io() override;
 
-  virtual bool retrieve_key_type_and_data(IKey *key);
+  bool retrieve_key_type_and_data(IKey *key) override;
 
-  virtual bool init(std::string *keyring_storage_url);
-  virtual bool flush_to_backup(
-      ISerialized_object *serialized_object MY_ATTRIBUTE((unused))) {
+  bool init(std::string *keyring_storage_url) override;
+  bool flush_to_backup(
+      ISerialized_object *serialized_object MY_ATTRIBUTE((unused))) override {
     return false;  // we do not have backup storage in vault
   }
-  virtual bool flush_to_storage(ISerialized_object *serialized_object);
+  bool flush_to_storage(ISerialized_object *serialized_object) override;
 
-  virtual ISerializer *get_serializer();
-  virtual bool get_serialized_object(ISerialized_object **serialized_object);
-  virtual bool has_next_serialized_object() { return false; }
-  virtual void set_curl_timeout(uint timeout) noexcept {
+  ISerializer *get_serializer() override;
+  bool get_serialized_object(ISerialized_object **serialized_object) override;
+  bool has_next_serialized_object() override { return false; }
+  void set_curl_timeout(uint timeout) noexcept override {
     DBUG_ASSERT(vault_curl != nullptr);
     vault_curl->set_timeout(timeout);
   }

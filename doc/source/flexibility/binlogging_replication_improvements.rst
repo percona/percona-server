@@ -118,6 +118,166 @@ about what else affects the writing of ``FLUSH`` commands to the binary log.
       |MySQL| Documentation: FLUSH Syntax
          https://dev.mysql.com/doc/refman/8.0/en/flush.html
 
+.. _percona-server.binary-log.UDF:
+
+Binary Log User Defined Functions
+================================================================================
+
+To implement Point in Time recovery, we have added the ``binlog_utils_udf``. The following user-defined functions are included:
+
+.. list-table::
+   :widths: 20 20 50
+   :header-rows: 1
+
+   * - Name
+     - Returns
+     - Description
+   * - get_binlog_by_gtid()
+     - Binlog file name as STRING
+     - Returns the binlog file name that contains the specified GTID
+   * - get_last_gtid_from_binlog()
+     - GTID as STRING
+     - Returns the last GTID found in the specified binlog
+   * - get_gtid_set_by_binlog()
+     - GTID set as STRING
+     - Returns all GTIDs found in the specified binlog
+   * - get_binlog_by_gtid_set()
+     - Binlog file name as STRING
+     - Returns the file name of the binlog which contains at least one GTID from the specified set. 
+   * - get_first_record_timestamp_by_binlog()
+     - Timestamp as INTEGER
+     - Returns the timestamp of the first event in the specified binlog
+   * - get_last_record_timestamp_by_binlog()
+     - Timestamp as INTEGER
+     - Returns the timestamp of the last event in the specified binlog
+
+.. note::
+
+    All functions returning timestamps return their values as microsecond precision UNIX time. In other words, they represent the number of microseconds since 1-JAN-1970.
+
+    All functions accepting a binlog name as the parameter accepts only short names, without a path component. If the path separator ('/') is found in the input, an error is returned. This serves the purpose of restricting the locations from where binlogs can be read. They are always read from the current binlog directory (`@@log_bin_basename system variable <https://dev.mysql.com/doc/refman/8.0/en/replication-options-binary-log.html#sysvar_log_bin_basename>`_).
+
+    All functions returning binlog file names return the name in short form, without a path component.
+
+The basic syntax for ``get_binlog_by_gtid()`` is the following:
+
+* get_binlog_by_gtid(string) [AS] alias
+
+  Usage: SELECT get_binlog_by_gtid(string) [AS] alias
+
+  Example:
+
+  .. code-block:: mysql
+
+      CREATE FUNCTION get_binlog_by_gtid RETURNS STRING SONAME 'binlog_utils_udf.so';
+      SELECT get_binlog_by_gtid("F6F54186-8495-47B3-8D9F-011DDB1B65B3:1") AS result;
+      +--------------+
+      | result       |
+      +==============+
+      | binlog.00001 |
+      +--------------+
+
+      DROP FUNCTION get_binlog_by_gtid;
+
+The basic syntax for ``get_last_gtid_from_binlog()`` is the following:
+
+* get_last_gtid_from_binlog(string) [AS] alias
+
+  Usage: SELECT get_last_gtid_from_binlog(string) [AS] alias
+
+  Example:
+
+  .. code-block:: mysql
+
+      CREATE FUNCTION get_last_gtid_from_binlog RETURNS STRING SONAME 'binlog_utils_udf.so';
+      SELECT get_last_gtid_from_binlog("binlog.00001") AS result;
+      +-----------------------------------------+
+      | result                                  |
+      +=========================================+
+      | F6F54186-8495-47B3-8D9F-011DDB1B65B3:10 |
+      +-----------------------------------------+
+
+      DROP FUNCTION get_last_gtid_from_binlog;
+
+The basic syntax for ``get_gtid_set_by_binlog()`` is the following:
+
+* get_gtid_set_by_binlog(string) [AS] alias
+
+  Usage: SELECT get_gtid_set_by_binlog(string) [AS] alias
+
+  Example:
+
+  .. code-block:: mysql
+
+      CREATE FUNCTION get_gtid_set_by_binlog RETURNS STRING SONAME 'binlog_utils_udf.so';
+      SELECT get_gtid_set_by_binlog("binlog.00001") AS result;
+      +-------------------------+
+      | result                  |
+      +=========================+
+      | 11ea-b9a7:7,11ea-b9a7:8 |
+      +-------------------------+
+
+      DROP FUNCTION get_gtid_set_by_binlog;
+
+The basic syntax for ``get_binlog_by_gtid_set()`` is the following:
+
+* get_binlog_by_gtid_set(string) [AS] alias
+
+  Usage: SELECT get_binlog_by_gtid_set(string) [AS] alias
+
+  Example:
+
+  .. code-block:: mysql
+
+      CREATE FUNCTION get_binlog_by_gtid_set RETURNS STRING SONAME 'binlog_utils_udf.so';
+      SELECT get_binlog_by_gtid_set("11ea-b9a7:7,11ea-b9a7:8") AS result;
+      +---------------------------------------------------------------+
+      | result                                                        |
+      +===============================================================+
+      | bin.000003                                                    |
+      +---------------------------------------------------------------+
+
+      DROP FUNCTION get_binlog_by_gtid_set;
+
+The basic syntax for ``get_first_record_timestamp_by_binlog()`` is the following:
+
+* get_first_record_timestamp_by_binlog(TIMESTAMP) [AS] alias
+
+  Usage: SELECT get_first_record_timestamp_by_binlog(TIMESTAMP) [AS] alias
+
+  Example:
+
+  .. code-block:: mysql
+
+      CREATE FUNCTION get_first_record_timestamp_by_binlog RETURNS STRING SONAME 'binlog_utils_udf.so';
+      SELECT FROM_UNIXTIME(get_first_record_timestamp_by_binlog("bin.00003") DIV 1000000) AS result;
+      +---------------------+
+      | result              |
+      +=====================+
+      | 2020-12-03 09:10:40 |
+      +---------------------+
+
+      DROP FUNCTION get_first_record_timestamp_by_binlog;
+
+The basic syntax for ``get_last_record_timestamp_by_binlog()`` is the following:
+
+* get_last_record_timestamp_by_binlog(TIMESTAMP) [AS] alias
+
+  Usage: SELECT get_last_record_timestamp_by_binlog(TIMESTAMP) [AS] alias
+
+  Example:
+
+  .. code-block:: mysql
+
+      CREATE FUNCTION get_last_record_timestamp_by_binlog RETURNS STRING SONAME 'binlog_utils_udf.so';
+      SELECT FROM_UNIXTIME(get_last_record_timestamp_by_binlog("bin.00003") DIV 1000000) AS result;
+      +---------------------+
+      | result              |
+      +=====================+
+      | 2020-12-04 04:18:56 |
+      +---------------------+
+
+      DROP FUNCTION get_last_record_timestamp_by_binlog;
 
 .. |bsfc| replace:: :variable:`binlog_skip_flush_command`
 .. |super-read-only| replace:: :variable:`super_read_only`

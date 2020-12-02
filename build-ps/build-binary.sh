@@ -135,7 +135,7 @@ fi
 WORKDIR_ABS="$(cd "$WORKDIR"; pwd)"
 
 SOURCEDIR="$(cd $(dirname "$0"); cd ..; pwd)"
-test -e "$SOURCEDIR/VERSION" || exit 2
+test -e "$SOURCEDIR/MYSQL_VERSION" || exit 2
 
 # The number of processors is a good default for -j
 if test -e "/proc/cpuinfo"
@@ -146,7 +146,7 @@ else
 fi
 
 # Extract version from the VERSION file
-source "$SOURCEDIR/VERSION"
+source "$SOURCEDIR/MYSQL_VERSION"
 MYSQL_VERSION="$MYSQL_VERSION_MAJOR.$MYSQL_VERSION_MINOR.$MYSQL_VERSION_PATCH"
 PERCONA_SERVER_VERSION="$(echo $MYSQL_VERSION_EXTRA | sed 's/^-//')"
 PRODUCT="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
@@ -255,7 +255,7 @@ fi
         -DWITH_PAM=ON \
         -DWITH_ROCKSDB=ON \
         -DWITH_INNODB_MEMCACHED=ON \
-        -DWITH_ZLIB=system \
+        -DWITH_ZLIB=bundled \
         -DWITH_NUMA=ON \
         -DWITH_LDAP=system \
         -DDOWNLOAD_BOOST=1 \

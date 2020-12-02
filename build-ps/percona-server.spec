@@ -611,8 +611,6 @@ echo "%{_libdir}/mysql" > %{buildroot}%{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}
 %endif
 
 %if 0%{?systemd}
-install -D -p -m 0644 packaging/rpm-common/mysqlrouter.service %{buildroot}%{_unitdir}/mysqlrouter.service
-install -D -p -m 0644 packaging/rpm-common/mysqlrouter.tmpfiles.d %{buildroot}%{_tmpfilesdir}/mysqlrouter.conf
 %else
 install -D -p -m 0755 packaging/rpm-common/mysqlrouter.init %{buildroot}%{_sysconfdir}/init.d/mysqlrouter
 %endif
@@ -857,8 +855,6 @@ fi
 %attr(644, root, root) %{_mandir}/man1/myisampack.1*
 %attr(644, root, root) %{_mandir}/man8/mysqld.8*
 %if 0%{?systemd}
-%exclude %{_mandir}/man1/mysqld_multi.1*
-%exclude %{_mandir}/man1/mysqld_safe.1*
 %else
 %attr(644, root, root) %{_mandir}/man1/mysqld_multi.1*
 %attr(644, root, root) %{_mandir}/man1/mysqld_safe.1*
@@ -867,7 +863,6 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysql_secure_installation.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_upgrade.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlman.1*
-%attr(644, root, root) %{_mandir}/man1/mysql.server.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_tzinfo_to_sql.1*
 %attr(644, root, root) %{_mandir}/man1/perror.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_ssl_rsa_setup.1*
@@ -944,6 +939,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_simple.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_component_deinit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/binlog_utils_udf.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_wrappers.so
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/data_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
@@ -980,6 +977,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_services_host_application_signal.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_component_deinit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/binlog_utils_udf.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_udf_wrappers.so
 %if 0%{?mecab}
 %{_libdir}/mysql/mecab
 %attr(755, root, root) %{_libdir}/mysql/plugin/libpluginmecab.so
@@ -1313,6 +1312,7 @@ fi
 %doc %{src_dir}/router/README.router  %{src_dir}/router/LICENSE.router
 %dir %{_sysconfdir}/mysqlrouter
 %config(noreplace) %{_sysconfdir}/mysqlrouter/mysqlrouter.conf
+%attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysqlrouter
 %{_bindir}/mysqlrouter
 %{_bindir}/mysqlrouter_keyring
 %{_bindir}/mysqlrouter_passwd
@@ -1327,11 +1327,13 @@ fi
 %{_sysconfdir}/init.d/mysqlrouter
 %endif
 %{_libdir}/mysqlrouter/private/libmysqlharness.so.*
+%{_libdir}/mysqlrouter/private/libmysqlharness_stdx.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http_auth_backend.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http_auth_realm.so.*
 %{_libdir}/mysqlrouter/private/libprotobuf-lite.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_io_component.so.1
 %dir %{_libdir}/mysqlrouter
 %dir %{_libdir}/mysqlrouter/private
 %{_libdir}/mysqlrouter/*.so
@@ -2251,4 +2253,3 @@ lenz@mysql.com>
 - A developers changelog for MySQL is available in the source RPM. And
   there is a history of major user visible changed in the Reference
   Manual.  Only RPM specific changes will be documented here.
-

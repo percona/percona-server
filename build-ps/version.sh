@@ -6,7 +6,7 @@ EXTRA=$(echo $BRANCH | awk -F'-' '{print $3}')
 if [ -f ${DIR}/../VERSION ]; then
     source ${DIR}/../VERSION
     VER_FILE=${DIR}/../VERSION
-elif [ -f {DIR}/../MYSQL_VERSION ]; then
+elif [ -f ${DIR}/../MYSQL_VERSION ]; then
     source ${DIR}/../MYSQL_VERSION
     VER_FILE=${DIR}/../MYSQL_VERSION
 else
@@ -30,6 +30,6 @@ if [ ${INNODB_VER} != ${EXTRA} ]; then
     sed -i "s:define PERCONA_INNODB_VERSION ${INNODB_VER}:define PERCONA_INNODB_VERSION ${EXTRA}:" ${DIR}/../storage/innobase/include/univ.i
 fi
 FULL_VER=$(echo ${BRANCH} | awk -F'release-' '{print $2}')
-sed -i "s:'release-.*', d:'release-${FULL_VER}', d:" ${DIR}/../Jenkinsfile
-sed -i "s:'Percona-Server-.*', d:'Percona-Server-${FULL_VER}', d:g" ${DIR}/../Jenkinsfile
+sed -i "s:'release-.*', d:'release-${FULL_VER}', d:" ${DIR}/Jenkinsfile
+sed -i "s:'Percona-Server-.*', d:'Percona-Server-${FULL_VER}', d:g" ${DIR}/Jenkinsfile
 

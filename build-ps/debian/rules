@@ -83,6 +83,7 @@ ifeq ($(SKIP_DEBUG_BINARY),)
                 -DWITH_RAPIDJSON=bundled \
                 -DWITH_ICU=bundled \
                 -DWITH_ZSTD=bundled \
+		-DWITH_ZLIB=bundled \
                 -DWITH_LZ4=bundled \
                 -DWITH_EDITLINE=bundled \
                 -DWITH_LIBEVENT=bundled \
@@ -126,6 +127,7 @@ endif
                 -DWITH_ICU=bundled \
                 -DWITH_ZSTD=bundled \
                 -DWITH_LZ4=bundled \
+		-DWITH_ZLIB=bundled \
                 -DWITH_EDITLINE=bundled \
                 -DWITH_LIBEVENT=bundled \
                 -DWITH_NUMA=ON \
@@ -164,12 +166,16 @@ override_dh_auto_install:
 
 	# add systemd script
 	install -m 0755 debian/extra/mysql-systemd-start $(TMP)/usr/share/mysql/
+	install -m 0755 debian/extra/mysqlrouter-systemd-start $(TMP)usr/share/mysqlrouter/
 
 	# install default file for init script timeout params
 	install -d $(TMP)/etc/default
 	install -m 0644 debian/extra/default-mysql $(TMP)/etc/default/mysql
         # Add helper functions for maintainer scripts
 	install -m 0644 debian/extra/mysql-helpers debian/tmp/usr/share/mysql/
+	# add apparmor profile
+	install -g root -o root -m 0644 -D debian/extra/apparmor-profile $(TMP)/etc/apparmor.d/usr.sbin.mysqld
+	install -g root -o root -m 0644 -D debian/extra/apparmor-profile-router $(TMP)/etc/apparmor.d/usr.bin.mysqlrouter
 
 
 	# install source tarball for source package
@@ -181,6 +187,8 @@ override_dh_strip:
 
 override_dh_installinit:
 	@echo "RULES.$@"
+	dh_apparmor -ppercona-server-server --profile-name=usr.sbin.mysqld
+	dh_apparmor -ppercona-mysql-router --profile-name=usr.bin.mysqlrouter
 	if [ "$(DISTRELEASE)" != "precise" -a "$(DISTRELEASE)" != "trusty" -a "$(DISTRELEASE)" != "wheezy" ]; then dh_systemd_enable --name=mysql; dh_systemd_enable --no-enable --name=mysql@; fi
 	dh_installinit --name=mysql -- defaults 19 21
 	dh_installinit --name=mysqlrouter -- defaults 19 21

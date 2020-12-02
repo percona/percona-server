@@ -355,6 +355,8 @@ class ha_rocksdb : public my_core::handler {
                                  const rocksdb::Slice &key,
                                  rocksdb::PinnableSlice *value) const;
 
+  int fill_virtual_columns();
+
   int get_row_by_rowid(uchar *const buf, const char *const rowid,
                        const uint rowid_size, const bool skip_ttl_check = true,
                        const bool skip_lookup = false)
@@ -466,7 +468,8 @@ class ha_rocksdb : public my_core::handler {
                 HA_CAN_INDEX_BLOBS |
                 (m_pk_can_be_decoded ? HA_PRIMARY_KEY_IN_READ_INDEX : 0) |
                 HA_PRIMARY_KEY_REQUIRED_FOR_POSITION | HA_NULL_IN_KEY |
-                HA_PARTIAL_COLUMN_READ | HA_ONLINE_ANALYZE);
+                HA_PARTIAL_COLUMN_READ | HA_ONLINE_ANALYZE |
+                HA_GENERATED_COLUMNS | HA_CAN_INDEX_VIRTUAL_GENERATED_COLUMN);
   }
 
   bool init_with_fields() override;

@@ -115,25 +115,25 @@
  #define mysql_library_init mysql_server_init
 --- libmysql/CMakeLists.txt	2018-08-18 03:30:19.520515918 -0400
 +++ libmysql/CMakeLists.txt	2018-08-18 03:30:19.525932667 -0400
-@@ -245,13 +245,13 @@
+@@ -271,13 +271,13 @@
  # LDAP authentication SASL client plugin
  ADD_SUBDIRECTORY(authentication_ldap)
-
+ 
 -# Merge several convenience libraries into one big perconaserverclient
 -MERGE_CONVENIENCE_LIBRARIES(perconaserverclient ${LIBS_TO_MERGE} COMPONENT Development)
 -TARGET_LINK_LIBRARIES(perconaserverclient PRIVATE ${LIBS_TO_LINK})
 +# Merge several convenience libraries into one big mysqlclient
 +MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE} COMPONENT Development)
 +TARGET_LINK_LIBRARIES(mysqlclient PRIVATE ${LIBS_TO_LINK})
-
+ 
  # Visual Studio users need debug  static library for debug projects
  IF(MSVC)
 -  INSTALL_DEBUG_TARGET(perconaserverclient DESTINATION ${INSTALL_LIBDIR}/debug)
 +  INSTALL_DEBUG_TARGET(mysqlclient DESTINATION ${INSTALL_LIBDIR}/debug)
-
+ 
    INSTALL_DEBUG_TARGET(auth_win_client DESTINATION ${INSTALL_LIBDIR}/debug)
    INSTALL_DEBUG_TARGET(clientlib DESTINATION ${INSTALL_LIBDIR}/debug)
-@@ -279,7 +279,7 @@
+@@ -306,7 +306,7 @@
    ENDMACRO()
  ENDIF()
  
@@ -142,7 +142,7 @@
  # and link them together into shared library.
  MERGE_LIBRARIES_SHARED(libmysql ${LIBS_TO_MERGE}
    EXPORTS
-@@ -306,9 +306,9 @@
+@@ -338,9 +338,9 @@
      SET(OS_SHARED_LIB_VERSION
        "${SHARED_LIB_MAJOR_VERSION}.${SHARED_LIB_MINOR_VERSION}.${SHARED_LIB_PATCH_VERSION}")
    ENDIF()
@@ -154,8 +154,8 @@
      VERSION "${OS_SHARED_LIB_VERSION}" 
      SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
    CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
-@@ -329,8 +329,8 @@
-       PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
+@@ -362,8 +362,8 @@
+       "LINKER:--version-script=${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver")
    ENDIF() 
    # clean direct output needs to be set several targets have the same name
 -  #(perconaserverclient in this case)
@@ -468,14 +468,14 @@
 --- router/src/router/src/CMakeLists.txt        2019-12-04 10:04:41.980129555 +0200
 +++ router/src/router/src/CMakeLists.txt        2019-12-04 10:10:55.818892238 +0200
 @@ -71,7 +71,7 @@
-   ADD_LIBRARY(router_lib STATIC ${lib_source_files})
- ENDIF()
- TARGET_LINK_LIBRARIES(router_lib
--  ${CMAKE_DL_LIBS} harness-library perconaserverclient ${SSL_LIBRARIES}
-+  ${CMAKE_DL_LIBS} harness-library mysqlclient ${SSL_LIBRARIES}
+   ${CMAKE_DL_LIBS}
+   harness-library
+   harness_stdx
+-  perconaserverclient
++  mysqlclient
+   ${SSL_LIBRARIES}
+   io_component
    )
- TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC ../include)
- 
 --- router/tests/fuzzers/CMakeLists.txt 2019-12-04 10:04:41.996129551 +0200
 +++ router/tests/fuzzers/CMakeLists.txt 2019-12-04 10:11:53.090550318 +0200
 @@ -32,7 +32,7 @@

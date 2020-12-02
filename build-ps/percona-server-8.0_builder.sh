@@ -210,7 +210,7 @@ get_sources(){
     fi
     #
     git submodule update
-    cmake .  -DWITH_SSL=system -DFORCE_INSOURCE_BUILD=1
+    cmake .  -DWITH_SSL=system -DFORCE_INSOURCE_BUILD=1 -DWITH_ZLIB=bundled
     make dist
     #
     EXPORTED_TAR=$(basename $(find . -type f -name percona-server*.tar.gz | sort | tail -n 1))
@@ -344,6 +344,7 @@ install_deps() {
             apt-get -y install python-mysqldb
         fi
         apt-get -y install libeatmydata
+        apt-get -y install dh-apparmor
         apt-get -y install libmecab2 mecab mecab-ipadic
         apt-get -y install build-essential devscripts doxygen doxygen-gui graphviz rsync
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot libaio-dev

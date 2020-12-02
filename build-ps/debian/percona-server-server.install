@@ -120,6 +120,10 @@ usr/lib/mysql/plugin/debug/keyring_vault.so
 usr/lib/mysql/plugin/keyring_vault.so
 usr/lib/mysql/plugin/authentication_ldap_simple.so
 usr/lib/mysql/plugin/component_test_component_deinit.so
+usr/lib/mysql/plugin/binlog_utils_udf.so
+usr/lib/mysql/plugin/test_udf_wrappers.so
+usr/lib/mysql/plugin/debug/binlog_utils_udf.so
+usr/lib/mysql/plugin/debug/test_udf_wrappers.so
 # support files
 usr/share/mysql/dictionary.txt
 usr/share/mysql/mysql-log-rotate

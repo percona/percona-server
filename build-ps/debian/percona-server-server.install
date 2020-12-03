@@ -21,6 +21,10 @@ usr/bin/ibd2sdi
 debian/extra/mysql.cnf  etc/mysql/
 debian/extra/mysqld.cnf /etc/mysql/mysql.conf.d/
 
+# AppArmor profile
+debian/extra/apparmor.d/usr.sbin.mysqld.in etc/apparmor.d/
+debian/extra/apparmor.d/local/usr.sbin.mysqld.in etc/apparmor.d/local/
+
 # debug binary
 usr/sbin/mysqld-debug
 # man pages

@@ -86,7 +86,7 @@ case "$1" in
 					echo "[mysqld]" >> "$OVERRIDEFILE"
 					echo "default-authentication-plugin = mysql_native_password" >> "$OVERRIDEFILE"
 				fi
-            fi
+			fi
 		fi
 
 		# Check if we should enable lowercase table names
@@ -116,9 +116,32 @@ case "$1" in
 				echo "!includedir /etc/mysql/percona-server.conf.d/" >> /etc/mysql/mysql.cnf
 			fi
 		fi
-                if [ "${CNF_ACTION}" = "Use NEW my.cnf" ]; then
-		        update-alternatives --force --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 200
-                fi
+		if [ "${CNF_ACTION}" = "Use NEW my.cnf" ]; then
+			update-alternatives --force --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 200
+		fi
+
+		PROFILE_ACTION="Use NEW AppArmor profile"
+		# If the existing AppArmor module/local profile is the proper file, we back it up
+		if [ -f "/etc/apparmor.d/usr.sbin.mysqld" -o -f "/etc/apparmor.d/local/usr.sbin.mysqld" ]; then
+			db_input high percona-server-server/existing_profile_file || true
+			db_go
+			db_get percona-server-server/existing_config_file && PROFILE_ACTION=${RET}
+		fi
+		if [ "${PROFILE_ACTION}" = "Use NEW AppArmor profile" ]; then
+			DATE=`date +%Y-%m-%d-%H:%m:%S`
+			cp /etc/apparmor.d/usr.sbin.mysqld /etc/apparmor.d/usr.sbin.mysqld_$DATE.bak 2> /dev/null || true
+			cp /etc/apparmor.d/local/usr.sbin.mysqld /etc/apparmor.d/local/usr.sbin.mysqld_$DATE.bak 2> /dev/null || true
+
+			mv -f /etc/apparmor.d/usr.sbin.mysqld.in /etc/apparmor.d/usr.sbin.mysqld
+			mv -f /etc/apparmor.d/local/usr.sbin.mysqld.in /etc/apparmor.d/local/usr.sbin.mysqld
+
+		fi
+		rm -f /etc/apparmor.d/usr.sbin.mysqld.in
+		rm -f /etc/apparmor.d/local/usr.sbin.mysqld.in
+		if aa-status --enabled 2>/dev/null; then
+			apparmor_parser -r -T -W /etc/apparmor.d/usr.sbin.mysqld 2>/dev/null || true
+		fi
+
 		if [ ! "$(ls -A ${MYSQLDATA})" ] && [ -d ${MYSQLFILES} ];
 		then
 			db_get percona-server-server/root-pass && PASSWD=${RET}

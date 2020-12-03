@@ -31,7 +31,7 @@ ERROR HY000: Can't initialize function 'get_last_gtid_from_binlog'; Function req
 SELECT get_last_gtid_from_binlog('blah', 'blah');
 ERROR HY000: Can't initialize function 'get_last_gtid_from_binlog'; Function requires exactly one argument
 SELECT get_last_gtid_from_binlog('non_existing.000001');
-ERROR HY000: File './non_existing.000001' not found (OS errno 2 - No such file or directory)
+ERROR HY000: File 'non_existing.000001' not found (OS errno 2 - No such file or directory)
 include/assert.inc ['GTID extracted via get_last_gtid_from_binlog() for stage 1 should match the recorded value']
 include/assert.inc ['GTID extracted via get_last_gtid_from_binlog() for stage 2 should match the recorded value']
 include/assert.inc ['GTID extracted via get_last_gtid_from_binlog() for stage 3 should match the recorded value']
@@ -320,6 +320,8 @@ SELECT get_gtid_set_by_binlog();
 ERROR HY000: Can't initialize function 'get_gtid_set_by_binlog'; Function requires exactly one argument
 SELECT get_gtid_set_by_binlog('blah', 'blah');
 ERROR HY000: Can't initialize function 'get_gtid_set_by_binlog'; Function requires exactly one argument
+SELECT get_gtid_set_by_binlog('non_existing.000001');
+ERROR HY000: get_gtid_set_by_binlog<string> UDF failed; Binary log does not exist
 include/assert.inc ['GTID set extracted via get_gtid_set_by_binlog() for stage 1 should match the recorded value']
 include/assert.inc ['GTID set extracted via get_gtid_set_by_binlog() for stage 2 should match the recorded value']
 include/assert.inc ['GTID set extracted via get_gtid_set_by_binlog() for stage 3 should match the recorded value']
@@ -1532,6 +1534,8 @@ SELECT get_first_record_timestamp_by_binlog();
 ERROR HY000: Can't initialize function 'get_first_record_timestamp_by_binlog'; Function requires exactly one argument
 SELECT get_first_record_timestamp_by_binlog('blah', 'blah');
 ERROR HY000: Can't initialize function 'get_first_record_timestamp_by_binlog'; Function requires exactly one argument
+SELECT get_first_record_timestamp_by_binlog('non_existing.000001');
+ERROR HY000: File 'non_existing.000001' not found (OS errno 2 - No such file or directory)
 DELETE FROM loaded_ts;
 LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/filtered_binlog_file' INTO TABLE loaded_ts;
 include/assert.inc ['first record timestamp extracted via get_first_record_timestamp_by_binlog() for stage 1 should match the value extracted via mysqlbinlog']
@@ -1588,6 +1592,8 @@ SELECT get_last_record_timestamp_by_binlog();
 ERROR HY000: Can't initialize function 'get_last_record_timestamp_by_binlog'; Function requires exactly one argument
 SELECT get_last_record_timestamp_by_binlog('blah', 'blah');
 ERROR HY000: Can't initialize function 'get_last_record_timestamp_by_binlog'; Function requires exactly one argument
+SELECT get_last_record_timestamp_by_binlog('non_existing.000001');
+ERROR HY000: File 'non_existing.000001' not found (OS errno 2 - No such file or directory)
 DELETE FROM loaded_ts;
 LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/filtered_binlog_file' INTO TABLE loaded_ts;
 include/assert.inc ['last record timestamp extracted via get_last_record_timestamp_by_binlog() for stage 1 should match the value extracted via mysqlbinlog']

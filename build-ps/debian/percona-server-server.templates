@@ -55,6 +55,12 @@ Choices: Use existent my.cnf (RECOMMENDED), Use NEW my.cnf
 Description: Select which my.cnf should be used
  It was detected that there is my.cnf file on the system. Probably it comes from previous setup. Please decide should it be replaced or not.
 
+Template: percona-server-server/existing_profile_file
+Type: select
+Choices: Use existent AppArmor profile (RECOMMENDED), Use NEW AppArmor profile
+Description: Select which AppArmor profile should be used
+ It was detected that there is /etc/apparmor.d/(local)/usr.sbin.mysqld file on the system. Probably it comes from previous setup and may contain custom changes. Please decide should it be replaced or not.
+
 Template: percona-server-server/lowercase-table-names
 Type: select
 Choices: Enabled, Disabled

@@ -185,6 +185,10 @@ override_dh_auto_install:
 	# install source tarball for source package
 	install -D -m 0644 $(EXPORTED_SOURCE_TARBALL) $(TMP)/usr/src/percona-server/`basename $(EXPORTED_SOURCE_TARBALL)`
 
+	# install AppArmor profile for Percona Server
+	install -d $(TMP)/etc/apparmor.d
+	install -d $(TMP)/etc/apparmor.d/local
+
 override_dh_strip:
 	dh_strip --dbg-package=percona-server-dbg
 	dh_strip -Xlibprotobuf-lite

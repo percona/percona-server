@@ -49,7 +49,8 @@
 #include "prealloced_array.h"    // Prealloced_array
 #include "sql/sql_const.h"       // SHOW_COMP_OPTION
 #include "sql/sql_plugin_ref.h"  // plugin_ref
-#include "typelib.h"             // TYPELIB
+#include "sql_string.h"
+#include "typelib.h"  // TYPELIB
 
 class Item;
 class Item_func_set_user_var;
@@ -307,6 +308,8 @@ class sys_var {
   virtual Item *copy_value(THD *thd);
 
   void save_default(THD *thd, set_var *var) { global_save_default(thd, var); }
+
+  virtual void persist_only_to_string(THD *thd, set_var *var, String *dest) = 0;
 
  private:
   inline static bool set_and_truncate(char *dst, const char *string,

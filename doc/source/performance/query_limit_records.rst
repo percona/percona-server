@@ -4,7 +4,7 @@
 Limiting the Estimation of Records in a Query
 =========================================================
 
-:Availability:  This feature is **Experimental** quality.
+:Availability:  This feature is in tech preview.
 
 This page describes an alternative when running queries against a large number
 of table partitions. When a query runs, InnoDB estimates the records in each

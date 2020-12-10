@@ -55,7 +55,7 @@ usr/share/man/man1/mysqlrouter_passwd.1
 usr/share/man/man1/mysqlrouter_plugin_info.1
 debian/extra/mysqlrouter.conf /etc/mysqlrouter/
 # app armor profile
-etc/apparmor.d/usr.bin.mysqlrouter
+#etc/apparmor.d/usr.bin.mysqlrouter
 
 # support files
 etc/logrotate.d/mysqlrouter

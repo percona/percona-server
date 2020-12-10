@@ -174,8 +174,8 @@ override_dh_auto_install:
         # Add helper functions for maintainer scripts
 	install -m 0644 debian/extra/mysql-helpers debian/tmp/usr/share/mysql/
 	# add apparmor profile
-	install -g root -o root -m 0644 -D debian/extra/apparmor-profile $(TMP)/etc/apparmor.d/usr.sbin.mysqld
-	install -g root -o root -m 0644 -D debian/extra/apparmor-profile-router $(TMP)/etc/apparmor.d/usr.bin.mysqlrouter
+#	install -g root -o root -m 0644 -D debian/extra/apparmor-profile $(TMP)/etc/apparmor.d/usr.sbin.mysqld
+#	install -g root -o root -m 0644 -D debian/extra/apparmor-profile-router $(TMP)/etc/apparmor.d/usr.bin.mysqlrouter
 
 
 	# install source tarball for source package
@@ -187,8 +187,8 @@ override_dh_strip:
 
 override_dh_installinit:
 	@echo "RULES.$@"
-	dh_apparmor -ppercona-server-server --profile-name=usr.sbin.mysqld
-	dh_apparmor -ppercona-mysql-router --profile-name=usr.bin.mysqlrouter
+#	dh_apparmor -ppercona-server-server --profile-name=usr.sbin.mysqld
+#	dh_apparmor -ppercona-mysql-router --profile-name=usr.bin.mysqlrouter
 	if [ "$(DISTRELEASE)" != "precise" -a "$(DISTRELEASE)" != "trusty" -a "$(DISTRELEASE)" != "wheezy" ]; then dh_systemd_enable --name=mysql; dh_systemd_enable --no-enable --name=mysql@; fi
 	dh_installinit --name=mysql -- defaults 19 21
 	dh_installinit --name=mysqlrouter -- defaults 19 21

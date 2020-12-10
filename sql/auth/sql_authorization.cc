@@ -3331,6 +3331,14 @@ bool mysql_grant_role(THD *thd, const List<LEX_USER> *users,
         errors = true;
         break;
       }
+
+      if (acl_is_utility_user(lex_user->user.str, lex_user->host.str,
+                              nullptr)) {
+        my_error(ER_UNKNOWN_AUTHID, MYF(0), lex_user->user.str,
+                 lex_user->host.str);
+        return true;
+      }
+
       while ((role = roles_it++) && !errors) {
         ACL_USER *acl_role;
         if (role->user.length == 0 || *(role->user.str) == '\0') {

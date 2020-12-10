@@ -69,7 +69,7 @@ do_start() {
     install /dev/null -m 0640 -o mysqlrouter -g adm ${LOGFILE}
   fi
 
-  [ -x /lib/init/apparmor-profile-load ] && /lib/init/apparmor-profile-load usr.bin.mysqlrouter
+#  [ -x /lib/init/apparmor-profile-load ] && /lib/init/apparmor-profile-load usr.bin.mysqlrouter
 
   start-stop-daemon --start \
     --pidfile $PID \

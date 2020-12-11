@@ -927,9 +927,9 @@ class Bloom_filter final {
     // Duplicating ut_hash_ulint calculation
     const ulong pos = (key ^ 1653893711) % SIZE;
     DBUG_ASSERT(pos < SIZE);
-    if (bit_set->test(pos)) return false;
+    if (bit_set->test(pos)) return true;
     bit_set->set(pos);
-    return true;
+    return false;
   }
 };
 

@@ -29,7 +29,7 @@
 # pre mode  :  try to perform sanity check for configuration, log, data
 
 sanity () {
-  /lib/apparmor/profile-load usr.bin.mysqlrouter
+#  /lib/apparmor/profile-load usr.bin.mysqlrouter
 
   if [ ! -r /etc/mysqlrouter/mysqlrouter.conf ]; then
     echo "MySQL configuration not found at /etc/mysqlrouter/mysqlrouter.conf."

@@ -125,52 +125,29 @@ Installing |Percona Server| using downloaded rpm packages
 
 2. Unpack the bundle to get the packages: :bash:`tar xvf Percona-Server-8.0.21-12-r7ddfdfe-el8-x86_64-bundle.tar`
 
-   After you unpack the bundle, the following packages are available when running :bash:`ls *.rpm`:
-
-   .. admonition:: Output
-
-      .. code-block:: guess
-
-	 percona-server-80-debuginfo-8.0.13-3.el7.x86_64.rpm
-	 percona-server-client-80-8.0.13-3.el7.x86_64.rpm
-	 percona-server-devel-80-8.0.13-3.el7.x86_64.rpm
-	 percona-server-server-80-8.0.13-3.el7.x86_64.rpm
-	 percona-server-shared-80-8.0.13-3.el7.x86_64.rpm
-	 percona-server-shared-compat-80-8.0.13-3.el7.x86_64.rpm
-	 percona-server-test-80-8.0.13-3.el7.x86_64.rpm
-	 percona-server-tokudb-80-8.0.13-3.el7.x86_64.rpm
-
-  .. note::
-
-    For an RHEL 8 package installation, Percona Server requires the mysql module to be disabled. Run the following command:
-
-    .. code-block:: bash
-
-        $ sudo yum module disable mysql
-
 3. To view a list of packages, run the following command:
 
    .. code-block:: bash
 
       $ ls *.rpm
 
-      percona-mysql-router-8.0.21-12.2.el8.x86 64.rpm
-      percona-mysql-router-debuginfo-8.0.21-12.2.el8.x86 64.rpm
-      percona-server-client-8.0.21-12.2.el8.x86 64. rpm ￼
-      percona-server-client-debuginfo-8.0.21-12.2.el8.x86 64.
+      percona-mysql-router-8.0.21-12.2.el8.x86_64.rpm
+      percona-mysql-router-debuginfo-8.0.21-12.2.el8.x86_64.rpm
+      percona-server-client-8.0.21-12.2.el8.x86_64.rpm
+      percona-server-client-debuginfo-8.0.21-12.2.el8.x86_64.rpm
       percona-server-debuginfo-8.0.21-12.2.el8.x86_64.rpm
-      percona-server-debugsource-8.0.21-12.2.el8.x86 64.rpm
-      percona-server-devel-8.0.21-12.2.el8.x86 64.rpm
-      percona-server-rocksdb-8.0.21-12.2.el8.x86 64.rpm
-      percona-server-rocksdb-debuginfo-8.0.21-12.2.el8.x86 64.rpi
-      percona-server-server-8.0.21-12.2.el8.x86 64.rpm
-      percona-server-server-debuginfo-8.0.21-12.2.el8.x86 64.rp
+      percona-server-debugsource-8.0.21-12.2.el8.x86_64.rpm
+      percona-server-devel-8.0.21-12.2.el8.x86_64.rpm
+      percona-server-rocksdb-8.0.21-12.2.el8.x86_64.rpm
+      percona-server-rocksdb-debuginfo-8.0.21-12.2.el8.x86_64.rpm
+      percona-server-server-8.0.21-12.2.el8.x86_64.rpm
+      percona-server-server-debuginfo-8.0.21-12.2.el8.x86_64.rpm
       percona- server-shared-8.0.21-12.2.el8.x86_64.rpm
       percona-server-shared-compat-8.0.21-12.2.el8.x86_64.rpm
       percona-server-shared-debuginfo-8.0.21-12.2.el8.x86_64.rpm
-      percona-server-test-8.0.21-12.2.el8.x86 64.rpm
-      percona-server-test-debuginfo-8.0.21-12.2.el8.x86 64.rpm
-      percona-server-tokudb-8.0.21-12.2.el8.x86 64.rpm
+      percona-server-test-8.0.21-12.2.el8.x86_64.rpm
+      percona-server-test-debuginfo-8.0.21-12.2.el8.x86_64.rpm
+      percona-server-tokudb-8.0.21-12.2.el8.x86_64.rpm
 
 4. Install ``jemalloc`` with the following command, if needed:
 
@@ -178,7 +155,13 @@ Installing |Percona Server| using downloaded rpm packages
 
      wget https://repo.percona.com/yum/release/8/RPMS/x86_64/jemalloc-3.6.0-1.el8.x86_64.rpm
 
-4.  Install all the packages (for debugging, testing, etc.) with the following command:
+5.  For a RHEL/CentOS 8 package installation, |Percona Server| requires the mysql module to be disabled before installing the packages: 
+
+    .. code-block:: bash
+
+        sudo yum module disable mysql 
+
+6. Install all the packages (for debugging, testing, etc.) with the following command:
 
    .. code-block:: bash
 
@@ -186,7 +169,7 @@ Installing |Percona Server| using downloaded rpm packages
 
 .. note::
 
-   When installing packages manually like this, you must make sure to
+   When installing packages manually, you must make sure to
    resolve all dependencies and install any missing packages yourself.
 
 Running |Percona Server|

@@ -189,62 +189,7 @@ directory with a few steps:
   move is not a simple directory move on the same volume but a physical copy
   across volumes. This can take quite some time and prevent access to the table
   being moved during the copy.
-
-.. _editing_tokudb_files_with_tokudb_dir_cmd:
-
-Editing |TokuDB| directory map with :variable:`tokudb_dir_cmd`
---------------------------------------------------------------
-
-.. note::
-
-  This feature is currently considered *Experimental*.
-
-The :variable:`tokudb_dir_cmd` variable can be used to edit the |TokuDB|
-directory map.  **WARNING:** Use this variable only if you know what you're
-doing otherwise it **WILL** lead to data loss.
-
-This method can be used if any kind of system issue causes the loss of specific
-:file:`.tokudb` files for a given table, because the |TokuDB| tablespace file
-mapping will then contain invalid (nonexistent) entries, visible in
-:table:`INFORMATION_SCHEMA.TokuDB_file_map` table.
-
-This variable is used to send commands to edit directory file. The format of
-the command line is the following:
-
-.. code-block:: text
-
-  command arg1 arg2 .. argn
-
-I.e, if we want to execute some command the following statement can be used:
-
-.. code-block:: mysql
-
-  SET tokudb_dir_cmd = "command arg1 ... argn"
-
-Currently the following commands are available:
-
-* ``attach dictionary_name internal_file_name`` - attach internal_file_name to
-  a dictionary_name, if the dictionary_name exists override the previous value,
-  add new record otherwise
-* ``detach dictionary_name`` - remove record with corresponding
-  dictionary_name, the corresponding internal_file_name file stays untouched
-* ``move old_dictionary_name new_dictionary_name`` - rename (only)
-  dictionary_name from old_dictionary_name to new_dictionary_name
-
-Information about the dictionary_name and internal_file_name can be found in
-the :table:`TokuDB_file_map` table:
-
-.. code-block:: mysql
-
-  mysql> SELECT dictionary_name, internal_file_name FROM INFORMATION_SCHEMA.TokuDB_file_map;
-  +------------------------------+---------------------------------------------------------+
-  | dictionary_name              | internal_file_name                                      |
-  +------------------------------+---------------------------------------------------------+
-  | ./world/City-key-CountryCode | ./_world_sql_340a_39_key_CountryCode_12_1_1d_B_1.tokudb |
-  | ./world/City-main            | ./_world_sql_340a_39_main_12_1_1d_B_0.tokudb            |
-  | ./world/City-status          | ./_world_sql_340a_39_status_f_1_1d.tokudb               |
-  +------------------------------+---------------------------------------------------------+
-
+  
 System Variables
 ================
 
@@ -256,11 +201,11 @@ System Variables
      :dyn: Yes
      :vartype: String
 
-This variable is used to send commands to edit |TokuDB| directory map.
+This variable is used to send commands to edit |TokuDB| directory files. 
 
 .. warning::
 
-  Use this variable only if you know what you're doing otherwise it
+  Use this variable only if you know what you are doing otherwise it
   **WILL** lead to data loss.
 
 Status Variables
@@ -281,3 +226,61 @@ the :variable:`tokudb_dir_cmd` variable.
 
 This variable contains the error string of the last executed command by using
 the :variable:`tokudb_dir_cmd` variable.
+
+
+.. 
+  .. _editing_tokudb_files_with_tokudb_dir_cmd:
+
+  Editing |TokuDB| directory map with :variable:`tokudb_dir_cmd`
+  --------------------------------------------------------------
+
+  .. note::
+
+    This feature is currently considered *Experimental*.
+
+  The :variable:`tokudb_dir_cmd` variable can be used to edit the |TokuDB|
+  directory map.  **WARNING:** Use this variable only if you know what you're
+  doing otherwise it **WILL** lead to data loss.
+
+  This method can be used if any kind of system issue causes the loss of specific
+  :file:`.tokudb` files for a given table, because the |TokuDB| tablespace file
+  mapping will then contain invalid (nonexistent) entries, visible in
+  :table:`INFORMATION_SCHEMA.TokuDB_file_map` table.
+
+  This variable is used to send commands to edit directory file. The format of
+  the command line is the following:
+
+  .. code-block:: text
+
+    command arg1 arg2 .. argn
+
+  I.e, if we want to execute some command the following statement can be used:
+
+  .. code-block:: mysql
+
+    SET tokudb_dir_cmd = "command arg1 ... argn"
+
+  Currently the following commands are available:
+
+  * ``attach dictionary_name internal_file_name`` - attach internal_file_name to
+    a dictionary_name, if the dictionary_name exists override the previous value,
+    add new record otherwise
+  * ``detach dictionary_name`` - remove record with corresponding
+    dictionary_name, the corresponding internal_file_name file stays untouched
+  * ``move old_dictionary_name new_dictionary_name`` - rename (only)
+    dictionary_name from old_dictionary_name to new_dictionary_name
+
+  Information about the dictionary_name and internal_file_name can be found in
+  the :table:`TokuDB_file_map` table:
+
+  .. code-block:: mysql
+
+    mysql> SELECT dictionary_name, internal_file_name FROM INFORMATION_SCHEMA.TokuDB_file_map;
+    +------------------------------+---------------------------------------------------------+
+    | dictionary_name              | internal_file_name                                      |
+    +------------------------------+---------------------------------------------------------+
+    | ./world/City-key-CountryCode | ./_world_sql_340a_39_key_CountryCode_12_1_1d_B_1.tokudb |
+    | ./world/City-main            | ./_world_sql_340a_39_main_12_1_1d_B_0.tokudb            |
+    | ./world/City-status          | ./_world_sql_340a_39_status_f_1_1d.tokudb               |
+    +------------------------------+---------------------------------------------------------+
+

@@ -74,12 +74,6 @@ You should also consider the following:
       size is small enough. All modifications of the ongoing transactions are
       kept in memory.
 
-* The`XA protocol <https://dev.mysql.com/doc/refman/8.0/en/xa.html>`_ support,
-  which allows distributed transactions combining multiple separate
-  transactional resources, is an experimental feature in MyRocks: the
-  implementation is less tested, it may lack some functionality and be not as
-  stable as in case of InnoDB.
-
 * With partitioned tables that use the |TokuDB| or |MyRocks| storage engine,
   the upgrade only works with native partitioning.
 

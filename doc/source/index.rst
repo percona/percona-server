@@ -127,7 +127,6 @@ Security Improvements
   security/encrypting-threads
   security/encrypting-doublewrite-buffers
   security/verifying-encryption
-  security/data-scrubbing
   security/ssl-improvement
   security/data-masking
 
@@ -168,7 +167,6 @@ TokuDB
    tokudb/tokudb_fractal_tree_indexing
    tokudb/tokudb_troubleshooting
    tokudb/tokudb_performance_schema
-   tokudb/toku_backup
    tokudb/tokudb_faq
    tokudb/removing_tokudb
 

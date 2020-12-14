@@ -242,6 +242,12 @@ information to start a new replica from the source or replica.
 The ``SHOW MASTER STATUS`` and ``SHOW SLAVE STATUS`` commands provide the
 information.
 
+.. important::
+
+    As of |MySQL| 8.0.22, the ``SHOW SLAVE STATUS`` statement is
+    `deprecated <https://dev.mysql.com/doc/refman/8.0/en/show-replicas.html>`_.
+    Use ``SHOW REPLICA STATUS`` instead.
+    
 In specific binlog formats, a binary log event can contain statements that
 produce temporary tables on the replica side, and the result of further statements
 may depend on the temporary table content. Typically, temporary tables are not

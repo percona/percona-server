@@ -6,13 +6,13 @@ Encrypting a Schema or a General Tablespace
 
 |Percona Server| uses the same encryption architecture as |MySQL|, a two-tier
 system consisting of a master key and tablespace keys. The master key can be
-changed, or rotated in the keyring, as needed. Each of the tablespace keys, when
-decrypted, remain the same.
+changed, or rotated in the keyring, as needed. Each tablespace key, when
+decrypted, remains the same.
 
 The feature requires the keyring plugin.
 
 Setting the Default for Schemas and General Tablespace Encryption
-=======================================================================
+==================================================================
 
 The tables in a general tablespace are either all encrypted or all unencrypted.
 A tablespace cannot contain a mixture of encrypted tables and unencrypted
@@ -41,12 +41,12 @@ variable is implemented in |Percona Server| version 8.0.16-7.
 You can set the :variable:`default_table_encryption` variable in an individual
 connection.
 
-.. code-block:: MySQL
+.. code-block:: mysql
 
     mysql> SET default_table_encryption=ON;
 
 System Variable
----------------------
+----------------
 
 .. variable:: default_table_encryption
 
@@ -117,7 +117,7 @@ Setting Tablespace `ENCRYPTION` without the Default Setting
 If you do not set the default encryption setting, you can create general
 tablespaces with the ``ENCRYPTION`` setting.
 
-.. code-block:: MySQL
+.. code-block:: mysql
 
     mysql> CREATE TABLESPACE tablespace_name ENCRYPTION='Y';
 
@@ -138,7 +138,7 @@ accept the ``ENCRYPTION='Y/N'`` option.
 In an encrypted general tablespace, an attempt to create an unencrypted table
 generates the following error:
 
-.. code-block:: MySQL
+.. code-block:: mysql
 
     mysql> CREATE TABLE t3 (a INT, b TEXT) TABLESPACE foo ENCRYPTION='N';
     ERROR 1478 (HY0000): InnoDB: Tablespace 'foo' can contain only ENCRYPTED tables.
@@ -152,7 +152,7 @@ same structure in another tablespace and run ``INSERT INTO SELECT`` from each of
 the source tables into the destination tables.
 
 Exporting an Encrypted General Tablespace
-------------------------------------------------------------------
+--------------------------------------------
 
 You can only export encrypted file-per-table tablespaces
 

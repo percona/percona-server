@@ -4,16 +4,17 @@
 Encrypting Doublewrite Buffers
 =======================================================================
 
-The two types of doublewrite buffers used in |Percona Server| are encrypted differently.
+As of |Percona Server| 8.0.20-11, the Percona version of the
+doublewrite buffer is replaced with the MySQL implementation.
 
-When the InnoDB system tablespace is encrypted, the ``doublewrite buffer`` pages
-are encrypted as well. The key which was used to encrypt the InnoDB system
-tablespace is also used to encrypt the doublewrite buffer.
+Until |MySQL| 8.0.20, the system tablespace contained the doublewrite
+buffer. The key which encrypts the InnoDB system tablespace also
+encrypts the ``doublewrite buffer`` pages.
 
-|Percona Server| encrypts the ``doublewrite buffer`` with the respective
-tablespace keys. Only encrypted tablespace pages are written as encrypted in the
-doublewrite buffer. Unencrypted tablespace pages will be written as
-unencrypted.
+Currently, |Percona| encrypts the ``doublewrite buffer`` using :variable:`innodb_parallel_dblwr_encrypt`. 
+Encrypted tablespace pages are written as encrypted in the
+doublewrite buffer using their respective tablespace keys. Unencrypted tablespace pages are not encrypted in the
+doublewrite buffer.
 
  .. variable:: innodb_parallel_dblwr_encrypt
 
@@ -23,13 +24,11 @@ unencrypted.
     :vartype: Boolean
     :default: ``OFF``
 
-Enables the encryption of the doublewrite buffer. For encryption, uses
+Enables the encryption of the doublewrite buffer. The encryption uses
 the key of the tablespace where the doublewrite buffer is used.
 
 .. seealso::
 
-    :ref:`encrypting-system-tablespace`
+    `MySQL Doublewrite Buffer <https://dev.mysql.com/doc/refman/8.0/en/innodb-doublewrite-buffer.html>`_
 
-    :ref:`encrypting-tablespaces`
 
-    :ref:`encrypting-tables`

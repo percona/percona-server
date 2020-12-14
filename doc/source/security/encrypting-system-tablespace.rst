@@ -5,8 +5,10 @@ Encrypting the System Tablespace
 ==================================================================
 
 |Percona Server| supports system tablespace encryption. The InnoDB system
-tablespace may be encrypted with the Master key encryption or may use keyring
-encryption with ``Advanced Encryption Key Rotation``. 
+tablespace may be encrypted with the master key encryption or the keyring
+encryption with advanced encryption key rotation. 
+
+Keyring encryption is a **tech preview** feature.
 
 .. seealso::
 
@@ -16,7 +18,7 @@ The limitation is the following:
 
 * You cannot convert the system tablespace from the encrypted state to the
   unencrypted state, or the unencrypted state to the encrypted state. If a 
-  conversion is needed, you should create a new instance with the
+  conversion is needed, create a new instance with the
   system tablespace in the required state and transfer the user tables to that instance.
 
 .. important::
@@ -66,7 +68,7 @@ Re-Encrypt the System Tablespace
 ----------------------------------
 
 You can re-encrypt the system tablespace key with master key rotation. When
-the master key is rotated, the tablespace key is decrypted and re-encrypte
+the master key is rotated, the tablespace key is decrypted and re-encrypt
 with the new master key. Only the first page of the tablespace (.ibd) file is
 read and written during the key rotation. The tables in the tablespace are not
 re-encrypted.

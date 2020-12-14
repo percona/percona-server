@@ -47,15 +47,13 @@ A ``flag`` field in the ``INFORMATION_SCHEMA.INNODB_TABLESPACES`` has bit number
       +-------+-----------+-------+-----------+
       4 rows in set (0.01 sec)
 
-:Availabiliity: This feature is **Experimental**.
-
 The encrypted table metadata is contained in the
 INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION table. You must have the
 ``Process`` privilege to view the table information.
 
 .. note::
 
-    This table is **Experimental** and may change in future releases.
+    This table is in tech preview and may change in future releases.
 
 .. code-block:: MySQL
 

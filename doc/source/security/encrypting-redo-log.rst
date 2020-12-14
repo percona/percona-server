@@ -1,12 +1,15 @@
 .. _encrypting-redo-log:
 
 ================================================================================
-Encrypting the Redo Log
+Encrypting the Redo Log files
 ================================================================================
 
-The Redo log can be encrypted with the :variable: `innodb_redo_log_encrypt`
-variable. The default value for the variable is ``OFF``. The Redo log uses the
-tablespace encryption key.
+MySQL uses the redo log files to apply changes during data recovery.
+
+Encrypt the redo log files by enabling the :variable:`innodb_redo_log_encrypt`
+variable. The default value for the variable is ``OFF``.
+
+The Redo log files uses the tablespace encryption key.
 
 .. variable:: innodb_redo_log_encrypt
 
@@ -16,16 +19,14 @@ tablespace encryption key.
     :vartype: Text
     :default: OFF
 
-Determines the encryption for redo log data for tables. The encryption of redo
-log data, by default, is 'OFF'.  
+Determines the encryption for redo log data for tables.
 
 When you enable `innodb_redo_log_encrypt` any existing redo log pages stay
 unencrypted, and new pages are encrypted when they are written to disk. If you
-disable `innodb_redo_log_encrypt`, any encrypted pages remain encrypted, but
-new pages are unencrypted.
+disable `innodb_redo_log_encrypt` after enabling the variable, any encrypted pages remain encrypted, but the new pages are unencrypted.
 
-As implemented in :rn:`8.0.16-7`, the supported values for :variable:
-`innodb_redo_log_encrypt` are the following:
+As implemented in :rn:`8.0.16-7`, the supported values for
+:variable:`innodb_redo_log_encrypt` are the following:
 
 * ON
 
@@ -35,7 +36,7 @@ As implemented in :rn:`8.0.16-7`, the supported values for :variable:
 
 * keyring_key
 
-The keyring_key is an **Experimental** value.
+The ``keyring_key`` value is in tech preview.
 
 .. seealso::
 
@@ -46,14 +47,15 @@ The keyring_key is an **Experimental** value.
     For `innodb_redo_log_encrypt`, the "ON" value is a compatibility alias for
     master_key.
 
-After starting the server, an attempt to encrypt the redo log fails in the
-following conditions:
+After starting the server, an attempt to encrypt the redo log files fails
+if you have the following conditions:
 
     * Server started with no keyring specified
 
-    * Server started with a keyring, but you have specified a different redo
-      log encryption method that what the same server previously used.
-
+    * Server started with a keyring, but you specified a redo
+      log encryption method that is different then previously used
+      method on the server.
+      
 .. seealso::
 
     :ref:`encrypting-tables`

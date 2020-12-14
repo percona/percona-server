@@ -20,9 +20,9 @@ Data masking can have either of the characteristics:
 
 The following command installs the plugin:
 
-.. code-block:: bash
+.. code-block:: mysql
 
-    INSTALL PLUGIN data_masking SONAME 'data_masking.so';
+    $ INSTALL PLUGIN data_masking SONAME 'data_masking.so';
 
 .. rubric:: Data Masking functions
 
